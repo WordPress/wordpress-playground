@@ -1,4 +1,11 @@
 <?php
+// WordPress < 3.0 can't handle closures as hook callbacks — the old
+// $wp_filter array structure uses string-indexed arrays internally
+// and treats Closure objects as arrays, causing fatal errors. Skip
+// this mu-plugin entirely for those ancient versions.
+if (isset($GLOBALS['wp_version']) && version_compare($GLOBALS['wp_version'], '3.0', '<')) {
+	return;
+}
 
 /**
  * Add a notice to wp-login.php offering the username and password.

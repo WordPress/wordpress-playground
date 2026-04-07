@@ -87,10 +87,14 @@ export class BlueprintsV1Handler {
 
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
+		 * Skip for old WordPress versions — the functions called by prefetch
+		 * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
+		 * on legacy WP, and the resulting PHP errors create noise.
 		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
-		if (runtimeConfiguration.networking) {
+		const wpMajor = parseFloat(runtimeConfiguration.wpVersion) || 99;
+		if (runtimeConfiguration.networking && wpMajor >= 5) {
 			await playground.prefetchUpdateChecks();
 		}
 

@@ -38,6 +38,24 @@ export async function patchWordPressSourceFiles(
 	await patchWpInstallPhp(php, documentRoot);
 	await patchWpDbPhp(php, documentRoot);
 	await patchWpSchemaPhp(php, documentRoot);
+	await patchWpAdminRelativePaths(php, documentRoot);
+	if (phpMajor < 7) {
+		// Only stub update check files for old WP where http.php
+		// was skipped by patchWpSettingsPhp (WP 2.8-2.9). For WP
+		// 3.0+, the original update.php works fine after comment
+		// stripping and stubbing it breaks the install.
+		const wpSettingsPath = joinPaths(documentRoot, 'wp-settings.php');
+		if (
+			php.fileExists(wpSettingsPath) &&
+			php
+				.readFileAsText(wpSettingsPath)
+				.includes('Skipped for PHP 5.6 parser size limit')
+		) {
+			await disableUpdateChecks(php, documentRoot);
+		}
+		await ensureLegacyAdminAuth(php, documentRoot);
+		await patchAdminAuthRedirect(php, documentRoot);
+	}
 }
 
 /**
@@ -181,6 +199,10 @@ export async function preCreateLegacyTables(php: PHP): Promise<void> {
 						$pdo->exec("INSERT INTO {$p}options (option_name, option_value) VALUES ('home', 'http://localhost')");
 					}
 				} catch (Exception $e) {}
+				// Links tables (WP 1.2 install step 1 uses mysql_list_tables)
+				$pdo->exec("CREATE TABLE IF NOT EXISTS {$p}links (link_id INTEGER PRIMARY KEY AUTOINCREMENT, link_url TEXT NOT NULL DEFAULT '', link_name TEXT NOT NULL DEFAULT '', link_image TEXT NOT NULL DEFAULT '', link_target TEXT NOT NULL DEFAULT '', link_category INTEGER NOT NULL DEFAULT 0, link_description TEXT NOT NULL DEFAULT '', link_visible TEXT NOT NULL DEFAULT 'Y', link_owner INTEGER NOT NULL DEFAULT 1, link_rating INTEGER NOT NULL DEFAULT 0, link_updated TEXT NOT NULL DEFAULT '0000-00-00 00:00:00', link_rel TEXT NOT NULL DEFAULT '', link_notes TEXT NOT NULL DEFAULT '', link_rss TEXT NOT NULL DEFAULT '')");
+				$pdo->exec("CREATE TABLE IF NOT EXISTS {$p}linkcategories (cat_id INTEGER PRIMARY KEY AUTOINCREMENT, cat_name TEXT NOT NULL DEFAULT '', auto_toggle TEXT NOT NULL DEFAULT 'N', show_images TEXT NOT NULL DEFAULT 'Y', show_description TEXT NOT NULL DEFAULT 'N', show_rating TEXT NOT NULL DEFAULT 'Y', show_updated TEXT NOT NULL DEFAULT 'Y', sort_order TEXT NOT NULL DEFAULT 'name', sort_desc TEXT NOT NULL DEFAULT 'ASC', text_before_link TEXT NOT NULL DEFAULT '<li>', text_after_link TEXT NOT NULL DEFAULT '</li>', text_after_all TEXT NOT NULL DEFAULT '</ul>', list_limit INTEGER NOT NULL DEFAULT -1)");
+				$pdo->exec("CREATE TABLE IF NOT EXISTS {$p}comments (comment_ID INTEGER PRIMARY KEY AUTOINCREMENT, comment_post_ID INTEGER NOT NULL DEFAULT 0, comment_author TEXT NOT NULL DEFAULT '', comment_author_email TEXT NOT NULL DEFAULT '', comment_author_url TEXT NOT NULL DEFAULT '', comment_author_IP TEXT NOT NULL DEFAULT '', comment_date TEXT NOT NULL DEFAULT '0000-00-00 00:00:00', comment_date_gmt TEXT NOT NULL DEFAULT '0000-00-00 00:00:00', comment_content TEXT NOT NULL DEFAULT '', comment_karma INTEGER NOT NULL DEFAULT 0, comment_approved TEXT NOT NULL DEFAULT '1', comment_agent TEXT NOT NULL DEFAULT '', comment_type TEXT NOT NULL DEFAULT '', comment_parent INTEGER NOT NULL DEFAULT 0, user_id INTEGER NOT NULL DEFAULT 0)");
 				// Seed Hello world post
 				$pdo->exec("CREATE TABLE IF NOT EXISTS {$p}posts (ID INTEGER PRIMARY KEY AUTOINCREMENT, post_author INTEGER NOT NULL DEFAULT 0, post_date TEXT NOT NULL DEFAULT '0000-00-00 00:00:00', post_date_gmt TEXT NOT NULL DEFAULT '0000-00-00 00:00:00', post_content TEXT NOT NULL DEFAULT '', post_title TEXT NOT NULL DEFAULT '', post_category INTEGER NOT NULL DEFAULT 0, post_excerpt TEXT NOT NULL DEFAULT '', post_status TEXT NOT NULL DEFAULT 'publish', comment_status TEXT NOT NULL DEFAULT 'open', ping_status TEXT NOT NULL DEFAULT 'open', post_password TEXT NOT NULL DEFAULT '', post_name TEXT NOT NULL DEFAULT '', to_ping TEXT NOT NULL DEFAULT '', pinged TEXT NOT NULL DEFAULT '', post_modified TEXT NOT NULL DEFAULT '0000-00-00 00:00:00', post_modified_gmt TEXT NOT NULL DEFAULT '0000-00-00 00:00:00', post_content_filtered TEXT NOT NULL DEFAULT '')");
 				try {
@@ -204,9 +226,11 @@ export async function preCreateLegacyTables(php: PHP): Promise<void> {
  *    WordPress-based fixup fails (WP 1.x where loading WP may crash)
  */
 export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
+	// Derive siteUrl from the PHP request handler if available.
+	const siteUrl = (php as any).requestHandler?.siteUrl?.toString() || '';
 	// Stage 1: wpdb-based fixups (loads WordPress)
 	try {
-		await php.run({
+		const result = await php.run({
 			code: `<?php
 				// WP_INSTALLING allows bypassing WP 1.x's "not installed"
 				// die() check in wp-settings.php.
@@ -222,6 +246,26 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 				ob_clean();
 				global $wpdb;
 				if (!isset($wpdb) || !method_exists($wpdb, 'query')) { exit; }
+
+				// Fix siteurl for WP 1.x where the installer didn't run.
+				// The pre-create step set siteurl to 'http://localhost'
+				// which doesn't match the Playground's scoped URL.
+				// Derive the correct URL from ABSPATH and the scope-based
+				// path that WordPress will be served under.
+				$_pg_opts = !empty($wpdb->options) ? $wpdb->options : $GLOBALS['table_prefix'] . 'options';
+				try {
+					$_pg_current = $wpdb->get_var("SELECT option_value FROM {$_pg_opts} WHERE option_name = 'siteurl'");
+					if ($_pg_current === 'http://localhost' || empty($_pg_current)) {
+						// Use the PLAYGROUND_SITE_URL env if provided, otherwise
+						// keep the placeholder — it will be overridden by the
+						// first real HTTP request's $_SERVER values.
+						$_pg_url = getenv('PLAYGROUND_SITE_URL');
+						if ($_pg_url) {
+							$wpdb->query("UPDATE {$_pg_opts} SET option_value = '{$_pg_url}' WHERE option_name = 'siteurl'");
+							$wpdb->query("UPDATE {$_pg_opts} SET option_value = '{$_pg_url}' WHERE option_name = 'home'");
+						}
+					}
+				} catch (Exception $e) {}
 
 				// Fix admin password for WP < 2.5.
 				// Use $wpdb->users if available (WP 1.5+),
@@ -263,6 +307,77 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 					"UPDATE {$users_table} SET user_pass = MD5('password') WHERE user_login = 'admin'"
 				);
 
+				// Ensure WordPress roles exist and the admin user has
+				// admin capabilities. The installer calls populate_roles()
+				// but it may fail on SQLite. Set up roles and user caps
+				// directly via database queries as a fallback.
+				$p = $GLOBALS['table_prefix'];
+				$roles_key = $p . 'user_roles';
+				$_diag = array('prefix' => $p, 'roles_key' => $roles_key);
+				try {
+					$has_roles = $wpdb->get_var(
+						"SELECT COUNT(*) FROM {$p}options WHERE option_name = '{$roles_key}'"
+					);
+					$_diag['has_roles'] = $has_roles;
+				} catch (Exception $e) {
+					$has_roles = 0;
+					$_diag['roles_error'] = $e->getMessage();
+				}
+				if (!$has_roles) {
+					// Minimal administrator role with essential capabilities.
+					$roles = array('administrator' => array(
+						'name' => 'Administrator',
+						'capabilities' => array(
+							'switch_themes'=>true, 'edit_themes'=>true,
+							'activate_plugins'=>true, 'edit_plugins'=>true,
+							'edit_users'=>true, 'edit_files'=>true,
+							'manage_options'=>true, 'moderate_comments'=>true,
+							'manage_categories'=>true, 'manage_links'=>true,
+							'upload_files'=>true, 'import'=>true,
+							'unfiltered_html'=>true, 'edit_posts'=>true,
+							'edit_others_posts'=>true, 'edit_published_posts'=>true,
+							'publish_posts'=>true, 'edit_pages'=>true,
+							'read'=>true, 'level_10'=>true, 'level_9'=>true,
+							'level_8'=>true, 'level_7'=>true, 'level_6'=>true,
+							'level_5'=>true, 'level_4'=>true, 'level_3'=>true,
+							'level_2'=>true, 'level_1'=>true, 'level_0'=>true,
+							'edit_others_pages'=>true, 'edit_published_pages'=>true,
+							'publish_pages'=>true, 'delete_pages'=>true,
+							'delete_others_pages'=>true, 'delete_published_pages'=>true,
+							'delete_posts'=>true, 'delete_others_posts'=>true,
+							'delete_published_posts'=>true, 'delete_private_posts'=>true,
+							'edit_private_posts'=>true, 'read_private_posts'=>true,
+							'delete_private_pages'=>true, 'edit_private_pages'=>true,
+							'read_private_pages'=>true,
+						)
+					));
+					$wpdb->query("INSERT INTO {$p}options (option_name, option_value, autoload) VALUES ('{$roles_key}', '" . addslashes(serialize($roles)) . "', 'yes')");
+				}
+				// Set admin user capabilities and level in usermeta.
+				$um = isset($wpdb->usermeta) ? $wpdb->usermeta : $p . 'usermeta';
+				try {
+					$has_cap = $wpdb->get_var("SELECT COUNT(*) FROM {$um} WHERE user_id=1 AND meta_key='{$p}capabilities'");
+					if (!$has_cap) {
+						$cap_val = addslashes(serialize(array('administrator' => true)));
+						$wpdb->query("INSERT INTO {$um} (user_id, meta_key, meta_value) VALUES (1, '{$p}capabilities', '{$cap_val}')");
+					}
+					$has_level = $wpdb->get_var("SELECT COUNT(*) FROM {$um} WHERE user_id=1 AND meta_key='{$p}user_level'");
+					if (!$has_level) {
+						$wpdb->query("INSERT INTO {$um} (user_id, meta_key, meta_value) VALUES (1, '{$p}user_level', '10')");
+					}
+				} catch (Exception $e) {
+					$_diag['usermeta_error'] = $e->getMessage();
+				}
+				// Also check usermeta
+				try {
+					$_diag['all_usermeta'] = $wpdb->get_results(
+						"SELECT meta_key, meta_value FROM {$um} WHERE user_id=1", ARRAY_A
+					);
+				} catch (Exception $e) {
+					$_diag['usermeta_read_error'] = $e->getMessage();
+				}
+				echo 'ROLES_DIAG:' . json_encode($_diag);
+
 				// Seed default content when the posts table is empty.
 				// Covers both old WP 1.5 (SQLite NOT NULL fix) and
 				// WP 2.5+ where the install may have failed to seed
@@ -296,8 +411,14 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 			`,
 			env: {
 				DOCUMENT_ROOT: php.documentRoot,
+				PLAYGROUND_SITE_URL: siteUrl || '',
 			},
 		});
+		// TEMPORARY: Log diagnostic output
+		if (result.text.includes('ROLES_DIAG:')) {
+			const diagStr = result.text.split('ROLES_DIAG:')[1]?.split('\n')[0];
+			logger.warn('Legacy roles diagnostic:', diagStr);
+		}
 	} catch (error) {
 		// Non-fatal: post-install fixups may fail on some WP versions
 		logger.warn('Legacy WP post-install fixups failed (non-fatal):', error);
@@ -532,7 +653,7 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 				} catch (Exception $e) {}
 				try {
 					if (!$pdo->query("SELECT COUNT(*) FROM {$prefix}options WHERE option_name='siteurl'")->fetchColumn()) {
-						$site = 'http://localhost';
+						$site = getenv('PLAYGROUND_SITE_URL') ?: 'http://localhost';
 						$pdo->exec("INSERT INTO {$prefix}options (option_name, option_value) VALUES ('siteurl', '{$site}')");
 						$pdo->exec("INSERT INTO {$prefix}options (option_name, option_value) VALUES ('blogname', 'My WordPress Website')");
 						$pdo->exec("INSERT INTO {$prefix}options (option_name, option_value) VALUES ('blogdescription', 'Just another WordPress weblog')");
@@ -542,6 +663,7 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 			`,
 			env: {
 				DOCUMENT_ROOT: php.documentRoot,
+				PLAYGROUND_SITE_URL: siteUrl || '',
 			},
 		});
 	} catch (error) {
@@ -877,22 +999,11 @@ async function patchWpSettingsPhp(
 		await php.writeFile(wpSettingsPath, settings);
 	}
 
-	// PHP 5.6 WASM parser bug: strip large files and comments.
+	// PHP 5.6 WASM parser bug: large PHP files fail to parse silently.
+	// Strip doc comments and unnecessary whitespace from all PHP files
+	// in wp-includes and wp-admin/includes to bring them below the
+	// parser size threshold.
 	if (phpMajor < 7) {
-		for (const skipFile of ['template.php', 'media.php']) {
-			const skipPath = joinPaths(
-				documentRoot,
-				'wp-admin/includes',
-				skipFile
-			);
-			if (php.fileExists(skipPath)) {
-				await php.writeFile(
-					skipPath,
-					'<?php\n// Stripped by Playground for PHP 5.6 parser size limit\n'
-				);
-			}
-		}
-
 		await stripDocCommentsFromWpIncludes(php, documentRoot);
 	}
 }
@@ -1118,6 +1229,443 @@ async function patchWpDbPhp(php: PHP, documentRoot: string) {
 	}
 }
 
+/**
+ * Fixes relative paths in wp-admin files so they work regardless of CWD.
+ *
+ * Old WordPress (< 3.7) uses relative paths like `require('../wp-load.php')`
+ * and `require('./admin.php')` in wp-admin scripts. These fail in the
+ * Playground because PHP's CWD is set to the document root, not the
+ * script's directory. Modern WordPress uses `dirname(__FILE__)` instead.
+ */
+async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
+	// Generic fix: replace all relative requires in wp-admin PHP files
+	// with dirname(__FILE__)-based absolute paths. This handles WP 1.2
+	// through 3.6 where many files use './file.php' or '../file.php'.
+	const wpAdminDir = joinPaths(documentRoot, 'wp-admin');
+	if (php.isDir(wpAdminDir)) {
+		for (const file of php.listFiles(wpAdminDir)) {
+			if (!file.endsWith('.php')) continue;
+			const filePath = joinPaths(wpAdminDir, file);
+			const content = php.readFileAsText(filePath);
+			const patched = content
+				// ../path — parent directory
+				.replace(
+					/require(?:_once)?\s*\(\s*'(\.\.\/[^']+)'\s*\)/g,
+					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+				)
+				// ./path — current directory (explicit)
+				.replace(
+					/require(?:_once)?\s*\(\s*'(\.\/[^']+)'\s*\)/g,
+					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+				)
+				// require ('file.php') — space before parens
+				.replace(
+					/require(?:_once)?\s+\('(\.\.\/[^']+)'\)/g,
+					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+				)
+				// Bare filename without ./ prefix (e.g. 'admin-header.php').
+				// Only match filenames ending in .php to avoid false positives.
+				.replace(
+					/require(?:_once)?\s*\(\s*'([a-z][\w-]*\.php)'\s*\)/g,
+					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+				)
+				.replace(
+					/require(?:_once)?\s+\('([a-z][\w-]*\.php)'\)/g,
+					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+				)
+				// Fix ABSPATH . '/path' → ABSPATH . 'path' (removes double slash)
+				.replace(/ABSPATH\s*\.\s*'\/wp-/g, "ABSPATH . 'wp-");
+			if (patched !== content) {
+				await php.writeFile(filePath, patched);
+			}
+		}
+	}
+
+	// Specific patches for patterns the generic fix above can't handle
+	// (e.g., require without parentheses, unusual spacing).
+	const patches: Array<{ file: string; from: RegExp; to: string }> = [
+		// WP < 2.6: require_once('../wp-config.php') in admin.php
+		{
+			file: 'wp-admin/admin.php',
+			from: /require_once\s*\(\s*'\.\.\/wp-config\.php'\s*\)/,
+			to: "require_once(dirname(__FILE__) . '/../wp-config.php')",
+		},
+		// WP 2.6-2.9: require_once('../wp-load.php') in admin.php
+		{
+			file: 'wp-admin/admin.php',
+			from: /require_once\s*\(\s*'\.\.\/wp-load\.php'\s*\)/,
+			to: "require_once(dirname(__FILE__) . '/../wp-load.php')",
+		},
+		// WP 3.0-3.6: require_once('./admin.php') in index.php and index-extra.php
+		{
+			file: 'wp-admin/index.php',
+			from: /require_once\s*\(\s*'\.\/admin\.php'\s*\)/,
+			to: "require_once(dirname(__FILE__) . '/admin.php')",
+		},
+		{
+			file: 'wp-admin/index-extra.php',
+			from: /require_once\s*\(\s*'\.\/admin\.php'\s*\)/,
+			to: "require_once(dirname(__FILE__) . '/admin.php')",
+		},
+		// WP 3.0: require('./includes/dashboard.php') in index-extra.php
+		{
+			file: 'wp-admin/index-extra.php',
+			from: /require\s*\(\s*'\.\/includes\/dashboard\.php'\s*\)/,
+			to: "require(dirname(__FILE__) . '/includes/dashboard.php')",
+		},
+		// WP < 3.7: require[_once]('./admin-header.php') in index.php
+		{
+			file: 'wp-admin/index.php',
+			from: /require(?:_once)?\s*\(\s*'\.\/admin-header\.php'\s*\)/,
+			to: "require_once(dirname(__FILE__) . '/admin-header.php')",
+		},
+		// WP < 3.7: require[_once]('./admin-footer.php') in index.php
+		{
+			file: 'wp-admin/index.php',
+			from: /require(?:_once)?\s*\(\s*'\.\/admin-footer\.php'\s*\)/,
+			to: "require_once(dirname(__FILE__) . '/admin-footer.php')",
+		},
+		// WP 1.x: require('../wp-config.php') in index.php
+		{
+			file: 'wp-admin/index.php',
+			from: /require\s*\(\s*'\.\.\/wp-config\.php'\s*\)/,
+			to: "require(dirname(__FILE__) . '/../wp-config.php')",
+		},
+	];
+
+	for (const { file, from, to } of patches) {
+		const filePath = joinPaths(documentRoot, file);
+		if (!php.fileExists(filePath)) continue;
+		const content = php.readFileAsText(filePath);
+		if (from.test(content)) {
+			await php.writeFile(filePath, content.replace(from, to));
+		}
+	}
+
+	// WP 1.2: index.php redirects using get_settings('siteurl') which
+	// may be 'http://localhost' (wrong host for the Playground). Replace
+	// with relative redirects that work regardless of siteurl.
+	const indexPhpPath = joinPaths(documentRoot, 'wp-admin/index.php');
+	if (php.fileExists(indexPhpPath)) {
+		let indexPhp = php.readFileAsText(indexPhpPath);
+		if (indexPhp.includes("get_settings('siteurl')")) {
+			indexPhp = indexPhp.replace(
+				/get_settings\('siteurl'\)\s*\.\s*'\/wp-admin\//g,
+				"'"
+			);
+			await php.writeFile(indexPhpPath, indexPhp);
+		}
+	}
+
+	// WP 1.0.2 wp-admin/menu.php reads the admin menu definition from
+	// a relative path: `$menu = file('./menu.txt');`. The CWD during
+	// a Playground request is the document root (/wordpress), not
+	// wp-admin, so ./menu.txt resolves to /wordpress/menu.txt and
+	// fails. Rewrite to an absolute path relative to the menu.php
+	// file location.
+	const menuPhpPath = joinPaths(documentRoot, 'wp-admin/menu.php');
+	if (php.fileExists(menuPhpPath)) {
+		const menuPhp = php.readFileAsText(menuPhpPath);
+		const needle = `file('./menu.txt')`;
+		if (menuPhp.includes(needle)) {
+			await php.writeFile(
+				menuPhpPath,
+				menuPhp.replace(needle, `file(dirname(__FILE__) . '/menu.txt')`)
+			);
+		}
+	}
+}
+
+/**
+ * Writes a mu-plugin that forces admin authentication for legacy PHP.
+ *
+ * On old WordPress (< 3.5), the auth cookies set during auto-login
+ * may not validate correctly for the admin area. This mu-plugin
+ * re-generates auth cookies on every admin/login request, populating
+ * $_COOKIE directly so that auth_redirect() finds valid cookies.
+ *
+ * Written to wp-content/mu-plugins/ (real WP mu-plugins directory)
+ * rather than /internal/shared/mu-plugins/ because the internal
+ * mu-plugins load via the muplugins_loaded hook, which fires after
+ * wp_get_mu_plugins() but may not work reliably on all old WP.
+ */
+
+/**
+ * Replaces update check files with no-op stubs for legacy PHP.
+ *
+ * Old WordPress update functions (wp_version_check, wp_update_plugins,
+ * etc.) call wp_remote_get() which may not be available when the WASM
+ * parser fails on large files like http.php. Since we don't want to
+ * offer WP upgrades for legacy versions anyway, just stub them out.
+ */
+async function disableUpdateChecks(php: PHP, documentRoot: string) {
+	// wp-includes/update.php — loaded by wp-settings.php on every request
+	const wpIncUpdate = joinPaths(documentRoot, 'wp-includes/update.php');
+	if (php.fileExists(wpIncUpdate)) {
+		await php.writeFile(
+			wpIncUpdate,
+			`<?php
+// Stubbed by Playground — update checks disabled for legacy PHP.
+if (!function_exists('wp_version_check')) {
+	function wp_version_check() {}
+}
+if (!function_exists('wp_update_plugins')) {
+	function wp_update_plugins() {}
+}
+if (!function_exists('wp_update_themes')) {
+	function wp_update_themes() {}
+}
+if (!function_exists('wp_check_php_version')) {
+	function wp_check_php_version() { return false; }
+}
+`
+		);
+	}
+
+	// wp-admin/includes/update.php — loaded by admin includes
+	const wpAdminUpdate = joinPaths(
+		documentRoot,
+		'wp-admin/includes/update.php'
+	);
+	if (php.fileExists(wpAdminUpdate)) {
+		await php.writeFile(
+			wpAdminUpdate,
+			`<?php
+// Stubbed by Playground — update checks disabled for legacy PHP.
+if (!function_exists('wp_update_core')) {
+	function wp_update_core() {}
+}
+if (!function_exists('wp_update_plugin')) {
+	function wp_update_plugin() {}
+}
+if (!function_exists('wp_update_theme')) {
+	function wp_update_theme() {}
+}
+`
+		);
+	}
+}
+
+async function ensureLegacyAdminAuth(php: PHP, documentRoot: string) {
+	const muDir = joinPaths(documentRoot, 'wp-content/mu-plugins');
+	if (!php.isDir(muDir)) {
+		php.mkdir(muDir);
+	}
+	await php.writeFile(
+		joinPaths(muDir, '0-legacy-admin-auth.php'),
+		`<?php
+if (!defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) return;
+function playground_legacy_admin_auth() {
+	if (empty($_SERVER['REQUEST_URI'])) return;
+	if (strpos($_SERVER['REQUEST_URI'], 'wp-admin') === false &&
+	    strpos($_SERVER['REQUEST_URI'], 'wp-login') === false) return;
+
+	$username = PLAYGROUND_AUTO_LOGIN_AS_USER;
+
+	// WP 2.5+ auth system: HMAC-based auth cookies.
+	if (function_exists('wp_generate_auth_cookie')) {
+		$user = function_exists('get_user_by')
+			? get_user_by('login', $username)
+			: (function_exists('get_userdatabylogin')
+				? get_userdatabylogin($username) : null);
+		if (!$user) return;
+
+		wp_set_current_user($user->ID, $user->user_login);
+		$expiration = time() + 172800;
+		if (defined('AUTH_COOKIE'))
+			$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'auth');
+		if (defined('SECURE_AUTH_COOKIE'))
+			$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'secure_auth');
+		if (defined('LOGGED_IN_COOKIE'))
+			$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'logged_in');
+		if (!headers_sent()) {
+			wp_set_auth_cookie($user->ID);
+		}
+		return;
+	}
+
+	// WP < 2.5 auth system: USER_COOKIE + PASS_COOKIE with
+	// double-md5 hashed password. The admin password is 'password'
+	// (set during legacy WP installation).
+	if (defined('USER_COOKIE') && defined('PASS_COOKIE')) {
+		$_COOKIE[USER_COOKIE] = $username;
+		$_COOKIE[PASS_COOKIE] = md5(md5('password'));
+		if (function_exists('wp_setcookie') && !headers_sent()) {
+			wp_setcookie($username, 'password');
+		}
+	}
+}
+add_action('init', 'playground_legacy_admin_auth', 0);
+`
+	);
+}
+
+/**
+ * Patches wp-admin/admin.php to inject auth cookie population before
+ * auth_redirect(). This is needed for WP < 2.8 which doesn't have
+ * mu-plugin support — the mu-plugin-based auth fix can't run.
+ *
+ * Inserts PHP code that populates $_COOKIE with valid auth cookies
+ * right before the auth_redirect() call.
+ */
+async function patchAdminAuthRedirect(php: PHP, documentRoot: string) {
+	// Bail out entirely on WP 2.8+ where mu-plugins handle auth.
+	const wpSettingsPath = joinPaths(documentRoot, 'wp-settings.php');
+	if (php.fileExists(wpSettingsPath)) {
+		const settings = php.readFileAsText(wpSettingsPath);
+		if (settings.includes('mu_plugin') || settings.includes('mu-plugin')) {
+			return;
+		}
+	}
+
+	// WP 2.0-2.7 path: patch wp-admin/admin.php before the
+	// auth_redirect() call. WP 1.2 doesn't have admin.php — the
+	// wp-admin/auth.php patch at the bottom of this function
+	// handles that case and must run even when admin.php is missing.
+	const adminPhpPath = joinPaths(documentRoot, 'wp-admin/admin.php');
+	const content = php.fileExists(adminPhpPath)
+		? php.readFileAsText(adminPhpPath)
+		: '';
+	const shouldPatchAdminPhp = content.includes('auth_redirect()');
+
+	// For WP 2.5-2.7: modern auth with wp_generate_auth_cookie
+	// For WP < 2.5: legacy auth with USER_COOKIE/PASS_COOKIE
+	const authCode = `
+// Playground: populate auth cookies and force admin user before auth_redirect.
+if (defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) {
+	if (function_exists('wp_generate_auth_cookie')) {
+		$_pg_user = function_exists('get_user_by')
+			? get_user_by('login', PLAYGROUND_AUTO_LOGIN_AS_USER)
+			: (function_exists('get_userdatabylogin')
+				? get_userdatabylogin(PLAYGROUND_AUTO_LOGIN_AS_USER) : null);
+		if ($_pg_user) {
+			wp_set_current_user($_pg_user->ID, $_pg_user->user_login);
+			$_pg_exp = time() + 172800;
+			if (defined('AUTH_COOKIE'))
+				$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($_pg_user->ID, $_pg_exp, 'auth');
+			if (defined('SECURE_AUTH_COOKIE'))
+				$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($_pg_user->ID, $_pg_exp, 'secure_auth');
+			if (defined('LOGGED_IN_COOKIE'))
+				$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($_pg_user->ID, $_pg_exp, 'logged_in');
+			// Force admin capabilities on the global current_user.
+			// wp_set_current_user() creates a new WP_User that loads
+			// caps from the database. If populate_roles() didn't run,
+			// the user has no caps. Set them directly in-memory.
+			$_pg_cu = isset($GLOBALS['current_user']) ? $GLOBALS['current_user'] : null;
+			if ($_pg_cu) {
+				$_pg_cu->user_level = 10;
+				$_pg_caps = array('switch_themes','edit_themes','activate_plugins',
+					'edit_plugins','edit_users','edit_files','manage_options',
+					'moderate_comments','manage_categories','manage_links',
+					'upload_files','import','unfiltered_html','edit_posts',
+					'edit_others_posts','edit_published_posts','publish_posts',
+					'edit_pages','read','level_10','level_9','level_8',
+					'level_7','level_6','level_5','level_4','level_3',
+					'level_2','level_1','level_0');
+				foreach ($_pg_caps as $_pg_c) {
+					$_pg_cu->allcaps[$_pg_c] = true;
+				}
+				$_pg_cu->caps = array('administrator' => true);
+			}
+		}
+	} elseif (defined('USER_COOKIE') && defined('PASS_COOKIE')) {
+		$_COOKIE[USER_COOKIE] = PLAYGROUND_AUTO_LOGIN_AS_USER;
+		$_COOKIE[PASS_COOKIE] = md5(md5('password'));
+		if (function_exists('wp_set_current_user') && function_exists('get_userdatabylogin')) {
+			$_pg_old_user = get_userdatabylogin(PLAYGROUND_AUTO_LOGIN_AS_USER);
+			if ($_pg_old_user && isset($_pg_old_user->ID)) {
+				wp_set_current_user($_pg_old_user->ID, $_pg_old_user->user_login);
+			}
+		}
+	} elseif (defined('COOKIEHASH')) {
+		// WP 1.5-1.x: hardcoded cookie names without constants.
+		$_COOKIE['wordpressuser_' . COOKIEHASH] = PLAYGROUND_AUTO_LOGIN_AS_USER;
+		$_COOKIE['wordpresspass_' . COOKIEHASH] = md5(md5('password'));
+	}
+}
+`;
+	if (shouldPatchAdminPhp) {
+		const patched = content.replace(
+			'auth_redirect();',
+			authCode + 'auth_redirect();'
+		);
+		if (patched !== content) {
+			await php.writeFile(adminPhpPath, patched);
+		}
+	}
+
+	// WP 1.2: auth.php uses $cookiehash variable (not admin.php/auth_redirect).
+	// Replace it with a stub that loads wp-config.php and pre-populates
+	// the user globals so get_currentuserinfo() in wp-admin/index.php
+	// sees an authenticated admin. Also set the wordpressuser_ cookie
+	// so any downstream code that reads it still works.
+	const authPhpPath = joinPaths(documentRoot, 'wp-admin/auth.php');
+	if (php.fileExists(authPhpPath)) {
+		const authPhp = php.readFileAsText(authPhpPath);
+		if (
+			authPhp.includes('$cookiehash') &&
+			!authPhp.includes('Playground: bypass auth')
+		) {
+			const bypassedAuth = `<?php
+require_once(ABSPATH . 'wp-config.php');
+// Playground: bypass auth and manually populate user globals for
+// WP 1.0-1.2. The original auth.php calls wp_login()/veriflog()
+// with cookie values that Playground can't reliably set (the
+// password cookie is an md5 of the stored pw and
+// get_settings('siteurl') may not be stable during install).
+// Short-circuit the cookie roundtrip by setting the cookies AND
+// directly populating the user globals that get_currentuserinfo()
+// would have set.
+//
+// Cookie-hash gotcha: WP 1.2 defines both \$cookiehash variable
+// AND the COOKIEHASH constant; WP 1.0 only defines the \$cookiehash
+// variable. Check both so this stub works on either version, and
+// compute our own fallback from the siteurl option if neither is
+// available yet.
+global $user_login, $userdata, $user_level, $user_ID,
+	$user_nickname, $user_email, $user_url, $user_pass_md5, $cookiehash;
+$__pg_user_login = defined('PLAYGROUND_AUTO_LOGIN_AS_USER')
+	? PLAYGROUND_AUTO_LOGIN_AS_USER
+	: 'admin';
+$__pg_cookiehash = defined('COOKIEHASH')
+	? COOKIEHASH
+	: (isset($cookiehash) && $cookiehash
+		? $cookiehash
+		: md5(function_exists('get_settings') ? get_settings('siteurl') : ''));
+if ($__pg_cookiehash) {
+	$_COOKIE['wordpressuser_' . $__pg_cookiehash] = $__pg_user_login;
+}
+if (function_exists('get_userdatabylogin')) {
+	$__pg_userdata = get_userdatabylogin($__pg_user_login);
+	if ($__pg_userdata) {
+		$user_login = $__pg_user_login;
+		$userdata = $__pg_userdata;
+		$user_level = isset($__pg_userdata->user_level)
+			? (int) $__pg_userdata->user_level
+			: 10;
+		$user_ID = $__pg_userdata->ID;
+		$user_nickname = isset($__pg_userdata->user_nickname)
+			? $__pg_userdata->user_nickname
+			: $__pg_user_login;
+		$user_email = isset($__pg_userdata->user_email)
+			? $__pg_userdata->user_email
+			: '';
+		$user_url = isset($__pg_userdata->user_url)
+			? $__pg_userdata->user_url
+			: '';
+		$user_pass_md5 = md5(
+			isset($__pg_userdata->user_pass) ? $__pg_userdata->user_pass : ''
+		);
+	}
+}
+?>`;
+			if (bypassedAuth !== authPhp) {
+				await php.writeFile(authPhpPath, bypassedAuth);
+			}
+		}
+	}
+}
+
 /** Patches wp-admin/includes/schema.php for WP < 3.3. */
 async function patchWpSchemaPhp(php: PHP, documentRoot: string) {
 	const schemaPhpPath = joinPaths(
@@ -1224,7 +1772,9 @@ async function stripDocCommentsFromWpIncludes(php: PHP, documentRoot: string) {
 
 async function stripPhpFileComments(php: PHP, filePath: string) {
 	const content = php.readFileAsText(filePath);
-	// Strip doc comments that don't contain function/class definitions.
+	// Strip doc comments (/** ... */) that don't contain function
+	// definitions. Regular /* */ comments are NOT stripped because
+	// they can appear inside strings (e.g. MIME types like '/*').
 	let stripped = content.replace(/\/\*\*[\s\S]*?\*\//g, (match) => {
 		if (/\bfunction\s+\w+\s*\(/.test(match)) {
 			return match;
