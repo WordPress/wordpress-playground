@@ -142,18 +142,12 @@ test.describe('Sharing Feature', () => {
 		).toBeVisible();
 	});
 
-	test('should start sharing and display share URL', async ({
-		website,
-		context,
-		browserName,
-	}) => {
-		test.skip(
-			browserName === 'firefox',
-			'Firefox does not support clipboard-read permission through Playwright'
-		);
-
-		// Grant clipboard permissions
-		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	test('should start sharing and display share URL', async ({ website }) => {
+		// Note: this test doesn't actually touch the clipboard. It used
+		// to grant clipboard permissions defensively, which broke on
+		// firefox and webkit because Playwright's clipboard-write
+		// permission only exists on chromium. The grant is unnecessary
+		// here — only the dedicated copy test below needs it.
 
 		await website.goto('./');
 		await website.ensureSiteManagerIsOpen();
@@ -224,11 +218,18 @@ test.describe('Sharing Feature', () => {
 	}) => {
 		test.skip(
 			browserName === 'firefox',
-			'Firefox does not support clipboard-read permission through Playwright'
+			'Firefox does not implement the Permissions API surface Playwright relies on for clipboard access.'
 		);
 
-		// Grant clipboard permissions
-		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		// Webkit's grantPermissions only knows about clipboard-read, not
+		// clipboard-write — but the actual writeText() inside the React
+		// handler still works on webkit because it runs from a user
+		// gesture. So we ask for only what each browser will accept.
+		const clipboardPermissions: Array<'clipboard-read' | 'clipboard-write'> =
+			browserName === 'webkit'
+				? ['clipboard-read']
+				: ['clipboard-read', 'clipboard-write'];
+		await context.grantPermissions(clipboardPermissions);
 
 		await website.goto('./');
 		await website.ensureSiteManagerIsOpen();
@@ -312,8 +313,17 @@ test.describe('Sharing Feature', () => {
 	test.describe('End-to-end sharing flow', () => {
 		test('should allow guest to view host playground through relay', async ({
 			website,
-			context,
+			browser,
 		}) => {
+			// The guest tab lives in its own browser context. Same-context
+			// tabs in headless browsers (especially webkit) compete for
+			// active-tab focus and can starve each other's `setInterval`
+			// /fetch loops, which broke this test deterministically on
+			// webkit shards in CI even though it passed locally on
+			// chromium. A separate context keeps both pages running their
+			// timers at full speed throughout.
+			const guestContext = await browser.newContext();
+
 			// Start host sharing
 			await website.goto('./');
 			await website.ensureSiteManagerIsOpen();
@@ -336,8 +346,8 @@ test.describe('Sharing Feature', () => {
 			const shareUrl = await shareUrlInput.inputValue();
 			expect(shareUrl).toContain('?share=');
 
-			// Open a new page as guest
-			const guestPage = await context.newPage();
+			// Open a new page as guest in its isolated context
+			const guestPage = await guestContext.newPage();
 			await guestPage.goto(shareUrl);
 
 			// Verify guest sees the shared playground viewer
@@ -345,9 +355,12 @@ test.describe('Sharing Feature', () => {
 				guestPage.locator('text=Viewing a shared Playground')
 			).toBeVisible();
 
-			// Wait for connection to be established
+			// Wait for connection to be established. The 60s budget is
+			// generous because the guest's first request goes host →
+			// relay → host's PHP-WASM → response, and the round trip is
+			// noticeably slower on webkit than on chromium.
 			await expect(guestPage.locator('text=Connected')).toBeVisible({
-				timeout: 30000,
+				timeout: 60000,
 			});
 
 			// Verify the iframe is loaded with WordPress content
@@ -358,11 +371,12 @@ test.describe('Sharing Feature', () => {
 			// Wait for WordPress content to load through the relay
 			// The guest should see the WordPress site with the admin bar
 			await expect(guestIframe.locator('#wpadminbar')).toBeVisible({
-				timeout: 30000,
+				timeout: 60000,
 			});
 
 			// Clean up
 			await guestPage.close();
+			await guestContext.close();
 
 			// Stop sharing
 			await website.page
@@ -480,8 +494,14 @@ test.describe('Sharing Feature', () => {
 
 		test('should show the host disconnected overlay on the guest after Stop Sharing', async ({
 			website,
-			context,
+			browser,
 		}) => {
+			// Same isolation pattern as the other multi-tab tests in this
+			// describe block: the guest tab gets its own browser context
+			// so its status-poll timer isn't suspended when the host tab
+			// is in the foreground.
+			const guestContext = await browser.newContext();
+
 			await website.goto('./');
 
 			const shareUrl = await startSharingFromToolbar(website);
@@ -490,11 +510,11 @@ test.describe('Sharing Feature', () => {
 			// relay. The disconnect detection on the guest only kicks in
 			// AFTER it has seen at least one hostAlive=true poll, so we
 			// need a real connection here, not just a viewer mount.
-			const guestPage = await context.newPage();
+			const guestPage = await guestContext.newPage();
 			await guestPage.goto(shareUrl);
-			await expect(
-				guestPage.locator('text=● Connected')
-			).toBeVisible({ timeout: 30000 });
+			await expect(guestPage.locator('text=● Connected')).toBeVisible({
+				timeout: 60000,
+			});
 
 			// Now stop sharing on the host. This fires POST /relay/:id/close
 			// (via fetch keepalive) which immediately marks the session
@@ -515,6 +535,7 @@ test.describe('Sharing Feature', () => {
 
 			// Clean up.
 			await guestPage.close();
+			await guestContext.close();
 		});
 	});
 });
