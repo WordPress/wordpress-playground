@@ -41,11 +41,26 @@ const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
 // a port that was published using the devcontainer "appPort" configuration.
 const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
 
-// `npm run dev` spawns `php -S 127.0.0.1:5264 relay.php` alongside the vite
-// server (see the dev:relay-php target in playground-website's project.json),
-// and we proxy /relay/* there. The same relay.php is what gets served in
-// production by Atomic / static hosts, so dev and prod run identical code.
+// `npm run dev` and the CI preview script both spawn
+// `php -S 127.0.0.1:5264 relay.php` alongside the vite server (see the
+// dev:relay-php target in playground-website's project.json), and we
+// proxy /relay/* there. The same relay.php is what gets served in
+// production by Atomic / static hosts, so dev, CI and prod run identical
+// code. The X-Forwarded-Host value is what the relay uses to build the
+// public share URL — it has to be the URL the *browser* sees, not the
+// vite server itself, so production deployments behind a CDN keep
+// working too.
 const phpRelayUrl = 'http://127.0.0.1:5264';
+const buildRelayProxy = (forwardedHost: string) => ({
+	'^/relay/': {
+		target: phpRelayUrl,
+		changeOrigin: true,
+		headers: {
+			'X-Forwarded-Host': forwardedHost,
+			'X-Forwarded-Proto': 'http',
+		},
+	},
+});
 
 async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	// eslint-disable-next-line no-console
@@ -99,7 +114,15 @@ export default defineConfig(({ command, mode }) => {
 		preview: {
 			port: websiteDevServerPort,
 			host: serverHost,
-			proxy,
+			proxy: {
+				...proxy,
+				// In CI the website is served by `vite preview` on port
+				// 80 with no `/website-server/` base path, so the relay
+				// has to advertise share links pointing back at the bare
+				// host. The dev:standalone path below uses a different
+				// X-Forwarded-Host because dev runs on a different port.
+				...buildRelayProxy('127.0.0.1'),
+			},
 		},
 
 		server: {
@@ -132,14 +155,7 @@ export default defineConfig(({ command, mode }) => {
 				// We forward the original Host header so relay.php can
 				// build share URLs that point back at the vite dev server
 				// instead of the PHP server it happens to live on.
-				'^/relay/': {
-					target: phpRelayUrl,
-					changeOrigin: true,
-					headers: {
-						'X-Forwarded-Host': `${serverHost}:${websiteDevServerPort}`,
-						'X-Forwarded-Proto': 'http',
-					},
-				},
+				...buildRelayProxy(`${serverHost}:${websiteDevServerPort}`),
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
 				// Exclude /relay/ which is handled by the relay middleware for peer-to-peer sharing.
