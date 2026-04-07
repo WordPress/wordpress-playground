@@ -87,7 +87,7 @@ https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint
 ```
 -->
 
-Le fichier ZIP doit contenir un `blueprint.json` à la racine, ainsi que toutes les ressources supplémentaires référencées par le Blueprint.
+Le fichier ZIP doit contenir un fichier `blueprint.json` à la racine, ainsi que toutes les ressources supplémentaires référencées par le Blueprint.
 
 <!--
 The ZIP file should contain a `blueprint.json` file at the root level, along with any additional resources referenced by the Blueprint.
