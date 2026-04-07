@@ -47,7 +47,7 @@ Les paquets Blueprint peuvent être distribués sous plusieurs formes :
 Blueprint bundles can be distributed in various formats:
 -->
 
-- Un fichier ZIP avec un `blueprint.json` à la racine et des ressources supplémentaires
+- Un fichier ZIP avec un fichier `blueprint.json` à la racine et des ressources supplémentaires
 - Un répertoire dans un dépôt Git où `blueprint.json` se trouve à côté des autres ressources
 - Un répertoire local sur votre ordinateur
 - Un objet JavaScript inline avec les fichiers concernés intégrés
