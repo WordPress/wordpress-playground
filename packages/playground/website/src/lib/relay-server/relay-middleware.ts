@@ -194,22 +194,26 @@ export function createRelayMiddleware(
 				}
 			);
 
+			let resolverFn: ((req: TunnelRequest | null) => void) | null =
+				null;
 			const requestPromise = new Promise<TunnelRequest | null>(
 				(resolve) => {
+					resolverFn = resolve;
 					session.pollResolvers.push(resolve);
 				}
 			);
 
 			const result = await Promise.race([timeoutPromise, requestPromise]);
 
-			// Remove this resolver from the list
-			const index = session.pollResolvers.indexOf(
-				requestPromise as unknown as (
-					request: TunnelRequest | null
-				) => void
-			);
-			if (index > -1) {
-				session.pollResolvers.splice(index, 1);
+			// Remove this resolver from the list. Must look up by the
+			// resolver function itself; the previous code searched for the
+			// Promise, which never matched and left stale resolvers behind
+			// that would silently consume later guest requests.
+			if (resolverFn) {
+				const index = session.pollResolvers.indexOf(resolverFn);
+				if (index > -1) {
+					session.pollResolvers.splice(index, 1);
+				}
 			}
 
 			if (result === null) {
