@@ -6,7 +6,7 @@ import {
 	type PHPRequest,
 	type PathAlias,
 	type RemoteAPI,
-	type SupportedPHPVersion,
+	type AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -46,6 +46,8 @@ import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thre
 import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
+	AllPHPVersions,
+	LegacyPHPVersions,
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -117,7 +119,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -372,7 +374,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -810,7 +812,7 @@ export interface RunCLIArgs {
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
-	php?: SupportedPHPVersion;
+	php?: AllPHPVersion;
 	port?: number;
 	'site-url'?: string;
 	quiet?: boolean;
@@ -989,6 +991,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.memcached = await jspi();
 	}
 
+	// Disable all extensions for legacy PHP versions — they're not available.
+	const isLegacyPhp = (LegacyPHPVersions as readonly string[]).includes(
+		args.php || RecommendedPHPVersion
+	);
+	if (isLegacyPhp) {
+		args.intl = false;
+		args.redis = false;
+		args.memcached = false;
+		args.xdebug = false;
+	}
+
 	// Setup phpMyAdmin if enabled.
 	if (args.phpmyadmin) {
 		if (true === args.phpmyadmin) {
@@ -1097,10 +1110,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					vfsPath: '/',
 				};
 
+				const phpVer = args.php || RecommendedPHPVersion;
 				const isPHP85orHigher =
-					SupportedPHPVersions.indexOf(
-						args.php || RecommendedPHPVersion
-					) <= SupportedPHPVersions.indexOf('8.5');
+					SupportedPHPVersions.includes(phpVer as any) &&
+					SupportedPHPVersions.indexOf(phpVer as any) <=
+						SupportedPHPVersions.indexOf('8.5');
 
 				// And, if PHP >= 8.5, add the new Xdebug config.
 				if (isPHP85orHigher) {

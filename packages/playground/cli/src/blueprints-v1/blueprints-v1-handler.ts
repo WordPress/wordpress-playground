@@ -19,6 +19,7 @@ import {
 	CACHE_FOLDER,
 	cachedDownload,
 	fetchSqliteIntegration,
+	getPrebuiltWordPressPath,
 	readAsFile,
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
@@ -94,20 +95,29 @@ export class BlueprintsV1Handler {
 			}) as any);
 
 			wpDetails = await resolveWordPressRelease(this.args.wp);
-			preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-			wordPressZip = fs.existsSync(preinstalledWpContentPath)
-				? readAsFile(preinstalledWpContentPath)
-				: await cachedDownload(
-						wpDetails.releaseUrl,
-						`${wpDetails.version}.zip`,
-						monitor
-					);
-			logger.debug(
-				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
-			);
+
+			// Check for a pre-built WordPress module first (faster,
+			// minified, with set_time_limit stripped).
+			const prebuiltPath = getPrebuiltWordPressPath(wpDetails.version);
+			if (prebuiltPath) {
+				wordPressZip = readAsFile(prebuiltPath);
+				logger.debug(`Using pre-built WordPress: ${prebuiltPath}`);
+			} else {
+				preinstalledWpContentPath = path.join(
+					CACHE_FOLDER,
+					`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+				);
+				wordPressZip = fs.existsSync(preinstalledWpContentPath)
+					? readAsFile(preinstalledWpContentPath)
+					: await cachedDownload(
+							wpDetails.releaseUrl,
+							`${wpDetails.version}.zip`,
+							monitor
+						);
+				logger.debug(
+					`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+				);
+			}
 		}
 
 		let sqliteIntegrationPluginZip;
@@ -116,7 +126,13 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = undefined;
 		} else {
 			this.cliOutput.updateProgress('Preparing SQLite database');
-			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
+			// Use pre-patched v2.2.22 for legacy PHP (PHP 7+ syntax
+			// already removed offline, no runtime patching needed).
+			const phpVersion = this.args.php || RecommendedPHPVersion;
+			const isLegacyPhp = parseFloat(phpVersion) < 7;
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration(
+				isLegacyPhp ? 'v2.2.22-php56' : 'trunk'
+			);
 		}
 
 		this.cliOutput.updateProgress('Booting WordPress');
@@ -130,6 +146,7 @@ export class BlueprintsV1Handler {
 			playground as unknown as PlaygroundCliBlueprintV1Worker
 		).bootWordPress(
 			{
+				phpVersion: runtimeConfiguration.phpVersion,
 				wpVersion: runtimeConfiguration.wpVersion,
 				siteUrl: this.siteUrl,
 				wordpressInstallMode:

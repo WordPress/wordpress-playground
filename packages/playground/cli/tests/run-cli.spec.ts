@@ -171,10 +171,11 @@ describe.each(blueprintVersions)(
 		test('should set WordPress version', async () => {
 			const { MinifiedWordPressVersionsList } =
 				await import('@wp-playground/wordpress-builds');
-			const oldestSupportedVersion =
-				MinifiedWordPressVersionsList[
-					MinifiedWordPressVersionsList.length - 1
-				];
+			// Use the oldest non-legacy version. Legacy versions
+			// (< 5.0) require PHP 5.6 and can't boot on modern PHP.
+			const oldestSupportedVersion = MinifiedWordPressVersionsList.filter(
+				(v) => parseFloat(v) >= 5
+			).pop()!;
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',

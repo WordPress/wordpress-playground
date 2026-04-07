@@ -56,7 +56,7 @@ class Wp_Http_Fetch_Base
 					'data' => $data,
 					'url' => $url,
 					'method' => $options['type'],
-					'blocking' => $options['blocking'] ?? true,
+					'blocking' => isset($options['blocking']) ? $options['blocking'] : true,
 				]
 			)
 		);
@@ -132,8 +132,13 @@ if (class_exists('\WpOrg\Requests\Requests')) {
 	{
 
 	}
-} else {
+} elseif (interface_exists('Requests_Transport')) {
 	class Wp_Http_Fetch extends Wp_Http_Fetch_Base implements Requests_Transport
+	{
+
+	}
+} else {
+	class Wp_Http_Fetch extends Wp_Http_Fetch_Base
 	{
 
 	}

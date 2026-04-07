@@ -6,7 +6,9 @@ import path, { basename } from 'path';
 
 export const CACHE_FOLDER = path.join(os.homedir(), '.wordpress-playground');
 
-export async function fetchSqliteIntegration(): Promise<File> {
+export async function fetchSqliteIntegration(
+	version: 'trunk' | 'v2.1.16' | 'v2.2.22' | 'v2.2.22-php56' = 'trunk'
+): Promise<File> {
 	// Production builds: the ZIP sits next to the bundled JS.
 	const dir =
 		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
@@ -22,11 +24,29 @@ export async function fetchSqliteIntegration(): Promise<File> {
 			wpBuildsDir,
 			'src',
 			'sqlite-database-integration',
-			'sqlite-database-integration-trunk.zip'
+			`sqlite-database-integration-${version}.zip`
 		);
 	}
 
 	return new File([await fs.readFile(zipPath)], path.basename(zipPath));
+}
+
+/**
+ * Returns the path to a pre-built WordPress ZIP if one exists for the
+ * given version slug (e.g. '4.9', '6.3'). Returns null if not found.
+ */
+export function getPrebuiltWordPressPath(versionSlug: string): string | null {
+	const require = createRequire(import.meta.url);
+	const wpBuildsDir = path.dirname(
+		require.resolve('@wp-playground/wordpress-builds/package.json')
+	);
+	const zipPath = path.join(
+		wpBuildsDir,
+		'src',
+		'wordpress',
+		`wp-${versionSlug}.zip`
+	);
+	return fs.existsSync(zipPath) ? zipPath : null;
 }
 
 // @TODO: Support HTTP cache, invalidate the local file if the remote file has

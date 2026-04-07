@@ -25,7 +25,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { PathAlias, PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion, PathAlias, PHP } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -56,7 +56,7 @@ export interface MountDescriptor {
 export type WorkerBootOptions = {
 	wpVersion?: string;
 	sqliteDriverVersion?: string;
-	phpVersion?: SupportedPHPVersion;
+	phpVersion?: AllPHPVersion;
 	sapiName?: string;
 	scope: string;
 	withIntl: boolean;
@@ -140,7 +140,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		knownRemoteAssetPaths: Set<string>;
 		withIntl: boolean;
 		withNetworking: boolean;
-		phpVersion: SupportedPHPVersion;
+		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
@@ -191,6 +191,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		const parsedSiteUrl = new URL(siteUrl);
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
+			phpVersion,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
@@ -443,8 +444,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 * improve the first wp-admin load time.
 	 */
 	async prefetchUpdateChecks() {
-		const primaryPhp = this.__internal_getPHP()!;
-		await this.networkTransport!.prefetchUpdateChecks(primaryPhp);
+		try {
+			const primaryPhp = this.__internal_getPHP()!;
+			await this.networkTransport!.prefetchUpdateChecks(primaryPhp);
+		} catch (e) {
+			// Non-fatal: prefetching is a performance optimization.
+			// Old WordPress versions may crash here.
+			logger.warn('prefetchUpdateChecks failed:', e);
+		}
 	}
 
 	// These methods are only here for the time traveling Playground demo.

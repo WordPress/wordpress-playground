@@ -12,6 +12,7 @@ import {
 	LatestSqliteDriverVersion,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
+import { LegacyPHPVersions } from '@php-wasm/universal';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { createDirectoryHandleMountHandler } from '@php-wasm/web';
@@ -127,8 +128,22 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
+			// Select the right SQLite version:
+			// - PHP 5.6: pre-patched v2.2.22 (AST driver, PHP 7+ removed)
+			// - Old WP (< 6.x) on modern PHP: v2.1.16 (old translator
+			//   that works with WP 4.x's database schema)
+			// - Modern WP: trunk
+			const isLegacyPhp = (
+				LegacyPHPVersions as readonly string[]
+			).includes(phpVersion!);
+			const wpMajor = parseFloat(wpVersion) || 99;
+			const effectiveSqliteVersion = isLegacyPhp
+				? 'v2.2.22-php56'
+				: wpMajor < 6
+					? 'v2.1.16'
+					: sqliteDriverVersion!;
 			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
-				sqliteDriverVersion!
+				effectiveSqliteVersion
 			);
 			this.downloadMonitor.expectAssets({
 				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
@@ -139,9 +154,14 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			await bootWordPress(requestHandler, {
 				siteUrl,
+				phpVersion,
 				constants: shouldInstallWordPress
 					? {
-							WP_DEBUG: true,
+							// Disable WP_DEBUG for legacy PHP (< 7) because
+							// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
+							// and shows all notices when WP_DEBUG is true,
+							// breaking header output and install responses.
+							WP_DEBUG: !isLegacyPhp,
 							WP_DEBUG_LOG: true,
 							WP_DEBUG_DISPLAY: false,
 							AUTH_KEY: randomString(40),

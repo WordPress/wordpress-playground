@@ -52,8 +52,13 @@ if (class_exists('\WpOrg\Requests\Requests')) {
 	{
 
 	}
-} else {
+} elseif (interface_exists('Requests_Transport')) {
 	class Wp_Http_Dummy extends Wp_Http_Dummy_Base implements Requests_Transport
+	{
+
+	}
+} else {
+	class Wp_Http_Dummy extends Wp_Http_Dummy_Base
 	{
 
 	}
