@@ -18,6 +18,10 @@ export const RecommendedPHPVersion = '8.3';
 
 /**
  * Unzip a zip file inside Playground.
+ *
+ * Uses PHP's ZipArchive when available. Falls back to a
+ * JavaScript-based implementation for legacy PHP builds
+ * that lack the zip extension.
  */
 export const unzipFile = async (
 	php: UniversalPHP,
@@ -25,26 +29,28 @@ export const unzipFile = async (
 	extractToPath: string,
 	overwriteFiles = true
 ) => {
-	/**
-	 * Use a random file name to avoid conflicts across concurrent unzipFile()
-	 * calls.
-	 */
+	// Resolve File objects to bytes for the JS fallback path,
+	// and to a temp path for the PHP path.
+	let zipBytes: Uint8Array | undefined;
 	const tmpPath = `/tmp/file-${Math.random()}.zip`;
 	if (zipPath instanceof File) {
-		const zipFile = zipPath;
+		zipBytes = new Uint8Array(await zipPath.arrayBuffer());
 		zipPath = tmpPath;
-		await php.writeFile(
-			zipPath,
-			new Uint8Array(await zipFile.arrayBuffer())
-		);
+		await php.writeFile(zipPath, zipBytes);
 	}
-	const js = phpVars({
-		zipPath,
-		extractToPath,
-		overwriteFiles,
-	});
-	await php.run({
-		code: `<?php
+
+	// Check if ZipArchive is available
+	const hasZipArchive =
+		(
+			await php.run({
+				code: `<?php echo class_exists('ZipArchive') ? '1' : '0';`,
+			})
+		).text === '1';
+
+	if (hasZipArchive) {
+		const js = phpVars({ zipPath, extractToPath, overwriteFiles });
+		await php.run({
+			code: `<?php
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
         {
             if (!is_dir($extractTo)) {
@@ -72,11 +78,63 @@ export const unzipFile = async (
         }
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
         `,
-	});
+		});
+	} else {
+		// Fallback: unzip in JavaScript and write files to the PHP FS.
+		if (!zipBytes) {
+			zipBytes = await php.readFileAsBuffer(zipPath);
+		}
+		await unzipFileJS(php, zipBytes, extractToPath, overwriteFiles);
+	}
+
 	if (await php.fileExists(tmpPath)) {
 		await php.unlink(tmpPath);
 	}
 };
+
+/**
+ * JavaScript-based unzip implementation for PHP builds
+ * without ZipArchive (e.g. legacy PHP 5.6 WASM).
+ */
+async function unzipFileJS(
+	php: UniversalPHP,
+	zipBytes: Uint8Array,
+	extractToPath: string,
+	overwriteFiles: boolean
+) {
+	const { decodeZip } = await import('@php-wasm/stream-compression');
+	// decodeZip uses BYOB readers, so the source stream must be
+	// a byte stream (type: 'bytes' with a Uint8Array enqueue).
+	const stream = new ReadableStream({
+		type: 'bytes',
+		start(controller) {
+			controller.enqueue(zipBytes);
+			controller.close();
+		},
+	});
+	const files = decodeZip(stream);
+	const reader = files.getReader();
+	while (true) {
+		const { done, value: file } = await reader.read();
+		if (done) break;
+		const filePath = extractToPath.replace(/\/$/, '') + '/' + file.name;
+		if (file.type === 'directory' || file.name.endsWith('/')) {
+			await php.mkdir(filePath);
+		} else {
+			// Ensure parent directory exists
+			const parentDir = filePath.substring(0, filePath.lastIndexOf('/'));
+			if (!(await php.fileExists(parentDir))) {
+				await php.mkdir(parentDir);
+			}
+			if (overwriteFiles || !(await php.fileExists(filePath))) {
+				await php.writeFile(
+					filePath,
+					new Uint8Array(await file.arrayBuffer())
+				);
+			}
+		}
+	}
+}
 
 export const zipDirectory = async (
 	php: UniversalPHP,

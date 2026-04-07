@@ -26,6 +26,12 @@ import {
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './wp-config';
+import {
+	generateDbPhpContent,
+	patchWordPressSourceFiles,
+	preCreateLegacyTables,
+	runPostInstallLegacyFixups,
+} from './legacy-wp-fixes';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -51,6 +57,8 @@ export async function bootWordPressAndRequestHandler(
 
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
+	/** PHP version string (e.g. '8.3', '5.6'). */
+	phpVersion?: string;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	maxPhpInstances?: number;
 	/**
@@ -141,6 +149,8 @@ export type WordPressInstallMode =
 	| 'do-not-attempt-installing';
 
 export interface BootWordPressOptions {
+	/** PHP version string (e.g. '8.3', '5.6'). */
+	phpVersion?: string;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -237,7 +247,43 @@ export async function bootWordPress(
 	 * them. This is needed because some WordPress backups and exports may not
 	 * include definitions for some of the necessary constants.
 	 */
-	await ensureWpConfig(php, requestHandler.documentRoot);
+	const phpMajor = parseInt(options.phpVersion ?? '8', 10);
+	if (phpMajor >= 7) {
+		await ensureWpConfig(php, requestHandler.documentRoot);
+	} else {
+		// For legacy PHP, skip ensureWpConfig since the pre-built
+		// WordPress already has a valid wp-config-sample.php and
+		// php.run() with the large transformer code hangs.
+		// Just copy wp-config-sample.php to wp-config.php if needed.
+		const wpConfigPath = joinPaths(
+			requestHandler.documentRoot,
+			'wp-config.php'
+		);
+		if (
+			!php.fileExists(wpConfigPath) &&
+			php.fileExists(
+				joinPaths(requestHandler.documentRoot, 'wp-config-sample.php')
+			)
+		) {
+			await php.writeFile(
+				wpConfigPath,
+				await php.readFileAsBuffer(
+					joinPaths(
+						requestHandler.documentRoot,
+						'wp-config-sample.php'
+					)
+				)
+			);
+		}
+	}
+	if (phpMajor < 7) {
+		await patchWordPressSourceFiles(
+			php,
+			requestHandler.documentRoot,
+			phpMajor
+		);
+	}
+
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
@@ -250,8 +296,35 @@ export async function bootWordPress(
 		usesSqlite = true;
 		await preloadSqliteIntegration(
 			php,
-			await options.sqliteIntegrationPluginZip
+			await options.sqliteIntegrationPluginZip,
+			{ phpVersion: options.phpVersion }
 		);
+
+		// Write wp-content/db.php with MySQL function stubs for
+		// legacy WordPress. WP 4.x checks extension_loaded('mysql')
+		// and only skips that check if wp-content/db.php exists.
+		// patchWpSettingsPhp() patches that check away, but only
+		// runs for legacy PHP. Modern WP doesn't have this check.
+		if (phpMajor < 7) {
+			const wpContentDir = joinPaths(
+				requestHandler.documentRoot,
+				'wp-content'
+			);
+			const dbPhpPath = joinPaths(wpContentDir, 'db.php');
+			if (php.isDir(wpContentDir) && !php.fileExists(dbPhpPath)) {
+				await php.writeFile(dbPhpPath, generateDbPhpContent());
+			}
+		}
+	}
+
+	// Pre-create WP 1.x tables with correct schemas before the
+	// installer runs (its mysql_* calls can't work through SQLite).
+	if (phpMajor < 7 && options.sqliteIntegrationPluginZip) {
+		try {
+			await preCreateLegacyTables(php);
+		} catch (error) {
+			logger.warn('Legacy table pre-creation failed (non-fatal):', error);
+		}
 	}
 
 	const installationMode =
@@ -269,20 +342,18 @@ export async function bootWordPress(
 			hasCustomDatabasePath,
 		});
 		// Install WordPress if it's not installed.
-		try {
-			await installWordPress(php);
-		} catch (error) {
-			// If installation failed, check if it's a database issue
-			// to provide a more specific error message (but skip if user provided custom DB path)
-			if (!hasCustomDatabasePath) {
-				await assertValidDatabaseConnection(requestHandler);
-			}
-			// If we get here, the database is valid but installation failed for another reason
-			throw error;
-		}
-		// Validate the database connection after installation (skip if user provided custom DB path)
+		await installWordPressSafe(
+			php,
+			phpMajor,
+			hasCustomDatabasePath,
+			requestHandler,
+			options.phpVersion
+		);
 		if (!hasCustomDatabasePath) {
-			await assertValidDatabaseConnection(requestHandler);
+			await assertValidDatabaseConnectionSafe(
+				requestHandler,
+				options.phpVersion
+			);
 		}
 	} else if ('install-from-existing-files-if-needed' === installationMode) {
 		// Check database prerequisites before attempting installation
@@ -290,27 +361,57 @@ export async function bootWordPress(
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
-		if (!(await isWordPressInstalled(php))) {
-			// Install WordPress if it's not installed.
-			try {
-				await installWordPress(php);
-			} catch (error) {
-				// If installation failed, check if it's a database issue
-				// to provide a more specific error message (but skip if user provided custom DB path)
-				if (!hasCustomDatabasePath) {
-					await assertValidDatabaseConnection(requestHandler);
-				}
-				// If we get here, the database is valid but installation failed for another reason
-				throw error;
-			}
+		// For legacy PHP (< 7), skip isWordPressInstalled check because
+		// it crashes the WASM runtime on old WordPress (< 3.0) where the
+		// SQLite driver initialization chain isn't fully compatible.
+		const isInstalled =
+			phpMajor >= 7 ? await isWordPressInstalled(php) : false;
+		if (!isInstalled) {
+			await installWordPressSafe(
+				php,
+				phpMajor,
+				hasCustomDatabasePath,
+				requestHandler,
+				options.phpVersion
+			);
 		}
-		// Validate the database connection after installation (skip if user provided custom DB path)
+		// Validate the database connection after installation
 		if (!hasCustomDatabasePath) {
-			await assertValidDatabaseConnection(requestHandler);
+			await assertValidDatabaseConnectionSafe(
+				requestHandler,
+				options.phpVersion
+			);
 		}
 	}
 
 	return requestHandler;
+}
+
+/**
+ * Wrapper around installWordPress that handles errors gracefully
+ * for legacy PHP versions where installation errors may be non-fatal.
+ */
+async function installWordPressSafe(
+	php: PHP,
+	phpMajor: number,
+	hasCustomDatabasePath: boolean,
+	requestHandler: PHPRequestHandler,
+	phpVersion?: string
+): Promise<void> {
+	try {
+		await installWordPress(php, phpMajor);
+	} catch (error) {
+		if (!hasCustomDatabasePath) {
+			await assertValidDatabaseConnectionSafe(requestHandler, phpVersion);
+		}
+		if (phpMajor >= 7) {
+			throw error;
+		}
+		logger.warn('Legacy PHP WordPress installation error:', error);
+	}
+	if (phpMajor < 7) {
+		await runPostInstallLegacyFixups(php);
+	}
 }
 
 /**
@@ -368,6 +469,30 @@ async function assertDatabasePrerequisites(
 	throw new Error('Error connecting to the MySQL database.');
 }
 
+/**
+ * For legacy PHP (< 7), the database validation can fail due to
+ * compatibility quirks even when the site works fine. In that
+ * case, log a warning instead of crashing the boot.
+ */
+async function assertValidDatabaseConnectionSafe(
+	requestHandler: PHPRequestHandler,
+	phpVersion?: string
+) {
+	const phpMajor = parseInt(phpVersion ?? '8', 10);
+	if (phpMajor < 7) {
+		try {
+			await assertValidDatabaseConnection(requestHandler);
+		} catch (e) {
+			logger.warn(
+				'Legacy PHP database validation failed (non-fatal):',
+				e
+			);
+		}
+		return;
+	}
+	await assertValidDatabaseConnection(requestHandler);
+}
+
 async function assertValidDatabaseConnection(
 	requestHandler: PHPRequestHandler
 ) {
@@ -420,9 +545,14 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			setPhpIniEntries(php, options.phpIniEntries);
 		}
 
-		// Use the new AST-based SQLite driver.
+		// Use the new AST-based SQLite driver for PHP 7+.
+		// PHP 5.x can't use the AST driver (it requires PHP 7.2+).
 		// TODO: Remove this once the new driver is the default; when this is closed:
 		//         https://github.com/WordPress/sqlite-database-integration/issues/195
+		// Enable the AST-based SQLite driver for PHP 7+ and for
+		// PHP 5.6 (which uses the pre-patched v2.2.22-php56
+		// that has the AST driver patched for PHP 5.6).
+		// The v2.1.16 old translator ignores this constant.
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 		// Define any custom constants provided via CLI or configuration
@@ -457,7 +587,9 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			!php.isFile('/internal/.boot-files-written')
 		) {
 			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
-			await setupPlatformLevelMuPlugins(php);
+			await setupPlatformLevelMuPlugins(php, {
+				phpVersion: options.phpVersion,
+			});
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
@@ -567,13 +699,22 @@ export async function isWordPressInstalled(php: PHP) {
  * Without them, the installer may take 60 seconds,
  * 300 seconds, or even more to complete.
  */
-async function installWordPress(php: PHP) {
+async function installWordPress(php: PHP, phpMajor = 8) {
+	const iniOverrides: Record<string, string> = {
+		disable_functions: 'fsockopen',
+		allow_url_fopen: '0',
+	};
+	if (phpMajor < 7) {
+		// Suppress E_DEPRECATED (8192) and E_STRICT (2048) at
+		// the ini level. Old WordPress class declarations trigger
+		// E_STRICT warnings during compilation (e.g. Walker_Page)
+		// which PHP may report using the ini error_reporting value
+		// rather than the runtime error_reporting() call.
+		iniOverrides['error_reporting'] = String(0x7fff & ~8192 & ~2048);
+	}
 	const response = await withPHPIniValues(
 		php,
-		{
-			disable_functions: 'fsockopen',
-			allow_url_fopen: '0',
-		},
+		iniOverrides,
 		async () =>
 			await php.request({
 				url: '/wp-admin/install.php?step=2',
@@ -593,7 +734,30 @@ async function installWordPress(php: PHP) {
 			})
 	);
 
-	if (!(await isWordPressInstalled(php))) {
+	if (phpMajor < 7) {
+		// Legacy PHP (< 7): isWordPressInstalled() crashes the WASM
+		// runtime on old WordPress (< 3.0). Use response text heuristic.
+		let installSucceeded: boolean;
+		try {
+			installSucceeded = await isWordPressInstalled(php);
+		} catch {
+			installSucceeded =
+				response.text?.includes('Success') ||
+				response.text?.includes('successful') ||
+				response.text?.includes('Finished') ||
+				response.text?.includes('Already Installed') ||
+				response.text?.includes('already have WordPress installed') ||
+				false;
+		}
+		if (!installSucceeded) {
+			throw new Error(
+				`Failed to install WordPress – installer responded with "${response.text?.substring(
+					0,
+					100
+				)}"`
+			);
+		}
+	} else if (!(await isWordPressInstalled(php))) {
 		throw new Error(
 			`Failed to install WordPress – installer responded with "${response.text?.substring(
 				0,
@@ -602,35 +766,68 @@ async function installWordPress(php: PHP) {
 		);
 	}
 
-	const defaultedToPrettyPermalinks = await php.run({
-		code: `<?php
-			ob_start();
-			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-			if (!file_exists($wp_load)) {
-				echo '0';
-				exit;
+	if (phpMajor < 7) {
+		// Legacy PHP: pretty permalinks may fail on old WordPress
+		// where update_option doesn't exist or PHP crashes.
+		try {
+			const result = await php.run({
+				code: `<?php
+					ob_start();
+					$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+					if (!file_exists($wp_load)) { echo '0'; exit; }
+					require $wp_load;
+					ob_clean();
+					if (!function_exists('update_option')) { echo '0'; exit; }
+					$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
+					update_option('permalink_structure', $nice_permalinks);
+					echo get_option('permalink_structure') === $nice_permalinks ? '1' : '0';
+					ob_end_flush();
+				`,
+				env: { DOCUMENT_ROOT: php.documentRoot },
+			});
+			if (result.text !== '1') {
+				logger.warn(
+					'Failed to default to pretty permalinks after WP install.'
+				);
 			}
-			require $wp_load;
-			$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
-			$option_result = update_option(
-				'permalink_structure',
-				$nice_permalinks
+		} catch {
+			logger.warn(
+				'Failed to set pretty permalinks after WP install (non-fatal).'
 			);
-			ob_clean();
-			if ( get_option( 'permalink_structure' ) === $nice_permalinks ) {
-				echo '1';
-			} else {
-				echo '0';
-			}
-			ob_end_flush();
-		`,
-		env: {
-			DOCUMENT_ROOT: php.documentRoot,
-		},
-	});
+		}
+	} else {
+		const defaultedToPrettyPermalinks = await php.run({
+			code: `<?php
+				ob_start();
+				$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+				if (!file_exists($wp_load)) {
+					echo '0';
+					exit;
+				}
+				require $wp_load;
+				$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
+				$option_result = update_option(
+					'permalink_structure',
+					$nice_permalinks
+				);
+				ob_clean();
+				if ( get_option( 'permalink_structure' ) === $nice_permalinks ) {
+					echo '1';
+				} else {
+					echo '0';
+				}
+				ob_end_flush();
+			`,
+			env: {
+				DOCUMENT_ROOT: php.documentRoot,
+			},
+		});
 
-	if (defaultedToPrettyPermalinks.text !== '1') {
-		logger.warn('Failed to default to pretty permalinks after WP install.');
+		if (defaultedToPrettyPermalinks.text !== '1') {
+			logger.warn(
+				'Failed to default to pretty permalinks after WP install.'
+			);
+		}
 	}
 }
 

@@ -2,6 +2,8 @@ import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
+import { MYSQL_SHIMS_PHP } from './mysql-shims';
+import { patchSqlitePluginForLegacyPhp } from './legacy-wp-fixes';
 
 export {
 	bootWordPress,
@@ -27,11 +29,97 @@ export * from './rewrite-rules';
  *
  * @param php
  */
-export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
+export async function setupPlatformLevelMuPlugins(
+	php: UniversalPHP,
+	options: { phpVersion?: string } = {}
+) {
+	const phpMajor = parseInt(options.phpVersion ?? '8', 10);
 	await php.mkdir('/internal/shared/mu-plugins');
+
+	if (phpMajor < 7) {
+		// Overwrite auto_prepend_file.php to work around a PHP 5.6
+		// WASM parser bug: after require_once of 0-sqlite.php (which
+		// defines classes and globals), subsequent require_once calls
+		// get spurious "syntax error" at EOF. Using
+		// eval(file_get_contents()) instead avoids the issue.
+		await php.writeFile(
+			'/internal/shared/auto_prepend_file.php',
+			`<?php
+// Polyfill the PHP 4 superglobals that WP 1.0-2.5 still rely on.
+// These were aliases of \$_GET / \$_POST / \$_COOKIE / \$_SERVER /
+// \$_FILES / \$_ENV / \$_REQUEST and were removed in PHP 5.4.
+// Bind by reference so later writes to \$_COOKIE (e.g. in
+// auth bypass shims) are reflected in \$HTTP_COOKIE_VARS that
+// WP 1.0's get_currentuserinfo() reads.
+$GLOBALS['HTTP_GET_VARS']     = &$_GET;
+$GLOBALS['HTTP_POST_VARS']    = &$_POST;
+$GLOBALS['HTTP_COOKIE_VARS']  = &$_COOKIE;
+$GLOBALS['HTTP_SERVER_VARS']  = &$_SERVER;
+if (isset($_FILES))   $GLOBALS['HTTP_POST_FILES']   = &$_FILES;
+if (isset($_ENV))     $GLOBALS['HTTP_ENV_VARS']     = &$_ENV;
+if (isset($_SESSION)) $GLOBALS['HTTP_SESSION_VARS'] = &$_SESSION;
+// Also populate the top-level names that register_long_arrays +
+// register_globals=On used to expose. WP 1.0 reads \$PHP_SELF and
+// \$REMOTE_ADDR at the top level instead of \$_SERVER[...].
+if (isset($_SERVER['PHP_SELF'])) $GLOBALS['PHP_SELF'] = $_SERVER['PHP_SELF'];
+if (isset($_SERVER['REMOTE_ADDR'])) $GLOBALS['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'];
+if (isset($_SERVER['REQUEST_URI'])) $GLOBALS['REQUEST_URI'] = $_SERVER['REQUEST_URI'];
+if(file_exists('/internal/shared/consts.json')) {
+	$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
+	if ($consts) {
+		foreach ($consts as $const => $value) {
+			if (!defined($const) && is_scalar($value)) {
+				define($const, $value);
+			}
+		}
+	}
+}
+foreach (glob('/internal/shared/preload/*.php') as $file) {
+	$code = file_get_contents($file);
+	$code = preg_replace('/^<\\\\?php\\\\s*/', '', $code);
+	eval($code);
+}
+`
+		);
+	}
+
 	await php.writeFile(
 		'/internal/shared/preload/env.php',
-		`<?php
+		phpMajor < 7
+			? `<?php
+// Allow adding filters/actions prior to loading WordPress.
+// $function_to_add MUST be a string.
+function playground_add_filter( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
+	global $wp_filter;
+	$wp_filter[$tag][$priority][$function_to_add] = array('function' => $function_to_add, 'accepted_args' => $accepted_args);
+}
+function playground_add_action( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
+	playground_add_filter( $tag, $function_to_add, $priority, $accepted_args );
+}
+
+// Load our mu-plugins after customer mu-plugins
+// NOTE: this means our mu-plugins can't use the muplugins_loaded action!
+playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
+function playground_load_mu_plugins() {
+	// Load all PHP files from /internal/shared/mu-plugins sorted by filename
+	$mu_plugins_dir = '/internal/shared/mu-plugins';
+	if(!is_dir($mu_plugins_dir)){
+		return;
+	}
+	$mu_plugins = glob( $mu_plugins_dir . '/*.php' );
+	sort( $mu_plugins );
+	foreach ( $mu_plugins as $mu_plugin ) {
+		// sqlite-database-integration.php is loaded separately
+		// by the preload lazy loader or db.php, using eval()
+		// to work around a PHP 5.6 WASM require_once parser bug.
+		if (strpos($mu_plugin, 'sqlite-database-integration') !== false) {
+			continue;
+		}
+		require_once $mu_plugin;
+	}
+}
+`
+			: `<?php
 
         // Allow adding filters/actions prior to loading WordPress.
         // $function_to_add MUST be a string.
@@ -150,7 +238,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			if ( false === $user_name ) {
 				return;
 			}
-			if (wp_doing_ajax() || defined('REST_REQUEST')) {
+			if (${phpMajor < 7 ? "(function_exists('wp_doing_ajax') && wp_doing_ajax())" : 'wp_doing_ajax()'} || defined('REST_REQUEST')) {
 				return;
 			}
 			if ( is_user_logged_in() ) {
@@ -380,7 +468,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/preload/error-handler.php',
 		`<?php
-		(function() {
+		${phpMajor < 7 ? 'call_user_func(function() {' : '(function() {'}
 			$playground_consts = [];
 			if(file_exists('/internal/shared/consts.json')) {
 				$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true) ?: [];
@@ -427,7 +515,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 				}
 				return false;
 			});
-		})();`
+		${phpMajor < 7 ? '});' : '})();'}`
 	);
 }
 
@@ -452,9 +540,14 @@ export async function preloadPhpInfoRoute(
 	);
 }
 
+export interface SqliteIntegrationOptions {
+	phpVersion?: string;
+}
+
 export async function preloadSqliteIntegration(
 	php: UniversalPHP,
-	sqliteZip: File
+	sqliteZip: File,
+	options: SqliteIntegrationOptions = {}
 ) {
 	if (await php.isDir('/tmp/sqlite-database-integration')) {
 		await php.rmdir('/tmp/sqlite-database-integration', {
@@ -472,12 +565,19 @@ export async function preloadSqliteIntegration(
 	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
 
+	// Patch SQLite plugin files for PHP 5.6 compatibility by removing
+	// PHP 7.0+ syntax (null coalescing, return types, parameter types).
+	const phpMajor = parseInt(options.phpVersion ?? '8', 10);
+	if (phpMajor < 7) {
+		await patchSqlitePluginForLegacyPhp(php, SQLITE_PLUGIN_FOLDER);
+	}
+
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
 		joinPaths(SQLITE_PLUGIN_FOLDER, 'db.copy')
 	);
-	const dbPhp = dbCopy
+	let dbPhp = dbCopy
 		.replace(
 			"'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'",
 			phpVar(SQLITE_PLUGIN_FOLDER)
@@ -486,21 +586,194 @@ export async function preloadSqliteIntegration(
 			"'{SQLITE_PLUGIN}'",
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
+	if (phpMajor < 7) {
+		// Guard add_action call for WordPress < 2.1 compatibility.
+		// When loaded via the lazy $wpdb loader, WordPress hooks
+		// may not be available yet.
+		dbPhp = dbPhp.replace(
+			/^(add_action\(\s*\n)/m,
+			'if (function_exists("add_action")) $1'
+		);
+		// For PHP 5.6, replace require_once with eval in the
+		// mu-plugin to work around the WASM parser bug.
+		dbPhp = dbPhp.replace(
+			/^(\s*)require_once\s+([^;]+);/gm,
+			(_match, indent, path) => {
+				const trimmedPath = path.trim();
+				if (/^\$\w+$/.test(trimmedPath)) {
+					return _match;
+				}
+				return (
+					`${indent}if(empty($GLOBALS['__evaled'][${trimmedPath}])){` +
+					`$GLOBALS['__evaled'][${trimmedPath}]=1;` +
+					`eval('?>' . file_get_contents(${trimmedPath}));}`
+				);
+			}
+		);
+	}
 	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
-	const stopIfDbPhpExists = `<?php
+	const SQLITE_MUPLUGIN_PATH =
+		'/internal/shared/mu-plugins/sqlite-database-integration.php';
+
+	// For legacy PHP, we write a @playground-managed db.php, so the
+	// preload guard must check for the marker to avoid skipping itself.
+	// For modern PHP, use the simpler trunk guard (skip if db.php exists).
+	const dbPhpGuard =
+		phpMajor < 7
+			? `
+if(file_exists(${phpVar(dbPhpPath)})) {
+	$content = @file_get_contents(${phpVar(dbPhpPath)});
+	if (strpos($content, '@playground-managed') === false) {
+		return;
+	}
+}
+`
+			: `
 	// Do not preload this if WordPress comes with a custom db.php file.
 	if(file_exists(${phpVar(dbPhpPath)})) {
 		return;
 	}
-	?>`;
-	const SQLITE_MUPLUGIN_PATH =
-		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
+	`;
+
+	if (phpMajor < 7) {
+		// NOTE: No closing ?> tag — PHP 5.6 WASM has a parser bug
+		// where ?> followed by <?php inside require_once'd files
+		// corrupts the parser state.
+		await php.writeFile(
+			SQLITE_MUPLUGIN_PATH,
+			'<?php\n' + dbPhpGuard + dbPhp.replace(/^<\?php\s*/, '')
+		);
+	} else {
+		await php.writeFile(
+			SQLITE_MUPLUGIN_PATH,
+			`<?php\n${dbPhpGuard}?>` + dbPhp
+		);
+	}
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
-		stopIfDbPhpExists +
-			`<?php
+		phpMajor < 7
+			? buildLegacySqlitePreload(dbPhpGuard, SQLITE_MUPLUGIN_PATH, phpVar)
+			: buildModernSqlitePreload(dbPhpGuard, SQLITE_MUPLUGIN_PATH, phpVar)
+	);
+	/**
+	 * Ensure the SQLite integration is loaded and clearly communicate
+	 * if it isn't. This is useful because WordPress database errors
+	 * may be cryptic and won't mention the SQLite integration.
+	 */
+	await php.writeFile(
+		`/internal/shared/mu-plugins/sqlite-test.php`,
+		`<?php
+		global $wpdb;
+		if(!($wpdb instanceof WP_SQLite_DB)) {
+			var_dump(isset($wpdb));
+			die("SQLite integration not loaded " . get_class($wpdb));
+		}
+		`
+	);
+}
 
+/**
+ * Builds the 0-sqlite.php preload content for modern PHP (7+).
+ * Matches trunk behavior: require_once, simple db.php guard,
+ * minimal mysqli_connect stub.
+ */
+function buildModernSqlitePreload(
+	dbPhpGuard: string,
+	muPluginPath: string,
+	phpVarFn: typeof phpVar
+): string {
+	return `<?php
+${dbPhpGuard}?>
+<?php
+
+${SQLITE_PRELOAD_LOADER_CLASS(
+	// Modern PHP: use require_once (trunk behavior)
+	`require_once ${phpVarFn(muPluginPath)};`
+)}
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
+
+		`;
+}
+
+/**
+ * Builds the 0-sqlite.php preload content for legacy PHP (< 7).
+ * Uses eval() instead of require_once (PHP 5.6 WASM parser bug),
+ * includes MySQL/MySQLi stubs, str_* polyfills, and error suppression.
+ */
+function buildLegacySqlitePreload(
+	dbPhpGuard: string,
+	muPluginPath: string,
+	phpVarFn: typeof phpVar
+): string {
+	return `<?php
+${dbPhpGuard}
+${SQLITE_PRELOAD_LOADER_CLASS(
+	// Legacy PHP: use eval() to work around WASM parser bug, and
+	// call reinitialize_sqlite() for old WordPress (< 3.0) where
+	// the SQLite plugin's db_connect() is never called because old
+	// wpdb does mysql_connect() inline.
+	`eval('?>' . file_get_contents(${phpVarFn(muPluginPath)}));
+        if (
+            isset($GLOBALS['wpdb']) &&
+            method_exists($GLOBALS['wpdb'], 'reinitialize_sqlite')
+        ) {
+            $GLOBALS['wpdb']->reinitialize_sqlite();
+        }`
+)}
+// These stubs return truthy values because old WordPress (< 3.0)
+// calls mysql_connect() directly in wpdb::__construct() and calls
+// bail() on a falsy return.
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() { return true; }
+}
+if(!function_exists('mysqli_init')) {
+	function mysqli_init() { return true; }
+}
+if(!function_exists('mysql_connect')) {
+	function mysql_connect() { return true; }
+}
+if(!function_exists('mysql_select_db')) {
+	function mysql_select_db() { return true; }
+}
+${MYSQL_SHIMS_PHP}
+if (!function_exists('str_contains')) {
+	function str_contains($haystack, $needle) {
+		return $needle === '' || strpos($haystack, $needle) !== false;
+	}
+}
+if (!function_exists('str_starts_with')) {
+	function str_starts_with($haystack, $needle) {
+		return strncmp($haystack, $needle, strlen($needle)) === 0;
+	}
+}
+if (!function_exists('str_ends_with')) {
+	function str_ends_with($haystack, $needle) {
+		return $needle === '' || substr($haystack, -strlen($needle)) === $needle;
+	}
+}
+if (PHP_MAJOR_VERSION < 7) {
+	$level = E_ALL & ~E_DEPRECATED & ~E_STRICT;
+	error_reporting($level);
+	ini_set('error_reporting', $level);
+}
+if (!isset($_SERVER['SERVER_PROTOCOL'])) {
+	$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
+}
+if (!ini_get('date.timezone')) {
+	date_default_timezone_set('UTC');
+}
+
+		`;
+}
+
+/**
+ * The shared Playground_SQLite_Integration_Loader class definition,
+ * parameterized by the load_sqlite_integration() body.
+ */
+function SQLITE_PRELOAD_LOADER_CLASS(loadBody: string): string {
+	return `
 /**
  * Loads the SQLite integration plugin before WordPress is loaded
  * and without creating a drop-in "db.php" file.
@@ -549,7 +822,7 @@ class Playground_SQLite_Integration_Loader {
 		$GLOBALS['wpdb']->$name = $value;
 	}
     protected function load_sqlite_integration() {
-        require_once ${phpVar(SQLITE_MUPLUGIN_PATH)};
+        ${loadBody}
     }
 }
 /**
@@ -570,27 +843,7 @@ $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
  *
  * What WordPress demands, Playground shall provide.
  */
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
-
-		`
-	);
-	/**
-	 * Ensure the SQLite integration is loaded and clearly communicate
-	 * if it isn't. This is useful because WordPress database errors
-	 * may be cryptic and won't mention the SQLite integration.
-	 */
-	await php.writeFile(
-		`/internal/shared/mu-plugins/sqlite-test.php`,
-		`<?php
-		global $wpdb;
-		if(!($wpdb instanceof WP_SQLite_DB)) {
-			var_dump(isset($wpdb));
-			die("SQLite integration not loaded " . get_class($wpdb));
-		}
-		`
-	);
+`;
 }
 
 /**
