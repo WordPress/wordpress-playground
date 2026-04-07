@@ -15,7 +15,11 @@ import { Modal } from '../../components/modal';
 import { cog, category } from '@wordpress/icons';
 import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
-import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
+import {
+	modalSlugs,
+	setActiveModal,
+	setSiteManagerOpen,
+} from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
 import {
 	SavedPlaygroundsOverlay,
@@ -99,6 +103,19 @@ export default function BrowserChrome({
 					<SharingStatusIndicator />
 
 					<div className={css.toolbarButtons}>
+						<Button
+							variant="browser-chrome"
+							aria-label="Share this Playground with others"
+							data-testid="share-playground-button"
+							className={css.shareButton}
+							onClick={() => {
+								dispatch(
+									setActiveModal(modalSlugs.SHARE_PLAYGROUND)
+								);
+							}}
+						>
+							Share
+						</Button>
 						<Button
 							variant="browser-chrome"
 							aria-label="Saved Playgrounds"

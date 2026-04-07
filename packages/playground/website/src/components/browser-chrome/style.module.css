@@ -90,6 +90,28 @@ body.is-embedded .fake-window-wrapper {
 	pointer-events: none;
 }
 
+.share-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 6px 14px;
+	background: #2271b1;
+	color: #fff;
+	border: 1px solid #2271b1;
+	border-radius: 4px;
+	cursor: pointer;
+	flex-shrink: 0;
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.share-button:hover {
+	background: #135e96;
+	border-color: #135e96;
+}
+
 .saved-playgrounds-button {
 	display: flex;
 	align-items: center;

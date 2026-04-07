@@ -42,6 +42,28 @@ export interface TunnelSession {
 	hostConnected: boolean;
 	pendingRequests: Map<string, QueuedRequest>;
 	pollResolvers: Array<(request: TunnelRequest | null) => void>;
+	/**
+	 * Anonymous collaborator tracking. Each guest browser tab generates a
+	 * stable UUID, sends it on every status heartbeat, and gets pruned
+	 * once it stops checking in. The ordinal stays stable for the lifetime
+	 * of the session so labels like "Guest 1" don't shuffle around.
+	 */
+	guests: Map<string, GuestRecord>;
+	nextGuestOrdinal: number;
+}
+
+export interface GuestRecord {
+	id: string;
+	ordinal: number;
+	label: string;
+	firstSeenAt: number;
+	lastSeenAt: number;
+}
+
+export interface GuestInfo {
+	id: string;
+	label: string;
+	lastSeenMs: number;
 }
 
 export interface SessionStatusResponse {
@@ -54,6 +76,12 @@ export interface SessionStatusResponse {
 	 */
 	hostAlive: boolean;
 	lastPollAgoMs: number;
+	/**
+	 * Currently-connected guests. The list is computed on every /status
+	 * call by pruning entries that haven't heartbeated within the guest
+	 * timeout window (~10s).
+	 */
+	guests: GuestInfo[];
 }
 
 export interface CreateSessionResponse {

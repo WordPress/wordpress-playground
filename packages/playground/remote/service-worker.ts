@@ -212,7 +212,12 @@ self.addEventListener('fetch', (event) => {
 
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
-		url.pathname.startsWith('/client/index.js');
+		url.pathname.startsWith('/client/index.js') ||
+		// Peer-to-peer sharing: the /relay/* endpoints are handled by the
+		// website's relay middleware (or relay.php in production). The
+		// service worker must let those pass through to the network so
+		// the host can create sessions and guests can poll status.
+		url.pathname.startsWith('/relay/');
 	if (isReservedUrl) {
 		return;
 	}

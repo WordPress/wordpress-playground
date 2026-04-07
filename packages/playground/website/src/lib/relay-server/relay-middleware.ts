@@ -21,6 +21,8 @@ import type {
 	CreateSessionResponse,
 	PollResponse,
 	SessionStatusResponse,
+	GuestInfo,
+	GuestRecord,
 } from './types';
 
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
@@ -33,6 +35,13 @@ const REQUEST_TIMEOUT = 30 * 1000; // 30 seconds
  * hostConnected to false and fail pending guest requests fast.
  */
 const HOST_DEAD_AFTER_MS = 40 * 1000;
+/**
+ * How long without a guest heartbeat before we drop them from the
+ * collaborator list. Guests heartbeat every ~3s via the /status
+ * endpoint, so 10s gives roughly three missed beats before we forget
+ * them — fast enough to feel "live", lax enough to ride out a hiccup.
+ */
+const GUEST_DEAD_AFTER_MS = 10 * 1000;
 
 const sessions = new Map<string, TunnelSession>();
 
@@ -62,6 +71,53 @@ function markHostDisconnected(session: TunnelSession, reason: string): void {
 	session.pendingRequests.clear();
 }
 
+/**
+ * Drop any guests that have stopped heartbeating. Returns the surviving
+ * guests as a serializable list, sorted by ordinal so the order is
+ * stable across calls.
+ */
+function pruneGuests(session: TunnelSession, now: number): GuestInfo[] {
+	for (const [gid, guest] of session.guests) {
+		if (now - guest.lastSeenAt > GUEST_DEAD_AFTER_MS) {
+			session.guests.delete(gid);
+		}
+	}
+	return Array.from(session.guests.values())
+		.sort((a, b) => a.ordinal - b.ordinal)
+		.map((g) => ({
+			id: g.id,
+			label: g.label,
+			lastSeenMs: now - g.lastSeenAt,
+		}));
+}
+
+/**
+ * Register a heartbeat for a guest, creating its record on first sight.
+ * The ordinal — and therefore the "Guest N" label — sticks for the
+ * lifetime of the session even if the guest reconnects.
+ */
+function recordGuestHeartbeat(
+	session: TunnelSession,
+	guestId: string,
+	now: number
+): GuestRecord {
+	let guest = session.guests.get(guestId);
+	if (!guest) {
+		const ordinal = session.nextGuestOrdinal++;
+		guest = {
+			id: guestId,
+			ordinal,
+			label: `Guest ${ordinal}`,
+			firstSeenAt: now,
+			lastSeenAt: now,
+		};
+		session.guests.set(guestId, guest);
+	} else {
+		guest.lastSeenAt = now;
+	}
+	return guest;
+}
+
 function cleanupExpiredSessions(): void {
 	const now = Date.now();
 	for (const [sessionId, session] of sessions) {
@@ -75,6 +131,10 @@ function cleanupExpiredSessions(): void {
 		) {
 			markHostDisconnected(session, 'no poll received');
 		}
+
+		// Age out silent guests so the host's collaborator list shrinks
+		// even if no /status request comes in to do it for us.
+		pruneGuests(session, now);
 
 		if (now - session.lastActivity > SESSION_TIMEOUT) {
 			// Reject any pending requests
@@ -180,6 +240,8 @@ export function createRelayMiddleware(
 				hostConnected: false,
 				pendingRequests: new Map(),
 				pollResolvers: [],
+				guests: new Map(),
+				nextGuestOrdinal: 1,
 			};
 			sessions.set(sessionId, session);
 
@@ -306,10 +368,15 @@ export function createRelayMiddleware(
 
 		// GET /relay/:sessionId/status - Guest polls session health.
 		// Lets the guest UI flip to a "host disconnected" state without
-		// waiting for a tunneled request to time out.
-		const statusMatch = url.match(/^\/relay\/([^/]+)\/status$/);
+		// waiting for a tunneled request to time out. Doubles as the
+		// guest heartbeat: if the request includes a `?gid=<uuid>` query
+		// param we record/refresh that guest in the session's collaborator
+		// map. The host periodically polls the same endpoint without a
+		// gid to see who is currently connected.
+		const statusMatch = url.match(/^\/relay\/([^/?]+)\/status(?:\?(.*))?$/);
 		if (req.method === 'GET' && statusMatch) {
 			const sessionId = statusMatch[1];
+			const queryString = statusMatch[2] || '';
 			const session = sessions.get(sessionId);
 			if (!session) {
 				sendError(res, 404, 'Session not found');
@@ -325,6 +392,17 @@ export function createRelayMiddleware(
 			) {
 				markHostDisconnected(session, 'status check: no poll');
 			}
+
+			// Heartbeat handling: a guest tab tags itself by passing
+			// `?gid=<uuid>` so we can build a stable collaborator list
+			// without inventing identity per-request.
+			const params = new URLSearchParams(queryString);
+			const guestId = params.get('gid');
+			if (guestId) {
+				recordGuestHeartbeat(session, guestId, now);
+			}
+
+			const guests = pruneGuests(session, now);
 			const lastPollAgoMs =
 				session.lastPollAt > 0 ? now - session.lastPollAt : -1;
 			const response: SessionStatusResponse = {
@@ -335,6 +413,7 @@ export function createRelayMiddleware(
 					session.lastPollAt > 0 &&
 					lastPollAgoMs < HOST_DEAD_AFTER_MS,
 				lastPollAgoMs,
+				guests,
 			};
 			sendJson(res, 200, response);
 			return;
