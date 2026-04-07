@@ -41,7 +41,7 @@ Or a theme:
 
 [https://playground.wordpress.net/?theme=pendant](https://playground.wordpress.net/?theme=pendant)
 
-This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/). 気に入った URL ができたら、iframe を使用して Web サイトに埋め込むことができます。
+これは [クエリ API](/developers/apis/query-api/) と呼ばれ、詳細は [こちら](/developers/apis/query-api/) で確認できます。気に入った URL ができたら、iframe を使用して Web サイトに埋め込むことができます。
 
 <!--
 <ThisIsQueryApi /> Once you have a URL that you like, you can embed it in your website using an iframe:
