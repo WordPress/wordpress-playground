@@ -166,11 +166,16 @@ const initialState: UIState = {
 	 * not by loading a URL with the modal parameter.
 	 * The github-private-repo-auth modal should only be triggered by authentication errors,
 	 * not by loading a URL with the modal parameter.
+	 * The delete-site and rename-site modals require Redux state (siteSlugToDelete /
+	 * siteSlugToRename) that is not persisted in the URL, so they cannot be meaningfully
+	 * restored from a URL parameter.
 	 */
 	activeModal:
 		query.get('modal') === 'error-report' ||
 		query.get('modal') === 'save-site' ||
-		query.get('modal') === 'github-private-repo-auth'
+		query.get('modal') === 'github-private-repo-auth' ||
+		query.get('modal') === 'delete-site' ||
+		query.get('modal') === 'rename-site'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
