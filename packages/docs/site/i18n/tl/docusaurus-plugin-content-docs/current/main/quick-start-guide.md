@@ -52,7 +52,7 @@ Maaari ka ring maghalo ng mga parameter at magdagdag ng maraming plugin:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
+Ito ay tinatawag na [Query API](/developers/apis/query-api/), at maaari kang matuto pa tungkol dito [dito](/developers/apis/query-api/).
 
 ## I-save ang iyong site
 
