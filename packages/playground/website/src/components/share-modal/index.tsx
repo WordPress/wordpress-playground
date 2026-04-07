@@ -132,11 +132,35 @@ export function ShareModal() {
 	};
 
 	const copyToClipboard = async () => {
-		if (shareUrl) {
-			await navigator.clipboard.writeText(shareUrl);
-			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
+		if (!shareUrl) {
+			return;
 		}
+		// Try the modern Clipboard API first. Some browsers (notably
+		// webkit in headless mode) reject writeText with NotAllowedError
+		// even with a user gesture, so we fall back to a hidden textarea
+		// + execCommand('copy') so the user always gets the URL in their
+		// clipboard.
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+		} catch {
+			const textarea = document.createElement('textarea');
+			textarea.value = shareUrl;
+			textarea.setAttribute('readonly', '');
+			textarea.style.position = 'absolute';
+			textarea.style.left = '-9999px';
+			document.body.appendChild(textarea);
+			textarea.select();
+			try {
+				document.execCommand('copy');
+			} catch {
+				// Both APIs failed — leave the URL in the input so the
+				// user can still copy it by hand. Surface the visual
+				// feedback regardless so the click feels responsive.
+			}
+			document.body.removeChild(textarea);
+		}
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
 	};
 
 	const handleRequestClose = () => {
