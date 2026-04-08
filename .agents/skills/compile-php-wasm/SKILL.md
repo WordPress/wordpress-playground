@@ -12,9 +12,16 @@ modules in the WordPress Playground repository.
 
 ## Quick Reference
 
+````bash
 ```bash
-# Recompile main module — specific version + platform + mode
+# Recompile a specific version for ALL platforms and modes (web+node, jspi+asyncify)
+npx nx recompile-php:all php-wasm-web -- --PHP_VERSION=8.5
+npx nx recompile-php:all php-wasm-node -- --PHP_VERSION=8.5
+
+# Recompile a specific version + platform + single mode
 npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.5
+npx nx recompile-php:asyncify php-wasm-web -- --PHP_VERSION=8.5
+npx nx recompile-php:jspi php-wasm-node -- --PHP_VERSION=8.5
 npx nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=8.5
 
 # Recompile all PHP versions for a platform
@@ -22,29 +29,39 @@ npm run recompile:php:web
 npm run recompile:php:node
 
 # Debug build (DWARF info)
+# Use when you need to step through WASM in a debugger (Chrome DevTools DWARF
+# support) or need better stack traces with C function names. Helpful for
+# crashes like `RuntimeError: unreachable` where you need to identify which
+# C function is involved. Produces much larger binaries.
+npx nx recompile-php:all php-wasm-web -- --WITH_DEBUG=yes
 npx nx recompile-php:all php-wasm-node -- --WITH_DEBUG=yes
 
 # Source maps
+# Use when you want to map JS glue code back to its Emscripten-generated
+# source locations. Lighter weight than DWARF but only covers the JS side,
+# not the WASM internals.
+npx nx recompile-php:all php-wasm-web -- --WITH_SOURCEMAPS=yes
 npx nx recompile-php:all php-wasm-node -- --WITH_SOURCEMAPS=yes
 
 # Reset caches before rebuilding
 node node_modules/.bin/nx reset
 docker rmi php-wasm:latest
-```
 
 ## Build Pipeline Overview
 
 The build system lives in `packages/php-wasm/compile/`. The pipeline is:
 
-```
+````
+
 Dockerfile (Emscripten + PHP source + patches)
-    ↓  docker build
+↓ docker build
 .wasm binary + .js glue file
-    ↓  post-link Dockerfile patches (replace.sh)
+↓ post-link Dockerfile patches (replace.sh)
 Patched .js glue file
-    ↓  NX executor copies to dist/
+↓ NX executor copies to dist/
 Final artifacts in package dist/
-```
+
+````
 
 Key files:
 
@@ -104,7 +121,8 @@ file after Emscripten runs. Common patches:
   ```js
   PHPLoader['malloc'] = wasmExports['malloc'];
   // Injected right after assignWasmExports() in the glue file
-  ```
+````
+
 - **Cache Asyncify buffers** to prevent `memory.grow()` corruption during
   `handleSleep()` (see debug-php-wasm-main-module skill for details)
 - **Guard `ENVIRONMENT_IS_*` substitution** for multi-environment builds
@@ -114,29 +132,29 @@ file after Emscripten runs. Common patches:
 When upgrading Emscripten, expect these categories of breakage:
 
 1. **Removed/renamed APIs:**
-   - `setErrNo()` removed — use `HEAP32[___errno_location() >> 2] = code`
-   - `_malloc`/`_free` no longer auto-exposed — add to `EXPORTED_FUNCTIONS`
-   - `HEAPU8`/`HEAPU32` need explicit `EXPORTED_RUNTIME_METHODS`
+    - `setErrNo()` removed — use `HEAP32[___errno_location() >> 2] = code`
+    - `_malloc`/`_free` no longer auto-exposed — add to `EXPORTED_FUNCTIONS`
+    - `HEAPU8`/`HEAPU32` need explicit `EXPORTED_RUNTIME_METHODS`
 
 2. **Stricter Clang compiler:**
-   - `-Wincompatible-pointer-types` becomes an error. Fix: correct the
-     types, not the warning level.
-   - PHP version checks like `#if PHP_MAJOR_VERSION >= 8` may be too broad
-     (e.g. `zend_file_handle.filename` is `const char *` in 8.0 but
-     `zend_string *` in 8.1+)
+    - `-Wincompatible-pointer-types` becomes an error. Fix: correct the
+      types, not the warning level.
+    - PHP version checks like `#if PHP_MAJOR_VERSION >= 8` may be too broad
+      (e.g. `zend_file_handle.filename` is `const char *` in 8.0 but
+      `zend_string *` in 8.1+)
 
 3. **JSPI behavioral changes:**
-   - WASI syscall wrappers (e.g. `fd_close`) may gain JS intermediate
-     frames, breaking JSPI suspension. Symptom: startup hangs silently.
-     Fix: remove from `JSPI_IMPORTS`/`JSPI_EXPORTS`.
-   - `exitRuntime()` → `__funcs_on_exit()` may trigger JSPI suspension.
-     Add to `JSPI_EXPORTS` and `EXPORTED_FUNCTIONS`.
+    - WASI syscall wrappers (e.g. `fd_close`) may gain JS intermediate
+      frames, breaking JSPI suspension. Symptom: startup hangs silently.
+      Fix: remove from `JSPI_IMPORTS`/`JSPI_EXPORTS`.
+    - `exitRuntime()` → `__funcs_on_exit()` may trigger JSPI suspension.
+      Add to `JSPI_EXPORTS` and `EXPORTED_FUNCTIONS`.
 
 4. **Debugging approach:**
-   - Build PHP 8.4 first (fewest compatibility issues)
-   - Fix build errors, then run JSPI tests
-   - Once 8.4 passes, test 8.0 and 7.4 for version-specific issues
-   - Patch PHP source files (`php*.patch`) for older versions as needed
+    - Build PHP 8.4 first (fewest compatibility issues)
+    - Fix build errors, then run JSPI tests
+    - Once 8.4 passes, test 8.0 and 7.4 for version-specific issues
+    - Patch PHP source files (`php*.patch`) for older versions as needed
 
 ## Side Module Compilation
 
@@ -148,14 +166,14 @@ WASM shared libraries loaded via `dlopen`.
 The extension build needs a minimal PHP installation (for `phpize` and
 headers). Key Emscripten-specific requirements:
 
-| Requirement | Detail |
-|-------------|--------|
-| Inline assembly patches | `HAVE_ASM_GOTO`, `ZEND_USE_ASM_ARITHMETIC`, `__GNUC__`, `__clang__` — same patches as main Dockerfile |
-| `--without-pcre-jit` | SLJIT uses x86 assembly, unavailable in WASM |
-| PHP 8.4 flag change | `--disable-libxml` became `--without-libxml` |
-| Remove `-lm` from Makefile | Math library is in the main module |
-| EMCC_FLAGS | `-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT` |
-| `wasm-opt` path | `/root/emsdk/upstream/bin/wasm-opt` (not on PATH) |
+| Requirement                | Detail                                                                                                |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Inline assembly patches    | `HAVE_ASM_GOTO`, `ZEND_USE_ASM_ARITHMETIC`, `__GNUC__`, `__clang__` — same patches as main Dockerfile |
+| `--without-pcre-jit`       | SLJIT uses x86 assembly, unavailable in WASM                                                          |
+| PHP 8.4 flag change        | `--disable-libxml` became `--without-libxml`                                                          |
+| Remove `-lm` from Makefile | Math library is in the main module                                                                    |
+| EMCC_FLAGS                 | `-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT`                                                            |
+| `wasm-opt` path            | `/root/emsdk/upstream/bin/wasm-opt` (not on PATH)                                                     |
 
 ### Asyncify side modules
 
@@ -228,19 +246,20 @@ node -e "
 ```
 
 Cross-reference symbol lists with:
+
 - The `ASYNCIFY_ONLY` function list (main module)
 - `EXPORTED_FUNCTIONS` in the Emscripten build flags
 - `SIDE_MODULE` / `MAIN_MODULE` dynamic linking expectations
 
 ## Diagnostic Cheat Sheet
 
-| Situation | Action |
-|-----------|--------|
-| Build fails with compiler error | Read the error, fix C/Makefile, retry |
-| Build succeeds but WASM won't load | List imports — runtime is missing something |
-| Build succeeds but runtime crashes | List exports + check Asyncify/JSPI function lists |
-| Behavior is wrong but no error | Add `printf` to C code, rebuild, trace |
-| Extension fails as SIDE_MODULE | Check dynamic linking flags, verify symbol visibility |
-| Linker SIGSEGV with MAIN_MODULE | Switch `-l` flags to explicit `.a` paths |
-| `R_WASM_MEMORY_ADDR_SLEB` error | Pre-built archive not compiled with PIC — rebuild from source |
-| Don't know what a build step does | Read the Dockerfile/Makefile line by line |
+| Situation                          | Action                                                        |
+| ---------------------------------- | ------------------------------------------------------------- |
+| Build fails with compiler error    | Read the error, fix C/Makefile, retry                         |
+| Build succeeds but WASM won't load | List imports — runtime is missing something                   |
+| Build succeeds but runtime crashes | List exports + check Asyncify/JSPI function lists             |
+| Behavior is wrong but no error     | Add `printf` to C code, rebuild, trace                        |
+| Extension fails as SIDE_MODULE     | Check dynamic linking flags, verify symbol visibility         |
+| Linker SIGSEGV with MAIN_MODULE    | Switch `-l` flags to explicit `.a` paths                      |
+| `R_WASM_MEMORY_ADDR_SLEB` error    | Pre-built archive not compiled with PIC — rebuild from source |
+| Don't know what a build step does  | Read the Dockerfile/Makefile line by line                     |
