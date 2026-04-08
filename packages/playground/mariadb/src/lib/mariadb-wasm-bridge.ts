@@ -228,6 +228,12 @@ export class MariaDBBridge {
 			// stubbed in the WASM build (no threading), so any attempt
 			// to create Aria temp files fails.
 			'--loose-aria-used-for-temp-tables=OFF',
+			// Emscripten can't detect the WASM stack size, so MariaDB
+			// defaults thread_stack to 0 and rejects large queries.
+			'--thread-stack=1048576',
+			// Suppress "Can't open and lock privilege tables" warnings
+			// that are expected with --skip-grant-tables.
+			'--log-warnings=0',
 		];
 		const argPtrs = serverArgs.map((arg) => {
 			const ptr = this.module._malloc(arg.length + 1);
