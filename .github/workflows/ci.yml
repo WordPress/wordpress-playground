@@ -16,6 +16,7 @@ jobs:
     # take ~25s just to run git clone and restore node_modules.
     lint-and-typecheck:
         name: 'Lint and typecheck'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -27,6 +28,7 @@ jobs:
             - run: npx nx check-orphan-pages docs-site
             - run: bash tools/check-node-engine-alignment.sh
     test-unit-asyncify:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -75,6 +77,7 @@ jobs:
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
     test-unit-jspi:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -121,6 +124,7 @@ jobs:
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
     test-playground-cli:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         strategy:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
@@ -137,6 +141,7 @@ jobs:
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli
     test-file-locking:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         strategy:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
@@ -154,6 +159,7 @@ jobs:
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-file-locking-${{ matrix.async-strategy }}
     test-e2e-php-wasm-web-jspi:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -163,6 +169,7 @@ jobs:
             - run: sudo npx playwright install
             - run: sudo CI=true JSPI=true npx nx e2e php-wasm-web
     test-e2e-php-wasm-web-asyncify:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -172,6 +179,7 @@ jobs:
             - run: sudo npx playwright install
             - run: sudo CI=true npx nx e2e php-wasm-web
     test-e2e:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80
         steps:
@@ -191,6 +199,7 @@ jobs:
     # Previously used a prepare job + artifact sharing, but inline builds allow
     # all shards to start immediately in parallel, reducing total wall time.
     test-e2e-playwright:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -290,6 +299,7 @@ jobs:
                   if-no-files-found: ignore
 
     test-e2e-components:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -329,6 +339,7 @@ jobs:
                   if-no-files-found: ignore
 
     test-docs-api-reference:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -347,6 +358,7 @@ jobs:
                   if-no-files-found: ignore
 
     test-built-npm-packages:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -359,6 +371,7 @@ jobs:
               run: packages/playground/test-built-npm-packages/run-tests.sh
 
     test-running-unbuilt-playground-cli:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -370,6 +383,7 @@ jobs:
             - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
 
     test-php-wasm-cli-smoke:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -385,6 +399,7 @@ jobs:
     # Redis requires JSPI because asyncify cannot properly handle exceptions
     # during network I/O. Attempting to load Redis with asyncify throws an error.
     test-redis-extension:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         services:
             redis:
@@ -412,6 +427,7 @@ jobs:
     # Memcached extension tests - verifies the php-memcached extension loads
     # and provides the expected API, and can connect to a real memcached server.
     test-memcached-extension:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         services:
             memcached:
@@ -434,6 +450,7 @@ jobs:
                   MEMCACHED_PORT: 11211
 
     build:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
