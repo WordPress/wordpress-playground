@@ -1,4 +1,4 @@
-import { getURLScope, isURLScoped, removeURLScope, setURLScope } from './index';
+import { getURLScope, isURLScoped, removeURLScope, setURLScope } from '../lib/scope';
 
 describe('getURLScope', () => {
 	it('should return the scope from a scoped URL', () => {

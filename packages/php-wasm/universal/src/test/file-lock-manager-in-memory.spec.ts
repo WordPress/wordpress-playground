@@ -1,5 +1,5 @@
 import { writeFileSync, unlinkSync } from 'fs';
-import { FileLockManagerInMemory } from './file-lock-manager-in-memory';
+import { FileLockManagerInMemory } from '../lib/file-lock-manager-in-memory';
 import type { WholeFileLockOp } from '../lib/file-lock-manager';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;

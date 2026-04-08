@@ -1,4 +1,4 @@
-import { splitShellCommand } from './split-shell-command';
+import { splitShellCommand } from '../lib/split-shell-command';
 
 describe('splitShellCommand', () => {
 	it('Should split a shell command into an array', () => {

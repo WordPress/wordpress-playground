@@ -1,6 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { MessageChannel, Worker as NodeWorker } from 'worker_threads';
-import { NodeSABSyncReceiveMessageTransport } from './comlink-sync';
+import { NodeSABSyncReceiveMessageTransport } from '../lib/comlink-sync';
 
 // Node.js < 23 does not support TypeScript and won't run this test.
 const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
@@ -85,13 +84,13 @@ describe.skipIf(nodeVersion < 23)('Comlink Sync Communication Tests', () => {
 			});
 		}
 
-		const comlinkSyncPath = import.meta.dirname + '/comlink-sync.ts';
+		const comlinkSyncPath = import.meta.dirname + '/../lib/comlink-sync.ts';
 		// Simple inline worker code that doesn't depend on complex imports
 		const serverWorkerCode = `
 			import { parentPort } from 'worker_threads';
 			import { exposeSync, NodeSABSyncReceiveMessageTransport } from "${comlinkSyncPath}";
 			export {};
-			
+
 			const testAPI = {
 				ping: () => 'pong',
 				add: (a, b) => a + b,
@@ -100,7 +99,7 @@ describe.skipIf(nodeVersion < 23)('Comlink Sync Communication Tests', () => {
 				processArray: (numbers) => numbers.reduce((sum, num) => sum + num, 0),
 				throwError: () => { throw new Error('Test error from sync API server'); }
 			};
-			
+
 			parentPort?.on('message', async (data) => {
 				if (data.type === 'setup' && data.port) {
 					const transport = await NodeSABSyncReceiveMessageTransport.create();
@@ -114,7 +113,7 @@ describe.skipIf(nodeVersion < 23)('Comlink Sync Communication Tests', () => {
 		const clientWorkerCode = `
 			import { parentPort } from 'worker_threads';
 			import { wrapSync, NodeSABSyncReceiveMessageTransport } from "${comlinkSyncPath}";
-			
+
 			let syncAPI = null;
 			parentPort?.on('message', async (data) => {
 				if (data.type === 'setup' && data.port) {
@@ -125,7 +124,7 @@ describe.skipIf(nodeVersion < 23)('Comlink Sync Communication Tests', () => {
 					try {
 						const testName = data.testName;
 						let result;
-						
+
 						switch (testName) {
 							case 'ping':
 								result = await syncAPI.ping();
@@ -153,16 +152,16 @@ describe.skipIf(nodeVersion < 23)('Comlink Sync Communication Tests', () => {
 							default:
 								result = 'Unknown test: ' + testName;
 						}
-						
-						parentPort?.postMessage({ 
-							type: 'test-result', 
+
+						parentPort?.postMessage({
+							type: 'test-result',
 							testName,
 							result,
 							success: true
 						});
 					} catch (error) {
-						parentPort?.postMessage({ 
-							type: 'test-result', 
+						parentPort?.postMessage({
+							type: 'test-result',
 							testName: data.testName,
 							result: error.message,
 							success: false
@@ -170,7 +169,7 @@ describe.skipIf(nodeVersion < 23)('Comlink Sync Communication Tests', () => {
 					}
 				}
 			});
-			
+
 			parentPort?.postMessage({ type: 'loaded' });
 		`;
 

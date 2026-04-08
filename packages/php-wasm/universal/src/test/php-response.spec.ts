@@ -1,5 +1,4 @@
-import { describe, expect, it } from 'vitest';
-import { PHPResponse, StreamedPHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from '../lib/php-response';
 
 /**
  * Creates a ReadableStream from a string.

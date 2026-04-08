@@ -1,4 +1,4 @@
-import Semaphore, { AcquireTimeoutError } from './semaphore';
+import Semaphore, { AcquireTimeoutError } from '../lib/semaphore';
 
 describe('RequestsPerIntervaledSemaphore', () => {
 	it('should limit the number of concurrent lock holders', async () => {

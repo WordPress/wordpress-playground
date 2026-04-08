@@ -1,4 +1,4 @@
-import { HttpCookieStore } from './http-cookie-store';
+import { HttpCookieStore } from '../lib/http-cookie-store';
 
 describe('HTTPCookieStore', () => {
 	it('should store and retrieve cookies', () => {

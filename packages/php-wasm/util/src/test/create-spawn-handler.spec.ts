@@ -1,5 +1,5 @@
-import type { ProcessApi } from './create-spawn-handler';
-import { createSpawnHandler } from './create-spawn-handler';
+import type { ProcessApi } from '../lib/create-spawn-handler';
+import { createSpawnHandler } from '../lib/create-spawn-handler';
 
 describe('createSpawnHandler', () => {
 	it('should create and execute a spawn handler', async () => {

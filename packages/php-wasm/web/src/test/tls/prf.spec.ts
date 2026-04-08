@@ -1,4 +1,4 @@
-import { hmacSha256, tls12Prf } from './prf';
+import { hmacSha256, tls12Prf } from '../../lib/tls/1_2/prf';
 
 describe('hmacSha256', () => {
 	it('should match the expected HMAC', async () => {

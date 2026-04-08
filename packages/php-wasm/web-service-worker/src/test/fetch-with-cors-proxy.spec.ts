@@ -7,9 +7,9 @@ import {
 	it,
 	vi,
 } from 'vitest';
-import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
-import { FirewallInterferenceError } from './firewall-interference-error';
-import { __testing, supportsReadableStreamBody } from './utils';
+import { fetchWithCorsProxy } from '../lib/fetch-with-cors-proxy';
+import { FirewallInterferenceError } from '../lib/firewall-interference-error';
+import { __testing, supportsReadableStreamBody } from '../lib/utils';
 
 describe('fetchWithCorsProxy', () => {
 	beforeAll(async () => {

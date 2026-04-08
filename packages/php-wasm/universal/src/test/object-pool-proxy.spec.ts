@@ -1,5 +1,4 @@
-import { describe, it, expect } from 'vitest';
-import { createObjectPoolProxy } from './object-pool-proxy';
+import { createObjectPoolProxy } from '../lib/object-pool-proxy';
 
 describe('createPoolProxy', () => {
 	it('throws if no instances are provided', () => {

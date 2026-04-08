@@ -1,5 +1,5 @@
-import { FileLockIntervalTree } from './file-lock-interval-tree';
-import type { LockedRange } from './file-lock-manager';
+import { FileLockIntervalTree } from '../lib/file-lock-interval-tree';
+import type { LockedRange } from '../lib/file-lock-manager';
 
 function sharedLock(start: bigint, end: bigint, pid = 1, fd = 1): LockedRange {
 	return { type: 'shared', start, end, pid, fd };

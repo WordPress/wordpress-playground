@@ -1,5 +1,5 @@
-import { ProgressTracker } from './progress-tracker';
-import type { ProgressTrackerEvent } from './progress-tracker';
+import { ProgressTracker } from '../lib/progress-tracker';
+import type { ProgressTrackerEvent } from '../lib/progress-tracker';
 
 describe('Tracks total progress', () => {
 	it('A single ProgressTracker populated via fillSlowly (stopBeforeFinishing=true)', async () => {

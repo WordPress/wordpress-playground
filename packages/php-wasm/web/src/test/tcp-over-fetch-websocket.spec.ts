@@ -1,7 +1,7 @@
 import {
 	TCPOverFetchWebsocket,
 	RawBytesFetch,
-} from './tcp-over-fetch-websocket';
+} from '../lib/tcp-over-fetch-websocket';
 import express, { type Express } from 'express';
 import http from 'http';
 import https from 'https';
@@ -9,12 +9,12 @@ import tls from 'tls';
 import { Duplex } from 'stream';
 import type { AddressInfo } from 'net';
 import zlib from 'zlib';
-import { generateCertificate as generateCACertificate } from './tls/certificates';
-import type { GeneratedCertificate } from './tls/certificates';
+import { generateCertificate as generateCACertificate } from '../lib/tls/certificates';
+import type { GeneratedCertificate } from '../lib/tls/certificates';
 import {
 	generateCertificate,
 	cleanupCertificate,
-} from './test-utils/generate-certificate';
+} from './utils/generate-certificate';
 
 const pygmalion = `PREFACE TO PYGMALION.
 

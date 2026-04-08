@@ -4,7 +4,7 @@ import {
 	joinPaths,
 	normalizePath,
 	toPosixPath,
-} from './paths';
+} from '../lib/paths';
 
 describe('joinPaths', () => {
 	it('should join paths correctly', () => {

@@ -1,8 +1,9 @@
+import { describe, expect, it } from 'vitest';
 import {
 	cloneRequest,
 	getRequestHeaders,
 	removeContentSecurityPolicyDirective,
-} from './utils';
+} from '../lib/utils';
 
 describe('cloneRequest', () => {
 	it('should clone request headers', async () => {

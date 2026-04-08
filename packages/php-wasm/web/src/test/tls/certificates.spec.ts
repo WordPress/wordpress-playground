@@ -1,4 +1,4 @@
-import { generateCertificate, certificateToPEM } from './certificates';
+import { generateCertificate, certificateToPEM } from '../../lib/tls/certificates';
 import { execSync } from 'child_process';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';

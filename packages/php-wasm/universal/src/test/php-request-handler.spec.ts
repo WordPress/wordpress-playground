@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { PHPRequestHandler } from './php-request-handler';
-import { PHPResponse, StreamedPHPResponse } from './php-response';
-import type { PHP } from './php';
+import { PHPRequestHandler } from '../lib/php-request-handler';
+import { PHPResponse, StreamedPHPResponse } from '../lib/php-response';
+import type { PHP } from '../lib/php';
 
 /**
  * Creates a mock PHP instance with a simulated filesystem.
