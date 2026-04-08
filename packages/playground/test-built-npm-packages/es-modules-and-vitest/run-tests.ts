@@ -35,7 +35,7 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 	);
 }
 
-const testFiles = ['./tests/php-wasm.spec.ts', './tests/wp.spec.ts'];
+const testFiles = ['./tests/deps.spec.ts', './tests/wp.spec.ts'];
 
 for (const phpVersion of SupportedPHPVersions) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);

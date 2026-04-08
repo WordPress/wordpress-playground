@@ -5,7 +5,7 @@ import {
 	OverlayFilesystem,
 	FetchFilesystem,
 	NodeJsFilesystem,
-	ReadableFilesystemBackend,
+	type ReadableFilesystemBackend,
 } from '../lib/filesystems';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
