@@ -231,9 +231,6 @@ export class MariaDBBridge {
 			// Emscripten can't detect the WASM stack size, so MariaDB
 			// defaults thread_stack to 0 and rejects large queries.
 			'--thread-stack=1048576',
-			// Suppress "Can't open and lock privilege tables" warnings
-			// that are expected with --skip-grant-tables.
-			'--log-warnings=0',
 		];
 		const argPtrs = serverArgs.map((arg) => {
 			const ptr = this.module._malloc(arg.length + 1);
@@ -274,6 +271,154 @@ export class MariaDBBridge {
 		}
 
 		this.initialized = true;
+
+		// Bootstrap the mysql system database so MariaDB doesn't
+		// complain about missing privilege tables. Without this,
+		// every connection logs "Can't open and lock privilege tables."
+		this.bootstrapSystemTables();
+	}
+
+	/**
+	 * Create the mysql system tables (global_priv, plugin, servers, etc.)
+	 * that MariaDB expects to find on startup. This is the equivalent of
+	 * running mysql_install_db.
+	 *
+	 * We run a minimal subset — just enough for the embedded server to
+	 * operate without "Can't open and lock privilege tables" errors.
+	 * The full bootstrap scripts use Aria-specific features that may
+	 * not work with our stubbed Aria, so we use MyISAM explicitly.
+	 */
+	private bootstrapSystemTables(): void {
+		try {
+			this.query('CREATE DATABASE IF NOT EXISTS mysql');
+			this.query('USE mysql');
+
+			// global_priv — the core privilege table
+			this.query(`
+				CREATE TABLE IF NOT EXISTS global_priv (
+					Host char(255) binary DEFAULT '',
+					User char(128) binary DEFAULT '',
+					Priv JSON NOT NULL DEFAULT '{}' CHECK(JSON_VALID(Priv)),
+					PRIMARY KEY (Host, User)
+				) ENGINE=MyISAM CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
+				COMMENT='Users and global privileges'
+			`);
+			// Insert a root user with all privileges
+			this.query(`
+				INSERT IGNORE INTO global_priv (Host, User, Priv)
+				VALUES
+					('localhost', 'root', '{"access":18446744073709551615}'),
+					('127.0.0.1', 'root', '{"access":18446744073709551615}'),
+					('%', 'root', '{"access":18446744073709551615}')
+			`);
+
+			// plugin — plugin registry
+			this.query(`
+				CREATE TABLE IF NOT EXISTS plugin (
+					name varchar(64) DEFAULT '' NOT NULL,
+					dl varchar(128) DEFAULT '' NOT NULL,
+					PRIMARY KEY (name)
+				) ENGINE=MyISAM CHARACTER SET utf8mb3
+				COLLATE utf8mb3_general_ci
+				COMMENT='MySQL plugins'
+			`);
+
+			// servers — federated server links
+			this.query(`
+				CREATE TABLE IF NOT EXISTS servers (
+					Server_name char(64) NOT NULL DEFAULT '',
+					Host varchar(2048) NOT NULL DEFAULT '',
+					Db char(64) NOT NULL DEFAULT '',
+					Username char(128) NOT NULL DEFAULT '',
+					Password char(64) NOT NULL DEFAULT '',
+					Port INT(4) NOT NULL DEFAULT '0',
+					Socket char(108) NOT NULL DEFAULT '',
+					Wrapper char(64) NOT NULL DEFAULT '',
+					Owner varchar(512) NOT NULL DEFAULT '',
+					PRIMARY KEY (Server_name)
+				) ENGINE=MyISAM CHARACTER SET utf8mb3
+				COMMENT='MySQL Foreign Servers table'
+			`);
+
+			// func — user-defined functions
+			this.query(`
+				CREATE TABLE IF NOT EXISTS func (
+					name char(64) binary DEFAULT '' NOT NULL,
+					ret tinyint(1) DEFAULT '0' NOT NULL,
+					dl char(128) DEFAULT '' NOT NULL,
+					type enum('function','aggregate')
+						COLLATE utf8mb3_general_ci NOT NULL,
+					PRIMARY KEY (name)
+				) ENGINE=MyISAM CHARACTER SET utf8mb3
+				COLLATE utf8mb3_bin
+				COMMENT='User defined functions'
+			`);
+
+			// proc — stored procedures
+			this.query(`
+				CREATE TABLE IF NOT EXISTS proc (
+					db char(64) collate utf8mb3_bin DEFAULT '' NOT NULL,
+					name char(64) DEFAULT '' NOT NULL,
+					type enum('FUNCTION','PROCEDURE','PACKAGE',
+						'PACKAGE BODY') NOT NULL,
+					specific_name char(64) DEFAULT '' NOT NULL,
+					language enum('SQL') DEFAULT 'SQL' NOT NULL,
+					sql_data_access enum('CONTAINS_SQL','NO_SQL',
+						'READS_SQL_DATA','MODIFIES_SQL_DATA')
+						DEFAULT 'CONTAINS_SQL' NOT NULL,
+					is_deterministic enum('YES','NO')
+						DEFAULT 'NO' NOT NULL,
+					security_type enum('INVOKER','DEFINER')
+						DEFAULT 'DEFINER' NOT NULL,
+					param_list blob NOT NULL,
+					returns longblob NOT NULL,
+					body longblob NOT NULL,
+					definer varchar(384) collate utf8mb3_bin
+						DEFAULT '' NOT NULL,
+					created timestamp NOT NULL DEFAULT
+						CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+					modified timestamp NOT NULL
+						DEFAULT '0000-00-00 00:00:00',
+					sql_mode set('REAL_AS_FLOAT','PIPES_AS_CONCAT',
+						'ANSI_QUOTES','IGNORE_SPACE',
+						'IGNORE_BAD_TABLE_OPTIONS',
+						'ONLY_FULL_GROUP_BY',
+						'NO_UNSIGNED_SUBTRACTION',
+						'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE',
+						'MSSQL','DB2','MAXDB','NO_KEY_OPTIONS',
+						'NO_TABLE_OPTIONS','NO_FIELD_OPTIONS',
+						'MYSQL323','MYSQL40','ANSI',
+						'NO_AUTO_VALUE_ON_ZERO',
+						'NO_BACKSLASH_ESCAPES',
+						'STRICT_TRANS_TABLES','STRICT_ALL_TABLES',
+						'NO_ZERO_IN_DATE','NO_ZERO_DATE',
+						'INVALID_DATES',
+						'ERROR_FOR_DIVISION_BY_ZERO',
+						'TRADITIONAL','NO_AUTO_CREATE_USER',
+						'HIGH_NOT_PRECEDENCE',
+						'NO_ENGINE_SUBSTITUTION',
+						'PAD_CHAR_TO_FULL_LENGTH',
+						'EMPTY_STRING_IS_NULL',
+						'SIMULTANEOUS_ASSIGNMENT',
+						'TIME_ROUND_FRACTIONAL')
+						DEFAULT '' NOT NULL,
+					comment text collate utf8mb3_bin NOT NULL,
+					character_set_client char(32)
+						collate utf8mb3_bin,
+					collation_connection char(64)
+						collate utf8mb3_bin,
+					db_collation char(64) collate utf8mb3_bin,
+					body_utf8 longblob,
+					aggregate enum('NONE','GROUP')
+						DEFAULT 'NONE' NOT NULL,
+					PRIMARY KEY (db, name, type)
+				) ENGINE=MyISAM CHARACTER SET utf8mb3
+				COMMENT='Stored Procedures'
+			`);
+		} catch {
+			// Non-fatal: if bootstrap fails, MariaDB still works
+			// with --skip-grant-tables, just with warnings.
+		}
 	}
 
 	/**
