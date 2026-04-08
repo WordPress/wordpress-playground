@@ -13,7 +13,6 @@ function createMockModule(): MariaDBEmscriptenModule {
 	const MOCK_FIELD = 200;
 
 	// Simple in-memory state to simulate query behavior
-	let lastQuery = '';
 	let hasResultSet = false;
 	let rowIndex = 0;
 
@@ -31,7 +30,6 @@ function createMockModule(): MariaDBEmscriptenModule {
 		mysql_real_connect: vi.fn(() => MOCK_CONN),
 		mysql_close: vi.fn(),
 		mysql_query: vi.fn((_conn: number, sql: string) => {
-			lastQuery = sql;
 			hasResultSet = sql.trim().toUpperCase().startsWith('SELECT');
 			rowIndex = 0;
 			if (sql.includes('FORCE_ERROR')) {
@@ -68,12 +66,10 @@ function createMockModule(): MariaDBEmscriptenModule {
 	let fieldIndex = 0;
 
 	return {
-		cwrap: vi.fn(
-			(name: string, _returnType: string | null, _argTypes: string[]) => {
-				return cwrapFunctions[name] || vi.fn(() => 0);
-			}
-		),
-		getValue: vi.fn((ptr: number, _type: string) => {
+		cwrap: vi.fn((name: string) => {
+			return cwrapFunctions[name] || vi.fn(() => 0);
+		}),
+		getValue: vi.fn((ptr: number) => {
 			// Column name pointer — return a non-zero value so the bridge
 			// calls UTF8ToString on it
 			if (ptr === MOCK_FIELD) {

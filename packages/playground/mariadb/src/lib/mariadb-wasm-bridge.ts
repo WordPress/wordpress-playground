@@ -267,7 +267,17 @@ export class MariaDBBridge {
 			heap32[(argv >> 2) + i] = argPtrs[i];
 		}
 
-		const rc = this.api.mysql_server_init(serverArgs.length, argv, 0);
+		let rc: number;
+		try {
+			rc = this.api.mysql_server_init(serverArgs.length, argv, 0);
+		} finally {
+			// Free the argv strings and array now that mysql_server_init
+			// has copied what it needs.
+			for (const ptr of argPtrs) {
+				this.module._free(ptr);
+			}
+			this.module._free(argv);
+		}
 		if (rc !== 0) {
 			throw new Error(`mysql_server_init failed with code ${rc}`);
 		}

@@ -466,9 +466,11 @@ class MySQLConnectionHandler {
 	}
 
 	private switchDatabase(db: string) {
+		// Escape backticks in the database name to prevent SQL injection.
+		const escaped = db.replace(/`/g, '``');
 		try {
-			this.bridge.query(`CREATE DATABASE IF NOT EXISTS \`${db}\``);
-			this.bridge.query(`USE \`${db}\``);
+			this.bridge.query(`CREATE DATABASE IF NOT EXISTS \`${escaped}\``);
+			this.bridge.query(`USE \`${escaped}\``);
 			this.currentDb = db;
 		} catch {
 			// Ignore errors — the database may already exist.
@@ -624,7 +626,11 @@ export function startMySQLProtocolServer(
 	}
 
 	let nextConnectionId = 1;
+	const activeSockets = new Set<net.Socket>();
+
 	const server = net.createServer((socket) => {
+		activeSockets.add(socket);
+		socket.on('close', () => activeSockets.delete(socket));
 		new MySQLConnectionHandler(
 			socket,
 			bridge,
@@ -642,9 +648,13 @@ export function startMySQLProtocolServer(
 				host: addr.address,
 				close() {
 					return new Promise<void>((res) => {
+						// Destroy all active connections so the
+						// server can shut down immediately.
+						for (const socket of activeSockets) {
+							socket.destroy();
+						}
+						activeSockets.clear();
 						server.close(() => res());
-						// Force-close lingering connections.
-						server.emit('close');
 					});
 				},
 			});

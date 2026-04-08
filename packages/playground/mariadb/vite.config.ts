@@ -1,11 +1,15 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+const toPath = (filename: string) =>
+	new URL(filename, import.meta.url).pathname;
 
 export default defineConfig({
 	root: __dirname,
@@ -14,7 +18,7 @@ export default defineConfig({
 		viteTsConfigPaths({ root: '../../../' }),
 		dts({
 			entryRoot: 'src',
-			tsconfigPath: path('tsconfig.lib.json'),
+			tsconfigPath: toPath('tsconfig.lib.json'),
 			pathsToAliases: false,
 		}),
 		...viteGlobalExtensions,

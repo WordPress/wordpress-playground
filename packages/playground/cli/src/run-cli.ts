@@ -80,7 +80,7 @@ import {
 	PHPMYADMIN_INSTALL_PATH,
 } from '@wp-playground/tools';
 import { jspi } from 'wasm-feature-detect';
-import type { MariaDBServer } from '@wp-playground/mariadb';
+import type { MariaDBServer, MariaDBBridge } from '@wp-playground/mariadb';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -1081,6 +1081,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let wordPressReady = false;
 	let isFirstRequest = true;
 	let mariadbServer: MariaDBServer | undefined;
+	let mariadbBridge: MariaDBBridge | undefined;
 
 	const server = await startServer({
 		port: args.port
@@ -1141,12 +1142,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				mkdirSync(mariadbDataDir);
 
 				cliOutput.updateProgress('Starting MariaDB WASM');
-				const bridge = await loadMariaDBModule(
+				mariadbBridge = await loadMariaDBModule(
 					args['mariadb-wasm-module']!,
 					mariadbDataDir
 				);
 				mariadbServer = await startMySQLProtocolServer({
-					bridge,
+					bridge: mariadbBridge,
 					defaultDatabase: 'wordpress',
 				});
 				args.mariadbPort = mariadbServer.port;
@@ -1464,6 +1465,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 				if (mariadbServer) {
 					await mariadbServer.close();
+				}
+				if (mariadbBridge) {
+					mariadbBridge.destroy();
 				}
 				await nativeDir.cleanup();
 			};

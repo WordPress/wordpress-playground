@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as net from 'net';
 import { startMySQLProtocolServer } from './mysql-protocol-server';
 import type { MariaDBServer } from './mysql-protocol-server';
-import { MariaDBBridge, MariaDBQueryError } from './mariadb-wasm-bridge';
-import type { QueryResult } from './mariadb-wasm-bridge';
+import type { MariaDBBridge, QueryResult } from './mariadb-wasm-bridge';
+import { MariaDBQueryError } from './mariadb-wasm-bridge';
 
 /**
  * Create a minimal mock MariaDBBridge that responds to queries.
@@ -60,7 +60,12 @@ function readPacket(buf: Buffer) {
 	const sequenceId = buf[3];
 	if (buf.length < 4 + payloadLength) return null;
 	const payload = buf.subarray(4, 4 + payloadLength);
-	return { payloadLength, sequenceId, payload, totalLength: 4 + payloadLength };
+	return {
+		payloadLength,
+		sequenceId,
+		payload,
+		totalLength: 4 + payloadLength,
+	};
 }
 
 /**
@@ -204,11 +209,7 @@ describe('MySQL Protocol Server', () => {
 			server.host
 		);
 
-		const response = await sendCommand(
-			socket,
-			1,
-			buildHandshakeResponse()
-		);
+		const response = await sendCommand(socket, 1, buildHandshakeResponse());
 
 		const pkt = readPacket(response)!;
 		// OK packet starts with 0x00
@@ -227,11 +228,7 @@ describe('MySQL Protocol Server', () => {
 		await sendCommand(socket, 1, buildHandshakeResponse());
 
 		// Send COM_PING (command byte 0x0e)
-		const pingResponse = await sendCommand(
-			socket,
-			0,
-			Buffer.from([0x0e])
-		);
+		const pingResponse = await sendCommand(socket, 0, Buffer.from([0x0e]));
 
 		const pkt = readPacket(pingResponse)!;
 		expect(pkt.payload[0]).toBe(0x00); // OK
