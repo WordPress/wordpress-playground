@@ -7,6 +7,7 @@
 
 import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
+import { createRelayUrlRewriter } from './url-rewriter';
 import type {
 	TunnelRequest,
 	TunnelResponse,
@@ -23,83 +24,6 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 		binary += String.fromCharCode(bytes[i]);
 	}
 	return btoa(binary);
-}
-
-/**
- * Rewrite absolute URLs in HTML content to go through the relay tunnel.
- *
- * WordPress generates URLs with absolute paths like /wp-content/..., /wp-admin/..., etc.
- * When a guest views the shared Playground in a different browser, these paths
- * would bypass the relay and fail. This function rewrites them to go through
- * the relay endpoint.
- */
-function rewriteUrlsForRelay(
-	html: string,
-	sessionId: string,
-	originalHost: string
-): string {
-	const relayPrefix = `/relay/${sessionId}/request`;
-
-	// Rewrite absolute paths in common HTML attributes
-	// Matches: href="/...", src="/...", action="/...", etc.
-	// But not: href="//..." (protocol-relative) or href="http..." (full URLs handled separately)
-	let result = html.replace(
-		/((?:href|src|action|data-src|poster|srcset)=["'])\/(?!\/|relay\/)/gi,
-		`$1${relayPrefix}/`
-	);
-
-	// Rewrite full URLs that point to the original host
-	// e.g., http://localhost:5400/wp-content/... → /relay/SESSION_ID/request/wp-content/...
-	if (originalHost) {
-		const hostPattern = new RegExp(
-			`(["'])https?://${escapeRegExp(originalHost)}(/[^"'\\s]*)`,
-			'gi'
-		);
-		result = result.replace(hostPattern, `$1${relayPrefix}$2`);
-	}
-
-	// Rewrite absolute paths in inline CSS url() values
-	// Matches: url(/wp-content/...) or url('/wp-content/...')
-	result = result.replace(
-		/url\((['"]?)\/(?!\/|relay\/)/gi,
-		`url($1${relayPrefix}/`
-	);
-
-	// Rewrite absolute paths in srcset attributes (which have special format)
-	// srcset="/image.jpg 1x, /image-2x.jpg 2x"
-	result = result.replace(
-		/srcset=["']([^"']+)["']/gi,
-		(match, srcsetValue: string) => {
-			const rewritten = srcsetValue.replace(
-				/(?:^|,\s*)\/(?!\/|relay\/)/g,
-				(m) => m.replace('/', `${relayPrefix}/`)
-			);
-			return `srcset="${rewritten}"`;
-		}
-	);
-
-	return result;
-}
-
-/**
- * Escape special regex characters in a string.
- */
-function escapeRegExp(string: string): string {
-	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Rewrite absolute URLs in CSS content to go through the relay tunnel.
- */
-function rewriteCssUrlsForRelay(css: string, sessionId: string): string {
-	const relayPrefix = `/relay/${sessionId}/request`;
-
-	// Rewrite url() values with absolute paths
-	// Matches: url(/path), url('/path'), url("/path")
-	return css.replace(
-		/url\((['"]?)\/(?!\/|relay\/)/gi,
-		`url($1${relayPrefix}/`
-	);
 }
 
 export type TunnelHostStatus =
@@ -140,6 +64,31 @@ export class TunnelHost {
 	 */
 	private requestQueue: TunnelRequest[] = [];
 	private isProcessingRequest = false;
+
+	/**
+	 * Hard cap on how many guest requests we'll buffer in host RAM at
+	 * once. The polling loop pauses while the queue is at capacity so
+	 * the relay's long-poll keeps holding the next request instead of
+	 * handing it to us early. Without this, a misbehaving guest (or
+	 * just a slow PHP run) lets the queue grow without bound.
+	 *
+	 * 32 is comfortably above what one normal WordPress page load
+	 * fans out (~15-25 sub-resources) but small enough that even if
+	 * the host is wedged for a few seconds, we don't accumulate
+	 * megabytes of pending request bodies in memory.
+	 */
+	private static readonly MAX_QUEUE_SIZE = 32;
+
+	/**
+	 * Tripped by stopSharing() so the in-flight handleRequest can
+	 * notice and refuse to forward its response. We can't actually
+	 * cancel the PHP run inside the worker — playgroundClient.request()
+	 * has no AbortSignal — but stopping the *response* still matters:
+	 * it's what makes "Stop Sharing" mean stop from the guest's
+	 * perspective and keeps us from POSTing into a torn-down (or worse,
+	 * recycled) session id.
+	 */
+	private currentRequestController: AbortController | null = null;
 
 	/**
 	 * Reference we keep so we can remove the pagehide listener on stop.
@@ -195,9 +144,16 @@ export class TunnelHost {
 	 */
 	async stopSharing(): Promise<void> {
 		const sessionIdToClose = this.sessionId;
+		// Order matters here. We flip isActive false BEFORE clearing
+		// any references so that anything still mid-await in
+		// processQueue / handleRequest / sendResponse sees the new
+		// state on its next checkpoint and bails out cleanly instead
+		// of trying to use a torn-down session.
 		this.isActive = false;
 		this.pollAbortController?.abort();
 		this.pollAbortController = null;
+		this.currentRequestController?.abort();
+		this.currentRequestController = null;
 		this.sessionId = null;
 		this.shareUrl = null;
 		this.requestQueue = [];
@@ -281,14 +237,23 @@ export class TunnelHost {
 
 		while (this.requestQueue.length > 0 && this.isActive) {
 			const request = this.requestQueue.shift()!;
+			// One AbortController per request so stopSharing() can
+			// signal "drop whatever you're holding" without affecting
+			// any future request that might land in the same loop.
+			this.currentRequestController = new AbortController();
+			const signal = this.currentRequestController.signal;
 			try {
-				await this.handleRequest(request);
+				await this.handleRequest(request, signal);
 			} catch (error) {
-				logger.error(
-					`[TunnelHost] Error handling request ${request.requestId}:`,
-					error
-				);
-				this.emit('error', error as Error);
+				if ((error as Error)?.name !== 'AbortError') {
+					logger.error(
+						`[TunnelHost] Error handling request ${request.requestId}:`,
+						error
+					);
+					this.emit('error', error as Error);
+				}
+			} finally {
+				this.currentRequestController = null;
 			}
 		}
 
@@ -367,6 +332,15 @@ export class TunnelHost {
 	 */
 	private async startPolling(): Promise<void> {
 		while (this.isActive && this.sessionId) {
+			// Backpressure: while the queue is at capacity, don't claim
+			// any more requests from the relay. The relay's long-poll
+			// keeps the next request waiting on its side until we're
+			// ready, which is exactly the throttling we want — bytes
+			// stay on the relay's disk instead of in our RAM.
+			if (this.requestQueue.length >= TunnelHost.MAX_QUEUE_SIZE) {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				continue;
+			}
 			try {
 				this.pollAbortController = new AbortController();
 
@@ -424,9 +398,16 @@ export class TunnelHost {
 	}
 
 	/**
-	 * Process an incoming request through the Playground.
+	 * Process an incoming request through the Playground. The signal
+	 * fires from stopSharing(); see currentRequestController above for
+	 * the why. We check it at every await checkpoint so a torn-down
+	 * session never sees its response forwarded back to the relay.
 	 */
-	private async handleRequest(tunnelRequest: TunnelRequest): Promise<void> {
+	private async handleRequest(
+		tunnelRequest: TunnelRequest,
+		signal: AbortSignal
+	): Promise<void> {
+		const sessionIdAtStart = this.sessionId;
 		try {
 			// Convert tunnel request to PHPRequest format
 			const phpRequest = {
@@ -449,6 +430,19 @@ export class TunnelHost {
 				),
 			]);
 
+			// First abort checkpoint: stopSharing() may have fired while
+			// PHP was busy. Drop the response on the floor — we don't
+			// own this session any more, and posting to /response/{id}
+			// against a torn-down session would either 404 or worse,
+			// hit a *new* session if the user started sharing again.
+			if (
+				signal.aborted ||
+				!this.isActive ||
+				this.sessionId !== sessionIdAtStart
+			) {
+				return;
+			}
+
 			// Convert headers from Record<string, string[]> to Record<string, string>
 			// and rewrite Location headers for redirects to go through the relay
 			const responseHeaders: Record<string, string> = {};
@@ -466,9 +460,10 @@ export class TunnelHost {
 				responseHeaders[key] = value;
 			}
 
-			// For HTML and CSS responses, rewrite URLs to go through the relay
-			// This is essential for cross-browser sharing where the guest can't
-			// access the host's Playground directly
+			// For HTML and CSS responses, rewrite URLs to go through the
+			// relay. The rewriter is a real DOM walk (DOMParser), not a
+			// regex sweep — see url-rewriter.ts and its adversarial
+			// spec for why that matters.
 			let responseBody = phpResponse.bytes;
 			const contentType = responseHeaders['content-type'] || '';
 			const isHtml = contentType.includes('text/html');
@@ -477,9 +472,13 @@ export class TunnelHost {
 			if ((isHtml || isCss) && this.sessionId) {
 				const text = new TextDecoder().decode(phpResponse.bytes);
 				const originalHost = tunnelRequest.headers.host || '';
+				const rewriter = createRelayUrlRewriter(
+					this.sessionId,
+					originalHost
+				);
 				const rewrittenText = isHtml
-					? rewriteUrlsForRelay(text, this.sessionId, originalHost)
-					: rewriteCssUrlsForRelay(text, this.sessionId);
+					? rewriter.rewriteHtml(text)
+					: rewriter.rewriteCss(text);
 				responseBody = new TextEncoder().encode(rewrittenText);
 			}
 
@@ -495,8 +494,24 @@ export class TunnelHost {
 			// Send response back to relay server
 			await this.sendResponse(tunnelResponse);
 
+			// Final abort checkpoint: stopSharing() may have fired
+			// during sendResponse. Don't notify external listeners
+			// about a request that completed against a session the
+			// user has already torn down.
+			if (
+				signal.aborted ||
+				!this.isActive ||
+				this.sessionId !== sessionIdAtStart
+			) {
+				return;
+			}
+
 			this.emit('requestProcessed', tunnelRequest);
 		} catch (error) {
+			// Aborted mid-flight: nothing to log, nothing to report.
+			if (signal.aborted || !this.isActive) {
+				return;
+			}
 			logger.error('Error processing request:', error);
 
 			// Send error response
@@ -522,8 +537,17 @@ export class TunnelHost {
 
 	/**
 	 * Send a response back to the relay server.
+	 *
+	 * Bails out silently if the host has been torn down between the
+	 * caller's last `isActive` check and now. This is the last line
+	 * of defence for the stop-sharing race: even if a previous check
+	 * was raced past, this one runs *immediately* before the network
+	 * call, so we never POST to a stale session URL.
 	 */
 	private async sendResponse(response: TunnelResponse): Promise<void> {
+		if (!this.isActive || !this.sessionId) {
+			return;
+		}
 		const res = await fetch(
 			`${this.relayUrl}/relay/${this.sessionId}/response/${response.requestId}`,
 			{
