@@ -205,35 +205,38 @@ export class MariaDBBridge {
 	 * Initialize the embedded MariaDB server and open a connection.
 	 * Must be called before any queries.
 	 *
-	 * The embedded server needs a data directory and several flags
-	 * to work in WASM:
-	 * - --skip-grant-tables: system tables don't exist (no mysql_install_db)
-	 * - --datadir: where MyISAM data files are stored (in MEMFS)
-	 * - --default-storage-engine=MyISAM: Aria is stubbed out in WASM
-	 * - --skip-log-error: no error log file needed
+	 * @param dataDir - Optional host filesystem path for persistent
+	 *   storage. When provided, it's mounted via NODEFS at the MariaDB
+	 *   data directory so MyISAM files survive restarts. Without it,
+	 *   data lives in Emscripten's MEMFS and is lost on exit.
 	 */
-	init(): void {
+	init(dataDir?: string): void {
 		if (this.initialized) {
 			return;
 		}
 
-		// Create the data directories that the embedded server expects.
-		// These live in Emscripten's in-memory filesystem (MEMFS).
-		const DATA_DIR = '/usr/local/mysql/data';
-		const requiredDirs = [
-			'/usr',
-			'/usr/local',
-			'/usr/local/mysql',
-			DATA_DIR,
-			DATA_DIR + '/mysql',
-			'/tmp',
-		];
+		const DATA_DIR = '/mariadb-data';
+		// Create the mount point and required subdirectories in
+		// Emscripten's virtual filesystem.
+		const requiredDirs = [DATA_DIR, DATA_DIR + '/mysql', '/tmp'];
 		for (const dir of requiredDirs) {
 			try {
 				this.module.FS.mkdir(dir);
 			} catch {
 				// Directory may already exist — that's fine.
 			}
+		}
+
+		// When a host data directory is provided, mount it via NODEFS
+		// so MariaDB's data files persist on the real filesystem. The
+		// mount replaces the MEMFS directory we just created — any
+		// files already on the host will be visible to MariaDB.
+		if (dataDir && this.module.NODEFS) {
+			this.module.FS.mount(
+				this.module.NODEFS,
+				{ root: dataDir },
+				DATA_DIR
+			);
 		}
 
 		// Build the argv array for mysql_server_init. The embedded
@@ -667,19 +670,8 @@ export async function loadMariaDBModule(
 	const factory = await importMariaDBFactory(modulePath);
 	const emModule: MariaDBEmscriptenModule = await factory({});
 
-	// If a data directory is provided, mount it via NODEFS so that
-	// MyISAM data files persist on the host filesystem across restarts.
-	if (dataDir && emModule.NODEFS) {
-		try {
-			emModule.FS.mkdir('/var/lib/mysql');
-		} catch {
-			// May already exist
-		}
-		emModule.FS.mount(emModule.NODEFS, { root: dataDir }, '/var/lib/mysql');
-	}
-
 	const bridge = new MariaDBBridge(emModule);
-	bridge.init();
+	bridge.init(dataDir);
 	return bridge;
 }
 

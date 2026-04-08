@@ -753,9 +753,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					currentError = currentError.cause as Error;
 				} while (currentError instanceof Error);
 				console.error(
-					'\x1b[1m' +
-						messageChain.join(' caused by: ') +
-						'\x1b[0m'
+					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 				);
 			}
 		} else {
@@ -1090,27 +1088,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			// Start MariaDB WASM server if --database=mariadb.
-			// This must happen before worker threads are spawned so
-			// the MySQL port is available when PHP boots.
-			if (args.database === 'mariadb') {
-				const { loadMariaDBModule, startMySQLProtocolServer } =
-					await import('@wp-playground/mariadb');
-
-				cliOutput.updateProgress('Starting MariaDB WASM');
-				const bridge = await loadMariaDBModule(
-					args['mariadb-wasm-module']!
-				);
-				mariadbServer = await startMySQLProtocolServer({
-					bridge,
-					defaultDatabase: 'wordpress',
-				});
-				args.mariadbPort = mariadbServer.port;
-				logger.debug(
-					`MariaDB WASM server listening on port ${mariadbServer.port}`
-				);
-			}
-
 			/**
 			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
 			 * > browsers open several connections to each domain,
@@ -1142,6 +1119,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const nativeDir =
 				await createPlaygroundCliTempDir(tempDirNameDelimiter);
 			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
+
+			// Start MariaDB WASM server if --database=mariadb.
+			// This must happen before worker threads are spawned so
+			// the MySQL port is available when PHP boots. The data
+			// directory is a subdir of the shared temp dir so MariaDB
+			// files persist alongside PHP's files for the session.
+			if (args.database === 'mariadb') {
+				const { loadMariaDBModule, startMySQLProtocolServer } =
+					await import('@wp-playground/mariadb');
+
+				const mariadbDataDir = path.join(
+					nativeDir.path,
+					'mariadb-data'
+				);
+				mkdirSync(mariadbDataDir);
+
+				cliOutput.updateProgress('Starting MariaDB WASM');
+				const bridge = await loadMariaDBModule(
+					args['mariadb-wasm-module']!,
+					mariadbDataDir
+				);
+				mariadbServer = await startMySQLProtocolServer({
+					bridge,
+					defaultDatabase: 'wordpress',
+				});
+				args.mariadbPort = mariadbServer.port;
+				logger.debug(
+					`MariaDB WASM server listening on port ${mariadbServer.port}`
+				);
+			}
 
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
 
