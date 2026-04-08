@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import css from './style.module.css';
 import type { SessionStatusResponse } from '../../lib/relay-server/types';
 
@@ -34,9 +34,10 @@ type ConnectionStatus =
 	| 'connecting'
 	| 'connected'
 	| 'error'
-	| 'disconnected'
 	// Host was reachable at least once but has since stopped polling.
 	| 'host-disconnected';
+
+const STATUS_POLL_INTERVAL_MS = 3000;
 
 export function SharedPlaygroundViewer({
 	sessionId,
@@ -45,62 +46,59 @@ export function SharedPlaygroundViewer({
 	const [error, setError] = useState<string | null>(null);
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 
-	// The relay request URL for this session
-	const relayBaseUrl = `${window.location.origin}/relay/${sessionId}/request`;
 	// We tag every status fetch with our per-tab guest id so the relay
 	// can build the host-side collaborator list. The status endpoint
 	// doubles as the heartbeat — no separate ping needed.
 	const guestId = useRef<string>(getOrCreateGuestId()).current;
-	const statusUrl = `${window.location.origin}/relay/${sessionId}/status?gid=${encodeURIComponent(
-		guestId
-	)}`;
 
-	// Check if the session is valid by making a test request
+	// Memoise the URLs so they keep referential identity across
+	// renders. Otherwise the polling effect's dependency would change
+	// on every state update, the effect would tear down and re-run,
+	// and a fresh tick would fire on top of every state change —
+	// stacking up overlapping /status fetches that never get awaited.
+	const relayBaseUrl = useMemo(
+		() => `${window.location.origin}/relay/${sessionId}/request`,
+		[sessionId]
+	);
+	const statusUrl = useMemo(
+		() =>
+			`${window.location.origin}/relay/${sessionId}/status?gid=${encodeURIComponent(
+				guestId
+			)}`,
+		[sessionId, guestId]
+	);
+
+	// One self-scheduling loop drives the entire connection lifecycle.
+	// We do an initial /request/ probe to confirm the session is real
+	// and the host is reachable, then poll /status with a strict
+	// "wait for the previous fetch before scheduling the next one"
+	// rhythm so requests can never overlap or stack up. Both phases
+	// share a single AbortController so unmounting cleanly cancels
+	// any in-flight fetch instead of leaving it to the network layer.
 	useEffect(() => {
-		const checkSession = async () => {
-			try {
-				// Try to reach the host through the relay
-				const response = await fetch(`${relayBaseUrl}/`, {
-					method: 'GET',
-					headers: {
-						Accept: 'text/html',
-					},
-				});
-
-				if (response.ok) {
-					setStatus('connected');
-				} else if (response.status === 503) {
-					setError('The host is not connected. Please try again later.');
-					setStatus('error');
-				} else if (response.status === 404) {
-					setError('This sharing session has expired or does not exist.');
-					setStatus('error');
-				} else {
-					setError(`Connection failed: ${response.statusText}`);
-					setStatus('error');
-				}
-			} catch {
-				setError(
-					'Unable to connect to the shared Playground. Please check your connection.'
-				);
-				setStatus('error');
-			}
-		};
-
-		checkSession();
-	}, [relayBaseUrl]);
-
-	// Poll the relay's session status endpoint so we can flip to a
-	// "host disconnected" state as soon as the host stops polling,
-	// instead of waiting for an iframe request to time out.
-	useEffect(() => {
+		const controller = new AbortController();
 		let cancelled = false;
 		let sawHostAlive = false;
+		let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
-		const tick = async () => {
+		const scheduleNextPoll = () => {
+			if (cancelled) {
+				return;
+			}
+			timeoutHandle = setTimeout(pollOnce, STATUS_POLL_INTERVAL_MS);
+		};
+
+		const pollOnce = async () => {
+			if (cancelled) {
+				return;
+			}
 			try {
-				const res = await fetch(statusUrl);
-				if (cancelled) return;
+				const res = await fetch(statusUrl, {
+					signal: controller.signal,
+				});
+				if (cancelled) {
+					return;
+				}
 				if (res.status === 404) {
 					setError(
 						'This sharing session has expired or does not exist.'
@@ -108,28 +106,85 @@ export function SharedPlaygroundViewer({
 					setStatus('error');
 					return;
 				}
-				if (!res.ok) return;
+				if (!res.ok) {
+					scheduleNextPoll();
+					return;
+				}
 				const data = (await res.json()) as SessionStatusResponse;
-				if (cancelled) return;
+				if (cancelled) {
+					return;
+				}
 				if (data.hostAlive) {
 					sawHostAlive = true;
 				} else if (sawHostAlive) {
-					// Host was reachable before, now it's gone. This is the
-					// disconnect case we want to surface clearly.
+					// Host was reachable before, now it's gone. This is
+					// the disconnect case we want to surface clearly.
 					setStatus('host-disconnected');
+					return;
 				}
-			} catch {
-				// network hiccup — ignore, we'll retry on the next tick
+			} catch (err) {
+				if ((err as { name?: string })?.name === 'AbortError') {
+					return;
+				}
+				// Transient network hiccup — try again on the next tick.
 			}
+			scheduleNextPoll();
 		};
 
-		tick();
-		const interval = setInterval(tick, 3000);
+		const probeSession = async () => {
+			try {
+				const response = await fetch(`${relayBaseUrl}/`, {
+					method: 'GET',
+					headers: { Accept: 'text/html' },
+					signal: controller.signal,
+				});
+				if (cancelled) {
+					return;
+				}
+				if (response.ok) {
+					setStatus('connected');
+					sawHostAlive = true;
+				} else if (response.status === 503) {
+					setError(
+						'The host is not connected. Please try again later.'
+					);
+					setStatus('error');
+					return;
+				} else if (response.status === 404) {
+					setError(
+						'This sharing session has expired or does not exist.'
+					);
+					setStatus('error');
+					return;
+				} else {
+					setError(`Connection failed: ${response.statusText}`);
+					setStatus('error');
+					return;
+				}
+			} catch (err) {
+				if ((err as { name?: string })?.name === 'AbortError') {
+					return;
+				}
+				setError(
+					'Unable to connect to the shared Playground. Please check your connection.'
+				);
+				setStatus('error');
+				return;
+			}
+			// Probe finished successfully — start polling /status.
+			pollOnce();
+		};
+
+		probeSession();
+
 		return () => {
 			cancelled = true;
-			clearInterval(interval);
+			controller.abort();
+			if (timeoutHandle !== null) {
+				clearTimeout(timeoutHandle);
+			}
 		};
-	}, [statusUrl]);
+	}, [relayBaseUrl, statusUrl]);
 
 	const handleIframeLoad = useCallback(() => {
 		setStatus('connected');
