@@ -142,17 +142,12 @@ export class MariaDBBridge {
 				'number',
 			]),
 			mysql_close: m.cwrap('mysql_close', null, ['number']),
-			mysql_query: m.cwrap('mysql_query', 'number', [
-				'number',
-				'string',
-			]),
+			mysql_query: m.cwrap('mysql_query', 'number', ['number', 'string']),
 			mysql_store_result: m.cwrap('mysql_store_result', 'number', [
 				'number',
 			]),
 			mysql_fetch_row: m.cwrap('mysql_fetch_row', 'number', ['number']),
-			mysql_num_fields: m.cwrap('mysql_num_fields', 'number', [
-				'number',
-			]),
+			mysql_num_fields: m.cwrap('mysql_num_fields', 'number', ['number']),
 			mysql_num_rows: m.cwrap('mysql_num_rows', 'number', ['number']),
 			mysql_free_result: m.cwrap('mysql_free_result', null, ['number']),
 			mysql_error: m.cwrap('mysql_error', 'string', ['number']),
@@ -178,11 +173,9 @@ export class MariaDBBridge {
 				'number',
 				'string',
 			]),
-			mysql_get_server_info: m.cwrap(
-				'mysql_get_server_info',
-				'string',
-				['number']
-			),
+			mysql_get_server_info: m.cwrap('mysql_get_server_info', 'string', [
+				'number',
+			]),
 			mysql_insert_id: m.cwrap('mysql_insert_id', 'number', ['number']),
 		};
 	}
@@ -230,7 +223,11 @@ export class MariaDBBridge {
 			`--datadir=${DATA_DIR}`,
 			'--skip-log-error',
 			'--default-storage-engine=MyISAM',
-			'--default-tmp-storage-engine=MEMORY',
+			'--default-tmp-storage-engine=MyISAM',
+			// Disable Aria for internal temp tables. Aria's init is
+			// stubbed in the WASM build (no threading), so any attempt
+			// to create Aria temp files fails.
+			'--loose-aria-used-for-temp-tables=OFF',
 		];
 		const argPtrs = serverArgs.map((arg) => {
 			const ptr = this.module._malloc(arg.length + 1);
@@ -238,18 +235,12 @@ export class MariaDBBridge {
 			return ptr;
 		});
 		const argv = this.module._malloc(argPtrs.length * 4);
-		const heap32 = new Int32Array(
-			(this.module as any).HEAP8.buffer
-		);
+		const heap32 = new Int32Array((this.module as any).HEAP8.buffer);
 		for (let i = 0; i < argPtrs.length; i++) {
 			heap32[(argv >> 2) + i] = argPtrs[i];
 		}
 
-		const rc = this.api.mysql_server_init(
-			serverArgs.length,
-			argv,
-			0
-		);
+		const rc = this.api.mysql_server_init(serverArgs.length, argv, 0);
 		if (rc !== 0) {
 			throw new Error(`mysql_server_init failed with code ${rc}`);
 		}
@@ -503,11 +494,7 @@ export async function loadMariaDBModule(
 		} catch {
 			// May already exist
 		}
-		emModule.FS.mount(
-			emModule.NODEFS,
-			{ root: dataDir },
-			'/var/lib/mysql'
-		);
+		emModule.FS.mount(emModule.NODEFS, { root: dataDir }, '/var/lib/mysql');
 	}
 
 	const bridge = new MariaDBBridge(emModule);
@@ -517,7 +504,9 @@ export async function loadMariaDBModule(
 
 async function importMariaDBFactory(
 	modulePath: string
-): Promise<(options?: Record<string, any>) => Promise<MariaDBEmscriptenModule>> {
+): Promise<
+	(options?: Record<string, any>) => Promise<MariaDBEmscriptenModule>
+> {
 	const imported = await import(/* webpackIgnore: true */ modulePath);
 	return imported.default || imported;
 }
