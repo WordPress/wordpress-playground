@@ -1,0 +1,12 @@
+{
+	"name": "@php-wasm/mariadb-wasm-compile",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Compiles MariaDB 11.4 embedded server to WebAssembly via Emscripten",
+	"license": "GPL-2.0-or-later",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground"
+}

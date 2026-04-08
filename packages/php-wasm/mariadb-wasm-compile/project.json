@@ -1,0 +1,16 @@
+{
+	"name": "php-wasm-mariadb-wasm-compile",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/mariadb-wasm-compile",
+	"projectType": "library",
+	"tags": [],
+	"targets": {
+		"compile": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bash packages/php-wasm/mariadb-wasm-compile/build.sh",
+				"parallel": false
+			}
+		}
+	}
+}

@@ -1014,15 +1014,20 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.memcached = await jspi();
 	}
 
-	// When --database=mariadb is selected, skip SQLite setup and validate
-	// that the WASM module path is provided.
+	// When --database=mariadb is selected, skip SQLite setup and
+	// default to the in-repo pre-built WASM module if no custom
+	// path was provided.
 	if (args.database === 'mariadb') {
 		args.skipSqliteSetup = true;
 		if (!args['mariadb-wasm-module']) {
-			throw new Error(
-				'--mariadb-wasm-module is required when --database=mariadb. ' +
-					'Provide the path to the mariadb.js file produced by the mariadb-wasm build.'
+			// Resolve the default module path relative to the repo root.
+			// The CLI source lives at packages/playground/cli/src/, so
+			// we go up four levels to reach the repo root.
+			const defaultPath = path.resolve(
+				path.dirname(new URL(import.meta.url).pathname),
+				'../../../../packages/php-wasm/mariadb-wasm-compile/dist/mariadb.js'
 			);
+			args['mariadb-wasm-module'] = defaultPath;
 		}
 	}
 

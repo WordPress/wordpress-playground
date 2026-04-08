@@ -1,0 +1,6 @@
+# MariaDB source tree (cloned on demand by build.sh)
+mariadb/
+
+# Build artifacts (intermediate — final output is in dist/)
+build-host/
+build-wasm/

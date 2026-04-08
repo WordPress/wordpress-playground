@@ -4,7 +4,10 @@
 	"sourceRoot": "packages/playground/cli/src",
 	"projectType": "library",
 	"tags": ["scope:php-wasm-public", "scope:cli"],
-	"implicitDependencies": ["playground-mariadb"],
+	"implicitDependencies": [
+		"playground-mariadb",
+		"php-wasm-mariadb-wasm-compile"
+	],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
