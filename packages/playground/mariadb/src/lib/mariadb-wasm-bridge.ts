@@ -108,6 +108,20 @@ export interface QueryResult {
 }
 
 /**
+ * Wraps a cwrap'd function that may return BigInt (when WASM_BIGINT=1)
+ * so it always returns a plain Number. C functions like mysql_affected_rows
+ * and mysql_insert_id return unsigned long long which becomes BigInt in
+ * JavaScript with WASM_BIGINT enabled. We need plain Numbers for Buffer
+ * operations and arithmetic in the protocol server.
+ */
+function wrapBigInt(fn: (...args: any[]) => any): (...args: any[]) => number {
+	return (...args: any[]) => {
+		const result = fn(...args);
+		return typeof result === 'bigint' ? Number(result) : result;
+	};
+}
+
+/**
  * High-level interface to a MariaDB embedded server running in WASM.
  */
 export class MariaDBBridge {
@@ -152,9 +166,13 @@ export class MariaDBBridge {
 			mysql_free_result: m.cwrap('mysql_free_result', null, ['number']),
 			mysql_error: m.cwrap('mysql_error', 'string', ['number']),
 			mysql_errno: m.cwrap('mysql_errno', 'number', ['number']),
-			mysql_affected_rows: m.cwrap('mysql_affected_rows', 'number', [
-				'number',
-			]),
+			// mysql_affected_rows returns unsigned long long. With
+			// WASM_BIGINT=1, cwrap returns BigInt which can't be
+			// used directly in arithmetic or Buffer operations.
+			// We wrap it to always return a plain Number.
+			mysql_affected_rows: wrapBigInt(
+				m.cwrap('mysql_affected_rows', 'number', ['number'])
+			),
 			mysql_field_count: m.cwrap('mysql_field_count', 'number', [
 				'number',
 			]),
@@ -176,7 +194,10 @@ export class MariaDBBridge {
 			mysql_get_server_info: m.cwrap('mysql_get_server_info', 'string', [
 				'number',
 			]),
-			mysql_insert_id: m.cwrap('mysql_insert_id', 'number', ['number']),
+			// mysql_insert_id returns unsigned long long (see above).
+			mysql_insert_id: wrapBigInt(
+				m.cwrap('mysql_insert_id', 'number', ['number'])
+			),
 		};
 	}
 
