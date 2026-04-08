@@ -31,6 +31,13 @@ describe('ensureWpConfig', () => {
 
 		// DB_NAME should be defined via the auto-prepend mechanism.
 		expect(getDefinedConstants(php)).toHaveProperty('DB_NAME', 'wordpress');
+
+		// DB_NAME should be available at runtime via the auto-prepend script.
+		const response = await php.run({
+			code: `<?php echo json_encode(['DB_NAME' => DB_NAME]);`,
+		});
+		expect(response.errors).toHaveLength(0);
+		expect(response.json).toEqual({ DB_NAME: 'wordpress' });
 	});
 
 	it('should not define DB_NAME when wp-config.php already defines it', async () => {
