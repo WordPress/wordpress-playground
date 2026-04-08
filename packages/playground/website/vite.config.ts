@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig, createLogger } from 'vite';
 import type { CommonServerOptions, Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -59,6 +59,32 @@ const buildRelayProxy = (forwardedHost: string) => ({
 			'X-Forwarded-Host': forwardedHost,
 			'X-Forwarded-Proto': 'http',
 		},
+		// Don't let vite spam its terminal with one ECONNREFUSED
+		// stacktrace per polling tick when the relay PHP server is
+		// briefly unreachable (e.g. mid-restart). Reply to the
+		// browser with a 502 — guests already know how to surface
+		// the resulting status flip — and stay quiet in the dev log.
+		configure: (proxy: {
+			on: (
+				event: 'error',
+				handler: (
+					err: Error,
+					req: unknown,
+					res: { writeHead?: (status: number) => void; end?: (body?: string) => void; headersSent?: boolean }
+				) => void
+			) => void;
+		}) => {
+			proxy.on('error', (_err, _req, res) => {
+				if (res && !res.headersSent && res.writeHead && res.end) {
+					try {
+						res.writeHead(502);
+						res.end('Relay unreachable');
+					} catch {
+						// best effort — the socket might already be gone
+					}
+				}
+			});
+		},
 	},
 });
 
@@ -93,8 +119,29 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
+	// Filter the noisy "http proxy error" stack traces vite emits
+	// when the relay PHP server is briefly unreachable. Our custom
+	// proxy error handler in the relay block already returns a
+	// clean 502 to the client, so the dev terminal doesn't need to
+	// see the duplicate stack-trace log line on every poll. We only
+	// suppress proxy errors that target /relay/ — anything else
+	// still logs normally.
+	const customLogger = createLogger();
+	const originalError = customLogger.error.bind(customLogger);
+	customLogger.error = (msg, options) => {
+		if (
+			typeof msg === 'string' &&
+			msg.includes('http proxy error') &&
+			msg.includes('/relay/')
+		) {
+			return;
+		}
+		originalError(msg, options);
+	};
+
 	return {
 		root: __dirname,
+		customLogger,
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
 		// already the same host, but dev builds run two separate servers. See proxy

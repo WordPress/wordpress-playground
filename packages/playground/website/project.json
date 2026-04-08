@@ -69,7 +69,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"PHP_CLI_SERVER_WORKERS=20 PLAYGROUND_RELAY_PUBLIC_BASE_URL=http://127.0.0.1:5400/website-server/ php -S 127.0.0.1:5264 relay.php"
+					"PHP_CLI_SERVER_WORKERS=20 PLAYGROUND_RELAY_PUBLIC_BASE_URL=http://127.0.0.1:5400/website-server/ node ../bin/quiet-php-server.cjs 127.0.0.1:5264 relay.php"
 				],
 				"cwd": "packages/playground/website/public"
 			}
@@ -78,7 +78,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"PHP_CLI_SERVER_WORKERS=20 PLAYGROUND_RELAY_PUBLIC_BASE_URL=http://127.0.0.1/ php -S 127.0.0.1:5264 relay.php"
+					"PHP_CLI_SERVER_WORKERS=20 PLAYGROUND_RELAY_PUBLIC_BASE_URL=http://127.0.0.1/ node ../bin/quiet-php-server.cjs 127.0.0.1:5264 relay.php"
 				],
 				"cwd": "packages/playground/website/public"
 			}
