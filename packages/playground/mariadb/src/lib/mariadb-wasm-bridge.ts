@@ -295,8 +295,11 @@ export class MariaDBBridge {
 			return {
 				columns: [],
 				rows: [],
-				affectedRows: this.api.mysql_affected_rows(this.conn),
-				insertId: this.api.mysql_insert_id(this.conn),
+				affectedRows: Math.max(
+					0,
+					this.api.mysql_affected_rows(this.conn)
+				),
+				insertId: Math.max(0, this.api.mysql_insert_id(this.conn)),
 				warningCount: 0,
 			};
 		}
@@ -309,8 +312,11 @@ export class MariaDBBridge {
 			return {
 				columns,
 				rows,
-				affectedRows: this.api.mysql_affected_rows(this.conn),
-				insertId: this.api.mysql_insert_id(this.conn),
+				affectedRows: Math.max(
+					0,
+					this.api.mysql_affected_rows(this.conn)
+				),
+				insertId: Math.max(0, this.api.mysql_insert_id(this.conn)),
 				warningCount: 0,
 			};
 		} finally {
@@ -365,9 +371,12 @@ export class MariaDBBridge {
 			const name = namePtr
 				? this.module.UTF8ToString(namePtr)
 				: `col${i}`;
-			const length = this.module.getValue(fieldPtr + 28, 'i32');
-			const flags = this.module.getValue(fieldPtr + 64, 'i32');
-			const decimals = this.module.getValue(fieldPtr + 68, 'i32');
+			// Read as signed i32 then interpret as unsigned via >>> 0.
+			// The MYSQL_FIELD struct uses unsigned long for length/flags
+			// but getValue only supports signed reads.
+			const length = this.module.getValue(fieldPtr + 28, 'i32') >>> 0;
+			const flags = this.module.getValue(fieldPtr + 64, 'i32') >>> 0;
+			const decimals = this.module.getValue(fieldPtr + 68, 'i32') >>> 0;
 			const type = this.module.getValue(fieldPtr + 76, 'i32');
 
 			columns.push({ name, type, length, flags, decimals });

@@ -26,7 +26,11 @@
  */
 
 import * as net from 'net';
-import type { MariaDBBridge, ColumnInfo, QueryResult } from './mariadb-wasm-bridge';
+import type {
+	MariaDBBridge,
+	ColumnInfo,
+	QueryResult,
+} from './mariadb-wasm-bridge';
 import { MariaDBQueryError } from './mariadb-wasm-bridge';
 
 // -- MySQL protocol constants -----------------------------------------------
@@ -60,7 +64,6 @@ const SERVER_CAPABILITIES =
 /** Status flags included in OK/EOF packets. */
 const SERVER_STATUS_AUTOCOMMIT = 0x0002;
 
-
 // ---------------------------------------------------------------------------
 // Packet-level encoding helpers
 // ---------------------------------------------------------------------------
@@ -78,6 +81,11 @@ function buildPacket(sequenceId: number, payload: Buffer): Buffer {
 
 /** Length-encoded integer (MySQL wire protocol encoding). */
 function encodeLenEncInt(value: number): Buffer {
+	// Guard against negative values from mysql_affected_rows / mysql_insert_id
+	// which return (unsigned long long) -1 in C but become -1 in JS without WASM_BIGINT.
+	if (value < 0) {
+		return Buffer.from([0]);
+	}
 	if (value < 251) {
 		return Buffer.from([value]);
 	} else if (value < 0x10000) {
@@ -172,8 +180,8 @@ function buildHandshakePacket(
 
 	// Auth challenge part 2 (13 bytes, including trailing null).
 	const authChallenge2 = Buffer.from([
-		0x50, 0x2a, 0x6f, 0x18, 0x55, 0x33, 0x7c, 0x24, 0x6e, 0x43, 0x5b,
-		0x09, 0x00,
+		0x50, 0x2a, 0x6f, 0x18, 0x55, 0x33, 0x7c, 0x24, 0x6e, 0x43, 0x5b, 0x09,
+		0x00,
 	]);
 	parts.push(authChallenge2);
 
@@ -262,12 +270,14 @@ function buildColumnDefinitionPacket(col: ColumnInfo, db: string): Buffer {
 	const fixed = Buffer.alloc(12);
 	// Character set: utf8mb3 general ci = 33.
 	fixed.writeUInt16LE(33, 0);
-	// Column length.
-	fixed.writeUInt32LE(col.length || 255, 2);
+	// Column length. Clamp to unsigned 32-bit range — the C API may
+	// return negative values when interpreting unsigned fields without
+	// WASM_BIGINT.
+	fixed.writeUInt32LE(Math.max(0, col.length || 255) >>> 0, 2);
 	// Column type.
 	fixed[6] = col.type & 0xff;
 	// Flags.
-	fixed.writeUInt16LE(col.flags || 0, 7);
+	fixed.writeUInt16LE((col.flags || 0) & 0xffff, 7);
 	// Decimals.
 	fixed[9] = col.decimals || 0;
 	// Filler (2 zero bytes) at offset 10 — already zero.
@@ -329,12 +339,8 @@ class MySQLConnectionHandler {
 	}
 
 	private sendHandshake() {
-		const serverVersion =
-			this.bridge.getServerInfo() + '-playground-wasm';
-		const payload = buildHandshakePacket(
-			this.connectionId,
-			serverVersion
-		);
+		const serverVersion = this.bridge.getServerInfo() + '-playground-wasm';
+		const payload = buildHandshakePacket(this.connectionId, serverVersion);
 		this.socket.write(buildPacket(0, payload));
 		this.sequenceId = 1;
 	}
@@ -404,11 +410,7 @@ class MySQLConnectionHandler {
 				this.sendOK(0, 0);
 				break;
 			default:
-				this.sendError(
-					1047,
-					`Unknown command ${command}`,
-					'08S01'
-				);
+				this.sendError(1047, `Unknown command ${command}`, '08S01');
 		}
 	}
 
@@ -429,10 +431,7 @@ class MySQLConnectionHandler {
 				// Skip: 4 caps + 4 max_packet + 1 charset + 23 reserved = 32.
 				// Then: null-terminated username.
 				let offset = 32;
-				while (
-					offset < payload.length &&
-					payload[offset] !== 0
-				) {
+				while (offset < payload.length && payload[offset] !== 0) {
 					offset++;
 				}
 				offset++; // skip null
@@ -442,10 +441,7 @@ class MySQLConnectionHandler {
 					const authLen = payload[offset];
 					offset += 1 + authLen;
 				} else {
-					while (
-						offset < payload.length &&
-						payload[offset] !== 0
-					) {
+					while (offset < payload.length && payload[offset] !== 0) {
 						offset++;
 					}
 					offset++;
@@ -554,11 +550,7 @@ class MySQLConnectionHandler {
 		this.socket.write(Buffer.concat(packets));
 	}
 
-	private sendOK(
-		affectedRows: number,
-		insertId: number,
-		warningCount = 0
-	) {
+	private sendOK(affectedRows: number, insertId: number, warningCount = 0) {
 		const seq = this.sequenceId + 1;
 		this.socket.write(
 			buildPacket(

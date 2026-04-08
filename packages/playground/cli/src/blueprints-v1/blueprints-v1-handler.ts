@@ -140,6 +140,7 @@ export class BlueprintsV1Handler {
 		}
 
 		// TODO: Fix this type issue that requires the cast to unknown
+		// TODO: Fix this type issue that requires the cast to unknown
 		await (
 			playground as unknown as PlaygroundCliBlueprintV1Worker
 		).bootWordPress(
