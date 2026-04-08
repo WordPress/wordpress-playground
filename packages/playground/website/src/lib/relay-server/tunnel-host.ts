@@ -398,13 +398,15 @@ export class TunnelHost {
 				}
 
 				if (data.request) {
-					// Process request in background - don't wait, keep polling
-					this.handleRequest(data.request).catch((error) => {
-						logger.error(
-							'[TunnelHost] Error handling request:',
-							error
-						);
-					});
+					// Hand the request off to the serializing queue and
+					// keep polling immediately. PlaygroundClient is single-
+					// threaded — calling handleRequest() concurrently here
+					// would dispatch overlapping requests into the same
+					// PHP-Wasm runtime, which is not reentrant and ends up
+					// deadlocking once WordPress fires its dozen-or-so
+					// sub-resource fetches in parallel. queueRequest() runs
+					// the handlers one at a time via processQueue().
+					this.queueRequest(data.request);
 				}
 			} catch (error) {
 				if ((error as Error).name === 'AbortError') {
