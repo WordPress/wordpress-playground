@@ -59,7 +59,7 @@
 					"nx run playground-website:dev:relay-php",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
-					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
+					"node packages/playground/website/bin/wait-for-tcp.cjs 127.0.0.1 4400 && nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true
