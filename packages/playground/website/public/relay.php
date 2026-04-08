@@ -46,7 +46,19 @@
  */
 
 // Configuration
-define('SESSION_TIMEOUT_MS', 30 * 60 * 1000);     // 30 minutes
+//
+// SESSION_TIMEOUT_MS is just garbage collection for fully abandoned
+// sessions. While the host is polling, lastActivity gets bumped on
+// every /poll (every ~25s), so a live session never expires no
+// matter how long the user keeps the tab open. After the host
+// disconnects, the only thing the session is good for is letting
+// guest tabs surface "Host disconnected" instead of "Session
+// expired" — which takes seconds, not minutes — so we don't need
+// the old half-hour grace period. Five minutes is comfortably
+// longer than HOST_DEAD_AFTER_MS so cleanup never races the
+// disconnect detection, and short enough that abandoned sessions
+// don't pile up.
+define('SESSION_TIMEOUT_MS', 5 * 60 * 1000);      // 5 minutes
 define('POLL_TIMEOUT_SEC', 25);                   // host long-poll
 define('REQUEST_TIMEOUT_SEC', 30);                // guest request long-wait
 /**
@@ -409,11 +421,16 @@ final class MysqlRelayStorage implements RelayStorage {
     private string $responsesTable = 'playground_relay_responses';
 
     public function __construct() {
-        $host     = self::config('DB_HOST', 'localhost');
-        $user     = self::config('DB_USER', 'root');
-        $password = self::config('DB_PASSWORD', '');
-        $name     = self::config('DB_NAME', 'playground_relay');
-        $port     = (int) self::config('DB_PORT', '3306');
+        // No defaults: a relay configured for mysql but missing
+        // credentials should fail loudly rather than quietly try to
+        // connect to localhost as root with an empty password. The
+        // port is the only exception — 3306 is the universal MySQL
+        // port and we treat it as a sensible default.
+        $host     = self::requireConfig('DB_HOST');
+        $user     = self::requireConfig('DB_USER');
+        $password = self::requireConfig('DB_PASSWORD');
+        $name     = self::requireConfig('DB_NAME');
+        $port     = (int) (self::optionalConfig('DB_PORT') ?? 3306);
 
         $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
         $this->pdo = new PDO($dsn, $user, $password, [
@@ -437,11 +454,12 @@ final class MysqlRelayStorage implements RelayStorage {
 
     /**
      * Resolve a config value from a WordPress-style constant first,
-     * then env vars (getenv() and $_SERVER for PHP-WASM), then a
-     * default. The constant path lets the relay drop into a
-     * wp-config.php environment without any extra wiring.
+     * then env vars (getenv() and $_SERVER for PHP-WASM). The
+     * constant path lets the relay drop into a wp-config.php
+     * environment without any extra wiring. Returns null when the
+     * value is not set anywhere.
      */
-    private static function config(string $key, string $default): string {
+    private static function optionalConfig(string $key): ?string {
         if (defined($key)) {
             $val = constant($key);
             if ($val !== '' && $val !== false && $val !== null) {
@@ -455,7 +473,24 @@ final class MysqlRelayStorage implements RelayStorage {
         if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') {
             return (string) $_SERVER[$key];
         }
-        return $default;
+        return null;
+    }
+
+    /**
+     * Same as optionalConfig() but throws when the value is missing,
+     * with a message that names the variable so the operator can fix
+     * it. Used for DB credentials that have no safe default.
+     */
+    private static function requireConfig(string $key): string {
+        $value = self::optionalConfig($key);
+        if ($value === null) {
+            throw new RuntimeException(
+                "MysqlRelayStorage: required config {$key} is not set. " .
+                "Define it as a PHP constant (WordPress wp-config.php style) " .
+                "or set it as an environment variable."
+            );
+        }
+        return $value;
     }
 
     /**

@@ -395,6 +395,109 @@ test.describe('Sharing Feature', () => {
 				.click();
 		});
 
+		test('should propagate a host-side post update to the guest in real time', async ({
+			website,
+			browser,
+		}) => {
+			// This is the actual collaboration smoke test: the host
+			// edits a post in its in-browser WordPress, and a guest
+			// connected through the relay sees the new content the
+			// next time it navigates. The change happens *after* the
+			// share session starts and the guest is already connected,
+			// so we're really exercising live tunnelling, not just
+			// "did the relay deliver the initial page".
+
+			const guestContext = await browser.newContext();
+
+			// Boot WordPress on the host and start sharing.
+			await website.goto('./');
+			const shareUrl = await startSharingFromToolbar(website);
+
+			// Open the guest, wait for it to fully connect through
+			// the relay, and wait for the iframe to actually paint
+			// some WordPress content so we know the round-trip works
+			// before we try to mutate state.
+			const guestPage = await guestContext.newPage();
+			await guestPage.goto(shareUrl);
+			await expect(guestPage.locator('text=● Connected')).toBeVisible({
+				timeout: 60000,
+			});
+			const guestIframe = guestPage.frameLocator(
+				'iframe[title="Shared WordPress Playground"]'
+			);
+			await expect(guestIframe.locator('body')).toContainText(
+				'Hello from WordPress Playground!',
+				{ timeout: 60000 }
+			);
+
+			// Have the host run a PHP snippet that updates post 1
+			// (the default "Hello world!" post) to a unique title we
+			// can later look for in the guest. We pass the title as
+			// base64 to sidestep any escaping headaches between JS,
+			// PHP and SQL.
+			const newTitle = `Collab test ${Date.now()}`;
+			const titleBase64 = Buffer.from(newTitle).toString('base64');
+			await website.page.evaluate(async (b64) => {
+				const client = (
+					window as unknown as {
+						playgroundSites: { getClient(): unknown };
+					}
+				).playgroundSites.getClient() as {
+					run(args: { code: string }): Promise<unknown>;
+				};
+				await client.run({
+					code: `<?php
+                        require '/wordpress/wp-load.php';
+                        wp_update_post([
+                            'ID' => 1,
+                            'post_title' => base64_decode('${b64}'),
+                        ]);
+                    `,
+				});
+			}, titleBase64);
+
+			// Now point the guest's iframe at /?p=1 — that URL goes
+			// straight to post 1 and is independent of whether the
+			// front page is set to a static page or the blog index.
+			// The host's tunnel-host rewrites the relative URLs in
+			// the response so the iframe stays inside the relay.
+			await guestPage.evaluate(() => {
+				const iframe = document.querySelector(
+					'iframe[title="Shared WordPress Playground"]'
+				) as HTMLIFrameElement | null;
+				if (!iframe) {
+					throw new Error('shared playground iframe not found');
+				}
+				const idx = iframe.src.indexOf('/request');
+				if (idx < 0) {
+					throw new Error(
+						'iframe src is not a relay url: ' + iframe.src
+					);
+				}
+				const relayPrefix = iframe.src.substring(
+					0,
+					idx + '/request'.length
+				);
+				iframe.src = relayPrefix + '/?p=1';
+			});
+
+			// The new title should land in the iframe via the
+			// relay → host → playgroundClient → relay → guest
+			// round-trip. We give it a generous budget because the
+			// host's PHP processes the request serially and webkit
+			// can be slow on the first hit after a navigation.
+			await expect(guestIframe.locator('body')).toContainText(newTitle, {
+				timeout: 60000,
+			});
+
+			// Clean up
+			await guestPage.close();
+			await guestContext.close();
+			await website.page
+				.getByRole('button', { name: 'Stop Sharing' })
+				.click();
+		});
+
 		test('should list collaborators as guests join and shrink the list when one leaves', async ({
 			website,
 			browser,
