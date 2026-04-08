@@ -190,13 +190,66 @@ export class MariaDBBridge {
 	/**
 	 * Initialize the embedded MariaDB server and open a connection.
 	 * Must be called before any queries.
+	 *
+	 * The embedded server needs a data directory and several flags
+	 * to work in WASM:
+	 * - --skip-grant-tables: system tables don't exist (no mysql_install_db)
+	 * - --datadir: where MyISAM data files are stored (in MEMFS)
+	 * - --default-storage-engine=MyISAM: Aria is stubbed out in WASM
+	 * - --skip-log-error: no error log file needed
 	 */
 	init(): void {
 		if (this.initialized) {
 			return;
 		}
 
-		const rc = this.api.mysql_server_init(0, 0, 0);
+		// Create the data directories that the embedded server expects.
+		// These live in Emscripten's in-memory filesystem (MEMFS).
+		const DATA_DIR = '/usr/local/mysql/data';
+		const requiredDirs = [
+			'/usr',
+			'/usr/local',
+			'/usr/local/mysql',
+			DATA_DIR,
+			DATA_DIR + '/mysql',
+			'/tmp',
+		];
+		for (const dir of requiredDirs) {
+			try {
+				this.module.FS.mkdir(dir);
+			} catch {
+				// Directory may already exist — that's fine.
+			}
+		}
+
+		// Build the argv array for mysql_server_init. The embedded
+		// server parses these like mysqld command-line arguments.
+		const serverArgs = [
+			'mariadbd',
+			'--skip-grant-tables',
+			`--datadir=${DATA_DIR}`,
+			'--skip-log-error',
+			'--default-storage-engine=MyISAM',
+			'--default-tmp-storage-engine=MEMORY',
+		];
+		const argPtrs = serverArgs.map((arg) => {
+			const ptr = this.module._malloc(arg.length + 1);
+			this.module.stringToUTF8(arg, ptr, arg.length + 1);
+			return ptr;
+		});
+		const argv = this.module._malloc(argPtrs.length * 4);
+		const heap32 = new Int32Array(
+			(this.module as any).HEAP8.buffer
+		);
+		for (let i = 0; i < argPtrs.length; i++) {
+			heap32[(argv >> 2) + i] = argPtrs[i];
+		}
+
+		const rc = this.api.mysql_server_init(
+			serverArgs.length,
+			argv,
+			0
+		);
 		if (rc !== 0) {
 			throw new Error(`mysql_server_init failed with code ${rc}`);
 		}
@@ -440,23 +493,23 @@ export async function loadMariaDBModule(
 	// Dynamic import of the Emscripten-generated module. The module
 	// exports a factory function (createMariaDB) as its default export.
 	const factory = await importMariaDBFactory(modulePath);
+	const emModule: MariaDBEmscriptenModule = await factory({});
 
-	const moduleOptions: Record<string, any> = {};
-
-	// If a data directory is provided, configure Emscripten to mount it
-	// via NODEFS so that MyISAM/Aria data files persist on the host.
-	if (dataDir) {
-		moduleOptions['preRun'] = [
-			(mod: MariaDBEmscriptenModule) => {
-				if (mod.NODEFS) {
-					mod.FS.mkdir('/var/lib/mysql');
-					mod.FS.mount(mod.NODEFS, { root: dataDir }, '/var/lib/mysql');
-				}
-			},
-		];
+	// If a data directory is provided, mount it via NODEFS so that
+	// MyISAM data files persist on the host filesystem across restarts.
+	if (dataDir && emModule.NODEFS) {
+		try {
+			emModule.FS.mkdir('/var/lib/mysql');
+		} catch {
+			// May already exist
+		}
+		emModule.FS.mount(
+			emModule.NODEFS,
+			{ root: dataDir },
+			'/var/lib/mysql'
+		);
 	}
 
-	const emModule: MariaDBEmscriptenModule = await factory(moduleOptions);
 	const bridge = new MariaDBBridge(emModule);
 	bridge.init();
 	return bridge;

@@ -113,7 +113,10 @@ function createMockModule(): MariaDBEmscriptenModule {
 			mkdir: vi.fn(),
 			mount: vi.fn(),
 		},
-	};
+		// HEAP8 is needed by init() to build the argv array for
+		// mysql_server_init via Int32Array view.
+		HEAP8: { buffer: new ArrayBuffer(8192) },
+	} as any;
 }
 
 describe('MariaDBBridge', () => {
