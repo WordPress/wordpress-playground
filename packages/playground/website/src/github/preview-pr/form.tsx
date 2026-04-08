@@ -167,7 +167,7 @@ export default function PreviewPRForm({
 					);
 				} else {
 					setError(
-						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`
+						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`
 					);
 					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
