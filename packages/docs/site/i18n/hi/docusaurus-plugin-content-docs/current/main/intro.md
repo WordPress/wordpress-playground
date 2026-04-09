@@ -23,7 +23,7 @@ WordPress Playground वेबसाइट अब [wordpress.org/playground/](ht
 
 :::
 
-👋 नमस्ते! WordPress Playground दस्तावेज़ों में आपका स्वागत है।
+👋नमस्कार! WordPress Playground के दस्तावेज़ों में आपका हार्दिक स्वागत है।
 
 <!--
 👋 Hi! Welcome to WordPress Playground documentation.
