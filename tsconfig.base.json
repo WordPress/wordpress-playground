@@ -51,9 +51,6 @@
 			"@php-wasm/node-8-5": [
 				"packages/php-wasm/node-builds/8-5/src/index.ts"
 			],
-			"@php-wasm/node-polyfills": [
-				"packages/php-wasm/node-polyfills/src/index.ts"
-			],
 			"@php-wasm/private": ["packages/php-wasm/private/src/index.ts"],
 			"@php-wasm/progress": ["packages/php-wasm/progress/src/index.ts"],
 			"@php-wasm/scopes": ["packages/php-wasm/scopes/src/index.ts"],
