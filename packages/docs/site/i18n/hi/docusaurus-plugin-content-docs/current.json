@@ -40,7 +40,7 @@
 		"description": "The label for category Local Development in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Playground APIs": {
-		"message": "प्लेग्राउंड API",
+		"message": "Playground API",
 		"description": "The label for category Playground APIs in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Javascript API": {
