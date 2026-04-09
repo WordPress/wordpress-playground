@@ -39,6 +39,7 @@ export async function patchWordPressSourceFiles(
 	await patchWpDbPhp(php, documentRoot);
 	await patchWpSchemaPhp(php, documentRoot);
 	await patchWpAdminRelativePaths(php, documentRoot);
+	await patchWpLoginAutocomplete(php, documentRoot);
 	if (phpMajor < 7) {
 		// Only stub update check files for old WP where http.php
 		// was skipped by patchWpSettingsPhp (WP 2.8-2.9). For WP
@@ -1373,6 +1374,69 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 				menuPhp.replace(needle, `file(dirname(__FILE__) . '/menu.txt')`)
 			);
 		}
+	}
+}
+
+/**
+ * Adds `autocomplete` hints to the legacy wp-login.php login form.
+ *
+ * WP 1.0 through 4.9 render the login form without any `autocomplete`
+ * attributes. Without them, password managers and the browser's own
+ * autofill fall back to heuristic form detection, which is unreliable
+ * on old markup that uses `name="log"` instead of `name="username"`.
+ *
+ * The most visible symptom is 1Password's inline autofill tooltip
+ * flickering in a tight re-injection loop, generating thousands of
+ * cached requests for its `chrome-extension://.../inline-tooltip.css`
+ * stylesheet per second — because the overlay keeps detaching and
+ * reattaching as the extension retries its form-attach heuristic.
+ *
+ * Adding explicit `autocomplete="username"` and
+ * `autocomplete="current-password"` gives 1Password (and Chrome's
+ * built-in password manager) a deterministic anchor, which stops the
+ * retry loop and also enables proper saved-credential autofill on
+ * legacy sites.
+ *
+ * The patch is idempotent: lines that already carry any `autocomplete=`
+ * attribute are left alone, so it won't touch WP 3.5+ password reset
+ * fields (pass1/pass2) which already set `autocomplete="off"`.
+ */
+async function patchWpLoginAutocomplete(php: PHP, documentRoot: string) {
+	const loginPath = joinPaths(documentRoot, 'wp-login.php');
+	if (!php.fileExists(loginPath)) return;
+
+	const original = php.readFileAsText(loginPath);
+	const lines = original.split('\n');
+	let changed = false;
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		// Skip lines that already have any autocomplete attribute.
+		if (line.includes('autocomplete=')) continue;
+		// Only touch <input> tags.
+		if (!/<input\b/.test(line)) continue;
+
+		// Insert the attribute immediately after the `name="log"` /
+		// `name="pwd"` attribute. Inserting there (instead of before
+		// the closing `>`) keeps the substitution safe against inline
+		// `<?php echo ?>` fragments that WP 4.9 emits mid-tag.
+		let patched = line.replace(
+			/(\bname=(['"])log\2)/,
+			'$1 autocomplete="username"'
+		);
+		patched = patched.replace(
+			/(\bname=(['"])pwd\2)/,
+			'$1 autocomplete="current-password"'
+		);
+
+		if (patched !== line) {
+			lines[i] = patched;
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		await php.writeFile(loginPath, lines.join('\n'));
 	}
 }
 
