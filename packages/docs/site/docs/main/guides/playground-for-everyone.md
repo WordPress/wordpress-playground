@@ -18,7 +18,7 @@ A car simulator gives you a steering wheel, pedals, and virtual streets. Practic
 
 WordPress Playground works the same way. It gives you a complete WordPress site to experiment with, but nothing you do affects any real website. Make changes, break things, learn from mistakes — then start fresh whenever you want.
 
-![WordPress Playground Landing Page](@site/static/img/guides/wordpress-playground-landing-page.webp)
+![WordPress Playground Landing Page](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
 
 ## What Can You Do with Playground?
 
@@ -32,10 +32,10 @@ When you visit [playground.wordpress.net](https://playground.wordpress.net), you
 By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
 
 1. Open Launch WordPress Panel
-   ![Launch WordPress Panel](@site/static/img/about/open-playground-dashboard.webp)
+   ![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
 
 2. Select to load a Vanilla WordPress version
-   ![Launching Vanilla WordPress](@site/static/img/guides/launch-vanilla-wordpress.webp)
+   ![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
 
 ## If You're Learning WordPress
 
@@ -45,11 +45,11 @@ Are you new to WordPress or trying to understand features like the Site Editor o
 
 Playground logs you in as an administrator, so you can edit any page. Click **Edit** for editing posts and **Edit Site** to update the website layout in the top toolbar to open the editor.
 
-![Editing WordPress websites](@site/static/img/guides/edit-sites-with-playground.webp)
+![Editing WordPress websites](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/edit-sites-with-playground.webp)
 
 Want to understand how a page layout was created? Open the **List View** (the three horizontal lines icon) to see every block that makes up the page.
 
-![Site Editor List view](@site/static/img/guides/site-editor-list-view.webp)
+![Site Editor List view](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/site-editor-list-view.webp)
 
 You can inspect columns, headings, images, and buttons — and see exactly how they're arranged. This is a powerful way to learn by example.
 
@@ -58,10 +58,10 @@ You can inspect columns, headings, images, and buttons — and see exactly how t
 At the Launch WordPress Playground panel, you will have access to the Blueprint Library, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground, Art Gallery, E-commerce, and Web Portfolio are some of the examples.
 
 1. Open the Blueprint gallery at the Playground Launch Panel
-   ![Open blueprint Gallery](@site/static/img/guides/open-blueprints-gallery.webp)
+   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 1. Navigate and select the Blueprint to launch at WordPress Playground
-   ![Open blueprint Gallery](@site/static/img/guides/list-of-blueprints.webp)
+   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
 
 ### Try New Features Safely
 
@@ -82,7 +82,7 @@ Curious about a new SEO plugin? Want to compare two contact form options? Instal
 
 Your real site stays untouched while you evaluate whether the plugin fits your needs.
 
-![Installing Plugins](@site/static/img/guides/installing-plugins.webp)
+![Installing Plugins](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/installing-plugins.webp)
 
 ### Preview Theme Changes
 
@@ -120,7 +120,7 @@ If you like what you see, recreate those changes on your real site. If not, just
 2. Click on **Save** (yellow button)
 3. Set the name of your instance
 
-![Saving Playgrounds](@site/static/img/guides/unsaved-playground-warning.webp)
+![Saving Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
 
 Playground generates a unique link for your saved site. Bookmark it, and you can return to exactly where you left off.
 

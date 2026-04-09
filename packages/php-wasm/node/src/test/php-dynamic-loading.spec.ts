@@ -256,7 +256,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				})
 			);
 
-			proxyFileSystem(php, newPhp, ['/internal/shared']);
+			await proxyFileSystem(php, newPhp, ['/internal/shared']);
 
 			const response = await newPhp.runStream({
 				code: `<?php

@@ -2,9 +2,9 @@
 slug: /developers/architecture/host-your-own-playground
 ---
 
-<!-- # Host your own Playground {#host-your-own-playground} -->
+<!-- # Host your own Playground -->
 
-# Hospede seu próprio Playground {#host-your-own-playground}
+# Hospede seu próprio Playground
 
 <!-- You can host the Playground on your own domain instead of `playground.wordpress.net`. -->
 
@@ -14,17 +14,17 @@ Você pode hospedar o Playground no seu próprio domínio ao invés de `playgrou
 
 Isso é útil para ter controle total sobre seu conteúdo e comportamento, assim como remover a dependência de um servidor de terceiros. Pode fornecer uma experiência de usuário mais personalizada, por exemplo: um playground com plugins e temas pré-instalados, configurações padrão do site ou conteúdo de demonstração.
 
-<!-- ## Before you start {#before-you-start} -->
+<!-- ## Before you start -->
 
-## Antes de começar {#before-you-start}
+## Antes de começar
 
 <!-- Self-hosting Playground gives you full control, but requires understanding a few key concepts: -->
 
 Hospedar o Playground por conta própria dá controle total, mas requer entender alguns conceitos-chave:
 
-<!-- ### What to expect {#what-to-expect} -->
+<!-- ### What to expect -->
 
-### O que esperar {#what-to-expect}
+### O que esperar
 
 <!-- - **Initial setup complexity**: Building and deploying Playground involves multiple steps. Allow time for troubleshooting during your first deployment. -->
 <!-- - **Static file hosting**: Playground is primarily static files (HTML, JS, WASM) with minimal server-side requirements. -->
@@ -34,9 +34,9 @@ Hospedar o Playground por conta própria dá controle total, mas requer entender
 - **Hospedagem de arquivos estáticos**: O Playground é principalmente arquivos estáticos (HTML, JS, WASM) com requisitos mínimos do lado do servidor.
 - **Execução baseada em navegador**: Todo o processamento do WordPress acontece no navegador do usuário via WebAssembly—seu servidor apenas entrega arquivos.
 
-<!-- ### Performance considerations {#performance-considerations} -->
+<!-- ### Performance considerations -->
 
-### Considerações de desempenho {#performance-considerations}
+### Considerações de desempenho
 
 <!-- Loading times depend on several factors: -->
 
@@ -56,9 +56,9 @@ Os tempos de carregamento dependem de vários fatores:
 | **Navegador**          | Chrome/Edge têm melhor desempenho; Safari usa mecanismos de fallback  | Teste em diferentes navegadores                     |
 | **Dispositivo**        | Dispositivos móveis carregam mais devagar que desktop                 | Avise usuários móveis sobre tempos de carga maiores |
 
-<!-- ### Browser compatibility {#browser-compatibility} -->
+<!-- ### Browser compatibility -->
 
-### Compatibilidade com navegadores {#browser-compatibility}
+### Compatibilidade com navegadores
 
 <!-- Playground works across modern browsers, but with some differences: -->
 
@@ -82,9 +82,9 @@ O Playground funciona em navegadores modernos, mas com algumas diferenças:
 
 **Nota técnica**: O Safari usa MessagePorts ao invés de SharedArrayBuffer para respostas em streaming. Este mecanismo de fallback funciona de forma confiável mas adiciona uma pequena sobrecarga comparado ao Chrome/Edge.
 
-<!-- ## Usage {#usage} -->
+<!-- ## Usage -->
 
-## Uso {#usage}
+## Uso
 
 <!-- A self-hosted Playground can be embedded as an iframe. -->
 
@@ -107,9 +107,9 @@ const client = await startPlaygroundWeb({
 });
 ```
 
-<!-- ## Static assets {#static-assets} -->
+<!-- ## Static assets -->
 
-## Recursos estáticos {#static-assets}
+## Recursos estáticos
 
 <!-- There are several ways to get the static assets necessary to host the Playground. -->
 
@@ -127,9 +127,9 @@ Em ordem de conveniência e facilidade:
 - Fazer fork do repositório e construir com GitHub Action
 - Construir localmente
 
-<!-- ### Download pre-built package {#download-pre-built-package} -->
+<!-- ### Download pre-built package -->
 
-### Baixar pacote pré-construído {#download-pre-built-package}
+### Baixar pacote pré-construído
 
 <!-- To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess). -->
 
@@ -143,9 +143,9 @@ Para hospedar o Playground como está, sem fazer alterações, você pode baixar
 - Na seção **Artifacts** no final da página, clique em `playground-website`.
 - É um pacote zip com os mesmos arquivos implantados no site público.
 
-<!-- ### Fork the repository and build with GitHub Action {#fork-repository-and-build-with-github-actions} -->
+<!-- ### Fork the repository and build with GitHub Action -->
 
-### Fazer fork do repositório e construir com GitHub Action {#fork-repository-and-build-with-github-actions}
+### Fazer fork do repositório e construir com GitHub Action
 
 <!-- To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork). -->
 
@@ -155,9 +155,9 @@ Para personalizar o Playground, você pode [fazer fork do repositório Git](http
 
 Construa-o da página GitHub do seu fork indo para: **Actions -> Deploy Playground website -> Run workflow**.
 
-<!-- ### Build locally {#build-locally} -->
+<!-- ### Build locally -->
 
-### Construir localmente {#build-locally}
+### Construir localmente
 
 <!-- The most flexible and customizable method is to build the site locally. -->
 
@@ -200,9 +200,9 @@ dist/packages/playground/wasm-wordpress-net
 
 O serviço completo do Playground consiste no conteúdo desta pasta.
 
-<!-- ## Summary of included files {#summary-of-included-files} -->
+<!-- ## Summary of included files -->
 
-## Resumo dos arquivos incluídos {#summary-of-included-files}
+## Resumo dos arquivos incluídos
 
 <!-- The static assets include: -->
 
@@ -234,9 +234,9 @@ Você pode implantar o conteúdo da pasta no seu servidor usando SSH, como `scp`
 
 Para que estes funcionem, você precisa de um ambiente de servidor com Apache e PHP instalados.
 
-<!-- ## NGINX configuration {#nginx-configuration} -->
+<!-- ## NGINX configuration -->
 
-## Configuração NGINX {#nginx-configuration}
+## Configuração NGINX
 
 <!-- As an alternative to Apache, here is an example of using NGINX to serve the Playground. -->
 
@@ -278,9 +278,9 @@ Você pode precisar ajustar o acima de acordo com as especificidades do servidor
 
 [O servidor web Caddy](https://caddyserver.com) não requer nenhuma configuração especial para funcionar.
 
-<!-- ## Customize bundled data {#customize-bundled-data} -->
+<!-- ## Customize bundled data -->
 
-## Personalizar dados empacotados {#customize-bundled-data}
+## Personalizar dados empacotados
 
 <!-- The file `wp.zip` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version. -->
 
@@ -306,9 +306,9 @@ npm run rebuild:wordpress-builds
 
 Para reconstruir o site para incluir os builds personalizados do WordPress, siga as instruções [aqui](#build-locally).
 
-<!-- ### Install plugins {#install-plugins} -->
+<!-- ### Install plugins -->
 
-### Instalar plugins {#install-plugins}
+### Instalar plugins
 
 <!-- Here's an example of installing plugins for the data bundle. -->
 
@@ -348,9 +348,9 @@ COPY ./build-assets/*.zip /root/
 
 Então coloque os arquivos zip dos plugins em `build-assets`. Neste caso, você pode querer adicionar seus caminhos ao `.gitignore`.
 
-<!-- ### Import content {#import-content} -->
+<!-- ### Import content -->
 
-### Importar conteúdo {#import-content}
+### Importar conteúdo
 
 <!-- Here's an example of importing content. -->
 
@@ -369,9 +369,9 @@ RUN cd wordpress ; \
 
 Isso assume que você colocou um arquivo de exportação WXR chamado `content.xml` na pasta `build-assets`. Você pode adicionar seu caminho ao `.gitignore`.
 
-<!-- ## Production deployment checklist {#production-deployment-checklist} -->
+<!-- ## Production deployment checklist -->
 
-## Lista de verificação para implantação em produção {#production-deployment-checklist}
+## Lista de verificação para implantação em produção
 
 <!-- Before going live, verify your self-hosted Playground meets these requirements: -->
 

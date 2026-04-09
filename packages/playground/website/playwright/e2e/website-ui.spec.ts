@@ -324,8 +324,8 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'firefox',
-		'Firefox does not support clipboard-read permission through Playwright'
+		browserName === 'firefox' || browserName === 'webkit',
+		'Firefox and WebKit do not support clipboard permissions through Playwright'
 	);
 
 	// Grant clipboard permissions
@@ -631,4 +631,14 @@ test.describe('Save Status Indicator', () => {
 		);
 		await expect(indicator).toHaveCount(0);
 	});
+});
+
+test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not set', async ({
+	website,
+}) => {
+	await website.goto('./');
+	const gtmScripts = await website.page
+		.locator('script[src*="googletagmanager.com"]')
+		.count();
+	expect(gtmScripts).toBe(0);
 });

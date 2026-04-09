@@ -10,7 +10,6 @@ import {
 	updateClientInfo,
 	selectClientInfoBySiteSlug,
 } from './slice-clients';
-import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	type BlueprintV1Declaration,
@@ -32,7 +31,10 @@ import {
 } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	findFirewallErrorInCauseChain,
+	findDownloadErrorInCauseChain,
+} from './error-utils';
 import {
 	initTabCoordinator,
 	checkForExistingTabs,
@@ -135,8 +137,6 @@ export function bootSiteClient(
 				return;
 			}
 		}
-
-		logTrackingEvent('load');
 
 		// Initialize tab coordinator for multi-tab detection
 		// Only for persistent sites - temporary sites don't need coordination
@@ -414,8 +414,6 @@ export function bootSiteClient(
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
-				// Log Blueprint events
-				onBlueprintValidated: logBlueprintEvents,
 				mounts: mountDescriptor
 					? [
 							{
@@ -429,8 +427,6 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			logger.error(e);
-			logTrackingEvent('error', { source: 'bootSiteClient' });
-
 			const firewallError = findFirewallErrorInCauseChain(e);
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
@@ -461,6 +457,13 @@ export function bootSiteClient(
 					setActiveSiteError({
 						error: 'network-firewall-interference',
 						details: firewallError,
+					})
+				);
+			} else if (findDownloadErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-download-failed',
+						details: e,
 					})
 				);
 			} else {

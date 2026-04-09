@@ -137,6 +137,9 @@ export function updateSiteMetadata({
 		getState: () => PlaygroundReduxState
 	) => {
 		const storedSite = selectSiteBySlug(getState(), slug);
+		if (!storedSite) {
+			throw new Error(`Site not found: ${slug}`);
+		}
 		await dispatch(
 			updateSite({
 				slug,

@@ -58,8 +58,8 @@ Con este flujo de trabajo, podrías crear un tema de bloques completamente en tu
 <p></p>
 Algunos ejemplos más de este flujo de trabajo:
 
--   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
@@ -68,7 +68,7 @@ Algunos ejemplos más de este flujo de trabajo:
 ## Sincroniza tu instancia de Playground con una carpeta local y crea Pull Requests en GitHub
 
 <!--
-![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
+![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 
@@ -76,12 +76,12 @@ With Google Chrome you can synchronize your Playground instance with a local dir
 -   An existing directory – to load it here and start syncing
 -->
 
-![Captura de un tipo de almacenamiento](@site/static/img/about/storage-type-device.webp)
+![Captura de un tipo de almacenamiento](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
 Con Google Chrome puedes sincronizar tu instancia de Playground con un directorio local, que puede ser:
 
--   Un directorio vacío: para guardar este Playground y comenzar a sincronizar
--   Un directorio existente: para cargarlo aquí y comenzar a sincronizar
+- Un directorio vacío: para guardar este Playground y comenzar a sincronizar
+- Un directorio existente: para cargarlo aquí y comenzar a sincronizar
 
 <!--
 :::info
@@ -114,8 +114,8 @@ See here a little demo of this workflow in action:
 
 En cuanto a los cambios realizados en ambos lados de la conexión:
 
--   Los archivos modificados en Playground se sincronizarán con tu computadora.
--   Los archivos modificados en tu computadora no se sincronizarán con Playground. Deberás hacer clic en el botón "Sincronizar archivos locales".
+- Los archivos modificados en Playground se sincronizarán con tu computadora.
+- Los archivos modificados en tu computadora no se sincronizarán con Playground. Deberás hacer clic en el botón "Sincronizar archivos locales".
 
 Con este flujo de trabajo, puedes crear PRs en GitHub directamente a partir de los cambios realizados en tu directorio local.
 

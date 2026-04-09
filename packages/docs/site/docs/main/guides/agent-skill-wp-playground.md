@@ -4,13 +4,13 @@ slug: /guides/agent-skill-wp-playground
 description: Install and use the wp-playground agent skill to automate WordPress Playground workflows with your coding agent.
 ---
 
-# Using the WordPress Playground Agent Skill {#using-wordpress-playground-agent-skill}
+# Using the WordPress Playground Agent Skill
 
 Want an AI assistant that already knows how to spin up WordPress instances, run Blueprints, and debug plugins? The **wp-playground** agent skill teaches coding agents the WordPress Playground CLI and browser workflows. You describe what you need in plain language. The agent handles the commands.
 
 Your coding agent reads the skill reference — a document with CLI flags, procedures, and troubleshooting steps — before responding. This ensures Playground commands run correctly.
 
-## Prerequisites {#prerequisites}
+## Prerequisites
 
 Before installing the skill, confirm you have:
 
@@ -21,9 +21,9 @@ Before installing the skill, confirm you have:
 
 You also need a coding agent that supports agent skills: Antigravity, Claude Code, Codex, Copilot, Cursor, or Gemini CLI. Make sure your CLI or IDE runs the latest version. Output quality depends on your chosen model.
 
-## Installation {#installation}
+## Installation
 
-### 1. Install via terminal {#install-via-terminal}
+### 1. Install via terminal
 
 Install the skill using the `npx skills` CLI:
 
@@ -31,7 +31,7 @@ Install the skill using the `npx skills` CLI:
 npx skills add wordpress/agent-skills --skill wp-playground
 ```
 
-### 2. Install manually {#install-manually}
+### 2. Install manually
 
 ```bash
 # Clone agent-skills
@@ -75,7 +75,7 @@ claude /skills
 gemini /skills list
 ```
 
-## Use the skill in the terminal {#use-the-skill-in-the-terminal}
+## Use the skill in the terminal
 
 With the skill installed, describe your WordPress environment to your coding agent. The agent builds the Blueprint, runs the CLI commands, and starts the server.
 
@@ -87,7 +87,7 @@ Open your coding agent in the terminal and type your request:
 
 The agent reads the skill reference, detects your project layout, and runs `server --auto-mount`. The instance starts at `http://localhost:9400`.
 
-### Generating content on the fly {#generating-content-on-the-fly}
+### Generating content on the fly
 
 Need sample data for testing or a demo? Describe the content structure you want:
 
@@ -113,7 +113,7 @@ More examples:
 
 Each prompt produces a complete Blueprint that runs locally, handling user creation, role assignment, post generation, and taxonomy setup through Blueprint steps.
 
-### Version compatibility testing {#version-compatibility-testing}
+### Version compatibility testing
 
 Does your plugin work on older PHP versions? Ask directly:
 
@@ -134,7 +134,7 @@ The agent adds `--wp` and `--php` flags to match your request. Common combinatio
 | Upcoming release  | "Run the WordPress nightly build"                           |
 | Legacy PHP        | "Start WordPress with PHP 7.4"                              |
 
-### Complex scenarios {#complex-scenarios}
+### Complex scenarios
 
 Combine multiple requirements in a single prompt:
 
@@ -150,7 +150,7 @@ Combine multiple requirements in a single prompt:
 
 The agent breaks these into the right sequence of Blueprint steps and CLI flags. Each request produces a fully configured, running instance.
 
-## How the skill works {#how-the-skill-works}
+## How the skill works
 
 The wp-playground skill is a set of Markdown files that your coding agent loads into its context when your request matches Playground-related patterns. The skill includes:
 
@@ -161,7 +161,7 @@ The wp-playground skill is a set of Markdown files that your coding agent loads 
 
 Your coding agent reads these files before generating commands, ensuring correct flags and warning you about common pitfalls.
 
-## Next steps {#next-steps}
+## Next steps
 
 - [WordPress Playground for Plugin Developers](/guides/for-plugin-developers) — Showcase and develop plugins with Playground
 - [WordPress Playground for Theme Developers](/guides/for-theme-developers) — Build and demo themes using Playground

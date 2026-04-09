@@ -3,7 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/remote/src",
 	"projectType": "library",
-	"tags": [],
+	"tags": ["scope:browser-only"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",

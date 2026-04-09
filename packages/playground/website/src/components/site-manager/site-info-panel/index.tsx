@@ -15,7 +15,6 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
 import {
 	modalSlugs,
 	setActiveModal,
@@ -24,6 +23,7 @@ import {
 	setSiteSlugToRename,
 } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
@@ -85,6 +85,7 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 
 	// Load the last active tab for this site
 	const [initialTabName] = useState(() => {
@@ -108,7 +109,7 @@ export function SiteInfoPanel({
 			`Are you sure you want to delete the site '${site.metadata.name}'?`
 		);
 		if (proceed) {
-			await dispatch(removeSite(site.slug));
+			await sitesAPI.delete(site.slug);
 			dispatch(setSiteManagerSection('sidebar'));
 			onClose();
 		}

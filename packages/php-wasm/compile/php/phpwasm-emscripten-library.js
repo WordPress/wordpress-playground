@@ -9,7 +9,7 @@
 
 const LibraryExample = {
 	// Emscripten dependencies:
-	$PHPWASM__deps: ['$allocateUTF8OnStack'],
+	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
 	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated
@@ -135,7 +135,10 @@ const LibraryExample = {
 								set(offset, value) { HEAPF64[offset] = value; },
 							},
 						},
-						wasmImports,
+						wasmImports: Object.assign({}, wasmImports,
+							typeof _builtin_fd_close === 'function' ? { builtin_fd_close: _builtin_fd_close } : {},
+							typeof _builtin_fcntl64 === 'function' ? { builtin_fcntl64: _builtin_fcntl64 } : {}
+						),
 						wasmExports,
 						syscalls: SYSCALLS,
 						FS,
@@ -658,8 +661,12 @@ const LibraryExample = {
 				stdoutParentFd = std[1]?.parent,
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
+			const detachPipeDataListeners = [];
 
 			cp.on('exit', function (code) {
+				for (const detach of detachPipeDataListeners) {
+					detach();
+				}
 				for (const fd of [
 					// The child process exited. Let's clean up its output streams:
 					stdoutChildFd,
@@ -686,16 +693,27 @@ const LibraryExample = {
 					stdoutChildFd
 				);
 				let stdoutAt = 0;
-				cp.stdout.on('data', function (data) {
-					stdoutStream.stream_ops.write(
-						stdoutStream,
-						data,
-						0,
-						data.length,
-						stdoutAt
-					);
-					stdoutAt += data.length;
-				});
+				const onStdoutData = function (data) {
+					try {
+						stdoutStream.stream_ops.write(
+							stdoutStream,
+							data,
+							0,
+							data.length,
+							stdoutAt
+						);
+						stdoutAt += data.length;
+					} catch {
+						// PHP may close the child pipe before Node finishes
+						// draining already-buffered stdout data. Late chunks are
+						// no longer deliverable, so detach the listener and stop.
+						cp.stdout.off('data', onStdoutData);
+					}
+				};
+				cp.stdout.on('data', onStdoutData);
+				detachPipeDataListeners.push(() =>
+					cp.stdout.off('data', onStdoutData)
+				);
 			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
@@ -704,16 +722,24 @@ const LibraryExample = {
 					stderrChildFd
 				);
 				let stderrAt = 0;
-				cp.stderr.on('data', function (data) {
-					stderrStream.stream_ops.write(
-						stderrStream,
-						data,
-						0,
-						data.length,
-						stderrAt
-					);
-					stderrAt += data.length;
-				});
+				const onStderrData = function (data) {
+					try {
+						stderrStream.stream_ops.write(
+							stderrStream,
+							data,
+							0,
+							data.length,
+							stderrAt
+						);
+						stderrAt += data.length;
+					} catch {
+						cp.stderr.off('data', onStderrData);
+					}
+				};
+				cp.stderr.on('data', onStderrData);
+				detachPipeDataListeners.push(() =>
+					cp.stderr.off('data', onStderrData)
+				);
 			}
 
 			/**
@@ -865,9 +891,9 @@ const LibraryExample = {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					_wasm_free(buffer);
+					_wasm_free(iov);
+					_wasm_free(pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -1042,27 +1068,6 @@ const LibraryExample = {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
-
-	/**
-	 * Alias for wasm_recv to support dynamically loaded extensions like memcached
-	 * that import `recv` by its POSIX name instead of the WASM-specific name.
-	 *
-	 * This allows extensions compiled without the -Drecv=wasm_recv flag to still
-	 * benefit from the async-aware implementation.
-	 */
-	recv: function (sockfd, buffer, size, flags) {
-		return _wasm_recv(sockfd, buffer, size, flags);
-	},
-	recv__deps: ['wasm_recv'],
-
-	/**
-	 * Alias for wasm_setsockopt to support dynamically loaded extensions like memcached
-	 * that import `setsockopt` by its POSIX name instead of the WASM-specific name.
-	 */
-	setsockopt: function (socketd, level, optionName, optionValuePtr, optionLen) {
-		return _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen);
-	},
-	setsockopt__deps: ['wasm_setsockopt'],
 
 	/**
 	 * Async-aware connect(2) for WebSocket-based sockets.

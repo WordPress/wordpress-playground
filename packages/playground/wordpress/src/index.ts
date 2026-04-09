@@ -261,6 +261,31 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/mu-plugins/0-playground.php',
 		`<?php
+
+		// Save WordPress environment information to a file.
+		add_action('wp_loaded', function() {
+			if (defined('DB_ENGINE') && DB_ENGINE === 'sqlite') {
+				$db_info = array(
+					'type' => 'sqlite',
+					'path' => FQDB,
+					'driver_path' => defined('WP_MYSQL_ON_SQLITE_LOADER_PATH')
+						? WP_MYSQL_ON_SQLITE_LOADER_PATH
+						: dirname(SQLITE_MAIN_FILE) . '/wp-pdo-mysql-on-sqlite.php',
+				);
+			} else {
+				$db_info = array(
+					'type' => 'mysql',
+					// TODO: Save MySQL connection config.
+				);
+			}
+			$wp_env = array('db' => $db_info);
+			$wp_env_php = sprintf('<?php return %s;', var_export($wp_env, true));
+			$wp_env_file = '/internal/shared/wp-env.php';
+			if (!file_exists($wp_env_file) || file_get_contents($wp_env_file) !== $wp_env_php ) {
+				file_put_contents($wp_env_file, $wp_env_php);
+			}
+		});
+
         // Needed because gethostbyname( 'wordpress.org' ) returns
         // a private network IP address for some reason.
         add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
@@ -300,8 +325,15 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
         }
 
         $log_file = WP_CONTENT_DIR . '/debug.log';
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            if ( is_string( WP_DEBUG_LOG ) ) {
+                $log_file = WP_DEBUG_LOG;
+            }
+            ini_set('error_log', $log_file);
+        } else {
+            ini_set('log_errors', '0');
+        }
         define('ERROR_LOG_FILE', $log_file);
-        ini_set('error_log', $log_file);
         ?>`
 	);
 

@@ -62,14 +62,14 @@ jobs:
               with:
                   ref: ${{ github.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
 
             - name: Configure git
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
 
             - name: Set up Node.js with OIDC
               uses: actions/setup-node@v4

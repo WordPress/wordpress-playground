@@ -14,6 +14,7 @@ import {
 	makeXdebugConfig,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
+	DEFAULT_PATH_SKIPPINGS,
 } from '@php-wasm/cli-util';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import {
@@ -135,13 +136,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			withXdebug:
 				hasXdebugOption ??
 				makeXdebugConfig({
-					pathSkippings: [
-						'/dev/',
-						'/home/',
-						'/internal/',
-						'/request/',
-						'/proc/',
-					],
+					pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 				}),
 		})
 	);
@@ -170,6 +165,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 				port: 443,
 				ides: ides,
 				cwd: process.cwd(),
+				pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 			});
 
 			// Display IDE-specific instructions

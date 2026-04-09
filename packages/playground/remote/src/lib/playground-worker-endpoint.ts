@@ -235,7 +235,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					// TODO: Document that this shift is a breaking change.
 					// Proxy the filesystem for all secondary PHP instances to
 					// the primary one.
-					proxyFileSystem(
+					await proxyFileSystem(
 						await requestHandler.getPrimaryPhp(),
 						php,
 						pathsToProxy

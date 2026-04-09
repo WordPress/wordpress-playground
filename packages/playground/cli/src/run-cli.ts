@@ -71,6 +71,7 @@ import {
 	createTempDirSymlink,
 	removeTempDirSymlink,
 	makeXdebugConfig,
+	DEFAULT_PATH_SKIPPINGS,
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
@@ -162,6 +163,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-before-install': {
@@ -169,6 +171,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-dir': {
@@ -495,6 +498,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						...buildSnapshotOnlyOptions,
 					})
 			)
+			.command('php', 'Run a PHP script', (yargsInstance: Argv) =>
+				yargsInstance.options({ ...sharedOptions })
+			)
 			.demandCommand(1, 'Please specify a command')
 			.strictCommands()
 			.conflicts(
@@ -532,7 +538,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						new URL(args['wp']);
 					} catch {
 						throw new Error(
-							'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+							'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1" (see --help for details).'
 						);
 					}
 				}
@@ -632,23 +638,38 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const command = args._[0] as string;
 
 		if (
-			!['start', 'run-blueprint', 'server', 'build-snapshot'].includes(
-				command
-			)
+			![
+				'start',
+				'run-blueprint',
+				'server',
+				'build-snapshot',
+				'php',
+			].includes(command)
 		) {
 			yargsObject.showHelp();
 			process.exit(1);
 		}
 
 		const define = (args['define'] || {}) as Record<string, string>;
-		if (
-			!('WP_DEBUG' in define) &&
-			!('WP_DEBUG_LOG' in define) &&
-			!('WP_DEBUG_DISPLAY' in define)
-		) {
+		const defineBool = (args['define-bool'] || {}) as Record<
+			string,
+			boolean
+		>;
+		const defineNumber = (args['define-number'] || {}) as Record<
+			string,
+			number
+		>;
+		const hasDebugDefine = (name: string) => {
+			return name in define || name in defineBool || name in defineNumber;
+		};
+		if (!hasDebugDefine('WP_DEBUG')) {
 			define['WP_DEBUG'] = 'true';
+		}
+		if (!hasDebugDefine('WP_DEBUG_LOG')) {
 			define['WP_DEBUG_LOG'] = 'true';
-			define['WP_DEBUG_DISPLAY'] = 'true';
+		}
+		if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
+			define['WP_DEBUG_DISPLAY'] = 'false';
 		}
 
 		const cliArgs = {
@@ -703,25 +724,65 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		};
 	} catch (e) {
 		console.error(e);
-		if (!(e instanceof Error)) {
-			throw e;
-		}
 		const debug = process.argv.includes('--debug');
-		if (debug) {
-			printDebugDetails(e);
+		if (e instanceof Error) {
+			if (debug) {
+				printDebugDetails(e);
+			} else {
+				const messageChain = [];
+				let currentError: Error | undefined = e;
+				do {
+					messageChain.push(currentError.message);
+					currentError = currentError.cause as Error;
+				} while (currentError instanceof Error);
+				console.error(
+					'\x1b[1m' +
+						messageChain.join(' caused by: ') +
+						'\x1b[0m'
+				);
+			}
 		} else {
-			const messageChain = [];
-			let currentError = e;
-			do {
-				messageChain.push(currentError.message);
-				currentError = currentError.cause as Error;
-			} while (currentError instanceof Error);
-			console.error(
-				'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
-			);
+			console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 		}
 		process.exit(1);
 	}
+}
+
+/**
+ * Describe an error for display. Handles Error instances, Comlink-serialized
+ * plain objects (which lose their Error prototype during worker thread
+ * transfer), and arbitrary values.
+ */
+function describeError(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (error && typeof error === 'object') {
+		// Comlink-serialized errors arrive as plain objects like
+		// { name: 'ErrnoError', errno: 20 } with no .message.
+		const parts = [];
+		const obj = error as Record<string, unknown>;
+		if (obj['name']) {
+			parts.push(String(obj['name']));
+		}
+		if (obj['message']) {
+			parts.push(String(obj['message']));
+		}
+		if (obj['errno'] !== undefined) {
+			parts.push(`errno: ${obj['errno']}`);
+		}
+		if (parts.length > 0) {
+			return parts.join(' — ');
+		}
+		// Last resort: JSON-serialize the object so we at least see
+		// what fields it has.
+		try {
+			return JSON.stringify(error);
+		} catch {
+			return String(error);
+		}
+	}
+	return String(error);
 }
 
 function getMountForVfsPath(
@@ -735,11 +796,16 @@ function getMountForVfsPath(
 }
 
 export interface RunCLIArgs {
+	/**
+	 * `_` holds positional tokens in the order they appeared.
+	 * `_[0]` will typically be the command name.
+	 */
+	_?: string[];
 	blueprint?:
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot';
+	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
@@ -849,7 +915,7 @@ const highlight = (text: string) =>
 export { mergeDefinedConstants } from './defines';
 
 export async function runCLI(
-	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
+	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' | 'php' }
 ): Promise<void>;
 export async function runCLI(
 	args: RunCLIArgs & { command: 'start' }
@@ -928,12 +994,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	if (args.phpmyadmin) {
 		if (true === args.phpmyadmin) {
 			args.phpmyadmin = '/phpmyadmin';
-		}
-
-		if (args.skipSqliteSetup) {
-			throw new Error(
-				'--phpmyadmin requires SQLite. Cannot be used with --skip-sqlite-setup.'
-			);
 		}
 
 		// Set up path alias for phpMyAdmin.
@@ -1058,13 +1118,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							...(args['mount-before-install'] || []),
 							...(args.mount || []),
 						],
-						pathSkippings: [
-							'/dev/',
-							'/home/',
-							'/internal/',
-							'/request/',
-							'/proc/',
-						],
+						pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 					});
 
 					console.log(bold(`Xdebug configured successfully`));
@@ -1109,6 +1163,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 									...(args['mount-before-install'] || []),
 									...(args.mount || []),
 								],
+								pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 								ideKey:
 									xdebugOptions.ideKey || 'WPPLAYGROUNDCLI',
 							});
@@ -1348,7 +1403,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 								return;
 							}
 
-							if (exitCode !== 0) {
+							if (exitCode === 0) {
 								return;
 							}
 
@@ -1361,13 +1416,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						async (
 							spawnResult: SpawnedWorker
 						): Promise<
-							[
-								SpawnedWorker,
-								(
-									| RemoteAPI<PlaygroundCliBlueprintV1Worker>
-									| RemoteAPI<PlaygroundCliBlueprintV2Worker>
-								),
-							]
+							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
 						> => {
 							// Remember the worker process before booting the Playground
 							// so we can clean it up if there is an error during boot.
@@ -1428,15 +1477,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					await exposeAPI(
 						{
 							applyPostInstallMountsToAllWorkers: async () => {
-								await Promise.all(
-									Array.from(
-										workerToPlaygroundMap.values()
-									).map((playground) =>
-										playground!.mountAfterWordPressInstall(
-											args['mount'] || []
-										)
-									)
-								);
+								// Apply post-install mounts to workers
+								// one at a time. Each worker's mount handler
+								// creates placeholder files on the shared
+								// host filesystem via NODEFS before mounting.
+								// Concurrent creation races cause ENOTDIR.
+								for (const playground of workerToPlaygroundMap.values()) {
+									await playground!.mountAfterWordPressInstall(
+										args['mount'] || []
+									);
+								}
 							},
 						},
 						undefined,
@@ -1486,6 +1536,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						cliOutput.finishProgress('Done');
 						await disposeCLI();
 						return;
+					} else if (args.command === 'php') {
+						const argv = [
+							// @TODO: Import this from somewhere?
+							// Hardcoding it feels fragile.
+							'/internal/shared/bin/php',
+							...(args['_'] || []).slice(1),
+						];
+						const response = await playgroundPool.cli(argv);
+						const [exitCode] = await Promise.all([
+							response.exitCode,
+							response.stdout.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stdout.write(chunk);
+									},
+								})
+							),
+							response.stderr.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stderr.write(chunk);
+									},
+								})
+							),
+						]);
+						await disposeCLI();
+						// stdout and stderr streams are drained above,
+						// but we  use process.exit as a hard cut-off to ensure
+						// Node doesn't hang on open handles.
+						process.exit(exitCode);
 					}
 				}
 
@@ -1594,7 +1674,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			return response;
 		},
 	}).catch((error) => {
-		cliOutput.printError(error.message);
+		cliOutput.printError(describeError(error));
 		process.exit(1);
 	});
 
@@ -1766,10 +1846,11 @@ export function spawnWorkerThread(
 			processIdAllocator.release(processId);
 
 			console.error(e);
+			const originalMessage =
+				e?.message || (e ? String(e) : 'unknown error');
 			const error = new Error(
-				`Worker failed to load worker. ${
-					e.message ? `Original error: ${e.message}` : ''
-				}`
+				`Worker failed to load. Original error: ${originalMessage}`,
+				{ cause: e }
 			);
 			reject(error);
 		});

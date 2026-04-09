@@ -161,9 +161,13 @@ export default function PreviewPRForm({
 					setError(
 						`The PR ${ref} requires a rebase before it can be previewed.`
 					);
+				} else if (error === 'artifact_expired') {
+					setError(
+						`The PR ${ref} couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.`
+					);
 				} else {
 					setError(
-						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`
+						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`
 					);
 					// https://github.com/WordPress/wordpress-playground/issues/new
 				}

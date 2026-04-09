@@ -49,6 +49,9 @@ export class PlaygroundRoute {
 				'login',
 				'url',
 				'page-title',
+				'mcp',
+				'mcp-port',
+				'can-save',
 			];
 			const preserveParams: Record<string, string | null> = {};
 			for (const param of preserveParamsKeys) {
@@ -97,4 +100,11 @@ export function isSaveDisabledByQueryParam(): boolean {
 	return (
 		new URL(document.location.href).searchParams.get('can-save') === 'no'
 	);
+}
+
+/**
+ * Checks if the MCP server bridge is enabled via the `?mcp=yes` query parameter.
+ */
+export function isMcpServerEnabled(): boolean {
+	return new URL(document.location.href).searchParams.get('mcp') === 'yes';
 }

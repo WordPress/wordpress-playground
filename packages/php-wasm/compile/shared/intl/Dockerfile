@@ -125,7 +125,7 @@ RUN set -euxo pipefail; \
 	# Replace the default compiler invocation ($CC) with emcc and force-link the required ICU static libraries
 	# into the shared object. The --whole-archive / --no-whole-archive flags ensure that *all* symbols from these
 	# archives are included, preventing missing symbol errors at runtime when loading the intl extension.
-	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
+	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicuio.a /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__"; \
 

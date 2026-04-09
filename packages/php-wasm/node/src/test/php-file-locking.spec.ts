@@ -1473,7 +1473,7 @@ error_log = ${errorLogPath}
 					},
 				})
 			);
-			proxyFileSystem(php1, php2, ['/wordpress']);
+			await proxyFileSystem(php1, php2, ['/wordpress']);
 			const result2 = await php2.runStream({
 				code: phpThatAttemptsToLock,
 			});

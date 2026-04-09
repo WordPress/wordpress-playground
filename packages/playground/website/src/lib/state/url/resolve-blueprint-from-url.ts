@@ -10,7 +10,7 @@ import {
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
 import { OpfsFilesystemBackend } from '@wp-playground/storage';
-import { parseBlueprint } from './router';
+import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
@@ -86,6 +86,14 @@ export async function resolveBlueprintFromURL(
 			},
 		};
 	} else if (query.has('blueprint-url')) {
+		if (isMcpServerEnabled()) {
+			throw new Error(
+				`Starting a new Playground from a Blueprint is disabled when the MCP server
+				is active to prevent potential prompt injection vulnerabilities.
+				Please remove the "blueprint-url" query parameter to proceed or
+				disable the MCP server by removing the "mcp=yes" query parameter.`
+			);
+		}
 		/*
 		 * Support passing blueprints via query parameter, e.g.:
 		 * ?blueprint-url=https://example.com/blueprint.json
@@ -118,6 +126,14 @@ export async function resolveBlueprintFromURL(
 			source: { type: 'last-autosave' },
 		};
 	} else if (fragment.length) {
+		if (isMcpServerEnabled()) {
+			throw new Error(
+				`Starting a new Playground from a Blueprint is disabled when the MCP server
+				is active to prevent potential prompt injection vulnerabilities.
+				Please remove the Blueprint hash from your URL or
+				disable the MCP server by removing the "mcp=yes" query parameter.`
+			);
+		}
 		/*
 		 * Support passing blueprints in the URI fragment, e.g.:
 		 * /#{"landingPage": "/?p=4"}

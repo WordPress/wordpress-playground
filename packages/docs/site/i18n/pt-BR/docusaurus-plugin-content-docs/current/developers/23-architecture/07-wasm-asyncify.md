@@ -12,7 +12,7 @@ https://github.com/WordPress/wordpress-playground/blob/15a660940ee9b4a332965ba2a
 
 Infelizmente, faltar mesmo um único item dessa lista resulta em uma falha do WebAssembly sempre que essa função faz parte da pilha de chamadas quando uma chamada assíncrona é feita. Isso se parece com isto:
 
-![Uma captura de tela de um erro de asyncify no terminal](@site/static/img/developers/asyncify-error.webp)
+![Uma captura de tela de um erro de asyncify no terminal](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/asyncify-error.webp)
 
 O Asyncify pode listar automaticamente todas as funções C necessárias quando compilado sem `ASYNCIFY_ONLY`, mas essa auto-detecção é muito ansiosa e acaba listando cerca de 70.000 funções C, o que aumenta o tempo de inicialização para 4,5s. Por isso mantemos a lista manualmente.
 

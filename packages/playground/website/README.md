@@ -32,6 +32,8 @@ Replace `YOUR-TOKEN` with your [Personal access token](https://github.com/settin
 
 The WordPress Playground website uses Google Analytics to track user interactions. We use this data to better understand how Playground is being used. We do not track or store any personal information.
 
+Analytics is only enabled when the `VITE_GOOGLE_ANALYTICS_ID` environment variable is set at build time. When absent, no analytics code is shipped. See `.env.example` for details.
+
 ### Custom tracking events
 
 We also track custom events whenever a user loads Playground and what blueprint steps are they using. We only record names of steps.
