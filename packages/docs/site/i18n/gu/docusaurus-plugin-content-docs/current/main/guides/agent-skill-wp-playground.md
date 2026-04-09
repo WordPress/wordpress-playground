@@ -167,7 +167,7 @@ wp-playground સ્કિલ Markdown ફાઇલોનો સમૂહ છે
 
 * **પ્લગઈન ડેવલપર્સ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ માર્ગદર્શિકા** — પ્લેગ્રાઉન્ડ સાથે પ્લગિનનું પ્રદર્શન અને વિકાસ કરો
 * **થીમ ડેવલપર્સ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ માર્ગદર્શિકા** — પ્લેગ્રાઉન્ડ નો ઉપયોગ કરીને થીમ બનાવો અને ડેમો આપો
-* **Upstream WordPress Playground દસ્તાવેજન** — API, આર્કિટેક્ચર અને એડવાન્સ કોન્ફિગરેશન માટે સંપૂર્ણ સંદર્ભ ([https://wordpress.github.io/wordpress-playground/](https://wordpress.github.io/wordpress-playground/))
+* **અપસ્ટ્રીમ પ્લેગ્રાઉન્ડ દસ્તાવેજીકરણ** — API, આર્કિટેક્ચર અને એડવાન્સ કોન્ફિગરેશન માટે સંપૂર્ણ સંદર્ભ ([https://wordpress.github.io/wordpress-playground/](https://wordpress.github.io/wordpress-playground/))
 
 જો તમે ઇચ્છો તો હું આખું દસ્તાવેજ એકસાથે સચોટ રીતે ફોર્મેટ કરીને પણ આપી શકું.
 
