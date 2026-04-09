@@ -12,8 +12,7 @@
 	"include": [
 		"src/**/*.ts",
 		"../web/src/php-library/parse-worker-startup-options.ts",
-		"../web/src/lib/api.ts",
-		"../node/src/test/with-smtp-sink.spec.ts"
+		"../web/src/lib/api.ts"
 	],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }
