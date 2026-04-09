@@ -82,12 +82,17 @@ export class SmtpSink extends EventTarget {
 		| { mech: 'LOGIN'; stage: 'username' | 'password'; username?: string }
 		| null = null;
 
+	private duplex: ByteDuplex;
+	private onMessage: (m: CaughtMessage) => void;
+
 	constructor(
-		private duplex: ByteDuplex,
-		private onMessage: (m: CaughtMessage) => void,
+		duplex: ByteDuplex,
+		onMessage: (m: CaughtMessage) => void,
 		opts: SmtpSinkOptions = {}
 	) {
 		super();
+		this.duplex = duplex;
+		this.onMessage = onMessage;
 		this.writer = duplex.writable.getWriter();
 		this.reader = duplex.readable.getReader();
 		this.maxSize = opts.maxSize ?? 10 * 1024 * 1024;
@@ -110,7 +115,9 @@ export class SmtpSink extends EventTarget {
 		}
 		try {
 			await this.writer.close();
-		} catch {}
+		} catch {
+			// Ignore close errors
+		}
 	}
 
 	private consumeChunk(chunk: Uint8Array) {
@@ -312,11 +319,19 @@ export class SmtpSink extends EventTarget {
 				this.closed = true;
 				try {
 					await this.writer.close();
-				} catch {}
+				} catch {
+					// Ignore close errors
+				}
+				break;
+
+			case 'EXPN':
+			case 'HELP':
+			case 'TURN':
+				await this.reply(502, 'Command not implemented');
 				break;
 
 			default:
-				await this.reply(502, 'command not implemented');
+				await this.reply(500, 'command not recognized');
 				break;
 		}
 	}
@@ -583,7 +598,7 @@ function pickTextPlainFromMultipart(
 	const end = `--${boundary}--`;
 	const lines = body.split('\r\n');
 	let cur: string[] = [];
-	let parts: string[] = [];
+	const parts: string[] = [];
 	let inPart = false;
 	for (const line of lines) {
 		if (line === b) {
@@ -703,12 +718,16 @@ export function duplexFromWebSocket(ws: WebSocket): ByteDuplex {
 		close() {
 			try {
 				ws.close();
-			} catch {}
+			} catch {
+				// Ignore close errors
+			}
 		},
 		abort() {
 			try {
 				ws.close();
-			} catch {}
+			} catch {
+				// Ignore close errors
+			}
 		},
 	});
 	return { readable, writable };
