@@ -1,54 +1,54 @@
 {
 	"version.label": {
-		"message": "આગળ",
+		"message": "अगला",
 		"description": "The label for version current"
 	},
 	"sidebar.mainSidebar.category.Documentation": {
-		"message": "માર્ગદર્શિકા",
+		"message": "दस्तावेज़",
 		"description": "The label for category Documentation in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.About Playground": {
-		"message": "પ્લેગ્રાઉન્ડ વિશે",
+		"message": "प्लेग्राउंड के बारे में",
 		"description": "The label for category About Playground in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Guides": {
-		"message": "માર્ગદર્શિકા",
+		"message": "मार्गदर्शिकाएँ",
 		"description": "The label for category Guides in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Contributing": {
-		"message": "યોગદાન",
+		"message": "योगदान",
 		"description": "The label for category Contributing in sidebar mainSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Blueprints": {
-		"message": "બ્લુપ્રિન્ટ્સ",
+		"message": "ब्लूप्रिंट्स",
 		"description": "The label for category Blueprints in sidebar blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Tutorial": {
-		"message": "ટ્યુટોરિયલ",
+		"message": "ट्यूटोरियल",
 		"description": "The label for category Tutorial in sidebar blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Steps": {
-		"message": "પગલાં",
+		"message": "चरण",
 		"description": "The label for category Steps in sidebar blueprintsSidebar"
 	},
 	"sidebar.developersSidebar.category.Developers": {
-		"message": "ડેવલપર્સ",
+		"message": "डेवलपर्स",
 		"description": "The label for category Developers in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Local Development": {
-		"message": "લોકલ ડેવલપમેન્ટ",
+		"message": "स्थानीय विकास",
 		"description": "The label for category Local Development in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Playground APIs": {
-		"message": "પ્લેગ્રાઉન્ડ APIs",
+		"message": "प्लेग्राउंड API",
 		"description": "The label for category Playground APIs in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Javascript API": {
-		"message": "Javascript API",
+		"message": "जावास्क्रिप्ट API",
 		"description": "The label for category Javascript API in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Architecture": {
-		"message": "આર્કિટેક્ચર",
+		"message": "आर्किटेक्चर",
 		"description": "The label for category Architecture in sidebar developersSidebar"
 	}
 }
