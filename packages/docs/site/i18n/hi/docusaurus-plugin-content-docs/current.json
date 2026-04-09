@@ -44,8 +44,8 @@
 		"description": "The label for category Playground APIs in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Javascript API": {
-		"message": "जावास्क्रिप्ट API",
-		"description": "The label for category Javascript API in sidebar developersSidebar"
+		"message": "JavaScript API",
+		"description": "The label for category JavaScript API in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Architecture": {
 		"message": "आर्किटेक्चर",
