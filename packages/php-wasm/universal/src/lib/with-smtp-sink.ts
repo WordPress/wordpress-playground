@@ -33,7 +33,9 @@ export function withSMTPSink({
 								u.searchParams.get('port') || '-1',
 								10
 							);
-						} catch {}
+						} catch {
+							// Ignore URL parse errors
+						}
 
 						const isIntercept = targetPort === port;
 						// super(...) must be a root-level statement in derived classes
@@ -58,7 +60,9 @@ export function withSMTPSink({
 							aborted = true;
 							try {
 								reader.releaseLock();
-							} catch {}
+							} catch {
+								// Ignore release errors
+							}
 						};
 						(async () => {
 							try {
@@ -108,7 +112,9 @@ export function withSMTPSink({
 						try {
 							this.__smtpReaderAbort?.();
 							this.__smtpWriter?.close();
-						} catch {}
+						} catch {
+							// Ignore cleanup errors
+						}
 						(this as any).onclose?.({});
 					}
 				};
