@@ -206,12 +206,6 @@ async function buildPackageJson(
 		options.outputPath + '/package.json',
 		serializeJson(packageJson)
 	);
-
-	// Lock file doesn't work with monorepoDependencies
-	// fs.writeFileSync(
-	//   getLockFileName(),
-	//   createLockFile(packageJson)
-	// );
 }
 
 interface MonorepoDependency {
@@ -220,7 +214,7 @@ interface MonorepoDependency {
 }
 
 function isSourceFile(filePath: string): boolean {
-	return !/\/test\//.test(filePath);
+	return !/\/tests?\//.test(filePath);
 }
 
 function getSourceOnlyFileMap(): ProjectFileMap {
