@@ -327,7 +327,45 @@ describe.each(blueprintVersions)(
 			expect(response.text).toContain('My WordPress Website');
 		});
 
-		// TODO: Testing mounting NODEFS within a NODEFS mount
+		// Regression test: mounting files under /tmp (which is already
+		// NODEFS-mounted to a shared host directory) used to race
+		// across 6 workers and intermittently fail with ErrnoError 20
+		// (ENOTDIR) when the concurrent NODEFS placeholder creation
+		// collided on the host filesystem.
+		test('should mount files under /tmp as post-install mounts without ENOTDIR', async () => {
+			const hostTmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-')
+			);
+
+			const mounts = [];
+			for (let i = 0; i < 5; i++) {
+				const hostSubDir = path.join(
+					hostTmpDir,
+					`migration-${i}`
+				);
+				mkdirSync(hostSubDir, { recursive: true });
+				const hostFilePath = path.join(
+					hostSubDir,
+					'.import-state.json'
+				);
+				writeFileSync(hostFilePath, `{"index":${i}}`);
+				mounts.push({
+					hostPath: hostFilePath,
+					vfsPath: `/tmp/migration-${i}/.import-state.json`,
+				});
+			}
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: mounts,
+				});
+				expect(cliServer.serverUrl).toBeTruthy();
+			} finally {
+				rmSync(hostTmpDir, { recursive: true, force: true });
+			}
+		});
 
 		if (version === 2) {
 			// @TODO: Test modes
@@ -1662,6 +1700,110 @@ describe('other run-cli behaviors', () => {
 				}
 			}
 		);
+	});
+
+	describe('WP_DEBUG constants', () => {
+		async function getConstants(cliArgs: string[]) {
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((() => {}) as any);
+			try {
+				await using cliResult = await parseOptionsAndRunCLI([
+					'server',
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
+					'--verbosity=quiet',
+					'--port=0',
+					...cliArgs,
+				]);
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+				await cliServer.playground.writeFile(
+					'/wordpress/check-consts.php',
+					`<?php
+					echo json_encode([
+						'WP_DEBUG' => defined('WP_DEBUG') ? WP_DEBUG : '__UNDEFINED__',
+						'WP_DEBUG_LOG' => defined('WP_DEBUG_LOG') ? WP_DEBUG_LOG : '__UNDEFINED__',
+						'WP_DEBUG_DISPLAY' => defined('WP_DEBUG_DISPLAY') ? WP_DEBUG_DISPLAY : '__UNDEFINED__',
+					]);
+					`
+				);
+				const response = await fetch(
+					new URL('/check-consts.php', cliServer.serverUrl)
+				);
+				return JSON.parse(await response.text());
+			} finally {
+				exitSpy.mockRestore();
+			}
+		}
+
+		test('should override WP_DEBUG constants via --define-bool', async () => {
+			// Confirm default values before confirming they can be overridden.
+			const defaultConstantss = await getConstants([]);
+			expect(defaultConstantss.WP_DEBUG).toBe('true');
+			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
+			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+
+			const constants = await getConstants([
+				'--define-bool',
+				'WP_DEBUG',
+				'false',
+				'--define-bool',
+				'WP_DEBUG_LOG',
+				'false',
+				'--define-bool',
+				'WP_DEBUG_DISPLAY',
+				'true',
+			]);
+			expect(constants.WP_DEBUG).toBe(false);
+			expect(constants.WP_DEBUG_LOG).toBe(false);
+			expect(constants.WP_DEBUG_DISPLAY).toBe(true);
+		});
+
+		test('should override WP_DEBUG constants via --define-number', async () => {
+			// Confirm default values before confirming they can be overridden.
+			const defaultConstantss = await getConstants([]);
+			expect(defaultConstantss.WP_DEBUG).toBe('true');
+			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
+			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+
+			const constants = await getConstants([
+				'--define-number',
+				'WP_DEBUG',
+				'0',
+				'--define-number',
+				'WP_DEBUG_LOG',
+				'0',
+				'--define-number',
+				'WP_DEBUG_DISPLAY',
+				'1',
+			]);
+			expect(constants.WP_DEBUG).toBe(0);
+			expect(constants.WP_DEBUG_LOG).toBe(0);
+			expect(constants.WP_DEBUG_DISPLAY).toBe(1);
+		});
+
+		test('should override WP_DEBUG constants via --define', async () => {
+			// Confirm default values before confirming they can be overridden.
+			const defaultConstantss = await getConstants([]);
+			expect(defaultConstantss.WP_DEBUG).toBe('true');
+			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
+			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+
+			const constants = await getConstants([
+				'--define',
+				'WP_DEBUG',
+				'false',
+				'--define',
+				'WP_DEBUG_LOG',
+				'false',
+				'--define',
+				'WP_DEBUG_DISPLAY',
+				'true',
+			]);
+			expect(constants.WP_DEBUG).toBe('false');
+			expect(constants.WP_DEBUG_LOG).toBe('false');
+			expect(constants.WP_DEBUG_DISPLAY).toBe('true');
+		});
 	});
 
 	describe('port in use', () => {

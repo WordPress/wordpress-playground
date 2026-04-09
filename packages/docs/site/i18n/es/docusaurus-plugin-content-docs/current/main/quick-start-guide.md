@@ -136,7 +136,7 @@ Para mantener tu sitio de WordPress Playground por más tiempo que una sola sesi
 
 1. Abre el panel del administrador de sitios de Playground:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!--
 2. Use the "Download as .zip" button in the additional actions menu
@@ -144,7 +144,7 @@ Para mantener tu sitio de WordPress Playground por más tiempo que una sola sesi
 
 2. Usa el botón "Descargar como .zip" en el menú de acciones adicionales
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -153,10 +153,10 @@ The exported file contains the complete site you've built. You could host it on 
 El archivo exportado contiene el sitio completo que has construido. Podrías alojarlo en cualquier servidor que admita PHP y SQLite. Todos los archivos principales de WordPress, plugins, temas y todo lo demás que hayas agregado a tu sitio están allí.
 
 <!--
-The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite.php`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
+The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
 -->
 
-El archivo de base de datos SQLite también está incluido en la exportación, lo encontrarás en `wp-content/database/.ht.sqlite.php`. Ten en cuenta que los archivos que comienzan con un punto están ocultos por defecto en la mayoría de los sistemas operativos, por lo que es posible que necesites habilitar la opción "Mostrar archivos ocultos" en tu administrador de archivos.
+El archivo de base de datos SQLite también está incluido en la exportación, lo encontrarás en `wp-content/database/.ht.sqlite`. Ten en cuenta que los archivos que comienzan con un punto están ocultos por defecto en la mayoría de los sistemas operativos, por lo que es posible que necesites habilitar la opción "Mostrar archivos ocultos" en tu administrador de archivos.
 
 <!--
 ## Restore a saved site
@@ -176,7 +176,7 @@ Puedes restaurar el sitio guardado usando el botón "Importar desde .zip" en el 
 
 1. Abre el panel del tablero de Playground:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!--
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
@@ -184,7 +184,7 @@ Puedes restaurar el sitio guardado usando el botón "Importar desde .zip" en el 
 
 1. Usa el botón "Importar .zip" al final de la sección "Iniciar un nuevo Playground"
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -198,7 +198,7 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 
 La forma más rápida de cambiar la versión de WordPress o PHP es usando el panel de configuración en el [sitio de demostración oficial](https://playground.wordpress.net/):
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!--
 :::info Test your plugin or theme

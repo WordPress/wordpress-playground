@@ -6,7 +6,7 @@ import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
 
-const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite.php';
+const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
 
 export function SiteDatabasePanel({
 	playground,

@@ -114,7 +114,7 @@ Você pode usar `error_log` para suas próprias mensagens de erro através da [e
 
 <!-- Log errors snapshot -->
 
-![Captura de tela de erros de log](@site/static/img/blueprints/log-errors.webp)
+![Captura de tela de erros de log](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
 <!-- :::info When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance. ::: -->
 

@@ -396,9 +396,7 @@ test.describe('Database panel', () => {
 	test('should display database info', async ({ website }) => {
 		await expect(website.page.getByText('Path:')).toBeVisible();
 		await expect(
-			website.page.getByText(
-				'/wordpress/wp-content/database/.ht.sqlite.php'
-			)
+			website.page.getByText('/wordpress/wp-content/database/.ht.sqlite')
 		).toBeVisible();
 		await expect(website.page.getByText('Size:')).toBeVisible();
 	});

@@ -1,5 +1,10 @@
 import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { tmpdir } from 'os';
+import path from 'path';
+
+const SQLITE_REPOSITORY_URL = 'https://github.com/WordPress/sqlite-database-integration';
 
 // The latest version of the SQLite plugin is the develop branch.
 const latestVersion = 'trunk';
@@ -21,12 +26,8 @@ const parser = yargs(process.argv.slice(2))
 	});
 
 const args = parser.argv;
-
-// Get version and URL.
 const version = args.pluginVersion;
-const url = 'trunk' === version
-	? `https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/${version}.zip`
-	: `https://github.com/WordPress/sqlite-database-integration/archive/refs/tags/${version}.zip`;
+const outputZipPath = path.resolve(args.outputDir, `sqlite-database-integration-${version}.zip`);
 
 // Load versions map.
 const versionsPath = `${args.outputDir}/sqlite-database-integration-versions.json`;
@@ -38,14 +39,7 @@ try {
 	versions = {};
 }
 
-// Download the plugin.
-const outputZipPath = `${args.outputDir}/sqlite-database-integration-${version}.zip`;
-const sqliteResponse = await fetch(url);
-if (!sqliteResponse.ok) {
-	throw new Error(`Failed to download SQLite integration plugin: ${sqliteResponse.statusText}`);
-}
-const sqliteZip = Buffer.from(await sqliteResponse.arrayBuffer());
-await fs.writeFile(outputZipPath, sqliteZip);
+await buildPluginZip(version, outputZipPath);
 
 // Update versions map.
 versions[version] = version;
@@ -106,3 +100,37 @@ export function getSqliteDriverModuleDetails(
 }
 `;
 await fs.writeFile(getSqliteDriverModuleDetailsPath, getSqliteDriverModuleDetailsContent);
+
+/**
+ * Fetch the SQLite repository and build the SQLite integration plugin ZIP.
+ */
+async function buildPluginZip(version, outputZipPath) {
+	const tempDir = await fs.mkdtemp(path.join(tmpdir(), 'sqlite-plugin-'));
+	try {
+		const repoDir = path.join(tempDir, 'repo');
+		execFileSync(
+			'git',
+			['clone', '--depth', '1', '--branch', version, '--single-branch', `${SQLITE_REPOSITORY_URL}.git`, repoDir],
+			{ stdio: 'inherit' }
+		);
+
+		const buildScript = path.join(repoDir, 'bin', 'build-sqlite-plugin-zip.sh');
+		const hasBuildScript = await fs.access(buildScript).then(() => true, () => false);
+
+		if (hasBuildScript) {
+			// Monorepo structure: Run the repository's build script.
+			execFileSync('bash', [buildScript], { cwd: repoDir, stdio: 'inherit' });
+			await fs.copyFile(path.join(repoDir, 'build', 'plugin-sqlite-database-integration.zip'), outputZipPath);
+		} else {
+			// Old flat structure: Download the GitHub archive.
+			const url = `${SQLITE_REPOSITORY_URL}/archive/refs/tags/${version}.zip`;
+			const response = await fetch(url);
+			if (!response.ok) {
+				throw new Error(`Failed to download SQLite integration plugin ${version}: ${response.statusText}`);
+			}
+			await fs.writeFile(outputZipPath, Buffer.from(await response.arrayBuffer()));
+		}
+	} finally {
+		await fs.rm(tempDir, { recursive: true, force: true });
+	}
+}

@@ -2,7 +2,7 @@ import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { download } from '@wordpress/icons';
 import type { PlaygroundClient } from '@wp-playground/client';
 
-const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite.php';
+const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
 
 async function downloadDatabase(playground: PlaygroundClient): Promise<void> {
 	const fileExists = await playground.fileExists(DATABASE_PATH);

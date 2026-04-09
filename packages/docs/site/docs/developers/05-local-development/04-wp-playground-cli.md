@@ -56,7 +56,7 @@ The `server` command provides full control over configuration:
 npx @wp-playground/cli@latest server
 ```
 
-![Playground CLI in Action](@site/static/img/developers/npx-wp-playground-server.gif)
+![Playground CLI in Action](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/npx-wp-playground-server.gif)
 
 **Automatic site persistence:** By default, the `start` command keeps your WordPress site persistent across sessions. Your files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`, where `<path-hash>` is derived from your project directory. This means you can stop and restart the CLI without losing your work.
 
@@ -165,11 +165,11 @@ Mount before WP install: /wordpress ->
 The database location depends on what you mount:
 
 - **Auto-mounting wp-content or full WordPress**:
-    - Database: `<your-local-project>/wp-content/database/.ht.sqlite.php`
+    - Database: `<your-local-project>/wp-content/database/.ht.sqlite`
     - ✅ **Persisted locally** in your project folder
 
 - **Auto-mounting plugin/theme only**:
-    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite.php`
+    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
     - ⚠️ **Lost when server stops** (temp directories are cleaned up)
 
 - **Custom mounts**: Database location follows your mount configuration
@@ -211,7 +211,7 @@ The `<path-hash>` is derived from your project directory path. This ensures isol
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
-    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite.php`
+    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
     - **Persisted automatically** between sessions
 
 #### Resetting a persisted site

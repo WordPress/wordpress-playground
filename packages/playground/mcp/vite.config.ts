@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 
 import dts from 'vite-plugin-dts';
@@ -45,5 +46,17 @@ export default defineConfig({
 					chunk.fileName === 'index.js' ? '#!/usr/bin/env node' : '',
 			},
 		},
+	},
+
+	test: {
+		globals: true,
+		cache: {
+			dir: '../../../node_modules/.vitest',
+		},
+		environment: 'node',
+		include: [
+			'tests/unit/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+		],
+		reporters: ['default'],
 	},
 });

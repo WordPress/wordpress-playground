@@ -20,8 +20,8 @@ Ce guide vous montre comment activer Xdebug dans WordPress Playground et commenc
 
 Tout d'abord, Xdebug est présent dans deux CLI différents :
 
--   **`@php-wasm/cli`** : Exécutez des scripts PHP autonomes. Utilisez-le lorsque vous déboguez du code PHP sans avoir besoin d'un environnement WordPress.
--   **`@wp-playground/cli`** : Exécutez une installation complète de WordPress. Utile pour déboguer des plugins WordPress, des thèmes ou des fonctionnalités du noyau.
+- **`@php-wasm/cli`** : Exécutez des scripts PHP autonomes. Utilisez-le lorsque vous déboguez du code PHP sans avoir besoin d'un environnement WordPress.
+- **`@wp-playground/cli`** : Exécutez une installation complète de WordPress. Utile pour déboguer des plugins WordPress, des thèmes ou des fonctionnalités du noyau.
 
 <!-- For this guide, we'll use `@wp-playground/cli`. If you're not familiar with the tool, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`. -->
 
@@ -79,7 +79,7 @@ Running a PHP script with Xdebug enabled...
 
 En cliquant sur l'URL fournie, par exemple, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, vous pouvez accéder à DevTools connecté à votre application, avec la possibilité d'inspecter tous les fichiers d'une instance WordPress.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 
 <!-- For a more practical example, let's debug a plugin that has the following code: -->
 
@@ -123,7 +123,7 @@ npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mou
 
 Le Playground CLI (`@wp-playground/cli`) détectera automatiquement le dossier du plugin et le montera. En ouvrant le projet dans votre navigateur et DevTools, vous pourrez ajouter des points d'arrêt dans le code de votre plugin et le tester ligne par ligne.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 
 <!-- ## Starting with IDE integration -->
 
@@ -153,7 +153,7 @@ npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integrat
 
 Maintenant, allez dans votre code, ajoutez les points d'arrêt et bon débogage.
 
-![Xdebug en action sur VSCode](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+![Xdebug en action sur VSCode](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
 <!-- This feature is in experimental mode. Until it is completed, we will need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts. -->
 

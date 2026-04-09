@@ -107,25 +107,25 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 1. પ્લેગ્રાઉન્ડ સાઇટ મેનેજર પેનલ ખોલો:
 
-<!-- ![Site Manager](@site/static/img/site-manager/open-site-manager.webp) -->
+<!-- ![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp) -->
 
-![સાઇટ મેનેજર](@site/static/img/site-manager/open-site-manager.webp)
+![સાઇટ મેનેજર](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!-- 2. Use the "Download as .zip" button in the additional actions menu -->
 
 2. વધારાના ક્રિયાઓના મેનુમાં "Download as .zip" બટનનો ઉપયોગ કરો
 
-<!-- ![Export button](@site/static/img/site-manager/export-zip-file.webp) -->
+<!-- ![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp) -->
 
-![એક્સપોર્ટ બટન](@site/static/img/site-manager/export-zip-file.webp)
+![એક્સપોર્ટ બટન](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!-- The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there. -->
 
 એક્સપોર્ટ કરેલી ફાઇલમાં તમે બનાવેલી સંપૂર્ણ સાઇટ સામેલ છે. તમે તેને કોઈપણ સર્વર પર હોસ્ટ કરી શકો છો જે PHP અને SQLite ને સપોર્ટ કરે છે. તમામ વર્ડપ્રેસ કોર ફાઇલો, પ્લગિન્સ, થીમ્સ અને તમે તમારી સાઇટમાં ઉમેરેલી બધી અન્ય વસ્તુઓ તેમાં સામેલ છે.
 
-<!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite.php`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
+<!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
 
-SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમાં સામેલ છે, તમે તેને `wp-content/database/.ht.sqlite.php` માં શોધી શકો છો. ધ્યાનમાં રાખો કે ડોટ (.) થી શરૂ થતી ફાઇલો મોટાભાગની ઓપરેટિંગ સિસ્ટમમાં ડિફૉલ્ટ મુજબ છુપાયેલી હોય છે, તેથી તમને તમારા ફાઇલ મેનેજરમાં "Show hidden files" વિકલ્પ સક્રિય કરવાની જરૂર પડી શકે છે.
+SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમાં સામેલ છે, તમે તેને `wp-content/database/.ht.sqlite` માં શોધી શકો છો. ધ્યાનમાં રાખો કે ડોટ (.) થી શરૂ થતી ફાઇલો મોટાભાગની ઓપરેટિંગ સિસ્ટમમાં ડિફૉલ્ટ મુજબ છુપાયેલી હોય છે, તેથી તમને તમારા ફાઇલ મેનેજરમાં "Show hidden files" વિકલ્પ સક્રિય કરવાની જરૂર પડી શકે છે.
 
 <!-- ## Restore a saved site -->
 
@@ -139,17 +139,17 @@ SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમ�
 
 1. પ્લેગ્રાઉન્ડ ડેશબોર્ડ પેનલ ખોલો:
 
-<!-- ![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp) -->
+<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp) -->
 
-![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](@site/static/img/dashboard/open-playground-dashboard.webp)
+![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!-- 1. Use the "Import .zip" button at the end of the "Start a new Playground" section -->
 
 1. "Start a new Playground" વિભાગના અંતે "Import .zip" બટનનો ઉપયોગ કરો
 
-<!-- ![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp) -->
+<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp) -->
 
-![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](@site/static/img/dashboard/import-playground.webp)
+![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!-- ## Use a specific WordPress or PHP version -->
 
@@ -159,9 +159,9 @@ SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમ�
 
 વર્ડપ્રેસ અથવા PHP નું વર્ઝન બદલવાનો સૌથી ઝડપી રસ્તો [સત્તાવાર ડેમો સાઇટ](https://playground.wordpress.net/) પર સેટિંગ્સ પેનલનો ઉપયોગ કરવો છે:
 
-<!-- ![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp) -->
+<!-- ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp) -->
 
-![વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સેટિંગ્સ મેનુ](@site/static/img/playground-settings-menu.webp)
+![વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સેટિંગ્સ મેનુ](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!-- :::info Test your plugin or theme -->
 

@@ -1640,7 +1640,7 @@ wp-includes/fonts/dashicons.woff
 wp-includes/fonts/dashicons.eot
 wp-includes/fonts/dashicons.svg
 wp-includes/theme-i18n.json
-wp-content/database/.ht.sqlite.php
+wp-content/database/.ht.sqlite
 wp-content/database/.htaccess
 wp-content/themes/twentytwentythree/theme.json
 wp-content/themes/twentytwentythree/style.css
