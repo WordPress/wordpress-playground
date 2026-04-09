@@ -162,7 +162,7 @@ export class WordPressFetchNetworkTransport {
 	 * 3. Make parallel fetch requests to get responses
 	 * 4. Cache the responses for later use by the network transport.
 	 * 5. When the user makes the actual requests later, serve from cache instead.
-	 * 
+	 *
 	 * Note: If a plugin schedules cron jobs aggressively, WordPress may detect that a cron
 	 * event is due and spawn a loopback request right as this runs. We suppress that
 	 * loopback request because it can consume a PHP worker and starve user-initiated requests.
@@ -191,6 +191,7 @@ export class WordPressFetchNetworkTransport {
 				require_once '/wordpress/wp-admin/includes/dashboard.php';
 
 				function _wppg_is_loopback_request( $url ) {
+					return false;
 					$parsed_url_req  = wp_parse_url( $url );
 					$parsed_site_url = wp_parse_url( site_url() );
 					if ( ! is_array( $parsed_url_req ) || ! is_array( $parsed_site_url ) ) {
