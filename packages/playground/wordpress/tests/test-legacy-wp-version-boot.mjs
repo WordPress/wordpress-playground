@@ -1,10 +1,15 @@
 /**
  * Tests that legacy WordPress versions (4.9 down to 1.0) boot
- * successfully on PHP 5.6 with SQLite, display "Hello world!" on the
- * front page, and loads the wp-admin dashboard.
+ * successfully on PHP 5.6 with SQLite:
  *
- * Both front-page and admin failures are hard errors: the job should
- * honestly reflect the state of legacy WordPress support.
+ *   1. Front page loads with "Hello world!"
+ *   2. wp-admin dashboard loads (auto-login works)
+ *   3. Clicking a post title loads the single post (pretty permalinks)
+ *   4. Creating a new post page loads (nonces work)
+ *   5. Activating a plugin works (Hello Dolly)
+ *
+ * All failures are hard errors: the job should honestly reflect the
+ * state of legacy WordPress support.
  *
  * Requires the dev server to be running on port 5400
  * (started by the CI job or manually via `npm run dev`).
@@ -161,6 +166,57 @@ function findPHPError(body) {
 	return null;
 }
 
+/**
+ * Navigates inside the Playground via the URL bar, then waits for
+ * the WordPress content frame to load meaningful content.
+ */
+async function navigateViaUrlBar(page, path, timeoutSeconds = 60) {
+	const urlBar = page.locator('input[name="url"]');
+	await urlBar.fill(path);
+	await urlBar.press('Enter');
+	await page.waitForTimeout(8000);
+	return await waitForWPFrame(page, timeoutSeconds);
+}
+
+/**
+ * Checks whether a body text indicates the user is logged in.
+ */
+function isLoggedIn(body) {
+	return ['Logout', 'Log Out', 'Sign Out', 'Howdy'].some((s) =>
+		body.includes(s)
+	);
+}
+
+// Versions where post creation and plugin activation are tested.
+// WP < 2.5 has no plugin activation UI and limited post editor.
+const EXTENDED_TEST_VERSIONS = new Set([
+	'4.9',
+	'4.8',
+	'4.7',
+	'4.6',
+	'4.5',
+	'4.4',
+	'4.3',
+	'4.2',
+	'4.1',
+	'4.0',
+	'3.9',
+	'3.8',
+	'3.7',
+	'3.6',
+	'3.5',
+	'3.4',
+	'3.3',
+	'3.2',
+	'3.1',
+	'3.0',
+	'2.9',
+	'2.8',
+	'2.7',
+	'2.6',
+	'2.5',
+]);
+
 const browser = await chromium.launch({ headless: true });
 
 for (const wp of WP_VERSIONS) {
@@ -184,6 +240,9 @@ for (const wp of WP_VERSIONS) {
 
 	let frontStatus = null;
 	let adminStatus = null;
+	let postStatus = null;
+	let newPostStatus = null;
+	let pluginStatus = null;
 
 	try {
 		await page.goto(url, {
@@ -236,17 +295,54 @@ for (const wp of WP_VERSIONS) {
 			}
 		}
 
-		// --- Phase 2: Admin dashboard ---
+		// --- Phase 2: View single post (click "Hello world!") ---
+		if (
+			wp1 &&
+			(frontStatus.status === 'OK' || frontStatus.status === 'PARTIAL')
+		) {
+			try {
+				const link = wp1.frame
+					.getByRole('link', { name: 'Hello world!' })
+					.first();
+				if ((await link.count()) > 0) {
+					await link.click({ timeout: 5000 });
+					await page.waitForTimeout(8000);
+					const wp1b = await waitForWPFrame(page, 30);
+					if (!wp1b) {
+						postStatus = { status: 'TIMEOUT' };
+					} else {
+						const hasContent =
+							(wp1b.body.includes('Welcome to WordPress') ||
+								wp1b.body.includes('Hello world')) &&
+							!wp1b.body.includes('Not Found') &&
+							!wp1b.body.includes("can't find");
+						postStatus = hasContent
+							? { status: 'OK' }
+							: {
+									status: 'NOT_FOUND',
+									detail: wp1b.body
+										.slice(0, 120)
+										.replace(/\n/g, ' '),
+								};
+					}
+				} else {
+					postStatus = { status: 'SKIP', detail: 'no link found' };
+				}
+			} catch (e) {
+				postStatus = { status: 'CRASH', detail: e.message };
+			}
+		} else {
+			postStatus = { status: 'SKIP', detail: 'front page failed' };
+		}
+
+		// --- Phase 3: Admin dashboard (auto-login) ---
 		if (frontStatus.status === 'OK' || frontStatus.status === 'PARTIAL') {
 			try {
-				// Navigate via the Playground URL bar — this goes through
-				// the proper Playground navigation flow (service worker,
-				// PHP request handler) unlike direct frame navigation.
-				const urlBar = page.locator('input[name="url"]');
-				await urlBar.fill('/wp-admin/');
-				await urlBar.press('Enter');
-
-				const wp2 = await waitForAdminFrame(page, TIMEOUT_S);
+				const wp2 = await navigateViaUrlBar(
+					page,
+					'/wp-admin/',
+					TIMEOUT_S
+				);
 				if (!wp2) {
 					adminStatus = { status: 'TIMEOUT' };
 				} else {
@@ -258,11 +354,6 @@ for (const wp of WP_VERSIONS) {
 							body: wp2.body,
 						};
 					} else {
-						// Check for admin indicators across all WP eras:
-						// - "Dashboard" (WP 2.7+)
-						// - "Write" / "Manage" / "Options" (WP 1.5-2.6)
-						// - "Create New Post" / "Logout" (WP 1.0-1.2)
-						// - "Log Out" / "Settings" links (WP 2.0+)
 						const adminIndicators = [
 							'Dashboard',
 							'Write',
@@ -279,8 +370,14 @@ for (const wp of WP_VERSIONS) {
 						const hasAdmin = adminIndicators.some((ind) =>
 							wp2.body.includes(ind)
 						);
-						if (hasAdmin) {
+						const loggedIn = isLoggedIn(wp2.body);
+						if (hasAdmin && loggedIn) {
 							adminStatus = { status: 'OK' };
+						} else if (hasAdmin) {
+							adminStatus = {
+								status: 'OK',
+								detail: 'admin loaded but login state unclear',
+							};
 						} else {
 							adminStatus = {
 								status: 'UNKNOWN',
@@ -301,116 +398,218 @@ for (const wp of WP_VERSIONS) {
 		} else {
 			adminStatus = { status: 'SKIP', detail: 'front page failed' };
 		}
+
+		// --- Phase 4: New post page (nonce check) ---
+		if (
+			EXTENDED_TEST_VERSIONS.has(wp) &&
+			adminStatus &&
+			adminStatus.status === 'OK'
+		) {
+			try {
+				const wp3 = await navigateViaUrlBar(
+					page,
+					'/wp-admin/post-new.php',
+					30
+				);
+				if (!wp3) {
+					newPostStatus = { status: 'TIMEOUT' };
+				} else {
+					const bad =
+						wp3.body.includes('Are you sure') ||
+						wp3.body.includes('not allowed') ||
+						wp3.body.includes('sufficient permissions');
+					const hasEditor =
+						wp3.body.includes('Title') ||
+						wp3.body.includes('title') ||
+						wp3.body.includes('Write Post') ||
+						wp3.body.includes('Add New Post');
+					if (bad) {
+						newPostStatus = {
+							status: 'NONCE_FAIL',
+							detail: wp3.body.includes('Are you sure')
+								? 'nonce verification failed'
+								: 'permission denied',
+						};
+					} else if (hasEditor) {
+						newPostStatus = { status: 'OK' };
+					} else {
+						newPostStatus = {
+							status: 'UNKNOWN',
+							detail: wp3.body.slice(0, 120).replace(/\n/g, ' '),
+						};
+					}
+				}
+			} catch (e) {
+				newPostStatus = { status: 'CRASH', detail: e.message };
+			}
+		} else if (!EXTENDED_TEST_VERSIONS.has(wp)) {
+			newPostStatus = {
+				status: 'SKIP',
+				detail: 'not tested for this version',
+			};
+		} else {
+			newPostStatus = { status: 'SKIP', detail: 'admin failed' };
+		}
+
+		// --- Phase 5: Plugin activation ---
+		if (
+			EXTENDED_TEST_VERSIONS.has(wp) &&
+			adminStatus &&
+			adminStatus.status === 'OK'
+		) {
+			try {
+				const wp4 = await navigateViaUrlBar(
+					page,
+					'/wp-admin/plugins.php',
+					30
+				);
+				if (!wp4) {
+					pluginStatus = { status: 'TIMEOUT' };
+				} else {
+					const activateLink = wp4.frame
+						.locator('a')
+						.filter({ hasText: 'Activate' })
+						.first();
+					if ((await activateLink.count()) > 0) {
+						await activateLink.click({ timeout: 5000 });
+						await page.waitForTimeout(8000);
+						const wp4b = await waitForWPFrame(page, 20);
+						if (!wp4b) {
+							pluginStatus = { status: 'TIMEOUT' };
+						} else {
+							const ok =
+								wp4b.body.includes('Plugin activated') ||
+								wp4b.body.includes('Deactivate');
+							const bad = wp4b.body.includes('Are you sure');
+							pluginStatus = ok
+								? { status: 'OK' }
+								: {
+										status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
+										detail: wp4b.body
+											.slice(0, 120)
+											.replace(/\n/g, ' '),
+									};
+						}
+					} else {
+						pluginStatus = {
+							status: 'SKIP',
+							detail: 'no activate link found',
+						};
+					}
+				}
+			} catch (e) {
+				pluginStatus = { status: 'CRASH', detail: e.message };
+			}
+		} else if (!EXTENDED_TEST_VERSIONS.has(wp)) {
+			pluginStatus = {
+				status: 'SKIP',
+				detail: 'not tested for this version',
+			};
+		} else {
+			pluginStatus = { status: 'SKIP', detail: 'admin failed' };
+		}
 	} catch (e) {
 		frontStatus = {
 			status: 'CRASH',
 			detail: e.message,
 		};
 		adminStatus = { status: 'SKIP', detail: 'boot crashed' };
+		postStatus = { status: 'SKIP', detail: 'boot crashed' };
+		newPostStatus = { status: 'SKIP', detail: 'boot crashed' };
+		pluginStatus = { status: 'SKIP', detail: 'boot crashed' };
 	}
 
-	const frontIcon =
-		frontStatus.status === 'OK' || frontStatus.status === 'PARTIAL'
-			? '✓'
-			: '✗';
-	const adminIcon =
-		adminStatus.status === 'OK'
-			? '✓'
-			: adminStatus.status === 'SKIP'
-				? '-'
-				: '✗';
-	// Show the short failing reason on the progress line (capped so it
-	// fits on one terminal line). Full detail is dumped in the summary.
-	const progressDetail =
-		adminStatus.status !== 'OK' && adminStatus.status !== 'SKIP'
-			? ` (${(adminStatus.detail || adminStatus.status).slice(0, 80)})`
-			: '';
-	console.log(`front:${frontIcon} admin:${adminIcon}${progressDetail}`);
+	const icon = (s) =>
+		s.status === 'OK' ? '✓' : s.status === 'SKIP' ? '-' : '✗';
+	const parts = [
+		`front:${icon(frontStatus)}`,
+		`post:${icon(postStatus)}`,
+		`admin:${icon(adminStatus)}`,
+		`newpost:${icon(newPostStatus)}`,
+		`plugin:${icon(pluginStatus)}`,
+	];
+	console.log(parts.join(' '));
 
-	results.push({ wp, front: frontStatus, admin: adminStatus });
+	results.push({
+		wp,
+		front: frontStatus,
+		post: postStatus,
+		admin: adminStatus,
+		newPost: newPostStatus,
+		plugin: pluginStatus,
+	});
 	await page.close();
 	await context.close();
 }
 
 await browser.close();
 
-function isFrontPass(r) {
-	return r.front.status === 'OK' || r.front.status === 'PARTIAL';
+const PHASES = ['front', 'post', 'admin', 'newPost', 'plugin'];
+
+function isPass(status) {
+	return status.status === 'OK' || status.status === 'PARTIAL';
 }
-function isAdminPass(r) {
-	return r.admin.status === 'OK';
+function isSkip(status) {
+	return status.status === 'SKIP';
 }
 
-console.log(`\n${'='.repeat(60)}`);
+console.log(`\n${'='.repeat(70)}`);
 console.log('RESULTS SUMMARY:');
-console.log(`${'='.repeat(60)}`);
+console.log(`${'='.repeat(70)}`);
 for (const r of results) {
-	const fLabel = isFrontPass(r) ? 'PASS' : 'FAIL';
-	const aLabel = isAdminPass(r)
-		? 'PASS'
-		: r.admin.status === 'SKIP'
-			? 'SKIP'
-			: 'FAIL';
-	const fDetail = r.front.detail ? ` — ${r.front.detail}` : '';
-	const aDetail = r.admin.detail ? ` — ${r.admin.detail}` : '';
+	const cols = PHASES.map((p) => {
+		const s = r[p];
+		if (!s) return '-';
+		if (isPass(s)) return 'PASS';
+		if (isSkip(s)) return 'skip';
+		return 'FAIL';
+	});
 	console.log(
-		`  WP ${r.wp.padEnd(5)} front: ${fLabel.padEnd(4)} ${r.front.status}${fDetail}`
-	);
-	console.log(
-		`  ${' '.repeat(r.wp.length + 3)} admin: ${aLabel.padEnd(4)} ${r.admin.status}${aDetail}`
+		`  WP ${r.wp.padEnd(5)} ${cols.map((c, i) => `${PHASES[i]}:${c}`).join('  ')}`
 	);
 }
 
-const frontOk = results.filter(isFrontPass).length;
-const adminOk = results.filter(isAdminPass).length;
-const adminTested = results.filter((r) => r.admin.status !== 'SKIP').length;
+const counts = {};
+for (const p of PHASES) {
+	const tested = results.filter((r) => r[p] && !isSkip(r[p]));
+	const passed = tested.filter((r) => isPass(r[p]));
+	counts[p] = { tested: tested.length, passed: passed.length };
+}
+console.log('');
+for (const p of PHASES) {
+	console.log(`  ${p.padEnd(8)}: ${counts[p].passed}/${counts[p].tested} OK`);
+}
 
-console.log(`\nFront page: ${frontOk}/${results.length} OK`);
-console.log(`Admin page: ${adminOk}/${adminTested} OK`);
-
-// Dump per-failure diagnostic bodies. The truncated one-line detail is
-// often not enough to identify the problem (e.g. the offending file
-// path or line number may be cut off), so include a longer body slice
-// for every failed version.
-const failures = results.filter(
-	(r) => !isFrontPass(r) || (r.admin.status !== 'SKIP' && !isAdminPass(r))
+// Dump per-failure diagnostic bodies.
+const failures = results.filter((r) =>
+	PHASES.some((p) => r[p] && !isPass(r[p]) && !isSkip(r[p]))
 );
 if (failures.length > 0) {
-	console.log(`\n${'='.repeat(60)}`);
+	console.log(`\n${'='.repeat(70)}`);
 	console.log('FAILURE DETAILS:');
-	console.log(`${'='.repeat(60)}`);
+	console.log(`${'='.repeat(70)}`);
 	for (const r of failures) {
 		console.log(`\n--- WP ${r.wp} ---`);
-		if (!isFrontPass(r)) {
-			console.log(`  front [${r.front.status}]: ${r.front.detail || ''}`);
-			if (r.front.body) {
+		for (const p of PHASES) {
+			const s = r[p];
+			if (!s || isPass(s) || isSkip(s)) continue;
+			console.log(`  ${p} [${s.status}]: ${s.detail || ''}`);
+			if (s.body) {
 				console.log(
-					`  body:\n${r.front.body.slice(0, 1000).replace(/^/gm, '    ')}`
-				);
-			}
-		}
-		if (r.admin.status !== 'SKIP' && !isAdminPass(r)) {
-			console.log(`  admin [${r.admin.status}]: ${r.admin.detail || ''}`);
-			if (r.admin.body) {
-				console.log(
-					`  body:\n${r.admin.body.slice(0, 1000).replace(/^/gm, '    ')}`
+					`  body:\n${s.body.slice(0, 1000).replace(/^/gm, '    ')}`
 				);
 			}
 		}
 	}
 }
 
-// Both front-page and admin failures are hard errors.
-// PARTIAL is accepted for front — it means WordPress booted and the
-// theme rendered, but "Hello world!" wasn't found (e.g. theme layout,
-// post below fold).
-const frontFailed = results.filter((r) => !isFrontPass(r));
-const adminFailed = results.filter(
-	(r) => r.admin.status !== 'SKIP' && !isAdminPass(r)
+// All non-skip failures are hard errors.
+const totalFailures = results.reduce(
+	(n, r) =>
+		n + PHASES.filter((p) => r[p] && !isPass(r[p]) && !isSkip(r[p])).length,
+	0
 );
-if (frontFailed.length > 0 || adminFailed.length > 0) {
-	console.error(
-		`\n${frontFailed.length} front-page failure(s), ${adminFailed.length} admin failure(s).`
-	);
+if (totalFailures > 0) {
+	console.error(`\n${totalFailures} failure(s) across all phases.`);
 	process.exit(1);
 }
