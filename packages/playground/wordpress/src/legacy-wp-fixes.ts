@@ -43,6 +43,7 @@ export async function patchWordPressSourceFiles(
 		await patchWpLoginDisable1Password(php, documentRoot);
 		await ensureLegacyAdminAuth(php, documentRoot);
 		await patchAdminAuthRedirect(php, documentRoot);
+		await patchAdminAjaxAuth(php, documentRoot);
 	}
 }
 
@@ -1603,6 +1604,72 @@ if (function_exists('get_userdatabylogin')) {
 			}
 		}
 	}
+}
+
+/**
+ * Patches admin-ajax.php to authenticate the user before the
+ * is_user_logged_in() check.
+ *
+ * WP 2.5-2.7 admin-ajax.php loads wp-config.php directly (not via
+ * admin.php), then checks is_user_logged_in() and dies with -1 if
+ * the user isn't authenticated. Since WP < 2.8 has no mu-plugin
+ * support, the Playground auth mu-plugin never loads. The preload
+ * auto-login (1-auto-login.php) runs at init but only on the
+ * *first* visit — subsequent requests (including AJAX) rely on
+ * auth cookies that may not validate because they were generated
+ * by wp_set_auth_cookie() during the first redirect.
+ *
+ * Fix: inject the same auth code used in patchAdminAuthRedirect()
+ * before the is_user_logged_in() gate in admin-ajax.php.
+ */
+async function patchAdminAjaxAuth(php: PHP, documentRoot: string) {
+	// Only needed on WP < 2.8 (no mu-plugin support).
+	const wpSettingsPath = joinPaths(documentRoot, 'wp-settings.php');
+	if (php.fileExists(wpSettingsPath)) {
+		const settings = php.readFileAsText(wpSettingsPath);
+		if (settings.includes('mu_plugin') || settings.includes('mu-plugin')) {
+			return;
+		}
+	}
+
+	const ajaxPhpPath = joinPaths(documentRoot, 'wp-admin/admin-ajax.php');
+	if (!php.fileExists(ajaxPhpPath)) return;
+
+	let content = php.readFileAsText(ajaxPhpPath);
+	if (!content.includes('is_user_logged_in')) return;
+
+	// Inject auth code before the is_user_logged_in() check.
+	// Uses wp_set_current_user() + $_COOKIE population so that both
+	// is_user_logged_in() and subsequent nonce checks succeed.
+	const authCode = `
+// Playground: authenticate admin user for AJAX requests.
+// WP < 2.8 has no mu-plugin support, and admin-ajax.php doesn't
+// go through admin.php, so no other auth mechanism applies here.
+if (defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) {
+	if (function_exists('wp_set_current_user') && function_exists('wp_generate_auth_cookie')) {
+		\$_pg_user = function_exists('get_user_by')
+			? get_user_by('login', PLAYGROUND_AUTO_LOGIN_AS_USER)
+			: (function_exists('get_userdatabylogin')
+				? get_userdatabylogin(PLAYGROUND_AUTO_LOGIN_AS_USER) : null);
+		if (\$_pg_user) {
+			wp_set_current_user(\$_pg_user->ID, \$_pg_user->user_login);
+			\$_pg_exp = time() + 172800;
+			if (defined('AUTH_COOKIE'))
+				\$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie(\$_pg_user->ID, \$_pg_exp, 'auth');
+			if (defined('SECURE_AUTH_COOKIE'))
+				\$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie(\$_pg_user->ID, \$_pg_exp, 'secure_auth');
+			if (defined('LOGGED_IN_COOKIE'))
+				\$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie(\$_pg_user->ID, \$_pg_exp, 'logged_in');
+		}
+	}
+}
+`;
+
+	content = content.replace(
+		/if\s*\(\s*!\s*is_user_logged_in\(\)\s*\)/,
+		authCode + 'if ( !is_user_logged_in() )'
+	);
+	await php.writeFile(ajaxPhpPath, content);
 }
 
 /** Patches wp-admin/includes/schema.php for WP < 3.3. */
