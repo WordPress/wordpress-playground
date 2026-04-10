@@ -8,6 +8,7 @@ import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
 import { withSMTPSink } from '@php-wasm/universal';
+import type { CaughtMessage } from '@php-wasm/util';
 import { withIntl } from './extensions/intl/with-intl';
 
 export interface LoaderOptions {
@@ -15,7 +16,7 @@ export interface LoaderOptions {
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
 	withIntl?: boolean;
-	withSMTPSink?: { port: number; onEmail: (m: any) => void };
+	withSMTPSink?: { port: number; onEmail: (m: CaughtMessage) => void };
 }
 
 /**
@@ -78,27 +79,10 @@ export async function loadWebRuntime(
 	}
 
 	if (loaderOptions.withSMTPSink) {
-		const resolved = await emscriptenOptions;
-		const prevWs = resolved['websocket'] || {};
-		const prevDecorator = prevWs.decorator as
-			| ((Base: any) => any)
-			| undefined;
-		const smtp = withSMTPSink(loaderOptions.withSMTPSink);
-		const smtpDecorator = smtp['websocket']?.decorator as (
-			Base: any
-		) => any;
-		emscriptenOptions = {
-			...resolved,
-			websocket: {
-				...prevWs,
-				decorator: (Base: any) => {
-					const AfterPrev = prevDecorator
-						? prevDecorator(Base)
-						: Base;
-					return smtpDecorator(AfterPrev);
-				},
-			},
-		};
+		emscriptenOptions = withSMTPSink(
+			loaderOptions.withSMTPSink,
+			await emscriptenOptions
+		);
 	}
 
 	if (loaderOptions.withIntl) {

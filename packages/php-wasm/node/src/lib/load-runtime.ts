@@ -24,6 +24,7 @@ import { withRedis } from './extensions/redis/with-redis';
 import { withMemcached } from './extensions/memcached/with-memcached';
 import { withSMTPSink } from '@php-wasm/universal';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
+import type { CaughtMessage } from '@php-wasm/util';
 import { platform } from 'os';
 
 export interface PHPLoaderOptions {
@@ -32,7 +33,7 @@ export interface PHPLoaderOptions {
 	withIntl?: boolean;
 	withRedis?: boolean;
 	withMemcached?: boolean;
-	withSMTPSink?: { port: number; onEmail: (m: any) => void };
+	withSMTPSink?: { port: number; onEmail: (m: CaughtMessage) => void };
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -311,26 +312,10 @@ export async function loadNodeRuntime(
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
 	if (options?.withSMTPSink) {
-		const prevWs = emscriptenOptions['websocket'] || {};
-		const prevDecorator = prevWs.decorator as
-			| ((Base: any) => any)
-			| undefined;
-		const smtp = withSMTPSink(options.withSMTPSink);
-		const smtpDecorator = smtp['websocket']?.decorator as (
-			Base: any
-		) => any;
-		emscriptenOptions = {
-			...emscriptenOptions,
-			websocket: {
-				...prevWs,
-				decorator: (Base: any) => {
-					const AfterPrev = prevDecorator
-						? prevDecorator(Base)
-						: Base;
-					return smtpDecorator(AfterPrev);
-				},
-			},
-		};
+		emscriptenOptions = withSMTPSink(
+			options.withSMTPSink,
+			emscriptenOptions
+		);
 	}
 
 	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
