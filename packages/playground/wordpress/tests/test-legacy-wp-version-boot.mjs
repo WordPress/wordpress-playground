@@ -18,18 +18,10 @@
  */
 import { chromium } from 'playwright';
 
-// All WordPress minor versions from 4.9 down to 1.0.
-// Note: there was no WordPress 2.4 release.
-// The web worker normalizes 1.x versions automatically (1.5 → 1.5.2, etc.)
-// and resolves all non-minified versions to wordpress.org downloads.
-//
-// Known issues tracked by this test:
-//   - WP 1.0: WP 1.0 emits SQL with double-quoted string literals
-//     (e.g. post_status = "publish") which the SQLite AST driver
-//     rejects. Making this version pass requires either accepting
-//     double-quoted strings as SQL string literals in the AST
-//     driver, or preprocessing WP 1.0's queries before they reach
-//     the driver.
+// Every WordPress minor version from 4.9 down to 1.0.
+// Versions that were never released: 1.1, 1.3, 1.4, 2.4.
+// The web worker normalizes bare versions automatically (1.5 → 1.5.2,
+// 2.0 → 2.0.11, etc.) and resolves them to wordpress.org downloads.
 const WP_VERSIONS = [
 	'4.9',
 	'4.8',
