@@ -20,7 +20,7 @@ WordPress Playground expose une API simple pour configurer l’instance Playgrou
 It works by passing configuration options as query parameters to the Playground URL. For example, to install the pendant theme, you would use the following URL:
 -->
 
-Elle fonctionne en passant des options de configuration sous forme de paramètres de requête dans l’URL Playground. Par exemple, pour installer le thème pendant, utilisez l’URL suivante :
+Elle fonctionne en passant des options de configuration sous forme de paramètres de requête dans l’URL Playground. Par exemple, pour installer le thème "pendant", utilisez l’URL suivante :
 
 ```text
 https://playground.wordpress.net/?theme=pendant
