@@ -84,7 +84,20 @@ const LEGACY_AUTO_LOGIN_BODY = `
 				if (!$user) return;
 
 				wp_set_current_user($user->ID, $user->user_login);
-				if (!$_pg_skip_redirect) {
+				if ($_pg_skip_redirect) {
+					// Populate $_COOKIE in-process so auth_redirect()
+					// and other cookie checks work without sending
+					// Set-Cookie headers or redirecting.
+					if (function_exists('wp_generate_auth_cookie')) {
+						$_pg_exp = time() + 172800;
+						if (defined('AUTH_COOKIE'))
+							$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'auth');
+						if (defined('SECURE_AUTH_COOKIE'))
+							$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'secure_auth');
+						if (defined('LOGGED_IN_COOKIE'))
+							$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'logged_in');
+					}
+				} else {
 					wp_set_auth_cookie($user->ID);
 					if (function_exists('do_action')) {
 						do_action('wp_login', $user->user_login, $user);

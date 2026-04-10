@@ -234,20 +234,19 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 				global $wpdb;
 				if (!isset($wpdb) || !method_exists($wpdb, 'query')) { exit; }
 
-				// Fix siteurl for WP 1.x where the installer didn't run.
-				// The pre-create step set siteurl to 'http://localhost'
-				// which doesn't match the Playground's scoped URL.
-				// Derive the correct URL from ABSPATH and the scope-based
-				// path that WordPress will be served under.
+				// Fix siteurl/home to match the Playground's scoped URL.
+				// WP < 2.6 doesn't support WP_HOME/WP_SITEURL constants,
+				// so the DB values must contain the full scope path for
+				// parse_request() to correctly strip the home path from
+				// REQUEST_URI. Without this, the front page returns 404
+				// because the scope prefix remains in the request path
+				// and matches no rewrite rule.
 				$_pg_opts = !empty($wpdb->options) ? $wpdb->options : $GLOBALS['table_prefix'] . 'options';
 				try {
-					$_pg_current = $wpdb->get_var("SELECT option_value FROM {$_pg_opts} WHERE option_name = 'siteurl'");
-					if ($_pg_current === 'http://localhost' || empty($_pg_current)) {
-						// Use the PLAYGROUND_SITE_URL env if provided, otherwise
-						// keep the placeholder — it will be overridden by the
-						// first real HTTP request's $_SERVER values.
-						$_pg_url = getenv('PLAYGROUND_SITE_URL');
-						if ($_pg_url) {
+					$_pg_url = getenv('PLAYGROUND_SITE_URL');
+					if ($_pg_url) {
+						$_pg_current = $wpdb->get_var("SELECT option_value FROM {$_pg_opts} WHERE option_name = 'siteurl'");
+						if ($_pg_current !== $_pg_url) {
 							$wpdb->query("UPDATE {$_pg_opts} SET option_value = '{$_pg_url}' WHERE option_name = 'siteurl'");
 							$wpdb->query("UPDATE {$_pg_opts} SET option_value = '{$_pg_url}' WHERE option_name = 'home'");
 						}
@@ -1497,7 +1496,7 @@ if (defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) {
 		// Still need $_COOKIE populated for auth_redirect().
 		// On old WP, wp_set_auth_cookie() does not update $_COOKIE.
 		if (function_exists('wp_generate_auth_cookie') && defined('LOGGED_IN_COOKIE') && empty($_COOKIE[LOGGED_IN_COOKIE])) {
-			$_pg_uid = get_current_user_id();
+			$_pg_uid = wp_get_current_user()->ID;
 			$_pg_exp = time() + 172800;
 			$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($_pg_uid, $_pg_exp, 'auth');
 			if (defined('SECURE_AUTH_COOKIE'))
