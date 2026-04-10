@@ -219,6 +219,10 @@ try {
 
 	/**
 	 * Polyfill for wpdb::placeholder_escape() (added in WP 4.8.3).
+	 *
+	 * Generates a unique hash placeholder and registers a 'query' filter
+	 * to restore '%' characters before the query is executed. This matches
+	 * the behavior of wpdb::placeholder_escape() in WordPress >= 4.8.3.
 	 */
 	public function placeholder_escape() {
 		static $placeholder;
@@ -227,6 +231,19 @@ try {
 			$salt = defined( 'AUTH_SALT' ) && AUTH_SALT ? AUTH_SALT : (string) rand();
 			$placeholder = '{' . hash_hmac( $algo, uniqid( $salt, true ), $salt ) . '}';
 		}
+
+		/*
+		 * Register a filter to remove the placeholder escape before query
+		 * execution. Uses priority 0 so that other 'query' filter callbacks
+		 * receive the query with real '%' characters restored.
+		 */
+		if ( function_exists( 'add_filter' )
+			&& function_exists( 'has_filter' )
+			&& false === has_filter( 'query', array( $this, 'remove_placeholder_escape' ) )
+		) {
+			add_filter( 'query', array( $this, 'remove_placeholder_escape' ), 0 );
+		}
+
 		return $placeholder;
 	}
 
