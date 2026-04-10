@@ -924,9 +924,12 @@ async function patchWpSettingsPhp(
 	// destroys hooks set by the preload (auto_prepend_file) such
 	// as the playground_load_mu_plugins hook. Remove $wp_filter
 	// from the unset() call so the preload hooks survive.
-	if (settings.includes('unset( $wp_filter')) {
+	if (settings.includes('$wp_filter')) {
+		const before = settings;
 		settings = settings.replace(/unset\(\s*\$wp_filter\s*,/, 'unset(');
-		settingsChanged = true;
+		if (settings !== before) {
+			settingsChanged = true;
+		}
 	}
 
 	// WP 1.x "not installed" die() check.
@@ -1175,23 +1178,46 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 			const filePath = joinPaths(wpAdminDir, file);
 			const content = php.readFileAsText(filePath);
 			const patched = content
-				// ../path — parent directory
+				// ../path — parent directory (with parentheses)
 				.replace(
 					/((?:require|include)(?:_once)?)\s*\(\s*(['"])(\.\.\/[^'"]+)\2\s*\)/g,
 					(_, keyword, _q, path) =>
 						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
-				// ./path — current directory (explicit)
+				// ./path — current directory (with parentheses)
 				.replace(
 					/((?:require|include)(?:_once)?)\s*\(\s*(['"])(\.\/[^'"]+)\2\s*\)/g,
 					(_, keyword, _q, path) =>
 						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
-				// Bare filename without ./ prefix
+				// Bare filename without ./ prefix (with parentheses)
 				// (e.g. 'admin-header.php'). Only match filenames
 				// ending in .php to avoid false positives.
 				.replace(
 					/((?:require|include)(?:_once)?)\s*\(\s*(['"])([a-z][\w-]*\.php)\2\s*\)/g,
+					(_, keyword, _q, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
+				)
+				// Statement form without parentheses:
+				//   require_once '../wp-config.php';
+				//   require './admin.php';
+				//   include 'admin-header.php';
+				// WP 2.0 uses this form in several wp-admin files.
+				// ../path (no parens)
+				.replace(
+					/((?:require|include)(?:_once)?)\s+(['"])(\.\.\/[^'"]+)\2/g,
+					(_, keyword, _q, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
+				)
+				// ./path (no parens)
+				.replace(
+					/((?:require|include)(?:_once)?)\s+(['"])(\.\/[^'"]+)\2/g,
+					(_, keyword, _q, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
+				)
+				// Bare filename (no parens)
+				.replace(
+					/((?:require|include)(?:_once)?)\s+(['"])([a-z][\w-]*\.php)\2/g,
 					(_, keyword, _q, path) =>
 						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)

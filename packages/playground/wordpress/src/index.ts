@@ -72,6 +72,8 @@ const LEGACY_AUTO_LOGIN_BODY = `
 			if (headers_sent()) {
 				return;
 			}
+			$_pg_skip_redirect = defined('PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT')
+				&& PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT;
 
 			// WP 2.5+: use the standard auth API
 			if (function_exists('wp_set_current_user') && function_exists('wp_set_auth_cookie')) {
@@ -82,14 +84,16 @@ const LEGACY_AUTO_LOGIN_BODY = `
 				if (!$user) return;
 
 				wp_set_current_user($user->ID, $user->user_login);
-				wp_set_auth_cookie($user->ID);
-				if (function_exists('do_action')) {
-					do_action('wp_login', $user->user_login, $user);
-				}
-				setcookie('playground_auto_login_already_happened', '1');
-				if (!headers_sent()) {
-					header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
-					exit;
+				if (!$_pg_skip_redirect) {
+					wp_set_auth_cookie($user->ID);
+					if (function_exists('do_action')) {
+						do_action('wp_login', $user->user_login, $user);
+					}
+					setcookie('playground_auto_login_already_happened', '1');
+					if (!headers_sent()) {
+						header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
+						exit;
+					}
 				}
 				return;
 			}
@@ -98,18 +102,22 @@ const LEGACY_AUTO_LOGIN_BODY = `
 			if (defined('USER_COOKIE') && defined('PASS_COOKIE')) {
 				$_COOKIE[USER_COOKIE] = $user_name;
 				$_COOKIE[PASS_COOKIE] = md5(md5('password'));
-				if (function_exists('wp_setcookie') && !headers_sent()) {
-					wp_setcookie($user_name, 'password');
+				if (!$_pg_skip_redirect) {
+					if (function_exists('wp_setcookie') && !headers_sent()) {
+						wp_setcookie($user_name, 'password');
+					}
 				}
 				// Reset cached anonymous user so capability checks work
 				$GLOBALS['current_user'] = null;
 				if (function_exists('get_currentuserinfo')) {
 					get_currentuserinfo();
 				}
-				setcookie('playground_auto_login_already_happened', '1');
-				if (!headers_sent()) {
-					header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
-					exit;
+				if (!$_pg_skip_redirect) {
+					setcookie('playground_auto_login_already_happened', '1');
+					if (!headers_sent()) {
+						header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
+						exit;
+					}
 				}
 				return;
 			}
@@ -141,10 +149,12 @@ const LEGACY_AUTO_LOGIN_BODY = `
 						$GLOBALS['user_pass_md5'] = md5(isset($userdata->user_pass) ? $userdata->user_pass : '');
 					}
 				}
-				setcookie('playground_auto_login_already_happened', '1');
-				if (!headers_sent()) {
-					header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
-					exit;
+				if (!$_pg_skip_redirect) {
+					setcookie('playground_auto_login_already_happened', '1');
+					if (!headers_sent()) {
+						header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
+						exit;
+					}
 				}
 				return;
 			}
@@ -263,6 +273,8 @@ function playground_load_mu_plugins() {
 	}
 	$mu_plugins = glob( $mu_plugins_dir . '/*.php' );
 	sort( $mu_plugins );
+	global $wp_version;
+	$is_legacy_wp = isset($wp_version) && version_compare($wp_version, '2.8', '<');
 	foreach ( $mu_plugins as $mu_plugin ) {
 		// sqlite-database-integration.php is loaded separately
 		// by the preload lazy loader or db.php.
@@ -272,13 +284,40 @@ function playground_load_mu_plugins() {
 		// Most mu-plugins use closures in add_action/add_filter
 		// or call functions like site_url() that don't exist in
 		// very old WordPress. WP < 2.8 crashes on closures in
-		// hooks; WP < 2.6 lacks site_url(). Skip all non-essential
-		// mu-plugins on these ancient versions.
-		global $wp_version;
-		if (isset($wp_version) && version_compare($wp_version, '2.8', '<')) {
-			continue;
+		// hooks; WP < 2.6 lacks site_url(). Only load mu-plugins
+		// that are explicitly written for legacy WP compatibility.
+		if ($is_legacy_wp) {
+			// 1-auto-login.php uses LEGACY_AUTO_LOGIN_BODY which
+			// handles WP 1.0-2.5 auth APIs with named functions
+			// only (no closures, no site_url()).
+			if (strpos($mu_plugin, '1-auto-login.php') === false) {
+				continue;
+			}
 		}
 		require_once $mu_plugin;
+	}
+	// On WP < 2.8, this function runs during init (priority
+	// -1000). PHP 5.6's foreach iterates over a copy of the
+	// array, so add_action() calls inside the loaded mu-plugin
+	// (e.g. add_action('init', 'playground_auto_login', 1))
+	// won't fire — the init hook list was already snapshotted.
+	// Call the functions directly as a workaround.
+	//
+	// PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT tells the auto-login
+	// function to set cookies in-process without redirecting.
+	// In Playground's service worker, a redirect+Set-Cookie
+	// can cause a loop because the cookie isn't applied before
+	// the redirected request fires. Since the legacy auto-login
+	// already populates $_COOKIE in-process, the redirect is
+	// unnecessary — the current request will see the cookies.
+	if ($is_legacy_wp) {
+		if (function_exists('playground_auto_login_redirect_target')) {
+			playground_auto_login_redirect_target();
+		}
+		if (function_exists('playground_auto_login')) {
+			define('PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT', true);
+			playground_auto_login();
+		}
 	}
 }
 `
