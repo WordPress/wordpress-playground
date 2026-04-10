@@ -488,6 +488,48 @@ function playground_load_mu_plugins() {
 		// Support pretty permalinks
         add_filter( 'got_url_rewrite', '__return_true' );
 
+		/**
+		 * Flush rewrite rules on the first real WordPress request.
+		 *
+		 * During boot, we set permalink_structure via update_option()
+		 * but can't flush rewrite rules at that point because WordPress
+		 * isn't fully bootstrapped — post types and taxonomies haven't
+		 * been registered yet, so the generated rules are incomplete.
+		 *
+		 * This hook fires on 'init' at a very late priority, after all
+		 * post types and taxonomies are registered. It checks if the
+		 * rewrite_rules option is empty (meaning rules were never
+		 * flushed) and if permalink_structure is set, then flushes once.
+		 * A flag file prevents repeated flushes on subsequent requests.
+		 */
+		function playground_maybe_flush_rewrite_rules() {
+			$flag = '/internal/shared/.rewrite-rules-flushed';
+			if (file_exists($flag)) {
+				return;
+			}
+			if (!function_exists('get_option')) {
+				return;
+			}
+			$structure = get_option('permalink_structure');
+			if (empty($structure)) {
+				return;
+			}
+			$rules = get_option('rewrite_rules');
+			if (!empty($rules)) {
+				@file_put_contents($flag, '1');
+				return;
+			}
+			global $wp_rewrite;
+			if (!isset($wp_rewrite) && class_exists('WP_Rewrite')) {
+				$wp_rewrite = new WP_Rewrite();
+			}
+			if (isset($wp_rewrite) && method_exists($wp_rewrite, 'flush_rules')) {
+				$wp_rewrite->flush_rules();
+			}
+			@file_put_contents($flag, '1');
+		}
+		add_action('init', 'playground_maybe_flush_rewrite_rules', 99999);
+
         // Create the fonts directory if missing
         if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
             mkdir(WP_CONTENT_DIR . '/fonts');

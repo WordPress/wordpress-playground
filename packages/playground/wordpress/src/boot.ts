@@ -780,19 +780,6 @@ async function installWordPress(php: PHP, phpMajor = 8) {
 					if (!function_exists('update_option')) { echo '0'; exit; }
 					$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
 					update_option('permalink_structure', $nice_permalinks);
-					// Generate rewrite rules so WordPress can resolve
-					// pretty permalink URLs. Without this, the
-					// rewrite_rules option stays empty and WordPress
-					// can't map URLs like /2026/04/10/hello-world/ to
-					// the correct post. flush_rewrite_rules() exists
-					// since WP 3.0.
-					if (function_exists('flush_rewrite_rules')) {
-						global $wp_rewrite;
-						if (!isset($wp_rewrite)) {
-							$wp_rewrite = new WP_Rewrite();
-						}
-						flush_rewrite_rules();
-					}
 					echo get_option('permalink_structure') === $nice_permalinks ? '1' : '0';
 					ob_end_flush();
 				`,
@@ -823,12 +810,6 @@ async function installWordPress(php: PHP, phpMajor = 8) {
 					'permalink_structure',
 					$nice_permalinks
 				);
-				// Generate rewrite rules so WordPress can resolve
-				// pretty permalink URLs to the correct posts.
-				global $wp_rewrite;
-				if (isset($wp_rewrite)) {
-					flush_rewrite_rules();
-				}
 				ob_clean();
 				if ( get_option( 'permalink_structure' ) === $nice_permalinks ) {
 					echo '1';
