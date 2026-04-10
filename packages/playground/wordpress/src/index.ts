@@ -222,6 +222,30 @@ function playground_add_action( $tag, $function_to_add, $priority = 10, $accepte
 	playground_add_filter( $tag, $function_to_add, $priority, $accepted_args );
 }
 
+// Fix date function comparisons for the SQLite driver.
+// Old WordPress (< 4.0) generates date queries like:
+//   YEAR(post_date)='2026' AND MONTH(post_date)='4'
+// using string literals. The SQLite driver's user-defined
+// YEAR/MONTH/DAYOFMONTH/DAY functions return integers, and
+// SQLite does not coerce types the way MySQL does (integer
+// 4 != text '4' in SQLite). This filter strips quotes around
+// numeric values in these comparisons so both sides are integers.
+function playground_fix_sqlite_date_comparisons($query) {
+	if (
+		stripos($query, 'YEAR') === false &&
+		stripos($query, 'MONTH') === false &&
+		stripos($query, 'DAY') === false
+	) {
+		return $query;
+	}
+	return preg_replace(
+		'/\\b(YEAR|MONTH|DAYOFMONTH|DAY)\\s*\\(([^)]+)\\)\\s*=\\s*\\'(\\d+)\\'/i',
+		'$1($2) = $3',
+		$query
+	);
+}
+playground_add_filter( 'query', 'playground_fix_sqlite_date_comparisons' );
+
 // Load our mu-plugins after customer mu-plugins.
 // NOTE: this means our mu-plugins can't use the muplugins_loaded action!
 playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
@@ -243,6 +267,15 @@ function playground_load_mu_plugins() {
 		// sqlite-database-integration.php is loaded separately
 		// by the preload lazy loader or db.php.
 		if (strpos($mu_plugin, 'sqlite-database-integration') !== false) {
+			continue;
+		}
+		// Most mu-plugins use closures in add_action/add_filter
+		// or call functions like site_url() that don't exist in
+		// very old WordPress. WP < 2.8 crashes on closures in
+		// hooks; WP < 2.6 lacks site_url(). Skip all non-essential
+		// mu-plugins on these ancient versions.
+		global $wp_version;
+		if (isset($wp_version) && version_compare($wp_version, '2.8', '<')) {
 			continue;
 		}
 		require_once $mu_plugin;

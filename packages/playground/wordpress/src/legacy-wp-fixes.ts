@@ -919,6 +919,16 @@ async function patchWpSettingsPhp(
 		settingsChanged = true;
 	}
 
+	// WP 2.5–3.x clears $wp_filter at the top of wp-settings.php
+	// to prevent interference from register_globals. This also
+	// destroys hooks set by the preload (auto_prepend_file) such
+	// as the playground_load_mu_plugins hook. Remove $wp_filter
+	// from the unset() call so the preload hooks survive.
+	if (settings.includes('unset( $wp_filter')) {
+		settings = settings.replace(/unset\(\s*\$wp_filter\s*,/, 'unset(');
+		settingsChanged = true;
+	}
+
 	// WP 1.x "not installed" die() check.
 	if (
 		settings.includes(
