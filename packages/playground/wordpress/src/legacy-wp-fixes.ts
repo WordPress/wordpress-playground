@@ -39,6 +39,8 @@ export async function patchWordPressSourceFiles(
 	await patchWpDbPhp(php, documentRoot);
 	await patchWpSchemaPhp(php, documentRoot);
 	await patchWpAdminRelativePaths(php, documentRoot);
+	await patchCheckAdminReferer(php, documentRoot);
+	await patchWpAdminDashboard(php, documentRoot);
 	if (phpMajor < 7) {
 		await patchWpLoginDisable1Password(php, documentRoot);
 		await ensureLegacyAdminAuth(php, documentRoot);
@@ -1323,6 +1325,85 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 				menuPhp.replace(needle, `file(dirname(__FILE__) . '/menu.txt')`)
 			);
 		}
+	}
+}
+
+/**
+ * Bypasses referer-based check_admin_referer() in WP < 2.5.
+ *
+ * In WP 1.5-2.4, check_admin_referer() verifies that
+ * $_SERVER['HTTP_REFERER'] contains the siteurl. In Playground's
+ * service worker environment, the Referer header is often missing
+ * or incorrect, causing plugin activation and other admin actions
+ * to fail with "you need to enable sending referrers".
+ *
+ * WP 2.5+ switched to nonce-based verification and doesn't need
+ * this patch.
+ */
+async function patchCheckAdminReferer(php: PHP, documentRoot: string) {
+	const adminFunctionsPath = joinPaths(
+		documentRoot,
+		'wp-admin/admin-functions.php'
+	);
+	if (!php.fileExists(adminFunctionsPath)) return;
+
+	const content = php.readFileAsText(adminFunctionsPath);
+	// Only patch the referer-based version (WP < 2.5).
+	// The function body checks $_SERVER['HTTP_REFERER'] and die()s
+	// if it doesn't contain the admin URL.
+	if (
+		!content.includes('function check_admin_referer()') ||
+		!content.includes("$_SERVER['HTTP_REFERER']")
+	) {
+		return;
+	}
+
+	const patched = content.replace(
+		/function check_admin_referer\(\)\s*\{[^}]*\$_SERVER\['HTTP_REFERER'\][^}]*\}/,
+		`function check_admin_referer() {
+	// Patched by Playground: skip referer check.
+	// The Referer header is unreliable in the service worker
+	// environment. The original function die()d when the header
+	// was missing or didn't match the admin URL.
+	do_action('check_admin_referer');
+}`
+	);
+	if (patched !== content) {
+		await php.writeFile(adminFunctionsPath, patched);
+	}
+}
+
+/**
+ * Patches the WP 1.5 admin dashboard to fix missing posts listing.
+ *
+ * WP 1.5's wp-admin/index.php queries recent posts with:
+ *   post_date_gmt < '$today'
+ * where $today = current_time('mysql', 1). This date comparison
+ * can fail in SQLite when the post_date_gmt value is a zero date
+ * ('0000-00-00 00:00:00') or when the SQLite driver doesn't
+ * handle the comparison correctly. Remove the date condition so
+ * the recent posts list displays on the dashboard.
+ */
+async function patchWpAdminDashboard(php: PHP, documentRoot: string) {
+	const indexPhpPath = joinPaths(documentRoot, 'wp-admin/index.php');
+	if (!php.fileExists(indexPhpPath)) return;
+
+	let content = php.readFileAsText(indexPhpPath);
+	let changed = false;
+
+	// Remove the "AND post_date_gmt < '$today'" condition from
+	// the recent posts query. The condition filters out future
+	// scheduled posts, but the post_status = 'publish' check is
+	// sufficient for the dashboard — scheduled posts have status
+	// 'future' (WP 2.1+) or aren't published (WP 1.x).
+	const dateCondition = /AND post_date_gmt < '\$today'/;
+	if (dateCondition.test(content)) {
+		content = content.replace(dateCondition, '');
+		changed = true;
+	}
+
+	if (changed) {
+		await php.writeFile(indexPhpPath, content);
 	}
 }
 
