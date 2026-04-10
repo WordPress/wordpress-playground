@@ -579,6 +579,12 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 /**
  * Close a FILE* created by wasm_popen and wait for the spawned process
  * to exit. Returns the process exit code, or -1 on error.
+ *
+ * @TODO wasm_popen_last_pid and wasm_pclose_ret are single globals,
+ * so concurrent writable popen() calls will clobber each other's
+ * PID and exit code. Safe today because mail() is the only caller
+ * and it does a strict open-write-close sequence, but a proper fix
+ * would stash both in a table keyed by fd.
  */
 extern int js_waitpid(int pid, int *exitcode);
 
