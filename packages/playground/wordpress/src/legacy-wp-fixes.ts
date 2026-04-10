@@ -39,21 +39,8 @@ export async function patchWordPressSourceFiles(
 	await patchWpDbPhp(php, documentRoot);
 	await patchWpSchemaPhp(php, documentRoot);
 	await patchWpAdminRelativePaths(php, documentRoot);
-	await patchWpLoginAutocomplete(php, documentRoot);
 	if (phpMajor < 7) {
-		// Only stub update check files for old WP where http.php
-		// was skipped by patchWpSettingsPhp (WP 2.8-2.9). For WP
-		// 3.0+, the original update.php works fine after comment
-		// stripping and stubbing it breaks the install.
-		const wpSettingsPath = joinPaths(documentRoot, 'wp-settings.php');
-		if (
-			php.fileExists(wpSettingsPath) &&
-			php
-				.readFileAsText(wpSettingsPath)
-				.includes('Skipped for PHP 5.6 parser size limit')
-		) {
-			await disableUpdateChecks(php, documentRoot);
-		}
+		await patchWpLoginDisable1Password(php, documentRoot);
 		await ensureLegacyAdminAuth(php, documentRoot);
 		await patchAdminAuthRedirect(php, documentRoot);
 	}
@@ -93,9 +80,7 @@ if (
 	file_exists('/internal/shared/mu-plugins/sqlite-database-integration.php')
 ) {
 	// This block loads SQLite integration for old WP (< 3.0).
-	// Uses eval() instead of require_once to work around a PHP 5.6
-	// WASM parser bug where require_once produces spurious parse errors.
-	eval('?>' . file_get_contents('/internal/shared/mu-plugins/sqlite-database-integration.php'));
+	require_once '/internal/shared/mu-plugins/sqlite-database-integration.php';
 	if (
 		isset($GLOBALS['wpdb']) &&
 		$GLOBALS['wpdb'] instanceof wpdb &&
@@ -382,7 +367,7 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 				// Seed default content when the posts table is empty.
 				// Covers both old WP 1.5 (SQLite NOT NULL fix) and
 				// WP 2.5+ where the install may have failed to seed
-				// data due to the PHP 5.6 WASM parser bug.
+				// data due to SQLite compatibility issues.
 				$posts_table = !empty($wpdb->posts) ? $wpdb->posts : $GLOBALS['table_prefix'] . 'posts';
 				$has_posts = false;
 				try { $has_posts = (bool)$wpdb->get_var("SELECT COUNT(*) FROM {$posts_table}"); } catch (Exception $e) {}
@@ -724,23 +709,6 @@ export async function patchSqlitePluginForLegacyPhp(
 				}
 			);
 
-			// Replace __DIR__ with the file's actual absolute directory
-			// path. When these files are loaded via eval() (to work
-			// around the PHP 5.6 WASM parser bug), __DIR__ resolves
-			// to the eval caller's directory instead of the file's
-			// own directory, breaking all relative path references.
-			content = content.replace(/__DIR__/g, `'${dir}'`);
-
-			// Replace `require self::CONST` with eval equivalent.
-			// The grammar loader uses `require self::MYSQL_GRAMMAR_PATH`
-			// as an expression (returns the file's return value).
-			// eval() also returns the value from `return` in eval'd code.
-			content = content.replace(
-				/require\s+(self::\w+)/g,
-				(_match, constRef) =>
-					`eval('?>' . file_get_contents(${constRef}))`
-			);
-
 			// Replace __() and _e() calls with their string argument.
 			// These WordPress translation functions aren't available
 			// when the SQLite integration loads from the preload
@@ -767,8 +735,6 @@ export async function patchSqlitePluginForLegacyPhp(
 			}
 		}
 	}
-
-	await replaceRequiresWithEval(php, pluginFolder);
 }
 
 // ── Private helpers ──────────────────────────────────────────────
@@ -975,37 +941,8 @@ async function patchWpSettingsPhp(
 		settingsChanged = true;
 	}
 
-	// PHP 5.6 WASM parser bug: skip large includes for WP 2.8-2.9.
-	if (
-		phpMajor < 7 &&
-		settings.includes("/widgets.php'") &&
-		!settings.includes("/nav-menu.php'") &&
-		!settings.includes("/post-thumbnail-template.php'")
-	) {
-		for (const skipInclude of ['deprecated.php', 'http.php']) {
-			const re = new RegExp(
-				`require\\s*\\(\\s*ABSPATH\\s*\\.\\s*WPINC\\s*\\.\\s*'/${skipInclude}'\\s*\\)\\s*;`
-			);
-			if (re.test(settings)) {
-				settings = settings.replace(
-					re,
-					`// Skipped for PHP 5.6 parser size limit`
-				);
-				settingsChanged = true;
-			}
-		}
-	}
-
 	if (settingsChanged) {
 		await php.writeFile(wpSettingsPath, settings);
-	}
-
-	// PHP 5.6 WASM parser bug: large PHP files fail to parse silently.
-	// Strip doc comments and unnecessary whitespace from all PHP files
-	// in wp-includes and wp-admin/includes to bring them below the
-	// parser size threshold.
-	if (phpMajor < 7) {
-		await stripDocCommentsFromWpIncludes(php, documentRoot);
 	}
 }
 
@@ -1028,30 +965,6 @@ async function patchWpFunctionsPhp(php: PHP, documentRoot: string) {
 		functionsPhp = functionsPhp.replace(
 			'foreach ($options as $option) {',
 			'$all_options = new stdClass;\n\tforeach ($options as $option) {'
-		);
-		functionsPhpChanged = true;
-	}
-
-	// PHP 5.6 WASM parser bug: eval db.php instead of require_once.
-	// WP 2.6+:
-	if (
-		functionsPhp.includes('function require_wp_db()') &&
-		functionsPhp.includes("require_once( WP_CONTENT_DIR . '/db.php' )")
-	) {
-		functionsPhp = functionsPhp.replace(
-			"require_once( WP_CONTENT_DIR . '/db.php' )",
-			`eval('?>' . file_get_contents( WP_CONTENT_DIR . '/db.php' ))`
-		);
-		functionsPhpChanged = true;
-	}
-	// WP 2.5:
-	if (
-		functionsPhp.includes('function require_wp_db()') &&
-		functionsPhp.includes("require_once( ABSPATH . 'wp-content/db.php' )")
-	) {
-		functionsPhp = functionsPhp.replace(
-			"require_once( ABSPATH . 'wp-content/db.php' )",
-			`eval('?>' . file_get_contents( ABSPATH . 'wp-content/db.php' ))`
 		);
 		functionsPhpChanged = true;
 	}
@@ -1378,65 +1291,35 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 }
 
 /**
- * Adds `autocomplete` hints to the legacy wp-login.php login form.
+ * Disables 1Password's inline autofill on the legacy wp-login.php form.
  *
- * WP 1.0 through 4.9 render the login form without any `autocomplete`
- * attributes. Without them, password managers and the browser's own
- * autofill fall back to heuristic form detection, which is unreliable
- * on old markup that uses `name="log"` instead of `name="username"`.
- *
- * The most visible symptom is 1Password's inline autofill tooltip
- * flickering in a tight re-injection loop, generating thousands of
- * cached requests for its `chrome-extension://.../inline-tooltip.css`
- * stylesheet per second — because the overlay keeps detaching and
- * reattaching as the extension retries its form-attach heuristic.
- *
- * Adding explicit `autocomplete="username"` and
- * `autocomplete="current-password"` gives 1Password (and Chrome's
- * built-in password manager) a deterministic anchor, which stops the
- * retry loop and also enables proper saved-credential autofill on
- * legacy sites.
- *
- * The patch is idempotent: lines that already carry any `autocomplete=`
- * attribute are left alone, so it won't touch WP 3.5+ password reset
- * fields (pass1/pass2) which already set `autocomplete="off"`.
+ * 1Password's inline tooltip enters a tight inject/remove loop on
+ * Playground's sandboxed iframes, flickering the UI and generating
+ * thousands of cached `chrome-extension://.../inline-tooltip.css`
+ * requests per second. The `data-1p-ignore` attribute is 1Password's
+ * official opt-out mechanism — it tells the extension to skip these
+ * fields entirely.
  */
-async function patchWpLoginAutocomplete(php: PHP, documentRoot: string) {
+async function patchWpLoginDisable1Password(php: PHP, documentRoot: string) {
 	const loginPath = joinPaths(documentRoot, 'wp-login.php');
 	if (!php.fileExists(loginPath)) return;
 
-	const original = php.readFileAsText(loginPath);
-	const lines = original.split('\n');
+	let content = php.readFileAsText(loginPath);
 	let changed = false;
 
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		// Skip lines that already have any autocomplete attribute.
-		if (line.includes('autocomplete=')) continue;
-		// Only touch <input> tags.
-		if (!/<input\b/.test(line)) continue;
-
-		// Insert the attribute immediately after the `name="log"` /
-		// `name="pwd"` attribute. Inserting there (instead of before
-		// the closing `>`) keeps the substitution safe against inline
-		// `<?php echo ?>` fragments that WP 4.9 emits mid-tag.
-		let patched = line.replace(
-			/(\bname=(['"])log\2)/,
-			'$1 autocomplete="username"'
+	// Add data-1p-ignore to username and password inputs.
+	for (const fieldName of ['log', 'pwd']) {
+		const re = new RegExp(
+			`(\\bname=(['"])${fieldName}\\2)(?!.*data-1p-ignore)`
 		);
-		patched = patched.replace(
-			/(\bname=(['"])pwd\2)/,
-			'$1 autocomplete="current-password"'
-		);
-
-		if (patched !== line) {
-			lines[i] = patched;
+		if (re.test(content)) {
+			content = content.replace(re, '$1 data-1p-ignore');
 			changed = true;
 		}
 	}
 
 	if (changed) {
-		await php.writeFile(loginPath, lines.join('\n'));
+		await php.writeFile(loginPath, content);
 	}
 }
 
@@ -1453,62 +1336,6 @@ async function patchWpLoginAutocomplete(php: PHP, documentRoot: string) {
  * mu-plugins load via the muplugins_loaded hook, which fires after
  * wp_get_mu_plugins() but may not work reliably on all old WP.
  */
-
-/**
- * Replaces update check files with no-op stubs for legacy PHP.
- *
- * Old WordPress update functions (wp_version_check, wp_update_plugins,
- * etc.) call wp_remote_get() which may not be available when the WASM
- * parser fails on large files like http.php. Since we don't want to
- * offer WP upgrades for legacy versions anyway, just stub them out.
- */
-async function disableUpdateChecks(php: PHP, documentRoot: string) {
-	// wp-includes/update.php — loaded by wp-settings.php on every request
-	const wpIncUpdate = joinPaths(documentRoot, 'wp-includes/update.php');
-	if (php.fileExists(wpIncUpdate)) {
-		await php.writeFile(
-			wpIncUpdate,
-			`<?php
-// Stubbed by Playground — update checks disabled for legacy PHP.
-if (!function_exists('wp_version_check')) {
-	function wp_version_check() {}
-}
-if (!function_exists('wp_update_plugins')) {
-	function wp_update_plugins() {}
-}
-if (!function_exists('wp_update_themes')) {
-	function wp_update_themes() {}
-}
-if (!function_exists('wp_check_php_version')) {
-	function wp_check_php_version() { return false; }
-}
-`
-		);
-	}
-
-	// wp-admin/includes/update.php — loaded by admin includes
-	const wpAdminUpdate = joinPaths(
-		documentRoot,
-		'wp-admin/includes/update.php'
-	);
-	if (php.fileExists(wpAdminUpdate)) {
-		await php.writeFile(
-			wpAdminUpdate,
-			`<?php
-// Stubbed by Playground — update checks disabled for legacy PHP.
-if (!function_exists('wp_update_core')) {
-	function wp_update_core() {}
-}
-if (!function_exists('wp_update_plugin')) {
-	function wp_update_plugin() {}
-}
-if (!function_exists('wp_update_theme')) {
-	function wp_update_theme() {}
-}
-`
-		);
-	}
-}
 
 async function ensureLegacyAdminAuth(php: PHP, documentRoot: string) {
 	const muDir = joinPaths(documentRoot, 'wp-content/mu-plugins');
@@ -1681,8 +1508,8 @@ require_once(ABSPATH . 'wp-config.php');
 // directly populating the user globals that get_currentuserinfo()
 // would have set.
 //
-// Cookie-hash gotcha: WP 1.2 defines both \$cookiehash variable
-// AND the COOKIEHASH constant; WP 1.0 only defines the \$cookiehash
+// Cookie-hash gotcha: WP 1.2 defines both the $cookiehash variable
+// AND the COOKIEHASH constant; WP 1.0 only defines the $cookiehash
 // variable. Check both so this stub works on either version, and
 // compute our own fallback from the siteurl option if neither is
 // available yet.
@@ -1809,95 +1636,6 @@ async function patchInlineSchemaPhp(
 		);
 		if (updated !== upgradePhp) {
 			await php.writeFile(upgradePhpPath, updated);
-		}
-	}
-}
-
-/**
- * Strips doc comments from wp-includes PHP files to reduce total
- * parsed code size. Workaround for a PHP 5.6 WASM parser bug.
- */
-async function stripDocCommentsFromWpIncludes(php: PHP, documentRoot: string) {
-	const dirs = [
-		joinPaths(documentRoot, 'wp-includes'),
-		joinPaths(documentRoot, 'wp-includes/pomo'),
-		joinPaths(documentRoot, 'wp-admin'),
-		joinPaths(documentRoot, 'wp-admin/includes'),
-	];
-
-	for (const dir of dirs) {
-		if (!php.isDir(dir)) continue;
-		for (const file of php.listFiles(dir)) {
-			if (!file.endsWith('.php')) continue;
-			await stripPhpFileComments(php, joinPaths(dir, file));
-		}
-	}
-}
-
-async function stripPhpFileComments(php: PHP, filePath: string) {
-	const content = php.readFileAsText(filePath);
-	// Strip doc comments (/** ... */) that don't contain function
-	// definitions. Regular /* */ comments are NOT stripped because
-	// they can appear inside strings (e.g. MIME types like '/*').
-	let stripped = content.replace(/\/\*\*[\s\S]*?\*\//g, (match) => {
-		if (/\bfunction\s+\w+\s*\(/.test(match)) {
-			return match;
-		}
-		return '';
-	});
-	// Strip full-line // comments. Preserve lines containing ?> because
-	// PHP's ?> tag closes PHP mode even inside // comments — removing
-	// the line would leave subsequent HTML inside PHP context.
-	stripped = stripped.replace(/^\s*\/\/[^\n]*$/gm, (line) =>
-		line.includes('?>') ? line : ''
-	);
-	// Strip trailing // comments after code (but not those with ?>).
-	stripped = stripped.replace(/(\t|  +)\/\/\s[^\n]*$/gm, (match) =>
-		match.includes('?>') ? match : ''
-	);
-	// Collapse multiple blank lines.
-	stripped = stripped.replace(/\n{3,}/g, '\n\n');
-	if (stripped !== content) {
-		await php.writeFile(filePath, stripped);
-	}
-}
-
-async function replaceRequiresWithEval(
-	php: UniversalPHP,
-	pluginFolder: string
-) {
-	const loaderPaths = [
-		'wp-includes/sqlite/db.php',
-		'wp-includes/database/load.php',
-		'wp-includes/database/sqlite/class-wp-sqlite-driver.php',
-	];
-	for (const rel of loaderPaths) {
-		const filePath = joinPaths(pluginFolder, rel);
-		let content: string;
-		try {
-			content = await php.readFileAsText(filePath);
-		} catch {
-			continue;
-		}
-		const original = content;
-		content = content.replace(
-			/require_once\s+('[^']+(?:'\s*\.\s*'[^']*')*)\s*;/g,
-			(_match, pathExpr) => {
-				return (
-					`if(empty($GLOBALS['__evaled'][${pathExpr}])){` +
-					`$GLOBALS['__evaled'][${pathExpr}]=1;` +
-					`eval('?>' . file_get_contents(${pathExpr}));}`
-				);
-			}
-		);
-		content = content.replace(
-			/\brequire\s+('[^']+(?:'\s*\.\s*'[^']*')*)\s*;/g,
-			(_match, pathExpr) => {
-				return `eval('?>' . file_get_contents(${pathExpr}));`;
-			}
-		);
-		if (content !== original) {
-			await php.writeFile(filePath, content);
 		}
 	}
 }

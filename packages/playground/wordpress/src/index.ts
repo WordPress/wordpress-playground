@@ -37,19 +37,18 @@ export async function setupPlatformLevelMuPlugins(
 	await php.mkdir('/internal/shared/mu-plugins');
 
 	if (phpMajor < 7) {
-		// Overwrite auto_prepend_file.php to work around a PHP 5.6
-		// WASM parser bug: after require_once of 0-sqlite.php (which
-		// defines classes and globals), subsequent require_once calls
-		// get spurious "syntax error" at EOF. Using
-		// eval(file_get_contents()) instead avoids the issue.
+		// Overwrite auto_prepend_file.php to add PHP 4 superglobal
+		// polyfills that WP 1.0-2.5 needs. The default
+		// auto_prepend_file only loads consts and preload files;
+		// legacy PHP also needs the superglobals set up first.
 		await php.writeFile(
 			'/internal/shared/auto_prepend_file.php',
 			`<?php
 // Polyfill the PHP 4 superglobals that WP 1.0-2.5 still rely on.
-// These were aliases of \$_GET / \$_POST / \$_COOKIE / \$_SERVER /
-// \$_FILES / \$_ENV / \$_REQUEST and were removed in PHP 5.4.
-// Bind by reference so later writes to \$_COOKIE (e.g. in
-// auth bypass shims) are reflected in \$HTTP_COOKIE_VARS that
+// These were aliases of $_GET / $_POST / $_COOKIE / $_SERVER /
+// $_FILES / $_ENV / $_REQUEST and were removed in PHP 5.4.
+// Bind by reference so later writes to $_COOKIE (e.g. in
+// auth bypass shims) are reflected in $HTTP_COOKIE_VARS that
 // WP 1.0's get_currentuserinfo() reads.
 $GLOBALS['HTTP_GET_VARS']     = &$_GET;
 $GLOBALS['HTTP_POST_VARS']    = &$_POST;
@@ -59,8 +58,8 @@ if (isset($_FILES))   $GLOBALS['HTTP_POST_FILES']   = &$_FILES;
 if (isset($_ENV))     $GLOBALS['HTTP_ENV_VARS']     = &$_ENV;
 if (isset($_SESSION)) $GLOBALS['HTTP_SESSION_VARS'] = &$_SESSION;
 // Also populate the top-level names that register_long_arrays +
-// register_globals=On used to expose. WP 1.0 reads \$PHP_SELF and
-// \$REMOTE_ADDR at the top level instead of \$_SERVER[...].
+// register_globals=On used to expose. WP 1.0 reads $PHP_SELF and
+// $REMOTE_ADDR at the top level instead of $_SERVER[...].
 if (isset($_SERVER['PHP_SELF'])) $GLOBALS['PHP_SELF'] = $_SERVER['PHP_SELF'];
 if (isset($_SERVER['REMOTE_ADDR'])) $GLOBALS['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'];
 if (isset($_SERVER['REQUEST_URI'])) $GLOBALS['REQUEST_URI'] = $_SERVER['REQUEST_URI'];
@@ -75,9 +74,7 @@ if(file_exists('/internal/shared/consts.json')) {
 	}
 }
 foreach (glob('/internal/shared/preload/*.php') as $file) {
-	$code = file_get_contents($file);
-	$code = preg_replace('/^<\\\\?php\\\\s*/', '', $code);
-	eval($code);
+	require_once $file;
 }
 `
 		);
@@ -110,8 +107,7 @@ function playground_load_mu_plugins() {
 	sort( $mu_plugins );
 	foreach ( $mu_plugins as $mu_plugin ) {
 		// sqlite-database-integration.php is loaded separately
-		// by the preload lazy loader or db.php, using eval()
-		// to work around a PHP 5.6 WASM require_once parser bug.
+		// by the preload lazy loader or db.php.
 		if (strpos($mu_plugin, 'sqlite-database-integration') !== false) {
 			continue;
 		}
@@ -594,22 +590,6 @@ export async function preloadSqliteIntegration(
 			/^(add_action\(\s*\n)/m,
 			'if (function_exists("add_action")) $1'
 		);
-		// For PHP 5.6, replace require_once with eval in the
-		// mu-plugin to work around the WASM parser bug.
-		dbPhp = dbPhp.replace(
-			/^(\s*)require_once\s+([^;]+);/gm,
-			(_match, indent, path) => {
-				const trimmedPath = path.trim();
-				if (/^\$\w+$/.test(trimmedPath)) {
-					return _match;
-				}
-				return (
-					`${indent}if(empty($GLOBALS['__evaled'][${trimmedPath}])){` +
-					`$GLOBALS['__evaled'][${trimmedPath}]=1;` +
-					`eval('?>' . file_get_contents(${trimmedPath}));}`
-				);
-			}
-		);
 	}
 	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
 	const SQLITE_MUPLUGIN_PATH =
@@ -635,20 +615,7 @@ if(file_exists(${phpVar(dbPhpPath)})) {
 	}
 	`;
 
-	if (phpMajor < 7) {
-		// NOTE: No closing ?> tag — PHP 5.6 WASM has a parser bug
-		// where ?> followed by <?php inside require_once'd files
-		// corrupts the parser state.
-		await php.writeFile(
-			SQLITE_MUPLUGIN_PATH,
-			'<?php\n' + dbPhpGuard + dbPhp.replace(/^<\?php\s*/, '')
-		);
-	} else {
-		await php.writeFile(
-			SQLITE_MUPLUGIN_PATH,
-			`<?php\n${dbPhpGuard}?>` + dbPhp
-		);
-	}
+	await php.writeFile(SQLITE_MUPLUGIN_PATH, `<?php\n${dbPhpGuard}?>` + dbPhp);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
 		phpMajor < 7
@@ -699,8 +666,7 @@ if(!function_exists('mysqli_connect')) {
 
 /**
  * Builds the 0-sqlite.php preload content for legacy PHP (< 7).
- * Uses eval() instead of require_once (PHP 5.6 WASM parser bug),
- * includes MySQL/MySQLi stubs, str_* polyfills, and error suppression.
+ * Includes MySQL/MySQLi stubs, str_* polyfills, and error suppression.
  */
 function buildLegacySqlitePreload(
 	dbPhpGuard: string,
@@ -708,13 +674,13 @@ function buildLegacySqlitePreload(
 	phpVarFn: typeof phpVar
 ): string {
 	return `<?php
-${dbPhpGuard}
+${dbPhpGuard}?>
+<?php
 ${SQLITE_PRELOAD_LOADER_CLASS(
-	// Legacy PHP: use eval() to work around WASM parser bug, and
-	// call reinitialize_sqlite() for old WordPress (< 3.0) where
+	// Call reinitialize_sqlite() for old WordPress (< 3.0) where
 	// the SQLite plugin's db_connect() is never called because old
 	// wpdb does mysql_connect() inline.
-	`eval('?>' . file_get_contents(${phpVarFn(muPluginPath)}));
+	`require_once ${phpVarFn(muPluginPath)};
         if (
             isset($GLOBALS['wpdb']) &&
             method_exists($GLOBALS['wpdb'], 'reinitialize_sqlite')

@@ -27,6 +27,7 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import { logger } from '@php-wasm/logger';
 import type { AllPHPVersion, PathAlias, PHP } from '@php-wasm/universal';
 import {
+	LegacyPHPVersions,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -189,6 +190,15 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		const parsedSiteUrl = new URL(siteUrl);
+		// Legacy PHP 5.6 has a parser state bug that corrupts large
+		// include chains when a secondary PHP instance accesses the
+		// WordPress source via PROXYFS. Force single-instance mode so
+		// all requests run on the primary and the PROXYFS bug never
+		// surfaces. The SinglePHPInstanceManager serializes concurrent
+		// requests on the primary via a 1-concurrency semaphore.
+		const isLegacyPhp = (LegacyPHPVersions as readonly string[]).includes(
+			phpVersion
+		);
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
 			phpVersion,
@@ -239,7 +249,18 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					await proxyFileSystem(
 						await requestHandler.getPrimaryPhp(),
 						php,
-						pathsToProxy
+						pathsToProxy,
+						// PHP 5.6's zend_compile_file uses mmap() to read
+						// source files. PROXYFS mmap trusts fstat for the
+						// buffer size, but fstat can return stale sizes when
+						// the primary has rewritten files after the secondary
+						// was created. This causes the parser to read past
+						// the real EOF and report spurious syntax errors.
+						// Disabling mmap makes PHP fall back to a read-based
+						// path that handles size mismatches correctly.
+						// PHP 7+ removed the mmap path from zend_stream_fixup
+						// entirely, so this only matters for legacy PHP.
+						{ withMmap: !isLegacyPhp }
 					);
 				}
 				if (withNetworking) {

@@ -146,12 +146,21 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
  * @param sourceOfTruth - The PHP instance containing the original files
  * @param replica - The PHP instance that will access files through PROXYFS
  * @param paths - Absolute paths to mount (e.g., ['/wordpress', '/internal/shared'])
+ * @param options - Optional configuration
+ * @param options.withMmap - Whether to add mmap support to PROXYFS. Defaults
+ *   to true. Set to false for PHP runtimes like 5.6 where the C-level mmap
+ *   path in zend_compile_file trusts fstat for buffer sizing — if the proxied
+ *   stat returns a stale size the parser reads garbage and reports spurious
+ *   "syntax error at EOF". Without mmap, PHP falls back to a read-based path
+ *   that handles stat/actual size mismatches gracefully.
  */
 export async function proxyFileSystem(
 	sourceOfTruth: PHP,
 	replica: PHP,
-	paths: string[]
+	paths: string[],
+	options?: { withMmap?: boolean }
 ) {
+	const withMmap = options?.withMmap ?? true;
 	// We can't just import the symbol from the library because
 	// Playground CLI is built as ESM and php-wasm-node is built as
 	// CJS and the imported symbols will differ in the production build.
@@ -164,7 +173,9 @@ export async function proxyFileSystem(
 		// after runtime rotation in hotSwapPHPRuntime().
 		replica.mkdir(path);
 		await replica.mount(path, (php: PHP) => {
-			ensureProxyFSHasMmapSupport(php);
+			if (withMmap) {
+				ensureProxyFSHasMmapSupport(php);
+			}
 			const replicaSymbol = Object.getOwnPropertySymbols(php)[0];
 			// @ts-ignore
 			php[replicaSymbol].FS.mount(
