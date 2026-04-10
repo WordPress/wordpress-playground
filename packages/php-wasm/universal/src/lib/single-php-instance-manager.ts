@@ -1,3 +1,4 @@
+import { Semaphore } from '@php-wasm/util';
 import type { PHP } from './php';
 import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
 
@@ -15,20 +16,23 @@ export interface SinglePHPInstanceManagerOptions {
 /**
  * A minimal PHP instance manager that manages a single PHP instance.
  *
- * Unlike PHPProcessManager, this does not maintain a pool of instances
- * or implement concurrency control. It simply returns the same PHP
- * instance for every request.
+ * Unlike PHPProcessManager, this does not maintain a pool of instances.
+ * It returns the same PHP instance for every request, and serializes
+ * concurrent acquires through a 1-concurrency semaphore so the
+ * single instance handles requests one at a time.
  *
- * This is suitable for CLI contexts where:
- * - Only one PHP instance is needed
- * - Runtime rotation is handled separately via php.enableRuntimeRotation()
- * - Concurrency is not a concern (each worker has its own instance)
+ * This is suitable for:
+ * - CLI contexts where only one PHP instance is needed
+ * - Legacy PHP runtimes (e.g. 5.6) whose multi-instance support is
+ *   unreliable and which must handle parallel requests on a single
+ *   instance
+ * - Runtime rotation is handled separately via `php.enableRuntimeRotation()`
  */
 export class SinglePHPInstanceManager implements PHPInstanceManager {
 	private php: PHP | undefined;
 	private phpPromise: Promise<PHP> | undefined;
 	private phpFactory?: () => Promise<PHP>;
-	private isAcquired = false;
+	private semaphore = new Semaphore({ concurrency: 1 });
 
 	constructor(options: SinglePHPInstanceManagerOptions) {
 		if (!options.php && !options.phpFactory) {
@@ -55,19 +59,12 @@ export class SinglePHPInstanceManager implements PHPInstanceManager {
 	}
 
 	async acquirePHPInstance(): Promise<AcquiredPHP> {
-		if (this.isAcquired) {
-			throw new Error(
-				'The PHP instance already acquired. SinglePHPInstanceManager cannot spawn another PHP instance since, by definition, it only manages a single PHP instance.'
-			);
-		}
+		const release = await this.semaphore.acquire();
 		const php = await this.getPrimaryPhp();
-		this.isAcquired = true;
 		return {
 			php,
 			reap: () => {
-				// For single-instance manager, reap is a no-op.
-				// The instance is reused for all requests.
-				this.isAcquired = false;
+				release();
 			},
 		};
 	}
