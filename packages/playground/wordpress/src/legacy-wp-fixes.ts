@@ -213,7 +213,7 @@ export async function preCreateLegacyTables(php: PHP): Promise<void> {
  */
 export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 	// Derive siteUrl from the PHP request handler if available.
-	const siteUrl = (php as any).requestHandler?.siteUrl?.toString() || '';
+	const siteUrl = (php as any).requestHandler?.absoluteUrl?.toString() || '';
 	// Stage 1: wpdb-based fixups (loads WordPress)
 	try {
 		const result = await php.run({
