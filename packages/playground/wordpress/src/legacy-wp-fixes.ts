@@ -1146,15 +1146,17 @@ async function patchWpDbPhp(php: PHP, documentRoot: string) {
 /**
  * Fixes relative paths in wp-admin files so they work regardless of CWD.
  *
- * Old WordPress (< 3.7) uses relative paths like `require('../wp-load.php')`
- * and `require('./admin.php')` in wp-admin scripts. These fail in the
- * Playground because PHP's CWD is set to the document root, not the
- * script's directory. Modern WordPress uses `dirname(__FILE__)` instead.
+ * Old WordPress (< 3.7) uses relative paths like `require('../wp-load.php')`,
+ * `require('./admin.php')`, and `include('./admin-footer.php')` in wp-admin
+ * scripts. These fail in the Playground because PHP's CWD is set to the
+ * document root, not the script's directory. Modern WordPress uses
+ * `dirname(__FILE__)` instead.
  */
 async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
-	// Generic fix: replace all relative requires in wp-admin PHP files
-	// with dirname(__FILE__)-based absolute paths. This handles WP 1.2
-	// through 3.6 where many files use './file.php' or '../file.php'.
+	// Generic fix: replace all relative require/include statements in
+	// wp-admin PHP files with dirname(__FILE__)-based absolute paths.
+	// This handles WP 1.2 through 3.6 where many files use
+	// './file.php' or '../file.php'.
 	const wpAdminDir = joinPaths(documentRoot, 'wp-admin');
 	if (php.isDir(wpAdminDir)) {
 		for (const file of php.listFiles(wpAdminDir)) {
@@ -1164,30 +1166,37 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 			const patched = content
 				// ../path — parent directory
 				.replace(
-					/require(?:_once)?\s*\(\s*'(\.\.\/[^']+)'\s*\)/g,
-					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+					/((?:require|include)(?:_once)?)\s*\(\s*'(\.\.\/[^']+)'\s*\)/g,
+					(_, keyword, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
 				// ./path — current directory (explicit)
 				.replace(
-					/require(?:_once)?\s*\(\s*'(\.\/[^']+)'\s*\)/g,
-					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+					/((?:require|include)(?:_once)?)\s*\(\s*'(\.\/[^']+)'\s*\)/g,
+					(_, keyword, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
-				// require ('file.php') — space before parens
+				// include/require ('file.php') — space before parens
 				.replace(
-					/require(?:_once)?\s+\('(\.\.\/[^']+)'\)/g,
-					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+					/((?:require|include)(?:_once)?)\s+\('(\.\.\/[^']+)'\)/g,
+					(_, keyword, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
-				// Bare filename without ./ prefix (e.g. 'admin-header.php').
-				// Only match filenames ending in .php to avoid false positives.
+				// Bare filename without ./ prefix
+				// (e.g. 'admin-header.php'). Only match filenames
+				// ending in .php to avoid false positives.
 				.replace(
-					/require(?:_once)?\s*\(\s*'([a-z][\w-]*\.php)'\s*\)/g,
-					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+					/((?:require|include)(?:_once)?)\s*\(\s*'([a-z][\w-]*\.php)'\s*\)/g,
+					(_, keyword, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
 				.replace(
-					/require(?:_once)?\s+\('([a-z][\w-]*\.php)'\)/g,
-					(_, path) => `require_once(dirname(__FILE__) . '/${path}')`
+					/((?:require|include)(?:_once)?)\s+\('([a-z][\w-]*\.php)'\)/g,
+					(_, keyword, path) =>
+						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
-				// Fix ABSPATH . '/path' → ABSPATH . 'path' (removes double slash)
+				// Fix ABSPATH . '/path' → ABSPATH . 'path'
+				// (removes double slash)
 				.replace(/ABSPATH\s*\.\s*'\/wp-/g, "ABSPATH . 'wp-");
 			if (patched !== content) {
 				await php.writeFile(filePath, patched);
