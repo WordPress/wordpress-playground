@@ -162,10 +162,6 @@ export class WordPressFetchNetworkTransport {
 	 * 3. Make parallel fetch requests to get responses
 	 * 4. Cache the responses for later use by the network transport.
 	 * 5. When the user makes the actual requests later, serve from cache instead.
-	 * 
-	 * Note: If a plugin schedules cron jobs aggressively, WordPress may detect that a cron
-	 * event is due and spawn a loopback request right as this runs. We suppress that
-	 * loopback request because it can consume a PHP worker and starve user-initiated requests.
 	 */
 	async prefetchUpdateChecks(
 		playground: UniversalPHP
@@ -222,6 +218,12 @@ export class WordPressFetchNetworkTransport {
 				}
 
 				add_filter('pre_http_request', function($pre, $r, $url) {
+					/**
+					 * Prevent self-loopback requests to avoid PHP workers being occupied by internal requests rather than user-initiated ones.
+					 * The most common cause is WordPress cron spawning loopback requests, though rare cases can include self-invoked REST API calls or dynamic asset rendering.
+					 * Plugins may schedule cron jobs aggressively i.e. in the past or for immediate execution, causing such loopback requests at this stage in the lifecycle.
+					 * To ensure user interactions are prioritized, we block loopback requests that could otherwise consume available PHP workers.		
+					 */
 					if ( _wppg_is_loopback_request( $url ) ) {
 						return new WP_Error(
 							'http_request_block',
