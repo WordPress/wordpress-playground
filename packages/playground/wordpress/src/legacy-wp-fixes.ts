@@ -1166,33 +1166,22 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 			const patched = content
 				// ../path — parent directory
 				.replace(
-					/((?:require|include)(?:_once)?)\s*\(\s*'(\.\.\/[^']+)'\s*\)/g,
-					(_, keyword, path) =>
+					/((?:require|include)(?:_once)?)\s*\(\s*(['"])(\.\.\/[^'"]+)\2\s*\)/g,
+					(_, keyword, _q, path) =>
 						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
 				// ./path — current directory (explicit)
 				.replace(
-					/((?:require|include)(?:_once)?)\s*\(\s*'(\.\/[^']+)'\s*\)/g,
-					(_, keyword, path) =>
-						`${keyword}(dirname(__FILE__) . '/${path}')`
-				)
-				// include/require ('file.php') — space before parens
-				.replace(
-					/((?:require|include)(?:_once)?)\s+\('(\.\.\/[^']+)'\)/g,
-					(_, keyword, path) =>
+					/((?:require|include)(?:_once)?)\s*\(\s*(['"])(\.\/[^'"]+)\2\s*\)/g,
+					(_, keyword, _q, path) =>
 						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
 				// Bare filename without ./ prefix
 				// (e.g. 'admin-header.php'). Only match filenames
 				// ending in .php to avoid false positives.
 				.replace(
-					/((?:require|include)(?:_once)?)\s*\(\s*'([a-z][\w-]*\.php)'\s*\)/g,
-					(_, keyword, path) =>
-						`${keyword}(dirname(__FILE__) . '/${path}')`
-				)
-				.replace(
-					/((?:require|include)(?:_once)?)\s+\('([a-z][\w-]*\.php)'\)/g,
-					(_, keyword, path) =>
+					/((?:require|include)(?:_once)?)\s*\(\s*(['"])([a-z][\w-]*\.php)\2\s*\)/g,
+					(_, keyword, _q, path) =>
 						`${keyword}(dirname(__FILE__) . '/${path}')`
 				)
 				// Fix ABSPATH . '/path' → ABSPATH . 'path'
