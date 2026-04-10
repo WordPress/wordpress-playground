@@ -10,9 +10,12 @@
  *
  * This shim implements both surfaces so subclasses can be returned from a
  * `websocket.decorator` hook in either runtime. Subclasses override `send`
- * and `close` to wire up outbound bytes, and call the protected
+ * and `close` to wire up outbound bytes, and call the
  * `emitOpen` / `emitMessage` / `emitClose` / `emitError` helpers to deliver
- * inbound events.
+ * inbound events. Those helpers and the `listeners` map are public because
+ * `websocket.decorator` returns an anonymous subclass expression, and
+ * TypeScript's TS4094 forbids exported class expressions whose base has
+ * private or protected members.
  */
 export class WebSocketShim {
 	readonly CONNECTING = 0;
@@ -33,7 +36,7 @@ export class WebSocketShim {
 	onclose: ((e: any) => void) | null = null;
 	onerror: ((e: any) => void) | null = null;
 
-	private listeners = new Map<string, Set<(...args: any[]) => void>>();
+	listeners = new Map<string, Set<(...args: any[]) => void>>();
 
 	constructor(url = '') {
 		this.url = url;
@@ -70,7 +73,7 @@ export class WebSocketShim {
 		this.removeEventListener(event, fn);
 	}
 
-	protected emitOpen() {
+	emitOpen() {
 		this.readyState = this.OPEN;
 		this.onopen?.({});
 		const set = this.listeners.get('open');
@@ -83,7 +86,7 @@ export class WebSocketShim {
 	 * `{ data }` object, while Node Emscripten registers via `on('message')`
 	 * (the `ws` library convention) and expects `(data, isBinary)`.
 	 */
-	protected emitMessage(data: Uint8Array | ArrayBuffer | string) {
+	emitMessage(data: Uint8Array | ArrayBuffer | string) {
 		this.onmessage?.({ data });
 		const set = this.listeners.get('message');
 		if (!set) return;
@@ -93,14 +96,14 @@ export class WebSocketShim {
 		}
 	}
 
-	protected emitClose() {
+	emitClose() {
 		this.readyState = this.CLOSED;
 		this.onclose?.({});
 		const set = this.listeners.get('close');
 		if (set) for (const fn of set) fn({});
 	}
 
-	protected emitError(err: any) {
+	emitError(err: any) {
 		this.onerror?.(err);
 		const set = this.listeners.get('error');
 		if (set) for (const fn of set) fn(err);
