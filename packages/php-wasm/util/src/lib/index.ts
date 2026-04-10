@@ -12,6 +12,7 @@ export {
 	toPosixPath,
 } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
+export { createSendmailSpawnHandler } from './create-sendmail-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
@@ -24,6 +25,7 @@ export {
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
 export { WebSocketShim } from './websocket-shim';
+export { SmtpSinkWebSocket } from './smtp-sink-websocket';
 export * from './php-vars';
 export * from './smtp';
 

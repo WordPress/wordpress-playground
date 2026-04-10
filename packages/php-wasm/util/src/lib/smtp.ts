@@ -1,10 +1,12 @@
-// smtp-sink.ts — browser SMTP receiver with AUTH + STARTTLS policy toggles
+// smtp-sink.ts — in-process SMTP receiver with optional SASL AUTH.
+//
+// Scope: catches outbound mail from PHP (via PHPMailer, fsockopen,
+// or anything else that speaks plain SMTP). STARTTLS is not
+// supported because the loopback duplex carries no real network
+// traffic and there is nothing to encrypt; clients that need TLS
+// against this sink should be configured for plain SMTP instead.
 
-// Isomorphic EventEmitter interface using EventTarget
-// Defines the events that SmtpSink can emit
-export interface SmtpSinkEvents {
-	'email-sent': CustomEvent<CaughtMessage>;
-}
+import { logger } from '@php-wasm/logger';
 
 export type ByteDuplex = {
 	readable: ReadableStream<Uint8Array>;
@@ -12,7 +14,6 @@ export type ByteDuplex = {
 };
 
 export type CaughtMessage = {
-	id: string;
 	receivedAt: string;
 	from: string;
 	to: string;
@@ -23,9 +24,12 @@ export type CaughtMessage = {
 	rawSize: number;
 };
 
-type State = 'greeting' | 'idle' | 'mail' | 'rcpt' | 'data';
 type SaslMech = 'PLAIN' | 'LOGIN';
-type TlsMode = 'omit' | 'advertise_454' | 'reject_502';
+
+// Server identifier used in the 220 greeting and as the Domain
+// token in the EHLO/HELO 250 response (RFC 5321 §4.1.1.1 ABNF
+// requires the first token after "250"/"250-" to be a Domain).
+const SERVER_NAME = 'localhost';
 
 export type AuthValidator = (
 	mech: SaslMech,
@@ -34,30 +38,25 @@ export type AuthValidator = (
 
 export type SmtpSinkOptions = {
 	maxSize?: number;
-	tls?: { mode?: TlsMode }; // "omit" = don't advertise; "advertise_454" = advertise STARTTLS but 454 on command; "reject_502" = don't advertise, 502 on STARTTLS
 	auth?: {
 		mechs?: SaslMech[]; // which mechanisms to offer
 		advertise?: boolean; // show AUTH on EHLO
 		requireAuth?: boolean; // 530 before MAIL/RCPT unless authenticated
-		requireTlsForAuth?: boolean; // 530 on AUTH until STARTTLS (you will never satisfy it here, but it signals intent)
 		validator?: AuthValidator; // check creds; default accepts anything
 	};
 };
 
 /**
- * SMTP server sink that receives emails and emits events.
- * Extends EventTarget to provide isomorphic event emitter functionality.
- *
- * Events emitted:
- * - 'email-sent': Fired when a complete email is successfully received
+ * SMTP server sink that receives emails and invokes a callback for
+ * each fully-received message.
  */
-export class SmtpSink extends EventTarget {
+export class SmtpSink {
 	private enc = new TextEncoder();
 	private dec = new TextDecoder('utf-8', { fatal: false });
 	private lineBuf = '';
 	private dataMode = false;
 	private dataLines: string[] = [];
-	private state: State = 'greeting';
+	private dataBytes = 0;
 	private mailFrom: string | null = null;
 	private rcpts: string[] = [];
 	private writer: WritableStreamDefaultWriter<Uint8Array>;
@@ -68,12 +67,10 @@ export class SmtpSink extends EventTarget {
 	// sequencing so replies stay in order
 	private seq: Promise<void> = Promise.resolve();
 
-	// TLS + AUTH policy
-	private tlsMode: TlsMode;
+	// AUTH policy
 	private authAdvertise: boolean;
 	private authMechs: SaslMech[];
 	private authRequire: boolean;
-	private authRequireTls: boolean;
 	private authValidator: AuthValidator;
 	private authenticated = false;
 	private authPending = false;
@@ -83,40 +80,51 @@ export class SmtpSink extends EventTarget {
 		| null = null;
 
 	private duplex: ByteDuplex;
-	private onMessage: (m: CaughtMessage) => void;
+	private onEmail: (m: CaughtMessage) => void;
 
 	constructor(
 		duplex: ByteDuplex,
-		onMessage: (m: CaughtMessage) => void,
+		onEmail: (m: CaughtMessage) => void,
 		opts: SmtpSinkOptions = {}
 	) {
-		super();
 		this.duplex = duplex;
-		this.onMessage = onMessage;
+		this.onEmail = onEmail;
 		this.writer = duplex.writable.getWriter();
 		this.reader = duplex.readable.getReader();
 		this.maxSize = opts.maxSize ?? 10 * 1024 * 1024;
 
-		this.tlsMode = opts.tls?.mode ?? 'omit';
 		this.authMechs = opts.auth?.mechs ?? [];
 		this.authAdvertise = opts.auth?.advertise ?? this.authMechs.length > 0;
 		this.authRequire = opts.auth?.requireAuth ?? false;
-		this.authRequireTls = opts.auth?.requireTlsForAuth ?? false;
 		this.authValidator = opts.auth?.validator ?? (async () => true);
 	}
 
 	async start(): Promise<void> {
-		await this.reply(220, 'localhost ESMTP ready');
+		await this.reply(220, `${SERVER_NAME} ESMTP ready`);
 		for (;;) {
 			const r = await this.reader.read();
 			if (r.done) break;
 			this.consumeChunk(r.value);
 			if (this.closed) break;
 		}
+		// Wait for all enqueued handlers to finish before closing
+		// the writer. When the client closes the connection, the
+		// reader gets done immediately, but enqueued handlers
+		// (like handleDataLine(".") which delivers the email) may
+		// still be pending in the promise chain.
+		await this.seq;
+		await this.close();
+	}
+
+	private async close(): Promise<void> {
+		if (this.closed) return;
+		this.closed = true;
 		try {
 			await this.writer.close();
 		} catch {
-			// Ignore close errors
+			// Writer may already be closed if the peer aborted the
+			// loopback first, or close() may race with a pending write.
+			// Both surface here as benign errors during normal shutdown.
 		}
 	}
 
@@ -141,10 +149,33 @@ export class SmtpSink extends EventTarget {
 			});
 			if (this.closed) return;
 		}
+
+		// RFC 5321 §4.5.3.1.4: command lines (incl. CRLF) ≤ 512
+		// octets. §4.5.3.1.6: text lines (incl. CRLF) ≤ 1000 octets.
+		// If the un-terminated tail of lineBuf has already grown past
+		// the limit that applies to the current mode, the peer is
+		// malformed (or hostile); refuse it and drop the session
+		// rather than letting lineBuf grow without bound.
+		const maxLineLen = this.dataMode ? 1000 : 512;
+		if (this.lineBuf.length > maxLineLen) {
+			this.lineBuf = '';
+			this.enqueue(async () => {
+				await this.reply(500, 'line too long');
+				await this.close();
+			});
+		}
 	}
 
 	private enqueue(fn: () => Promise<void>) {
-		this.seq = this.seq.then(fn).catch(() => {});
+		this.seq = this.seq.then(fn).catch(async (err) => {
+			// A bug in a handler must not silently hang the SMTP
+			// session — without a reply, the client will block until
+			// it times out, hiding the real error. Surface it and
+			// close the connection so the peer sees a clean
+			// disconnect instead of hanging indefinitely.
+			logger.error('SmtpSink handler error:', err);
+			await this.close();
+		});
 	}
 
 	private async handleCommand(rawLine: string) {
@@ -156,30 +187,53 @@ export class SmtpSink extends EventTarget {
 		switch (cmd) {
 			case 'EHLO':
 			case 'HELO': {
-				this.state = 'idle';
+				// RFC 5321 §4.1.1.1 ABNF: both `helo` and `ehlo`
+				// require a Domain (or address-literal for EHLO)
+				// argument; an empty argument is a syntax error.
+				if (!arg.trim()) {
+					await this.reply(501, `syntax: ${cmd} <domain>`);
+					break;
+				}
+				// RFC 5321 §4.1.4: a successful EHLO/HELO issued mid-
+				// session MUST clear all buffers and reset state exactly
+				// as RSET would. Auth state is preserved (RFC 4954 §4).
+				this.resetEnvelope();
+				if (cmd === 'HELO') {
+					// RFC 5321 §4.1.1.1 ABNF:
+					//   ehlo-ok-rsp = "250" SP Domain [ SP ehlo-greet ]
+					// HELO uses the same single-line form. The first
+					// token after the reply code MUST be the server's
+					// Domain, optionally followed by free-form text.
+					await this.reply(250, `${SERVER_NAME} Hello ${arg}`);
+					break;
+				}
+				// RFC 5321 §4.1.1.1 ABNF for the multi-line response:
+				//   "250-" Domain [ SP ehlo-greet ] CRLF
+				//   *( "250-" ehlo-line CRLF )
+				//   "250" SP ehlo-line CRLF
+				// The first line therefore starts with the server's
+				// Domain, never with free-form text.
 				const ext: string[] = [];
-				if (this.tlsMode === 'advertise_454') ext.push('STARTTLS');
 				if (this.authAdvertise && this.authMechs.length) {
 					const list = this.authMechs.join(' ');
 					ext.push(`AUTH ${list}`, `AUTH=${list}`);
 				}
 				ext.push(`SIZE ${this.maxSize}`, 'PIPELINING');
 				await this.replyMulti(250, [
-					`Hello ${arg || 'client'}`,
+					`${SERVER_NAME} Hello ${arg}`,
 					...ext,
 				]);
 				break;
 			}
 
 			case 'STARTTLS': {
-				if (this.tlsMode === 'advertise_454') {
-					await this.reply(454, 'TLS not available');
-				} else if (
-					this.tlsMode === 'reject_502' ||
-					this.tlsMode === 'omit'
-				) {
-					await this.reply(502, 'Command not implemented');
-				}
+				// The loopback duplex carries no real network traffic
+				// so there is nothing to encrypt. STARTTLS is never
+				// advertised in EHLO and is always refused with 502
+				// "Command not implemented" if a client tries it
+				// anyway. Clients that need TLS should be configured
+				// for plain SMTP against this sink.
+				await this.reply(502, 'Command not implemented');
 				break;
 			}
 
@@ -196,15 +250,6 @@ export class SmtpSink extends EventTarget {
 				}
 				if (this.authenticated) {
 					await this.reply(503, 'already authenticated');
-					break;
-				}
-
-				if (this.authRequireTls && this.tlsMode !== 'omit') {
-					// we require TLS first; we can't actually upgrade, so be explicit
-					await this.reply(
-						530,
-						'Must issue a STARTTLS command first'
-					);
 					break;
 				}
 
@@ -256,13 +301,19 @@ export class SmtpSink extends EventTarget {
 					await this.reply(530, 'Authentication required');
 					break;
 				}
-				if (!/^FROM:/i.test(arg)) {
+				// RFC 5321 §3.3 + §4.1.1.2: the syntax is exactly
+				// `MAIL FROM:<reverse-path>`. §3.3 explicitly forbids
+				// "spaces on either side of the colon", and the
+				// reverse-path MUST be enclosed in angle brackets (or
+				// be the literal `<>` for the null reverse-path,
+				// §4.5.5).
+				const path = parseEnvelopeArg(arg, 'FROM');
+				if (path === null) {
 					await this.reply(501, 'syntax: MAIL FROM:<addr>');
 					break;
 				}
-				this.mailFrom = this.extractPath(arg.slice(5));
+				this.mailFrom = path;
 				this.rcpts = [];
-				this.state = 'mail';
 				await this.reply(250, 'OK');
 				break;
 			}
@@ -272,29 +323,35 @@ export class SmtpSink extends EventTarget {
 					await this.reply(530, 'Authentication required');
 					break;
 				}
-				if (!/^TO:/i.test(arg)) {
+				// RFC 5321 §3.3 + §4.1.1.3: the syntax is exactly
+				// `RCPT TO:<forward-path>`. Same no-space, mandatory-
+				// brackets rule as MAIL FROM.
+				const path = parseEnvelopeArg(arg, 'TO');
+				if (path === null) {
 					await this.reply(501, 'syntax: RCPT TO:<addr>');
 					break;
 				}
-				if (!this.mailFrom) {
+				// Explicit null check (not falsy): an empty string is a
+				// valid null reverse-path (`MAIL FROM:<>`, RFC 5321
+				// §4.5.5) and must not gate RCPT.
+				if (this.mailFrom === null) {
 					await this.reply(503, 'need MAIL FROM first');
 					break;
 				}
-				this.rcpts.push(this.extractPath(arg.slice(3)));
-				this.state = 'rcpt';
+				this.rcpts.push(path);
 				await this.reply(250, 'Accepted');
 				break;
 			}
 
 			case 'DATA': {
-				if (!this.mailFrom || this.rcpts.length === 0) {
+				if (this.mailFrom === null || this.rcpts.length === 0) {
 					await this.reply(503, 'need MAIL/RCPT first');
 					break;
 				}
 				await this.reply(354, 'End data with <CR><LF>.<CR><LF>');
 				this.dataMode = true;
 				this.dataLines = [];
-				this.state = 'data';
+				this.dataBytes = 0;
 				break;
 			}
 
@@ -316,12 +373,7 @@ export class SmtpSink extends EventTarget {
 
 			case 'QUIT':
 				await this.reply(221, 'Bye');
-				this.closed = true;
-				try {
-					await this.writer.close();
-				} catch {
-					// Ignore close errors
-				}
+				await this.close();
 				break;
 
 			case 'EXPN':
@@ -339,22 +391,21 @@ export class SmtpSink extends EventTarget {
 	private async handleDataLine(line: string) {
 		if (line === '.') {
 			this.dataMode = false;
-			const bodyStr = this.dataLines.join('\r\n') + '\r\n';
-			const bytes = this.enc.encode(bodyStr);
-			if (bytes.byteLength > this.maxSize) {
+			if (this.dataBytes > this.maxSize) {
+				// RFC 1870 §6.3: when the size overflow is discovered
+				// mid-stream, the 552 reply must come *after* the
+				// end-of-data marker. Anything else desyncs the session.
 				await this.reply(552, 'message size exceeds fixed limit');
 				this.resetEnvelope();
 				return;
 			}
-			const id = this.makeId();
-			const raw = bodyStr;
-			const { headers, subject, text, from, to } = parseEmail(
+			const raw = this.dataLines.join('\r\n') + '\r\n';
+			const { headers, subject, text, from, to } = parseMessage(
 				raw,
 				this.mailFrom ?? '',
 				this.rcpts
 			);
 			const message: CaughtMessage = {
-				id,
 				receivedAt: new Date().toISOString(),
 				from,
 				to,
@@ -362,32 +413,23 @@ export class SmtpSink extends EventTarget {
 				headers,
 				text,
 				raw,
-				rawSize: bytes.byteLength,
+				rawSize: this.dataBytes,
 			};
 
-			// Call the original callback
-			this.onMessage(message);
+			this.onEmail(message);
 
-			// Emit the email-sent event
-			this.dispatchEvent(
-				new CustomEvent('email-sent', { detail: message })
-			);
-
-			await this.reply(250, `Queued as ${id}`);
+			await this.reply(250, 'OK');
 			this.resetEnvelope();
 			return;
 		}
 
 		const actual = line.startsWith('..') ? line.slice(1) : line;
-		this.dataLines.push(actual);
-
-		if (this.dataLines.length % 128 === 0) {
-			const bytes = this.enc.encode(this.dataLines.join('\r\n'));
-			if (bytes.byteLength > this.maxSize) {
-				await this.reply(552, 'message size exceeds fixed limit');
-				this.dataMode = false;
-				this.resetEnvelope();
-			}
+		// Running counter avoids the O(n²) full-buffer re-encode the
+		// previous periodic check used. Once we cross maxSize we stop
+		// appending but keep draining until end-of-data.
+		this.dataBytes += this.enc.encode(actual).byteLength + 2;
+		if (this.dataBytes <= this.maxSize) {
+			this.dataLines.push(actual);
 		}
 	}
 
@@ -462,17 +504,12 @@ export class SmtpSink extends EventTarget {
 		}
 	}
 
-	private extractPath(rest: string): string {
-		const m = rest.match(/<([^>]+)>/);
-		return (m ? m[1] : rest).trim();
-	}
-
 	private resetEnvelope() {
 		this.mailFrom = null;
 		this.rcpts = [];
-		this.state = 'idle';
 		this.dataMode = false;
 		this.dataLines = [];
+		this.dataBytes = 0;
 	}
 
 	private async reply(code: number, text: string) {
@@ -490,24 +527,72 @@ export class SmtpSink extends EventTarget {
 		// RFC 4954 style: "334 <challenge>"
 		await this.writer.write(this.enc.encode(`334 ${challengeB64}\r\n`));
 	}
-	private makeId(): string {
-		return `${Date.now().toString(36)}-${Math.random()
-			.toString(36)
-			.slice(2, 8)}`;
+}
+
+/**
+ * Parses the argument of a MAIL or RCPT command into the envelope
+ * path. Returns `null` if the syntax does not match RFC 5321.
+ *
+ * RFC 5321 §3.3 + §4.1.1.2/3 require:
+ *   - the keyword (`FROM` or `TO`) is followed immediately by a
+ *     colon, with NO whitespace on either side ("a common source
+ *     of errors", §3.3)
+ *   - the path is enclosed in angle brackets, or is the literal
+ *     `<>` for the null reverse-path (§4.5.5)
+ *   - any ESMTP Mail-parameters that follow MUST be separated
+ *     from the closing `>` by a single space (RFC 1870, RFC 4954)
+ */
+export function parseEnvelopeArg(
+	arg: string,
+	keyword: 'FROM' | 'TO'
+): string | null {
+	const prefix = `${keyword}:<`;
+	if (arg.length < prefix.length + 1) return null;
+	if (arg.slice(0, prefix.length).toUpperCase() !== prefix) {
+		return null;
 	}
+	const close = arg.indexOf('>', prefix.length);
+	if (close < 0) return null;
+	// Anything past the closing bracket must either be empty or
+	// begin with a single space introducing ESMTP parameters.
+	const tail = arg.slice(close + 1);
+	if (tail !== '' && !tail.startsWith(' ')) return null;
+	return arg.slice(prefix.length, close);
+}
+
+/**
+ * Extracts email addresses from an RFC 5322 address list.
+ * Handles a mix of "Name <addr>" and bare "addr" entries.
+ */
+export function extractAddresses(value: string): string[] {
+	const out: string[] = [];
+	for (const part of value.split(',')) {
+		const trimmed = part.trim();
+		if (!trimmed) continue;
+		const angle = trimmed.match(/<([^>]+)>/);
+		if (angle) {
+			out.push(angle[1].trim());
+		} else if (trimmed.includes('@')) {
+			out.push(trimmed);
+		}
+	}
+	return out;
 }
 
 /* ---------- Helpers: MIME parsing (unchanged from earlier) ---------- */
 
-function unfoldHeaders(hdr: string): string {
+export function unfoldHeaders(hdr: string): string {
 	return hdr.replace(/\r\n([ \t]+)/g, ' ');
 }
-function splitHeaderBody(raw: string): { headerRaw: string; bodyRaw: string } {
+export function splitHeaderBody(raw: string): {
+	headerRaw: string;
+	bodyRaw: string;
+} {
 	const idx = raw.indexOf('\r\n\r\n');
 	if (idx < 0) return { headerRaw: raw, bodyRaw: '' };
 	return { headerRaw: raw.slice(0, idx), bodyRaw: raw.slice(idx + 4) };
 }
-function parseHeaderLines(headerRaw: string): Record<string, string> {
+export function parseHeaderLines(headerRaw: string): Record<string, string> {
 	const out: Record<string, string> = {};
 	const unfolded = unfoldHeaders(headerRaw);
 	const lines = unfolded.split('\r\n');
@@ -640,7 +725,7 @@ function decodeBody(
 		return new TextDecoder().decode(bytes);
 	}
 }
-export function parseEmail(
+export function parseMessage(
 	raw: string,
 	fallbackFrom: string,
 	fallbackRcpts: string[]
@@ -690,55 +775,7 @@ export function parseEmail(
 	return { headers, subject, text, from, to };
 }
 
-/* ---------- Transport adapters & loopback ---------- */
-
-export function duplexFromWebSocket(ws: WebSocket): ByteDuplex {
-	const readable = new ReadableStream<Uint8Array>({
-		start(controller) {
-			ws.binaryType = 'arraybuffer';
-			const onMsg = (e: MessageEvent) => {
-				if (typeof e.data === 'string')
-					controller.enqueue(new TextEncoder().encode(e.data));
-				else if (e.data instanceof ArrayBuffer)
-					controller.enqueue(new Uint8Array(e.data));
-				else if (e.data instanceof Blob)
-					e.data
-						.arrayBuffer()
-						.then((b) => controller.enqueue(new Uint8Array(b)));
-			};
-			ws.addEventListener('message', onMsg);
-			ws.addEventListener('close', () => controller.close());
-			ws.addEventListener('error', (err: Event) => controller.error(err));
-		},
-	});
-	const writable = new WritableStream<Uint8Array>({
-		write(chunk) {
-			ws.send(chunk);
-		},
-		close() {
-			try {
-				ws.close();
-			} catch {
-				// Ignore close errors
-			}
-		},
-		abort() {
-			try {
-				ws.close();
-			} catch {
-				// Ignore close errors
-			}
-		},
-	});
-	return { readable, writable };
-}
-
-export function duplexFromWebTransportStream(stream: {
-	readable: ReadableStream<Uint8Array>;
-	writable: WritableStream<Uint8Array>;
-}): ByteDuplex {
-	return { readable: stream.readable, writable: stream.writable };
-}
+/* ---------- Loopback transport ---------- */
 
 export function makeLoopbackPair(): [ByteDuplex, ByteDuplex] {
 	const a2b = new TransformStream<Uint8Array, Uint8Array>();
