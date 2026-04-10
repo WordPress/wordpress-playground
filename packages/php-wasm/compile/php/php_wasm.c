@@ -430,6 +430,10 @@ extern int __wasi_syscall_ret(__wasi_errno_t code);
 // Exit code of the last exited child process call.
 int wasm_pclose_ret = -1;
 
+// PID of the last process spawned by wasm_popen("w").
+// Used by wasm_pclose to wait for the process to finish.
+static int wasm_popen_last_pid = -1;
+
 /**
  * Passes a message to the JavaScript module and writes the response
  * data, if any, to the response_buffer pointer.
@@ -515,7 +519,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			return 0;
 		}
 
-		fp = fdopen(stdin_pipe[1], "w");  // or "w", depending on direction
+		fp = fdopen(stdin_pipe[1], "w");
 		if (!fp) {
 			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
 			errno = EINVAL;
@@ -544,8 +548,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		descv[1] = stdout;
 		descv[2] = stderr;
 
-		// the wasm way {{{
-		js_open_process(
+		wasm_popen_last_pid = js_open_process(
 			cmd,
 			NULL,
 			0,
@@ -556,7 +559,6 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			0,
 			0
 		);
-		// }}}
 
 		efree(stdin);
 		efree(stdout);
@@ -572,6 +574,26 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 	}
 
 	return fp;
+}
+
+/**
+ * Close a FILE* created by wasm_popen and wait for the spawned process
+ * to exit. Returns the process exit code, or -1 on error.
+ */
+extern int js_waitpid(int pid, int *exitcode);
+
+EMSCRIPTEN_KEEPALIVE int wasm_pclose(FILE *fp)
+{
+	int pid = wasm_popen_last_pid;
+	fclose(fp);
+	if (pid < 0) {
+		return -1;
+	}
+	int wstatus = 0;
+	js_waitpid(pid, &wstatus);
+	wasm_pclose_ret = wstatus;
+	FG(pclose_ret) = wstatus;
+	return wstatus;
 }
 
 /**
