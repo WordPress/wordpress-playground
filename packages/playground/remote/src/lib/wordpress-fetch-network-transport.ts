@@ -219,10 +219,23 @@ export class WordPressFetchNetworkTransport {
 
 				add_filter('pre_http_request', function($pre, $r, $url) {
 					/**
-					 * Prevent self-loopback requests to avoid PHP workers being occupied by internal requests rather than user-initiated ones.
-					 * The most common cause is WordPress cron spawning loopback requests, though rare cases can include self-invoked REST API calls or dynamic asset rendering.
-					 * Plugins may schedule cron jobs aggressively i.e. in the past or for immediate execution, causing such loopback requests at this stage in the lifecycle.
-					 * To ensure user interactions are prioritized, we block loopback requests that could otherwise consume available PHP workers.		
+					 * Prevent self-loopback requests to avoid
+					 * PHP workers being occupied by internal
+					 * requests rather than user-initiated ones.
+					 *
+					 * The most common cause is WordPress cron
+					 * spawning loopback requests, though rare
+					 * cases can include self-invoked REST API
+					 * calls or dynamic asset rendering.
+					 *
+					 * Plugins may schedule cron jobs aggressively
+					 * i.e. in the past or for immediate execution,
+					 * causing such loopback requests at this
+					 * stage in the lifecycle.
+					 *
+					 * To ensure user interactions are prioritized,
+					 * we block loopback requests that could
+					 * otherwise consume available PHP workers.
 					 */
 					if ( _wppg_is_loopback_request( $url ) ) {
 						return new WP_Error(
