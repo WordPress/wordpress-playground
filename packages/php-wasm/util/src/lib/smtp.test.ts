@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	SmtpSink,
 	makeLoopbackPair,
-	parseEmail,
+	parseMessage,
 	type CaughtMessage,
 	type SmtpSinkOptions,
 } from './smtp';
@@ -76,7 +76,10 @@ async function ehlo(
 /* ================================================================== */
 
 describe('SmtpSink – happy path', () => {
-	it('captures an email and emits email-sent event', async () => {
+	it('captures an email through a full SMTP transaction', async () => {
+		// Walks the canonical SMTP transaction from RFC 5321 §3.3:
+		// 220 greeting → HELO → MAIL FROM → RCPT TO → DATA (354) →
+		// body terminated by ".<CRLF>" (250 queued) → QUIT (221).
 		const client = createClient();
 		const greeting = await client.read();
 		expect(greeting).toMatch(/^220 /);
@@ -88,11 +91,11 @@ describe('SmtpSink – happy path', () => {
 		expect(helo).toMatch(/^250 /);
 
 		// MAIL FROM
-		await client.write('MAIL FROM: <test@localhost>\r\n');
+		await client.write('MAIL FROM:<test@localhost>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 
 		// RCPT TO
-		await client.write('RCPT TO: <test2@localhost>\r\n');
+		await client.write('RCPT TO:<test2@localhost>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 
 		// DATA
@@ -126,6 +129,7 @@ describe('SmtpSink – happy path', () => {
 
 describe('SmtpSink – EHLO', () => {
 	it('advertises SIZE and PIPELINING', async () => {
+		// RFC 1870 §3 (SIZE) and RFC 2920 §3 (PIPELINING) ESMTP keywords.
 		const client = createClient();
 		await client.read();
 		const lines = await ehlo(client);
@@ -135,6 +139,9 @@ describe('SmtpSink – EHLO', () => {
 	});
 
 	it('advertises AUTH when mechs are configured', async () => {
+		// RFC 4954 §3: the AUTH EHLO keyword is advertised with a
+		// space-separated list of available SASL mechanism names as
+		// its parameter.
 		const client = createClient({
 			auth: { mechs: ['PLAIN', 'LOGIN'] },
 		});
@@ -144,14 +151,78 @@ describe('SmtpSink – EHLO', () => {
 		expect(joined).toMatch(/AUTH PLAIN LOGIN/);
 	});
 
-	it('advertises STARTTLS in advertise_454 mode', async () => {
-		const client = createClient({
-			tls: { mode: 'advertise_454' },
-		});
+	it('does not advertise STARTTLS', async () => {
+		// The sink runs over an in-process loopback duplex with
+		// nothing to encrypt, so STARTTLS is never offered. Clients
+		// that need TLS must be configured for plain SMTP.
+		const client = createClient();
 		await client.read();
 		const lines = await ehlo(client);
 		const joined = lines.join('\n');
-		expect(joined).toMatch(/STARTTLS/);
+		expect(joined).not.toMatch(/STARTTLS/);
+	});
+
+	it('HELO returns a single-line greeting with no extension lines', async () => {
+		// RFC 5321 §4.1.1.1: HELO is the legacy non-extended greeting,
+		// so it must NOT advertise ESMTP extensions.
+		const client = createClient({
+			auth: { mechs: ['PLAIN'] },
+		});
+		await client.read();
+		await client.write('HELO localhost\r\n');
+		const resp = await client.read();
+		expect(resp).toMatch(/^250 /);
+		expect(resp).not.toMatch(/^250-/m);
+		expect(resp).not.toMatch(/AUTH/);
+		expect(resp).not.toMatch(/SIZE/);
+		expect(resp).not.toMatch(/PIPELINING/);
+	});
+
+	it('rejects EHLO with no domain argument', async () => {
+		// RFC 5321 §4.1.1.1 ABNF:
+		//   ehlo = "EHLO" SP ( Domain / address-literal ) CRLF
+		// The Domain (or address-literal) is a required production,
+		// so a bare "EHLO\r\n" is a syntax error.
+		const client = createClient();
+		await client.read();
+		await client.write('EHLO\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
+	it('rejects HELO with no domain argument', async () => {
+		// RFC 5321 §4.1.1.1 ABNF:
+		//   helo = "HELO" SP Domain CRLF
+		// Domain is mandatory; a bare "HELO\r\n" is a syntax error.
+		const client = createClient();
+		await client.read();
+		await client.write('HELO\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
+	it('EHLO greeting line starts with the server domain, not free-form text', async () => {
+		// RFC 5321 §4.1.1.1 ABNF:
+		//   ehlo-ok-rsp = "250-" Domain [ SP ehlo-greet ] CRLF
+		//                 *( "250-" ehlo-line CRLF )
+		//                 "250" SP ehlo-line CRLF
+		// The first token after "250-" MUST be the server's Domain;
+		// any free-form `ehlo-greet` follows after a single SP.
+		const client = createClient();
+		await client.read();
+		await client.write('EHLO client.example.com\r\n');
+		const first = await client.read();
+		// The first reply line is "250-<Domain>[ SP ehlo-greet]".
+		// The greeter is "localhost", matching the 220 banner.
+		expect(first).toMatch(/^250-localhost(\s|\r\n)/);
+	});
+
+	it('HELO greeting line starts with the server domain', async () => {
+		// RFC 5321 §4.1.1.1 ABNF for HELO uses the same single-line
+		// `"250" SP Domain [ SP ehlo-greet ]` shape.
+		const client = createClient();
+		await client.read();
+		await client.write('HELO client.example.com\r\n');
+		const resp = await client.read();
+		expect(resp).toMatch(/^250 localhost(\s|\r\n)/);
 	});
 });
 
@@ -160,34 +231,17 @@ describe('SmtpSink – EHLO', () => {
 /* ================================================================== */
 
 describe('SmtpSink – STARTTLS', () => {
-	it('returns 454 in advertise_454 mode', async () => {
-		const client = createClient({
-			tls: { mode: 'advertise_454' },
-		});
-		await client.read();
-		await ehlo(client);
-		await client.write('STARTTLS\r\n');
-		const resp = await client.read();
-		expect(resp).toMatch(/^454 /);
-	});
-
-	it('returns 502 in reject_502 mode', async () => {
-		const client = createClient({
-			tls: { mode: 'reject_502' },
-		});
+	it('refuses STARTTLS with 502', async () => {
+		// RFC 5321 §4.2.4: an unimplemented command is answered with
+		// 502. The sink never advertises STARTTLS in EHLO, so a
+		// client that issues it anyway is treated as having sent an
+		// unrecognized command.
+		const client = createClient();
 		await client.read();
 		await ehlo(client);
 		await client.write('STARTTLS\r\n');
 		const resp = await client.read();
 		expect(resp).toMatch(/^502 /);
-	});
-
-	it('does not advertise STARTTLS in omit mode', async () => {
-		const client = createClient({ tls: { mode: 'omit' } });
-		await client.read();
-		const lines = await ehlo(client);
-		const joined = lines.join('\n');
-		expect(joined).not.toMatch(/STARTTLS/);
 	});
 });
 
@@ -197,6 +251,9 @@ describe('SmtpSink – STARTTLS', () => {
 
 describe('SmtpSink – AUTH PLAIN', () => {
 	it('accepts valid credentials inline', async () => {
+		// RFC 4954 §4 (initial-response form) + RFC 4616 §2 (PLAIN
+		// SASL message: [authzid] UTF8NUL authcid UTF8NUL passwd).
+		// Success returns 235.
 		const client = createClient({
 			auth: { mechs: ['PLAIN'] },
 		});
@@ -210,6 +267,9 @@ describe('SmtpSink – AUTH PLAIN', () => {
 	});
 
 	it('accepts valid credentials via challenge-response', async () => {
+		// RFC 4954 §4: when no initial response is supplied, the server
+		// issues "334 " with an empty challenge and the client follows
+		// up with the SASL response on its own line.
 		const client = createClient({
 			auth: { mechs: ['PLAIN'] },
 		});
@@ -225,6 +285,8 @@ describe('SmtpSink – AUTH PLAIN', () => {
 	});
 
 	it('rejects invalid credentials', async () => {
+		// RFC 4954 §6: bad credentials produce "535 5.7.8
+		// Authentication credentials invalid".
 		const client = createClient({
 			auth: {
 				mechs: ['PLAIN'],
@@ -241,6 +303,8 @@ describe('SmtpSink – AUTH PLAIN', () => {
 	});
 
 	it('allows cancellation with *', async () => {
+		// RFC 4954 §4: a single "*" sent in place of a SASL response
+		// cancels the AUTH exchange; the server returns 501.
 		const client = createClient({
 			auth: { mechs: ['PLAIN'] },
 		});
@@ -260,6 +324,10 @@ describe('SmtpSink – AUTH PLAIN', () => {
 
 describe('SmtpSink – AUTH LOGIN', () => {
 	it('completes multi-step LOGIN flow', async () => {
+		// LOGIN SASL is non-standard (draft-murchison-sasl-login) but
+		// universally deployed: server prompts with base64("Username:")
+		// then base64("Password:") via 334 challenges, then 235 on
+		// success per RFC 4954 §4.
 		const client = createClient({
 			auth: { mechs: ['LOGIN'] },
 		});
@@ -277,6 +345,10 @@ describe('SmtpSink – AUTH LOGIN', () => {
 	});
 
 	it('accepts initial-response as username', async () => {
+		// RFC 4954 §4: clients may bundle the first SASL response onto
+		// the AUTH command line. For LOGIN that response is the
+		// username, so the server skips straight to the password
+		// challenge.
 		const client = createClient({
 			auth: { mechs: ['LOGIN'] },
 		});
@@ -292,6 +364,7 @@ describe('SmtpSink – AUTH LOGIN', () => {
 	});
 
 	it('rejects invalid LOGIN credentials', async () => {
+		// RFC 4954 §6: failed authentication exchange returns 535.
 		const client = createClient({
 			auth: {
 				mechs: ['LOGIN'],
@@ -316,6 +389,8 @@ describe('SmtpSink – AUTH LOGIN', () => {
 
 describe('SmtpSink – AUTH edge cases', () => {
 	it('rejects AUTH with no mechanism', async () => {
+		// RFC 4954 §4: AUTH command requires a mechanism argument;
+		// the server replies 501 on syntax errors.
 		const client = createClient({
 			auth: { mechs: ['PLAIN'] },
 		});
@@ -327,6 +402,8 @@ describe('SmtpSink – AUTH edge cases', () => {
 	});
 
 	it('rejects already-authenticated client', async () => {
+		// RFC 4954 §4: after a successful AUTH, further AUTH commands
+		// in the same session must be rejected with 503.
 		const client = createClient({
 			auth: { mechs: ['PLAIN'] },
 		});
@@ -341,6 +418,8 @@ describe('SmtpSink – AUTH edge cases', () => {
 	});
 
 	it('rejects unrecognized auth mechanism', async () => {
+		// RFC 4954 §4: a SASL mechanism the server doesn't support
+		// produces "504 5.5.4 Unrecognized authentication type".
 		const client = createClient({
 			auth: { mechs: ['PLAIN'] },
 		});
@@ -351,29 +430,20 @@ describe('SmtpSink – AUTH edge cases', () => {
 		expect(resp).toMatch(/^504 /);
 	});
 
-	it('requires TLS before AUTH when requireTlsForAuth is set', async () => {
-		const client = createClient({
-			tls: { mode: 'advertise_454' },
-			auth: { mechs: ['PLAIN'], requireTlsForAuth: true },
-		});
-		await client.read();
-		await ehlo(client);
-		const creds = btoa('\0u\0p');
-		await client.write(`AUTH PLAIN ${creds}\r\n`);
-		const resp = await client.read();
-		expect(resp).toMatch(/^530 /);
-	});
-
 	it('rejects MAIL/RCPT when requireAuth and not authenticated', async () => {
+		// RFC 4954 §6: "530 5.7.0 Authentication required" SHOULD be
+		// returned by any command other than AUTH/EHLO/HELO/NOOP/RSET/
+		// QUIT when server policy requires authentication and the
+		// session is not yet authenticated.
 		const client = createClient({
 			auth: { mechs: ['PLAIN'], requireAuth: true },
 		});
 		await client.read();
 		await ehlo(client);
-		await client.write('MAIL FROM: <a@b.com>\r\n');
+		await client.write('MAIL FROM:<a@b.com>\r\n');
 		const mailResp = await client.read();
 		expect(mailResp).toMatch(/^530 /);
-		await client.write('RCPT TO: <c@d.com>\r\n');
+		await client.write('RCPT TO:<c@d.com>\r\n');
 		const rcptResp = await client.read();
 		expect(rcptResp).toMatch(/^530 /);
 	});
@@ -385,21 +455,103 @@ describe('SmtpSink – AUTH edge cases', () => {
 
 describe('SmtpSink – command edge cases', () => {
 	it('RSET clears the envelope', async () => {
+		// RFC 5321 §4.1.1.5: RSET aborts the current mail transaction
+		// and clears reverse-path / forward-paths / mail data buffers,
+		// then the server replies 250.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
-		await client.write('MAIL FROM: <a@b.com>\r\n');
+		await client.write('MAIL FROM:<a@b.com>\r\n');
 		await client.read();
 		await client.write('RSET\r\n');
 		const rsetResp = await client.read();
 		expect(rsetResp).toMatch(/^250 /);
 		// RCPT should now fail because envelope was reset
-		await client.write('RCPT TO: <c@d.com>\r\n');
+		await client.write('RCPT TO:<c@d.com>\r\n');
 		const rcptResp = await client.read();
 		expect(rcptResp).toMatch(/^503 /);
 	});
 
+	it('mid-session EHLO clears the envelope (RFC 5321 §4.1.4)', async () => {
+		// Regression: previously EHLO only set state='idle' without
+		// clearing buffers, leaking mailFrom/rcpts across sessions.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		await client.read();
+		await client.write('RCPT TO:<c@d.com>\r\n');
+		await client.read();
+		// New EHLO must reset everything
+		await ehlo(client);
+		// RCPT without a fresh MAIL must now 503
+		await client.write('RCPT TO:<e@f.com>\r\n');
+		expect(await client.read()).toMatch(/^503 /);
+		// And DATA must 503 too
+		await client.write('DATA\r\n');
+		expect(await client.read()).toMatch(/^503 /);
+	});
+
+	it('drops the connection with 500 when a command line exceeds 512 octets', async () => {
+		// RFC 5321 §4.5.3.1.4: "The maximum total length of a command
+		// line including the command word and the <CRLF> is 512
+		// octets." Outside of DATA mode the sink must refuse an
+		// un-terminated tail that has already exceeded that limit
+		// instead of growing lineBuf without bound.
+		const client = createClient();
+		await client.read();
+		// 600 bytes of garbage with no CRLF — comfortably over 512
+		// but under the 1000-octet text-line limit, proving the sink
+		// uses the *command* limit when not in DATA mode.
+		await client.write('A'.repeat(600));
+		const resp = await client.read();
+		expect(resp).toMatch(/^500 /);
+		// Subsequent reads should observe a closed stream.
+		await expect(client.read()).resolves.toBe('');
+	});
+
+	it('drops the connection with 500 when a DATA text line exceeds 1000 octets', async () => {
+		// RFC 5321 §4.5.3.1.6: "The maximum total length of a text
+		// line including the <CRLF> is 1000 octets." Inside DATA mode
+		// the sink applies the larger text-line limit; an
+		// un-terminated 1500-byte tail crosses it and must be
+		// refused.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<c@d.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('DATA\r\n');
+		expect(await client.read()).toMatch(/^354 /);
+		await client.write('Subject: Big\r\n\r\n');
+		// 1500 bytes of body with no CRLF — over the 1000-octet
+		// text-line limit.
+		await client.write('A'.repeat(1500));
+		const resp = await client.read();
+		expect(resp).toMatch(/^500 /);
+		await expect(client.read()).resolves.toBe('');
+	});
+
+	it('accepts a command line just under the 512-octet limit', async () => {
+		// RFC 5321 §4.5.3.1.4 caps command lines at 512 octets
+		// *including the CRLF*, so any compliant command can carry
+		// up to 510 octets of payload. NOOP accepts an arbitrary
+		// trailing string per §4.1.1.9, which gives us a clean way
+		// to test the upper bound without invoking another command's
+		// argument validation.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		// "NOOP " (5) + 505 chars + "\r\n" (2) = 512 octets total.
+		await client.write('NOOP ' + 'A'.repeat(505) + '\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+	});
+
 	it('NOOP returns 250', async () => {
+		// RFC 5321 §4.1.1.9: NOOP has no effect on parameters or
+		// previously entered commands and always succeeds with 250.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
@@ -408,6 +560,9 @@ describe('SmtpSink – command edge cases', () => {
 	});
 
 	it('VRFY returns 252', async () => {
+		// RFC 5321 §3.5.3 / §4.1.1.6: a server that does not verify
+		// addresses but is willing to accept the message answers VRFY
+		// with "252 Cannot VRFY user, but will accept message".
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
@@ -416,6 +571,8 @@ describe('SmtpSink – command edge cases', () => {
 	});
 
 	it('unknown command returns 500', async () => {
+		// RFC 5321 §4.2.4: an unrecognized command produces 500
+		// "Syntax error, command unrecognized".
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
@@ -426,6 +583,12 @@ describe('SmtpSink – command edge cases', () => {
 	it.each(['EXPN', 'HELP', 'TURN'])(
 		'recognized but unimplemented command %s returns 502',
 		async (cmd) => {
+			// RFC 5321 §4.2.4: a recognized but unimplemented command
+			// produces 502 "Command not implemented". EXPN and HELP
+			// are optional per §4.1.1.7 / §4.1.1.8; TURN is the
+			// historical RFC 821 reverse-direction command, listed
+			// among RFC 821 features deprecated in RFC 5321 Appendix
+			// F.1.
 			const client = createClient();
 			await client.read();
 			await ehlo(client);
@@ -435,33 +598,107 @@ describe('SmtpSink – command edge cases', () => {
 	);
 
 	it('rejects MAIL FROM with bad syntax', async () => {
+		// RFC 5321 §4.1.1.2: the MAIL command requires "FROM:" and a
+		// reverse-path; malformed input yields 501.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
-		await client.write('MAIL TO: <a@b.com>\r\n');
+		await client.write('MAIL TO:<a@b.com>\r\n');
 		const resp = await client.read();
 		expect(resp).toMatch(/^501 /);
 	});
 
 	it('rejects RCPT TO with bad syntax', async () => {
+		// RFC 5321 §4.1.1.3: the RCPT command requires "TO:" and a
+		// forward-path; malformed input yields 501.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
-		await client.write('RCPT FROM: <a@b.com>\r\n');
+		await client.write('RCPT FROM:<a@b.com>\r\n');
 		const resp = await client.read();
 		expect(resp).toMatch(/^501 /);
 	});
 
-	it('rejects RCPT before MAIL', async () => {
+	it('rejects MAIL FROM with a space after the colon', async () => {
+		// RFC 5321 §3.3: "spaces are not permitted on either side of
+		// the colon following FROM in the MAIL command or TO in the
+		// RCPT command. The syntax is exactly as given above." This
+		// is called out explicitly because it has been "a common
+		// source of errors".
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
-		await client.write('RCPT TO: <a@b.com>\r\n');
+		await client.write('MAIL FROM: <a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
+	it('rejects RCPT TO with a space after the colon', async () => {
+		// RFC 5321 §3.3: same no-space rule as MAIL FROM. The session
+		// must be in the mail state for the rejection to be a syntax
+		// error rather than a sequence error, so set up MAIL first.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO: <c@d.com>\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
+	it('rejects MAIL FROM without angle brackets', async () => {
+		// RFC 5321 §4.1.2 ABNF: Reverse-path is `Path / "<>"` and
+		// `Path = "<" [ A-d-l ":" ] Mailbox ">"`. The angle brackets
+		// are mandatory; a bare addr-spec is a syntax error.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:a@b.com\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
+	it('rejects RCPT TO without angle brackets', async () => {
+		// RFC 5321 §4.1.2: Forward-path uses the same `Path`
+		// production as Reverse-path, so the brackets are required
+		// here too.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:c@d.com\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
+	it('accepts MAIL FROM with trailing ESMTP parameters', async () => {
+		// RFC 5321 §4.1.1.2 ABNF:
+		//   mail = "MAIL FROM:" Reverse-path
+		//          [SP Mail-parameters] CRLF
+		// A single SP separates the closing `>` of the path from the
+		// optional ESMTP parameter list (e.g. RFC 1870 SIZE=N). The
+		// sink must accept the path and ignore the parameters.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com> SIZE=42\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+	});
+
+	it('rejects RCPT before MAIL', async () => {
+		// RFC 5321 §3.3 + §4.1.1.3: RCPT TO can only follow a MAIL
+		// FROM in the current transaction; otherwise the server
+		// answers 503 "Bad sequence of commands".
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('RCPT TO:<a@b.com>\r\n');
 		const resp = await client.read();
 		expect(resp).toMatch(/^503 /);
 	});
 
 	it('rejects DATA before MAIL/RCPT', async () => {
+		// RFC 5321 §3.3 + §4.1.1.4: DATA requires at least one
+		// successful RCPT (which itself requires a MAIL FROM); else
+		// the server answers 503 "Bad sequence of commands".
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
@@ -471,6 +708,9 @@ describe('SmtpSink – command edge cases', () => {
 	});
 
 	it('QUIT returns 221 and closes', async () => {
+		// RFC 5321 §4.1.1.10: the receiver MUST send "221 <domain>
+		// Service closing transmission channel" and then close the
+		// transmission channel.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
@@ -486,12 +726,16 @@ describe('SmtpSink – command edge cases', () => {
 
 describe('SmtpSink – data handling', () => {
 	it('handles dot-stuffing (lines starting with ..)', async () => {
+		// RFC 5321 §4.5.2 (transparency): a leading "." on a body line
+		// is doubled by the sender and stripped by the receiver so the
+		// end-of-data marker (a bare "." line) cannot be confused with
+		// content.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
-		await client.write('MAIL FROM: <a@b.com>\r\n');
+		await client.write('MAIL FROM:<a@b.com>\r\n');
 		await client.read();
-		await client.write('RCPT TO: <c@d.com>\r\n');
+		await client.write('RCPT TO:<c@d.com>\r\n');
 		await client.read();
 		await client.write('DATA\r\n');
 		await client.read();
@@ -511,12 +755,15 @@ describe('SmtpSink – data handling', () => {
 	});
 
 	it('rejects message exceeding maxSize', async () => {
+		// RFC 1870 §6.3: when the message exceeds the SIZE the server
+		// declared, the server returns "552 Message size exceeds fixed
+		// maximum message size" after the end-of-data marker.
 		const client = createClient({ maxSize: 100 });
 		await client.read();
 		await ehlo(client);
-		await client.write('MAIL FROM: <a@b.com>\r\n');
+		await client.write('MAIL FROM:<a@b.com>\r\n');
 		await client.read();
-		await client.write('RCPT TO: <c@d.com>\r\n');
+		await client.write('RCPT TO:<c@d.com>\r\n');
 		await client.read();
 		await client.write('DATA\r\n');
 		await client.read();
@@ -530,23 +777,95 @@ describe('SmtpSink – data handling', () => {
 		expect(client.messages).toHaveLength(0);
 	});
 
+	it('drains DATA after maxSize overflow and keeps session usable', async () => {
+		// Regression for the mid-stream desync that the previous
+		// periodic-check implementation could cause: it issued 552
+		// before end-of-data and flipped out of dataMode, so the
+		// remaining body lines were parsed as SMTP commands and the
+		// session was poisoned. RFC 1870 §6.3 requires the 552 to come
+		// *after* the end-of-data marker.
+		const client = createClient({ maxSize: 100 });
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		await client.read();
+		await client.write('RCPT TO:<c@d.com>\r\n');
+		await client.read();
+		await client.write('DATA\r\n');
+		await client.read();
+
+		// Far more than 128 lines so the old periodic check would fire
+		// mid-stream. Cumulative size crosses maxSize after the first
+		// handful of lines.
+		let body = 'Subject: Big\r\n\r\n';
+		for (let i = 0; i < 200; i++) body += `line${i}\r\n`;
+		body += '.\r\n';
+		await client.write(body);
+
+		expect(await client.read()).toMatch(/^552 /);
+		expect(client.messages).toHaveLength(0);
+
+		// Session must still be healthy for a fresh transaction. Under
+		// the buggy code, the next reads would return 500s left over
+		// from misparsed body lines instead of these replies.
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<c@d.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('DATA\r\n');
+		expect(await client.read()).toMatch(/^354 /);
+		await client.write('Subject: Small\r\n\r\nbody\r\n.\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+
+		expect(client.messages).toHaveLength(1);
+		expect(client.messages[0].subject).toBe('Small');
+	});
+
+	it('accepts the null reverse-path MAIL FROM:<> for bounce messages', async () => {
+		// RFC 5321 §4.5.5: bounce messages use a null reverse-path,
+		// `MAIL FROM:<>`. extractPath previously rejected `<>` and
+		// `mailFrom` was left in an undefined state that broke RCPT.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<postmaster@local>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('DATA\r\n');
+		expect(await client.read()).toMatch(/^354 /);
+		await client.write('Subject: Bounce\r\n\r\nDelivery failed.\r\n.\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		expect(client.messages).toHaveLength(1);
+		// Empty envelope-from is preserved (not the literal string "<>").
+		// The parsed `from` falls back to the envelope value when no
+		// From: header is present, so it should be empty here.
+		expect(client.messages[0].from).toBe('');
+	});
+
 	it('sends multiple emails in one session', async () => {
+		// RFC 5321 §3.3: a transaction starts with MAIL, accepts one
+		// or more RCPTs, and is committed by DATA followed by the
+		// end-of-data marker. A session may carry further transactions
+		// without re-issuing HELO/EHLO; the spec contemplates this
+		// when it lets a new MAIL command (or RSET) reset all state
+		// tables and buffers.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
 
-		await client.write('MAIL FROM: <s@test.com>\r\n');
+		await client.write('MAIL FROM:<s@test.com>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
-		await client.write('RCPT TO: <a@test.com>\r\n');
+		await client.write('RCPT TO:<a@test.com>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 		await client.write('DATA\r\n');
 		expect(await client.read()).toMatch(/^354 /);
 		await client.write('Subject: First\r\n\r\nBody 1\r\n.\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 
-		await client.write('MAIL FROM: <s@test.com>\r\n');
+		await client.write('MAIL FROM:<s@test.com>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
-		await client.write('RCPT TO: <b@test.com>\r\n');
+		await client.write('RCPT TO:<b@test.com>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 		await client.write('DATA\r\n');
 		expect(await client.read()).toMatch(/^354 /);
@@ -560,27 +879,52 @@ describe('SmtpSink – data handling', () => {
 });
 
 /* ================================================================== */
-/*  parseEmail – MIME parsing                                         */
+/*  parseMessage – MIME parsing                                         */
 /* ================================================================== */
 
-describe('parseEmail', () => {
+describe('parseMessage', () => {
 	it('parses a simple text/plain email', () => {
+		// RFC 5322 §2.1: a message is header fields followed by an
+		// empty line followed by the body. RFC 2045 §5 defaults the
+		// Content-Type to text/plain when no header is present.
 		const raw =
 			'Subject: Hello\r\n' +
 			'From: a@b.com\r\n' +
 			'To: c@d.com\r\n' +
 			'\r\n' +
 			'Body text here.\r\n';
-		const result = parseEmail(raw, 'fallback@x.com', ['fb@y.com']);
+		const result = parseMessage(raw, 'fallback@x.com', ['fb@y.com']);
 		expect(result.subject).toBe('Hello');
 		expect(result.from).toBe('a@b.com');
 		expect(result.to).toBe('c@d.com');
 		expect(result.text?.trim()).toBe('Body text here.');
 	});
 
+	it('preserves all recipients from a multi-recipient To header', () => {
+		// RFC 5322 §3.4: an address-list is a comma-separated sequence
+		// of mailbox / group productions, mixing "Display Name <addr>"
+		// and bare addr-spec forms.
+		const raw =
+			'From: sender@test.com\r\n' +
+			'To: Foo Bar <foo@test.com>, bare@test.com, ' +
+			'"Quoted Name" <quoted@test.com>\r\n' +
+			'Subject: Multi recipient\r\n' +
+			'\r\n' +
+			'Body.\r\n';
+		const result = parseMessage(raw, '', []);
+		expect(result.to).toContain('foo@test.com');
+		expect(result.to).toContain('bare@test.com');
+		expect(result.to).toContain('quoted@test.com');
+	});
+
 	it('uses fallback from/to when headers are missing', () => {
+		// RFC 5321 §2.3.1 (Mail Objects): a mail object has an
+		// envelope (MAIL FROM / RCPT TO) and a content with its own
+		// header section. When the header omits From:/To: we fall
+		// back to the envelope values supplied by the SMTP
+		// transaction.
 		const raw = 'Subject: No addrs\r\n\r\nBody.\r\n';
-		const result = parseEmail(raw, 'env@from.com', [
+		const result = parseMessage(raw, 'env@from.com', [
 			'env@to1.com',
 			'env@to2.com',
 		]);
@@ -589,39 +933,51 @@ describe('parseEmail', () => {
 	});
 
 	it('shows (no subject) when Subject header is missing', () => {
+		// RFC 5322 §3.6.5: Subject is an optional header field. No
+		// spec mandates a placeholder; "(no subject)" is the
+		// long-standing MUA convention.
 		const raw = 'From: a@b.com\r\n\r\nBody.\r\n';
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('(no subject)');
 	});
 
 	it('decodes RFC 2047 base64 encoded subject', () => {
+		// RFC 2047 §4.1: encoded-word with "B" encoding wraps base64
+		// of the byte sequence in the named charset.
 		// "Test" in base64
 		const encoded = '=?utf-8?B?VGVzdA==?=';
 		const raw = `Subject: ${encoded}\r\n\r\nBody.\r\n`;
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Test');
 	});
 
 	it('decodes RFC 2047 Q-encoded subject', () => {
+		// RFC 2047 §4.2: Q-encoding is a quoted-printable variant
+		// where "_" represents 0x20 (space) inside encoded-words.
 		// "Hello World" Q-encoded (underscore = space)
 		const encoded = '=?utf-8?Q?Hello_World?=';
 		const raw = `Subject: ${encoded}\r\n\r\nBody.\r\n`;
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Hello World');
 	});
 
 	it('decodes quoted-printable body', () => {
+		// RFC 2045 §6.7: quoted-printable encodes non-ASCII octets as
+		// "=XX" hex escapes; the receiver reverses the escape using
+		// the declared charset.
 		const raw =
 			'Subject: QP\r\n' +
 			'Content-Type: text/plain; charset=utf-8\r\n' +
 			'Content-Transfer-Encoding: quoted-printable\r\n' +
 			'\r\n' +
 			'Hello =C3=A9 world\r\n';
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.text).toContain('Hello é world');
 	});
 
 	it('decodes base64 body', () => {
+		// RFC 2045 §6.8: base64 encodes arbitrary octet streams in a
+		// 65-character ASCII subset for transport over 7-bit channels.
 		const raw =
 			'Subject: B64\r\n' +
 			'Content-Type: text/plain; charset=utf-8\r\n' +
@@ -629,11 +985,15 @@ describe('parseEmail', () => {
 			'\r\n' +
 			btoa('Decoded body content') +
 			'\r\n';
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.text?.trim()).toBe('Decoded body content');
 	});
 
 	it('extracts text/plain from multipart email', () => {
+		// RFC 2046 §5.1: multipart bodies are split by a "--boundary"
+		// delimiter and terminated by "--boundary--". multipart/
+		// alternative (§5.1.4) lets a sender supply the same content
+		// in several formats; receivers pick the best they can render.
 		const boundary = 'BOUNDARY123';
 		const raw =
 			`Subject: Multi\r\n` +
@@ -648,27 +1008,33 @@ describe('parseEmail', () => {
 			`\r\n` +
 			`<p>HTML part.</p>\r\n` +
 			`--${boundary}--\r\n`;
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Multi');
 		expect(result.text?.trim()).toBe('Plain text part.');
 	});
 
 	it('handles folded headers', () => {
+		// RFC 5322 §2.2.3: a long header field may be split onto
+		// multiple lines by inserting CRLF before any WSP. The
+		// receiver "unfolds" by removing the CRLF before the WSP.
 		const raw =
 			'Subject: This is a very long\r\n' +
 			' subject line that was folded\r\n' +
 			'From: a@b.com\r\n' +
 			'\r\n' +
 			'Body.\r\n';
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe(
 			'This is a very long subject line that was folded'
 		);
 	});
 
 	it('handles email with no body', () => {
+		// RFC 5322 §2.1: a body is OPTIONAL; if present it is
+		// separated from the headers by a single empty line. With no
+		// separator the body is empty.
 		const raw = 'Subject: Empty\r\nFrom: a@b.com\r\n';
-		const result = parseEmail(raw, '', []);
+		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Empty');
 		// No \r\n\r\n separator means bodyRaw is ''
 		expect(result.text).toBe('');
