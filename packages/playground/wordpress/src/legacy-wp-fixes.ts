@@ -1326,8 +1326,14 @@ async function patchWpLoginDisable1Password(php: PHP, documentRoot: string) {
  *
  * On old WordPress (< 3.5), the auth cookies set during auto-login
  * may not validate correctly for the admin area. This mu-plugin
- * re-generates auth cookies on every admin/login request, populating
- * $_COOKIE directly so that auth_redirect() finds valid cookies.
+ * ensures the user is logged in for admin/login requests.
+ *
+ * IMPORTANT: This must only create a new session when the user is
+ * NOT already authenticated. Creating a new session on every request
+ * (via wp_set_auth_cookie) would generate a new session token each
+ * time, breaking nonce verification — nonces embed the session token
+ * from the request that rendered the form, and verification fails
+ * when the token changes between form render and form submit.
  *
  * Written to wp-content/mu-plugins/ (real WP mu-plugins directory)
  * rather than /internal/shared/mu-plugins/ because the internal
@@ -1349,6 +1355,14 @@ function playground_legacy_admin_auth() {
 	if (strpos($_SERVER['REQUEST_URI'], 'wp-admin') === false &&
 	    strpos($_SERVER['REQUEST_URI'], 'wp-login') === false) return;
 
+	// If the user is already logged in via valid cookies, do nothing.
+	// Re-authenticating on every request creates a new session token
+	// (WP 4.0+), which invalidates nonces embedded in forms during
+	// the previous request.
+	if (function_exists('is_user_logged_in') && is_user_logged_in()) {
+		return;
+	}
+
 	$username = PLAYGROUND_AUTO_LOGIN_AS_USER;
 
 	// WP 2.5+ auth system: HMAC-based auth cookies.
@@ -1360,15 +1374,28 @@ function playground_legacy_admin_auth() {
 		if (!$user) return;
 
 		wp_set_current_user($user->ID, $user->user_login);
-		$expiration = time() + 172800;
-		if (defined('AUTH_COOKIE'))
-			$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'auth');
-		if (defined('SECURE_AUTH_COOKIE'))
-			$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'secure_auth');
-		if (defined('LOGGED_IN_COOKIE'))
-			$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'logged_in');
+
+		// Create a single session and set cookies via response
+		// headers. This must only happen once per session — not on
+		// every request — because each call generates a new session
+		// token, which would invalidate nonces.
 		if (!headers_sent()) {
 			wp_set_auth_cookie($user->ID);
+		}
+
+		// On WP < 4.0, wp_set_auth_cookie() does not update $_COOKIE
+		// in-process. auth_redirect() reads $_COOKIE to decide whether
+		// to redirect to wp-login.php, so we must populate it manually.
+		// Generate cookies with wp_generate_auth_cookie() — these have
+		// no session token (pre-4.0) and validate for auth_redirect().
+		if (!isset($_COOKIE[LOGGED_IN_COOKIE]) || empty($_COOKIE[LOGGED_IN_COOKIE])) {
+			$expiration = time() + 172800;
+			if (defined('AUTH_COOKIE'))
+				$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'auth');
+			if (defined('SECURE_AUTH_COOKIE'))
+				$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'secure_auth');
+			if (defined('LOGGED_IN_COOKIE'))
+				$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user->ID, $expiration, 'logged_in');
 		}
 		return;
 	}
@@ -1419,10 +1446,28 @@ async function patchAdminAuthRedirect(php: PHP, documentRoot: string) {
 
 	// For WP 2.5-2.7: modern auth with wp_generate_auth_cookie
 	// For WP < 2.5: legacy auth with USER_COOKIE/PASS_COOKIE
+	//
+	// This code only runs on WP < 2.8 (no mu-plugin support).
+	// Session tokens don't exist until WP 4.0, so generating
+	// cookies with wp_generate_auth_cookie() here is safe — there
+	// is no session token to mismatch. Nonces in WP < 4.0 only
+	// depend on user ID, action, and secret keys.
 	const authCode = `
 // Playground: populate auth cookies and force admin user before auth_redirect.
 if (defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) {
-	if (function_exists('wp_generate_auth_cookie')) {
+	// Skip if user is already logged in from the auto-login mu-plugin.
+	if (function_exists('is_user_logged_in') && is_user_logged_in()) {
+		// Still need $_COOKIE populated for auth_redirect().
+		// On old WP, wp_set_auth_cookie() does not update $_COOKIE.
+		if (function_exists('wp_generate_auth_cookie') && defined('LOGGED_IN_COOKIE') && empty($_COOKIE[LOGGED_IN_COOKIE])) {
+			$_pg_uid = get_current_user_id();
+			$_pg_exp = time() + 172800;
+			$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($_pg_uid, $_pg_exp, 'auth');
+			if (defined('SECURE_AUTH_COOKIE'))
+				$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($_pg_uid, $_pg_exp, 'secure_auth');
+			$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($_pg_uid, $_pg_exp, 'logged_in');
+		}
+	} elseif (function_exists('wp_generate_auth_cookie')) {
 		$_pg_user = function_exists('get_user_by')
 			? get_user_by('login', PLAYGROUND_AUTO_LOGIN_AS_USER)
 			: (function_exists('get_userdatabylogin')
