@@ -23,6 +23,134 @@ export * from './version-detect';
 export * from './rewrite-rules';
 
 /**
+ * Auto-login body for modern WordPress (2.5+).
+ *
+ * Uses the standard WP API: is_user_logged_in(), get_user_by(),
+ * wp_set_current_user(), wp_set_auth_cookie().
+ */
+const MODERN_AUTO_LOGIN_BODY = `
+			if ( is_user_logged_in() ) {
+				return;
+			}
+			$user = get_user_by('login', $user_name);
+			if (!$user) {
+				return;
+			}
+			if (headers_sent()) {
+				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
+				return;
+			}
+			wp_set_current_user( $user->ID, $user->user_login );
+			wp_set_auth_cookie( $user->ID );
+			do_action( 'wp_login', $user->user_login, $user );
+			setcookie('playground_auto_login_already_happened', '1');
+			if (headers_sent()) {
+				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
+				return;
+			}
+			$redirect_url = $_SERVER['REQUEST_URI'];
+			header( "Location: $redirect_url", true, 302 );
+			exit;
+`;
+
+/**
+ * Auto-login body for legacy WordPress (1.0-2.5).
+ *
+ * Handles three auth eras:
+ * - WP 2.5+: wp_set_current_user() + wp_set_auth_cookie() (HMAC cookies)
+ * - WP 1.5-2.4: USER_COOKIE/PASS_COOKIE constants + wp_setcookie()
+ * - WP 1.0-1.2: wordpressuser_/wordpresspass_ cookies + global vars
+ *
+ * Each era uses different cookie names and hashing. The code detects
+ * which API is available and uses the appropriate method.
+ */
+const LEGACY_AUTO_LOGIN_BODY = `
+			// WP 2.5+: modern auth API
+			if (function_exists('is_user_logged_in') && is_user_logged_in()) {
+				return;
+			}
+			if (headers_sent()) {
+				return;
+			}
+
+			// WP 2.5+: use the standard auth API
+			if (function_exists('wp_set_current_user') && function_exists('wp_set_auth_cookie')) {
+				$user = function_exists('get_user_by')
+					? get_user_by('login', $user_name)
+					: (function_exists('get_userdatabylogin')
+						? get_userdatabylogin($user_name) : null);
+				if (!$user) return;
+
+				wp_set_current_user($user->ID, $user->user_login);
+				wp_set_auth_cookie($user->ID);
+				if (function_exists('do_action')) {
+					do_action('wp_login', $user->user_login, $user);
+				}
+				setcookie('playground_auto_login_already_happened', '1');
+				if (!headers_sent()) {
+					header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
+					exit;
+				}
+				return;
+			}
+
+			// WP 1.5-2.4: USER_COOKIE/PASS_COOKIE with double-md5
+			if (defined('USER_COOKIE') && defined('PASS_COOKIE')) {
+				$_COOKIE[USER_COOKIE] = $user_name;
+				$_COOKIE[PASS_COOKIE] = md5(md5('password'));
+				if (function_exists('wp_setcookie') && !headers_sent()) {
+					wp_setcookie($user_name, 'password');
+				}
+				// Reset cached anonymous user so capability checks work
+				$GLOBALS['current_user'] = null;
+				if (function_exists('get_currentuserinfo')) {
+					get_currentuserinfo();
+				}
+				setcookie('playground_auto_login_already_happened', '1');
+				if (!headers_sent()) {
+					header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
+					exit;
+				}
+				return;
+			}
+
+			// WP 1.0-1.2: wordpressuser_/wordpresspass_ cookies
+			// and global user variables instead of WP_User objects.
+			$cookiehash = defined('COOKIEHASH')
+				? COOKIEHASH
+				: (isset($GLOBALS['cookiehash']) && $GLOBALS['cookiehash']
+					? $GLOBALS['cookiehash']
+					: (function_exists('get_settings')
+						? md5(get_settings('siteurl'))
+						: ''));
+			if ($cookiehash) {
+				$_COOKIE['wordpressuser_' . $cookiehash] = $user_name;
+				$_COOKIE['wordpresspass_' . $cookiehash] = md5(md5('password'));
+				// Populate global user variables that WP 1.0-1.2 uses
+				// instead of a WP_User object.
+				if (function_exists('get_userdatabylogin')) {
+					$userdata = get_userdatabylogin($user_name);
+					if ($userdata) {
+						$GLOBALS['user_login']    = $user_name;
+						$GLOBALS['userdata']      = $userdata;
+						$GLOBALS['user_level']    = isset($userdata->user_level) ? (int) $userdata->user_level : 10;
+						$GLOBALS['user_ID']       = $userdata->ID;
+						$GLOBALS['user_email']    = isset($userdata->user_email) ? $userdata->user_email : '';
+						$GLOBALS['user_url']      = isset($userdata->user_url) ? $userdata->user_url : '';
+						$GLOBALS['user_nickname'] = isset($userdata->user_nickname) ? $userdata->user_nickname : $user_name;
+						$GLOBALS['user_pass_md5'] = md5(isset($userdata->user_pass) ? $userdata->user_pass : '');
+					}
+				}
+				setcookie('playground_auto_login_already_happened', '1');
+				if (!headers_sent()) {
+					header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
+					exit;
+				}
+				return;
+			}
+`;
+
+/**
  * Preloads the platform mu-plugins from /internal/shared/mu-plugins.
  * This avoids polluting the WordPress installation with mu-plugins
  * that are only needed in the Playground environment.
@@ -94,10 +222,16 @@ function playground_add_action( $tag, $function_to_add, $priority = 10, $accepte
 	playground_add_filter( $tag, $function_to_add, $priority, $accepted_args );
 }
 
-// Load our mu-plugins after customer mu-plugins
+// Load our mu-plugins after customer mu-plugins.
 // NOTE: this means our mu-plugins can't use the muplugins_loaded action!
 playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
+// WP < 2.8 doesn't fire muplugins_loaded, so also hook into init
+// as a fallback. The $loaded flag ensures mu-plugins load only once.
+playground_add_action( 'init', 'playground_load_mu_plugins', -1000 );
 function playground_load_mu_plugins() {
+	static $loaded = false;
+	if ($loaded) return;
+	$loaded = true;
 	// Load all PHP files from /internal/shared/mu-plugins sorted by filename
 	$mu_plugins_dir = '/internal/shared/mu-plugins';
 	if(!is_dir($mu_plugins_dir)){
@@ -237,68 +371,7 @@ function playground_load_mu_plugins() {
 			if (${phpMajor < 7 ? "(function_exists('wp_doing_ajax') && wp_doing_ajax())" : 'wp_doing_ajax()'} || defined('REST_REQUEST')) {
 				return;
 			}
-			if ( is_user_logged_in() ) {
-				return;
-			}
-			$user = get_user_by('login', $user_name);
-			if (!$user) {
-				return;
-			}
-
-			/**
-			 * We're about to set cookies and redirect. It will log the user in
-			 * if the headers haven't been sent yet.
-			 *
-			 * However, if they have been sent already – e.g. there a PHP
-			 * notice was printed, we'll exit the script with a bunch of errors
-			 * on the screen and without the user being logged in. This
-			 * will happen on every page load and will effectively make Playground
-			 * unusable.
-			 *
-			 * Therefore, we just won't auto-login if headers have been sent. Maybe
-			 * we'll be able to finish the operation in one of the future requests
-			 * or maybe not, but at least we won't end up with a permanent white screen.
-			 */
-			if (headers_sent()) {
-				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
-				return;
-			}
-
-			/**
-			 * This approach is described in a comment on
-			 * https://developer.wordpress.org/reference/functions/wp_set_current_user/
-			 */
-			wp_set_current_user( $user->ID, $user->user_login );
-			wp_set_auth_cookie( $user->ID );
-			do_action( 'wp_login', $user->user_login, $user );
-
-			setcookie('playground_auto_login_already_happened', '1');
-
-			/**
-			 * Confirm that nothing in WordPress, plugins, or filters have finalized
-			 * the headers sending phase. See the comment above for more context.
-			 */
-			if (headers_sent()) {
-				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
-				return;
-			}
-
-			/**
-			 * Reload page to ensure the user is logged in correctly.
-			 * WordPress uses cookies to determine if the user is logged in,
-			 * so we need to reload the page to ensure the cookies are set.
-			 */
-			$redirect_url = $_SERVER['REQUEST_URI'];
-
-			/**
-			 * Intentionally do not use wp_redirect() here. It removes
-			 * %0A and %0D sequences from the URL, which we don't want.
-			 * There are valid use-cases for encoded newlines in the query string,
-			 * for example html-api-debugger accepts markup with newlines
-			 * encoded as %0A via the query string.
-			 */
-			header( "Location: $redirect_url", true, 302 );
-			exit;
+			${phpMajor < 7 ? LEGACY_AUTO_LOGIN_BODY : MODERN_AUTO_LOGIN_BODY}
 		}
 		/**
 		 * Autologin users from the wp-login.php page.
@@ -333,12 +406,24 @@ function playground_load_mu_plugins() {
 		 * Disable the Site Admin Email Verification Screen for any session started
 		 * via autologin.
 		 */
-		add_filter('admin_email_check_interval', function($interval) {
+		${
+			phpMajor < 7
+				? `if (function_exists('add_filter')) {
+			add_filter('admin_email_check_interval', 'playground_disable_admin_email_check');
+		}
+		function playground_disable_admin_email_check($interval) {
 			if(false === playground_get_username_for_auto_login()) {
 				return 0;
 			}
 			return $interval;
-		});
+		}`
+				: `add_filter('admin_email_check_interval', function($interval) {
+			if(false === playground_get_username_for_auto_login()) {
+				return 0;
+			}
+			return $interval;
+		});`
+		}
 		`
 	);
 
