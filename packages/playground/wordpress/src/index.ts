@@ -269,6 +269,28 @@ function playground_fix_sqlite_date_comparisons($query) {
 }
 playground_add_filter( 'query', 'playground_fix_sqlite_date_comparisons' );
 
+// WP < 2.2 doesn't natively override get_option('siteurl') /
+// get_option('home') with the WP_SITEURL / WP_HOME constants.
+// Modern WP (2.2+) checks these constants in get_option() and
+// returns the constant value, bypassing the DB. For WP 1.0-2.1,
+// we replicate this behavior via option_siteurl / option_home
+// filters so that admin navigation links use the correct
+// Playground scoped URL instead of whatever the DB stores.
+function playground_override_siteurl($value) {
+	if (defined('WP_SITEURL')) {
+		return WP_SITEURL;
+	}
+	return $value;
+}
+function playground_override_home($value) {
+	if (defined('WP_HOME')) {
+		return WP_HOME;
+	}
+	return $value;
+}
+playground_add_filter( 'option_siteurl', 'playground_override_siteurl' );
+playground_add_filter( 'option_home', 'playground_override_home' );
+
 // Load our mu-plugins after customer mu-plugins.
 // NOTE: this means our mu-plugins can't use the muplugins_loaded action!
 playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );

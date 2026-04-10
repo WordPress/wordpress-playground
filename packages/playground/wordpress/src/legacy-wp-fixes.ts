@@ -235,8 +235,10 @@ export async function runPostInstallLegacyFixups(php: PHP): Promise<void> {
 				if (!isset($wpdb) || !method_exists($wpdb, 'query')) { exit; }
 
 				// Fix siteurl/home to match the Playground's scoped URL.
-				// WP < 2.6 doesn't support WP_HOME/WP_SITEURL constants,
-				// so the DB values must contain the full scope path for
+				// WP < 2.2 doesn't natively override get_option('siteurl')
+				// with the WP_SITEURL constant (the preload env.php adds
+				// option_siteurl/option_home filters to handle that).
+				// The DB values must also contain the full scope path for
 				// parse_request() to correctly strip the home path from
 				// REQUEST_URI. Without this, the front page returns 404
 				// because the scope prefix remains in the request path
