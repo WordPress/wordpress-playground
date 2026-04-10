@@ -62,11 +62,11 @@ async function mountResources(php: PHP, mounts: Mount[]) {
 				mount.vfsPath,
 				createNodeFsMountHandler(mount.hostPath)
 			);
-		} catch {
-			output.stderr(
-				`\x1b[31m\x1b[1mError mounting path ${mount.hostPath} at ${mount.vfsPath}\x1b[0m\n`
+		} catch (error) {
+			throw new Error(
+				`Error mounting path ${mount.hostPath} at ${mount.vfsPath}`,
+				{ cause: error }
 			);
-			process.exit(1);
 		}
 	}
 }

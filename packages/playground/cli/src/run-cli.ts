@@ -736,15 +736,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					currentError = currentError.cause as Error;
 				} while (currentError instanceof Error);
 				console.error(
-					'\x1b[1m' +
-						messageChain.join(' caused by: ') +
-						'\x1b[0m'
+					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 				);
 			}
 		} else {
 			console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 		}
-		process.exit(1);
+		throw e;
 	}
 }
 
@@ -1675,7 +1673,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		},
 	}).catch((error) => {
 		cliOutput.printError(describeError(error));
-		process.exit(1);
+		throw error;
 	});
 
 	if (server && args.command === 'start' && !args.skipBrowser) {
@@ -1777,7 +1775,9 @@ function expandStartCommandArgs(
 			console.log(
 				`You may still remove the site's directory manually if you wish.`
 			);
-			process.exit(1);
+			throw new Error(
+				'This site is not managed by Playground CLI and cannot be reset.'
+			);
 		}
 	}
 

@@ -6,7 +6,9 @@ function runCLI() {
 	// Dynamic import avoids loading run-cli when we're about to respawn.
 	// Do not await — top-level await is not supported in all environments.
 	import('./run-cli').then(({ parseOptionsAndRunCLI }) => {
-		parseOptionsAndRunCLI(args);
+		parseOptionsAndRunCLI(args).catch(() => {
+			process.exit(1);
+		});
 	});
 }
 

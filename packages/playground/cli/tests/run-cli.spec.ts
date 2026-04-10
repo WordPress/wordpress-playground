@@ -339,10 +339,7 @@ describe.each(blueprintVersions)(
 
 			const mounts = [];
 			for (let i = 0; i < 5; i++) {
-				const hostSubDir = path.join(
-					hostTmpDir,
-					`migration-${i}`
-				);
+				const hostSubDir = path.join(hostTmpDir, `migration-${i}`);
 				mkdirSync(hostSubDir, { recursive: true });
 				const hostFilePath = path.join(
 					hostSubDir,
@@ -1808,17 +1805,6 @@ describe('other run-cli behaviors', () => {
 
 	describe('port in use', () => {
 		test('should error when explicit port is already in use', async () => {
-			const stdoutMessages: string[] = [];
-			const mockStdout = vi
-				.spyOn(process.stdout, 'write')
-				.mockImplementation((chunk) => {
-					stdoutMessages.push(String(chunk));
-					return true;
-				});
-			const mockExit = vi
-				.spyOn(process, 'exit')
-				.mockImplementation(() => undefined as never);
-
 			const port = 12345;
 			const blockingServer = http.createServer();
 			await new Promise<void>((resolve) => {
@@ -1826,17 +1812,13 @@ describe('other run-cli behaviors', () => {
 			});
 
 			try {
-				await runCLI({
-					command: 'server',
-					port,
-				});
-
-				expect(stdoutMessages.join('')).toContain(
-					`Error: listen EADDRINUSE: address already in use :::${port}`
-				);
+				await expect(
+					runCLI({
+						command: 'server',
+						port,
+					})
+				).rejects.toThrow(`EADDRINUSE`);
 			} finally {
-				mockExit.mockRestore();
-				mockStdout.mockRestore();
 				blockingServer.close();
 			}
 		});
