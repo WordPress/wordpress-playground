@@ -1462,11 +1462,16 @@ if (defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) {
 	} elseif (defined('USER_COOKIE') && defined('PASS_COOKIE')) {
 		$_COOKIE[USER_COOKIE] = PLAYGROUND_AUTO_LOGIN_AS_USER;
 		$_COOKIE[PASS_COOKIE] = md5(md5('password'));
-		if (function_exists('wp_set_current_user') && function_exists('get_userdatabylogin')) {
-			$_pg_old_user = get_userdatabylogin(PLAYGROUND_AUTO_LOGIN_AS_USER);
-			if ($_pg_old_user && isset($_pg_old_user->ID)) {
-				wp_set_current_user($_pg_old_user->ID, $_pg_old_user->user_login);
-			}
+		// Reset $current_user so get_currentuserinfo() re-evaluates
+		// with the cookies we just set. On WP 2.0-2.4, kses_init()
+		// fires during do_action('init') inside wp-settings.php and
+		// calls get_currentuserinfo() when no cookies exist yet,
+		// caching $current_user as WP_User(0). Without this reset,
+		// the cached anonymous user persists and all capability
+		// checks fail.
+		$GLOBALS['current_user'] = null;
+		if (function_exists('get_currentuserinfo')) {
+			get_currentuserinfo();
 		}
 	} elseif (defined('COOKIEHASH')) {
 		// WP 1.5-1.x: hardcoded cookie names without constants.
