@@ -235,11 +235,48 @@ foreach (glob('/internal/shared/preload/*.php') as $file) {
 		'/internal/shared/preload/env.php',
 		phpMajor < 7
 			? `<?php
+// Detect the WordPress hook format from the WP version on disk.
+// WP 1.0: flat array of function name strings (no priorities).
+// WP 1.2: $wp_filter[$tag][$priority][] = 'func_name'.
+// WP 1.5+: $wp_filter[$tag][$priority][] = array('function'=>...,'accepted_args'=>N).
+// Returns 'wp10', 'wp12', or 'wp15'.
+function _playground_detect_wp_hook_format() {
+	static $format = null;
+	if ($format !== null) return $format;
+	$doc_root = isset($_SERVER['DOCUMENT_ROOT'])
+		? $_SERVER['DOCUMENT_ROOT'] : '/wordpress';
+	$version_path = $doc_root . '/wp-includes/version.php';
+	$wp_version = '1.0';
+	if (file_exists($version_path)) {
+		include $version_path;
+	}
+	if (version_compare($wp_version, '1.5', '>=')) {
+		$format = 'wp15';
+	} elseif (version_compare($wp_version, '1.2', '>=')) {
+		$format = 'wp12';
+	} else {
+		$format = 'wp10';
+	}
+	return $format;
+}
+
 // Allow adding filters/actions prior to loading WordPress.
 // $function_to_add MUST be a string.
+// Stores the callback in the $wp_filter format that the target
+// WordPress version's apply_filters() expects.
 function playground_add_filter( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
 	global $wp_filter;
-	$wp_filter[$tag][$priority][$function_to_add] = array('function' => $function_to_add, 'accepted_args' => $accepted_args);
+	$fmt = _playground_detect_wp_hook_format();
+	if ($fmt === 'wp10') {
+		$wp_filter[$tag][] = $function_to_add;
+	} elseif ($fmt === 'wp12') {
+		$wp_filter[$tag][$priority][] = $function_to_add;
+	} else {
+		$wp_filter[$tag][$priority][$function_to_add] = array(
+			'function' => $function_to_add,
+			'accepted_args' => $accepted_args
+		);
+	}
 }
 function playground_add_action( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
 	playground_add_filter( $tag, $function_to_add, $priority, $accepted_args );
