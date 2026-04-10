@@ -491,7 +491,7 @@ function playground_load_mu_plugins() {
 		/**
 		 * Flush rewrite rules on the first real WordPress request.
 		 *
-		 * During boot, we set permalink_structure via update_option()
+		 * During boot, we set permalink_structure in the database
 		 * but can't flush rewrite rules at that point because WordPress
 		 * isn't fully bootstrapped — post types and taxonomies haven't
 		 * been registered yet, so the generated rules are incomplete.

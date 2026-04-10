@@ -767,21 +767,37 @@ async function installWordPress(php: PHP, phpMajor = 8) {
 	}
 
 	if (phpMajor < 7) {
-		// Legacy PHP: pretty permalinks may fail on old WordPress
-		// where update_option doesn't exist or PHP crashes.
+		// Legacy PHP: set permalink_structure via PDO instead of
+		// update_option(). On WP < 4.8.3, wpdb::prepare() passes
+		// the value through vsprintf() without escaping '%'
+		// characters first (the placeholder_escape mechanism was
+		// added in 4.8.3). The '%y', '%m', '%d', '%p' sequences
+		// in the permalink pattern are interpreted as sprintf
+		// format specifiers, mangling the stored value.
+		// Using PDO bypasses wpdb entirely.
 		try {
 			const result = await php.run({
 				code: `<?php
-					ob_start();
-					$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-					if (!file_exists($wp_load)) { echo '0'; exit; }
-					require $wp_load;
-					ob_clean();
-					if (!function_exists('update_option')) { echo '0'; exit; }
+					$db_dir = getenv('DOCUMENT_ROOT') . '/wp-content/database/';
+					$db_path = $db_dir . '.ht.sqlite';
+					if (!file_exists($db_path)) { echo '0'; exit; }
+					$pdo = new PDO('sqlite:' . $db_path);
+					$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 					$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
-					update_option('permalink_structure', $nice_permalinks);
-					echo get_option('permalink_structure') === $nice_permalinks ? '1' : '0';
-					ob_end_flush();
+					$stmt = $pdo->prepare(
+						"UPDATE wp_options SET option_value = :val WHERE option_name = 'permalink_structure'"
+					);
+					$stmt->execute(array(':val' => $nice_permalinks));
+					if ($stmt->rowCount() === 0) {
+						$stmt = $pdo->prepare(
+							"INSERT INTO wp_options (option_name, option_value, autoload) VALUES ('permalink_structure', :val, 'yes')"
+						);
+						$stmt->execute(array(':val' => $nice_permalinks));
+					}
+					$check = $pdo->query(
+						"SELECT option_value FROM wp_options WHERE option_name = 'permalink_structure'"
+					)->fetchColumn();
+					echo $check === $nice_permalinks ? '1' : '0';
 				`,
 				env: { DOCUMENT_ROOT: php.documentRoot },
 			});
