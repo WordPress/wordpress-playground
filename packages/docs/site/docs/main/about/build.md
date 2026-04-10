@@ -9,7 +9,7 @@ sidebar_class_name: navbar-build-item
 
 WordPress Playground can help you to create and learn WordPress quickly, even on mobile with no signal. You can use Playground where you work best, whether that’s in the browser, Node.js, mobile apps, VS Code, or elsewhere.
 
-## Setting up a local WordPress environment quickly 
+## Setting up a local WordPress environment quickly
 
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 
@@ -24,17 +24,17 @@ With this workflow, you could build a block theme completely in your browser and
 <p></p>
 Some more examples of this workflow:
 
--   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 
-![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
+![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 
--   An empty directory – to save this Playground and start syncing
--   An existing directory – to load it here and start syncing
+- An empty directory – to save this Playground and start syncing
+- An existing directory – to load it here and start syncing
 
 :::info
 
@@ -44,8 +44,8 @@ This feature is only available for Google Chrome for now. It won't work with oth
 
 Regarding changes done on both sides of the connection:
 
--   Files changed in the Playground will be synchronized to your computer.
--   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
+- Files changed in the Playground will be synchronized to your computer.
+- Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
 
 With this workflow, you can create GitHub PRs directly from your changes made in your local directory.
 

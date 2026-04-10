@@ -170,7 +170,7 @@ The language switcher is a dropdown menu that allows users to select their prefe
 
 ভাষা সুইচার হলো একটি ড্রপডাউন মেনু যা ইউজারদের তাদের পছন্দের ভাষা সিলেক্ট করতে দেয়।
 
-![Documentation Language Switcher](@site/static/img/contributing/language-switcher-docs.webp)
+![Documentation Language Switcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 
 <!--
 ### Making a language publicly available on the Language Switcher
@@ -475,7 +475,7 @@ This guide will show you how to both update an existing translation and add a br
 -->
 
 2.  **এডিটর ওপেন করুন।** আপনি যে ফাইল এডিট করতে চান সেটি সিলেক্ট করুন এবং উপরের ডান কোণে পেন্সিল আইকনে (**Edit this file**) ক্লিক করুন।
-    ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
+    ![Editing existing translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 
 <!--
 3.  **Fork the repository.** GitHub will automatically prompt you to **Fork this repository**. This creates a personal copy for you to edit safely. Click the button to proceed.
@@ -525,7 +525,7 @@ This guide will show you how to both update an existing translation and add a br
 -->
 
 2.  **নতুন ফাইল তৈরি করুন।** সঠিক ভাষা ফোল্ডারে নেভিগেট করুন (যেমন, `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`)। ক্লিক করুন **Add file** > **Create new file**।
-    ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
+    ![Creating a new translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
 
 <!--
     -   **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
@@ -554,7 +554,7 @@ This guide will show you how to both update an existing translation and add a br
     Ceci est le contenu traduit en français.
     ```
 
-    ![GitHub UI Editor](@site/static/img/contributing/editor-github-ui.webp)
+    ![GitHub UI Editor](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 <!--
 5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.

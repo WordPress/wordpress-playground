@@ -10,7 +10,7 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 
 ## Review Common gotchas
 
--   Require `wp-load`: to run a WordPress PHP function using the `runPHP` step, you’d need to require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php). So, the value of the `code` key should start with `"<?php require_once('wordpress/wp-load.php'); REST_OF_YOUR_CODE"`.
+- Require `wp-load`: to run a WordPress PHP function using the `runPHP` step, you’d need to require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php). So, the value of the `code` key should start with `"<?php require_once('wordpress/wp-load.php'); REST_OF_YOUR_CODE"`.
 
 ## Common Issues and Solutions
 
@@ -24,7 +24,7 @@ To resolve this, you need to explicitly install and configure the SQLite databas
 
 ```json
 {
-	"plugins": [ "sqlite-database-integration" ]
+	"plugins": ["sqlite-database-integration"]
 }
 ```
 
@@ -91,7 +91,7 @@ The developer tools window allows you to inspect network requests, view console 
 
 You can `error_log` your own error messages through [`runPHP` step](/blueprints/steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](/web-instance#playground-options-menu) or from the browser's console.
 
-![Log errors snapshot](@site/static/img/blueprints/log-errors.webp)
+![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
 :::info
 When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
@@ -101,7 +101,7 @@ When you download your Playground instance as a `zip` through the ["Download as 
 
 The community is here to help! If you have questions or comments, [open a new issue](https://github.com/adamziel/blueprints/issues) in this repository. Remember to include the following details:
 
--   The Blueprint you’re trying to run.
--   The error message you’re seeing, if any.
--   The full output from the browser developer tools.
--   Any other relevant information that might help us understand the issue: OS, browser version, etc.
+- The Blueprint you’re trying to run.
+- The error message you’re seeing, if any.
+- The full output from the browser developer tools.
+- Any other relevant information that might help us understand the issue: OS, browser version, etc.

@@ -17,6 +17,13 @@ export interface XdebugOptions {
 }
 
 export const DEFAULT_IDE_KEY = 'PHPWASMCLI';
+export const DEFAULT_PATH_SKIPPINGS = [
+	'/dev/',
+	'/home/',
+	'/internal/',
+	'/request/',
+	'/proc/',
+];
 
 /**
  * Create a symlink to a tempory directory.
@@ -117,21 +124,22 @@ export type IDEConfig = {
 	 */
 	mounts?: Mount[];
 	/**
+	 * The paths to skip when debugging.
+	 */
+	pathSkippings?: string[];
+	/**
 	 * The IDE key to use for the debug configuration. Defaults to 'PHPWASMCLI'.
 	 */
 	ideKey?: string;
 };
 
-type PhpStormConfigMetaData = {
+type PhpStormWorkspaceConfigMetaData = {
 	name?: string;
 	version?: string;
 	host?: string;
 	use_path_mappings?: string;
 	'local-root'?: string;
 	'remote-root'?: string;
-	/**
-	 * The type of the server.
-	 */
 	type?: 'PhpRemoteDebugRunConfigurationType';
 	factoryName?: string;
 	filter_connections?: 'FILTER';
@@ -140,16 +148,30 @@ type PhpStormConfigMetaData = {
 	v?: string;
 };
 
-type PhpStormConfigNode = {
-	':@'?: PhpStormConfigMetaData;
-	project?: PhpStormConfigNode[];
-	component?: PhpStormConfigNode[];
-	servers?: PhpStormConfigNode[];
-	server?: PhpStormConfigNode[];
-	path_mappings?: PhpStormConfigNode[];
-	mapping?: PhpStormConfigNode[];
-	configuration?: PhpStormConfigNode[];
-	method?: PhpStormConfigNode[];
+type PhpStormWorkspaceConfigNode = {
+	':@'?: PhpStormWorkspaceConfigMetaData;
+	project?: PhpStormWorkspaceConfigNode[];
+	component?: PhpStormWorkspaceConfigNode[];
+	servers?: PhpStormWorkspaceConfigNode[];
+	server?: PhpStormWorkspaceConfigNode[];
+	path_mappings?: PhpStormWorkspaceConfigNode[];
+	mapping?: PhpStormWorkspaceConfigNode[];
+	configuration?: PhpStormWorkspaceConfigNode[];
+	method?: PhpStormWorkspaceConfigNode[];
+};
+
+type PhpStormPHPConfigMetaData = {
+	name?: string;
+	version?: string;
+	file?: string;
+};
+
+type PhpStormPHPConfigNode = {
+	':@'?: PhpStormPHPConfigMetaData;
+	project?: PhpStormPHPConfigNode[];
+	component?: PhpStormPHPConfigNode[];
+	skipped_files?: PhpStormPHPConfigNode[];
+	skipped_file?: PhpStormPHPConfigNode[];
 };
 
 type VSCodeConfigMetaData = {
@@ -162,6 +184,7 @@ type VSCodeConfigNode = {
 	request: string;
 	port: number;
 	pathMappings?: VSCodeConfigMetaData;
+	skipFiles?: string[];
 };
 
 const xmlParserOptions: X2jOptions = {
@@ -189,12 +212,12 @@ const jsoncParseOptions: JSONC.ParseOptions = {
 	allowTrailingComma: true,
 };
 
-export type PhpStormConfigOptions = {
+export type PhpStormWorkspaceConfigOptions = {
 	name: string;
 	host: string;
 	port: number;
 	projectDir: string;
-	mappings?: Mount[];
+	pathMappings?: Mount[];
 	ideKey: string;
 };
 
@@ -206,16 +229,16 @@ export type PhpStormConfigOptions = {
  * @returns Updated XML content
  * @throws Error if XML is invalid or configuration is incompatible
  */
-export function updatePhpStormConfig(
+export function updatePhpStormWorkspaceConfig(
 	xmlContent: string,
-	options: PhpStormConfigOptions
+	options: PhpStormWorkspaceConfigOptions
 ): string {
-	const { name, host, port, mappings, ideKey } = options;
+	const { name, host, port, pathMappings, ideKey } = options;
 
 	const xmlParser = new XMLParser(xmlParserOptions);
 
 	// Parse the XML
-	const config: PhpStormConfigNode[] = (() => {
+	const config: PhpStormWorkspaceConfigNode[] = (() => {
 		try {
 			return xmlParser.parse(xmlContent, true);
 		} catch {
@@ -224,7 +247,7 @@ export function updatePhpStormConfig(
 	})();
 
 	// Create the server element with path mappings
-	const serverElement: PhpStormConfigNode = {
+	const serverElement: PhpStormWorkspaceConfigNode = {
 		server: [{}],
 		':@': {
 			name,
@@ -236,20 +259,24 @@ export function updatePhpStormConfig(
 		},
 	};
 
-	if (mappings && mappings.length) {
-		serverElement.server![0].path_mappings = mappings.map((mapping) => ({
-			mapping: [],
-			':@': {
-				'local-root': `$PROJECT_DIR$/${toPosixPath(
-					path.relative(options.projectDir, mapping.hostPath)
-				)}`,
-				'remote-root': mapping.vfsPath,
-			},
-		}));
+	if (pathMappings && pathMappings.length) {
+		serverElement.server![0].path_mappings = pathMappings.map(
+			(pathMapping) => ({
+				mapping: [],
+				':@': {
+					'local-root': `$PROJECT_DIR$/${toPosixPath(
+						path.relative(options.projectDir, pathMapping.hostPath)
+					)}`,
+					'remote-root': pathMapping.vfsPath,
+				},
+			})
+		);
 	}
 
 	// Find or create project element
-	let projectElement = config?.find((c: PhpStormConfigNode) => !!c?.project);
+	let projectElement = config?.find(
+		(c: PhpStormWorkspaceConfigNode) => !!c?.project
+	);
 	if (projectElement) {
 		const projectVersion = projectElement[':@']?.version;
 		if (projectVersion === undefined) {
@@ -274,7 +301,7 @@ export function updatePhpStormConfig(
 
 	// Find or create PhpServers component
 	let componentElement = projectElement.project?.find(
-		(c: PhpStormConfigNode) =>
+		(c: PhpStormWorkspaceConfigNode) =>
 			!!c?.component && c?.[':@']?.name === 'PhpServers'
 	);
 	if (componentElement === undefined) {
@@ -292,7 +319,7 @@ export function updatePhpStormConfig(
 
 	// Find or create servers element
 	let serversElement = componentElement.component?.find(
-		(c: PhpStormConfigNode) => !!c?.servers
+		(c: PhpStormWorkspaceConfigNode) => !!c?.servers
 	);
 	if (serversElement === undefined) {
 		serversElement = { servers: [] };
@@ -306,7 +333,8 @@ export function updatePhpStormConfig(
 
 	// Check if server already exists
 	const serverElementIndex = serversElement.servers?.findIndex(
-		(c: PhpStormConfigNode) => !!c?.server && c?.[':@']?.name === name
+		(c: PhpStormWorkspaceConfigNode) =>
+			!!c?.server && c?.[':@']?.name === name
 	);
 
 	// Only add server if it doesn't exist
@@ -320,7 +348,7 @@ export function updatePhpStormConfig(
 
 	// Find or create RunManager component
 	let runManagerElement = projectElement.project?.find(
-		(c: PhpStormConfigNode) =>
+		(c: PhpStormWorkspaceConfigNode) =>
 			!!c?.component && c?.[':@']?.name === 'RunManager'
 	);
 	if (runManagerElement === undefined) {
@@ -339,13 +367,13 @@ export function updatePhpStormConfig(
 	// Check if run configuration already exists
 	const existingConfigIndex =
 		runManagerElement.component?.findIndex(
-			(c: PhpStormConfigNode) =>
+			(c: PhpStormWorkspaceConfigNode) =>
 				!!c?.configuration && c?.[':@']?.name === name
 		) ?? -1;
 
 	// Only add run configuration if it doesn't exist
 	if (existingConfigIndex < 0) {
-		const runConfigElement: PhpStormConfigNode = {
+		const runConfigElement: PhpStormWorkspaceConfigNode = {
 			configuration: [
 				{
 					method: [],
@@ -385,10 +413,146 @@ export function updatePhpStormConfig(
 	return xml;
 }
 
+export type PhpStormPHPConfigOptions = {
+	pathSkippings?: string[];
+};
+
+/**
+ * Pure function to update PhpStorm php.xml config with skipped files.
+ *
+ * @param xmlContent The original XML content of php.xml
+ * @param options Configuration options for skipped files
+ * @returns Updated XML content
+ * @throws Error if XML is invalid or configuration is incompatible
+ */
+export function updatePhpStormPHPConfig(
+	xmlContent: string,
+	options: PhpStormPHPConfigOptions
+): string {
+	const { pathSkippings } = options;
+
+	const xmlParser = new XMLParser(xmlParserOptions);
+
+	const config: PhpStormPHPConfigNode[] = (() => {
+		try {
+			return xmlParser.parse(xmlContent, true);
+		} catch {
+			throw new Error(
+				'PhpStorm PHP configuration file is not valid XML.'
+			);
+		}
+	})();
+
+	// Find or create project element
+	let projectElement = config?.find(
+		(c: PhpStormPHPConfigNode) => !!c?.project
+	);
+	if (projectElement) {
+		const projectVersion = projectElement[':@']?.version;
+		if (projectVersion === undefined) {
+			throw new Error(
+				'PhpStorm IDE integration only supports ' +
+					'<project version="4"> in php.xml, ' +
+					'but the <project> configuration has no version number.'
+			);
+		} else if (projectVersion !== '4') {
+			throw new Error(
+				'PhpStorm IDE integration only supports ' +
+					'<project version="4"> in php.xml, ' +
+					`but we found a <project> configuration ` +
+					`with version "${projectVersion}".`
+			);
+		}
+	}
+	if (projectElement === undefined) {
+		projectElement = {
+			project: [],
+			':@': { version: '4' },
+		};
+		config.push(projectElement);
+	}
+
+	// Find or create PhpStepFilterConfiguration component
+	let componentElement = projectElement.project?.find(
+		(c: PhpStormPHPConfigNode) =>
+			!!c?.component && c?.[':@']?.name === 'PhpStepFilterConfiguration'
+	);
+	if (componentElement === undefined) {
+		componentElement = {
+			component: [],
+			':@': { name: 'PhpStepFilterConfiguration' },
+		};
+
+		if (projectElement.project === undefined) {
+			projectElement.project = [];
+		}
+
+		projectElement.project.push(componentElement);
+	}
+
+	// Find or create skipped_files element
+	let skippedFilesElement = componentElement.component?.find(
+		(c: PhpStormPHPConfigNode) => !!c?.skipped_files
+	);
+	if (skippedFilesElement === undefined) {
+		skippedFilesElement = { skipped_files: [] };
+
+		if (componentElement.component === undefined) {
+			componentElement.component = [];
+		}
+
+		componentElement.component.push(skippedFilesElement);
+	}
+
+	// Add skipped files
+	if (pathSkippings && pathSkippings.length) {
+		for (const skippedPath of pathSkippings) {
+			const normalizedPath = skippedPath.endsWith('/')
+				? skippedPath.slice(0, -1)
+				: skippedPath;
+			const filePath = `$PROJECT_DIR$${normalizedPath}`;
+
+			// Check if already exists
+			const exists = skippedFilesElement.skipped_files?.some(
+				(c: PhpStormPHPConfigNode) =>
+					!!c?.skipped_file && c?.[':@']?.file === filePath
+			);
+
+			if (!exists) {
+				if (skippedFilesElement.skipped_files === undefined) {
+					skippedFilesElement.skipped_files = [];
+				}
+
+				skippedFilesElement.skipped_files.push({
+					skipped_file: [],
+					':@': { file: filePath },
+				});
+			}
+		}
+	}
+
+	// Build the updated XML
+	const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+	const xml = xmlBuilder.build(config);
+
+	// Validate the generated XML
+	try {
+		xmlParser.parse(xml, true);
+	} catch {
+		throw new Error(
+			'The resulting PhpStorm PHP configuration file ' +
+				'is not valid XML.'
+		);
+	}
+
+	return xml;
+}
+
 export type VSCodeConfigOptions = {
 	name: string;
 	workspaceDir: string;
-	mappings?: Mount[];
+	pathMappings?: Mount[];
+	pathSkippings?: string[];
 };
 
 /**
@@ -403,7 +567,7 @@ export function updateVSCodeConfig(
 	jsonContent: string,
 	options: VSCodeConfigOptions
 ): string {
-	const { name, mappings } = options;
+	const { name, pathMappings, pathSkippings } = options;
 
 	const errors: JSONC.ParseError[] = [];
 
@@ -445,13 +609,19 @@ export function updateVSCodeConfig(
 			port: 9003,
 		};
 
-		if (mappings && mappings.length) {
-			configuration.pathMappings = mappings.reduce((acc, mount) => {
+		if (pathMappings && pathMappings.length) {
+			configuration.pathMappings = pathMappings.reduce((acc, mount) => {
 				acc[mount.vfsPath] = `\${workspaceFolder}/${toPosixPath(
 					path.relative(options.workspaceDir, mount.hostPath)
 				)}`;
 				return acc;
 			}, {} as VSCodeConfigMetaData);
+		}
+
+		if (pathSkippings && pathSkippings.length) {
+			configuration.skipFiles = pathSkippings.map((skippedPath) =>
+				skippedPath.endsWith('/') ? `${skippedPath}**` : skippedPath
+			);
 		}
 
 		// Get the current length to append at the end
@@ -489,9 +659,10 @@ export async function addXdebugIDEConfig({
 	port,
 	cwd,
 	mounts,
+	pathSkippings,
 	ideKey = DEFAULT_IDE_KEY,
 }: IDEConfig) {
-	const mappings = mounts ? filterLocalMounts(cwd, mounts) : [];
+	const pathMappings = mounts ? filterLocalMounts(cwd, mounts) : [];
 	const modifiedConfig: Record<string, string> = {};
 
 	// PHPstorm
@@ -519,16 +690,47 @@ export async function addXdebugIDEConfig({
 
 		if (fs.existsSync(phpStormConfigFilePath)) {
 			const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
-			const updatedXml = updatePhpStormConfig(contents, {
+			const updatedXml = updatePhpStormWorkspaceConfig(contents, {
 				name,
 				host,
 				port,
 				projectDir: cwd,
-				mappings,
+				pathMappings,
 				ideKey,
 			});
 			fs.writeFileSync(phpStormConfigFilePath, updatedXml);
 			modifiedConfig['phpstorm'] = phpStormRelativeConfigFilePath;
+		}
+
+		// PhpStorm php.xml (path skippings)
+		if (pathSkippings && pathSkippings.length) {
+			const phpStormRelativePHPConfigFilePath = '.idea/php.xml';
+			const phpStormPHPConfigFilePath = path.join(
+				cwd,
+				phpStormRelativePHPConfigFilePath
+			);
+
+			if (!fs.existsSync(phpStormPHPConfigFilePath)) {
+				if (fs.existsSync(path.dirname(phpStormPHPConfigFilePath))) {
+					fs.writeFileSync(
+						phpStormPHPConfigFilePath,
+						'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>'
+					);
+				}
+			}
+
+			if (fs.existsSync(phpStormPHPConfigFilePath)) {
+				const contents = fs.readFileSync(
+					phpStormPHPConfigFilePath,
+					'utf8'
+				);
+				const updatedXml = updatePhpStormPHPConfig(contents, {
+					pathSkippings,
+				});
+				fs.writeFileSync(phpStormPHPConfigFilePath, updatedXml);
+				modifiedConfig['phpstorm-php'] =
+					phpStormRelativePHPConfigFilePath;
+			}
 		}
 	}
 
@@ -560,7 +762,8 @@ export async function addXdebugIDEConfig({
 			const updatedJson = updateVSCodeConfig(content, {
 				name,
 				workspaceDir: cwd,
-				mappings,
+				pathMappings,
+				pathSkippings,
 			});
 
 			// Only write and track the file if changes were made
@@ -587,7 +790,7 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 		const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
 		const xmlParser = new XMLParser(xmlParserOptions);
 		// NOTE: Using an IIFE so `config` can remain const.
-		const config: PhpStormConfigNode[] = (() => {
+		const config: PhpStormWorkspaceConfigNode[] = (() => {
 			try {
 				return xmlParser.parse(contents, true);
 			} catch {
@@ -598,17 +801,18 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 		})();
 
 		const projectElement = config.find(
-			(c: PhpStormConfigNode) => !!c?.project
+			(c: PhpStormWorkspaceConfigNode) => !!c?.project
 		);
 		const componentElement = projectElement?.project?.find(
-			(c: PhpStormConfigNode) =>
+			(c: PhpStormWorkspaceConfigNode) =>
 				!!c?.component && c?.[':@']?.name === 'PhpServers'
 		);
 		const serversElement = componentElement?.component?.find(
-			(c: PhpStormConfigNode) => !!c?.servers
+			(c: PhpStormWorkspaceConfigNode) => !!c?.servers
 		);
 		const serverElementIndex = serversElement?.servers?.findIndex(
-			(c: PhpStormConfigNode) => !!c?.server && c?.[':@']?.name === name
+			(c: PhpStormWorkspaceConfigNode) =>
+				!!c?.server && c?.[':@']?.name === name
 		);
 
 		if (serverElementIndex !== undefined && serverElementIndex >= 0) {
@@ -632,6 +836,56 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 				fs.unlinkSync(phpStormConfigFilePath);
 			} else {
 				fs.writeFileSync(phpStormConfigFilePath, xml);
+			}
+		}
+	}
+
+	// PhpStorm php.xml (path skippings)
+	const phpStormPHPConfigFilePath = path.join(cwd, '.idea/php.xml');
+	if (fs.existsSync(phpStormPHPConfigFilePath)) {
+		const contents = fs.readFileSync(phpStormPHPConfigFilePath, 'utf8');
+		const xmlParser = new XMLParser(xmlParserOptions);
+		const config: PhpStormPHPConfigNode[] = (() => {
+			try {
+				return xmlParser.parse(contents, true);
+			} catch {
+				throw new Error(
+					'PhpStorm PHP configuration file is not valid XML.'
+				);
+			}
+		})();
+
+		const projectElement = config.find(
+			(c: PhpStormPHPConfigNode) => !!c?.project
+		);
+		const componentIndex = projectElement?.project?.findIndex(
+			(c: PhpStormPHPConfigNode) =>
+				!!c?.component &&
+				c?.[':@']?.name === 'PhpStepFilterConfiguration'
+		);
+
+		if (componentIndex !== undefined && componentIndex >= 0) {
+			projectElement!.project!.splice(componentIndex, 1);
+
+			const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+			const xml = xmlBuilder.build(config);
+
+			try {
+				xmlParser.parse(xml, true);
+			} catch {
+				throw new Error(
+					'The resulting PhpStorm PHP configuration file ' +
+						'is not valid XML.'
+				);
+			}
+
+			if (
+				xml ===
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>'
+			) {
+				fs.unlinkSync(phpStormPHPConfigFilePath);
+			} else {
+				fs.writeFileSync(phpStormPHPConfigFilePath, xml);
 			}
 		}
 	}
