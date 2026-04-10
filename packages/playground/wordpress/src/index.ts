@@ -602,10 +602,11 @@ export async function preloadSqliteIntegration(
 		phpMajor < 7
 			? `
 if(file_exists(${phpVar(dbPhpPath)})) {
-	$content = @file_get_contents(${phpVar(dbPhpPath)});
-	if (strpos($content, '@playground-managed') === false) {
+	$_pg_db_php = @file_get_contents(${phpVar(dbPhpPath)});
+	if (strpos($_pg_db_php, '@playground-managed') === false) {
 		return;
 	}
+	unset($_pg_db_php);
 }
 `
 			: `
