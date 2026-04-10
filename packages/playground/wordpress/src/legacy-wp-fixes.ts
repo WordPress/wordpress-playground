@@ -1331,7 +1331,7 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 /**
  * Bypasses referer-based check_admin_referer() in WP < 2.5.
  *
- * In WP 1.5-2.4, check_admin_referer() verifies that
+ * In WP 1.2-1.5, check_admin_referer() verifies that
  * $_SERVER['HTTP_REFERER'] contains the siteurl. In Playground's
  * service worker environment, the Referer header is often missing
  * or incorrect, causing plugin activation and other admin actions
@@ -1358,8 +1358,11 @@ async function patchCheckAdminReferer(php: PHP, documentRoot: string) {
 		return;
 	}
 
+	// The regex uses (?:[^{}]|\{[^}]*\})* instead of [^}]* to
+	// handle one level of brace nesting. WP 1.2 wraps the die()
+	// in an if-block with braces; WP 1.5 uses a braceless if.
 	const patched = content.replace(
-		/function check_admin_referer\(\)\s*\{[^}]*\$_SERVER\['HTTP_REFERER'\][^}]*\}/,
+		/function check_admin_referer\(\)\s*\{(?:[^{}]|\{[^}]*\})*\$_SERVER\['HTTP_REFERER'\](?:[^{}]|\{[^}]*\})*\}/,
 		`function check_admin_referer() {
 	// Patched by Playground: skip referer check.
 	// The Referer header is unreliable in the service worker
