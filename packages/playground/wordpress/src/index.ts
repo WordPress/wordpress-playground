@@ -450,12 +450,13 @@ function playground_load_mu_plugins() {
 			}
 			return $interval;
 		}`
-				: `add_filter('admin_email_check_interval', function($interval) {
+				: `function playground_disable_admin_email_check($interval) {
 			if(false === playground_get_username_for_auto_login()) {
 				return 0;
 			}
 			return $interval;
-		});`
+		}
+		add_filter('admin_email_check_interval', 'playground_disable_admin_email_check');`
 		}
 		`
 	);
@@ -465,7 +466,7 @@ function playground_load_mu_plugins() {
 		`<?php
 
 		// Save WordPress environment information to a file.
-		add_action('wp_loaded', function() {
+		function playground_save_wp_env_info() {
 			if (defined('DB_ENGINE') && DB_ENGINE === 'sqlite') {
 				$db_info = array(
 					'type' => 'sqlite',
@@ -486,17 +487,19 @@ function playground_load_mu_plugins() {
 			if (!file_exists($wp_env_file) || file_get_contents($wp_env_file) !== $wp_env_php ) {
 				file_put_contents($wp_env_file, $wp_env_php);
 			}
-		});
+		}
+		add_action('wp_loaded', 'playground_save_wp_env_info');
 
         // Needed because gethostbyname( 'wordpress.org' ) returns
         // a private network IP address for some reason.
-        add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
+        function playground_allowed_redirect_hosts( $deprecated = '' ) {
             return array(
                 'wordpress.org',
                 'api.wordpress.org',
                 'downloads.wordpress.org',
             );
-        } );
+        }
+        add_filter( 'allowed_redirect_hosts', 'playground_allowed_redirect_hosts' );
 
 		/**
 		 * Prevents wp_http_validate_url() from universally failing.
