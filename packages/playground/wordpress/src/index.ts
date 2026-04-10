@@ -583,6 +583,16 @@ function playground_load_mu_plugins() {
 					}
 				}
 				/**
+				 * Legacy WordPress (2.0–3.5) assigns properties on
+				 * uninitialized variables ($obj->prop = value), which
+				 * was valid in PHP 4 but triggers E_WARNING in PHP 5.6.
+				 * These are benign and cannot be fixed in WP core since
+				 * Playground downloads unmodified WordPress releases.
+				 */
+				if (strpos($message, "Creating default object from empty value") !== false) {
+					return;
+				}
+				/**
 				 * Don't complain about network errors when not connected to the network.
 				 */
 				if (
