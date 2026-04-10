@@ -302,7 +302,10 @@ for (const wp of WP_VERSIONS) {
 		) {
 			try {
 				const link = wp1.frame
-					.getByRole('link', { name: 'Hello world!' })
+					.getByRole('link', {
+						name: 'Hello world!',
+						exact: true,
+					})
 					.first();
 				if ((await link.count()) > 0) {
 					await link.click({ timeout: 5000 });
@@ -414,6 +417,18 @@ for (const wp of WP_VERSIONS) {
 				if (!wp3) {
 					newPostStatus = { status: 'TIMEOUT' };
 				} else {
+					// Check both innerText and innerHTML for PHP
+					// errors — some errors land inside hidden elements
+					// (e.g. WP 3.3's contextual-help sidebar) and
+					// don't appear in innerText.
+					let html = '';
+					try {
+						html = await wp3.frame
+							.locator('body')
+							.innerHTML({ timeout: 2000 });
+					} catch {}
+					const error = findPHPError(wp3.body) || findPHPError(html);
+
 					const bad =
 						wp3.body.includes('Are you sure') ||
 						wp3.body.includes('not allowed') ||
@@ -423,7 +438,12 @@ for (const wp of WP_VERSIONS) {
 						wp3.body.includes('title') ||
 						wp3.body.includes('Write Post') ||
 						wp3.body.includes('Add New Post');
-					if (bad) {
+					if (error) {
+						newPostStatus = {
+							status: 'ERROR',
+							detail: error,
+						};
+					} else if (bad) {
 						newPostStatus = {
 							status: 'NONCE_FAIL',
 							detail: wp3.body.includes('Are you sure')
