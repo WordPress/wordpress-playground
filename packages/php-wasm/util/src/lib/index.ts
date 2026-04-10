@@ -17,6 +17,7 @@ export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
+export { WebSocketShim } from './websocket-shim';
 export * from './php-vars';
 export * from './smtp';
 
