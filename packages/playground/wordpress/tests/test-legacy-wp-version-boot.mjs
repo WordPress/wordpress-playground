@@ -179,34 +179,15 @@ function isLoggedIn(body) {
 	);
 }
 
-// Versions where post creation and plugin activation are tested.
-// WP < 2.5 has no plugin activation UI and limited post editor.
-const EXTENDED_TEST_VERSIONS = new Set([
-	'4.9',
-	'4.8',
-	'4.7',
-	'4.6',
-	'4.5',
-	'4.4',
-	'4.3',
-	'4.2',
-	'4.1',
-	'4.0',
-	'3.9',
-	'3.8',
-	'3.7',
-	'3.6',
-	'3.5',
-	'3.4',
-	'3.3',
-	'3.2',
-	'3.1',
-	'3.0',
-	'2.9',
-	'2.8',
-	'2.7',
-	'2.6',
-	'2.5',
+// WP < 2.5 uses post.php for new posts; 2.5+ uses post-new.php.
+const NEW_POST_URL_VERSIONS = new Set([
+	'1.0',
+	'1.2',
+	'1.5',
+	'2.0',
+	'2.1',
+	'2.2',
+	'2.3',
 ]);
 
 const browser = await chromium.launch({ headless: true });
@@ -395,17 +376,12 @@ for (const wp of WP_VERSIONS) {
 		}
 
 		// --- Phase 4: New post page (nonce check) ---
-		if (
-			EXTENDED_TEST_VERSIONS.has(wp) &&
-			adminStatus &&
-			adminStatus.status === 'OK'
-		) {
+		if (adminStatus && adminStatus.status === 'OK') {
 			try {
-				const wp3 = await navigateViaUrlBar(
-					page,
-					'/wp-admin/post-new.php',
-					30
-				);
+				const newPostPath = NEW_POST_URL_VERSIONS.has(wp)
+					? '/wp-admin/post.php'
+					: '/wp-admin/post-new.php';
+				const wp3 = await navigateViaUrlBar(page, newPostPath, 30);
 				if (!wp3) {
 					newPostStatus = { status: 'TIMEOUT' };
 				} else {
@@ -429,7 +405,8 @@ for (const wp of WP_VERSIONS) {
 						wp3.body.includes('Title') ||
 						wp3.body.includes('title') ||
 						wp3.body.includes('Write Post') ||
-						wp3.body.includes('Add New Post');
+						wp3.body.includes('Add New Post') ||
+						wp3.body.includes('Create New Post');
 					if (error) {
 						newPostStatus = {
 							status: 'ERROR',
@@ -454,21 +431,12 @@ for (const wp of WP_VERSIONS) {
 			} catch (e) {
 				newPostStatus = { status: 'CRASH', detail: e.message };
 			}
-		} else if (!EXTENDED_TEST_VERSIONS.has(wp)) {
-			newPostStatus = {
-				status: 'SKIP',
-				detail: 'not tested for this version',
-			};
 		} else {
 			newPostStatus = { status: 'SKIP', detail: 'admin failed' };
 		}
 
 		// --- Phase 5: Plugin activation ---
-		if (
-			EXTENDED_TEST_VERSIONS.has(wp) &&
-			adminStatus &&
-			adminStatus.status === 'OK'
-		) {
+		if (adminStatus && adminStatus.status === 'OK') {
 			try {
 				const wp4 = await navigateViaUrlBar(
 					page,
@@ -512,11 +480,6 @@ for (const wp of WP_VERSIONS) {
 			} catch (e) {
 				pluginStatus = { status: 'CRASH', detail: e.message };
 			}
-		} else if (!EXTENDED_TEST_VERSIONS.has(wp)) {
-			pluginStatus = {
-				status: 'SKIP',
-				detail: 'not tested for this version',
-			};
 		} else {
 			pluginStatus = { status: 'SKIP', detail: 'admin failed' };
 		}
