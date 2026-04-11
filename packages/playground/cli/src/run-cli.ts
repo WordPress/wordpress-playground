@@ -948,6 +948,10 @@ export interface RunCLIArgs {
 	 *
 	 * This enables PHP code to spawn host processes — useful for plugins
 	 * that use proc_open() to communicate with external tools.
+	 *
+	 * Warning: Enabling this allows PHP code to execute arbitrary commands
+	 * on the host. Only enable for trusted code and blueprints. Do not
+	 * enable in multi-tenant environments or when running untrusted input.
 	 */
 	nativeSpawn?: boolean;
 }

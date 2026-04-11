@@ -62,7 +62,7 @@ describe.each(phpVersions)('PHP %s – proc_open', (phpVersion) => {
 		expect(result.text).toBe('hello_from_shell_exec');
 	});
 
-	it('proc_open throws without spawn handler', async () => {
+	it('proc_open fails without spawn handler', async () => {
 		const result = await php.run({
 			code: `<?php
 				$desc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];

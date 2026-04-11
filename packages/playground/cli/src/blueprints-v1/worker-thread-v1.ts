@@ -193,11 +193,11 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				pathAliases: options.pathAliases,
 				spawnHandler: options.nativeSpawn
 					? () => {
-							// Import spawn inside the worker thread — functions can't
-							// be serialized across the Comlink message boundary.
-							// eslint-disable-next-line @typescript-eslint/no-require-imports
-							const { spawn } = require('child_process');
-							return spawn;
+							// Use child_process.spawn directly for native host process spawning.
+							// This runs inside the worker thread — functions can't be serialized
+							// across the Comlink message boundary, so we import here.
+							// eslint-disable-next-line @typescript-eslint/no-var-requires
+							return require('child_process').spawn;
 						}
 					: () =>
 							sandboxedSpawnHandlerFactory(() => {
