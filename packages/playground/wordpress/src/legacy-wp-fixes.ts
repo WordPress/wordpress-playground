@@ -1368,7 +1368,7 @@ async function patchCheckAdminReferer(php: PHP, documentRoot: string) {
 	// The Referer header is unreliable in the service worker
 	// environment. The original function die()d when the header
 	// was missing or didn't match the admin URL.
-	do_action('check_admin_referer');
+	do_action('check_admin_referer', '');
 }`
 	);
 	if (patched !== content) {
