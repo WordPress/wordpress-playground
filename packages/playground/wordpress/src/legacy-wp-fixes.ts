@@ -1408,6 +1408,57 @@ async function patchWpAdminDashboard(php: PHP, documentRoot: string) {
 	if (changed) {
 		await php.writeFile(indexPhpPath, content);
 	}
+
+	// WP 1.5's rss-functions.php calls a global error() function
+	// from fetch_rss() when the RSS fetch fails, but that function
+	// is only defined as a method on the RSSCache class — not as a
+	// standalone function. In Playground, outbound HTTP always fails
+	// (no network), so every fetch_rss() call hits this path and
+	// causes a fatal "Call to undefined function error()" that kills
+	// the dashboard rendering mid-page. Define the missing stub.
+	await patchRssFunctionsErrorStub(php, documentRoot);
+}
+
+/**
+ * Defines a global error() function stub in rss-functions.php.
+ *
+ * WP 1.5's Magpie RSS library calls error() as a standalone function
+ * from fetch_rss() and _response_to_rss(), but error() is only
+ * defined as a method on the RSSCache class. When the RSS fetch
+ * fails (which always happens in Playground — no outbound HTTP),
+ * PHP hits "Call to undefined function error()" — a fatal error
+ * that @ cannot suppress, killing the script mid-page.
+ */
+async function patchRssFunctionsErrorStub(php: PHP, documentRoot: string) {
+	const rssPath = joinPaths(documentRoot, 'wp-includes/rss-functions.php');
+	if (!php.fileExists(rssPath)) return;
+
+	let content = php.readFileAsText(rssPath);
+	// Only patch if the file calls error() as a standalone function
+	// and doesn't already define a global error() function.
+	if (
+		!/^\s*error\s*\(/m.test(content) ||
+		/^function\s+error\s*\(/m.test(content)
+	) {
+		return;
+	}
+
+	// Insert a global error() stub right after the opening <?php tag.
+	content = content.replace(
+		/^(<\?php\s*)/,
+		`$1\n` +
+			`// Playground patch: define a global error() stub.\n` +
+			`// Magpie's fetch_rss() calls error() as a standalone\n` +
+			`// function, but it's only defined as a class method.\n` +
+			`if (!function_exists('error')) {\n` +
+			`\tfunction error(\$msg = '', \$lvl = E_USER_WARNING) {\n` +
+			`\t\tif (defined('MAGPIE_DEBUG') && MAGPIE_DEBUG) {\n` +
+			`\t\t\ttrigger_error(\$msg, \$lvl);\n` +
+			`\t\t}\n` +
+			`\t}\n` +
+			`}\n`
+	);
+	await php.writeFile(rssPath, content);
 }
 
 /**
