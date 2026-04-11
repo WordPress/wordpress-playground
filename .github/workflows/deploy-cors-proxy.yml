@@ -12,8 +12,11 @@ jobs:
     check_preconditions:
         # Only run from the trunk branch when triggered by a maintainer listed below
         # TODO: Can we check for group membership?
+        # TODO: Revert this after testing and before merging.
+        # if: >
+        #     github.ref == 'refs/heads/trunk' && (
         if: >
-            github.ref == 'refs/heads/trunk' && (
+            (
                 github.event_name == 'workflow_run' ||
                 github.event_name == 'workflow_dispatch' ||
                 github.actor == 'adamziel' ||
