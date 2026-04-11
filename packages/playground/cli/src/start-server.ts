@@ -14,7 +14,10 @@ const exec = promisify(execCb);
 
 export interface ServerOptions {
 	port: number;
-	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
+	onBind: (
+		server: Server,
+		port: number
+	) => Promise<RunCLIServer | number | void>;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
@@ -36,7 +39,7 @@ export function isPortInUse(port: number): Promise<boolean> {
 
 export async function startServer(
 	options: ServerOptions
-): Promise<RunCLIServer | void> {
+): Promise<RunCLIServer | number | void> {
 	const app = express();
 
 	const server = await new Promise<

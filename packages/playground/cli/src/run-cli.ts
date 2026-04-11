@@ -98,11 +98,48 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 export type WorkerType = 'v1' | 'v2';
 
 /**
+ * Returned by parseOptionsAndRunCLI when the CLI should exit
+ * without starting a long-running server.
+ */
+export interface CLIExitResult {
+	exitCode: number;
+}
+
+/**
+ * Returned by parseOptionsAndRunCLI when a server was started
+ * and is still running.
+ */
+export interface CLIServerResult extends AsyncDisposable {
+	[internalsKeyForTesting]: { cliServer: RunCLIServer };
+}
+
+export type ParseCLIResult = CLIExitResult | CLIServerResult;
+
+/**
+ * Internal sentinel thrown inside yargs callbacks (which can only
+ * signal failure by throwing) when validation has already been
+ * reported to the user. Caught within parseOptionsAndRunCLI and
+ * converted to a CLIExitResult — never exposed to callers.
+ */
+class CLIArgsValidationError extends Error {
+	exitCode: number;
+	constructor(exitCode: number) {
+		super();
+		this.exitCode = exitCode;
+	}
+}
+
+/**
  * Parse the CLI args and run the appropriate command.
+ *
+ * Returns a structured result so the caller can decide how to
+ * exit. Only throws for truly unexpected errors.
  *
  * @param argsToParse string[] The CLI args to parse.
  */
-export async function parseOptionsAndRunCLI(argsToParse: string[]) {
+export async function parseOptionsAndRunCLI(
+	argsToParse: string[]
+): Promise<ParseCLIResult> {
 	try {
 		/**
 		 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
@@ -515,10 +552,10 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				if (msg && msg.includes('Please specify a command')) {
 					yargsInstance.showHelp();
 					console.error('\n' + msg);
-					process.exit(1);
+				} else {
+					console.error(msg);
 				}
-				console.error(msg);
-				process.exit(1);
+				throw new CLIArgsValidationError(1);
 			})
 			.strictOptions()
 			.check(async (args) => {
@@ -647,7 +684,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			].includes(command)
 		) {
 			yargsObject.showHelp();
-			process.exit(1);
+			throw new CLIArgsValidationError(1);
 		}
 
 		const define = (args['define'] || {}) as Record<string, string>;
@@ -686,43 +723,30 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			],
 		} as RunCLIArgs;
 
-		const cliServer = await runCLI(cliArgs);
-		if (cliServer === undefined) {
+		const cliResult = await runCLI(cliArgs);
+		if (typeof cliResult === 'number') {
+			// A one-shot command (e.g. `php`) finished with an
+			// explicit exit code.
+			return { exitCode: cliResult };
+		}
+		if (cliResult === undefined) {
 			// No server was started, so we are done with our work.
-			process.exit(0);
+			return { exitCode: 0 };
 		}
 
-		const cleanUpCliAndExit = (() => {
-			// Remember we are already cleaning up to preclude the possibility
-			// of multiple, conflicting cleanup attempts.
-			let promiseToCleanup: Promise<void>;
-
-			return async () => {
-				if (promiseToCleanup === undefined) {
-					promiseToCleanup = cliServer[Symbol.asyncDispose]();
-				}
-				await promiseToCleanup;
-				process.exit(0);
-			};
-		})();
-
-		// Playground CLI server must be killed to exit. From the terminal,
-		// this may occur via Ctrl+C which sends SIGINT. Let's handle both
-		// SIGINT and SIGTERM (the default kill signal) to make sure we
-		// clean up after ourselves even if this process is being killed.
-		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
-		process.on('SIGINT', cleanUpCliAndExit);
-		process.on('SIGTERM', cleanUpCliAndExit);
-
 		return {
-			[Symbol.asyncDispose]: async () => {
-				process.off('SIGINT', cleanUpCliAndExit);
-				process.off('SIGTERM', cleanUpCliAndExit);
-				await cliServer[Symbol.asyncDispose]();
-			},
-			[internalsKeyForTesting]: { cliServer },
+			[Symbol.asyncDispose]: () => cliResult[Symbol.asyncDispose](),
+			[internalsKeyForTesting]: { cliServer: cliResult },
 		};
 	} catch (e) {
+		// Validation errors have already been reported to the
+		// user (e.g. by the yargs .fail() handler). Convert them
+		// to a structured result instead of re-throwing.
+		if (e instanceof CLIArgsValidationError) {
+			return { exitCode: e.exitCode };
+		}
+		// Unexpected error — log details and re-throw so the
+		// caller (cli.ts) can exit with a non-zero code.
 		console.error(e);
 		const debug = process.argv.includes('--debug');
 		if (e instanceof Error) {
@@ -913,16 +937,23 @@ const highlight = (text: string) =>
 export { mergeDefinedConstants } from './defines';
 
 export async function runCLI(
-	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' | 'php' }
+	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
 ): Promise<void>;
+export async function runCLI(
+	args: RunCLIArgs & { command: 'php' }
+): Promise<number>;
 export async function runCLI(
 	args: RunCLIArgs & { command: 'start' }
 ): Promise<RunCLIServer>;
 export async function runCLI(
 	args: RunCLIArgs & { command: 'server' }
 ): Promise<RunCLIServer>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
+export async function runCLI(
+	args: RunCLIArgs
+): Promise<RunCLIServer | number | void>;
+export async function runCLI(
+	args: RunCLIArgs
+): Promise<RunCLIServer | number | void> {
 	let playgroundPool: Pooled<PlaygroundCliWorker>;
 	const cookieStore = args.internalCookieStore
 		? new HttpCookieStore()
@@ -1560,10 +1591,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							),
 						]);
 						await disposeCLI();
-						// stdout and stderr streams are drained above,
-						// but we  use process.exit as a hard cut-off to ensure
-						// Node doesn't hang on open handles.
-						process.exit(exitCode);
+						// Return the exit code so the entry-point
+						// can call process.exit() as a hard cut-off
+						// to ensure Node doesn't hang on open
+						// handles.
+						return exitCode;
 					}
 				}
 
@@ -1676,7 +1708,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		throw error;
 	});
 
-	if (server && args.command === 'start' && !args.skipBrowser) {
+	if (
+		server &&
+		typeof server === 'object' &&
+		args.command === 'start' &&
+		!args.skipBrowser
+	) {
 		openInBrowser(server.serverUrl);
 	}
 	return server;

@@ -6,7 +6,12 @@ import {
 	parseOptionsAndRunCLI,
 	internalsKeyForTesting,
 } from '../src/run-cli';
-import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
+import type {
+	RunCLIArgs,
+	RunCLIServer,
+	CLIExitResult,
+	CLIServerResult,
+} from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -1069,14 +1074,6 @@ describe('start command', () => {
 });
 
 describe('php command', () => {
-	class ProcessExitCalled extends Error {
-		exitCode: number;
-		constructor(exitCode: number) {
-			super(`process.exit(${exitCode})`);
-			this.exitCode = exitCode;
-		}
-	}
-
 	test('should run a PHP script and capture output', async () => {
 		const stdoutChunks: string[] = [];
 		const stdoutSpy = vi
@@ -1089,27 +1086,19 @@ describe('php command', () => {
 				);
 				return true;
 			});
-		const exitSpy = vi
-			.spyOn(process, 'exit')
-			.mockImplementation((code?: string | number | null) => {
-				throw new ProcessExitCalled(Number(code));
-			});
 
 		try {
-			await expect(
-				runCLI({
-					command: 'php',
-					_: ['php', '-r', 'echo "hello from php";'],
-					wordpressInstallMode: 'do-not-attempt-installing',
-					skipSqliteSetup: true,
-					blueprint: undefined,
-				})
-			).rejects.toThrow(ProcessExitCalled);
-			expect(exitSpy).toHaveBeenCalledWith(0);
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '-r', 'echo "hello from php";'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(exitCode).toBe(0);
 			expect(stdoutChunks.join('')).toContain('hello from php');
 		} finally {
 			stdoutSpy.mockRestore();
-			exitSpy.mockRestore();
 		}
 	});
 
@@ -1120,27 +1109,19 @@ describe('php command', () => {
 		const stderrSpy = vi
 			.spyOn(process.stderr, 'write')
 			.mockImplementation(() => true);
-		const exitSpy = vi
-			.spyOn(process, 'exit')
-			.mockImplementation((code?: string | number | null) => {
-				throw new ProcessExitCalled(Number(code));
-			});
 
 		try {
-			await expect(
-				runCLI({
-					command: 'php',
-					_: ['php', '-r', 'exit(42);'],
-					wordpressInstallMode: 'do-not-attempt-installing',
-					skipSqliteSetup: true,
-					blueprint: undefined,
-				})
-			).rejects.toThrow(ProcessExitCalled);
-			expect(exitSpy).toHaveBeenCalledWith(42);
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '-r', 'exit(42);'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(exitCode).toBe(42);
 		} finally {
 			stdoutSpy.mockRestore();
 			stderrSpy.mockRestore();
-			exitSpy.mockRestore();
 		}
 	});
 
@@ -1159,28 +1140,20 @@ describe('php command', () => {
 				);
 				return true;
 			});
-		const exitSpy = vi
-			.spyOn(process, 'exit')
-			.mockImplementation((code?: string | number | null) => {
-				throw new ProcessExitCalled(Number(code));
-			});
 
 		try {
-			await expect(
-				runCLI({
-					command: 'php',
-					_: ['php', '-r', 'error_log("test error");'],
-					wordpressInstallMode: 'do-not-attempt-installing',
-					skipSqliteSetup: true,
-					blueprint: undefined,
-				})
-			).rejects.toThrow(ProcessExitCalled);
-			expect(exitSpy).toHaveBeenCalledWith(0);
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '-r', 'error_log("test error");'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(exitCode).toBe(0);
 			expect(stderrChunks.join('')).toContain('test error');
 		} finally {
 			stdoutSpy.mockRestore();
 			stderrSpy.mockRestore();
-			exitSpy.mockRestore();
 		}
 	});
 
@@ -1207,34 +1180,26 @@ describe('php command', () => {
 		const stderrSpy = vi
 			.spyOn(process.stderr, 'write')
 			.mockImplementation(() => true);
-		const exitSpy = vi
-			.spyOn(process, 'exit')
-			.mockImplementation((code?: string | number | null) => {
-				throw new ProcessExitCalled(Number(code));
-			});
 
 		try {
-			await expect(
-				runCLI({
-					command: 'php',
-					_: ['php', '/tools/wp-cli.phar', '--version'],
-					wordpressInstallMode: 'do-not-attempt-installing',
-					skipSqliteSetup: true,
-					blueprint: undefined,
-					'mount-before-install': [
-						{
-							hostPath: tmpDir,
-							vfsPath: '/tools',
-						},
-					],
-				})
-			).rejects.toThrow(ProcessExitCalled);
-			expect(exitSpy).toHaveBeenCalledWith(0);
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '/tools/wp-cli.phar', '--version'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+				'mount-before-install': [
+					{
+						hostPath: tmpDir,
+						vfsPath: '/tools',
+					},
+				],
+			});
+			expect(exitCode).toBe(0);
 			expect(stdoutChunks.join('')).toMatch(/WP-CLI \d+\.\d+/);
 		} finally {
 			stdoutSpy.mockRestore();
 			stderrSpy.mockRestore();
-			exitSpy.mockRestore();
 			rmSync(tmpDir, { recursive: true });
 		}
 	});
@@ -1264,36 +1229,28 @@ describe('php command', () => {
 			const stderrSpy = vi
 				.spyOn(process.stderr, 'write')
 				.mockImplementation(() => true);
-			const exitSpy = vi
-				.spyOn(process, 'exit')
-				.mockImplementation((code?: string | number | null) => {
-					throw new ProcessExitCalled(Number(code));
-				});
 
 			try {
-				await expect(
-					runCLI({
-						command: 'php',
-						_: ['php', '/tools/composer.phar', '--version'],
-						wordpressInstallMode: 'do-not-attempt-installing',
-						skipSqliteSetup: true,
-						blueprint: undefined,
-						'mount-before-install': [
-							{
-								hostPath: tmpDir,
-								vfsPath: '/tools',
-							},
-						],
-					})
-				).rejects.toThrow(ProcessExitCalled);
-				expect(exitSpy).toHaveBeenCalledWith(0);
+				const exitCode = await runCLI({
+					command: 'php',
+					_: ['php', '/tools/composer.phar', '--version'],
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/tools',
+						},
+					],
+				});
+				expect(exitCode).toBe(0);
 				expect(stdoutChunks.join('')).toMatch(
 					/Composer version \d+\.\d+/
 				);
 			} finally {
 				stdoutSpy.mockRestore();
 				stderrSpy.mockRestore();
-				exitSpy.mockRestore();
 			}
 		} finally {
 			rmSync(tmpDir, { recursive: true });
@@ -1342,9 +1299,6 @@ describe('other run-cli behaviors', () => {
 			const consoleSpy = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => {});
-			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-				throw new Error('process.exit called');
-			});
 
 			try {
 				await expect(
@@ -1356,7 +1310,6 @@ describe('other run-cli behaviors', () => {
 				).rejects.toThrow();
 			} finally {
 				consoleSpy.mockRestore();
-				exitSpy.mockRestore();
 			}
 		});
 	});
@@ -1647,90 +1600,56 @@ describe('other run-cli behaviors', () => {
 		});
 	});
 
-	describe('signal handling', () => {
-		test.each(['SIGINT', 'SIGTERM'] as const)(
-			'should clean up and exit on %s',
-			async (signal) => {
-				const listenersBeforeRunCli = process.listeners(signal).slice();
+	describe('async dispose', () => {
+		test('should clean up the CLI server when disposed', async () => {
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+			])) as CLIServerResult;
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
 
-				const exitSpy = vi.spyOn(process, 'exit').mockImplementation(
-					// Stop the test from actually causing the process to exit.
-					(() => {}) as any
-				);
+			const asyncDisposeSpy = vi
+				.spyOn(cliServer, Symbol.asyncDispose)
+				.mockImplementation((() => {}) as any);
 
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				await using cliResult = await parseOptionsAndRunCLI([
-					'server',
-					'--wordpress-install-mode=do-not-attempt-installing',
-					'--skip-sqlite-setup',
-					'--verbosity=quiet',
-					'--port=0',
-				]);
-				const cliServer = cliResult[internalsKeyForTesting].cliServer;
-
-				const asyncDisposeSpy = vi
-					.spyOn(cliServer, Symbol.asyncDispose)
-					.mockImplementation((() => {}) as any);
-
-				try {
-					// process.exit should not have been called during startup
-					expect(exitSpy).not.toHaveBeenCalled();
-
-					// Find the handler registered by parseOptionsAndRunCLI
-					const newListenersAfterRunCli = process
-						.listeners(signal)
-						.filter((l) => !listenersBeforeRunCli.includes(l));
-					expect(newListenersAfterRunCli).toHaveLength(1);
-
-					// Invoke the handler and await its async cleanup
-					await Promise.all(
-						newListenersAfterRunCli
-							.map((listener) => listener as () => Promise<void>)
-							.map((listener) => listener())
-					);
-
-					expect(asyncDisposeSpy).toHaveBeenCalled();
-					expect(exitSpy).toHaveBeenCalledWith(0);
-				} finally {
-					exitSpy.mockRestore();
-					asyncDisposeSpy.mockRestore();
-				}
+			try {
+				await cliResult[Symbol.asyncDispose]();
+				expect(asyncDisposeSpy).toHaveBeenCalled();
+			} finally {
+				asyncDisposeSpy.mockRestore();
 			}
-		);
+		});
 	});
 
 	describe('WP_DEBUG constants', () => {
 		async function getConstants(cliArgs: string[]) {
-			const exitSpy = vi
-				.spyOn(process, 'exit')
-				.mockImplementation((() => {}) as any);
-			try {
-				await using cliResult = await parseOptionsAndRunCLI([
-					'server',
-					'--wordpress-install-mode=do-not-attempt-installing',
-					'--skip-sqlite-setup',
-					'--verbosity=quiet',
-					'--port=0',
-					...cliArgs,
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+				...cliArgs,
+			])) as CLIServerResult;
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+			await cliServer.playground.writeFile(
+				'/wordpress/check-consts.php',
+				`<?php
+				echo json_encode([
+					'WP_DEBUG' => defined('WP_DEBUG') ? WP_DEBUG : '__UNDEFINED__',
+					'WP_DEBUG_LOG' => defined('WP_DEBUG_LOG') ? WP_DEBUG_LOG : '__UNDEFINED__',
+					'WP_DEBUG_DISPLAY' => defined('WP_DEBUG_DISPLAY') ? WP_DEBUG_DISPLAY : '__UNDEFINED__',
 				]);
-				const cliServer = cliResult[internalsKeyForTesting].cliServer;
-				await cliServer.playground.writeFile(
-					'/wordpress/check-consts.php',
-					`<?php
-					echo json_encode([
-						'WP_DEBUG' => defined('WP_DEBUG') ? WP_DEBUG : '__UNDEFINED__',
-						'WP_DEBUG_LOG' => defined('WP_DEBUG_LOG') ? WP_DEBUG_LOG : '__UNDEFINED__',
-						'WP_DEBUG_DISPLAY' => defined('WP_DEBUG_DISPLAY') ? WP_DEBUG_DISPLAY : '__UNDEFINED__',
-					]);
-					`
-				);
-				const response = await fetch(
-					new URL('/check-consts.php', cliServer.serverUrl)
-				);
-				return JSON.parse(await response.text());
-			} finally {
-				exitSpy.mockRestore();
-			}
+				`
+			);
+			const response = await fetch(
+				new URL('/check-consts.php', cliServer.serverUrl)
+			);
+			return JSON.parse(await response.text());
 		}
 
 		test('should override WP_DEBUG constants via --define-bool', async () => {
@@ -1800,6 +1719,172 @@ describe('other run-cli behaviors', () => {
 			expect(constants.WP_DEBUG).toBe('false');
 			expect(constants.WP_DEBUG_LOG).toBe('false');
 			expect(constants.WP_DEBUG_DISPLAY).toBe('true');
+		});
+	});
+
+	describe('return types', () => {
+		test('runCLI returns void for run-blueprint command', async () => {
+			const result = await runCLI({
+				command: 'run-blueprint',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(result).toBeUndefined();
+		});
+
+		test('runCLI returns void for build-snapshot command', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-snapshot-test-')
+			);
+			const outfile = path.join(tmpDir, 'snapshot.zip');
+			try {
+				const result = await runCLI({
+					command: 'build-snapshot',
+					blueprint: undefined,
+					outfile,
+				});
+				expect(result).toBeUndefined();
+				expect(existsSync(outfile)).toBe(true);
+			} finally {
+				rmSync(tmpDir, { recursive: true });
+			}
+		});
+
+		test('runCLI returns RunCLIServer for server command', async () => {
+			await using result = await runCLI({
+				command: 'server',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(result).toBeDefined();
+			expect(result.serverUrl).toMatch(/^http:\/\//);
+			expect(result[Symbol.asyncDispose]).toBeTypeOf('function');
+		});
+
+		test('runCLI returns exit code for php command', async () => {
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation(() => true);
+			try {
+				const exitCode = await runCLI({
+					command: 'php',
+					_: ['php', '-r', 'echo 1;'],
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+				});
+				expect(exitCode).toBeTypeOf('number');
+				expect(exitCode).toBe(0);
+			} finally {
+				stdoutSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for run-blueprint', async () => {
+			const result = await parseOptionsAndRunCLI([
+				'run-blueprint',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+			]);
+			expect('exitCode' in result).toBe(true);
+			expect((result as CLIExitResult).exitCode).toBe(0);
+		});
+
+		test('parseOptionsAndRunCLI returns CLIServerResult for server', async () => {
+			await using result = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+			])) as CLIServerResult;
+			expect(Symbol.asyncDispose in result).toBe(true);
+			expect('exitCode' in result).toBe(false);
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for build-snapshot', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-snapshot-test-')
+			);
+			const outfile = path.join(tmpDir, 'snapshot.zip');
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'build-snapshot',
+					`--outfile=${outfile}`,
+					'--verbosity=quiet',
+				]);
+				expect('exitCode' in result).toBe(true);
+				expect((result as CLIExitResult).exitCode).toBe(0);
+			} finally {
+				rmSync(tmpDir, { recursive: true });
+			}
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for php command', async () => {
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation(() => true);
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'php',
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
+					'--verbosity=quiet',
+					'--',
+					'-r',
+					'echo 1;',
+				]);
+				expect('exitCode' in result).toBe(true);
+				expect((result as CLIExitResult).exitCode).toBe(0);
+			} finally {
+				stdoutSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for invalid command', async () => {
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'not-a-real-command',
+				]);
+				expect(result).toHaveProperty('exitCode', 1);
+			} finally {
+				consoleSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for missing command', async () => {
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				const result = await parseOptionsAndRunCLI([]);
+				expect(result).toHaveProperty('exitCode', 1);
+			} finally {
+				consoleSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI throws for unexpected errors', async () => {
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--phpmyadmin',
+						'--skip-sqlite-setup',
+					])
+				).rejects.toThrow();
+			} finally {
+				consoleSpy.mockRestore();
+			}
 		});
 	});
 
