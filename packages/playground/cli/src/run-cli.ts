@@ -940,6 +940,16 @@ export interface RunCLIArgs {
 	path?: string;
 	skipBrowser?: boolean;
 	reset?: boolean;
+
+	/**
+	 * When true, uses native child_process.spawn for PHP's proc_open(),
+	 * shell_exec(), etc. instead of the sandboxed handler that spawns
+	 * new PHP WASM instances. Only works in Node.js environments.
+	 *
+	 * This enables PHP code to spawn host processes — useful for plugins
+	 * that use proc_open() to communicate with external tools.
+	 */
+	nativeSpawn?: boolean;
 }
 
 // TODO: Maybe we should just be declaring an interface instead of a type union

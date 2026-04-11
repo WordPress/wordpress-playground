@@ -53,6 +53,12 @@ interface WorkerBootRequestHandlerOptions {
 	withMemcached?: boolean;
 	withXdebug?: boolean;
 	pathAliases?: PathAlias[];
+	/**
+	 * When true, uses native child_process.spawn for PHP's proc_open(),
+	 * shell_exec(), etc. instead of the sandboxed handler that spawns
+	 * new PHP WASM instances. Only works in Node.js environments.
+	 */
+	nativeSpawn?: boolean;
 }
 
 /**
@@ -185,22 +191,30 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				sapiName: 'cli',
 				cookieStore: false,
 				pathAliases: options.pathAliases,
-				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() => {
-						let effectiveOptions = options;
-						if (!this.bootedWordPress) {
-							// WordPress is not yet booted so skip the post-install mounts.
-							effectiveOptions = {
-								...options,
-								mountsAfterWpInstall: [],
-							};
+				spawnHandler: options.nativeSpawn
+					? () => {
+							// Import spawn inside the worker thread — functions can't
+							// be serialized across the Comlink message boundary.
+							// eslint-disable-next-line @typescript-eslint/no-require-imports
+							const { spawn } = require('child_process');
+							return spawn;
 						}
+					: () =>
+							sandboxedSpawnHandlerFactory(() => {
+								let effectiveOptions = options;
+								if (!this.bootedWordPress) {
+									// WordPress is not yet booted so skip the post-install mounts.
+									effectiveOptions = {
+										...options,
+										mountsAfterWpInstall: [],
+									};
+								}
 
-						return createPHPWorker(
-							effectiveOptions,
-							this.fileLockManager!
-						);
-					}),
+								return createPHPWorker(
+									effectiveOptions,
+									this.fileLockManager!
+								);
+							}),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 

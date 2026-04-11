@@ -203,6 +203,7 @@ export class BlueprintsV1Handler {
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			pathAliases: this.args.pathAliases,
+			nativeSpawn: this.args.nativeSpawn,
 		});
 		await playground.isReady();
 		return playground;
