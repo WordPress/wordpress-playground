@@ -10,7 +10,11 @@ import { loadNodeRuntime } from '../lib';
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-describe.each(phpVersions)('PHP %s – proc_open', (phpVersion) => {
+// These tests use /bin/echo and /bin/sh which are not available on Windows.
+const isWindows = process.platform === 'win32';
+const describeUnix = isWindows ? describe.skip : describe;
+
+describeUnix.each(phpVersions)('PHP %s – proc_open', (phpVersion) => {
 	let php: PHP;
 
 	beforeEach(async () => {
