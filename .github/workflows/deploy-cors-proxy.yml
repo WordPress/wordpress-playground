@@ -30,6 +30,8 @@ jobs:
                 github.actor == 'ashfame'
             )
         runs-on: ubuntu-latest
+        environment:
+            name: cors-proxy-wp-cloud
         outputs:
             meets_deploy_preconditions: ${{ steps.check.outputs.meets_deploy_preconditions }}
         steps:
