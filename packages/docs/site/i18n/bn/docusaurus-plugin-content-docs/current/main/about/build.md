@@ -18,7 +18,7 @@ WordPress Playground can help you to create and learn WordPress quickly, even on
 ওয়ার্ডপ্রেস প্লেগ্রাউন্ড আপনাকে দ্রুত ওয়ার্ডপ্রেস তৈরি করতে এবং শিখতে সাহায্য করতে পারে, এমনকি সিগন্যাল ছাড়াই মোবাইলেও। আপনি যেখানে কাজ করতে স্বাচ্ছন্দ্য বোধ করেন সেই ব্রাউজার, Node.js, মোবাইল অ্যাপস, VS Code বা অন্য যেকোনো জায়গায় প্লেগ্রাউন্ড ব্যবহার করতে পারেন।
 
 <!--
-## Setting up a local WordPress environment quickly 
+## Setting up a local WordPress environment quickly
 -->
 
 ## দ্রুত একটি লোকাল ওয়ার্ডপ্রেস এনভায়রনমেন্ট সেটআপ করা
@@ -66,8 +66,8 @@ Some more examples of this workflow:
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
--   [Developer Hours: টেস্টিং এবং ডেমোর জন্য ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লুপ্রিন্টস তৈরি করা](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [Recap Hallway Hangout: প্লেগ্রাউন্ড, Create-block-theme প্লাগইন এবং গিটহাবের মাধ্যমে থিম তৈরি করা](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [Developer Hours: টেস্টিং এবং ডেমোর জন্য ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লুপ্রিন্টস তৈরি করা](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [Recap Hallway Hangout: প্লেগ্রাউন্ড, Create-block-theme প্লাগইন এবং গিটহাবের মাধ্যমে থিম তৈরি করা](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
@@ -76,10 +76,10 @@ Some more examples of this workflow:
 ## আপনার প্লেগ্রাউন্ড ইনস্ট্যান্সকে একটি লোকাল ফোল্ডারের সাথে সিঙ্ক্রোনাইজ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন
 
 <!--
-![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
+![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 -->
 
-![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
+![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
 <!--
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
@@ -92,8 +92,8 @@ With Google Chrome you can synchronize your Playground instance with a local dir
 -   An existing directory – to load it here and start syncing
 -->
 
--   একটি খালি ডিরেক্টরি – এই প্লেগ্রাউন্ডটি সংরক্ষণ করতে এবং সিঙ্কিং শুরু করতে
--   একটি বিদ্যমান ডিরেক্টরি – এটি এখানে লোড করতে এবং সিঙ্কিং শুরু করতে
+- একটি খালি ডিরেক্টরি – এই প্লেগ্রাউন্ডটি সংরক্ষণ করতে এবং সিঙ্কিং শুরু করতে
+- একটি বিদ্যমান ডিরেক্টরি – এটি এখানে লোড করতে এবং সিঙ্কিং শুরু করতে
 
 <!--
 :::info
@@ -120,8 +120,8 @@ Regarding changes done on both sides of the connection:
 -   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
 -->
 
--   প্লেগ্রাউন্ডে পরিবর্তন করা ফাইলগুলো আপনার কম্পিউটারে সিঙ্ক্রোনাইজ হবে।
--   আপনার কম্পিউটারে পরিবর্তন করা ফাইলগুলো প্লেগ্রাউন্ডে সিঙ্ক্রোনাইজ হবে না। এজন্য আপনাকে "Sync local files" বাটনে ক্লিক করতে হবে।
+- প্লেগ্রাউন্ডে পরিবর্তন করা ফাইলগুলো আপনার কম্পিউটারে সিঙ্ক্রোনাইজ হবে।
+- আপনার কম্পিউটারে পরিবর্তন করা ফাইলগুলো প্লেগ্রাউন্ডে সিঙ্ক্রোনাইজ হবে না। এজন্য আপনাকে "Sync local files" বাটনে ক্লিক করতে হবে।
 
 <!--
 With this workflow, you can create GitHub PRs directly from your changes made in your local directory.

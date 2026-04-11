@@ -36,7 +36,7 @@ Infelizmente, omitir um único item dessa lista resulta em falha do WebAssembly 
 Unfortunately, missing even a single item from that list results in a WebAssembly crash whenever that function is a part of the call stack when an asynchronous call is made. It looks like this:
 -->
 
-![Captura de tela de um erro de asyncify no terminal](@site/static/img/developers/asyncify-error.webp)
+![Uma captura de tela de um erro de asyncify no terminal](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/asyncify-error.webp)
 
 <!--
 ![A screenshot of an asyncify error in the terminal](@site/static/img/developers/asyncify-error.webp)

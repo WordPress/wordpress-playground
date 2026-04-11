@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <head>
 	<title>WordPress PR Previewer</title>
 	<meta charset="utf-8" />
@@ -190,8 +190,10 @@
 					}
 				} else if (error === 'artifact_invalid') {
 					errorDiv.innerText = `The PR ${prNumber} requires a rebase before it can be previewed.`;
+				} else if (error === 'artifact_expired') {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.`;
 				} else {
-					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`;
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`;
 					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
 				submitting = false;

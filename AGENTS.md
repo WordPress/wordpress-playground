@@ -52,11 +52,9 @@ npm run typecheck                        # Type check all packages
 npm run format                           # Format code with Prettier
 npm run format:uncommitted               # Format only uncommitted files
 
-# PHP Recompilation (advanced)
+# PHP Recompilation (see compile-php-wasm skill for details)
 npm run recompile:php:web                # Recompile all PHP versions for web
 npm run recompile:php:node               # Recompile all PHP versions for Node.js
-npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4
-npx nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=8.3
 
 # WordPress Builds
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
@@ -236,21 +234,9 @@ npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 
 ### Working with PHP Binaries
 
-PHP binaries are pre-compiled and committed to the repository. Recompilation is rarely needed but can be done with:
-
-```bash
-# Recompile all PHP versions for web
-npm run recompile:php:web
-
-# Recompile specific PHP version with JSPI
-npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4
-
-# Debug builds (with DWARF info)
-npx nx recompile-php:all php-wasm-node -- --WITH_DEBUG=yes
-
-# Source maps for debugging
-npx nx recompile-php:all php-wasm-node -- --WITH_SOURCEMAPS=yes
-```
+PHP binaries are pre-compiled and committed to the repository. Recompilation is rarely needed.
+For compilation commands, build flags, and troubleshooting, see the `compile-php-wasm` skill.
+For debugging WASM crashes, see the `debug-php-wasm-main-module` and `debug-php-wasm-side-modules` skills.
 
 ### Custom NX Executors
 
