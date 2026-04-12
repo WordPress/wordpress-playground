@@ -1,4 +1,5 @@
 import type { FileLockManager } from '@php-wasm/universal';
+import { spawn } from 'child_process';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
@@ -192,13 +193,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				cookieStore: false,
 				pathAliases: options.pathAliases,
 				spawnHandler: options.nativeSpawn
-					? () => {
-							// Use child_process.spawn directly for native host process spawning.
-							// This runs inside the worker thread — functions can't be serialized
-							// across the Comlink message boundary, so we import here.
-							// eslint-disable-next-line @typescript-eslint/no-var-requires
-							return require('child_process').spawn;
-						}
+					? () => spawn
 					: () =>
 							sandboxedSpawnHandlerFactory(() => {
 								let effectiveOptions = options;

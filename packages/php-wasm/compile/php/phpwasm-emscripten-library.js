@@ -589,7 +589,26 @@ const LibraryExample = {
 			}
 		}
 
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd();
+		let cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd();
+
+		// When using a native spawn handler, the VFS cwd is meaningless
+		// to the host OS. Passing a VFS path like "/wordpress" as cwd to
+		// child_process.spawn causes ENOENT. Only pass cwd if it exists
+		// on the host filesystem.
+		if (Module['spawnProcess'] && typeof require !== 'undefined') {
+			try {
+				const fs = require('fs');
+				if (!fs.existsSync(cwdstr)) {
+					cwdstr = null;
+				}
+			} catch (e) {
+				cwdstr = null;
+			}
+		} else if (Module['spawnProcess']) {
+			// ESM environment — can't sync-check, skip VFS cwd
+			cwdstr = null;
+		}
+
 		let envObject = null;
 
 		if (envLength) {
