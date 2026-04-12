@@ -64,7 +64,7 @@ Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o [Blueprint JSON Sch
 
 Veja como fica no VS Code:
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 <!-- ## 2. Set the site title to "My first Blueprint"
 
@@ -165,7 +165,7 @@ The site should now look like the screenshot below: -->
 
 O site agora deve se parecer com a captura de tela abaixo:
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 <!-- ### Resources
 
@@ -373,7 +373,7 @@ That's what it looks like when you navigate to the dashboard: -->
 
 Veja como fica quando você navega para o painel:
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 <!-- ### Create a plugin and zip it
 

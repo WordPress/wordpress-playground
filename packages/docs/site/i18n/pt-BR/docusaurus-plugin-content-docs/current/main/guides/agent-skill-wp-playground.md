@@ -5,10 +5,10 @@ description: Instale e use a skill wp-playground para automatizar fluxos de trab
 ---
 
 <!--
-# Using the WordPress Playground Agent Skill {#using-wordpress-playground-agent-skill}
+# Using the WordPress Playground Agent Skill
 -->
 
-# Usando a Skill de Agente do WordPress Playground {#using-wordpress-playground-agent-skill}
+# Usando a Skill de Agente do WordPress Playground
 
 <!--
 Want an AI assistant that already knows how to spin up WordPress instances, run Blueprints, and debug plugins? The **wp-playground** agent skill teaches coding agents the WordPress Playground CLI and browser workflows. You describe what you need in plain language. The agent handles the commands.
@@ -23,10 +23,10 @@ Your coding agent reads the skill reference — a document with CLI flags, proce
 Seu agente de codificação lê a referência da skill — um documento com flags do CLI, procedimentos e etapas de solução de problemas — antes de responder. Isso garante que os comandos do Playground sejam executados corretamente.
 
 <!--
-## Prerequisites {#prerequisites}
+## Prerequisites
 -->
 
-## Pré-requisitos {#prerequisites}
+## Pré-requisitos
 
 <!--
 Before installing the skill, confirm you have:
@@ -51,16 +51,16 @@ You also need a coding agent that supports agent skills: Antigravity, Claude Cod
 Você também precisa de um agente de codificação que suporte skills de agente: Antigravity, Claude Code, Codex, Copilot, Cursor ou Gemini CLI. Certifique-se de que seu CLI ou IDE execute a versão mais recente. A qualidade da saída depende do modelo escolhido.
 
 <!--
-## Installation {#installation}
+## Installation
 -->
 
-## Instalação {#installation}
+## Instalação
 
 <!--
-### 1. Install via terminal {#install-via-terminal}
+### 1. Install via terminal
 -->
 
-### 1. Instalar via terminal {#install-via-terminal}
+### 1. Instalar via terminal
 
 <!--
 Install the skill using the `npx skills` CLI:
@@ -77,10 +77,10 @@ npx skills add wordpress/agent-skills --skill wp-playground
 ```
 
 <!--
-### 2. Install manually {#install-manually}
+### 2. Install manually
 -->
 
-### 2. Instalar manualmente {#install-manually}
+### 2. Instalar manualmente
 
 <!--
 ```bash
@@ -175,10 +175,10 @@ gemini /skills list
 ```
 
 <!--
-## Use the skill in the terminal {#use-the-skill-in-the-terminal}
+## Use the skill in the terminal
 -->
 
-## Usar a skill no terminal {#use-the-skill-in-the-terminal}
+## Usar a skill no terminal
 
 <!--
 With the skill installed, describe your WordPress environment to your coding agent. The agent builds the Blueprint, runs the CLI commands, and starts the server.
@@ -207,10 +207,10 @@ The agent reads the skill reference, detects your project layout, and runs `serv
 O agente lê a referência da skill, detecta o layout do seu projeto e executa `server --auto-mount`. A instância inicia em `http://localhost:9400`.
 
 <!--
-### Generating content on the fly {#generating-content-on-the-fly}
+### Generating content on the fly
 -->
 
-### Gerando conteúdo dinamicamente {#generating-content-on-the-fly}
+### Gerando conteúdo dinamicamente
 
 <!--
 Need sample data for testing or a demo? Describe the content structure you want:
@@ -269,10 +269,10 @@ Each prompt produces a complete Blueprint that runs locally, handling user creat
 Cada prompt produz um Blueprint completo que roda localmente, gerenciando criação de usuários, atribuição de funções, geração de posts e configuração de taxonomias através dos passos do Blueprint.
 
 <!--
-### Version compatibility testing {#version-compatibility-testing}
+### Version compatibility testing
 -->
 
-### Testes de compatibilidade de versão {#version-compatibility-testing}
+### Testes de compatibilidade de versão
 
 <!--
 Does your plugin work on older PHP versions? Ask directly:
@@ -317,10 +317,10 @@ O agente adiciona as flags `--wp` e `--php` para corresponder à sua solicitaç�
 | PHP legado         | "Inicie WordPress com PHP 7.4"                                 |
 
 <!--
-### Complex scenarios {#complex-scenarios}
+### Complex scenarios
 -->
 
-### Cenários complexos {#complex-scenarios}
+### Cenários complexos
 
 <!--
 Combine multiple requirements in a single prompt:
@@ -355,10 +355,10 @@ The agent breaks these into the right sequence of Blueprint steps and CLI flags.
 O agente divide isso na sequência correta de passos do Blueprint e flags do CLI. Cada solicitação produz uma instância totalmente configurada e em execução.
 
 <!--
-## How the skill works {#how-the-skill-works}
+## How the skill works
 -->
 
-## Como a skill funciona {#how-the-skill-works}
+## Como a skill funciona
 
 <!--
 The wp-playground skill is a set of Markdown files that your coding agent loads into its context when your request matches Playground-related patterns. The skill includes:
@@ -383,10 +383,10 @@ Your coding agent reads these files before generating commands, ensuring correct
 Seu agente de codificação lê esses arquivos antes de gerar comandos, garantindo flags corretas e alertando sobre armadilhas comuns.
 
 <!--
-## Next steps {#next-steps}
+## Next steps
 -->
 
-## Próximos passos {#next-steps}
+## Próximos passos
 
 <!--
 - [WordPress Playground for Plugin Developers](/guides/for-plugin-developers) — Showcase and develop plugins with Playground

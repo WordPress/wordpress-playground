@@ -327,7 +327,45 @@ describe.each(blueprintVersions)(
 			expect(response.text).toContain('My WordPress Website');
 		});
 
-		// TODO: Testing mounting NODEFS within a NODEFS mount
+		// Regression test: mounting files under /tmp (which is already
+		// NODEFS-mounted to a shared host directory) used to race
+		// across 6 workers and intermittently fail with ErrnoError 20
+		// (ENOTDIR) when the concurrent NODEFS placeholder creation
+		// collided on the host filesystem.
+		test('should mount files under /tmp as post-install mounts without ENOTDIR', async () => {
+			const hostTmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-')
+			);
+
+			const mounts = [];
+			for (let i = 0; i < 5; i++) {
+				const hostSubDir = path.join(
+					hostTmpDir,
+					`migration-${i}`
+				);
+				mkdirSync(hostSubDir, { recursive: true });
+				const hostFilePath = path.join(
+					hostSubDir,
+					'.import-state.json'
+				);
+				writeFileSync(hostFilePath, `{"index":${i}}`);
+				mounts.push({
+					hostPath: hostFilePath,
+					vfsPath: `/tmp/migration-${i}/.import-state.json`,
+				});
+			}
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: mounts,
+				});
+				expect(cliServer.serverUrl).toBeTruthy();
+			} finally {
+				rmSync(hostTmpDir, { recursive: true, force: true });
+			}
+		});
 
 		if (version === 2) {
 			// @TODO: Test modes

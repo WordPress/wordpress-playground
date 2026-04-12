@@ -156,7 +156,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 1. Open the Playground site manager panel:
  -->
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 2. 追加アクションメニューの「.zip としてダウンロード」ボタンを使用します。
 
@@ -164,7 +164,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 2. Use the "Download as .zip" button in the additional actions menu
  -->
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 エクスポートされたファイルには、構築したサイト全体が含まれています。 PHP と SQLite をサポートするサーバーであればどこでもホストできます。 WordPress のコアファイル、プラグイン、テーマ、その他サイトに追加したすべてのファイルが含まれています。
 
@@ -196,7 +196,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 1. Playground ダッシュボードパネルを開きます:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!--
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
@@ -204,7 +204,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 1. 「Start a new Playground」セクションの最後にある「Import .zip」ボタンを使用します
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 ## 特定の WordPress または PHP バージョンを使用する
 
@@ -218,7 +218,7 @@ WordPress または PHP のバージョンを変更する最も迅速な方法�
 The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
  -->
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 :::info プラグインまたはテーマをテストする
 

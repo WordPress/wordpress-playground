@@ -105,17 +105,17 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 
 1. પ્લેગ્રાઉન્ડ સાઇટ મેનેજર પેનલ ખોલો:
 
-<!-- ![Site Manager](@site/static/img/site-manager/open-site-manager.webp) -->
+<!-- ![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp) -->
 
-![સાઇટ મેનેજર](@site/static/img/site-manager/open-site-manager.webp)
+![સાઇટ મેનેજર](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!-- 2. Use the "Download as .zip" button in the additional actions menu -->
 
 2. વધારાના ક્રિયાઓના મેનુમાં "Download as .zip" બટનનો ઉપયોગ કરો
 
-<!-- ![Export button](@site/static/img/site-manager/export-zip-file.webp) -->
+<!-- ![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp) -->
 
-![એક્સપોર્ટ બટન](@site/static/img/site-manager/export-zip-file.webp)
+![એક્સપોર્ટ બટન](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!-- The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there. -->
 
@@ -137,17 +137,17 @@ SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમ�
 
 1. પ્લેગ્રાઉન્ડ ડેશબોર્ડ પેનલ ખોલો:
 
-<!-- ![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp) -->
+<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp) -->
 
-![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](@site/static/img/dashboard/open-playground-dashboard.webp)
+![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!-- 1. Use the "Import .zip" button at the end of the "Start a new Playground" section -->
 
 1. "Start a new Playground" વિભાગના અંતે "Import .zip" બટનનો ઉપયોગ કરો
 
-<!-- ![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp) -->
+<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp) -->
 
-![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](@site/static/img/dashboard/import-playground.webp)
+![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!-- ## Use a specific WordPress or PHP version -->
 
@@ -157,9 +157,9 @@ SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમ�
 
 વર્ડપ્રેસ અથવા PHP નું વર્ઝન બદલવાનો સૌથી ઝડપી રસ્તો [સત્તાવાર ડેમો સાઇટ](https://playground.wordpress.net/) પર સેટિંગ્સ પેનલનો ઉપયોગ કરવો છે:
 
-<!-- ![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp) -->
+<!-- ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp) -->
 
-![વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સેટિંગ્સ મેનુ](@site/static/img/playground-settings-menu.webp)
+![વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સેટિંગ્સ મેનુ](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!-- :::info Test your plugin or theme -->
 

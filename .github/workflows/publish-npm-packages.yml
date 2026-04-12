@@ -21,9 +21,10 @@ permissions:
 
 jobs:
     release:
-        # Only allow Playground maintainers to trigger this workflow.
+        # Only run on the playground repo, and only allow Playground maintainers to trigger this workflow.
         # Non-trunk branches are allowed but require a custom dist tag (not "latest").
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             (
               github.actor == 'adamziel' ||
               github.actor == 'dmsnell' ||
