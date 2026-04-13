@@ -1704,7 +1704,6 @@ export async function runCLI(
 			return response;
 		},
 	}).catch((error) => {
-		cliOutput.printError(describeError(error));
 		throw error;
 	});
 
