@@ -259,6 +259,7 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"php-crash.spec.ts",
+					"php-curl-crash.spec.ts",
 					"php-ini.spec.ts",
 					"write-files.spec.ts",
 					"php-worker.spec.ts",
@@ -277,6 +278,7 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"php-crash.spec.ts",
+					"php-curl-crash.spec.ts",
 					"php-ini.spec.ts",
 					"write-files.spec.ts",
 					"php-worker.spec.ts",

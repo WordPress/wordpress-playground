@@ -1083,12 +1083,14 @@ export class PHP implements Disposable {
 				streamsClosed = true;
 
 				// Mark the runtime as crashed so it gets rotated on
-				// the next request. We intentionally do NOT disable
-				// all methods on the PHP instance — the WASM memory
-				// and globals survive a trap, and the rotation
-				// mechanism needs working methods to swap in a fresh
-				// runtime.
+				// the next request. We set needsRotating directly
+				// rather than relying on the event dispatch path
+				// (which could fail on a corrupted runtime).
+				// We intentionally do NOT disable all methods on the
+				// PHP instance — the rotation mechanism needs working
+				// methods to swap in a fresh runtime.
 				this.#crashed = true;
+				this.#rotationOptions.needsRotating = true;
 				(this as any).functionsMaybeMissingFromAsyncify =
 					getFunctionsMaybeMissingFromAsyncify();
 
@@ -1406,30 +1408,10 @@ export class PHP implements Disposable {
 		// old PHP runtime without propagating them to the new
 		// runtime.
 
+		let oldRootLevelPaths: string[] = [];
+		let oldCWD = '/';
 		const oldFS = this[__private__dont__use].FS;
-		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
 		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
-
-		// Temporarily set CWD to / and restore it at the end of this method.
-		//
-		// There's a chance cleaning up old mounts via mount.unmount()
-		// will attempt removing the CWD. Normally, this would throw
-		// FS.ErrnoError(10) EBUSY and interrupt the PHP runtime rotation,
-		// leaving us in a broken state.
-		//
-		// Even though removing the CWD directory is not allowed by the
-		// filesystem, we don't care that much here – we're merely freeing
-		// all the resources allocated by the old filesystem before it's
-		// garbage collected. We are about to recreate the same filesystem
-		// structure and mounts in another PHP runtime.
-		//
-		// Therefore, let's suspend the strict EBUSY check by setting the CWD
-		// to / for the cleanup purposes. We'll attempt to restore the original
-		// CWD on the new runtime once we re-apply all the mounts there. We'll
-		// only have a real reason to throw an error if the CWD path does not
-		// exist in the new filesystem after the rotation.
-		const oldCWD = oldFS.cwd();
-		oldFS.chdir('/');
 
 		// Remember mounts to apply to new runtime
 		const mountHandlersToReapplyInOrder = Object.entries(this.#mounts).map(
@@ -1439,20 +1421,54 @@ export class PHP implements Disposable {
 			})
 		);
 
-		// Unmount all the mount handlers in reverse order because each nested
-		// mount depends upon the parent mount which preceded it.
-		const mountsToUnmountInReverseOrder = Object.values(
-			this.#mounts
-		).reverse();
-		for (const mount of mountsToUnmountInReverseOrder) {
-			await mount.unmount();
-		}
-
-		// Kill the current runtime
+		// Tear down the old runtime. The FS may be in a corrupted
+		// state after a WASM trap, so we wrap the entire teardown
+		// in a try/catch — if it fails, we still proceed to
+		// initialize the new runtime. Without this, a crash during
+		// teardown would leak the already-allocated new runtime
+		// (its WASM memory and network proxy server).
 		try {
+			oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
+
+			// Temporarily set CWD to / and restore it at the end of
+			// this method.
+			//
+			// There's a chance cleaning up old mounts via
+			// mount.unmount() will attempt removing the CWD.
+			// Normally, this would throw FS.ErrnoError(10) EBUSY
+			// and interrupt the PHP runtime rotation, leaving us in
+			// a broken state.
+			//
+			// Even though removing the CWD directory is not allowed
+			// by the filesystem, we don't care that much here – we're
+			// merely freeing all the resources allocated by the old
+			// filesystem before it's garbage collected. We are about
+			// to recreate the same filesystem structure and mounts in
+			// another PHP runtime.
+			//
+			// Therefore, let's suspend the strict EBUSY check by
+			// setting the CWD to / for the cleanup purposes. We'll
+			// attempt to restore the original CWD on the new runtime
+			// once we re-apply all the mounts there. We'll only have
+			// a real reason to throw an error if the CWD path does
+			// not exist in the new filesystem after the rotation.
+			oldCWD = oldFS.cwd();
+			oldFS.chdir('/');
+
+			// Unmount all the mount handlers in reverse order because
+			// each nested mount depends upon the parent mount which
+			// preceded it.
+			const mountsToUnmountInReverseOrder = Object.values(
+				this.#mounts
+			).reverse();
+			for (const mount of mountsToUnmountInReverseOrder) {
+				await mount.unmount();
+			}
+
 			this.exit();
 		} catch {
-			// Ignore the exit-related exception
+			// Old runtime teardown failed (likely corrupted after a
+			// WASM trap). Continue with the new runtime anyway.
 		}
 
 		// Initialize the new runtime

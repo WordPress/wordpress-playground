@@ -98,91 +98,62 @@ export function clarifyErrorMessage(
 	crypticError: Error,
 	asyncifyStack?: string
 ) {
-	if (crypticError.message === 'unreachable') {
-		// Extract all the PHP functions from the entire error chain
-		// to determine whether this looks like an Asyncify issue.
-		const uniqueFunctions = new Set<string>(
-			extractPHPFunctionsFromStack(asyncifyStack || '')
-		);
-		let lastError = crypticError;
-		do {
-			for (const fn of extractPHPFunctionsFromStack(
-				lastError.stack || ''
-			)) {
-				uniqueFunctions.add(fn);
-			}
-			lastError = lastError.cause as Error;
-		} while (lastError);
-		functionsMaybeMissingFromAsyncify = Array.from(uniqueFunctions);
+	const isWasmTrap =
+		crypticError.message === 'unreachable' ||
+		crypticError.message?.includes('memory access out of bounds');
+	if (!isWasmTrap) {
+		return crypticError.message;
+	}
 
-		// If there's an Asyncify stack and PHP functions in the trace,
-		// this is likely a missing ASYNCIFY_ONLY entry. Otherwise it's
-		// probably a data-related crash (e.g. corrupt gzip from a network
-		// response causing zlib to access memory out of bounds).
-		if (asyncifyStack && uniqueFunctions.size > 0) {
-			let betterMessage = ASYNCIFY_UNREACHABLE_ERROR;
-			for (const fn of uniqueFunctions) {
-				betterMessage += `    * ${fn}\n`;
-			}
-			betterMessage += `\nOriginal error message: ${crypticError.message}\n`;
-			return betterMessage;
+	// Extract PHP functions from the entire error chain. These help
+	// diagnose Asyncify issues (missing ASYNCIFY_ONLY entries).
+	const uniqueFunctions = new Set<string>(
+		extractPHPFunctionsFromStack(asyncifyStack || '')
+	);
+	let lastError = crypticError;
+	do {
+		for (const fn of extractPHPFunctionsFromStack(lastError.stack || '')) {
+			uniqueFunctions.add(fn);
 		}
+		lastError = lastError.cause as Error;
+	} while (lastError);
+	functionsMaybeMissingFromAsyncify = Array.from(uniqueFunctions);
 
-		return (
-			WASM_TRAP_ERROR +
-			`Original error message: ${crypticError.message}\n`
-		);
+	let message = WASM_TRAP_ERROR;
+	if (uniqueFunctions.size > 0) {
+		message +=
+			`PHP functions found in the stack trace (may help if this\n` +
+			`is an Asyncify issue — see above):\n\n`;
+		for (const fn of uniqueFunctions) {
+			message += `    * ${fn}\n`;
+		}
+		message += '\n';
 	}
-
-	if (crypticError.message?.includes('memory access out of bounds')) {
-		return (
-			WASM_TRAP_ERROR +
-			`Original error message: ${crypticError.message}\n`
-		);
-	}
-
-	return crypticError.message;
+	message += `Original error message: ${crypticError.message}\n`;
+	return message;
 }
 
 const WASM_TRAP_ERROR = `\
 WASM runtime error.
 
-The PHP runtime encountered a fatal WebAssembly trap. This typically
-happens when PHP processes corrupt or malformed data (e.g. truncated
-gzip from a network response) that causes a C library like zlib to
-compute invalid buffer offsets and access memory out of bounds.
+The PHP runtime encountered a fatal WebAssembly trap. Common causes:
+
+* A PHP function missing from the ASYNCIFY_ONLY list (build issue)
+* Corrupt or malformed data (e.g. truncated gzip from a network
+  response) causing a C library to access memory out of bounds
+* Running out of WASM memory (allocation failure)
 
 The current PHP request has failed. If runtime rotation is enabled,
 the PHP runtime will automatically recover on the next request.
 
-If you believe this is a bug in WordPress Playground, please file
-an issue: https://github.com/WordPress/wordpress-playground/issues/new
+If this is an Asyncify issue, the fix is to add the missing function
+to the ASYNCIFY_ONLY list. Run 'npm run fix-asyncify' in the
+WordPress Playground repository.
 
-`;
-
-const ASYNCIFY_UNREACHABLE_ERROR = `\
-"unreachable" WASM instruction executed.
-
-The typical reason is a PHP function missing from the ASYNCIFY_ONLY
-list when building PHP.wasm.
-
-You will need to file a new issue in the WordPress Playground repository
-and paste this error message there:
-
+Please file an issue and paste this error message:
 https://github.com/WordPress/wordpress-playground/issues/new
 
-If you're a core developer, the typical fix is to:
-
-* Isolate a minimal reproduction of the error
-* Add a reproduction of the error to php-asyncify.spec.ts in the WordPress Playground repository
-* Run 'npm run fix-asyncify'
-* Commit the changes, push to the repo, release updated NPM packages
-
-Below is a list of all the PHP functions found in the stack trace to
-help with the minimal reproduction. If they're all already listed in
-the Dockerfile, you'll need to trigger this error again with long stack
-traces enabled. In node.js, you can do it using the --stack-trace-limit=100
-CLI option: \n\n`;
+`;
 
 // ANSI escape codes for CLI colors and formats
 const redBg = '\x1b[41m';
