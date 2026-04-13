@@ -325,6 +325,8 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 	}
 
 	override close() {
+		if (this.readyState >= this.CLOSING) return;
+		this.readyState = this.CLOSING;
 		/**
 		 * Workaround a PHP.wasm issue – if the WebSocket is
 		 * closed asynchronously after the last chunk is received,
