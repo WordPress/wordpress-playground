@@ -133,7 +133,6 @@ describe.each(phpVersions)(
 				curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
 				$result = curl_exec($ch);
 				$err = curl_error($ch);
-				curl_close($ch);
 				if ($err) {
 					echo "CURL_ERROR: $err";
 				} else {
@@ -161,7 +160,6 @@ describe.each(phpVersions)(
 					curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
 					$result = curl_exec($ch);
 					$err = curl_error($ch);
-					curl_close($ch);
 					echo $err ? "CURL_ERROR: $err" : "OK: " . strlen($result);
 				`,
 				});
@@ -213,7 +211,6 @@ describe.each(phpVersions)(
 					curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
 					$result = curl_exec($ch);
 					$err = curl_error($ch);
-					curl_close($ch);
 					echo $err ? "CURL_ERROR: $err" : "OK: " . strlen($result);
 				`,
 				});
@@ -251,7 +248,6 @@ describe.each(phpVersions)(
 				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 				$result = curl_exec($ch);
 				$err = curl_error($ch);
-				curl_close($ch);
 				echo $err ? "CURL_ERROR: $err" : "RAW_BYTES: " . strlen($result);
 			`,
 			});
@@ -275,7 +271,6 @@ describe.each(phpVersions)(
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 					curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
 					curl_exec($ch);
-					curl_close($ch);
 				`,
 				});
 			} catch {
