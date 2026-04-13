@@ -67,10 +67,6 @@ async function ehlo(
 	return lines;
 }
 
-/* ================================================================== */
-/*  Happy-path test (existing)                                        */
-/* ================================================================== */
-
 describe('SmtpSink – happy path', () => {
 	it('captures an email through a full SMTP transaction', async () => {
 		// Walks the canonical SMTP transaction from RFC 5321 §3.3:
@@ -113,10 +109,6 @@ describe('SmtpSink – happy path', () => {
 		expect((msg.text ?? '').trim()).toBe('This is the email body content.');
 	});
 });
-
-/* ================================================================== */
-/*  EHLO extensions                                                   */
-/* ================================================================== */
 
 describe('SmtpSink – EHLO', () => {
 	it('advertises SIZE and PIPELINING', async () => {
@@ -217,10 +209,6 @@ describe('SmtpSink – EHLO', () => {
 	});
 });
 
-/* ================================================================== */
-/*  STARTTLS                                                          */
-/* ================================================================== */
-
 describe('SmtpSink – STARTTLS', () => {
 	it('refuses STARTTLS with 502', async () => {
 		// RFC 5321 §4.2.4: an unimplemented command is answered with
@@ -235,10 +223,6 @@ describe('SmtpSink – STARTTLS', () => {
 		expect(resp).toMatch(/^502 /);
 	});
 });
-
-/* ================================================================== */
-/*  AUTH PLAIN                                                        */
-/* ================================================================== */
 
 describe('SmtpSink – AUTH PLAIN', () => {
 	it('accepts valid credentials inline', async () => {
@@ -309,10 +293,6 @@ describe('SmtpSink – AUTH PLAIN', () => {
 	});
 });
 
-/* ================================================================== */
-/*  AUTH LOGIN                                                        */
-/* ================================================================== */
-
 describe('SmtpSink – AUTH LOGIN', () => {
 	it('completes multi-step LOGIN flow', async () => {
 		// LOGIN SASL is non-standard (draft-murchison-sasl-login) but
@@ -372,10 +352,6 @@ describe('SmtpSink – AUTH LOGIN', () => {
 		expect(resp).toMatch(/^535 /);
 	});
 });
-
-/* ================================================================== */
-/*  AUTH edge cases                                                   */
-/* ================================================================== */
 
 describe('SmtpSink – AUTH edge cases', () => {
 	it('rejects AUTH with no mechanism', async () => {
@@ -438,10 +414,6 @@ describe('SmtpSink – AUTH edge cases', () => {
 		expect(rcptResp).toMatch(/^530 /);
 	});
 });
-
-/* ================================================================== */
-/*  SMTP command edge cases                                           */
-/* ================================================================== */
 
 describe('SmtpSink – command edge cases', () => {
 	it('RSET clears the envelope', async () => {
@@ -705,10 +677,6 @@ describe('SmtpSink – command edge cases', () => {
 	});
 });
 
-/* ================================================================== */
-/*  Data handling                                                     */
-/* ================================================================== */
-
 describe('SmtpSink – data handling', () => {
 	it('handles dot-stuffing (lines starting with ..)', async () => {
 		// RFC 5321 §4.5.2 (transparency): a leading "." on a body line
@@ -853,10 +821,6 @@ describe('SmtpSink – data handling', () => {
 		expect(client.messages[1].subject).toBe('Second');
 	});
 });
-
-/* ================================================================== */
-/*  parseMessage – MIME parsing                                         */
-/* ================================================================== */
 
 describe('parseMessage', () => {
 	it('parses a simple text/plain email', () => {

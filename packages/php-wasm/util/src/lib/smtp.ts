@@ -1,11 +1,3 @@
-// smtp-sink.ts — in-process SMTP receiver with optional SASL AUTH.
-//
-// Scope: catches outbound mail from PHP (via PHPMailer, fsockopen,
-// or anything else that speaks plain SMTP). STARTTLS is not
-// supported because the loopback duplex carries no real network
-// traffic and there is nothing to encrypt; clients that need TLS
-// against this sink should be configured for plain SMTP instead.
-
 export type ByteDuplex = {
 	readable: ReadableStream<Uint8Array>;
 	writable: WritableStream<Uint8Array>;
