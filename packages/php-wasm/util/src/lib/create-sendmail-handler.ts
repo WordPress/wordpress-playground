@@ -21,9 +21,16 @@ import type { CaughtMessage } from './smtp';
  * commands are forwarded to `fallbackSpawnHandler` if provided, otherwise
  * they throw.
  */
+const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10 MB, same as SmtpSink
+
 export function createSendmailSpawnHandler(
 	onEmail: (message: CaughtMessage) => void,
-	fallbackSpawnHandler?: (command: any, argsArray?: any, options?: any) => any
+	fallbackSpawnHandler?: (
+		command: any,
+		argsArray?: any,
+		options?: any
+	) => any,
+	{ maxSize = DEFAULT_MAX_SIZE }: { maxSize?: number } = {}
 ) {
 	const sendmailHandler = createSpawnHandler(
 		async function (command, processApi) {
@@ -40,17 +47,32 @@ export function createSendmailSpawnHandler(
 			}
 
 			const chunks: Uint8Array[] = [];
+			let totalLen = 0;
+			let overflow = false;
 			const stdinDone = new Promise<void>((resolve) => {
 				processApi.childProcess.stdin.on('finish', resolve);
 			});
 			processApi.on('stdin', (data: Uint8Array) => {
+				if (overflow) return;
+				totalLen += data.length;
+				if (totalLen > maxSize) {
+					overflow = true;
+					chunks.length = 0;
+					return;
+				}
 				chunks.push(data.slice());
 			});
 
 			await stdinDone;
 
-			let totalLen = 0;
-			for (const c of chunks) totalLen += c.length;
+			if (overflow) {
+				processApi.stderr(
+					`sendmail: message exceeds maximum size (${maxSize} bytes)\n`
+				);
+				processApi.exit(1);
+				return;
+			}
+
 			const all = new Uint8Array(totalLen);
 			let offset = 0;
 			for (const c of chunks) {
