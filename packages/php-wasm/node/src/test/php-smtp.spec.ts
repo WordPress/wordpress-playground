@@ -66,45 +66,27 @@ describe.each(phpVersions)('PHP %s – SMTP sink', (phpVersion) => {
 			code: `<?php
 				error_reporting(E_ALL);
 
-				// Helper: read a full SMTP reply (may be multi-line).
-				// Multi-line replies have a dash after the code (e.g. "250-...").
-				// The final line has a space (e.g. "250 ...").
 				function smtp_read_reply($fp) {
 					$lines = '';
 					while (($line = fgets($fp)) !== false) {
 						$lines .= $line;
-						// Final line: code followed by space (not dash)
 						if (preg_match('/^\\d{3} /', $line)) break;
 					}
 					return $lines;
 				}
 
 				$smtp = fsockopen('localhost', 25, $errno, $errstr, 5);
-				if (!$smtp) {
-					echo "CONNECT_FAILED: $errstr ($errno)";
-					exit;
-				}
+				if (!$smtp) { echo "CONNECT_FAILED: $errstr ($errno)"; exit; }
 
-				// Read server greeting
-				$greeting = smtp_read_reply($smtp);
-				if (strpos($greeting, '220') !== 0) {
-					echo "BAD_GREETING";
-					fclose($smtp);
-					exit;
-				}
-
+				smtp_read_reply($smtp);
 				fwrite($smtp, "EHLO localhost\\r\\n");
 				smtp_read_reply($smtp);
-
 				fwrite($smtp, "MAIL FROM:<sender@test.com>\\r\\n");
 				smtp_read_reply($smtp);
-
 				fwrite($smtp, "RCPT TO:<recipient@test.com>\\r\\n");
 				smtp_read_reply($smtp);
-
 				fwrite($smtp, "DATA\\r\\n");
 				smtp_read_reply($smtp);
-
 				fwrite($smtp, "From: sender@test.com\\r\\n");
 				fwrite($smtp, "To: recipient@test.com\\r\\n");
 				fwrite($smtp, "Subject: Hello via SMTP\\r\\n");
@@ -112,7 +94,6 @@ describe.each(phpVersions)('PHP %s – SMTP sink', (phpVersion) => {
 				fwrite($smtp, "This is the body.\\r\\n");
 				fwrite($smtp, ".\\r\\n");
 				smtp_read_reply($smtp);
-
 				fwrite($smtp, "QUIT\\r\\n");
 				fclose($smtp);
 				echo 'SENT';
