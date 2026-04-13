@@ -28,9 +28,12 @@ export type LoginStep = {
 /**
  * Logs in to Playground.
  * Under the hood, this function sets the `PLAYGROUND_AUTO_LOGIN_AS_USER` constant.
- * The `0-auto-login.php` mu-plugin uses that constant to log in the user on the first load.
+ * The `1-auto-login.php` mu-plugin uses that constant to log in the user on the first load.
  * This step depends on the `@wp-playground/wordpress` package because
  * the plugin is located in and loaded automatically by the `@wp-playground/wordpress` package.
+ *
+ * In the CLI, the `--login` flag injects this constant at boot time via
+ * `mergeDefinedConstants` so every worker has it before the server starts.
  */
 export const login: StepHandler<LoginStep> = async (
 	playground,
@@ -39,6 +42,5 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
-	// TODO: Make defineConstant apply to all workers
 	playground.defineConstant('PLAYGROUND_AUTO_LOGIN_AS_USER', username);
 };
