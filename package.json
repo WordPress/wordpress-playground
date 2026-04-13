@@ -221,7 +221,8 @@
 		"tmp": "0.2.5",
 		"form-data": "^4.0.4",
 		"lodash": "^4.17.23",
-		"glob": "^9.3.0"
+		"glob": "^9.3.0",
+		"webpackbar": "^7.0.0"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
