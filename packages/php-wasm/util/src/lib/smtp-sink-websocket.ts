@@ -8,6 +8,7 @@ import { SmtpSink, makeLoopbackPair, type CaughtMessage } from './smtp';
  */
 export class SmtpSinkWebSocket extends WebSocketShim {
 	private writer: WritableStreamDefaultWriter<Uint8Array>;
+	private pendingWrites: Uint8Array[] | null = [];
 
 	constructor(url: string, onEmail: (message: CaughtMessage) => void) {
 		super(url);
@@ -28,14 +29,41 @@ export class SmtpSinkWebSocket extends WebSocketShim {
 			});
 	}
 
+	override emitOpen() {
+		super.emitOpen();
+		const buffered = this.pendingWrites;
+		this.pendingWrites = null;
+		if (buffered) {
+			for (const bytes of buffered) {
+				this.writeToStream(bytes);
+			}
+		}
+	}
+
 	override send(data: ArrayBuffer | Uint8Array | string) {
-		if (this.readyState !== this.OPEN) return;
 		const bytes =
 			typeof data === 'string'
 				? new TextEncoder().encode(data)
 				: data instanceof ArrayBuffer
 					? new Uint8Array(data)
 					: data;
+
+		if (this.readyState === this.CONNECTING) {
+			this.pendingWrites!.push(bytes);
+			return;
+		}
+		if (this.readyState !== this.OPEN) {
+			this.emitError(
+				new Error(
+					`SmtpSinkWebSocket: send() called in state ${this.readyState}`
+				)
+			);
+			return;
+		}
+		this.writeToStream(bytes);
+	}
+
+	private writeToStream(bytes: Uint8Array) {
 		void this.writer.write(bytes);
 	}
 
