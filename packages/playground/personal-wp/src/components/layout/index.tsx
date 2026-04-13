@@ -21,7 +21,7 @@ function getDisplayModeFromQuery(): DisplayMode {
 	const query = new URLSearchParams(document.location.search);
 	return supportedDisplayModes.includes(query.get('mode') as any)
 		? (query.get('mode') as DisplayMode)
-		: 'browser-full-screen';
+		: 'seamless';
 }
 
 export function Layout() {

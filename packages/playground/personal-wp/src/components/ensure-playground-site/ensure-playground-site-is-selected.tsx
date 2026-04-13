@@ -148,8 +148,20 @@ async function createNewTemporarySite(
 	const siteName = requestedSiteSlug
 		? deriveSiteNameFromSlug(requestedSiteSlug)
 		: randomSiteName();
+
+	// Only treat URL params as blueprint instructions when on the
+	// root path. Other paths (e.g. /wp-admin/plugins.php) are
+	// WordPress URLs reflected in the browser bar via pushState
+	// and their params belong to WordPress, not to the blueprint
+	// system.
+	const currentUrl = new URL(window.location.href);
+	const blueprintUrl =
+		currentUrl.pathname === '/'
+			? currentUrl
+			: new URL(window.location.origin);
+
 	const newSiteInfo = await dispatch(
-		setTemporarySiteSpec(siteName, new URL(window.location.href))
+		setTemporarySiteSpec(siteName, blueprintUrl)
 	);
 	await dispatch(setActiveSite(newSiteInfo.slug));
 }

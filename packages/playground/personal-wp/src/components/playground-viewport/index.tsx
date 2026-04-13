@@ -5,6 +5,7 @@ import BrowserChrome from '../browser-chrome';
 import {
 	selectActiveSiteError,
 	selectActiveSiteErrorDetails,
+	getActiveClientInfo,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
@@ -14,6 +15,9 @@ import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import { selectSiteBySlug } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
+import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
+import { SiteManagerIcon } from '@wp-playground/components';
+import Button from '../button';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -34,10 +38,63 @@ export const PlaygroundViewport = ({
 	const activeSite = useActiveSite();
 
 	if (displayMode === 'seamless') {
-		return activeSite ? <JustViewport siteSlug={activeSite.slug} /> : null;
+		return activeSite ? (
+			<SeamlessViewport siteSlug={activeSite.slug} />
+		) : null;
 	}
 	return <BrowserChrome className={className} />;
 };
+
+function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
+	const clientInfo = useAppSelector(getActiveClientInfo);
+	const dispatch = useAppDispatch();
+	const siteManagerIsOpen = useAppSelector(
+		(state) => state.ui.siteManagerIsOpen
+	);
+	const url = clientInfo?.url;
+
+	// Reflect the WordPress URL in the browser's address bar.
+	// Use the raw path from the playground client directly to
+	// preserve dots, query strings, and fragments as-is.
+	useEffect(() => {
+		if (!url) {
+			return;
+		}
+		// Build the full browser URL preserving the origin
+		const browserUrl =
+			window.location.origin + (url.startsWith('/') ? url : '/' + url);
+		if (browserUrl !== window.location.href) {
+			window.history.pushState({}, '', browserUrl);
+		}
+	}, [url]);
+
+	return (
+		<div className={css.seamlessWrapper}>
+			<div
+				className={classNames(css.sidebarLatch, {
+					[css.sidebarLatchHidden]: siteManagerIsOpen,
+				})}
+			>
+				<Button
+					variant="browser-chrome"
+					aria-label={
+						siteManagerIsOpen
+							? 'Close Site Tools'
+							: 'Open Site Tools'
+					}
+					aria-pressed={siteManagerIsOpen}
+					className={css.sidebarLatchButton}
+					onClick={() => {
+						dispatch(setSiteManagerOpen(!siteManagerIsOpen));
+					}}
+				>
+					<SiteManagerIcon sidebarActive={siteManagerIsOpen} />
+				</Button>
+			</div>
+			<JustViewport siteSlug={siteSlug} />
+		</div>
+	);
+}
 
 export const JustViewport = function JustViewport({
 	siteSlug,

@@ -43,6 +43,7 @@ import {
 	setDependentMode,
 	requestTakeover,
 } from './tab-coordinator';
+import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 
 export interface BootSiteClientOptions {
 	signal: AbortSignal;
@@ -171,12 +172,13 @@ export function bootSiteClient(
 								const iframeUrl = new URL(
 									iframe.contentWindow?.location?.href || ''
 								);
-								return iframeUrl.pathname.replace(
+								const path = iframeUrl.pathname.replace(
 									new RegExp(
 										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
 									),
 									'/'
 								);
+								return path + iframeUrl.search;
 							} catch {
 								return '/';
 							}
@@ -244,12 +246,21 @@ export function bootSiteClient(
 					const dependentUrlParams = new URLSearchParams(
 						window.location.search
 					);
+					// Use the browser URL path + query as landing page
+					// (set via pushState during WordPress navigation).
+					const browserPath =
+						window.location.pathname + window.location.search;
 					const landingPage =
 						dependentUrlParams.get('url') ||
-						site.metadata.lastUrl ||
+						(browserPath !== '/' ? browserPath : null) ||
 						'/wp-admin/';
-					scopedUrl.pathname += landingPage.replace(/^\//, '');
-					iframe.src = scopedUrl.toString();
+					// Resolve relative to scopedUrl so a query string in
+					// landingPage stays in URL.search instead of being
+					// percent-encoded into URL.pathname.
+					iframe.src = new URL(
+						landingPage.replace(/^\//, ''),
+						scopedUrl
+					).toString();
 
 					const dependentModeClient = {
 						goTo: async (path: string) => {
@@ -264,12 +275,13 @@ export function bootSiteClient(
 								const iframeUrl = new URL(
 									iframe.contentWindow?.location?.href || ''
 								);
-								return iframeUrl.pathname.replace(
+								const path = iframeUrl.pathname.replace(
 									new RegExp(
 										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
 									),
 									'/'
 								);
+								return path + iframeUrl.search;
 							} catch {
 								return '/';
 							}
@@ -301,7 +313,9 @@ export function bootSiteClient(
 								dispatch(
 									updateClientInfo({
 										siteSlug: site.slug,
-										changes: { url: path },
+										changes: {
+											url: path + iframeUrl.search,
+										},
 									})
 								);
 							}
@@ -357,8 +371,16 @@ export function bootSiteClient(
 					.extraLibraries as any[],
 				constants: site.metadata.runtimeConfiguration.constants,
 				login: autoLogin,
-				// Restore last visited URL (pending blueprint may override below)
-				landingPage: urlParamLandingPage || site.metadata.lastUrl,
+				// Use the browser URL path + query as landing page
+				// (set via pushState during WordPress navigation).
+				// Falls back to the default admin page.
+				landingPage:
+					urlParamLandingPage ||
+					(() => {
+						const pathAndQuery =
+							window.location.pathname + window.location.search;
+						return pathAndQuery !== '/' ? pathAndQuery : undefined;
+					})(),
 			};
 
 			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
@@ -515,12 +537,6 @@ export function bootSiteClient(
 					},
 				})
 			);
-			dispatch(
-				updateSiteMetadata({
-					slug: site.slug,
-					changes: { lastUrl: url },
-				})
-			);
 		});
 
 		// Clear URL blueprint after successful boot
@@ -528,7 +544,10 @@ export function bootSiteClient(
 			dispatch(setBlueprintResolvedFromUrl(null));
 			if (clearUrlAfterBlueprintApplied) {
 				const cleanUrl = new URL(window.location.href);
-				cleanUrl.search = '';
+				for (const key of PLAYGROUND_QUERY_KEYS) {
+					cleanUrl.searchParams.delete(key);
+				}
+				cleanUrl.searchParams.delete('blueprint-url');
 				cleanUrl.hash = '';
 				window.history.replaceState({}, '', cleanUrl.toString());
 			}
