@@ -709,9 +709,17 @@ export function parseMessage(
 	const from = headers['from']
 		? decodeRfc2047(headers['from'])
 		: fallbackFrom;
-	const to = headers['to']
-		? decodeRfc2047(headers['to'])
-		: fallbackRcpts.join(', ');
+
+	const recipientParts: string[] = [];
+	for (const hdr of ['to', 'cc', 'bcc']) {
+		if (headers[hdr]) {
+			recipientParts.push(decodeRfc2047(headers[hdr]));
+		}
+	}
+	const to =
+		recipientParts.length > 0
+			? recipientParts.join(', ')
+			: fallbackRcpts.join(', ');
 
 	let text: string | undefined;
 	const ct = (headers['content-type'] || 'text/plain').toLowerCase();

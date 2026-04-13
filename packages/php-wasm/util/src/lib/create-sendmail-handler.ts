@@ -1,10 +1,5 @@
 import { createSpawnHandler } from './create-spawn-handler';
-import {
-	splitHeaderBody,
-	parseHeaderLines,
-	parseMessage,
-	extractAddresses,
-} from './smtp';
+import { parseMessage } from './smtp';
 import type { CaughtMessage } from './smtp';
 
 /**
@@ -89,24 +84,7 @@ export function createSendmailSpawnHandler(
 			// Normalize line endings to CRLF for the email parsers
 			const raw = rawText.replace(/\r?\n/g, '\r\n');
 
-			// Parse headers to extract envelope recipients (sendmail -t mode)
-			const { headerRaw } = splitHeaderBody(raw);
-			const headers = parseHeaderLines(headerRaw);
-
-			const recipients: string[] = [];
-			for (const hdr of ['to', 'cc', 'bcc']) {
-				if (headers[hdr]) {
-					recipients.push(...extractAddresses(headers[hdr]));
-				}
-			}
-			if (!envelopeSender && headers['from']) {
-				const fromAddrs = extractAddresses(headers['from']);
-				if (fromAddrs.length > 0) {
-					envelopeSender = fromAddrs[0];
-				}
-			}
-
-			const parsed = parseMessage(raw, envelopeSender, recipients);
+			const parsed = parseMessage(raw, envelopeSender, []);
 
 			const message: CaughtMessage = {
 				receivedAt: new Date().toISOString(),
