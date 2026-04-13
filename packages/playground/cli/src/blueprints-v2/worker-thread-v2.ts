@@ -63,8 +63,10 @@ async function mountResources(php: PHP, mounts: Mount[]) {
 				createNodeFsMountHandler(mount.hostPath)
 			);
 		} catch (error) {
+			const errorSummary =
+				error instanceof Error ? error.message : String(error);
 			throw new Error(
-				`Error mounting path ${mount.hostPath} at ${mount.vfsPath}`,
+				`Error mounting path ${mount.hostPath} at ${mount.vfsPath}: ${errorSummary}`,
 				{ cause: error }
 			);
 		}
