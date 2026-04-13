@@ -16,25 +16,21 @@ export class SmtpSinkWebSocket extends WebSocketShim {
 		void new SmtpSink(server, onEmail).start();
 		this.writer = client.writable.getWriter();
 
-		// Defer so Emscripten can register handlers after construction.
-		queueMicrotask(() => {
-			if (this.readyState !== this.CONNECTING) return;
-			this.emitOpen();
-			client.readable
-				.pipeTo(
-					new WritableStream({
-						write: (chunk) => this.emitMessage(chunk),
-					})
-				)
-				// pipeTo() rejects if the readable side errors during
-				// teardown (e.g. emitMessage throws while the consumer is
-				// already tearing down). We still want the .finally()
-				// below to run and emit close().
-				.catch(() => {})
-				.finally(() => {
-					if (this.readyState !== this.CLOSED) this.emitClose();
-				});
-		});
+		this.emitOpen();
+		client.readable
+			.pipeTo(
+				new WritableStream({
+					write: (chunk) => this.emitMessage(chunk),
+				})
+			)
+			// pipeTo() rejects if the readable side errors during
+			// teardown (e.g. emitMessage throws while the consumer is
+			// already tearing down). We still want the .finally()
+			// below to run and emit close().
+			.catch(() => {})
+			.finally(() => {
+				if (this.readyState !== this.CLOSED) this.emitClose();
+			});
 	}
 
 	override send(data: ArrayBuffer | Uint8Array | string) {
