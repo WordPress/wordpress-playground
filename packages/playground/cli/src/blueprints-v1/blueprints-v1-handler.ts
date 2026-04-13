@@ -195,6 +195,7 @@ export class BlueprintsV1Handler {
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			pathAliases: this.args.pathAliases,
+			constants: mergeDefinedConstants(this.args),
 		});
 		await playground.isReady();
 		return playground;

@@ -52,6 +52,7 @@ interface WorkerBootRequestHandlerOptions {
 	withMemcached?: boolean;
 	withXdebug?: boolean;
 	pathAliases?: PathAlias[];
+	constants?: Record<string, string | number | boolean>;
 }
 
 /**
@@ -162,6 +163,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			const requestHandler = await bootRequestHandler({
 				siteUrl: options.siteUrl,
 				maxPhpInstances: 1,
+				constants: options.constants,
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
 					this.fileLockManager!
