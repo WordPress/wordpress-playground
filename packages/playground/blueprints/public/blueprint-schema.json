@@ -199,7 +199,17 @@
 		"PHPConstants": {
 			"type": "object",
 			"additionalProperties": {
-				"type": ["string", "boolean", "number"]
+				"anyOf": [
+					{
+						"type": "string"
+					},
+					{
+						"type": "boolean"
+					},
+					{
+						"type": "number"
+					}
+				]
 			}
 		},
 		"FileReference": {
@@ -471,7 +481,14 @@
 						"$ref": "#/definitions/FileTree"
 					},
 					{
-						"type": ["object", "string"]
+						"anyOf": [
+							{
+								"type": "object"
+							},
+							{
+								"type": "string"
+							}
+						]
 					}
 				]
 			},
