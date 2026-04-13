@@ -6,8 +6,6 @@
 // traffic and there is nothing to encrypt; clients that need TLS
 // against this sink should be configured for plain SMTP instead.
 
-import { logger } from '@php-wasm/logger';
-
 export type ByteDuplex = {
 	readable: ReadableStream<Uint8Array>;
 	writable: WritableStream<Uint8Array>;
@@ -159,15 +157,7 @@ export class SmtpSink {
 	}
 
 	private enqueue(fn: () => Promise<void>) {
-		this.seq = this.seq.then(fn).catch(async (err) => {
-			// A bug in a handler must not silently hang the SMTP
-			// session — without a reply, the client will block until
-			// it times out, hiding the real error. Surface it and
-			// close the connection so the peer sees a clean
-			// disconnect instead of hanging indefinitely.
-			logger.error('SmtpSink handler error:', err);
-			await this.close();
-		});
+		this.seq = this.seq.then(fn);
 	}
 
 	private async handleCommand(rawLine: string) {
@@ -258,7 +248,7 @@ export class SmtpSink {
 							mech: 'PLAIN',
 							stage: 'waitInitial',
 						};
-						await this.reply334(''); // empty challenge
+						await this.reply(334, ''); // empty challenge
 					} else {
 						const ok = await this.handleAuthPlain(init);
 						await this.finishAuth(ok);
@@ -277,11 +267,11 @@ export class SmtpSink {
 							stage: 'password',
 							username,
 						};
-						await this.reply334(b64('Password:'));
+						await this.reply(334, b64('Password:'));
 					} else {
 						this.authPending = true;
 						this.authState = { mech: 'LOGIN', stage: 'username' };
-						await this.reply334(b64('Username:'));
+						await this.reply(334, b64('Username:'));
 					}
 					break;
 				}
@@ -416,9 +406,6 @@ export class SmtpSink {
 		}
 
 		const actual = line.startsWith('..') ? line.slice(1) : line;
-		// Running counter avoids the O(n²) full-buffer re-encode the
-		// previous periodic check used. Once we cross maxSize we stop
-		// appending but keep draining until end-of-data.
 		this.dataBytes += this.enc.encode(actual).byteLength + 2;
 		if (this.dataBytes <= this.maxSize) {
 			this.dataLines.push(actual);
@@ -447,7 +434,7 @@ export class SmtpSink {
 			if (this.authState.stage === 'username') {
 				const username = b64DecodeText(line.trim());
 				this.authState = { mech: 'LOGIN', stage: 'password', username };
-				await this.reply334(b64('Password:'));
+				await this.reply(334, b64('Password:'));
 				return;
 			}
 			if (this.authState.stage === 'password') {
@@ -515,10 +502,6 @@ export class SmtpSink {
 			this.enc.encode(`${code} ${lines[lines.length - 1]}\r\n`)
 		);
 	}
-	private async reply334(challengeB64: string) {
-		// RFC 4954 style: "334 <challenge>"
-		await this.writer.write(this.enc.encode(`334 ${challengeB64}\r\n`));
-	}
 }
 
 /**
@@ -570,8 +553,6 @@ export function extractAddresses(value: string): string[] {
 	}
 	return out;
 }
-
-/* ---------- Helpers: MIME parsing ---------- */
 
 export function unfoldHeaders(hdr: string): string {
 	return hdr.replace(/\r\n([ \t]+)/g, ' ');
@@ -767,8 +748,6 @@ export function parseMessage(
 	return { headers, subject, text, from, to };
 }
 
-/* ---------- Loopback transport ---------- */
-
 export function makeLoopbackPair(): [ByteDuplex, ByteDuplex] {
 	const a2b = new TransformStream<Uint8Array, Uint8Array>();
 	const b2a = new TransformStream<Uint8Array, Uint8Array>();
@@ -777,7 +756,6 @@ export function makeLoopbackPair(): [ByteDuplex, ByteDuplex] {
 	return [a, b];
 }
 
-/* ---------- small utils ---------- */
 function normalizeInitial(x?: string): string | null {
 	if (!x) return null;
 	const t = x.trim();

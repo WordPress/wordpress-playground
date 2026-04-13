@@ -7,10 +7,6 @@ import {
 	type SmtpSinkOptions,
 } from './smtp';
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
-
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -766,12 +762,10 @@ describe('SmtpSink – data handling', () => {
 	});
 
 	it('drains DATA after maxSize overflow and keeps session usable', async () => {
-		// Regression for the mid-stream desync that the previous
-		// periodic-check implementation could cause: it issued 552
-		// before end-of-data and flipped out of dataMode, so the
-		// remaining body lines were parsed as SMTP commands and the
-		// session was poisoned. RFC 1870 §6.3 requires the 552 to come
-		// *after* the end-of-data marker.
+		// Regression: issuing 552 before end-of-data flips out of
+		// dataMode, so remaining body lines are parsed as SMTP commands
+		// and the session is poisoned. RFC 1870 §6.3 requires the 552
+		// to come *after* the end-of-data marker.
 		const client = createClient({ maxSize: 100 });
 		await client.read();
 		await ehlo(client);
