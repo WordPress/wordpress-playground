@@ -6,7 +6,7 @@ Use PHP.wasm with Xdebug
 
 ## Appendix
 
-There are mostly four ways to run PHP.wasm :
+There are multiple ways to run PHP.wasm :
 
 #### 1. Directly from the [WordPress Playground](https://github.com/WordPress/wordpress-playground) repository
 

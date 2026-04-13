@@ -1,6 +1,6 @@
 {
 	"type": "module",
 	"dependencies": {
-		"@php-wasm/cli": "^3.0.32"
+		"@php-wasm/cli": "^3.1.19"
 	}
 }

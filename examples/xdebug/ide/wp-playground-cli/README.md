@@ -64,13 +64,13 @@ Updated IDE config: .vscode/launch.json
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 VS Code / Cursor instructions:
-  1. Ensure you have installed an IDE extension for PHP Debugging
-     (The PHP Debug extension by Xdebug has been a solid option)
-  2. Open the Run and Debug panel on the left sidebar
-  3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
-  3. Click "start debugging"
-  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-  6. Visit Playground in your browser to hit the breakpoint
+	1. Ensure you have installed an IDE extension for PHP Debugging
+	   (The PHP Debug extension by Xdebug has been a solid option)
+	2. Open the Run and Debug panel on the left sidebar
+	3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
+	3. Click "start debugging"
+	5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+	6. Visit Playground in your browser to hit the breakpoint
 
 
 Starting up workers
@@ -99,10 +99,10 @@ Updated IDE config: .idea/workspace.xml
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 PhpStorm instructions:
-  1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
-  2. Click the debug button (bug icon)`
-  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-  4. Visit Playground in your browser to hit the breakpoint
+	1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
+	2. Click the debug button (bug icon)`
+	3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+	4. Visit Playground in your browser to hit the breakpoint
 
 Starting up workers
 Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip
@@ -122,6 +122,20 @@ Hello Xdebug World!
 
 > [!NOTE]
 > Nothing happens because the debugging server is not running yet
+
+##### Optional - Add path mappings and skippings using Xdebug in PHP.wasm 8.5
+
+```typescript
+const cliServer = await runCLI({
+	php: '8.5',
+	command: 'server',
+	xdebug: {
+		pathMappings: [ { hostPath: './src', vfsPath: '/wordpress' } ],
+		pathSkippings: [ '/wordpress/foo.php', '/wordpress/bar' ] }
+	},
+	...
+});
+```
 
 <br>
 
@@ -192,13 +206,13 @@ Updated IDE config: .vscode/launch.json
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 VS Code / Cursor instructions:
-  1. Ensure you have installed an IDE extension for PHP Debugging
-     (The PHP Debug extension by Xdebug has been a solid option)
-  2. Open the Run and Debug panel on the left sidebar
-  3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
-  3. Click "start debugging"
-  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-  6. Visit Playground in your browser to hit the breakpoint
+	1. Ensure you have installed an IDE extension for PHP Debugging
+	   (The PHP Debug extension by Xdebug has been a solid option)
+	2. Open the Run and Debug panel on the left sidebar
+	3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
+	3. Click "start debugging"
+	5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+	6. Visit Playground in your browser to hit the breakpoint
 
 
 Starting up workers
@@ -224,10 +238,10 @@ Updated IDE config: .idea/workspace.xml
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 PhpStorm instructions:
-  1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
-  2. Click the debug button (bug icon)`
-  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-  4. Visit Playground in your browser to hit the breakpoint
+	1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
+	2. Click the debug button (bug icon)`
+	3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+	4. Visit Playground in your browser to hit the breakpoint
 
 Starting up workers
 Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip

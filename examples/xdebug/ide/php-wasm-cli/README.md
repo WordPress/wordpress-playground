@@ -37,13 +37,13 @@ Xdebug configured successfully
 Updated IDE config: .vscode/launch.json
 
 VS Code / Cursor instructions:
-  1. Ensure you have installed an IDE extension for PHP Debugging
-     (The PHP Debug extension by Xdebug has been a solid option)
-  2. Open the Run and Debug panel on the left sidebar
-  3. Select "PHP.wasm CLI - Listen for Xdebug" from the dropdown
-  3. Click "start debugging"
-  5. Set a breakpoint.
-  6. Run your command with PHP.wasm CLI.
+	1. Ensure you have installed an IDE extension for PHP Debugging
+	   (The PHP Debug extension by Xdebug has been a solid option)
+	2. Open the Run and Debug panel on the left sidebar
+	3. Select "PHP.wasm CLI - Listen for Xdebug" from the dropdown
+	3. Click "start debugging"
+	5. Set a breakpoint.
+	6. Run your command with PHP.wasm CLI.
 
 
 Output!
@@ -57,10 +57,10 @@ Xdebug configured successfully
 Updated IDE config: .idea/workspace.xml
 
 PhpStorm instructions:
-  1. Choose "PHP.wasm CLI - Listen for Xdebug" debug configuration in the toolbar
-  2. Click the debug button (bug icon)`
-  3. Set a breakpoint.
-  4. Run your command with PHP.wasm CLI.
+	1. Choose "PHP.wasm CLI - Listen for Xdebug" debug configuration in the toolbar
+	2. Click the debug button (bug icon)`
+	3. Set a breakpoint.
+	4. Run your command with PHP.wasm CLI.
 
 Output!
 Hello Xdebug World!

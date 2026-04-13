@@ -1,7 +1,7 @@
 import { runCLI } from '@wp-playground/cli';
 
 const cliServer = await runCLI({
-	php: '8.5',
+	php: '8.4',
 	command: 'server',
 	mount: [{ hostPath: './src', vfsPath: '/wordpress' }],
 	xdebug: true,

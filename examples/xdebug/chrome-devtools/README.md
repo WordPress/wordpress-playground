@@ -14,7 +14,7 @@ Use PHP.wasm with Xdebug in Google Chrome Devtools with the Xdebug Bridge
 
 <br>
 
-There are mostly four ways to run the Google Chrome Devtools :
+There are multiple ways to run the Google Chrome Devtools :
 
 #### 1. Directly from the [WordPress Playground](https://github.com/WordPress/wordpress-playground) repository
 
@@ -80,7 +80,7 @@ npx @php-wasm/xdebug-bridge
 
 ## How to start
 
-#### 1. Go to the specific directory you would like to try
+#### 1. Copy the specific directory you would like to try
 
 - php-wasm-node
 - php-wasm-cli
