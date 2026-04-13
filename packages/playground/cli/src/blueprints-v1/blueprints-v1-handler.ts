@@ -238,7 +238,7 @@ export class BlueprintsV1Handler {
 		return isBlueprintBundle(resolvedBlueprint)
 			? resolvedBlueprint
 			: {
-					login: this.args.login,
+					login: this.getEffectiveLogin(),
 					...(resolvedBlueprint || {}),
 					preferredVersions: {
 						php:
@@ -252,5 +252,21 @@ export class BlueprintsV1Handler {
 						...(resolvedBlueprint?.preferredVersions || {}),
 					},
 				};
+	}
+
+	/**
+	 * When the user explicitly sets PLAYGROUND_AUTO_LOGIN_AS_USER via
+	 * --define, skip the blueprint login step — the boot-time constant
+	 * from mergeDefinedConstants already handles auto-login and the
+	 * blueprint step would overwrite the custom username with 'admin'.
+	 */
+	private getEffectiveLogin(): boolean {
+		if (!this.args.login) {
+			return false;
+		}
+		if (this.args.define?.['PLAYGROUND_AUTO_LOGIN_AS_USER']) {
+			return false;
+		}
+		return true;
 	}
 }
