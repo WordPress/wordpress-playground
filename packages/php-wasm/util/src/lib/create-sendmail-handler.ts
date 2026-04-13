@@ -99,11 +99,6 @@ export function createSendmailSpawnHandler(
 
 			onEmail(message);
 
-			// Yield to the event loop so PHP can drain any buffered stdout
-			// before we close the streams. createSpawnHandler() throws if a
-			// program callback exits synchronously — see the explanatory error
-			// in create-spawn-handler.ts for the underlying reason.
-			await new Promise((resolve) => setTimeout(resolve, 1));
 			processApi.exit(0);
 		}
 	);
