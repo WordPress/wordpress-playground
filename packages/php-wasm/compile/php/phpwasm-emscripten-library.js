@@ -950,6 +950,30 @@ const LibraryExample = {
 		});
 	},
 
+	js_popen_store_pid: function (fd, pid) {
+		if (PHPWASM.processTable[pid]) {
+			PHPWASM.processTable[pid].fd = fd;
+		}
+	},
+
+	js_popen_lookup_pid: function (fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				return PHPWASM.processTable[pid].pid;
+			}
+		}
+		return -1;
+	},
+
+	js_popen_remove_fd: function (fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				delete PHPWASM.processTable[pid].fd;
+				return;
+			}
+		}
+	},
+
 	/**
 	 * Shims unix shutdown(2) functionality for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/shutdown.2.html

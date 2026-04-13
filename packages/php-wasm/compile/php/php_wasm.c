@@ -427,12 +427,9 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 });
 extern int __wasi_syscall_ret(__wasi_errno_t code);
 
-// Exit code of the last exited child process call.
-int wasm_pclose_ret = -1;
-
-// PID of the last process spawned by wasm_popen("w").
-// Used by wasm_pclose to wait for the process to finish.
-static int wasm_popen_last_pid = -1;
+extern void js_popen_store_pid(int fd, int pid);
+extern int js_popen_lookup_pid(int fd);
+extern void js_popen_remove_fd(int fd);
 
 /**
  * Passes a message to the JavaScript module and writes the response
@@ -505,7 +502,6 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
 		fp = fopen(file_path, mode);
 		FG(pclose_ret) = last_exit_code;
-		wasm_pclose_ret = last_exit_code;
 	}
 	else if (*mode == 'w')
 	{
@@ -548,7 +544,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		descv[1] = stdout;
 		descv[2] = stderr;
 
-		wasm_popen_last_pid = js_open_process(
+		int pid = js_open_process(
 			cmd,
 			NULL,
 			0,
@@ -559,6 +555,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			0,
 			0
 		);
+		js_popen_store_pid(fileno(fp), pid);
 
 		efree(stdin);
 		efree(stdout);
@@ -579,27 +576,39 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 /**
  * Close a FILE* created by wasm_popen and wait for the spawned process
  * to exit. Returns the process exit code, or -1 on error.
- *
- * @TODO wasm_popen_last_pid and wasm_pclose_ret are single globals,
- * so concurrent writable popen() calls will clobber each other's
- * PID and exit code. Safe today because mail() is the only caller
- * and it does a strict open-write-close sequence, but a proper fix
- * would stash both in a table keyed by fd.
  */
 extern int js_waitpid(int pid, int *exitcode);
 
 EMSCRIPTEN_KEEPALIVE int wasm_pclose(FILE *fp)
 {
-	int pid = wasm_popen_last_pid;
+	int pid = js_popen_lookup_pid(fileno(fp));
+	js_popen_remove_fd(fileno(fp));
 	fclose(fp);
 	if (pid < 0) {
 		return -1;
 	}
 	int wstatus = 0;
 	js_waitpid(pid, &wstatus);
-	wasm_pclose_ret = wstatus;
 	FG(pclose_ret) = wstatus;
 	return wstatus;
+}
+
+/**
+ * Linker-level wrappers so every call to popen()/pclose() in the
+ * compiled C code is redirected here via -Wl,--wrap=popen/pclose.
+ */
+FILE *__wrap_popen(const char *cmd, const char *mode)
+{
+	return wasm_popen(cmd, mode);
+}
+
+extern int __real_pclose(FILE *fp);
+int __wrap_pclose(FILE *fp)
+{
+	if (js_popen_lookup_pid(fileno(fp)) >= 0) {
+		return wasm_pclose(fp);
+	}
+	return __real_pclose(fp);
 }
 
 /**
@@ -767,7 +776,7 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 	pclose_return = php_stream_close(stream);
 	if (pclose_return == -1)
 	{
-		pclose_return = wasm_pclose_ret;
+		pclose_return = FG(pclose_ret);
 	}
 	efree(buf);
 

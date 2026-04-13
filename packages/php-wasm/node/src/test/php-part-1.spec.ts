@@ -645,6 +645,35 @@ phpLoaderOptions.forEach((options) => {
 					rmSync('out', { force: true });
 				}
 			});
+
+			it('concurrent popen("w") calls use correct PIDs', async () => {
+				try {
+					const result = await php.run({
+						code: `<?php
+						$p1 = popen("cat > out1", "w");
+						$p2 = popen("cat > out2", "w");
+						fwrite($p1, "first");
+						fwrite($p2, "second");
+						$r1 = pclose($p1);
+						$r2 = pclose($p2);
+
+						$fp1 = popen("cat out1", "r");
+						$content1 = fread($fp1, 1024);
+						pclose($fp1);
+
+						$fp2 = popen("cat out2", "r");
+						$content2 = fread($fp2, 1024);
+						pclose($fp2);
+
+						echo "$r1,$r2|$content1|$content2";
+					`,
+					});
+					expect(result.text).toEqual('0,0|first|second');
+				} finally {
+					rmSync('out1', { force: true });
+					rmSync('out2', { force: true });
+				}
+			});
 		});
 
 		describe('proc_open()', () => {
