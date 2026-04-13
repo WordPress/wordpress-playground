@@ -84,21 +84,17 @@ describe('SmtpSink – happy path', () => {
 		const greeting = await client.read();
 		expect(greeting).toMatch(/^220 /);
 
-		// HELO
 		await client.write('HELO localhost\r\n');
 		let helo = await client.read();
 		while (/^250-/.test(helo)) helo = await client.read();
 		expect(helo).toMatch(/^250 /);
 
-		// MAIL FROM
 		await client.write('MAIL FROM:<test@localhost>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 
-		// RCPT TO
 		await client.write('RCPT TO:<test2@localhost>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 
-		// DATA
 		await client.write('DATA\r\n');
 		expect(await client.read()).toMatch(/^354 /);
 
@@ -110,7 +106,6 @@ describe('SmtpSink – happy path', () => {
 		await client.write('.\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 
-		// QUIT
 		await client.write('QUIT\r\n');
 		expect(await client.read()).toMatch(/^221 /);
 
@@ -354,7 +349,6 @@ describe('SmtpSink – AUTH LOGIN', () => {
 		});
 		await client.read();
 		await ehlo(client);
-		// Provide username inline
 		await client.write(`AUTH LOGIN ${btoa('myuser')}\r\n`);
 		const passwordChallenge = await client.read();
 		expect(passwordChallenge).toMatch(/^334 /);
@@ -466,7 +460,6 @@ describe('SmtpSink – command edge cases', () => {
 		await client.write('RSET\r\n');
 		const rsetResp = await client.read();
 		expect(rsetResp).toMatch(/^250 /);
-		// RCPT should now fail because envelope was reset
 		await client.write('RCPT TO:<c@d.com>\r\n');
 		const rcptResp = await client.read();
 		expect(rcptResp).toMatch(/^503 /);
@@ -482,12 +475,9 @@ describe('SmtpSink – command edge cases', () => {
 		await client.read();
 		await client.write('RCPT TO:<c@d.com>\r\n');
 		await client.read();
-		// New EHLO must reset everything
 		await ehlo(client);
-		// RCPT without a fresh MAIL must now 503
 		await client.write('RCPT TO:<e@f.com>\r\n');
 		expect(await client.read()).toMatch(/^503 /);
-		// And DATA must 503 too
 		await client.write('DATA\r\n');
 		expect(await client.read()).toMatch(/^503 /);
 	});
@@ -769,7 +759,6 @@ describe('SmtpSink – data handling', () => {
 		await client.read();
 		await client.write('Subject: Big\r\n');
 		await client.write('\r\n');
-		// Send data larger than 100 bytes
 		await client.write('X'.repeat(200) + '\r\n');
 		await client.write('.\r\n');
 		const resp = await client.read();
@@ -794,9 +783,6 @@ describe('SmtpSink – data handling', () => {
 		await client.write('DATA\r\n');
 		await client.read();
 
-		// Far more than 128 lines so the old periodic check would fire
-		// mid-stream. Cumulative size crosses maxSize after the first
-		// handful of lines.
 		let body = 'Subject: Big\r\n\r\n';
 		for (let i = 0; i < 200; i++) body += `line${i}\r\n`;
 		body += '.\r\n';
@@ -805,9 +791,6 @@ describe('SmtpSink – data handling', () => {
 		expect(await client.read()).toMatch(/^552 /);
 		expect(client.messages).toHaveLength(0);
 
-		// Session must still be healthy for a fresh transaction. Under
-		// the buggy code, the next reads would return 500s left over
-		// from misparsed body lines instead of these replies.
 		await client.write('MAIL FROM:<a@b.com>\r\n');
 		expect(await client.read()).toMatch(/^250 /);
 		await client.write('RCPT TO:<c@d.com>\r\n');
@@ -1036,7 +1019,6 @@ describe('parseMessage', () => {
 		const raw = 'Subject: Empty\r\nFrom: a@b.com\r\n';
 		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Empty');
-		// No \r\n\r\n separator means bodyRaw is ''
 		expect(result.text).toBe('');
 	});
 });
