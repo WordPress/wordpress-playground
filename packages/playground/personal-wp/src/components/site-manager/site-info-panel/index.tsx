@@ -34,10 +34,7 @@ import { getRelativeDate } from '../../../lib/utils/get-relative-date';
 import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
 import { broadcastSiteReset } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
-import {
-	encodeStringAsBase64,
-	decodeBase64ToString,
-} from '../../../lib/base64';
+import { encodeStringAsBase64 } from '../../../lib/base64';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -101,19 +98,6 @@ function isValidUrl(str: string): boolean {
 
 function blueprintToDataUrl(blueprint: string): string {
 	return `data:application/json;base64,${encodeStringAsBase64(blueprint)}`;
-}
-
-function getBlueprintPreview(url: string): string {
-	if (url.startsWith('data:application/json;base64,')) {
-		try {
-			return decodeBase64ToString(
-				url.replace('data:application/json;base64,', '')
-			);
-		} catch {
-			return url;
-		}
-	}
-	return url;
 }
 
 function looksLikeBlueprint(text: string): boolean {

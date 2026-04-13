@@ -5,13 +5,7 @@ import {
 import { useTabTracking } from '../../lib/hooks/use-tab-tracking';
 import css from './worker-status-indicator.module.css';
 
-interface WorkerStatusIndicatorProps {
-	onOpenOverlay?: () => void;
-}
-
-export function WorkerStatusIndicator({
-	onOpenOverlay,
-}: WorkerStatusIndicatorProps) {
+export function WorkerStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 
 	const hasOwnWorker = !!clientInfo && !clientInfo.isDependentMode;
@@ -52,8 +46,7 @@ export function WorkerStatusIndicator({
 					? `This tab has its own worker (${otherTabCount} other tab${otherTabCount === 1 ? '' : 's'})`
 					: `This tab depends on another tab's worker (${otherTabCount} other tab${otherTabCount === 1 ? '' : 's'})`
 			}
-			onClick={onOpenOverlay}
-			style={{ cursor: onOpenOverlay ? 'pointer' : 'default' }}
+			style={{ cursor: 'default' }}
 		>
 			{hasOwnWorker ? 'Main' : 'Dependent'}
 		</div>

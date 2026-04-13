@@ -9,10 +9,7 @@ import {
 	useAppDispatch,
 } from '../../lib/state/redux/store';
 import { SyncLocalFilesButton } from '../sync-local-files-button';
-import { Icon } from '@wordpress/components';
-import { category } from '@wordpress/icons';
 import Button from '../button';
-import { MenuOverlay } from '../menu-overlay';
 import { JustViewport } from '../playground-viewport';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
@@ -40,9 +37,6 @@ export default function BrowserChrome({ className }: BrowserChromeProps) {
 		css.hasFullSizeWindow,
 		className
 	);
-	const [isMenuOverlayOpen, setIsMenuOverlayOpen] = React.useState(false);
-	const closeMenuOverlay = () => setIsMenuOverlayOpen(false);
-
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={`${css.window} browser-chrome-window`}>
@@ -83,22 +77,12 @@ export default function BrowserChrome({ className }: BrowserChromeProps) {
 							onUpdate={(newUrl) =>
 								clientInfo?.client.goTo(newUrl)
 							}
-							onOpenOverlay={() => setIsMenuOverlayOpen(true)}
 						/>
 					</div>
 
 					<BackupStatusIndicator />
 
 					<div className={css.toolbarButtons}>
-						<Button
-							variant="browser-chrome"
-							aria-label="Playground Menu"
-							onClick={() => setIsMenuOverlayOpen(true)}
-							aria-expanded={isMenuOverlayOpen}
-							className={css.savedPlaygroundsButton}
-						>
-							<Icon icon={category} size={20} />
-						</Button>
 						{activeSite?.metadata?.storage === 'local-fs' ? (
 							<SyncLocalFilesButton />
 						) : null}
@@ -108,7 +92,6 @@ export default function BrowserChrome({ className }: BrowserChromeProps) {
 					{activeSite && <JustViewport siteSlug={activeSite.slug} />}
 				</div>
 			</div>
-			{isMenuOverlayOpen && <MenuOverlay onClose={closeMenuOverlay} />}
 		</div>
 	);
 }

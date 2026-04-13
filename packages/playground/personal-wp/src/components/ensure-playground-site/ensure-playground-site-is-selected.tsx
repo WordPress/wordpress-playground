@@ -111,8 +111,11 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 
 		ensureSiteIsSelected();
+		// Only re-run when search params or hash change (blueprint
+		// instructions), not when pathname changes (WordPress
+		// navigation reflected via pushState).
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, requestedSiteSlug, siteListingStatus]);
+	}, [url.search, url.hash, requestedSiteSlug, siteListingStatus]);
 
 	useEffect(() => {
 		if (

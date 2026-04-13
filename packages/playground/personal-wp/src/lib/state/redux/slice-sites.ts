@@ -527,12 +527,6 @@ export interface SiteMetadata {
 	originalBlueprintSource: BlueprintSource;
 
 	/**
-	 * The last URL the user visited in this site.
-	 * Used to restore the user's position when returning to a personal site.
-	 */
-	lastUrl?: string;
-
-	/**
 	 * History of backups for this site.
 	 */
 	backupHistory?: Array<{ filename: string; timestamp: number }>;

@@ -70,14 +70,9 @@ const quickNavItems: QuickNavItem[] = [
 interface AddressBarProps {
 	url?: string;
 	onUpdate?: (url: string) => void;
-	onOpenOverlay?: () => void;
 }
 
-export default function AddressBar({
-	url,
-	onUpdate,
-	onOpenOverlay,
-}: AddressBarProps) {
+export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -232,7 +227,7 @@ export default function AddressBar({
 					aria-label='URL to visit in the WordPress site, like "/wp-admin"'
 					autoComplete="off"
 				/>
-				<WorkerStatusIndicator onOpenOverlay={onOpenOverlay} />
+				<WorkerStatusIndicator />
 				{isOpen && (
 					<Popover
 						placement="bottom-start"
