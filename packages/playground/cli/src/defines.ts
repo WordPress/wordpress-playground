@@ -172,6 +172,10 @@ function mergeConstants(
 /**
  * Merge all constants from CLI arguments.
  *
+ * When `login` is true, `PLAYGROUND_AUTO_LOGIN_AS_USER` is injected so that
+ * every PHP worker defines the constant at boot time — not just the single
+ * worker that would run the blueprint `login` step via the pool proxy.
+ *
  * @param args - CLI arguments
  * @returns Merged constants
  */
@@ -179,10 +183,17 @@ export function mergeDefinedConstants(args: {
 	define?: Record<string, string>;
 	'define-bool'?: Record<string, boolean>;
 	'define-number'?: Record<string, number>;
+	login?: boolean;
 }): Record<string, string | number | boolean> {
-	return mergeConstants(
+	const merged = mergeConstants(
 		args['define'],
 		args['define-bool'],
 		args['define-number']
 	);
+
+	if (args.login && !Object.hasOwn(merged, 'PLAYGROUND_AUTO_LOGIN_AS_USER')) {
+		merged['PLAYGROUND_AUTO_LOGIN_AS_USER'] = 'admin';
+	}
+
+	return merged;
 }
