@@ -27,7 +27,6 @@ export function createSendmailSpawnHandler(
 ) {
 	const sendmailHandler = createSpawnHandler(
 		async function (command, processApi) {
-			// Parse sendmail flags
 			let envelopeSender = '';
 			for (let i = 1; i < command.length; i++) {
 				if (command[i] === '-f' && i + 1 < command.length) {
@@ -40,7 +39,6 @@ export function createSendmailSpawnHandler(
 				}
 			}
 
-			// Collect stdin data (the raw email piped by PHP)
 			const chunks: Uint8Array[] = [];
 			const stdinDone = new Promise<void>((resolve) => {
 				processApi.childProcess.stdin.on('finish', resolve);
@@ -51,7 +49,6 @@ export function createSendmailSpawnHandler(
 
 			await stdinDone;
 
-			// Concatenate and decode the raw email
 			let totalLen = 0;
 			for (const c of chunks) totalLen += c.length;
 			const all = new Uint8Array(totalLen);
@@ -116,7 +113,6 @@ export function createSendmailSpawnHandler(
 		argsArray: string[] = [],
 		options: any = {}
 	) {
-		// Determine the binary name from the command.
 		const cmdStr = Array.isArray(command)
 			? command[0]
 			: typeof command === 'string'

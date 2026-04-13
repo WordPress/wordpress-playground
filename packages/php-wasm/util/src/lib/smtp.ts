@@ -79,7 +79,6 @@ export class SmtpSink {
 		| { mech: 'LOGIN'; stage: 'username' | 'password'; username?: string }
 		| null = null;
 
-	private duplex: ByteDuplex;
 	private onEmail: (m: CaughtMessage) => void;
 
 	constructor(
@@ -87,7 +86,6 @@ export class SmtpSink {
 		onEmail: (m: CaughtMessage) => void,
 		opts: SmtpSinkOptions = {}
 	) {
-		this.duplex = duplex;
 		this.onEmail = onEmail;
 		this.writer = duplex.writable.getWriter();
 		this.reader = duplex.readable.getReader();
@@ -119,13 +117,7 @@ export class SmtpSink {
 	private async close(): Promise<void> {
 		if (this.closed) return;
 		this.closed = true;
-		try {
-			await this.writer.close();
-		} catch {
-			// Writer may already be closed if the peer aborted the
-			// loopback first, or close() may race with a pending write.
-			// Both surface here as benign errors during normal shutdown.
-		}
+		await this.writer.close();
 	}
 
 	private consumeChunk(chunk: Uint8Array) {
@@ -579,7 +571,7 @@ export function extractAddresses(value: string): string[] {
 	return out;
 }
 
-/* ---------- Helpers: MIME parsing (unchanged from earlier) ---------- */
+/* ---------- Helpers: MIME parsing ---------- */
 
 export function unfoldHeaders(hdr: string): string {
 	return hdr.replace(/\r\n([ \t]+)/g, ' ');

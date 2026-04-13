@@ -496,7 +496,6 @@ describe('SmtpSink – command edge cases', () => {
 		await client.write('A'.repeat(600));
 		const resp = await client.read();
 		expect(resp).toMatch(/^500 /);
-		// Subsequent reads should observe a closed stream.
 		await expect(client.read()).resolves.toBe('');
 	});
 
