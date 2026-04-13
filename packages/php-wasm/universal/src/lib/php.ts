@@ -83,6 +83,7 @@ export class PHP implements Disposable {
 	]);
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
+	#crashed = false;
 	#rotationOptions: {
 		enabled: boolean;
 		recreateRuntime: () => Promise<number> | number;
@@ -968,6 +969,20 @@ export class PHP implements Disposable {
 	async #executeWithErrorHandling(
 		executionFn: () => any
 	): Promise<StreamedPHPResponse> {
+		if (this.#crashed) {
+			if (
+				this.#rotationOptions.enabled &&
+				this.#rotationOptions.needsRotating
+			) {
+				await this.rotateRuntime();
+				this.#crashed = false;
+			} else {
+				throw new Error(
+					'PHP runtime has crashed. Enable runtime rotation ' +
+						'for automatic recovery, or create a new PHP instance.'
+				);
+			}
+		}
 		if (
 			this.#rotationOptions.enabled &&
 			this.#rotationOptions.needsRotating
@@ -1067,20 +1082,13 @@ export class PHP implements Disposable {
 				safeStreamError(headers.controller, e);
 				streamsClosed = true;
 
-				/**
-				 * A non-exit-code error means an irrecoverable crash. Let's make
-				 * it very clear to the consumers of this API – every method
-				 * call on this PHP instance will throw an error from now on.
-				 */
-				for (const name in this) {
-					if (typeof this[name] === 'function') {
-						(this as any)[name] = () => {
-							throw new Error(
-								`PHP runtime has crashed – see the earlier error for details.`
-							);
-						};
-					}
-				}
+				// Mark the runtime as crashed so it gets rotated on
+				// the next request. We intentionally do NOT disable
+				// all methods on the PHP instance — the WASM memory
+				// and globals survive a trap, and the rotation
+				// mechanism needs working methods to swap in a fresh
+				// runtime.
+				this.#crashed = true;
 				(this as any).functionsMaybeMissingFromAsyncify =
 					getFunctionsMaybeMissingFromAsyncify();
 
@@ -1380,6 +1388,7 @@ export class PHP implements Disposable {
 		);
 		this.#rotationOptions.requestsMade = 0;
 		this.#rotationOptions.needsRotating = false;
+		this.#crashed = false;
 	}
 
 	/**

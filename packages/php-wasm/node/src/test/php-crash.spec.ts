@@ -236,6 +236,50 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 			);
 		});
 
+		it('Recovers via runtime rotation after a WASM crash', async () => {
+			const originalCcall = php[__private__dont__use].ccall.bind(
+				php[__private__dont__use]
+			);
+
+			// Enable runtime rotation so the PHP instance can recover.
+			php.enableRuntimeRotation({
+				recreateRuntime: async () =>
+					await loadNodeRuntime(phpVersion as any, {
+						withXdebug: true,
+					}),
+				maxRequests: 400,
+			});
+
+			// First request: simulate a WASM crash (e.g. corrupt gzip
+			// causing zlib to access memory out of bounds).
+			let crashCount = 0;
+			const spy = vi.spyOn(php[__private__dont__use], 'ccall');
+			spy.mockImplementation((...args) => {
+				const [c_func] = args;
+				if (c_func === 'wasm_sapi_handle_request' && crashCount === 0) {
+					crashCount++;
+					throw new Error('memory access out of bounds');
+				}
+				return originalCcall(...args);
+			});
+
+			let firstError: unknown;
+			try {
+				await php.run({ code: `<?php echo "before crash";` });
+			} catch (error) {
+				firstError = error;
+			}
+			expect(firstError).toBeDefined();
+
+			spy.mockRestore();
+
+			// Second request: should succeed after rotation.
+			const result = await php.run({
+				code: `<?php echo "recovered";`,
+			});
+			expect(result.text).toBe('recovered');
+		});
+
 		it('Does not leak memory when creating and destroying instances', async () => {
 			if (!global.gc) {
 				console.error(

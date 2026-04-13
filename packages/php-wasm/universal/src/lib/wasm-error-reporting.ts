@@ -99,14 +99,8 @@ export function clarifyErrorMessage(
 	asyncifyStack?: string
 ) {
 	if (crypticError.message === 'unreachable') {
-		let betterMessage = UNREACHABLE_ERROR;
-		if (!asyncifyStack) {
-			betterMessage +=
-				`\n\nThis stack trace is lacking. For a better one initialize \n` +
-				`the PHP runtime with debug: true, e.g. loadNodeRuntime('8.1', { emscriptenOptions: { debug: true } }).\n\n`;
-		}
-
-		// Extract all the PHP functions from the entire error chain.
+		// Extract all the PHP functions from the entire error chain
+		// to determine whether this looks like an Asyncify issue.
 		const uniqueFunctions = new Set<string>(
 			extractPHPFunctionsFromStack(asyncifyStack || '')
 		);
@@ -121,18 +115,52 @@ export function clarifyErrorMessage(
 		} while (lastError);
 		functionsMaybeMissingFromAsyncify = Array.from(uniqueFunctions);
 
-		for (const fn of uniqueFunctions) {
-			betterMessage += `    * ${fn}\n`;
+		// If there's an Asyncify stack and PHP functions in the trace,
+		// this is likely a missing ASYNCIFY_ONLY entry. Otherwise it's
+		// probably a data-related crash (e.g. corrupt gzip from a network
+		// response causing zlib to access memory out of bounds).
+		if (asyncifyStack && uniqueFunctions.size > 0) {
+			let betterMessage = ASYNCIFY_UNREACHABLE_ERROR;
+			for (const fn of uniqueFunctions) {
+				betterMessage += `    * ${fn}\n`;
+			}
+			betterMessage += `\nOriginal error message: ${crypticError.message}\n`;
+			return betterMessage;
 		}
 
-		betterMessage += `Original error message: ${crypticError.message}\n`;
-
-		return betterMessage;
+		return (
+			WASM_TRAP_ERROR +
+			`Original error message: ${crypticError.message}\n`
+		);
 	}
+
+	if (crypticError.message?.includes('memory access out of bounds')) {
+		return (
+			WASM_TRAP_ERROR +
+			`Original error message: ${crypticError.message}\n`
+		);
+	}
+
 	return crypticError.message;
 }
 
-const UNREACHABLE_ERROR = `
+const WASM_TRAP_ERROR = `\
+WASM runtime error.
+
+The PHP runtime encountered a fatal WebAssembly trap. This typically
+happens when PHP processes corrupt or malformed data (e.g. truncated
+gzip from a network response) that causes a C library like zlib to
+compute invalid buffer offsets and access memory out of bounds.
+
+The current PHP request has failed. If runtime rotation is enabled,
+the PHP runtime will automatically recover on the next request.
+
+If you believe this is a bug in WordPress Playground, please file
+an issue: https://github.com/WordPress/wordpress-playground/issues/new
+
+`;
+
+const ASYNCIFY_UNREACHABLE_ERROR = `\
 "unreachable" WASM instruction executed.
 
 The typical reason is a PHP function missing from the ASYNCIFY_ONLY
