@@ -23,11 +23,6 @@ export class SmtpSinkWebSocket extends WebSocketShim {
 					write: (chunk) => this.emitMessage(chunk),
 				})
 			)
-			// pipeTo() rejects if the readable side errors during
-			// teardown (e.g. emitMessage throws while the consumer is
-			// already tearing down). We still want the .finally()
-			// below to run and emit close().
-			.catch(() => {})
 			.finally(() => {
 				if (this.readyState !== this.CLOSED) this.emitClose();
 			});
@@ -47,12 +42,6 @@ export class SmtpSinkWebSocket extends WebSocketShim {
 	override close() {
 		if (this.readyState >= this.CLOSING) return;
 		this.readyState = this.CLOSING;
-		// Closing the writer signals end-of-input to the sink. The sink
-		// will flush any pending replies and then close its side, which
-		// causes pipeTo above to finalize and emit `close`.
-		// writer.close() rejects if the sink already finalized the
-		// loopback (e.g. the peer hit QUIT first and the SmtpSink side
-		// closed its writable). Benign during normal shutdown.
-		this.writer.close().catch(() => {});
+		void this.writer.close();
 	}
 }
