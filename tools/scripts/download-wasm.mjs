@@ -123,19 +123,25 @@ for (const key of allKeys) {
 		}
 	}
 
+	// Dev/pre-release builds are published under `@php-wasm/dev-<key>`;
+	// stable releases keep the plain `@php-wasm/<key>` name.
+	let pkgName = `@php-wasm/${key}`;
+
 	if (latestRequestedAt) {
 		const compact = latestRequestedAt.replace(/[-:.Z]/g, '').slice(0, 15);
 		const wasmVersion = `${lernaVersion}-wasm.${compact}`;
+		const devPkgName = `@php-wasm/dev-${key}`;
 
 		// Check whether CI has already published this pre-release version.
 		try {
-			execSync(`npm view @php-wasm/${key}@${wasmVersion} version`, {
+			execSync(`npm view ${devPkgName}@${wasmVersion} version`, {
 				stdio: 'pipe',
 			});
 			version = wasmVersion;
+			pkgName = devPkgName;
 		} catch {
 			console.warn(
-				`[warn] @php-wasm/${key}@${wasmVersion} not yet on npm.\n` +
+				`[warn] ${devPkgName}@${wasmVersion} not yet on npm.\n` +
 					`       CI may still be running. Using stable binaries for now.\n` +
 					`       Re-run prepare-wasm once the "Compile PHP WASM" job completes.\n`
 			);
@@ -143,13 +149,13 @@ for (const key of allKeys) {
 	}
 
 	console.log(
-		`[download] @php-wasm/${key}@${version} (missing: ${missingVariants.join(', ')})`
+		`[download] ${pkgName}@${version} (missing: ${missingVariants.join(', ')})`
 	);
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `php-wasm-${key}-`));
 
 	try {
 		// npm pack downloads the tarball without installing
-		execSync(`npm pack @php-wasm/${key}@${version} --pack-destination .`, {
+		execSync(`npm pack ${pkgName}@${version} --pack-destination .`, {
 			cwd: tmpDir,
 			stdio: 'pipe',
 		});
@@ -188,7 +194,7 @@ for (const key of allKeys) {
 		++downloaded;
 	} catch (err) {
 		console.error(
-			`[error] Failed to download @php-wasm/${key}@${version}: ${err.message}`
+			`[error] Failed to download ${pkgName}@${version}: ${err.message}`
 		);
 		process.exit(1);
 	} finally {

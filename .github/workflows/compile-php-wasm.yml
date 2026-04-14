@@ -176,11 +176,17 @@ jobs:
                   VERSION="${CURRENT}-wasm.${COMPACT}"
                   echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-            - name: Inject version into dist package.json
+            - name: Inject version and dev name into dist package.json
+              # Dev builds are published under a distinct name
+              # (`@php-wasm/dev-<suffix>`) so they're visibly segregated from
+              # the production `@php-wasm/<suffix>` packages on npm. The
+              # source package.json is untouched — only the dist copy is
+              # renamed for publish.
               run: |
                   node -e "
                     const pkgPath = 'dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/package.json';
                     const pkg = JSON.parse(require('fs').readFileSync(pkgPath, 'utf8'));
+                    pkg.name = '@php-wasm/dev-${{ matrix.packageSuffix }}';
                     pkg.version = '${{ steps.version.outputs.version }}';
                     require('fs').writeFileSync(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
                   "
@@ -195,7 +201,7 @@ jobs:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Output published version
-              run: echo "Published @php-wasm/${{ matrix.packageSuffix }}@${{ steps.version.outputs.version }}"
+              run: echo "Published @php-wasm/dev-${{ matrix.packageSuffix }}@${{ steps.version.outputs.version }}"
 
     post-comment:
         needs: [read-matrix, publish]
@@ -213,7 +219,7 @@ jobs:
                       const lines = matrix.include.map(item => {
                         const compact = item.requestedAt.replace(/[-:.Z]/g, '').slice(0, 15);
                         const version = `${lernaVersion}-wasm.${compact}`;
-                        return `- \`@php-wasm/${item.packageSuffix}@${version}\``;
+                        return `- \`@php-wasm/dev-${item.packageSuffix}@${version}\``;
                       });
                       const body = [
                         '### PHP WASM packages published',
