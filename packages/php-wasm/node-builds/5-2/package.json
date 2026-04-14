@@ -1,0 +1,38 @@
+{
+	"name": "@php-wasm/node-5-2",
+	"version": "3.1.19",
+	"description": "PHP 5.2 WebAssembly binaries for node (legacy)",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"contributors": [
+		{
+			"name": "Adam Zielinski",
+			"email": "adam@adamziel.com",
+			"url": "https://github.com/adamziel"
+		}
+	],
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../../dist/packages/php-wasm/node-builds/5-2"
+	},
+	"type": "module",
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"types": "index.d.ts",
+	"license": "GPL-2.0-or-later",
+	"engines": {
+		"node": ">=20.10.0",
+		"npm": ">=10.2.3"
+	}
+}
