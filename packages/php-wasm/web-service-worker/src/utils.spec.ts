@@ -1,8 +1,6 @@
 import {
-	__testing,
 	cloneRequest,
 	getRequestHeaders,
-	prepareRequestForRetry,
 	removeContentSecurityPolicyDirective,
 } from './utils';
 
@@ -108,75 +106,5 @@ describe('removeContentSecurityPolicyDirective', () => {
 			cspHeader
 		);
 		expect(filteredCspHeader).toBe("default-src 'self';");
-	});
-});
-
-describe('prepareRequestForRetry', () => {
-	beforeEach(() => {
-		__testing.resetStreamBodySupported();
-		vi.restoreAllMocks();
-	});
-
-	it('tees the body when streaming uploads are supported', async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, 'fetch')
-			.mockResolvedValue(new Response(''));
-		const stream = new ReadableStream({
-			start(controller) {
-				controller.enqueue(new TextEncoder().encode('payload'));
-				controller.close();
-			},
-		});
-		const request = new Request('https://example.com/upload', {
-			method: 'POST',
-			body: stream,
-			// @ts-expect-error duplex is required for streaming bodies
-			duplex: 'half',
-		});
-
-		const { directRequest, retryBody, useStreamingBody } =
-			await prepareRequestForRetry(request);
-
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-		expect(useStreamingBody).toBe(true);
-		expect(retryBody).toBeInstanceOf(ReadableStream);
-		expect(await new Response(directRequest.body).text()).toBe('payload');
-		expect(await new Response(retryBody).text()).toBe('payload');
-	});
-
-	it('buffers the body when streaming uploads are not supported', async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, 'fetch')
-			.mockRejectedValue(
-				new TypeError('ReadableStream uploading is not supported')
-			);
-		const request = new Request('https://example.com/upload', {
-			method: 'POST',
-			body: 'buffered payload',
-		});
-
-		const { directRequest, retryBody, useStreamingBody } =
-			await prepareRequestForRetry(request);
-
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-		expect(useStreamingBody).toBe(false);
-		expect(retryBody).toBeInstanceOf(ArrayBuffer);
-		expect(await new Response(directRequest.body).text()).toBe(
-			'buffered payload'
-		);
-		expect(await new Response(retryBody).text()).toBe('buffered payload');
-	});
-
-	it('returns the original request when there is no body', async () => {
-		const fetchMock = vi.spyOn(globalThis, 'fetch');
-		const request = new Request('https://example.com/page');
-
-		const { directRequest, retryBody, useStreamingBody } =
-			await prepareRequestForRetry(request);
-
-		expect(fetchMock).not.toHaveBeenCalled();
-		expect(directRequest).toBe(request);
-		expect(retryBody).toBeNull();
-		expect(useStreamingBody).toBe(false);
 	});
 });

@@ -278,56 +278,15 @@ export const __testing = {
 };
 
 /**
- * Prepares a request for one direct fetch attempt and one retry.
+ * Detects whether the browser supports passing a ReadableStream as the body
+ * of a fetch() request. The result is probed once (via a `data:` URL) and
+ * cached for the lifetime of the page.
  *
- * When streaming request bodies are supported, we tee the body stream so both
- * attempts can read it. Otherwise (e.g. Safari), we buffer the body to support
- * retries without ReadableStream upload support.
- *
- * @param request
- * @returns `directRequest` for the first fetch, `retryBody` for a retry (or null if no
- *     body), and `useStreamingBody` (whether the body was teed as streams vs buffered).
+ * - Chrome: supported (with `duplex: 'half'`).
+ * - Safari: throws `NotSupportedError: ReadableStream uploading is not supported`.
+ * - Firefox: the probe fetch itself may fail; `request.body` is not even exposed.
  */
-export async function prepareRequestForRetry(request: Request): Promise<{
-	directRequest: Request;
-	retryBody: ArrayBuffer | ReadableStream<Uint8Array> | null;
-	useStreamingBody: boolean;
-}> {
-	if (!request.body) {
-		return {
-			directRequest: request,
-			retryBody: null,
-			useStreamingBody: false,
-		};
-	}
-
-	const useStreamingBody = await supportsReadableStreamBody();
-	if (useStreamingBody) {
-		const [directRequest, retryRequest] =
-			await splitRequestBodyStream(request);
-		return {
-			directRequest,
-			retryBody: retryRequest.body,
-			useStreamingBody: true,
-		};
-	}
-
-	/**
-	 * As of April 2026, Safari does not currently support using a ReadableStream
-	 * as a fetch() request body ("ReadableStream uploading is not supported").
-	 * Buffer the body so we can reuse it for the direct fetch and a retry.
-	 * Safari support is in progress via Interop 2026; see
-	 * https://web.dev/blog/interop-2026#fetch_uploads_and_ranges
-	 */
-	const bufferedBody = await new Response(request.body).arrayBuffer();
-	return {
-		directRequest: await cloneRequest(request, { body: bufferedBody }),
-		retryBody: bufferedBody,
-		useStreamingBody: false,
-	};
-}
-
-async function supportsReadableStreamBody(): Promise<boolean> {
+export async function supportsReadableStreamBody(): Promise<boolean> {
 	if (streamBodySupported !== undefined) {
 		return streamBodySupported;
 	}
@@ -347,16 +306,6 @@ async function supportsReadableStreamBody(): Promise<boolean> {
 		streamBodySupported = false;
 	}
 	return streamBodySupported;
-}
-
-async function splitRequestBodyStream(
-	request: Request
-): Promise<[Request, Request]> {
-	const [body1, body2] = request.body!.tee();
-	return [
-		await cloneRequest(request, { body: body1, duplex: 'half' }),
-		await cloneRequest(request, { body: body2, duplex: 'half' }),
-	];
 }
 
 /**

@@ -9,7 +9,7 @@ import {
 } from 'vitest';
 import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
 import { FirewallInterferenceError } from './firewall-interference-error';
-import { __testing, prepareRequestForRetry } from './utils';
+import { __testing, supportsReadableStreamBody } from './utils';
 
 describe('fetchWithCorsProxy', () => {
 	beforeAll(async () => {
@@ -18,18 +18,7 @@ describe('fetchWithCorsProxy', () => {
 		const tempMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response(''));
-		const stream = new ReadableStream({
-			start(controller) {
-				controller.close();
-			},
-		});
-		const request = new Request('https://warmup.invalid/', {
-			method: 'POST',
-			body: stream,
-			// @ts-expect-error duplex is required for streaming bodies
-			duplex: 'half',
-		});
-		await prepareRequestForRetry(request);
+		await supportsReadableStreamBody();
 		tempMock.mockRestore();
 	});
 
@@ -337,56 +326,28 @@ describe('fetchWithCorsProxy', () => {
 	});
 
 	/**
-	 * These tests do not prove streaming vs buffered upload from the `Response`
-	 * (that is not exposed). They also cannot use `fetch` mock `Request.body`:
-	 * even when our code buffers to an `ArrayBuffer` and passes it into
-	 * `new Request()`, the Fetch API still exposes `request.body` as a
-	 * `ReadableStream`, same as the tee/streaming path — so `instanceof
-	 * ArrayBuffer` on outgoing requests is not a valid signal in this runtime.
+	 * These tests exercise the non-streaming fallback path (Safari/Firefox)
+	 * by resetting the cached probe result and mocking the
+	 * `supportsReadableStreamBody` probe fetch to reject. The probe now
+	 * fires inside the retry (catch) path — after the direct fetch fails —
+	 * so mock ordering is: [direct fetch, probe, CORS proxy fetch].
 	 *
-	 * Instead, the Safari (buffer) *preparation* path is selected by mocking the
-	 * first `fetch` (the `supportsReadableStreamBody` probe) to reject; then we
-	 * assert call counts, URLs, and that body bytes round-trip correctly.
-	 *
-	 * The GET case has no request body, so there is no probe and no tee vs
-	 * buffer fork; only direct-fetch behavior is exercised.
+	 * The GET case has no request body, so there is no probe; only
+	 * direct-fetch behavior is exercised.
 	 */
-	describe('non-streaming fallback (Safari)', () => {
+	describe('non-streaming fallback (Safari/Firefox)', () => {
 		beforeEach(() => {
 			__testing.resetStreamBodySupported();
 		});
 
-		/**
-		 * Helper that sets up a fetch mock whose first call (the
-		 * ReadableStream body feature-detection probe) always rejects,
-		 * forcing the non-streaming/buffering code path.
-		 */
-		function mockFetchWithoutStreamingSupport(
-			...responses: Array<Response | Error>
-		) {
-			const mock = vi.spyOn(globalThis, 'fetch');
-			// Detection probe — reject to simulate Safari.
-			mock.mockRejectedValueOnce(
-				new TypeError('ReadableStream uploading is not supported')
-			);
-			for (const r of responses) {
-				if (r instanceof Error) {
-					mock.mockRejectedValueOnce(r);
-				} else {
-					mock.mockResolvedValueOnce(r);
-				}
-			}
-			return mock;
-		}
-
-		it('buffers the POST body as ArrayBuffer for the direct fetch', async () => {
-			const fetchMock = mockFetchWithoutStreamingSupport(
-				new Response('ok')
-			);
+		it('succeeds on direct POST fetch without needing the streaming probe', async () => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('ok'));
 
 			const request = new Request('https://example.com/api', {
 				method: 'POST',
-				body: 'buffered payload',
+				body: 'payload',
 			});
 
 			await fetchWithCorsProxy(
@@ -395,23 +356,27 @@ describe('fetchWithCorsProxy', () => {
 				'https://proxy.test/?url='
 			);
 
-			// detection + direct fetch
-			expect(fetchMock).toHaveBeenCalledTimes(2);
-			const directReq = fetchMock.mock.calls[1][0] as Request;
+			// Direct fetch succeeds — no retry, so no probe fires.
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			const directReq = fetchMock.mock.calls[0][0] as Request;
 			expect(directReq.url).toBe('https://example.com/api');
-			expect(await new Response(directReq.body).text()).toBe(
-				'buffered payload'
-			);
 		});
 
-		it('preserves the buffered body through to the CORS proxy fallback', async () => {
+		it('preserves the POST body through to the CORS proxy fallback', async () => {
 			const corsProxyHeaders = new Headers();
 			corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
 
-			const fetchMock = mockFetchWithoutStreamingSupport(
-				new Error('CORS'),
-				new Response('proxied', { headers: corsProxyHeaders })
-			);
+			// Mock ordering: direct fetch → probe → CORS proxy fetch.
+			// The probe fires inside the catch block after direct fails.
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockRejectedValueOnce(new Error('CORS'))
+				.mockRejectedValueOnce(
+					new TypeError('ReadableStream uploading is not supported')
+				)
+				.mockResolvedValueOnce(
+					new Response('proxied', { headers: corsProxyHeaders })
+				);
 
 			const request = new Request('https://example.com/upload', {
 				method: 'POST',
@@ -424,7 +389,7 @@ describe('fetchWithCorsProxy', () => {
 				'https://proxy.test/?url='
 			);
 
-			// detection + direct + proxy
+			// direct + probe + proxy
 			expect(fetchMock).toHaveBeenCalledTimes(3);
 			const proxyReq = fetchMock.mock.calls[2][0] as Request;
 			expect(proxyReq.url).toBe(
@@ -447,7 +412,7 @@ describe('fetchWithCorsProxy', () => {
 				'https://proxy.test/?url='
 			);
 
-			// No body means no stream-support probe, even with a reset cache.
+			// GET: no body → no probe. Direct fetch succeeds.
 			expect(fetchMock).toHaveBeenCalledTimes(1);
 			const directReq = fetchMock.mock.calls[0][0] as Request;
 			expect(directReq.url).toBe('https://example.com/page');
