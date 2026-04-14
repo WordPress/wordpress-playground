@@ -32,9 +32,13 @@ Playground peut être intégré sur votre site en utilisant la balise HTML `<ifr
 
 Chaque visiteur obtiendra sa propre instance WordPress privée gratuitement. Vous pouvez ensuite la personnaliser en utilisant l'une des [APIs Playground](/developers/apis/).
 
-import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_may_stop_working.md';
+:::caution Careful with the demo site
 
-<PlaygroundWpNetWarning />
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+
+:::
 
 <!-- ## Control the embedded website -->
 
@@ -44,9 +48,9 @@ import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_m
 
 WordPress Playground fournit trois APIs que vous pouvez utiliser pour contrôler le site en iframe. Tous les exemples de cette section sont construits en utilisant l’une d’entre elles :
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
-<APIList />
+- [Query API](/developers/apis/query-api) enable basic operations using only query parameters
+- [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
+- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
 
 <!-- Learn more about each of these APIs in the [APIs overview section](/developers/apis/). -->
 
@@ -56,13 +60,11 @@ En savoir plus sur chacune de ces APIs dans la [section de présentation des API
 
 ## Présenter une extension ou un thème du répertoire WordPress
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!-- You can install plugins and themes from the WordPress directory with only URL parameters. This iframe preinstalls the `coblocks` and `friends` plugins and the `pendant` theme. -->
 
 Vous pouvez installer des extensions et des thèmes du répertoire WordPress avec seulement des paramètres d’URL. Cet iframe préinstalle les extensions `coblocks` et `friends` ainsi que le thème `pendant`.
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
@@ -151,8 +153,8 @@ Pour utiliser Playground comme prévisualiseur de PR, vous avez besoin :
 <!-- -   A CI pipeline that bundles your plugin or theme -->
 <!-- -   Public access to the generated `.zip` file -->
 
--   D’un pipeline CI qui empaquette votre extension ou thème
--   D’un accès public au fichier `.zip` généré
+- D’un pipeline CI qui empaquette votre extension ou thème
+- D’un accès public au fichier `.zip` généré
 
 <!-- Those zip bundles aren't any different from regular WordPress Plugins, which means you can install them in Playground using the [JSON Blueprints](/blueprints) API. Once you expose an endpoint like https://your-site.com/pull-request-1234.zip, the following Blueprint will do the rest: -->
 
@@ -232,10 +234,10 @@ Vous pouvez prévisualiser des branches ou pull requests spécifiques des dépô
 <!-- -   Preview the Gutenberg trunk branch: `https://playground.wordpress.net/?gutenberg-branch=trunk` -->
 <!-- -   Preview a specific Gutenberg PR: `https://playground.wordpress.net/?gutenberg-pr=73010` -->
 
--   Prévisualiser la branche trunk de WordPress Core : `https://playground.wordpress.net/?core-branch=trunk`
--   Prévisualiser une PR spécifique de WordPress Core : `https://playground.wordpress.net/?core-pr=9500`
--   Prévisualiser la branche trunk de Gutenberg : `https://playground.wordpress.net/?gutenberg-branch=trunk`
--   Prévisualiser une PR spécifique de Gutenberg : `https://playground.wordpress.net/?gutenberg-pr=73010`
+- Prévisualiser la branche trunk de WordPress Core : `https://playground.wordpress.net/?core-branch=trunk`
+- Prévisualiser une PR spécifique de WordPress Core : `https://playground.wordpress.net/?core-pr=9500`
+- Prévisualiser la branche trunk de Gutenberg : `https://playground.wordpress.net/?gutenberg-branch=trunk`
+- Prévisualiser une PR spécifique de Gutenberg : `https://playground.wordpress.net/?gutenberg-pr=73010`
 
 <!-- ## Build a compatibility testing environment -->
 

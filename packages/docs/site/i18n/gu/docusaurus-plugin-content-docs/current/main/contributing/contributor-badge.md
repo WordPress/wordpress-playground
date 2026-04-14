@@ -56,7 +56,7 @@ Any contribution to the WordPress Playground project is highly valued. The Playg
 To get a Playground Contributor Badge, you must have made at least one eligible contribution from the list above. The team may choose to award the badge for other contributions or a combination of the above at the team’s discretion.
 -->
 
-![Playground Contributor Badge](@site/static/img/contributing/playground-contributor-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/playground-contributor-badge.webp)
 
 ## પ્લેગ્રાઉન્ડ ટીમ બેજ
 
@@ -70,7 +70,7 @@ To get a Playground Contributor Badge, you must have made at least one eligible 
 If you are currently a contributor and have been actively involved in the Playground project for the past **twelve months**, you are eligible for a **Playground Team Badge**.
 -->
 
-![Playground Contributor Badge](@site/static/img/contributing/playground-team-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/playground-team-badge.webp)
 
 ## પ્રોફાઇલ બેજની વિનંતી કરવી
 
@@ -84,8 +84,8 @@ If you are currently a contributor and have been actively involved in the Playgr
 If you meet the criteria, you can request a badge. Please include links to resources (such as GitHub pull requests, issues, or translated strings) that show you have met the criteria. Send a request at the links bellow:
 -->
 
--   [ફાળો આપનાર બેજ](https://profiles.wordpress.org/associations/playground-contributor/)
--   [ટીમ બેજ](https://profiles.wordpress.org/associations/playground-team/)
+- [ફાળો આપનાર બેજ](https://profiles.wordpress.org/associations/playground-contributor/)
+- [ટીમ બેજ](https://profiles.wordpress.org/associations/playground-team/)
 
 <!--
 -   [Contributor Badge](https://profiles.wordpress.org/associations/playground-contributor/)
@@ -98,7 +98,7 @@ If you meet the criteria, you can request a badge. Please include links to resou
 ### Request form
 -->
 
-![Playground Contributor Badge](@site/static/img/contributing/request-contributor-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/request-contributor-badge.webp)
 
 વિનંતીને ઍક્સેસ કરવા માટે, વપરાશકર્તાએ તેમના WordPress.org એકાઉન્ટથી લોગ ઇન કરવું જોઈએ અને જરૂરી માહિતી સબમિટ કર્યા પછી, વિનંતી સભ્યપદ ટેબ ખોલવી જોઈએ. પ્લેગ્રાઉન્ડ ટીમના પ્રતિનિધિ તમારા યોગદાનની પુષ્ટિ કરશે અને બેજ સોંપશે. ટીમ તે સમયે યોગદાન અને એવોર્ડ બેજની સાપ્તાહિક સમીક્ષા કરશે. આપવામાં આવેલા નવા બેજ પર અપડેટ્સ પ્લેગ્રાઉન્ડ ટીમ મીટિંગ દરમિયાન પોસ્ટ કરવામાં આવશે.
 

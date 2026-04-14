@@ -12,13 +12,16 @@ permissions:
 
 jobs:
     create-release:
-        # Only create a release after a successful npm publish on trunk,
-        # or when triggered manually.
+        # Only run on the playground repo. Create a release after a successful
+        # npm publish on trunk, or when triggered manually.
         if: >
-            github.event_name == 'workflow_dispatch' ||
+            github.repository == 'WordPress/wordpress-playground' &&
             (
-                github.event.workflow_run.conclusion == 'success' &&
-                github.event.workflow_run.head_branch == 'trunk'
+                github.event_name == 'workflow_dispatch' ||
+                (
+                    github.event.workflow_run.conclusion == 'success' &&
+                    github.event.workflow_run.head_branch == 'trunk'
+                )
             )
 
         runs-on: ubuntu-latest

@@ -42,7 +42,7 @@ WordPress Playground works the same way. It gives you a complete WordPress site 
 
 ওয়ার্ডপ্রেস প্লেগ্রাউন্ড একইভাবে কাজ করে। এটি আপনাকে এক্সপেরিমেন্ট করার জন্য একটি পূর্ণাঙ্গ ওয়ার্ডপ্রেস সাইট দেয়, কিন্তু আপনার করা কোনো কিছুই কোনো আসল ওয়েবসাইটকে প্রভাবিত করে না। পরিবর্তন করুন, জিনিসগুলো নষ্ট করুন, ভুল থেকে শিখুন — তারপর যখনই চান নতুন করে শুরু করুন।
 
-![WordPress Playground Landing Page](@site/static/img/guides/wordpress-playground-landing-page.webp)
+![WordPress Playground Landing Page](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
 
 <!--
 ## What Can You Do with Playground?
@@ -76,19 +76,19 @@ By default, WordPress Playground loads a landing page to introduce some of the f
 
 <!--
 1. Open Launch WordPress Panel
-   ![Launch WordPress Panel](@site/static/img/about/open-playground-dashboard.webp)
+   ![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
 -->
 
 ১. লঞ্চ ওয়ার্ডপ্রেস প্যানেল খুলুন
-   ![Launch WordPress Panel](@site/static/img/about/open-playground-dashboard.webp)
+![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
 
 <!--
 2. Select to load a Vanilla WordPress version
-   ![Launching Vanilla WordPress](@site/static/img/guides/launch-vanilla-wordpress.webp)
+   ![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
 -->
 
 ২. একটি ভ্যানিলা ওয়ার্ডপ্রেস ভার্সন লোড করতে সিলেক্ট করুন
-   ![Launching Vanilla WordPress](@site/static/img/guides/launch-vanilla-wordpress.webp)
+![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
 
 <!--
 ## If You're Learning WordPress
@@ -114,7 +114,7 @@ Playground logs you in as an administrator, so you can edit any page. Click **Ed
 
 প্লেগ্রাউন্ড আপনাকে অ্যাডমিনিস্ট্রেটর হিসেবে লগ ইন করায়, তাই আপনি যেকোনো পেজ এডিট করতে পারেন। পোস্ট এডিট করার জন্য **এডিট** এবং ওয়েবসাইটের লেআউট আপডেট করার জন্য উপরের টুলবারের **এডিট সাইট**-এ ক্লিক করে এডিটর খুলুন।
 
-![Editing WordPress websites](@site/static/img/guides/edit-sites-with-playground.webp)
+![Editing WordPress websites](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/edit-sites-with-playground.webp)
 
 <!--
 Want to understand how a page layout was created? Open the **List View** (the three horizontal lines icon) to see every block that makes up the page.
@@ -122,7 +122,7 @@ Want to understand how a page layout was created? Open the **List View** (the th
 
 একটি পেজ লেআউট কীভাবে তৈরি হয়েছে তা বুঝতে চান? পেজটি যে ব্লকগুলো দিয়ে তৈরি তা দেখতে **লিস্ট ভিউ** (তিনটি সমান্তরাল রেখার আইকন) ওপেন করুন।
 
-![Site Editor List view](@site/static/img/guides/site-editor-list-view.webp)
+![Site Editor List view](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/site-editor-list-view.webp)
 
 <!--
 You can inspect columns, headings, images, and buttons — and see exactly how they're arranged. This is a powerful way to learn by example.
@@ -144,19 +144,19 @@ At the Launch WordPress Playground panel, you will have access to the Blueprint 
 
 <!--
 1. Open the Blueprint gallery at the Playground Launch Panel
-   ![Open blueprint Gallery](@site/static/img/guides/open-blueprints-gallery.webp)
+   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 -->
 
 ১. প্লেগ্রাউন্ড লঞ্চ প্যানেলে ব্লুপ্রিন্ট গ্যালারি খুলুন
-   ![Open blueprint Gallery](@site/static/img/guides/open-blueprints-gallery.webp)
+![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 <!--
 1. Navigate and select the Blueprint to launch at WordPress Playground
-   ![Open blueprint Gallery](@site/static/img/guides/list-of-blueprints.webp)
+   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
 -->
 
 ২. ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে লঞ্চ করার জন্য কাঙ্ক্ষিত ব্লুপ্রিন্টটি সিলেক্ট করুন
-   ![Open blueprint Gallery](@site/static/img/guides/list-of-blueprints.webp)
+![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
 
 <!--
 ### Try New Features Safely
@@ -212,7 +212,7 @@ Your real site stays untouched while you evaluate whether the plugin fits your n
 
 প্লাগইনটি আপনার প্রয়োজন মেটাবে কিনা তা যাচাই করার সময় আপনার আসল সাইটটি সুরক্ষিত থাকবে।
 
-![Installing Plugins](@site/static/img/guides/installing-plugins.webp)
+![Installing Plugins](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/installing-plugins.webp)
 
 <!--
 ### Preview Theme Changes
@@ -316,7 +316,7 @@ If you like what you see, recreate those changes on your real site. If not, just
 ২. **সেভ** (হলুদ বাটন)-এ ক্লিক করুন
 ৩. আপনার ইনস্ট্যান্সের নাম সেট করুন
 
-![Saving Playgrounds](@site/static/img/guides/unsaved-playground-warning.webp)
+![Saving Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
 
 <!--
 Playground generates a unique link for your saved site. Bookmark it, and you can return to exactly where you left off.

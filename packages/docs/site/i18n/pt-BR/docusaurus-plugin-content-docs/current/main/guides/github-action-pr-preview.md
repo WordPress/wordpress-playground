@@ -10,7 +10,7 @@ The Playground PR Preview action adds a preview button to your pull requests. Cl
 
 A ação de Pré-visualização de PR do Playground adiciona um botão de pré-visualização aos seus pull requests. Clicar no botão inicia o Playground com seu plugin ou tema instalado a partir da branch do PR:
 
-![PR Preview Button](@site/static/img/try-it-in-playground.webp)
+![PR Preview Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/try-it-in-playground.webp)
 
 <!--
 For complete configuration options and advanced features, see the [action-wp-playground-pr-preview workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2).
