@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_4_20', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 25391571;
+export const dependenciesTotalSize = 25391603;
 const phpVersionString = '8.4.20';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -9390,16 +9390,7 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	}
 
-	function _js_popen_lookup_pid(fd) {
-		for (const pid in PHPWASM.processTable) {
-			if (PHPWASM.processTable[pid].fd === fd) {
-				return PHPWASM.processTable[pid].pid;
-			}
-		}
-		return -1;
-	}
-
-	function _js_popen_remove_fd(fd) {
+	function _js_popen_clear_pid_for_fd(fd) {
 		for (const pid in PHPWASM.processTable) {
 			if (PHPWASM.processTable[pid].fd === fd) {
 				delete PHPWASM.processTable[pid].fd;
@@ -9408,7 +9399,16 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function _js_popen_store_pid(fd, pid) {
+	function _js_popen_get_pid_for_fd(fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				return PHPWASM.processTable[pid].pid;
+			}
+		}
+		return -1;
+	}
+
+	function _js_popen_set_pid_for_fd(fd, pid) {
 		if (PHPWASM.processTable[pid]) {
 			PHPWASM.processTable[pid].fd = fd;
 		}
@@ -12171,9 +12171,9 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */ js_flock: _js_flock,
 		/** @export */ js_getpid: _js_getpid,
 		/** @export */ js_open_process: _js_open_process,
-		/** @export */ js_popen_lookup_pid: _js_popen_lookup_pid,
-		/** @export */ js_popen_remove_fd: _js_popen_remove_fd,
-		/** @export */ js_popen_store_pid: _js_popen_store_pid,
+		/** @export */ js_popen_clear_pid_for_fd: _js_popen_clear_pid_for_fd,
+		/** @export */ js_popen_get_pid_for_fd: _js_popen_get_pid_for_fd,
+		/** @export */ js_popen_set_pid_for_fd: _js_popen_set_pid_for_fd,
 		/** @export */ js_popen_to_file,
 		/** @export */ js_process_status: _js_process_status,
 		/** @export */ js_release_file_locks: _js_release_file_locks,
