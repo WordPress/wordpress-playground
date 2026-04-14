@@ -427,9 +427,9 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 });
 extern int __wasi_syscall_ret(__wasi_errno_t code);
 
-extern void js_popen_store_pid(int fd, int pid);
-extern int js_popen_lookup_pid(int fd);
-extern void js_popen_remove_fd(int fd);
+extern void js_popen_set_pid_for_fd(int fd, int pid);
+extern int js_popen_get_pid_for_fd(int fd);
+extern void js_popen_clear_pid_for_fd(int fd);
 
 /**
  * Passes a message to the JavaScript module and writes the response
@@ -555,7 +555,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			0,
 			0
 		);
-		js_popen_store_pid(fileno(fp), pid);
+		js_popen_set_pid_for_fd(fileno(fp), pid);
 
 		efree(stdin);
 		efree(stdout);
@@ -581,8 +581,8 @@ extern int js_waitpid(int pid, int *exitcode);
 
 EMSCRIPTEN_KEEPALIVE int wasm_pclose(FILE *fp)
 {
-	int pid = js_popen_lookup_pid(fileno(fp));
-	js_popen_remove_fd(fileno(fp));
+	int pid = js_popen_get_pid_for_fd(fileno(fp));
+	js_popen_clear_pid_for_fd(fileno(fp));
 	fclose(fp);
 	if (pid < 0) {
 		return -1;
@@ -605,7 +605,7 @@ FILE *__wrap_popen(const char *cmd, const char *mode)
 extern int __real_pclose(FILE *fp);
 int __wrap_pclose(FILE *fp)
 {
-	if (js_popen_lookup_pid(fileno(fp)) >= 0) {
+	if (js_popen_get_pid_for_fd(fileno(fp)) >= 0) {
 		return wasm_pclose(fp);
 	}
 	return __real_pclose(fp);

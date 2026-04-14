@@ -950,13 +950,13 @@ const LibraryExample = {
 		});
 	},
 
-	js_popen_store_pid: function (fd, pid) {
+	js_popen_set_pid_for_fd: function (fd, pid) {
 		if (PHPWASM.processTable[pid]) {
 			PHPWASM.processTable[pid].fd = fd;
 		}
 	},
 
-	js_popen_lookup_pid: function (fd) {
+	js_popen_get_pid_for_fd: function (fd) {
 		for (const pid in PHPWASM.processTable) {
 			if (PHPWASM.processTable[pid].fd === fd) {
 				return PHPWASM.processTable[pid].pid;
@@ -965,7 +965,7 @@ const LibraryExample = {
 		return -1;
 	},
 
-	js_popen_remove_fd: function (fd) {
+	js_popen_clear_pid_for_fd: function (fd) {
 		for (const pid in PHPWASM.processTable) {
 			if (PHPWASM.processTable[pid].fd === fd) {
 				delete PHPWASM.processTable[pid].fd;
