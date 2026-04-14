@@ -5,6 +5,11 @@
 #include "dns_polyfill.h"
 #include "ext/standard/info.h"
 
+/* ZEND_FE_END was added in PHP 5.3.7; provide fallback for PHP 5.2 */
+#ifndef ZEND_FE_END
+#define ZEND_FE_END {NULL, NULL, NULL}
+#endif
+
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -119,21 +124,27 @@ PHP_FUNCTION(dns_check_record)
 	HEADER *hp;
 	querybuf answer = {0};
 	char *hostname;
+#if PHP_MAJOR_VERSION >= 7
 	size_t hostname_len;
 	size_t rectype_len = 0;
 	zend_string *rectype = NULL;
+#else
+	int hostname_len;
+	int rectype_len = 0;
+	char *rectype = NULL;
+#endif
 	int type = DNS_T_MX, i;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &hostname, &hostname_len, &rectype, &rectype_len) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &hostname, &hostname_len, &rectype, &rectype_len) == FAILURE) {
 		return;
 	}
 
 	if (hostname_len == 0) {
-		php_error_docref(NULL, E_WARNING, "Host cannot be empty");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Host cannot be empty");
 		RETURN_FALSE;
 	}
 
-	php_error_docref(NULL, E_WARNING, "dns_check_record() always returns false in PHP.wasm.");
+	php_error_docref(NULL TSRMLS_CC, E_WARNING, "dns_check_record() always returns false in PHP.wasm.");
 
     RETURN_FALSE;
 }
@@ -143,8 +154,13 @@ PHP_FUNCTION(dns_check_record)
 PHP_FUNCTION(dns_get_record)
 {
 	char *hostname;
+#if PHP_MAJOR_VERSION >= 7
 	size_t hostname_len;
 	zend_long type_param = PHP_DNS_ANY;
+#else
+	int hostname_len;
+	long type_param = PHP_DNS_ANY;
+#endif
 	zval *authns = NULL, *addtl = NULL;
 	int type_to_fetch;
 	int dns_errno;
@@ -155,7 +171,7 @@ PHP_FUNCTION(dns_get_record)
 	int type, first_query = 1, store_results = 1;
 	zend_bool raw = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lz!z!b",
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lz!z!b",
 			&hostname, &hostname_len, &type_param, &authns, &addtl, &raw) == FAILURE) {
 		return;
 	}
@@ -173,7 +189,7 @@ PHP_FUNCTION(dns_get_record)
 		}
 	}
 
-	php_error_docref(NULL, E_WARNING, "dns_get_record() always returns an empty array in PHP.wasm.");
+	php_error_docref(NULL TSRMLS_CC, E_WARNING, "dns_get_record() always returns an empty array in PHP.wasm.");
 
 	/* Initialize the return array */
 	array_init(return_value);
@@ -186,7 +202,11 @@ PHP_FUNCTION(dns_get_record)
 PHP_FUNCTION(dns_get_mx)
 {
 	char *hostname;
+#if PHP_MAJOR_VERSION >= 7
 	size_t hostname_len;
+#else
+	int hostname_len;
+#endif
 	zval *mx_list, *weight_list = NULL;
 	int count, qdc;
 	u_short type, weight;
@@ -196,12 +216,18 @@ PHP_FUNCTION(dns_get_mx)
 	uint8_t *cp, *end;
 	int i;
 
+#if PHP_MAJOR_VERSION >= 7
 	ZEND_PARSE_PARAMETERS_START(2, 3)
 		Z_PARAM_STRING(hostname, hostname_len)
 		Z_PARAM_ZVAL(mx_list)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_ZVAL(weight_list)
 	ZEND_PARSE_PARAMETERS_END();
+#else
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz|z", &hostname, &hostname_len, &mx_list, &weight_list) == FAILURE) {
+		return;
+	}
+#endif
 
 	array_init(mx_list);
 	if (!mx_list) {
@@ -215,7 +241,7 @@ PHP_FUNCTION(dns_get_mx)
 		}
 	}
 
-	php_error_docref(NULL, E_WARNING, "dns_get_mx() always returns an empty array in PHP.wasm.");
+	php_error_docref(NULL TSRMLS_CC, E_WARNING, "dns_get_mx() always returns an empty array in PHP.wasm.");
 
     RETURN_FALSE;
 }
@@ -255,6 +281,31 @@ PHP_MSHUTDOWN_FUNCTION(dns_polyfill)
 {
 	return SUCCESS;
 }
+
+/* {{{ arginfo definitions */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_check_record, 0, 0, 1)
+ZEND_ARG_INFO(0, host)
+ZEND_ARG_INFO(0, type)
+ZEND_END_ARG_INFO()
+
+#define arginfo_checkdnsrr arginfo_dns_check_record
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_get_record, 0, 0, 1)
+ZEND_ARG_INFO(0, hostname)
+ZEND_ARG_INFO(0, type)
+ZEND_ARG_ARRAY_INFO(1, authns, 1)
+ZEND_ARG_ARRAY_INFO(1, addtl, 1)
+ZEND_ARG_INFO(0, raw)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_get_mx, 0, 0, 2)
+ZEND_ARG_INFO(0, hostname)
+ZEND_ARG_INFO(1, mxhosts)
+ZEND_ARG_INFO(1, weight)
+ZEND_END_ARG_INFO()
+
+#define arginfo_getmxrr arginfo_dns_get_mx
+/* }}} */
 
 /* {{{ dns_polyfill_functions[] */
 const zend_function_entry dns_polyfill_functions[] = {
