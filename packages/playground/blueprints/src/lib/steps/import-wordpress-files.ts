@@ -128,7 +128,7 @@ export const importWordPressFiles: StepHandler<
 	// Remove the directory where we unzipped the imported zip file.
 	await playground.rmdir(importPath);
 
-	// Ensure required constants are defined in wp-config.php.
+	// Ensure required constants are defined if wp-config.php doesn't define them.
 	await ensureWpConfig(playground, documentRoot);
 
 	const newSiteUrl = await playground.absoluteUrl;

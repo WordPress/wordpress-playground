@@ -47,10 +47,10 @@ WordPress Playground é uma ferramenta online onde podes testar e aprender mais 
 -   [**API Reference**](/api) – All the APIs exposed by WordPress Playground
 -->
 
--   👉 [**Documentação**](/) _(você está aqui)_ – Introdução a WordPress Playground, guia inicial e ponto de entrada para a documentação do WordPress Playuground.
--   [**Blueprints**](/blueprints) – Blueprints são arquivos JSON que permitem configurar e definir o estado de novas instâncias do WordPress Playground. Saiba mais o que é possível com Blueprints na sessão dedicada.
--   [**Desenvolvedores**](/developers) – WordPress Playground é uma ferramenta poderosa para desenvolvedores onde podemos criar ambiente de desenvolvimento e testes. Descubra mais o que podes fazer com o WordPress playground na sessão dedica a desenvolvedores.
--   [**Referência da API**](/api) – Referência de toda a API pública do WordPress Playground.
+- 👉 [**Documentação**](/) _(você está aqui)_ – Introdução a WordPress Playground, guia inicial e ponto de entrada para a documentação do WordPress Playuground.
+- [**Blueprints**](/blueprints) – Blueprints são arquivos JSON que permitem configurar e definir o estado de novas instâncias do WordPress Playground. Saiba mais o que é possível com Blueprints na sessão dedicada.
+- [**Desenvolvedores**](/developers) – WordPress Playground é uma ferramenta poderosa para desenvolvedores onde podemos criar ambiente de desenvolvimento e testes. Descubra mais o que podes fazer com o WordPress playground na sessão dedica a desenvolvedores.
+- [**Referência da API**](/api) – Referência de toda a API pública do WordPress Playground.
 
 <!--
 ## Navigating this documentation hub
@@ -74,12 +74,12 @@ Este hub de documentação foca-se em ajudá-lo a começar a trabalhar com o Wor
 -   **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground.
 -->
 
--   **[Guia de início rápido](/quick-start-guide)**: Para aqueles que querem começar com o WordPress Playground, neste guia você aprenderá como colocar rapidamente no ar [um site WordPress](/quick-start-guide#start-a-new-wordpress-site) para [testar um bloco, um tema ou um plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) ou para [testar uma versão específica do WordPress ou PHP](/quick-start-guide#use-a-specific-wordpress-or-php-version).
--   **[A instância do WP Playground](/web-instance)**: Aprenda os detalhes da instância pública do WP Playground que está disponível em https://playground.wordpress.net/
--   **[Sobre o WP Playground](/about)**: Visite esta seção para aprender sobre o WordPress Playground, o quão seguro ele é, o que você pode fazer com o Playground e algumas das suas limitações. Descubra como tirar proveito do WordPress Playground para [Construir](/about/build), [Testar](/about/test) e [Lançar](/about/launch) os seus produtos.
--   **[Guias](/guides/)**: Explore estes guias para aprender mais a fundo sobre alguns dos conceitos ou aplicações práticas mais populares do WordPress Playground!
--   **[Contribuir](/contributing/)**: O WordPress Playground é um projeto de código aberto (open-source) e todas as contribuições são bem-vindas. Você pode contribuir com o projeto ajudando com o código, com o design, com a documentação ou com a organização de tarefas. Nesta seção, você encontrará informações sobre como contribuir para o projeto.
--   **[Links e recursos](/resources)**: Uma compilação de links úteis e recursos relacionados com o WordPress Playground.
+- **[Guia de início rápido](/quick-start-guide)**: Para aqueles que querem começar com o WordPress Playground, neste guia você aprenderá como colocar rapidamente no ar [um site WordPress](/quick-start-guide#start-a-new-wordpress-site) para [testar um bloco, um tema ou um plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) ou para [testar uma versão específica do WordPress ou PHP](/quick-start-guide#use-a-specific-wordpress-or-php-version).
+- **[A instância do WP Playground](/web-instance)**: Aprenda os detalhes da instância pública do WP Playground que está disponível em https://playground.wordpress.net/
+- **[Sobre o WP Playground](/about)**: Visite esta seção para aprender sobre o WordPress Playground, o quão seguro ele é, o que você pode fazer com o Playground e algumas das suas limitações. Descubra como tirar proveito do WordPress Playground para [Construir](/about/build), [Testar](/about/test) e [Lançar](/about/launch) os seus produtos.
+- **[Guias](/guides/)**: Explore estes guias para aprender mais a fundo sobre alguns dos conceitos ou aplicações práticas mais populares do WordPress Playground!
+- **[Contribuir](/contributing/)**: O WordPress Playground é um projeto de código aberto (open-source) e todas as contribuições são bem-vindas. Você pode contribuir com o projeto ajudando com o código, com o design, com a documentação ou com a organização de tarefas. Nesta seção, você encontrará informações sobre como contribuir para o projeto.
+- **[Links e recursos](/resources)**: Uma compilação de links úteis e recursos relacionados com o WordPress Playground.
 
 <!--
 ## First steps
@@ -99,11 +99,11 @@ Seja você um desenvolvedor, um usuário sem conhecimentos técnicos ou alguém 
 -   [WordCamp Contributor Day](/contributing/contributor-day)
 -->
 
--   [Comece a usar o WordPress Playground](/quick-start-guide) em 5 minutos.
--   [Comece a desenvolver](/developers/build-your-first-app) com o WordPress Playground.
--   Utilize o Playground como um [ambiente de desenvolvimento local](/developers/local-development/) com configuração zero (zero-setup).
--   Informe-se sobre as [limitações](/developers/limitations) do WP Playground.
--   [WordCamp Contributor Day](/contributing/contributor-day)-
+- [Comece a usar o WordPress Playground](/quick-start-guide) em 5 minutos.
+- [Comece a desenvolver](/developers/build-your-first-app) com o WordPress Playground.
+- Utilize o Playground como um [ambiente de desenvolvimento local](/developers/local-development/) com configuração zero (zero-setup).
+- Informe-se sobre as [limitações](/developers/limitations) do WP Playground.
+- [WordCamp Contributor Day](/contributing/contributor-day)-
 
 <!--
 :::tip
@@ -125,8 +125,6 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 
 Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretamente as APIs do WP Playground que estão disponíveis:
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
 -   Review [links and resources](/resources)
@@ -134,10 +132,13 @@ import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 -   Dive into the [architecture](/developers/architecture) and learn how it all works
 -->
 
--   Leia sobre [APIs do Playground](/developers/apis/) e alguns conceitos básicos.
--   [Links e recursos](/resources)
--   Escolha a API adequada para a sua aplicação <APIList />
--   Aprofunde-se na [arquitetura](/developers/architecture) e aprenda como o WP Playground funciona internamente.
+- Leia sobre [APIs do Playground](/developers/apis/) e sobre alguns conceitos básicos.
+- [Links e recursos](/resources)
+- Escolha a API adequada para a sua aplicação:
+    - [API de Consulta](/developers/apis/query-api) permite realizar operações básicas usando apenas parâmetros de consulta.
+	- [API de Blueprints](/blueprints) oferece um alto grau de controle com um único arquivo JSON.
+	- [API JavaScript](/developers/apis/javascript-api) oferece controle total por meio de um cliente JavaScript a partir de um pacote npm.
+- Aprofunde-se na [arquitetura](/developers/architecture) e aprenda como o WP Playground funciona internamente.
 
 <!--
 ## Get Involved
@@ -156,8 +157,8 @@ O WordPress Playground é um projeto de código aberto (open-source) e todas as 
 As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 -->
 
--   Dê uma olhada no [Manual do Colaborador (Contributors Handbook)](/contributing/) para tudo o que você precisa saber para contribuir com o projeto.
--   Junte-se ao canal `#playground` no Slack (na página do [Slack do WordPress](https://make.wordpress.org/chat/) você encontrará as informações sobre como acessar o Slack do WordPress)
+- Dê uma olhada no [Manual do Colaborador (Contributors Handbook)](/contributing/) para tudo o que você precisa saber para contribuir com o projeto.
+- Junte-se ao canal `#playground` no Slack (na página do [Slack do WordPress](https://make.wordpress.org/chat/) você encontrará as informações sobre como acessar o Slack do WordPress)
 
 Como em todos os projetos do WordPress, queremos garantir um ambiente seguro e acolhedor para todos. Com isso em mente, espera-se que todos os contribuidores cumpram o nosso [código de conduta](https://make.wordpress.org/handbook/community-code-of-conduct/).
 

@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: প্লেগ্রাউন্ড দিয়ে শুরু করার একটি ৫ মিনিটের গাইড। প্লাগইন পরীক্ষা করা, থিম ট্রাই করা এবং বিভিন্ন WP/PHP সংস্করণ ব্যবহার করার পদ্ধতি শিখুন।
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!--
 # Start using WordPress Playground in 5 minutes
 -->
@@ -118,7 +116,7 @@ You can also mix and match these parameters and even add multiple plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 ## Save your site
@@ -138,7 +136,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 
 ১. প্লেগ্রাউন্ড সাইট ম্যানেজার প্যানেলটি খুলুন:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!--
 2. Use the "Download as .zip" button in the additional actions menu
@@ -146,7 +144,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 
 ২. অতিরিক্ত অ্যাকশন মেনু থেকে "Download as .zip" বাটনটি ব্যবহার করুন
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -178,7 +176,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 ১. প্লেগ্রাউন্ড ড্যাশবোর্ড প্যানেলটি খুলুন:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!--
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
@@ -186,7 +184,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 ২. "Start a new Playground" সেকশনের শেষে থাকা "Import .zip" বাটনটি ব্যবহার করুন
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -200,7 +198,7 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 
 ওয়ার্ডপ্রেস বা PHP-এর সংস্করণ পরিবর্তন করার দ্রুততম উপায় হলো [অফিশিয়াল ডেমো সাইটে](https://playground.wordpress.net/) সেটিংস প্যানেল ব্যবহার করা:
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!--
 :::info Test your plugin or theme
@@ -226,7 +224,7 @@ You can also use the `wp` and `php` [query parameters](/developers/apis/query-ap
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).

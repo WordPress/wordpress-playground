@@ -59,8 +59,8 @@ With this workflow, you could build a block theme completely in your browser and
 Some more examples of this workflow:
 -->
 
--   [ડેવલપર અવર્સ: ટેસ્ટિંગ અને ડેમોઝ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લૂપ્રિન્ટ્સ બનાવવું](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [રીકૅપ હોલવે હેંગઆઉટ: પ્લેગ્રાઉન્ડ સાથે થીમ બિલ્ડિંગ, ક્રિએટ-બ્લોક-થીમ પ્લગિન અને GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [ડેવલપર અવર્સ: ટેસ્ટિંગ અને ડેમોઝ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લૂપ્રિન્ટ્સ બનાવવું](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [રીકૅપ હોલવે હેંગઆઉટ: પ્લેગ્રાઉન્ડ સાથે થીમ બિલ્ડિંગ, ક્રિએટ-બ્લોક-થીમ પ્લગિન અને GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
 -   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
@@ -73,7 +73,7 @@ Some more examples of this workflow:
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
-![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](@site/static/img/about/storage-type-device.webp)
+![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
 <!--
 [Storage Type Device Snapshot](../_assets/storage-type-device.png)
@@ -85,8 +85,8 @@ Google Chrome સાથે તમે તમારી પ્લેગ્રાઉ
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 -->
 
--   ખાલી ડિરેક્ટરી – આ પ્લેગ્રાઉન્ડ સાચવવા અને સિંક શરૂ કરવા માટે
--   એકઝિસ્ટિંગ ડિરેક્ટરી – તેને અહીં લોડ કરવા અને સિંક શરૂ કરવા માટે
+- ખાલી ડિરેક્ટરી – આ પ્લેગ્રાઉન્ડ સાચવવા અને સિંક શરૂ કરવા માટે
+- એકઝિસ્ટિંગ ડિરેક્ટરી – તેને અહીં લોડ કરવા અને સિંક શરૂ કરવા માટે
 
 <!--
 -   And empty directory – to save this Playground and start syncing
@@ -113,8 +113,8 @@ This feature is only available for Google Chrome for now. It won't work with oth
 Regarding changes done on both sides of the connection:
 -->
 
--   પ્લેગ્રાઉન્ડમાં બદલાયેલી ફાઈલો તમારા કમ્પ્યુટરમાં સિંક્રોનાઈઝ થશે.
--   તમારા કમ્પ્યુટરમાં બદલાયેલી ફાઈલો પ્લેગ્રાઉન્ડમાં સિંક્રોનાઈઝ નહીં થાય. તેના માટે તમને "Sync local files" બટન ક્લિક કરવું પડશે.
+- પ્લેગ્રાઉન્ડમાં બદલાયેલી ફાઈલો તમારા કમ્પ્યુટરમાં સિંક્રોનાઈઝ થશે.
+- તમારા કમ્પ્યુટરમાં બદલાયેલી ફાઈલો પ્લેગ્રાઉન્ડમાં સિંક્રોનાઈઝ નહીં થાય. તેના માટે તમને "Sync local files" બટન ક્લિક કરવું પડશે.
 
 <!--
 -   Files changed in Playground will be synchronized to your computer.

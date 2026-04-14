@@ -177,10 +177,10 @@ The language switcher is a dropdown menu that allows users to select their prefe
 El selector de idioma es un menú desplegable que permite a los usuarios seleccionar su idioma preferido.
 
 <!--
-![Documentation Language Switcher](@site/static/img/contributing/language-switcher-docs.webp)
+![Documentation Language Switcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 -->
 
-![Selector de idioma de la documentación](@site/static/img/contributing/language-switcher-docs.webp)
+![Selector de idioma de la documentación](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 
 <!--
 ### Making a language publicly available on the Language Switcher
@@ -586,11 +586,11 @@ Esta guía te mostrará cómo actualizar una traducción existente y agregar una
 
 <!--
 2.  **Open the editor.** Select the file you wish to edit and click the pencil icon (**Edit this file**) in the upper right corner.
-    ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
+    ![Editing existing translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 -->
 
 2.  **Abre el editor.** Selecciona el archivo que deseas editar y haz clic en el icono de lápiz (**Edit this file**) en la esquina superior derecha.
-    ![Editando traducción existente](@site/static/img/contributing/editing-translations.webp)
+    ![Editando traducción existente](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 
 <!--
 3.  **Fork the repository.** GitHub will automatically prompt you to **Fork this repository**. This creates a personal copy for you to edit safely. Click the button to proceed.
@@ -637,13 +637,13 @@ Esta guía te mostrará cómo actualizar una traducción existente y agregar una
 
 <!--
 2.  **Create the new file.** Navigate to the correct language folder (e.g., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Click **Add file** > **Create new file**.
-    ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
+    ![Creating a new translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
 
     -   **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
 -->
 
 2.  **Crea el nuevo archivo.** Navega a la carpeta del idioma correcto (por ejemplo, `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Haz clic en **Add file** > **Create new file**.
-    ![Creando una nueva traducción](@site/static/img/contributing/adding-file-github-ui.webp)
+    ![Creando una nueva traducción](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
     - **Consejo profesional:** En el cuadro de nombre de archivo, puedes crear nuevas carpetas escribiendo el nombre de la carpeta seguido de un `/`. Por ejemplo, escribir `main/contributing/documentation.md` creará las carpetas `main` y `contributing` automáticamente.
 
 <!--
@@ -664,7 +664,7 @@ Esta guía te mostrará cómo actualizar una traducción existente y agregar una
     Ceci est le contenu traduit en français.
     ```
 
-    ![GitHub UI Editor](@site/static/img/contributing/editor-github-ui.webp)
+    ![GitHub UI Editor](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 -->
 
@@ -679,7 +679,7 @@ Esta guía te mostrará cómo actualizar una traducción existente y agregar una
     Este es el contenido traducido al español.
     ```
 
-    ![Editor de interfaz de GitHub](@site/static/img/contributing/editor-github-ui.webp)
+    ![Editor de interfaz de GitHub](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 <!--
 5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.
