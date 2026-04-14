@@ -1,4 +1,10 @@
-# Asyncify
+---
+title: Asyncify and JSPI – Stack Switching in PHP WebAssembly
+description: How WordPress Playground uses Asyncify and JSPI to let synchronous PHP code interact with asynchronous JavaScript, including troubleshooting crashes and binary size optimizations.
+slug: developers/architecture/wasm-asyncify
+---
+
+# Asyncify and JSPI: Stack Switching in PHP WebAssembly
 
 [Asyncify](https://emscripten.org/docs/porting/asyncify.html) lets synchronous C or C++ code interact with asynchronous JavaScript. Technically, it saves the entire C call stack before yielding control back to JavaScript, and then restores it when the asynchronous call is finished. This is called **stack switching**.
 

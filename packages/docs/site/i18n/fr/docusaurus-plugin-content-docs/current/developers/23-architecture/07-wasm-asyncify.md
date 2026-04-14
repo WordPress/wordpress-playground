@@ -1,4 +1,10 @@
-# Asyncify
+---
+title: Asyncify et JSPI – Changement de pile dans PHP WebAssembly
+description: Comment WordPress Playground utilise Asyncify et JSPI pour permettre au code PHP synchrone d'interagir avec du JavaScript asynchrone, y compris le dépannage des plantages et les optimisations de taille des binaires.
+slug: developers/architecture/wasm-asyncify
+---
+
+# Asyncify et JSPI : changement de pile dans PHP WebAssembly
 
 <!--
 # Asyncify
