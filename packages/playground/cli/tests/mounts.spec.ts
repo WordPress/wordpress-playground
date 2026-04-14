@@ -1,34 +1,26 @@
 import path from 'node:path';
-import type { MockInstance } from 'vitest';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { expandAutoMounts } from '../src/mounts';
-import type { RunCLIArgs } from '../src/run-cli';
+import type { RunCLIArgs } from '../src';
 
 describe('expandAutoMounts', () => {
-	afterEach(() => {
-		if ((process.cwd as unknown as MockInstance).mockRestore) {
-			(process.cwd as unknown as MockInstance).mockRestore();
-		}
-	});
-
-	const createBasicArgs = (): RunCLIArgs => ({
+	const createBasicArgs = (autoMountPath: string): RunCLIArgs => ({
 		command: 'server',
 		php: '8.0',
+		autoMount: autoMountPath,
 	});
 
 	describe('plugin directory detection', () => {
 		test('should mount plugin directory correctly', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/plugin')
-			);
-
-			const args = createBasicArgs();
+			const pluginPath = path.join(__dirname, 'mount-examples/plugin');
+			const args = createBasicArgs(pluginPath);
 			const result = expandAutoMounts(args);
 
 			expect(result.mount).toEqual([
 				{
-					hostPath: path.join(__dirname, 'mount-examples/plugin'),
+					hostPath: pluginPath,
 					vfsPath: '/wordpress/wp-content/plugins/plugin',
+					autoMounted: true,
 				},
 			]);
 			expect(result['additional-blueprint-steps']).toEqual([
@@ -40,39 +32,47 @@ describe('expandAutoMounts', () => {
 		});
 
 		test('should not mount non-plugin directory as plugin', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/not-plugin')
+			const notPluginPath = path.join(
+				__dirname,
+				'mount-examples/not-plugin'
 			);
-
-			const args = createBasicArgs();
+			const args = createBasicArgs(notPluginPath);
 			const result = expandAutoMounts(args);
 
-			// Should fall back to default behavior (mount as /wordpress)
-			expect(result.mount).toEqual([
-				{
-					hostPath: path.join(__dirname, 'mount-examples/not-plugin'),
-					vfsPath: '/wordpress',
-				},
-			]);
+			expect(result.mount).toEqual([]);
 			expect(result['additional-blueprint-steps']).toEqual([]);
 		});
 	});
 
 	describe('theme directory detection', () => {
 		test('should mount theme directory correctly', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/theme')
-			);
-
-			const args = createBasicArgs();
+			const themePath = path.join(__dirname, 'mount-examples/theme');
+			const args = createBasicArgs(themePath);
 			const result = expandAutoMounts(args);
 
 			expect(result.mount).toEqual([
 				{
-					hostPath: path.join(__dirname, 'mount-examples/theme'),
+					hostPath: themePath,
 					vfsPath: '/wordpress/wp-content/themes/theme',
+					autoMounted: true,
 				},
 			]);
+			expect(result['additional-blueprint-steps']).toEqual([
+				{
+					step: 'activateTheme',
+					themeFolderName: 'theme',
+				},
+			]);
+		});
+
+		test('should use themeDirectoryName for v2 runner', () => {
+			const themePath = path.join(__dirname, 'mount-examples/theme');
+			const args: RunCLIArgs = {
+				...createBasicArgs(themePath),
+				'experimental-blueprints-v2-runner': true,
+			};
+			const result = expandAutoMounts(args);
+
 			expect(result['additional-blueprint-steps']).toEqual([
 				{
 					step: 'activateTheme',
@@ -82,31 +82,25 @@ describe('expandAutoMounts', () => {
 		});
 
 		test('should not mount non-theme directory as theme', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/not-theme')
+			const notThemePath = path.join(
+				__dirname,
+				'mount-examples/not-theme'
 			);
-
-			const args = createBasicArgs();
+			const args = createBasicArgs(notThemePath);
 			const result = expandAutoMounts(args);
 
-			// Should fall back to default behavior (mount as /wordpress)
-			expect(result.mount).toEqual([
-				{
-					hostPath: path.join(__dirname, 'mount-examples/not-theme'),
-					vfsPath: '/wordpress',
-				},
-			]);
+			expect(result.mount).toEqual([]);
 			expect(result['additional-blueprint-steps']).toEqual([]);
 		});
 	});
 
 	describe('wp-content directory detection', () => {
 		test('should mount wp-content directory correctly', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/wp-content')
+			const wpContentPath = path.join(
+				__dirname,
+				'mount-examples/wp-content'
 			);
-
-			const args = createBasicArgs();
+			const args = createBasicArgs(wpContentPath);
 			const result = expandAutoMounts(args);
 
 			expect(result.mount).toEqual([
@@ -116,6 +110,7 @@ describe('expandAutoMounts', () => {
 						'mount-examples/wp-content/plugins'
 					),
 					vfsPath: '/wordpress/wp-content/plugins',
+					autoMounted: true,
 				},
 				{
 					hostPath: path.join(
@@ -123,6 +118,7 @@ describe('expandAutoMounts', () => {
 						'mount-examples/wp-content/themes'
 					),
 					vfsPath: '/wordpress/wp-content/themes',
+					autoMounted: true,
 				},
 			]);
 			const steps = result['additional-blueprint-steps'];
@@ -137,11 +133,11 @@ describe('expandAutoMounts', () => {
 		});
 
 		test('should mount wp-content directory with only themes', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/wp-content-only-themes')
+			const themesOnlyPath = path.join(
+				__dirname,
+				'mount-examples/wp-content-only-themes'
 			);
-
-			const args = createBasicArgs();
+			const args = createBasicArgs(themesOnlyPath);
 			const result = expandAutoMounts(args);
 
 			expect(result.mount).toEqual([
@@ -151,19 +147,17 @@ describe('expandAutoMounts', () => {
 						'mount-examples/wp-content-only-themes/themes'
 					),
 					vfsPath: '/wordpress/wp-content/themes',
+					autoMounted: true,
 				},
 			]);
 		});
 
 		test('should mount wp-content directory with only mu-plugins', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(
-					__dirname,
-					'mount-examples/wp-content-only-mu-plugins'
-				)
+			const muPluginsPath = path.join(
+				__dirname,
+				'mount-examples/wp-content-only-mu-plugins'
 			);
-
-			const args = createBasicArgs();
+			const args = createBasicArgs(muPluginsPath);
 			const result = expandAutoMounts(args);
 
 			expect(result.mount).toEqual([
@@ -173,6 +167,7 @@ describe('expandAutoMounts', () => {
 						'mount-examples/wp-content-only-mu-plugins/mu-plugins'
 					),
 					vfsPath: '/wordpress/wp-content/mu-plugins',
+					autoMounted: true,
 				},
 			]);
 		});
@@ -180,27 +175,23 @@ describe('expandAutoMounts', () => {
 
 	describe('full WordPress installation detection', () => {
 		test('should mount full WordPress installation correctly', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/wordpress')
-			);
-
-			const args = createBasicArgs();
+			const wpPath = path.join(__dirname, 'mount-examples/wordpress');
+			const args = createBasicArgs(wpPath);
 			const result = expandAutoMounts(args);
 
-			// Should mount individual files except wp-content
 			expect(result['mount-before-install'] || []).toEqual(
 				expect.arrayContaining([
 					{
-						hostPath: path.join(
-							__dirname,
-							'mount-examples/wordpress'
-						),
+						hostPath: wpPath,
 						vfsPath: '/wordpress',
+						autoMounted: true,
 					},
 				])
 			);
-			// @TODO: Uncomment when merging Blueprints v2 support
-			// expect(result.mode).toBe('apply-to-existing-site');
+			expect(result.mode).toBe('apply-to-existing-site');
+			expect(result.wordpressInstallMode).toBe(
+				'install-from-existing-files-if-needed'
+			);
 			const steps = result['additional-blueprint-steps'];
 			expect(steps).toHaveLength(1);
 			expect(steps![0]).toEqual({
@@ -211,78 +202,55 @@ describe('expandAutoMounts', () => {
 				},
 			});
 		});
+
+		test('should not override existing wordpressInstallMode', () => {
+			const wpPath = path.join(__dirname, 'mount-examples/wordpress');
+			const args: RunCLIArgs = {
+				...createBasicArgs(wpPath),
+				wordpressInstallMode: 'do-not-attempt-installing',
+			};
+			const result = expandAutoMounts(args);
+
+			expect(result.wordpressInstallMode).toBe(
+				'do-not-attempt-installing'
+			);
+		});
 	});
 
-	describe('default behavior', () => {
-		test('should mount static HTML directory as default', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/static-html')
-			);
-
-			const args = createBasicArgs();
+	describe('unrecognized directories', () => {
+		test('should not mount static HTML directory', () => {
+			const htmlPath = path.join(__dirname, 'mount-examples/static-html');
+			const args = createBasicArgs(htmlPath);
 			const result = expandAutoMounts(args);
 
-			expect(result.mount).toEqual([
-				{
-					hostPath: path.join(
-						__dirname,
-						'mount-examples/static-html'
-					),
-					vfsPath: '/wordpress',
-				},
-			]);
+			expect(result.mount).toEqual([]);
 			expect(result['additional-blueprint-steps']).toEqual([]);
-			// @TODO: Uncomment when merging Blueprints v2 support
-			// expect(result.mode).toBe('mount-only');
 		});
 
-		test('should mount PHP directory as default', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/php')
-			);
-
-			const args = createBasicArgs();
+		test('should not mount PHP directory', () => {
+			const phpPath = path.join(__dirname, 'mount-examples/php');
+			const args = createBasicArgs(phpPath);
 			const result = expandAutoMounts(args);
 
-			expect(result.mount).toEqual([
-				{
-					hostPath: path.join(__dirname, 'mount-examples/php'),
-					vfsPath: '/wordpress',
-				},
-			]);
+			expect(result.mount).toEqual([]);
 			expect(result['additional-blueprint-steps']).toEqual([]);
-			// @TODO: Uncomment when merging Blueprints v2 support
-			// expect(result.mode).toBe('mount-only');
 		});
 
-		test('should mount empty directory as default', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/nothing')
-			);
-
-			const args = createBasicArgs();
+		test('should not mount empty directory', () => {
+			const nothingPath = path.join(__dirname, 'mount-examples/nothing');
+			const args = createBasicArgs(nothingPath);
 			const result = expandAutoMounts(args);
 
-			expect(result.mount).toEqual([
-				{
-					hostPath: path.join(__dirname, 'mount-examples/nothing'),
-					vfsPath: '/wordpress',
-				},
-			]);
+			expect(result.mount).toEqual([]);
 			expect(result['additional-blueprint-steps']).toEqual([]);
-			// @TODO: Uncomment when merging Blueprints v2 support
-			// expect(result.mode).toBe('mount-only');
 		});
 	});
 
 	describe('preserving existing arguments', () => {
 		test('should preserve existing mounts', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/plugin')
-			);
-
+			const pluginPath = path.join(__dirname, 'mount-examples/plugin');
 			const args: RunCLIArgs = {
-				...createBasicArgs(),
+				...createBasicArgs(pluginPath),
 				mount: [
 					{
 						hostPath: '/existing/mount',
@@ -298,19 +266,17 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/existing/vfs',
 				},
 				{
-					hostPath: path.join(__dirname, 'mount-examples/plugin'),
+					hostPath: pluginPath,
 					vfsPath: '/wordpress/wp-content/plugins/plugin',
+					autoMounted: true,
 				},
 			]);
 		});
 
 		test('should preserve existing mountBeforeInstall', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/wordpress')
-			);
-
+			const wpPath = path.join(__dirname, 'mount-examples/wordpress');
 			const args: RunCLIArgs = {
-				...createBasicArgs(),
+				...createBasicArgs(wpPath),
 				'mount-before-install': [
 					{
 						hostPath: '/existing/before-mount',
@@ -328,19 +294,15 @@ describe('expandAutoMounts', () => {
 					},
 				])
 			);
-			// Should also contain the auto-detected mounts
 			expect(
 				(result['mount-before-install'] || []).length
 			).toBeGreaterThan(1);
 		});
 
 		test('should preserve existing blueprint steps', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/plugin')
-			);
-
+			const pluginPath = path.join(__dirname, 'mount-examples/plugin');
 			const args: RunCLIArgs = {
-				...createBasicArgs(),
+				...createBasicArgs(pluginPath),
 				'additional-blueprint-steps': [
 					{
 						step: 'setSiteOptions',
@@ -365,12 +327,9 @@ describe('expandAutoMounts', () => {
 
 	describe('edge cases', () => {
 		test('should handle undefined mount arrays', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/plugin')
-			);
-
+			const pluginPath = path.join(__dirname, 'mount-examples/plugin');
 			const args: RunCLIArgs = {
-				...createBasicArgs(),
+				...createBasicArgs(pluginPath),
 				mount: undefined,
 				'mount-before-install': undefined,
 			};
@@ -378,20 +337,18 @@ describe('expandAutoMounts', () => {
 
 			expect(result.mount).toEqual([
 				{
-					hostPath: path.join(__dirname, 'mount-examples/plugin'),
+					hostPath: pluginPath,
 					vfsPath: '/wordpress/wp-content/plugins/plugin',
+					autoMounted: true,
 				},
 			]);
 			expect(result['mount-before-install']).toEqual([]);
 		});
 
 		test('should handle undefined blueprint', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/plugin')
-			);
-
+			const pluginPath = path.join(__dirname, 'mount-examples/plugin');
 			const args: RunCLIArgs = {
-				...createBasicArgs(),
+				...createBasicArgs(pluginPath),
 				blueprint: undefined,
 			};
 			const result = expandAutoMounts(args);
@@ -404,28 +361,21 @@ describe('expandAutoMounts', () => {
 			]);
 		});
 
-		test('should handle blueprint as string', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/plugin')
-			);
-
+		test('should handle blueprint as object', () => {
+			const pluginPath = path.join(__dirname, 'mount-examples/plugin');
 			const args: RunCLIArgs = {
-				...createBasicArgs(),
+				...createBasicArgs(pluginPath),
 				blueprint: { plugins: ['gutenberg'] },
 			};
 			const result = expandAutoMounts(args);
 
-			// Should preserve the string blueprint as is (steps are not added for string blueprints)
 			expect(result.blueprint).toEqual({ plugins: ['gutenberg'] });
 		});
 
 		test('should return all other arguments unchanged', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'mount-examples/plugin')
-			);
-
+			const pluginPath = path.join(__dirname, 'mount-examples/plugin');
 			const args: RunCLIArgs = {
-				...createBasicArgs(),
+				...createBasicArgs(pluginPath),
 				php: '8.1',
 				port: 3000,
 				quiet: true,
