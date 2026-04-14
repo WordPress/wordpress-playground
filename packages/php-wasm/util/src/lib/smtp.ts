@@ -42,7 +42,7 @@ export type SmtpSinkOptions = {
  */
 export class SmtpSink {
 	private enc = new TextEncoder();
-	private dec = new TextDecoder('utf-8', { fatal: false });
+	private dec = new TextDecoder();
 	private lineBuf = '';
 	private dataMode = false;
 	private dataLines: string[] = [];
