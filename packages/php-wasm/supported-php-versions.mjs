@@ -54,5 +54,11 @@ export const phpVersions = [
 		loaderFilename: 'php_7_4.js',
 		wasmFilename: 'php_7_4.wasm',
 		lastRelease: '7.4.33',
-	}
+	},
+	{
+		version: '5.2',
+		loaderFilename: 'php_5_2.js',
+		wasmFilename: 'php_5_2.wasm',
+		lastRelease: '5.2.17',
+	},
 ];
