@@ -18,14 +18,25 @@ call inside JavaScript. This is **not** a network-based REST API.
 
 To use the JavaScript API, you'll need:
 
--   An `<iframe>` element
--   The `@wp-playground/client` package (from npm or a CDN)
+- An `<iframe>` element
+- The `@wp-playground/client` package (from npm or a CDN)
 
 Here's the shortest example of how to use the JavaScript API in a HTML page:
 
-import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx';
+```html
+<iframe id="wp" style="width: 100%; height: 300px; border: 1px solid #000;"></iframe>
+<script type="module">
+	// Use unpkg for convenience
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
-<JSApiShortExample />
+	const client = await startPlaygroundWeb({
+		iframe: document.getElementById('wp'),
+		remoteUrl: `https://playground.wordpress.net/remote.html`,
+	});
+	// Let's wait until Playground is fully loaded
+	await client.isReady();
+</script>
+```
 
 :::info /remote.html is a special URL
 
@@ -38,9 +49,9 @@ API endpoint instead of the demo app with the browser UI. Read more about the di
 
 Now that you have a `client` object, you can use it to control the website inside the iframe. There are three ways to do that:
 
--   [Playground API Client](/developers/apis/javascript-api/playground-api-client)
--   [Blueprint JSON](/developers/apis/javascript-api/blueprint-json-in-api-client)
--   [Blueprint functions](/developers/apis/javascript-api/blueprint-functions-in-api-client)
+- [Playground API Client](/developers/apis/javascript-api/playground-api-client)
+- [Blueprint JSON](/developers/apis/javascript-api/blueprint-json-in-api-client)
+- [Blueprint functions](/developers/apis/javascript-api/blueprint-functions-in-api-client)
 
 ## Debugging and testing
 

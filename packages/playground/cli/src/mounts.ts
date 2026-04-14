@@ -167,7 +167,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				continue;
 			}
 			mount.push({
-				hostPath: `${path}/${file}`,
+				hostPath: join(path, file),
 				vfsPath: `/wordpress/wp-content/${file}`,
 				autoMounted: true,
 			});
