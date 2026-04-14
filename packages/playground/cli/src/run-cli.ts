@@ -1520,7 +1520,24 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							logger.error(
 								`Worker ${workerIndex} exited with code ${exitCode}\n`
 							);
-							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
+
+							// Remove the dead worker's API proxy from the pool
+							// so new requests are not routed to it.
+							if (playgroundPool) {
+								const deadWorker = spawnedWorkers[workerIndex];
+								if (deadWorker) {
+									const deadApi =
+										workerToPlaygroundMap.get(deadWorker);
+									if (deadApi) {
+										playgroundPool.__removeInstance(
+											deadApi
+										);
+										logger.error(
+											`Worker ${workerIndex} removed from pool\n`
+										);
+									}
+								}
+							}
 						},
 					}).then(
 						async (
@@ -1722,12 +1739,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
-		async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {
+		async handleRequest(
+			request: PHPRequest,
+			streamResponse: (response: StreamedPHPResponse) => Promise<void>
+		): Promise<void> {
 			if (!wordPressReady) {
-				return StreamedPHPResponse.forHttpCode(
-					502,
-					'WordPress is not ready yet'
+				await streamResponse(
+					StreamedPHPResponse.forHttpCode(
+						502,
+						'WordPress is not ready yet'
+					)
 				);
+				return;
 			}
 			// Clear the playground_auto_login_already_happened cookie on the first request.
 			// Otherwise the first Playground CLI server started on the machine will set it,
@@ -1749,9 +1772,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
 					];
 				}
-				return StreamedPHPResponse.fromPHPResponse(
-					new PHPResponse(302, headers, new Uint8Array())
+				await streamResponse(
+					StreamedPHPResponse.fromPHPResponse(
+						new PHPResponse(302, headers, new Uint8Array())
+					)
 				);
+				return;
 			}
 			if (cookieStore) {
 				request = {
@@ -1768,20 +1794,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				};
 			}
 
-			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
-			// It might be more efficient to let the worker respond directly
-			const response = await playgroundPool.requestStreamed(request);
+			// Use the non-streaming request() method through the pool proxy.
+			// This ensures the pool holds the worker for the entire PHP
+			// execution lifecycle. The pool proxy releases the worker when
+			// the method's promise resolves — with requestStreamed(), that
+			// happens when the response *starts* streaming (before PHP
+			// finishes), causing "PHP instance already acquired" errors
+			// on concurrent requests. Using request() instead means the
+			// worker is only released after PHP has fully completed.
+			const response = await playgroundPool.request(request);
 
 			if (cookieStore) {
-				const headers = await response.headers;
-				cookieStore.rememberCookiesFromResponseHeaders(headers);
+				cookieStore.rememberCookiesFromResponseHeaders(
+					response.headers
+				);
 				// While we have an internal cookie store, we filter out the
 				// Set-Cookie headers from responses so the browser does not
 				// attempt to manage cookies at the same time as the server.
-				delete headers['set-cookie'];
+				delete response.headers['set-cookie'];
 			}
 
-			return response;
+			await streamResponse(StreamedPHPResponse.fromPHPResponse(response));
 		},
 	}).catch((error) => {
 		cliOutput.printError(describeError(error));

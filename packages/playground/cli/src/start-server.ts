@@ -16,9 +16,16 @@ export interface ServerOptions {
 	port: number;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
 	/**
-	 * Handler for requests. Always returns StreamedPHPResponse.
+	 * Handler for requests. Receives the PHP request and a callback that
+	 * streams the response to the HTTP client. The handler must not resolve
+	 * until the response is fully streamed — this is critical for pool-based
+	 * concurrency control where the worker must be held for the entire
+	 * request lifecycle.
 	 */
-	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
+	handleRequest: (
+		request: PHPRequest,
+		streamResponse: (response: StreamedPHPResponse) => Promise<void>
+	) => Promise<void>;
 }
 
 export function isPortInUse(port: number): Promise<boolean> {
@@ -63,8 +70,9 @@ export async function startServer(
 				body: await bufferRequestBody(req),
 			};
 
-			const response = await options.handleRequest(phpRequest);
-			await handleStreamedResponse(response, res);
+			await options.handleRequest(phpRequest, (response) =>
+				handleStreamedResponse(response, res)
+			);
 		} catch (error) {
 			logger.error(error);
 			if (!res.headersSent) {

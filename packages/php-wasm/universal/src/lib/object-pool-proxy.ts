@@ -22,7 +22,19 @@ type Promisified<T extends object> = {
 export type Pooled<T extends object> = Omit<
 	Promisified<T>,
 	typeof Symbol.dispose | typeof Symbol.asyncDispose
->;
+> & {
+	/**
+	 * Remove an instance from the pool. If the instance is currently
+	 * free, it is removed immediately. If it is busy (acquired by a
+	 * pending call), it will be discarded when that call releases it
+	 * instead of being returned to the free list.
+	 *
+	 * This is useful when a worker thread backing a pool instance
+	 * crashes — removing it prevents the pool from routing new
+	 * requests to a dead worker.
+	 */
+	__removeInstance(instance: unknown): void;
+};
 
 /**
  * Creates a proxy that distributes method calls and property accesses
@@ -47,6 +59,26 @@ export function createObjectPoolProxy<T extends object>(
 
 	const freeInstances: T[] = [...instances];
 	const waitQueue: Array<(instance: T) => void> = [];
+	const removedInstances = new Set<T>();
+
+	function removeInstance(instance: unknown): void {
+		const inst = instance as T;
+
+		// Remove from the canonical list
+		const idx = instances.indexOf(inst);
+		if (idx !== -1) {
+			instances.splice(idx, 1);
+		}
+
+		// Remove from the free list if it's currently free
+		const freeIdx = freeInstances.indexOf(inst);
+		if (freeIdx !== -1) {
+			freeInstances.splice(freeIdx, 1);
+		} else {
+			// Instance is currently busy — mark it for removal on release
+			removedInstances.add(inst);
+		}
+	}
 
 	function acquire(): Promise<T> {
 		const free = freeInstances.shift();
@@ -59,6 +91,12 @@ export function createObjectPoolProxy<T extends object>(
 	}
 
 	function release(instance: T): void {
+		// If this instance was marked for removal while busy, discard it
+		if (removedInstances.has(instance)) {
+			removedInstances.delete(instance);
+			return;
+		}
+
 		const waiter = waitQueue.shift();
 		if (waiter) {
 			waiter(instance);
@@ -104,7 +142,12 @@ export function createObjectPoolProxy<T extends object>(
 		});
 	}
 
-	return new Proxy({} as Pooled<T>, {
+	const proxyTarget = {} as Pooled<T>;
+	// Expose __removeInstance directly on the target so it's found
+	// by the `prop in _target` check before hitting the proxy trap.
+	(proxyTarget as any).__removeInstance = removeInstance;
+
+	return new Proxy(proxyTarget, {
 		get(_target, prop: string | symbol) {
 			// Support returning assigned target properties.
 			// The main reason for this is to allow us to override methods

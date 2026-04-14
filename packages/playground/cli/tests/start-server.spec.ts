@@ -28,35 +28,45 @@ describe('startServer', () => {
 			{ code: 'ERR_STREAM_UNABLE_TO_PIPE' }
 		);
 
-		const repondersForHandleRequest = [
+		const repondersForHandleRequest: Array<
+			(...args: any[]) => Promise<void>
+		> = [
 			// Demonstrate logged error before the ignored error
 			// to confirm the logger was working beforehand.
 			async () => {
 				throw expectedErrorBefore;
 			},
-			async () =>
-				new StreamedPHPResponse(
-					new ReadableStream({
-						start(controller) {
-							const json = JSON.stringify({
-								status: 200,
-								headers: ['content-type: text/plain'],
-							});
-							controller.enqueue(new TextEncoder().encode(json));
-							controller.close();
-						},
-					}),
-					new ReadableStream({
-						start(controller) {
-							controller.enqueue(
-								new TextEncoder().encode('hello')
-							);
-							controller.close();
-						},
-					}),
-					new ReadableStream({ start: (c) => c.close() }),
-					Promise.resolve(0)
-				),
+			async (...args: any[]) => {
+				const streamResponse = args[1] as (
+					response: StreamedPHPResponse
+				) => Promise<void>;
+				await streamResponse(
+					new StreamedPHPResponse(
+						new ReadableStream({
+							start(controller) {
+								const json = JSON.stringify({
+									status: 200,
+									headers: ['content-type: text/plain'],
+								});
+								controller.enqueue(
+									new TextEncoder().encode(json)
+								);
+								controller.close();
+							},
+						}),
+						new ReadableStream({
+							start(controller) {
+								controller.enqueue(
+									new TextEncoder().encode('hello')
+								);
+								controller.close();
+							},
+						}),
+						new ReadableStream({ start: (c) => c.close() }),
+						Promise.resolve(0)
+					)
+				);
+			},
 			// Demonstrate logged error after the ignored error
 			// to confirm the logger was working afterward.
 			async () => {
@@ -71,7 +81,8 @@ describe('startServer', () => {
 
 		const cliServer = await startServer({
 			port: 0,
-			handleRequest: () => repondersForHandleRequest.shift()!(),
+			handleRequest: (...args: any[]) =>
+				repondersForHandleRequest.shift()!(...args),
 			async onBind(server, port) {
 				return { server, port } as any;
 			},
@@ -133,7 +144,9 @@ describe('startServer', () => {
 		const expectedErrorBefore = new Error('handler failure before');
 		const expectedErrorAfter = new Error('handler failure after');
 
-		const repondersForHandleRequest = [
+		const repondersForHandleRequest: Array<
+			(...args: any[]) => Promise<void>
+		> = [
 			// Demonstrate logged error before the ignored error
 			// to confirm the logger was working beforehand.
 			async () => {
@@ -141,28 +154,36 @@ describe('startServer', () => {
 			},
 			// Provide a real streamed response so we can test what happens
 			// when the client disconnects mid-stream.
-			async () =>
-				new StreamedPHPResponse(
-					new ReadableStream({
-						start(controller) {
-							const json = JSON.stringify({
-								status: 200,
-								headers: ['content-type: text/plain'],
-							});
-							controller.enqueue(new TextEncoder().encode(json));
-							controller.close();
-						},
-					}),
-					new ReadableStream({
-						start(controller) {
-							controller.enqueue(
-								new TextEncoder().encode('hello')
-							);
-						},
-					}),
-					new ReadableStream({ start: (c) => c.close() }),
-					Promise.resolve(0)
-				),
+			async (...args: any[]) => {
+				const streamResponse = args[1] as (
+					response: StreamedPHPResponse
+				) => Promise<void>;
+				await streamResponse(
+					new StreamedPHPResponse(
+						new ReadableStream({
+							start(controller) {
+								const json = JSON.stringify({
+									status: 200,
+									headers: ['content-type: text/plain'],
+								});
+								controller.enqueue(
+									new TextEncoder().encode(json)
+								);
+								controller.close();
+							},
+						}),
+						new ReadableStream({
+							start(controller) {
+								controller.enqueue(
+									new TextEncoder().encode('hello')
+								);
+							},
+						}),
+						new ReadableStream({ start: (c) => c.close() }),
+						Promise.resolve(0)
+					)
+				);
+			},
 			// Demonstrate logged error after the ignored error
 			// to confirm the logger was working afterward.
 			async () => {
@@ -174,7 +195,8 @@ describe('startServer', () => {
 			port: 0,
 			// Each time handleRequest is called,
 			// move on to the next responder in the list.
-			handleRequest: () => repondersForHandleRequest.shift()!(),
+			handleRequest: (...args: any[]) =>
+				repondersForHandleRequest.shift()!(...args),
 			async onBind(server, port) {
 				return { server, port } as any;
 			},
