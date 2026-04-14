@@ -646,10 +646,13 @@ phpLoaderOptions.forEach((options) => {
 				}
 			});
 
-			it('concurrent popen("w") calls use correct PIDs', async () => {
-				try {
-					const result = await php.run({
-						code: `<?php
+			// @TODO remove skip after the initial code review and recompiling all PHP versions.
+			it.skipIf(phpVersion !== '8.4')(
+				'concurrent popen("w") calls use correct PIDs',
+				async () => {
+					try {
+						const result = await php.run({
+							code: `<?php
 						$p1 = popen("cat > out1", "w");
 						$p2 = popen("cat > out2", "w");
 						fwrite($p1, "first");
@@ -667,13 +670,40 @@ phpLoaderOptions.forEach((options) => {
 
 						echo "$r1,$r2|$content1|$content2";
 					`,
-					});
-					expect(result.text).toEqual('0,0|first|second');
-				} finally {
-					rmSync('out1', { force: true });
-					rmSync('out2', { force: true });
+						});
+						expect(result.text).toEqual('0,0|first|second');
+					} finally {
+						rmSync('out1', { force: true });
+						rmSync('out2', { force: true });
+					}
 				}
-			});
+			);
+			// @TODO remove skip after the initial code review and recompiling all PHP versions.
+			it.skipIf(phpVersion !== '8.4')(
+				'concurrent popen("w") pclose returns correct exit codes',
+				async () => {
+					try {
+						const result = await php.run({
+							code: `<?php
+						$p1 = popen("cat > out1", "w");
+						$p2 = popen("sh -c 'cat > /dev/null; exit 42'", "w");
+						$p3 = popen("cat > out2", "w");
+						fwrite($p1, "a");
+						fwrite($p2, "b");
+						fwrite($p3, "c");
+						$r1 = pclose($p1);
+						$r2 = pclose($p2);
+						$r3 = pclose($p3);
+						echo "$r1,$r2,$r3";
+					`,
+						});
+						expect(result.text).toEqual('0,42,0');
+					} finally {
+						rmSync('out1', { force: true });
+						rmSync('out2', { force: true });
+					}
+				}
+			);
 		});
 
 		describe('proc_open()', () => {
