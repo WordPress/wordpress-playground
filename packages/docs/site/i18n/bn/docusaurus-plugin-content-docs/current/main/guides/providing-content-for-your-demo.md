@@ -49,7 +49,7 @@ With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your ow
 To include images in your imported content, a good approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
 -->
 
-::: তথ্য
+:::info
 আপনার ইমপোর্ট করা কন্টেন্টে ইমেজ অন্তর্ভুক্ত করতে, একটি ভালো পদ্ধতি হলো ইমেজগুলো আপনার গিটহাব রিপোতে আপলোড করা এবং এক্সপোর্ট করা `.xml` ফাইলে তাদের জন্য পাথ সার্চ/রিপ্লেস করা এই URL ফরম্যাট ব্যবহার করে: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`।
 
 ```html
@@ -261,7 +261,7 @@ Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/b
 :::
 -->
 
-::: পরামর্শ
+:::tip
 
 কন্টেন্ট এবং ফিচার্ড ইমেজের মধ্যে সংযোগ দেখানো সম্পূর্ণ উদাহরণ দেখতে [ব্লুপ্রিন্ট গ্যালারি](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) থেকে ["ইমেজ সহ পোস্ট যোগ করতে wp-cli ব্যবহার করুন"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) উদাহরণটি দেখুন।
 
