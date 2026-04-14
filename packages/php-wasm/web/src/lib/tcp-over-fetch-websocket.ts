@@ -176,7 +176,14 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 			return;
 		}
 
-		this.clientUpstreamWriter.write(new Uint8Array(data as ArrayBuffer));
+		const bytes =
+			typeof data === 'string'
+				? new TextEncoder().encode(data)
+				: data instanceof ArrayBuffer
+					? new Uint8Array(data)
+					: data;
+
+		this.clientUpstreamWriter.write(bytes);
 
 		if (this.fetchInitiated) {
 			return;
@@ -186,7 +193,7 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 		// what to do with the incoming bytes.
 		this.bufferedBytesFromClient = concatUint8Arrays([
 			this.bufferedBytesFromClient,
-			new Uint8Array(data as ArrayBuffer),
+			bytes,
 		]);
 		switch (guessProtocol(this.port, this.bufferedBytesFromClient)) {
 			case false:
