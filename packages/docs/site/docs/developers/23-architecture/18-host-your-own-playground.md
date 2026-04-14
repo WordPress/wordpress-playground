@@ -2,23 +2,23 @@
 slug: /developers/architecture/host-your-own-playground
 ---
 
-# Host your own Playground {#host-your-own-playground}
+# Host your own Playground
 
 You can host the Playground on your own domain instead of `playground.wordpress.net`.
 
 This is useful for having full control over its content and behavior, as well as removing dependency on a third-party server. It can provide a more customized user experience, for example: a playground with preinstalled plugins and themes, default site settings, or demo content.
 
-## Before you start {#before-you-start}
+## Before you start
 
 Self-hosting Playground gives you full control, but requires understanding a few key concepts:
 
-### What to expect {#what-to-expect}
+### What to expect
 
 - **Initial setup complexity**: Building and deploying Playground involves multiple steps. Allow time for troubleshooting during your first deployment.
 - **Static file hosting**: Playground is primarily static files (HTML, JS, WASM) with minimal server-side requirements.
 - **Browser-based execution**: All WordPress processing happens in the user's browser via WebAssembly—your server only delivers files.
 
-### Performance considerations {#performance-considerations}
+### Performance considerations
 
 Loading times depend on several factors:
 
@@ -29,7 +29,7 @@ Loading times depend on several factors:
 | **Browser**       | Chrome/Edge perform best; Safari uses fallback mechanisms           | Test across browsers                        |
 | **Device**        | Mobile devices load slower than desktop                             | Warn mobile users about longer load times   |
 
-### Browser compatibility {#browser-compatibility}
+### Browser compatibility
 
 Playground works across modern browsers, but with some differences:
 
@@ -42,7 +42,7 @@ Playground works across modern browsers, but with some differences:
 
 **Technical note**: Safari uses MessagePorts instead of SharedArrayBuffer for streaming responses. This fallback works reliably but adds slight overhead compared to Chrome/Edge.
 
-## Usage {#usage}
+## Usage
 
 A self-hosted Playground can be embedded as an iframe.
 
@@ -61,7 +61,7 @@ const client = await startPlaygroundWeb({
 });
 ```
 
-## Static assets {#static-assets}
+## Static assets
 
 There are several ways to get the static assets necessary to host the Playground.
 
@@ -71,7 +71,7 @@ In order of convenience and ease:
 - Fork the repository and build with GitHub Action
 - Build locally
 
-### Download pre-built package {#download-pre-built-package}
+### Download pre-built package
 
 To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess).
 
@@ -79,13 +79,13 @@ To host the Playground as is, without making changes, you can download the built
 - In the section **Artifacts** at the bottom of the page, click `playground-website`.
 - It's a zip package with the same files deployed to the public site.
 
-### Fork the repository and build with GitHub Action {#fork-repository-and-build-with-github-actions}
+### Fork the repository and build with GitHub Action
 
 To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork).
 
 Build it from the fork's GitHub page by going to: **Actions -> Deploy Playground website -> Run workflow**.
 
-### Build locally {#build-locally}
+### Build locally
 
 The most flexible and customizable method is to build the site locally.
 
@@ -116,7 +116,7 @@ dist/packages/playground/wasm-wordpress-net
 
 The entire service of the Playground consists of the content of this folder.
 
-## Summary of included files {#summary-of-included-files}
+## Summary of included files
 
 The static assets include:
 
@@ -133,7 +133,7 @@ It is a static site, except for these dynamic aspects.
 
 For these to work, you need a server environment with Apache and PHP installed.
 
-## NGINX configuration {#nginx-configuration}
+## NGINX configuration
 
 As an alternative to Apache, here is an example of using NGINX to serve the Playground.
 
@@ -163,7 +163,7 @@ You may need to adjust the above according to server specifics, particularly how
 
 [Caddy web server](https://caddyserver.com) doesn't require any special config to work.
 
-## Customize bundled data {#customize-bundled-data}
+## Customize bundled data
 
 The file `wp.zip` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version.
 
@@ -179,7 +179,7 @@ npm run rebuild:wordpress-builds
 
 To rebuild the website to include the custom WordPress builds, follow the instructions [here](#build-locally).
 
-### Install plugins {#install-plugins}
+### Install plugins
 
 Here's an example of installing plugins for the data bundle.
 
@@ -209,7 +209,7 @@ COPY ./build-assets/*.zip /root/
 
 Then put the plugin zip files in `build-assets`. In this case, you may want to add their paths to `.gitignore`.
 
-### Import content {#import-content}
+### Import content
 
 Here's an example of importing content.
 
@@ -224,7 +224,7 @@ RUN cd wordpress ; \
 
 This assumes that you have put a WXR export file named `content.xml` in the folder `build-assets`. You can add its path to `.gitignore`.
 
-## Production deployment checklist {#production-deployment-checklist}
+## Production deployment checklist
 
 Before going live, verify your self-hosted Playground meets these requirements:
 

@@ -233,9 +233,9 @@ export async function bootWordPress(
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
 	/*
-	 * Add required constants to "wp-config.php" if they are not already defined.
-	 * This is needed, because some WordPress backups and exports may not include
-	 * definitions for some of the necessary constants.
+	 * Ensure required constants are defined if "wp-config.php" doesn't define
+	 * them. This is needed because some WordPress backups and exports may not
+	 * include definitions for some of the necessary constants.
 	 */
 	await ensureWpConfig(php, requestHandler.documentRoot);
 	// Run "before database" hooks to mount/copy more files in
@@ -358,7 +358,12 @@ async function assertDatabasePrerequisites(
 		return;
 	}
 
-	// No SQLite integration and no MySQL support available
+	// Check if wp-config.php has real MySQL credentials
+	if (hasValidMySQLCredentials(php)) {
+		return;
+	}
+
+	// No SQLite integration and no MySQL credentials found
 	// Throw early to avoid attempting installation with no database
 	throw new Error('Error connecting to the MySQL database.');
 }
@@ -639,6 +644,24 @@ export function getFileNotFoundActionForWordPress(
 		type: 'internal-redirect',
 		uri: '/index.php',
 	};
+}
+
+function hasValidMySQLCredentials(php: PHP) {
+	const wpConfigPath = joinPaths(php.documentRoot, 'wp-config.php');
+	if (!php.isFile(wpConfigPath)) return false;
+
+	const wpConfig = php.readFileAsText(wpConfigPath);
+
+	const dbName = wpConfig.match(
+		/define\s*\(\s*['"]DB_NAME['"]\s*,\s*['"]([^'"]*)['"]/
+	);
+	const dbUser = wpConfig.match(
+		/define\s*\(\s*['"]DB_USER['"]\s*,\s*['"]([^'"]*)['"]/
+	);
+
+	if (!dbName || !dbUser) return false;
+
+	return dbName[1] !== 'database_name_here' && dbUser[1] !== 'username_here';
 }
 
 async function isDatabaseConnectionValid(php: PHP) {

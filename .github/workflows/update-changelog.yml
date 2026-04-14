@@ -14,8 +14,9 @@ on:
 
 jobs:
     release:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             github.ref == 'refs/heads/trunk' && (
                 github.event.workflow_run.conclusion == 'success' ||
                 github.actor == 'adamziel' ||
@@ -45,7 +46,8 @@ jobs:
                   submodules: recursive
                   ref: trunk
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
             - name: 'Install bun (for the changelog)'
               run: |
                   curl -fsSL https://bun.sh/install | bash
@@ -63,7 +65,6 @@ jobs:
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
                       git commit -m "chore: update changelog" \
                           CHANGELOG.md \

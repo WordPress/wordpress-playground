@@ -9,6 +9,343 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.19] (2026-04-13) 
+
+### Documentation
+
+- [Docs] Removing heading IDs to make documentation compatible to migrate to org. ([#3466](https://github.com/WordPress/wordpress-playground/pull/3466))
+
+### PHP WebAssembly
+
+- [ xdebug ] Skip paths alongside path mappings in IDE configs. ([#3366](https://github.com/WordPress/wordpress-playground/pull/3366))
+- [AI] Add compilation and debugging skills for PHP.wasm. ([#3445](https://github.com/WordPress/wordpress-playground/pull/3445))
+
+### Website
+
+- Add custom error message when artifact is expired. ([#3453](https://github.com/WordPress/wordpress-playground/pull/3453))
+- Define DB_NAME via auto-prepend instead of rewriting wp-config.php. ([#3458](https://github.com/WordPress/wordpress-playground/pull/3458))
+
+### Bug Fixes
+
+- Fix broken deploy workflow guards. ([#3479](https://github.com/WordPress/wordpress-playground/pull/3479))
+
+### Various
+
+- Exclude loopback requests from trying to pre-fetch. ([#3305](https://github.com/WordPress/wordpress-playground/pull/3305))
+- Skip running irrelevant actions on forks. ([#3473](https://github.com/WordPress/wordpress-playground/pull/3473))
+- [Docs] Add `overlay` parameter to Playground URL options. ([#3457](https://github.com/WordPress/wordpress-playground/pull/3457))
+- [i18n] Add Bengali translation for blueprints documentation. ([#3462](https://github.com/WordPress/wordpress-playground/pull/3462))
+- [i18n] Added Gujarati translation for wp-playground agent skill guide. ([#3333](https://github.com/WordPress/wordpress-playground/pull/3333))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame @brandonpayton @dd32 @fellyph @JanJakes @mho22 @perashanid @Rima1889
+
+
+## [v3.1.18] (2026-04-07) 
+
+
+
+
+## [v3.1.17] (2026-04-07) 
+
+### Enhancements
+
+- [CLI] Fix intermittent ENOTDIR crash when applying post-install mounts. ([#3468](https://github.com/WordPress/wordpress-playground/pull/3468))
+
+### Documentation
+
+- [Docs] Load assets from githubusercontent to make it compatible with handbook. ([#3467](https://github.com/WordPress/wordpress-playground/pull/3467))
+
+### Various
+
+- [cli] Update WordPress version validation to include "beta" as a valid slug. ([#3446](https://github.com/WordPress/wordpress-playground/pull/3446))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph
+
+
+## [v3.1.16] (2026-04-06) 
+
+### Website
+
+- Add WebMCP support to the Playground website. ([#3298](https://github.com/WordPress/wordpress-playground/pull/3298))
+- Centralized site management API and expose as window.playgroundSites. ([#3401](https://github.com/WordPress/wordpress-playground/pull/3401))
+
+### Bug Fixes
+
+- Fix phpMyAdmin and Adminer crash on PHP 8.5. ([#3444](https://github.com/WordPress/wordpress-playground/pull/3444))
+- [CLI] Fix `--skip-sqlite-setup` false pre-flight database error. ([#3456](https://github.com/WordPress/wordpress-playground/pull/3456))
+
+### Various
+
+- Update SQLite refresh script to support the SQLite monorepo. ([#3452](https://github.com/WordPress/wordpress-playground/pull/3452))
+- [i18n] Add Bengali translation for blueprints/05-steps.md. ([#3432](https://github.com/WordPress/wordpress-playground/pull/3432))
+- [i18n] ja translations developer architecture Service Workers and Scopes. ([#3431](https://github.com/WordPress/wordpress-playground/pull/3431))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@bgrgicak @JanJakes @mho22 @noruzzamans @shimotmk
+
+
+## [v3.1.15] (2026-03-31) 
+
+### PHP WebAssembly
+
+- [PHP] Fix "Controller is already closed" crash in CLI server. ([#3441](https://github.com/WordPress/wordpress-playground/pull/3441))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.1.14] (2026-03-30) 
+
+### PHP WebAssembly
+
+- [Redis]  va_arg long to va_arg zend_long for WASM32 ABI compatibility. ([#3417](https://github.com/WordPress/wordpress-playground/pull/3417))
+
+### Internal
+
+- Allow manual trigger for GitHub Release workflow. ([#3430](https://github.com/WordPress/wordpress-playground/pull/3430))
+- Create GitHub Release on every npm publish. ([#3429](https://github.com/WordPress/wordpress-playground/pull/3429))
+- Update fast-xml-parser to fix Dependabot issue. ([#3422](https://github.com/WordPress/wordpress-playground/pull/3422))
+
+### Bug Fixes
+
+- [Playground CLI] Support overriding WP_DEBUG using define-bool and define-number. ([#3254](https://github.com/WordPress/wordpress-playground/pull/3254))
+
+### Various
+
+- Load SQLite for phpMyAdmin and Adminer using WP configuration. ([#3420](https://github.com/WordPress/wordpress-playground/pull/3420))
+- Revert "Update SQLite database path (#3428)". ([#3435](https://github.com/WordPress/wordpress-playground/pull/3435))
+- Update SQLite database path. ([#3428](https://github.com/WordPress/wordpress-playground/pull/3428))
+- [MCP] Add REST API authentication to request tool. ([#3439](https://github.com/WordPress/wordpress-playground/pull/3439))
+- [i18n] Add Bengali translation for blueprints tutorial and guide pages. ([#3412](https://github.com/WordPress/wordpress-playground/pull/3412))
+- [i18n] Add French translation for build-your-first-blueprint.md. ([#3358](https://github.com/WordPress/wordpress-playground/pull/3358))
+- [i18n] Create index.md and add French translation. ([#3357](https://github.com/WordPress/wordpress-playground/pull/3357))
+- [i18n] ja translations developer architecture Iframe-based rendering and PHP Worker Threads. ([#3404](https://github.com/WordPress/wordpress-playground/pull/3404))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @beryl-dlg @bgrgicak @JanJakes @mho22 @perashanid @shimotmk @wojtekn
+
+
+## [v3.1.13] (2026-03-23) 
+
+### Enhancements
+
+- [CLI] Auto restart with --experimental-wasm-jspi support. ([#3281](https://github.com/WordPress/wordpress-playground/pull/3281))
+
+### PHP WebAssembly
+
+- Fix Emscripten PIPEFS race condition in proc_open. ([#3399](https://github.com/WordPress/wordpress-playground/pull/3399))
+
+### Bug Fixes
+
+- Fix Dependabot exclude paths to match dirs recursively. ([#3426](https://github.com/WordPress/wordpress-playground/pull/3426))
+
+### Performance
+
+- CLI: Add site editor performance benchmark. ([#3408](https://github.com/WordPress/wordpress-playground/pull/3408))
+
+### 
+
+- CLI]: Consider it a lint error for CLI to depend on large Playground web packages. ([#3410](https://github.com/WordPress/wordpress-playground/pull/3410))
+- Claude] Harden allow/deny lists and clarify dev server behavior. ([#3373](https://github.com/WordPress/wordpress-playground/pull/3373))
+
+### Various
+
+- Bump transitive dependency flatted from 3.4.1 to 3.4.2. ([#3424](https://github.com/WordPress/wordpress-playground/pull/3424))
+- Remove unnecessary phpMyAdmin guard. ([#3413](https://github.com/WordPress/wordpress-playground/pull/3413))
+- Support blueprint.json in ZIP at root or inside a directory. ([#3223](https://github.com/WordPress/wordpress-playground/pull/3223))
+- [Website] Provide better UX for wasm and script download failures. ([#3348](https://github.com/WordPress/wordpress-playground/pull/3348))
+- [personal-wp] Add Playwright end-to-end tests. ([#3405](https://github.com/WordPress/wordpress-playground/pull/3405))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @bgrgicak @brandonpayton @wojtekn
+
+
+## [v3.1.12] (2026-03-16) 
+
+### Enhancements
+
+
+#### Personal Playground
+
+- Remove Google Analytics from personal-wp. ([#3381](https://github.com/WordPress/wordpress-playground/pull/3381))
+
+### Bug Fixes
+
+- Fix: Force x-safari scheme for Linkedin app. ([#3392](https://github.com/WordPress/wordpress-playground/pull/3392))
+- Fix: Ignore ERR_STREAM_UNABLE_TO_PIPE in CLI server. ([#3397](https://github.com/WordPress/wordpress-playground/pull/3397))
+
+#### Personal Playground
+
+- [Web] Fix bugs with running personal WP dev server. ([#3391](https://github.com/WordPress/wordpress-playground/pull/3391))
+
+### Various
+
+- Add a notice to open Playground in a separate view. ([#3387](https://github.com/WordPress/wordpress-playground/pull/3387))
+- CLI: Simplify and optimize process existence check for temp dir cleanup. ([#3395](https://github.com/WordPress/wordpress-playground/pull/3395))
+- Move WP refresh concurrency group to workflow level. ([#3380](https://github.com/WordPress/wordpress-playground/pull/3380))
+- Re-enable webkit end-to-end tests. ([#3379](https://github.com/WordPress/wordpress-playground/pull/3379))
+- [CLI] Use local phars for php command phar tests. ([#3382](https://github.com/WordPress/wordpress-playground/pull/3382))
+- [personal-wp] Adding open-graph My WordPress. ([#3390](https://github.com/WordPress/wordpress-playground/pull/3390))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @brandonpayton @fellyph @zaerl
+
+
+## [v3.1.11] (2026-03-12) 
+
+### Enhancements
+
+- [CLI] `php` command to run PHP scripts. ([#2641](https://github.com/WordPress/wordpress-playground/pull/2641))
+
+### Various
+
+- [PHP] Mount parent directory for file symlinks so __DIR__ works. ([#3377](https://github.com/WordPress/wordpress-playground/pull/3377))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.1.10] (2026-03-12) 
+
+### Various
+
+- Use deploy keys instead of username/token for workflow pushes to trunk. ([#3374](https://github.com/WordPress/wordpress-playground/pull/3374))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+
+## [v3.1.9] (2026-03-11) 
+
+### Enhancements
+
+- [MCP] Preserve MCP connection parameters when opening site in new tab. ([#3371](https://github.com/WordPress/wordpress-playground/pull/3371))
+
+### PHP WebAssembly
+
+- [Website] Use `content-type: Application/octet-stream` for CORS proxy requests. ([#3364](https://github.com/WordPress/wordpress-playground/pull/3364))
+- [PHP] Recompile PHP.wasm ASYNCIFY with `MAIN_MODULE` set to 2. ([#3335](https://github.com/WordPress/wordpress-playground/pull/3335))
+
+### Various
+
+- Ignore worktree and .claude dirs in .nxignore and .gitignore. ([#3368](https://github.com/WordPress/wordpress-playground/pull/3368))
+- Redirect unscoped WP URLs back to scoped WP URLs in service worker. ([#3370](https://github.com/WordPress/wordpress-playground/pull/3370))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @mho22
+
+
+## [v3.1.8] (2026-03-10) 
+
+### Website
+
+- Fix redirect loop on Safari by awaiting cookie store population and re-scoping redirect URLs. ([#3365](https://github.com/WordPress/wordpress-playground/pull/3365))
+
+### Bug Fixes
+
+- Remove ws from root overrides to fix Lerna publish. ([#3367](https://github.com/WordPress/wordpress-playground/pull/3367))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@bgrgicak @mho22
+
+
+## [v3.1.7] (2026-03-10) 
+
+
+
+
+## [v3.1.6] (2026-03-10) 
+
+### PHP WebAssembly
+
+- [PHP] Call php.mount instead of php.FS.mount in proxyFileSystem. ([#3346](https://github.com/WordPress/wordpress-playground/pull/3346))
+
+### Website
+
+- Support streamed PHP responses in the service worker. ([#3361](https://github.com/WordPress/wordpress-playground/pull/3361))
+- [Playground Website] Playground MCP server. ([#3290](https://github.com/WordPress/wordpress-playground/pull/3290))
+
+### Various
+
+- Correct error message formatting in resources.ts. ([#3363](https://github.com/WordPress/wordpress-playground/pull/3363))
+- [docs] Adding playwright guide. ([#3360](https://github.com/WordPress/wordpress-playground/pull/3360))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @fellyph @pkevan
+
+
+## [v3.1.5] (2026-03-09) 
+
+### Documentation
+
+- [Docs] Updating run cli demos. ([#2833](https://github.com/WordPress/wordpress-playground/pull/2833))
+- [docs] Adding runCLI and git action video to the documentation. ([#3101](https://github.com/WordPress/wordpress-playground/pull/3101))
+
+### PHP WebAssembly
+
+- [Website] Support CURLFile uploads. ([#3341](https://github.com/WordPress/wordpress-playground/pull/3341))
+- [tcp-over-fetch] Buffer request body for non-HTTPS fetches. ([#3356](https://github.com/WordPress/wordpress-playground/pull/3356))
+- [tcp-over-fetch] Strip Content-Encoding from response headers. ([#3355](https://github.com/WordPress/wordpress-playground/pull/3355))
+- [PHP] Recompile PHP.wasm JSPI with `MAIN_MODULE` set to 2. ([#3332](https://github.com/WordPress/wordpress-playground/pull/3332))
+
+### Website
+
+- Allow web deploy from WP update workflow. ([#3343](https://github.com/WordPress/wordpress-playground/pull/3343))
+
+### Various
+
+- Ignore `ERR_STREAM_PREMATURE_CLOSE` in CLI server. ([#3304](https://github.com/WordPress/wordpress-playground/pull/3304))
+- Make error logging conditional on WP_DEBUG_LOG. ([#3300](https://github.com/WordPress/wordpress-playground/pull/3300))
+- [CORS Proxy] Fix FirewallInterferenceError on local dev server. ([#3353](https://github.com/WordPress/wordpress-playground/pull/3353))
+- [Website] Make Google Analytics configurable via environment variable. ([#3322](https://github.com/WordPress/wordpress-playground/pull/3322))
+- [Website] Support Git repo URLs in ?plugin= Query API parameter. ([#3339](https://github.com/WordPress/wordpress-playground/pull/3339))
+- [docs] Adding cli start command. ([#3239](https://github.com/WordPress/wordpress-playground/pull/3239))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @andreilupu @bcotrim @brandonpayton @dd32 @fellyph @JanJakes @mho22
+
+
 ## [v3.1.3] (2026-03-02) 
 
 ### Tools

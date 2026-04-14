@@ -4,6 +4,7 @@ import path from 'path';
 import {
 	LatestSupportedPHPVersion,
 	PHP,
+	proxyFileSystem,
 	type SupportedPHPVersion,
 	__private__dont__use,
 } from '@php-wasm/universal';
@@ -320,6 +321,7 @@ describe.each([true, false])(
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1234,
 			});
+			await php.run({ code: `` });
 			// Cause a PHP runtime rotation due to error
 			php.dispatchEvent({
 				type: 'request.error',
@@ -503,6 +505,48 @@ describe.each([true, false])(
 			});
 			expect(result2.text).toBe('Hello Again');
 			expect(spawnHandlerCallCount).toBe(2);
+		}, 30_000);
+
+		it('Should preserve PROXYFS mounts through PHP runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			// sourceOfTruth holds the files; replica accesses them via PROXYFS.
+			using sourceOfTruth = new PHP(await recreateRuntime());
+			const replica = new PHP(await recreateRuntimeSpy());
+			replica.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			sourceOfTruth.mkdir('/shared');
+			sourceOfTruth.writeFile('/shared/hello.txt', 'from source');
+
+			await proxyFileSystem(sourceOfTruth, replica, ['/shared']);
+
+			// Verify PROXYFS works before rotation
+			expect(replica.readFileAsText('/shared/hello.txt')).toBe(
+				'from source'
+			);
+
+			// Trigger rotation (maxRequests=1, so second request rotates)
+			await replica.run({ code: `<?php echo "trigger rotation";` });
+			await replica.run({ code: `<?php echo "after rotation";` });
+
+			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+
+			// Verify PROXYFS mount survived rotation
+			expect(replica.fileExists('/shared/hello.txt')).toBe(true);
+			expect(replica.readFileAsText('/shared/hello.txt')).toBe(
+				'from source'
+			);
+
+			// Verify the proxy is live — writes on sourceOfTruth are visible
+			sourceOfTruth.writeFile('/shared/new.txt', 'added after rotation');
+			expect(replica.readFileAsText('/shared/new.txt')).toBe(
+				'added after rotation'
+			);
+
+			replica.exit();
 		}, 30_000);
 
 		it('Should preserve NODEFS mount when CWD is the same as mount point', async () => {

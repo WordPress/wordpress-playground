@@ -137,7 +137,7 @@ describe('PHPRequestHandler', () => {
 
 			// Should redirect to add trailing slash
 			expect(response.httpStatusCode).toBe(301);
-			expect(response.headers['Location']).toEqual(['/phpmyadmin/']);
+			expect(response.headers['location']).toEqual(['/phpmyadmin/']);
 		});
 
 		it('should handle nested paths within an alias', async () => {

@@ -150,17 +150,17 @@ var wp;
     }
   });
 
-  // package-external:@wordpress/block-editor
-  var require_block_editor = __commonJS({
-    "package-external:@wordpress/block-editor"(exports, module) {
-      module.exports = window.wp.blockEditor;
-    }
-  });
-
   // package-external:@wordpress/private-apis
   var require_private_apis = __commonJS({
     "package-external:@wordpress/private-apis"(exports, module) {
       module.exports = window.wp.privateApis;
+    }
+  });
+
+  // package-external:@wordpress/block-editor
+  var require_block_editor = __commonJS({
+    "package-external:@wordpress/block-editor"(exports, module) {
+      module.exports = window.wp.blockEditor;
     }
   });
 
