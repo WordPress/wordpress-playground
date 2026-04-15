@@ -7,11 +7,13 @@ description: A technical reference for "Resource References." Learn how to use e
 
 "Resource References" allow you use external files in Blueprints
 
-:::info
+<div class="callout callout-info">
+
 Blueprints steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
 
 That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories.
-:::
+
+</div>
 
 The following resource references are available:
 
