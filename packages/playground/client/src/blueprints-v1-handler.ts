@@ -89,7 +89,10 @@ export class BlueprintsV1Handler {
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
 		 * Skip for old WordPress versions — the functions called by prefetch
 		 * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
-		 * on legacy WP, and the resulting PHP errors create noise.
+		 * on legacy WP, and the resulting PHP errors create noise. WP 5.0
+		 * (Gutenberg 1.0) also crashes the runtime with exit code 255 inside
+		 * prefetchUpdateChecks when using the modern SQLite driver, so extend
+		 * the skip range up to (but not including) WP 5.1.
 		 *
 		 * parseFloat extracts the major version from strings like "6.8",
 		 * "4.9.26", etc. Non-numeric values like "nightly" or "trunk"
@@ -99,7 +102,7 @@ export class BlueprintsV1Handler {
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
 		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
-		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5;
+		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
 		if (runtimeConfiguration.networking && !isLegacyWpVersion) {
 			await playground.prefetchUpdateChecks();
 		}

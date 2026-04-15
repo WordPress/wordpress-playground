@@ -1,6 +1,13 @@
 /**
- * Tests that legacy WordPress versions (4.9 down to 1.0) boot
- * successfully on PHP 5.2 with SQLite:
+ * Tests that legacy and mid-modern WordPress versions boot
+ * successfully through Playground's wordpress.org download path:
+ *
+ *   - WP 1.0 – 4.9 on PHP 5.2 (legacy SQLite driver)
+ *   - WP 5.0 – 6.2 on PHP 7.4 (modern SQLite driver)
+ *
+ * Pre-built bundled WP (6.3+) has its own coverage elsewhere.
+ *
+ * Each version is exercised through five phases:
  *
  *   1. Front page loads with "Hello world!"
  *   2. wp-admin dashboard loads (auto-login works)
@@ -18,43 +25,61 @@
  */
 import { chromium } from 'playwright';
 
-// Every WordPress minor version from 4.9 down to 1.0.
+// Matrix of (WordPress, PHP) combinations to test.
 // Versions that were never released: 1.1, 1.3, 1.4, 2.4.
 // The web worker normalizes bare versions automatically (1.5 → 1.5.2,
 // 2.0 → 2.0.11, etc.) and resolves them to wordpress.org downloads.
+// Modern WP (5.0–6.2) is paired with PHP 7.4 because it's the newest
+// PHP the legacy SQLite driver supports and is far enough from the
+// PHP 5.2 leg to make regressions obvious.
 const WP_VERSIONS = [
-	'4.9',
-	'4.8',
-	'4.7',
-	'4.6',
-	'4.5',
-	'4.4',
-	'4.3',
-	'4.2',
-	'4.1',
-	'4.0',
-	'3.9',
-	'3.8',
-	'3.7',
-	'3.6',
-	'3.5',
-	'3.4',
-	'3.3',
-	'3.2',
-	'3.1',
-	'3.0',
-	'2.9',
-	'2.8',
-	'2.7',
-	'2.6',
-	'2.5',
-	'2.3',
-	'2.2',
-	'2.1',
-	'2.0',
-	'1.5',
-	'1.2',
-	'1.0',
+	// Mid-modern WordPress (PHP 7.4).
+	{ wp: '6.2', php: '7.4' },
+	{ wp: '6.1', php: '7.4' },
+	{ wp: '6.0', php: '7.4' },
+	{ wp: '5.9', php: '7.4' },
+	{ wp: '5.8', php: '7.4' },
+	{ wp: '5.7', php: '7.4' },
+	{ wp: '5.6', php: '7.4' },
+	{ wp: '5.5', php: '7.4' },
+	{ wp: '5.4', php: '7.4' },
+	{ wp: '5.3', php: '7.4' },
+	{ wp: '5.2', php: '7.4' },
+	{ wp: '5.1', php: '7.4' },
+	{ wp: '5.0', php: '7.4' },
+	// Legacy WordPress on PHP 5.2 WASM.
+	{ wp: '4.9', php: '5.2' },
+	{ wp: '4.8', php: '5.2' },
+	{ wp: '4.7', php: '5.2' },
+	{ wp: '4.6', php: '5.2' },
+	{ wp: '4.5', php: '5.2' },
+	{ wp: '4.4', php: '5.2' },
+	{ wp: '4.3', php: '5.2' },
+	{ wp: '4.2', php: '5.2' },
+	{ wp: '4.1', php: '5.2' },
+	{ wp: '4.0', php: '5.2' },
+	{ wp: '3.9', php: '5.2' },
+	{ wp: '3.8', php: '5.2' },
+	{ wp: '3.7', php: '5.2' },
+	{ wp: '3.6', php: '5.2' },
+	{ wp: '3.5', php: '5.2' },
+	{ wp: '3.4', php: '5.2' },
+	{ wp: '3.3', php: '5.2' },
+	{ wp: '3.2', php: '5.2' },
+	{ wp: '3.1', php: '5.2' },
+	{ wp: '3.0', php: '5.2' },
+	{ wp: '2.9', php: '5.2' },
+	{ wp: '2.8', php: '5.2' },
+	{ wp: '2.7', php: '5.2' },
+	{ wp: '2.6', php: '5.2' },
+	{ wp: '2.5', php: '5.2' },
+	{ wp: '2.3', php: '5.2' },
+	{ wp: '2.2', php: '5.2' },
+	{ wp: '2.1', php: '5.2' },
+	{ wp: '2.0', php: '5.2' },
+	{ wp: '1.5', php: '5.2' },
+	{ wp: '1.2', php: '5.2' },
+	{ wp: '1.0', php: '5.2' },
 ];
 
 const PORT = 5400;
@@ -175,7 +200,18 @@ function findPHPError(body) {
  * editor in the very first chunk, so the extra wait is a no-op for them.
  */
 async function waitForNewPostEditorHtml(frame, timeoutSeconds = 30) {
-	const editorMarkers = ['name="post_title"', "name='post_title'"];
+	// Covers the classic editor (WP < 5.0, which renders a plain
+	// <input name="post_title">) and Gutenberg (WP 5.0+, which emits
+	// a block editor container and React bootstrap scripts). Any one
+	// of these strings in the initial HTML means the post-new.php
+	// response reached the editor render stage successfully.
+	const editorMarkers = [
+		'name="post_title"',
+		"name='post_title'",
+		'id="editor"',
+		'edit-post-layout',
+		'block-editor-writing-flow',
+	];
 	const deadline = Date.now() + timeoutSeconds * 1000;
 	let html = '';
 	while (Date.now() < deadline) {
@@ -258,13 +294,21 @@ function isLoggedIn(body) {
 // post-new.php from 2.1 onward (just like modern WordPress).
 const NEW_POST_URL_VERSIONS = new Set(['1.0', '1.2', '1.5', '2.0']);
 
+// Optional filter for local runs: WP_ONLY=6.2,6.1,5.9 to test a subset.
+const WP_ONLY = process.env.WP_ONLY
+	? new Set(process.env.WP_ONLY.split(',').map((s) => s.trim()))
+	: null;
+const MATRIX = WP_ONLY
+	? WP_VERSIONS.filter(({ wp }) => WP_ONLY.has(wp))
+	: WP_VERSIONS;
+
 const browser = await chromium.launch({ headless: true });
 
-for (const wp of WP_VERSIONS) {
-	const label = `WP ${wp}`;
+for (const { wp, php } of MATRIX) {
+	const label = `WP ${wp} (PHP ${php})`;
 	process.stdout.write(`${label}... `);
 
-	const url = `http://127.0.0.1:${PORT}/website-server/?php=5.2&wp=${wp}`;
+	const url = `http://127.0.0.1:${PORT}/website-server/?php=${php}&wp=${wp}`;
 
 	// Isolate every version in a fresh browser context so that OPFS
 	// (where Playground persists site state), IndexedDB, localStorage
@@ -480,11 +524,17 @@ for (const wp of WP_VERSIONS) {
 					// Require a marker that actually indicates the new
 					// post editor (not random dashboard nav strings).
 					// `<input name="post_title">` is present on every WP
-					// from 1.0 onward via the edit-form template; the
-					// visible editor headings cover all header variants.
+					// that uses the classic editor (WP 1.0–4.9 and WP 5.0+
+					// when Gutenberg is disabled); `id="editor"`,
+					// `edit-post-layout` and `block-editor-writing-flow`
+					// cover the Gutenberg path shipped from WP 5.0 onward.
+					// The visible editor headings cover header variants.
 					const hasEditor =
 						html.includes('name="post_title"') ||
 						html.includes("name='post_title'") ||
+						html.includes('id="editor"') ||
+						html.includes('edit-post-layout') ||
+						html.includes('block-editor-writing-flow') ||
 						bodyText.includes('Write Post') ||
 						bodyText.includes('Add New Post') ||
 						bodyText.includes('Create New Post') ||
@@ -528,10 +578,28 @@ for (const wp of WP_VERSIONS) {
 				if (!wp4) {
 					pluginStatus = { status: 'TIMEOUT' };
 				} else {
-					const activateLink = wp4.frame
-						.locator('a')
+					// Target Hello Dolly specifically via its href. Clicking
+					// the *first* Activate link lands on Akismet's setup
+					// page on modern WP, which doesn't include the
+					// "Deactivate"/"Plugin activated" indicators this phase
+					// looks for. Hello Dolly ("hello.php") ships with every
+					// modern WordPress release and activates in-place with
+					// no follow-up screen, so the resulting plugins.php
+					// reliably shows the expected confirmation.
+					// Fall back to the first Activate link for very old WP
+					// where Hello Dolly may not be present or the href
+					// format differs.
+					const helloActivate = wp4.frame
+						.locator('a[href*="hello.php"]')
 						.filter({ hasText: 'Activate' })
 						.first();
+					const activateLink =
+						(await helloActivate.count()) > 0
+							? helloActivate
+							: wp4.frame
+									.locator('a')
+									.filter({ hasText: 'Activate' })
+									.first();
 					if ((await activateLink.count()) > 0) {
 						await activateLink.click({ timeout: 5000 });
 						await page.waitForTimeout(8000);
@@ -589,6 +657,7 @@ for (const wp of WP_VERSIONS) {
 
 	results.push({
 		wp,
+		php,
 		front: frontStatus,
 		post: postStatus,
 		admin: adminStatus,
@@ -622,7 +691,7 @@ for (const r of results) {
 		return 'FAIL';
 	});
 	console.log(
-		`  WP ${r.wp.padEnd(5)} ${cols.map((c, i) => `${PHASES[i]}:${c}`).join('  ')}`
+		`  WP ${r.wp.padEnd(5)} (PHP ${r.php})  ${cols.map((c, i) => `${PHASES[i]}:${c}`).join('  ')}`
 	);
 }
 
@@ -646,7 +715,7 @@ if (failures.length > 0) {
 	console.log('FAILURE DETAILS:');
 	console.log(`${'='.repeat(70)}`);
 	for (const r of failures) {
-		console.log(`\n--- WP ${r.wp} ---`);
+		console.log(`\n--- WP ${r.wp} (PHP ${r.php}) ---`);
 		for (const p of PHASES) {
 			const s = r[p];
 			if (!s || isPass(s) || isSkip(s)) continue;

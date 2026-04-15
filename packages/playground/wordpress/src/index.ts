@@ -961,6 +961,34 @@ export async function preloadSqliteIntegration(
 
 	const phpMajor = parseInt(options.phpVersion ?? '8', 10);
 
+	// WP 5.0–6.1 compat: the SQLite plugin declares
+	// `private $allow_unsafe_unquoted_parameters` on WP_SQLite_DB and
+	// then, from `prepare()`, calls `$this->__get(...)` expecting WP's
+	// wpdb::__get() to return the parent's property. That works on WP
+	// 6.2+ (wpdb declares the same property upstream) but blows up on
+	// older WordPress, where wpdb's __get() runs `return $this->$name;`
+	// from the parent class context and PHP refuses to read a child
+	// class's *private* member — producing a silent fatal Error that
+	// kills install.php and every subsequent request. Widening the
+	// declaration to `protected` lets both class contexts reach it and
+	// leaves behaviour identical on every supported WordPress version.
+	if (phpMajor >= 7) {
+		const sqliteDbClassPath = joinPaths(
+			SQLITE_PLUGIN_FOLDER,
+			'wp-includes/sqlite/class-wp-sqlite-db.php'
+		);
+		if (await php.fileExists(sqliteDbClassPath)) {
+			const classSource = await php.readFileAsText(sqliteDbClassPath);
+			const patched = classSource.replace(
+				'private $allow_unsafe_unquoted_parameters',
+				'protected $allow_unsafe_unquoted_parameters'
+			);
+			if (patched !== classSource) {
+				await php.writeFile(sqliteDbClassPath, patched);
+			}
+		}
+	}
+
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
@@ -991,12 +1019,14 @@ export async function preloadSqliteIntegration(
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
 
-	// For legacy PHP, we write a @playground-managed db.php, so the
-	// preload guard must check for the marker to avoid skipping itself.
-	// For modern PHP, use the simpler trunk guard (skip if db.php exists).
-	const dbPhpGuard =
-		phpMajor < 7
-			? `
+	// Playground writes a @playground-managed db.php drop-in for both
+	// legacy and modern WordPress (see boot.ts). The preload guard
+	// must therefore recognise our own marker and *not* skip itself
+	// on its own file — a blind `file_exists` guard (trunk's old
+	// behaviour) would short-circuit the lazy-$wpdb setup on every
+	// request. Only a real user-supplied db.php should abort the
+	// preload.
+	const dbPhpGuard = `
 if(file_exists(${phpVar(dbPhpPath)})) {
 	$_pg_db_php = @file_get_contents(${phpVar(dbPhpPath)});
 	if (strpos($_pg_db_php, '@playground-managed') === false) {
@@ -1004,13 +1034,7 @@ if(file_exists(${phpVar(dbPhpPath)})) {
 	}
 	unset($_pg_db_php);
 }
-`
-			: `
-	// Do not preload this if WordPress comes with a custom db.php file.
-	if(file_exists(${phpVar(dbPhpPath)})) {
-		return;
-	}
-	`;
+`;
 
 	await php.writeFile(SQLITE_MUPLUGIN_PATH, `<?php\n${dbPhpGuard}?>` + dbPhp);
 	await php.writeFile(

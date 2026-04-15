@@ -48,6 +48,57 @@ const LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS = [
 	'curl_multi_exec',
 ] as const;
 
+/**
+ * Minimal wp-content/db.php drop-in for modern WordPress. Its job
+ * is simply to exist, so WP's file_exists(WP_CONTENT_DIR . '/db.php')
+ * escape hatches (in wp_check_php_mysql_versions() and install.php
+ * step=2's mysql version check) both fall through. The real SQLite
+ * wiring is handled by the preloaded lazy $wpdb loader, not by this
+ * file — so the content is deliberately an empty, marked placeholder
+ * that WordPress require()s as a no-op.
+ */
+const MODERN_PLAYGROUND_DB_PHP = `<?php
+// @playground-managed — Playground-generated db.php placeholder.
+//
+// The SQLite $wpdb is set up by the preloaded lazy loader via
+// auto_prepend_file. This file only needs to exist to satisfy
+// WordPress' own file_exists escape hatches in its MySQL checks.
+`;
+
+/**
+ * Backports WP 6.2's wp_check_php_mysql_versions() MySQL check to
+ * older WordPress releases on modern PHP.
+ *
+ * WP 5.0–6.1 hard-check `extension_loaded('mysqli')`, which a userland
+ * stub cannot satisfy — so when Playground boots the SQLite-backed
+ * preload, WordPress still dies with "Requirements Not Met — missing
+ * MySQL extension" on these versions. WP 6.2+ switched to
+ * `function_exists('mysqli_connect')`, which the preload's stub
+ * already provides.
+ *
+ * Rewrite the single `extension_loaded('mysqli')` call in
+ * wp-includes/load.php to `function_exists('mysqli_connect')`, in
+ * place. The patch is a no-op on WP 6.2+ (pattern won't match) and
+ * on any WordPress release that already uses function_exists.
+ */
+async function patchLegacyMysqlCheckForModernWp(
+	php: PHP,
+	documentRoot: string
+): Promise<void> {
+	const loadPhp = joinPaths(documentRoot, 'wp-includes/load.php');
+	if (!php.fileExists(loadPhp)) {
+		return;
+	}
+	const content = php.readFileAsText(loadPhp);
+	const patched = content.replace(
+		"extension_loaded( 'mysqli' )",
+		"function_exists( 'mysqli_connect' )"
+	);
+	if (patched !== content) {
+		await php.writeFile(loadPhp, patched);
+	}
+}
+
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
 export interface Hooks {
@@ -316,20 +367,49 @@ export async function bootWordPress(
 			{ phpVersion: options.phpVersion }
 		);
 
-		// Write wp-content/db.php with MySQL function stubs for
-		// legacy WordPress. WP 4.x checks extension_loaded('mysql')
-		// and only skips that check if wp-content/db.php exists.
-		// patchWpSettingsPhp() patches that check away, but only
-		// runs for legacy PHP. Modern WP doesn't have this check.
-		if (phpMajor < 7) {
-			const wpContentDir = joinPaths(
-				requestHandler.documentRoot,
-				'wp-content'
+		// Write wp-content/db.php. Two distinct WordPress code paths
+		// rely on the file_exists(WP_CONTENT_DIR . '/db.php') escape
+		// hatch and cannot be fixed by a userland function stub:
+		//
+		//   * wp-includes/load.php :: wp_check_php_mysql_versions()
+		//     uses extension_loaded('mysqli') on WP 5.0–6.1.
+		//   * wp-admin/install.php step=2 has its own mysql version
+		//     check that compares $wpdb->db_version() against
+		//     $required_mysql_version and falls through on db.php
+		//     existence. WP_SQLite_DB's reported version does not
+		//     satisfy WP's mysql minimum, so install dies silently
+		//     without this file.
+		//
+		// Legacy PHP needs a full-content db.php because old
+		// WordPress actually uses the MySQL function stubs from it.
+		// Modern PHP only needs the file to exist — the preload's
+		// lazy $wpdb loader still owns the real connection, as long
+		// as the preload's guard recognises our @playground-managed
+		// marker and does not self-skip on our own file.
+		const wpContentDir = joinPaths(
+			requestHandler.documentRoot,
+			'wp-content'
+		);
+		const dbPhpPath = joinPaths(wpContentDir, 'db.php');
+		if (php.isDir(wpContentDir) && !php.fileExists(dbPhpPath)) {
+			await php.writeFile(
+				dbPhpPath,
+				phpMajor < 7 ? generateDbPhpContent() : MODERN_PLAYGROUND_DB_PHP
 			);
-			const dbPhpPath = joinPaths(wpContentDir, 'db.php');
-			if (php.isDir(wpContentDir) && !php.fileExists(dbPhpPath)) {
-				await php.writeFile(dbPhpPath, generateDbPhpContent());
-			}
+		}
+
+		// WordPress 5.0–6.1's `wp_check_php_mysql_versions()` runs
+		// before `wp_initial_constants()` defines WP_CONTENT_DIR, so
+		// the file_exists escape hatch above alone cannot rescue the
+		// early check — the path collapses to 'WP_CONTENT_DIR/db.php'
+		// via an undefined constant. Patch wp-includes/load.php to
+		// use function_exists('mysqli_connect') instead, matching the
+		// fix WordPress itself shipped in 6.2. Also a no-op on 6.2+.
+		if (phpMajor >= 7) {
+			await patchLegacyMysqlCheckForModernWp(
+				php,
+				requestHandler.documentRoot
+			);
 		}
 	}
 
