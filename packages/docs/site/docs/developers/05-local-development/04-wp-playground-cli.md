@@ -66,9 +66,11 @@ This is useful when:
 - Testing fresh installation scenarios
 - Your site data became corrupted or inconsistent
 
-:::info
+<div class="callout callout-info">
+
 The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
-:::
+
+</div>
 
 ### Choosing a WordPress and PHP Version
 
@@ -119,9 +121,11 @@ Consider mounting your WordPress project files before the WordPress installation
 npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 ```
 
-:::info
+<div class="callout callout-info">
+
 On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
-:::
+
+</div>
 
 ### Understanding Data Persistence and SQLite Location in `server` mode
 

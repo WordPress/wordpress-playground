@@ -27,17 +27,21 @@ npx @wp-playground/cli@latest server --xdebug
 
 This starts WordPress on `http://127.0.0.1:9400` with Xdebug enabled. Now you can connect a debugger.
 
-:::info
+<div class="callout callout-info">
+
 Only one project can be debugged at a time.
-:::
+
+</div>
 
 ## Starting with IDE integration
 
 Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, add the `--experimental-unsafe-ide-integration=phpstorm` flag.
 
-:::info
+<div class="callout callout-info">
+
 This flag is marked as `unsafe` because it edits the IDE config files to set Xdebug path mappings and web server details. **CAUTION:** If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
-:::
+
+</div>
 
 To debug in VS Code, you'll need the following prerequisites:
 

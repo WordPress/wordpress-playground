@@ -27,9 +27,11 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 <iframe style="width: 800px; height: 500px;" src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
 ```
 
-:::info
+<div class="callout callout-info">
+
 Check the [Query API](/developers/apis/query-api) section for more info.
-:::
+
+</div>
 
 ### Blueprints
 
@@ -85,11 +87,11 @@ wp_insert_post(array(
 
 <p></p>
 
-:::info
+<div class="callout callout-info">
 
 Blueprints play a significant role in WordPress Playground, so they have their own dedicated documentation hub. Learn more about JSON Blueprints at the [Blueprints Docs Hub](/blueprints).
 
-:::
+</div>
 
 ### JavaScript API
 
@@ -110,9 +112,11 @@ The `@wp-playground/client` package provides a JavaScript API you can use to ful
 </script>
 ```
 
-:::info
+<div class="callout callout-info">
+
 Check the [JavaScript API](/developers/apis/javascript-api/) section for more info.
-:::
+
+</div>
 
 ## Playground APIs Concepts
 
