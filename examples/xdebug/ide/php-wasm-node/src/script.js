@@ -5,10 +5,15 @@ const php = new PHP(await loadNodeRuntime('8.4', { withXdebug: true }));
 
 const response = await php.runStream({ scriptPath: `src/test.php` });
 
-await response.stdout.pipeTo(
-	new WritableStream({
-		write(chunk) {
-			process.stdout.write(chunk);
-		},
-	})
-);
+await response.stdout
+	.pipeTo(
+		new WritableStream({
+			write(chunk) {
+				process.stdout.write(chunk);
+			},
+		})
+	)
+	.catch((err) => {
+		process.stderr.write(`Stream error: ${err}\n`);
+		process.exit(1);
+	});
