@@ -236,9 +236,13 @@ Every Playground runs independently in your browser. Nothing syncs to any extern
 :::
 -->
 
-:::info Tu Sitio Real Permanece Seguro
+<div class="callout callout-info">
+
+**Tu Sitio Real Permanece Seguro**
+
 Cada Playground se ejecuta independientemente en tu navegador. Nada se sincroniza con ningún servidor externo, y nada afecta a tu instalación de WordPress en vivo.
-:::
+
+</div>
 
 <!--
 ## If You Use WordPress Daily

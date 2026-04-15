@@ -22,11 +22,13 @@ This guide includes links to the main repository, but all the steps and options 
 :::
 -->
 
-:::info Contribuye a las herramientas de Playground
+<div class="callout callout-info">
+
+**Contribuye a las herramientas de Playground**
 
 Esta guía incluye enlaces al repositorio principal, pero todos los pasos y opciones se aplican a ambos. Si estás interesado en los plugins o en las herramientas de desarrollo local, empieza por ahí.
 
-:::
+</div>
 
 <!--
 Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
@@ -47,10 +49,10 @@ Asegúrate de revisar los siguientes recursos antes de empezar:
 -   [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
 -->
 
--   [Principios de codificación](/contributing/coding-standards)
--   [Arquitectura](/developers/architecture)
--   [Visión y Filosofía](https://github.com/WordPress/wordpress-playground/issues/472)
--   [Hoja de ruta de WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
+- [Principios de codificación](/contributing/coding-standards)
+- [Arquitectura](/developers/architecture)
+- [Visión y Filosofía](https://github.com/WordPress/wordpress-playground/issues/472)
+- [Hoja de ruta de WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
 
 <!--
 ## Contribute Pull Requests
@@ -103,11 +105,13 @@ We handle code formatting and linting automatically. Relax, type away, and let t
 :::
 -->
 
-:::info Formato
+<div class="callout callout-info">
+
+**Formato**
 
 Nos encargamos del formato del código y del linting automáticamente. Relájate, escribe y deja que las máquinas hagan el trabajo.
 
-:::
+</div>
 
 <!--
 ### Running a local Multisite
@@ -170,8 +174,8 @@ Si usas VS Code y tienes Chrome instalado, puedes depurar Playground en el edito
 -   Select Run > Start Debugging from the main menu or press `F5`/`fn`+`F5`.
 -->
 
--   Abre la carpeta del proyecto en VS Code.
--   Selecciona Ejecutar > Iniciar depuración en el menú principal o pulsa `F5`/`fn`+`F5`.
+- Abre la carpeta del proyecto en VS Code.
+- Selecciona Ejecutar > Iniciar depuración en el menú principal o pulsa `F5`/`fn`+`F5`.
 
 <!--
 ### Debugging PHP
