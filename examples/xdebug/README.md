@@ -51,7 +51,7 @@ http://127.0.0.1:9724/7840495c41d5c5ae535da114/v3.0.12/@wp-playground-cli-3.0.12
 ...
 ```
 
-The requested lines must be be added in your separate project's `package.json` file :
+The requested lines must be added in your separate project's `package.json` file :
 
 ```json
 {
