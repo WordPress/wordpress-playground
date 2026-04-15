@@ -8,7 +8,9 @@ description: Une galerie d’exemples pratiques de Blueprint pour diverses tâch
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 # Exemples de Blueprints
+
 <!-- # Blueprints Examples -->
+
 :::tip
 Consultez la [Galerie de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) pour découvrir des exemples de code réels utilisant WordPress Playground pour lancer un site WordPress avec une variété de configurations.
 
@@ -389,13 +391,13 @@ Ce lot de Blueprint serait un fichier zip contenant les fichiers suivants :
 <!-- This Blueprint bundle would be zip file containing the following files: -->
 
 - `/blueprint.json` - La déclaration du blueprint décrite ci-dessus
-  <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
+      <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
 - `/my-theme.zip` - Un paquet de thème
-  <!-- - `/my-theme.zip` - A theme package -->
+      <!-- - `/my-theme.zip` - A theme package -->
 - `/my-plugin.zip` - Un paquet d’extension
-  <!-- - `/my-plugin.zip` - A plugin package -->
+      <!-- - `/my-plugin.zip` - A plugin package -->
 - `/assets/custom-page.html` - Un fichier HTML personnalisé
-  <!-- - `/assets/custom-page.html` - A custom HTML file -->
+      <!-- - `/assets/custom-page.html` - A custom HTML file -->
 
 Vous pouvez utiliser ce lot Blueprint en :
 
@@ -412,8 +414,10 @@ Pour plus d’informations sur les lots de Blueprint, consultez la documentation
 
 <!-- For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation. -->
 
-:::info
+<div class="callout callout-info">
+
 Traduction automatisée, relecture et corrections par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
 
 Dernière mise à jour le 21 janvier 2026
-:::
+
+</div>
