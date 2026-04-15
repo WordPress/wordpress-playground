@@ -26,11 +26,13 @@ Napakadaling magsimula!
 
 Ang buong site ay nasa browser mo at matatanggal kapag isinara mo ang tab. Gusto mong magsimula muli? I-refresh lang ang pahina!
 
-:::info WordPress Playground ay Pribado
+<div class="callout callout-info">
+
+**WordPress Playground ay Pribado**
 
 Lahat ng iyong ginawa ay nananatili sa browser at **hindi** ipinapadala kahit saan. Pagkatapos, maaari mong i-export ang iyong site bilang zip file. O i-refresh lang upang magsimula muli!
 
-:::
+</div>
 
 ## Subukan ang isang block, theme, o plugin
 
@@ -86,11 +88,13 @@ Ang pinakamabilis na paraan para baguhin ang bersyon ng WordPress o PHP ay sa se
 
 ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
-:::info Subukan ang iyong plugin o theme
+<div class="callout callout-info">
+
+**Subukan ang iyong plugin o theme**
 
 Ang compatibility testing sa maraming bersyon ng WordPress at PHP ay palaging mahirap. Ginagawang madali ito ng WordPress Playground—gamitin ito!
 
-:::
+</div>
 
 Maaari mo ring gamitin ang `wp` at `php` [query parameters](/developers/apis/query-api) para buksan ang Playground na may tamang bersyon na naka-load:
 
@@ -102,11 +106,13 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 
 Para matuto pa tungkol sa paghahanda ng content para sa mga demo, tingnan ang [gabay sa pagbibigay ng content para sa iyong demo](/guides/providing-content-for-your-demo).
 
-:::info Major versions only
+<div class="callout callout-info">
+
+**Major versions only**
 
 Maaari kang mag-specify ng major versions tulad ng `wp=6.2` o `php=8.1` at makukuha ang pinakabagong release sa linya na iyon. Hindi ka maaaring humiling ng mas lumang minor versions, kaya `wp=6.1.2` o `php=7.4.9` ay hindi gagana.
 
-:::
+</div>
 
 ## Mag-import ng WXR file
 

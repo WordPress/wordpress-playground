@@ -28,7 +28,8 @@ Gamit ang [`importWxr`](/blueprints/steps#importWxr) step, maaari mong i-import 
 
 [<kbd>   Patakbuhin ang Blueprint   </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd>   Tignan ang <code>blueprint.json</code>   </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L43)
 
-:::info
+<div class="callout callout-info">
+
 Upang isama ang mga larawan sa iyong imported content, magandang paraan ang i-upload ang mga larawan sa iyong GitHub repo at gamitin ang path na `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}` sa exported `.xml` file.
 
 ```html
@@ -39,7 +40,7 @@ Upang isama ang mga larawan sa iyong imported content, magandang paraan ang i-up
 <!-- /wp:image -->
 ```
 
-:::
+</div>
 
 Inirerekomenda na i-upload mo ang iyong na-export na `.xml` file at anumang naka-referensyang asset (tulad ng mga larawan) sa parehong directory kung saan naroon ang iyong `blueprint.json` sa iyong GitHub repository.
 
