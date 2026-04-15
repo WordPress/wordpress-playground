@@ -8,20 +8,22 @@ description: A guide for code contributions, covering how to fork the repo, set 
 
 Like all WordPress projects, Playground uses GitHub to manage code and track issues. The main repository is at [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) and the Playground Tools repository is at [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or [local development](/developers/local-development/) tools—start there.
 
-:::
+</div>
 
 Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
 
 Be sure to review the following resources before you begin:
 
--   [Coding principles](/contributing/coding-standards)
--   [Architecture](/developers/architecture)
--   [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
--   [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
+- [Coding principles](/contributing/coding-standards)
+- [Architecture](/developers/architecture)
+- [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
+- [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
 
 ## Contribute Pull Requests
 
@@ -67,11 +69,13 @@ Then try `npm run dev` again. This is a common issue on Debian, Ubuntu, and othe
 
 When your'e ready, commit the changes and submit a Pull Request.
 
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 
 ### Running a local Multisite
 
@@ -97,8 +101,8 @@ Your dev server is now available on https://playground.test.
 
 If you're using VS Code and have Chrome installed, you can debug Playground in the code editor:
 
--   Open the project folder in VS Code.
--   Select Run > Start Debugging from the main menu or press `F5`/`fn`+`F5`.
+- Open the project folder in VS Code.
+- Select Run > Start Debugging from the main menu or press `F5`/`fn`+`F5`.
 
 ### Debugging PHP
 

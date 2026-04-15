@@ -8,11 +8,11 @@ The WordPress Playground is an innovative tool that allows theme developers to b
 
 This guide will show you how to use WordPress Playground to improve your theme development workflow, create live demos to showcase your theme, and simplify the theme review process.
 
-:::info
+<div class="callout callout-info">
 
 Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/launch) your products with WordPress Playground in the [About Playground](/about) section
 
-:::
+</div>
 
 ## Launching a Playground instance with a theme
 
@@ -48,9 +48,11 @@ A theme stored in a GitHub repository can also be loaded in a Playground instanc
 
 With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.
 
-:::info
+<div class="callout callout-info">
+
 For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load themes from GitHub repositories, as it allows you to load a theme from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
-:::
+
+</div>
 
 For example the following `blueprint.json` installs a theme from a GitHub repository:
 
@@ -97,11 +99,11 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Through properties and [`steps`](/blueprints/steps) in the blueprint, you can configure the initial setup of your theme in the Playground instance.
 
-:::info
+<div class="callout callout-info">
 
 To provide a good demo of your theme via Playground, you may want to load it with default content that highlights the features of your theme. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more about this.
 
-:::
+</div>
 
 ### `resetData`
 

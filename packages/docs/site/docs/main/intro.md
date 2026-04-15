@@ -7,11 +7,13 @@ description: Welcome to the WordPress Playground docs! This page introduces the 
 
 # WordPress Playground Docs
 
-:::info **Looking for the official Playground website?**
+<div class="callout callout-info">
+
+**Looking for the official Playground website?**
 
 WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
-:::
+</div>
 
 👋 Hi! Welcome to WordPress Playground documentation.
 
