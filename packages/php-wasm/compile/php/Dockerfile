@@ -806,6 +806,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "Curl_conncache_foreach",\
 "curl_easy_perform",\
 "Curl_http_connect",\
+"Curl_httpchunk_read",\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
@@ -1082,8 +1083,13 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "get_http_body",\
 "get_line",\
 "getFileMode",\
+"gzip_unencode_write",\
 "hasHotJournal",\
 "https_connecting",\
+"inflate",\
+"inflate_fast",\
+"inflate_stream",\
+"inflate_table",\
 "iter_wrapper_free",\
 "iter_wrapper_get_gc",\
 "lex_scan",\
