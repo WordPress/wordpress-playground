@@ -51,9 +51,11 @@ Or a theme:
 <iframe style="width: 800px; height: 500px;" src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
 ```
 
-:::info
+<div class="callout callout-info">
+
 詳細については、[クエリ API](/developers/apis/query-api) セクションを確認してください。
-:::
+
+</div>
 
 <!--
 :::info
@@ -123,11 +125,11 @@ wp_insert_post(array(
 
 <p></p>
 
-:::info
+<div class="callout callout-info">
 
 WordPress Playground ではブループリントが重要な役割を果たすため、専用のドキュメントハブが用意されています。JSON ブループリントの詳細については、[ブループリント ドキュメント ハブ](/blueprints) をご覧ください。
 
-:::
+</div>
 
 <!--
 :::info
@@ -164,9 +166,11 @@ The `@wp-playground/client` package provides a JavaScript API you can use to ful
 </script>
 ```
 
-:::info
+<div class="callout callout-info">
+
 詳細については、[JavaScript API](/developers/apis/javascript-api/) セクションをご覧ください。
-:::
+
+</div>
 
 <!--
 :::info

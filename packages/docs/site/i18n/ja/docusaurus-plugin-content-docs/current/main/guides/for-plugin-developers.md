@@ -24,11 +24,11 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 WordPress Playground を使用して製品を[構築](/about/build)、[テスト](/about/test)、[起動](/about/launch)する方法については、[Playground について](/about) セクションをご覧ください。
 
-:::
+</div>
 
 <!--
 ## Launching a Playground instance with a plugin
@@ -130,9 +130,11 @@ For the past few months, the [GitHub proxy](https://playground.wordpress.net/pro
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 ここ数ヶ月、[GitHubプロキシ](https://playground.wordpress.net/proxy)はGitHubリポジトリからプラグインを読み込むための非常に便利なツールでした。特定のブランチ、特定のディレクトリ、特定のコミット、または特定のPRからプラグインを読み込むことができました。しかし、Playgroundの最近の改善により、この機能は不要になりました。GitHubプロキシはまもなく廃止されるため、ブループリントを`git:directory`リソースに更新してください。
-:::
+
+</div>
 
 <!--
 For example, the following `blueprint.json` installs a plugin from a GitHub repository:
@@ -264,11 +266,11 @@ The [Install plugin from a gist](https://playground.wordpress.net/builder/builde
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 [ブループリントギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)の [gist からプラグインをインストール](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]})の例では、gist のコードからプラグインをロードする方法を示しています。
 
-:::
+</div>
 
 <!--
 ## Setting up a demo for your plugin with Blueprints
@@ -318,11 +320,11 @@ A great demo with WordPress Playground might require that you load default conte
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 WordPress Playground を使った優れたデモでは、画像やその他のアセットを含む、プラグインとテーマのデフォルトコンテンツを読み込む必要がある場合があります。詳しくは、[デモ用のコンテンツの提供](/guides/providing-content-for-your-demo)ガイドをご覧ください。
 
-:::
+</div>
 
 <!--
 ### `plugins`
@@ -524,8 +526,8 @@ Check [About Playground > Build > Synchronize your playground instance with a lo
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 詳細については、[Playground について > ビルド > Playground インスタンスをローカル フォルダーと同期して GitHub プル リクエストを作成する](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) を確認してください。
 
-:::
+</div>

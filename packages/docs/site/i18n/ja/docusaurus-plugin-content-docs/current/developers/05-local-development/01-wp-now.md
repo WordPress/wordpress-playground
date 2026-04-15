@@ -31,9 +31,9 @@ The NPM package @wp-now/wp-now is deprecated, won't receive updates in the futur
 Key Features:
 -->
 
--   **コマンドラインインターフェース**: CLI に慣れた開発者にとって使いやすいです。
--   **クイックセットアップ**: ローカルの WordPress 環境を数秒でセットアップできます。
--   **カスタマイズ可能**: 特定の開発ニーズに合わせて設定できます。
+- **コマンドラインインターフェース**: CLI に慣れた開発者にとって使いやすいです。
+- **クイックセットアップ**: ローカルの WordPress 環境を数秒でセットアップできます。
+- **カスタマイズ可能**: 特定の開発ニーズに合わせて設定できます。
 
 <!--
 -   **Command-line Interface**: Easy to use for developers comfortable with CLI.
@@ -47,11 +47,13 @@ Key Features:
 [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
 -->
 
-:::info **ドキュメント**
+<div class="callout callout-info">
+
+**ドキュメント**
 
 `wp-now` は別の GitHub リポジトリ [Playground Tools](https://github.com/WordPress/playground-tools/) でメンテナンスされています。最新のドキュメントは [専用の README ファイル](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) をご覧ください。
 
-:::
+</div>
 
 <!--
 :::info **Documentation**

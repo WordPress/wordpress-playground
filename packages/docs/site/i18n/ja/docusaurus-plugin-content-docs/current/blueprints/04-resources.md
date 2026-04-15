@@ -14,11 +14,13 @@ slug: /blueprints/steps/resources
 "Resource References" allow you use external files in Blueprints
 -->
 
-:::info
+<div class="callout callout-info">
+
 [`installPlugin`](/blueprints/steps#InstallPluginStep) や [`installTheme`](/blueprints/steps#InstallThemeStep) などのブループリントステップでは、インストールするプラグインまたはテーマの場所を指定する必要があります。
 
 その場所は、テーマまたはプラグインを含む `.zip` ファイルの [`URL` リソース](#urlreference) として定義できます。また、公式 WordPress ディレクトリに公開されているプラグイン/テーマの場合は、[`wordpress.org/plugins`](#corepluginreference) または [`wordpress.org/themes`](#corethemereference) リソースとして定義することもできます。
-:::
+
+</div>
 
 <!--
 :::info
@@ -266,9 +268,9 @@ To use the `BundledReference` resource, you need to provide the relative path to
 Blueprint bundles can be distributed in various formats, including:
 -->
 
--   トップレベルに `blueprint.json` ファイルを含む ZIP ファイル
--   `blueprint.json` ファイルと関連リソースを含むディレクトリ
--   ブループリントとそのリソースが一緒にホストされているリモート URL
+- トップレベルに `blueprint.json` ファイルを含む ZIP ファイル
+- `blueprint.json` ファイルと関連リソースを含むディレクトリ
+- ブループリントとそのリソースが一緒にホストされているリモート URL
 
 <!--
 -   ZIP files with a top-level `blueprint.json` file
