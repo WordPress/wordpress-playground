@@ -10,12 +10,7 @@
  * 4. Worker thread — does the worker thread path preserve the handler?
  */
 import { spawn } from 'child_process';
-import {
-	SupportedPHPVersions,
-	setPhpIniEntries,
-	PHP,
-	ProcessIdAllocator,
-} from '@php-wasm/universal';
+import { PHP, ProcessIdAllocator } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 
 const isWindows = process.platform === 'win32';
