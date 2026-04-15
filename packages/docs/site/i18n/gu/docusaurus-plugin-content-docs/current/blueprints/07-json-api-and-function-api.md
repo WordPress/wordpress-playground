@@ -28,12 +28,15 @@ JSON is merely a wrapper around the functions. Whether you use the JSON steps or
 You can use Blueprints both with the web and the node.js versions of WordPress Playground.
 -->
 
-:::info બ્લુપ્રિન્ટ્સ વર્ઝન 2
+<div class="callout callout-info">
+
+**બ્લુપ્રિન્ટ્સ વર્ઝન 2**
 
 ટીમ બ્લુપ્રિન્ટ્સને ટાઇપસ્ક્રિપ્ટ(TypeScript) લાઇબ્રેરીમાંથી PHP લાઇબ્રેરીમાં કેવી રીતે રૂપાંતરિત કરવું તે શોધી રહી છે. આનાથી લોકો કોઈપણ વર્ડપ્રેસ વાતાવરણમાં બ્લુપ્રિન્ટ્સ ચલાવી શકશે: પ્લેગ્રાઉન્ડ, હોસ્ટ કરેલી સાઇટ અથવા સ્થાનિક સેટઅપ.
 
 પ્રસ્તાવિત [નવું સ્પષ્ટીકરણ](https://github.com/WordPress/blueprints-library/issues/6) અલગથી ચર્ચા કરવામાં આવી છે [ગિટહબ ભંડાર](https://github.com/WordPress/blueprints-library/) , અને તમારું જોડાવા માટે ખૂબ સ્વાગત છે (ત્યાં અથવા [#playground] પર(https://wordpress.slack.com/archives/C04EWKGDJ0K) સ્લેક ચેનલ) અને પ્લેગ્રાઉન્ડની આગામી પેઢીને આકાર આપવામાં મદદ કરે છે.
-:::
+
+</div>
 
 <!--
 :::info Blueprints version 2

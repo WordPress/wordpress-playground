@@ -28,11 +28,13 @@ Key Features:
 -   **Ease of Use**: Simplifies the development workflow with integrated tools.
 -->
 
-:::info **દસ્તાવેજીકરણ**
+<div class="callout callout-info">
+
+**દસ્તાવેજીકરણ**
 
 VS કોડ એક્સટેન્શન એક અલગ GitHub રિપોઝીટરીમાં જાળવવામાં આવે છે, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/). તમે નવીનતમ દસ્તાવેજો [dedicated README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md) માં શોધી શકો છો.
 
-:::
+</div>
 
 <!--
 :::info **Documentation**

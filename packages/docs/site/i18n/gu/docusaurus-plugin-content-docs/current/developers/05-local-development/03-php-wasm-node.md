@@ -21,11 +21,13 @@ As a WebAssembly project, you can also use WordPress Playground in Node.js.
 If you need low-level control over the underlying WebAssembly PHP build, take a look at the [`@php-wasm/node` package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js.
 -->
 
-:::info **API સંદર્ભ**
+<div class="callout callout-info">
+
+**API સંદર્ભ**
 
 વર્ગો, કાર્યો, ઇન્ટરફેસ અને પ્રકાર ઉપનામોની [સંપૂર્ણ સૂચિ](/api/node) જુઓ.
 
-:::
+</div>
 
 <!--
 :::info **API reference**

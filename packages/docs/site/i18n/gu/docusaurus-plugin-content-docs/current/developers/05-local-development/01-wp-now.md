@@ -31,9 +31,9 @@ The NPM package @wp-now/wp-now is deprecated, won't receive updates in the futur
 Key Features:
 -->
 
--  **કમાન્ડ-લાઇન ઇન્ટરફેસ**: CLI સાથે આરામદાયક વિકાસકર્તાઓ માટે ઉપયોગમાં સરળ.
--  **ઝડપી સેટઅપ**: સેકન્ડોમાં સ્થાનિક વર્ડપ્રેસ વાતાવરણ સેટ કરો.
--  **કસ્ટમાઇઝેબલ**: ચોક્કસ વિકાસ જરૂરિયાતોને અનુરૂપ ગોઠવણી માટે પરવાનગી આપે છે.
+- **કમાન્ડ-લાઇન ઇન્ટરફેસ**: CLI સાથે આરામદાયક વિકાસકર્તાઓ માટે ઉપયોગમાં સરળ.
+- **ઝડપી સેટઅપ**: સેકન્ડોમાં સ્થાનિક વર્ડપ્રેસ વાતાવરણ સેટ કરો.
+- **કસ્ટમાઇઝેબલ**: ચોક્કસ વિકાસ જરૂરિયાતોને અનુરૂપ ગોઠવણી માટે પરવાનગી આપે છે.
 
 <!--
 -   **Command-line Interface**: Easy to use for developers comfortable with CLI.
@@ -47,11 +47,13 @@ Key Features:
 [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
 -->
 
-:::info **દસ્તાવેજીકરણ**
+<div class="callout callout-info">
+
+**દસ્તાવેજીકરણ**
 
 `wp-now` એક અલગ GitHub રિપોઝીટરી, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/) માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ [સમર્પિત README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) માં શોધી શકો છો.
 
-:::
+</div>
 
 <!--
 :::info **Documentation**
