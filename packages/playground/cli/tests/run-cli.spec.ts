@@ -171,10 +171,11 @@ describe.each(blueprintVersions)(
 		test('should set WordPress version', async () => {
 			const { MinifiedWordPressVersionsList } =
 				await import('@wp-playground/wordpress-builds');
-			const oldestSupportedVersion =
-				MinifiedWordPressVersionsList[
-					MinifiedWordPressVersionsList.length - 1
-				];
+			// Use the oldest non-legacy version. Legacy versions
+			// (< 5.0) require legacy PHP and can't boot on modern PHP.
+			const oldestSupportedVersion = MinifiedWordPressVersionsList.filter(
+				(v) => parseFloat(v) >= 5
+			).pop()!;
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
@@ -339,10 +340,7 @@ describe.each(blueprintVersions)(
 
 			const mounts = [];
 			for (let i = 0; i < 5; i++) {
-				const hostSubDir = path.join(
-					hostTmpDir,
-					`migration-${i}`
-				);
+				const hostSubDir = path.join(hostTmpDir, `migration-${i}`);
 				mkdirSync(hostSubDir, { recursive: true });
 				const hostFilePath = path.join(
 					hostSubDir,

@@ -12,6 +12,7 @@ import {
 	LatestSqliteDriverVersion,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
+import { isLegacyPHPVersion } from '@php-wasm/universal';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { createDirectoryHandleMountHandler } from '@php-wasm/web';
@@ -154,8 +155,16 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
+			// Select the right SQLite version:
+			// - PHP 5.2: pre-patched v2.2.22 (closures replaced, PHP 5.2
+			//   polyfills added)
+			// - Everything else: whatever the caller requested
+			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
+			const effectiveSqliteVersion = isLegacyPhp
+				? 'v2.2.22-php52'
+				: sqliteDriverVersion!;
 			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
-				sqliteDriverVersion!
+				effectiveSqliteVersion
 			);
 			this.downloadMonitor.expectAssets({
 				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
@@ -166,9 +175,14 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			await bootWordPress(requestHandler, {
 				siteUrl,
+				phpVersion,
 				constants: shouldInstallWordPress
 					? {
-							WP_DEBUG: true,
+							// Disable WP_DEBUG for legacy PHP (< 7) because
+							// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
+							// and shows all notices when WP_DEBUG is true,
+							// breaking header output and install responses.
+							WP_DEBUG: !isLegacyPhp,
 							WP_DEBUG_LOG: true,
 							WP_DEBUG_DISPLAY: false,
 							AUTH_KEY: randomString(40),
