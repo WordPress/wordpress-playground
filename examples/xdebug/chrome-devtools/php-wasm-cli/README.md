@@ -26,7 +26,7 @@ node_modules/.bin/php-wasm-cli --xdebug --experimental-devtools src/test.php
 ```
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 ```
 
 <br>

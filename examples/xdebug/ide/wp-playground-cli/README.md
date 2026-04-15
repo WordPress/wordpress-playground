@@ -32,23 +32,21 @@ node src/script.js
 If no project settings directory was found :
 
 ```
-Starting a PHP server...
+WordPress Playground CLI
+
+PHP 8.4  WordPress latest
+Extensions intl, xdebug
+Mount ./src → /wordpress
+
 
 Xdebug configuration failed.
 No IDE-specific project settings directory was found in the current working directory.
 
 
-Starting up workers
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-PHP.request() is deprecated. Please use new PHPRequestHandler() instead.
-Booted!
-Running the Blueprint...
-Running the Blueprint – 100%
-Finished running the blueprint
-Preparing workers...
-WordPress is running on http://127.0.0.1:53369 with 1 worker(s)
+Running Blueprint 100%
+
+Ready! WordPress is running on http://127.0.0.1:9400 (6 workers)
+
 
 Output!
 Hello Xdebug World!
@@ -57,33 +55,31 @@ Hello Xdebug World!
 If `.vscode` directory exists :
 
 ```
-Starting a PHP server...
+WordPress Playground CLI
+
+PHP 8.4  WordPress latest
+Extensions intl, xdebug
+Mount ./src → /wordpress
+
 
 Xdebug configured successfully
 Updated IDE config: .vscode/launch.json
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 VS Code / Cursor instructions:
-	1. Ensure you have installed an IDE extension for PHP Debugging
-	   (The PHP Debug extension by Xdebug has been a solid option)
-	2. Open the Run and Debug panel on the left sidebar
-	3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
-	4. Click "start debugging"
-	5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-	6. Visit Playground in your browser to hit the breakpoint
+  1. Ensure you have installed an IDE extension for PHP Debugging
+     (The PHP Debug extension by Xdebug has been a solid option)
+  2. Open the Run and Debug panel on the left sidebar
+  3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
+  3. Click "start debugging"
+  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+  6. Visit Playground in your browser to hit the breakpoint
 
 
-Starting up workers
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-PHP.request() is deprecated. Please use new PHPRequestHandler() instead.
-Booted!
-Running the Blueprint...
-Running the Blueprint – 100%
-Finished running the blueprint
-Preparing workers...
-WordPress is running on http://127.0.0.1:53391 with 1 worker(s)
+Running Blueprint 100%
+
+Ready! WordPress is running on http://127.0.0.1:9400 (6 workers)
+
 
 Output!
 Hello Xdebug World!
@@ -92,29 +88,27 @@ Hello Xdebug World!
 If `.idea` directory exists :
 
 ```
-Starting a PHP server...
+WordPress Playground CLI
+
+PHP 8.4  WordPress latest
+Extensions intl, xdebug
+Mount ./src → /wordpress
+
 
 Xdebug configured successfully
-Updated IDE config: .idea/workspace.xml
+Updated IDE config: .idea/workspace.xml .idea/php.xml
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 PhpStorm instructions:
-	1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
-	2. Click the debug button (bug icon)`
-	3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-	4. Visit Playground in your browser to hit the breakpoint
+  1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
+  2. Click the debug button (bug icon)`
+  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+  4. Visit Playground in your browser to hit the breakpoint
 
-Starting up workers
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-PHP.request() is deprecated. Please use new PHPRequestHandler() instead.
-Booted!
-Running the Blueprint...
-Running the Blueprint – 100%
-Finished running the blueprint
-Preparing workers...
-WordPress is running on http://127.0.0.1:53416 with 1 worker(s)
+Running Blueprint 100%
+
+Ready! WordPress is running on http://127.0.0.1:9400 (6 workers)
+
 
 Output!
 Hello Xdebug World!
@@ -177,83 +171,74 @@ node_modules/.bin/wp-playground-cli server --login --xdebug --experimental-unsaf
 If no project settings directory was found :
 
 ```
-Starting a PHP server...
+WordPress Playground CLI
+
+PHP 8.3  WordPress latest
+Extensions intl, redis, memcached, xdebug
+Mount ./plugin → /wordpress/wp-content/plugins/plugin
+
 
 Xdebug configuration failed.
 No IDE-specific project settings directory was found in the current working directory.
 
 
-Starting up workers
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-PHP.request() is deprecated. Please use new PHPRequestHandler() instead.
-Booted!
-Running the Blueprint...
-Logging in – 100%
-Finished running the blueprint
-Preparing workers...
-WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
+Logging in 100%
+
+Ready! WordPress is running on http://127.0.0.1:9400 (6 workers)
 ```
 
 If `.vscode` directory exists :
 
 ```
-Starting a PHP server...
+WordPress Playground CLI
+
+PHP 8.3  WordPress latest
+Extensions intl, redis, memcached, xdebug
+Mount ./plugin → /wordpress/wp-content/plugins/plugin
+
 
 Xdebug configured successfully
 Updated IDE config: .vscode/launch.json
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 VS Code / Cursor instructions:
-	1. Ensure you have installed an IDE extension for PHP Debugging
-	   (The PHP Debug extension by Xdebug has been a solid option)
-	2. Open the Run and Debug panel on the left sidebar
-	3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
-	3. Click "start debugging"
-	5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-	6. Visit Playground in your browser to hit the breakpoint
+  1. Ensure you have installed an IDE extension for PHP Debugging
+     (The PHP Debug extension by Xdebug has been a solid option)
+  2. Open the Run and Debug panel on the left sidebar
+  3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
+  3. Click "start debugging"
+  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+  6. Visit Playground in your browser to hit the breakpoint
 
 
-Starting up workers
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-PHP.request() is deprecated. Please use new PHPRequestHandler() instead.
-Booted!
-Running the Blueprint...
-Logging in – 100%
-Finished running the blueprint
-Preparing workers...
-WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
+Logging in 100%
+
+Ready! WordPress is running on http://127.0.0.1:9400 (6 workers)
 ```
 
 If `.idea` directory exists :
 
 ```
-Starting a PHP server...
+WordPress Playground CLI
+
+PHP 8.3  WordPress latest
+Extensions intl, redis, memcached, xdebug
+Mount ./plugin → /wordpress/wp-content/plugins/plugin
+
 
 Xdebug configured successfully
-Updated IDE config: .idea/workspace.xml
+Updated IDE config: .idea/workspace.xml .idea/php.xml
 Playground source root: .playground-xdebug-root – you can set breakpoints and preview Playground's VFS structure in there.
 
 PhpStorm instructions:
-	1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
-	2. Click the debug button (bug icon)`
-	3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-	4. Visit Playground in your browser to hit the breakpoint
+  1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
+  2. Click the debug button (bug icon)`
+  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+  4. Visit Playground in your browser to hit the breakpoint
 
-Starting up workers
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.9.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-PHP.request() is deprecated. Please use new PHPRequestHandler() instead.
-Booted!
-Running the Blueprint...
-Logging in – 100%
-Finished running the blueprint
-Preparing workers...
-WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
+Logging in 100%
+
+Ready! WordPress is running on http://127.0.0.1:9400 (6 workers)
 ```
 
 <br>

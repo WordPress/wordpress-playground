@@ -62,8 +62,6 @@ A file named `workspace.xml` should be in the `.idea` directory at the root of y
 
 		<server host="example.com:443" port="80" name="Listen for Xdebug" />
 
-		// or [ WP Playground CLI ]
-
 		<server host="127.0.0.1:9400" port="80" name="Listen for Xdebug" use_path_mappings="true">
 			<path_mappings>
 			<mapping local-root="$PROJECT_DIR$" remote-root="/" />

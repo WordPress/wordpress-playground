@@ -35,7 +35,7 @@ node_modules/.bin/xdebug-bridge
 ```
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 ```
 
 <br>
@@ -105,7 +105,7 @@ node src/script-with-bridge.js
 ```
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 ```
 
 <br>
@@ -142,7 +142,7 @@ node src/script-with-bridge.js
 ```
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 ```
 
 <br>

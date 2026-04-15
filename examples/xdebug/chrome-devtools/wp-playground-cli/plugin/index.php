@@ -13,10 +13,9 @@ if (!defined('ABSPATH')) {
 
 // Display admin notice
 function sam_display_admin_message() {
-	$message = 'Hello! This is a simple admin message.';
 	?>
 	<div class="notice notice-info is-dismissible">
-		<p><?php _e($message, 'simple-admin-message'); ?></p>
+		<p><?php esc_html_e( 'Hello! This is a simple admin message.', 'simple-admin-message' ); ?></p>
 	</div>
 	<?php
 }

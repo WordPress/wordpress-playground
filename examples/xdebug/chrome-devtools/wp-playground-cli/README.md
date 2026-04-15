@@ -33,17 +33,16 @@ node src/script.js
 ```
 
 ```
-Starting a PHP server...
-Setting up WordPress undefined
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.8.3.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-PHP.request() is deprecated. Please use new PHPRequestHandler() instead.
-Booted!
-Running the Blueprint...
-Running the Blueprint – 100%
-Finished running the blueprint
-WordPress is running on http://127.0.0.1:55673 with 1 worker(s)
+WordPress Playground CLI
+
+PHP 8.4  WordPress latest
+Extensions intl, xdebug
+Mount ./src → /wordpress
+
+Running Blueprint 100%
+
+Ready! WordPress is running on http://127.0.0.1:9400 (6 workers)
+
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
 devtools://devtools/bundled/inspector.html?ws=localhost:9229
@@ -115,7 +114,7 @@ Finished running the blueprint
 WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 ```
 
 <br>
