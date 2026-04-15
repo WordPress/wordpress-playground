@@ -13,6 +13,7 @@ import {
 	isOlderWordPressVersion,
 	OlderWordPressVersions,
 } from './older-wordpress-versions';
+import { formatWordPressVersionLabel } from './wordpress-release-names';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -119,7 +120,9 @@ export function UnconnectedSiteSettingsForm({
 	const wpVersionOptions = useMemo(() => {
 		const modernOptions = Object.keys(supportedWPVersions || {}).map(
 			(version) => ({
-				label: `${supportedWPVersions[version]}`,
+				label: formatWordPressVersionLabel(
+					`${supportedWPVersions[version]}`
+				),
 				value: version,
 			})
 		);
@@ -146,7 +149,7 @@ export function UnconnectedSiteSettingsForm({
 				disabled: true,
 			},
 			...OlderWordPressVersions.map((version) => ({
-				label: version,
+				label: formatWordPressVersionLabel(version),
 				value: version,
 			})),
 		];
