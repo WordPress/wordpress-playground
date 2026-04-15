@@ -41,9 +41,13 @@ Playground can be embedded on your website using the HTML `<iframe>` tag as foll
 Every visitor will get their own private WordPress instance for free. You can then customize it using one of the [Playground APIs](/developers/apis/).
 -->
 
-import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_may_stop_working.md';
+:::caution Careful with the demo site
 
-<PlaygroundWpNetWarning />
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+
+:::
 
 ## 埋め込まれたウェブサイトを制御する
 
@@ -57,9 +61,9 @@ WordPress Playground は、iframe ウェブサイトの制御に使用できる 
 WordPress Playground provides three APIs you can use to control the iframed website. All the examples in this section are built using one of these:
 -->
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
-<APIList />
+- [Query API](/developers/apis/query-api) enable basic operations using only query parameters
+- [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
+- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
 
 これらの各 API の詳細については、[API の概要セクション](/developers/apis/) をご覧ください。
 
@@ -73,15 +77,13 @@ Learn more about each of these APIs in the [APIs overview section](/developers/a
 ## Showcase a plugin or theme from WordPress directory
 -->
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 WordPress ディレクトリから URL パラメータのみでプラグインとテーマをインストールできます。例えば、この iframe には`coblocks`プラグインと`friends`プラグイン、そして`pendant`テーマがプリインストールされています。
 
 <!--
 You can install plugins and themes from the WordPress directory with only URL parameters. For example this iframe would come with the `coblocks` and `friends` plugins preinstalled as well as the `pendant` theme.
 -->
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
@@ -157,9 +159,9 @@ See the [live example of Gutenberg PR previewer](https://playground.wordpress.ne
 You can use Playground as a Pull Request previewer if:
 -->
 
--   WordPress プラグインまたはテーマが CI パイプラインを使用している
--   CI パイプラインがプラグインまたはテーマをバンドルしている
--   CI パイプラインによって生成された zip ファイルを公開できる
+- WordPress プラグインまたはテーマが CI パイプラインを使用している
+- CI パイプラインがプラグインまたはテーマをバンドルしている
+- CI パイプラインによって生成された zip ファイルを公開できる
 
 <!--
 -   Your WordPress plugin or theme uses a CI pipeline

@@ -4,6 +4,92 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.19] (2026-04-13) 
+
+### Documentation
+
+- [Docs] Removing heading IDs to make documentation compatible to migrate to org. ([#3466](https://github.com/WordPress/wordpress-playground/pull/3466))
+
+### PHP WebAssembly
+
+- [ xdebug ] Skip paths alongside path mappings in IDE configs. ([#3366](https://github.com/WordPress/wordpress-playground/pull/3366))
+- [AI] Add compilation and debugging skills for PHP.wasm. ([#3445](https://github.com/WordPress/wordpress-playground/pull/3445))
+
+### Website
+
+- Add custom error message when artifact is expired. ([#3453](https://github.com/WordPress/wordpress-playground/pull/3453))
+- Define DB_NAME via auto-prepend instead of rewriting wp-config.php. ([#3458](https://github.com/WordPress/wordpress-playground/pull/3458))
+
+### Bug Fixes
+
+- Fix broken deploy workflow guards. ([#3479](https://github.com/WordPress/wordpress-playground/pull/3479))
+
+### Various
+
+- Exclude loopback requests from trying to pre-fetch. ([#3305](https://github.com/WordPress/wordpress-playground/pull/3305))
+- Skip running irrelevant actions on forks. ([#3473](https://github.com/WordPress/wordpress-playground/pull/3473))
+- [Docs] Add `overlay` parameter to Playground URL options. ([#3457](https://github.com/WordPress/wordpress-playground/pull/3457))
+- [i18n] Add Bengali translation for blueprints documentation. ([#3462](https://github.com/WordPress/wordpress-playground/pull/3462))
+- [i18n] Added Gujarati translation for wp-playground agent skill guide. ([#3333](https://github.com/WordPress/wordpress-playground/pull/3333))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame @brandonpayton @dd32 @fellyph @JanJakes @mho22 @perashanid @Rima1889
+
+
+## [v3.1.18] (2026-04-07) 
+
+
+
+
+## [v3.1.17] (2026-04-07) 
+
+### Enhancements
+
+- [CLI] Fix intermittent ENOTDIR crash when applying post-install mounts. ([#3468](https://github.com/WordPress/wordpress-playground/pull/3468))
+
+### Documentation
+
+- [Docs] Load assets from githubusercontent to make it compatible with handbook. ([#3467](https://github.com/WordPress/wordpress-playground/pull/3467))
+
+### Various
+
+- [cli] Update WordPress version validation to include "beta" as a valid slug. ([#3446](https://github.com/WordPress/wordpress-playground/pull/3446))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph
+
+
+## [v3.1.16] (2026-04-06) 
+
+### Website
+
+- Add WebMCP support to the Playground website. ([#3298](https://github.com/WordPress/wordpress-playground/pull/3298))
+- Centralized site management API and expose as window.playgroundSites. ([#3401](https://github.com/WordPress/wordpress-playground/pull/3401))
+
+### Bug Fixes
+
+- Fix phpMyAdmin and Adminer crash on PHP 8.5. ([#3444](https://github.com/WordPress/wordpress-playground/pull/3444))
+- [CLI] Fix `--skip-sqlite-setup` false pre-flight database error. ([#3456](https://github.com/WordPress/wordpress-playground/pull/3456))
+
+### Various
+
+- Update SQLite refresh script to support the SQLite monorepo. ([#3452](https://github.com/WordPress/wordpress-playground/pull/3452))
+- [i18n] Add Bengali translation for blueprints/05-steps.md. ([#3432](https://github.com/WordPress/wordpress-playground/pull/3432))
+- [i18n] ja translations developer architecture Service Workers and Scopes. ([#3431](https://github.com/WordPress/wordpress-playground/pull/3431))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@bgrgicak @JanJakes @mho22 @noruzzamans @shimotmk
+
+
 ## [v3.1.15] (2026-03-31) 
 
 ### PHP WebAssembly

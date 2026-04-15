@@ -145,14 +145,14 @@ npm run dev -- --locale es
 
 The language switcher is a dropdown menu that allows users to select their preferred language.
 
-![Documentation Language Switcher](@site/static/img/contributing/language-switcher-docs.webp)
+![Documentation Language Switcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 -->
 
 ## Le sélecteur de langue
 
 Le sélecteur de langue est un menu déroulant qui permet aux utilisateurs de sélectionner leur langue préférée.
 
-![Sélecteur de langue de la documentation](@site/static/img/contributing/language-switcher-docs.webp)
+![Sélecteur de langue de la documentation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 
 <!--
 ### Making a language publicly available on the Language Switcher

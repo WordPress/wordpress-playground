@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: Isang 5-minuto na gabay para magsimula sa Playground. Matuto kung paano subukan ang mga plugin, subukan ang mga tema, at gumamit ng iba't ibang bersyon ng WP/PHP.
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 # Magsimula gamit ang WordPress Playground sa loob ng 5 minuto
 
 Maaaring makatulong sa iyo ang WordPress Playground sa alinman sa mga sumusunod:
@@ -54,7 +52,7 @@ Maaari ka ring maghalo ng mga parameter at magdagdag ng maraming plugin:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+Ito ay tinatawag na [Query API](/developers/apis/query-api/), at maaari kang matuto pa tungkol dito [dito](/developers/apis/query-api/).
 
 ## I-save ang iyong site
 
@@ -62,11 +60,11 @@ Para hindi mawala ang iyong site pagkatapos ng single browser session, i-export 
 
 1. Buksan ang Site Manager panel:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 2. Gamitin ang button na "Download as .zip" sa additional actions menu:
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 Ang na-export na file ay naglalaman ng buong site na iyong binuo, kasama ang database (`wp-content/database/.ht.sqlite`). Tandaan na ang mga nak начин ng tuldok ay nakatago, kaya maaaring kailangan mong i-enable ang "Show hidden files."
 
@@ -76,17 +74,17 @@ Maaari mong i-restore ang na-save na site gamit ang "Import from .zip" button sa
 
 1. Buksan ang Playground dashboard panel:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 1. Gamitin ang "Import .zip" button sa dulo ng "Start a new Playground" section
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 ## Gamitin ang tiyak na bersyon ng WordPress o PHP
 
 Ang pinakamabilis na paraan para baguhin ang bersyon ng WordPress o PHP ay sa settings panel sa [opisyal na demo site](https://playground.wordpress.net/):
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 :::info Subukan ang iyong plugin o theme
 
@@ -100,7 +98,7 @@ Maaari mo ring gamitin ang `wp` at `php` [query parameters](/developers/apis/que
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 Para matuto pa tungkol sa paghahanda ng content para sa mga demo, tingnan ang [gabay sa pagbibigay ng content para sa iyong demo](/guides/providing-content-for-your-demo).
 

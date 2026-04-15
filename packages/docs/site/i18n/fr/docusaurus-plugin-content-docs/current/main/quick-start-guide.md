@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: Un guide de 5 minutes pour débuter avec Playground. Apprenez à tester des extensions, à essayer des thèmes et à utiliser différentes versions WP/PHP.
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!-- # Start using WordPress Playground in 5 minutes -->
 
 # Commencez à utiliser WordPress Playground en 5 minutes
@@ -87,7 +85,7 @@ Vous pouvez également mélanger et faire correspondre ces paramètres et même 
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!-- ## Save your site -->
 
@@ -101,17 +99,17 @@ Pour conserver votre site WordPress Playground au delà d’une seule session de
 
 1. Ouvrez le panneau du gestionnaire de site Playground :
 
-<!-- ![Site Manager](@site/static/img/site-manager/open-site-manager.webp) -->
+<!-- ![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp) -->
 
-![Gestionnaire de site](@site/static/img/site-manager/open-site-manager.webp)
+![Gestionnaire de site](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!-- 2. Use the "Download as .zip" button in the additional actions menu -->
 
 2. Utilisez le bouton « Télécharger en tant que .zip » dans le menu supplémentaire des actions
 
-<!-- ![Export button](@site/static/img/site-manager/export-zip-file.webp) -->
+<!-- ![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp) -->
 
-![Bouton export](@site/static/img/site-manager/export-zip-file.webp)
+![Bouton export](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!-- The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there. -->
 
@@ -133,17 +131,17 @@ Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton �
 
 1. Ouvrez le panneau de tableau de bord Playground :
 
-<!-- ![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp) -->
+<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp) -->
 
-![Ouvrir le tableau de bord Playground](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Ouvrir le tableau de bord Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!-- 1. Use the "Import .zip" button at the end of the "Start a new Playground" section -->
 
 1. Utilisez le bouton « Importer .zip » à la fin de la section « Démarrer un nouveau Playground »
 
-<!-- ![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp) -->
+<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp) -->
 
-![Ouvrir le tableau de bord Playground](@site/static/img/dashboard/import-playground.webp)
+![Ouvrir le tableau de bord Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!-- ## Use a specific WordPress or PHP version -->
 
@@ -153,9 +151,9 @@ Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton �
 
 Le moyen le plus rapide de modifier la version de WordPress ou de PHP est d’utiliser le panneau des paramètres sur le [site de démo officiel](https://playground.wordpress.net/) :
 
-<!-- ![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp) -->
+<!-- ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp) -->
 
-![menu Paramètres de WordPress Playground](@site/static/img/playground-settings-menu.webp)
+![menu Paramètres de WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!-- :::info Test your plugin or theme -->
 
@@ -175,7 +173,7 @@ Vous pouvez également utiliser les [paramètres de requête](/developers/apis/q
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!-- To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo). -->
 

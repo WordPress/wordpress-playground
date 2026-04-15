@@ -105,7 +105,7 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 - **ডেভেলপমেন্ট এনভায়রনমেন্ট স্পিন করা**: টিমের একজন নতুন ডেভেলপার ব্লুপ্রিন্ট ডাউনলোড করতে পারে, একটি হাইপোথেটিক্যাল `wp up` কমান্ড চালাতে পারে এবং একটি নতুন ডেভেলপার এনভায়রনমেন্ট পেতে পারে—তাদের প্রয়োজনীয় সবকিছু লোড করা। সম্পূর্ণ CI/CD প্রসেস একই ব্লুপ্রিন্ট পুনরায় ব্যবহার করতে পারে।
 
 <!--
-:::info **More Resources**
+info **More Resources**
 Visit these links to learn more about the (endless) possibilities of Blueprints:
 
 -   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
@@ -113,10 +113,9 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 -   [Blueprints examples](/blueprints/examples)
 -   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
 
-:::
 -->
 
-:::তথ্য **আরও রিসোর্স**
+:::info **আরও রিসোর্স**
 ব্লুপ্রিন্টের (অসীম) সম্ভাবনা সম্পর্কে আরও জানতে এই লিংকগুলি ভিজিট করুন:
 
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের ভূমিকা](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)

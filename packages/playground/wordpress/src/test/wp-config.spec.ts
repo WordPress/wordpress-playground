@@ -7,6 +7,89 @@ import { joinPaths } from '@php-wasm/util';
 
 const documentRoot = '/tmp';
 const wpConfigPath = joinPaths(documentRoot, 'wp-config.php');
+const constsJsonPath = '/internal/shared/consts.json';
+
+function getDefinedConstants(php: PHP): Record<string, unknown> {
+	if (!php.fileExists(constsJsonPath)) {
+		return {};
+	}
+	return JSON.parse(php.readFileAsText(constsJsonPath));
+}
+
+describe('ensureWpConfig', () => {
+	let php: PHP;
+	beforeEach(async () => {
+		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
+	});
+
+	it('should define DB_NAME via defineConstant when wp-config.php does not define it', async () => {
+		php.writeFile(wpConfigPath, `<?php`);
+		await ensureWpConfig(php, documentRoot);
+
+		// wp-config.php should not be modified.
+		expect(php.readFileAsText(wpConfigPath)).toBe(`<?php`);
+
+		// DB_NAME should be defined via the auto-prepend mechanism.
+		expect(getDefinedConstants(php)).toHaveProperty('DB_NAME', 'wordpress');
+
+		// DB_NAME should be available at runtime via the auto-prepend script.
+		const response = await php.run({
+			code: `<?php echo json_encode(['DB_NAME' => DB_NAME]);`,
+		});
+		expect(response.errors).toHaveLength(0);
+		expect(response.json).toEqual({ DB_NAME: 'wordpress' });
+	});
+
+	it('should not define DB_NAME when wp-config.php already defines it', async () => {
+		php.writeFile(
+			wpConfigPath,
+			`<?php
+			define( 'DB_NAME', 'custom-db' );`
+		);
+		await ensureWpConfig(php, documentRoot);
+
+		// wp-config.php should not be modified.
+		expect(php.readFileAsText(wpConfigPath)).toContain(
+			`define( 'DB_NAME', 'custom-db' );`
+		);
+
+		// DB_NAME should not be in consts.json.
+		expect(getDefinedConstants(php)).not.toHaveProperty('DB_NAME');
+	});
+
+	it('should not define DB_NAME when wp-config.php defines it conditionally', async () => {
+		php.writeFile(
+			wpConfigPath,
+			`<?php
+			if(!defined('DB_NAME')) {
+				define('DB_NAME','defined-conditionally');
+			}`
+		);
+		await ensureWpConfig(php, documentRoot);
+
+		// wp-config.php should not be modified.
+		expect(php.readFileAsText(wpConfigPath)).toContain(
+			`define('DB_NAME','defined-conditionally');`
+		);
+
+		// DB_NAME should not be in consts.json.
+		expect(getDefinedConstants(php)).not.toHaveProperty('DB_NAME');
+	});
+
+	it('should only define missing constants and preserve pre-existing ones', async () => {
+		php.writeFile(
+			wpConfigPath,
+			`<?php
+			define( 'DB_NAME', 'custom-db' );`
+		);
+		php.defineConstant('WP_HOME', 'http://example.com');
+		await ensureWpConfig(php, documentRoot);
+
+		const consts = getDefinedConstants(php);
+		expect(consts).not.toHaveProperty('DB_NAME');
+		expect(consts).toHaveProperty('WP_HOME', 'http://example.com');
+	});
+});
 
 /*
  * Tests below execute the rewritten wp-config.php and assert on
@@ -14,92 +97,6 @@ const wpConfigPath = joinPaths(documentRoot, 'wp-config.php');
  * the file still parses and runs, constants have the expected
  * runtime values, and no warnings or errors were introduced.
  */
-describe('ensureWpConfig', () => {
-	let php: PHP;
-	beforeEach(async () => {
-		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
-	});
-
-	it('should define required constants when they are missing', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-			echo json_encode([
-				'DB_NAME' => DB_NAME,
-			]);`
-		);
-		await ensureWpConfig(php, documentRoot);
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`define( 'DB_NAME', 'wordpress' );`);
-
-		const response = await php.run({ code: rewritten });
-		expect(response.json).toEqual({
-			DB_NAME: 'wordpress',
-		});
-	});
-
-	it('should only define missing constants', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-			define( 'DB_USER', 'unchanged' );
-			define( 'AUTH_KEY', 'unchanged' );
-			define( 'WP_DEBUG', true );
-			echo json_encode([
-				'DB_NAME' => DB_NAME,
-				'DB_USER' => DB_USER,
-				'AUTH_KEY' => AUTH_KEY,
-				'WP_DEBUG' => WP_DEBUG,
-			]);`
-		);
-		await ensureWpConfig(php, documentRoot);
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`define( 'DB_NAME', 'wordpress' );`);
-		expect(rewritten).toContain(`define( 'DB_USER', 'unchanged' );`);
-		expect(rewritten).not.toContain(
-			`define( 'DB_USER', 'username_here' );`
-		);
-		expect(rewritten).toContain(`define( 'AUTH_KEY', 'unchanged' );`);
-		expect(rewritten).not.toContain(
-			`define( 'AUTH_KEY', 'put your unique phrase here' );`
-		);
-		expect(rewritten).toContain(`define( 'WP_DEBUG', true );`);
-		expect(rewritten).not.toContain(`define( 'WP_DEBUG', false );`);
-
-		const response = await php.run({ code: rewritten });
-		expect(response.json).toEqual({
-			DB_NAME: 'wordpress',
-			DB_USER: 'unchanged',
-			AUTH_KEY: 'unchanged',
-			WP_DEBUG: true,
-		});
-	});
-
-	it('should not define required constants when they are already defined conditionally', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-			if(!defined('DB_NAME')) {
-				define('DB_NAME','defined-conditionally');
-			}
-			echo json_encode([
-				'DB_NAME' => DB_NAME,
-			]);`
-		);
-		await ensureWpConfig(php, documentRoot);
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).not.toContain(`define( 'DB_NAME', 'wordpress' );`);
-
-		const response = await php.run({ code: rewritten });
-		expect(response.json).toEqual({
-			DB_NAME: 'defined-conditionally',
-		});
-	});
-});
-
 describe('defineWpConfigConstants', () => {
 	let php: PHP;
 	beforeEach(async () => {
