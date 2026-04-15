@@ -68,7 +68,7 @@ VS Code / Cursor instructions:
 	   (The PHP Debug extension by Xdebug has been a solid option)
 	2. Open the Run and Debug panel on the left sidebar
 	3. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
-	3. Click "start debugging"
+	4. Click "start debugging"
 	5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
 	6. Visit Playground in your browser to hit the breakpoint
 
