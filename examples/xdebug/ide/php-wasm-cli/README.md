@@ -58,7 +58,7 @@ Updated IDE config: .idea/workspace.xml
 
 PhpStorm instructions:
 	1. Choose "PHP.wasm CLI - Listen for Xdebug" debug configuration in the toolbar
-	2. Click the debug button (bug icon)`
+	2. Click the debug button (bug icon)
 	3. Set a breakpoint.
 	4. Run your command with PHP.wasm CLI.
 
