@@ -5,7 +5,7 @@ const php = new PHP(await loadNodeRuntime('8.4', { withXdebug: true }));
 
 const response = await php.runStream({ scriptPath: `src/test.php` });
 
-response.stdout.pipeTo(
+await response.stdout.pipeTo(
 	new WritableStream({
 		write(chunk) {
 			process.stdout.write(chunk);
