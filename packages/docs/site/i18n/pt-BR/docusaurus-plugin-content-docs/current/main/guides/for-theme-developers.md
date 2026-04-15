@@ -22,11 +22,11 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 Descubra como [Construir](/about/build), [Testar](/about/test) e [Lançar](/about/launch) seus produtos com o WordPress Playground na seção [Sobre o Playground](/about)
 
-:::
+</div>
 
 <!--
 ## Launching a Playground instance with a theme
@@ -100,9 +100,11 @@ For the past few months, the [GitHub proxy](https://playground.wordpress.net/pro
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Durante os últimos meses, o [proxy do GitHub](https://playground.wordpress.net/proxy) foi uma ferramenta incrivelmente útil para carregar temas de repositórios do GitHub, pois permitia carregar um tema de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso `git:directory`.
-:::
+
+</div>
 
 <!--
 For example the following `blueprint.json` installs a theme from a GitHub repository:
@@ -199,11 +201,11 @@ To provide a good demo of your theme via Playground, you may want to load it wit
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 Para fornecer uma boa demonstração do seu tema via Playground, você pode querer carregá-lo com conteúdo padrão que destaque os recursos do seu tema. Confira o guia [Fornecendo conteúdo para sua demonstração](/guides/providing-content-for-your-demo) para saber mais sobre isso.
 
-:::
+</div>
 
 <!--
 ### `resetData`

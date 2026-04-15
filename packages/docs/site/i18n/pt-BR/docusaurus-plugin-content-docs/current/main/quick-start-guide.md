@@ -66,11 +66,13 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 :::
 -->
 
-:::info O WordPress Playground é privado
+<div class="callout callout-info">
+
+**O WordPress Playground é privado**
 
 Tudo o que você cria fica no seu navegador e **não** é enviado para nenhum servidor remoto, funcionando totalmente de forma privada. Quando terminar, você pode exportar o seu site como um arquivo zip. Ou simplesmente atualize a página e comece de novo!
 
-:::
+</div>
 
 <!--
 ## Try a block, a theme, or a plugin
@@ -211,11 +213,13 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 :::
 -->
 
-:::info Teste seu plugin ou tema
+<div class="callout callout-info">
+
+**Teste seu plugin ou tema**
 
 Testes de compatibilidade com tantas versões do WordPress e do PHP sempre foram um desafio. O WordPress Playground torna esse processo fácil – use-o a seu favor!
 
-:::
+</div>
 
 <!--
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
@@ -243,11 +247,13 @@ You can specify major versions like `wp=6.2` or `php=8.1` and expect the most re
 :::
 -->
 
-:::info Somente versões principais
+<div class="callout callout-info">
+
+**Somente versões principais**
 
 Você pode especificar versões principais, como `wp=6.2` ou `php=8.1`, e esperar a versão mais recente nessa linha. No entanto, você não pode solicitar versões secundárias mais antigas, portanto, nem `wp=6.1.2` nem `php=7.4.9` funcionarão.
 
-:::
+</div>
 
 <!--
 ## Import a WXR file

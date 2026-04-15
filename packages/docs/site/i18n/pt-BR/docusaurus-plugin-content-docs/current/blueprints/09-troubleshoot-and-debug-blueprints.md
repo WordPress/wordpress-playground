@@ -118,9 +118,11 @@ Você pode usar `error_log` para suas próprias mensagens de erro através da [e
 
 <!-- :::info When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance. ::: -->
 
-:::info
+<div class="callout callout-info">
+
 Quando você baixa sua instância do Playground como um `zip` através da opção ["Baixar como zip"](/web-instance#playground-options-menu), você também baixa o arquivo `debug.log` contendo todos os logs de sua instância do Playground.
-:::
+
+</div>
 
 <!-- Ask for help -->
 
