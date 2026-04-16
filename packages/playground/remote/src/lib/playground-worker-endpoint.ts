@@ -271,12 +271,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
-					// PHP 5.2 can't parse closures at all (even with an early
-					// return), so use a minimal PHP-5.2-compatible stub instead.
-					'1-playground-web.php':
-						phpVersion === '5.2'
-							? playgroundWebMuPluginPhp52
-							: playgroundWebMuPlugin,
+					// Legacy PHP can't parse closures at all (even with an
+					// early return), so use a minimal compatible stub instead.
+					'1-playground-web.php': isLegacyPhp
+						? playgroundWebMuPluginPhp52
+						: playgroundWebMuPlugin,
 					'playground-includes': {
 						'wp_http_dummy.php': transportDummy,
 						'wp_http_fetch.php': transportFetch,
