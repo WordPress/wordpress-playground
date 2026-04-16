@@ -192,20 +192,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		const parsedSiteUrl = new URL(siteUrl);
-		// Multi-instance mode breaks on legacy PHP: large include chains
-		// corrupt when a secondary instance reads WordPress sources
-		// through PROXYFS. The root cause is unclear — it may be a
-		// PROXYFS bug rather than a PHP parser issue (these sites worked
-		// on real servers at the time). For now, force single-instance
-		// mode so every request runs on the primary PHP instance. The
-		// SinglePHPInstanceManager serializes concurrent requests via a
-		// 1-concurrency semaphore.
-		// TODO: Investigate the actual root cause in PROXYFS.
 		const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
 			phpVersion,
-			maxPhpInstances: isLegacyPhp ? 1 : undefined,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
