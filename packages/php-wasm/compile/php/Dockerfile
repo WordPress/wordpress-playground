@@ -803,10 +803,12 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "createFunctionApi",\
 "createModule",\
 "ctype_fallback",\
+"Curl_client_write",\
 "Curl_conncache_foreach",\
 "curl_easy_perform",\
 "Curl_http_connect",\
 "Curl_httpchunk_read",\
+"curl_write",\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
@@ -1623,6 +1625,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "unixShmSystemLock",\
 "unixShmUnmap",\
 "unixSync",\
+"unencode_write",\
 "unixTempFileDir",\
 "unixUnlock",\
 "unlockBtreeIfUnused",\
