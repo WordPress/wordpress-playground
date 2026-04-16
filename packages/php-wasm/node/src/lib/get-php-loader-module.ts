@@ -1,5 +1,5 @@
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion, PHPLoaderModule } from '@php-wasm/universal';
 
 /**
  * Loads the PHP loader module for the given PHP version.
@@ -14,7 +14,7 @@ import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
  * @returns The PHP loader module.
  */
 export async function getPHPLoaderModule(
-	version: SupportedPHPVersion | string = LatestSupportedPHPVersion
+	version: AllPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
 	try {
 		switch (version) {
