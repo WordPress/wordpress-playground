@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { logEventType, logger } from '@php-wasm/logger';
+import {
+	logEventType,
+	logger,
+	errorLogPath,
+	LogSeverity,
+} from '@php-wasm/logger';
+import type { PlaygroundClient } from '@wp-playground/remote';
 
 import classNames from 'classnames';
 import css from './style.module.css';
@@ -11,6 +17,7 @@ import type {
 } from '../../lib/state/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
@@ -30,9 +37,35 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	);
 }
 
+/**
+ * Read debug.log from the playground filesystem and feed any
+ * new entries into the logger so they show up in the UI.
+ */
+async function refreshDebugLog(playground: PlaygroundClient) {
+	try {
+		if (!(await playground.fileExists(errorLogPath))) {
+			return;
+		}
+		const content = await playground.readFileAsText(errorLogPath);
+		if (content.length > 0) {
+			const existingLogs = logger.getLogs().join('\n');
+			if (!existingLogs.includes(content.trim())) {
+				logger.logMessage({
+					message: content,
+					severity: LogSeverity.Log,
+					raw: true,
+				});
+			}
+		}
+	} catch {
+		// Playground may not be ready yet
+	}
+}
+
 export function SiteLogs({ className }: { className?: string }) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
+	const playground = usePlaygroundClient();
 
 	const filteredLogs = logs.filter((log) =>
 		log.toLowerCase().includes(searchTerm.toLowerCase())
@@ -40,11 +73,17 @@ export function SiteLogs({ className }: { className?: string }) {
 
 	useEffect(() => {
 		getLogs();
+		// Read debug.log on mount to pick up errors that
+		// were written outside of request.end events.
+		if (playground) {
+			refreshDebugLog(playground).then(getLogs);
+		}
 		logger.addEventListener(logEventType, getLogs);
 		return () => {
 			logger.removeEventListener(logEventType, getLogs);
 		};
-	}, []);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [playground]);
 
 	function getLogs() {
 		// TODO: Fix log querying/listing to be per site
