@@ -157,10 +157,18 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
  *
  * The function automatically patches PROXYFS with mmap support before mounting on
  * PHP 7+, so libraries like ICU can memory-map data files through the proxied
- * filesystem. Legacy PHP (< 7) skips the mmap patch: its `zend_compile_file` trusts
- * stale fstat sizes on mmap'd streams and reads past the real EOF when the primary
- * has rewritten files after the secondary was created. PHP 7+ removed the mmap path
- * from `zend_stream_fixup` entirely so the patch is only needed there.
+ * filesystem.
+ *
+ * Legacy PHP (< 7) skips the mmap patch. PHP 5.x's zend_compile_file
+ * calls mmap() via zend_stream_fixup and trusts fstat() for the buffer
+ * size. When a file is pre-populated in MEMFS before PROXYFS is mounted
+ * over that path (e.g. php.ini written by preRun), fstat() can return
+ * the stale MEMFS size instead of the PROXYFS size, causing the parser
+ * to read past the real EOF and report spurious syntax errors. Without
+ * the mmap patch, Emscripten returns ENOSYS from mmap() and PHP falls
+ * back to a read-based path that handles size mismatches gracefully.
+ * PHP 7+ removed the mmap path from zend_stream_fixup entirely, so the
+ * patch is both safe and needed there (for ICU/intl).
  *
  * Mounts are registered via php.mount() so they survive runtime rotation.
  * When the replica's WASM module is hot-swapped, hotSwapPHPRuntime()
