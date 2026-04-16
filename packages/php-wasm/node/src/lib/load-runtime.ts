@@ -304,19 +304,20 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (isLegacy) {
-		if (
-			options?.withXdebug ||
+	if (
+		isLegacy &&
+		(options?.withXdebug ||
 			options?.withIntl ||
 			options?.withRedis ||
-			options?.withMemcached
-		) {
-			throw new Error(
-				`Extensions (xdebug, intl, redis, memcached) are not ` +
-					`available for legacy PHP ${phpVersion}.`
-			);
-		}
-	} else {
+			options?.withMemcached)
+	) {
+		throw new Error(
+			`Extensions (xdebug, intl, redis, memcached) are not ` +
+				`available for legacy PHP ${phpVersion}.`
+		);
+	}
+
+	if (!isLegacy) {
 		const modernVersion = phpVersion as SupportedPHPVersion;
 		if (options?.withXdebug) {
 			emscriptenOptions = await withXdebug(
