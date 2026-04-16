@@ -91,6 +91,11 @@ export class BlueprintsV1Handler {
 		 * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
 		 * on legacy WP, and the resulting PHP errors create noise.
 		 *
+		 * parseFloat extracts the major version from strings like "6.8",
+		 * "4.9.26", etc. Non-numeric values like "nightly" or "trunk"
+		 * produce NaN, which Number.isFinite rejects — those fall
+		 * through to enabling prefetch (correct for dev builds).
+		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
 		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
