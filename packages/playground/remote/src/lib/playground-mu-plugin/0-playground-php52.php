@@ -21,6 +21,16 @@ if (!function_exists('add_action') || !function_exists('add_filter')) {
 // PHP 5.2 always uses the Dummy transport. wp_http_dummy.php and
 // wp_http_fetch.php both use PHP 5.3+ namespace syntax that causes
 // parse errors on PHP 5.2, so define the transport class inline here.
+//
+// The class is named Wp_Http_Dummy because WP_Http::_dispatch_request()
+// prepends "WP_Http_" to entries from the http_api_transports filter.
+// Returning array('Dummy') makes WP look for WP_Http_Dummy, which
+// matches this class (PHP class names are case-insensitive).
+//
+// The class does not implement the Requests_Transport interface
+// because the Requests library may not be loaded yet at mu-plugin
+// time. The before_request action below sets the transport directly,
+// bypassing the library's interface check.
 if (!class_exists('Wp_Http_Dummy')) {
 	/**
 	 * Minimal dummy HTTP transport for PHP 5.2.
