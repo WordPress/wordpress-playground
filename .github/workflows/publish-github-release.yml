@@ -3,7 +3,7 @@ name: Publish GitHub Release
 on:
     workflow_dispatch:
     workflow_run:
-        workflows: [Release NPM packages]
+        workflows: [Update CHANGELOG.md]
         types:
             - completed
 
