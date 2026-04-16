@@ -95,16 +95,19 @@ export async function loadWebRuntime(
 		};
 	}
 
-	if (loaderOptions.withIntl) {
-		if (isLegacy) {
-			throw new Error(
-				`The intl extension is not available for legacy PHP ${phpVersion}.`
+	if (isLegacy && loaderOptions.withIntl) {
+		throw new Error(
+			`The intl extension is not available for legacy PHP ${phpVersion}.`
+		);
+	}
+
+	if (!isLegacy) {
+		if (loaderOptions.withIntl) {
+			emscriptenOptions = withIntl(
+				phpVersion as SupportedPHPVersion,
+				emscriptenOptions
 			);
 		}
-		emscriptenOptions = withIntl(
-			phpVersion as SupportedPHPVersion,
-			emscriptenOptions
-		);
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([
