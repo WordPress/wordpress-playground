@@ -41,6 +41,19 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
  * Read debug.log from the playground filesystem and feed any
  * new entries into the logger so they show up in the UI.
  */
+// Warnings from WordPress cron jobs that fail because
+// networking is not enabled. These are expected and not
+// actionable by the user.
+const ignoredPatterns = [
+	'wp_update_plugins()',
+	'wp_update_themes()',
+	'wp_version_check()',
+];
+
+function isIgnoredLogLine(line: string): boolean {
+	return ignoredPatterns.some((pattern) => line.includes(pattern));
+}
+
 async function refreshDebugLog(playground: PlaygroundClient) {
 	try {
 		if (!(await playground.fileExists(errorLogPath))) {
@@ -48,13 +61,19 @@ async function refreshDebugLog(playground: PlaygroundClient) {
 		}
 		const content = await playground.readFileAsText(errorLogPath);
 		if (content.length > 0) {
-			const existingLogs = logger.getLogs().join('\n');
-			if (!existingLogs.includes(content.trim())) {
-				logger.logMessage({
-					message: content,
-					severity: LogSeverity.Log,
-					raw: true,
-				});
+			const filtered = content
+				.split('\n')
+				.filter((line) => line.trim() && !isIgnoredLogLine(line))
+				.join('\n');
+			if (filtered.length > 0) {
+				const existingLogs = logger.getLogs().join('\n');
+				if (!existingLogs.includes(filtered.trim())) {
+					logger.logMessage({
+						message: filtered,
+						severity: LogSeverity.Log,
+						raw: true,
+					});
+				}
 			}
 		}
 	} catch {
