@@ -1,21 +1,9 @@
-import { useEffect, useRef } from 'react';
-
-// Handle blueprint install requests from WordPress plugins.
-// This must be a global listener (not inside a React useEffect)
-// because the relay message arrives before the component mounts
-// on subsequent navigations.
-window.addEventListener('message', (e) => {
-	if (
-		typeof e.data === 'object' &&
-		e.data?.type === 'relay' &&
-		e.data?.relayType === 'install-blueprint' &&
-		e.data?.blueprintUrl
-	) {
-		const url = new URL(window.location.origin);
-		url.searchParams.set('blueprint-url', e.data.blueprintUrl);
-		window.location.href = url.toString();
-	}
-});
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
+import { ProgressTracker } from '@php-wasm/progress';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
@@ -35,6 +23,8 @@ import { SiteErrorModal } from '../site-error-modal';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { playgroundLogo } from '@wp-playground/components';
 import Button from '../button';
+// @ts-ignore
+import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -69,6 +59,68 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	);
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const url = clientInfo?.url;
+	const playground = clientInfo?.client;
+
+	const [installingBlueprint, setInstallingBlueprint] = useState<
+		string | null
+	>(null);
+
+	// Apply a blueprint in-place on the running instance.
+	const applyBlueprint = useCallback(
+		async (blueprintUrl: string) => {
+			if (!playground) {
+				return;
+			}
+			try {
+				setInstallingBlueprint('Installing\u2026');
+				const response = await fetch(blueprintUrl);
+				const blueprint = await response.json();
+				const title = blueprint.meta?.title || 'app';
+				setInstallingBlueprint(`Installing ${title}\u2026`);
+
+				const progress = new ProgressTracker();
+				progress.addEventListener('progress', ((e: CustomEvent) => {
+					const caption = e.detail?.caption;
+					if (caption) {
+						setInstallingBlueprint(caption);
+					}
+				}) as EventListener);
+
+				const compiled = await compileBlueprintV1(blueprint, {
+					corsProxy: corsProxyUrl,
+					progress,
+				});
+				await runBlueprintV1Steps(compiled, playground);
+				if (blueprint.landingPage) {
+					await playground.goTo(blueprint.landingPage);
+				}
+			} catch (e) {
+				// eslint-disable-next-line no-console
+				console.error('Failed to apply blueprint:', e);
+				setInstallingBlueprint('Installation failed');
+				setTimeout(() => setInstallingBlueprint(null), 3000);
+				return;
+			}
+			setInstallingBlueprint(null);
+		},
+		[playground]
+	);
+
+	// Handle install-blueprint relay messages from WordPress plugins.
+	useEffect(() => {
+		function handleMessage(event: MessageEvent) {
+			if (
+				typeof event.data === 'object' &&
+				event.data?.type === 'relay' &&
+				event.data?.relayType === 'install-blueprint' &&
+				event.data?.blueprintUrl
+			) {
+				applyBlueprint(event.data.blueprintUrl);
+			}
+		}
+		window.addEventListener('message', handleMessage);
+		return () => window.removeEventListener('message', handleMessage);
+	}, [applyBlueprint]);
 
 	// Reflect the WordPress URL in the browser's address bar.
 	useEffect(() => {
@@ -84,6 +136,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 	return (
 		<div className={css.seamlessWrapper}>
+			{installingBlueprint && (
+				<div className={css.installBanner}>{installingBlueprint}</div>
+			)}
 			<JustViewport siteSlug={siteSlug} />
 
 			<div
