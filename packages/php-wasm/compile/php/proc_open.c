@@ -736,6 +736,9 @@ PHP_MINIT_FUNCTION(proc_open)
 	return SUCCESS;
 }
 
+/* This destructor is never actually invoked because PHP_FUNCTION(proc_open)
+ * always returns FALSE (process spawning is stubbed in WASM). It exists
+ * solely because zend_register_list_destructors_ex requires a callback. */
 static void proc_open_rsrc_dtor_legacy(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
 	struct php_process_handle *proc = (struct php_process_handle*)rsrc->ptr;
