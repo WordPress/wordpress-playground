@@ -8,19 +8,13 @@ import type { PHP } from './php';
  * populated phpVersion yet, matching the pre-refactor default behaviour.
  */
 function isLegacyPhpInstance(phpInstance: PHP): boolean {
-	// Find the private runtime symbol by inspecting its value rather
-	// than assuming it's the first symbol (fragile if more symbols
-	// are added to the PHP class).
-	const symbols = Object.getOwnPropertySymbols(phpInstance);
-	let runtime: any;
-	for (const sym of symbols) {
-		// @ts-ignore
-		const val = phpInstance[sym];
-		if (val && typeof val === 'object' && 'phpVersion' in val) {
-			runtime = val;
-			break;
-		}
-	}
+	// We can't import __private__dont__use because Playground CLI is
+	// built as ESM and php-wasm-node is built as CJS — the imported
+	// symbols would differ in the production build. Use
+	// getOwnPropertySymbols()[0] like the rest of this file.
+	const __private__symbol = Object.getOwnPropertySymbols(phpInstance)[0];
+	// @ts-ignore
+	const runtime = phpInstance[__private__symbol];
 	const major: number | undefined = runtime?.phpVersion?.major;
 	return typeof major === 'number' && major < 7;
 }
