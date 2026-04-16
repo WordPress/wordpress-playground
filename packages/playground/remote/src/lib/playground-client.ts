@@ -27,7 +27,9 @@ export interface WebClientMixin extends ProgressReceiver {
 	 * Sets the navigation event listener.
 	 * @param fn The function to be called when a navigation event occurs.
 	 */
-	onNavigation(fn: (url: string) => void): Promise<void>;
+	onNavigation(
+		fn: (url: string, options?: { title?: string }) => void
+	): Promise<void>;
 
 	/**
 	 * Navigates to the requested path.

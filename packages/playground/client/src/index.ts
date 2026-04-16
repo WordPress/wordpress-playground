@@ -121,6 +121,14 @@ export interface StartPlaygroundOptions {
 	 */
 	sqliteDriverVersion?: string;
 	/**
+	 * HTML to show alongside the progress bar during loading.
+	 * When provided, the progress overlay shows this content
+	 * above the progress indicator. On user interaction the
+	 * content collapses and the progress shrinks to a corner
+	 * pill, then becomes a "ready" button when loading finishes.
+	 */
+	welcomeHtml?: string;
+	/**
 	 * How to handle WordPress installation.
 	 * Defaults to `download-and-install`.
 	 */
@@ -203,6 +211,16 @@ export async function startPlaygroundWeb(
 	progressTracker.setCaption('Preparing WordPress');
 
 	await loadIframe(iframe, remoteUrl);
+
+	if (options.welcomeHtml) {
+		iframe.contentWindow?.postMessage(
+			{
+				type: 'set-welcome-html',
+				html: options.welcomeHtml,
+			},
+			'*'
+		);
+	}
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)

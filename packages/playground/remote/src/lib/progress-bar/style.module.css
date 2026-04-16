@@ -17,9 +17,153 @@
 	transition: opacity ease-in 0.25s;
 }
 
+/* When welcome content is present, the overlay becomes
+   a scrollable container. The welcome content flows
+   normally and the progress section stays fixed in the
+   center, partially blocking the view so the user has
+   to scroll past it — giving us a clear interaction
+   signal. */
+.overlay-with-welcome {
+	overflow-y: auto;
+}
+
 .overlay.is-hidden {
 	opacity: 0;
 	pointer-events: none;
+}
+
+/* Welcome content area — normal flow, scrolls behind
+   the fixed-center progress section */
+.welcome-content {
+	width: 100%;
+	max-width: 680px;
+	margin: 0 auto;
+	padding: 32px 24px 24px;
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.welcome-content h1 {
+	font-size: 1.6rem;
+	font-weight: 700;
+	color: #1e1e1e;
+	margin: 0 0 6px 0;
+}
+
+.welcome-content h2 {
+	font-size: 1.1rem;
+	font-weight: 600;
+	color: #1e1e1e;
+	margin: 24px 0 8px 0;
+}
+
+.welcome-content p {
+	font-size: 0.95rem;
+	line-height: 1.7;
+	color: #3c434a;
+	margin: 0 0 20px 0;
+}
+
+.welcome-content p.subtitle {
+	color: #757575;
+	margin: 0 0 24px 0;
+}
+
+.welcome-content ul {
+	font-size: 0.9rem;
+	line-height: 1.6;
+	color: #3c434a;
+	padding-left: 20px;
+	margin: 0 0 8px 0;
+}
+
+.welcome-content ul li {
+	margin-bottom: 8px;
+}
+
+.welcome-content .tip-box {
+	padding: 16px 20px;
+	border-radius: 12px;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: #1e1e1e;
+	margin-top: 20px;
+	background-color: #f0f7ff;
+}
+
+/* Progress section — caption + bar */
+.progress-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 16px 32px;
+	transition:
+		top 0.3s ease,
+		left 0.3s ease,
+		right 0.3s ease,
+		bottom 0.3s ease,
+		transform 0.3s ease,
+		padding 0.3s ease,
+		border-radius 0.3s ease,
+		box-shadow 0.3s ease;
+}
+
+/* When welcome content is present, fix the progress section
+   in the center of the viewport so it partially blocks the
+   welcome text. The user must scroll past it to read,
+   giving us a clear interaction signal. */
+.overlay-with-welcome .progress-section {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: #fff;
+	border-radius: 16px;
+	box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
+	border: 1px solid #e0e0e0;
+	z-index: 6;
+}
+
+.overlay-with-welcome .progress-section-minimized {
+	top: auto;
+	left: auto;
+	bottom: 16px;
+	right: 16px;
+	transform: none;
+	border-radius: 24px;
+	padding: 10px 20px;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.progress-section-minimized .caption {
+	font-size: 0.85rem;
+}
+
+.progress-section-minimized .wrapper {
+	width: 120px;
+	max-width: none;
+}
+
+/* Ready button shown after loading completes */
+.ready-button {
+	pointer-events: auto;
+	display: block;
+	padding: 10px 24px;
+	background: #1e7d34;
+	color: #fff;
+	border: none;
+	border-radius: 24px;
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 0.9rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s ease;
+	white-space: nowrap;
+}
+
+.ready-button:hover {
+	background: #156b2b;
 }
 
 .wrapper {
@@ -139,6 +283,31 @@
 	.overlay {
 		background: #1e1e1e;
 		color: #fff;
+	}
+
+	.welcome-content h1,
+	.welcome-content h2 {
+		color: #fff;
+	}
+
+	.welcome-content p,
+	.welcome-content ul {
+		color: #ccc;
+	}
+
+	.welcome-content .tip-box {
+		background-color: #2a3a4a;
+		color: #e0e0e0;
+	}
+
+	.overlay-with-welcome .progress-section-minimized {
+		background: #2c2c2c;
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+	}
+
+	.overlay-with-welcome .progress-section {
+		background: #1e1e1e;
+		border-color: #444;
 	}
 
 	.wrapper {

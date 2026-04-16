@@ -70,6 +70,18 @@ export async function bootPlaygroundRemote() {
 	if (hasProgressBar) {
 		bar = new ProgressBar();
 		document.body.prepend(bar.element);
+
+		// Listen for welcome HTML sent by the parent via postMessage
+		// (avoids passing HTML through URL query params).
+		window.addEventListener('message', (event) => {
+			if (
+				event.source === window.parent &&
+				event.data?.type === 'set-welcome-html' &&
+				typeof event.data.html === 'string'
+			) {
+				bar!.setWelcomeHtml(event.data.html);
+			}
+		});
 	}
 	const sw = navigator.serviceWorker;
 	if (!sw) {
@@ -223,7 +235,7 @@ export async function bootPlaygroundRemote() {
 					const path = await playground.internalUrlToPath(data.url);
 					if (path !== lastPath) {
 						lastPath = path;
-						fn(path);
+						fn(path, { title: data.title });
 					}
 				} catch {
 					// Ignore JSON parse errors
@@ -265,7 +277,13 @@ export async function bootPlaygroundRemote() {
 					);
 					if (path !== lastPath) {
 						lastPath = path;
-						fn(path);
+						let title: string | undefined;
+						try {
+							title = contentWindow.document?.title || undefined;
+						} catch {
+							// Cross-origin access denied
+						}
+						fn(path, { title });
 					}
 				} catch {
 					// @TODO: The above call can fail if the remote iframe
