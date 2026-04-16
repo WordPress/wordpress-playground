@@ -822,6 +822,43 @@ function playground_load_mu_plugins() {
 		`
 	);
 
+	// TinyMCE's editor iframe uses document.open(), which creates a
+	// document not controlled by the service worker. Sub-resource
+	// requests from it (content_css) bypass the SW and 404.
+	// Inline the CSS via content_style so no network request is needed.
+	await php.writeFile(
+		'/internal/shared/mu-plugins/inline-tinymce-content-css.php',
+		`<?php
+		function playground_inline_tinymce_content_css($settings) {
+			if (empty($settings['content_css'])) return $settings;
+			$css_urls = explode(',', $settings['content_css']);
+			$inline_css = '';
+			$doc_root = isset($_SERVER['DOCUMENT_ROOT'])
+				? $_SERVER['DOCUMENT_ROOT'] : '/wordpress';
+			foreach ($css_urls as $url) {
+				$url = trim($url);
+				if (!$url) continue;
+				$parsed = parse_url($url);
+				if (!isset($parsed['path'])) continue;
+				$path = preg_replace('#^/scope:[^/]+#', '', $parsed['path']);
+				$file = $doc_root . $path;
+				if (file_exists($file)) {
+					$inline_css .= @file_get_contents($file) . "\\n";
+				}
+			}
+			if ($inline_css !== '') {
+				if (!empty($settings['content_style'])) {
+					$inline_css = $settings['content_style'] . "\\n" . $inline_css;
+				}
+				$settings['content_style'] = $inline_css;
+				$settings['content_css'] = '';
+			}
+			return $settings;
+		}
+		add_filter('tiny_mce_before_init', 'playground_inline_tinymce_content_css');
+		`
+	);
+
 	// Load the error handler before any other PHP file to ensure it
 	// treats all the errors, even those trigerred before mu-plugins
 	// are loaded.
