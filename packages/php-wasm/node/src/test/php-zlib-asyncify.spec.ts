@@ -53,7 +53,6 @@
  * JSPI suspends the entire WASM instance without touching individual
  * stack frames. zlib's locals are preserved because no unwind happens.
  */
-import { vi } from 'vitest';
 import {
 	PHP,
 	SupportedPHPVersions,
