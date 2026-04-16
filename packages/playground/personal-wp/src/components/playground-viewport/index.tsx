@@ -1,5 +1,22 @@
 import { useEffect, useRef } from 'react';
 
+// Handle blueprint install requests from WordPress plugins.
+// This must be a global listener (not inside a React useEffect)
+// because the relay message arrives before the component mounts
+// on subsequent navigations.
+window.addEventListener('message', (e) => {
+	if (
+		typeof e.data === 'object' &&
+		e.data?.type === 'relay' &&
+		e.data?.relayType === 'install-blueprint' &&
+		e.data?.blueprintUrl
+	) {
+		const url = new URL(window.location.origin);
+		url.searchParams.set('blueprint-url', e.data.blueprintUrl);
+		window.location.href = url.toString();
+	}
+});
+
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import {
@@ -16,7 +33,7 @@ import { selectSiteBySlug } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
-import { SiteManagerIcon } from '@wp-playground/components';
+import { playgroundLogo } from '@wp-playground/components';
 import Button from '../button';
 
 export const supportedDisplayModes = [
@@ -46,21 +63,18 @@ export const PlaygroundViewport = ({
 };
 
 function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
-	const clientInfo = useAppSelector(getActiveClientInfo);
 	const dispatch = useAppDispatch();
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
+	const clientInfo = useAppSelector(getActiveClientInfo);
 	const url = clientInfo?.url;
 
 	// Reflect the WordPress URL in the browser's address bar.
-	// Use the raw path from the playground client directly to
-	// preserve dots, query strings, and fragments as-is.
 	useEffect(() => {
 		if (!url) {
 			return;
 		}
-		// Build the full browser URL preserving the origin
 		const browserUrl =
 			window.location.origin + (url.startsWith('/') ? url : '/' + url);
 		if (browserUrl !== window.location.href) {
@@ -70,6 +84,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 	return (
 		<div className={css.seamlessWrapper}>
+			<JustViewport siteSlug={siteSlug} />
+
 			<div
 				className={classNames(css.sidebarLatch, {
 					[css.sidebarLatchHidden]: siteManagerIsOpen,
@@ -88,10 +104,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						dispatch(setSiteManagerOpen(!siteManagerIsOpen));
 					}}
 				>
-					<SiteManagerIcon sidebarActive={siteManagerIsOpen} />
+					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
 			</div>
-			<JustViewport siteSlug={siteSlug} />
 		</div>
 	);
 }

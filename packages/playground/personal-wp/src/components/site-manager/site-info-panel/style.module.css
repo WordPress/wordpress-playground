@@ -389,6 +389,34 @@
 	margin-top: 10px;
 }
 
+.backup-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.backup-now-button {
+	padding: 6px 12px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	background: #fff;
+	font-size: 13px;
+	color: #1e1e1e;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: all 0.15s ease;
+}
+
+.backup-now-button:hover:not(:disabled) {
+	background: #f6f7f7;
+	border-color: #bbb;
+}
+
+.backup-now-button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
 .backup-select {
 	padding: 6px 10px;
 	border: 1px solid #ddd;

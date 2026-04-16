@@ -282,7 +282,7 @@ const autoBackupOptions: { value: AutoBackupInterval; label: string }[] = [
 function BackupSection() {
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const { isDependentMode } = useBackup();
+	const { isDependentMode, performBackup, isBackingUp } = useBackup();
 	const [showHistory, setShowHistory] = useState(false);
 
 	if (!activeSite || activeSite.metadata.storage === 'none') {
@@ -326,17 +326,30 @@ function BackupSection() {
 						WordPress safe.
 					</p>
 					<div className={css.backupControls}>
-						<select
-							className={css.backupSelect}
-							value={autoBackupInterval}
-							onChange={handleAutoBackupChange}
-						>
-							{autoBackupOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
+						<div className={css.backupRow}>
+							<select
+								className={css.backupSelect}
+								value={autoBackupInterval}
+								onChange={handleAutoBackupChange}
+							>
+								{autoBackupOptions.map((option) => (
+									<option
+										key={option.value}
+										value={option.value}
+									>
+										{option.label}
+									</option>
+								))}
+							</select>
+							<button
+								className={css.backupNowButton}
+								onClick={performBackup}
+								disabled={isBackingUp}
+								type="button"
+							>
+								{isBackingUp ? 'Backing up...' : 'Backup now'}
+							</button>
+						</div>
 						<span className={css.backupStatus}>
 							{lastBackupText}
 							{backupHistory.length > 0 && (
