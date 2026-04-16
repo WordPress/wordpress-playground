@@ -30,8 +30,9 @@ describe('CLI', () => {
 
 		expect(startBridge).toHaveBeenCalledWith({
 			cdpPort: 9229,
-			cdpHost: 'localhost',
+			cdpHost: '127.0.0.1',
 			dbgpPort: 9003,
+			phpRoot: undefined,
 		});
 
 		const bridge = await (startBridge as any).mock.results[0].value;
