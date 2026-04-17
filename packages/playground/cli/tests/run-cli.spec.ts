@@ -329,6 +329,81 @@ describe.each(blueprintVersions)(
 			expect(response.text).toContain('My WordPress Website');
 		});
 
+		// Regression test: Playground must not write its own drop-ins
+		// (db.php, object-cache.php, advanced-cache.php, sunrise.php)
+		// into a user-mounted wp-content. Studio and other consumers
+		// mount real wp-content directories into Playground, and any
+		// Playground-managed file written at the wp-content root would
+		// silently take over the user's external site.
+		test('should not drop any new files at the wp-content root when wp-content is mounted', async () => {
+			const hostWpContent = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-wpcontent-')
+			);
+			// Minimal wp-content skeleton. `plugins/` and `themes/`
+			// stay empty so WP's unzip step fills them in; any file
+			// added at the root of hostWpContent after boot must come
+			// from Playground itself.
+			mkdirSync(path.join(hostWpContent, 'plugins'));
+			mkdirSync(path.join(hostWpContent, 'themes'));
+			writeFileSync(
+				path.join(hostWpContent, 'index.php'),
+				'<?php // Silence is golden.\n'
+			);
+			const filesBefore = new Set(readdirSync(hostWpContent));
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'mount-before-install': [
+						{
+							hostPath: hostWpContent,
+							vfsPath: '/wordpress/wp-content',
+						},
+					],
+				});
+
+				// Confirm the site booted so we're actually exercising
+				// the full boot → install flow, not a no-op path.
+				const homeResponse = await fetch(
+					new URL('/', cliServer.serverUrl)
+				);
+				expect(homeResponse.status).toBe(200);
+
+				// No Playground-managed drop-in should appear at the
+				// wp-content root. These four names cover the WP
+				// drop-ins that a rogue Playground write could abuse.
+				for (const dropIn of [
+					'db.php',
+					'object-cache.php',
+					'advanced-cache.php',
+					'sunrise.php',
+				]) {
+					expect(existsSync(path.join(hostWpContent, dropIn))).toBe(
+						false
+					);
+				}
+
+				// Belt-and-suspenders: any net-new *file* at the
+				// wp-content root is a Playground drop-in regression.
+				// Directories added by WordPress itself during install
+				// (e.g. `database/` for the SQLite DB, `fonts/` for
+				// the Fonts API, `upgrade/`) are legitimate and ignored.
+				const filesAfter = new Set(readdirSync(hostWpContent));
+				const unexpectedNewFiles = [...filesAfter]
+					.filter((f) => !filesBefore.has(f))
+					.filter(
+						(f) =>
+							!lstatSync(
+								path.join(hostWpContent, f)
+							).isDirectory()
+					);
+				expect(unexpectedNewFiles).toEqual([]);
+			} finally {
+				rmSync(hostWpContent, { recursive: true, force: true });
+			}
+		}, 120000);
+
 		// Regression test: mounting files under /tmp (which is already
 		// NODEFS-mounted to a shared host directory) used to race
 		// across 6 workers and intermittently fail with ErrnoError 20
