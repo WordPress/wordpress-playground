@@ -6,9 +6,17 @@ import {
 	Spinner,
 	TabPanel,
 } from '@wordpress/components';
-import { chevronLeft, close, trash, external } from '@wordpress/icons';
+import { chevronLeft, close, trash, external, upload } from '@wordpress/icons';
 import classNames from 'classnames';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from 'react';
+import { importWordPressFiles } from '@wp-playground/client';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
@@ -19,7 +27,10 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../../lib/state/redux/store';
-import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
+import {
+	usePlaygroundClient,
+	usePlaygroundClientInfo,
+} from '../../../lib/use-playground-client';
 import { SiteLogs } from '../../log-modal';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { useBackup } from '../../../lib/hooks/use-backup';
@@ -282,12 +293,55 @@ const autoBackupOptions: { value: AutoBackupInterval; label: string }[] = [
 function BackupSection() {
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
+	const playground = usePlaygroundClient();
 	const { isDependentMode, performBackup, isBackingUp } = useBackup();
 	const [showHistory, setShowHistory] = useState(false);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const restoreInputRef = useRef<HTMLInputElement>(null);
 
 	if (!activeSite || activeSite.metadata.storage === 'none') {
 		return null;
 	}
+
+	const handleRestoreClick = () => {
+		restoreInputRef.current?.click();
+	};
+
+	const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		const resetInput = () => {
+			if (restoreInputRef.current) {
+				restoreInputRef.current.value = '';
+			}
+		};
+		if (!file || !playground) {
+			resetInput();
+			return;
+		}
+
+		const proceed = window.confirm(
+			'Restoring a backup will replace all current content. Continue?'
+		);
+		if (!proceed) {
+			resetInput();
+			return;
+		}
+
+		setIsRestoring(true);
+		try {
+			await importWordPressFiles(playground, { wordPressFilesZip: file });
+			await playground.goTo('/');
+			window.location.reload();
+		} catch (error) {
+			logger.error(error);
+			window.alert(
+				'Unable to restore backup. Is it a valid WordPress Playground export?'
+			);
+		} finally {
+			setIsRestoring(false);
+			resetInput();
+		}
+	};
 
 	const { backupHistory = [], autoBackupInterval = 'none' } =
 		activeSite.metadata;
@@ -344,10 +398,28 @@ function BackupSection() {
 							<button
 								className={css.backupNowButton}
 								onClick={performBackup}
-								disabled={isBackingUp}
+								disabled={isBackingUp || isRestoring}
 								type="button"
 							>
 								{isBackingUp ? 'Backing up...' : 'Backup now'}
+							</button>
+							<input
+								type="file"
+								ref={restoreInputRef}
+								onChange={handleRestore}
+								accept=".zip,application/zip"
+								style={{ display: 'none' }}
+							/>
+							<button
+								className={css.backupNowButton}
+								onClick={handleRestoreClick}
+								disabled={
+									!playground || isBackingUp || isRestoring
+								}
+								type="button"
+							>
+								<Icon icon={upload} size={16} />
+								{isRestoring ? 'Restoring...' : 'Restore'}
 							</button>
 						</div>
 						<span className={css.backupStatus}>
