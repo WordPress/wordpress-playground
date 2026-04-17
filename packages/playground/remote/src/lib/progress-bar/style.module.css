@@ -33,46 +33,58 @@
 }
 
 /* Welcome content area — normal flow, scrolls behind
-   the fixed-center progress section */
+   the fixed-center progress section. Typography matches
+   the wordpress.org visual identity: Inter for body/UI,
+   EB Garamond for headings, Blueberry (#3858e9) accent.
+   See https://make.wordpress.org/design/ */
 .welcome-content {
 	width: 100%;
 	max-width: 680px;
 	margin: 0 auto;
 	padding: 32px 24px 24px;
 	font-family:
-		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		'Inter',
+		-apple-system,
+		BlinkMacSystemFont,
+		'Segoe UI',
+		Roboto,
+		sans-serif;
 }
 
 .welcome-content h1 {
-	font-size: 1.6rem;
-	font-weight: 700;
+	font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+	font-size: 2rem;
+	font-weight: 400;
+	line-height: 1.2;
 	color: #1e1e1e;
-	margin: 0 0 6px 0;
+	margin: 0 0 8px 0;
 }
 
 .welcome-content h2 {
-	font-size: 1.1rem;
-	font-weight: 600;
+	font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+	font-size: 1.4rem;
+	font-weight: 400;
+	line-height: 1.3;
 	color: #1e1e1e;
-	margin: 24px 0 8px 0;
+	margin: 28px 0 10px 0;
 }
 
 .welcome-content p {
 	font-size: 0.95rem;
 	line-height: 1.7;
-	color: #3c434a;
+	color: #1e1e1e;
 	margin: 0 0 20px 0;
 }
 
 .welcome-content p.subtitle {
-	color: #757575;
+	color: #656a71;
 	margin: 0 0 24px 0;
 }
 
 .welcome-content ul {
 	font-size: 0.9rem;
 	line-height: 1.6;
-	color: #3c434a;
+	color: #1e1e1e;
 	padding-left: 20px;
 	margin: 0 0 8px 0;
 }
@@ -81,14 +93,17 @@
 	margin-bottom: 8px;
 }
 
-.welcome-content .tip-box {
+/* Use :global so the raw class name in the injected
+   welcomeHtml string matches — CSS modules would
+   otherwise hash .tip-box and break the selector. */
+.welcome-content :global(.tip-box) {
 	padding: 16px 20px;
 	border-radius: 12px;
 	font-size: 0.9rem;
 	line-height: 1.5;
 	color: #1e1e1e;
 	margin-top: 20px;
-	background-color: #f0f7ff;
+	background-color: #eff2ff;
 }
 
 /* Progress section — caption + bar */
@@ -144,26 +159,32 @@
 	max-width: none;
 }
 
-/* Ready button shown after loading completes */
+/* Ready button shown after loading completes.
+   Blueberry (#3858e9) is the wordpress.org brand blue. */
 .ready-button {
 	pointer-events: auto;
 	display: block;
 	padding: 10px 24px;
-	background: #1e7d34;
+	background: #3858e9;
 	color: #fff;
 	border: none;
 	border-radius: 24px;
 	font-family:
-		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		'Inter',
+		-apple-system,
+		BlinkMacSystemFont,
+		'Segoe UI',
+		Roboto,
+		sans-serif;
 	font-size: 0.9rem;
-	font-weight: 600;
+	font-weight: 500;
 	cursor: pointer;
 	transition: background 0.15s ease;
 	white-space: nowrap;
 }
 
 .ready-button:hover {
-	background: #156b2b;
+	background: #2a44c4;
 }
 
 .wrapper {
@@ -295,9 +316,13 @@
 		color: #ccc;
 	}
 
-	.welcome-content .tip-box {
+	.welcome-content :global(.tip-box) {
 		background-color: #2a3a4a;
 		color: #e0e0e0;
+	}
+
+	.caption {
+		color: #fff;
 	}
 
 	.overlay-with-welcome .progress-section-minimized {

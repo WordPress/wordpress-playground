@@ -9,6 +9,7 @@ import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -46,7 +47,84 @@ const plugins = [
 	} as Plugin,
 	...viteGlobalExtensions,
 	buildVersionPlugin('remote-config'),
+	wordpressOrgFontsPlugin(),
 ];
+
+/**
+ * Fetches the Inter + EB Garamond woff2 files served by wordpress.org
+ * (the fonts used across the wp.org site) once, caches them locally,
+ * serves them at `/fonts/*` during dev, and copies them into
+ * `dist/fonts/` on build. The files are not committed to git; they
+ * ship alongside the built assets so the progress overlay matches
+ * the wordpress.org visual identity with no third-party runtime
+ * dependency. See https://make.wordpress.org/design/ for context.
+ */
+function wordpressOrgFontsPlugin(): Plugin {
+	const fonts = [
+		{
+			url: 'https://wordpress.org/wp-content/mu-plugins/pub-sync/global-fonts/Inter/Inter-latin.woff2',
+			filename: 'Inter-latin.woff2',
+		},
+		{
+			url: 'https://wordpress.org/wp-content/mu-plugins/pub-sync/global-fonts/EB-Garamond/EBGaramond-latin.woff2',
+			filename: 'EBGaramond-latin.woff2',
+		},
+	];
+	const cacheDir = path('../../../node_modules/.cache/playground-fonts');
+
+	async function ensureCached() {
+		await mkdir(cacheDir, { recursive: true });
+		await Promise.all(
+			fonts.map(async ({ url, filename }) => {
+				const dest = join(cacheDir, filename);
+				if (existsSync(dest)) return;
+				const res = await fetch(url);
+				if (!res.ok) {
+					throw new Error(
+						`Failed to download font ${url}: ${res.status}`
+					);
+				}
+				await writeFile(dest, Buffer.from(await res.arrayBuffer()));
+			})
+		);
+	}
+
+	return {
+		name: 'wordpress-org-fonts-plugin',
+		async configureServer(server) {
+			const ready = ensureCached();
+			server.middlewares.use('/fonts', async (req, res, next) => {
+				try {
+					await ready;
+					const name = (req.url || '')
+						.replace(/^\/+/, '')
+						.split('?')[0];
+					const match = fonts.find((f) => f.filename === name);
+					if (!match) return next();
+					res.setHeader('Content-Type', 'application/font-woff2');
+					res.setHeader(
+						'Cache-Control',
+						'public, max-age=31536000, immutable'
+					);
+					res.end(await readFile(join(cacheDir, match.filename)));
+				} catch (e) {
+					next(e);
+				}
+			});
+		},
+		async writeBundle({ dir: outputDir }) {
+			if (!outputDir) return;
+			await ensureCached();
+			await mkdir(join(outputDir, 'fonts'), { recursive: true });
+			for (const { filename } of fonts) {
+				copyFileSync(
+					join(cacheDir, filename),
+					join(outputDir, 'fonts', filename)
+				);
+			}
+		},
+	};
+}
 
 export default defineConfig(({ mode }) => {
 	const corsProxyUrl =
