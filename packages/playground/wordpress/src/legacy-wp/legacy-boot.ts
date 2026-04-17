@@ -31,10 +31,11 @@ import {
 } from './legacy-fixes';
 
 /**
- * Network I/O functions that must be disabled on legacy PHP builds
- * (< 7) to avoid "null function or function signature mismatch"
- * WASM crashes when WordPress calls fsockopen or cURL during cron,
- * update checks, dashboard RSS widgets, etc.
+ * Network/transport I/O functions disabled on legacy PHP (< 7) to
+ * keep fsockopen/cURL calls (cron, update checks, dashboard RSS) and
+ * mail() (no sendmail/SMTP transport in the WASM sandbox; same "null
+ * function or function signature mismatch" WASM trap) from crashing
+ * the runtime — let them fail safely instead.
  */
 const LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS = [
 	'fsockopen',
@@ -42,24 +43,13 @@ const LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS = [
 	'curl_init',
 	'curl_exec',
 	'curl_multi_exec',
+	'mail',
 ] as const;
 
 /**
- * Disables network I/O on legacy PHP (< 7) and merges the legacy
- * disable_functions list with any caller-supplied list.
- *
- * No-op on modern PHP — called unconditionally from bootRequestHandler.
- *
- * Old WordPress (2.5–3.6) calls fsockopen/cURL during cron, update
- * checks, and dashboard RSS widgets. The underlying socket/cURL
- * operations trigger "null function or function signature mismatch"
- * WASM errors; disabling them makes the calls fail safely (return
- * false) instead of crashing.
- *
- * setPhpIniEntries overwrites keys, so we merge with whatever the
- * caller already passed in `phpIniEntries` — otherwise a
- * networking-disabled list from the web worker would be silently
- * replaced by this legacy-only list.
+ * Merges the legacy network disable list into php.ini for legacy PHP
+ * (no-op on modern). Merge instead of overwrite so a caller-supplied
+ * disable_functions list is preserved.
  */
 export function applyLegacyPhpIniOverrides(
 	php: PHP,
@@ -220,17 +210,12 @@ async function installLegacyWordPress(
  * catches the throw and proceeds to post-install fixups regardless.
  */
 async function runLegacyInstaller(php: PHP): Promise<void> {
-	// WP 1.0–3.0 on legacy PHP: skip the install.php HTTP request
-	// entirely. These old installers trigger various unreachable
-	// WASM traps (mail(), mysql_get_server_info(), etc.) that the
-	// PHP 5.2 binary can't handle. The post-install PDO fallback
-	// creates all tables, users, options, and content without
-	// running any crashable PHP.
-	//
-	// WP 1.0–1.2: the post-install PDO fallback creates the very
-	//   simple schema entirely.
-	// WP 1.5–3.0: needs dbDelta() for proper table schemas but
-	//   skips the rest of the installer.
+	// WP 1.0–3.0 installers trigger WASM traps (mail(),
+	// mysql_get_server_info(), etc.) on the PHP 5.2 binary, so skip
+	// the install.php HTTP request entirely.
+	//   WP 1.0–1.2: post-install PDO fallback builds the full schema.
+	//   WP 1.5–3.0: needs dbDelta() for the schema; the rest is left
+	//     to the PDO fallback.
 	const wpVersion = readOnDiskWpVersion(php, php.documentRoot);
 	if (wpVersion !== null) {
 		const parsed = parseFloat(wpVersion);
@@ -243,22 +228,15 @@ async function runLegacyInstaller(php: PHP): Promise<void> {
 		}
 	}
 
-	// Disable networking + mail functions during installation. This
-	// must include all the functions already disabled via
-	// applyLegacyPhpIniOverrides() — setPhpIniEntries replaces the
-	// entire value, so listing only 'fsockopen' would re-enable
-	// curl_init/curl_exec and cause WASM crashes when the installer
-	// makes outbound HTTP requests.
-	//
-	// error_reporting is suppressed at the ini level too: old WP
-	// class declarations (e.g. Walker_Page) trigger E_STRICT during
-	// compile, which PHP may report using the ini value rather than
-	// the runtime error_reporting() call.
+	// withPHPIniValues replaces values wholesale, so re-list every
+	// function from LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS (mail() is
+	// already in there — the installer otherwise calls it and crashes).
+	// error_reporting is suppressed at the ini level because old WP
+	// class declarations trigger E_STRICT at compile time, which PHP
+	// reports against the ini value rather than the runtime
+	// error_reporting() call.
 	const iniOverrides: Record<string, string> = {
-		disable_functions: [
-			...LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS,
-			'mail',
-		].join(','),
+		disable_functions: LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS.join(','),
 		allow_url_fopen: '0',
 		error_reporting: String(LEGACY_WP_ERROR_REPORTING_VALUE),
 	};
@@ -284,10 +262,9 @@ async function runLegacyInstaller(php: PHP): Promise<void> {
 			})
 	);
 
-	// Skip isWordPressInstalled() entirely — it can trigger a WASM
-	// trap (not a PHP exception) on old WordPress (< 3.0), which
-	// corrupts the runtime beyond recovery. Use the installer
-	// response text as a heuristic instead.
+	// isWordPressInstalled() can WASM-trap on old WP (< 3.0) and
+	// corrupt the runtime, so detect success from the installer
+	// response text instead.
 	const installSucceeded =
 		response.text?.includes('Success') ||
 		response.text?.includes('successful') ||
@@ -357,8 +334,8 @@ async function setLegacyPermalinkStructureViaPdo(php: PHP): Promise<void> {
 
 /**
  * Runs dbDelta() and populate_options/populate_roles without the
- * full wp_install() function. Used for WP 2.3–3.0 where the
- * installer crashes but we still need the table schemas.
+ * full wp_install(). Used for WP 2.1–3.0 where install.php crashes
+ * but we still need the table schemas.
  */
 async function runDbDeltaOnly(php: PHP): Promise<void> {
 	try {
@@ -370,26 +347,17 @@ async function runDbDeltaOnly(php: PHP): Promise<void> {
 				ob_start();
 				require getenv('DOCUMENT_ROOT') . '/wp-load.php';
 				ob_clean();
-				// Load upgrade functions for dbDelta
 				if (file_exists(ABSPATH . 'wp-admin/includes/upgrade.php')) {
 					require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 				} elseif (file_exists(ABSPATH . 'wp-admin/upgrade-functions.php')) {
 					require_once ABSPATH . 'wp-admin/upgrade-functions.php';
 				}
-				// Create tables via dbDelta — the critical step that
-				// creates the proper schema for the WP version.
 				if (function_exists('make_db_current_silent')) {
 					make_db_current_silent();
 				}
-				// populate_options/populate_roles on WP 2.3+ only.
-				// WP 2.1-2.2 crash in these functions (WASM traps
-				// from mail/network calls that bypass PHP try/catch).
-				// The PDO fallback seeds essential options/roles.
-				global $wp_version;
-				// populate_options sets db_version and other essential
-				// options. populate_roles creates the roles/capabilities.
-				// On PHP 5.2 WP 2.1-2.2 these crash with WASM traps.
-				// Run them for any WP version that defines them.
+				// Seed essential options/roles when the loader exposes
+				// them. The PDO fallback in runPostInstallLegacyFixups
+				// backfills anything missing if either call dies.
 				if (function_exists('populate_options')) populate_options();
 				if (function_exists('populate_roles')) populate_roles();
 				echo 'OK';

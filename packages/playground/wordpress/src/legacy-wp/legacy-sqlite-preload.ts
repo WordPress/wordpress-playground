@@ -53,12 +53,9 @@ export async function preloadLegacySqliteIntegration(
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
 
-	// Guard every top-level add_action() call for WordPress < 3.1
-	// compatibility: when loaded via the lazy $wpdb loader,
-	// WordPress hooks may not be available yet. Wrap the call so
-	// it short-circuits to a no-op when add_action is undefined.
-	// Anchors on start-of-line regardless of how the call is
-	// formatted (single-line, multi-line, with or without space).
+	// When loaded via the lazy $wpdb loader on WP < 3.1, the hook
+	// API isn't available yet. Skip top-level add_action() calls
+	// in that window; the multiline anchor matches all formattings.
 	dbPhp = dbPhp.replace(
 		/^add_action\(/gm,
 		'function_exists("add_action") && add_action('
@@ -68,12 +65,9 @@ export async function preloadLegacySqliteIntegration(
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
 
-	// Playground writes a @playground-managed db.php drop-in for
-	// legacy WordPress (see legacy-wp/legacy-boot.ts). The preload
-	// guard must therefore recognise our own marker and *not* skip
-	// itself on its own file — a blind `file_exists` guard would
-	// short-circuit the lazy-$wpdb setup on every request. Only a
-	// real user-supplied db.php should abort the preload.
+	// Recognise our own @playground-managed db.php marker so the
+	// preload doesn't skip itself on its own drop-in — only a
+	// real user-supplied db.php should abort.
 	const dbPhpGuard = `
 if(file_exists(${phpVar(dbPhpPath)})) {
 	$_pg_db_php = @file_get_contents(${phpVar(dbPhpPath)});
@@ -118,10 +112,10 @@ function buildLegacySqlitePreload(
 	return `<?php
 ${dbPhpGuard}?>
 <?php
-// Shim __() etc. for WP 1.0, which predates the l10n layer:
-// the SQLite plugin calls __() from print_error(). Skip if WP
-// already ships an l10n file to avoid a redeclare fatal
-// (WP 1.2–1.4 used wp-l10n.php; WP 1.5+ uses l10n.php).
+// Shim __() etc. only for WP < 1.2 (no l10n layer; the SQLite
+// plugin calls __() from print_error()). WP 1.2–1.4 ship
+// wp-l10n.php and WP 1.5+ ships l10n.php — defining the shims
+// then would fatal on redeclare.
 $_pg_doc_root = isset($_SERVER['DOCUMENT_ROOT'])
 	? $_SERVER['DOCUMENT_ROOT'] : '/wordpress';
 if (
@@ -148,9 +142,9 @@ if (
 ?>
 <?php
 ${SQLITE_PRELOAD_LOADER_CLASS(
-	// Call reinitialize_sqlite() for old WordPress (< 3.0) where
-	// the SQLite plugin's db_connect() is never called because old
-	// wpdb does mysql_connect() inline.
+	// WP < 3.0's wpdb does mysql_connect() inline so the SQLite
+	// plugin's db_connect() never runs; reinitialize_sqlite()
+	// swaps the dbh in place after the integration is loaded.
 	`require_once ${phpVar(muPluginPath)};
         if (
             isset($GLOBALS['wpdb']) &&
@@ -159,9 +153,8 @@ ${SQLITE_PRELOAD_LOADER_CLASS(
             $GLOBALS['wpdb']->reinitialize_sqlite();
         }`
 )}
-// These stubs return truthy values because old WordPress (< 3.0)
-// calls mysql_connect() directly in wpdb::__construct() and calls
-// bail() on a falsy return.
+// WP < 3.0's wpdb::__construct calls mysql_connect()/mysqli_init()
+// inline and bail()s on a falsy return, so make these truthy.
 if(!function_exists('mysqli_connect')) {
 	function mysqli_connect() { return true; }
 }
@@ -191,8 +184,8 @@ if (!function_exists('str_ends_with')) {
 	}
 }
 if (PHP_MAJOR_VERSION < 7) {
-	// E_DEPRECATED (8192) and E_STRICT (2048) are constants
-	// added in PHP 5.3 - use numeric values for PHP 5.2 compat.
+	// E_DEPRECATED (8192) / E_STRICT (2048) are PHP 5.3+ symbols;
+	// LEGACY_WP_ERROR_REPORTING_PHP_EXPR uses numeric literals.
 	$level = ${LEGACY_WP_ERROR_REPORTING_PHP_EXPR};
 	error_reporting($level);
 	ini_set('error_reporting', $level);

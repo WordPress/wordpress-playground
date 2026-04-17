@@ -15,28 +15,29 @@ import type { UniversalPHP } from '@php-wasm/universal';
 import { writeCommonPlatformMuPlugins } from '../platform-mu-plugins';
 
 /**
- * Auto-login body for legacy WordPress (1.0-2.5).
- *
- * Handles three auth eras:
- * - WP 2.5+: wp_set_current_user() + wp_set_auth_cookie() (HMAC cookies)
- * - WP 1.5-2.4: USER_COOKIE/PASS_COOKIE constants + wp_setcookie()
- * - WP 1.0-1.2: wordpressuser_/wordpresspass_ cookies + global vars
- *
- * Each era uses different cookie names and hashing. The code detects
- * which API is available and uses the appropriate method.
+ * Auto-login body for legacy WordPress, dispatching to the cookie/auth
+ * API actually present at runtime:
+ *   WP 2.5+   — wp_set_current_user() + wp_set_auth_cookie() (HMAC).
+ *   WP 1.5–2.4 — USER_COOKIE/PASS_COOKIE constants + double-md5.
+ *   WP 1.0–1.2 — wordpressuser_/wordpresspass_ cookies + globals.
  */
 const LEGACY_AUTO_LOGIN_BODY = `
-			// WP 2.5+: modern auth API
 			if (function_exists('is_user_logged_in') && is_user_logged_in()) {
 				return;
 			}
 			if (headers_sent()) {
 				return;
 			}
-			$_pg_skip_redirect = defined('PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT')
-				&& PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT;
 
-			// WP 2.5+: use the standard auth API
+			// All branches below run with PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT
+			// in effect: playground_load_mu_plugins() in env.php defines it
+			// unconditionally before invoking playground_auto_login() (and
+			// before the init hook can fire it), so the legacy auto-login
+			// flow never redirects — it populates $_COOKIE in-process and
+			// relies on wp_set_auth_cookie() / setcookie() for persistence
+			// across requests via HttpCookieStore.
+
+			// WP 2.5+
 			if (function_exists('wp_set_current_user') && function_exists('wp_set_auth_cookie')) {
 				$user = function_exists('get_user_by')
 					? get_user_by('login', $user_name)
@@ -45,69 +46,44 @@ const LEGACY_AUTO_LOGIN_BODY = `
 				if (!$user) return;
 
 				wp_set_current_user($user->ID, $user->user_login);
-				if ($_pg_skip_redirect) {
-					// Persist auth cookies so that subsequent PHP requests
-					// (e.g. form POSTs to post.php) also see the user as
-					// logged in. wp_set_auth_cookie() emits Set-Cookie
-					// headers that are captured by HttpCookieStore and
-					// re-injected as Cookie: on every following request.
-					// We also populate $_COOKIE in-process so that
-					// auth_redirect() and wp_verify_nonce() work for the
-					// remainder of this request without needing a redirect.
-					wp_set_auth_cookie($user->ID);
-					if (function_exists('wp_generate_auth_cookie')) {
-						$_pg_exp = time() + 172800;
-						if (defined('AUTH_COOKIE'))
-							$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'auth');
-						if (defined('SECURE_AUTH_COOKIE'))
-							$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'secure_auth');
-						if (defined('LOGGED_IN_COOKIE'))
-							$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'logged_in');
-					}
-				} else {
-					wp_set_auth_cookie($user->ID);
-					if (function_exists('do_action')) {
-						do_action('wp_login', $user->user_login, $user);
-					}
-					setcookie('playground_auto_login_already_happened', '1');
-					if (!headers_sent()) {
-						header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
-						exit;
-					}
+				// Populate $_COOKIE in-process so auth_redirect() and
+				// wp_verify_nonce() see the session for the remainder
+				// of this request; wp_set_auth_cookie() also emits
+				// Set-Cookie for subsequent requests.
+				wp_set_auth_cookie($user->ID);
+				if (function_exists('wp_generate_auth_cookie')) {
+					$_pg_exp = time() + 172800;
+					if (defined('AUTH_COOKIE'))
+						$_COOKIE[AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'auth');
+					if (defined('SECURE_AUTH_COOKIE'))
+						$_COOKIE[SECURE_AUTH_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'secure_auth');
+					if (defined('LOGGED_IN_COOKIE'))
+						$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user->ID, $_pg_exp, 'logged_in');
 				}
 				return;
 			}
 
-			// WP 1.5-2.4: USER_COOKIE/PASS_COOKIE with double-md5
+			// WP 1.5–2.4
 			if (defined('USER_COOKIE') && defined('PASS_COOKIE')) {
 				$_pg_pass_cookie = md5(md5('password'));
 				$_COOKIE[USER_COOKIE] = $user_name;
 				$_COOKIE[PASS_COOKIE] = $_pg_pass_cookie;
-				// Persist cookies to the browser so subsequent requests
-				// see the user as logged in. Without these setcookie()
-				// calls, only the current request would be authenticated.
 				if (!headers_sent()) {
 					$_pg_exp = time() + 172800;
 					setcookie(USER_COOKIE, $user_name, $_pg_exp, '/');
 					setcookie(PASS_COOKIE, $_pg_pass_cookie, $_pg_exp, '/');
 				}
-				// Reset cached anonymous user so capability checks work
 				$GLOBALS['current_user'] = null;
 				if (function_exists('get_currentuserinfo')) {
 					get_currentuserinfo();
 				}
-				if (!$_pg_skip_redirect) {
-					setcookie('playground_auto_login_already_happened', '1', 0, '/');
-					if (!headers_sent()) {
-						header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
-						exit;
-					}
-				}
 				return;
 			}
 
-			// WP 1.0-1.2: wordpressuser_/wordpresspass_ cookies
-			// and global user variables instead of WP_User objects.
+			// WP 1.0–1.2: cookies are usually already set by
+			// playground_legacy_set_auth_cookies_early() in env.php,
+			// but WP 1.0–1.2 reads its user state from globals (no
+			// WP_User), so populate those explicitly here.
 			$cookiehash = defined('COOKIEHASH')
 				? COOKIEHASH
 				: (isset($GLOBALS['cookiehash']) && $GLOBALS['cookiehash']
@@ -121,15 +97,11 @@ const LEGACY_AUTO_LOGIN_BODY = `
 				$_pg_pass_cookie_value = md5(md5('password'));
 				$_COOKIE[$_pg_user_cookie_name] = $user_name;
 				$_COOKIE[$_pg_pass_cookie_name] = $_pg_pass_cookie_value;
-				// Persist cookies to the browser so subsequent requests
-				// see the user as logged in.
 				if (!headers_sent()) {
 					$_pg_exp = time() + 172800;
 					setcookie($_pg_user_cookie_name, $user_name, $_pg_exp, '/');
 					setcookie($_pg_pass_cookie_name, $_pg_pass_cookie_value, $_pg_exp, '/');
 				}
-				// Populate global user variables that WP 1.0-1.2 uses
-				// instead of a WP_User object.
 				if (function_exists('get_userdatabylogin')) {
 					$userdata = get_userdatabylogin($user_name);
 					if ($userdata) {
@@ -141,13 +113,6 @@ const LEGACY_AUTO_LOGIN_BODY = `
 						$GLOBALS['user_url']      = isset($userdata->user_url) ? $userdata->user_url : '';
 						$GLOBALS['user_nickname'] = isset($userdata->user_nickname) ? $userdata->user_nickname : $user_name;
 						$GLOBALS['user_pass_md5'] = md5(isset($userdata->user_pass) ? $userdata->user_pass : '');
-					}
-				}
-				if (!$_pg_skip_redirect) {
-					setcookie('playground_auto_login_already_happened', '1', 0, '/');
-					if (!headers_sent()) {
-						header("Location: " . $_SERVER['REQUEST_URI'], true, 302);
-						exit;
 					}
 				}
 				return;
@@ -174,12 +139,10 @@ export async function setupLegacyPlatformLevelMuPlugins(
 	await php.writeFile(
 		'/internal/shared/auto_prepend_file.php',
 		`<?php
-// Polyfill the PHP 4 superglobals that WP 1.0-2.5 still rely on.
-// These were aliases of $_GET / $_POST / $_COOKIE / $_SERVER /
-// $_FILES / $_ENV / $_REQUEST and were removed in PHP 5.4.
-// Bind by reference so later writes to $_COOKIE (e.g. in
-// auth bypass shims) are reflected in $HTTP_COOKIE_VARS that
-// WP 1.0's get_currentuserinfo() reads.
+// Polyfill the PHP 4 superglobals WP 1.0–2.5 still reads (removed
+// in PHP 5.4). Bind by reference so later writes to $_COOKIE
+// reach $HTTP_COOKIE_VARS, which WP 1.0's get_currentuserinfo()
+// consults.
 $GLOBALS['HTTP_GET_VARS']     = &$_GET;
 $GLOBALS['HTTP_POST_VARS']    = &$_POST;
 $GLOBALS['HTTP_COOKIE_VARS']  = &$_COOKIE;
@@ -187,9 +150,8 @@ $GLOBALS['HTTP_SERVER_VARS']  = &$_SERVER;
 if (isset($_FILES))   $GLOBALS['HTTP_POST_FILES']   = &$_FILES;
 if (isset($_ENV))     $GLOBALS['HTTP_ENV_VARS']     = &$_ENV;
 if (isset($_SESSION)) $GLOBALS['HTTP_SESSION_VARS'] = &$_SESSION;
-// Also populate the top-level names that register_long_arrays +
-// register_globals=On used to expose. WP 1.0 reads $PHP_SELF and
-// $REMOTE_ADDR at the top level instead of $_SERVER[...].
+// Top-level names register_globals=On used to expose. WP 1.0
+// reads $PHP_SELF / $REMOTE_ADDR directly instead of $_SERVER.
 if (isset($_SERVER['PHP_SELF'])) $GLOBALS['PHP_SELF'] = $_SERVER['PHP_SELF'];
 if (isset($_SERVER['REMOTE_ADDR'])) $GLOBALS['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'];
 if (isset($_SERVER['REQUEST_URI'])) $GLOBALS['REQUEST_URI'] = $_SERVER['REQUEST_URI'];
@@ -206,17 +168,11 @@ if(file_exists('/internal/shared/consts.json')) {
 foreach (glob('/internal/shared/preload/*.php') as $file) {
 	require_once $file;
 }
-// Start output buffering so that PHP notices and warnings from
-// WordPress's initialisation phase do not prematurely send the
-// HTTP response headers. Without buffering, the first notice
-// (printed as an HTML <b>Warning</b>: ... snippet) commits the
-// headers, making headers_sent() return true for the rest of
-// the request. That prevents the auto-login mu-plugin from
-// calling wp_set_auth_cookie() and setcookie() later during
-// the init hook, which in turn breaks nonce validation for
-// POST requests (e.g. saving a new post).
-// PHP flushes the buffer automatically at script end, so all
-// WordPress output is still delivered to the browser.
+// Buffer early output so a stray PHP notice doesn't commit the
+// response headers before the auto-login mu-plugin gets a chance
+// to call wp_set_auth_cookie() / setcookie() on the init hook —
+// otherwise nonce validation breaks on POST requests. PHP flushes
+// the buffer at script end so output still reaches the browser.
 ob_start();
 `
 	);
@@ -224,14 +180,11 @@ ob_start();
 	await php.writeFile(
 		'/internal/shared/preload/env.php',
 		`<?php
-// Detect the WordPress hook format from the WP version on disk.
-// WP 1.0: flat array of function name strings (no priorities).
-// WP 1.2: $wp_filter[$tag][$priority][] = 'func_name'.
-// WP 1.5+: $wp_filter[$tag][$priority][] = array('function'=>...,'accepted_args'=>N).
-// Returns 'wp10', 'wp12', or 'wp15'.
-function _playground_detect_wp_hook_format() {
-	static $format = null;
-	if ($format !== null) return $format;
+// Reads $wp_version from the WordPress install on disk. Falls back
+// to '1.0' so callers can use version_compare() unconditionally.
+function _playground_detect_wp_version() {
+	static $version = null;
+	if ($version !== null) return $version;
 	$doc_root = isset($_SERVER['DOCUMENT_ROOT'])
 		? $_SERVER['DOCUMENT_ROOT'] : '/wordpress';
 	$version_path = $doc_root . '/wp-includes/version.php';
@@ -239,6 +192,16 @@ function _playground_detect_wp_hook_format() {
 	if (file_exists($version_path)) {
 		include $version_path;
 	}
+	$version = $wp_version;
+	return $version;
+}
+
+// Returns 'wp10', 'wp12', or 'wp15' based on the WP version on
+// disk — the three $wp_filter shapes apply_filters() understands.
+function _playground_detect_wp_hook_format() {
+	static $format = null;
+	if ($format !== null) return $format;
+	$wp_version = _playground_detect_wp_version();
 	if (version_compare($wp_version, '1.5', '>=')) {
 		$format = 'wp15';
 	} elseif (version_compare($wp_version, '1.2', '>=')) {
@@ -249,10 +212,9 @@ function _playground_detect_wp_hook_format() {
 	return $format;
 }
 
-// Allow adding filters/actions prior to loading WordPress.
-// $function_to_add MUST be a string.
-// Stores the callback in the $wp_filter format that the target
-// WordPress version's apply_filters() expects.
+// Adds filters/actions before WordPress is loaded by writing the
+// $wp_filter shape the target version expects. $function_to_add
+// MUST be a string (no closures).
 function playground_add_filter( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
 	global $wp_filter;
 	$fmt = _playground_detect_wp_hook_format();
@@ -271,20 +233,18 @@ function playground_add_action( $tag, $function_to_add, $priority = 10, $accepte
 	playground_add_filter( $tag, $function_to_add, $priority, $accepted_args );
 }
 
-// Set legacy WordPress auth cookies BEFORE WordPress loads.
-//
-// For WP 1.0-2.4, the auto-login mu-plugin runs too late: by the
-// time the init hook fires (or may not fire at all on the front
-// page), WordPress has already determined the user's login state
-// from $_COOKIE. We set $_COOKIE here in the preload so WordPress
-// sees the user as logged in from the very first request, and we
-// also persist the cookies via setcookie() so subsequent requests
-// bring them back automatically through Playground's HttpCookieStore.
+// Set WP 1.0–2.4 auth cookies before WordPress loads — by the time
+// the init hook fires (and on WP 1.0–1.2 it may not fire at all on
+// the front page) WordPress has already read $_COOKIE. setcookie()
+// also persists them across requests via HttpCookieStore.
+// WP 2.5+ uses the HMAC auth cookie scheme and doesn't read these
+// wordpressuser_/wordpresspass_ cookies at all — bail there so we
+// don't write inert cookies the runtime would have to clean up.
 function playground_legacy_set_auth_cookies_early() {
 	if (!defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) return;
 	if (isset($_COOKIE['playground_auto_login_already_logged_out'])) return;
+	if (version_compare(_playground_detect_wp_version(), '2.5', '>=')) return;
 
-	// Skip if auth cookies are already set by a previous request.
 	foreach ($_COOKIE as $name => $_) {
 		if (strncmp($name, 'wordpressuser_', 14) === 0) return;
 	}
@@ -292,8 +252,8 @@ function playground_legacy_set_auth_cookies_early() {
 	$user_name = PLAYGROUND_AUTO_LOGIN_AS_USER;
 	$pass_md5 = md5(md5('password'));
 
-	// Read the actual siteurl from the SQLite database so the cookie
-	// hash matches what WordPress 1.0-2.4 computes from get_settings().
+	// Read siteurl from SQLite so the cookie hash matches what
+	// WP 1.0–2.4 derives from get_settings('siteurl').
 	$siteurl = null;
 	$db_path = defined('DB_DIR') ? DB_DIR . '.ht.sqlite' : '';
 	if ($db_path && class_exists('PDO') && file_exists($db_path)) {
@@ -321,14 +281,10 @@ function playground_legacy_set_auth_cookies_early() {
 }
 playground_legacy_set_auth_cookies_early();
 
-// Fix date function comparisons for the SQLite driver.
-// Old WordPress (< 4.0) generates date queries like:
-//   YEAR(post_date)='2026' AND MONTH(post_date)='4'
-// using string literals. The SQLite driver's user-defined
-// YEAR/MONTH/DAYOFMONTH/DAY functions return integers, and
-// SQLite does not coerce types the way MySQL does (integer
-// 4 != text '4' in SQLite). This filter strips quotes around
-// numeric values in these comparisons so both sides are integers.
+// WP < 4.0 emits YEAR(post_date)='2026' AND MONTH(post_date)='4'
+// against MySQL's loose type coercion. The SQLite driver's UDFs
+// return integers and SQLite is strictly typed (4 != '4'), so
+// strip quotes around numeric RHS values to keep both sides ints.
 function playground_fix_sqlite_date_comparisons($query) {
 	if (
 		stripos($query, 'YEAR') === false &&
@@ -345,13 +301,9 @@ function playground_fix_sqlite_date_comparisons($query) {
 }
 playground_add_filter( 'query', 'playground_fix_sqlite_date_comparisons' );
 
-// WP < 2.2 doesn't natively override get_option('siteurl') /
-// get_option('home') with the WP_SITEURL / WP_HOME constants.
-// Modern WP (2.2+) checks these constants in get_option() and
-// returns the constant value, bypassing the DB. For WP 1.0-2.1,
-// we replicate this behavior via option_siteurl / option_home
-// filters so that admin navigation links use the correct
-// Playground scoped URL instead of whatever the DB stores.
+// WP 2.2+ checks WP_SITEURL/WP_HOME inside get_option(); WP <2.2
+// doesn't, so backfill the same behaviour via the option filters
+// to keep admin links on the Playground-scoped URL.
 function playground_override_siteurl($value) {
 	if (defined('WP_SITEURL')) {
 		return WP_SITEURL;
@@ -367,17 +319,16 @@ function playground_override_home($value) {
 playground_add_filter( 'option_siteurl', 'playground_override_siteurl' );
 playground_add_filter( 'option_home', 'playground_override_home' );
 
-// Load our mu-plugins after customer mu-plugins.
-// NOTE: this means our mu-plugins can't use the muplugins_loaded action!
+// Load mu-plugins last so customer mu-plugins win — and so they
+// can't depend on muplugins_loaded. WP < 2.8 doesn't fire that
+// action at all, so init -1000 acts as a fallback (the $loaded
+// flag keeps it idempotent).
 playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
-// WP < 2.8 doesn't fire muplugins_loaded, so also hook into init
-// as a fallback. The $loaded flag ensures mu-plugins load only once.
 playground_add_action( 'init', 'playground_load_mu_plugins', -1000 );
 function playground_load_mu_plugins() {
 	static $loaded = false;
 	if ($loaded) return;
 	$loaded = true;
-	// Load all PHP files from /internal/shared/mu-plugins sorted by filename
 	$mu_plugins_dir = '/internal/shared/mu-plugins';
 	if(!is_dir($mu_plugins_dir)){
 		return;
@@ -387,47 +338,31 @@ function playground_load_mu_plugins() {
 	global $wp_version;
 	$is_legacy_wp = isset($wp_version) && version_compare($wp_version, '2.8', '<');
 	foreach ( $mu_plugins as $mu_plugin ) {
-		// sqlite-database-integration.php is loaded separately
-		// by the preload lazy loader or db.php.
+		// Loaded separately by the preload lazy loader or db.php.
 		if (strpos($mu_plugin, 'sqlite-database-integration') !== false) {
 			continue;
 		}
-		// Most mu-plugins use closures in add_action/add_filter
-		// or call functions like site_url() that don't exist in
-		// very old WordPress. WP < 2.8 crashes on closures in
-		// hooks; WP < 2.6 lacks site_url(). Only load mu-plugins
-		// that are explicitly written for legacy WP compatibility.
+		// WP < 2.8 crashes on closures in hooks and lacks
+		// site_url() (added 2.6). 1-auto-login.php is written
+		// without either, so it's the only mu-plugin we load
+		// on legacy WP.
 		if ($is_legacy_wp) {
-			// 1-auto-login.php uses LEGACY_AUTO_LOGIN_BODY which
-			// handles WP 1.0-2.5 auth APIs with named functions
-			// only (no closures, no site_url()).
 			if (strpos($mu_plugin, '1-auto-login.php') === false) {
 				continue;
 			}
 		}
 		require_once $mu_plugin;
 	}
-	// On WP < 2.8, this function runs during init (priority
-	// -1000). PHP 5.x's foreach iterates over a copy of the
-	// array, so add_action() calls inside the loaded mu-plugin
-	// (e.g. add_action('init', 'playground_auto_login', 1))
-	// won't fire — the init hook list was already snapshotted.
-	// Call the functions directly as a workaround.
-	//
-	// PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT tells the auto-login
-	// function to set cookies in-process without redirecting.
-	// In Playground's service worker, a redirect+Set-Cookie
-	// can cause a race because the cookie isn't applied before
-	// the redirected request fires. Define it unconditionally
-	// for all legacy PHP so the init-hook auto-login uses the
-	// in-process path.
+	// Set cookies in-process without redirecting: a redirect +
+	// Set-Cookie races against the service worker — the cookie
+	// may not be applied before the redirected request fires.
 	if (!defined('PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT')) {
 		define('PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT', true);
 	}
 
-	// WP < 2.8: add_action() calls inside mu-plugins won't
-	// fire because PHP 5.x's foreach iterates a copy. Call
-	// auto-login directly here as a workaround.
+	// PHP 5.x's foreach over $wp_filter['init'] iterates a copy,
+	// so add_action() calls made by the mu-plugin we just loaded
+	// won't fire on this same init run. Call them directly.
 	if ($is_legacy_wp) {
 		if (function_exists('playground_auto_login_redirect_target')) {
 			playground_auto_login_redirect_target();
@@ -504,22 +439,19 @@ function playground_load_mu_plugins() {
 
 	await writeCommonPlatformMuPlugins(php);
 
-	// Load the error handler before any other PHP file to ensure it
-	// treats all the errors, even those trigerred before mu-plugins
-	// are loaded.
-	//
-	// PHP 5.2 doesn't support anonymous functions — use a named
-	// function + set_error_handler. Legacy PHP 5.3+ uses a closure
-	// inside call_user_func() because return statements inside the
-	// handler are swallowed if written as top-level statements in
-	// PHP < 7.
+	// Loaded before any other PHP file so it catches errors from
+	// the very first line, including the preload phase. PHP 5.2
+	// has no closures — use a named function; PHP 5.3+ uses a
+	// closure wrapped in call_user_func() because top-level
+	// `return` inside the handler is swallowed in PHP < 7.
 	await php.writeFile(
 		'/internal/shared/preload/error-handler.php',
-		`<?php
-		${
-			isPhp52
-				? `
-// PHP 5.2 does not support anonymous functions. Use a named function instead.
+		isPhp52 ? buildPhp52ErrorHandler() : buildModernErrorHandler()
+	);
+}
+
+function buildPhp52ErrorHandler(): string {
+	return `<?php
 $GLOBALS['_playground_consts'] = array();
 if (file_exists('/internal/shared/consts.json')) {
 	$GLOBALS['_playground_consts'] = @json_decode(file_get_contents('/internal/shared/consts.json'), true);
@@ -528,84 +460,71 @@ if (file_exists('/internal/shared/consts.json')) {
 }
 function _playground_error_handler($severity, $message, $file, $line) {
 	$playground_consts = $GLOBALS['_playground_consts'];
-`
-				: `
-		call_user_func(function() {
-			$playground_consts = [];
-			if(file_exists('/internal/shared/consts.json')) {
-				$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true) ?: [];
-				$playground_consts = array_keys($playground_consts);
-			}
-			set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {`
-		}
-				${ERROR_HANDLER_BODY}
-				return false;
-			${isPhp52 ? '}' : '});'}
-		${isPhp52 ? "set_error_handler('_playground_error_handler');" : '});'}`
-	);
+${ERROR_HANDLER_BODY}
+	return false;
+}
+set_error_handler('_playground_error_handler');`;
+}
+
+function buildModernErrorHandler(): string {
+	return `<?php
+call_user_func(function() {
+	$playground_consts = [];
+	if(file_exists('/internal/shared/consts.json')) {
+		$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true) ?: [];
+		$playground_consts = array_keys($playground_consts);
+	}
+	set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {
+${ERROR_HANDLER_BODY}
+		return false;
+	});
+});`;
 }
 
 /**
- * The error-handler body — identical for PHP 5.2, legacy PHP (5.3–6),
- * and modern PHP. Kept as a constant so the surrounding boilerplate
- * (named function vs closure) can be switched independently.
+ * Body of the error handler — same logic in PHP 5.2 (named function)
+ * and PHP 5.3+ (closure), so it lives here as a shared template.
  */
 const ERROR_HANDLER_BODY = `
-				/**
-				 * Networking support in Playground registers a http_api_transports filter.
-				 *
-				 * This filter is deprecated, and no longer actively used, but is needed for wp_http_supports().
-				 * @see https://core.trac.wordpress.org/ticket/37708
-				 */
-				if (
-					strpos($message, "http_api_transports") !== false &&
-					strpos($message, "since version 6.4.0 with no alternative available") !== false
-				) {
+		// http_api_transports is deprecated since 6.4.0 but Playground's
+		// networking layer still registers it for wp_http_supports().
+		// @see https://core.trac.wordpress.org/ticket/37708
+		if (
+			strpos($message, "http_api_transports") !== false &&
+			strpos($message, "since version 6.4.0 with no alternative available") !== false
+		) {
+			return;
+		}
+		// Playground predefines constants (SITE_URL, WP_DEBUG, …) that
+		// wp-config.php is allowed to redefine; ours take precedence.
+		if (strpos($message, "already defined") !== false) {
+			foreach($playground_consts as $const) {
+				if(strpos($message, "Constant $const already defined") !== false) {
 					return;
 				}
-				/**
-				 * Playground defines some constants upfront, and some of them may be redefined
-				 * in wp-config.php. For example, SITE_URL or WP_DEBUG. This is expected and
-				 * we want Playground constants to take priority without showing warnings like:
-				 *
-				 * Warning: Constant SITE_URL already defined in
-				 */
-				if (strpos($message, "already defined") !== false) {
-					foreach($playground_consts as $const) {
-						if(strpos($message, "Constant $const already defined") !== false) {
-							return;
-						}
-					}
-				}
-				/**
-				 * Legacy WordPress (2.0–3.5) assigns properties on
-				 * uninitialized variables ($obj->prop = value), which
-				 * was valid in PHP 4 but triggers E_WARNING in PHP 5.x.
-				 * These are benign and cannot be fixed in WP core since
-				 * Playground downloads unmodified WordPress releases.
-				 */
-				if (strpos($message, "Creating default object from empty value") !== false) {
-					return;
-				}
-				/**
-				 * SimplePie/RSS errors when feeds can't be fetched in WASM.
-				 * WP 2.8's dashboard widget calls get_error_string() on a
-				 * null SimplePie object when HTTP requests fail.
-				 */
-				if (strpos($message, "get_error_string() on null") !== false ||
-					strpos($message, "get_error_string() on a non-object") !== false) {
-					return;
-				}
-				/**
-				 * Don't complain about network errors when not connected to the network.
-				 */
-				if (
-					(
-						! defined('USE_FETCH_FOR_REQUESTS') ||
-						! USE_FETCH_FOR_REQUESTS
-					) &&
-					strpos($message, "WordPress could not establish a secure connection to WordPress.org") !== false)
-				{
-					return;
-				}
+			}
+		}
+		// Legacy WP (2.0–3.5) assigns props on uninitialised vars,
+		// valid in PHP 4 but E_WARNING since 5.x. Unfixable in core —
+		// Playground ships unmodified WordPress releases.
+		if (strpos($message, "Creating default object from empty value") !== false) {
+			return;
+		}
+		// WP 2.8's dashboard widget calls get_error_string() on a
+		// null SimplePie when feed HTTP requests fail in WASM.
+		if (strpos($message, "get_error_string() on null") !== false ||
+			strpos($message, "get_error_string() on a non-object") !== false) {
+			return;
+		}
+		// Don't complain about WordPress.org connection errors when
+		// the runtime isn't using fetch().
+		if (
+			(
+				! defined('USE_FETCH_FOR_REQUESTS') ||
+				! USE_FETCH_FOR_REQUESTS
+			) &&
+			strpos($message, "WordPress could not establish a secure connection to WordPress.org") !== false)
+		{
+			return;
+		}
 `;

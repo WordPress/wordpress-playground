@@ -1,19 +1,17 @@
 /**
- * PHP code that provides functional mysql_* function stubs.
+ * mysql_* function stubs that delegate to $wpdb (the SQLite driver)
+ * so WP 1.x code paths that call mysql_query() / mysql_list_tables()
+ * / mysql_fetch_row() directly (bypassing $wpdb) still execute.
  *
- * WP 1.x calls mysql_query(), mysql_list_tables(), mysql_fetch_row(),
- * etc. directly (not through $wpdb). These stubs delegate to $wpdb
- * (the SQLite driver) so the queries actually execute.
+ * Result sets returned by mysql_query() / mysql_list_tables() live in
+ * the $_mysql_results global keyed by an integer id; mysql_fetch_*
+ * consume rows from there.
  *
- * A global array $_mysql_results tracks result sets returned by
- * mysql_query() and mysql_list_tables(), keyed by an integer ID.
- * mysql_fetch_row/mysql_fetch_object consume rows from these.
+ * Every stub is function_exists()-guarded so the constant is safe to
+ * include alongside real ext/mysql or to interpolate twice.
  *
- * All stubs are guarded by function_exists() so they're safe to
- * include multiple times or alongside real mysql_* extensions.
- *
- * This constant is interpolated into PHP template literals in both
- * boot.ts (db.php for WP < 3.0) and index.ts (0-sqlite.php preload).
+ * Interpolated into the 0-sqlite.php preload built by
+ * {@link buildLegacySqlitePreload} in legacy-sqlite-preload.ts.
  */
 export const MYSQL_SHIMS_PHP = `
 // WordPress < 3.0 wpdb::__construct calls mysql_set_charset directly.
