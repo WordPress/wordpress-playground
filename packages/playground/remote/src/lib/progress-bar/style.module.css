@@ -7,7 +7,11 @@
 	display: flex;
 	flex-direction: column;
 	width: 100%;
-	height: 100%;
+	/* Use dynamic viewport height so the scroll container tracks
+	   the visible area on mobile Safari as its address bar shows
+	   and hides — 100% (= large viewport) otherwise leaves the
+	   last content hidden behind the retracted chrome. */
+	height: 100dvh;
 	justify-content: center;
 	align-items: center;
 	box-sizing: border-box;
@@ -22,9 +26,12 @@
    normally and the progress section stays fixed in the
    center, partially blocking the view so the user has
    to scroll past it — giving us a clear interaction
-   signal. */
+   signal. Override justify-content: with overflow, the
+   default center alignment pushes the top of tall content
+   above the scroll origin, where it cannot be reached. */
 .overlay-with-welcome {
 	overflow-y: auto;
+	justify-content: flex-start;
 }
 
 .overlay.is-hidden {
@@ -41,7 +48,11 @@
 	width: 100%;
 	max-width: 680px;
 	margin: 0 auto;
-	padding: 32px 24px 24px;
+	/* Bottom padding clears the minimized progress pill (bottom: 16px,
+	   ~44px tall, plus shadow) once the user has scrolled — otherwise
+	   the last line of content sits behind it, especially on mobile
+	   where content spans the full width. */
+	padding: 32px 24px 96px;
 	font-family:
 		'Inter',
 		-apple-system,
