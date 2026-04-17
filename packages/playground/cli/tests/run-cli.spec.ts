@@ -1085,9 +1085,14 @@ describe('start command', () => {
 			`<?php\n/*\nPlugin Name: Sample Plugin\n*/\n`
 		);
 
-		const exitSpy = vi
-			.spyOn(process, 'exit')
-			.mockImplementation((() => {}) as any);
+		// Throw instead of no-op so any unexpected `process.exit` during
+		// startup fails the test loudly instead of silently continuing in
+		// an inconsistent state.
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+			code?: number | string | null
+		) => {
+			throw new Error(`process.exit unexpectedly called with "${code}"`);
+		}) as any);
 
 		try {
 			await using cliResult = await parseOptionsAndRunCLI([
@@ -1109,6 +1114,7 @@ describe('start command', () => {
 			expect(autoMountedPluginExists).toBe(false);
 		} finally {
 			exitSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
 		}
 	}, 180000);
 });

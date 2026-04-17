@@ -561,17 +561,18 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 				// For the `start` command, `--auto-mount` is a boolean
 				// toggle (path is taken from `--path`), so skip the
-				// directory validation here.
+				// directory validation here. Read the camelCase form for
+				// consistency with the rest of the codebase — yargs-parser
+				// emits both dashed and camelCase keys.
+				const autoMountArg = args['autoMount'];
 				if (
 					args._[0] !== 'start' &&
-					typeof args['auto-mount'] === 'string' &&
-					args['auto-mount']
+					typeof autoMountArg === 'string' &&
+					autoMountArg
 				) {
 					let autoMountIsDir = false;
 					try {
-						const autoMountStats = fs.statSync(
-							args['auto-mount'] as string
-						);
+						const autoMountStats = fs.statSync(autoMountArg);
 						autoMountIsDir = autoMountStats.isDirectory();
 					} catch {
 						autoMountIsDir = false;
@@ -579,7 +580,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 					if (!autoMountIsDir) {
 						throw new Error(
-							`The specified --auto-mount path is not a directory: '${args['auto-mount']}'.`
+							`The specified --auto-mount path is not a directory: '${autoMountArg}'.`
 						);
 					}
 				}
