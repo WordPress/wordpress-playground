@@ -47,6 +47,8 @@ export interface BootSiteClientOptions {
 	clearUrlAfterBlueprintApplied?: boolean;
 	/** Auto-login when WordPress is already installed */
 	autoLogin?: boolean;
+	/** HTML to display alongside the progress bar during boot */
+	welcomeHtml?: string;
 }
 
 export function bootSiteClient(
@@ -58,6 +60,7 @@ export function bootSiteClient(
 		signal,
 		clearUrlAfterBlueprintApplied = false,
 		autoLogin = false,
+		welcomeHtml,
 	} = options;
 
 	return async (
@@ -246,6 +249,7 @@ export function bootSiteClient(
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				welcomeHtml,
 				experimentalBlueprintsV2Runner:
 					!isWordPressInstalled &&
 					new URLSearchParams(window.location.search).get(

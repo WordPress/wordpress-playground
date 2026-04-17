@@ -50,11 +50,97 @@ export const PlaygroundViewport = () => {
 	return activeSite ? <SeamlessViewport siteSlug={activeSite.slug} /> : null;
 };
 
+const tips = [
+	'Look for the small tab in the bottom-left corner to open Site Tools at any time.',
+	'You can bookmark any page &mdash; the browser URL always reflects where you are in WordPress.',
+	'Configure automatic backup downloads in Site Tools so you never lose your work.',
+	'You can install apps from the Site Tools sidebar to add new capabilities.',
+	'Paste a blueprint URL or JSON into the Site Tools panel to add a custom app.',
+	'Your site lives entirely in this browser &mdash; no server, no account needed.',
+	'Avoid reloading the page if you can &mdash; just click around inside WordPress instead.',
+];
+
+const changelog = [
+	{
+		title: 'Seamless fullscreen',
+		text: 'The toolbar is gone. Your WordPress runs in fullscreen, and the browser URL bar shows where you are.',
+	},
+	{
+		title: 'Site Tools sidebar',
+		text: 'Click the tab in the bottom-left corner to access files, database, logs, app installs, backups, and recovery.',
+	},
+	{
+		title: 'Automatic backups',
+		text: 'Configure daily or weekly backup downloads in the sidebar\u2019s About tab.',
+	},
+	{
+		title: 'Install apps',
+		text: 'Browse and install pre-configured apps from the sidebar, or paste any blueprint URL.',
+	},
+];
+
+function getWelcomeHtml(): string {
+	return [
+		'<h1>Your free WordPress</h1>',
+		'<p class="subtitle">Setting things up&hellip; have a read while you wait.</p>',
+		'<p>This is your free WordPress, with a caveat: ',
+		"it's private to you. As you may have heard, ",
+		'WordPress is blogging software, but ',
+		'<strong>my.wordpress.net is just for you</strong>. ',
+		'There are many interesting apps that you can install ',
+		'here. If you want to share it with someone, it is ',
+		'possible to transfer this to a hosted WordPress ',
+		'solution.</p>',
+		'<h2>A few things to know</h2>',
+		'<ul>',
+		'<li>As WordPress has not been designed to be run just ',
+		'in a browser (it normally needs a server), this ',
+		'can behave a little tricky. ',
+		'<strong>If you reload the page, it will reload the ',
+		'whole WordPress.</strong> ',
+		'Maybe just clicking around is better :-)</li>',
+		'<li>Browser-stored data can get lost, so we will ',
+		'automatically tell your browser to ',
+		'<strong>download a backup every day</strong>. This ',
+		'can be turned off in the sidebar if you wish. ',
+		"This is also where you'll be able to restore ",
+		'it, should it get lost.</li>',
+		'</ul>',
+		'<div class="tip-box">',
+		'<strong>&#11088; Bookmark this page</strong> &mdash; This is your ',
+		'WordPress now. Add it to your bookmarks so you can ',
+		'easily come back.',
+		'</div>',
+	].join('');
+}
+
+function getWhatsNewHtml(): string {
+	const tip = tips[Math.floor(Math.random() * tips.length)];
+	const changelogHtml = changelog
+		.map(
+			(entry) =>
+				`<li><strong>${entry.title}</strong> &mdash; ${entry.text}</li>`
+		)
+		.join('');
+
+	return [
+		'<h1>Welcome back!</h1>',
+		'<p class="subtitle">Loading your site&hellip;</p>',
+		`<div class="tip-box"><strong>&#128161; Tip</strong> &mdash; ${tip}</div>`,
+		"<h2>What's new</h2>",
+		`<ul>${changelogHtml}</ul>`,
+	].join('');
+}
+
 function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
+	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug));
 	const dispatch = useAppDispatch();
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
+	);
+	const firstTemporarySiteCreated = useAppSelector(
+		(state) => state.sites.firstTemporarySiteCreated
 	);
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const url = clientInfo?.url;
@@ -64,6 +150,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		clientInfo?.mainTabStatus ??
 		(isDependentMode ? 'missing' : 'connected');
 	const hasLocalRuntimeClient = !isDependentMode && !!playground;
+	const isReturningUser =
+		site?.metadata.storage === 'opfs' && !firstTemporarySiteCreated;
+
+	const welcomeHtml = isReturningUser ? getWhatsNewHtml() : getWelcomeHtml();
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
@@ -372,12 +462,15 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					onClose={closeBlueprintInstallDialog}
 				/>
 			)}
-			<JustViewport siteSlug={siteSlug} iframeRef={iframeRef} />
+			<JustViewport
+				siteSlug={siteSlug}
+				iframeRef={iframeRef}
+				welcomeHtml={welcomeHtml}
+			/>
 			<MainTabRecoveryNotice
 				isDependentMode={isDependentMode}
 				mainTabStatus={mainTabStatus}
 			/>
-
 			<div
 				className={classNames(css.sidebarLatch, {
 					[css.sidebarLatchHidden]: siteManagerIsOpen,
@@ -847,9 +940,11 @@ function getErrorMessage(error: unknown): string {
 export const JustViewport = function JustViewport({
 	siteSlug,
 	iframeRef: externalIframeRef,
+	welcomeHtml,
 }: {
 	siteSlug: string;
 	iframeRef?: RefObject<HTMLIFrameElement>;
+	welcomeHtml?: string;
 }) {
 	const internalIframeRef = useRef<HTMLIFrameElement>(null);
 	const iframeRef = externalIframeRef || internalIframeRef;
@@ -871,6 +966,7 @@ export const JustViewport = function JustViewport({
 				signal: abortController.signal,
 				clearUrlAfterBlueprintApplied: true,
 				autoLogin: true,
+				welcomeHtml,
 			})
 		);
 
