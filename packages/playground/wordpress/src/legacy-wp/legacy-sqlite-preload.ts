@@ -38,6 +38,8 @@ export async function preloadLegacySqliteIntegration(
 	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
 
+	await relaxSqliteDriverSqlModes(php, SQLITE_PLUGIN_FOLDER);
+
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
@@ -99,6 +101,43 @@ if(file_exists(${phpVar(dbPhpPath)})) {
 		}
 		`
 	);
+}
+
+/**
+ * Resets the SQLite driver's default `active_sql_modes` to an empty
+ * set. Matches the MySQL 4.1–5.5 default `sql_mode` that legacy
+ * WordPress (1.0–4.9) was written against — and which WP 3.9+ already
+ * achieves at runtime via `wpdb::set_sql_mode()` by stripping
+ * `NO_ZERO_DATE`, `STRICT_TRANS_TABLES`, etc. from whatever the
+ * server returns. The driver, however, ships with MySQL 8 strict
+ * defaults, which reject values old WP (and the legacy installer)
+ * emit unchanged — most visibly the `'0000-00-00 00:00:00'` draft
+ * placeholder in `wp_insert_post()`.
+ *
+ * Applying this at the driver source level is simpler than patching
+ * every legacy `wp_insert_post()` variant, and it covers WP < 3.9
+ * where `wpdb::set_sql_mode()` doesn't exist.
+ */
+async function relaxSqliteDriverSqlModes(
+	php: UniversalPHP,
+	sqlitePluginFolder: string
+): Promise<void> {
+	const driverPath = joinPaths(
+		sqlitePluginFolder,
+		'wp-includes/database/sqlite/class-wp-pdo-mysql-on-sqlite.php'
+	);
+	if (!(await php.fileExists(driverPath))) return;
+	const content = await php.readFileAsText(driverPath);
+	// Two source variants: multi-line `private` in the standard build,
+	// single-line `public` in the PHP 5.2-downgraded build. The regex
+	// normalises both to an empty array literal.
+	const patched = content.replace(
+		/\$active_sql_modes\s*=\s*array\s*\([^)]*\)\s*;/,
+		'$active_sql_modes = array();'
+	);
+	if (patched !== content) {
+		await php.writeFile(driverPath, patched);
+	}
 }
 
 /**
