@@ -43,7 +43,7 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
 
 1. Navigate to your package on [npmjs.com](https://www.npmjs.com)
 2. Go to **Settings** → **Configure Trusted Publishers**
-3. Add a new trusted publisher with these settings:
+3. Add a new trusted publisher with these settings. All of them are case-sensitive!
     - **Repository owner**: `WordPress`
     - **Repository name**: `wordpress-playground`
     - **Workflow filename**: `publish-npm-packages.yml`
