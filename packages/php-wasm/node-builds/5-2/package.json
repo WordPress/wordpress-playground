@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/node-5-2",
-	"version": "3.1.19",
+	"version": "3.1.20",
 	"description": "PHP 5.2 WebAssembly binaries for node (legacy)",
 	"repository": {
 		"type": "git",
