@@ -54,15 +54,27 @@ class ProgressBar {
 		for (const node of Array.from(doc.body.childNodes)) {
 			this.welcomeElement.appendChild(document.importNode(node, true));
 		}
-		this.welcomeElement.addEventListener('scroll', () => {
-			this.minimize();
-		});
-		this.welcomeElement.addEventListener('click', () => {
-			this.minimize();
-		});
 		// Insert welcome content before the progress section
 		this.element.insertBefore(this.welcomeElement, this.progressSection);
 		this.element.classList.add(css['overlayWithWelcome']);
+
+		// Listen on the overlay (the actual scroll container and
+		// the element that always sits under the pointer, including
+		// the centered progress pill). Scroll events don't bubble
+		// and don't fire on non-scrolling elements, so the listener
+		// has to live here, not on welcomeElement.
+		//
+		// We also listen for wheel/touchstart/keydown: during WASM
+		// boot the main thread can stall, and these "pre-scroll"
+		// signals queue up and fire as soon as the thread breathes —
+		// minimizing as soon as the user expresses any intent.
+		const onInteract = () => this.minimize();
+		const passive = { passive: true } as AddEventListenerOptions;
+		this.element.addEventListener('scroll', onInteract, passive);
+		this.element.addEventListener('wheel', onInteract, passive);
+		this.element.addEventListener('touchstart', onInteract, passive);
+		this.element.addEventListener('click', onInteract);
+		this.element.addEventListener('keydown', onInteract);
 	}
 
 	setOptions(options: ProgressBarOptions) {
