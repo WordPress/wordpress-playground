@@ -1739,7 +1739,10 @@ function expandStartCommandArgs(
 	 * then re-populate it with a resolved path when enabled.
 	 */
 	const autoMountEnabled = args.autoMount !== false;
+	// Scrub both the camelCase and dashed forms yargs-parser emits so a
+	// stale boolean can't leak into downstream consumers that read either.
 	delete newArgs.autoMount;
+	delete (newArgs as Record<string, unknown>)['auto-mount'];
 
 	if (autoMountEnabled) {
 		newArgs.autoMount = path.resolve(process.cwd(), newArgs['path'] ?? '');
