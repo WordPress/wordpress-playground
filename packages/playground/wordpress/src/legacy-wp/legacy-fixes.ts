@@ -14,6 +14,21 @@
  * ({@link runPostInstallLegacyFixups}) and a legacy-db.php generator
  * ({@link generateDbPhpContent}) that legacy-wp/legacy-boot.ts composes
  * into its install flow.
+ *
+ * Patches are plain, idempotent string replacements — no PHP parser.
+ * Each one plants a `pg_*` marker so re-runs are no-ops, and its
+ * match string is narrow enough that non-matching WP versions are
+ * silently skipped. {@link patchWordPressSourceFiles} also gates
+ * range-specific patches on the on-disk `$wp_version`; the rest
+ * rely on match specificity alone. Legacy WP releases are frozen,
+ * so a needle that matches today will keep matching tomorrow.
+ *
+ * The balance is delicate: a patch may have been quietly covering
+ * more WP versions than it advertises, so tightening a needle or
+ * changing the replacement can break one you didn't know about.
+ * The boot-smoke suite in `tests/test-legacy-wp-version-boot.mjs`
+ * exercises every supported legacy WP version end-to-end; run it
+ * before landing changes here.
  */
 import type { PHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
