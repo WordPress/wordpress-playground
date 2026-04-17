@@ -1,17 +1,104 @@
 /**
- * Legacy WordPress version fixes.
+ * WordPress source-file patches for legacy / mid-modern WordPress.
  *
- * Patches WordPress source files at boot time to make WP 1.0 through
- * 4.9 work on the SQLite integration layer with the PHP 5.2 WASM
- * binary.
+ * Two kinds of patches live here:
  *
- * All functions here are only needed for old WP versions or old PHP.
- * Modern WordPress (5.0+) on PHP 7+ doesn't need any of these.
+ *   * Full source-level rewrites that let WordPress 1.0–2.8 boot on
+ *     the PHP 5.2 WASM + SQLite stack. Entry point:
+ *     {@link patchWordPressSourceFiles}. Used from legacy-wp/legacy-boot.ts.
+ *   * A mysqli-check backport that lets WP 5.0–6.1 boot on SQLite.
+ *     Entry point: {@link backportWpPreV62MysqlCheck}. Used from the
+ *     main boot.ts flow.
+ *
+ * In addition this file exposes a PDO-based post-install fixup
+ * ({@link runPostInstallLegacyFixups}) and a legacy-db.php generator
+ * ({@link generateDbPhpContent}) that legacy-wp/legacy-boot.ts composes
+ * into its install flow.
  */
 import type { PHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import { MYSQL_SHIMS_PHP } from './mysql-shims';
+
+/**
+ * Minimal wp-content/db.php drop-in for WP 5.0–6.1 on modern PHP.
+ *
+ * Its only job is to exist so WordPress'
+ * file_exists(WP_CONTENT_DIR . '/db.php') escape hatches — in
+ * wp_check_php_mysql_versions() and install.php step=2's mysql
+ * version check — both fall through. The real SQLite wiring is
+ * handled by the preloaded lazy $wpdb loader, so the content is an
+ * empty, marked placeholder that WordPress require()s as a no-op.
+ */
+const WP_PRE_V62_PLACEHOLDER_DB_PHP = `<?php
+// @playground-managed — Playground-generated db.php placeholder.
+//
+// The SQLite $wpdb is set up by the preloaded lazy loader via
+// auto_prepend_file. This file only needs to exist to satisfy
+// WordPress' own file_exists escape hatches in its MySQL checks.
+`;
+
+/**
+ * Backports WP 6.2's wp_check_php_mysql_versions() mysqli check to
+ * WP 5.0–6.1 running on modern PHP + SQLite. No-op on WP 6.2+ and on
+ * WP < 5.0 (those are handled by the legacy boot path instead).
+ *
+ * ## What WordPress 5.0–6.1 expects
+ *
+ * WP 5.0–6.1 hard-check `extension_loaded('mysqli')` in two places,
+ * which a userland stub cannot satisfy:
+ *
+ *   * wp-includes/load.php :: wp_check_php_mysql_versions()
+ *   * wp-admin/install.php step=2's own mysql version check that
+ *     compares $wpdb->db_version() against $required_mysql_version
+ *
+ * Both have a `file_exists(WP_CONTENT_DIR . '/db.php')` escape
+ * hatch. We rely on that hatch for install.php (placeholder db.php),
+ * but the wp_check_php_mysql_versions() call runs before
+ * wp_initial_constants() defines WP_CONTENT_DIR, so its escape
+ * hatch collapses to 'WP_CONTENT_DIR/db.php' via an undefined
+ * constant and never fires — hence the source patch.
+ *
+ * WP 6.2+ switched wp_check_php_mysql_versions() to
+ * `function_exists('mysqli_connect')`, which the preload's stub
+ * provides, so neither fix is needed there.
+ */
+export async function backportWpPreV62MysqlCheck(
+	php: PHP,
+	documentRoot: string
+): Promise<void> {
+	const wpVersion = readOnDiskWpVersion(php, documentRoot);
+	if (wpVersion === null) return;
+	const parsed = parseFloat(wpVersion);
+	if (!Number.isFinite(parsed) || parsed < 5.0 || parsed >= 6.2) {
+		return;
+	}
+
+	const wpContentDir = joinPaths(documentRoot, 'wp-content');
+	const dbPhpPath = joinPaths(wpContentDir, 'db.php');
+	if (php.isDir(wpContentDir) && !php.fileExists(dbPhpPath)) {
+		await php.writeFile(dbPhpPath, WP_PRE_V62_PLACEHOLDER_DB_PHP);
+	}
+
+	const loadPhp = joinPaths(documentRoot, 'wp-includes/load.php');
+	if (!php.fileExists(loadPhp)) return;
+	const content = php.readFileAsText(loadPhp);
+	const patched = content.replace(
+		"extension_loaded( 'mysqli' )",
+		"function_exists( 'mysqli_connect' )"
+	);
+	if (patched !== content) {
+		await php.writeFile(loadPhp, patched);
+	}
+}
+
+function readOnDiskWpVersion(php: PHP, documentRoot: string): string | null {
+	const versionPhp = joinPaths(documentRoot, 'wp-includes/version.php');
+	if (!php.fileExists(versionPhp)) return null;
+	const content = php.readFileAsText(versionPhp);
+	const match = content.match(/\$wp_version\s*=\s*['"]([^'"]+)['"]/);
+	return match ? match[1] : null;
+}
 
 /**
  * PHP error_reporting mask for legacy WordPress: all errors EXCEPT
@@ -33,8 +120,7 @@ export const LEGACY_WP_ERROR_REPORTING_PHP_EXPR = 'E_ALL & ~8192 & ~2048';
  * Applies all necessary patches to make old WordPress versions
  * (1.0 through 2.8) work with modern PHP and the SQLite integration.
  *
- * This function must only be called for legacy PHP (< 7); callers
- * in boot.ts already gate on that.
+ * Called from legacy-wp/legacy-boot.ts; legacy boot path only.
  */
 export async function patchWordPressSourceFiles(
 	php: PHP,

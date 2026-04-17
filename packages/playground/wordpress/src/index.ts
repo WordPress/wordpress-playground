@@ -2,8 +2,8 @@ import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
-import { LEGACY_WP_ERROR_REPORTING_PHP_EXPR } from './legacy-wp-fixes';
-import { MYSQL_SHIMS_PHP } from './mysql-shims';
+import { LEGACY_WP_ERROR_REPORTING_PHP_EXPR } from './legacy-wp/legacy-fixes';
+import { MYSQL_SHIMS_PHP } from './legacy-wp/mysql-shims';
 
 export {
 	bootWordPress,
