@@ -21,47 +21,25 @@ import { joinPaths } from '@php-wasm/util';
 import { MYSQL_SHIMS_PHP } from './mysql-shims';
 
 /**
- * Minimal wp-content/db.php drop-in for WP 5.0–6.1 on modern PHP.
+ * Backports WP 6.2's `wp_check_php_mysql_versions()` mysqli check
+ * to WP 5.0–6.1 running on modern PHP + SQLite. No-op on WP 6.2+
+ * and on WP < 5.0 (handled by the legacy boot path instead).
  *
- * Its only job is to exist so WordPress'
- * file_exists(WP_CONTENT_DIR . '/db.php') escape hatches — in
- * wp_check_php_mysql_versions() and install.php step=2's mysql
- * version check — both fall through. The real SQLite wiring is
- * handled by the preloaded lazy $wpdb loader, so the content is an
- * empty, marked placeholder that WordPress require()s as a no-op.
- */
-const WP_PRE_V62_PLACEHOLDER_DB_PHP = `<?php
-// @playground-managed — Playground-generated db.php placeholder.
-//
-// The SQLite $wpdb is set up by the preloaded lazy loader via
-// auto_prepend_file. This file only needs to exist to satisfy
-// WordPress' own file_exists escape hatches in its MySQL checks.
-`;
-
-/**
- * Backports WP 6.2's wp_check_php_mysql_versions() mysqli check to
- * WP 5.0–6.1 running on modern PHP + SQLite. No-op on WP 6.2+ and on
- * WP < 5.0 (those are handled by the legacy boot path instead).
+ * WP 5.0–6.1 hard-check `extension_loaded('mysqli')` inside
+ * `wp_check_php_mysql_versions()`, which runs before `$wpdb` is
+ * constructed and before `wp_initial_constants()` defines
+ * `WP_CONTENT_DIR`. That means neither a userland `mysqli_connect()`
+ * stub nor a `wp-content/db.php` drop-in can satisfy it — the
+ * source itself has to change. We rewrite the single
+ * `extension_loaded('mysqli')` call in wp-includes/load.php to
+ * `function_exists('mysqli_connect')`, matching the fix WordPress
+ * itself shipped in 6.2.
  *
- * ## What WordPress 5.0–6.1 expects
- *
- * WP 5.0–6.1 hard-check `extension_loaded('mysqli')` in two places,
- * which a userland stub cannot satisfy:
- *
- *   * wp-includes/load.php :: wp_check_php_mysql_versions()
- *   * wp-admin/install.php step=2's own mysql version check that
- *     compares $wpdb->db_version() against $required_mysql_version
- *
- * Both have a `file_exists(WP_CONTENT_DIR . '/db.php')` escape
- * hatch. We rely on that hatch for install.php (placeholder db.php),
- * but the wp_check_php_mysql_versions() call runs before
- * wp_initial_constants() defines WP_CONTENT_DIR, so its escape
- * hatch collapses to 'WP_CONTENT_DIR/db.php' via an undefined
- * constant and never fires — hence the source patch.
- *
- * WP 6.2+ switched wp_check_php_mysql_versions() to
- * `function_exists('mysqli_connect')`, which the preload's stub
- * provides, so neither fix is needed there.
+ * The sibling `$mysql_compat` check in wp-admin/install.php is
+ * already satisfied: by the time it runs, `$wpdb->db_version()`
+ * dispatches through the preload's lazy loader to WP_SQLite_DB,
+ * which deliberately returns `'8.0'` — high enough for every
+ * `$required_mysql_version`.
  */
 export async function backportWpPreV62MysqlCheck(
 	php: PHP,
@@ -72,12 +50,6 @@ export async function backportWpPreV62MysqlCheck(
 	const parsed = parseFloat(wpVersion);
 	if (!Number.isFinite(parsed) || parsed < 5.0 || parsed >= 6.2) {
 		return;
-	}
-
-	const wpContentDir = joinPaths(documentRoot, 'wp-content');
-	const dbPhpPath = joinPaths(wpContentDir, 'db.php');
-	if (php.isDir(wpContentDir) && !php.fileExists(dbPhpPath)) {
-		await php.writeFile(dbPhpPath, WP_PRE_V62_PLACEHOLDER_DB_PHP);
 	}
 
 	const loadPhp = joinPaths(documentRoot, 'wp-includes/load.php');
