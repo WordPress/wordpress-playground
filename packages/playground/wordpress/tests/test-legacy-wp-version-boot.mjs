@@ -89,21 +89,34 @@ const results = [];
 /**
  * Finds the WordPress content frame (the one whose URL contains "scope:")
  * and returns its body text once it has meaningful content.
+ *
+ * Options:
+ *   - `excludeUrl`: skip the scoped frame while its URL still matches the
+ *     pre-click value — lets callers wait for a post-click navigation to
+ *     actually commit instead of racing against the previous page's body.
+ *   - `contentPredicate`: a `(body) => boolean` that must also return
+ *     true before we return. Without this, any body ≥ 20 chars counts,
+ *     which is too eager on slow CI boots where pages render in stages
+ *     (e.g. admin shell first, plugin list later).
+ *
  * Returns null on timeout.
  */
-async function waitForWPFrame(page, timeoutSeconds) {
-	for (let i = 0; i < timeoutSeconds / 3; i++) {
-		await page.waitForTimeout(3000);
+async function waitForWPFrame(page, timeoutSeconds, opts = {}) {
+	const { excludeUrl = null, contentPredicate = null } = opts;
+	const iterations = Math.ceil((timeoutSeconds * 1000) / 500);
+	for (let i = 0; i < iterations; i++) {
+		await page.waitForTimeout(500);
 		for (const frame of page.frames()) {
 			try {
 				const furl = frame.url();
 				if (!furl.includes('scope:')) continue;
+				if (excludeUrl && furl === excludeUrl) continue;
 				const body = await frame
 					.locator('body')
 					.innerText({ timeout: 2000 });
-				if (body && body.length >= 20) {
-					return { body, frame };
-				}
+				if (!body || body.length < 20) continue;
+				if (contentPredicate && !contentPredicate(body)) continue;
+				return { body, frame };
 			} catch {}
 		}
 	}
@@ -117,8 +130,9 @@ async function waitForWPFrame(page, timeoutSeconds) {
  * or login page to appear.
  */
 async function waitForAdminFrame(page, timeoutSeconds) {
-	for (let i = 0; i < timeoutSeconds / 3; i++) {
-		await page.waitForTimeout(3000);
+	const iterations = Math.ceil((timeoutSeconds * 1000) / 500);
+	for (let i = 0; i < iterations; i++) {
+		await page.waitForTimeout(500);
 		for (const frame of page.frames()) {
 			try {
 				const furl = frame.url();
@@ -393,9 +407,19 @@ for (const { wp, php } of MATRIX) {
 					})
 					.first();
 				if ((await link.count()) > 0) {
+					const prevFrameUrl = wp1.frame.url();
 					await link.click({ timeout: 5000 });
-					await page.waitForTimeout(8000);
-					const wp1b = await waitForWPFrame(page, 30);
+					const wp1b = await waitForWPFrame(page, 30, {
+						excludeUrl: prevFrameUrl,
+						// Don't return on the transient redirect body — wait
+						// until the single-post page actually renders (or
+						// WordPress emits its own not-found message).
+						contentPredicate: (body) =>
+							body.includes('Welcome to WordPress') ||
+							body.includes('Hello world') ||
+							body.includes('Not Found') ||
+							body.includes("can't find"),
+					});
 					if (!wp1b) {
 						postStatus = { status: 'TIMEOUT' };
 					} else {
@@ -589,6 +613,20 @@ for (const { wp, php } of MATRIX) {
 					// Fall back to the first Activate link for very old WP
 					// where Hello Dolly may not be present or the href
 					// format differs.
+					// Wait for any Activate link to render — navigateViaUrlBar
+					// returns as soon as plugins.php has *any* body text, which
+					// on slow CI boots can be just the admin shell before the
+					// plugin list renders.
+					const anyActivate = wp4.frame
+						.locator('a')
+						.filter({ hasText: 'Activate' })
+						.first();
+					try {
+						await anyActivate.waitFor({
+							state: 'visible',
+							timeout: 15000,
+						});
+					} catch {}
 					const helloActivate = wp4.frame
 						.locator('a[href*="hello.php"]')
 						.filter({ hasText: 'Activate' })
@@ -596,14 +634,21 @@ for (const { wp, php } of MATRIX) {
 					const activateLink =
 						(await helloActivate.count()) > 0
 							? helloActivate
-							: wp4.frame
-									.locator('a')
-									.filter({ hasText: 'Activate' })
-									.first();
+							: anyActivate;
 					if ((await activateLink.count()) > 0) {
+						const prevFrameUrl = wp4.frame.url();
 						await activateLink.click({ timeout: 5000 });
-						await page.waitForTimeout(8000);
-						const wp4b = await waitForWPFrame(page, 20);
+						const wp4b = await waitForWPFrame(page, 20, {
+							excludeUrl: prevFrameUrl,
+							// Don't match on the intermediate admin shell
+							// between the POST and the post-redirect body —
+							// only return once the result page actually
+							// shows activation outcome text.
+							contentPredicate: (body) =>
+								body.includes('Plugin activated') ||
+								body.includes('Deactivate') ||
+								body.includes('Are you sure'),
+						});
 						if (!wp4b) {
 							pluginStatus = { status: 'TIMEOUT' };
 						} else {
