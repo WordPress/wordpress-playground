@@ -6,7 +6,6 @@ import {
 import { ProgressTracker } from '@php-wasm/progress';
 
 import css from './style.module.css';
-import BrowserChrome from '../browser-chrome';
 import {
 	selectActiveSiteError,
 	selectActiveSiteErrorDetails,
@@ -26,30 +25,11 @@ import Button from '../button';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
-export const supportedDisplayModes = [
-	'browser-full-screen',
-	'seamless',
-] as const;
-export type DisplayMode = (typeof supportedDisplayModes)[number];
-interface PlaygroundViewportProps {
-	displayMode?: DisplayMode;
-	children?: React.ReactNode;
-	siteSlug?: string;
-	className?: string;
-}
-
-export const PlaygroundViewport = ({
-	displayMode = 'browser-full-screen',
-	className,
-}: PlaygroundViewportProps) => {
+export const PlaygroundViewport = () => {
 	const activeSite = useActiveSite();
-
-	if (displayMode === 'seamless') {
-		return activeSite ? (
-			<SeamlessViewport siteSlug={activeSite.slug} />
-		) : null;
-	}
-	return <BrowserChrome className={className} />;
+	return activeSite ? (
+		<SeamlessViewport siteSlug={activeSite.slug} />
+	) : null;
 };
 
 function SeamlessViewport({ siteSlug }: { siteSlug: string }) {

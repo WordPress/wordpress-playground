@@ -125,7 +125,6 @@ personal-wp/
 │   ├── components/
 │   │   ├── layout/              # Main application layout
 │   │   ├── site-manager/        # Site info, files, and database panels
-│   │   ├── browser-chrome/      # Browser-like UI chrome
 │   │   ├── playground-viewport/ # WordPress iframe container
 │   │   └── ...
 │   └── lib/
