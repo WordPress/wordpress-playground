@@ -450,11 +450,23 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 3: Admin dashboard (auto-login) ---
 		if (frontStatus.status === 'OK' || frontStatus.status === 'PARTIAL') {
 			try {
-				const wp2 = await navigateViaUrlBar(
+				// Retry once on timeout — modern WP admin occasionally
+				// hangs the first /wp-admin/ load on shared CI runners
+				// (see the long-standing admin-phase flake across runs
+				// on 5.5, 5.9, 6.0, ...). One fresh fill+Enter of the
+				// URL bar almost always unblocks it.
+				let wp2 = await navigateViaUrlBar(
 					page,
 					'/wp-admin/',
 					TIMEOUT_S
 				);
+				if (!wp2) {
+					wp2 = await navigateViaUrlBar(
+						page,
+						'/wp-admin/',
+						TIMEOUT_S
+					);
+				}
 				if (!wp2) {
 					adminStatus = { status: 'TIMEOUT' };
 				} else {
