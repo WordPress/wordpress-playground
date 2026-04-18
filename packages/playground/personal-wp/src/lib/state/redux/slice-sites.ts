@@ -532,9 +532,9 @@ export interface SiteMetadata {
 	backupHistory?: Array<{ filename: string; timestamp: number }>;
 
 	/**
-	 * Auto-backup interval setting.
-	 * - 'none': No auto-backup (default)
-	 * - 'daily': Backup every day
+	 * Auto-backup interval setting. Defaults to 'daily' when unset.
+	 * - 'none': No auto-backup
+	 * - 'daily': Backup every day (default)
 	 * - 'every-2-days': Backup every 2 days
 	 * - 'weekly': Backup every week
 	 * - 'ignore': Never show backup reminders

@@ -55,7 +55,8 @@ export function useAutoBackup() {
 			return;
 		}
 
-		const { autoBackupInterval, backupHistory = [] } = activeSite.metadata;
+		const { autoBackupInterval = 'daily', backupHistory = [] } =
+			activeSite.metadata;
 		const lastBackupTimestamp = backupHistory[0]?.timestamp;
 
 		if (!shouldAutoBackup(autoBackupInterval, lastBackupTimestamp)) {

@@ -343,7 +343,7 @@ function BackupSection() {
 		}
 	};
 
-	const { backupHistory = [], autoBackupInterval = 'none' } =
+	const { backupHistory = [], autoBackupInterval = 'daily' } =
 		activeSite.metadata;
 	const lastBackup = backupHistory[0];
 
