@@ -5,25 +5,25 @@ import { useBackup } from './use-backup';
 
 function shouldAutoBackup(
 	interval: string | undefined,
-	lastBackupTimestamp?: number
+	referenceTimestamp?: number
 ): boolean {
 	if (!interval || interval === 'none' || interval === 'ignore') {
 		return false;
 	}
-	if (!lastBackupTimestamp) {
-		return true;
+	if (!referenceTimestamp) {
+		return false;
 	}
 
-	const daysSinceBackup =
-		(Date.now() - lastBackupTimestamp) / (1000 * 60 * 60 * 24);
+	const daysSinceReference =
+		(Date.now() - referenceTimestamp) / (1000 * 60 * 60 * 24);
 
 	switch (interval) {
 		case 'daily':
-			return daysSinceBackup >= 1;
+			return daysSinceReference >= 1;
 		case 'every-2-days':
-			return daysSinceBackup >= 2;
+			return daysSinceReference >= 2;
 		case 'weekly':
-			return daysSinceBackup >= 7;
+			return daysSinceReference >= 7;
 		default:
 			return false;
 	}
@@ -55,11 +55,16 @@ export function useAutoBackup() {
 			return;
 		}
 
-		const { autoBackupInterval = 'daily', backupHistory = [] } =
-			activeSite.metadata;
-		const lastBackupTimestamp = backupHistory[0]?.timestamp;
+		const {
+			autoBackupInterval = 'daily',
+			backupHistory = [],
+			whenCreated,
+		} = activeSite.metadata;
+		// When no backup has happened yet, measure the interval against the
+		// site's creation time so a brand-new site doesn't auto-backup at boot.
+		const referenceTimestamp = backupHistory[0]?.timestamp ?? whenCreated;
 
-		if (!shouldAutoBackup(autoBackupInterval, lastBackupTimestamp)) {
+		if (!shouldAutoBackup(autoBackupInterval, referenceTimestamp)) {
 			return;
 		}
 
