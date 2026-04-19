@@ -42,7 +42,7 @@ There are three ways to use Blueprints:
 
 -   [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબસાઇટ પર URL "ફ્રેગમેન્ટ" માં બ્લુપ્રિન્ટ પેસ્ટ કરો](/blueprints/using-blueprints#url-fragment)。
 -   [JavaScript API સાથે તેનો ઉપયોગ કરો](/blueprints/using-blueprints#javascript-api)。
--   [Reference a બ્લુપ્રિન્ટ JSON file via QueryParam blueprint-url](/developers/apis/query-api/)
+-   [QueryParam દ્વારા બ્લુપ્રિન્ટ JSON ફાઇલનો સંદર્ભ આપો blueprint-url](/developers/apis/query-api/)
 
 <!--
 -   [Paste a Blueprint into the URL "fragment" on WordPress Playground website](/blueprints/using-blueprints#url-fragment).
