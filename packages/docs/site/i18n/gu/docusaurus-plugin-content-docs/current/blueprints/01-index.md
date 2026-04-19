@@ -42,7 +42,7 @@ There are three ways to use Blueprints:
 
 -   [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબસાઇટ પર URL "ફ્રેગમેન્ટ" માં બ્લુપ્રિન્ટ પેસ્ટ કરો](/blueprints/using-blueprints#url-fragment)。
 -   [JavaScript API સાથે તેનો ઉપયોગ કરો](/blueprints/using-blueprints#javascript-api)。
--   [QueryParam દ્વારા બ્લુપ્રિન્ટ JSON ફાઇલનો સંદર્ભ આપો blueprint-url](/developers/apis/query-api/)
+-   [QueryParam દ્વારા બ્લુપ્રિન્ટ JSON ફાઇલનો સંદર્ભ આપો blueprint-url](/developers/apis/query-api/).
 
 <!--
 -   [Paste a Blueprint into the URL "fragment" on WordPress Playground website](/blueprints/using-blueprints#url-fragment).
@@ -68,7 +68,7 @@ There are three ways to use Blueprints:
 Blueprints are just JSON. You don't need a development environment, any libraries, or even JavaScript knowledge. You can write them in any text editor.
 -->
 
-જોકે, જો તમારી પાસે ડેવલપમેન્ટ એન્વાયર્નમેન્ટ હોય, તો તે ખૂબ સરસ છે! તમે સ્વતઃપૂર્ણતા અને માન્યતા મેળવવા માટે[બ્લુપ્રિન્ટ JSON સ્કીમા] (https://playground.wordpress.net/blueprint-schema.json) નો ઉપયોગ કરી શકો છો.
+જોકે, જો તમારી પાસે ડેવલપમેન્ટ એન્વાયર્નમેન્ટ હોય, તો તે ખૂબ સરસ છે! તમે સ્વતઃપૂર્ણતા અને માન્યતા મેળવવા માટે[બ્લુપ્રિન્ટ JSON સ્કીમા](https://playground.wordpress.net/blueprint-schema.json) નો ઉપયોગ કરી શકો છો.
 
 <!--
 However, if you do have a development environment, that's great! You can use the [Blueprint JSON schema](https://playground.wordpress.net/blueprint-schema.json) to get autocompletion and validation.
@@ -143,7 +143,7 @@ With Blueprints, WordPress.org plugin directory may be able to offer live previe
 ### Write it once, use it anywhere
 -->
 
-બ્લુપ્રિન્ટ્સ વેબ પર અને node.js બંનેમાં કામ કરે છે. તમે તેમને બંનેને એક જ JavaScript પ્રક્રિયામાં અને રિમોટ પ્લેગ્રાઉન્ડ ક્લાયંટ દ્વારા ચલાવી શકો છો. તે રૂપરેખાંકનની સાર્વત્રિક ભાષા છે. જ્યાં તમે પ્લેગ્રાઉન્ડ ચલાવી શકો છો, ત્યાં તમે બ્લુપ્રિન્ટ્સનો ઉપયોગ કરી શકો છો.
+બ્લુપ્રિન્ટ્સ વેબ પર અને Node.js બંનેમાં કામ કરે છે. તમે તેમને બંનેને એક જ JavaScript પ્રક્રિયામાં અને રિમોટ પ્લેગ્રાઉન્ડ ક્લાયંટ દ્વારા ચલાવી શકો છો. તે રૂપરેખાંકનની સાર્વત્રિક ભાષા છે. જ્યાં તમે પ્લેગ્રાઉન્ડ ચલાવી શકો છો, ત્યાં તમે બ્લુપ્રિન્ટ્સનો ઉપયોગ કરી શકો છો.
 
 <!--
 Blueprints work both on the web and in node.js. You can run them both in the same JavaScript process, and through a remote Playground Client. They are the universal language of configuration. Where you can run Playground, you can use Blueprints.
