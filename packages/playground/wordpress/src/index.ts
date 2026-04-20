@@ -37,7 +37,7 @@ export async function setupPlatformLevelMuPlugins(
 	options: { phpVersion?: string } = {}
 ) {
 	if (isLegacyPHPVersion(options.phpVersion)) {
-		return setupLegacyPlatformLevelMuPlugins(php, options);
+		return setupLegacyPlatformLevelMuPlugins(php);
 	}
 	await php.mkdir('/internal/shared/mu-plugins');
 

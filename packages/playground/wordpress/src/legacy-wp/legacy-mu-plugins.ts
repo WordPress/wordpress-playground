@@ -123,10 +123,8 @@ const LEGACY_AUTO_LOGIN_BODY = `
  * 5.2 variant of the error handler.
  */
 export async function setupLegacyPlatformLevelMuPlugins(
-	php: UniversalPHP,
-	options: { phpVersion?: string } = {}
+	php: UniversalPHP
 ): Promise<void> {
-	const isPhp52 = (options.phpVersion ?? '') === '5.2';
 	await php.mkdir('/internal/shared/mu-plugins');
 
 	// Overwrite auto_prepend_file.php to add PHP 4 superglobal
@@ -431,18 +429,12 @@ function playground_load_mu_plugins() {
 	await writeCommonPlatformMuPlugins(php);
 
 	// Loaded before any other PHP file so it catches errors from
-	// the very first line, including the preload phase. PHP 5.2
-	// has no closures — use a named function; PHP 5.3+ uses a
-	// closure wrapped in call_user_func() because top-level
-	// `return` inside the handler is swallowed in PHP < 7.
+	// the very first line, including the preload phase. Named
+	// function + $GLOBALS so the same source works on PHP 5.2
+	// (no closures) through 8.x.
 	await php.writeFile(
 		'/internal/shared/preload/error-handler.php',
-		isPhp52 ? buildPhp52ErrorHandler() : buildModernErrorHandler()
-	);
-}
-
-function buildPhp52ErrorHandler(): string {
-	return `<?php
+		`<?php
 $GLOBALS['_playground_consts'] = array();
 if (file_exists('/internal/shared/consts.json')) {
 	$GLOBALS['_playground_consts'] = @json_decode(file_get_contents('/internal/shared/consts.json'), true);
@@ -454,28 +446,10 @@ function _playground_error_handler($severity, $message, $file, $line) {
 ${ERROR_HANDLER_BODY}
 	return false;
 }
-set_error_handler('_playground_error_handler');`;
+set_error_handler('_playground_error_handler');`
+	);
 }
 
-function buildModernErrorHandler(): string {
-	return `<?php
-call_user_func(function() {
-	$playground_consts = [];
-	if(file_exists('/internal/shared/consts.json')) {
-		$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true) ?: [];
-		$playground_consts = array_keys($playground_consts);
-	}
-	set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {
-${ERROR_HANDLER_BODY}
-		return false;
-	});
-});`;
-}
-
-/**
- * Body of the error handler — same logic in PHP 5.2 (named function)
- * and PHP 5.3+ (closure), so it lives here as a shared template.
- */
 const ERROR_HANDLER_BODY = `
 		// http_api_transports is deprecated since 6.4.0 but Playground's
 		// networking layer still registers it for wp_http_supports().
