@@ -1504,19 +1504,16 @@ if (defined('PLAYGROUND_AUTO_LOGIN_AS_USER')) {
 }
 
 /**
- * PHP snippet that resolves a username to a WP_User and, when the
- * HMAC auth API is available (WP 2.5+), populates `$_COOKIE` with the
- * three auth cookies. Falls through to the WP < 2.5 USER_COOKIE /
- * PASS_COOKIE pair and the WP 1.x `wordpressuser_$cookiehash` /
- * `wordpresspass_$cookiehash` pair when the modern API is missing.
+ * PHP snippet that, on WP 2.5+, resolves a username to a WP_User and
+ * populates `$_COOKIE` with the three HMAC auth cookies.
  *
- * `$_pg_user` (WP_User|null on WP 2.5+, null otherwise) is left in
- * scope for callers that need to read DB-level capability info.
- *
- * SECURITY NOTE: legacy installs hardcode the admin password to
- * 'password' (see the SQLite user-row seeding); the WP < 2.5 and
- * WP 1.x branches reuse that hash. The generated site only exists
- * inside the WASM sandbox, so there is no real account to steal.
+ * On WP < 2.5 the block is a no-op: env.php's
+ * {@link playground_legacy_set_auth_cookies_early} runs via
+ * auto_prepend_file before every script and already populated the
+ * `wordpressuser_$cookiehash` / `wordpresspass_$cookiehash` pair
+ * (which also backs the USER_COOKIE/PASS_COOKIE constants WP 1.5–2.4
+ * reads). `$_pg_user` is left `null` there; callers that care about
+ * DB-level capability info fall back to `$GLOBALS['current_user']`.
  */
 function legacyAuthCookieBlock(usernamePhpExpr: string): string {
 	return `
@@ -1536,12 +1533,6 @@ if (function_exists('wp_generate_auth_cookie')) {
 		if (defined('LOGGED_IN_COOKIE'))
 			$_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($_pg_user->ID, $_pg_exp, 'logged_in');
 	}
-} elseif (defined('USER_COOKIE') && defined('PASS_COOKIE')) {
-	$_COOKIE[USER_COOKIE] = ${usernamePhpExpr};
-	$_COOKIE[PASS_COOKIE] = md5(md5('password'));
-} elseif (defined('COOKIEHASH')) {
-	$_COOKIE['wordpressuser_' . COOKIEHASH] = ${usernamePhpExpr};
-	$_COOKIE['wordpresspass_' . COOKIEHASH] = md5(md5('password'));
 }
 `;
 }
