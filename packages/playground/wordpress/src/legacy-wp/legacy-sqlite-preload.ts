@@ -214,12 +214,6 @@ if (PHP_MAJOR_VERSION < 7) {
 	error_reporting($level);
 	ini_set('error_reporting', $level);
 }
-if (!isset($_SERVER['SERVER_PROTOCOL'])) {
-	$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
-}
-if (!ini_get('date.timezone')) {
-	date_default_timezone_set('UTC');
-}
 
 		`;
 }

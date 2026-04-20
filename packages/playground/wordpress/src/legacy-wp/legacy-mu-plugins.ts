@@ -150,6 +150,12 @@ if (isset($_SESSION)) $GLOBALS['HTTP_SESSION_VARS'] = &$_SESSION;
 if (isset($_SERVER['PHP_SELF'])) $GLOBALS['PHP_SELF'] = $_SERVER['PHP_SELF'];
 if (isset($_SERVER['REMOTE_ADDR'])) $GLOBALS['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'];
 if (isset($_SERVER['REQUEST_URI'])) $GLOBALS['REQUEST_URI'] = $_SERVER['REQUEST_URI'];
+// Default SERVER_PROTOCOL for scripts invoked outside an HTTP
+// request (e.g. php.run() during boot/fixups) — legacy WP reads
+// it unconditionally in places like wp_redirect().
+if (!isset($_SERVER['SERVER_PROTOCOL'])) {
+	$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
+}
 if(file_exists('/internal/shared/consts.json')) {
 	$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
 	if ($consts) {

@@ -66,10 +66,17 @@ export function applyLegacyPhpIniOverrides(
 	const mergedDisabled = Array.from(
 		new Set([...callerDisabled, ...LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS])
 	).join(',');
-	setPhpIniEntries(php, {
+	const iniOverrides: Record<string, string> = {
 		disable_functions: mergedDisabled,
 		allow_url_fopen: '0',
-	});
+	};
+	// PHP 5.2 warns on every date_*() call when date.timezone is
+	// unset; WP hits those during boot. Default to UTC unless the
+	// caller set it explicitly.
+	if (!options.phpIniEntries?.['date.timezone']) {
+		iniOverrides['date.timezone'] = 'UTC';
+	}
+	setPhpIniEntries(php, iniOverrides);
 }
 
 /**
