@@ -15,7 +15,7 @@ description: Un aperçu du Playground de WordPress, expliquant de quoi il s’ag
 
 WordPress Playground est le parfait endroit où vous pouvez construire, tester, et lancer : 
 <!-- WordPress Playground is your place to build, test, and launch: -->
-- [Construire](/about/build) : WP Playground peut vous aider à construire des produits avec WordPress. Utilisez-le là vous êtes le plus à l’aise, que ce soit dans votre navigateur, avec Node.js, avec des applications mobile, à l’aide de VS Code, ou ailleurs.
+- [Construire](/about/build) : WP Playground peut vous aider à construire des produits avec WordPress. Utilisez-le là où vous êtes le plus à l’aise, que ce soit dans votre navigateur, avec Node.js, avec des applications mobile, à l’aide de VS Code, ou ailleurs.
 - [Tester](/about/test) : améliorez votre processus d’assurance qualité avec WP Playground. Testez rapidement vos extensions ou thèmes, expérimentez dans un bac à sable privé (sandbox), et créez des PRs (Pull Requests) depuis votre instance WP Playground vers n’importe quel répertoire.
 - [Lancer](/about/launch) : utilisez WP Playground pour présenter votre produit, permettre aux utilisateurs et utilisatrices de l’essayer en direct ou le lancer sur l’App Store sans délai.
 <!--
