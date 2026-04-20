@@ -4,38 +4,45 @@ slug: /about
 description: Un aperçu du Playground de WordPress, expliquant de quoi il s’agit, pourquoi il est utile et comment il exécute WordPress dans votre navigateur.
 ---
 
+<!-- # About WordPress Playground -->
 # À propos de WordPress Playground
-<!-- # About WordPress Playground
- -->
+
+<!-- ## What is WordPress Playground? -->
 ## WordPress Playground, qu’est-ce que c’est ?
-<!-- ## What is WordPress Playground?
- -->
+
+<!-- 
+**WordPress Playground is the platform that lets you run WordPress instantly on any device without a host**. It allows you to experiment and learn about WordPress without affecting your live website. It's a virtual sandbox where you can play around with different features, designs, and settings in a safe and controlled environment. 
+-->
 **WordPress Playground est une plateforme qui vous permet d’exécuter WordPress instantanément sur n’importe quel appareil sans hébergeur**. Elle vous permet d’expérimenter et d’apprendre à connaître WordPress sans affecter le site sur lequel vous travaillez. C’est un bac à sable virtuel (sandbox) où vous pouvez jouer avec différentes fonctionnalités, conceptions et réglages dans un environnement sécurisé et contrôlé.
-<!-- **WordPress Playground is the platform that lets you run WordPress instantly on any device without a host**. It allows you to experiment and learn about WordPress without affecting your live website. It's a virtual sandbox where you can play around with different features, designs, and settings in a safe and controlled environment. -->
 
 WordPress Playground est le parfait endroit où vous pouvez construire, tester, et lancer : 
-<!-- WordPress Playground is your place to build, test, and launch: -->
+
+- WordPress Playground is your place to build, test, and launch: -->
 - [Construire](/about/build) : WP Playground peut vous aider à construire des produits avec WordPress. Utilisez-le là où vous êtes le plus à l’aise, que ce soit dans votre navigateur, avec Node.js, avec des applications mobile, à l’aide de VS Code, ou ailleurs.
 - [Tester](/about/test) : améliorez votre processus d’assurance qualité avec WP Playground. Testez rapidement vos extensions ou thèmes, expérimentez dans un bac à sable privé (sandbox), et créez des PRs (Pull Requests) depuis votre instance WP Playground vers n’importe quel répertoire.
 - [Lancer](/about/launch) : utilisez WP Playground pour présenter votre produit, permettre aux utilisateurs et utilisatrices de l’essayer en direct ou le lancer sur l’App Store sans délai.
+
 <!--
 -   [Build](/about/build): WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that’s in the browser, Node.js, mobile apps, VS Code, or elsewhere.
 -   [Test](/about/test): Upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
 -   [Launch](/about/launch): Use WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time. 
 -->
 
+<!-- ## Why WordPress Playground? -->
 ## Pourquoi WordPress Playground ?
-<!-- ## Why WordPress Playground?
- -->
+
+<!-- ### Try themes and plugins on the fly -->
 ### Tester des thèmes et des extensions à la volée
-<!-- ### Try themes and plugins on the fly
- -->
+
 Avec le Playground de WordPress, vous pouvez explorer n’importe quel [thème](https://developer.wordpress.org/themes/getting-started/what-is-a-theme/). Vous pouvez choisir parmi un large éventail de thèmes et tester le rendu sur votre site. Vous pouvez également modifier les couleurs, les polices, les mises en page et d’autres éléments visuels pour créer un design unique.
 
 En plus des thèmes, vous pouvez également expérimenter avec des extensions. Avec Playground, vous pouvez installer et tester différentes extensions pour voir comment elles fonctionnent et ce qu’elles peuvent faire pour votre site. Cela vous permet d’explorer et de comprendre les possibilités de WordPress sans vous soucier de casser quoi que ce soit.
-<!-- With WordPress Playground, you can explore any [theme](https://developer.wordpress.org/themes/getting-started/what-is-a-theme/). You can choose from a wide range of themes and see how they look on your site. You can also modify the colors, fonts, layouts, and other visual elements to create a unique design.
 
-In addition to themes, you can experiment with plugins too. With WordPress Playground, you can install and test different plugins to see how they work and what they can do for your site. This allows you to explore and understand the capabilities of WordPress without worrying about breaking anything. -->
+<!-- 
+With WordPress Playground, you can explore any [theme](https://developer.wordpress.org/themes/getting-started/what-is-a-theme/). You can choose from a wide range of themes and see how they look on your site. You can also modify the colors, fonts, layouts, and other visual elements to create a unique design.
+
+In addition to themes, you can experiment with plugins too. With WordPress Playground, you can install and test different plugins to see how they work and what they can do for your site. This allows you to explore and understand the capabilities of WordPress without worrying about breaking anything.
+-->
 
 ### Créez du contenu à la volée
 <!-- ### Create content on the go -->
@@ -57,9 +64,9 @@ Dans l’ensemble, WordPress Playground fournit un environnement sans risque pou
 
 :::tip
 Consultez la [section guides](/guides) pour en savoir plus sur la façon d’utiliser WordPress Playground pour tester vos thèmes et extensions et créer du contenu à la volée.
-<!-- Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
- -->:::
-
+:::
+<!-- Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly. -->
+ 
 ## Comment fonctionne WordPress Playground ?
 <!-- ## How does WordPress Playground work? -->
 
@@ -70,10 +77,16 @@ Lorsque vous commencez à utiliser Playground pour la première fois, vous recev
 <!-- ### Streamed, not served. -->
 
 Le WordPress que vous voyez lorsque vous ouvrez Playground dans votre navigateur est un WordPress qui devrait fonctionner comme n’importe quel WordPress, avec [quelques limitations](/developers/limitations) et l’exception importante qu’il ne s’agit pas d’un serveur permanent avec une adresse internet, ce qui limitera les connexions à certains services tiers (automatisation, partage, analyse, e-mail, sauvegardes, etc.) de manière persistante.
-<!-- The WordPress you see when you open Playground in your browser is a WordPress that should function like any WordPress, with [a few limitations](/developers/limitations) and the important exception that it's not a permanent server with an internet address which will limit connections to some third-party services (automation, sharing, analysis, email, backups, etc.) in a persistent way. -->
+
+<!-- 
+The WordPress you see when you open Playground in your browser is a WordPress that should function like any WordPress, with [a few limitations](/developers/limitations) and the important exception that it's not a permanent server with an internet address which will limit connections to some third-party services (automation, sharing, analysis, email, backups, etc.) in a persistent way.
+-->
 
 L’écran de chargement et la barre de progression que vous voyez sur Playground symbolisent à la fois le streaming de ces technologies fondamentales vers votre navigateur, mais aussi les étapes de configuration à partir de [WordPress Blueprints](/blueprints)  (voir [examples](/blueprints/examples)), afin qu’un serveur complet, le logiciel WordPress, les thèmes et extensions et les instructions de configuration puissent être préparés et diffusés en direct.
-<!-- The loading screen and progress bar you see on Playground includes both the streaming of those foundational technologies to your browser and configuration steps from [WordPress Blueprints](/blueprints) (see [examples](/blueprints/examples)), so that a full server, WordPress software, Theme & Plugin solutions and configuration instructions can be streamed over-the-wire. -->
+
+<!-- 
+The loading screen and progress bar you see on Playground includes both the streaming of those foundational technologies to your browser and configuration steps from [WordPress Blueprints](/blueprints) (see [examples](/blueprints/examples)), so that a full server, WordPress software, Theme & Plugin solutions and configuration instructions can be streamed over-the-wire.
+-->
 
 ## Qu’est-ce qui différencie Playground de l’exécution de WordPress sur un serveur web ou une application de bureau locale ?
 <!-- ## What makes Playground different from running WordPress on a web server or local desktop app? -->
