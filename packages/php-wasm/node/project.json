@@ -373,6 +373,18 @@
 				]
 			}
 		},
+		"test-php-asyncify-all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"test-group-1-asyncify",
+				"test-group-2-asyncify",
+				"test-group-3-asyncify",
+				"test-group-4-asyncify",
+				"test-group-5-asyncify",
+				"test-group-6-asyncify",
+				"test-file-locking-asyncify"
+			]
+		},
 		"lint": {
 			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
