@@ -192,20 +192,6 @@ ${SQLITE_PRELOAD_LOADER_CLASS(
             $GLOBALS['wpdb']->reinitialize_sqlite();
         }`
 )}
-// WP < 3.0's wpdb::__construct calls mysql_connect()/mysqli_init()
-// inline and bail()s on a falsy return, so make these truthy.
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() { return true; }
-}
-if(!function_exists('mysqli_init')) {
-	function mysqli_init() { return true; }
-}
-if(!function_exists('mysql_connect')) {
-	function mysql_connect() { return true; }
-}
-if(!function_exists('mysql_select_db')) {
-	function mysql_select_db() { return true; }
-}
 ${MYSQL_SHIMS_PHP}
 if (PHP_MAJOR_VERSION < 7) {
 	// E_DEPRECATED (8192) / E_STRICT (2048) are PHP 5.3+ symbols;

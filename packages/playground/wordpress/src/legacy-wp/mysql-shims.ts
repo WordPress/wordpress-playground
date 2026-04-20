@@ -1,7 +1,9 @@
 /**
- * mysql_* function stubs that delegate to $wpdb (the SQLite driver)
- * so WP 1.x code paths that call mysql_query() / mysql_list_tables()
- * / mysql_fetch_row() directly (bypassing $wpdb) still execute.
+ * mysql_* / mysqli_* function stubs for legacy WordPress (<3.0) whose
+ * wpdb::__construct calls mysql_connect() / mysqli_init() inline and
+ * bail()s on a falsy return, and for WP 1.x code paths that call
+ * mysql_query() / mysql_list_tables() / mysql_fetch_row() directly
+ * (bypassing $wpdb).
  *
  * Result sets returned by mysql_query() / mysql_list_tables() live in
  * the $_mysql_results global keyed by an integer id; mysql_fetch_*
@@ -14,6 +16,19 @@
  * {@link buildLegacySqlitePreload} in legacy-sqlite-preload.ts.
  */
 export const MYSQL_SHIMS_PHP = `
+// Connection stubs — wpdb::__construct bails on a falsy return.
+if (!function_exists('mysqli_connect')) {
+	function mysqli_connect() { return true; }
+}
+if (!function_exists('mysqli_init')) {
+	function mysqli_init() { return true; }
+}
+if (!function_exists('mysql_connect')) {
+	function mysql_connect() { return true; }
+}
+if (!function_exists('mysql_select_db')) {
+	function mysql_select_db() { return true; }
+}
 // WordPress < 3.0 wpdb::__construct calls mysql_set_charset directly.
 if (!function_exists('mysql_set_charset')) {
 	function mysql_set_charset() { return true; }
