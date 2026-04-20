@@ -46,11 +46,23 @@ export { PHPResponse, StreamedPHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
+	AllPHPVersions,
+	isLegacyPHPVersion,
 	LatestSupportedPHPVersion,
+	LegacyPHPVersions,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
-export type { SupportedPHPVersion } from './supported-php-versions';
+export type {
+	AllPHPVersion,
+	LegacyPHPVersion,
+	SupportedPHPVersion,
+} from './supported-php-versions';
+export {
+	createLegacyPhpIniPreRunStep,
+	LEGACY_PHP_INI_CONTENT,
+	LEGACY_PHP_INI_PATH,
+} from './legacy-php-ini';
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
@@ -67,6 +79,7 @@ export type {
 export type {
 	PHPRequestHandlerConfiguration,
 	RewriteRule,
+	PathAlias,
 } from './php-request-handler';
 export {
 	PHPRequestHandler,
@@ -97,4 +110,16 @@ export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory'
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
+export type { NodeProcess } from './comlink-node-process-adapter';
+
+export * from './file-lock-manager';
+export * from './file-lock-manager-in-memory';
+export * from './file-lock-manager-composite';
+export * from './file-lock-interval-tree';
+
 export type { Remote } from './comlink-sync';
+
+export { createObjectPoolProxy } from './object-pool-proxy';
+export type { Pooled } from './object-pool-proxy';
+
+export * from './process-id-allocator';

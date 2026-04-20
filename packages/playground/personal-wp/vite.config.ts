@@ -49,6 +49,7 @@ export default defineConfig(({ command, mode }) => {
 		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/blueprint.json';
 
 	return {
+		root: __dirname,
 		base: isProductionBuild ? '/' : '/website-server/',
 
 		assetsInclude: ['**/*.so', '**/*.dat'],

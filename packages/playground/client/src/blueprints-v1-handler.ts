@@ -31,7 +31,9 @@ export class BlueprintsV1Handler {
 			scope,
 			shouldInstallWordPress,
 			sqliteDriverVersion,
+			wordpressInstallMode,
 			onClientConnected,
+			pathAliases,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
@@ -56,12 +58,14 @@ export class BlueprintsV1Handler {
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress,
+			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			withIntl: runtimeConfiguration.intl,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
+			pathAliases,
 		});
 		await playground.isReady();
 		downloadProgress.finish();
@@ -83,10 +87,20 @@ export class BlueprintsV1Handler {
 
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
+		 * Skip for old WordPress versions — the functions called by prefetch
+		 * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
+		 * on legacy WP, and the resulting PHP errors create noise.
+		 *
+		 * parseFloat extracts the major version from strings like "6.8",
+		 * "4.9.26", etc. Non-numeric values like "nightly" or "trunk"
+		 * produce NaN, which Number.isFinite rejects — those fall
+		 * through to enabling prefetch (correct for dev builds).
 		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
-		if (runtimeConfiguration.networking) {
+		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
+		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5;
+		if (runtimeConfiguration.networking && !isLegacyWpVersion) {
 			await playground.prefetchUpdateChecks();
 		}
 

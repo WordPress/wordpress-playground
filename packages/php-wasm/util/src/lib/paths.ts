@@ -180,3 +180,25 @@ export function isParentOf(parent: string, child: string) {
 export function ensureAbsolutePath(path: string) {
 	return joinPaths('/', normalizePath(path || '/'));
 }
+
+/**
+ * Converts a native OS path to a POSIX-style path.
+ *
+ * Transformations:
+ * 1. Backslashes → forward slashes
+ * 2. Windows drive letter `C:\` → `/C/` (colons are invalid in
+ *    Emscripten VFS paths and cause ENOTDIR errno 28)
+ *
+ * On POSIX systems this is effectively a no-op.
+ *
+ * @see https://github.com/emscripten-core/emscripten/issues/17829
+ */
+export function toPosixPath(nativePath: string): string {
+	let result = nativePath.replaceAll('\\', '/');
+	// Handle Windows drive letter: C:/ → /C/
+	const driveMatch = result.match(/^([A-Za-z]):\//);
+	if (driveMatch) {
+		result = '/' + driveMatch[1] + result.slice(2);
+	}
+	return result;
+}

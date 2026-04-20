@@ -5,7 +5,7 @@ import {
 	getWordPressModule,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { mkdirSync, rmdirSync } from 'fs';
+import { mkdirSync, readFileSync, rmdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { bootWordPressAndRequestHandler } from '../boot';
@@ -69,6 +69,48 @@ describe('Test database', () => {
 			);
 		},
 		{ timeout: 30_000 }
+	);
+
+	it(
+		'should not throw a pre-flight database error when SQLite is skipped and MySQL wp-config.php is provided',
+		{ timeout: 30_000 },
+		async () => {
+			const wpConfigContent = readFileSync(
+				join(__dirname, 'fixtures/wp-config-sample.php'),
+				'utf-8'
+			);
+			const dbStubContent = readFileSync(
+				join(__dirname, 'fixtures/mysql-db-stub.php'),
+				'utf-8'
+			);
+
+			await expect(async () => {
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				await using handler = await bootWordPressAndRequestHandler({
+					createPhpRuntime: async () =>
+						await loadNodeRuntime(RecommendedPHPVersion),
+					siteUrl: 'http://playground-domain/',
+					wordPressZip: await getWordPressModule(),
+					// Simulates --skip-sqlite-setup from the CLI
+					sqliteIntegrationPluginZip: undefined,
+					hooks: {
+						beforeDatabaseSetup: async (php) => {
+							php.writeFile(
+								'/wordpress/wp-config.php',
+								wpConfigContent
+									.replace('database_name_here', 'foo')
+									.replace('username_here', 'bar')
+							);
+							php.mkdir('/wordpress/wp-content');
+							php.writeFile(
+								'/wordpress/wp-content/db.php',
+								dbStubContent
+							);
+						},
+					},
+				});
+			}).rejects.not.toThrow('Error connecting to the MySQL database.');
+		}
 	);
 
 	it("should fail when the SQLite driver directory exists, but doesn't contain a valid driver", async () => {

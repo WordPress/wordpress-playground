@@ -15,9 +15,9 @@ import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
-import { persistTemporarySite } from '../../lib/state/redux/persist-temporary-site';
 import type { SiteStorageType } from '../../lib/state/redux/slice-sites';
 import { logger } from '@php-wasm/logger';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
@@ -37,6 +37,7 @@ const errorTextStyle: CSSProperties = {
 
 export function SaveSiteModal() {
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const site = useAppSelector((state) =>
 		state.ui.activeSite?.slug
 			? state.sites.entities[state.ui.activeSite.slug]
@@ -249,20 +250,12 @@ export function SaveSiteModal() {
 					);
 					return;
 				}
-				await dispatch(
-					persistTemporarySite(site.slug, 'local-fs', {
-						siteName: trimmedName,
-						localFsHandle: directoryHandle,
-						skipRenameModal: true,
-					}) as any
+				await sitesAPI.saveToLocalFileSystem(
+					trimmedName,
+					directoryHandle
 				);
 			} else {
-				await dispatch(
-					persistTemporarySite(site.slug, 'opfs', {
-						siteName: trimmedName,
-						skipRenameModal: true,
-					}) as any
-				);
+				await sitesAPI.saveInBrowser(trimmedName);
 			}
 
 			// Don't close modal here - useEffect will close it when save completes

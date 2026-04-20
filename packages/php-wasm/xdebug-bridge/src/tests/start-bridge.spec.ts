@@ -167,7 +167,7 @@ describe('Bridge', () => {
 			expect(output).toEqual([
 				'Starting XDebug Bridge...',
 				'Connect Chrome DevTools to CDP at:',
-				`devtools://devtools/bundled/inspector.html?ws=localhost:9229\n`,
+				`devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229\n`,
 				'Chrome connected! Initializing Xdebug receiver...',
 				'XDebug receiver running on port 9003',
 				'Running a PHP script with Xdebug enabled...',
@@ -188,7 +188,7 @@ describe('Bridge', () => {
 			expect(output).toEqual([
 				'Starting XDebug Bridge...',
 				'Connect Chrome DevTools to CDP at:',
-				`devtools://devtools/bundled/inspector.html?ws=localhost:9229\n`,
+				`devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229\n`,
 				'Chrome connected! Initializing Xdebug receiver...',
 				'XDebug receiver running on port 9003',
 				'Running a PHP script with Xdebug enabled...',

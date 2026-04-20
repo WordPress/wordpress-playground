@@ -59,9 +59,9 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 				const path = fileURLToPath(url);
 				// Verify that the resolved file actually exists on disk
 				await access(path);
-			} catch (error) {
+			} catch (error: any) {
 				assert.fail(
-					`Required file ${file} is missing from CLI package: ${error.message}`
+					`Required file ${file} is missing from CLI package: ${error?.message}`
 				);
 			}
 		}
@@ -81,7 +81,9 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 			'worker-thread-v2.js':
 				'new URL("./worker-thread-v2.js", import.meta.url)',
 		};
-		for (const file of Object.keys(staticStrings)) {
+		for (const file of Object.keys(
+			staticStrings
+		) as (keyof typeof staticStrings)[]) {
 			try {
 				// Resolve the file from the CLI package without importing it
 				const baseUrl = import.meta.resolve(`@wp-playground/cli`);
@@ -101,9 +103,9 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 					runCliModuleText.includes(staticStrings[file]),
 					`Workers are not loaded in a statically analyzable way for ${file}`
 				);
-			} catch (error) {
+			} catch (error: any) {
 				assert.fail(
-					`Workers are not loaded in a statically analyzable way for ${file}: ${error.message}`
+					`Workers are not loaded in a statically analyzable way for ${file}: ${error?.message}`
 				);
 			}
 		}
@@ -120,7 +122,7 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 	 */
 	it(
 		'Should support git:directory resources',
-		{ timeout: 30000 },
+		{ timeout: 60000 },
 		async () => {
 			const cli = await runCLI({
 				command: 'server',

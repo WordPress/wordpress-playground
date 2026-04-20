@@ -101,7 +101,12 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
+import {
+	getURLScope,
+	isURLScoped,
+	removeURLScope,
+	setURLScope,
+} from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -233,12 +238,23 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
+		if (url.origin !== referrerUrl.origin) {
+			// Cross-origin requests can be handled by the service worker when they
+			// are initiated from a page in the service worker's scope.
+			// If this request doesn't have the referrer scope's origin,
+			// let's not intercept it or send it to the scope's WordPress.
+			return;
+		}
+
 		const scope = getURLScope(referrerUrl)!;
-		return event.respondWith(
-			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
-			)
-		);
+
+		// Let's redirect to a scope URL so that no unscoped page is loaded
+		// while navigating around a scoped WordPress. Otherwise, clicking an
+		// unscoped link from an unscoped page will lose the scope entirely,
+		// and the service worker won't be able to match the request with
+		// the right WordPress instance.
+		const scopedRedirectTarget = setURLScope(event.request.url, scope);
+		return event.respondWith(Response.redirect(scopedRedirectTarget));
 	}
 
 	/**
@@ -487,8 +503,6 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 				return xhr.responseText;
 			} catch(e) {
 				return '';
-			} finally {
-				URL.revokeObjectURL(url);
 			}
 		};
 		if (props.srcDoc) {
@@ -577,15 +591,18 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  * usual way of achieving cross-origin isolation is via the Cross-Origin-Embedder-Policy (COEP)
  * and Cross-Origin-Resource-Policy (CORP) headers.
  *
- * However, COEP/COOP are viral-ish. Once a part of a site sets them, the rest of the site must
- * follow. This breaks external embeds, like YouTube videos, that don't set the necessary headers.
- * Serving them by default on the entire playground.wordpress.net site would break existing
- * WordPress features.
+ * However, COEP/COOP are viral-ish. To access SharedArrayBuffer in the site editor frame,
+ * the entire chain of parent frames must have them set. This includes the two iframes on
+ * playground.wordpress.net and also any site where Playground is embedded. This would break
+ * embedding Playground on other sites that don't set COEP/COOP headers.
  *
- * Gutenberg only uses them in the block editor iframe and only when the
- * client-side media processing experiment is enabled. This is fine for native WordPress, where
- * navigating between wp-admin pages triggers a full page reload, but it's problematic in
- * Playground, where the top-level page remains open the entire time you use WordPress.
+ * Relying on COEP/COOP headers is fine in native WordPress, but problematic in Playground:
+ *
+ * * WordPress can use the COEP/COOP headers in wp-admin as every navigation triggers a full
+ *   page reload and wp-admin rarely gets embedded in iframes on other pages.
+ * * Playground can't easily trigger a full page reload on every navigation – that would destroy
+ *   the current Playground instance. Also, Playground often gets embedded in iframes on other
+ *   pages.
  *
  * ## Document-Isolation-Policy
  *
@@ -606,7 +623,6 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  * Playground rewrites the COEP/COOP headers to Document-Isolation-Policy in the supporting
  * browsers. The support is decided using feature detection. As more browsers implement the
  * specification, they'll automatically start receiving the new header and a better experience.
- *
  *
  * @see boot-playground-remote.ts for the other part of the feature detection logic.
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
@@ -639,8 +655,9 @@ self.addEventListener('message', (event) => {
  * - Removes Cross-Origin-Opener-Policy (COOP) header
  * - Adds Document-Isolation-Policy: isolate-and-credentialless
  *
- * This enables cross-origin isolation (for SharedArrayBuffer) without breaking
- * external embeds like YouTube videos that don't set COEP/COOP headers.
+ * This enables cross-origin isolation (for SharedArrayBuffer) without serving
+ * the entire playground.wordpress.net site with COEP/COOP headers (which would
+ * break embedding it on other sites).
  *
  * @param response The response to potentially modify
  * @param scope The scope of the request, used to track which scopes have cross-origin isolation

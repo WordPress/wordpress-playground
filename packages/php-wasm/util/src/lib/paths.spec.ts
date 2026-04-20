@@ -1,4 +1,10 @@
-import { basename, dirname, joinPaths, normalizePath } from './paths';
+import {
+	basename,
+	dirname,
+	joinPaths,
+	normalizePath,
+	toPosixPath,
+} from './paths';
 
 describe('joinPaths', () => {
 	it('should join paths correctly', () => {
@@ -59,6 +65,36 @@ describe('basename', () => {
 
 	it('should return the basename of a path with multiple slashes', () => {
 		expect(basename('/path/to//file')).toEqual('file');
+	});
+});
+
+describe('toPosixPath', () => {
+	it('should return POSIX paths unchanged', () => {
+		expect(toPosixPath('/home/user/project')).toEqual('/home/user/project');
+	});
+
+	it('should convert backslashes to forward slashes', () => {
+		expect(toPosixPath('foo\\bar\\baz')).toEqual('foo/bar/baz');
+	});
+
+	it('should convert Windows drive letter to POSIX-style root', () => {
+		expect(toPosixPath('C:\\Users\\admin')).toEqual('/C/Users/admin');
+	});
+
+	it('should handle lowercase drive letters', () => {
+		expect(toPosixPath('d:\\projects\\wp')).toEqual('/d/projects/wp');
+	});
+
+	it('should handle drive letter with forward slashes', () => {
+		expect(toPosixPath('C:/Users/admin')).toEqual('/C/Users/admin');
+	});
+
+	it('should leave relative paths unchanged', () => {
+		expect(toPosixPath('relative/path')).toEqual('relative/path');
+	});
+
+	it('should handle empty string', () => {
+		expect(toPosixPath('')).toEqual('');
 	});
 });
 

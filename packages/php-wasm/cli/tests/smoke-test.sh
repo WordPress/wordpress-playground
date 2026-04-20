@@ -3,11 +3,11 @@
 set -euo pipefail
 
 # Ensure Node 23+ is available for JSPI support
-if node -e 'if (parseInt(process.versions.node) < 23) { process.exit(1); }'; then
+if node -e 'if (parseInt(process.versions.node) < 24) { process.exit(1); }'; then
 	echo "Node $(node -v) detected, proceeding with smoke test..."
 else
 	source ~/.nvm/nvm.sh
-	nvm install 23
+	nvm install 24
 	npm ci
 fi
 

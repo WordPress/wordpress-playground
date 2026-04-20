@@ -10,24 +10,18 @@ export type PHPFactory = (options: PHPFactoryOptions) => Promise<PHP>;
 
 export interface ProcessManagerOptions {
 	/**
-	 * The maximum number of PHP instances that can exist at
+	 * The maximum number of PHP instances that can be in use at
 	 * the same time.
 	 */
 	maxPhpInstances?: number;
 	/**
 	 * The number of milliseconds to wait for a PHP instance when
-	 * we have reached the maximum number of PHP instances and
-	 * cannot spawn a new one. If the timeout is reached, we assume
-	 * all the PHP instances are deadlocked and a throw MaxPhpInstancesError.
+	 * all instances are busy. If the timeout is reached, we assume
+	 * all the PHP instances are deadlocked and throw MaxPhpInstancesError.
 	 *
-	 * Default: 5000
+	 * Default: 30000
 	 */
 	timeout?: number;
-	/**
-	 * The primary PHP instance that's never killed. This instance
-	 * contains the reference filesystem used by all other PHP instances.
-	 */
-	primaryPhp?: PHP;
 	/**
 	 * A factory function used for spawning new PHP instances.
 	 */
@@ -44,208 +38,127 @@ export class MaxPhpInstancesError extends Error {
 }
 
 /**
- * A PHP Process manager.
+ * A PHP Process manager that maintains a pool of reusable PHP instances.
  *
- * Maintains:
- * * A single "primary" PHP instance that's never killed – it contains the
- *   reference filesystem used by all other PHP instances.
- * * A pool of disposable PHP instances that are spawned to handle a single
- *   request and reaped immediately after.
+ * Instances are spawned on demand up to `maxPhpInstances` and reused across
+ * requests. The first instance spawned is the "primary" instance which
+ * contains the reference filesystem used by all other instances.
  *
- * When a new request comes in, PHPProcessManager yields the idle instance to
- * handle it, and immediately starts initializing a new idle instance. In other
- * words, for n concurrent requests, there are at most n+1 PHP instances
- * running at the same time.
- *
- * A slight nuance is that the first idle instance is not initialized until the
- * first concurrent request comes in. This is because many use-cases won't
- * involve parallel requests and, for those, we can avoid eagerly spinning up a
- * second PHP instance.
- *
- * This strategy is inspired by Cowboy, an Erlang HTTP server. Handling a
- * single extra request can happen immediately, while handling multiple extra
- * requests requires extra time to spin up a few PHP instances. This is a more
- * resource-friendly tradeoff than keeping 5 idle instances at all times.
+ * The semaphore controls how many requests can be processed concurrently.
+ * When all instances are busy, new requests wait in a queue until an
+ * instance becomes available or the timeout is reached.
  */
 export class PHPProcessManager implements PHPInstanceManager {
-	private primaryPhp?: PHP;
-	private primaryPhpPromise?: Promise<AcquiredPHP>;
-	private primaryIdle = true;
-	private nextInstance: Promise<AcquiredPHP> | null = null;
-	/**
-	 * All spawned PHP instances, including the primary PHP instance.
-	 * Used for bookkeeping and reaping all instances on dispose.
-	 */
-	private allInstances: Promise<AcquiredPHP>[] = [];
-	private phpFactory?: PHPFactory;
+	/** All PHP instances that have been spawned. */
+	private instances: PHP[] = [];
+
+	/** Instances that are currently idle and available for use. */
+	private idleInstances: PHP[] = [];
+
+	/** Maximum number of concurrent PHP instances allowed. */
 	private maxPhpInstances: number;
+
+	/** Factory function for creating new PHP instances. */
+	private phpFactory?: PHPFactory;
+
+	/** Controls concurrent access to PHP instances. */
 	private semaphore: Semaphore;
+
+	/** Prevents spawning duplicate primary instances during concurrent calls. */
+	private primaryPhpPromise?: Promise<PHP>;
 
 	constructor(options?: ProcessManagerOptions) {
 		this.maxPhpInstances = options?.maxPhpInstances ?? 2;
 		this.phpFactory = options?.phpFactory;
-		this.primaryPhp = options?.primaryPhp;
 		this.semaphore = new Semaphore({
 			concurrency: this.maxPhpInstances,
-			/**
-			 * Wait up to 5 seconds for resources to become available
-			 * before assuming that all the PHP instances are deadlocked.
-			 */
-			timeout: options?.timeout || 5000,
+			timeout: options?.timeout || 30000,
 		});
 	}
 
 	/**
-	 * Get the primary PHP instance.
-	 *
-	 * If the primary PHP instance is not set, it will be spawned
-	 * using the provided phpFactory.
-	 *
-	 * @throws {Error} when called twice before the first call is resolved.
+	 * Get the primary PHP instance (the first one spawned).
+	 * If no instance exists yet, one will be spawned and marked as idle.
 	 */
-	async getPrimaryPhp() {
-		if (!this.phpFactory && !this.primaryPhp) {
-			throw new Error(
-				'phpFactory or primaryPhp must be set before calling getPrimaryPhp().'
-			);
-		} else if (!this.primaryPhp) {
-			if (!this.primaryPhpPromise) {
-				this.primaryPhpPromise = this.spawn({ isPrimary: true });
-			}
-			this.primaryPhp = (await this.primaryPhpPromise).php;
+	async getPrimaryPhp(): Promise<PHP> {
+		if (this.instances.length > 0) {
+			return this.instances[0];
+		}
+
+		if (!this.primaryPhpPromise) {
+			this.primaryPhpPromise = this.spawnInstance(true);
+		}
+		try {
+			return await this.primaryPhpPromise;
+		} finally {
 			this.primaryPhpPromise = undefined;
 		}
-		return this.primaryPhp!;
 	}
 
 	/**
-	 * Get a PHP instance.
+	 * Acquire a PHP instance for processing a request.
 	 *
-	 * It could be either the primary PHP instance, an idle disposable PHP
-	 * instance, or a newly spawned PHP instance – depending on the resource
-	 * availability.
+	 * Returns an idle instance from the pool, or spawns a new one if
+	 * the pool isn't at capacity. If all instances are busy, waits
+	 * until one becomes available.
 	 *
-	 * @throws {MaxPhpInstancesError} when the maximum number of PHP instances is reached
-	 *                                and the waiting timeout is exceeded.
+	 * @throws {MaxPhpInstancesError} when the timeout is reached waiting
+	 *                                for an available instance.
 	 */
 	async acquirePHPInstance(): Promise<AcquiredPHP> {
-		/**
-		 * First and foremost, make sure we have the primary PHP instance in place.
-		 * We may not actually acquire it. We just need it to exist.
-		 *
-		 * @TODO: Re-evaluate why we need it to exist. Should spawn() be just more
-		 *        lenient with its "another primary instance already started spawning"
-		 *        check?
-		 */
-		if (!this.primaryPhp) {
-			await this.getPrimaryPhp();
-		}
-
-		if (this.primaryIdle) {
-			this.primaryIdle = false;
-			return {
-				php: await this.getPrimaryPhp(),
-				reap: () => {
-					this.primaryIdle = true;
-				},
-			};
-		}
-
-		/**
-		 * nextInstance is null:
-		 *
-		 * * Before the first concurrent getInstance() call
-		 * * When the last getInstance() call did not have enough
-		 *   budget left to optimistically start spawning the next
-		 *   instance.
-		 */
-		const acquiredPHP =
-			this.nextInstance || this.spawn({ isPrimary: false });
-
-		/**
-		 * Start spawning the next instance if there's still room. We can't
-		 * just always spawn the next instance because spawn() can fail
-		 * asynchronously and then we'll get an unhandled promise rejection.
-		 */
-		if (this.semaphore.remaining > 0) {
-			this.nextInstance = this.spawn({ isPrimary: false });
-		} else {
-			this.nextInstance = null;
-		}
-		return await acquiredPHP;
-	}
-
-	/**
-	 * Initiated spawning of a new PHP instance.
-	 * This function is synchronous on purpose – it needs to synchronously
-	 * add the spawn promise to the allInstances array without waiting
-	 * for PHP to spawn.
-	 */
-	private spawn(factoryArgs: PHPFactoryOptions): Promise<AcquiredPHP> {
-		if (factoryArgs.isPrimary && this.allInstances.length > 0) {
-			throw new Error(
-				'Requested spawning a primary PHP instance when another primary instance already started spawning.'
-			);
-		}
-		const spawned = this.doSpawn(factoryArgs);
-		this.allInstances.push(spawned);
-		const pop = () => {
-			this.allInstances = this.allInstances.filter(
-				(instance) => instance !== spawned
-			);
-		};
-		return spawned
-			.catch((rejection) => {
-				pop();
-				throw rejection;
-			})
-			.then((result) => ({
-				...result,
-				reap: () => {
-					pop();
-					result.reap();
-				},
-			}));
-	}
-
-	/**
-	 * Actually acquires the lock and spawns a new PHP instance.
-	 */
-	private async doSpawn(
-		factoryArgs: PHPFactoryOptions
-	): Promise<AcquiredPHP> {
-		let release: () => void;
+		let releaseSemaphore: () => void;
 		try {
-			release = await this.semaphore.acquire();
+			releaseSemaphore = await this.semaphore.acquire();
 		} catch (error) {
 			if (error instanceof AcquireTimeoutError) {
 				throw new MaxPhpInstancesError(this.maxPhpInstances);
 			}
 			throw error;
 		}
-		try {
-			const php = await this.phpFactory!(factoryArgs);
-			return {
-				php,
-				reap() {
-					php.exit();
-					release();
-				},
-			};
-		} catch (e) {
-			release();
-			throw e;
+
+		const php = await this.getOrSpawnInstance();
+		return {
+			php,
+			reap: () => {
+				this.idleInstances.push(php);
+				releaseSemaphore();
+			},
+		};
+	}
+
+	/**
+	 * Get an idle instance or spawn a new one.
+	 */
+	private async getOrSpawnInstance(): Promise<PHP> {
+		if (this.instances.length === 0) {
+			await this.getPrimaryPhp();
 		}
+		if (this.idleInstances.length === 0) {
+			await this.spawnInstance(false);
+		}
+		return this.idleInstances.pop()!;
+	}
+
+	/**
+	 * Spawn a new PHP instance.
+	 */
+	private async spawnInstance(isPrimary: boolean): Promise<PHP> {
+		if (!this.phpFactory) {
+			throw new Error(
+				'phpFactory must be set before spawning instances.'
+			);
+		}
+		const php = await this.phpFactory({ isPrimary });
+		this.instances.push(php);
+		this.idleInstances.push(php);
+		return php;
 	}
 
 	async [Symbol.asyncDispose]() {
-		if (this.primaryPhp) {
-			this.primaryPhp.exit();
+		for (const php of this.instances) {
+			php.exit();
 		}
-		await Promise.all(
-			this.allInstances.map((instance) =>
-				instance.then(({ reap }) => reap())
-			)
-		);
+		this.instances = [];
+		this.idleInstances = [];
 	}
 }

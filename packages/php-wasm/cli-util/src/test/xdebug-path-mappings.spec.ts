@@ -1,7 +1,11 @@
 import {
-	updatePhpStormConfig,
+	DEFAULT_IDE_KEY,
+	makeXdebugConfig,
+	updatePhpStormWorkspaceConfig,
+	updatePhpStormPHPConfig,
 	updateVSCodeConfig,
-	type PhpStormConfigOptions,
+	type PhpStormWorkspaceConfigOptions,
+	type PhpStormPHPConfigOptions,
 	type VSCodeConfigOptions,
 } from '../lib/xdebug-path-mappings';
 import { XMLParser } from 'fast-xml-parser';
@@ -87,26 +91,26 @@ function expectJSONEquals(actualJSON: string, expectedJSON: string) {
 	expect(actual).toEqual(expected);
 }
 
-describe('updatePhpStormConfig', () => {
-	const defaultOptions: PhpStormConfigOptions = {
+describe('updatePhpStormWorkspaceConfig', () => {
+	const defaultOptions: PhpStormWorkspaceConfigOptions = {
 		name: 'Test Server',
 		host: 'localhost',
 		port: 8080,
 		projectDir: process.cwd(),
-		mappings: [
+		pathMappings: [
 			{
 				hostPath: './src',
 				vfsPath: '/var/www/html/src',
 			},
 		],
-		ideKey: 'PHPWASMCLI',
+		ideKey: DEFAULT_IDE_KEY,
 	};
 
 	describe('valid configurations', () => {
 		it('should add server and run configuration to minimal valid XML', () => {
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -120,7 +124,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -132,7 +136,7 @@ describe('updatePhpStormConfig', () => {
 		it('should handle empty project element', () => {
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4"></project>';
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -146,7 +150,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -162,7 +166,7 @@ describe('updatePhpStormConfig', () => {
 		<option name="someOption" value="someValue" />
 	</component>
 </project>`;
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -179,7 +183,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -191,8 +195,11 @@ describe('updatePhpStormConfig', () => {
 		it('should not duplicate server if it already exists', () => {
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result1 = updatePhpStormConfig(xml, defaultOptions);
-			const result2 = updatePhpStormConfig(result1, defaultOptions);
+			const result1 = updatePhpStormWorkspaceConfig(xml, defaultOptions);
+			const result2 = updatePhpStormWorkspaceConfig(
+				result1,
+				defaultOptions
+			);
 
 			// Count server elements in PhpServers component - should only be 1
 			const serverMatches =
@@ -206,17 +213,17 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should handle no path mapping', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				name: 'Test Server',
 				host: 'localhost',
 				port: 8080,
 				projectDir: process.cwd(),
-				ideKey: 'PHPWASMCLI',
+				ideKey: DEFAULT_IDE_KEY,
 			};
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -227,7 +234,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -237,9 +244,9 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should handle multiple path mappings', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: './src',
 						vfsPath: '/var/www/html/src',
@@ -257,7 +264,7 @@ describe('updatePhpStormConfig', () => {
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -273,7 +280,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -283,9 +290,9 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should strip leading ./ from hostPath', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: './foo/bar',
 						vfsPath: '/var/www/html/foo/bar',
@@ -299,7 +306,7 @@ describe('updatePhpStormConfig', () => {
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -314,7 +321,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -324,9 +331,9 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should make absolute hostPath relative to project directory', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: `${defaultOptions.projectDir}/foo/bar`,
 						vfsPath: '/var/www/html/foo/bar',
@@ -340,7 +347,7 @@ describe('updatePhpStormConfig', () => {
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -355,7 +362,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -371,7 +378,7 @@ describe('updatePhpStormConfig', () => {
 		<servers></servers>
 	</component>
 </project>`;
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -385,7 +392,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -401,13 +408,13 @@ describe('updatePhpStormConfig', () => {
 		<configuration name="Other Config" type="PHPUnitRunConfigurationType" />
 	</component>
 </project>`;
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
 	<component name="RunManager">
 		<configuration name="Other Config" type="PHPUnitRunConfigurationType" />
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -426,14 +433,14 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should use custom IDE key', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
 				ideKey: 'CUSTOM_KEY',
 			};
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -457,7 +464,7 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should handle complex host and port combinations', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
 				host: '192.168.1.100',
 				port: 3000,
@@ -465,7 +472,7 @@ describe('updatePhpStormConfig', () => {
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -479,7 +486,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -494,7 +501,7 @@ describe('updatePhpStormConfig', () => {
 			const invalidXml = 'not valid xml';
 
 			expect(() => {
-				updatePhpStormConfig(invalidXml, defaultOptions);
+				updatePhpStormWorkspaceConfig(invalidXml, defaultOptions);
 			}).toThrow('PhpStorm configuration file is not valid XML.');
 		});
 
@@ -502,7 +509,7 @@ describe('updatePhpStormConfig', () => {
 			const malformedXml = '<?xml version="1.0"?><project><unclosed>';
 
 			expect(() => {
-				updatePhpStormConfig(malformedXml, defaultOptions);
+				updatePhpStormWorkspaceConfig(malformedXml, defaultOptions);
 			}).toThrow('PhpStorm configuration file is not valid XML.');
 		});
 
@@ -511,7 +518,7 @@ describe('updatePhpStormConfig', () => {
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project>\n</project>';
 
 			expect(() => {
-				updatePhpStormConfig(xml, defaultOptions);
+				updatePhpStormWorkspaceConfig(xml, defaultOptions);
 			}).toThrow(
 				'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
 					'but the <project> configuration has no version number.'
@@ -523,7 +530,7 @@ describe('updatePhpStormConfig', () => {
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="5">\n</project>';
 
 			expect(() => {
-				updatePhpStormConfig(xml, defaultOptions);
+				updatePhpStormWorkspaceConfig(xml, defaultOptions);
 			}).toThrow(
 				'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
 					'but we found a <project> configuration with version "5".'
@@ -531,14 +538,14 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should handle empty mappings array', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
-				mappings: [],
+				pathMappings: [],
 			};
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -549,7 +556,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -566,7 +573,7 @@ describe('updatePhpStormConfig', () => {
 <project version="4">
 	<!-- Another comment -->
 </project>`;
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <!-- This is a comment -->
@@ -582,7 +589,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -598,7 +605,7 @@ describe('updatePhpStormConfig', () => {
 		<![CDATA[Some data]]>
 	</component>
 </project>`;
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -615,7 +622,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -625,14 +632,14 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should handle special characters in server name', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
 				name: 'Test & Server "With" Quotes',
 			};
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -646,7 +653,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test &amp; Server &quot;With&quot; Quotes" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test &amp; Server &quot;With&quot; Quotes" session_id="PHPWASMCLI">
+		<configuration name="Test &amp; Server &quot;With&quot; Quotes" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test &amp; Server &quot;With&quot; Quotes" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -656,9 +663,9 @@ describe('updatePhpStormConfig', () => {
 		});
 
 		it('should handle paths with special characters', () => {
-			const options: PhpStormConfigOptions = {
+			const options: PhpStormWorkspaceConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: './src/my-special-dir',
 						vfsPath: '/var/www/html/my-special-dir',
@@ -668,7 +675,7 @@ describe('updatePhpStormConfig', () => {
 
 			const xml =
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
-			const result = updatePhpStormConfig(xml, options);
+			const result = updatePhpStormWorkspaceConfig(xml, options);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -682,7 +689,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -704,7 +711,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 </project>`;
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
@@ -723,7 +730,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -737,7 +744,7 @@ describe('updatePhpStormConfig', () => {
 <project version="4" foo="bar" baz="qux">
 	<component name="ExistingComponent" />
 </project>`;
-			const result = updatePhpStormConfig(xml, defaultOptions);
+			const result = updatePhpStormWorkspaceConfig(xml, defaultOptions);
 
 			const expected = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4" foo="bar" baz="qux">
@@ -752,7 +759,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="${DEFAULT_IDE_KEY}">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -763,11 +770,184 @@ describe('updatePhpStormConfig', () => {
 	});
 });
 
+describe('updatePhpStormPHPConfig', () => {
+	const defaultOptions: PhpStormPHPConfigOptions = {
+		pathSkippings: ['/dev/', '/home/', '/internal/'],
+	};
+
+	describe('valid configurations', () => {
+		it('should add skipped files to minimal valid XML', () => {
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
+			const result = updatePhpStormPHPConfig(xml, defaultOptions);
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files>
+			<skipped_file file="$PROJECT_DIR$/dev"/>
+			<skipped_file file="$PROJECT_DIR$/home"/>
+			<skipped_file file="$PROJECT_DIR$/internal"/>
+		</skipped_files>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+
+		it('should handle empty project element', () => {
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4"></project>';
+			const result = updatePhpStormPHPConfig(xml, defaultOptions);
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files>
+			<skipped_file file="$PROJECT_DIR$/dev"/>
+			<skipped_file file="$PROJECT_DIR$/home"/>
+			<skipped_file file="$PROJECT_DIR$/internal"/>
+		</skipped_files>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+
+		it('should preserve existing components', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpInterpreters">
+		<interpreters/>
+	</component>
+</project>`;
+			const result = updatePhpStormPHPConfig(xml, defaultOptions);
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpInterpreters">
+		<interpreters/>
+	</component>
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files>
+			<skipped_file file="$PROJECT_DIR$/dev"/>
+			<skipped_file file="$PROJECT_DIR$/home"/>
+			<skipped_file file="$PROJECT_DIR$/internal"/>
+		</skipped_files>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+
+		it('should not duplicate existing skipped files', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files>
+			<skipped_file file="$PROJECT_DIR$/dev"/>
+		</skipped_files>
+	</component>
+</project>`;
+			const result = updatePhpStormPHPConfig(xml, defaultOptions);
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files>
+			<skipped_file file="$PROJECT_DIR$/dev"/>
+			<skipped_file file="$PROJECT_DIR$/home"/>
+			<skipped_file file="$PROJECT_DIR$/internal"/>
+		</skipped_files>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+
+		it('should strip trailing slash from directory paths', () => {
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
+			const result = updatePhpStormPHPConfig(xml, {
+				pathSkippings: ['/dev/', '/foo.php'],
+			});
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files>
+			<skipped_file file="$PROJECT_DIR$/dev"/>
+			<skipped_file file="$PROJECT_DIR$/foo.php"/>
+		</skipped_files>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+
+		it('should handle empty pathSkippings', () => {
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
+			const result = updatePhpStormPHPConfig(xml, {
+				pathSkippings: [],
+			});
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files/>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+
+		it('should handle undefined pathSkippings', () => {
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
+			const result = updatePhpStormPHPConfig(xml, {});
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpStepFilterConfiguration">
+		<skipped_files/>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+	});
+
+	describe('error handling', () => {
+		it('should throw for invalid XML', () => {
+			expect(() =>
+				updatePhpStormPHPConfig('not xml', defaultOptions)
+			).toThrow('PhpStorm PHP configuration file is not valid XML.');
+		});
+
+		it('should throw for project with wrong version', () => {
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="3">\n</project>';
+			expect(() => updatePhpStormPHPConfig(xml, defaultOptions)).toThrow(
+				'version "3"'
+			);
+		});
+
+		it('should throw for project with no version', () => {
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project>\n</project>';
+			expect(() => updatePhpStormPHPConfig(xml, defaultOptions)).toThrow(
+				'no version number'
+			);
+		});
+	});
+});
+
 describe('updateVSCodeConfig', () => {
 	const defaultOptions: VSCodeConfigOptions = {
 		name: 'Test Configuration',
 		workspaceDir: process.cwd(),
-		mappings: [
+		pathMappings: [
 			{
 				hostPath: './src',
 				vfsPath: '/var/www/html/src',
@@ -781,17 +961,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -802,17 +982,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -823,17 +1003,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -841,35 +1021,35 @@ describe('updateVSCodeConfig', () => {
 
 		it('should preserve existing configurations', () => {
 			const json = `{
-    "configurations": [
-        {
-            "name": "Existing Config",
-            "type": "php",
-            "request": "launch",
-            "port": 9000
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Existing Config",
+			"type": "php",
+			"request": "launch",
+			"port": 9000
+		}
+	]
 }`;
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Existing Config",
-            "type": "php",
-            "request": "launch",
-            "port": 9000
-        },
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Existing Config",
+			"type": "php",
+			"request": "launch",
+			"port": 9000
+		},
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -902,7 +1082,7 @@ describe('updateVSCodeConfig', () => {
 			"request": "launch",
 			"port": 9003,
 		}
-    ]
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -911,7 +1091,7 @@ describe('updateVSCodeConfig', () => {
 		it('should handle multiple path mappings', () => {
 			const options: VSCodeConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: './src',
 						vfsPath: '/var/www/html/src',
@@ -931,20 +1111,105 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src",
-                "/var/www/html/tests": "\${workspaceFolder}/tests",
-                "/var/www/html/vendor": "\${workspaceFolder}/vendor"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src",
+				"/var/www/html/tests": "\${workspaceFolder}/tests",
+				"/var/www/html/vendor": "\${workspaceFolder}/vendor"
+			}
+		}
+	]
 }`;
+
+			expectJSONEquals(result, expected);
+		});
+
+		it('should add skipFiles for directory paths', () => {
+			const json = '{\n    "configurations": []\n}';
+			const result = updateVSCodeConfig(json, {
+				name: 'Test',
+				workspaceDir: process.cwd(),
+				pathSkippings: ['/dev/', '/home/', '/internal/'],
+			});
+
+			const expected = `{
+		"configurations": [
+			{
+				"name": "Test",
+				"type": "php",
+				"request": "launch",
+				"port": 9003,
+				"skipFiles": [
+					"/dev/**",
+					"/home/**",
+					"/internal/**"
+				]
+			}
+		]
+	}`;
+
+			expectJSONEquals(result, expected);
+		});
+
+		it('should not append ** to file paths', () => {
+			const json = '{\n    "configurations": []\n}';
+			const result = updateVSCodeConfig(json, {
+				name: 'Test',
+				workspaceDir: process.cwd(),
+				pathSkippings: ['/dev/', '/foo.php'],
+			});
+
+			const expected = `{
+		"configurations": [
+			{
+				"name": "Test",
+				"type": "php",
+				"request": "launch",
+				"port": 9003,
+				"skipFiles": [
+					"/dev/**",
+					"/foo.php"
+				]
+			}
+		]
+	}`;
+
+			expectJSONEquals(result, expected);
+		});
+
+		it('should include both skipFiles and pathMappings', () => {
+			const json = '{\n    "configurations": []\n}';
+			const result = updateVSCodeConfig(json, {
+				name: 'Test',
+				workspaceDir: process.cwd(),
+				pathMappings: [
+					{ hostPath: './src', vfsPath: '/var/www/html/src' },
+				],
+				pathSkippings: ['/dev/', '/home/'],
+			});
+
+			const expected = `{
+		"configurations": [
+			{
+				"name": "Test",
+				"type": "php",
+				"request": "launch",
+				"port": 9003,
+				"pathMappings": {
+					"/var/www/html/src": "\${workspaceFolder}/src"
+				},
+				"skipFiles": [
+					"/dev/**",
+					"/home/**"
+				]
+			}
+		]
+	}`;
 
 			expectJSONEquals(result, expected);
 		});
@@ -952,7 +1217,7 @@ describe('updateVSCodeConfig', () => {
 		it('should strip leading ./ from hostPath', () => {
 			const options: VSCodeConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: './foo/bar',
 						vfsPath: '/var/www/html/foo/bar',
@@ -968,18 +1233,18 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/foo/bar": "\${workspaceFolder}/foo/bar",
-                "/var/www/html/baz/qux": "\${workspaceFolder}/baz/qux"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/foo/bar": "\${workspaceFolder}/foo/bar",
+				"/var/www/html/baz/qux": "\${workspaceFolder}/baz/qux"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -988,7 +1253,7 @@ describe('updateVSCodeConfig', () => {
 		it('should make absolute hostPath relative to workspace folder', () => {
 			const options: VSCodeConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: `${defaultOptions.workspaceDir}/foo/bar`,
 						vfsPath: '/var/www/html/foo/bar',
@@ -1004,18 +1269,18 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/foo/bar": "\${workspaceFolder}/foo/bar",
-                "/var/www/html/baz/qux": "\${workspaceFolder}/baz/qux"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/foo/bar": "\${workspaceFolder}/foo/bar",
+				"/var/www/html/baz/qux": "\${workspaceFolder}/baz/qux"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1023,26 +1288,26 @@ describe('updateVSCodeConfig', () => {
 
 		it('should handle JSON with comments (JSONC)', () => {
 			const json = `{
-    // This is a comment
-    "configurations": [
-        // Another comment
-    ]
+	// This is a comment
+	"configurations": [
+		// Another comment
+	]
 }`;
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			// Comments are not preserved in output, so just check structure
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1050,32 +1315,32 @@ describe('updateVSCodeConfig', () => {
 
 		it('should handle JSON with trailing commas (JSONC)', () => {
 			const json = `{
-    "configurations": [
-        {
-            "name": "Existing Config",
-            "type": "php",
-        },
-    ],
+	"configurations": [
+		{
+			"name": "Existing Config",
+			"type": "php",
+		},
+	],
 }`;
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			// Trailing commas are normalized in output
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Existing Config",
-            "type": "php"
-        },
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Existing Config",
+			"type": "php"
+		},
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1083,26 +1348,26 @@ describe('updateVSCodeConfig', () => {
 
 		it('should preserve other properties in the JSON', () => {
 			const json = `{
-    "version": "0.2.0",
-    "configurations": [],
-    "compounds": []
+	"version": "0.2.0",
+	"configurations": [],
+	"compounds": []
 }`;
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ],
-    "compounds": []
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	],
+	"compounds": []
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1113,17 +1378,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1160,21 +1425,21 @@ describe('updateVSCodeConfig', () => {
 		it('should handle empty mappings array', () => {
 			const options: VSCodeConfigOptions = {
 				...defaultOptions,
-				mappings: [],
+				pathMappings: [],
 			};
 
 			const json = '{\n    "configurations": []\n}';
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1192,17 +1457,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test & Configuration \\"With\\" Quotes",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test & Configuration \\"With\\" Quotes",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1211,7 +1476,7 @@ describe('updateVSCodeConfig', () => {
 		it('should handle paths with special characters', () => {
 			const options: VSCodeConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: './src/my-special-dir',
 						vfsPath: '/var/www/html/my-special-dir',
@@ -1223,17 +1488,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/my-special-dir": "\${workspaceFolder}/src/my-special-dir"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/my-special-dir": "\${workspaceFolder}/src/my-special-dir"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1241,43 +1506,43 @@ describe('updateVSCodeConfig', () => {
 
 		it('should handle deeply nested existing structure', () => {
 			const json = `{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Existing Config",
-            "type": "php",
-            "request": "launch",
-            "port": 9000,
-            "pathMappings": {
-                "/var/www/html/existing": "\${workspaceFolder}/existing"
-            }
-        }
-    ]
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Existing Config",
+			"type": "php",
+			"request": "launch",
+			"port": 9000,
+			"pathMappings": {
+				"/var/www/html/existing": "\${workspaceFolder}/existing"
+			}
+		}
+	]
 }`;
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Existing Config",
-            "type": "php",
-            "request": "launch",
-            "port": 9000,
-            "pathMappings": {
-                "/var/www/html/existing": "\${workspaceFolder}/existing"
-            }
-        },
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Existing Config",
+			"type": "php",
+			"request": "launch",
+			"port": 9000,
+			"pathMappings": {
+				"/var/www/html/existing": "\${workspaceFolder}/existing"
+			}
+		},
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1288,17 +1553,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1311,17 +1576,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, defaultOptions);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/src": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/src": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1330,7 +1595,7 @@ describe('updateVSCodeConfig', () => {
 		it('should handle mixed single and double quotes in paths', () => {
 			const options: VSCodeConfigOptions = {
 				...defaultOptions,
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: "./src/path-with-'single'-quotes",
 						vfsPath: '/var/www/html/path',
@@ -1342,17 +1607,17 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/path": "\${workspaceFolder}/src/path-with-'single'-quotes"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/path": "\${workspaceFolder}/src/path-with-'single'-quotes"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
@@ -1390,7 +1655,7 @@ describe('updateVSCodeConfig', () => {
 			const options: VSCodeConfigOptions = {
 				...defaultOptions,
 				name: 'Test 🚀 Configuration',
-				mappings: [
+				pathMappings: [
 					{
 						hostPath: './src',
 						vfsPath: '/var/www/html/тест', // Cyrillic characters
@@ -1402,20 +1667,76 @@ describe('updateVSCodeConfig', () => {
 			const result = updateVSCodeConfig(json, options);
 
 			const expected = `{
-    "configurations": [
-        {
-            "name": "Test 🚀 Configuration",
-            "type": "php",
-            "request": "launch",
-            "port": 9003,
-            "pathMappings": {
-                "/var/www/html/тест": "\${workspaceFolder}/src"
-            }
-        }
-    ]
+	"configurations": [
+		{
+			"name": "Test 🚀 Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+			"pathMappings": {
+				"/var/www/html/тест": "\${workspaceFolder}/src"
+			}
+		}
+	]
 }`;
 
 			expectJSONEquals(result, expected);
+		});
+	});
+});
+
+describe('makeXdebugConfig', () => {
+	it('should return pathMappings from filterLocalMounts when cwd and mounts are provided', () => {
+		const cwd = process.cwd();
+		const mounts = [{ hostPath: './src', vfsPath: '/var/www/html/src' }];
+		const pathSkippings = ['/vendor'];
+
+		const result = makeXdebugConfig({
+			cwd,
+			mounts,
+			pathSkippings,
+		});
+
+		expect(result).toEqual({
+			pathMappings: mounts,
+			pathSkippings,
+		});
+	});
+
+	it('should only include local mounts in pathMappings', () => {
+		const cwd = process.cwd();
+		const localMounts = [
+			{ hostPath: './src', vfsPath: '/var/www/html/src' },
+			{ hostPath: './tests', vfsPath: '/var/www/html/tests' },
+		];
+		const nonLocalMounts = [
+			{ hostPath: '/tmp/other/vendor', vfsPath: '/var/www/html/vendor' },
+		];
+		const pathSkippings = ['/vendor'];
+
+		const result = makeXdebugConfig({
+			cwd,
+			mounts: [...localMounts, ...nonLocalMounts],
+			pathSkippings,
+		});
+
+		expect(result).toEqual({
+			pathMappings: localMounts,
+			pathSkippings,
+		});
+	});
+
+	it('should return empty pathMappings when cwd is missing', () => {
+		const mounts = [{ hostPath: './src', vfsPath: '/var/www/html/src' }];
+
+		const result = makeXdebugConfig({
+			mounts,
+			pathSkippings: ['/vendor'],
+		});
+
+		expect(result).toEqual({
+			pathMappings: undefined,
+			pathSkippings: ['/vendor'],
 		});
 	});
 });

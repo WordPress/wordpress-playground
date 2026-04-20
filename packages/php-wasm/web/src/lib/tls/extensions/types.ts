@@ -56,6 +56,7 @@ export const ExtensionTypes = {
 	key_share: 51,
 	transparency_info: 52,
 	connection_id: 54,
+	renegotiation_info: 65281,
 } as const;
 
 import { flipObject } from '../utils';

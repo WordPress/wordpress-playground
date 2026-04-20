@@ -1,4 +1,5 @@
 import type { Remote } from './comlink-sync';
+import type { Pooled } from './object-pool-proxy';
 import type { LimitedPHPApi } from './php-worker';
 
 /**
@@ -56,13 +57,17 @@ export type PHPEvent =
  */
 export type PHPEventListener = (event: PHPEvent) => void;
 
-export type UniversalPHP = LimitedPHPApi | Remote<LimitedPHPApi>;
+export type UniversalPHP =
+	| LimitedPHPApi
+	| Remote<LimitedPHPApi>
+	| Pooled<LimitedPHPApi>;
 
 export type MessageListener = (
 	data: string
 ) => Promise<string | Uint8Array | void> | string | void;
 export interface EventEmitter {
 	on(event: string, listener: (...args: any[]) => void): this;
+	off(event: string, listener: (...args: any[]) => void): this;
 	emit(event: string, ...args: any[]): boolean;
 }
 export type ChildProcess = EventEmitter & {

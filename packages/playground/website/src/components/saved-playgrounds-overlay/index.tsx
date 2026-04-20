@@ -15,17 +15,15 @@ import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { importWordPressFiles } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 import {
-	setActiveSite,
 	useActiveSite,
-	useAppDispatch,
 	useAppSelector,
+	useAppDispatch,
 } from '../../lib/state/redux/store';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	selectSortedSites,
 	selectTemporarySite,
-	removeSite,
 } from '../../lib/state/redux/slice-sites';
 import {
 	modalSlugs,
@@ -34,6 +32,7 @@ import {
 	setSiteManagerSection,
 	setSiteSlugToRename,
 } from '../../lib/state/redux/slice-ui';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
@@ -54,8 +53,11 @@ type BlueprintsIndexEntry = {
 	featured?: boolean;
 };
 
+export type OverlayViewMode = 'main' | 'blueprints';
+
 interface SavedPlaygroundsOverlayProps {
 	onClose: () => void;
+	initialViewMode?: OverlayViewMode;
 }
 
 function PullRequestIcon() {
@@ -76,6 +78,7 @@ function GridIcon({ size = 20 }: { size?: number }) {
 
 export function SavedPlaygroundsOverlay({
 	onClose,
+	initialViewMode = 'main',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const storedSites = useAppSelector(selectSortedSites).filter(
@@ -85,10 +88,11 @@ export function SavedPlaygroundsOverlay({
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const modalDispatch: PlaygroundDispatch = useDispatch();
+	const sitesAPI = useSitesAPI();
 	const playground = usePlaygroundClient();
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
 
-	const [viewMode, setViewMode] = useState<'main' | 'blueprints'>('main');
+	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
@@ -127,9 +131,9 @@ export function SavedPlaygroundsOverlay({
 		doImport();
 	}, [pendingZipFile, isTemporarySite, playground, onClose]);
 
-	function switchToTemporarySite() {
+	async function switchToTemporarySite() {
 		if (temporarySite) {
-			dispatch(setActiveSite(temporarySite.slug));
+			await sitesAPI.setActiveSite(temporarySite.slug);
 		} else {
 			redirectTo(PlaygroundRoute.newTemporarySite());
 		}
@@ -223,15 +227,15 @@ export function SavedPlaygroundsOverlay({
 		return matchesSearch && matchesTag;
 	});
 
-	const onSiteClick = (slug: string) => {
-		dispatch(setActiveSite(slug));
+	const onSiteClick = async (slug: string) => {
+		await sitesAPI.setActiveSite(slug);
 		dispatch(setSiteManagerSection('site-details'));
 		onClose();
 	};
 
-	const onTemporaryPlaygroundClick = () => {
+	const onTemporaryPlaygroundClick = async () => {
 		if (temporarySite) {
-			dispatch(setActiveSite(temporarySite.slug));
+			await sitesAPI.setActiveSite(temporarySite.slug);
 			dispatch(setSiteManagerSection('site-details'));
 			onClose();
 		} else {
@@ -248,7 +252,7 @@ export function SavedPlaygroundsOverlay({
 			`Are you sure you want to delete the site '${site.metadata.name}'?`
 		);
 		if (proceed) {
-			await dispatch(removeSite(site.slug));
+			await sitesAPI.delete(site.slug);
 			closeMenu();
 		}
 	};

@@ -74,8 +74,10 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
     ];
 }
 
-function is_private_ip($ip) {
-    return IpUtils::isPrivateIp($ip);
+if (!function_exists('is_private_ip')) {
+    function is_private_ip($ip) {
+        return IpUtils::isPrivateIp($ip);
+    }
 }
 
 class IpUtils
@@ -400,19 +402,39 @@ function rewrite_relative_redirect(
 }
 
 /**
+ * Whether the CORS proxy is running on the PHP built-in dev server.
+ *
+ * In dev, the proxy is accessed via a same-origin Vite proxy, so the
+ * browser doesn't send an Origin header at all. We accept any origin
+ * in this context so the X-Playground-Cors-Proxy marker is always
+ * present and the client doesn't mistake the response for a firewall
+ * interception.
+ */
+function is_local_dev_server() {
+    return php_sapi_name() === 'cli-server';
+}
+
+/**
  * Answers whether CORS is allowed for the specified origin.
  */
 function should_respond_with_cors_headers($host, $origin) {
+    if (is_local_dev_server()) {
+        return true;
+    }
+
     if (empty($origin)) {
         return false;
     }
 
     $supported_origins = array(
+        'https://playground-preview.test',
         'https://playground.wordpress.net',
         'http://localhost',
         'http://127.0.0.1',
         'http://127.0.0.1:5400',
         'http://localhost:5400',
+        'http://127.0.0.1:5401',
+        'http://localhost:5401',
         'http://127.0.0.1:4400',
         'http://localhost:4400',
     );

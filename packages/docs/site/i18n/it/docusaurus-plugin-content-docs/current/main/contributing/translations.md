@@ -173,14 +173,14 @@ npm run dev -- --locale es
 
 The language switcher is a dropdown menu that allows users to select their preferred language.
 
-![Documentation Language Switcher](@site/static/img/contributing/language-switcher-docs.webp)
+![Documentation Language Switcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 -->
 
 ## Il selettore della lingua
 
 Il selettore della lingua è un menu a tendina che permette agli utenti di selezionare la loro lingua preferita.
 
-![Selettore lingua documentazione](@site/static/img/contributing/language-switcher-docs.webp)
+![Selettore lingua documentazione](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 
 <!--
 ### Making a language publicly available on the Language Switcher
@@ -238,18 +238,18 @@ Raccomandiamo di aggiungere una lingua al selettore solo quando una parte signif
 
 Come linea guida, una lingua dovrebbe essere resa pubblicamente disponibile nel selettore solo quando l'intero hub "Documentazione" è tradotto, inclusi questi capitoli chiave:
 
--   [Guida rapida](https://wordpress.github.io/wordpress-playground/quick-start-guide)
--   [Istanza web Playground](https://wordpress.github.io/wordpress-playground/web-instance)
--   [Informazioni su Playground](https://wordpress.github.io/wordpress-playground/about)
--   [Guide](https://wordpress.github.io/wordpress-playground/guides)
--   [Contribuire](https://wordpress.github.io/wordpress-playground/contributing)
--   [Link e risorse](https://wordpress.github.io/wordpress-playground/resources)
+- [Guida rapida](https://wordpress.github.io/wordpress-playground/quick-start-guide)
+- [Istanza web Playground](https://wordpress.github.io/wordpress-playground/web-instance)
+- [Informazioni su Playground](https://wordpress.github.io/wordpress-playground/about)
+- [Guide](https://wordpress.github.io/wordpress-playground/guides)
+- [Contribuire](https://wordpress.github.io/wordpress-playground/contributing)
+- [Link e risorse](https://wordpress.github.io/wordpress-playground/resources)
 
 Tutte le lingue sono disponibili una volta che la configurazione i18n per una lingua è completa e la struttura dei file corretta è in posto sotto `i18n`.
 
--   https://wordpress.github.io/wordpress-playground/
--   https://wordpress.github.io/wordpress-playground/es/
--   https://wordpress.github.io/wordpress-playground/fr/
+- https://wordpress.github.io/wordpress-playground/
+- https://wordpress.github.io/wordpress-playground/es/
+- https://wordpress.github.io/wordpress-playground/fr/
 
 Assumendo che la lingua `fr` sia la prima lingua con le pagine dell'hub Documentazione (Guida rapida, Istanza web Playground, Informazioni su Playground, Guide,... ) completamente tradotte in francese, il `docusaurus.config.js` dovrebbe apparire così in quel branch così `npm run build:docs` genera correttamente il sottosito `fr` e mostra solo la lingua francese nel selettore della lingua `localeDropdown`.
 
@@ -293,14 +293,14 @@ Follow these steps to translate a page:
 -   Copy the original .md file from `packages/docs/site/docs/...` to the corresponding path in the language directory (e.g., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). It is crucial to replicate the original file structure.
 -   Translate the content of the new file, keeping the original content commented out `<!-- English Content -->`.
 
--   The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
--   Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
+- The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
+- Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
 
 4. **Create a pull request with your changes**
 
--   Add a prefix to the title `[i18n]` to help to identify the translations
--   Describe the pages that you translated
--   Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
+- Add a prefix to the title `[i18n]` to help to identify the translations
+- Describe the pages that you translated
+- Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 
 :::info
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
@@ -315,17 +315,17 @@ Segui questi passaggi per tradurre una pagina:
 2. **Crea una nuova issue di traduzione**: Se non esiste una issue, per favore creane una nuova per tracciare i progressi della traduzione per la lingua. Puoi modellarla sull'issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) e usare la checklist markdown qui sotto per tracciare i progressi.
 3. **Traduci il file**:
 
--   Controlla se hai l'ultima versione della documentazione
--   Copia il file .md originale da `packages/docs/site/docs/...` al percorso corrispondente nella directory della lingua (es., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). È cruciale replicare la struttura dei file originale.
--   Traduci il contenuto del nuovo file, mantenendo il contenuto originale commentato `<!-- Contenuto inglese -->`.
--   Le risorse sono elencate in `packages/docs/site/static/img/` posiziona le risorse dentro la cartella di traduzione solo quando richiede contenuto localizzato.
--   Una volta che le traduzioni sono pronte, controlla se lo script di build della documentazione funziona correttamente `npm run build:docs`.
+- Controlla se hai l'ultima versione della documentazione
+- Copia il file .md originale da `packages/docs/site/docs/...` al percorso corrispondente nella directory della lingua (es., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). È cruciale replicare la struttura dei file originale.
+- Traduci il contenuto del nuovo file, mantenendo il contenuto originale commentato `<!-- Contenuto inglese -->`.
+- Le risorse sono elencate in `packages/docs/site/static/img/` posiziona le risorse dentro la cartella di traduzione solo quando richiede contenuto localizzato.
+- Una volta che le traduzioni sono pronte, controlla se lo script di build della documentazione funziona correttamente `npm run build:docs`.
 
 4. **Crea una pull request con le tue modifiche**
 
--   Aggiungi un prefisso al titolo `[i18n]` per aiutare a identificare le traduzioni
--   Descrivi le pagine che hai tradotto
--   Richiedi una revisione su `#playground` o `#polyglots` su `wordpress.slack.com`
+- Aggiungi un prefisso al titolo `[i18n]` per aiutare a identificare le traduzioni
+- Descrivi le pagine che hai tradotto
+- Richiedi una revisione su `#playground` o `#polyglots` su `wordpress.slack.com`
 
 :::info
 Raccomandiamo fortemente di inviare pull request con un piccolo numero di pagine tradotte. Questo approccio semplifica il processo di revisione e permette un'integrazione più graduale e gestibile del tuo lavoro.
@@ -447,95 +447,104 @@ Puoi usare il seguente markdown nella tua issue di tracciamento:
 <summary><h3>Main</h3></summary>
 
 - about
-  - [ ] build.md #2291
-  - [ ] index.md #2282
-  - [ ] launch.md #2292
-  - [ ] test.md #2302
+  - [ ] build.md
+  - [ ] index.md
+  - [ ] launch.md
+  - [ ] test.md
 - contributing
-  - [ ] code.md #2218
-  - [ ] coding-standards.md #2219
-  - [ ] contributor-day.md #2246
+  - [ ] code.md
+  - [ ] coding-standards.md
   - [ ] contributor-badge.md
-  - [ ] documentation.md #2271
-  - [ ] translations.md #2201
+  - [ ] contributor-day.md
+  - [ ] contributor-day-table-lead.md
+  - [ ] documentation.md
+  - [ ] index.md
+  - [ ] releases.md
+  - [ ] translations.md
 - guides
-  - [ ] for-plugin-developers.md #2210
-  - [ ] for-theme-developers.md #2211
-  - [ ] index.md #2209
-  - [ ] providing-content-for-your-demo.md #2213
-  - [ ] wordpress-native-ios-app.md #2214
-- [ ] intro.md #2198
-- [ ] quick-start-guide.md #2204
-- [ ] resources.md #2207
-- [ ] web-instance.md #2208
+  - [ ] for-plugin-developers.md
+  - [ ] for-theme-developers.md
+  - [ ] github-action-pr-preview.md
+  - [ ] index.md
+  - [ ] providing-content-for-your-demo.md
+  - [ ] wordpress-native-ios-app.md
+- [ ] changelog.md
+- [ ] intro.md
+- [ ] quick-start-guide.md
+- [ ] resources.md
+- [ ] web-instance.md
 
 </details>
 
 <details open>
 <summary><h3>Blueprints</h3></summary>
 
-- blueprints
-  - [ ] 01-index.md #2305
-  - [ ] 02-using-blueprints.md #2330
-  - [ ] 03-data-format.md #2340
-   - [ ] 04-resources.md #2352
-   - [ ] 05-steps-shorthands.md  #2386
-  - [ ] 05-steps.md  #2386
-  - [ ] 06-bundles.md #2438
-   - [ ] 07-json-api-and-function-api.md #2438
-   - [ ] 08-examples.md #2474
-   - [ ] 09-troubleshoot-and-debug-blueprints.md #2474
-   - [ ] intro.md #2489
-   - tutorial
-       - [ ] 01-what-are-blueprints-what-you-can-do-with-them.md #2511
-       - [ ] 02-how-to-load-run-blueprints.md #2526
-       - [ ] 03-build-your-first-blueprint.md
-       - [ ] index.md #2511
+- [ ] 01-index.md
+- [ ] 02-using-blueprints.md
+- [ ] 03-data-format.md
+- [ ] 04-resources.md
+- [ ] 05-steps.md
+- [ ] 05-steps-shorthands.md
+- [ ] 06-bundles.md
+- [ ] 07-json-api-and-function-api.md
+- [ ] 08-examples.md
+- [ ] 09-troubleshoot-and-debug-blueprints.md
+- [ ] intro.md
+- tutorial
+  - [ ] 01-what-are-blueprints-what-you-can-do-with-them.md
+  - [ ] 02-how-to-load-run-blueprints.md
+  - [ ] 03-build-your-first-blueprint.md
+  - [ ] index.md
+
 </details>
 
 <details open>
 <summary><h3>Developers</h3></summary>
 
-- [ ] developers
-   - [ ] 03-build-an-app
-      - [ ] 01-index.md
-   - [ ] 05-local-development
-      - [ ] 01-wp-now.md
-      - [ ] 02-vscode-extension.md
-      - [ ] 03-php-wasm-node.md
-      - [ ] intro.md
-   - [ ] 06-apis
-      - [ ] 01-index.md
-      - [ ] javascript-api
-         - [ ] 01-index.md
-         - [ ] 02-index-html-vs-remote-html.md
-         - [ ] 03-playground-api-client.md
-         - [ ] 04-blueprint-json-in-api-client.md
-         - [ ] 05-blueprint-functions-in-api-client.md
-         - [ ] 06-mount-data.md
-      - [ ] query-api
-          - [ ] 01-index.md
-   - [ ] 23-architecture
-      - [ ] 01-index.md
-      - [ ] 02-wasm-php-overview.md
-      - [ ] 03-wasm-php-compiling.md
-      - [ ] 04-wasm-php-javascript-module.md
-      - [ ] 05-wasm-php-filesystem.md
-      - [ ] 07-wasm-asyncify.md
-      - [ ] 08-browser-concepts.md
-      - [ ] 09-browser-tab-orchestrates-execution.md
-      - [ ] 10-browser-iframe-rendering.md
-      - [ ] 11-browser-php-worker-threads.md
-      - [ ] 12-browser-service-workers.md
-      - [ ] 13-browser-scopes.md
-      - [ ] 14-browser-cross-process-communication.md
-      - [ ] 15-wordpress.md
-      - [ ] 16-wordpress-database.md
-      - [ ] 17-browser-wordpress.md
-      - [ ] 18-host-your-own-playground.md
-   - [ ] 24-limitations
-      - [ ] 01-index.md
-   - [ ] intro-devs.md
+- 03-build-an-app
+  - [ ] 01-index.md
+- 05-local-development
+  - [ ] 01-wp-now.md
+  - [ ] 02-vscode-extension.md
+  - [ ] 03-php-wasm-node.md
+  - [ ] 04-wp-playground-cli.md
+  - [ ] intro.md
+- 06-apis
+  - [ ] 01-index.md
+  - javascript-api
+    - [ ] 01-index.md
+    - [ ] 02-index-html-vs-remote-html.md
+    - [ ] 03-playground-api-client.md
+    - [ ] 04-blueprint-json-in-api-client.md
+    - [ ] 05-blueprint-functions-in-api-client.md
+    - [ ] 06-mount-data.md
+  - query-api
+    - [ ] 01-index.md
+- 07-xdebug
+  - [ ] 01-introduction.md
+  - [ ] 02-getting-started.md
+- 23-architecture
+  - [ ] 01-index.md
+  - [ ] 02-wasm-php-overview.md
+  - [ ] 03-wasm-php-compiling.md
+  - [ ] 04-wasm-php-javascript-module.md
+  - [ ] 05-wasm-php-filesystem.md
+  - [ ] 07-wasm-asyncify.md
+  - [ ] 08-browser-concepts.md
+  - [ ] 09-browser-tab-orchestrates-execution.md
+  - [ ] 10-browser-iframe-rendering.md
+  - [ ] 11-browser-php-worker-threads.md
+  - [ ] 12-browser-service-workers.md
+  - [ ] 13-browser-scopes.md
+  - [ ] 14-browser-cross-process-communication.md
+  - [ ] 15-wordpress.md
+  - [ ] 16-wordpress-database.md
+  - [ ] 17-browser-wordpress.md
+  - [ ] 18-host-your-own-playground.md
+- 24-limitations
+  - [ ] 01-index.md
+- [ ] intro-devs.md
+
 </details>
 ```
 
@@ -563,7 +572,7 @@ Questa guida ti mostrerà come aggiornare una traduzione esistente e aggiungerne
 1.  **Navigate to the file.** Go to the repository and find the file you want to update. Translation files are located in a folder named after their language code. For example, all French translations are in `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
 
 2.  **Open the editor.** Select the file you wish to edit and click the pencil icon (**Edit this file**) in the upper right corner.
-    ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
+    ![Editing existing translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 
 3.  **Fork the repository.** GitHub will automatically prompt you to **Fork this repository**. This creates a personal copy for you to edit safely. Click the button to proceed.
 
@@ -581,7 +590,7 @@ Questa guida ti mostrerà come aggiornare una traduzione esistente e aggiungerne
 1.  **Naviga al file.** Vai al repository e trova il file che vuoi aggiornare. I file di traduzione si trovano in una cartella denominata con il codice della lingua. Per esempio, tutte le traduzioni francesi sono in `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
 
 2.  **Apri l'editor.** Seleziona il file che desideri modificare e clicca l'icona della matita (**Modifica questo file**) nell'angolo in alto a destra.
-    ![Modifica traduzione esistente](@site/static/img/contributing/editing-translations.webp)
+    ![Modifica traduzione esistente](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 
 3.  **Fai il fork del repository.** GitHub ti chiederà automaticamente di **Fare il fork di questo repository**. Questo crea una copia personale per te da modificare in sicurezza. Clicca il pulsante per procedere.
 
@@ -602,7 +611,7 @@ Questa guida ti mostrerà come aggiornare una traduzione esistente e aggiungerne
     -   **French translation:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
 
 2.  **Create the new file.** Navigate to the correct language folder (e.g., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Click **Add file** > **Create new file**.
-    ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
+    ![Creating a new translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
 
     -   **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
 
@@ -619,7 +628,7 @@ Questa guida ti mostrerà come aggiornare una traduzione esistente e aggiungerne
     Ceci est le contenu traduit en français.
     ```
 
-    ![GitHub UI Editor](@site/static/img/contributing/editor-github-ui.webp)
+    ![GitHub UI Editor](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.
 
@@ -629,14 +638,12 @@ Questa guida ti mostrerà come aggiornare una traduzione esistente e aggiungerne
 #### Aggiungere una nuova traduzione
 
 1.  **Determina il percorso del file corretto.** Il percorso e il nome del nuovo file devono rispecchiare il file inglese originale.
-
-    -   **Originale inglese:** `packages/docs/site/docs/main/contributing/documentation.md`
-    -   **Traduzione francese:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
+    - **Originale inglese:** `packages/docs/site/docs/main/contributing/documentation.md`
+    - **Traduzione francese:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
 
 2.  **Crea il nuovo file.** Naviga nella cartella della lingua corretta (es., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Clicca **Add file** > **Create new file**.
-    ![Creazione nuova traduzione](@site/static/img/contributing/adding-file-github-ui.webp)
-
-    -   **Suggerimento:** Nella casella del nome file, puoi creare nuove cartelle digitando il nome della cartella seguito da `/`. Per esempio, digitando `main/contributing/documentation.md` creerà automaticamente le cartelle `main` e `contributing`.
+    ![Creazione nuova traduzione](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
+    - **Suggerimento:** Nella casella del nome file, puoi creare nuove cartelle digitando il nome della cartella seguito da `/`. Per esempio, digitando `main/contributing/documentation.md` creerà automaticamente le cartelle `main` e `contributing`.
 
 3.  **Fai il fork del repository.** Proprio come prima, GitHub ti chiederà di **Fare il fork di questo repository**. Clicca il pulsante per creare la tua copia personale.
 
@@ -651,7 +658,7 @@ Questa guida ti mostrerà come aggiornare una traduzione esistente e aggiungerne
     Questo è il contenuto tradotto in italiano.
     ```
 
-    ![Editor interfaccia GitHub](@site/static/img/contributing/editor-github-ui.webp)
+    ![Editor interfaccia GitHub](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 5.  **Committa il nuovo file.** Quando hai finito, scorri fino in fondo. Aggiungi un titolo per il tuo nuovo file (es., "Aggiungi traduzione italiana per documentation.md") e clicca il pulsante **Commit new file**.
 

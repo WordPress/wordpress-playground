@@ -25,6 +25,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 		withNetworking = true,
 		corsProxyUrl,
 		blueprint,
+		pathAliases,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -47,6 +48,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 				withIntl,
 				withNetworking,
 				phpVersion: phpVersion!,
+				pathAliases,
 			});
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 

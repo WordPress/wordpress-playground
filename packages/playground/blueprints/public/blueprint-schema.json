@@ -175,7 +175,7 @@
 		"BlueprintPHPVersion": {
 			"anyOf": [
 				{
-					"$ref": "#/definitions/SupportedPHPVersion"
+					"$ref": "#/definitions/AllPHPVersion"
 				},
 				{
 					"type": "string",
@@ -188,9 +188,23 @@
 			],
 			"description": "PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation."
 		},
+		"AllPHPVersion": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/SupportedPHPVersion"
+				},
+				{
+					"$ref": "#/definitions/LegacyPHPVersion"
+				}
+			]
+		},
 		"SupportedPHPVersion": {
 			"type": "string",
 			"enum": ["8.5", "8.4", "8.3", "8.2", "8.1", "8.0", "7.4"]
+		},
+		"LegacyPHPVersion": {
+			"type": "string",
+			"enum": ["5.2"]
 		},
 		"ExtraLibrary": {
 			"type": "string",

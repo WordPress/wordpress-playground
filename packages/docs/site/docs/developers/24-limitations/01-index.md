@@ -13,20 +13,33 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Temporary by design
 
-As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the top right on the side of the address bar.
+Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications.
+
+**Why this happens**: Playground streams WordPress directly to your browser rather than serving it from a traditional server. Each refresh starts a clean slate.
+
+**To persist your work:**
+
+- **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar.
+- **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage
+
+:::tip
+The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
+:::
+
+![Refresh Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
 <figcaption><i>1. Exporting Playground:</i></figcaption>
 
-![Save Button](@site/static/img/export-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 </figure>
 
 <figure>
 <figcaption><i>2. Save button:</i></figcaption>
 
-![Save Button](@site/static/img/saving-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
@@ -39,6 +52,26 @@ WordPress Playground is designed to work across all major desktop and mobile bro
 - **Mobile browsers**: Safari (iOS), Chrome (Android), and other mobile browser variants
 
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
+
+### Performance expectations
+
+Loading times vary based on what Playground needs to set up:
+
+| Scenario                               | Typical Load Time          |
+| -------------------------------------- | -------------------------- |
+| Fresh WordPress (no plugins)           | 5-10 seconds               |
+| With small plugins                     | 10-20 seconds              |
+| With large plugins (e.g., WooCommerce) | 30-60 seconds              |
+| On mobile devices                      | 1.5-2x slower than desktop |
+
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+
+**Factors that affect performance:**
+
+- **Plugin size**: Large plugins take longer to install at runtime
+- **Network speed**: WASM files are 15-30MB
+- **Device memory**: Low-memory devices may experience slowdowns
+- **Browser**: Chrome/Edge perform best; Safari slightly slower
 
 <blockquote>
 <strong>Note:</strong> Opera Mini support is not currently confirmed.

@@ -3,11 +3,8 @@ import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
-import type {
-	MountDevice,
-	SyncProgressCallback,
-	TCPOverFetchOptions,
-} from '@php-wasm/web';
+import type { SyncProgressCallback, TCPOverFetchOptions } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
@@ -28,8 +25,9 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion, PathAlias, PHP } from '@php-wasm/universal';
 import {
+	isLegacyPHPVersion,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -38,6 +36,7 @@ import {
 } from '@php-wasm/universal';
 import { certificateToPEM, generateCertificate } from '@php-wasm/web';
 import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
@@ -47,6 +46,8 @@ import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-build
 import { networkingDisabledFunctions } from './disabled-functions';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+/* @ts-ignore */
+import playgroundWebMuPluginPhp52 from './playground-mu-plugin/0-playground-php52.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
 export interface MountDescriptor {
@@ -58,7 +59,7 @@ export interface MountDescriptor {
 export type WorkerBootOptions = {
 	wpVersion?: string;
 	sqliteDriverVersion?: string;
-	phpVersion?: SupportedPHPVersion;
+	phpVersion?: AllPHPVersion;
 	sapiName?: string;
 	scope: string;
 	withIntl: boolean;
@@ -70,6 +71,16 @@ export type WorkerBootOptions = {
 	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
 	blueprint?: BlueprintDeclaration;
+	/**
+	 * How to handle WordPress installation.
+	 * Defaults to 'install-from-existing-files-if-needed'.
+	 */
+	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 */
+	pathAliases?: PathAlias[];
 };
 
 /** @inheritDoc PHPClient */
@@ -124,6 +135,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withIntl,
 		withNetworking,
 		phpVersion,
+		pathAliases,
 	}: {
 		siteUrl: string;
 		sapiName: string;
@@ -131,7 +143,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		knownRemoteAssetPaths: Set<string>;
 		withIntl: boolean;
 		withNetworking: boolean;
-		phpVersion: SupportedPHPVersion;
+		phpVersion: AllPHPVersion;
+		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
@@ -179,8 +192,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		const parsedSiteUrl = new URL(siteUrl);
+		const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
+			phpVersion,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
@@ -225,7 +240,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					// TODO: Document that this shift is a breaking change.
 					// Proxy the filesystem for all secondary PHP instances to
 					// the primary one.
-					proxyFileSystem(
+					// proxyFileSystem auto-detects legacy PHP from the
+					// replica's runtime and skips the PROXYFS mmap patch
+					// there, so this call is the same for every PHP
+					// version.
+					await proxyFileSystem(
 						await requestHandler.getPrimaryPhp(),
 						php,
 						pathsToProxy
@@ -238,10 +257,15 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			spawnHandler: sandboxedSpawnHandlerFactory,
 			sapiName,
 			phpIniEntries,
+			pathAliases,
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
-					'1-playground-web.php': playgroundWebMuPlugin,
+					// Legacy PHP can't parse closures at all (even with an
+					// early return), so use a minimal compatible stub instead.
+					'1-playground-web.php': isLegacyPhp
+						? playgroundWebMuPluginPhp52
+						: playgroundWebMuPlugin,
 					'playground-includes': {
 						'wp_http_dummy.php': transportDummy,
 						'wp_http_fetch.php': transportFetch,

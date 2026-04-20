@@ -1,6 +1,7 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
-import type { MountDevice, SyncProgress } from '@php-wasm/web';
+import type { SyncProgress } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 
 export type OpfsSync =

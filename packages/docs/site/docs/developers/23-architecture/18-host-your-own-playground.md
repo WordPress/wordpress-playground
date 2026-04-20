@@ -8,7 +8,41 @@ You can host the Playground on your own domain instead of `playground.wordpress.
 
 This is useful for having full control over its content and behavior, as well as removing dependency on a third-party server. It can provide a more customized user experience, for example: a playground with preinstalled plugins and themes, default site settings, or demo content.
 
-#### Usage
+## Before you start
+
+Self-hosting Playground gives you full control, but requires understanding a few key concepts:
+
+### What to expect
+
+- **Initial setup complexity**: Building and deploying Playground involves multiple steps. Allow time for troubleshooting during your first deployment.
+- **Static file hosting**: Playground is primarily static files (HTML, JS, WASM) with minimal server-side requirements.
+- **Browser-based execution**: All WordPress processing happens in the user's browser via WebAssembly—your server only delivers files.
+
+### Performance considerations
+
+Loading times depend on several factors:
+
+| Factor            | Impact                                                              | Optimization                                |
+| ----------------- | ------------------------------------------------------------------- | ------------------------------------------- |
+| **Plugin size**   | Large plugins (e.g., WooCommerce) can take 30-60 seconds to install | Pre-install plugins in your WordPress build |
+| **Network speed** | WASM files are ~15-30MB                                             | Use CDN with proper caching headers         |
+| **Browser**       | Chrome/Edge perform best; Safari uses fallback mechanisms           | Test across browsers                        |
+| **Device**        | Mobile devices load slower than desktop                             | Warn mobile users about longer load times   |
+
+### Browser compatibility
+
+Playground works across modern browsers, but with some differences:
+
+| Browser         | Status              | Notes                                                                              |
+| --------------- | ------------------- | ---------------------------------------------------------------------------------- |
+| Chrome/Edge     | ✅ Best performance | Full support for all features                                                      |
+| Firefox         | ✅ Good             | Reliable performance                                                               |
+| Safari          | ✅ Good             | Recent improvements significantly enhanced reliability                             |
+| Mobile browsers | ⚠️ Limited          | Works, but with higher memory usage, and a 4G connection can impact the experience |
+
+**Technical note**: Safari uses MessagePorts instead of SharedArrayBuffer for streaming responses. This fallback works reliably but adds slight overhead compared to Chrome/Edge.
+
+## Usage
 
 A self-hosted Playground can be embedded as an iframe.
 
@@ -33,17 +67,17 @@ There are several ways to get the static assets necessary to host the Playground
 
 In order of convenience and ease:
 
--   Download pre-built package
--   Fork the repository and build with GitHub Action
--   Build locally
+- Download pre-built package
+- Fork the repository and build with GitHub Action
+- Build locally
 
 ### Download pre-built package
 
 To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess).
 
--   Click on **Deploy Playground website**.
--   In the section **Artifacts** at the bottom of the page, click `playground-website`.
--   It's a zip package with the same files deployed to the public site.
+- Click on **Deploy Playground website**.
+- In the section **Artifacts** at the bottom of the page, click `playground-website`.
+- It's a zip package with the same files deployed to the public site.
 
 ### Fork the repository and build with GitHub Action
 
@@ -86,16 +120,16 @@ The entire service of the Playground consists of the content of this folder.
 
 The static assets include:
 
--   Data and WASM files for all available PHP and WordPress versions
--   `remote.html` - the core of Playground
--   `index.html` - the shell, or browser chrome
--   Web Worker script
+- Data and WASM files for all available PHP and WordPress versions
+- `remote.html` - the core of Playground
+- `index.html` - the shell, or browser chrome
+- Web Worker script
 
 You can deploy the content of the folder to your server using SSH, such as `scp` or `rsync`.
 
 It is a static site, except for these dynamic aspects.
 
--   Apache server directive `.htaccess` file from the package `remote`
+- Apache server directive `.htaccess` file from the package `remote`
 
 For these to work, you need a server environment with Apache and PHP installed.
 
@@ -189,3 +223,53 @@ RUN cd wordpress ; \
 ```
 
 This assumes that you have put a WXR export file named `content.xml` in the folder `build-assets`. You can add its path to `.gitignore`.
+
+## Production deployment checklist
+
+Before going live, verify your self-hosted Playground meets these requirements:
+
+### Server configuration
+
+- [ ] **MIME types**: Ensure `.wasm` files are served with `application/wasm` content type
+- [ ] **CORS headers**: If embedding cross-origin, configure appropriate CORS headers
+- [ ] **Caching**: Set long cache times for WASM and static assets (they're versioned)
+- [ ] **Compression**: Enable gzip/brotli for faster file transfers
+- [ ] **HTTPS**: Required for service workers and some browser features
+
+### Performance optimization
+
+- [ ] **CDN**: Serve static assets from a CDN for faster global delivery
+- [ ] **Pre-installed plugins**: Bundle frequently-used plugins in your WordPress build
+- [ ] **Limit additional downloads**: Minimize runtime plugin installations (by blueprints, for example)
+
+## Troubleshooting
+
+### Common issues and solutions
+
+#### Playground fails to load or shows blank screen
+
+**Possible causes:**
+
+- Server doesn't serve WASM files with correct MIME type
+- Deployment missing required files
+- JavaScript errors in browser console
+
+**Solutions:**
+
+1. Check browser console for errors (F12 → Console tab)
+2. Verify `.wasm` files return `application/wasm` content type
+3. Verify you deployed all build files
+
+#### Slow initial loading (30+ seconds)
+
+**Possible causes:**
+
+- Installing large plugins at runtime
+- Missing CDN or caching configuration
+- User on slow network connection
+
+**Solutions:**
+
+1. Pre-install plugins in your WordPress build instead of runtime installation
+2. Configure CDN with proper caching headers
+3. Show loading indicators to set user expectations

@@ -5,9 +5,9 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import type { PHP, PHPExecutionFailureError } from './php';
+import type { PHP } from './php';
 import { normalizeHeaders } from './php';
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import type { PHPFactoryOptions } from './php-process-manager';
@@ -59,6 +59,28 @@ export interface CookieStore {
 	getCookieRequestHeader(): string;
 }
 
+/**
+ * Maps a URL path prefix to an absolute filesystem path.
+ * Similar to Nginx's `alias` directive or Apache's `Alias` directive.
+ *
+ * @example
+ * ```ts
+ * // Requests to /phpmyadmin/* will be served from /tools/phpmyadmin/*
+ * { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+ * ```
+ */
+export type PathAlias = {
+	/**
+	 * The URL path prefix to match (e.g., '/phpmyadmin').
+	 */
+	urlPrefix: string;
+
+	/**
+	 * The absolute filesystem path to serve files from.
+	 */
+	fsPath: string;
+};
+
 interface BaseConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -74,6 +96,19 @@ interface BaseConfiguration {
 	 * Rewrite rules
 	 */
 	rewriteRules?: RewriteRule[];
+
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
 
 	/**
 	 * A callback that decides how to handle a file-not-found condition for a
@@ -174,6 +209,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#cookieStore: CookieStore | false;
+	#pathAliases: PathAlias[];
 	rewriteRules: RewriteRule[];
 	/**
 	 * The instance manager used for PHP instance lifecycle.
@@ -201,6 +237,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 				? location.href
 				: DEFAULT_BASE_URL,
 			rewriteRules = [],
+			pathAliases = [],
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
@@ -272,6 +309,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
+		this.#pathAliases = pathAliases;
 		this.getFileNotFoundAction = getFileNotFoundAction;
 	}
 
@@ -372,6 +410,44 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @param  request - PHP Request data.
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
+		const streamedResponse = await this.requestStreamed(request);
+
+		// Convert StreamedPHPResponse to buffered PHPResponse
+		const response =
+			await PHPResponse.fromStreamedResponse(streamedResponse);
+
+		/**
+		 * If the response is successful but the exit code is non-zero, let's rewrite the
+		 * HTTP status code as 500. We're acting as a HTTP server here and
+		 * this behavior is in line with what Nginx and Apache do.
+		 *
+		 * Note: This check is only done for buffered responses. For streaming responses,
+		 * headers are already sent before we know the exit code.
+		 */
+		if (response.ok() && response.exitCode !== 0) {
+			return new PHPResponse(
+				500,
+				response.headers,
+				response.bytes,
+				response.errors,
+				response.exitCode
+			);
+		}
+		return response;
+	}
+
+	/**
+	 * Serves the request with streaming support – returns a StreamedPHPResponse
+	 * that allows processing the response body incrementally without buffering
+	 * the entire response in memory.
+	 *
+	 * This is useful for large file downloads (>2GB) that would otherwise
+	 * exceed JavaScript's Uint8Array size limits.
+	 *
+	 * @param request - PHP Request data.
+	 * @returns A StreamedPHPResponse.
+	 */
+	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
 		const isAbsolute = looksLikeAbsoluteUrl(request.url);
 		const originalRequestUrl = new URL(
 			// Remove the hash part of the URL as it's not meant for the server.
@@ -381,21 +457,19 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 		const rewrittenRequestUrl = this.#applyRewriteRules(originalRequestUrl);
 		const primaryPhp = await this.getPrimaryPhp();
-		let fsPath = joinPaths(
-			this.#DOCROOT,
+		/**
+		 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
+		 * into a site-relative path, such as `/wp-admin/index.php`.
+		 */
+		const siteRelativePath = removePathPrefix(
 			/**
-			 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
-			 * into a site-relative path, such as `/wp-admin/index.php`.
+			 * URL.pathname returns a URL-encoded path. We need to decode it
+			 * before using it as a filesystem path.
 			 */
-			removePathPrefix(
-				/**
-				 * URL.pathname returns a URL-encoded path. We need to decode it
-				 * before using it as a filesystem path.
-				 */
-				decodeURIComponent(rewrittenRequestUrl.pathname),
-				this.#PATHNAME
-			)
+			decodeURIComponent(rewrittenRequestUrl.pathname),
+			this.#PATHNAME
 		);
+		let fsPath = this.#resolveToFsPath(siteRelativePath);
 		if (primaryPhp.isDir(fsPath)) {
 			// Ensure directory URIs have a trailing slash. Otherwise,
 			// relative URIs in index.php or index.html files are relative
@@ -418,11 +492,13 @@ export class PHPRequestHandler implements AsyncDisposable {
 			// Otherwise, when viewing the WP admin dashboard at `/wp-admin`,
 			// links to other admin pages like `edit.php` will incorrectly
 			// resolve to `/edit.php` rather than `/wp-admin/edit.php`.
-			if (!fsPath.endsWith('/')) {
-				return new PHPResponse(
-					301,
-					{ Location: [`${rewrittenRequestUrl.pathname}/`] },
-					new Uint8Array(0)
+			if (!siteRelativePath.endsWith('/')) {
+				return StreamedPHPResponse.fromPHPResponse(
+					new PHPResponse(
+						301,
+						{ location: [`${rewrittenRequestUrl.pathname}/`] },
+						new Uint8Array(0)
+					)
 				);
 			}
 
@@ -455,19 +531,19 @@ export class PHPRequestHandler implements AsyncDisposable {
 			 * If /var/www/file.php/index.php does not exist, but /var/www/file.php does,
 			 * use /var/www/file.php. This is also what Apache and PHP Dev Server do.
 			 */
-			let pathToTry = rewrittenRequestUrl.pathname;
+			let pathToTry = siteRelativePath;
 			while (
 				pathToTry.startsWith('/') &&
 				pathToTry !== dirname(pathToTry)
 			) {
 				pathToTry = dirname(pathToTry);
-				const resolvedPathToTry = joinPaths(this.#DOCROOT, pathToTry);
+				const resolvedPathToTry = this.#resolveToFsPath(pathToTry);
 				if (
 					primaryPhp.isFile(resolvedPathToTry) &&
 					// Only run partial path resolution for PHP files.
 					resolvedPathToTry.endsWith('.php')
 				) {
-					fsPath = joinPaths(this.#DOCROOT, pathToTry);
+					fsPath = this.#resolveToFsPath(pathToTry);
 					break;
 				}
 			}
@@ -479,12 +555,14 @@ export class PHPRequestHandler implements AsyncDisposable {
 			);
 			switch (fileNotFoundAction.type) {
 				case 'response':
-					return fileNotFoundAction.response;
+					return StreamedPHPResponse.fromPHPResponse(
+						fileNotFoundAction.response
+					);
 				case 'internal-redirect':
 					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
 					break;
 				case '404':
-					return PHPResponse.forHttpCode(404);
+					return StreamedPHPResponse.forHttpCode(404);
 				default:
 					throw new Error(
 						'Unsupported file-not-found action type: ' +
@@ -500,33 +578,19 @@ export class PHPRequestHandler implements AsyncDisposable {
 		// file-not-found fallback actions may redirect to non-existent files.
 		if (primaryPhp.isFile(fsPath)) {
 			if (fsPath.endsWith('.php')) {
-				const response = await this.#spawnPHPAndDispatchRequest(
+				return await this.#spawnPHPAndDispatchRequest(
 					request,
 					originalRequestUrl,
 					rewrittenRequestUrl,
 					fsPath
 				);
-
-				/**
-				 * If the response is but the exit code is non-zero, let's rewrite the
-				 * HTTP status code as 500. We're acting as a HTTP server here and
-				 * this behavior is in line with what Nginx and Apache do.
-				 */
-				if (response.ok() && response.exitCode !== 0) {
-					return new PHPResponse(
-						500,
-						response.headers,
-						response.bytes,
-						response.errors,
-						response.exitCode
-					);
-				}
-				return response;
 			} else {
-				return this.#serveStaticFile(primaryPhp, fsPath);
+				return StreamedPHPResponse.fromPHPResponse(
+					this.#serveStaticFile(primaryPhp, fsPath)
+				);
 			}
 		} else {
-			return PHPResponse.forHttpCode(404);
+			return StreamedPHPResponse.forHttpCode(404);
 		}
 	}
 
@@ -554,6 +618,31 @@ export class PHPRequestHandler implements AsyncDisposable {
 			rewrittenRequestUrl.searchParams.append(key, value);
 		}
 		return rewrittenRequestUrl;
+	}
+
+	/**
+	 * Resolves a URL path to a filesystem path, checking path aliases first.
+	 *
+	 * If the URL path matches a configured alias prefix, the alias's
+	 * filesystem path is used instead of the document root.
+	 *
+	 * @param urlPath - The URL path to resolve (e.g., '/phpmyadmin/index.php')
+	 * @returns The resolved filesystem path
+	 */
+	#resolveToFsPath(urlPath: string): string {
+		// Check if the URL path matches any alias
+		for (const alias of this.#pathAliases) {
+			if (
+				urlPath === alias.urlPrefix ||
+				urlPath.startsWith(alias.urlPrefix + '/')
+			) {
+				// Replace the URL prefix with the filesystem path
+				const relativePath = urlPath.slice(alias.urlPrefix.length);
+				return joinPaths(alias.fsPath, relativePath);
+			}
+		}
+		// No alias matched, use the document root
+		return joinPaths(this.#DOCROOT, urlPath);
 	}
 
 	/**
@@ -587,28 +676,39 @@ export class PHPRequestHandler implements AsyncDisposable {
 		originalRequestUrl: URL,
 		rewrittenRequestUrl: URL,
 		scriptPath: string
-	): Promise<PHPResponse> {
+	): Promise<StreamedPHPResponse> {
 		let spawnedPHP: AcquiredPHP | undefined = undefined;
 		try {
 			spawnedPHP = await this.instanceManager!.acquirePHPInstance();
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
-				return PHPResponse.forHttpCode(502);
+				return StreamedPHPResponse.forHttpCode(502);
 			} else {
-				return PHPResponse.forHttpCode(500);
+				return StreamedPHPResponse.forHttpCode(500);
 			}
 		}
+
+		let response: StreamedPHPResponse;
 		try {
-			return await this.#dispatchToPHP(
+			response = await this.#dispatchToPHP(
 				spawnedPHP.php,
 				request,
 				originalRequestUrl,
 				rewrittenRequestUrl,
 				scriptPath
 			);
-		} finally {
+		} catch (e) {
+			// Release the PHP instance if dispatch fails
 			spawnedPHP.reap();
+			throw e;
 		}
+
+		// Release the PHP instance when the response stream is finished
+		response.finished.finally(() => {
+			spawnedPHP?.reap();
+		});
+
+		return response;
 	}
 
 	/**
@@ -624,7 +724,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		originalRequestUrl: URL,
 		rewrittenRequestUrl: URL,
 		scriptPath: string
-	): Promise<PHPResponse> {
+	): Promise<StreamedPHPResponse> {
 		let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 		const headers: Record<string, string> = {
@@ -643,37 +743,33 @@ export class PHPRequestHandler implements AsyncDisposable {
 			headers['content-type'] = contentType;
 		}
 
-		try {
-			const response = await php.run({
-				relativeUri: ensurePathPrefix(
-					toRelativeUrl(new URL(rewrittenRequestUrl.toString())),
-					this.#PATHNAME
-				),
-				protocol: this.#PROTOCOL,
-				method: request.method || preferredMethod,
-				$_SERVER: this.prepare_$_SERVER_superglobal(
-					originalRequestUrl,
-					rewrittenRequestUrl,
-					scriptPath
-				),
-				body,
-				scriptPath,
-				headers,
-			});
-			if (this.#cookieStore) {
-				this.#cookieStore.rememberCookiesFromResponseHeaders(
-					response.headers
-				);
-			}
+		const response = await php.runStream({
+			relativeUri: ensurePathPrefix(
+				toRelativeUrl(new URL(rewrittenRequestUrl.toString())),
+				this.#PATHNAME
+			),
+			protocol: this.#PROTOCOL,
+			method: request.method || preferredMethod,
+			$_SERVER: this.prepare_$_SERVER_superglobal(
+				originalRequestUrl,
+				rewrittenRequestUrl,
+				scriptPath
+			),
+			body,
+			scriptPath,
+			headers,
+		});
 
-			return response;
-		} catch (error) {
-			const executionError = error as PHPExecutionFailureError;
-			if (executionError?.response) {
-				return executionError.response;
-			}
-			throw error;
+		// Wait until the streamed response cookies arrive so they can be
+		// sent with the next request.
+		if (this.#cookieStore) {
+			const responseHeaders = await response.headers;
+			this.#cookieStore.rememberCookiesFromResponseHeaders(
+				responseHeaders
+			);
 		}
+
+		return response;
 	}
 
 	/**

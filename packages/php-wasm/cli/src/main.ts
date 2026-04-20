@@ -10,13 +10,17 @@ import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'fs';
 import os from 'os';
 import { rootCertificates } from 'tls';
 /* eslint-disable no-console */
-import { addXdebugIDEConfig, clearXdebugIDEConfig } from '@php-wasm/cli-util';
 import {
-	FileLockManagerForNode,
-	loadNodeRuntime,
-	useHostFilesystem,
-} from '@php-wasm/node';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+	makeXdebugConfig,
+	addXdebugIDEConfig,
+	clearXdebugIDEConfig,
+	DEFAULT_PATH_SKIPPINGS,
+} from '@php-wasm/cli-util';
+import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
+import {
+	type SupportedPHPVersion,
+	FileLockManagerInMemory,
+} from '@php-wasm/universal';
 import { PHP } from '@php-wasm/universal';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
@@ -119,8 +123,8 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
+			fileLockManager: new FileLockManagerInMemory(),
 			emscriptenOptions: {
-				fileLockManager: new FileLockManagerForNode(),
 				processId: 1,
 				ENV: {
 					...envVariables,
@@ -129,7 +133,11 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
-			withXdebug: hasXdebugOption,
+			withXdebug:
+				hasXdebugOption ??
+				makeXdebugConfig({
+					pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
+				}),
 		})
 	);
 	php.setSpawnHandler((command: string, args: string[]): any =>
@@ -157,6 +165,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 				port: 443,
 				ides: ides,
 				cwd: process.cwd(),
+				pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 			});
 
 			// Display IDE-specific instructions

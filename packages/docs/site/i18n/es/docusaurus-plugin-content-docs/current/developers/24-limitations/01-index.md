@@ -24,16 +24,40 @@ Puedes seguir el estado de estos problemas en el [tablero del proyecto Playgroun
 
 ### Temporal por diseño
 
-<!-- As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the top right on the side of the address bar. -->
+<!-- Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications. -->
 
-Como Playground [transmite en lugar de servir](/about#streamed-not-served) WordPress, todos los cambios en la base de datos y las subidas se perderán cuando actualices la página. Para evitar perder tu trabajo, [exporta tu trabajo](/quick-start-guide#save-your-site) antes o activa el almacenamiento en el navegador/dispositivo mediante el botón "Guardar" que se encuentra en la parte superior derecha, al lado de la barra de direcciones.
+Playground crea instancias frescas de WordPress en cada carga de página. Actualizar la página del navegador descarta todos los cambios en la base de datos, archivos subidos y modificaciones.
+
+<!-- **Why this happens**: Playground streams WordPress directly to your browser rather than serving it from a traditional server. Each refresh starts a clean slate. -->
+
+**Por qué sucede esto**: Playground transmite WordPress directamente a tu navegador en lugar de servirlo desde un servidor tradicional. Cada actualización comienza desde cero.
+
+<!-- **To persist your work:** -->
+
+**Para conservar tu trabajo:**
+
+<!-- - **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar. -->
+<!-- - **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage -->
+
+- **Guardar**: Activa el almacenamiento del navegador mediante el botón "Guardar" (arriba a la derecha, junto a la barra de direcciones), antes de actualizar la página a través de la barra del navegador.
+- **Para desarrollo**: Usa [Playground CLI](/developers/local-development/wp-playground-cli) que soporta almacenamiento local persistente
+
+<!-- :::tip -->
+<!-- The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance. -->
+<!-- ::: -->
+
+:::tip
+El botón de actualización dedicado dentro de Playground solo recarga el contenido de WordPress—preserva tu estado de PHP/WP. El botón de actualización del navegador (F5 o Cmd+R) destruye la instancia completa.
+:::
+
+![Refresh Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
 <!-- <figcaption><i>1. Exporting Playground:</i></figcaption> -->
 <figcaption><i>1. Exportando Playground:</i></figcaption>
 
-![Save Button](@site/static/img/export-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 </figure>
 
@@ -41,7 +65,7 @@ Como Playground [transmite en lugar de servir](/about#streamed-not-served) WordP
 <!-- <figcaption><i>2. Save button:</i></figcaption> -->
 <figcaption><i>2. Botón Guardar:</i></figcaption>
 
-![Save Button](@site/static/img/saving-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
@@ -63,6 +87,30 @@ WordPress Playground está diseñado para funcionar en todos los principales nav
 <!-- Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version. -->
 
 Playground aprovecha las tecnologías web modernas y debería funcionar de manera consistente en estos entornos de navegador. Sin embargo, algunas funciones avanzadas pueden tener diferentes niveles de soporte dependiendo del navegador específico y su versión.
+
+<!-- ### Performance expectations -->
+
+### Expectativas de rendimiento
+
+<!-- Loading times vary based on what Playground needs to set up: -->
+
+Los tiempos de carga varían según lo que Playground necesita configurar:
+
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+
+<!-- **Factors that affect performance:** -->
+
+**Factores que afectan el rendimiento:**
+
+<!-- - **Plugin size**: Large plugins take longer to install at runtime -->
+<!-- - **Network speed**: WASM files are 15-30MB -->
+<!-- - **Device memory**: Low-memory devices may experience slowdowns -->
+<!-- - **Browser**: Chrome/Edge perform best; Safari slightly slower -->
+
+- **Tamaño del plugin**: Los plugins grandes tardan más en instalarse en tiempo de ejecución
+- **Velocidad de red**: Los archivos WASM son de 15-30MB
+- **Memoria del dispositivo**: Los dispositivos con poca memoria pueden experimentar ralentizaciones
+- **Navegador**: Chrome/Edge tienen mejor rendimiento; Safari es ligeramente más lento
 
 <blockquote>
 <!-- <strong>Note:</strong> Opera Mini support is not currently confirmed. -->

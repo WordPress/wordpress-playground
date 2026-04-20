@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/wordpress-builds/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -86,7 +87,7 @@
 					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
 					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
 					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=latest --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
-					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=beta --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force} || true"
+					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=beta --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}"
 				],
 				"parallel": false,
 				"force": false
@@ -107,7 +108,7 @@
 			"dependsOn": ["test:vite"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/playground/wordpress-builds"
 			],
@@ -117,7 +118,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"useFlatConfig": false,
@@ -128,6 +129,5 @@
 				"maxWarnings": 0
 			}
 		}
-	},
-	"tags": []
+	}
 }

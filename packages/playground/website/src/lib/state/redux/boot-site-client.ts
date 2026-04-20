@@ -34,7 +34,11 @@ import {
 	createGitAuthHeaders,
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
-import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	findFirewallErrorInCauseChain,
+	findDownloadErrorInCauseChain,
+} from './error-utils';
+import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -102,6 +106,15 @@ export function bootSiteClient(
 					);
 					return;
 				}
+				if (e instanceof DOMException && e.name === 'NotAllowedError') {
+					dispatch(
+						setActiveSiteError({
+							error: 'directory-handle-permission-denied',
+							details: e,
+						})
+					);
+					return;
+				}
 				dispatch(
 					setActiveSiteError({
 						error: 'directory-handle-unknown-error',
@@ -164,6 +177,12 @@ export function bootSiteClient(
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
+				pathAliases: [
+					{
+						urlPrefix: '/phpmyadmin',
+						fsPath: PHPMYADMIN_INSTALL_PATH,
+					},
+				],
 			});
 		} catch (e) {
 			logger.error(e);
@@ -201,6 +220,13 @@ export function bootSiteClient(
 						details: firewallError,
 					})
 				);
+			} else if (findDownloadErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-download-failed',
+						details: e,
+					})
+				);
 			} else if (
 				(e as any).name === 'GitAuthenticationError' ||
 				(e as any).originalErrorClassName ===
@@ -236,6 +262,8 @@ export function bootSiteClient(
 					})
 				);
 			}
+			// Don't continue to client setup after an error
+			return;
 		}
 
 		if (signal.aborted || !playground) {

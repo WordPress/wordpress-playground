@@ -14,7 +14,7 @@ import {
 	sparseCheckout,
 } from '@wp-playground/storage';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
-import { fetchWithCorsProxy } from '@php-wasm/web';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import {
 	StreamedFile,
 	encodeZip,
@@ -562,11 +562,11 @@ export abstract class FetchResource extends Resource<File> {
 					response.headers.get('content-disposition') || ''
 				) ||
 				encodeURIComponent(url);
-			return new File([await response.blob()], filename);
+			return new File([await response.arrayBuffer()], filename);
 		} catch (e) {
 			throw new ResourceDownloadError(
 				`Could not download "${url}".\n\n` +
-					`Confirm that the URL is correct, the server is reachable, and the file is` +
+					`Confirm that the URL is correct, the server is reachable, and the file is ` +
 					`actually served at that URL. Original error: \n ${e}`,
 				url,
 				{ cause: e }

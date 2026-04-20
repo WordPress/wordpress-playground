@@ -3,6 +3,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
+import { portToStream } from '@php-wasm/universal';
 
 export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	let url = new URL(event.request.url);
@@ -98,29 +99,34 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	}
 
 	/**
-	 * Safari has a bug that prevents Service Workers from redirecting relative URLs.
-	 * When attempting to redirect to a relative URL, the network request will return an error.
-	 * See the Webkit bug for details: https://bugs.webkit.org/show_bug.cgi?id=282427.
+	 * Redirect responses need `Response.redirect()` because Safari
+	 * service workers cannot redirect via a plain
+	 * `new Response(body, { status: 302, headers: { location } })`.
+	 * See https://bugs.webkit.org/show_bug.cgi?id=282427
 	 *
-	 * Because PHP and WordPress can redirect to both relative and absolute URLs
-	 * using the `location` header we need to ensure redirects are processed
-	 * correctly by the Service Worker.
-	 *
-	 * As a workaround for Safari Service Workers, we use `Response.redirect()`
-	 * for all redirect responses (300-399 status codes) coming from PHP.
-	 * This solution was suggested in the Webkit bug comment:
-	 * https://bugs.webkit.org/show_bug.cgi?id=282427#c2
+	 * Before redirecting, re-scope the Location URL. PHP and WordPress
+	 * emit unscoped paths (e.g. `/wp-admin/`). Resolving against the
+	 * origin would lose the `/scope:…/` prefix, so we add it back.
 	 */
 	if (
 		phpResponse.httpStatusCode >= 300 &&
 		phpResponse.httpStatusCode <= 399 &&
 		phpResponse.headers['location']
 	) {
+		const scope = getURLScope(url);
+		let redirectTarget = new URL(
+			phpResponse.headers['location'][0],
+			url.toString()
+		);
+		if (scope && !isURLScoped(redirectTarget)) {
+			redirectTarget = setURLScope(redirectTarget, scope);
+		}
 		return Response.redirect(
-			new URL(phpResponse.headers['location'][0], url.toString()),
+			redirectTarget.toString(),
 			phpResponse.httpStatusCode
 		);
 	}
+
 	/**
 	 * Make sure we don't pass an actual body string to new Response()
 	 * if the status is a null body status (101, 103, 204, 205, or 304).
@@ -132,8 +138,21 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	const isNullBodyCode = [101, 103, 204, 205, 304].includes(
 		phpResponse.httpStatusCode
 	);
-	const responseBody = isNullBodyCode ? null : phpResponse.bytes;
-	return new Response(responseBody, {
+
+	let responseBody: ReadableStream<Uint8Array> | Uint8Array | null = null;
+	if (!isNullBodyCode) {
+		if (phpResponse.bodyPort) {
+			// Reconstruct the body ReadableStream from the MessagePort.
+			// We couldn't just transfer it directly as this kind of transfer
+			// doesn't seem to be supported between the document and the service worker.
+			responseBody = portToStream(phpResponse.bodyPort);
+		} else {
+			// Fallback: buffered response bytes
+			responseBody = phpResponse.bytes;
+		}
+	}
+
+	return new Response(responseBody as BodyInit | null, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
 	});
@@ -200,18 +219,24 @@ export async function cloneRequest(
 	request: Request,
 	overrides: Record<string, any>
 ): Promise<Request> {
-	let body: Blob | ReadableStream | undefined;
+	let body: ArrayBuffer | ReadableStream | undefined;
 
-	if (['GET', 'HEAD'].includes(request.method) || 'body' in overrides) {
+	if (['GET', 'HEAD'].includes(request.method)) {
 		body = undefined;
+	} else if ('body' in overrides) {
+		body = overrides['body'];
 	} else if (!request.bodyUsed && request.body) {
 		// If the body hasn't been consumed yet, we can reuse the stream directly
 		// This avoids the hang that occurs when trying to read from a stream
 		// that's still waiting for more data
 		body = request.body;
 	} else {
-		// Otherwise, we need to read the body as a blob
-		body = await request.blob();
+		// Otherwise, we need to read the body as an arrayBuffer.
+		// We don't use .blob() because it throws when the client is low
+		// on disk space (blobs tend to be stored as temporary files, array
+		// buffers tend to be stored in memory).
+		// see https://github.com/WordPress/wordpress-playground/issues/2769
+		body = await request.arrayBuffer();
 	}
 
 	return new Request(overrides['url'] || request.url, {
@@ -225,29 +250,62 @@ export async function cloneRequest(
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
-		...(body && { duplex: 'half' }),
+		/**
+		 * Infer the duplex value in a way that's consistent across browsers. Web browsers
+		 * only support 'half' as of January 2026, but other values may be supported in the future.
+		 * Unfortunately, also as of January 2026, we cannot read the duplex value directly from the
+		 * request object:
+		 *
+		 * > Although duplex can be passed as an option when constructing a Request,
+		 * > it is not currently exposed as a readable property on the resulting Request
+		 * > object in all browsers.
+		 *
+		 * See MDN: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
+		 */
+		...(body instanceof ReadableStream && { duplex: 'half' }),
 		...overrides,
 	});
 }
 
+// Cached result of supportsReadableStreamBody(); undefined means not probed yet.
+let streamBodySupported: boolean | undefined;
+
+/** @internal Test-only utilities — not part of the public API. */
+export const __testing = {
+	resetStreamBodySupported(): void {
+		streamBodySupported = undefined;
+	},
+};
+
 /**
- * Tee a request to ensure the body stream is not consumed
- * when executing or cloning the request.
+ * Detects whether the browser supports passing a ReadableStream as the body
+ * of a fetch() request. The result is probed once (via a `data:` URL) and
+ * cached for the lifetime of the page.
  *
- * @param request
- * @returns
+ * - Chrome: supported (with `duplex: 'half'`).
+ * - Safari: throws `NotSupportedError: ReadableStream uploading is not supported`.
+ * - Firefox: the probe fetch itself may fail; `request.body` is not even exposed.
  */
-export async function teeRequest(
-	request: Request
-): Promise<[Request, Request]> {
-	if (!request.body) {
-		return [request, request];
+export async function supportsReadableStreamBody(): Promise<boolean> {
+	if (streamBodySupported !== undefined) {
+		return streamBodySupported;
 	}
-	const [body1, body2] = request.body.tee();
-	return [
-		await cloneRequest(request, { body: body1, duplex: 'half' }),
-		await cloneRequest(request, { body: body2, duplex: 'half' }),
-	];
+	try {
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+		await fetch('data:,', {
+			method: 'POST',
+			body: stream,
+			duplex: 'half',
+		} as RequestInit);
+		streamBodySupported = true;
+	} catch {
+		streamBodySupported = false;
+	}
+	return streamBodySupported;
 }
 
 /**
@@ -286,27 +344,32 @@ export function removeContentSecurityPolicyDirective(
 
 	// Parse based on the CSP spec:
 	// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
-	return cspHeader
-		// "For each token returned by strictly splitting serialized
-		// on the U+003B SEMICOLON character (;):"
-		.split(';')
-		.filter((rawDirective: string) => {
-			// "Strip leading and trailing ASCII whitespace from token."
-			const trimmedDirective = rawDirective
-				.replace(leadingAsciiWhitespace, '')
-				.replace(trailingAsciiWhitespace, '');
+	return (
+		cspHeader
+			// "For each token returned by strictly splitting serialized
+			// on the U+003B SEMICOLON character (;):"
+			.split(';')
+			.filter((rawDirective: string) => {
+				// "Strip leading and trailing ASCII whitespace from token."
+				const trimmedDirective = rawDirective
+					.replace(leadingAsciiWhitespace, '')
+					.replace(trailingAsciiWhitespace, '');
 
-			// "Let directive name be the result of collecting a sequence
-			// of code points from token which are not ASCII whitespace."
-			const [directiveName] = trimmedDirective.split(
-				asciiWhitespace,
-				// The directive name is the first token.
-				1
-			);
+				// "Let directive name be the result of collecting a sequence
+				// of code points from token which are not ASCII whitespace."
+				const [directiveName] = trimmedDirective.split(
+					asciiWhitespace,
+					// The directive name is the first token.
+					1
+				);
 
-			// "Directive names are case-insensitive, that is:
-			// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
-			return directiveName.toLowerCase() !== directiveToRemove.toLowerCase();
-		})
-		.join(';');
+				// "Directive names are case-insensitive, that is:
+				// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
+				return (
+					directiveName.toLowerCase() !==
+					directiveToRemove.toLowerCase()
+				);
+			})
+			.join(';')
+	);
 }

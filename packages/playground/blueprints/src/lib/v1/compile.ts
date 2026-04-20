@@ -1,10 +1,7 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
-import type { SupportedPHPVersion, UniversalPHP } from '@php-wasm/universal';
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersions,
-} from '@php-wasm/universal';
+import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
+import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
 import type { FileReference } from './resources';
 import { isResourceReference, Resource } from './resources';
 import type { Step, StepDefinition, WriteFileStep } from '../steps';
@@ -94,7 +91,7 @@ export type CompiledV1Step = (php: UniversalPHP) => Promise<void> | void;
 export interface CompiledBlueprintV1 {
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
-		php: SupportedPHPVersion;
+		php: AllPHPVersion;
 		wp: string;
 	};
 	features: {
@@ -258,7 +255,18 @@ function compileBlueprintJson(
 		const steps = blueprint.plugins
 			.map((value) => {
 				if (typeof value === 'string') {
-					if (value.startsWith('https://')) {
+					if (isGitRepoUrl(value)) {
+						return {
+							resource: 'zip',
+							inner: {
+								resource: 'git:directory',
+								url: value
+									.replace(/\.git\/?$/, '')
+									.replace(/\/$/, ''),
+								ref: 'HEAD',
+							},
+						} as FileReference;
+					} else if (value.startsWith('https://')) {
 						return {
 							resource: 'url',
 							url: value,
@@ -389,7 +397,7 @@ function compileBlueprintJson(
 		versions: {
 			php: compileVersion(
 				blueprint.preferredVersions?.php,
-				SupportedPHPVersions,
+				AllPHPVersions,
 				LatestSupportedPHPVersion
 			),
 			wp: blueprint.preferredVersions?.wp || 'latest',
@@ -783,4 +791,19 @@ export async function runBlueprintV1Steps(
 	playground: UniversalPHP
 ) {
 	await compiledBlueprint.run(playground);
+}
+
+function isGitRepoUrl(url: string): boolean {
+	if (/^https:\/\/.+\.git\/?$/.test(url)) {
+		return true;
+	}
+	// GitHub: exactly /owner/repo
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(url)) {
+		return true;
+	}
+	// GitLab: /group[/subgroup...]/project (2+ path segments)
+	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*\/?$/.test(url)) {
+		return true;
+	}
+	return false;
 }

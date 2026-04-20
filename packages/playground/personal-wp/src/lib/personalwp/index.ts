@@ -2,6 +2,7 @@ import type { BlueprintV1Declaration } from '@wp-playground/client';
 import {
 	type ResolvedBlueprint,
 	resolveBlueprintFromURL,
+	applyQueryOverrides,
 } from '../state/url/resolve-blueprint-from-url';
 import {
 	getBlueprintDeclaration,
@@ -79,9 +80,6 @@ const ACTIONABLE_URL_PARAMS = [
 	'import-site',
 	'import-wxr',
 	'import-content',
-	'gutenberg-pr',
-	'gutenberg-branch',
-	'core-pr',
 ];
 
 /**
@@ -109,9 +107,14 @@ export async function resolveUrlParamsForExistingSite(
 	try {
 		const resolved = await resolveBlueprintFromURL(url, undefined);
 		// Extract the blueprint declaration from the bundle if needed
-		const blueprint = isBlueprintBundle(resolved.blueprint)
+		let blueprint = isBlueprintBundle(resolved.blueprint)
 			? await getBlueprintDeclaration(resolved.blueprint)
 			: (resolved.blueprint as BlueprintV1Declaration);
+		// Apply query overrides (e.g., ?url= for landing page, ?login=, etc.)
+		blueprint = (await applyQueryOverrides(
+			blueprint,
+			url.searchParams
+		)) as BlueprintV1Declaration;
 		return blueprint;
 	} catch (e) {
 		logger.error('Error resolving URL blueprint for existing site:', e);

@@ -1,6 +1,7 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
+import { BREAKPOINTS } from '../../constants/breakpoints';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -13,7 +14,8 @@ export type SiteError =
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
-	| 'network-firewall-interference';
+	| 'network-firewall-interference'
+	| 'resource-download-failed';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
@@ -152,8 +154,6 @@ export interface UIState {
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
-// @TODO: Centralize these breakpoint sizes.
-const isMobile = window.innerWidth < 875;
 
 const shouldOpenSiteManagerByDefault = false;
 
@@ -182,10 +182,10 @@ const initialState: UIState = {
 		query.get('mode') !== 'seamless' &&
 		// We do not expect to render the Playground app UI in an iframe.
 		!isEmbeddedInAnIframe &&
-		// Don't default to the site manager on mobile, as that would mean
-		// seeing something that's not Playground filling your entire screen –
-		// quite a confusing experience.
-		!isMobile,
+		// Don't default to the site manager on small screens (mobile/tablet),
+		// as that would mean seeing something that's not Playground filling
+		// your entire screen – quite a confusing experience.
+		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
 };
 

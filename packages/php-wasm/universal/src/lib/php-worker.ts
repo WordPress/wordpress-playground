@@ -178,6 +178,21 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		return await requestHandler.request(request);
 	}
 
+	/**
+	 * Handles a request with streaming support for large responses.
+	 * Returns a StreamedPHPResponse that allows processing the response
+	 * body incrementally without buffering the entire response in memory.
+	 *
+	 * This is useful for large file downloads (>2GB) that would otherwise
+	 * exceed JavaScript's Uint8Array size limits.
+	 *
+	 * @param request - PHP Request data.
+	 */
+	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
+		const requestHandler = _private.get(this)!.requestHandler!;
+		return await requestHandler.requestStreamed(request);
+	}
+
 	/** @inheritDoc @php-wasm/universal!/PHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		const { php, reap } = await this.acquirePHPInstance();

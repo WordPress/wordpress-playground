@@ -49,7 +49,7 @@ const httpsServer = https.createServer(
 [
 	{
 		protocol: 'http',
-		port: new Promise((resolve) => {
+		port: await new Promise((resolve) => {
 			httpServer.listen(0, function () {
 				resolve((httpServer.address() as any).port);
 			});
@@ -57,7 +57,7 @@ const httpsServer = https.createServer(
 	},
 	{
 		protocol: 'https',
-		port: new Promise((resolve) => {
+		port: await new Promise((resolve) => {
 			httpsServer.listen(0, function () {
 				resolve((httpsServer.address() as any).port);
 			});
@@ -78,8 +78,12 @@ const httpsServer = https.createServer(
 		const phpVersions =
 			'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
+		const sslContext =
+			protocol === 'https'
+				? `stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]])`
+				: 'null';
 		const topOfTheStack: Record<string, string> = {
-			file_get_contents: `file_get_contents(${js['httpUrl']});`,
+			file_get_contents: `file_get_contents(${js['httpUrl']}, false, ${sslContext});`,
 		};
 
 		const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
@@ -93,7 +97,28 @@ const httpsServer = https.createServer(
 						php = new PHP(
 							await loadNodeRuntime(phpVersion as any, options)
 						);
-						await setPhpIniEntries(php, { allow_url_fopen: 1 });
+						await setPhpIniEntries(php, {
+							allow_url_fopen: 1,
+							error_reporting: 'E_ALL & ~E_DEPRECATED',
+						});
+
+						if (options.withXdebug) {
+							const xdebugIniPath =
+								'/internal/shared/extensions/xdebug.ini';
+
+							/*
+							 * Xdebug's "develop" mode overloads "var_dump"
+							 * with its own C functions crashing "__debugInfo"
+							 * when it does async I/O. We can get rid of this
+							 * mode since it isn't needed for these tests.
+							 */
+							php.writeFile(
+								xdebugIniPath,
+								php
+									.readFileAsText(xdebugIniPath)
+									.replace('debug,develop', 'debug')
+							);
+						}
 					});
 
 					afterEach(async () => {
@@ -133,7 +158,7 @@ const httpsServer = https.createServer(
 								test('array_map', () =>
 									assertNoCrash(`
 									function top() { ${networkCall} }
-									array_map(array('top'), 'top');
+									array_map('top', array('top'));
 								`));
 
 								// Network calls in sort() would be silly so let's skip those for now.
@@ -177,55 +202,8 @@ const httpsServer = https.createServer(
 								function my_method() { ${networkCall} }
 							}
 							call_user_func_array([new Top(), 'my_method'], []);
-							`));
-								test('Constructor', () =>
-									assertNoCrash(`
-							class Top {
-								function __construct() { ${networkCall} }
-							}
-							new Top();
 						`));
-								test('Destructor', () =>
-									assertNoCrash(`
-							class Top {
-								function __destruct() { ${networkCall} }
-							}
-							$x = new Top();
-							unset($x);
-						`));
-								test('__call', () =>
-									assertNoCrash(`
-							class Top {
-								function __call($method, $args) { ${networkCall} }
-							}
-							$x = new Top();
-							$x->test();
-						`));
-								test('__get', () =>
-									assertNoCrash(`
-							class Top {
-								function __get($prop) { ${networkCall} }
-							}
-							$x = new Top();
-							$x->test;
-						`));
-								test('__set', () =>
-									assertNoCrash(`
-							class Top {
-								function __set($prop, $value) { ${networkCall} }
-							}
-							$x = new Top();
-							$x->test = 1;
-						`));
-								test('__isset', () =>
-									assertNoCrash(`
-							class Top {
-								function __isset($prop) { ${networkCall} }
-							}
-							$x = new Top();
-							isset($x->test);
-						`));
-								test('ArrayAccess', () => {
+								test('ArrayAccess', () =>
 									assertNoCrash(`
 								class Top implements ArrayAccess {
 									function offsetExists($offset) { ${networkCall} }
@@ -238,8 +216,7 @@ const httpsServer = https.createServer(
 								$a = $x['test'];
 								$x['test'] = 123;
 								unset($x['test']);
-							`);
-								});
+							`));
 								test('Iterator', () =>
 									assertNoCrash(`
 							$data = new class() implements IteratorAggregate {
@@ -248,7 +225,7 @@ const httpsServer = https.createServer(
 									return new ArrayIterator( [] );
 								}
 							};
-							echo json_encode( [
+							json_encode( [
 								...$data
 							] );
 						`));
@@ -256,7 +233,7 @@ const httpsServer = https.createServer(
 								test('Countable', () =>
 									assertNoCrash(`
 							$data = new class() implements Countable {
-								public function count() {
+								public function count(): int {
 									${networkCall}
 									return 0;
 								}
@@ -273,28 +250,192 @@ const httpsServer = https.createServer(
 								yield '2';
 							}
 							foreach(countTo2() as $number) {
-								echo $number;
+								$number;
 							}
 						`));
 							});
 
-							describe('exif extension support', () => {
-								it('exif_read_data', async () => {
-									assertNoCrash(
-										`var_dump(exif_read_data('${httpUrl}/image.jpg'));`
-									);
+							/**
+							 * Verifies that PHP magic methods can invoke asynchronous functions such as file_get_contents,
+							 * correctly handle their results, and ensure proper stack management and context switching.
+							 *
+							 * @see https://www.php.net/manual/en/language.oop5.magic.php
+							 */
+							describe('PHP Magic Methods', () => {
+								it('__construct', () => {
+									return assertNoCrash(`
+										class Top {
+											function __construct() { ${networkCall} }
+										}
+										new Top();`);
 								});
-								it('exif_imagetype', async () => {
-									assertNoCrash(
-										`var_dump(exif_imagetype('${httpUrl}/image.jpg'));`
-									);
+
+								it('__destruct', () => {
+									return assertNoCrash(`
+										class Top {
+											function __destruct() { ${networkCall} }
+										}
+										$x = new Top();`);
 								});
-								it('exif_thumbnail', async () => {
-									assertNoCrash(
-										`var_dump(exif_thumbnail('${httpUrl}/image.jpg'));`
-									);
+
+								it('__call', () => {
+									return assertNoCrash(`
+										class Top {
+											function __call($method, $args) { ${networkCall} }
+										}
+										$x = new Top();
+										$x->test();`);
+								});
+
+								it('__callStatic', () => {
+									return assertNoCrash(`
+										class Top {
+											static function __callStatic($method, $args) { ${networkCall} }
+										}
+										Top::test();`);
+								});
+
+								it('__get', () => {
+									return assertNoCrash(`
+										class Top {
+											function __get($prop) { ${networkCall} }
+										}
+										$x = new Top();
+										$a = $x->test;`);
+								});
+
+								it('__set', () => {
+									return assertNoCrash(`
+										class Top {
+											function __set($prop, $value) { ${networkCall} }
+										}
+										$x = new Top();
+										$x->test = 1;`);
+								});
+
+								it('__isset', () => {
+									return assertNoCrash(`
+										class Top {
+											function __isset($prop) { ${networkCall} }
+										}
+										$x = new Top();
+										isset($x->test);
+										empty($x->test);`);
+								});
+
+								it('__unset', () => {
+									return assertNoCrash(`
+										class Top {
+											function __unset($prop) { ${networkCall} }
+										}
+										$x = new Top();
+										unset($x->test);`);
+								});
+
+								it('__sleep', () => {
+									return assertNoCrash(`
+										class Top {
+											function __sleep() { ${networkCall} return []; }
+										}
+										$x = new Top();
+										serialize($x);`);
+								});
+
+								it('__wakeup', () => {
+									return assertNoCrash(`
+										class Top {
+											function __wakeup() { ${networkCall} }
+										}
+										$serialized = serialize(new Top());
+										unserialize($serialized);`);
+								});
+
+								it('__serialize', () => {
+									return assertNoCrash(`
+										class Top {
+											function __serialize() { ${networkCall} return []; }
+										}
+										$x = new Top();
+										serialize($x);`);
+								});
+
+								it('__unserialize', () => {
+									return assertNoCrash(`
+										class Top {
+											function __unserialize($data) { ${networkCall} }
+										}
+										$serialized = serialize(new Top());
+										unserialize($serialized);`);
+								});
+
+								it('__toString', () => {
+									return assertNoCrash(`
+										class Top {
+											function __toString() { ${networkCall} return ""; }
+										}
+										$x = new Top();
+										echo $x;`);
+								});
+
+								it('__invoke', () => {
+									return assertNoCrash(`
+										class Top {
+											function __invoke() { ${networkCall} }
+										}
+										$x = new Top();
+										$x();`);
+								});
+
+								it('__set_state', () => {
+									return assertNoCrash(`
+										class Top {
+											static function __set_state($an_array) { ${networkCall} }
+										}
+										$exported = var_export(new Top(), true);
+										eval('$x = ' . $exported . ';');`);
+								});
+
+								it('__clone', () => {
+									return assertNoCrash(`
+										class Top {
+											function __clone() { ${networkCall} }
+										}
+										$x = new Top();
+										$y = clone $x;`);
+								});
+
+								it('__debugInfo', () => {
+									return assertNoCrash(`
+										class Top {
+											function __debugInfo() { ${networkCall} return []; }
+										}
+										$x = new Top();
+										ob_start();
+										var_dump($x);
+										ob_end_clean();`);
 								});
 							});
+
+							// exif functions don't accept a stream context,
+							// so skip HTTPS tests with self-signed certs.
+							describe(
+								'exif extension support',
+								{ skip: protocol === 'https' },
+								() => {
+									it('exif_read_data', () =>
+										assertNoCrash(
+											`exif_read_data('${httpUrl}/image.jpg');`
+										));
+									it('exif_imagetype', () =>
+										assertNoCrash(
+											`exif_imagetype('${httpUrl}/image.jpg');`
+										));
+									it('exif_thumbnail', () =>
+										assertNoCrash(
+											`exif_thumbnail('${httpUrl}/image.jpg');`
+										));
+								}
+							);
 						}
 					);
 
@@ -346,6 +487,8 @@ const httpsServer = https.createServer(
 								err.cause = e;
 								throw err;
 							}
+
+							throw e;
 						}
 					}
 				}

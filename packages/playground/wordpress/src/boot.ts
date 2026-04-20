@@ -3,6 +3,7 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
+	PathAlias,
 	PHPWorker,
 	SpawnHandler,
 	Remote,
@@ -24,7 +25,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from './rewrite-wp-config';
+import { ensureWpConfig } from './wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -50,6 +51,11 @@ export async function bootWordPressAndRequestHandler(
 
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
+	/**
+	 * PHP version string (e.g. '8.3', '5.2'). Used to gate
+	 * legacy-PHP-specific behavior in the boot chain.
+	 */
+	phpVersion?: string;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	maxPhpInstances?: number;
 	/**
@@ -104,6 +110,19 @@ export interface BootRequestHandlerOptions {
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
 
 	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
+
+	/**
 	 * The CookieStore instance to use.
 	 *
 	 * If not provided, Playground will use the HttpCookieStore by default.
@@ -127,6 +146,8 @@ export type WordPressInstallMode =
 	| 'do-not-attempt-installing';
 
 export interface BootWordPressOptions {
+	/** PHP version string (e.g. '8.3', '5.2'). */
+	phpVersion?: string;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -147,6 +168,28 @@ export interface BootWordPressOptions {
 	 * PHP constants to define for every request.
 	 */
 	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
+	phpIniEntries?: PhpIniOptions;
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
+	createFiles?: FileTree;
 	/**
 	 * URL to use as the site URL. This is used to set the WP_HOME
 	 * and WP_SITEURL constants in WordPress.
@@ -197,9 +240,9 @@ export async function bootWordPress(
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
 	/*
-	 * Add required constants to "wp-config.php" if they are not already defined.
-	 * This is needed, because some WordPress backups and exports may not include
-	 * definitions for some of the necessary constants.
+	 * Ensure required constants are defined if "wp-config.php" doesn't define
+	 * them. This is needed because some WordPress backups and exports may not
+	 * include definitions for some of the necessary constants.
 	 */
 	await ensureWpConfig(php, requestHandler.documentRoot);
 	// Run "before database" hooks to mount/copy more files in
@@ -322,7 +365,12 @@ async function assertDatabasePrerequisites(
 		return;
 	}
 
-	// No SQLite integration and no MySQL support available
+	// Check if wp-config.php has real MySQL credentials
+	if (hasValidMySQLCredentials(php)) {
+		return;
+	}
+
+	// No SQLite integration and no MySQL credentials found
 	// Throw early to avoid attempting installation with no database
 	throw new Error('Error connecting to the MySQL database.');
 }
@@ -415,6 +463,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			 */
 			!php.isFile('/internal/.boot-files-written')
 		) {
+			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
@@ -457,6 +506,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
+		pathAliases: options.pathAliases,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
@@ -474,7 +524,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		/**
 		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
 		 * a PHP factory function. Internally, it creates a PHPProcessManager that
-		 * dynamically starts new PHP instances and reaps them after they're used.
+		 * maintains a pool of reusable PHP instances.
 		 */
 		phpFactory:
 			options.maxPhpInstances !== 1
@@ -601,6 +651,24 @@ export function getFileNotFoundActionForWordPress(
 		type: 'internal-redirect',
 		uri: '/index.php',
 	};
+}
+
+function hasValidMySQLCredentials(php: PHP) {
+	const wpConfigPath = joinPaths(php.documentRoot, 'wp-config.php');
+	if (!php.isFile(wpConfigPath)) return false;
+
+	const wpConfig = php.readFileAsText(wpConfigPath);
+
+	const dbName = wpConfig.match(
+		/define\s*\(\s*['"]DB_NAME['"]\s*,\s*['"]([^'"]*)['"]/
+	);
+	const dbUser = wpConfig.match(
+		/define\s*\(\s*['"]DB_USER['"]\s*,\s*['"]([^'"]*)['"]/
+	);
+
+	if (!dbName || !dbUser) return false;
+
+	return dbName[1] !== 'database_name_here' && dbUser[1] !== 'username_here';
 }
 
 async function isDatabaseConnectionValid(php: PHP) {

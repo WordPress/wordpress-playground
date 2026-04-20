@@ -10,7 +10,6 @@ import {
 	updateClientInfo,
 	selectClientInfoBySiteSlug,
 } from './slice-clients';
-import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	type BlueprintV1Declaration,
@@ -32,7 +31,10 @@ import {
 } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	findFirewallErrorInCauseChain,
+	findDownloadErrorInCauseChain,
+} from './error-utils';
 import {
 	initTabCoordinator,
 	checkForExistingTabs,
@@ -135,8 +137,6 @@ export function bootSiteClient(
 				return;
 			}
 		}
-
-		logTrackingEvent('load');
 
 		// Initialize tab coordinator for multi-tab detection
 		// Only for persistent sites - temporary sites don't need coordination
@@ -366,6 +366,9 @@ export function bootSiteClient(
 				const current = blueprint as BlueprintV1Declaration;
 				blueprint = {
 					...blueprint,
+					...(resolved.plugins?.length
+						? { plugins: resolved.plugins }
+						: {}),
 					landingPage: resolved.landingPage || current.landingPage,
 					steps: [
 						...(current.steps || []),
@@ -376,6 +379,17 @@ export function bootSiteClient(
 		} else {
 			blueprint = site.metadata.originalBlueprint;
 		}
+
+		// Check if we're in recovery mode (Health Check troubleshooting).
+		// Recovery mode uses 'do-not-attempt-installing' to skip the
+		// isWordPressInstalled() check that would load WordPress and crash
+		// due to a broken plugin.
+		const urlBlueprintLandingPage = hasUrlBlueprint
+			? urlBlueprint.blueprint.landingPage
+			: undefined;
+		const isRecoveryMode = urlBlueprintLandingPage?.includes(
+			'health-check-disable-plugin-hash'
+		);
 
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
@@ -389,14 +403,17 @@ export function bootSiteClient(
 					new URLSearchParams(window.location.search).get(
 						'experimental-blueprints-v2-runner'
 					) === 'yes',
+				// In recovery mode, skip the WordPress install check to avoid
+				// loading WordPress before blueprint steps run.
+				wordpressInstallMode: isRecoveryMode
+					? 'do-not-attempt-installing'
+					: undefined,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
-				// Log Blueprint events
-				onBlueprintValidated: logBlueprintEvents,
 				mounts: mountDescriptor
 					? [
 							{
@@ -410,8 +427,6 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			logger.error(e);
-			logTrackingEvent('error', { source: 'bootSiteClient' });
-
 			const firewallError = findFirewallErrorInCauseChain(e);
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
@@ -442,6 +457,13 @@ export function bootSiteClient(
 					setActiveSiteError({
 						error: 'network-firewall-interference',
 						details: firewallError,
+					})
+				);
+			} else if (findDownloadErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-download-failed',
+						details: e,
 					})
 				);
 			} else {
