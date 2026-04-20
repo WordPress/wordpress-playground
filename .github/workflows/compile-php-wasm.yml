@@ -12,18 +12,6 @@ permissions:
 
 jobs:
     read-matrix:
-        # Only allow Playground maintainers to trigger npm publishes.
-        if: >
-            (
-              github.actor == 'adamziel' ||
-              github.actor == 'dmsnell' ||
-              github.actor == 'bgrgicak' ||
-              github.actor == 'brandonpayton' ||
-              github.actor == 'zaerl' ||
-              github.actor == 'janjakes' ||
-              github.actor == 'mho22' ||
-              github.actor == 'ashfame'
-            )
         runs-on: ubuntu-latest
         outputs:
             compile_matrix: ${{ steps.set-matrix.outputs.compile_matrix }}
@@ -79,7 +67,12 @@ jobs:
 
     compile:
         needs: read-matrix
-        if: needs.read-matrix.outputs.has_compilations == 'true'
+        # Skip on trunk: dev packages are published from the PR branch, and
+        # the merge commit to trunk would otherwise retrigger compile for the
+        # same requestedAt.
+        if: >
+            needs.read-matrix.outputs.has_compilations == 'true' &&
+            github.ref != 'refs/heads/trunk'
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -121,7 +114,22 @@ jobs:
 
     publish:
         needs: [read-matrix, compile]
-        if: needs.read-matrix.outputs.has_compilations == 'true'
+        # Only Playground maintainers can publish to npm. Non-maintainers can
+        # still trigger compile to iterate on binaries; publish is the gated
+        # step. Trunk is skipped so merges don't republish the same version.
+        if: >
+            needs.read-matrix.outputs.has_compilations == 'true' &&
+            github.ref != 'refs/heads/trunk' &&
+            (
+              github.actor == 'adamziel' ||
+              github.actor == 'dmsnell' ||
+              github.actor == 'bgrgicak' ||
+              github.actor == 'brandonpayton' ||
+              github.actor == 'zaerl' ||
+              github.actor == 'janjakes' ||
+              github.actor == 'mho22' ||
+              github.actor == 'ashfame'
+            )
         runs-on: ubuntu-latest
         environment:
             name: npm
@@ -206,11 +214,28 @@ jobs:
     post-comment:
         needs: [read-matrix, publish]
         runs-on: ubuntu-latest
-        if: needs.read-matrix.outputs.has_compilations == 'true' && github.event.pull_request.number != ''
+        # Trigger is `on: push`, so github.event.pull_request is empty.
+        # We resolve the PR number from the pushed branch with `gh pr list`.
+        if: >
+            needs.read-matrix.outputs.has_compilations == 'true' &&
+            github.ref != 'refs/heads/trunk'
         steps:
             - uses: actions/checkout@v4
 
+            - name: Resolve PR number from branch
+              id: pr
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  PR=$(gh pr list \
+                    --head "${{ github.ref_name }}" \
+                    --state open \
+                    --json number \
+                    --jq '.[0].number // empty')
+                  echo "number=$PR" >> "$GITHUB_OUTPUT"
+
             - name: Post PR comment
+              if: steps.pr.outputs.number != ''
               uses: actions/github-script@v7
               with:
                   script: |
@@ -233,6 +258,6 @@ jobs:
                       await github.rest.issues.createComment({
                         owner: context.repo.owner,
                         repo: context.repo.repo,
-                        issue_number: context.payload.pull_request.number,
+                        issue_number: Number('${{ steps.pr.outputs.number }}'),
                         body,
                       });
