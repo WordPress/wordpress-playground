@@ -124,60 +124,6 @@ async function waitForWPFrame(page, timeoutSeconds, opts = {}) {
 }
 
 /**
- * Like waitForWPFrame, but specifically waits for an admin page.
- * Skips PHP error output from background requests like
- * prefetchUpdateChecks, and waits for the actual admin dashboard
- * or login page to appear.
- */
-async function waitForAdminFrame(page, timeoutSeconds) {
-	const iterations = Math.ceil((timeoutSeconds * 1000) / 500);
-	for (let i = 0; i < iterations; i++) {
-		await page.waitForTimeout(500);
-		for (const frame of page.frames()) {
-			try {
-				const furl = frame.url();
-				if (!furl.includes('scope:')) continue;
-				const body = await frame
-					.locator('body')
-					.innerText({ timeout: 2000 });
-				if (!body || body.length < 20) continue;
-
-				// Skip frames that ONLY show a PHP error — these are
-				// from background requests (prefetchUpdateChecks), not
-				// the actual admin page.
-				const isOnlyError =
-					body.length < 300 &&
-					(body.includes('Parse error') ||
-						body.includes('Fatal error'));
-				if (isOnlyError) continue;
-
-				// Accept admin pages, login pages, or any page with
-				// substantial content from a wp-admin URL.
-				const isAdmin = furl.includes('wp-admin');
-				const isLogin =
-					furl.includes('wp-login') ||
-					(body.includes('Username') && body.includes('Password'));
-				if (isAdmin || isLogin) {
-					return { body, frame };
-				}
-
-				// Also accept if the page has admin-like content
-				const hasAdminContent = [
-					'Dashboard',
-					'Write',
-					'Manage',
-					'Options',
-				].some((ind) => body.includes(ind));
-				if (hasAdminContent) {
-					return { body, frame };
-				}
-			} catch {}
-		}
-	}
-	return null;
-}
-
-/**
  * Checks body text for PHP errors.
  * Returns the full error line (including file path and line number)
  * if found, null otherwise. The returned string is not truncated —

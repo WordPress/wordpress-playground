@@ -29,13 +29,10 @@ const LEGACY_AUTO_LOGIN_BODY = `
 				return;
 			}
 
-			// All branches below run with PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT
-			// in effect: playground_load_mu_plugins() in env.php defines it
-			// unconditionally before invoking playground_auto_login() (and
-			// before the init hook can fire it), so the legacy auto-login
-			// flow never redirects — it populates $_COOKIE in-process and
-			// relies on wp_set_auth_cookie() / setcookie() for persistence
-			// across requests via HttpCookieStore.
+			// Legacy auto-login never redirects; it populates $_COOKIE
+			// in-process for the current request and relies on
+			// setcookie() / wp_set_auth_cookie() to persist across
+			// requests via HttpCookieStore.
 
 			// WP 2.5+
 			if (function_exists('wp_set_current_user') && function_exists('wp_set_auth_cookie')) {
@@ -352,12 +349,6 @@ function playground_load_mu_plugins() {
 			}
 		}
 		require_once $mu_plugin;
-	}
-	// Set cookies in-process without redirecting: a redirect +
-	// Set-Cookie races against the service worker — the cookie
-	// may not be applied before the redirected request fires.
-	if (!defined('PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT')) {
-		define('PLAYGROUND_SKIP_AUTO_LOGIN_REDIRECT', true);
 	}
 
 	// PHP 5.x's foreach over $wp_filter['init'] iterates a copy,

@@ -207,21 +207,6 @@ if(!function_exists('mysql_select_db')) {
 	function mysql_select_db() { return true; }
 }
 ${MYSQL_SHIMS_PHP}
-if (!function_exists('str_contains')) {
-	function str_contains($haystack, $needle) {
-		return $needle === '' || strpos($haystack, $needle) !== false;
-	}
-}
-if (!function_exists('str_starts_with')) {
-	function str_starts_with($haystack, $needle) {
-		return strncmp($haystack, $needle, strlen($needle)) === 0;
-	}
-}
-if (!function_exists('str_ends_with')) {
-	function str_ends_with($haystack, $needle) {
-		return $needle === '' || substr($haystack, -strlen($needle)) === $needle;
-	}
-}
 if (PHP_MAJOR_VERSION < 7) {
 	// E_DEPRECATED (8192) / E_STRICT (2048) are PHP 5.3+ symbols;
 	// LEGACY_WP_ERROR_REPORTING_PHP_EXPR uses numeric literals.
