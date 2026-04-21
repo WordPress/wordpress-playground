@@ -11,7 +11,7 @@
 #endif
 
 /* TSRMLS macros were removed in PHP 7; provide empty fallbacks */
-#if !defined(TSRMLS_CC)
+#ifndef TSRMLS_CC
 #define TSRMLS_CC
 #endif
 
