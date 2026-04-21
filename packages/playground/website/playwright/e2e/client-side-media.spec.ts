@@ -20,16 +20,30 @@ import type { Blueprint } from '@wp-playground/blueprints';
  * document-isolation-policy.spec.ts covers that the editor renders
  * successfully (which implicitly verifies parent/child DIP parity).
  *
- * Playwright's default `chromium_headless_shell` build does not honor
- * Document-Isolation-Policy, so these tests opt into `channel: 'chromium'`
- * (the full Chromium browser) via `test.use()`. Playwright's CI install
- * step already installs it via `playwright install chromium --with-deps`.
+ * These tests are Chromium-only (DIP is a Chromium-only spec and Gutenberg
+ * only sends the header there). The file-level `test.skip()` below must
+ * run before the file-level `test.use({ channel })` takes effect so the
+ * non-Chromium projects never try to launch WebKit/Firefox with a
+ * chromium channel, which would error with `Unsupported <browser>
+ * channel "chromium"`.
+ *
+ * The `channel: 'chromium'` opt-in is required because Playwright's
+ * default `chromium_headless_shell` build does not honor
+ * Document-Isolation-Policy — `window.crossOriginIsolated` is always
+ * false there even when the response carries a DIP header. The full
+ * Chromium channel is already installed by Playwright's CI step
+ * (`playwright install chromium --with-deps`).
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/3514
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  * @see https://github.com/WordPress/gutenberg/pull/75991
  * @see https://developer.chrome.com/blog/document-isolation-policy
  */
+
+test.skip(
+	({ browserName }) => browserName !== 'chromium',
+	'Document-Isolation-Policy and client-side media are only supported in Chromium-based browsers'
+);
 
 test.use({ channel: 'chromium' });
 
@@ -50,20 +64,10 @@ const clientSideMediaBlueprint: Blueprint = {
 	],
 };
 
-function skipNonChromium(browserName: string) {
-	test.skip(
-		browserName === 'firefox' || browserName === 'webkit',
-		'Document-Isolation-Policy and client-side media are only supported in Chromium-based browsers'
-	);
-}
-
 test('Post editor should be cross-origin isolated with SharedArrayBuffer available', async ({
 	website,
 	wordpress,
-	browserName,
 }) => {
-	skipNonChromium(browserName);
-
 	await website.goto(`./#${JSON.stringify(clientSideMediaBlueprint)}`);
 
 	// Wait for the block editor to fully load. The editor header is visible in both
@@ -91,10 +95,7 @@ test('Post editor should be cross-origin isolated with SharedArrayBuffer availab
 test('Gutenberg should report client-side media processing as enabled', async ({
 	website,
 	wordpress,
-	browserName,
 }) => {
-	skipNonChromium(browserName);
-
 	await website.goto(`./#${JSON.stringify(clientSideMediaBlueprint)}`);
 
 	await expect(
