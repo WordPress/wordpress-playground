@@ -1,0 +1,47 @@
+{
+	"firstTime": {
+		"title": "Your free WordPress",
+		"subtitle": "Setting things up… have a read while you wait.",
+		"intro": "This is a complete WordPress that runs in your browser: no sign-up, no hosting plan, no domain needed. It's not meant for public blogging. Instead, it's your own personal WordPress, where you can install apps that keep your stuff with you: reading lists, saved articles, contacts, conversations, and more. Your data lives here, and you can shape this WordPress however you like.",
+		"aFewThingsHeading": "A few things to know",
+		"bullets": [
+			"Running WordPress in the browser is unusual. It normally lives on a server. We've tried to make it behave just like a normally hosted WordPress, but you might run into the occasional oddity.",
+			"Look for the small Playground icon in the bottom-left corner. That's <strong>Site Tools</strong>. It's always there, floating above WordPress, and it's how you install apps, manage files, view logs, and restore backups.",
+			"Your WordPress <strong>downloads a backup every day, automatically</strong> (configurable in Site Tools). If your browser data ever gets cleared, this page will come back as a fresh WordPress. Open Site Tools and point it at your saved backup to restore your old site."
+		],
+		"bookmarkTip": "<strong>⭐ Bookmark this page.</strong> This is your WordPress now. Add it to your bookmarks so you can easily come back."
+	},
+	"returning": {
+		"title": "Welcome back!",
+		"subtitle": "Loading your site…",
+		"tipLabel": "💡 Tip",
+		"whatsNewHeading": "What's new"
+	},
+	"tips": [
+		"Look for the small tab in the bottom-left corner to open Site Tools at any time.",
+		"You can bookmark any page. The browser URL always reflects where you are in WordPress.",
+		"Configure automatic backup downloads in Site Tools so you never lose your work.",
+		"You can install apps from the Site Tools sidebar to add new capabilities.",
+		"Paste a blueprint URL or JSON into the Site Tools panel to add a custom app.",
+		"Your site lives entirely in this browser. No server, no account needed.",
+		"Avoid reloading the page if you can. Just click around inside WordPress instead."
+	],
+	"changelog": [
+		{
+			"title": "Seamless fullscreen",
+			"text": "The toolbar is gone. Your WordPress runs in fullscreen, and the browser URL bar shows where you are."
+		},
+		{
+			"title": "Site Tools sidebar",
+			"text": "Click the tab in the bottom-left corner to access files, database, logs, app installs, backups, and recovery."
+		},
+		{
+			"title": "Automatic backups",
+			"text": "Configure daily or weekly backup downloads in the sidebar's About tab."
+		},
+		{
+			"title": "Install apps",
+			"text": "Browse and install pre-configured apps from the sidebar, or paste any blueprint URL."
+		}
+	]
+}
