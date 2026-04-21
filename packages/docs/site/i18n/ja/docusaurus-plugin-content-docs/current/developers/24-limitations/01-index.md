@@ -169,7 +169,7 @@ Loading times vary based on what Playground needs to set up:
 
 - **プラグインのサイズ**: プラグインのサイズが大きいと、実行時のインストールに時間がかかります。
 - **ネットワーク速度**: WASMファイルは15～30MBです。
-- **デバイスのメモリ**: メモリの少ないデバイスでは、動作が遅くなることがあります。
+- **デバイスのメモリ**: WASMメモリの初期割り当ては64MBで、必要に応じて動的に増加します。メモリの少ないデバイスでは、動作が遅くなることがあります。
 - **ブラウザ**: Chrome/Edgeが最もパフォーマンスが高く、Safariはやや劣ります。
 
 <!--
@@ -181,10 +181,6 @@ Loading times vary based on what Playground needs to set up:
 
 <blockquote>
 <strong>注:</strong> 現在、Opera Miniへの対応は未確認です。
-</blockquote>
-
-<blockquote>
-<strong>Note:</strong> Opera Mini support is not currently confirmed.
 </blockquote>
 
 ## Playground で開発する場合
@@ -236,4 +232,30 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/
 
 <!--
 You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
+-->
+
+[Playground CLI](/developers/local-development/wp-playground-cli)を使う場合、`php`コマンドはWASM PHPランタイムに対してスクリプトを直接実行することで、WP-CLIを完全にサポートします。
+
+<!--
+When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command provides full WP-CLI support by running scripts directly against the WASM PHP runtime.
+-->
+
+## 最近の改善 {#recent-improvements}
+
+最近のリリースで、これまでの制限のいくつかが解消されました。
+
+- **大容量ファイルのダウンロード（2GB超）**: エクスポートとダウンロードがメモリバッファではなくストリーミングに対応し、以前は失敗していた大規模サイトのエクスポート（例: All-in-One WP Migrationのバックアップ）が可能になりました。
+- **PHP cURLでのファイルアップロード**: `CURLFile`によるmultipartフォームアップロードがブラウザで正しく動作するようになりました。`Expect: 100-continue`によるデッドロックと、CORSプロキシのmultipart転送問題が解消されています。
+- **長時間実行されるPHPレスポンス**: service workerがPHPレスポンスをバッファリングせずにストリーミングするようになり、サイトのインポートや長時間処理で発生していた25秒のタイムアウトが解消されました。
+- **ダウンロードエラー時の表示改善**: WASMやスクリプトのダウンロードに失敗した場合（ネットワーク、広告ブロッカーなど）、空白ページではなく分かりやすいエラーモーダルが表示されるようになりました。
+
+<!--
+## Recent improvements {#recent-improvements}
+
+Several previous limitations have been addressed in recent releases:
+
+- **Large file downloads (>2GB)**: File exports and downloads now stream directly instead of buffering in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
+- **PHP curl file uploads**: Multipart form uploads via `CURLFile` now work correctly in the browser. The `Expect: 100-continue` deadlock and CORS proxy multipart forwarding issues have been resolved.
+- **Long-running PHP responses**: The service worker now streams PHP responses instead of buffering them, eliminating the 25-second timeout that previously caused site imports and other long-running operations to fail.
+- **Download error handling**: When WASM or script downloads fail (due to network issues, ad blockers, etc.), Playground now displays a helpful error modal instead of a blank page.
 -->

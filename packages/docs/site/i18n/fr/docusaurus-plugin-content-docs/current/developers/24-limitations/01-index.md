@@ -123,10 +123,6 @@ Playground s’appuie sur des technologies web récentes et doit se comporter de
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
 -->
 
-### Attentes en matière de performances
-
-<!-- ### Performance expectations -->
-
 ### Attentes de performance
 
 <!--
@@ -164,7 +160,7 @@ Loading times vary based on what Playground needs to set up:
 
 <!--
 - **Plugin size**: Large plugins take longer to install at runtime
-- **Network speed**: WASM files are approximately 5-15MB per PHP version (reduced significantly by the MAIN_MODULE=2 build optimization)
+- **Network speed**: WASM files are 15-30MB
 - **Device memory**: Initial WASM memory allocation is 64MB, growing dynamically as needed. Low-memory devices may experience slowdowns
 - **Browser**: Chrome/Edge perform best; Safari slightly slower
 -->

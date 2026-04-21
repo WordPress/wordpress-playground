@@ -158,7 +158,7 @@ Loading times vary based on what Playground needs to set up:
 
 <!--
 - **Plugin size**: Large plugins take longer to install at runtime
-- **Network speed**: WASM files are approximately 5-15MB per PHP version (reduced significantly by the MAIN_MODULE=2 build optimization)
+- **Network speed**: WASM files are 15-30MB
 - **Device memory**: Initial WASM memory allocation is 64MB, growing dynamically as needed. Low-memory devices may experience slowdowns
 - **Browser**: Chrome/Edge perform best; Safari slightly slower
 -->
@@ -212,10 +212,18 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/bl
 
 ### Usando WP-CLI
 
+Você pode executar comandos `wp-cli` pelo passo [`wp-cli`](/blueprints/steps#WPCLIStep) dos Blueprints. No entanto, como o Playground roda no navegador, ele não oferece suporte à [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponíveis. Não existe uma lista definitiva de comandos suportados, então experimentar na [demo online](https://playground.wordpress.net/demos/wp-cli.html) ajuda a avaliar o que é possível.
+
+Quando você usa o [Playground CLI](/developers/local-development/wp-playground-cli), o comando `php` oferece suporte completo ao WP-CLI executando os scripts diretamente no runtime PHP WASM.
+
+## Melhorias recentes {#recent-improvements}
+
+Várias limitações anteriores foram resolvidas em versões recentes:
+
 - **Downloads de arquivos grandes (>2 GB)**: exportações e downloads agora são transmitidos em fluxo direto em vez de ficarem em buffer na memória, permitindo exportar sites grandes (por exemplo, backups do All-in-One WP Migration) que antes falhavam.
-- **Uploads via cURL no PHP**: envios multipart com `CURLFile` passam a funcionar corretamente no navegador. O deadlock de `Expect: 100-continue` e os problemas de encaminhamento multipart no proxy CORS foram resolvidos.
-- **Respostas PHP longas**: o service worker agora transmite as respostas PHP em vez de armazená-las em buffer, eliminando o timeout de 25 segundos que fazia falhar importações de site e outras operações longas.
-- **Tratamento de erros de download**: quando downloads de WASM ou scripts falham (rede, bloqueadores de anúncios etc.), o Playground exibe um modal de erro útil em vez de uma página em branco.
+- **Uploads de arquivos via cURL no PHP**: envios multipart com `CURLFile` agora funcionam corretamente no navegador. O deadlock de `Expect: 100-continue` e os problemas de encaminhamento multipart no proxy CORS foram resolvidos.
+- **Respostas PHP de longa duração**: o service worker agora transmite as respostas PHP em vez de armazená-las em buffer, eliminando o timeout de 25 segundos que antes fazia falhar importações de site e outras operações demoradas.
+- **Tratamento de erros de download**: quando downloads de WASM ou scripts falham (por problemas de rede, bloqueadores de anúncios etc.), o Playground agora exibe um modal de erro útil em vez de uma página em branco.
 
 <!--
 - **Large file downloads (>2GB)**: File exports and downloads now stream directly instead of buffering in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
