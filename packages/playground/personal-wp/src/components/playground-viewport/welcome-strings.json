@@ -6,7 +6,7 @@
 		"aFewThingsHeading": "A few things to know",
 		"bullets": [
 			"Running WordPress in the browser is unusual. It normally lives on a server. We've tried to make it behave just like a normally hosted WordPress, but you might run into the occasional oddity.",
-			"Look for the small Playground icon in the bottom-left corner. That's <strong>Site Tools</strong>. It's always there, floating above WordPress, and it's how you install apps, manage files, view logs, and restore backups.",
+			"Look for the small Site Tools icon in the bottom-left corner. It's always there, floating above WordPress, and it opens everything you need: install apps, manage files, view logs, and restore backups.",
 			"Your WordPress <strong>downloads a backup every day, automatically</strong> (configurable in Site Tools). If your browser data ever gets cleared, this page will come back as a fresh WordPress. Open Site Tools and point it at your saved backup to restore your old site."
 		],
 		"bookmarkTip": "<strong>⭐ Bookmark this page.</strong> This is your WordPress now. Add it to your bookmarks so you can easily come back."
@@ -18,30 +18,21 @@
 		"whatsNewHeading": "What's new"
 	},
 	"tips": [
-		"Look for the small tab in the bottom-left corner to open Site Tools at any time.",
-		"You can bookmark any page. The browser URL always reflects where you are in WordPress.",
-		"Configure automatic backup downloads in Site Tools so you never lose your work.",
-		"You can install apps from the Site Tools sidebar to add new capabilities.",
-		"Paste a blueprint URL or JSON into the Site Tools panel to add a custom app.",
-		"Your site lives entirely in this browser. No server, no account needed.",
-		"Avoid reloading the page if you can. Just click around inside WordPress instead."
+		"The Site Tools icon in the bottom-left corner is always there. Click it to open Site Tools any time.",
+		"Your site backs up automatically every day. Change the schedule or turn it off in Site Tools."
 	],
 	"changelog": [
 		{
-			"title": "Seamless fullscreen",
-			"text": "The toolbar is gone. Your WordPress runs in fullscreen, and the browser URL bar shows where you are."
+			"title": "Just WordPress",
+			"text": "Before this change, we showed a second address bar. This has now been removed. Like on a hosted WordPress, your browser will show you where you are."
 		},
 		{
-			"title": "Site Tools sidebar",
-			"text": "Click the tab in the bottom-left corner to access files, database, logs, app installs, backups, and recovery."
+			"title": "Accessing the Site Tools",
+			"text": "The Playground sidebar is now accessible via the Site Tools icon in the bottom-left corner. Click it any time for files, database, logs, backups, and recovery."
 		},
 		{
-			"title": "Automatic backups",
-			"text": "Configure daily or weekly backup downloads in the sidebar's About tab."
-		},
-		{
-			"title": "Install apps",
-			"text": "Browse and install pre-configured apps from the sidebar, or paste any blueprint URL."
+			"title": "Apps launcher",
+			"text": "The apps launcher is now installed by default. You can install apps directly from there."
 		}
 	]
 }
