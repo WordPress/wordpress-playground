@@ -9,6 +9,111 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.20] (2026-04-16) 
+
+### Tools
+
+
+#### GitHub integration
+
+- [Github Actions] Fix GitHub release publishing wrong version. ([#3488](https://github.com/WordPress/wordpress-playground/pull/3488))
+
+#### Documentation
+
+- [ xdebug ] Add Xdebug use case examples. ([#3075](https://github.com/WordPress/wordpress-playground/pull/3075))
+
+### Documentation
+
+- [Docs] Removing documentation fragments. ([#3470](https://github.com/WordPress/wordpress-playground/pull/3470))
+
+### PHP WebAssembly
+
+- [PHP] Fix gzip crash – add missing zlib/curl functions to ASYNCIFY_ONLY. ([#3491](https://github.com/WordPress/wordpress-playground/pull/3491))
+
+### Bug Fixes
+
+- Fix Safari failing to make cross-origin HTTP requests. ([#3440](https://github.com/WordPress/wordpress-playground/pull/3440))
+- Restore the missing mounts.spec.ts. ([#2478](https://github.com/WordPress/wordpress-playground/pull/2478))
+
+### Reliability
+
+- [php-wasm-node-polyfills] Remove @php-wasm/node-polyfills package. ([#3476](https://github.com/WordPress/wordpress-playground/pull/3476))
+
+### Various
+
+- Remove extraneous file and update package-lock.json. ([#3477](https://github.com/WordPress/wordpress-playground/pull/3477))
+- [Docs] Updating asyncify page. ([#3459](https://github.com/WordPress/wordpress-playground/pull/3459))
+- [Docs] Updating blueprint bundles page. ([#3465](https://github.com/WordPress/wordpress-playground/pull/3465))
+- [i18n] Add Bengali translation for blueprints tutorial pages. ([#3461](https://github.com/WordPress/wordpress-playground/pull/3461))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @fellyph @mho22 @perashanid
+
+
+## [v3.1.19] (2026-04-13) 
+
+### Documentation
+
+- [Docs] Removing heading IDs to make documentation compatible to migrate to org. ([#3466](https://github.com/WordPress/wordpress-playground/pull/3466))
+
+### PHP WebAssembly
+
+- [ xdebug ] Skip paths alongside path mappings in IDE configs. ([#3366](https://github.com/WordPress/wordpress-playground/pull/3366))
+- [AI] Add compilation and debugging skills for PHP.wasm. ([#3445](https://github.com/WordPress/wordpress-playground/pull/3445))
+
+### Website
+
+- Add custom error message when artifact is expired. ([#3453](https://github.com/WordPress/wordpress-playground/pull/3453))
+- Define DB_NAME via auto-prepend instead of rewriting wp-config.php. ([#3458](https://github.com/WordPress/wordpress-playground/pull/3458))
+
+### Bug Fixes
+
+- Fix broken deploy workflow guards. ([#3479](https://github.com/WordPress/wordpress-playground/pull/3479))
+
+### Various
+
+- Exclude loopback requests from trying to pre-fetch. ([#3305](https://github.com/WordPress/wordpress-playground/pull/3305))
+- Skip running irrelevant actions on forks. ([#3473](https://github.com/WordPress/wordpress-playground/pull/3473))
+- [Docs] Add `overlay` parameter to Playground URL options. ([#3457](https://github.com/WordPress/wordpress-playground/pull/3457))
+- [i18n] Add Bengali translation for blueprints documentation. ([#3462](https://github.com/WordPress/wordpress-playground/pull/3462))
+- [i18n] Added Gujarati translation for wp-playground agent skill guide. ([#3333](https://github.com/WordPress/wordpress-playground/pull/3333))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame @brandonpayton @dd32 @fellyph @JanJakes @mho22 @perashanid @Rima1889
+
+
+## [v3.1.18] (2026-04-07) 
+
+
+
+
+## [v3.1.17] (2026-04-07) 
+
+### Enhancements
+
+- [CLI] Fix intermittent ENOTDIR crash when applying post-install mounts. ([#3468](https://github.com/WordPress/wordpress-playground/pull/3468))
+
+### Documentation
+
+- [Docs] Load assets from githubusercontent to make it compatible with handbook. ([#3467](https://github.com/WordPress/wordpress-playground/pull/3467))
+
+### Various
+
+- [cli] Update WordPress version validation to include "beta" as a valid slug. ([#3446](https://github.com/WordPress/wordpress-playground/pull/3446))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph
+
+
 ## [v3.1.16] (2026-04-06) 
 
 ### Website

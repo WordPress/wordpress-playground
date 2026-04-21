@@ -21,20 +21,16 @@ WordPress Playground is under active development and has some limitations you sh
 
 Vous pouvez suivre l’état de ces sujets sur le [tableau du projet Playground](https://github.com/orgs/WordPress/projects/180).
 
-<!--
-You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180).
--->
+<!-- ## In the browser -->
 
-## Dans le navigateur {#in-the-browser}
+## Dans le navigateur
 
-<!--
-## In the browser {#in-the-browser}
--->
+<!-- ### Temporary by design -->
 
-### Conçu pour être temporaire {#temporary-by-design}
+### Conçu pour être temporaire
 
 <!--
-### Temporary by design {#temporary-by-design}
+### Temporary by design
 -->
 
 Playground crée à chaque chargement de page des instances WordPress neuves. Actualiser la page du navigateur supprime toutes les modifications de la base de données, les téléversements et les autres changements.
@@ -99,10 +95,12 @@ The dedicated refresh button inside Playground only reloads WordPress content—
 </figure>
 </blockquote>
 
-### Compatibilité des navigateurs {#browser-support}
+<!-- ### Browser support -->
+
+### Compatibilité des navigateurs
 
 <!--
-### Browser support {#browser-support}
+### Browser support
 -->
 
 WordPress Playground est pensé pour fonctionner sur les principaux navigateurs de bureau et mobiles. Cela inclut :
@@ -125,13 +123,11 @@ Playground s’appuie sur des technologies web récentes et doit se comporter de
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
 -->
 
-### Attentes en matière de performances {#performance-expectations}
+### Attentes en matière de performances
 
-<!--
-### Performance expectations {#performance-expectations}
--->
+<!-- ### Performance expectations -->
 
-Les temps de chargement varient selon ce que Playground doit mettre en place :
+### Attentes de performance
 
 <!--
 Loading times vary based on what Playground needs to set up:
@@ -177,22 +173,16 @@ Loading times vary based on what Playground needs to set up:
 <strong>Note :</strong> la prise en charge d’Opera Mini n’est pas confirmée pour l’instant.
 </blockquote>
 
-<!--
-<blockquote>
-<strong>Note:</strong> Opera Mini support is not currently confirmed.
-</blockquote>
--->
+<!-- ## When developing with Playground -->
 
-## Lors du développement avec Playground {#when-developing-with-playground}
+## Lors du développement avec Playground
 
-<!--
-## When developing with Playground {#when-developing-with-playground}
--->
+<!-- ### Iframe quirks -->
 
-### Particularités des iframes {#iframe-quirks}
+### Particularités des iframes
 
 <!--
-### Iframe quirks {#iframe-quirks}
+### Iframe quirks
 -->
 
 Playground affiche WordPress dans un [`iframe`](/developers/architecture/browser-iframe-rendering) : cliquer sur des liens avec `target="_top"` recharge donc la page sur laquelle vous travaillez.
@@ -203,14 +193,12 @@ Playground renders WordPress in an [`iframe`](/developers/architecture/browser-i
 
 De plus, les fenêtres popup JavaScript issues de l’`iframe` ne s’affichent pas toujours.
 
-<!--
-Also, JavaScript popups originating in the `iframe` may not always display.
--->
+<!-- ### Run WordPress PHP functions -->
 
-### Exécuter des fonctions PHP WordPress {#run-wordpress-php-functions}
+### Exécuter des fonctions PHP WordPress
 
 <!--
-### Run WordPress PHP functions {#run-wordpress-php-functions}
+### Run WordPress PHP functions
 -->
 
 Playground permet d’exécuter du code PHP dans les Blueprints via l’[étape `runPHP`](/blueprints/steps#RunPHPStep). Pour appeler des fonctions PHP propres à WordPress, il faut d’abord inclure [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php) :
@@ -226,10 +214,12 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/bl
 }
 ```
 
-### Utilisation de WP-CLI {#using-wp-cli}
+<!-- ### Using WP-CLI -->
+
+### Utilisation de WP-CLI
 
 <!--
-### Using WP-CLI {#using-wp-cli}
+### Using WP-CLI
 -->
 
 Vous pouvez exécuter des commandes `wp-cli` via l’[étape `wp-cli`](/blueprints/steps#WPCLIStep) des Blueprints. Comme Playground s’exécute dans le navigateur, il ne prend pas en charge la [totalité](https://developer.wordpress.org/cli/commands/) des commandes disponibles. Il n’existe pas de liste officielle des commandes prises en charge ; tester [la démo en ligne](https://playground.wordpress.net/demos/wp-cli.html) permet d’en juger.
@@ -244,10 +234,10 @@ Avec [Playground CLI](/developers/local-development/wp-playground-cli), la comma
 When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command provides full WP-CLI support by running scripts directly against the WASM PHP runtime.
 -->
 
-## Améliorations récentes {#recent-improvements}
+## Améliorations récentes
 
 <!--
-## Recent improvements {#recent-improvements}
+## Recent improvements
 -->
 
 Plusieurs limitations antérieures ont été levées dans des versions récentes :

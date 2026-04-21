@@ -5,10 +5,10 @@ description: Isang detalyadong gabay sa web interface sa playground.wordpress.ne
 ---
 
 <!--
-# WordPress Playground web instance {#wordpress-playground-web-instance}
+# WordPress Playground web instance
 -->
 
-# WordPress Playground web instance {#wordpress-playground-web-instance}
+# WordPress Playground web instance
 
 <!--
 [https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
@@ -45,10 +45,10 @@ Ang Playground website ay may kasamang mga toolbar na nagpapasadya sa iyong inst
 ![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
 
 <!--
-## Customize Playground {#customize-playground}
+## Customize Playground
 -->
 
-## I-customize ang Playground {#customize-playground}
+## I-customize ang Playground
 
 <!--
 On the toolbar, you'll find:
@@ -65,10 +65,10 @@ Sa toolbar, makikita mo ang:
 - **Playground Launch Panel**: Ang Launch Panel ay nagpapakita ng lahat ng paraan para maglunsad ng WordPress Playground instance.
 
 <!--
-### Playground Settings {#playground-settings}
+### Playground Settings
 -->
 
-### Playground Settings {#playground-settings}
+### Playground Settings
 
 ![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
 
@@ -91,10 +91,10 @@ Ang **Playground Settings Panel** ay may kasamang mga [Query API options](/devel
 - `networking`: Pinapagana ang network access sa WordPress Plugin Directory at WordPress APIs.
 
 <!--
-## Playground Manager {#playground-manager}
+## Playground Manager
 -->
 
-## Playground Manager {#playground-manager}
+## Playground Manager
 
 ![Playground settings panel allow users to save export and edit the WordPress directly](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
 
@@ -125,10 +125,10 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 I-click ang "Save" para lumikha ng instance at ilista ito sa Playground Launch Panel. Ang Playground Dashboard ay nag-aalok din ng mga export at download options sa pamamagitan ng Additional actions menu:
 
 <!--
-### Additional actions menu {#additional-actions-menu}
+### Additional actions menu
 -->
 
-### Additional actions menu {#additional-actions-menu}
+### Additional actions menu
 
 ![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/additional-options-playground-dashboard.webp)
 
@@ -141,10 +141,10 @@ I-click ang "Save" para lumikha ng instance at ilista ito sa Playground Launch P
 - **Download as .zip**: Gumagawa ng `.zip` file na may setup ng Playground instance, kasama ang anumang naka-install na theme o plugin. Ang `.zip` na ito ay hindi kasama ang content at database changes.
 
 <!--
-### Blueprint Editor {#blueprint-editor}
+### Blueprint Editor
 -->
 
-### Blueprint Editor {#blueprint-editor}
+### Blueprint Editor
 
 ![Blueprint editor WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)
 
@@ -155,10 +155,10 @@ The Blueprint editor replaced the older Blueprint builder, offering the ability 
 Ang Blueprint editor ay pinalitan ang lumang Blueprint builder, na nag-aalok ng kakayahang pamahalaan ang maraming Blueprint at code validation.
 
 <!--
-### Launch Playground Panel {#launch-playground-panel}
+### Launch Playground Panel
 -->
 
-### Launch Playground Panel {#launch-playground-panel}
+### Launch Playground Panel
 
 ![Playground Launch Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 

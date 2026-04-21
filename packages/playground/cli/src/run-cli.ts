@@ -6,7 +6,7 @@ import {
 	type PHPRequest,
 	type PathAlias,
 	type RemoteAPI,
-	type SupportedPHPVersion,
+	type AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -46,6 +46,8 @@ import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thre
 import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
+	AllPHPVersions,
+	isLegacyPHPVersion,
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -71,6 +73,7 @@ import {
 	createTempDirSymlink,
 	removeTempDirSymlink,
 	makeXdebugConfig,
+	DEFAULT_PATH_SKIPPINGS,
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
@@ -117,7 +120,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -372,7 +375,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -661,14 +664,24 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const hasDebugDefine = (name: string) => {
 			return name in define || name in defineBool || name in defineNumber;
 		};
-		if (!hasDebugDefine('WP_DEBUG')) {
-			define['WP_DEBUG'] = 'true';
-		}
-		if (!hasDebugDefine('WP_DEBUG_LOG')) {
-			define['WP_DEBUG_LOG'] = 'true';
-		}
-		if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
-			define['WP_DEBUG_DISPLAY'] = 'false';
+		// Don't default WP_DEBUG* on for legacy PHP: old WordPress
+		// (pre-2.3) prints E_NOTICE output before headers are sent,
+		// which corrupts redirects and breaks the installer. The web
+		// worker path applies the same gate in
+		// @wp-playground/client/src/blueprints-v1-handler.ts.
+		const phpVersionForDebug = (args['php'] ||
+			RecommendedPHPVersion) as AllPHPVersion;
+		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
+		if (!isLegacyPhpForDebug) {
+			if (!hasDebugDefine('WP_DEBUG')) {
+				define['WP_DEBUG'] = 'true';
+			}
+			if (!hasDebugDefine('WP_DEBUG_LOG')) {
+				define['WP_DEBUG_LOG'] = 'true';
+			}
+			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
+				define['WP_DEBUG_DISPLAY'] = 'false';
+			}
 		}
 
 		const cliArgs = {
@@ -723,25 +736,63 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		};
 	} catch (e) {
 		console.error(e);
-		if (!(e instanceof Error)) {
-			throw e;
-		}
 		const debug = process.argv.includes('--debug');
-		if (debug) {
-			printDebugDetails(e);
+		if (e instanceof Error) {
+			if (debug) {
+				printDebugDetails(e);
+			} else {
+				const messageChain = [];
+				let currentError: Error | undefined = e;
+				do {
+					messageChain.push(currentError.message);
+					currentError = currentError.cause as Error;
+				} while (currentError instanceof Error);
+				console.error(
+					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
+				);
+			}
 		} else {
-			const messageChain = [];
-			let currentError = e;
-			do {
-				messageChain.push(currentError.message);
-				currentError = currentError.cause as Error;
-			} while (currentError instanceof Error);
-			console.error(
-				'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
-			);
+			console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 		}
 		process.exit(1);
 	}
+}
+
+/**
+ * Describe an error for display. Handles Error instances, Comlink-serialized
+ * plain objects (which lose their Error prototype during worker thread
+ * transfer), and arbitrary values.
+ */
+function describeError(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (error && typeof error === 'object') {
+		// Comlink-serialized errors arrive as plain objects like
+		// { name: 'ErrnoError', errno: 20 } with no .message.
+		const parts = [];
+		const obj = error as Record<string, unknown>;
+		if (obj['name']) {
+			parts.push(String(obj['name']));
+		}
+		if (obj['message']) {
+			parts.push(String(obj['message']));
+		}
+		if (obj['errno'] !== undefined) {
+			parts.push(`errno: ${obj['errno']}`);
+		}
+		if (parts.length > 0) {
+			return parts.join(' — ');
+		}
+		// Last resort: JSON-serialize the object so we at least see
+		// what fields it has.
+		try {
+			return JSON.stringify(error);
+		} catch {
+			return String(error);
+		}
+	}
+	return String(error);
 }
 
 function getMountForVfsPath(
@@ -770,7 +821,7 @@ export interface RunCLIArgs {
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
-	php?: SupportedPHPVersion;
+	php?: AllPHPVersion;
 	port?: number;
 	'site-url'?: string;
 	quiet?: boolean;
@@ -949,6 +1000,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.memcached = await jspi();
 	}
 
+	// Disable all extensions for legacy PHP versions — they're not available.
+	const isLegacyPhp = isLegacyPHPVersion(args.php || RecommendedPHPVersion);
+	if (isLegacyPhp) {
+		args.intl = false;
+		args.redis = false;
+		args.memcached = false;
+		args.xdebug = false;
+	}
+
 	// Setup phpMyAdmin if enabled.
 	if (args.phpmyadmin) {
 		if (true === args.phpmyadmin) {
@@ -1057,13 +1117,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					vfsPath: '/',
 				};
 
-				const isPHP85orHigher =
-					SupportedPHPVersions.indexOf(
-						args.php || RecommendedPHPVersion
-					) <= SupportedPHPVersions.indexOf('8.5');
+				const phpVer = args.php || RecommendedPHPVersion;
+				// SupportedPHPVersions is ordered newest-first, so a
+				// lower index means a higher version.
+				const isPhp85OrHigher =
+					SupportedPHPVersions.includes(phpVer as any) &&
+					SupportedPHPVersions.indexOf(phpVer as any) <=
+						SupportedPHPVersions.indexOf('8.5');
 
 				// And, if PHP >= 8.5, add the new Xdebug config.
-				if (isPHP85orHigher) {
+				if (isPhp85OrHigher) {
 					await createTempDirSymlink(
 						nativeDir.path,
 						symlinkPath,
@@ -1077,13 +1140,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							...(args['mount-before-install'] || []),
 							...(args.mount || []),
 						],
-						pathSkippings: [
-							'/dev/',
-							'/home/',
-							'/internal/',
-							'/request/',
-							'/proc/',
-						],
+						pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 					});
 
 					console.log(bold(`Xdebug configured successfully`));
@@ -1128,6 +1185,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 									...(args['mount-before-install'] || []),
 									...(args.mount || []),
 								],
+								pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 								ideKey:
 									xdebugOptions.ideKey || 'WPPLAYGROUNDCLI',
 							});
@@ -1367,7 +1425,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 								return;
 							}
 
-							if (exitCode !== 0) {
+							if (exitCode === 0) {
 								return;
 							}
 
@@ -1441,15 +1499,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					await exposeAPI(
 						{
 							applyPostInstallMountsToAllWorkers: async () => {
-								await Promise.all(
-									Array.from(
-										workerToPlaygroundMap.values()
-									).map((playground) =>
-										playground!.mountAfterWordPressInstall(
-											args['mount'] || []
-										)
-									)
-								);
+								// Apply post-install mounts to workers
+								// one at a time. Each worker's mount handler
+								// creates placeholder files on the shared
+								// host filesystem via NODEFS before mounting.
+								// Concurrent creation races cause ENOTDIR.
+								for (const playground of workerToPlaygroundMap.values()) {
+									await playground!.mountAfterWordPressInstall(
+										args['mount'] || []
+									);
+								}
 							},
 						},
 						undefined,
@@ -1637,7 +1696,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			return response;
 		},
 	}).catch((error) => {
-		cliOutput.printError(error.message);
+		cliOutput.printError(describeError(error));
 		process.exit(1);
 	});
 
@@ -1809,10 +1868,11 @@ export function spawnWorkerThread(
 			processIdAllocator.release(processId);
 
 			console.error(e);
+			const originalMessage =
+				e?.message || (e ? String(e) : 'unknown error');
 			const error = new Error(
-				`Worker failed to load worker. ${
-					e.message ? `Original error: ${e.message}` : ''
-				}`
+				`Worker failed to load. Original error: ${originalMessage}`,
+				{ cause: e }
 			);
 			reject(error);
 		});

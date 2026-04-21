@@ -1,4 +1,5 @@
 import {
+	type AllPHPVersion,
 	type SupportedPHPVersion,
 	type EmscriptenOptions,
 	type PHPRuntime,
@@ -6,6 +7,8 @@ import {
 	loadPHPRuntime,
 	FSHelpers,
 	FileLockManagerComposite,
+	createLegacyPhpIniPreRunStep,
+	isLegacyPHPVersion,
 	ProcessIdAllocator,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
@@ -98,7 +101,7 @@ const dangerousDefaultProcessIdAllocator = (process.env as any).VITEST
  * @see load
  */
 export async function loadNodeRuntime(
-	phpVersion: SupportedPHPVersion,
+	phpVersion: AllPHPVersion,
 	options: PHPLoaderOptionsForNode = {}
 ) {
 	const processId =
@@ -109,6 +112,8 @@ export async function loadNodeRuntime(
 		((process.env as any).VITEST
 			? dangerousDefaultProcessIdAllocator!.claim()
 			: undefined);
+
+	const isLegacy = isLegacyPHPVersion(phpVersion);
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -134,6 +139,18 @@ export async function loadNodeRuntime(
 		},
 		...(options.emscriptenOptions || {}),
 		processId,
+		// For legacy PHP: pre-create php.ini via a preRun step. See
+		// createLegacyPhpIniPreRunStep for why this must run before
+		// the PHP SAPI starts. Merge with any caller-provided preRun
+		// hooks (the spread above may have set them).
+		...(isLegacy
+			? {
+					preRun: [
+						createLegacyPhpIniPreRunStep(),
+						...((options.emscriptenOptions as any)?.preRun ?? []),
+					],
+				}
+			: {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			/**
 			 * When users mount a directory using the `mount` function,
@@ -287,24 +304,46 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (options?.withXdebug) {
-		emscriptenOptions = await withXdebug(
-			phpVersion,
-			emscriptenOptions,
-			typeof options.withXdebug === 'object' ? options.withXdebug : {}
+	if (
+		isLegacy &&
+		(options?.withXdebug ||
+			options?.withIntl ||
+			options?.withRedis ||
+			options?.withMemcached)
+	) {
+		throw new Error(
+			`Extensions (xdebug, intl, redis, memcached) are not ` +
+				`available for legacy PHP ${phpVersion}.`
 		);
 	}
 
-	if (options?.withIntl === true) {
-		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
-	}
-
-	if (options?.withRedis === true) {
-		emscriptenOptions = await withRedis(phpVersion, emscriptenOptions);
-	}
-
-	if (options?.withMemcached === true) {
-		emscriptenOptions = await withMemcached(phpVersion, emscriptenOptions);
+	if (!isLegacy) {
+		const modernVersion = phpVersion as SupportedPHPVersion;
+		if (options?.withXdebug) {
+			emscriptenOptions = await withXdebug(
+				modernVersion,
+				emscriptenOptions,
+				typeof options.withXdebug === 'object' ? options.withXdebug : {}
+			);
+		}
+		if (options?.withIntl === true) {
+			emscriptenOptions = await withIntl(
+				modernVersion,
+				emscriptenOptions
+			);
+		}
+		if (options?.withRedis === true) {
+			emscriptenOptions = await withRedis(
+				modernVersion,
+				emscriptenOptions
+			);
+		}
+		if (options?.withMemcached === true) {
+			emscriptenOptions = await withMemcached(
+				modernVersion,
+				emscriptenOptions
+			);
+		}
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);

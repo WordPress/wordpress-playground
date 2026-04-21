@@ -31,6 +31,7 @@ export const modalSlugs = {
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
+	DELETE_SITE: 'delete-site',
 	BLUEPRINT_URL: 'blueprint-url',
 } as const;
 
@@ -146,6 +147,7 @@ export interface UIState {
 	};
 	activeModal: string | null;
 	siteSlugToRename?: string;
+	siteSlugToDelete?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -164,11 +166,16 @@ const initialState: UIState = {
 	 * not by loading a URL with the modal parameter.
 	 * The github-private-repo-auth modal should only be triggered by authentication errors,
 	 * not by loading a URL with the modal parameter.
+	 * The delete-site and rename-site modals require Redux state (siteSlugToDelete /
+	 * siteSlugToRename) that is not persisted in the URL, so they cannot be meaningfully
+	 * restored from a URL parameter.
 	 */
 	activeModal:
 		query.get('modal') === 'error-report' ||
 		query.get('modal') === 'save-site' ||
-		query.get('modal') === 'github-private-repo-auth'
+		query.get('modal') === 'github-private-repo-auth' ||
+		query.get('modal') === 'delete-site' ||
+		query.get('modal') === 'rename-site'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -263,6 +270,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToRename = action.payload;
 		},
+		setSiteSlugToDelete: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToDelete = action.payload;
+		},
 	},
 });
 
@@ -308,6 +321,7 @@ export const {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,
+	setSiteSlugToDelete,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

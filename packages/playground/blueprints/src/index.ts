@@ -1,6 +1,3 @@
-// Blueprints require WordPress Playground's Node polyfills.
-import '@php-wasm/node-polyfills';
-
 export type {
 	BlueprintV1,
 	BlueprintV1Declaration,

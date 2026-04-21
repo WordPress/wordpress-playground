@@ -6,7 +6,9 @@ import path, { basename } from 'path';
 
 export const CACHE_FOLDER = path.join(os.homedir(), '.wordpress-playground');
 
-export async function fetchSqliteIntegration(): Promise<File> {
+export async function fetchSqliteIntegration(
+	version: 'trunk' | 'v2.1.16' | 'v2.2.22' | 'v2.2.22-php52' = 'trunk'
+): Promise<File> {
 	// Production builds: the ZIP sits next to the bundled JS.
 	const dir =
 		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
@@ -22,7 +24,7 @@ export async function fetchSqliteIntegration(): Promise<File> {
 			wpBuildsDir,
 			'src',
 			'sqlite-database-integration',
-			'sqlite-database-integration-trunk.zip'
+			`sqlite-database-integration-${version}.zip`
 		);
 	}
 

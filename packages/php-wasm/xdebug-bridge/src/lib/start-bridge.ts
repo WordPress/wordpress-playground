@@ -19,7 +19,7 @@ export type StartBridgeConfig = {
 export async function startBridge(config: StartBridgeConfig) {
 	const cdpPort = config.cdpPort ?? 9229;
 	const dbgpPort = config.dbgpPort ?? 9003;
-	const cdpHost = config.cdpHost ?? 'localhost';
+	const cdpHost = config.cdpHost ?? '127.0.0.1';
 	const phpRoot = config.phpRoot ?? process.cwd();
 	const breakOnFirstLine = config.breakOnFirstLine ?? false;
 

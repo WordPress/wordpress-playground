@@ -803,9 +803,12 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "createFunctionApi",\
 "createModule",\
 "ctype_fallback",\
+"Curl_client_write",\
 "Curl_conncache_foreach",\
 "curl_easy_perform",\
 "Curl_http_connect",\
+"Curl_httpchunk_read",\
+"curl_write",\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
@@ -1082,8 +1085,13 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "get_http_body",\
 "get_line",\
 "getFileMode",\
+"gzip_unencode_write",\
 "hasHotJournal",\
 "https_connecting",\
+"inflate",\
+"inflate_fast",\
+"inflate_stream",\
+"inflate_table",\
 "iter_wrapper_free",\
 "iter_wrapper_get_gc",\
 "lex_scan",\
@@ -1617,6 +1625,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "unixShmSystemLock",\
 "unixShmUnmap",\
 "unixSync",\
+"unencode_write",\
 "unixTempFileDir",\
 "unixUnlock",\
 "unlockBtreeIfUnused",\

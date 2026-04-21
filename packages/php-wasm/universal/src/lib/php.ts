@@ -1733,7 +1733,12 @@ function copyMEMFSNodes(
 		return;
 	}
 
-	const oldNode = source.lookupPath(path);
+	const oldNode = source.lookupPath(path, { follow: false });
+	if (source.isLink(oldNode.node.mode)) {
+		const linkTarget = source.readlink(path);
+		target.symlink(linkTarget, path);
+		return;
+	}
 	if (!source.isDir(oldNode.node.mode)) {
 		target.writeFile(path, source.readFile(path));
 		return;

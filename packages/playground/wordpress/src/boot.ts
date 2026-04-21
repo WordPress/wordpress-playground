@@ -51,6 +51,11 @@ export async function bootWordPressAndRequestHandler(
 
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
+	/**
+	 * PHP version string (e.g. '8.3', '5.2'). Used to gate
+	 * legacy-PHP-specific behavior in the boot chain.
+	 */
+	phpVersion?: string;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	maxPhpInstances?: number;
 	/**
@@ -141,6 +146,8 @@ export type WordPressInstallMode =
 	| 'do-not-attempt-installing';
 
 export interface BootWordPressOptions {
+	/** PHP version string (e.g. '8.3', '5.2'). */
+	phpVersion?: string;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -233,9 +240,9 @@ export async function bootWordPress(
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
 	/*
-	 * Add required constants to "wp-config.php" if they are not already defined.
-	 * This is needed, because some WordPress backups and exports may not include
-	 * definitions for some of the necessary constants.
+	 * Ensure required constants are defined if "wp-config.php" doesn't define
+	 * them. This is needed because some WordPress backups and exports may not
+	 * include definitions for some of the necessary constants.
 	 */
 	await ensureWpConfig(php, requestHandler.documentRoot);
 	// Run "before database" hooks to mount/copy more files in

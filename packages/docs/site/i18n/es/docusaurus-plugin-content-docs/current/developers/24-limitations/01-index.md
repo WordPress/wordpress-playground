@@ -25,16 +25,16 @@ Puedes seguir el estado de estos temas en el [tablero del proyecto Playground](h
 You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180).
 -->
 
-## En el navegador {#in-the-browser}
+## En el navegador
 
 <!--
-## In the browser {#in-the-browser}
+## In the browser
 -->
 
-### Temporal por diseño {#temporary-by-design}
+### Temporal por diseño
 
 <!--
-### Temporary by design {#temporary-by-design}
+### Temporary by design
 -->
 
 Playground crea instancias nuevas de WordPress en cada carga de página. Al actualizar la página del navegador se descartan todos los cambios en la base de datos, los archivos subidos y las demás modificaciones.
@@ -93,10 +93,10 @@ El botón de actualización integrado en Playground solo vuelve a cargar el cont
 </figure>
 </blockquote>
 
-### Compatibilidad con navegadores {#browser-support}
+### Compatibilidad con navegadores
 
 <!--
-### Browser support {#browser-support}
+### Browser support
 -->
 
 WordPress Playground está pensado para funcionar en los principales navegadores de escritorio y móviles. Esto incluye:
@@ -119,10 +119,10 @@ Playground aprovecha tecnologías web modernas y debería comportarse de forma c
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
 -->
 
-### Expectativas de rendimiento {#performance-expectations}
+### Expectativas de rendimiento
 
 <!--
-### Performance expectations {#performance-expectations}
+### Performance expectations
 -->
 
 Los tiempos de carga dependen de lo que Playground necesite preparar:
@@ -156,7 +156,7 @@ Loading times vary based on what Playground needs to set up:
 -->
 
 - **Tamaño del plugin**: los plugins grandes tardan más en instalarse en tiempo de ejecución
-- **Velocidad de red**: los archivos WASM rondan los 5-15 MB por versión de PHP (reducidos de forma notable por la optimización de compilación `MAIN_MODULE=2`)
+- **Velocidad de red**: los archivos WASM rondan los 15-30 MB por versión de PHP
 - **Memoria del dispositivo**: la asignación inicial de memoria WASM es de 64 MB y crece dinámicamente si hace falta. Los dispositivos con poca memoria pueden ir más lentos
 - **Navegador**: Chrome y Edge suelen ir mejor; Safari, un poco más lento
 
@@ -177,16 +177,14 @@ Loading times vary based on what Playground needs to set up:
 </blockquote>
 -->
 
-## Al desarrollar con Playground {#when-developing-with-playground}
+## Al desarrollar con Playground
+
+<!-- ### Iframe quirks -->
+
+### Peculiaridades del iframe
 
 <!--
-## When developing with Playground {#when-developing-with-playground}
--->
-
-### Particularidades del iframe {#iframe-quirks}
-
-<!--
-### Iframe quirks {#iframe-quirks}
+### Iframe quirks
 -->
 
 Playground muestra WordPress en un [`iframe`](/developers/architecture/browser-iframe-rendering), así que al hacer clic en enlaces con `target="_top"` se recarga la página en la que trabajas.
@@ -197,14 +195,12 @@ Playground renders WordPress in an [`iframe`](/developers/architecture/browser-i
 
 Además, las ventanas emergentes de JavaScript que se originan en el `iframe` no siempre se muestran.
 
-<!--
-Also, JavaScript popups originating in the `iframe` may not always display.
--->
+<!-- ### Run WordPress PHP functions -->
 
-### Ejecutar funciones PHP de WordPress {#run-wordpress-php-functions}
+### Ejecutar funciones PHP de WordPress
 
 <!--
-### Run WordPress PHP functions {#run-wordpress-php-functions}
+### Run WordPress PHP functions
 -->
 
 Playground permite ejecutar código PHP en Blueprints con el [paso `runPHP`](/blueprints/steps#RunPHPStep). Para usar funciones PHP de WordPress, primero hay que cargar [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
@@ -220,35 +216,9 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/bl
 }
 ```
 
-### Uso de WP-CLI {#using-wp-cli}
+<!-- ### Using WP-CLI -->
 
-<!--
-### Using WP-CLI {#using-wp-cli}
--->
-
-Puedes ejecutar comandos `wp-cli` mediante el [paso `wp-cli`](/blueprints/steps#WPCLIStep) de Blueprints. Como Playground se ejecuta en el navegador, no admite la [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponibles. No hay una lista cerrada de comandos soportados; probar [la demo en línea](https://playground.wordpress.net/demos/wp-cli.html) ayuda a ver qué es posible.
-
-<!--
-You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
--->
-
-Si usas [Playground CLI](/developers/local-development/wp-playground-cli), el comando `php` ofrece WP-CLI completo ejecutando los scripts directamente contra el runtime PHP en WASM.
-
-<!--
-When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command provides full WP-CLI support by running scripts directly against the WASM PHP runtime.
--->
-
-## Mejoras recientes {#recent-improvements}
-
-<!--
-## Recent improvements {#recent-improvements}
--->
-
-Varias limitaciones anteriores se han abordado en versiones recientes:
-
-<!--
-Several previous limitations have been addressed in recent releases:
--->
+### Usando WP-CLI
 
 - **Descargas de archivos grandes (>2 GB)**: Exportaciones y descargas ahora se transmiten en streaming en lugar de cargarse en memoria, lo que permite exportar sitios grandes (p. ej. copias de All-in-One WP Migration) que antes fallaban.
 - **Subidas de archivos cURL en PHP**: Las subidas multipart con `CURLFile` ya funcionan bien en el navegador. Se han resuelto el bloqueo de `Expect: 100-continue` y los problemas de reenvío multipart del proxy CORS.

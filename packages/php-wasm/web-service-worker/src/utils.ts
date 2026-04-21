@@ -152,7 +152,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		}
 	}
 
-	return new Response(responseBody, {
+	return new Response(responseBody as BodyInit | null, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
 	});
@@ -267,24 +267,45 @@ export async function cloneRequest(
 	});
 }
 
+// Cached result of supportsReadableStreamBody(); undefined means not probed yet.
+let streamBodySupported: boolean | undefined;
+
+/** @internal Test-only utilities — not part of the public API. */
+export const __testing = {
+	resetStreamBodySupported(): void {
+		streamBodySupported = undefined;
+	},
+};
+
 /**
- * Tee a request to ensure the body stream is not consumed
- * when executing or cloning the request.
+ * Detects whether the browser supports passing a ReadableStream as the body
+ * of a fetch() request. The result is probed once (via a `data:` URL) and
+ * cached for the lifetime of the page.
  *
- * @param request
- * @returns
+ * - Chrome: supported (with `duplex: 'half'`).
+ * - Safari: throws `NotSupportedError: ReadableStream uploading is not supported`.
+ * - Firefox: the probe fetch itself may fail; `request.body` is not even exposed.
  */
-export async function teeRequest(
-	request: Request
-): Promise<[Request, Request]> {
-	if (!request.body) {
-		return [request, request];
+export async function supportsReadableStreamBody(): Promise<boolean> {
+	if (streamBodySupported !== undefined) {
+		return streamBodySupported;
 	}
-	const [body1, body2] = request.body.tee();
-	return [
-		await cloneRequest(request, { body: body1, duplex: 'half' }),
-		await cloneRequest(request, { body: body2, duplex: 'half' }),
-	];
+	try {
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+		await fetch('data:,', {
+			method: 'POST',
+			body: stream,
+			duplex: 'half',
+		} as RequestInit);
+		streamBodySupported = true;
+	} catch {
+		streamBodySupported = false;
+	}
+	return streamBodySupported;
 }
 
 /**

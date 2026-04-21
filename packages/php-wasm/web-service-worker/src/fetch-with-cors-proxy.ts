@@ -1,4 +1,4 @@
-import { cloneRequest, teeRequest } from './utils';
+import { cloneRequest, supportsReadableStreamBody } from './utils';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
@@ -54,17 +54,19 @@ export async function fetchWithCorsProxy(
 		return await fetch(requestObject);
 	}
 
-	// Tee the request to avoid consuming the request body stream on the initial
-	// fetch() so that we can retry through the cors proxy.
-	const [directRequest, corsProxyRequest] = await teeRequest(requestObject);
+	// Clone before the first fetch so the body is preserved for a potential
+	// CORS-proxy retry. request.clone() works cross-browser — including
+	// Firefox (where request.body is undefined) and Safari (where passing
+	// a ReadableStream body to fetch() throws).
+	const clonedRequest = requestObject.clone();
 
 	try {
-		return await fetch(directRequest);
+		return await fetch(requestObject);
 	} catch {
 		// If the developer has explicitly allowed the request to pass the
 		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
 		// then let's include those credentials in the fetch() request.
-		const headers = new Headers(corsProxyRequest.headers);
+		const headers = new Headers(requestObject.headers);
 		const corsProxyAllowedHeaders =
 			headers.get('x-cors-proxy-allowed-request-headers')?.split(',') ||
 			[];
@@ -86,45 +88,49 @@ export async function fetchWithCorsProxy(
 			headers.set('content-type', 'application/octet-stream');
 		}
 
+		// Extract the body from the pre-fetch clone for the retry.
+		// Chrome: pass the clone's ReadableStream directly (with duplex: 'half').
+		// Safari/Firefox: use clonedRequest.arrayBuffer() which works cross-browser.
+		// We cannot use `new Response(request.body).arrayBuffer()` because Firefox
+		// does not expose request.body at all.
+		let body: ArrayBuffer | ReadableStream<Uint8Array> | null = null;
+		const method = requestObject.method.toUpperCase();
+		if (method !== 'GET' && method !== 'HEAD') {
+			if (await supportsReadableStreamBody()) {
+				body = clonedRequest.body;
+			} else {
+				body = await clonedRequest.arrayBuffer();
+			}
+		}
+
 		/**
-		 * Buffer the cors proxy request body into an ArrayBuffer if talking to a `http://` URL.
+		 * When using streaming bodies, buffer into an ArrayBuffer if the
+		 * CORS proxy uses `http:`. Streaming request bodies cause Chrome
+		 * to silently upgrade HTTP/1.1 to HTTP/2, but an HTTP/1.1-only
+		 * server replies with HTTP/1.1, triggering ERR_ALPN_NEGOTIATION_FAILED.
 		 *
-		 * Streaming request bodies don't work with the local dev server, which uses http://
-		 * as a protocol. However, with a streamed request body, Chrome silently upgrades a
-		 * HTTP/1.1 request to HTTP/2. However, our HTTP/1.1-only local dev server still replies
-		 * with a HTTP/1.1 response. Chrome then treats the request as failed with an
-		 * ERR_ALPN_NEGOTIATION_FAILED error.
+		 * Inferring the HTTP version from the URL protocol is unreliable
+		 * and will fail if the CORS proxy is hosted on a `https://` URL
+		 * that speaks HTTP < 2. This is a recognized limitation of the CORS
+		 * proxy feature. If you host it on an `https://` URL, make sure
+		 * to use HTTP/2.
 		 *
-		 * Inferring the HTTP version from the URL protocol is unreliable and will fail
-		 * if the CORS proxy is hosted on a `https://` URL that speaks HTTP < 2. This is
-		 * a recognized limitation of the CORS proxy feature. If you host it on an `https://` URL,
-		 * make sure to use HTTP/2.
-		 *
-		 * See: https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
+		 * @see https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
 		 */
-
-		// In development, corsProxyUrl may be /cors-proxy/. We need to resolve the absolute URL
-		// to access the protocol.
-		const rootUrl = new URL(import.meta.url);
-		rootUrl.pathname = '';
-		rootUrl.search = '';
-		rootUrl.hash = '';
-		const corsProxyUrlObj = new URL(corsProxyUrl, rootUrl.toString());
-
-		let body: ArrayBuffer | ReadableStream<Uint8Array> | null =
-			corsProxyRequest.body;
-		if (body && new URL(corsProxyUrlObj).protocol === 'http:') {
+		if (
+			body instanceof ReadableStream &&
+			new URL(corsProxyUrl, import.meta.url).protocol === 'http:'
+		) {
 			body = await new Response(body).arrayBuffer();
 		}
 
-		const newRequest = await cloneRequest(corsProxyRequest, {
+		const newRequest = await cloneRequest(requestObject, {
 			url: `${corsProxyUrl}${requestObject.url}`,
 			headers,
 			body,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
-		// Skip the `init`, it's already folded into `requestObject`.
 		const response = await fetch(newRequest);
 
 		// Check for firewall interference: if we got a response but it's

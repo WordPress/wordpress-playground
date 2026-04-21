@@ -1,9 +1,14 @@
 import type {
-	SupportedPHPVersion,
+	AllPHPVersion,
 	EmscriptenOptions,
 	PHPLoaderModule,
+	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { loadPHPRuntime } from '@php-wasm/universal';
+import {
+	createLegacyPhpIniPreRunStep,
+	isLegacyPHPVersion,
+	loadPHPRuntime,
+} from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
@@ -47,7 +52,7 @@ interface PHPWorkerGlobalScope extends WorkerGlobalScope {
 }
 
 export async function loadWebRuntime(
-	phpVersion: SupportedPHPVersion,
+	phpVersion: AllPHPVersion,
 	loaderOptions: LoaderOptions = {}
 ) {
 	/*
@@ -75,8 +80,34 @@ export async function loadWebRuntime(
 		);
 	}
 
-	if (loaderOptions.withIntl) {
-		emscriptenOptions = withIntl(phpVersion, emscriptenOptions);
+	const isLegacy = isLegacyPHPVersion(phpVersion);
+
+	// For legacy PHP: pre-create php.ini via a preRun step. See
+	// createLegacyPhpIniPreRunStep for why this must run before the
+	// PHP SAPI starts.
+	if (isLegacy) {
+		const resolvedOptions = await emscriptenOptions;
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+		const existingPreRun: Function[] = resolvedOptions['preRun'] || [];
+		emscriptenOptions = {
+			...resolvedOptions,
+			['preRun']: [...existingPreRun, createLegacyPhpIniPreRunStep()],
+		};
+	}
+
+	if (isLegacy && loaderOptions.withIntl) {
+		throw new Error(
+			`The intl extension is not available for legacy PHP ${phpVersion}.`
+		);
+	}
+
+	if (!isLegacy) {
+		if (loaderOptions.withIntl) {
+			emscriptenOptions = withIntl(
+				phpVersion as SupportedPHPVersion,
+				emscriptenOptions
+			);
+		}
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([
