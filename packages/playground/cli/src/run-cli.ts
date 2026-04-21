@@ -1146,6 +1146,30 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			 */
 			const targetWorkerCount = resolveWorkerCount(args.workers);
 
+			if (targetWorkerCount < 6) {
+				const deadlockNote =
+					'Running fewer than 6 workers may increase the ' +
+					'likelihood of deadlock due to workers blocking on ' +
+					'file locks.';
+				if (args.workers === undefined) {
+					/*
+					 * Default path landed below 6 because the machine has
+					 * fewer than 7 CPUs. Distinct message so users see this
+					 * as a hardware ceiling, not a config mistake.
+					 */
+					logger.warn(
+						`The default worker count has been reduced to ${targetWorkerCount} ` +
+							`because this machine has only ${os.cpus().length} CPU(s). ` +
+							deadlockNote
+					);
+				} else {
+					logger.warn(
+						`Worker count (${targetWorkerCount}) is below the recommended threshold (6). ` +
+							deadlockNote
+					);
+				}
+			}
+
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
 			 * so that multiple worker threads can share the same files.

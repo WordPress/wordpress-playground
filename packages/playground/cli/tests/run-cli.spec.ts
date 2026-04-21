@@ -1938,6 +1938,76 @@ describe('other run-cli behaviors', () => {
 			await expectInvalidWorkersValue('abc');
 		});
 
+		async function getWarnCallsForWorkersArgs(
+			cliArgs: string[],
+			cpuCount: number
+		) {
+			const cpusStub = vi
+				.spyOn(os, 'cpus')
+				.mockReturnValue(new Array(cpuCount).fill({}) as os.CpuInfo[]);
+			const warnSpy = vi
+				.spyOn(logger, 'warn')
+				.mockImplementation(() => {});
+			try {
+				await getWorkerCount(cliArgs);
+				return warnSpy.mock.calls
+					.map((call) => call.join(' '))
+					.join('\n');
+			} finally {
+				warnSpy.mockRestore();
+				cpusStub.mockRestore();
+			}
+		}
+
+		test('does not warn when the default worker count is 6 on a large host', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs([], 8);
+			expect(warnCalls).not.toMatch(/below the recommended threshold/);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('warns that the default was CPU-reduced on a small host', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs([], 4);
+			expect(warnCalls).toMatch(
+				/default worker count has been reduced to 3 because this machine has only 4 CPU\(s\)/
+			);
+		});
+
+		test('warns when the user explicitly sets --workers below 6', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=3'],
+				8
+			);
+			expect(warnCalls).toMatch(
+				/Worker count \(3\) is below the recommended threshold \(6\)/
+			);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('warns when --workers=auto resolves below 6 on small hosts', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=auto'],
+				4
+			);
+			expect(warnCalls).toMatch(
+				/Worker count \(3\) is below the recommended threshold \(6\)/
+			);
+		});
+
+		test('does not warn when --workers is set to 6 or above', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=6'],
+				8
+			);
+			expect(warnCalls).not.toMatch(/below the recommended threshold/);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
 		test('--experimental-multi-worker warns and still starts', async () => {
 			const warnSpy = vi
 				.spyOn(logger, 'warn')
