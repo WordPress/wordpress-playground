@@ -10,8 +10,9 @@ import type { Blueprint } from '@wp-playground/blueprints';
  *
  * On Chromium 137+, Gutenberg sends `Document-Isolation-Policy:
  * isolate-and-credentialless` on the editor admin screens (see Gutenberg
- * PR #75991). Playground's service worker additionally injects DIP on the
- * inner `empty.html` editor iframe so parent/child DIP stay in parity.
+ * PR #75991, shipped in Gutenberg 22.6+). Playground's service worker
+ * additionally injects DIP on the inner `empty.html` editor iframe so
+ * parent/child DIP stay in parity.
  *
  * These tests validate that client-side media is re-enabled in Playground
  * (issue #3514) and that the editor frame actually ends up cross-origin
@@ -19,11 +20,18 @@ import type { Blueprint } from '@wp-playground/blueprints';
  * document-isolation-policy.spec.ts covers that the editor renders
  * successfully (which implicitly verifies parent/child DIP parity).
  *
+ * Playwright's default `chromium_headless_shell` build does not honor
+ * Document-Isolation-Policy, so these tests opt into `channel: 'chromium'`
+ * (the full Chromium browser) via `test.use()`. Playwright's CI install
+ * step already installs it via `playwright install chromium --with-deps`.
+ *
  * @see https://github.com/WordPress/wordpress-playground/issues/3514
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  * @see https://github.com/WordPress/gutenberg/pull/75991
  * @see https://developer.chrome.com/blog/document-isolation-policy
  */
+
+test.use({ channel: 'chromium' });
 
 const clientSideMediaBlueprint: Blueprint = {
 	landingPage: '/wp-admin/post-new.php',
@@ -42,15 +50,19 @@ const clientSideMediaBlueprint: Blueprint = {
 	],
 };
 
+function skipNonChromium(browserName: string) {
+	test.skip(
+		browserName === 'firefox' || browserName === 'webkit',
+		'Document-Isolation-Policy and client-side media are only supported in Chromium-based browsers'
+	);
+}
+
 test('Post editor should be cross-origin isolated with SharedArrayBuffer available', async ({
 	website,
 	wordpress,
 	browserName,
 }) => {
-	test.skip(
-		browserName === 'firefox' || browserName === 'webkit',
-		'Document-Isolation-Policy and client-side media are only supported in Chromium-based browsers'
-	);
+	skipNonChromium(browserName);
 
 	await website.goto(`./#${JSON.stringify(clientSideMediaBlueprint)}`);
 
@@ -81,10 +93,7 @@ test('Gutenberg should report client-side media processing as enabled', async ({
 	wordpress,
 	browserName,
 }) => {
-	test.skip(
-		browserName === 'firefox' || browserName === 'webkit',
-		'Document-Isolation-Policy and client-side media are only supported in Chromium-based browsers'
-	);
+	skipNonChromium(browserName);
 
 	await website.goto(`./#${JSON.stringify(clientSideMediaBlueprint)}`);
 

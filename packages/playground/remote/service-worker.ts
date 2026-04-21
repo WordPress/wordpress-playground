@@ -653,7 +653,7 @@ self.addEventListener('message', (event) => {
  * Handles two cases:
  *
  * 1. Response already carries `Document-Isolation-Policy`. This is what
- *    Gutenberg ≥ 21.8 / Gutenberg PR #75991 sends directly on editor screens in
+ *    Gutenberg ≥ 22.6 / Gutenberg PR #75991 sends directly on editor screens in
  *    Chromium 137+. The response is left as-is, but the scope is tracked so
  *    that `empty.html` (the block editor's inner iframe) also receives DIP —
  *    parent and child frames need the same DIP for the editor to function
