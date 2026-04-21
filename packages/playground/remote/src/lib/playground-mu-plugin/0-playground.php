@@ -263,17 +263,6 @@ add_action('init', function() {
 });
 
 /**
- * ¡TEMPORARY WORKAROUND!
- * On 2026-02-26, with Gutenberg v22.6.0 and above, the site editor and post
- * editor fail to load. This appears related the `cross-origin-embedder-policy: credentialless`
- * header which is added when client side media is enabled by default.
- *
- * This has something to do with our /wp-includes/empty.html workaround.
- * @TODO: Let's find a solution that doesn't require us to disable client side media processing.
- */
-add_filter('wp_client_side_media_processing_enabled', '__return_false');
-
-/**
  * Disable the WP Cron.
  * 
  * Around WordPress 7.0 beta 1, many wp-cron requests in the Playground started
