@@ -35,6 +35,11 @@ export interface MountOptions {
 		direction?: 'opfs-to-memfs' | 'memfs-to-opfs';
 		onProgress?: SyncProgressCallback;
 	};
+	onMount?: (mount: DirectoryHandleMount) => void;
+}
+export interface DirectoryHandleMount {
+	flush(): Promise<void>;
+	unmount(): Promise<void>;
 }
 export type SyncProgress = {
 	/** The number of files that have been synced. */
@@ -71,8 +76,9 @@ export function createDirectoryHandleMountHandler(
 				options.initialSync.onProgress
 			);
 		}
-		const unbindJournal = journalFSEventsToOpfs(php, handle, vfsMountPoint);
-		return unbindJournal;
+		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+		options.onMount?.(mount);
+		return mount.unmount;
 	};
 }
 
@@ -269,14 +275,15 @@ export function journalFSEventsToOpfs(
 	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string
-) {
+): DirectoryHandleMount {
 	const journal: FilesystemOperation[] = [];
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
 	});
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
+	let flushPromise: Promise<void> | undefined;
 
-	async function flushJournal() {
+	async function flushJournalOnce() {
 		if (journal.length === 0) {
 			return;
 		}
@@ -306,12 +313,36 @@ export function journalFSEventsToOpfs(
 			release();
 		}
 	}
-	php.addEventListener('request.end', flushJournal);
-	php.addEventListener('filesystem.write', flushJournal);
-	return function () {
-		unbindJournal();
-		php.removeEventListener('request.end', flushJournal);
-		php.removeEventListener('filesystem.write', flushJournal);
+
+	async function flushJournal() {
+		while (journal.length > 0) {
+			await flushJournalOnce();
+		}
+	}
+
+	function flush() {
+		if (flushPromise === undefined) {
+			flushPromise = flushJournal().finally(() => {
+				flushPromise = undefined;
+			});
+		}
+		return flushPromise;
+	}
+
+	function flushInBackground() {
+		void flush();
+	}
+
+	php.addEventListener('request.end', flushInBackground);
+	php.addEventListener('filesystem.write', flushInBackground);
+	return {
+		flush,
+		async unmount() {
+			await flush();
+			unbindJournal();
+			php.removeEventListener('request.end', flushInBackground);
+			php.removeEventListener('filesystem.write', flushInBackground);
+		},
 	};
 }
 

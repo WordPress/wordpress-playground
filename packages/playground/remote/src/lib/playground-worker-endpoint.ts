@@ -3,7 +3,11 @@ import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
-import type { SyncProgressCallback, TCPOverFetchOptions } from '@php-wasm/web';
+import type {
+	DirectoryHandleMount,
+	SyncProgressCallback,
+	TCPOverFetchOptions,
+} from '@php-wasm/web';
 import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
@@ -106,6 +110,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		[];
 
 	unmounts: Record<string, () => any> = {};
+	private opfsMounts: Record<string, DirectoryHandleMount> = {};
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 
@@ -410,6 +415,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	) {
 		const handle = await directoryHandleFromMountDevice(options.device);
 		const php = this.__internal_getPHP()!;
+		let opfsMount: DirectoryHandleMount | undefined;
 		this.unmounts[options.mountpoint] = await php.mount(
 			options.mountpoint,
 			createDirectoryHandleMountHandler(handle, {
@@ -417,13 +423,36 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					onProgress,
 					direction: options.initialSyncDirection,
 				},
+				onMount(mount) {
+					opfsMount = mount;
+				},
 			})
 		);
+		if (opfsMount === undefined) {
+			throw new Error(
+				`Could not create an OPFS mount at "${options.mountpoint}".`
+			);
+		}
+		this.opfsMounts[options.mountpoint] = opfsMount;
+	}
+
+	async flushOpfs(mountpoint: string) {
+		const opfsMount = this.opfsMounts[mountpoint];
+		if (opfsMount === undefined) {
+			throw new Error(`No OPFS mount found at "${mountpoint}".`);
+		}
+		await opfsMount.flush();
 	}
 
 	async unmountOpfs(mountpoint: string) {
-		this.unmounts[mountpoint]();
+		const unmount = this.unmounts[mountpoint];
+		if (unmount === undefined) {
+			throw new Error(`No OPFS mount found at "${mountpoint}".`);
+		}
+		await this.flushOpfs(mountpoint);
+		await unmount();
 		delete this.unmounts[mountpoint];
+		delete this.opfsMounts[mountpoint];
 	}
 
 	async backfillStaticFilesRemovedFromMinifiedBuild() {
