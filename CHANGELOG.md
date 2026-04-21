@@ -4,6 +4,50 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.20] (2026-04-16) 
+
+### Tools
+
+
+#### GitHub integration
+
+- [Github Actions] Fix GitHub release publishing wrong version. ([#3488](https://github.com/WordPress/wordpress-playground/pull/3488))
+
+#### Documentation
+
+- [ xdebug ] Add Xdebug use case examples. ([#3075](https://github.com/WordPress/wordpress-playground/pull/3075))
+
+### Documentation
+
+- [Docs] Removing documentation fragments. ([#3470](https://github.com/WordPress/wordpress-playground/pull/3470))
+
+### PHP WebAssembly
+
+- [PHP] Fix gzip crash – add missing zlib/curl functions to ASYNCIFY_ONLY. ([#3491](https://github.com/WordPress/wordpress-playground/pull/3491))
+
+### Bug Fixes
+
+- Fix Safari failing to make cross-origin HTTP requests. ([#3440](https://github.com/WordPress/wordpress-playground/pull/3440))
+- Restore the missing mounts.spec.ts. ([#2478](https://github.com/WordPress/wordpress-playground/pull/2478))
+
+### Reliability
+
+- [php-wasm-node-polyfills] Remove @php-wasm/node-polyfills package. ([#3476](https://github.com/WordPress/wordpress-playground/pull/3476))
+
+### Various
+
+- Remove extraneous file and update package-lock.json. ([#3477](https://github.com/WordPress/wordpress-playground/pull/3477))
+- [Docs] Updating asyncify page. ([#3459](https://github.com/WordPress/wordpress-playground/pull/3459))
+- [Docs] Updating blueprint bundles page. ([#3465](https://github.com/WordPress/wordpress-playground/pull/3465))
+- [i18n] Add Bengali translation for blueprints tutorial pages. ([#3461](https://github.com/WordPress/wordpress-playground/pull/3461))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @fellyph @mho22 @perashanid
+
+
 ## [v3.1.19] (2026-04-13) 
 
 ### Documentation

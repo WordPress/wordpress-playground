@@ -1,4 +1,4 @@
-import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
+import type { PHPLoaderModule, AllPHPVersion } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 
 /**
@@ -14,7 +14,7 @@ import { LatestSupportedPHPVersion } from '@php-wasm/universal';
  * @returns The PHP loader module.
  */
 export async function getPHPLoaderModule(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion
+	version: AllPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
 	switch (version) {
 		case '8.5':
@@ -38,6 +38,9 @@ export async function getPHPLoaderModule(
 		case '7.4':
 			// @ts-ignore
 			return (await import('@php-wasm/web-7-4')).getPHPLoaderModule();
+		case '5.2':
+			// @ts-ignore
+			return (await import('@php-wasm/web-5-2')).getPHPLoaderModule();
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
 }

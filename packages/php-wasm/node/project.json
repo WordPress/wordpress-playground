@@ -259,6 +259,7 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"php-crash.spec.ts",
+					"php-zlib-asyncify.spec.ts",
 					"php-ini.spec.ts",
 					"write-files.spec.ts",
 					"php-worker.spec.ts",

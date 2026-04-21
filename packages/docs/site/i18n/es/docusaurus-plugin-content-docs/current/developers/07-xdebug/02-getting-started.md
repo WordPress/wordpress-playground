@@ -68,16 +68,16 @@ Booting WordPress...
 WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 
 Chrome connected! Initializing Xdebug receiver...
 XDebug receiver running on port 9003
 Running a PHP script with Xdebug enabled...
 ```
 
-<!-- By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance. -->
+<!-- By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance. -->
 
-Al hacer clic en la URL proporcionada, por ejemplo, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, puedes acceder a DevTools conectado con tu aplicación, con la posibilidad de inspeccionar todos los archivos de una instancia WordPress.
+Al hacer clic en la URL proporcionada, por ejemplo, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, puedes acceder a DevTools conectado con tu aplicación, con la posibilidad de inspeccionar todos los archivos de una instancia WordPress.
 
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 

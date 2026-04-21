@@ -82,7 +82,7 @@ export async function main(): Promise<void> {
 
 	const bridge = await startBridge({
 		cdpPort: 9229,
-		cdpHost: args.host,
+		cdpHost: '127.0.0.1',
 		dbgpPort: args.port,
 		phpRoot: args.phpRoot,
 	});

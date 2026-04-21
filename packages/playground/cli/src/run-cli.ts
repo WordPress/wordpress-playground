@@ -6,7 +6,7 @@ import {
 	type PHPRequest,
 	type PathAlias,
 	type RemoteAPI,
-	type SupportedPHPVersion,
+	type AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -46,6 +46,8 @@ import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thre
 import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
+	AllPHPVersions,
+	isLegacyPHPVersion,
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -118,7 +120,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -373,7 +375,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -662,14 +664,24 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const hasDebugDefine = (name: string) => {
 			return name in define || name in defineBool || name in defineNumber;
 		};
-		if (!hasDebugDefine('WP_DEBUG')) {
-			define['WP_DEBUG'] = 'true';
-		}
-		if (!hasDebugDefine('WP_DEBUG_LOG')) {
-			define['WP_DEBUG_LOG'] = 'true';
-		}
-		if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
-			define['WP_DEBUG_DISPLAY'] = 'false';
+		// Don't default WP_DEBUG* on for legacy PHP: old WordPress
+		// (pre-2.3) prints E_NOTICE output before headers are sent,
+		// which corrupts redirects and breaks the installer. The web
+		// worker path applies the same gate in
+		// @wp-playground/client/src/blueprints-v1-handler.ts.
+		const phpVersionForDebug = (args['php'] ||
+			RecommendedPHPVersion) as AllPHPVersion;
+		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
+		if (!isLegacyPhpForDebug) {
+			if (!hasDebugDefine('WP_DEBUG')) {
+				define['WP_DEBUG'] = 'true';
+			}
+			if (!hasDebugDefine('WP_DEBUG_LOG')) {
+				define['WP_DEBUG_LOG'] = 'true';
+			}
+			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
+				define['WP_DEBUG_DISPLAY'] = 'false';
+			}
 		}
 
 		const cliArgs = {
@@ -736,9 +748,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					currentError = currentError.cause as Error;
 				} while (currentError instanceof Error);
 				console.error(
-					'\x1b[1m' +
-						messageChain.join(' caused by: ') +
-						'\x1b[0m'
+					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 				);
 			}
 		} else {
@@ -811,7 +821,7 @@ export interface RunCLIArgs {
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
-	php?: SupportedPHPVersion;
+	php?: AllPHPVersion;
 	port?: number;
 	'site-url'?: string;
 	quiet?: boolean;
@@ -990,6 +1000,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.memcached = await jspi();
 	}
 
+	// Disable all extensions for legacy PHP versions — they're not available.
+	const isLegacyPhp = isLegacyPHPVersion(args.php || RecommendedPHPVersion);
+	if (isLegacyPhp) {
+		args.intl = false;
+		args.redis = false;
+		args.memcached = false;
+		args.xdebug = false;
+	}
+
 	// Setup phpMyAdmin if enabled.
 	if (args.phpmyadmin) {
 		if (true === args.phpmyadmin) {
@@ -1098,13 +1117,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					vfsPath: '/',
 				};
 
-				const isPHP85orHigher =
-					SupportedPHPVersions.indexOf(
-						args.php || RecommendedPHPVersion
-					) <= SupportedPHPVersions.indexOf('8.5');
+				const phpVer = args.php || RecommendedPHPVersion;
+				// SupportedPHPVersions is ordered newest-first, so a
+				// lower index means a higher version.
+				const isPhp85OrHigher =
+					SupportedPHPVersions.includes(phpVer as any) &&
+					SupportedPHPVersions.indexOf(phpVer as any) <=
+						SupportedPHPVersions.indexOf('8.5');
 
 				// And, if PHP >= 8.5, add the new Xdebug config.
-				if (isPHP85orHigher) {
+				if (isPhp85OrHigher) {
 					await createTempDirSymlink(
 						nativeDir.path,
 						symlinkPath,

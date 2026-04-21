@@ -1,4 +1,4 @@
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 import type { StepDefinition } from '../steps';
 import type { FileReference } from './resources';
 import type { StreamedFile } from '@php-wasm/stream-compression';
@@ -19,7 +19,7 @@ export type BlueprintV1 = BlueprintV1Declaration | BlueprintBundle;
  * Includes deprecated versions (7.2, 7.3) which are automatically
  * upgraded to 7.4 during compilation.
  */
-export type BlueprintPHPVersion = SupportedPHPVersion | '7.2' | '7.3';
+export type BlueprintPHPVersion = AllPHPVersion | '7.2' | '7.3';
 
 /**
  * The Blueprint declaration, typically stored in a blueprint.json file.

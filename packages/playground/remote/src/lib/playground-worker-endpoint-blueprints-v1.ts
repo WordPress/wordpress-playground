@@ -12,6 +12,7 @@ import {
 	LatestSqliteDriverVersion,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
+import { isLegacyPHPVersion } from '@php-wasm/universal';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { createDirectoryHandleMountHandler } from '@php-wasm/web';
@@ -74,9 +75,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			this.requestedWordPressVersion =
 				wpVersion === 'nightly' ? 'trunk' : wpVersion;
-			wpVersion = MinifiedWordPressVersionsList.includes(
+			const isMinifiedVersion = MinifiedWordPressVersionsList.includes(
 				this.requestedWordPressVersion
-			)
+			);
+			wpVersion = isMinifiedVersion
 				? this.requestedWordPressVersion
 				: LatestMinifiedWordPressVersion;
 
@@ -113,6 +115,32 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 								}
 							);
 						});
+				} else if (
+					!isMinifiedVersion &&
+					/^\d+\.\d+(\.\d+)?$/.test(this.requestedWordPressVersion!)
+				) {
+					// Non-minified dotted version like "4.9" or "1.5":
+					// download directly from wordpress.org. Sentinel
+					// values like "latest" fall through to the minified-
+					// bundle branch below and resolve to
+					// LatestMinifiedWordPressVersion.
+					const normalizedVersion = normalizeWordPressVersion(
+						this.requestedWordPressVersion!
+					);
+					const wpOrgUrl = `https://wordpress.org/wordpress-${normalizedVersion}.zip`;
+					const downloadUrl = corsProxyUrl
+						? `${corsProxyUrl}${wpOrgUrl}`
+						: wpOrgUrl;
+					wordPressRequest = this.downloadMonitor
+						.monitorFetch(fetch(downloadUrl))
+						.then((response) => {
+							if (!response.ok) {
+								throw new Error(
+									`Failed to download WordPress ${normalizedVersion} (HTTP ${response.status})`
+								);
+							}
+							return response;
+						});
 				} else {
 					const downloadUrl = maybeProxyUrl(
 						wpDetails.url,
@@ -127,8 +155,16 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
+			// Select the right SQLite version:
+			// - PHP 5.2: pre-patched v2.2.22 (closures replaced, PHP 5.2
+			//   polyfills added)
+			// - Everything else: whatever the caller requested
+			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
+			const effectiveSqliteVersion = isLegacyPhp
+				? 'v2.2.22-php52'
+				: sqliteDriverVersion!;
 			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
-				sqliteDriverVersion!
+				effectiveSqliteVersion
 			);
 			this.downloadMonitor.expectAssets({
 				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
@@ -139,9 +175,14 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			await bootWordPress(requestHandler, {
 				siteUrl,
+				phpVersion,
 				constants: shouldInstallWordPress
 					? {
-							WP_DEBUG: true,
+							// Disable WP_DEBUG for legacy PHP (< 7) because
+							// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
+							// and shows all notices when WP_DEBUG is true,
+							// breaking header output and install responses.
+							WP_DEBUG: !isLegacyPhp,
 							WP_DEBUG_LOG: true,
 							WP_DEBUG_DISPLAY: false,
 							AUTH_KEY: randomString(40),
@@ -211,6 +252,21 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
 );
+
+/**
+ * Normalizes WordPress version strings for wordpress.org downloads.
+ * Versions >= 2.0 work as `<major>.<minor>` (wordpress.org redirects
+ * to the latest patch). Versions < 2.0 need explicit patch versions
+ * because wordpress.org doesn't host `wordpress-1.x.zip` files.
+ */
+function normalizeWordPressVersion(version: string): string {
+	const legacyVersionMap: Record<string, string> = {
+		'1.0': '1.0.2',
+		'1.2': '1.2.2',
+		'1.5': '1.5.2',
+	};
+	return legacyVersionMap[version] ?? version;
+}
 
 function maybeProxyUrl(url: string, corsProxyUrl?: string) {
 	if (

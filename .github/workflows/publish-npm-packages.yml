@@ -19,6 +19,9 @@ permissions:
     id-token: write
     contents: write
 
+concurrency:
+    group: npm-release
+
 jobs:
     release:
         # Only run on the playground repo, and only allow Playground maintainers to trigger this workflow.
