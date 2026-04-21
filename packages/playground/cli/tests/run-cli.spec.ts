@@ -1068,6 +1068,56 @@ describe('start command', () => {
 		expect(existsSync(wpContentPath)).toBe(true);
 		expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
 	}, 120000);
+
+	test('should accept --no-auto-mount and skip auto-detection', async () => {
+		// Regression test: yargs-parser's boolean-negation turns
+		// `--no-auto-mount` into `{ autoMount: false }`. When the start
+		// command declared a literal `no-auto-mount` option (with no
+		// matching `auto-mount`), strictOptions rejected the negated key
+		// with `Unknown arguments: auto-mount, autoMount`.
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-no-auto-mount-')
+		);
+		const pluginDirName = 'sample-plugin';
+		const pluginDir = path.join(tmpDir, pluginDirName);
+		mkdirSync(pluginDir, { recursive: true });
+		writeFileSync(
+			path.join(pluginDir, `${pluginDirName}.php`),
+			`<?php\n/*\nPlugin Name: Sample Plugin\n*/\n`
+		);
+
+		// Throw instead of no-op so any unexpected `process.exit` during
+		// startup fails the test loudly instead of silently continuing in
+		// an inconsistent state.
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+			code?: number | string | null
+		) => {
+			throw new Error(`process.exit unexpectedly called with "${code}"`);
+		}) as any);
+
+		try {
+			await using cliResult = await parseOptionsAndRunCLI([
+				'start',
+				`--path=${pluginDir}`,
+				'--no-auto-mount',
+				'--skip-browser',
+			]);
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+			// Server started → yargs accepted `--no-auto-mount`.
+			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+
+			// Auto-mount did not fire → the plugin is not present under
+			// /wordpress/wp-content/plugins/.
+			const autoMountedPluginExists = await cliServer.playground.isDir(
+				`/wordpress/wp-content/plugins/${pluginDirName}`
+			);
+			expect(autoMountedPluginExists).toBe(false);
+		} finally {
+			exitSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
 });
 
 describe('php command', () => {

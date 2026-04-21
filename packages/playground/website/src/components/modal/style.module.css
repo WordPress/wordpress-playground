@@ -27,6 +27,12 @@
 	max-width: 350px;
 }
 
+.modal-form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
 .modal-buttons {
 	margin-top: 1.5rem;
 }

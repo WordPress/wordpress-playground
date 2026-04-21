@@ -454,11 +454,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
-			'no-auto-mount': {
+			'auto-mount': {
 				describe:
-					'Disable automatic project type detection. Use --mount to manually specify mounts instead.',
+					'Automatically detect project type (plugin, theme, wp-content, or WordPress) and mount accordingly. Use --no-auto-mount to disable and --mount to manually specify mounts instead.',
 				type: 'boolean',
-				default: false,
+				default: true,
 			},
 			// Define constants
 			define: sharedOptions['define'],
@@ -580,12 +580,20 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['auto-mount']) {
+				// For the `start` command, `--auto-mount` is a boolean
+				// toggle (path is taken from `--path`), so skip the
+				// directory validation here. Read the camelCase form for
+				// consistency with the rest of the codebase — yargs-parser
+				// emits both dashed and camelCase keys.
+				const autoMountArg = args['autoMount'];
+				if (
+					args._[0] !== 'start' &&
+					typeof autoMountArg === 'string' &&
+					autoMountArg
+				) {
 					let autoMountIsDir = false;
 					try {
-						const autoMountStats = fs.statSync(
-							args['auto-mount'] as string
-						);
+						const autoMountStats = fs.statSync(autoMountArg);
 						autoMountIsDir = autoMountStats.isDirectory();
 					} catch {
 						autoMountIsDir = false;
@@ -593,7 +601,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 					if (!autoMountIsDir) {
 						throw new Error(
-							`The specified --auto-mount path is not a directory: '${args['auto-mount']}'.`
+							`The specified --auto-mount path is not a directory: '${autoMountArg}'.`
 						);
 					}
 				}
@@ -866,7 +874,13 @@ export interface RunCLIArgs {
 	quiet?: boolean;
 	verbosity?: LogVerbosity;
 	wp?: string;
-	autoMount?: string;
+	/**
+	 * For the `server` command (and other long-form commands), this is the
+	 * host path to auto-detect and mount. For the `start` command, this is a
+	 * boolean toggle: `true` (default) enables auto-detection on the
+	 * `--path` directory; `false` (i.e. `--no-auto-mount`) disables it.
+	 */
+	autoMount?: string | boolean;
 	pathAliases?: PathAlias[];
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
@@ -919,7 +933,6 @@ export interface RunCLIArgs {
 	// --------- Start command args -----------
 	path?: string;
 	skipBrowser?: boolean;
-	noAutoMount?: boolean;
 	reset?: boolean;
 }
 
@@ -1765,9 +1778,21 @@ function expandStartCommandArgs(
 	let newArgs = { ...args, command: 'server' };
 
 	/**
-	 * Enable auto-mount unless explicitly disabled
+	 * Enable auto-mount unless explicitly disabled via `--no-auto-mount`.
+	 *
+	 * yargs-parser's boolean-negation turns `--no-auto-mount` into
+	 * `{ autoMount: false }`, so `args.autoMount === false` is how we detect
+	 * the disabled case. The boolean form is start-command only — downstream
+	 * code treats `autoMount` as a string path, so drop it either way and
+	 * then re-populate it with a resolved path when enabled.
 	 */
-	if (!args.noAutoMount) {
+	const autoMountEnabled = args.autoMount !== false;
+	// Scrub both the camelCase and dashed forms yargs-parser emits so a
+	// stale boolean can't leak into downstream consumers that read either.
+	delete newArgs.autoMount;
+	delete (newArgs as Record<string, unknown>)['auto-mount'];
+
+	if (autoMountEnabled) {
 		newArgs.autoMount = path.resolve(process.cwd(), newArgs['path'] ?? '');
 		newArgs = expandAutoMounts(newArgs as RunCLIArgs);
 		// Delete the autoMount argument to avoid double expansion later on.

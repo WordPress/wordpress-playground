@@ -31,6 +31,7 @@ import {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,
+	setSiteSlugToDelete,
 } from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
@@ -247,14 +248,10 @@ export function SavedPlaygroundsOverlay({
 		return `data:${logo.mime};base64,${logo.data}`;
 	};
 
-	const handleDeleteSite = async (site: SiteInfo, closeMenu: () => void) => {
-		const proceed = window.confirm(
-			`Are you sure you want to delete the site '${site.metadata.name}'?`
-		);
-		if (proceed) {
-			await sitesAPI.delete(site.slug);
-			closeMenu();
-		}
+	const handleDeleteSite = (site: SiteInfo, closeMenu: () => void) => {
+		dispatch(setSiteSlugToDelete(site.slug));
+		modalDispatch(setActiveModal(modalSlugs.DELETE_SITE));
+		closeMenu();
 	};
 
 	const handleRenameSite = (site: SiteInfo, closeMenu: () => void) => {
