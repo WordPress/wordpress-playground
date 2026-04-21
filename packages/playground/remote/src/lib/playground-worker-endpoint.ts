@@ -413,8 +413,16 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
-		const handle = await directoryHandleFromMountDevice(options.device);
 		const php = this.__internal_getPHP()!;
+		await this.mountOpfsIntoPhp(php, options, onProgress);
+	}
+
+	protected async mountOpfsIntoPhp(
+		php: PHP,
+		options: MountDescriptor,
+		onProgress?: SyncProgressCallback
+	) {
+		const handle = await directoryHandleFromMountDevice(options.device);
 		let opfsMount: DirectoryHandleMount | undefined;
 		this.unmounts[options.mountpoint] = await php.mount(
 			options.mountpoint,

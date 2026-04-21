@@ -13,9 +13,7 @@ import {
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import { isLegacyPHPVersion } from '@php-wasm/universal';
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
-import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 import type { PHP } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
@@ -219,18 +217,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
 						for (const mount of mounts) {
-							const handle = await directoryHandleFromMountDevice(
-								mount.device
-							);
-							const unmount = await php.mount(
-								mount.mountpoint,
-								createDirectoryHandleMountHandler(handle, {
-									initialSync: {
-										direction: mount.initialSyncDirection,
-									},
-								})
-							);
-							endpoint.unmounts[mount.mountpoint] = unmount;
+							await endpoint.mountOpfsIntoPhp(php, mount);
 						}
 					},
 				},
