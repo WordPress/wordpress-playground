@@ -69,7 +69,7 @@ Loading times vary based on what Playground needs to set up:
 **Factors that affect performance:**
 
 - **Plugin size**: Large plugins take longer to install at runtime
-- **Network speed**: WASM files are approximately 5-15MB per PHP version (reduced significantly by the MAIN_MODULE=2 build optimization)
+- **Network speed**: WASM files are 15-30MB
 - **Device memory**: Initial WASM memory allocation is 64MB, growing dynamically as needed. Low-memory devices may experience slowdowns
 - **Browser**: Chrome/Edge perform best; Safari slightly slower
 
