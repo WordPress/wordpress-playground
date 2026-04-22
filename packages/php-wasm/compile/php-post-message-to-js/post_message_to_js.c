@@ -8,6 +8,11 @@
 #define PHP_FE_END {NULL, NULL, NULL}
 #endif
 
+/* TSRMLS macros were removed in PHP 7; provide empty fallbacks */
+#ifndef TSRMLS_CC
+#define TSRMLS_CC
+#endif
+
 /**
  * Provided by php_wasm.c:
  */
@@ -83,4 +88,4 @@ zend_module_entry post_message_to_js_module_entry = {
 ZEND_TSRMLS_CACHE_DEFINE()
 #endif
 ZEND_GET_MODULE(post_message_to_js)
-#endif 
+#endif

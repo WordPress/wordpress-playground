@@ -262,7 +262,8 @@ The `server` command supports the following optional arguments:
 - `--xdebug`: Enable Xdebug. Defaults to false.
 - `--experimental-devtools`: Enable experimental browser development tools. Defaults to false.
 - `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code (`vscode`) and PhpStorm (`phpstorm`).
-- `--experimental-multi-worker=<number>`: Enable experimental multi-worker support which requires a `/wordpress` directory backed by a real filesystem. Pass a positive number to specify the number of workers to use. Otherwise, defaults to the number of CPUs minus 1.
+- `--workers=<n|auto>`: Number of request-handling worker threads. Pass a positive integer, or `auto` to use one worker per CPU core (minus one). Defaults to `min(6, cpus-1)`. Useful for multi-client workloads (e.g. parallel e2e suites) that need more than 6 in-flight requests.
+- `--experimental-multi-worker=<number>`: Deprecated. Use `--workers=<n|auto>` instead. The value of this flag is ignored.
 
 :::caution
 With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.

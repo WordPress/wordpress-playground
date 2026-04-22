@@ -343,14 +343,35 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
 			},
+			workers: {
+				describe:
+					'Number of request-handling worker threads. Accepts a ' +
+					'positive integer, or "auto" to use one per CPU core ' +
+					'(minus one). Defaults to min(6, cpus-1).',
+				type: 'string',
+				coerce: (value?: string) => {
+					if (value === undefined) {
+						return undefined;
+					}
+					if (value === 'auto') {
+						return 'auto' as const;
+					}
+					const n = Number(value);
+					if (!Number.isInteger(n) || n < 1) {
+						throw new Error(
+							`Invalid --workers value "${value}": ` +
+								'expected a positive integer or "auto".'
+						);
+					}
+					return n;
+				},
+			},
 			'experimental-multi-worker': {
 				deprecated:
-					'This option is not needed. Multiple workers are always used.',
+					'Use --workers=<n|auto> instead. The value of this flag is ignored.',
 				describe:
-					'Enable experimental multi-worker support which requires ' +
-					'a /wordpress directory backed by a real filesystem. ' +
-					'Pass a positive number to specify the number of workers to use. ' +
-					'Otherwise, default to the number of CPUs minus 1.',
+					'Deprecated. Use --workers=<n|auto> to control the ' +
+					'number of request-handling worker threads.',
 				type: 'number',
 			},
 			'experimental-devtools': {
@@ -813,6 +834,24 @@ function getMountForVfsPath(
 	);
 }
 
+/**
+ * Resolve the --workers flag into a concrete worker count.
+ *
+ * The Math.max(1, ...) guard covers single-core hosts and restricted
+ * environments where `os.cpus()` can return an empty array — without it
+ * the default would drop to 0 and no workers would be spawned.
+ */
+export function resolveWorkerCount(value: number | 'auto' | undefined): number {
+	const cpusMinusOne = Math.max(1, os.cpus().length - 1);
+	if (value === undefined) {
+		return Math.min(6, cpusMinusOne);
+	}
+	if (value === 'auto') {
+		return cpusMinusOne;
+	}
+	return value;
+}
+
 export interface RunCLIArgs {
 	/**
 	 * `_` holds positional tokens in the order they appeared.
@@ -854,6 +893,8 @@ export interface RunCLIArgs {
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
+	workers?: number | 'auto';
+	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
 	/**
 	 * PHP string constants defined via --define flag.
@@ -1082,6 +1123,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
+			if (args['experimental-multi-worker'] !== undefined) {
+				logger.warn(
+					'--experimental-multi-worker is deprecated and its value is ignored. ' +
+						'Use --workers=<n|auto> instead.'
+				);
+			}
+
 			/**
 			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
 			 * > browsers open several connections to each domain,
@@ -1089,15 +1137,38 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			 * > but this has now increased to a more common use of 6 parallel connections.
 			 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x#domain_sharding
 			 *
-			 * While our HTTP server only supports HTTP 1.1 and while we are trying to limit the
-			 * memory requirements of multiple workers, let's hard-code the number of request-handling
-			 * workers to 6.
+			 * 6 is therefore a sensible default; --workers=<n|auto> lets
+			 * users override this for multi-client workloads (e2e tests,
+			 * load testing) that need more in-flight requests.
 			 *
-			 * Going higher than browsers' max concurrent requests seems pointless,
-			 * and going lower may increase the likelihood of deadlock due to workers
-			 * blocking and waiting for file locks.
+			 * Note: going lower may increase the likelihood of deadlock
+			 * due to workers blocking and waiting for file locks.
 			 */
-			const targetWorkerCount = 6;
+			const targetWorkerCount = resolveWorkerCount(args.workers);
+
+			if (targetWorkerCount < 6) {
+				const deadlockNote =
+					'Running fewer than 6 workers may increase the ' +
+					'likelihood of deadlock due to workers blocking on ' +
+					'file locks.';
+				if (args.workers === undefined) {
+					/*
+					 * Default path landed below 6 because the machine has
+					 * fewer than 7 CPUs. Distinct message so users see this
+					 * as a hardware ceiling, not a config mistake.
+					 */
+					logger.warn(
+						`The default worker count has been reduced to ${targetWorkerCount} ` +
+							`because this machine has only ${os.cpus().length} CPU(s). ` +
+							deadlockNote
+					);
+				} else {
+					logger.warn(
+						`Worker count (${targetWorkerCount}) is below the recommended threshold (6). ` +
+							deadlockNote
+					);
+				}
+			}
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
