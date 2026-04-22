@@ -426,14 +426,31 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	async unmountOpfs(mountpoint: string) {
+		const opfsMount = this.opfsMounts[mountpoint];
 		const unmount = this.unmounts[mountpoint];
-		if (unmount === undefined) {
+		if (opfsMount === undefined || unmount === undefined) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		await this.flushOpfs(mountpoint);
-		await unmount();
-		delete this.unmounts[mountpoint];
-		delete this.opfsMounts[mountpoint];
+		let flushError: unknown;
+		try {
+			await opfsMount.flush();
+		} catch (error) {
+			flushError = error;
+		}
+		try {
+			await unmount();
+		} catch (error) {
+			if (flushError === undefined) {
+				throw error;
+			}
+			logger.error(error);
+		} finally {
+			delete this.unmounts[mountpoint];
+			delete this.opfsMounts[mountpoint];
+		}
+		if (flushError !== undefined) {
+			throw flushError;
+		}
 	}
 
 	async backfillStaticFilesRemovedFromMinifiedBuild() {
@@ -491,7 +508,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	) {
 		const handle = await directoryHandleFromMountDevice(options.device);
 		let opfsMount: DirectoryHandleMount | undefined;
-		this.unmounts[options.mountpoint] = await php.mount(
+		const unmount = await php.mount(
 			options.mountpoint,
 			createDirectoryHandleMountHandler(handle, {
 				initialSync: {
@@ -504,10 +521,16 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			})
 		);
 		if (opfsMount === undefined) {
+			try {
+				await unmount();
+			} catch (error) {
+				logger.error(error);
+			}
 			throw new Error(
 				`Could not create an OPFS mount at "${options.mountpoint}".`
 			);
 		}
+		this.unmounts[options.mountpoint] = unmount;
 		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
 }

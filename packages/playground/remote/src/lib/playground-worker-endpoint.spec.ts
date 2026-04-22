@@ -75,12 +75,51 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
 
+	it('removes mount tracking when the flush before unmount fails', async () => {
+		const flushError = new Error('flush failed');
+		const opfsMount = createOpfsMount();
+		opfsMount.flush.mockRejectedValueOnce(flushError);
+		const unmount = vi.fn(async () => {});
+		const endpoint = await createEndpoint(
+			{ '/wordpress': opfsMount },
+			{ '/wordpress': unmount }
+		);
+
+		await expect(endpoint.unmountOpfs('/wordpress')).rejects.toBe(
+			flushError
+		);
+
+		expect(unmount).toHaveBeenCalledTimes(1);
+		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
+		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
+	});
+
 	it('throws when unmounting a missing OPFS mount', async () => {
 		const endpoint = await createEndpoint({});
 
 		await expect(endpoint.unmountOpfs('/wordpress')).rejects.toThrow(
 			'No OPFS mount found at "/wordpress".'
 		);
+	});
+
+	it('rolls back mount state when OPFS controller registration fails', async () => {
+		const endpoint = await createEndpoint({});
+		const php = createFakePhp({ skipMountHandler: true });
+		endpoint.__internal_getPHP = () => php;
+
+		await expect(
+			endpoint.mountOpfs({
+				device: {
+					type: 'local-fs',
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint: '/wordpress',
+			})
+		).rejects.toThrow('Could not create an OPFS mount at "/wordpress".');
+
+		expect(php.unmount).toHaveBeenCalledTimes(1);
+		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
+		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
 });
 
@@ -118,7 +157,7 @@ function createOpfsMount() {
 	};
 }
 
-function createFakePhp() {
+function createFakePhp(options: { skipMountHandler?: boolean } = {}) {
 	const FS = {
 		write: vi.fn(),
 		truncate: vi.fn(),
@@ -137,7 +176,11 @@ function createFakePhp() {
 		semaphore: new Semaphore({ concurrency: 1 }),
 		addEventListener: vi.fn(),
 		removeEventListener: vi.fn(),
+		unmount: vi.fn(async () => {}),
 		mount: vi.fn(async (mountpoint: string, mountHandler: MountHandler) => {
+			if (options.skipMountHandler) {
+				return php.unmount;
+			}
 			return await mountHandler(php, FS as any, mountpoint);
 		}),
 	};

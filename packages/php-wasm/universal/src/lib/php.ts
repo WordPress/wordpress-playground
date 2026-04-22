@@ -1510,8 +1510,11 @@ export class PHP implements Disposable {
 		const mountObject = {
 			mountHandler,
 			unmount: async () => {
-				await unmountCallback();
-				delete this.#mounts[virtualFSPath];
+				try {
+					await unmountCallback();
+				} finally {
+					delete this.#mounts[virtualFSPath];
+				}
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;

@@ -8,6 +8,7 @@ class MemoryFileHandle {
 	bytes = new Uint8Array();
 	name: string;
 	private onWrite?: () => void | Promise<void>;
+	private truncated = false;
 
 	constructor(name: string, onWrite?: () => void | Promise<void>) {
 		this.name = name;
@@ -18,9 +19,14 @@ class MemoryFileHandle {
 		return {
 			truncate: async () => {
 				this.bytes = new Uint8Array();
+				this.truncated = true;
 			},
 			write: async (buffer: BufferSource) => {
+				if (!this.truncated) {
+					throw new Error('write called before truncate');
+				}
 				this.bytes = toBytes(buffer);
+				this.truncated = false;
 				await this.onWrite?.();
 				return this.bytes.byteLength;
 			},
@@ -167,13 +173,20 @@ describe('journalFSEventsToOpfs', () => {
 	});
 
 	it('flushes pending writes before unmounting', async () => {
-		const { FS, files, php, removeEventListener } = createFakePhp();
+		const { FS, addEventListener, files, php, removeEventListener } =
+			createFakePhp();
 		const opfsRoot = new MemoryDirectoryHandle('root');
 		const mount = journalFSEventsToOpfs(
 			php,
 			opfsRoot as unknown as FileSystemDirectoryHandle,
 			'/wordpress'
 		);
+		const requestEndListener = addEventListener.mock.calls.find(
+			([eventType]) => eventType === 'request.end'
+		)![1];
+		const filesystemWriteListener = addEventListener.mock.calls.find(
+			([eventType]) => eventType === 'filesystem.write'
+		)![1];
 
 		files.set('/wordpress/file.txt', encode('saved'));
 		FS.write({ path: '/wordpress/file.txt' });
@@ -183,11 +196,93 @@ describe('journalFSEventsToOpfs', () => {
 		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
 		expect(removeEventListener).toHaveBeenCalledWith(
 			'filesystem.write',
-			expect.any(Function)
+			filesystemWriteListener
 		);
 		expect(removeEventListener).toHaveBeenCalledWith(
 			'request.end',
-			expect.any(Function)
+			requestEndListener
+		);
+	});
+
+	it('removes listeners even when unmount flush fails', async () => {
+		const flushError = new Error('flush failed');
+		const { FS, addEventListener, files, php, removeEventListener } =
+			createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			throw flushError;
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+		const requestEndListener = addEventListener.mock.calls.find(
+			([eventType]) => eventType === 'request.end'
+		)![1];
+		const filesystemWriteListener = addEventListener.mock.calls.find(
+			([eventType]) => eventType === 'filesystem.write'
+		)![1];
+
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+
+		await expect(mount.unmount()).rejects.toBe(flushError);
+		expect(removeEventListener).toHaveBeenCalledWith(
+			'filesystem.write',
+			filesystemWriteListener
+		);
+		expect(removeEventListener).toHaveBeenCalledWith(
+			'request.end',
+			requestEndListener
+		);
+	});
+
+	it('reports background flush failures without throwing synchronously', async () => {
+		const flushError = new Error('background flush failed');
+		const reported = deferred<void>();
+		const onFlushError = vi.fn(() => {
+			reported.resolve();
+		});
+		const { FS, dispatchEvent, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			throw flushError;
+		});
+		journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress',
+			{ onFlushError }
+		);
+
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+
+		expect(() => dispatchEvent('filesystem.write')).not.toThrow();
+		await reported.promise;
+		expect(onFlushError).toHaveBeenCalledWith(flushError);
+	});
+
+	it('fails explicit flushes that never settle instead of hanging', async () => {
+		let writeCount = 0;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			writeCount++;
+			const path = `/wordpress/requeued-${writeCount}.txt`;
+			files.set(path, encode(`requeued ${writeCount}`));
+			FS.write({ path });
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress',
+			{ maxFlushPasses: 2 }
+		);
+
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+
+		await expect(mount.flush()).rejects.toThrow(
+			'OPFS flush did not settle after 2 journal batches.'
 		);
 	});
 });
