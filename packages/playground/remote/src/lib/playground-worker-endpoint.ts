@@ -406,7 +406,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	async hasOpfsMount(mountpoint: string) {
-		return mountpoint in this.unmounts;
+		return mountpoint in this.opfsMounts;
 	}
 
 	async mountOpfs(
@@ -415,33 +415,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	) {
 		const php = this.__internal_getPHP()!;
 		await this.mountOpfsIntoPhp(php, options, onProgress);
-	}
-
-	protected async mountOpfsIntoPhp(
-		php: PHP,
-		options: MountDescriptor,
-		onProgress?: SyncProgressCallback
-	) {
-		const handle = await directoryHandleFromMountDevice(options.device);
-		let opfsMount: DirectoryHandleMount | undefined;
-		this.unmounts[options.mountpoint] = await php.mount(
-			options.mountpoint,
-			createDirectoryHandleMountHandler(handle, {
-				initialSync: {
-					onProgress,
-					direction: options.initialSyncDirection,
-				},
-				onMount(mount) {
-					opfsMount = mount;
-				},
-			})
-		);
-		if (opfsMount === undefined) {
-			throw new Error(
-				`Could not create an OPFS mount at "${options.mountpoint}".`
-			);
-		}
-		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
 
 	async flushOpfs(mountpoint: string) {
@@ -509,5 +482,32 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	async replayFSJournal(events: FilesystemOperation[]) {
 		return replayFSJournal(this.__internal_getPHP()!, events);
+	}
+
+	protected async mountOpfsIntoPhp(
+		php: PHP,
+		options: MountDescriptor,
+		onProgress?: SyncProgressCallback
+	) {
+		const handle = await directoryHandleFromMountDevice(options.device);
+		let opfsMount: DirectoryHandleMount | undefined;
+		this.unmounts[options.mountpoint] = await php.mount(
+			options.mountpoint,
+			createDirectoryHandleMountHandler(handle, {
+				initialSync: {
+					onProgress,
+					direction: options.initialSyncDirection,
+				},
+				onMount(mount) {
+					opfsMount = mount;
+				},
+			})
+		);
+		if (opfsMount === undefined) {
+			throw new Error(
+				`Could not create an OPFS mount at "${options.mountpoint}".`
+			);
+		}
+		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
 }

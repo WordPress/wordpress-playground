@@ -20,8 +20,8 @@ class MemoryFileHandle {
 				this.bytes = new Uint8Array();
 			},
 			write: async (buffer: BufferSource) => {
-				await this.onWrite?.();
 				this.bytes = toBytes(buffer);
+				await this.onWrite?.();
 				return this.bytes.byteLength;
 			},
 			close: async () => {},
@@ -89,6 +89,29 @@ describe('journalFSEventsToOpfs', () => {
 
 		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
 	});
+
+	it.each(['filesystem.write', 'request.end'] as const)(
+		'flushes pending writes when %s is dispatched',
+		async (eventType) => {
+			const flushed = deferred<void>();
+			const { FS, dispatchEvent, files, php } = createFakePhp();
+			const opfsRoot = new MemoryDirectoryHandle('root', () => {
+				flushed.resolve();
+			});
+			journalFSEventsToOpfs(
+				php,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress'
+			);
+
+			files.set('/wordpress/file.txt', encode('saved'));
+			FS.write({ path: '/wordpress/file.txt' });
+			dispatchEvent(eventType);
+
+			await flushed.promise;
+			expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
+		}
+	);
 
 	it('reuses the in-flight flush promise for concurrent flushes', async () => {
 		let resolveWrite: () => void = () => {};
@@ -194,16 +217,40 @@ function createFakePhp() {
 			return file;
 		}),
 	};
-	const addEventListener = vi.fn();
-	const removeEventListener = vi.fn();
+	const listeners = new Map<string, Set<(event: { type: string }) => void>>();
+	const addEventListener = vi.fn(
+		(eventType: string, listener: (event: { type: string }) => void) => {
+			if (!listeners.has(eventType)) {
+				listeners.set(eventType, new Set());
+			}
+			listeners.get(eventType)!.add(listener);
+		}
+	);
+	const removeEventListener = vi.fn(
+		(eventType: string, listener: (event: { type: string }) => void) => {
+			listeners.get(eventType)?.delete(listener);
+		}
+	);
 	const php = {
 		[__private__dont__use]: { FS },
 		semaphore: new Semaphore({ concurrency: 1 }),
 		addEventListener,
 		removeEventListener,
 	} as unknown as PHP;
+	const dispatchEvent = (eventType: string) => {
+		for (const listener of listeners.get(eventType) ?? []) {
+			listener({ type: eventType });
+		}
+	};
 
-	return { FS, addEventListener, files, php, removeEventListener };
+	return {
+		FS,
+		addEventListener,
+		dispatchEvent,
+		files,
+		php,
+		removeEventListener,
+	};
 }
 
 function deferred<T>() {

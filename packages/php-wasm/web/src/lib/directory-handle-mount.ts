@@ -330,7 +330,9 @@ export function journalFSEventsToOpfs(
 	}
 
 	function flushInBackground() {
-		void flush();
+		void flush().catch((error) => {
+			logger.error(error);
+		});
 	}
 
 	php.addEventListener('request.end', flushInBackground);

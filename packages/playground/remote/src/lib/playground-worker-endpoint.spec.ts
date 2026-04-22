@@ -1,6 +1,30 @@
 import { describe, expect, it, vi } from 'vitest';
+import { __private__dont__use } from '@php-wasm/universal';
+import type { MountHandler } from '@php-wasm/universal';
+import { Semaphore } from '@php-wasm/util';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
+	it('registers OPFS mounts created through mountOpfs', async () => {
+		const endpoint = await createEndpoint({});
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+
+		await endpoint.mountOpfs({
+			device: {
+				type: 'local-fs',
+				handle: createEmptyDirectoryHandle(),
+			},
+			mountpoint: '/wordpress',
+		});
+
+		expect(await endpoint.hasOpfsMount('/wordpress')).toBe(true);
+		expect(endpoint.opfsMounts['/wordpress']).toBeDefined();
+		expect(php.mount).toHaveBeenCalledWith(
+			'/wordpress',
+			expect.any(Function)
+		);
+	});
+
 	it('flushes the active OPFS mount', async () => {
 		const endpoint = await createEndpoint({
 			'/wordpress': createOpfsMount(),
@@ -11,6 +35,15 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.opfsMounts['/wordpress'].flush).toHaveBeenCalledTimes(
 			1
 		);
+	});
+
+	it('reports whether an OPFS mount is active', async () => {
+		const endpoint = await createEndpoint({
+			'/wordpress': createOpfsMount(),
+		});
+
+		expect(await endpoint.hasOpfsMount('/wordpress')).toBe(true);
+		expect(await endpoint.hasOpfsMount('/missing')).toBe(false);
 	});
 
 	it('throws when flushing a missing OPFS mount', async () => {
@@ -41,6 +74,14 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
+
+	it('throws when unmounting a missing OPFS mount', async () => {
+		const endpoint = await createEndpoint({});
+
+		await expect(endpoint.unmountOpfs('/wordpress')).rejects.toThrow(
+			'No OPFS mount found at "/wordpress".'
+		);
+	});
 });
 
 async function createEndpoint(
@@ -54,6 +95,15 @@ async function createEndpoint(
 	endpoint.opfsMounts = opfsMounts;
 	endpoint.unmounts = unmounts;
 	return endpoint as {
+		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;
+		hasOpfsMount(mountpoint: string): Promise<boolean>;
+		mountOpfs(options: {
+			device: {
+				type: 'local-fs';
+				handle: FileSystemDirectoryHandle;
+			};
+			mountpoint: string;
+		}): Promise<void>;
 		flushOpfs(mountpoint: string): Promise<void>;
 		unmountOpfs(mountpoint: string): Promise<void>;
 		opfsMounts: typeof opfsMounts;
@@ -66,4 +116,38 @@ function createOpfsMount() {
 		flush: vi.fn(async () => {}),
 		unmount: vi.fn(async () => {}),
 	};
+}
+
+function createFakePhp() {
+	const FS = {
+		write: vi.fn(),
+		truncate: vi.fn(),
+		unlink: vi.fn(),
+		mknod: vi.fn(),
+		mkdir: vi.fn(),
+		rmdir: vi.fn(),
+		rename: vi.fn(),
+		lookupPath: vi.fn(() => {
+			throw new Error('Not found');
+		}),
+		mkdirTree: vi.fn(),
+	};
+	const php: any = {
+		[__private__dont__use]: { FS },
+		semaphore: new Semaphore({ concurrency: 1 }),
+		addEventListener: vi.fn(),
+		removeEventListener: vi.fn(),
+		mount: vi.fn(async (mountpoint: string, mountHandler: MountHandler) => {
+			return await mountHandler(php, FS as any, mountpoint);
+		}),
+	};
+	return php;
+}
+
+function createEmptyDirectoryHandle() {
+	return {
+		kind: 'directory',
+		name: 'root',
+		async *values() {},
+	} as unknown as FileSystemDirectoryHandle;
 }
