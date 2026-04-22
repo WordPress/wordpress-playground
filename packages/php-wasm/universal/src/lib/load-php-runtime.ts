@@ -1,5 +1,10 @@
 import { logger } from '@php-wasm/logger';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
+import {
+	createCliStdinState,
+	createCliStdinCallback,
+	type CliStdinState,
+} from './cli-stdin';
 
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
@@ -131,6 +136,22 @@ export async function loadPHPRuntime(
 ): Promise<number> {
 	const phpModuleArgs = Object.assign({}, ...options);
 
+	// Install a dynamic stdin shim so `PHP.cli()` can provide stdin
+	// bytes after the runtime has been initialized. The shim captures a
+	// mutable `CliStdinState` object by reference; `PHP.cli()` populates
+	// it per-invocation. When no bytes are provided, the shim returns
+	// `null` (EOF) and PHP sees an empty stdin. Consumers that need to
+	// forward host stdin (e.g. the `@php-wasm/cli` bin) must drain it
+	// themselves and pass it via the `stdin` option on `PHP.cli()`.
+	//
+	// If the caller already supplied their own `stdin` callback, we
+	// defer to it — some extensions may install custom stdio wiring and
+	// we should not clobber it. When that happens, `PHP.cli()`'s stdin
+	// option has no effect (the caller is in full control).
+	const cliStdinState: CliStdinState = createCliStdinState();
+	const cliStdinCallback = createCliStdinCallback(cliStdinState);
+	const userStdin = phpModuleArgs.stdin;
+
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
@@ -146,6 +167,7 @@ export async function loadPHPRuntime(
 		// fixes it.
 		locateFile: (path) => path,
 		...phpModuleArgs,
+		stdin: userStdin ?? cliStdinCallback,
 		noInitialRun: true,
 		onRuntimeInitialized() {
 			if (phpModuleArgs.onRuntimeInitialized) {
@@ -175,6 +197,10 @@ export async function loadPHPRuntime(
 	};
 
 	PHPRuntime[RuntimeId] = id;
+	// Expose the CLI stdin state so `PHP.cli()` can populate it before
+	// invoking `run_cli`. Only meaningful if the caller did not install
+	// their own `Module.stdin` callback.
+	PHPRuntime.cliStdinState = userStdin ? null : cliStdinState;
 	loadedRuntimes.set(id, PHPRuntime);
 	return id;
 }

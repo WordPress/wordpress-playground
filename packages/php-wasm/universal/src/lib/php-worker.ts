@@ -206,7 +206,11 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!/PHP.cli */
 	async cli(
 		argv: string[],
-		options?: { env?: Record<string, string> }
+		options?: {
+			env?: Record<string, string>;
+			cwd?: string;
+			stdin?: string | Uint8Array | ReadableStream<Uint8Array>;
+		}
 	): Promise<StreamedPHPResponse> {
 		const { php, reap } = await this.acquirePHPInstance();
 		let response: StreamedPHPResponse;

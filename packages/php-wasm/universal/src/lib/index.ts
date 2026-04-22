@@ -66,6 +66,12 @@ export {
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
+export {
+	createCliStdinState,
+	createCliStdinCallback,
+	coerceCliStdin,
+} from './cli-stdin';
+export type { CliStdinState } from './cli-stdin';
 export type { Emscripten } from './emscripten-types';
 export type {
 	DataModule,

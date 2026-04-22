@@ -266,7 +266,8 @@
 					"unzip-file.spec.ts",
 					"php-vars.spec.ts",
 					"php-memory.spec.ts",
-					"php-opcache.spec.ts"
+					"php-opcache.spec.ts",
+					"php-cli-stdin.spec.ts"
 				]
 			}
 		},
@@ -283,7 +284,8 @@
 					"php-worker.spec.ts",
 					"unzip-file.spec.ts",
 					"php-vars.spec.ts",
-					"php-memory.spec.ts"
+					"php-memory.spec.ts",
+					"php-cli-stdin.spec.ts"
 				]
 			}
 		},

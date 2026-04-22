@@ -242,7 +242,28 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 		args.unshift('-c', defaultPhpIniPath);
 	}
 
-	const response = await php.cli(['php', ...args]);
+	// Forward host stdin to PHP when this process was piped into
+	// (e.g. `echo foo | php-wasm-cli -r '…'`). Reading
+	// `process.stdin` as an async iterator consumes the pipe fully
+	// before the CLI invocation starts, which is fine for one-shot
+	// non-interactive scripts (the common case). Interactive TTY
+	// stdin is left alone — Emscripten/readline handle that path
+	// separately, and draining a TTY here would block forever.
+	let hostStdin: Buffer | undefined;
+	if (!process.stdin.isTTY) {
+		const chunks: Buffer[] = [];
+		for await (const chunk of process.stdin) {
+			chunks.push(chunk as Buffer);
+		}
+		if (chunks.length > 0) {
+			hostStdin = Buffer.concat(chunks);
+		}
+	}
+
+	const response = await php.cli(
+		['php', ...args],
+		hostStdin ? { stdin: hostStdin } : {}
+	);
 	response.stderr.pipeTo(
 		new WritableStream({
 			write(chunk) {
