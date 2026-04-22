@@ -293,8 +293,12 @@ const autoBackupOptions: { value: AutoBackupInterval; label: string }[] = [
 function BackupSection() {
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const playground = usePlaygroundClient();
 	const { isDependentMode, performBackup, isBackingUp } = useBackup();
+	// In dependent mode the client only exposes navigation methods, so it
+	// can't be used for `importWordPressFiles`. Treat it as absent here so
+	// the Restore button stays disabled.
+	const rawPlayground = usePlaygroundClient();
+	const playground = isDependentMode ? null : rawPlayground;
 	const [showHistory, setShowHistory] = useState(false);
 	const [isRestoring, setIsRestoring] = useState(false);
 	const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -615,7 +619,16 @@ export function SiteInfoPanel({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
 	);
-	const playground = clientInfo?.client;
+	// The dependent-mode client is a minimal stub exposing only `goTo` and
+	// `getCurrentURL` — calling PHP-runtime methods (`isDir`, `fileExists`,
+	// `documentRoot`, …) on it throws. Use the navigation client for the
+	// header buttons but treat the runtime client as absent so file/database
+	// panels fall back to OPFS access or render a disabled state.
+	const navigationClient = clientInfo?.client;
+	const playground =
+		clientInfo && !clientInfo.isDependentMode
+			? clientInfo.client
+			: undefined;
 
 	// Resolve documentRoot from playground, or use fallback for direct OPFS access
 	useEffect(() => {
@@ -638,8 +651,8 @@ export function SiteInfoPanel({
 			dispatch(setSiteManagerOpen(false));
 		}
 
-		if (playground) {
-			playground.goTo(path);
+		if (navigationClient) {
+			navigationClient.goTo(path);
 		}
 	}
 
@@ -704,7 +717,7 @@ export function SiteInfoPanel({
 								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="tertiary"
-										disabled={!playground}
+										disabled={!navigationClient}
 										onClick={() => navigateTo('/wp-admin/')}
 									>
 										WP Admin
@@ -713,7 +726,7 @@ export function SiteInfoPanel({
 								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="secondary"
-										disabled={!playground}
+										disabled={!navigationClient}
 										onClick={() => navigateTo('/')}
 									>
 										Homepage
