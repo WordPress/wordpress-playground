@@ -320,8 +320,13 @@ export function journalFSEventsToOpfs(
 			options.maxFlushPasses ?? DEFAULT_MAX_OPFS_FLUSH_PASSES;
 		for (let pass = 0; journal.length > 0; pass++) {
 			if (pass >= maxFlushPasses) {
+				const remainingEntries = journal.length;
+				const remainingPhrase =
+					remainingEntries === 1
+						? `${remainingEntries} journal entry remains`
+						: `${remainingEntries} journal entries remain`;
 				throw new Error(
-					`OPFS flush for "${memfsRoot}" did not settle after ${maxFlushPasses} journal batches; ${journal.length} journal entries remain.`
+					`OPFS flush for "${memfsRoot}" did not settle after ${maxFlushPasses} journal batches; ${remainingPhrase}. This can happen when filesystem writes are continuously enqueued while flushing.`
 				);
 			}
 			await flushJournalOnce();

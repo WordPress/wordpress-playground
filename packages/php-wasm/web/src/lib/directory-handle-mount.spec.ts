@@ -313,7 +313,7 @@ describe('journalFSEventsToOpfs', () => {
 		FS.write({ path: '/wordpress/file.txt' });
 
 		await expect(mount.flush()).rejects.toThrow(
-			'OPFS flush for "/wordpress" did not settle after 2 journal batches; 1 journal entries remain.'
+			'OPFS flush for "/wordpress" did not settle after 2 journal batches; 1 journal entry remains. This can happen when filesystem writes are continuously enqueued while flushing.'
 		);
 	});
 });

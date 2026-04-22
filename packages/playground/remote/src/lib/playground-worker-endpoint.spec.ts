@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { __private__dont__use } from '@php-wasm/universal';
 import type { MountHandler } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it('registers OPFS mounts created through mountOpfs', async () => {
 		const endpoint = await createEndpoint({});
 		const php = createFakePhp();
@@ -44,6 +48,32 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 
 		expect(await endpoint.hasOpfsMount('/wordpress')).toBe(true);
 		expect(await endpoint.hasOpfsMount('/missing')).toBe(false);
+	});
+
+	it('does not report inherited property names as active OPFS mounts', async () => {
+		const endpoint = await createEndpoint({});
+
+		expect(await endpoint.hasOpfsMount('constructor')).toBe(false);
+		await expect(endpoint.flushOpfs('constructor')).rejects.toThrow(
+			'No OPFS mount found at "constructor".'
+		);
+	});
+
+	it('supports special mountpoint names as own OPFS mount keys', async () => {
+		const endpoint = await createEndpoint({});
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+
+		await endpoint.mountOpfs({
+			device: {
+				type: 'local-fs',
+				handle: createEmptyDirectoryHandle(),
+			},
+			mountpoint: '__proto__',
+		});
+
+		expect(await endpoint.hasOpfsMount('__proto__')).toBe(true);
+		await expect(endpoint.flushOpfs('__proto__')).resolves.toBeUndefined();
 	});
 
 	it('throws when flushing a missing OPFS mount', async () => {
@@ -94,6 +124,26 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
 
+	it('throws before mounting when an OPFS mount already exists', async () => {
+		const endpoint = await createEndpoint({
+			'/wordpress': createOpfsMount(),
+		});
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+
+		await expect(
+			endpoint.mountOpfs({
+				device: {
+					type: 'local-fs',
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint: '/wordpress',
+			})
+		).rejects.toThrow('OPFS mount already exists at "/wordpress".');
+
+		expect(php.mount).not.toHaveBeenCalled();
+	});
+
 	it('throws when unmounting a missing OPFS mount', async () => {
 		const endpoint = await createEndpoint({});
 
@@ -131,8 +181,8 @@ async function createEndpoint(
 	const { PlaygroundWorkerEndpoint } =
 		await import('./playground-worker-endpoint');
 	const endpoint = Object.create(PlaygroundWorkerEndpoint.prototype) as any;
-	endpoint.opfsMounts = opfsMounts;
-	endpoint.unmounts = unmounts;
+	endpoint.opfsMounts = createNullPrototypeRecord(opfsMounts);
+	endpoint.unmounts = createNullPrototypeRecord(unmounts);
 	return endpoint as {
 		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;
 		hasOpfsMount(mountpoint: string): Promise<boolean>;
@@ -148,6 +198,10 @@ async function createEndpoint(
 		opfsMounts: typeof opfsMounts;
 		unmounts: typeof unmounts;
 	};
+}
+
+function createNullPrototypeRecord<T>(entries: Record<string, T>) {
+	return Object.assign(Object.create(null), entries) as Record<string, T>;
 }
 
 function createOpfsMount() {

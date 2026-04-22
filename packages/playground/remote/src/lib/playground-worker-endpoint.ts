@@ -109,8 +109,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
 		[];
 
-	unmounts: Record<string, () => any> = {};
-	private opfsMounts: Record<string, DirectoryHandleMount> = {};
+	unmounts: Record<string, () => any> = createNullPrototypeRecord();
+	private opfsMounts: Record<string, DirectoryHandleMount> =
+		createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 
@@ -406,7 +407,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	async hasOpfsMount(mountpoint: string) {
-		return mountpoint in this.opfsMounts;
+		return hasOwnProperty(this.opfsMounts, mountpoint);
 	}
 
 	async mountOpfs(
@@ -506,6 +507,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
+		if (
+			hasOwnProperty(this.opfsMounts, options.mountpoint) ||
+			hasOwnProperty(this.unmounts, options.mountpoint)
+		) {
+			throw new Error(
+				`OPFS mount already exists at "${options.mountpoint}".`
+			);
+		}
 		const handle = await directoryHandleFromMountDevice(options.device);
 		let opfsMount: DirectoryHandleMount | undefined;
 		const unmount = await php.mount(
@@ -533,4 +542,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		this.unmounts[options.mountpoint] = unmount;
 		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
+}
+
+function createNullPrototypeRecord<T>() {
+	return Object.create(null) as Record<string, T>;
+}
+
+function hasOwnProperty(object: object, property: PropertyKey) {
+	return Object.prototype.hasOwnProperty.call(object, property);
 }
