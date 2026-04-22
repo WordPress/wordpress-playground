@@ -1513,6 +1513,10 @@ export class PHP implements Disposable {
 				try {
 					await unmountCallback();
 				} finally {
+					// JS mount tracking is authoritative. Even if the
+					// underlying filesystem unmount fails, forget this entry
+					// so later runtime swaps and remounts cannot reuse a stale
+					// mount handler.
 					delete this.#mounts[virtualFSPath];
 				}
 			},

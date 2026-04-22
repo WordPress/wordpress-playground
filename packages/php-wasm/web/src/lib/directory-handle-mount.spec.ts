@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { __private__dont__use, type PHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 import { journalFSEventsToOpfs } from './directory-handle-mount';
 
 class MemoryFileHandle {
@@ -175,6 +176,7 @@ describe('journalFSEventsToOpfs', () => {
 	it('flushes pending writes before unmounting', async () => {
 		const { FS, addEventListener, files, php, removeEventListener } =
 			createFakePhp();
+		const originalWrite = FS.write;
 		const opfsRoot = new MemoryDirectoryHandle('root');
 		const mount = journalFSEventsToOpfs(
 			php,
@@ -202,12 +204,14 @@ describe('journalFSEventsToOpfs', () => {
 			'request.end',
 			requestEndListener
 		);
+		expect(FS.write).toBe(originalWrite);
 	});
 
 	it('removes listeners even when unmount flush fails', async () => {
 		const flushError = new Error('flush failed');
 		const { FS, addEventListener, files, php, removeEventListener } =
 			createFakePhp();
+		const originalWrite = FS.write;
 		const opfsRoot = new MemoryDirectoryHandle('root', () => {
 			throw flushError;
 		});
@@ -235,13 +239,14 @@ describe('journalFSEventsToOpfs', () => {
 			'request.end',
 			requestEndListener
 		);
+		expect(FS.write).toBe(originalWrite);
 	});
 
-	it('reports background flush failures without throwing synchronously', async () => {
+	it('logs background flush failures without throwing synchronously', async () => {
 		const flushError = new Error('background flush failed');
-		const reported = deferred<void>();
-		const onFlushError = vi.fn(() => {
-			reported.resolve();
+		const logged = deferred<void>();
+		const loggerError = vi.spyOn(logger, 'error').mockImplementation(() => {
+			logged.resolve();
 		});
 		const { FS, dispatchEvent, files, php } = createFakePhp();
 		const opfsRoot = new MemoryDirectoryHandle('root', () => {
@@ -250,16 +255,42 @@ describe('journalFSEventsToOpfs', () => {
 		journalFSEventsToOpfs(
 			php,
 			opfsRoot as unknown as FileSystemDirectoryHandle,
-			'/wordpress',
-			{ onFlushError }
+			'/wordpress'
 		);
 
 		files.set('/wordpress/file.txt', encode('saved'));
 		FS.write({ path: '/wordpress/file.txt' });
 
 		expect(() => dispatchEvent('filesystem.write')).not.toThrow();
-		await reported.promise;
-		expect(onFlushError).toHaveBeenCalledWith(flushError);
+		await logged.promise;
+		expect(loggerError).toHaveBeenCalledWith(flushError);
+		loggerError.mockRestore();
+	});
+
+	it('can retry after a failed explicit flush', async () => {
+		let failNextWrite = true;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			if (failNextWrite) {
+				failNextWrite = false;
+				throw new Error('temporary flush failure');
+			}
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/wordpress/file.txt', encode('first'));
+		FS.write({ path: '/wordpress/file.txt' });
+		await expect(mount.flush()).rejects.toThrow('temporary flush failure');
+
+		files.set('/wordpress/file.txt', encode('second'));
+		FS.write({ path: '/wordpress/file.txt' });
+		await mount.flush();
+
+		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('second');
 	});
 
 	it('fails explicit flushes that never settle instead of hanging', async () => {
@@ -282,7 +313,7 @@ describe('journalFSEventsToOpfs', () => {
 		FS.write({ path: '/wordpress/file.txt' });
 
 		await expect(mount.flush()).rejects.toThrow(
-			'OPFS flush did not settle after 2 journal batches.'
+			'OPFS flush for "/wordpress" did not settle after 2 journal batches; 1 journal entries remain.'
 		);
 	});
 });

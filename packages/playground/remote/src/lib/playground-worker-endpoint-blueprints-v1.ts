@@ -30,7 +30,7 @@ class ArtifactExpiredError extends Error {
 	}
 }
 
-class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
+export class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 	override async boot({
 		scope,
 		mounts = [],

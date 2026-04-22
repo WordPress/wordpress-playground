@@ -36,7 +36,6 @@ export interface MountOptions {
 		onProgress?: SyncProgressCallback;
 	};
 	onMount?: (mount: DirectoryHandleMount) => void;
-	onFlushError?: (error: unknown) => void;
 }
 export interface DirectoryHandleMount {
 	flush(): Promise<void>;
@@ -51,7 +50,6 @@ export type SyncProgress = {
 export type SyncProgressCallback = (progress: SyncProgress) => void;
 
 interface JournalFSEventsToOpfsOptions {
-	onFlushError?: (error: unknown) => void;
 	maxFlushPasses?: number;
 }
 
@@ -84,9 +82,7 @@ export function createDirectoryHandleMountHandler(
 				options.initialSync.onProgress
 			);
 		}
-		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
-			onFlushError: options.onFlushError,
-		});
+		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
 		options.onMount?.(mount);
 		return mount.unmount;
 	};
@@ -315,7 +311,6 @@ export function journalFSEventsToOpfs(
 
 	function flushInBackground() {
 		void flush().catch((error) => {
-			options.onFlushError?.(error);
 			logger.error(error);
 		});
 	}
@@ -326,7 +321,7 @@ export function journalFSEventsToOpfs(
 		for (let pass = 0; journal.length > 0; pass++) {
 			if (pass >= maxFlushPasses) {
 				throw new Error(
-					`OPFS flush did not settle after ${maxFlushPasses} journal batches.`
+					`OPFS flush for "${memfsRoot}" did not settle after ${maxFlushPasses} journal batches; ${journal.length} journal entries remain.`
 				);
 			}
 			await flushJournalOnce();
