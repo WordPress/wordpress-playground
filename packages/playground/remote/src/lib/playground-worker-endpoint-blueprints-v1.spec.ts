@@ -27,21 +27,27 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		const bootWordPress = vi.fn(async (_requestHandler, options) => {
 			await options.hooks.beforeWordPressFiles(php);
 		});
+		let endpoint:
+			| {
+					boot(options: Record<string, unknown>): Promise<void>;
+			  }
+			| undefined;
 		vi.doMock('@wp-playground/wordpress', () => ({
 			bootWordPress,
 		}));
 		vi.doMock('@php-wasm/web', () => ({
 			certificateToPEM: vi.fn(),
 			createDirectoryHandleMountHandler: vi.fn(),
-			exposeAPI: vi.fn(() => [vi.fn(), vi.fn()]),
+			exposeAPI: vi.fn((api) => {
+				endpoint = api;
+				return [vi.fn(), vi.fn()];
+			}),
 			loadWebRuntime: vi.fn(),
 		}));
-		const { PlaygroundWorkerEndpointBlueprintsV1 } =
-			await import('./playground-worker-endpoint-blueprints-v1');
-		const endpoint = new PlaygroundWorkerEndpointBlueprintsV1({
-			expectAssets: vi.fn(),
-			monitorFetch: vi.fn(async () => new Response(new ArrayBuffer(0))),
-		} as any);
+		await import('./playground-worker-endpoint-blueprints-v1');
+		if (!endpoint) {
+			throw new Error('Expected exposeAPI to receive an endpoint');
+		}
 		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
 			'http://playground.test'
 		);
