@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { __private__dont__use } from '@php-wasm/universal';
 import type { MountHandler } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 	afterEach(() => {
@@ -149,6 +150,48 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(unmount).toHaveBeenCalledTimes(1);
 		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
+	});
+
+	it('prefers the flush error and logs the unmount error when both fail', async () => {
+		// Covers the most adversarial `unmountOpfs` quadrant: both the
+		// pre-unmount flush and the underlying unmount callback reject.
+		//
+		// The production code intentionally surfaces the *flush* error to
+		// the caller because it is the root cause (the unmount error is
+		// often a downstream symptom of an already-broken flush), and
+		// routes the unmount error through `logger.error` so it is not
+		// silently discarded. Registry cleanup must still happen.
+		//
+		// Without this test, a regression that flipped the priority
+		// (throwing the unmount error instead of the flush error) or
+		// dropped the unmount error without logging would go unnoticed.
+		const flushError = new Error('flush failed');
+		const unmountError = new Error('unmount failed');
+		const opfsMount = createOpfsMount();
+		opfsMount.flush.mockRejectedValueOnce(flushError);
+		const unmount = vi.fn(async () => {
+			throw unmountError;
+		});
+		const loggerError = vi
+			.spyOn(logger, 'error')
+			.mockImplementation(() => {});
+		try {
+			const endpoint = await createEndpoint(
+				{ '/wordpress': opfsMount },
+				{ '/wordpress': unmount }
+			);
+
+			await expect(endpoint.unmountOpfs('/wordpress')).rejects.toBe(
+				flushError
+			);
+
+			expect(unmount).toHaveBeenCalledTimes(1);
+			expect(loggerError).toHaveBeenCalledWith(unmountError);
+			expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
+			expect(endpoint.unmounts['/wordpress']).toBeUndefined();
+		} finally {
+			loggerError.mockRestore();
+		}
 	});
 
 	it('throws before mounting when an OPFS mount already exists', async () => {
