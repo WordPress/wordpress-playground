@@ -251,9 +251,16 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	// separately, and draining a TTY here would block forever.
 	let hostStdin: Buffer | undefined;
 	if (!process.stdin.isTTY) {
+		// Normalize each chunk to a Buffer. Node's async iterator on
+		// `process.stdin` yields Buffers in binary mode (the default),
+		// but yields strings if an upstream dependency called
+		// `process.stdin.setEncoding()`. `Buffer.concat` throws on
+		// strings, so coerce defensively.
 		const chunks: Buffer[] = [];
 		for await (const chunk of process.stdin) {
-			chunks.push(chunk as Buffer);
+			chunks.push(
+				Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string)
+			);
 		}
 		if (chunks.length > 0) {
 			hostStdin = Buffer.concat(chunks);
