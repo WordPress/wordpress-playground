@@ -1579,19 +1579,23 @@ export class PHP implements Disposable {
 
 		const release = await this.semaphore.acquire();
 
-		// Populate the per-runtime CLI stdin state installed by
-		// loadPHPRuntime. If the state is unavailable (caller supplied a
-		// custom Module.stdin callback), fall back to the runtime's own
-		// stdin wiring and ignore our option.
-		if (stdinBytes !== null) {
-			const cliStdinState = this[__private__dont__use].cliStdinState;
-			if (cliStdinState) {
-				cliStdinState.bytes = stdinBytes;
-				cliStdinState.cursor = 0;
-			}
-		}
-
 		return await this.#executeWithErrorHandling(() => {
+			// Populate the per-runtime CLI stdin state installed by
+			// loadPHPRuntime. This MUST happen inside
+			// #executeWithErrorHandling so it runs AFTER any runtime
+			// rotation — otherwise the bytes land on the old runtime's
+			// state and the new runtime's Module.stdin shim sees no
+			// bytes. If the state is unavailable (caller supplied a
+			// custom Module.stdin callback), fall back to the runtime's
+			// own stdin wiring and ignore our option.
+			if (stdinBytes !== null) {
+				const cliStdinState = this[__private__dont__use].cliStdinState;
+				if (cliStdinState) {
+					cliStdinState.bytes = stdinBytes;
+					cliStdinState.cursor = 0;
+				}
+			}
+
 			const env = options.env || {};
 			for (const [key, value] of Object.entries(env)) {
 				this.#setEnv(key, value);
