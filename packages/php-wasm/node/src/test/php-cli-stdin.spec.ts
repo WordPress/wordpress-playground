@@ -33,6 +33,10 @@ async function readText(stream: ReadableStream<Uint8Array>): Promise<string> {
 			},
 		})
 	);
+	// Flush any pending multi-byte sequence left in the decoder's
+	// internal buffer. Without this, a final chunk that ends mid-
+	// sequence would be silently dropped.
+	chunks.push(decoder.decode());
 	return chunks.join('');
 }
 

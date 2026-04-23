@@ -60,13 +60,20 @@ export async function coerceCliStdin(
 	const chunks: Uint8Array[] = [];
 	const reader = input.getReader();
 	let total = 0;
-	while (true) {
-		const { value, done } = await reader.read();
-		if (done) break;
-		if (value) {
-			chunks.push(value);
-			total += value.byteLength;
+	try {
+		while (true) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			if (value) {
+				chunks.push(value);
+				total += value.byteLength;
+			}
 		}
+	} finally {
+		// Release the lock even if the stream errors, so the caller
+		// isn't left holding an unusable locked stream. Good Web
+		// Streams citizenship.
+		reader.releaseLock();
 	}
 	const out = new Uint8Array(total);
 	let offset = 0;
