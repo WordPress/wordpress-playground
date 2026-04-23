@@ -214,6 +214,41 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(php.mount).not.toHaveBeenCalled();
 	});
 
+	it('rejects mountOpfs when only a stale unmount callback is tracked', async () => {
+		// The duplicate-mount guard in `mountOpfsIntoPhp` checks
+		// `opfsMounts` and `unmounts` with an OR, not an AND, so either
+		// registry alone should block a re-mount. This test covers the
+		// `unmounts`-only branch of that guard, which would be reachable
+		// if a prior `mountOpfsIntoPhp` call desynced the two registries
+		// (for example, a partial rollback on a previous failure).
+		//
+		// Without this test the OR branch for `unmounts` is unreachable
+		// from the existing suite, and a regression that tightened the
+		// guard to an AND would silently allow a re-mount on top of a
+		// stale unmount callback — leaking the old handler and leaving
+		// the system unable to ever unmount the new mount cleanly.
+		const staleUnmount = vi.fn(async () => {});
+		const endpoint = await createEndpoint(
+			{},
+			{ '/wordpress': staleUnmount }
+		);
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+
+		await expect(
+			endpoint.mountOpfs({
+				device: {
+					type: 'local-fs',
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint: '/wordpress',
+			})
+		).rejects.toThrow('OPFS mount already exists at "/wordpress".');
+
+		expect(php.mount).not.toHaveBeenCalled();
+		expect(staleUnmount).not.toHaveBeenCalled();
+	});
+
 	it('throws when unmounting a missing OPFS mount', async () => {
 		const endpoint = await createEndpoint({});
 
