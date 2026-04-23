@@ -1541,15 +1541,19 @@ export class PHP implements Disposable {
 	 * When `options.stdin` is provided, its bytes are delivered to PHP's
 	 * standard input for the duration of the CLI invocation. Inside PHP,
 	 * reads from `php://stdin`, `fread(STDIN, …)`, `file_get_contents(
-	 * 'php://stdin')`, and running a script from stdin (e.g. `php < script.
-	 * php`) all observe these bytes. This is how a consumer like a CLI
-	 * host process hands a user's piped input to PHP when the runtime
-	 * lives across an IPC or worker-thread boundary from the user's shell.
+	 * 'php://stdin')`, and running a script from stdin (e.g.
+	 * `php < script.php`) all observe these bytes. This is how a consumer
+	 * like a CLI host process hands a user's piped input to PHP when the
+	 * runtime lives across an IPC or worker-thread boundary from the
+	 * user's shell.
 	 *
-	 * When `options.stdin` is omitted, the runtime's default stdin
-	 * behavior applies — which on Node means reading from the host
-	 * process's `process.stdin.fd` (Emscripten default), and on Web means
-	 * an empty stdin.
+	 * When `options.stdin` is omitted, PHP sees an empty stdin (immediate
+	 * EOF). Callers that previously relied on Emscripten's implicit
+	 * `process.stdin.fd` inheritance on Node must now drain host stdin
+	 * themselves and pass it explicitly via `options.stdin` — see
+	 * `@php-wasm/cli` for an example. This explicitness is the whole
+	 * point: implicit inheritance silently breaks across IPC / worker
+	 * boundaries, which is the gap this option closes.
 	 *
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
@@ -1588,12 +1592,15 @@ export class PHP implements Disposable {
 			// bytes. If the state is unavailable (caller supplied a
 			// custom Module.stdin callback), fall back to the runtime's
 			// own stdin wiring and ignore our option.
-			if (stdinBytes !== null) {
-				const cliStdinState = this[__private__dont__use].cliStdinState;
-				if (cliStdinState) {
-					cliStdinState.bytes = stdinBytes;
-					cliStdinState.cursor = 0;
-				}
+			//
+			// Always reset the state at call entry — even when no
+			// stdin was provided — so a subsequent invocation never
+			// reads stale bytes from a prior call (defense in depth
+			// against runtime-rotation edge cases).
+			const cliStdinState = this[__private__dont__use].cliStdinState;
+			if (cliStdinState) {
+				cliStdinState.bytes = stdinBytes;
+				cliStdinState.cursor = 0;
 			}
 
 			const env = options.env || {};
