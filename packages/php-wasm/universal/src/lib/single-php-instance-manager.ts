@@ -57,7 +57,7 @@ export class SinglePHPInstanceManager implements PHPInstanceManager {
 	async acquirePHPInstance(): Promise<AcquiredPHP> {
 		if (this.isAcquired) {
 			throw new Error(
-				'The PHP instance already acquired. SinglePHPInstanceManager cannot spawn another PHP instance since, by definition, it only manages a single PHP instance.'
+				'The PHP instance is already acquired. SinglePHPInstanceManager cannot spawn another PHP instance since, by definition, it only manages a single PHP instance.'
 			);
 		}
 		const php = await this.getPrimaryPhp();
