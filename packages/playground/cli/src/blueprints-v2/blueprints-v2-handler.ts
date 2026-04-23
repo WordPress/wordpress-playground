@@ -46,7 +46,7 @@ export class BlueprintsV2Handler {
 	}
 
 	async bootWordPress(
-		playground: Pooled<PlaygroundCliWorker>,
+		playground: Pooled<RemoteAPI<PlaygroundCliWorker>>,
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		const workerBootArgs = {

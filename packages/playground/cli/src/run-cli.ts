@@ -7,6 +7,7 @@ import {
 	type PathAlias,
 	type RemoteAPI,
 	type AllPHPVersion,
+	type UniversalPHP,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -950,7 +951,7 @@ export type PlaygroundCliWorker =
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
 export interface RunCLIServer extends AsyncDisposable {
-	playground: Pooled<PlaygroundCliWorker>;
+	playground: Pooled<RemoteAPI<PlaygroundCliWorker>>;
 	server: Server;
 	serverUrl: string;
 
@@ -980,7 +981,7 @@ export async function runCLI(
 ): Promise<RunCLIServer>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
-	let playgroundPool: Pooled<PlaygroundCliWorker>;
+	let playgroundPool: Pooled<RemoteAPI<PlaygroundCliWorker>>;
 	const cookieStore = args.internalCookieStore
 		? new HttpCookieStore()
 		: undefined;
@@ -1583,20 +1584,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				await Promise.all(promisesToBoot);
-				// The pool is created over comlink `RemoteAPI<PlaygroundCliWorker>`
-				// instances, but `playgroundPool` is typed as `Pooled<PlaygroundCliWorker>`
-				// to keep the method-proxy ergonomics used by callers elsewhere
-				// (e.g. `playgroundPool.request(...)`, `playgroundPool.fileExists(...)`).
-				// The two `Pooled<>` shapes were structurally compatible before
-				// `__withInstance` landed; the callback's instance type now makes
-				// the T difference observable. An `unknown` cast localizes the
-				// known-safe widening without churning public signatures.
 				playgroundPool = createObjectPoolProxy(
 					spawnedWorkers.map(
 						(spawnedWorker) =>
 							workerToPlaygroundMap.get(spawnedWorker)!
 					)
-				) as unknown as Pooled<PlaygroundCliWorker>;
+				);
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
 				// while keeping the logic inline.
@@ -1635,6 +1628,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					wordPressReady = true;
 
+					// Casts to UniversalPHP at the blueprint/bridge handoff
+					// points: UniversalPHP is defined as
+					// `Pooled<LimitedPHPApi>` (among other arms), but the
+					// runtime pool holds `RemoteAPI<PlaygroundCliWorker>`
+					// instances. The two shapes expose the same methods
+					// through the proxy (both produce promises), but
+					// `Pooled<T>` now reveals T via `__withInstance`'s
+					// callback — making the structural difference
+					// observable. Widening `UniversalPHP` to allow
+					// `Pooled<RemoteAPI<LimitedPHPApi>>` is a cross-package
+					// public-type change worth a dedicated PR; these
+					// localized casts preserve the honest local typing
+					// without churning the blueprints API.
 					if (!args['experimental-blueprints-v2-runner']) {
 						const compiledBlueprint = await (
 							handler as BlueprintsV1Handler
@@ -1645,7 +1651,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						if (compiledBlueprint) {
 							await runBlueprintV1Steps(
 								compiledBlueprint,
-								playgroundPool
+								playgroundPool as unknown as UniversalPHP
 							);
 						}
 					}
@@ -1659,7 +1665,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					) {
 						const steps = await getPhpMyAdminInstallSteps();
 						const compiled = await compileBlueprintV1({ steps });
-						await runBlueprintV1Steps(compiled, playgroundPool);
+						await runBlueprintV1Steps(
+							compiled,
+							playgroundPool as unknown as UniversalPHP
+						);
 					}
 
 					if (args.command === 'build-snapshot') {
@@ -1719,7 +1728,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({
-						phpInstance: playgroundPool,
+						// See the UniversalPHP cast rationale above.
+						phpInstance: playgroundPool as unknown as UniversalPHP,
 						phpRoot: '/wordpress',
 					});
 
@@ -1811,15 +1821,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			// until streamResponse() fully drains ties the worker lifecycle
 			// to the HTTP response lifecycle, which restores true streaming
 			// for large responses and SSE without regressing concurrency.
-			//
-			// The `instance` cast is needed because `playgroundPool` is
-			// typed as `Pooled<PlaygroundCliWorker>` for the method-proxy
-			// ergonomics used elsewhere, but the underlying instances are
-			// comlink `RemoteAPI<PlaygroundCliWorker>` proxies. Calling
-			// methods on the raw instance requires the RemoteAPI shape.
-			await playgroundPool.__withInstance(async (rawInstance) => {
-				const instance =
-					rawInstance as unknown as RemoteAPI<PlaygroundCliWorker>;
+			await playgroundPool.__withInstance(async (instance) => {
 				const response = await instance.requestStreamed(request);
 
 				if (cookieStore) {
@@ -2100,7 +2102,7 @@ function openInBrowser(url: string): void {
 }
 
 async function zipSite(
-	playground: Pooled<PlaygroundCliWorker>,
+	playground: Pooled<RemoteAPI<PlaygroundCliWorker>>,
 	outfile: string
 ) {
 	await playground.run({

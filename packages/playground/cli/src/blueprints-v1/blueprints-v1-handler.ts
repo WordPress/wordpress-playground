@@ -4,6 +4,7 @@ import {
 	consumeAPI,
 	isLegacyPHPVersion,
 	type Pooled,
+	type RemoteAPI,
 	type UniversalPHP,
 } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
@@ -62,7 +63,7 @@ export class BlueprintsV1Handler {
 	}
 
 	async bootWordPress(
-		playground: Pooled<PlaygroundCliWorker>,
+		playground: Pooled<RemoteAPI<PlaygroundCliWorker>>,
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		let wpDetails: any = undefined;
