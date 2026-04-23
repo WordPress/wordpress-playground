@@ -249,4 +249,55 @@ describe('createPoolProxy', () => {
 
 		expect([first, second].sort()).toEqual(['a', 'b']);
 	});
+
+	it('does not mutate the caller-provided instances array', () => {
+		const instances = [{ id: 1 }, { id: 2 }];
+		const snapshot = [...instances];
+		const proxy = createObjectPoolProxy(instances);
+
+		// Evict both instances through the pool's control API.
+		// The caller's array must remain intact — only the pool's
+		// internal copy should be mutated.
+		proxy.__removeInstance(instances[0]);
+		proxy.__removeInstance(instances[1]);
+
+		expect(instances).toEqual(snapshot);
+	});
+
+	it('rejects queued waiters when the pool is drained to empty', async () => {
+		const instance = {
+			async work() {
+				await new Promise((r) => setTimeout(r, 50));
+				return 'done';
+			},
+		};
+
+		const proxy = createObjectPoolProxy([instance]);
+
+		// Acquire the only instance, then queue a second call.
+		const firstCall = proxy.work();
+		const queuedCall = proxy.work();
+
+		// Remove the only instance while the queued call is waiting.
+		// The queued call must reject with a clear error, not hang.
+		proxy.__removeInstance(instance);
+
+		await expect(queuedCall).rejects.toThrow(/Pool is empty/);
+		// The in-flight call still completes normally — removal only
+		// marks it for discard on release.
+		await expect(firstCall).resolves.toBe('done');
+	});
+
+	it('rejects fresh acquisitions after the pool is drained', async () => {
+		const instance = { value: 1 };
+		const proxy = createObjectPoolProxy([instance]);
+
+		proxy.__removeInstance(instance);
+
+		// Any subsequent access must fail fast rather than hang
+		// forever waiting on a pool with zero capacity.
+		await expect(Promise.resolve(proxy.value)).rejects.toThrow(
+			/Pool is empty/
+		);
+	});
 });

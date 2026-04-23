@@ -57,17 +57,28 @@ export function createObjectPoolProxy<T extends object>(
 		throw new Error('At least one instance is required');
 	}
 
+	// Copy the caller's array so pool eviction (via __removeInstance)
+	// never mutates input the caller may still hold a reference to.
+	// `freeInstances` and `allInstances` are both owned by the pool.
+	const allInstances: T[] = [...instances];
 	const freeInstances: T[] = [...instances];
-	const waitQueue: Array<(instance: T) => void> = [];
+	// Waiters hold both resolve and reject so capacity loss
+	// (see removeInstance below) can fail them with a clear error
+	// instead of leaving them hung on acquire() forever.
+	interface Waiter {
+		resolve: (instance: T) => void;
+		reject: (error: Error) => void;
+	}
+	const waitQueue: Waiter[] = [];
 	const removedInstances = new Set<T>();
 
 	function removeInstance(instance: unknown): void {
 		const inst = instance as T;
 
 		// Remove from the canonical list
-		const idx = instances.indexOf(inst);
+		const idx = allInstances.indexOf(inst);
 		if (idx !== -1) {
-			instances.splice(idx, 1);
+			allInstances.splice(idx, 1);
 		}
 
 		// Remove from the free list if it's currently free
@@ -78,6 +89,24 @@ export function createObjectPoolProxy<T extends object>(
 			// Instance is currently busy — mark it for removal on release
 			removedInstances.add(inst);
 		}
+
+		// If the pool has drained to zero capacity, fail any queued
+		// waiters with a clear error instead of letting them hang
+		// forever. Without this, a caller awaiting acquire() when the
+		// last worker dies would deadlock: no instance will ever be
+		// released back to wake them.
+		if (allInstances.length === 0 && waitQueue.length > 0) {
+			const waiters = waitQueue.splice(0, waitQueue.length);
+			for (const waiter of waiters) {
+				waiter.reject(
+					new Error(
+						'Pool is empty: all instances have been removed ' +
+							'(likely because every worker crashed). ' +
+							'Pending acquisitions cannot be satisfied.'
+					)
+				);
+			}
+		}
 	}
 
 	function acquire(): Promise<T> {
@@ -85,8 +114,19 @@ export function createObjectPoolProxy<T extends object>(
 		if (free !== undefined) {
 			return Promise.resolve(free);
 		}
-		return new Promise<T>((resolve) => {
-			waitQueue.push(resolve);
+		if (allInstances.length === 0) {
+			// Pool was drained before this acquire() was called.
+			// Fail fast instead of pushing onto a queue that will
+			// never drain.
+			return Promise.reject(
+				new Error(
+					'Pool is empty: cannot acquire an instance from ' +
+						'a pool with zero capacity.'
+				)
+			);
+		}
+		return new Promise<T>((resolve, reject) => {
+			waitQueue.push({ resolve, reject });
 		});
 	}
 
@@ -99,7 +139,7 @@ export function createObjectPoolProxy<T extends object>(
 
 		const waiter = waitQueue.shift();
 		if (waiter) {
-			waiter(instance);
+			waiter.resolve(instance);
 		} else {
 			freeInstances.push(instance);
 		}
