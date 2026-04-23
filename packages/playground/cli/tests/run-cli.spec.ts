@@ -1503,7 +1503,13 @@ describe('other run-cli behaviors', () => {
 			const throwAnError = (() => {
 				throw new Error('test error');
 			}) as any;
-			cliServer.playground.request = throwAnError;
+			// handleRequest now scopes acquire/release through
+			// __withInstance to bind the worker lifecycle to the full
+			// response stream. Stub that entry point so the request
+			// handler sees an error and surfaces a 500. (Previously we
+			// stubbed .request() for the buffered path, and before that
+			// .requestStreamed() for the original streaming path.)
+			(cliServer.playground as any).__withInstance = throwAnError;
 
 			const response = await fetch(new URL('/', cliServer.serverUrl));
 			expect(response.status).toBe(500);
