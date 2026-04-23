@@ -1583,12 +1583,20 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				await Promise.all(promisesToBoot);
+				// The pool is created over comlink `RemoteAPI<PlaygroundCliWorker>`
+				// instances, but `playgroundPool` is typed as `Pooled<PlaygroundCliWorker>`
+				// to keep the method-proxy ergonomics used by callers elsewhere
+				// (e.g. `playgroundPool.request(...)`, `playgroundPool.fileExists(...)`).
+				// The two `Pooled<>` shapes were structurally compatible before
+				// `__withInstance` landed; the callback's instance type now makes
+				// the T difference observable. An `unknown` cast localizes the
+				// known-safe widening without churning public signatures.
 				playgroundPool = createObjectPoolProxy(
 					spawnedWorkers.map(
 						(spawnedWorker) =>
 							workerToPlaygroundMap.get(spawnedWorker)!
 					)
-				);
+				) as unknown as Pooled<PlaygroundCliWorker>;
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
 				// while keeping the logic inline.
@@ -1794,27 +1802,41 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				};
 			}
 
-			// Use the non-streaming request() method through the pool proxy.
-			// This ensures the pool holds the worker for the entire PHP
-			// execution lifecycle. The pool proxy releases the worker when
-			// the method's promise resolves — with requestStreamed(), that
-			// happens when the response *starts* streaming (before PHP
-			// finishes), causing "PHP instance already acquired" errors
-			// on concurrent requests. Using request() instead means the
-			// worker is only released after PHP has fully completed.
-			const response = await playgroundPool.request(request);
+			// Scope the acquire/release around the full stream drain via
+			// __withInstance. The pool proxy's default per-call semantics
+			// release the worker when requestStreamed()'s promise resolves
+			// — which is when the response *starts* streaming, before PHP
+			// finishes writing the body. That caused "PHP instance already
+			// acquired" errors under concurrency. Holding the pool instance
+			// until streamResponse() fully drains ties the worker lifecycle
+			// to the HTTP response lifecycle, which restores true streaming
+			// for large responses and SSE without regressing concurrency.
+			//
+			// The `instance` cast is needed because `playgroundPool` is
+			// typed as `Pooled<PlaygroundCliWorker>` for the method-proxy
+			// ergonomics used elsewhere, but the underlying instances are
+			// comlink `RemoteAPI<PlaygroundCliWorker>` proxies. Calling
+			// methods on the raw instance requires the RemoteAPI shape.
+			await playgroundPool.__withInstance(async (rawInstance) => {
+				const instance =
+					rawInstance as unknown as RemoteAPI<PlaygroundCliWorker>;
+				const response = await instance.requestStreamed(request);
 
-			if (cookieStore) {
-				cookieStore.rememberCookiesFromResponseHeaders(
-					response.headers
-				);
-				// While we have an internal cookie store, we filter out the
-				// Set-Cookie headers from responses so the browser does not
-				// attempt to manage cookies at the same time as the server.
-				delete response.headers['set-cookie'];
-			}
+				if (cookieStore) {
+					const headers = await response.headers;
+					cookieStore.rememberCookiesFromResponseHeaders(headers);
+					// While we have an internal cookie store, we filter out
+					// the Set-Cookie headers from responses so the browser
+					// does not attempt to manage cookies at the same time
+					// as the server.
+					delete headers['set-cookie'];
+				}
 
-			await streamResponse(StreamedPHPResponse.fromPHPResponse(response));
+				// The callback must not resolve until streamResponse has
+				// fully drained — that is what keeps the worker bound to
+				// this request for the entire response lifecycle.
+				await streamResponse(response);
+			});
 		},
 	}).catch((error) => {
 		cliOutput.printError(describeError(error));

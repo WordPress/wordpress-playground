@@ -300,4 +300,114 @@ describe('createPoolProxy', () => {
 			/Pool is empty/
 		);
 	});
+
+	describe('__withInstance', () => {
+		it('releases the instance only after the callback promise resolves', async () => {
+			// One instance, one long-running __withInstance call.
+			// A concurrent proxy call must wait until the callback
+			// finishes — not until any intermediate promise inside
+			// the callback resolves.
+			const accessLog: string[] = [];
+			const instance = {
+				async step(label: string) {
+					accessLog.push(`step-${label}`);
+					await new Promise((r) => setTimeout(r, 10));
+					return label;
+				},
+			};
+
+			const proxy = createObjectPoolProxy([instance]);
+
+			let callbackDone = false;
+			const withInstanceCall = proxy.__withInstance(async (inst) => {
+				// Multiple proxied calls inside a single held instance.
+				// Simulates streaming where the response starts before
+				// the body is drained.
+				await inst.step('first');
+				accessLog.push('mid');
+				await new Promise((r) => setTimeout(r, 30));
+				await inst.step('second');
+				callbackDone = true;
+				return 'withInstance-done';
+			});
+
+			// Start a concurrent proxied call after a short delay.
+			// It must queue behind the held instance and only run
+			// after the callback has fully resolved.
+			const concurrentCall = (async () => {
+				await new Promise((r) => setTimeout(r, 5));
+				accessLog.push('concurrent-enqueued');
+				const result = await proxy.step('concurrent');
+				// Assert the callback had already completed by the
+				// time we acquired the instance.
+				expect(callbackDone).toBe(true);
+				return result;
+			})();
+
+			const [withResult, concResult] = await Promise.all([
+				withInstanceCall,
+				concurrentCall,
+			]);
+
+			expect(withResult).toBe('withInstance-done');
+			expect(concResult).toBe('concurrent');
+
+			// The concurrent call was enqueued mid-callback but ran
+			// only after the callback fully finished.
+			expect(accessLog).toEqual([
+				'step-first',
+				'concurrent-enqueued',
+				'mid',
+				'step-second',
+				'step-concurrent',
+			]);
+		});
+
+		it('releases the instance when the callback throws async', async () => {
+			const instance = {
+				async ok() {
+					return 'ok';
+				},
+			};
+
+			const proxy = createObjectPoolProxy([instance]);
+
+			await expect(
+				proxy.__withInstance(async () => {
+					await new Promise((r) => setTimeout(r, 10));
+					throw new Error('callback boom');
+				})
+			).rejects.toThrow('callback boom');
+
+			// Instance must be back in the free pool — subsequent
+			// calls proceed immediately.
+			expect(await proxy.ok()).toBe('ok');
+		});
+
+		it('releases the instance when the callback throws sync', async () => {
+			const instance = {
+				async ok() {
+					return 'ok';
+				},
+			};
+
+			const proxy = createObjectPoolProxy([instance]);
+
+			await expect(
+				proxy.__withInstance(() => {
+					throw new Error('sync boom');
+				})
+			).rejects.toThrow('sync boom');
+
+			expect(await proxy.ok()).toBe('ok');
+		});
+
+		it('passes the raw instance, not a proxy', async () => {
+			const instance = { marker: Symbol('raw-instance'), value: 1 };
+			const proxy = createObjectPoolProxy([instance]);
+
+			const received = await proxy.__withInstance(async (inst) => inst);
+			expect(received).toBe(instance);
+		});
+	});
 });

@@ -34,6 +34,23 @@ export type Pooled<T extends object> = Omit<
 	 * requests to a dead worker.
 	 */
 	__removeInstance(instance: unknown): void;
+
+	/**
+	 * Acquire an instance, invoke `fn` with it, and release the
+	 * instance only after `fn`'s returned promise resolves (or
+	 * throws). Use this when a single logical unit of work spans
+	 * multiple proxied calls or outlives a single method invocation
+	 * — e.g. a streaming HTTP response where PHP execution must
+	 * remain bound to one worker until the stream fully drains.
+	 *
+	 * The default per-call acquire/release semantics of the proxy
+	 * release the instance as soon as the proxied method's promise
+	 * resolves, which is too early for streamed responses: the
+	 * response object is returned before the body finishes
+	 * streaming, so the worker would be handed to a concurrent
+	 * request mid-stream.
+	 */
+	__withInstance<R>(fn: (instance: T) => R | Promise<R>): Promise<R>;
 };
 
 /**
@@ -183,9 +200,11 @@ export function createObjectPoolProxy<T extends object>(
 	}
 
 	const proxyTarget = {} as Pooled<T>;
-	// Expose __removeInstance directly on the target so it's found
-	// by the `prop in _target` check before hitting the proxy trap.
+	// Expose __removeInstance and __withInstance directly on the
+	// target so they're found by the `prop in _target` check before
+	// hitting the proxy trap.
 	(proxyTarget as any).__removeInstance = removeInstance;
+	(proxyTarget as any).__withInstance = withInstance;
 
 	return new Proxy(proxyTarget, {
 		get(_target, prop: string | symbol) {
