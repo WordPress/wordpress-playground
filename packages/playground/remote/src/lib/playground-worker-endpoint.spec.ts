@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { __private__dont__use } from '@php-wasm/universal';
 import type { MountHandler } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 	afterEach(() => {
@@ -105,6 +106,33 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
 
+	it('rethrows and clears tracking when flush succeeds but unmount fails', async () => {
+		// Covers the `unmountOpfs` failure matrix quadrant where the flush
+		// before unmount resolves cleanly but the underlying PHP unmount
+		// callback throws. In this case the unmount error is the *only*
+		// signal callers get, so it must be re-thrown unchanged, and the
+		// mount registries must still be cleaned up in the `finally` block
+		// to avoid a stuck mountpoint that blocks future `mountOpfs` calls.
+		const unmountError = new Error('unmount failed');
+		const opfsMount = createOpfsMount();
+		const unmount = vi.fn(async () => {
+			throw unmountError;
+		});
+		const endpoint = await createEndpoint(
+			{ '/wordpress': opfsMount },
+			{ '/wordpress': unmount }
+		);
+
+		await expect(endpoint.unmountOpfs('/wordpress')).rejects.toBe(
+			unmountError
+		);
+
+		expect(opfsMount.flush).toHaveBeenCalledTimes(1);
+		expect(unmount).toHaveBeenCalledTimes(1);
+		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
+		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
+	});
+
 	it('removes mount tracking when the flush before unmount fails', async () => {
 		const flushError = new Error('flush failed');
 		const opfsMount = createOpfsMount();
@@ -122,6 +150,48 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(unmount).toHaveBeenCalledTimes(1);
 		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
+	});
+
+	it('prefers the flush error and logs the unmount error when both fail', async () => {
+		// Covers the most adversarial `unmountOpfs` quadrant: both the
+		// pre-unmount flush and the underlying unmount callback reject.
+		//
+		// The production code intentionally surfaces the *flush* error to
+		// the caller because it is the root cause (the unmount error is
+		// often a downstream symptom of an already-broken flush), and
+		// routes the unmount error through `logger.error` so it is not
+		// silently discarded. Registry cleanup must still happen.
+		//
+		// Without this test, a regression that flipped the priority
+		// (throwing the unmount error instead of the flush error) or
+		// dropped the unmount error without logging would go unnoticed.
+		const flushError = new Error('flush failed');
+		const unmountError = new Error('unmount failed');
+		const opfsMount = createOpfsMount();
+		opfsMount.flush.mockRejectedValueOnce(flushError);
+		const unmount = vi.fn(async () => {
+			throw unmountError;
+		});
+		const loggerError = vi
+			.spyOn(logger, 'error')
+			.mockImplementation(() => {});
+		try {
+			const endpoint = await createEndpoint(
+				{ '/wordpress': opfsMount },
+				{ '/wordpress': unmount }
+			);
+
+			await expect(endpoint.unmountOpfs('/wordpress')).rejects.toBe(
+				flushError
+			);
+
+			expect(unmount).toHaveBeenCalledTimes(1);
+			expect(loggerError).toHaveBeenCalledWith(unmountError);
+			expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
+			expect(endpoint.unmounts['/wordpress']).toBeUndefined();
+		} finally {
+			loggerError.mockRestore();
+		}
 	});
 
 	it('throws before mounting when an OPFS mount already exists', async () => {
@@ -142,6 +212,41 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		).rejects.toThrow('OPFS mount already exists at "/wordpress".');
 
 		expect(php.mount).not.toHaveBeenCalled();
+	});
+
+	it('rejects mountOpfs when only a stale unmount callback is tracked', async () => {
+		// The duplicate-mount guard in `mountOpfsIntoPhp` checks
+		// `opfsMounts` and `unmounts` with an OR, not an AND, so either
+		// registry alone should block a re-mount. This test covers the
+		// `unmounts`-only branch of that guard, which would be reachable
+		// if a prior `mountOpfsIntoPhp` call desynced the two registries
+		// (for example, a partial rollback on a previous failure).
+		//
+		// Without this test the OR branch for `unmounts` is unreachable
+		// from the existing suite, and a regression that tightened the
+		// guard to an AND would silently allow a re-mount on top of a
+		// stale unmount callback — leaking the old handler and leaving
+		// the system unable to ever unmount the new mount cleanly.
+		const staleUnmount = vi.fn(async () => {});
+		const endpoint = await createEndpoint(
+			{},
+			{ '/wordpress': staleUnmount }
+		);
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+
+		await expect(
+			endpoint.mountOpfs({
+				device: {
+					type: 'local-fs',
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint: '/wordpress',
+			})
+		).rejects.toThrow('OPFS mount already exists at "/wordpress".');
+
+		expect(php.mount).not.toHaveBeenCalled();
+		expect(staleUnmount).not.toHaveBeenCalled();
 	});
 
 	it('throws when unmounting a missing OPFS mount', async () => {

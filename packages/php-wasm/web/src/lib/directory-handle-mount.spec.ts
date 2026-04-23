@@ -148,6 +148,43 @@ describe('journalFSEventsToOpfs', () => {
 		await firstFlush;
 	});
 
+	it('processes new writes on a subsequent flush after the previous flush succeeded', async () => {
+		// Regression guard for the `flushPromise` single-flight reset on the
+		// success path. If `flushPromise` were not cleared in the `.finally()`
+		// callback after a successful flush, a subsequent `flush()` call would
+		// return the already-resolved promise and silently skip any new
+		// journal entries that arrived after the first flush completed.
+		//
+		// The existing "can retry after a failed explicit flush" test covers
+		// the reset after a rejection; this test covers the reset after a
+		// fulfillment.
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/wordpress/first.txt', encode('first'));
+		FS.write({ path: '/wordpress/first.txt' });
+		const firstFlush = mount.flush();
+		await firstFlush;
+		expect(decode(opfsRoot.files.get('first.txt')!.bytes)).toBe('first');
+
+		files.set('/wordpress/second.txt', encode('second'));
+		FS.write({ path: '/wordpress/second.txt' });
+		const secondFlush = mount.flush();
+
+		// A new flush must produce a new promise instance. If it is the
+		// same promise returned from `firstFlush`, the single-flight state
+		// was never cleared and the new write will not be processed.
+		expect(secondFlush).not.toBe(firstFlush);
+
+		await secondFlush;
+		expect(decode(opfsRoot.files.get('second.txt')!.bytes)).toBe('second');
+	});
+
 	it('flushes writes that arrive while a flush is running', async () => {
 		let writeCount = 0;
 		const { FS, files, php } = createFakePhp();
