@@ -221,7 +221,10 @@ jobs:
                             step: "installPlugin",
                             pluginData: {
                               resource: "git:directory",
-                              url: `https://github.com/${context.repo.owner}/${context.repo.repo}.git`,
+                              // Use head.repo.full_name, not context.repo. PRs from forks
+                              // live on the contributor's fork, not the base repository —
+                              // pointing at context.repo.* will 404 for every fork PR.
+                              url: `https://github.com/${context.payload.pull_request.head.repo.full_name}`,
                               ref: context.payload.pull_request.head.ref,
                               path: "/"
                             }
@@ -295,6 +298,10 @@ Configuration options: [Expose Artifact Inputs](https://github.com/WordPress/act
 **Button appears but preview fails to load (404):** For built-artifact workflows, the `ci-artifacts` release is still a draft. Publish it once from the Releases page. See [Working with built artifacts](#working-with-built-artifacts).
 
 **`plugin-path` or `theme-path` resolves to an empty directory:** The path is relative to the repository root, not to the workflow file. Use `.` for repo-root plugins, `plugins/my-plugin` for subdirectories.
+
+**`Git ref refs/heads/<branch> not found` on a fork PR:** Your blueprint uses `context.repo.owner`/`context.repo.repo` to build the `git:directory` URL, which points at the base repository. Fork PRs live on the contributor's fork — use `context.payload.pull_request.head.repo.full_name` and `head.ref` instead. Also drop any trailing `.git` from the URL; `git:directory` does not accept it.
+
+**Blueprint references `github-proxy.com` and times out:** The community `github-proxy.com` service is unreliable. Switch to the `git:directory` resource (shown in [Custom blueprints](#custom-blueprints)), which fetches directly from GitHub and does not need a proxy. Playground's built-in `plugin-proxy.php` only accepts repos under `wordpress`, `automattic`, and `woocommerce`, so it is not a general fallback.
 
 **Plugin/theme not activated:** Check the browser console for PHP errors. Dependencies may be missing, or the plugin's main file may not match the directory name.
 
