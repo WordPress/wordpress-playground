@@ -52,16 +52,429 @@ export const PlaygroundViewport = () => {
 };
 
 function getWelcomeHtml(): string {
-	const s = welcomeStrings.firstTime;
-	const bullets = s.bullets.map((b) => `<li>${b}</li>`).join('');
-	return [
-		`<h1>${s.title}</h1>`,
-		`<p class="subtitle">${s.subtitle}</p>`,
-		`<p>${s.intro}</p>`,
-		`<h2>${s.aFewThingsHeading}</h2>`,
-		`<ul>${bullets}</ul>`,
-		`<div class="tip-box">${s.bookmarkTip}</div>`,
-	].join('');
+	return `
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #f5f1ea;
+    --bg-warm: #ede7dc;
+    --ink: #1f1d1a;
+    --ink-soft: #5a554c;
+    --ink-faint: #a8a197;
+    --accent: #c44b2c;
+    --thread: rgba(31, 29, 26, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* position: fixed + inset: 0 escapes the welcome-content 680px container.
+     z-index: 4 keeps it below the ProgressBar pill (z-index: 6). */
+  .stage {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter Tight', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    padding: 48px 24px 28px;
+    max-width: none;
+  }
+
+  .stage::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(196, 75, 44, 0.04), transparent 60%),
+      radial-gradient(ellipse at 70% 80%, rgba(232, 148, 120, 0.05), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+    margin-bottom: 12px;
+    opacity: 0;
+    animation: rise 0.8s ease-out 0.1s forwards;
+    position: relative;
+    z-index: 1;
+  }
+  .eyebrow .pulse {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    animation: blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 0.35; }
+    50%       { opacity: 1; }
+  }
+
+  .headline {
+    font-family: 'Instrument Serif', serif;
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+    opacity: 0;
+    animation: rise 0.9s ease-out 0.3s forwards;
+    position: relative;
+    z-index: 1;
+  }
+  .headline em { font-style: italic; color: var(--accent); }
+
+  .intro {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: 360px;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: rise 0.9s ease-out 0.5s forwards;
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .field {
+    flex: 1;
+    position: relative;
+    min-height: 320px;
+    margin: 0 -24px;
+    overflow: hidden;
+  }
+
+  /* Let expanded cards grow past the field boundary */
+  .stage:has(.card-toggle:checked) .field { overflow: visible; }
+
+  .threads {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    animation: fade-in 1.2s ease-out 3.8s forwards;
+  }
+  .threads svg { width: 100%; height: 100%; }
+  .threads path { fill: none; stroke: var(--thread); stroke-width: 1; stroke-dasharray: 3 4; }
+  @keyframes fade-in { to { opacity: 1; } }
+
+  .card {
+    position: absolute;
+    width: 180px;
+    opacity: 0;
+    cursor: pointer;
+    display: block;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(31, 29, 26, 0.04), 0 8px 24px rgba(31, 29, 26, 0.06);
+    overflow: hidden;
+    /* rotate is intentionally absent from drift-in keyframes so this
+       transition owns it and can override animation fill-mode on expand */
+    transition:
+      rotate     0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+      width      0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.2s ease;
+  }
+  .card:hover { box-shadow: 0 1px 3px rgba(31, 29, 26, 0.06), 0 10px 30px rgba(31, 29, 26, 0.12); }
+
+  .card-front {
+    height: 66px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .card-front .icon {
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+  .card-front .label { font-size: 13px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
+  .card-front .sub   { font-size: 10px; color: var(--ink-faint); margin-top: 2px; letter-spacing: 0.02em; }
+
+  .card-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .detail-inner { padding: 10px 14px 14px; border-top: 1px solid var(--thread); }
+
+  .detail-close {
+    display: block; float: right; clear: right;
+    margin: 0 0 6px 8px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--bg-warm); color: var(--ink-soft);
+    font-size: 12px; line-height: 20px; text-align: center;
+    cursor: pointer; font-style: normal;
+  }
+
+  .detail-label {
+    font-size: 10px; font-weight: 600; color: var(--ink-faint);
+    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 7px;
+  }
+  .detail-body { font-size: 11.5px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 6px; }
+  .detail-body strong { color: var(--ink); font-weight: 500; }
+  .detail-sep { height: 1px; background: var(--thread); margin: 8px 0; }
+
+  .detail-list { list-style: none; padding: 0; margin: 0; }
+  .detail-list li {
+    padding: 5px 0; border-bottom: 1px solid var(--thread);
+    font-size: 11px; color: var(--ink); display: flex; gap: 6px; align-items: flex-start;
+  }
+  .detail-list li:last-child { border-bottom: none; }
+  .detail-list .li-main { flex: 1; }
+  .detail-list .li-sub  { font-size: 10px; color: var(--ink-faint); margin-top: 2px; }
+  .detail-list .li-note { font-size: 10px; color: var(--ink-faint); margin-left: auto; white-space: nowrap; }
+  .detail-list .li-done { color: var(--accent); }
+
+  /* Positions + rotations. rotate is a plain CSS property (not in keyframes)
+     so the transition can smoothly animate it to 0 on card open. */
+  .c1 { top: 4%;  left: 4%;   rotate: -2deg;  animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 0.8s forwards; }
+  .c1 .icon { background: #fef0e8; color: #c44b2c; }
+  .c2 { top: 2%;  right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.4s forwards; }
+  .c2 .icon { background: #e8f0e3; color: #5a7a3f; }
+  .c3 { top: 26%; left: 12%;  rotate: -1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.3s forwards; }
+  .c3 .icon { background: #e8ecf4; color: #3f5a7a; }
+  .c4 { top: 26%; right: 4%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 3.0s forwards; }
+  .c4 .icon { background: #f4e8ef; color: #7a3f5f; }
+  .c5 { top: 48%; left: 6%;   rotate: -2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.1s forwards; }
+  .c5 .icon { background: #fef5e0; color: #a8762a; }
+  .c6 { top: 50%; right: 10%; rotate:  2deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.0s forwards; }
+  .c6 .icon { background: #eae4f2; color: #5a3f7a; }
+  .c7 { top: 72%; left: 14%;  rotate: -1deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.7s forwards; }
+  .c7 .icon { background: #e0f0ee; color: #2a7a6e; }
+  .c8 { top: 72%; right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.6s forwards; }
+  .c8 .icon { background: #f5e3e0; color: #a54a3a; }
+
+  /* Only translate + scale + opacity — rotate excluded so transition owns it */
+  @keyframes drift-in {
+    0%   { opacity: 0; translate: 0 16px; scale: 0.94; }
+    100% { opacity: 1; translate: 0 0;    scale: 1;    }
+  }
+
+  .footer {
+    margin-top: 14px;
+    opacity: 0;
+    animation: rise 0.8s ease-out 0.7s forwards;
+    position: relative;
+    z-index: 1;
+  }
+  .status { font-size: 11px; color: var(--ink-soft); letter-spacing: 0.04em; }
+
+  .card-toggle { display: none; position: absolute; }
+
+  #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
+  #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
+  #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
+  #t7:checked ~ .field .c7, #t8:checked ~ .field .c8 {
+    rotate: 0deg !important;
+    width: min(240px, calc(100vw - 48px)) !important;
+    z-index: 20 !important;
+    box-shadow: 0 2px 4px rgba(31,29,26,0.06), 0 16px 40px rgba(31,29,26,0.14) !important;
+  }
+
+  #t1:checked ~ .field .c1 .card-detail, #t2:checked ~ .field .c2 .card-detail,
+  #t3:checked ~ .field .c3 .card-detail, #t4:checked ~ .field .c4 .card-detail,
+  #t5:checked ~ .field .c5 .card-detail, #t6:checked ~ .field .c6 .card-detail,
+  #t7:checked ~ .field .c7 .card-detail, #t8:checked ~ .field .c8 .card-detail {
+    max-height: 260px;
+  }
+
+  @media (min-width: 640px) {
+    .stage { padding: 48px 48px 32px; }
+    .headline { font-size: 48px; }
+    .intro { max-width: 460px; }
+    .card { width: 220px; }
+    .card-front { height: 78px; }
+    .card-front .icon { width: 40px; height: 40px; font-size: 20px; }
+    .card-front .label { font-size: 14px; }
+    .card-front .sub   { font-size: 11px; }
+    .c1 { top: 4%;  left: 2%;   right: auto; }
+    .c2 { top: 2%;  left: 36%;  right: auto; }
+    .c3 { top: 4%;  left: auto; right: 2%;   }
+    .c4 { top: 40%; left: auto; right: 2%;   }
+    .c5 { top: 38%; left: 6%;   right: auto; }
+    .c6 { top: 40%; left: 37%;  right: auto; }
+    .c7 { top: 72%; left: 12%;  right: auto; }
+    .c8 { top: 72%; left: auto; right: 4%;   }
+    #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
+    #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
+    #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
+    #t7:checked ~ .field .c7, #t8:checked ~ .field .c8 {
+      width: min(280px, calc(100vw - 64px)) !important;
+    }
+  }
+</style>
+
+<div class="stage">
+  <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
+  <input type="radio" name="card-panel" id="t1" class="card-toggle">
+  <input type="radio" name="card-panel" id="t2" class="card-toggle">
+  <input type="radio" name="card-panel" id="t3" class="card-toggle">
+  <input type="radio" name="card-panel" id="t4" class="card-toggle">
+  <input type="radio" name="card-panel" id="t5" class="card-toggle">
+  <input type="radio" name="card-panel" id="t6" class="card-toggle">
+  <input type="radio" name="card-panel" id="t7" class="card-toggle">
+  <input type="radio" name="card-panel" id="t8" class="card-toggle">
+
+  <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
+  <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
+  <p class="intro">Install the tools you need — a reading list, a contacts app, a journal — and they're yours alone, in this tab.</p>
+
+  <div class="field">
+    <div class="threads">
+      <svg viewBox="0 0 480 400" preserveAspectRatio="none">
+        <path d="M 90 60 Q 200 100 240 180"/>
+        <path d="M 380 50 Q 300 120 280 200"/>
+        <path d="M 120 180 Q 220 240 200 320"/>
+        <path d="M 400 220 Q 340 280 320 340"/>
+        <path d="M 240 180 Q 260 240 200 320"/>
+      </svg>
+    </div>
+
+    <label class="card c1" for="t1">
+      <div class="card-front">
+        <div class="icon">✎</div>
+        <div class="text"><div class="label">Journal</div><div class="sub">private notes</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Journal · entry</div>
+        <p class="detail-body" style="font-style:italic;color:var(--ink-faint);font-size:10px;margin-bottom:4px">Tuesday, a quiet evening</p>
+        <p class="detail-body">No account, no password. Everything you write stays on this device, in this tab.</p>
+      </div></div>
+    </label>
+
+    <label class="card c2" for="t2">
+      <div class="card-front">
+        <div class="icon">★</div>
+        <div class="text"><div class="label">Reading list</div><div class="sub">save &amp; revisit</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">3 saved</div>
+        <ul class="detail-list">
+          <li><div class="li-main"><div>What is digital sovereignty?</div><div class="li-sub">Owning your tools, not renting them</div></div></li>
+          <li><div class="li-main"><div>The sandbox is the feature</div><div class="li-sub">Why running in a browser changes everything</div></div></li>
+          <li style="color:var(--ink-faint)"><div class="li-main"><div>Moving to a real host, one day</div></div></li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c3" for="t3">
+      <div class="card-front">
+        <div class="icon">✦</div>
+        <div class="text"><div class="label">Install apps</div><div class="sub">tap + to browse</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">How to install</div>
+        <p class="detail-body">Tap <strong>+</strong> to browse journals, contacts, reading lists, and more. Install is instant — no server needed.</p>
+      </div></div>
+    </label>
+
+    <label class="card c4" for="t4">
+      <div class="card-front">
+        <div class="icon">♥</div>
+        <div class="text"><div class="label">Contacts</div><div class="sub">people you know</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Personal CRM</div>
+        <ul class="detail-list">
+          <li><div class="li-main"><div>Maya</div><div class="li-sub">"showed me this — a private WordPress in the browser?"</div></div></li>
+          <li><div class="li-main"><div>Jonas</div><div class="li-sub">coffee soon · birthday in March</div></div></li>
+          <li><div class="li-main"><div>Ren</div><div class="li-sub">sent that article about data ownership</div></div></li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c5" for="t5">
+      <div class="card-front">
+        <div class="icon">◐</div>
+        <div class="text"><div class="label">Site Tools</div><div class="sub">bottom-left corner</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Always there</div>
+        <ul class="detail-list">
+          <li><div class="li-main li-done">Install apps</div><span class="li-note li-done">✓ from the store</span></li>
+          <li><div class="li-main">Manage files</div><span class="li-note">browse &amp; edit</span></li>
+          <li><div class="li-main">View logs</div><span class="li-note">see what's up</span></li>
+          <li><div class="li-main">Restore a backup</div><span class="li-note">if needed</span></li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c6" for="t6">
+      <div class="card-front">
+        <div class="icon">◎</div>
+        <div class="text"><div class="label">Daily backups</div><div class="sub">automatic</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">How it works</div>
+        <p class="detail-body">A copy downloaded to your device daily. Change the schedule in Site Tools.</p>
+        <div class="detail-sep"></div>
+        <p class="detail-body">If this tab is ever cleared, point Site Tools at your saved file to restore everything.</p>
+      </div></div>
+    </label>
+
+    <label class="card c7" for="t7">
+      <div class="card-front">
+        <div class="icon">◆</div>
+        <div class="text"><div class="label">Bookmark this</div><div class="sub">it's your WordPress</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Don't lose this</div>
+        <ul class="detail-list">
+          <li>⭐ Bookmark this page — it's your WordPress now</li>
+          <li>The Site Tools icon is in the bottom-left corner</li>
+          <li>Export and move to any host, one day</li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c8" for="t8">
+      <div class="card-front">
+        <div class="icon">⊙</div>
+        <div class="text"><div class="label">Your data</div><div class="sub">stays here</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Where it lives</div>
+        <ul class="detail-list">
+          <li><span style="color:var(--accent);font-weight:600;min-width:14px">1</span><div class="li-main"><div>No sign-up needed</div><div class="li-sub">— not even an email address</div></div></li>
+          <li><span style="color:var(--accent);font-weight:600;min-width:14px">2</span><div class="li-main"><div>No hosting plan</div><div class="li-sub">— runs entirely in this tab</div></div></li>
+          <li><span style="color:var(--accent);font-weight:600;min-width:14px">3</span><div class="li-main"><div>Portable, eventually</div><div class="li-sub">— move to any host, same data</div></div></li>
+        </ul>
+      </div></div>
+    </label>
+  </div>
+
+  <div class="footer">
+    <span class="status">Setting things up…</span>
+  </div>
+</div>
+`;
 }
 
 function getWhatsNewHtml(): string {
