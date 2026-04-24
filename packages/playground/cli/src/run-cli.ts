@@ -1521,24 +1521,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							logger.error(
 								`Worker ${workerIndex} exited with code ${exitCode}\n`
 							);
-
-							// Remove the dead worker's API proxy from the pool
-							// so new requests are not routed to it.
-							if (playgroundPool) {
-								const deadWorker = spawnedWorkers[workerIndex];
-								if (deadWorker) {
-									const deadApi =
-										workerToPlaygroundMap.get(deadWorker);
-									if (deadApi) {
-										playgroundPool.__removeInstance(
-											deadApi
-										);
-										logger.error(
-											`Worker ${workerIndex} removed from pool\n`
-										);
-									}
-								}
-							}
+							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 						},
 					}).then(
 						async (
