@@ -1,5 +1,11 @@
 import { parseBlueprint } from './router';
-import { decodeBlueprintHash } from './resolve-blueprint-from-url';
+import { decodeBlueprintHash } from './decode-blueprint-hash';
+
+const toBase64 = (s: string) =>
+	typeof btoa === 'function'
+		? btoa(s)
+		: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+		  (globalThis as any).Buffer.from(s, 'utf-8').toString('base64');
 
 describe('decodeBlueprintHash', () => {
 	const blueprint = {
@@ -39,9 +45,22 @@ describe('decodeBlueprintHash', () => {
 		expect(decodeBlueprintHash('#last-autosave')).toBe('last-autosave');
 	});
 
+	it('handles raw hash without leading #', () => {
+		expect(decodeBlueprintHash('last-autosave')).toBe('last-autosave');
+	});
+
 	it('returns empty string for empty hash', () => {
 		expect(decodeBlueprintHash('#')).toBe('');
 		expect(decodeBlueprintHash('')).toBe('');
+	});
+
+	it('survives malformed %XX without throwing', () => {
+		// `decodeURI` and `decodeURIComponent` both throw URIError on `%`
+		// not followed by two hex digits. The helper should swallow the
+		// error and return the raw fragment so downstream parsing
+		// produces a useful error.
+		const malformed = '#%E0%A4%A';
+		expect(() => decodeBlueprintHash(malformed)).not.toThrow();
 	});
 });
 
@@ -56,20 +75,19 @@ describe('parseBlueprint', () => {
 	});
 
 	it('parses base64-encoded JSON', () => {
-		const base64 = Buffer.from(JSON.stringify(blueprint)).toString('base64');
-		expect(parseBlueprint(base64)).toEqual(blueprint);
+		expect(parseBlueprint(toBase64(JSON.stringify(blueprint)))).toEqual(
+			blueprint
+		);
 	});
 
 	it('throws a descriptive error for invalid JSON and includes the underlying message', () => {
-		expect(() => parseBlueprint('{not json')).toThrow(/Invalid blueprint:/);
-		expect(() => parseBlueprint('{not json')).not.toThrow(
-			/^Invalid blueprint$/
+		expect(() => parseBlueprint('{not json')).toThrow(/Invalid blueprint\./);
+		expect(() => parseBlueprint('{not json')).toThrow(
+			/Invalid blueprint\.\s+\S/
 		);
 	});
 
 	it('hints at double-encoding when the input still contains %XX escapes', () => {
-		// decodeBlueprintHash normally handles this, but if a caller passes a
-		// still-encoded string directly, the error should steer them.
 		const halfDecoded = '{"landingPage"%3A"/"}';
 		expect(() => parseBlueprint(halfDecoded)).toThrow(/double-encoded/);
 	});

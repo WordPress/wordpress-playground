@@ -5,6 +5,7 @@ import { startPlaygroundWeb } from '@wp-playground/client';
 import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
+import { decodeBlueprintHash } from '../src/lib/state/url/decode-blueprint-hash';
 
 // Use parent dir of the /builder/ dir, reasoning that it is
 // the web app root. This works for:
@@ -572,22 +573,7 @@ const runBlueprint = async (editor) => {
 };
 
 const loadFromHash = (editor) => {
-	// Try decodeURI first to preserve any intentional %26/%3F/%2F inside
-	// blueprint values. Fall back to decodeURIComponent for fragments
-	// produced by encodeURIComponent, where surviving %XX escapes would
-	// otherwise trip up JSON.parse.
-	const rawHash = window.location.hash.substr(1);
-	let hash = '';
-	try {
-		hash = decodeURI(rawHash);
-		JSON.parse(hash);
-	} catch {
-		try {
-			hash = decodeURIComponent(rawHash);
-		} catch {
-			// leave `hash` as whatever decodeURI produced.
-		}
-	}
+	const hash = decodeBlueprintHash(window.location.hash);
 	try {
 		let json = '';
 		try {

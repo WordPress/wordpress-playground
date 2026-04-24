@@ -14,6 +14,9 @@ import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
+import { decodeBlueprintHash } from './decode-blueprint-hash';
+
+export { decodeBlueprintHash };
 
 export type BlueprintSource =
 	| {
@@ -39,40 +42,6 @@ export type ResolvedBlueprint = {
 };
 
 const githubBlobOrRawPathPattern = /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//;
-
-/**
- * Decodes the hash fragment into a blueprint string.
- *
- * Preferred path: decodeURI, which preserves reserved chars like %26, %3F,
- * %2F that some authors intentionally keep inside URL values embedded in
- * their blueprint JSON.
- *
- * Fallback: decodeURIComponent, for fragments produced with
- * encodeURIComponent(JSON.stringify(blueprint)) — a common pattern in
- * external tooling (GitHub Actions scripts, random online examples).
- * Under decodeURI alone, the surviving %3A/%2C/%22 break JSON.parse and
- * the user sees a useless "Invalid blueprint" error.
- *
- * The fallback only kicks in when decodeURI produces something JSON.parse
- * rejects, so existing URLs keep their exact old semantics.
- */
-export function decodeBlueprintHash(rawHash: string): string {
-	const fragment = decodeURI(rawHash).substring(1);
-	try {
-		JSON.parse(fragment);
-		return fragment;
-	} catch {
-		// Not valid JSON under decodeURI — try decodeURIComponent.
-	}
-	try {
-		return decodeURIComponent(rawHash).substring(1);
-	} catch {
-		// decodeURIComponent throws on malformed %XX. Fall through with
-		// the decodeURI result; parseBlueprint will produce a useful
-		// error message downstream.
-		return fragment;
-	}
-}
 
 function normalizeBlueprintUrl(remoteUrl: string): string {
 	try {

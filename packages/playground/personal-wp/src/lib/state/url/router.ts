@@ -27,22 +27,35 @@ interface QueryAPIParams {
 }
 
 export function parseBlueprint(rawData: string) {
-	let jsonError: unknown;
+	const errors: unknown[] = [];
 	try {
 		return JSON.parse(rawData);
 	} catch (e) {
-		jsonError = e;
+		errors.push(e);
 	}
 	try {
 		return JSON.parse(decodeBase64ToString(rawData));
-	} catch {
-		// Fall through — the input was neither plain JSON nor base64-encoded JSON.
+	} catch (e) {
+		errors.push(e);
 	}
-	const message = jsonError instanceof Error ? jsonError.message : String(jsonError);
-	const hint = /%[0-9A-Fa-f]{2}/.test(rawData)
-		? ' The input still contains %XX escapes after decoding — the URL fragment may have been double-encoded.'
-		: '';
-	throw new Error(`Invalid blueprint: ${message}.${hint}`);
+	throw new Error(formatInvalidBlueprintError(rawData, errors));
+}
+
+function formatInvalidBlueprintError(rawData: string, errors: unknown[]): string {
+	const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(rawData.trim());
+	const primary = looksLikeBase64 && errors[1] ? errors[1] : errors[0];
+	const detail =
+		primary instanceof Error ? primary.message : String(primary ?? '');
+	const sentences = ['Invalid blueprint'];
+	if (detail) {
+		sentences.push(detail);
+	}
+	if (/%[0-9A-Fa-f]{2}/.test(rawData)) {
+		sentences.push(
+			'The input still contains %XX escapes after decoding, so the URL fragment may have been double-encoded'
+		);
+	}
+	return sentences.join('. ') + '.';
 }
 
 export class PlaygroundRoute {

@@ -14,6 +14,9 @@ import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
+import { decodeBlueprintHash } from './decode-blueprint-hash';
+
+export { decodeBlueprintHash };
 
 export type BlueprintSource =
 	| {
@@ -43,26 +46,6 @@ export type ResolvedBlueprint = {
 };
 
 const githubBlobOrRawPathPattern = /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//;
-
-/**
- * See the twin in packages/playground/website — decodeURI first to
- * preserve %26/%3F/%2F inside blueprint string values, decodeURIComponent
- * as a fallback for fragments built with encodeURIComponent.
- */
-function decodeBlueprintHash(rawHash: string): string {
-	const fragment = decodeURI(rawHash).substring(1);
-	try {
-		JSON.parse(fragment);
-		return fragment;
-	} catch {
-		// Not valid JSON under decodeURI — try decodeURIComponent.
-	}
-	try {
-		return decodeURIComponent(rawHash).substring(1);
-	} catch {
-		return fragment;
-	}
-}
 
 function normalizeBlueprintUrl(remoteUrl: string): string {
 	try {
