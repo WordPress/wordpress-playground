@@ -53,6 +53,7 @@ export const PlaygroundViewport = () => {
 
 function getWelcomeHtml(): string {
 	return `
+<div class="stage">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600&display=swap');
 
@@ -323,7 +324,6 @@ function getWelcomeHtml(): string {
   }
 </style>
 
-<div class="stage">
   <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
   <input type="radio" name="card-panel" id="t1" class="card-toggle">
   <input type="radio" name="card-panel" id="t2" class="card-toggle">
