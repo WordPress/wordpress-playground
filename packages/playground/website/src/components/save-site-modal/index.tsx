@@ -10,6 +10,7 @@ import {
 	BaseControl,
 	TextControl,
 	RadioControl,
+	Notice,
 } from '@wordpress/components';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
@@ -27,11 +28,6 @@ type StorageOption = Extract<SiteStorageType, 'opfs' | 'local-fs'>;
 const helpTextStyle: CSSProperties = {
 	color: '#757575',
 	fontSize: 12,
-	marginTop: 8,
-};
-
-const errorTextStyle: CSSProperties = {
-	color: '#d63638',
 	marginTop: 8,
 };
 
@@ -261,7 +257,11 @@ export function SaveSiteModal() {
 			// Don't close modal here - useEffect will close it when save completes
 		} catch (error) {
 			logger.error(error);
-			setSubmitError('Saving failed. Please try again.');
+			setSubmitError(
+				error instanceof Error
+					? error.message
+					: 'Saving failed. Please try again.'
+			);
 			setIsSubmitting(false);
 		}
 	};
@@ -370,7 +370,9 @@ export function SaveSiteModal() {
 							</Button>
 						</div>
 						{directoryError ? (
-							<p style={errorTextStyle}>{directoryError}</p>
+							<Notice status="error" isDismissible={false}>
+								{directoryError}
+							</Notice>
 						) : null}
 					</BaseControl>
 				)}
@@ -389,6 +391,11 @@ export function SaveSiteModal() {
 						</p>
 					</div>
 				)}
+				{submitError ? (
+					<Notice status="error" isDismissible={false}>
+						{submitError}
+					</Notice>
+				) : null}
 				<ModalButtons
 					submitText="Save"
 					onCancel={handleRequestClose}
@@ -396,9 +403,6 @@ export function SaveSiteModal() {
 					areBusy={false}
 					style={{ marginTop: 0 }}
 				/>
-				{submitError ? (
-					<p style={errorTextStyle}>{submitError}</p>
-				) : null}
 			</form>
 		</Modal>
 	);

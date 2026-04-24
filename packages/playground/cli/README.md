@@ -97,7 +97,8 @@ The `server` command supports the following optional arguments:
 
 - `--debug`: Print the PHP error log if an error occurs during boot.
 - `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. ⚠️ Warning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.
-- `--experimental-multi-worker`: Enables experimental multi-worker support. It needs JSPI and a /wordpress directory on a real filesystem. You can pass a positive number to use a specific number of workers, otherwise, it defaults to the number of CPUs minus one.
+- `--workers=<n|auto>`: Number of request-handling worker threads. Pass a positive integer, or `auto` to use one worker per CPU core (minus one). Defaults to `min(6, cpus-1)`. Useful for multi-client workloads (e.g. parallel e2e suites) that need more than 6 in-flight requests.
+- `--experimental-multi-worker`: Deprecated. Use `--workers=<n|auto>` instead. The value of this flag is ignored.
 - `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
 - `--internal-cookie-store`: Enables Playground's internal cookie handling. When active, Playground uses an HttpCookieStore to manage and persist cookies across requests. If disabled, cookies are handled externally, like by a browser in Node.js.
 

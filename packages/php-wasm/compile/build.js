@@ -287,12 +287,17 @@ await cleanupOldMinorVersions();
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
 
+const phpVersionForDockerfile = getArg('PHP_VERSION').replace('PHP_VERSION=', '');
+const dockerfile = phpVersionForDockerfile.startsWith('5.2')
+	? 'php/Dockerfile-5-2'
+	: 'php/Dockerfile';
+
 await asyncSpawn(
 	'docker',
 	[
 		'build',
 		'-f',
-		'php/Dockerfile',
+		dockerfile,
 		'..',
 		'--tag=php-wasm',
 		'--progress=plain',

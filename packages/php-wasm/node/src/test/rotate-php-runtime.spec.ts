@@ -549,6 +549,57 @@ describe.each([true, false])(
 			replica.exit();
 		}, 30_000);
 
+		it(
+			'Should preserve MEMFS symlinks through PHP runtime recreation',
+			{ timeout: 30_000 },
+			async () => {
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime,
+					maxRequests: 1,
+				});
+
+				await php.run({ code: '' });
+
+				php.mkdir('/test-root');
+				php.mkdir('/test-root/directory');
+				php.writeFile('/test-root/directory/file.txt', 'foo');
+				php.symlink('/test-root/directory', '/test-root/link');
+
+				/*
+				 * The name 'link' is visited before 'under-link-*'.
+				 * If copyMEMFSNodes crashes on the symlink, the entries
+				 * after it are never copied to the new runtime.
+				 */
+				php.mkdir('/test-root/under-link-directory');
+				php.writeFile(
+					'/test-root/under-link-directory/file.txt',
+					'bar'
+				);
+				php.writeFile('/test-root/under-link-file.txt', 'baz');
+
+				expect(php.isSymlink('/test-root/link')).toBe(true);
+
+				// Rotate the PHP runtime
+				await php.run({ code: `` });
+
+				expect(php.fileExists('/test-root/link')).toBe(true);
+				expect(php.isSymlink('/test-root/link')).toBe(true);
+				expect(php.readFileAsText('/test-root/link/file.txt')).toBe(
+					'foo'
+				);
+				expect(php.isDir('/test-root/under-link-directory')).toBe(true);
+				expect(
+					php.readFileAsText(
+						'/test-root/under-link-directory/file.txt'
+					)
+				).toBe('bar');
+				expect(
+					php.readFileAsText('/test-root/under-link-file.txt')
+				).toBe('baz');
+			}
+		);
+
 		it('Should preserve NODEFS mount when CWD is the same as mount point', async () => {
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({

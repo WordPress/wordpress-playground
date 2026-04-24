@@ -137,7 +137,8 @@
 				"testFiles": [
 					"prf.spec.ts",
 					"certificates.spec.ts",
-					"tcp-over-fetch-websocket.spec.ts"
+					"tcp-over-fetch-websocket.spec.ts",
+					"directory-handle-mount.spec.ts"
 				]
 			}
 		},

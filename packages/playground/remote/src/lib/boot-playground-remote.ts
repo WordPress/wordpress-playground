@@ -382,6 +382,10 @@ export async function bootPlaygroundRemote() {
 			return await phpWorkerApi.mountOpfs(options, onProgress);
 		},
 
+		async flushOpfs(mountpoint: string) {
+			return await phpWorkerApi.flushOpfs(mountpoint);
+		},
+
 		/**
 		 * Ditto for this function.
 		 * @see onMessage

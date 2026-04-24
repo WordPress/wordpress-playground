@@ -19,6 +19,7 @@ import {
 } from '../playground-viewport';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
+import { DeleteSiteModal } from '../delete-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
@@ -167,6 +168,8 @@ function Modals() {
 		return <MissingSiteModal />;
 	} else if (currentModal === modalSlugs.RENAME_SITE) {
 		return <RenameSiteModal />;
+	} else if (currentModal === modalSlugs.DELETE_SITE) {
+		return <DeleteSiteModal />;
 	} else if (currentModal === modalSlugs.SAVE_SITE) {
 		return <SaveSiteModal />;
 	} else if (currentModal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH) {

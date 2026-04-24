@@ -225,7 +225,7 @@ self.addEventListener('fetch', (event) => {
 		const scope = getURLScope(url)!;
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
+				applyCrossOriginIsolationHeaders(response, scope)
 			)
 		);
 	}
@@ -648,25 +648,40 @@ self.addEventListener('message', (event) => {
 });
 
 /**
- * Rewrites COEP/COOP headers to Document-Isolation-Policy for browsers that support it.
+ * Ensures cross-origin isolation is applied consistently for scoped responses.
  *
- * When the browser supports Document-Isolation-Policy, this function:
- * - Removes Cross-Origin-Embedder-Policy (COEP) header
- * - Removes Cross-Origin-Opener-Policy (COOP) header
- * - Adds Document-Isolation-Policy: isolate-and-credentialless
+ * Handles two cases:
  *
- * This enables cross-origin isolation (for SharedArrayBuffer) without serving
- * the entire playground.wordpress.net site with COEP/COOP headers (which would
- * break embedding it on other sites).
+ * 1. Response already carries `Document-Isolation-Policy`. This is what
+ *    Gutenberg ≥ 22.6 / Gutenberg PR #75991 sends directly on editor screens in
+ *    Chromium 137+. The response is left as-is, but the scope is tracked so
+ *    that `empty.html` (the block editor's inner iframe) also receives DIP —
+ *    parent and child frames need the same DIP for the editor to function
+ *    (see https://github.com/WordPress/wordpress-playground/pull/3320).
+ *
+ * 2. Response carries COEP/COOP (older Gutenberg, WordPress core's
+ *    `wp_set_up_cross_origin_isolation`, or custom plugins). When the browser
+ *    supports DIP, the COEP/COOP pair is rewritten to the equivalent DIP value
+ *    so the page is cross-origin isolated without making the whole host send
+ *    COEP/COOP — that would break external embeds and third-party embedders of
+ *    Playground.
  *
  * @param response The response to potentially modify
  * @param scope The scope of the request, used to track which scopes have cross-origin isolation
- * @returns A new Response with rewritten headers, or the original response if no rewriting is needed
+ * @returns A new Response with rewritten headers, or the original response if no changes are needed
  */
-function rewriteCoopHeadersToDocumentIsolationPolicy(
+function applyCrossOriginIsolationHeaders(
 	response: Response,
 	scope: string
 ): Response {
+	// If the response already opts into DIP, track the scope so empty.html gets DIP too.
+	// This is the modern path once Gutenberg sends DIP directly — see
+	// https://github.com/WordPress/gutenberg/pull/75991.
+	if (response.headers.has('document-isolation-policy')) {
+		scopesWithCrossOriginIsolation.add(scope);
+		return response;
+	}
+
 	// If we don't know whether the browser supports Document-Isolation-Policy,
 	// or if it doesn't support it, return the original response unchanged.
 	if (!browserSupportsDocumentIsolationPolicy) {
@@ -736,7 +751,7 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
  * with the `Document-Isolation-Policy` header. SharedArrayBuffer is only available
  * in this document if the browser supports `Document-Isolation-Policy`.
  *
- * @see rewriteCoopHeadersToDocumentIsolationPolicy
+ * @see applyCrossOriginIsolationHeaders
  */
 function documentIsolationPolicyHtml() {
 	return new Response(

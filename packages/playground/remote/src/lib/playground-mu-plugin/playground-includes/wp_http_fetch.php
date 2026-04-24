@@ -56,7 +56,7 @@ class Wp_Http_Fetch_Base
 					'data' => $data,
 					'url' => $url,
 					'method' => $options['type'],
-					'blocking' => $options['blocking'] ?? true,
+					'blocking' => isset($options['blocking']) ? $options['blocking'] : true,
 				]
 			)
 		);

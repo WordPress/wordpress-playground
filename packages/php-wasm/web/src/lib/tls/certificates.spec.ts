@@ -1,6 +1,6 @@
 import { generateCertificate, certificateToPEM } from './certificates';
 import { execSync } from 'child_process';
-import { writeFileSync, mkdirSync, rmdirSync } from 'fs';
+import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -25,7 +25,7 @@ describe('generateCertificate', () => {
 	});
 
 	afterAll(() => {
-		rmdirSync(tempDir, { recursive: true });
+		rmSync(tempDir, { recursive: true, force: true });
 	});
 
 	it('should generate a valid CA certificate', async () => {

@@ -1,7 +1,7 @@
 import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { PathAlias, SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
@@ -27,6 +27,7 @@ import type { Mount } from '@php-wasm/cli-util';
 
 export type WorkerBootWordPressOptions = {
 	siteUrl: string;
+	phpVersion?: string;
 	wpVersion?: string;
 	wordpressInstallMode: WordPressInstallMode;
 	wordPressZip?: ArrayBuffer;
@@ -40,7 +41,7 @@ export type WorkerBootWordPressOptions = {
 
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
-	phpVersion: SupportedPHPVersion;
+	phpVersion: AllPHPVersion;
 	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
@@ -102,6 +103,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		this.bootedWordPress = true;
 		const {
 			siteUrl,
+			phpVersion,
 			wordpressInstallMode,
 			wordPressZip,
 			sqliteIntegrationPluginZip,
@@ -112,6 +114,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		try {
 			await bootWordPress(this.__internal_getRequestHandler()!, {
 				siteUrl,
+				phpVersion,
 				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
@@ -161,6 +164,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		try {
 			const requestHandler = await bootRequestHandler({
 				siteUrl: options.siteUrl,
+				phpVersion: options.phpVersion,
 				maxPhpInstances: 1,
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,

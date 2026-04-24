@@ -6,7 +6,7 @@ import {
 	type PHPRequest,
 	type PathAlias,
 	type RemoteAPI,
-	type SupportedPHPVersion,
+	type AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -46,6 +46,8 @@ import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thre
 import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
+	AllPHPVersions,
+	isLegacyPHPVersion,
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -118,7 +120,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -341,14 +343,35 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
 			},
+			workers: {
+				describe:
+					'Number of request-handling worker threads. Accepts a ' +
+					'positive integer, or "auto" to use one per CPU core ' +
+					'(minus one). Defaults to min(6, cpus-1).',
+				type: 'string',
+				coerce: (value?: string) => {
+					if (value === undefined) {
+						return undefined;
+					}
+					if (value === 'auto') {
+						return 'auto' as const;
+					}
+					const n = Number(value);
+					if (!Number.isInteger(n) || n < 1) {
+						throw new Error(
+							`Invalid --workers value "${value}": ` +
+								'expected a positive integer or "auto".'
+						);
+					}
+					return n;
+				},
+			},
 			'experimental-multi-worker': {
 				deprecated:
-					'This option is not needed. Multiple workers are always used.',
+					'Use --workers=<n|auto> instead. The value of this flag is ignored.',
 				describe:
-					'Enable experimental multi-worker support which requires ' +
-					'a /wordpress directory backed by a real filesystem. ' +
-					'Pass a positive number to specify the number of workers to use. ' +
-					'Otherwise, default to the number of CPUs minus 1.',
+					'Deprecated. Use --workers=<n|auto> to control the ' +
+					'number of request-handling worker threads.',
 				type: 'number',
 			},
 			'experimental-devtools': {
@@ -373,7 +396,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: AllPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -431,11 +454,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
-			'no-auto-mount': {
+			'auto-mount': {
 				describe:
-					'Disable automatic project type detection. Use --mount to manually specify mounts instead.',
+					'Automatically detect project type (plugin, theme, wp-content, or WordPress) and mount accordingly. Use --no-auto-mount to disable and --mount to manually specify mounts instead.',
 				type: 'boolean',
-				default: false,
+				default: true,
 			},
 			// Define constants
 			define: sharedOptions['define'],
@@ -557,12 +580,20 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['auto-mount']) {
+				// For the `start` command, `--auto-mount` is a boolean
+				// toggle (path is taken from `--path`), so skip the
+				// directory validation here. Read the camelCase form for
+				// consistency with the rest of the codebase — yargs-parser
+				// emits both dashed and camelCase keys.
+				const autoMountArg = args['autoMount'];
+				if (
+					args._[0] !== 'start' &&
+					typeof autoMountArg === 'string' &&
+					autoMountArg
+				) {
 					let autoMountIsDir = false;
 					try {
-						const autoMountStats = fs.statSync(
-							args['auto-mount'] as string
-						);
+						const autoMountStats = fs.statSync(autoMountArg);
 						autoMountIsDir = autoMountStats.isDirectory();
 					} catch {
 						autoMountIsDir = false;
@@ -570,7 +601,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 					if (!autoMountIsDir) {
 						throw new Error(
-							`The specified --auto-mount path is not a directory: '${args['auto-mount']}'.`
+							`The specified --auto-mount path is not a directory: '${autoMountArg}'.`
 						);
 					}
 				}
@@ -662,14 +693,24 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const hasDebugDefine = (name: string) => {
 			return name in define || name in defineBool || name in defineNumber;
 		};
-		if (!hasDebugDefine('WP_DEBUG')) {
-			define['WP_DEBUG'] = 'true';
-		}
-		if (!hasDebugDefine('WP_DEBUG_LOG')) {
-			define['WP_DEBUG_LOG'] = 'true';
-		}
-		if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
-			define['WP_DEBUG_DISPLAY'] = 'false';
+		// Don't default WP_DEBUG* on for legacy PHP: old WordPress
+		// (pre-2.3) prints E_NOTICE output before headers are sent,
+		// which corrupts redirects and breaks the installer. The web
+		// worker path applies the same gate in
+		// @wp-playground/client/src/blueprints-v1-handler.ts.
+		const phpVersionForDebug = (args['php'] ||
+			RecommendedPHPVersion) as AllPHPVersion;
+		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
+		if (!isLegacyPhpForDebug) {
+			if (!hasDebugDefine('WP_DEBUG')) {
+				define['WP_DEBUG'] = 'true';
+			}
+			if (!hasDebugDefine('WP_DEBUG_LOG')) {
+				define['WP_DEBUG_LOG'] = 'true';
+			}
+			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
+				define['WP_DEBUG_DISPLAY'] = 'false';
+			}
 		}
 
 		const cliArgs = {
@@ -736,9 +777,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					currentError = currentError.cause as Error;
 				} while (currentError instanceof Error);
 				console.error(
-					'\x1b[1m' +
-						messageChain.join(' caused by: ') +
-						'\x1b[0m'
+					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 				);
 			}
 		} else {
@@ -795,6 +834,24 @@ function getMountForVfsPath(
 	);
 }
 
+/**
+ * Resolve the --workers flag into a concrete worker count.
+ *
+ * The Math.max(1, ...) guard covers single-core hosts and restricted
+ * environments where `os.cpus()` can return an empty array — without it
+ * the default would drop to 0 and no workers would be spawned.
+ */
+export function resolveWorkerCount(value: number | 'auto' | undefined): number {
+	const cpusMinusOne = Math.max(1, os.cpus().length - 1);
+	if (value === undefined) {
+		return Math.min(6, cpusMinusOne);
+	}
+	if (value === 'auto') {
+		return cpusMinusOne;
+	}
+	return value;
+}
+
 export interface RunCLIArgs {
 	/**
 	 * `_` holds positional tokens in the order they appeared.
@@ -811,13 +868,19 @@ export interface RunCLIArgs {
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
-	php?: SupportedPHPVersion;
+	php?: AllPHPVersion;
 	port?: number;
 	'site-url'?: string;
 	quiet?: boolean;
 	verbosity?: LogVerbosity;
 	wp?: string;
-	autoMount?: string;
+	/**
+	 * For the `server` command (and other long-form commands), this is the
+	 * host path to auto-detect and mount. For the `start` command, this is a
+	 * boolean toggle: `true` (default) enables auto-detection on the
+	 * `--path` directory; `false` (i.e. `--no-auto-mount`) disables it.
+	 */
+	autoMount?: string | boolean;
 	pathAliases?: PathAlias[];
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
@@ -830,6 +893,8 @@ export interface RunCLIArgs {
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
+	workers?: number | 'auto';
+	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
 	/**
 	 * PHP string constants defined via --define flag.
@@ -868,7 +933,6 @@ export interface RunCLIArgs {
 	// --------- Start command args -----------
 	path?: string;
 	skipBrowser?: boolean;
-	noAutoMount?: boolean;
 	reset?: boolean;
 }
 
@@ -990,6 +1054,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.memcached = await jspi();
 	}
 
+	// Disable all extensions for legacy PHP versions — they're not available.
+	const isLegacyPhp = isLegacyPHPVersion(args.php || RecommendedPHPVersion);
+	if (isLegacyPhp) {
+		args.intl = false;
+		args.redis = false;
+		args.memcached = false;
+		args.xdebug = false;
+	}
+
 	// Setup phpMyAdmin if enabled.
 	if (args.phpmyadmin) {
 		if (true === args.phpmyadmin) {
@@ -1050,6 +1123,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
+			if (args['experimental-multi-worker'] !== undefined) {
+				logger.warn(
+					'--experimental-multi-worker is deprecated and its value is ignored. ' +
+						'Use --workers=<n|auto> instead.'
+				);
+			}
+
 			/**
 			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
 			 * > browsers open several connections to each domain,
@@ -1057,15 +1137,38 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			 * > but this has now increased to a more common use of 6 parallel connections.
 			 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x#domain_sharding
 			 *
-			 * While our HTTP server only supports HTTP 1.1 and while we are trying to limit the
-			 * memory requirements of multiple workers, let's hard-code the number of request-handling
-			 * workers to 6.
+			 * 6 is therefore a sensible default; --workers=<n|auto> lets
+			 * users override this for multi-client workloads (e2e tests,
+			 * load testing) that need more in-flight requests.
 			 *
-			 * Going higher than browsers' max concurrent requests seems pointless,
-			 * and going lower may increase the likelihood of deadlock due to workers
-			 * blocking and waiting for file locks.
+			 * Note: going lower may increase the likelihood of deadlock
+			 * due to workers blocking and waiting for file locks.
 			 */
-			const targetWorkerCount = 6;
+			const targetWorkerCount = resolveWorkerCount(args.workers);
+
+			if (targetWorkerCount < 6) {
+				const deadlockNote =
+					'Running fewer than 6 workers may increase the ' +
+					'likelihood of deadlock due to workers blocking on ' +
+					'file locks.';
+				if (args.workers === undefined) {
+					/*
+					 * Default path landed below 6 because the machine has
+					 * fewer than 7 CPUs. Distinct message so users see this
+					 * as a hardware ceiling, not a config mistake.
+					 */
+					logger.warn(
+						`The default worker count has been reduced to ${targetWorkerCount} ` +
+							`because this machine has only ${os.cpus().length} CPU(s). ` +
+							deadlockNote
+					);
+				} else {
+					logger.warn(
+						`Worker count (${targetWorkerCount}) is below the recommended threshold (6). ` +
+							deadlockNote
+					);
+				}
+			}
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
@@ -1098,13 +1201,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					vfsPath: '/',
 				};
 
-				const isPHP85orHigher =
-					SupportedPHPVersions.indexOf(
-						args.php || RecommendedPHPVersion
-					) <= SupportedPHPVersions.indexOf('8.5');
+				const phpVer = args.php || RecommendedPHPVersion;
+				// SupportedPHPVersions is ordered newest-first, so a
+				// lower index means a higher version.
+				const isPhp85OrHigher =
+					SupportedPHPVersions.includes(phpVer as any) &&
+					SupportedPHPVersions.indexOf(phpVer as any) <=
+						SupportedPHPVersions.indexOf('8.5');
 
 				// And, if PHP >= 8.5, add the new Xdebug config.
-				if (isPHP85orHigher) {
+				if (isPhp85OrHigher) {
 					await createTempDirSymlink(
 						nativeDir.path,
 						symlinkPath,
@@ -1696,9 +1802,21 @@ function expandStartCommandArgs(
 	let newArgs = { ...args, command: 'server' };
 
 	/**
-	 * Enable auto-mount unless explicitly disabled
+	 * Enable auto-mount unless explicitly disabled via `--no-auto-mount`.
+	 *
+	 * yargs-parser's boolean-negation turns `--no-auto-mount` into
+	 * `{ autoMount: false }`, so `args.autoMount === false` is how we detect
+	 * the disabled case. The boolean form is start-command only — downstream
+	 * code treats `autoMount` as a string path, so drop it either way and
+	 * then re-populate it with a resolved path when enabled.
 	 */
-	if (!args.noAutoMount) {
+	const autoMountEnabled = args.autoMount !== false;
+	// Scrub both the camelCase and dashed forms yargs-parser emits so a
+	// stale boolean can't leak into downstream consumers that read either.
+	delete newArgs.autoMount;
+	delete (newArgs as Record<string, unknown>)['auto-mount'];
+
+	if (autoMountEnabled) {
 		newArgs.autoMount = path.resolve(process.cwd(), newArgs['path'] ?? '');
 		newArgs = expandAutoMounts(newArgs as RunCLIArgs);
 		// Delete the autoMount argument to avoid double expansion later on.
