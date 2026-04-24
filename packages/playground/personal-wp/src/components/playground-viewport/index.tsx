@@ -55,6 +55,391 @@ function getWelcomeHtml(): string {
 	return `
 <div class="stage">
 <style>
+  ${getCardStageCss()}
+
+  /* Positions + rotations. rotate is a plain CSS property (not in keyframes)
+     so the transition can smoothly animate it to 0 on card open. */
+  .c1 { top: 4%;  left: 4%;   rotate: -2deg;  animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 0.8s forwards; }
+  .c1 .icon { background: #fef0e8; color: #c44b2c; }
+  .c2 { top: 2%;  right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.4s forwards; }
+  .c2 .icon { background: #e8f0e3; color: #5a7a3f; }
+  .c3 { top: 26%; left: 12%;  rotate: -1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.3s forwards; }
+  .c3 .icon { background: #e8ecf4; color: #3f5a7a; }
+  .c4 { top: 26%; right: 4%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 3.0s forwards; }
+  .c4 .icon { background: #f4e8ef; color: #7a3f5f; }
+  .c5 { top: 48%; left: 6%;   rotate: -2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.1s forwards; }
+  .c5 .icon { background: #fef5e0; color: #a8762a; }
+  .c6 { top: 50%; right: 10%; rotate:  2deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.0s forwards; }
+  .c6 .icon { background: #eae4f2; color: #5a3f7a; }
+  .c7 { top: 72%; left: 14%;  rotate: -1deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.7s forwards; }
+  .c7 .icon { background: #e0f0ee; color: #2a7a6e; }
+  .c8 { top: 72%; right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.6s forwards; }
+  .c8 .icon { background: #f5e3e0; color: #a54a3a; }
+  .c9 { top: 14%; left: 26%; rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.9s forwards; }
+  .c9 .icon { background: #f0ece3; color: #7a6040; }
+
+  #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
+  #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
+  #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
+  #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
+  #t9:checked ~ .field .c9 {
+    rotate: 0deg !important;
+    width: min(240px, calc(100vw - 48px)) !important;
+    z-index: 20 !important;
+    box-shadow: 0 2px 4px rgba(31,29,26,0.06), 0 16px 40px rgba(31,29,26,0.14) !important;
+  }
+
+  #t1:checked ~ .field .c1 .card-detail, #t2:checked ~ .field .c2 .card-detail,
+  #t3:checked ~ .field .c3 .card-detail, #t4:checked ~ .field .c4 .card-detail,
+  #t5:checked ~ .field .c5 .card-detail, #t6:checked ~ .field .c6 .card-detail,
+  #t7:checked ~ .field .c7 .card-detail, #t8:checked ~ .field .c8 .card-detail,
+  #t9:checked ~ .field .c9 .card-detail {
+    max-height: 260px;
+  }
+
+  /* Bottom cards expand upward so they stay on screen */
+  #t7:checked ~ .field .c7,
+  #t8:checked ~ .field .c8 { transform: translateY(-140px) !important; }
+
+  @media (min-width: 640px) {
+    .c1 { top: 4%;  left: 2%;   right: auto; }
+    .c2 { top: 2%;  left: 36%;  right: auto; }
+    .c3 { top: 4%;  left: auto; right: 2%;   }
+    .c4 { top: 40%; left: auto; right: 2%;   }
+    .c5 { top: 38%; left: 6%;   right: auto; }
+    .c6 { top: 40%; left: 37%;  right: auto; }
+    .c7 { top: 72%; left: 12%;  right: auto; }
+    .c8 { top: 72%; left: auto; right: 4%;   }
+    .c9 { top: 72%; left: 37%;  right: auto; }
+    #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
+    #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
+    #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
+    #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
+    #t9:checked ~ .field .c9 {
+      width: min(280px, calc(100vw - 64px)) !important;
+    }
+    #t7:checked ~ .field .c7,
+    #t8:checked ~ .field .c8,
+    #t9:checked ~ .field .c9 { transform: translateY(-140px) !important; }
+  }
+</style>
+
+  <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
+  <input type="radio" name="card-panel" id="t1" class="card-toggle">
+  <input type="radio" name="card-panel" id="t2" class="card-toggle">
+  <input type="radio" name="card-panel" id="t3" class="card-toggle">
+  <input type="radio" name="card-panel" id="t4" class="card-toggle">
+  <input type="radio" name="card-panel" id="t5" class="card-toggle">
+  <input type="radio" name="card-panel" id="t6" class="card-toggle">
+  <input type="radio" name="card-panel" id="t7" class="card-toggle">
+  <input type="radio" name="card-panel" id="t8" class="card-toggle">
+  <input type="radio" name="card-panel" id="t9" class="card-toggle">
+
+  <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
+  <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
+  <p class="intro">Install the tools you need — a reading list, a contacts app, a journal — and they're yours alone, in this tab.</p>
+
+  <div class="field">
+    <div class="threads">
+      <svg viewBox="0 0 480 400" preserveAspectRatio="none">
+        <path d="M 90 60 Q 200 100 240 180"/>
+        <path d="M 380 50 Q 300 120 280 200"/>
+        <path d="M 120 180 Q 220 240 200 320"/>
+        <path d="M 400 220 Q 340 280 320 340"/>
+        <path d="M 240 180 Q 260 240 200 320"/>
+      </svg>
+    </div>
+
+    <label class="card c1" for="t1">
+      <div class="card-front">
+        <div class="icon">✎</div>
+        <div class="text"><div class="label">Journal</div><div class="sub">private notes</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Apr 3 · private entry</div>
+        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:4px">no cloud · no account</p>
+        <p class="detail-body">Everything written here stays on this device. Close the tab, come back later — your entries are still here.</p>
+      </div></div>
+    </label>
+
+    <label class="card c2" for="t2">
+      <div class="card-front">
+        <div class="icon">★</div>
+        <div class="text"><div class="label">Reading list</div><div class="sub">save &amp; revisit</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">3 saved</div>
+        <ul class="detail-list">
+          <li><div class="li-main"><div>What is digital sovereignty?</div><div class="li-sub">Owning your tools, not renting them</div></div></li>
+          <li><div class="li-main"><div>The sandbox is the feature</div><div class="li-sub">Why running in a browser changes everything</div></div></li>
+          <li style="color:var(--ink-faint)"><div class="li-main"><div>Moving to a real host, one day</div></div></li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c3" for="t3">
+      <div class="card-front">
+        <div class="icon">✦</div>
+        <div class="text"><div class="label">Install apps</div><div class="sub">tap + to browse</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">How to install</div>
+        <p class="detail-body">Tap <strong>+</strong> to browse journals, contacts, reading lists, and more. Install is instant — no server needed.</p>
+      </div></div>
+    </label>
+
+    <label class="card c4" for="t4">
+      <div class="card-front">
+        <div class="icon">♥</div>
+        <div class="text"><div class="label">Contacts</div><div class="sub">people you know</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Personal CRM</div>
+        <ul class="detail-list">
+          <li><div class="li-main"><div>Notes on people</div><div class="li-sub">birthdays, context, last talked — your way</div></div></li>
+          <li><div class="li-main"><div>No cloud sync</div><div class="li-sub">contact notes never leave this device</div></div></li>
+          <li><div class="li-main"><div>Install from the store</div><div class="li-sub">search for a contacts or CRM plugin</div></div></li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c5" for="t5">
+      <div class="card-front">
+        <div class="icon">◐</div>
+        <div class="text"><div class="label">Site Tools</div><div class="sub">bottom-left corner</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Always there</div>
+        <ul class="detail-list">
+          <li><div class="li-main li-done">Install apps</div><span class="li-note li-done">✓ from the store</span></li>
+          <li><div class="li-main">Manage files</div><span class="li-note">browse &amp; edit</span></li>
+          <li><div class="li-main">View logs</div><span class="li-note">see what's up</span></li>
+          <li><div class="li-main">Restore a backup</div><span class="li-note">if needed</span></li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c6" for="t6">
+      <div class="card-front">
+        <div class="icon">◎</div>
+        <div class="text"><div class="label">Daily backups</div><div class="sub">automatic</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">How it works</div>
+        <p class="detail-body">A copy downloaded to your device daily. Change the schedule in Site Tools.</p>
+        <div class="detail-sep"></div>
+        <p class="detail-body">If this tab is ever cleared, point Site Tools at your saved file to restore everything.</p>
+      </div></div>
+    </label>
+
+    <label class="card c7" for="t7">
+      <div class="card-front">
+        <div class="icon">◆</div>
+        <div class="text"><div class="label">Bookmark this</div><div class="sub">it's your WordPress</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Don't lose this</div>
+        <ul class="detail-list">
+          <li>⭐ Bookmark this page — it's your WordPress now</li>
+          <li>The Site Tools icon is in the bottom-left corner</li>
+          <li>Export and move to any host, one day</li>
+        </ul>
+      </div></div>
+    </label>
+
+    <label class="card c9" for="t9">
+      <div class="card-front">
+        <div class="icon">♨</div>
+        <div class="text"><div class="label">Recipes</div><div class="sub">save your favorites</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Your private online space</div>
+        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:6px">WordPress · Playground · your apps</p>
+        <p class="detail-body">Combine in one browser tab. Add apps to taste. Bookmark and serve — no server, no sign-up required.</p>
+      </div></div>
+    </label>
+
+    <label class="card c8" for="t8">
+      <div class="card-front">
+        <div class="icon">⊙</div>
+        <div class="text"><div class="label">Your data</div><div class="sub">stays here</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Where it lives</div>
+        <ul class="detail-list">
+          <li><span style="color:var(--accent);font-weight:600;min-width:14px">1</span><div class="li-main"><div>No sign-up needed</div><div class="li-sub">— not even an email address</div></div></li>
+          <li><span style="color:var(--accent);font-weight:600;min-width:14px">2</span><div class="li-main"><div>No hosting plan</div><div class="li-sub">— runs entirely in this tab</div></div></li>
+          <li><span style="color:var(--accent);font-weight:600;min-width:14px">3</span><div class="li-main"><div>Portable, eventually</div><div class="li-sub">— move to any host, same data</div></div></li>
+        </ul>
+      </div></div>
+    </label>
+  </div>
+
+  <div class="footer">
+    <span class="status">Setting things up…</span>
+  </div>
+</div>
+`;
+}
+
+function getWhatsNewHtml(): string {
+	const { tips, changelog } = welcomeStrings;
+	const tip = tips[Math.floor(Math.random() * tips.length)];
+
+	const cards = [
+		{
+			icon: '💡',
+			iconBg: '#fef5e0',
+			iconColor: '#a8762a',
+			label: 'Tip',
+			sub: 'for your site',
+			detail: tip,
+			top: '8%',
+			left: '4%',
+			right: '',
+			rotate: '-2deg',
+			delay: '0.6s',
+			bottom: false,
+		},
+		...changelog.map((entry, i) => {
+			const variants = [
+				{
+					icon: '✦',
+					iconBg: '#e8ecf4',
+					iconColor: '#3f5a7a',
+					top: '5%',
+					left: '',
+					right: '6%',
+					rotate: '2deg',
+					delay: '1.0s',
+					bottom: false,
+				},
+				{
+					icon: '◎',
+					iconBg: '#e8f0e3',
+					iconColor: '#5a7a3f',
+					top: '50%',
+					left: '8%',
+					right: '',
+					rotate: '-1.5deg',
+					delay: '0.8s',
+					bottom: true,
+				},
+				{
+					icon: '◆',
+					iconBg: '#f4e8ef',
+					iconColor: '#7a3f5f',
+					top: '52%',
+					left: '',
+					right: '10%',
+					rotate: '2.5deg',
+					delay: '1.3s',
+					bottom: true,
+				},
+			];
+			const v = variants[i % variants.length];
+			return {
+				...v,
+				label: entry.title,
+				sub: "what's new",
+				detail: entry.text,
+			};
+		}),
+	];
+
+	const radios = cards
+		.map(
+			(_, i) =>
+				`<input type="radio" name="card-panel" id="t${i + 1}" class="card-toggle">`
+		)
+		.join('\n  ');
+
+	const expandSel = cards
+		.map((_, i) => `#t${i + 1}:checked ~ .field .c${i + 1}`)
+		.join(', ');
+	const detailSel = cards
+		.map((_, i) => `#t${i + 1}:checked ~ .field .c${i + 1} .card-detail`)
+		.join(', ');
+	const bottomSel = cards
+		.map((c, i) =>
+			c.bottom ? `#t${i + 1}:checked ~ .field .c${i + 1}` : ''
+		)
+		.filter(Boolean)
+		.join(', ');
+
+	const cardsHtml = cards
+		.map((c, i) => {
+			const sideStyle = c.left ? `left:${c.left}` : `right:${c.right}`;
+			const style = `top:${c.top};${sideStyle};rotate:${c.rotate};animation:drift-in 1s cubic-bezier(0.16,1,0.3,1) ${c.delay} forwards`;
+			return `
+    <label class="card c${i + 1}" for="t${i + 1}" style="${style}">
+      <div class="card-front">
+        <div class="icon" style="background:${c.iconBg};color:${c.iconColor}">${c.icon}</div>
+        <div class="text"><div class="label">${c.label}</div><div class="sub">${c.sub}</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <p class="detail-body">${c.detail}</p>
+      </div></div>
+    </label>`;
+		})
+		.join('');
+
+	return `
+<div class="stage">
+<style>
+  ${getCardStageCss()}
+
+  ${expandSel} {
+    rotate: 0deg !important;
+    width: min(240px, calc(100vw - 48px)) !important;
+    z-index: 20 !important;
+    box-shadow: 0 2px 4px rgba(31,29,26,0.06), 0 16px 40px rgba(31,29,26,0.14) !important;
+  }
+  ${detailSel} { max-height: 260px; }
+  ${bottomSel ? `${bottomSel} { transform: translateY(-140px) !important; }` : ''}
+
+  .tour-link {
+    font-size: 11px; color: var(--ink-faint); text-decoration: none;
+    border-bottom: 1px solid var(--thread); padding-bottom: 1px;
+  }
+  .tour-link:hover { color: var(--ink-soft); }
+
+  @media (min-width: 640px) {
+    ${expandSel} { width: min(280px, calc(100vw - 64px)) !important; }
+    ${bottomSel ? `${bottomSel} { transform: translateY(-140px) !important; }` : ''}
+  }
+</style>
+
+  <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
+  ${radios}
+
+  <div class="eyebrow"><span class="pulse"></span>Your site is loading</div>
+  <h1 class="headline">Welcome <em>back.</em></h1>
+
+  <div class="field">
+${cardsHtml}
+  </div>
+
+  <div class="footer">
+    <span class="status">Loading your site…</span>
+    <a href="?welcome" class="tour-link">First time here? See the intro →</a>
+  </div>
+</div>
+`;
+}
+
+function getCardStageCss(): string {
+	return `
   @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600&display=swap');
 
   :root {
@@ -246,27 +631,6 @@ function getWelcomeHtml(): string {
   .detail-list .li-note { font-size: 10px; color: var(--ink-faint); margin-left: auto; white-space: nowrap; }
   .detail-list .li-done { color: var(--accent); }
 
-  /* Positions + rotations. rotate is a plain CSS property (not in keyframes)
-     so the transition can smoothly animate it to 0 on card open. */
-  .c1 { top: 4%;  left: 4%;   rotate: -2deg;  animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 0.8s forwards; }
-  .c1 .icon { background: #fef0e8; color: #c44b2c; }
-  .c2 { top: 2%;  right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.4s forwards; }
-  .c2 .icon { background: #e8f0e3; color: #5a7a3f; }
-  .c3 { top: 26%; left: 12%;  rotate: -1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.3s forwards; }
-  .c3 .icon { background: #e8ecf4; color: #3f5a7a; }
-  .c4 { top: 26%; right: 4%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 3.0s forwards; }
-  .c4 .icon { background: #f4e8ef; color: #7a3f5f; }
-  .c5 { top: 48%; left: 6%;   rotate: -2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.1s forwards; }
-  .c5 .icon { background: #fef5e0; color: #a8762a; }
-  .c6 { top: 50%; right: 10%; rotate:  2deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.0s forwards; }
-  .c6 .icon { background: #eae4f2; color: #5a3f7a; }
-  .c7 { top: 72%; left: 14%;  rotate: -1deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.7s forwards; }
-  .c7 .icon { background: #e0f0ee; color: #2a7a6e; }
-  .c8 { top: 72%; right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.6s forwards; }
-  .c8 .icon { background: #f5e3e0; color: #a54a3a; }
-  .c9 { top: 14%; left: 26%; rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.9s forwards; }
-  .c9 .icon { background: #f0ece3; color: #7a6040; }
-
   /* Only translate + scale + opacity — rotate excluded so transition owns it */
   @keyframes drift-in {
     0%   { opacity: 0; translate: 0 16px; scale: 0.94; }
@@ -279,33 +643,13 @@ function getWelcomeHtml(): string {
     animation: rise 0.8s ease-out 0.7s forwards;
     position: relative;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
   }
   .status { font-size: 11px; color: var(--ink-soft); letter-spacing: 0.04em; }
 
   .card-toggle { display: none; position: absolute; }
-
-  #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
-  #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
-  #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
-  #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
-  #t9:checked ~ .field .c9 {
-    rotate: 0deg !important;
-    width: min(240px, calc(100vw - 48px)) !important;
-    z-index: 20 !important;
-    box-shadow: 0 2px 4px rgba(31,29,26,0.06), 0 16px 40px rgba(31,29,26,0.14) !important;
-  }
-
-  #t1:checked ~ .field .c1 .card-detail, #t2:checked ~ .field .c2 .card-detail,
-  #t3:checked ~ .field .c3 .card-detail, #t4:checked ~ .field .c4 .card-detail,
-  #t5:checked ~ .field .c5 .card-detail, #t6:checked ~ .field .c6 .card-detail,
-  #t7:checked ~ .field .c7 .card-detail, #t8:checked ~ .field .c8 .card-detail,
-  #t9:checked ~ .field .c9 .card-detail {
-    max-height: 260px;
-  }
-
-  /* Bottom cards expand upward so they stay on screen */
-  #t7:checked ~ .field .c7,
-  #t8:checked ~ .field .c8 { transform: translateY(-140px) !important; }
 
   @media (min-width: 640px) {
     .stage { padding: 48px 48px 32px; }
@@ -316,212 +660,8 @@ function getWelcomeHtml(): string {
     .card-front .icon { width: 40px; height: 40px; font-size: 20px; }
     .card-front .label { font-size: 14px; }
     .card-front .sub   { font-size: 11px; }
-    .c1 { top: 4%;  left: 2%;   right: auto; }
-    .c2 { top: 2%;  left: 36%;  right: auto; }
-    .c3 { top: 4%;  left: auto; right: 2%;   }
-    .c4 { top: 40%; left: auto; right: 2%;   }
-    .c5 { top: 38%; left: 6%;   right: auto; }
-    .c6 { top: 40%; left: 37%;  right: auto; }
-    .c7 { top: 72%; left: 12%;  right: auto; }
-    .c8 { top: 72%; left: auto; right: 4%;   }
-    .c9 { top: 72%; left: 37%;  right: auto; }
-    #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
-    #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
-    #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
-    #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
-    #t9:checked ~ .field .c9 {
-      width: min(280px, calc(100vw - 64px)) !important;
-    }
-    #t7:checked ~ .field .c7,
-    #t8:checked ~ .field .c8,
-    #t9:checked ~ .field .c9 { transform: translateY(-140px) !important; }
   }
-</style>
-
-  <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
-  <input type="radio" name="card-panel" id="t1" class="card-toggle">
-  <input type="radio" name="card-panel" id="t2" class="card-toggle">
-  <input type="radio" name="card-panel" id="t3" class="card-toggle">
-  <input type="radio" name="card-panel" id="t4" class="card-toggle">
-  <input type="radio" name="card-panel" id="t5" class="card-toggle">
-  <input type="radio" name="card-panel" id="t6" class="card-toggle">
-  <input type="radio" name="card-panel" id="t7" class="card-toggle">
-  <input type="radio" name="card-panel" id="t8" class="card-toggle">
-  <input type="radio" name="card-panel" id="t9" class="card-toggle">
-
-  <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
-  <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
-  <p class="intro">Install the tools you need — a reading list, a contacts app, a journal — and they're yours alone, in this tab.</p>
-
-  <div class="field">
-    <div class="threads">
-      <svg viewBox="0 0 480 400" preserveAspectRatio="none">
-        <path d="M 90 60 Q 200 100 240 180"/>
-        <path d="M 380 50 Q 300 120 280 200"/>
-        <path d="M 120 180 Q 220 240 200 320"/>
-        <path d="M 400 220 Q 340 280 320 340"/>
-        <path d="M 240 180 Q 260 240 200 320"/>
-      </svg>
-    </div>
-
-    <label class="card c1" for="t1">
-      <div class="card-front">
-        <div class="icon">✎</div>
-        <div class="text"><div class="label">Journal</div><div class="sub">private notes</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Apr 3 · private entry</div>
-        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:4px">no cloud · no account</p>
-        <p class="detail-body">Everything written here stays on this device. Close the tab, come back later — your entries are still here.</p>
-      </div></div>
-    </label>
-
-    <label class="card c2" for="t2">
-      <div class="card-front">
-        <div class="icon">★</div>
-        <div class="text"><div class="label">Reading list</div><div class="sub">save &amp; revisit</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">3 saved</div>
-        <ul class="detail-list">
-          <li><div class="li-main"><div>What is digital sovereignty?</div><div class="li-sub">Owning your tools, not renting them</div></div></li>
-          <li><div class="li-main"><div>The sandbox is the feature</div><div class="li-sub">Why running in a browser changes everything</div></div></li>
-          <li style="color:var(--ink-faint)"><div class="li-main"><div>Moving to a real host, one day</div></div></li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c3" for="t3">
-      <div class="card-front">
-        <div class="icon">✦</div>
-        <div class="text"><div class="label">Install apps</div><div class="sub">tap + to browse</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">How to install</div>
-        <p class="detail-body">Tap <strong>+</strong> to browse journals, contacts, reading lists, and more. Install is instant — no server needed.</p>
-      </div></div>
-    </label>
-
-    <label class="card c4" for="t4">
-      <div class="card-front">
-        <div class="icon">♥</div>
-        <div class="text"><div class="label">Contacts</div><div class="sub">people you know</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Personal CRM</div>
-        <ul class="detail-list">
-          <li><div class="li-main"><div>Notes on people</div><div class="li-sub">birthdays, context, last talked — your way</div></div></li>
-          <li><div class="li-main"><div>No cloud sync</div><div class="li-sub">contact notes never leave this device</div></div></li>
-          <li><div class="li-main"><div>Install from the store</div><div class="li-sub">search for a contacts or CRM plugin</div></div></li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c5" for="t5">
-      <div class="card-front">
-        <div class="icon">◐</div>
-        <div class="text"><div class="label">Site Tools</div><div class="sub">bottom-left corner</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Always there</div>
-        <ul class="detail-list">
-          <li><div class="li-main li-done">Install apps</div><span class="li-note li-done">✓ from the store</span></li>
-          <li><div class="li-main">Manage files</div><span class="li-note">browse &amp; edit</span></li>
-          <li><div class="li-main">View logs</div><span class="li-note">see what's up</span></li>
-          <li><div class="li-main">Restore a backup</div><span class="li-note">if needed</span></li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c6" for="t6">
-      <div class="card-front">
-        <div class="icon">◎</div>
-        <div class="text"><div class="label">Daily backups</div><div class="sub">automatic</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">How it works</div>
-        <p class="detail-body">A copy downloaded to your device daily. Change the schedule in Site Tools.</p>
-        <div class="detail-sep"></div>
-        <p class="detail-body">If this tab is ever cleared, point Site Tools at your saved file to restore everything.</p>
-      </div></div>
-    </label>
-
-    <label class="card c7" for="t7">
-      <div class="card-front">
-        <div class="icon">◆</div>
-        <div class="text"><div class="label">Bookmark this</div><div class="sub">it's your WordPress</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Don't lose this</div>
-        <ul class="detail-list">
-          <li>⭐ Bookmark this page — it's your WordPress now</li>
-          <li>The Site Tools icon is in the bottom-left corner</li>
-          <li>Export and move to any host, one day</li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c9" for="t9">
-      <div class="card-front">
-        <div class="icon">♨</div>
-        <div class="text"><div class="label">Recipes</div><div class="sub">save your favorites</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Your private online space</div>
-        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:6px">WordPress · Playground · your apps</p>
-        <p class="detail-body">Combine in one browser tab. Add apps to taste. Bookmark and serve — no server, no sign-up required.</p>
-      </div></div>
-    </label>
-
-    <label class="card c8" for="t8">
-      <div class="card-front">
-        <div class="icon">⊙</div>
-        <div class="text"><div class="label">Your data</div><div class="sub">stays here</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Where it lives</div>
-        <ul class="detail-list">
-          <li><span style="color:var(--accent);font-weight:600;min-width:14px">1</span><div class="li-main"><div>No sign-up needed</div><div class="li-sub">— not even an email address</div></div></li>
-          <li><span style="color:var(--accent);font-weight:600;min-width:14px">2</span><div class="li-main"><div>No hosting plan</div><div class="li-sub">— runs entirely in this tab</div></div></li>
-          <li><span style="color:var(--accent);font-weight:600;min-width:14px">3</span><div class="li-main"><div>Portable, eventually</div><div class="li-sub">— move to any host, same data</div></div></li>
-        </ul>
-      </div></div>
-    </label>
-  </div>
-
-  <div class="footer">
-    <span class="status">Setting things up…</span>
-  </div>
-</div>
-`;
-}
-
-function getWhatsNewHtml(): string {
-	const s = welcomeStrings.returning;
-	const { tips, changelog } = welcomeStrings;
-	const tip = tips[Math.floor(Math.random() * tips.length)];
-	const changelogHtml = changelog
-		.map(
-			(entry) => `<li><strong>${entry.title}</strong>: ${entry.text}</li>`
-		)
-		.join('');
-
-	return [
-		`<h1>${s.title}</h1>`,
-		`<p class="subtitle">${s.subtitle}</p>`,
-		`<div class="tip-box"><strong>${s.tipLabel}</strong>: ${tip}</div>`,
-		`<h2>${s.whatsNewHeading}</h2>`,
-		`<ul>${changelogHtml}</ul>`,
-	].join('');
+  `;
 }
 
 function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
@@ -544,8 +684,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const hasLocalRuntimeClient = !isDependentMode && !!playground;
 	const isReturningUser =
 		site?.metadata.storage === 'opfs' && !firstTemporarySiteCreated;
+	const forceWelcome = new URLSearchParams(window.location.search).has(
+		'welcome'
+	);
 
-	const welcomeHtml = isReturningUser ? getWhatsNewHtml() : getWelcomeHtml();
+	const welcomeHtml =
+		isReturningUser && !forceWelcome ? getWhatsNewHtml() : getWelcomeHtml();
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
