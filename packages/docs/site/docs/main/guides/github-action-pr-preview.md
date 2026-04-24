@@ -14,6 +14,10 @@ For complete configuration options and advanced features, see the [action-wp-pla
 
 The action runs on pull request events (opened, updated, edited). It can either update the PR description with a preview button or post the button as a comment.
 
+:::warning This is a regular GitHub Action, not a reusable workflow
+Reference it under `jobs.<job_id>.steps.uses:` — never as `jobs.<job_id>.uses:` at the job level. The job-level form is valid YAML for reusable workflows, so it is a common mistake (including by AI coding assistants), but it will not work with this action.
+:::
+
 ## Basic setup for plugins
 
 For plugins without a build step, create `.github/workflows/pr-preview.yml`:
@@ -67,6 +71,22 @@ jobs:
                   theme-path: .
 ```
 
+## Testing PRs from forks
+
+Pull requests opened from forked repositories run with a read-only `GITHUB_TOKEN`, so the default `pull_request` trigger cannot post or update the preview button — the action fails with `Resource not accessible by integration`.
+
+The workaround is to use `pull_request_target`, which runs the workflow in the context of the base repository and has write access:
+
+```yaml
+on:
+    pull_request_target:
+        types: [opened, synchronize, reopened, edited]
+```
+
+:::danger Security note
+`pull_request_target` gives the workflow access to repository secrets even when triggered by a fork PR. Do **not** check out and execute untrusted PR code in a `pull_request_target` workflow. This action only reads PR metadata and writes the preview button, so it is safe to run under `pull_request_target` — but if you add build steps, split them into a separate `pull_request` workflow and use [`workflow_run`](https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run) to trigger the preview after the build completes.
+:::
+
 ## Button placement
 
 By default, the action updates the PR description (`mode: append-to-description`). To post as a comment instead:
@@ -89,6 +109,10 @@ with:
 ## Working with built artifacts
 
 For plugins or themes requiring compilation, the workflow involves building the code, exposing it via GitHub releases, and creating a blueprint that references the public URL.
+
+:::warning First-time setup: publish the draft release
+The `expose-artifact-on-public-url` action uploads built files to a GitHub release tagged `ci-artifacts` by default. On the first run, GitHub creates this release as a **draft**, which is not publicly fetchable — the preview button will appear but silently 404 when clicked. Go to your repository's Releases page once and either publish the release or mark it as a pre-release. Subsequent runs reuse the same release, so this is only needed once.
+:::
 
 Example workflow (see [complete documentation](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#advanced-testing-built-ci-artifacts)):
 
@@ -262,13 +286,19 @@ Configuration options: [Expose Artifact Inputs](https://github.com/WordPress/act
 
 ## Troubleshooting
 
-**Button not appearing:** Workflow file must exist on the default branch. Check Actions tab for errors.
+**`Invalid workflow file` or `jobs.<id>.uses` error:** You referenced the action as a reusable workflow. Move `uses: WordPress/action-wp-playground-pr-preview@v2` under `jobs.<job_id>.steps:`, not directly under the job. See [How it works](#how-it-works).
 
-**Preview fails to load:** Verify path points to valid plugin/theme directory. Check build logs for artifacts.
+**Button not appearing:** The workflow file must exist on the default branch before it runs on PRs. Check the Actions tab for errors.
 
-**Not activated:** Check browser console for PHP errors. Dependencies may be missing.
+**`Resource not accessible by integration`:** The PR was opened from a fork and the default `pull_request` trigger cannot write. Switch to `pull_request_target` — see [Testing PRs from forks](#testing-prs-from-forks).
 
-**Permissions errors:** Set permissions at job level.
+**Button appears but preview fails to load (404):** For built-artifact workflows, the `ci-artifacts` release is still a draft. Publish it once from the Releases page. See [Working with built artifacts](#working-with-built-artifacts).
+
+**`plugin-path` or `theme-path` resolves to an empty directory:** The path is relative to the repository root, not to the workflow file. Use `.` for repo-root plugins, `plugins/my-plugin` for subdirectories.
+
+**Plugin/theme not activated:** Check the browser console for PHP errors. Dependencies may be missing, or the plugin's main file may not match the directory name.
+
+**Permissions errors:** Ensure the job declares `permissions: pull-requests: write` (and `contents: write` for built-artifact workflows).
 
 More: [workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2)
 
@@ -286,5 +316,3 @@ More: [workflow README](https://github.com/WordPress/action-wp-playground-pr-pre
 
 - Add demo content ([guide](/guides/providing-content-for-your-demo))
 - Create custom blueprints ([docs](/blueprints))
-- Integrate with testing workflows
-- Customize templates for reviewers
