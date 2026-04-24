@@ -1,29 +1,27 @@
 /**
- * Decodes the hash fragment of a Playground URL into a blueprint string.
+ * Decodes a Playground URL hash fragment into the blueprint string
+ * downstream code expects to JSON-parse.
  *
- * Preferred path: `decodeURI`, which preserves reserved chars like %26,
- * %3F, %2F that some authors intentionally keep inside URL values
- * embedded in their blueprint JSON.
+ * `decodeURI` runs first because it leaves reserved characters like
+ * `%26`, `%3F`, `%2F` alone. Some hand-crafted URLs keep them inside
+ * blueprint string values deliberately — the target server may
+ * distinguish `?q=a%26b` from `?q=a&b`, and changing one to the other
+ * silently changes what the blueprint does.
  *
- * Fallback: `decodeURIComponent`, for fragments produced with
- * `encodeURIComponent(JSON.stringify(blueprint))` — a common pattern in
- * external tooling (GitHub Actions scripts, online examples). Under
- * `decodeURI` alone, the surviving %3A/%2C/%22 break JSON.parse and the
- * user sees a useless "Invalid blueprint" error.
+ * `decodeURIComponent` runs only when the `decodeURI` result fails to
+ * parse as JSON. This catches fragments built with
+ * `encodeURIComponent(JSON.stringify(blueprint))` — the natural thing
+ * for external tooling to reach for — where surviving `%3A`/`%2C`/`%22`
+ * would otherwise break parsing and surface an unhelpful
+ * "Invalid blueprint" error.
  *
- * The fallback only kicks in when `decodeURI` produces something
- * `JSON.parse` rejects, so existing URLs keep their exact old semantics.
+ * Malformed `%XX` makes both decoders throw; we swallow that and hand
+ * back the best string we have, so the downstream JSON parser produces
+ * a useful error instead of an opaque `URIError`.
  *
- * Both decoders can throw `URIError` on malformed `%XX`; in that case we
- * return the best decoded string we have (or the raw hash) and let the
- * downstream JSON parser produce a descriptive error message.
- *
- * Lives in its own file (no side-effecting imports) so it can be unit
- * tested under any environment without booting the whole app.
- *
- * NOTE: a near-identical copy lives at
- * `packages/playground/personal-wp/src/lib/state/url/decode-blueprint-hash.ts`.
- * Keep them in sync.
+ * Kept in its own file so tests can import it without pulling in the
+ * rest of the app's runtime. A near-identical twin lives in the
+ * personal-wp tree; keep the two in sync.
  */
 export function decodeBlueprintHash(rawHash: string): string {
 	const stripped = rawHash.startsWith('#') ? rawHash.slice(1) : rawHash;

@@ -26,6 +26,13 @@ interface QueryAPIParams {
 	'page-title'?: string;
 }
 
+/**
+ * Parses a blueprint string into a blueprint object. Accepts plain
+ * JSON or base64-encoded JSON. On failure, throws an `Error` whose
+ * message includes the underlying JSON parse error and, when `%XX`
+ * escapes are still present, a hint that the URL fragment may have
+ * been double-encoded.
+ */
 export function parseBlueprint(rawData: string) {
 	const errors: unknown[] = [];
 	try {
@@ -43,6 +50,9 @@ export function parseBlueprint(rawData: string) {
 
 function formatInvalidBlueprintError(rawData: string, errors: unknown[]): string {
 	const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(rawData.trim());
+	// Prefer the base64-decode-then-parse error if the input looks
+	// base64-shaped; otherwise the plain JSON.parse error is the more
+	// useful signal.
 	const primary = looksLikeBase64 && errors[1] ? errors[1] : errors[0];
 	const detail =
 		primary instanceof Error ? primary.message : String(primary ?? '');

@@ -1,7 +1,6 @@
 /**
- * Twin of
- * `packages/playground/website/src/lib/state/url/decode-blueprint-hash.ts`.
- * See that file for full documentation. Keep these two in sync.
+ * Twin of decode-blueprint-hash.ts in packages/playground/website.
+ * See that file for the rationale; keep these two in sync.
  */
 export function decodeBlueprintHash(rawHash: string): string {
 	const stripped = rawHash.startsWith('#') ? rawHash.slice(1) : rawHash;
