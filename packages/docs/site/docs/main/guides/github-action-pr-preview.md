@@ -12,10 +12,10 @@ For complete configuration options and advanced features, see the [action-wp-pla
 
 ## How it works
 
-The action runs on pull request events (opened, updated, edited). It can either update the PR description with a preview button or post the button as a comment.
+The action runs on the `pull_request` event (types `opened`, `synchronize`, `reopened`, `edited`). It can either update the PR description with a preview button or post the button as a comment.
 
 :::warning This is a regular GitHub Action, not a reusable workflow
-Reference it under `jobs.<job_id>.steps.uses:` — never as `jobs.<job_id>.uses:` at the job level. The job-level form is valid YAML for reusable workflows, so it is a common mistake (including by AI coding assistants), but it will not work with this action.
+Reference it as a step inside `jobs.<job_id>.steps:` (i.e. `jobs.<job_id>.steps[*].uses:`) — never as `jobs.<job_id>.uses:` at the job level. The job-level form is valid YAML for reusable workflows, so it is a common mistake (including by AI coding assistants), but it will not work with this action.
 :::
 
 ## Basic setup for plugins
@@ -289,7 +289,7 @@ Configuration options: [Expose Artifact Inputs](https://github.com/WordPress/act
 
 ## Troubleshooting
 
-**`Invalid workflow file` or `jobs.<id>.uses` error:** You referenced the action as a reusable workflow. Move `uses: WordPress/action-wp-playground-pr-preview@v2` under `jobs.<job_id>.steps:`, not directly under the job. See [How it works](#how-it-works).
+**`Invalid workflow file` or `jobs.<id>.uses` error:** You referenced the action as a reusable workflow. Move `uses: WordPress/action-wp-playground-pr-preview@v2` into the job's `steps:` list (as an item under `jobs.<job_id>.steps:`), not directly under the job. See [How it works](#how-it-works).
 
 **Button not appearing:** The workflow file must exist on the default branch before it runs on PRs. Check the Actions tab for errors.
 
