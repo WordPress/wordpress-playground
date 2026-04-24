@@ -44,6 +44,26 @@ export type ResolvedBlueprint = {
 
 const githubBlobOrRawPathPattern = /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//;
 
+/**
+ * See the twin in packages/playground/website — decodeURI first to
+ * preserve %26/%3F/%2F inside blueprint string values, decodeURIComponent
+ * as a fallback for fragments built with encodeURIComponent.
+ */
+function decodeBlueprintHash(rawHash: string): string {
+	const fragment = decodeURI(rawHash).substring(1);
+	try {
+		JSON.parse(fragment);
+		return fragment;
+	} catch {
+		// Not valid JSON under decodeURI — try decodeURIComponent.
+	}
+	try {
+		return decodeURIComponent(rawHash).substring(1);
+	} catch {
+		return fragment;
+	}
+}
+
 function normalizeBlueprintUrl(remoteUrl: string): string {
 	try {
 		const parsedUrl = new URL(remoteUrl);
@@ -70,7 +90,7 @@ export async function resolveBlueprintFromURL(
 	defaultBlueprint?: string
 ): Promise<ResolvedBlueprint> {
 	const query = url.searchParams;
-	const fragment = decodeURI(url.hash || '#').substring(1);
+	const fragment = decodeBlueprintHash(url.hash || '#');
 
 	/**
 	 * If the URL has no parameters or fragment, and a default blueprint is provided,

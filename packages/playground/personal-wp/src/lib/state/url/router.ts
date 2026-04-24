@@ -27,15 +27,22 @@ interface QueryAPIParams {
 }
 
 export function parseBlueprint(rawData: string) {
+	let jsonError: unknown;
 	try {
-		try {
-			return JSON.parse(rawData);
-		} catch {
-			return JSON.parse(decodeBase64ToString(rawData));
-		}
-	} catch {
-		throw new Error('Invalid blueprint');
+		return JSON.parse(rawData);
+	} catch (e) {
+		jsonError = e;
 	}
+	try {
+		return JSON.parse(decodeBase64ToString(rawData));
+	} catch {
+		// Fall through — the input was neither plain JSON nor base64-encoded JSON.
+	}
+	const message = jsonError instanceof Error ? jsonError.message : String(jsonError);
+	const hint = /%[0-9A-Fa-f]{2}/.test(rawData)
+		? ' The input still contains %XX escapes after decoding — the URL fragment may have been double-encoded.'
+		: '';
+	throw new Error(`Invalid blueprint: ${message}.${hint}`);
 }
 
 export class PlaygroundRoute {

@@ -572,7 +572,22 @@ const runBlueprint = async (editor) => {
 };
 
 const loadFromHash = (editor) => {
-	const hash = decodeURI(window.location.hash.substr(1));
+	// Try decodeURI first to preserve any intentional %26/%3F/%2F inside
+	// blueprint values. Fall back to decodeURIComponent for fragments
+	// produced by encodeURIComponent, where surviving %XX escapes would
+	// otherwise trip up JSON.parse.
+	const rawHash = window.location.hash.substr(1);
+	let hash = '';
+	try {
+		hash = decodeURI(rawHash);
+		JSON.parse(hash);
+	} catch {
+		try {
+			hash = decodeURIComponent(rawHash);
+		} catch {
+			// leave `hash` as whatever decodeURI produced.
+		}
+	}
 	try {
 		let json = '';
 		try {
