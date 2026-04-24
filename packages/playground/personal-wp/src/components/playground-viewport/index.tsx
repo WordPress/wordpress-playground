@@ -189,6 +189,7 @@ function getWelcomeHtml(): string {
     transition:
       rotate     0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
       width      0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      transform  0.3s ease,
       box-shadow 0.2s ease;
   }
   .card:hover { box-shadow: 0 1px 3px rgba(31, 29, 26, 0.06), 0 10px 30px rgba(31, 29, 26, 0.12); }
@@ -263,6 +264,8 @@ function getWelcomeHtml(): string {
   .c7 .icon { background: #e0f0ee; color: #2a7a6e; }
   .c8 { top: 72%; right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.6s forwards; }
   .c8 .icon { background: #f5e3e0; color: #a54a3a; }
+  .c9 { top: 14%; left: 26%; rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.9s forwards; }
+  .c9 .icon { background: #f0ece3; color: #7a6040; }
 
   /* Only translate + scale + opacity — rotate excluded so transition owns it */
   @keyframes drift-in {
@@ -284,7 +287,8 @@ function getWelcomeHtml(): string {
   #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
   #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
   #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
-  #t7:checked ~ .field .c7, #t8:checked ~ .field .c8 {
+  #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
+  #t9:checked ~ .field .c9 {
     rotate: 0deg !important;
     width: min(240px, calc(100vw - 48px)) !important;
     z-index: 20 !important;
@@ -294,9 +298,14 @@ function getWelcomeHtml(): string {
   #t1:checked ~ .field .c1 .card-detail, #t2:checked ~ .field .c2 .card-detail,
   #t3:checked ~ .field .c3 .card-detail, #t4:checked ~ .field .c4 .card-detail,
   #t5:checked ~ .field .c5 .card-detail, #t6:checked ~ .field .c6 .card-detail,
-  #t7:checked ~ .field .c7 .card-detail, #t8:checked ~ .field .c8 .card-detail {
+  #t7:checked ~ .field .c7 .card-detail, #t8:checked ~ .field .c8 .card-detail,
+  #t9:checked ~ .field .c9 .card-detail {
     max-height: 260px;
   }
+
+  /* Bottom cards expand upward so they stay on screen */
+  #t7:checked ~ .field .c7,
+  #t8:checked ~ .field .c8 { transform: translateY(-140px) !important; }
 
   @media (min-width: 640px) {
     .stage { padding: 48px 48px 32px; }
@@ -315,12 +324,17 @@ function getWelcomeHtml(): string {
     .c6 { top: 40%; left: 37%;  right: auto; }
     .c7 { top: 72%; left: 12%;  right: auto; }
     .c8 { top: 72%; left: auto; right: 4%;   }
+    .c9 { top: 72%; left: 37%;  right: auto; }
     #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
     #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
     #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
-    #t7:checked ~ .field .c7, #t8:checked ~ .field .c8 {
+    #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
+    #t9:checked ~ .field .c9 {
       width: min(280px, calc(100vw - 64px)) !important;
     }
+    #t7:checked ~ .field .c7,
+    #t8:checked ~ .field .c8,
+    #t9:checked ~ .field .c9 { transform: translateY(-140px) !important; }
   }
 </style>
 
@@ -333,6 +347,7 @@ function getWelcomeHtml(): string {
   <input type="radio" name="card-panel" id="t6" class="card-toggle">
   <input type="radio" name="card-panel" id="t7" class="card-toggle">
   <input type="radio" name="card-panel" id="t8" class="card-toggle">
+  <input type="radio" name="card-panel" id="t9" class="card-toggle">
 
   <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
   <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
@@ -356,9 +371,9 @@ function getWelcomeHtml(): string {
       </div>
       <div class="card-detail"><div class="detail-inner">
         <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Journal · entry</div>
-        <p class="detail-body" style="font-style:italic;color:var(--ink-faint);font-size:10px;margin-bottom:4px">Tuesday, a quiet evening</p>
-        <p class="detail-body">No account, no password. Everything you write stays on this device, in this tab.</p>
+        <div class="detail-label">Apr 3 · private entry</div>
+        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:4px">no cloud · no account</p>
+        <p class="detail-body">Everything written here stays on this device. Close the tab, come back later — your entries are still here.</p>
       </div></div>
     </label>
 
@@ -399,9 +414,9 @@ function getWelcomeHtml(): string {
         <label class="detail-close" for="t0">×</label>
         <div class="detail-label">Personal CRM</div>
         <ul class="detail-list">
-          <li><div class="li-main"><div>Maya</div><div class="li-sub">"showed me this — a private WordPress in the browser?"</div></div></li>
-          <li><div class="li-main"><div>Jonas</div><div class="li-sub">coffee soon · birthday in March</div></div></li>
-          <li><div class="li-main"><div>Ren</div><div class="li-sub">sent that article about data ownership</div></div></li>
+          <li><div class="li-main"><div>Notes on people</div><div class="li-sub">birthdays, context, last talked — your way</div></div></li>
+          <li><div class="li-main"><div>No cloud sync</div><div class="li-sub">contact notes never leave this device</div></div></li>
+          <li><div class="li-main"><div>Install from the store</div><div class="li-sub">search for a contacts or CRM plugin</div></div></li>
         </ul>
       </div></div>
     </label>
@@ -450,6 +465,19 @@ function getWelcomeHtml(): string {
           <li>The Site Tools icon is in the bottom-left corner</li>
           <li>Export and move to any host, one day</li>
         </ul>
+      </div></div>
+    </label>
+
+    <label class="card c9" for="t9">
+      <div class="card-front">
+        <div class="icon">♨</div>
+        <div class="text"><div class="label">Recipes</div><div class="sub">save your favorites</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        <div class="detail-label">Your private online space</div>
+        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:6px">WordPress · Playground · your apps</p>
+        <p class="detail-body">Combine in one browser tab. Add apps to taste. Bookmark and serve — no server, no sign-up required.</p>
       </div></div>
     </label>
 
