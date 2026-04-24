@@ -7,6 +7,15 @@ const toBase64 = (s: string) =>
 		: // eslint-disable-next-line @typescript-eslint/no-explicit-any
 		  (globalThis as any).Buffer.from(s, 'utf-8').toString('base64');
 
+// `parseBlueprint` reaches into `window.atob` via the existing
+// `decodeBase64ToString` helper. The default vitest environment for this
+// package is `node`, so we polyfill the bits the helper actually touches.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const g = globalThis as any;
+if (typeof g.window === 'undefined') {
+	g.window = { atob: (s: string) => Buffer.from(s, 'base64').toString('binary') };
+}
+
 describe('decodeBlueprintHash', () => {
 	const blueprint = {
 		landingPage: '/?p=4',
