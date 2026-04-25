@@ -14,14 +14,13 @@ import { test, expect } from '@playwright/test';
 const DEMO_URL = './php-code-snippet-demo.html';
 
 test.describe('php-code-snippet embed', () => {
-	test('renders three snippets with Run buttons', async ({ page }) => {
+	test('renders all snippets with Run buttons', async ({ page }) => {
 		await page.goto(DEMO_URL);
-		const snippets = page.locator('php-snippet');
-		await expect(snippets).toHaveCount(3);
 		for (const name of [
 			'hello.php',
 			'lazy-load-images.php',
 			'parse-blocks.php',
+			'scratch.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
@@ -110,5 +109,28 @@ test.describe('php-code-snippet embed', () => {
 			.locator('iframe[title="PHP Snippet runtime"]')
 			.count();
 		expect(runtimeIframes).toBe(1);
+	});
+
+	test('editable snippet runs the user-typed code', async ({ page }) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[editable]');
+		await expect(editable).toBeVisible();
+		const textarea = editable.locator('textarea.ta');
+		await expect(textarea).toBeVisible();
+
+		// Replace the snippet contents with something we can uniquely identify
+		// in the output panel.
+		await textarea.click();
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php echo "edited:" . (40 + 2);';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+		await editable.locator('.run').click();
+		await expect(editable.locator('.output')).toBeVisible({
+			timeout: 240_000,
+		});
+		await expect(editable.locator('.output-body')).toContainText(
+			'edited:42'
+		);
 	});
 });

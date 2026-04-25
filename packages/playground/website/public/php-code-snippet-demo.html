@@ -99,6 +99,19 @@ foreach ( $blocks as $block ) {
 			</script>
 		</php-snippet>
 
+		<h2>4. Editable</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
+			Type into the snippet, then click Run.
+		</p>
+		<php-snippet name="scratch.php" editable>
+			<script type="application/x-php">
+<?php
+$nums = range(1, 10);
+echo "Sum: " . array_sum($nums) . "\n";
+echo "Product: " . array_product($nums) . "\n";
+			</script>
+		</php-snippet>
+
 		<script type="module" src="./php-code-snippet.js"></script>
 	</body>
 </html>

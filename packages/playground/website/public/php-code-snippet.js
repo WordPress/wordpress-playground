@@ -26,6 +26,9 @@
  *   php="8.4"             PHP version (default: 8.4)
  *   wp="latest"           WordPress version (default: latest)
  *   src="path/to.php"     load code from a URL instead of inline
+ *   editable              make the snippet editable; visitors type into a
+ *                         transparent textarea overlaid on the highlighted
+ *                         code, and Run executes whatever they typed
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
  */
@@ -450,6 +453,39 @@ pre {
 .t-function { color: #8250df; }
 .t-class    { color: #6f42c1; }
 .t-tag      { color: #cf222e; font-weight: 500; }
+.editor {
+	position: relative;
+	background: #fff;
+}
+.editor pre, .editor textarea {
+	margin: 0;
+	padding: 16px;
+	border: 0;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 13px;
+	line-height: 1.5;
+	white-space: pre;
+	tab-size: 4;
+}
+.editor pre {
+	color: #24292f;
+	pointer-events: none;
+	overflow: hidden;
+	min-height: 1.5em;
+}
+.editor textarea {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	resize: none;
+	outline: 0;
+	background: transparent;
+	color: transparent;
+	caret-color: #24292f;
+	overflow: hidden;
+}
+.editor textarea::selection { background: #cfe7ff; color: transparent; }
 .output {
 	display: none;
 	border-top: 1px solid #e1e4e8;
@@ -514,8 +550,15 @@ class PhpSnippet extends HTMLElement {
 
 	_render() {
 		const name = this.getAttribute('name') || 'snippet.php';
+		const editable = this.hasAttribute('editable');
 		const style = document.createElement('style');
 		style.textContent = TEMPLATE_CSS;
+		const codeArea = editable
+			? `<div class="editor">
+					<pre aria-hidden="true"><code class="hl">${highlightPhp(this._code)}</code></pre>
+					<textarea class="ta" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Editable PHP code"></textarea>
+				</div>`
+			: `<pre><code>${highlightPhp(this._code)}</code></pre>`;
 		const tpl = document.createElement('template');
 		tpl.innerHTML = `
 			<div class="card">
@@ -528,7 +571,7 @@ class PhpSnippet extends HTMLElement {
 					<div class="bar"><div class="fill"></div></div>
 					<span class="percent">0%</span>
 				</div>
-				<pre><code>${highlightPhp(this._code)}</code></pre>
+				${codeArea}
 				<div class="output">
 					<div class="output-label">Output</div>
 					<pre class="output-body"></pre>
@@ -539,6 +582,31 @@ class PhpSnippet extends HTMLElement {
 		this.shadowRoot
 			.querySelector('.run')
 			.addEventListener('click', () => this._run());
+		if (editable) this._wireEditor();
+	}
+
+	_wireEditor() {
+		const textarea = this.shadowRoot.querySelector('.ta');
+		const hl = this.shadowRoot.querySelector('.hl');
+		textarea.value = this._code;
+		const sync = () => {
+			this._code = textarea.value;
+			hl.innerHTML = highlightPhp(this._code);
+		};
+		textarea.addEventListener('input', sync);
+		textarea.addEventListener('keydown', (e) => {
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				const start = textarea.selectionStart;
+				const end = textarea.selectionEnd;
+				textarea.value =
+					textarea.value.slice(0, start) +
+					'\t' +
+					textarea.value.slice(end);
+				textarea.selectionStart = textarea.selectionEnd = start + 1;
+				sync();
+			}
+		});
 	}
 
 	async _run() {
