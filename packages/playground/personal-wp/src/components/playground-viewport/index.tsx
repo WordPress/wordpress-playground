@@ -51,32 +51,151 @@ export const PlaygroundViewport = () => {
 	return activeSite ? <SeamlessViewport siteSlug={activeSite.slug} /> : null;
 };
 
+const NEW_USER_CARDS = [
+	{
+		icon: '✎',
+		iconBg: '#fef0e8',
+		iconColor: '#c44b2c',
+		label: 'Journal',
+		sub: 'private notes',
+		detail: `
+        <div class="entry-date">no cloud · no account</div>
+        <div class="entry-title">A room of one's own, in a browser tab.</div>
+        <div class="entry-body">No account, no password, no <span class="hl">"choose a plan"</span> screen. Everything written here stays on this device.</div>
+      `,
+	},
+	{
+		icon: '★',
+		iconBg: '#e8f0e3',
+		iconColor: '#5a7a3f',
+		label: 'Reading list',
+		sub: 'save &amp; revisit',
+		detailLabel: '3 saved',
+		detail: `
+        <div class="reading-item"><span class="dot">●</span><div><div class="title">What is digital sovereignty?</div><div class="meta">Owning your tools, not renting them</div></div></div>
+        <div class="reading-item"><span class="dot">●</span><div><div class="title">The sandbox is the feature</div><div class="meta">Why running in a browser changes everything</div></div></div>
+        <div class="reading-item"><span class="dot">○</span><div><div class="title">Moving to a real host, one day</div><div class="meta">When you outgrow a single tab</div></div></div>
+      `,
+	},
+	{
+		icon: '✦',
+		iconBg: '#e8ecf4',
+		iconColor: '#3f5a7a',
+		label: 'Install apps',
+		sub: 'tap + to browse',
+		detailLabel: 'How to install',
+		detail: `
+        <div class="recipe-name">Your first install</div>
+        <div class="recipe-meta">Tap + · Instant · No server needed</div>
+        <div class="recipe-section">From the home screen</div>
+        <ul class="recipe-list"><li>Tap the <strong>+</strong> button</li><li>Browse reading lists, contacts, notes…</li><li>Install is instant — no setup</li></ul>
+        <div class="recipe-section">Open source &amp; yours</div>
+        <ul class="recipe-list"><li>Apps run inside your WordPress</li><li>Your data stays with you</li></ul>
+      `,
+	},
+	{
+		icon: '♥',
+		iconBg: '#f4e8ef',
+		iconColor: '#7a3f5f',
+		label: 'Contacts',
+		sub: 'people you know',
+		detailLabel: 'Personal CRM',
+		detail: `
+        <div class="contact-card"><div class="contact-avatar">C</div><div class="contact-info"><div class="contact-name">Keep context</div><div class="contact-note">notes, birthdays, last talked — your way</div></div></div>
+        <div class="contact-card"><div class="contact-avatar">L</div><div class="contact-info"><div class="contact-name">Local only</div><div class="contact-note">contact notes never leave this device</div></div></div>
+        <div class="contact-card"><div class="contact-avatar">P</div><div class="contact-info"><div class="contact-name">Any plugin works</div><div class="contact-note">install a contacts or CRM plugin from the store</div></div></div>
+      `,
+	},
+	{
+		icon: '◐',
+		iconBg: '#fef5e0',
+		iconColor: '#a8762a',
+		label: 'Site Tools',
+		sub: 'bottom-left corner',
+		detailLabel: 'Always there',
+		detail: `
+        <div class="habit-row"><div class="habit-check done"></div><div class="habit-label done">Install apps</div><div class="habit-streak">from the store</div></div>
+        <div class="habit-row"><div class="habit-check"></div><div class="habit-label">Manage files</div><div class="habit-streak">browse &amp; edit</div></div>
+        <div class="habit-row"><div class="habit-check"></div><div class="habit-label">View logs</div><div class="habit-streak">see what's up</div></div>
+        <div class="habit-row"><div class="habit-check"></div><div class="habit-label">Restore a backup</div><div class="habit-streak">if needed</div></div>
+      `,
+	},
+	{
+		icon: '◎',
+		iconBg: '#eae4f2',
+		iconColor: '#5a3f7a',
+		label: 'Daily backups',
+		sub: 'automatic',
+		detail: `
+        <div class="wiki-term">backup</div>
+        <div class="wiki-pron">/ˈbakˌəp/ · noun</div>
+        <div class="wiki-def"><span class="num">1.</span>A copy of your WordPress, downloaded to your device daily. Change the schedule in Site Tools.<br><br><span class="num">2.</span>If this tab is ever cleared, open Site Tools and point it at your saved file to restore everything.</div>
+      `,
+	},
+	{
+		icon: '◆',
+		iconBg: '#e0f0ee',
+		iconColor: '#2a7a6e',
+		label: 'Bookmark this',
+		sub: "it's your WordPress",
+		detailLabel: "Don't lose this",
+		detail: `
+        <a class="bookmark"><span class="bm-title">⭐ Bookmark this page — it's your WordPress now</span><span class="bm-url">Add to bookmarks so you can always come back</span></a>
+        <a class="bookmark"><span class="bm-title">What the Site Tools icon does</span><span class="bm-url">The floating icon in the bottom-left corner</span></a>
+        <a class="bookmark"><span class="bm-title">Move to a real host, one day</span><span class="bm-url">Export and take your data anywhere</span></a>
+      `,
+	},
+	{
+		icon: '⊙',
+		iconBg: '#f5e3e0',
+		iconColor: '#a54a3a',
+		label: 'Your data',
+		sub: 'stays here',
+		detailLabel: 'Where it lives',
+		detail: `
+        <div class="track"><span class="track-num">1</span><div class="track-info"><div class="track-title">No sign-up needed</div><div class="track-artist">— not even an email address</div></div></div>
+        <div class="track"><span class="track-num">2</span><div class="track-info"><div class="track-title">No hosting plan</div><div class="track-artist">— runs entirely in this tab</div></div></div>
+        <div class="track"><span class="track-num">3</span><div class="track-info"><div class="track-title">Portable, eventually</div><div class="track-artist">— move to any host, same data</div></div></div>
+      `,
+	},
+	{
+		icon: '♨',
+		iconBg: '#f0ece3',
+		iconColor: '#7a6040',
+		label: 'Recipes',
+		sub: 'save your favourites',
+		detail: `
+        <div class="recipe-name">Your private online space</div>
+        <div class="recipe-meta">WordPress · Playground · your apps</div>
+        <div class="recipe-section">Ingredients</div>
+        <ul class="recipe-list"><li>WordPress (1 tab)</li><li>Playground (already included)</li><li>Your favourite apps, to taste</li></ul>
+        <div class="recipe-section">Method</div>
+        <ul class="recipe-list"><li>Combine in one browser tab</li><li>Add apps to taste</li><li>Bookmark and serve</li></ul>
+      `,
+	},
+];
+
 function getWelcomeHtml(): string {
+	const radios = NEW_USER_CARDS.map(
+		(_, i) =>
+			`<input type="radio" name="card-panel" id="t${i + 1}" class="card-toggle">`
+	).join('\n  ');
+
 	return `
 <div class="stage">
 <style>
   ${getCardStageCss()}
 
-  /* Positions + rotations. rotate is a plain CSS property (not in keyframes)
-     so the transition can smoothly animate it to 0 on card open. */
+  /* Positions + rotations — rotate excluded from keyframes so transition owns it. */
   .c1 { top: 4%;  left: 4%;   rotate: -2deg;  animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 0.8s forwards; }
-  .c1 .icon { background: #fef0e8; color: #c44b2c; }
   .c2 { top: 2%;  right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.4s forwards; }
-  .c2 .icon { background: #e8f0e3; color: #5a7a3f; }
   .c3 { top: 26%; left: 12%;  rotate: -1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.3s forwards; }
-  .c3 .icon { background: #e8ecf4; color: #3f5a7a; }
   .c4 { top: 26%; right: 4%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 3.0s forwards; }
-  .c4 .icon { background: #f4e8ef; color: #7a3f5f; }
   .c5 { top: 48%; left: 6%;   rotate: -2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.1s forwards; }
-  .c5 .icon { background: #fef5e0; color: #a8762a; }
   .c6 { top: 50%; right: 10%; rotate:  2deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.0s forwards; }
-  .c6 .icon { background: #eae4f2; color: #5a3f7a; }
   .c7 { top: 72%; left: 14%;  rotate: -1deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.7s forwards; }
-  .c7 .icon { background: #e0f0ee; color: #2a7a6e; }
   .c8 { top: 72%; right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.6s forwards; }
-  .c8 .icon { background: #f5e3e0; color: #a54a3a; }
-  .c9 { top: 14%; left: 26%; rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.9s forwards; }
-  .c9 .icon { background: #f0ece3; color: #7a6040; }
+  .c9 { top: 14%; left: 26%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.9s forwards; }
 
   #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
   #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
@@ -125,15 +244,7 @@ function getWelcomeHtml(): string {
 </style>
 
   <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
-  <input type="radio" name="card-panel" id="t1" class="card-toggle">
-  <input type="radio" name="card-panel" id="t2" class="card-toggle">
-  <input type="radio" name="card-panel" id="t3" class="card-toggle">
-  <input type="radio" name="card-panel" id="t4" class="card-toggle">
-  <input type="radio" name="card-panel" id="t5" class="card-toggle">
-  <input type="radio" name="card-panel" id="t6" class="card-toggle">
-  <input type="radio" name="card-panel" id="t7" class="card-toggle">
-  <input type="radio" name="card-panel" id="t8" class="card-toggle">
-  <input type="radio" name="card-panel" id="t9" class="card-toggle">
+  ${radios}
 
   <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
   <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
@@ -150,138 +261,7 @@ function getWelcomeHtml(): string {
       </svg>
     </div>
 
-    <label class="card c1" for="t1">
-      <div class="card-front">
-        <div class="icon">✎</div>
-        <div class="text"><div class="label">Journal</div><div class="sub">private notes</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Apr 3 · private entry</div>
-        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:4px">no cloud · no account</p>
-        <p class="detail-body">Everything written here stays on this device. Close the tab, come back later — your entries are still here.</p>
-      </div></div>
-    </label>
-
-    <label class="card c2" for="t2">
-      <div class="card-front">
-        <div class="icon">★</div>
-        <div class="text"><div class="label">Reading list</div><div class="sub">save &amp; revisit</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">3 saved</div>
-        <ul class="detail-list">
-          <li><div class="li-main"><div>What is digital sovereignty?</div><div class="li-sub">Owning your tools, not renting them</div></div></li>
-          <li><div class="li-main"><div>The sandbox is the feature</div><div class="li-sub">Why running in a browser changes everything</div></div></li>
-          <li style="color:var(--ink-faint)"><div class="li-main"><div>Moving to a real host, one day</div></div></li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c3" for="t3">
-      <div class="card-front">
-        <div class="icon">✦</div>
-        <div class="text"><div class="label">Install apps</div><div class="sub">tap + to browse</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">How to install</div>
-        <p class="detail-body">Tap <strong>+</strong> to browse journals, contacts, reading lists, and more. Install is instant — no server needed.</p>
-      </div></div>
-    </label>
-
-    <label class="card c4" for="t4">
-      <div class="card-front">
-        <div class="icon">♥</div>
-        <div class="text"><div class="label">Contacts</div><div class="sub">people you know</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Personal CRM</div>
-        <ul class="detail-list">
-          <li><div class="li-main"><div>Notes on people</div><div class="li-sub">birthdays, context, last talked — your way</div></div></li>
-          <li><div class="li-main"><div>No cloud sync</div><div class="li-sub">contact notes never leave this device</div></div></li>
-          <li><div class="li-main"><div>Install from the store</div><div class="li-sub">search for a contacts or CRM plugin</div></div></li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c5" for="t5">
-      <div class="card-front">
-        <div class="icon">◐</div>
-        <div class="text"><div class="label">Site Tools</div><div class="sub">bottom-left corner</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Always there</div>
-        <ul class="detail-list">
-          <li><div class="li-main li-done">Install apps</div><span class="li-note li-done">✓ from the store</span></li>
-          <li><div class="li-main">Manage files</div><span class="li-note">browse &amp; edit</span></li>
-          <li><div class="li-main">View logs</div><span class="li-note">see what's up</span></li>
-          <li><div class="li-main">Restore a backup</div><span class="li-note">if needed</span></li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c6" for="t6">
-      <div class="card-front">
-        <div class="icon">◎</div>
-        <div class="text"><div class="label">Daily backups</div><div class="sub">automatic</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">How it works</div>
-        <p class="detail-body">A copy downloaded to your device daily. Change the schedule in Site Tools.</p>
-        <div class="detail-sep"></div>
-        <p class="detail-body">If this tab is ever cleared, point Site Tools at your saved file to restore everything.</p>
-      </div></div>
-    </label>
-
-    <label class="card c7" for="t7">
-      <div class="card-front">
-        <div class="icon">◆</div>
-        <div class="text"><div class="label">Bookmark this</div><div class="sub">it's your WordPress</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Don't lose this</div>
-        <ul class="detail-list">
-          <li>⭐ Bookmark this page — it's your WordPress now</li>
-          <li>The Site Tools icon is in the bottom-left corner</li>
-          <li>Export and move to any host, one day</li>
-        </ul>
-      </div></div>
-    </label>
-
-    <label class="card c9" for="t9">
-      <div class="card-front">
-        <div class="icon">♨</div>
-        <div class="text"><div class="label">Recipes</div><div class="sub">save your favorites</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Your private online space</div>
-        <p class="detail-body" style="color:var(--ink-faint);font-size:10px;margin-bottom:6px">WordPress · Playground · your apps</p>
-        <p class="detail-body">Combine in one browser tab. Add apps to taste. Bookmark and serve — no server, no sign-up required.</p>
-      </div></div>
-    </label>
-
-    <label class="card c8" for="t8">
-      <div class="card-front">
-        <div class="icon">⊙</div>
-        <div class="text"><div class="label">Your data</div><div class="sub">stays here</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <div class="detail-label">Where it lives</div>
-        <ul class="detail-list">
-          <li><span style="color:var(--accent);font-weight:600;min-width:14px">1</span><div class="li-main"><div>No sign-up needed</div><div class="li-sub">— not even an email address</div></div></li>
-          <li><span style="color:var(--accent);font-weight:600;min-width:14px">2</span><div class="li-main"><div>No hosting plan</div><div class="li-sub">— runs entirely in this tab</div></div></li>
-          <li><span style="color:var(--accent);font-weight:600;min-width:14px">3</span><div class="li-main"><div>Portable, eventually</div><div class="li-sub">— move to any host, same data</div></div></li>
-        </ul>
-      </div></div>
-    </label>
+    ${NEW_USER_CARDS.map((c, i) => renderCard(c, i)).join('\n')}
   </div>
 
   <div class="footer">
@@ -289,6 +269,29 @@ function getWelcomeHtml(): string {
   </div>
 </div>
 `;
+}
+
+function renderCard(
+	card: (typeof NEW_USER_CARDS)[number],
+	index: number
+): string {
+	const n = index + 1;
+	const detailHeader =
+		'detailLabel' in card
+			? `<div class="detail-label">${card.detailLabel}</div>`
+			: '';
+	return `
+    <label class="card c${n}" for="t${n}">
+      <div class="card-front">
+        <div class="icon" style="background:${card.iconBg};color:${card.iconColor}">${card.icon}</div>
+        <div class="text"><div class="label">${card.label}</div><div class="sub">${card.sub}</div></div>
+      </div>
+      <div class="card-detail"><div class="detail-inner">
+        <label class="detail-close" for="t0">×</label>
+        ${detailHeader}
+        ${card.detail}
+      </div></div>
+    </label>`;
 }
 
 function getWhatsNewHtml(tourUrl: string): string {
@@ -650,6 +653,74 @@ function getCardStageCss(): string {
   .status { font-size: 11px; color: var(--ink-soft); letter-spacing: 0.04em; }
 
   .card-toggle { display: none; position: absolute; }
+
+  /* Journal */
+  .entry-date { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
+  .entry-title { font-size: 13px; font-weight: 500; line-height: 1.3; color: var(--ink); margin-bottom: 8px; }
+  .entry-body { font-size: 11.5px; line-height: 1.55; color: var(--ink-soft); }
+  .entry-body .hl { background: rgba(196,75,44,0.12); padding: 0 3px; color: var(--ink); }
+
+  /* Reading list */
+  .reading-item {
+    display: flex; gap: 8px; padding: 6px 0;
+    border-bottom: 1px dashed var(--thread); font-size: 11px; line-height: 1.4;
+  }
+  .reading-item:last-child { border-bottom: none; }
+  .reading-item .dot { color: var(--accent); font-size: 12px; line-height: 1; margin-top: 2px; }
+  .reading-item .title { color: var(--ink); font-weight: 500; }
+  .reading-item .meta { color: var(--ink-faint); font-size: 10px; margin-top: 2px; }
+
+  /* Recipe */
+  .recipe-name { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+  .recipe-meta { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px; }
+  .recipe-section {
+    font-size: 10px; font-weight: 600; color: var(--ink-soft);
+    letter-spacing: 0.06em; text-transform: uppercase; margin: 6px 0 3px;
+  }
+  .recipe-list { font-size: 11.5px; line-height: 1.6; color: var(--ink-soft); list-style: none; }
+  .recipe-list li::before { content: '—'; color: var(--accent); margin-right: 6px; }
+
+  /* Contacts */
+  .contact-card { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; }
+  .contact-avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--bg-warm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--ink-soft); flex-shrink: 0;
+  }
+  .contact-info { flex: 1; font-size: 11px; line-height: 1.4; }
+  .contact-name { color: var(--ink); font-weight: 500; }
+  .contact-note { color: var(--ink-faint); font-size: 10px; font-style: italic; }
+
+  /* Site Tools habits */
+  .habit-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 11.5px; }
+  .habit-check { width: 16px; height: 16px; border: 1.5px solid rgba(31,29,26,0.2); border-radius: 4px; flex-shrink: 0; position: relative; }
+  .habit-check.done { background: var(--accent); border-color: var(--accent); }
+  .habit-check.done::after {
+    content: '✓'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 10px; font-weight: 600;
+  }
+  .habit-label { color: var(--ink-soft); flex: 1; }
+  .habit-label.done { color: var(--ink); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+  .habit-streak { font-size: 10px; color: var(--ink-faint); }
+
+  /* Backups wiki */
+  .wiki-term { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+  .wiki-pron { font-size: 10px; color: var(--ink-faint); font-style: italic; margin-bottom: 8px; }
+  .wiki-def { font-size: 11.5px; line-height: 1.55; color: var(--ink-soft); }
+  .wiki-def .num { font-weight: 600; color: var(--accent); margin-right: 4px; }
+
+  /* Bookmark tiles */
+  .bookmark { display: block; padding: 7px 9px; margin-bottom: 5px; border-radius: 6px; font-size: 11px; line-height: 1.4; background: var(--bg-warm); }
+  .bookmark .bm-title { color: var(--ink); font-weight: 500; display: block; }
+  .bookmark .bm-url { color: var(--accent); font-size: 9.5px; letter-spacing: 0.02em; }
+
+  /* Your data tracks */
+  .track { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 11px; }
+  .track-num { font-size: 14px; font-weight: 600; color: var(--accent); width: 14px; flex-shrink: 0; }
+  .track-info { flex: 1; line-height: 1.3; }
+  .track-title { color: var(--ink); font-weight: 500; }
+  .track-artist { color: var(--ink-faint); font-size: 10px; }
 
   @media (min-width: 640px) {
     .stage { padding: 48px 48px 32px; }
