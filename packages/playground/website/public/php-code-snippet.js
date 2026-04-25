@@ -111,12 +111,11 @@ class ProgressTracker extends EventTarget {
 		return this._ll;
 	}
 	_notify() {
-		const self = this;
 		this.dispatchEvent(
 			new CustomEvent('progress', {
 				detail: {
-					get progress() { return self.progress; },
-					get caption() { return self.caption; },
+					progress: this.progress,
+					caption: this.caption,
 				},
 			})
 		);
@@ -155,7 +154,14 @@ async function getSharedClient({ origin, php, wp }, onProgress) {
 			}
 		});
 		entry = { tracker, subscribers, client: null, promise: null };
-		entry.promise = bootRuntime({ origin, php, wp }, entry);
+		entry.promise = bootRuntime({ origin, php, wp }, entry).catch(
+			(err) => {
+				// Drop the failed entry so a future Run can retry from scratch
+				// instead of forever awaiting the same rejected promise.
+				runtimes.delete(key);
+				throw err;
+			}
+		);
 		runtimes.set(key, entry);
 	} else {
 		// Boot in flight — replay the latest progress so a late-arriving
