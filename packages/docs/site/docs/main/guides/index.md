@@ -9,6 +9,10 @@ sidebar_class_name: navbar-build-item
 
 In this section we present a selection of guides that will help you to both work with, and to better understand, a variety of topics related to [WordPress Playground](/).
 
+## [PHP code snippets and embeds](/guides/php-code-snippets)
+
+Embed runnable PHP snippets in any web page with the `<php-snippet>` web component, or share full PHP examples via the standalone PHP Playground at [`playground.wordpress.net/php-playground.html`](https://playground.wordpress.net/php-playground.html). One script tag, lazy-loaded runtime, shared across every snippet on the page.
+
 ## [WordPress Playground for Everyone](/guides/playground-for-everyone)
 
 Think Playground is only for developers? Think again. This guide shows how WordPress Playground helps beginners, site owners, and everyday users experiment safely — no technical expertise required.
