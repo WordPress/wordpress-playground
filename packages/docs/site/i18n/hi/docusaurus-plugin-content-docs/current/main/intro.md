@@ -142,7 +142,7 @@ WordPress Playground is an open-source project and welcomes all contributors fro
 As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 -->
 
-WordPress Playground एक ओपन-सोर्स प्रोजेक्ट है और कोड से लेकर डिज़ाइन तक, तथा दस्तावेज़ों से लेकर ट्रायेज तक, सभी योगदानकर्ताओं का स्वागत करता है। चिंता न करें, योगदान करने के लिए _WebAssembly जानना जरूरी नहीं है_!
+WordPress Playground एक open-source प्रोजेक्ट है और कोड से लेकर डिज़ाइन तक, तथा दस्तावेज़ों से लेकर ट्रायेज तक, सभी योगदानकर्ताओं का स्वागत करता है। चिंता न करें, योगदान करने के लिए _WebAssembly जानना जरूरी नहीं है_!
 
 - योगदान कैसे करें इसकी पूरी जानकारी के लिए [Contributors Handbook](/contributing) देखें।
 - Slack में `#playground` चैनल में जुड़ें (साइनअप जानकारी के लिए [WordPress Slack पेज](https://make.wordpress.org/chat/) देखें)
