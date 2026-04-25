@@ -126,78 +126,76 @@ class ProgressTracker extends EventTarget {
 	}
 }
 
-let sharedClient = null;
-let sharedClientKey = null;
-let sharedTracker = null;
-const trackerSubscribers = new Set();
-
-function notifySubscribers(detail) {
-	for (const fn of trackerSubscribers) fn(detail);
-}
+/**
+ * Each unique {origin, php, wp} combination boots its own runtime. Entries
+ * live for the page lifetime so subsequent runs reuse the same client.
+ * Per-entry subscribers means progress events from one boot never leak to
+ * snippets waiting on a different runtime.
+ */
+const runtimes = new Map();
 
 async function getSharedClient({ origin, php, wp }, onProgress) {
 	const key = `${origin}|${php}|${wp}`;
-	const subscribe = (fn) => {
-		trackerSubscribers.add(fn);
-		return () => trackerSubscribers.delete(fn);
-	};
-	if (sharedClient && sharedClientKey === key) {
+	let entry = runtimes.get(key);
+
+	if (entry && entry.client) {
 		onProgress?.({ progress: 100, caption: '' });
-		return sharedClient;
+		return entry.client;
 	}
-	if (sharedTracker && sharedClientKey === key) {
-		// Boot already in flight — replay the latest progress immediately
-		// so a late-arriving snippet shows the same bar position.
+
+	if (!entry) {
+		const tracker = new ProgressTracker();
+		const subscribers = new Set();
+		tracker.addEventListener('progress', (e) => {
+			for (const fn of subscribers) {
+				fn({
+					progress: e.detail.progress,
+					caption: e.detail.caption,
+				});
+			}
+		});
+		entry = { tracker, subscribers, client: null, promise: null };
+		entry.promise = bootRuntime({ origin, php, wp }, entry);
+		runtimes.set(key, entry);
+	} else {
+		// Boot in flight — replay the latest progress so a late-arriving
+		// snippet shows the same bar position.
 		onProgress?.({
-			progress: sharedTracker.progress,
-			caption: sharedTracker.caption,
+			progress: entry.tracker.progress,
+			caption: entry.tracker.caption,
 		});
-		const unsub = subscribe(onProgress);
-		try {
-			return await sharedClientPromise;
-		} finally {
-			unsub();
-		}
 	}
-	sharedClientKey = key;
-	sharedTracker = new ProgressTracker();
-	sharedTracker.addEventListener('progress', (e) =>
-		notifySubscribers({
-			progress: e.detail.progress,
-			caption: e.detail.caption,
-		})
-	);
-	const unsub = subscribe(onProgress);
-	sharedClientPromise = (async () => {
-		const { startPlaygroundWeb } = await import(
-			/* @vite-ignore */ `${origin}/client/index.js`
-		);
-		const iframe = document.createElement('iframe');
-		iframe.title = 'PHP Snippet runtime';
-		iframe.setAttribute('aria-hidden', 'true');
-		iframe.style.cssText =
-			'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;';
-		iframe.src = `${origin}/remote.html`;
-		document.body.appendChild(iframe);
-		const client = await startPlaygroundWeb({
-			iframe,
-			remoteUrl: iframe.src,
-			disableProgressBar: true,
-			progressTracker: sharedTracker,
-			blueprint: { preferredVersions: { php, wp } },
-		});
-		await client.isReady;
-		sharedClient = client;
-		return client;
-	})();
+
+	if (onProgress) entry.subscribers.add(onProgress);
 	try {
-		return await sharedClientPromise;
+		return await entry.promise;
 	} finally {
-		unsub();
+		if (onProgress) entry.subscribers.delete(onProgress);
 	}
 }
 
-let sharedClientPromise = null;
+async function bootRuntime({ origin, php, wp }, entry) {
+	const { startPlaygroundWeb } = await import(
+		/* @vite-ignore */ `${origin}/client/index.js`
+	);
+	const iframe = document.createElement('iframe');
+	iframe.title = 'PHP Snippet runtime';
+	iframe.setAttribute('aria-hidden', 'true');
+	iframe.style.cssText =
+		'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;';
+	iframe.src = `${origin}/remote.html`;
+	document.body.appendChild(iframe);
+	const client = await startPlaygroundWeb({
+		iframe,
+		remoteUrl: iframe.src,
+		disableProgressBar: true,
+		progressTracker: entry.tracker,
+		blueprint: { preferredVersions: { php, wp } },
+	});
+	await client.isReady;
+	entry.client = client;
+	return client;
+}
 
 /**
  * Tiny regex-based PHP highlighter (~80 lines). Good enough for typical
@@ -494,6 +492,11 @@ class PhpSnippet extends HTMLElement {
 		const src = this.getAttribute('src');
 		if (src) {
 			const res = await fetch(src);
+			if (!res.ok) {
+				throw new Error(
+					`Failed to load PHP from ${src}: ${res.status} ${res.statusText}`
+				);
+			}
 			return await res.text();
 		}
 		const script = this.querySelector(
@@ -507,14 +510,14 @@ class PhpSnippet extends HTMLElement {
 		const name = this.getAttribute('name') || 'snippet.php';
 		const style = document.createElement('style');
 		style.textContent = TEMPLATE_CSS;
-		this.shadowRoot.replaceChildren(style);
-		this.shadowRoot.innerHTML += `
+		const tpl = document.createElement('template');
+		tpl.innerHTML = `
 			<div class="card">
 				<div class="header">
 					<span class="name">${escapeHtml(name)}</span>
 					<button class="run" type="button">Run</button>
 				</div>
-				<div class="progress" role="status">
+				<div class="progress" role="status" aria-live="polite" aria-atomic="true">
 					<span class="caption">Loading…</span>
 					<div class="bar"><div class="fill"></div></div>
 					<span class="percent">0%</span>
@@ -526,6 +529,7 @@ class PhpSnippet extends HTMLElement {
 				</div>
 			</div>
 		`;
+		this.shadowRoot.replaceChildren(style, tpl.content);
 		this.shadowRoot
 			.querySelector('.run')
 			.addEventListener('click', () => this._run());
