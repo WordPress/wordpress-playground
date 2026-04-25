@@ -291,7 +291,7 @@ function getWelcomeHtml(): string {
 `;
 }
 
-function getWhatsNewHtml(): string {
+function getWhatsNewHtml(tourUrl: string): string {
 	const { tips, changelog } = welcomeStrings;
 	const tip = tips[Math.floor(Math.random() * tips.length)];
 
@@ -432,7 +432,7 @@ ${cardsHtml}
 
   <div class="footer">
     <span class="status">Loading your site…</span>
-    <a href="?welcome" class="tour-link">First time here? See the intro →</a>
+    <a href="${tourUrl}" target="_top" class="tour-link">First time here? See the intro →</a>
   </div>
 </div>
 `;
@@ -687,9 +687,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const forceWelcome = new URLSearchParams(window.location.search).has(
 		'welcome'
 	);
+	const tourUrl =
+		window.location.origin + window.location.pathname + '?welcome';
 
 	const welcomeHtml =
-		isReturningUser && !forceWelcome ? getWhatsNewHtml() : getWelcomeHtml();
+		isReturningUser && !forceWelcome
+			? getWhatsNewHtml(tourUrl)
+			: getWelcomeHtml();
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
