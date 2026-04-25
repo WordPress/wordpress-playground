@@ -1,0 +1,587 @@
+/**
+ * <php-snippet> — a runnable, syntax-highlighted PHP code embed.
+ *
+ * Drop this on any page:
+ *
+ *   <script type="module" src="https://playground.wordpress.net/php-code-snippet.js"></script>
+ *
+ *   <php-snippet name="lazy-load-images.php">
+ *     <script type="application/x-php">
+ * <?php
+ * $html = '<img src="hero.jpg">';
+ * $tags = new WP_HTML_Tag_Processor( $html );
+ * while ( $tags->next_tag( 'img' ) ) {
+ *     $tags->set_attribute( 'loading', 'lazy' );
+ * }
+ * echo $tags->get_updated_html();
+ *     </script>
+ *   </php-snippet>
+ *
+ * Multiple <php-snippet> elements on the same page share a single hidden
+ * Playground runtime that's only booted on the first Run click. PHP and
+ * WordPress WASM are downloaded once per page, not once per snippet.
+ *
+ * Attributes:
+ *   name="…"              filename label shown in the header
+ *   php="8.4"             PHP version (default: 8.4)
+ *   wp="latest"           WordPress version (default: latest)
+ *   src="path/to.php"     load code from a URL instead of inline
+ *   playground-origin="https://playground.wordpress.net"
+ *                         override the runtime origin (useful for local dev)
+ */
+
+const DEFAULT_ORIGIN = 'https://playground.wordpress.net';
+const DEFAULT_PHP = '8.4';
+const DEFAULT_WP = 'latest';
+
+/**
+ * Minimal duck-typed port of @php-wasm/progress's ProgressTracker.
+ * The published playground.wordpress.net/client bundle uses this shape
+ * internally (calls .stage(weight), .set(0–100), .setCaption(s), .finish(),
+ * .pipe(receiver), .loadingListener) but does not export the class. Once
+ * it is exported, this can be replaced with a direct import.
+ */
+const PROGRESS_EPSILON = 0.00001;
+class ProgressTracker extends EventTarget {
+	constructor({ weight = 1, caption = '' } = {}) {
+		super();
+		this._weight = weight;
+		this._selfWeight = 1;
+		this._selfProgress = 0;
+		this._selfCaption = caption;
+		this._selfDone = false;
+		this._subs = [];
+	}
+	get weight() { return this._weight; }
+	get progress() {
+		if (this._selfDone) return 100;
+		const sum = this._subs.reduce(
+			(s, t) => s + t.progress * t.weight,
+			this._selfProgress * this._selfWeight
+		);
+		return Math.round(sum * 10000) / 10000;
+	}
+	get done() { return this.progress + PROGRESS_EPSILON >= 100; }
+	get caption() {
+		for (let i = this._subs.length - 1; i >= 0; i--) {
+			if (!this._subs[i].done && this._subs[i].caption) {
+				return this._subs[i].caption;
+			}
+		}
+		return this._selfCaption;
+	}
+	stage(weight, caption = '') {
+		if (!weight) weight = this._selfWeight;
+		this._selfWeight -= weight;
+		const sub = new ProgressTracker({ weight, caption });
+		this._subs.push(sub);
+		sub.addEventListener('progress', () => this._notify());
+		sub.addEventListener('done', () => {
+			if (this.done) this._notifyDone();
+		});
+		return sub;
+	}
+	set(value) {
+		this._selfProgress = Math.min(value, 100);
+		this._notify();
+		if (this._selfProgress + PROGRESS_EPSILON >= 100) this.finish();
+	}
+	setCaption(c) { this._selfCaption = c; this._notify(); }
+	finish() {
+		this._selfDone = true;
+		this._selfProgress = 100;
+		this._notify();
+		this._notifyDone();
+	}
+	pipe(receiver) {
+		receiver.setProgress({ progress: this.progress, caption: this.caption });
+		this.addEventListener('progress', (e) =>
+			receiver.setProgress({
+				progress: e.detail.progress,
+				caption: e.detail.caption,
+			})
+		);
+		this.addEventListener('done', () => receiver.setLoaded());
+	}
+	get loadingListener() {
+		if (!this._ll) {
+			this._ll = (event) =>
+				this.set((event.detail.loaded / event.detail.total) * 100);
+		}
+		return this._ll;
+	}
+	_notify() {
+		const self = this;
+		this.dispatchEvent(
+			new CustomEvent('progress', {
+				detail: {
+					get progress() { return self.progress; },
+					get caption() { return self.caption; },
+				},
+			})
+		);
+	}
+	_notifyDone() {
+		this.dispatchEvent(new CustomEvent('done'));
+	}
+}
+
+let sharedClient = null;
+let sharedClientKey = null;
+let sharedTracker = null;
+const trackerSubscribers = new Set();
+
+function notifySubscribers(detail) {
+	for (const fn of trackerSubscribers) fn(detail);
+}
+
+async function getSharedClient({ origin, php, wp }, onProgress) {
+	const key = `${origin}|${php}|${wp}`;
+	const subscribe = (fn) => {
+		trackerSubscribers.add(fn);
+		return () => trackerSubscribers.delete(fn);
+	};
+	if (sharedClient && sharedClientKey === key) {
+		onProgress?.({ progress: 100, caption: '' });
+		return sharedClient;
+	}
+	if (sharedTracker && sharedClientKey === key) {
+		// Boot already in flight — replay the latest progress immediately
+		// so a late-arriving snippet shows the same bar position.
+		onProgress?.({
+			progress: sharedTracker.progress,
+			caption: sharedTracker.caption,
+		});
+		const unsub = subscribe(onProgress);
+		try {
+			return await sharedClientPromise;
+		} finally {
+			unsub();
+		}
+	}
+	sharedClientKey = key;
+	sharedTracker = new ProgressTracker();
+	sharedTracker.addEventListener('progress', (e) =>
+		notifySubscribers({
+			progress: e.detail.progress,
+			caption: e.detail.caption,
+		})
+	);
+	const unsub = subscribe(onProgress);
+	sharedClientPromise = (async () => {
+		const { startPlaygroundWeb } = await import(
+			/* @vite-ignore */ `${origin}/client/index.js`
+		);
+		const iframe = document.createElement('iframe');
+		iframe.title = 'PHP Snippet runtime';
+		iframe.setAttribute('aria-hidden', 'true');
+		iframe.style.cssText =
+			'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;';
+		iframe.src = `${origin}/remote.html`;
+		document.body.appendChild(iframe);
+		const client = await startPlaygroundWeb({
+			iframe,
+			remoteUrl: iframe.src,
+			disableProgressBar: true,
+			progressTracker: sharedTracker,
+			blueprint: { preferredVersions: { php, wp } },
+		});
+		await client.isReady;
+		sharedClient = client;
+		return client;
+	})();
+	try {
+		return await sharedClientPromise;
+	} finally {
+		unsub();
+	}
+}
+
+let sharedClientPromise = null;
+
+/**
+ * Tiny regex-based PHP highlighter (~80 lines). Good enough for typical
+ * snippets without pulling in a 50KB tokenizer. The order matters: longer
+ * patterns and string/comment patterns must come before keyword/identifier
+ * patterns so they match first.
+ */
+const PHP_KEYWORDS = new Set([
+	'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch',
+	'class', 'clone', 'const', 'continue', 'declare', 'default', 'do', 'echo',
+	'else', 'elseif', 'empty', 'enddeclare', 'endfor', 'endforeach', 'endif',
+	'endswitch', 'endwhile', 'extends', 'final', 'finally', 'fn', 'for',
+	'foreach', 'function', 'global', 'goto', 'if', 'implements', 'include',
+	'include_once', 'instanceof', 'insteadof', 'interface', 'isset', 'list',
+	'match', 'namespace', 'new', 'null', 'or', 'print', 'private', 'protected',
+	'public', 'readonly', 'require', 'require_once', 'return', 'static',
+	'switch', 'throw', 'trait', 'try', 'unset', 'use', 'var', 'while', 'xor',
+	'yield', 'true', 'false',
+]);
+
+function escapeHtml(s) {
+	return s
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function highlightPhp(code) {
+	const tokens = [];
+	let i = 0;
+	const len = code.length;
+	while (i < len) {
+		const c = code[i];
+		const rest = code.slice(i);
+		// Heredoc/nowdoc — bail to plain
+		if (rest.startsWith('<<<')) {
+			tokens.push(['plain', code[i]]);
+			i++;
+			continue;
+		}
+		// Block comment
+		if (rest.startsWith('/*')) {
+			const end = code.indexOf('*/', i + 2);
+			const stop = end === -1 ? len : end + 2;
+			tokens.push(['comment', code.slice(i, stop)]);
+			i = stop;
+			continue;
+		}
+		// Line comment
+		if (rest.startsWith('//') || rest.startsWith('#')) {
+			const end = code.indexOf('\n', i);
+			const stop = end === -1 ? len : end;
+			tokens.push(['comment', code.slice(i, stop)]);
+			i = stop;
+			continue;
+		}
+		// Single-quoted string
+		if (c === "'") {
+			let j = i + 1;
+			while (j < len && code[j] !== "'") {
+				if (code[j] === '\\') j++;
+				j++;
+			}
+			tokens.push(['string', code.slice(i, Math.min(j + 1, len))]);
+			i = j + 1;
+			continue;
+		}
+		// Double-quoted string
+		if (c === '"') {
+			let j = i + 1;
+			while (j < len && code[j] !== '"') {
+				if (code[j] === '\\') j++;
+				j++;
+			}
+			tokens.push(['string', code.slice(i, Math.min(j + 1, len))]);
+			i = j + 1;
+			continue;
+		}
+		// PHP open/close tags
+		if (rest.startsWith('<?php') || rest.startsWith('<?=')) {
+			const tag = rest.startsWith('<?php') ? '<?php' : '<?=';
+			tokens.push(['tag', tag]);
+			i += tag.length;
+			continue;
+		}
+		if (rest.startsWith('?>')) {
+			tokens.push(['tag', '?>']);
+			i += 2;
+			continue;
+		}
+		// Variable
+		if (c === '$' && /[A-Za-z_]/.test(code[i + 1] || '')) {
+			let j = i + 2;
+			while (j < len && /[A-Za-z0-9_]/.test(code[j])) j++;
+			tokens.push(['variable', code.slice(i, j)]);
+			i = j;
+			continue;
+		}
+		// Number
+		if (/[0-9]/.test(c)) {
+			let j = i + 1;
+			while (j < len && /[0-9.eExX_]/.test(code[j])) j++;
+			tokens.push(['number', code.slice(i, j)]);
+			i = j;
+			continue;
+		}
+		// Identifier (keyword vs. function call vs. class name)
+		if (/[A-Za-z_]/.test(c)) {
+			let j = i + 1;
+			while (j < len && /[A-Za-z0-9_]/.test(code[j])) j++;
+			const word = code.slice(i, j);
+			let kind;
+			if (PHP_KEYWORDS.has(word.toLowerCase())) {
+				kind = 'keyword';
+			} else if (/^[A-Z]/.test(word)) {
+				kind = 'class';
+			} else if (code[j] === '(') {
+				kind = 'function';
+			} else {
+				kind = 'plain';
+			}
+			tokens.push([kind, word]);
+			i = j;
+			continue;
+		}
+		tokens.push(['plain', c]);
+		i++;
+	}
+	return tokens
+		.map(([kind, text]) =>
+			kind === 'plain'
+				? escapeHtml(text)
+				: `<span class="t-${kind}">${escapeHtml(text)}</span>`
+		)
+		.join('');
+}
+
+const TEMPLATE_CSS = `
+:host {
+	display: block;
+	margin: 16px 0;
+	font-family: system-ui, -apple-system, sans-serif;
+}
+.card {
+	border: 1px solid #e1e4e8;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #f6f8fa;
+}
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 14px;
+	background: #f6f8fa;
+	border-bottom: 1px solid #e1e4e8;
+	gap: 12px;
+}
+.name {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 13px;
+	color: #57606a;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.run {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 14px;
+	background: #2563eb;
+	color: white;
+	border: 0;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+.run:hover { background: #1d4ed8; }
+.run:disabled { background: #93c5fd; cursor: progress; }
+.run::before { content: "▶"; font-size: 10px; }
+.progress {
+	display: none;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 14px;
+	background: #f0f4ff;
+	border-bottom: 1px solid #d0d7de;
+	font-size: 13px;
+	color: #444c56;
+}
+.progress.visible { display: flex; }
+.bar {
+	flex: 1;
+	height: 4px;
+	background: #d0d7de;
+	border-radius: 2px;
+	overflow: hidden;
+	position: relative;
+}
+.fill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	background: #2563eb;
+	border-radius: 2px;
+	width: 0;
+	transition: width 0.2s linear;
+}
+.caption {
+	flex-shrink: 0;
+	font-variant-numeric: tabular-nums;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.percent {
+	flex-shrink: 0;
+	font-variant-numeric: tabular-nums;
+	color: #57606a;
+	font-size: 12px;
+	min-width: 36px;
+	text-align: right;
+}
+pre {
+	margin: 0;
+	padding: 16px;
+	overflow-x: auto;
+	background: #ffffff;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 13px;
+	line-height: 1.5;
+	color: #24292f;
+	white-space: pre;
+	tab-size: 4;
+}
+.t-keyword  { color: #cf222e; font-weight: 500; }
+.t-string   { color: #0a3069; }
+.t-comment  { color: #6e7781; font-style: italic; }
+.t-variable { color: #953800; }
+.t-number   { color: #0550ae; }
+.t-function { color: #8250df; }
+.t-class    { color: #6f42c1; }
+.t-tag      { color: #cf222e; font-weight: 500; }
+.output {
+	display: none;
+	border-top: 1px solid #e1e4e8;
+	background: #0d1117;
+	color: #e6edf3;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 13px;
+	line-height: 1.5;
+}
+.output.visible { display: block; }
+.output-label {
+	padding: 6px 14px;
+	background: #161b22;
+	color: #7d8590;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	border-bottom: 1px solid #30363d;
+}
+.output-body {
+	padding: 14px;
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 400px;
+	overflow-y: auto;
+}
+.output-body.error { color: #ff8182; }
+`;
+
+class PhpSnippet extends HTMLElement {
+	constructor() {
+		super();
+		this.attachShadow({ mode: 'open' });
+		this._code = '';
+	}
+
+	connectedCallback() {
+		this._readCode().then((code) => {
+			this._code = code.trim();
+			this._render();
+		});
+	}
+
+	async _readCode() {
+		const src = this.getAttribute('src');
+		if (src) {
+			const res = await fetch(src);
+			return await res.text();
+		}
+		const script = this.querySelector(
+			'script[type="application/x-php"], script[type="text/x-php"], script[type="text/php"]'
+		);
+		if (script) return script.textContent || '';
+		return this.textContent || '';
+	}
+
+	_render() {
+		const name = this.getAttribute('name') || 'snippet.php';
+		const style = document.createElement('style');
+		style.textContent = TEMPLATE_CSS;
+		this.shadowRoot.replaceChildren(style);
+		this.shadowRoot.innerHTML += `
+			<div class="card">
+				<div class="header">
+					<span class="name">${escapeHtml(name)}</span>
+					<button class="run" type="button">Run</button>
+				</div>
+				<div class="progress" role="status">
+					<span class="caption">Loading…</span>
+					<div class="bar"><div class="fill"></div></div>
+					<span class="percent">0%</span>
+				</div>
+				<pre><code>${highlightPhp(this._code)}</code></pre>
+				<div class="output">
+					<div class="output-label">Output</div>
+					<pre class="output-body"></pre>
+				</div>
+			</div>
+		`;
+		this.shadowRoot
+			.querySelector('.run')
+			.addEventListener('click', () => this._run());
+	}
+
+	async _run() {
+		const btn = this.shadowRoot.querySelector('.run');
+		const progress = this.shadowRoot.querySelector('.progress');
+		const caption = this.shadowRoot.querySelector('.caption');
+		const fill = this.shadowRoot.querySelector('.fill');
+		const percent = this.shadowRoot.querySelector('.percent');
+		const outputWrap = this.shadowRoot.querySelector('.output');
+		const outputBody = this.shadowRoot.querySelector('.output-body');
+		btn.disabled = true;
+		outputBody.classList.remove('error');
+		progress.classList.add('visible');
+		caption.textContent = 'Loading runtime…';
+		fill.style.width = '0%';
+		percent.textContent = '0%';
+		try {
+			const client = await getSharedClient(
+				{
+					origin:
+						this.getAttribute('playground-origin') ||
+						DEFAULT_ORIGIN,
+					php: this.getAttribute('php') || DEFAULT_PHP,
+					wp: this.getAttribute('wp') || DEFAULT_WP,
+				},
+				({ progress: pct, caption: cap }) => {
+					const rounded = Math.round(pct);
+					fill.style.width = rounded + '%';
+					percent.textContent = rounded + '%';
+					if (cap) caption.textContent = cap;
+				}
+			);
+			caption.textContent = 'Running…';
+			fill.style.width = '100%';
+			percent.textContent = '100%';
+			const response = await client.run({ code: this._code });
+			outputBody.textContent = response.text || '(no output)';
+			if (response.errors) {
+				outputBody.textContent +=
+					(outputBody.textContent ? '\n\n' : '') + response.errors;
+			}
+			outputWrap.classList.add('visible');
+		} catch (err) {
+			outputBody.classList.add('error');
+			outputBody.textContent = String(
+				err && err.message ? err.message : err
+			);
+			outputWrap.classList.add('visible');
+		} finally {
+			progress.classList.remove('visible');
+			btn.disabled = false;
+		}
+	}
+}
+
+customElements.define('php-snippet', PhpSnippet);

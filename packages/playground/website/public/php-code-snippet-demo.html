@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>&lt;php-snippet&gt; demo</title>
+		<style>
+			body {
+				font-family: system-ui, -apple-system, sans-serif;
+				max-width: 880px;
+				margin: 0 auto;
+				padding: 32px 20px 64px;
+				color: #1f2328;
+				line-height: 1.55;
+			}
+			h1 { font-size: 28px; margin: 0 0 8px; }
+			h2 { font-size: 20px; margin: 32px 0 8px; }
+			.lede { color: #57606a; margin: 0 0 24px; }
+			code { background: #eaeef2; padding: 2px 5px; border-radius: 4px; font-size: 0.9em; }
+			.note {
+				background: #ddf4ff;
+				border-left: 4px solid #218bff;
+				padding: 12px 14px;
+				margin: 16px 0;
+				border-radius: 4px;
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>&lt;php-snippet&gt; demo</h1>
+		<p class="lede">
+			Three independent snippets on one page. Click Run on any of
+			them — the PHP &amp; WordPress runtime downloads
+			<strong>once</strong> and is shared across all of them.
+		</p>
+
+		<div class="note">
+			Open DevTools → Network and watch: the first Run downloads
+			<code>remote.html</code> + the PHP WASM binary + WordPress.
+			The second and third Runs reuse the same runtime — no extra
+			downloads.
+		</div>
+
+		<h2>1. Pure PHP</h2>
+		<php-snippet name="hello.php">
+			<script type="application/x-php">
+<?php
+echo "Hello from PHP " . phpversion() . "\n";
+echo "Today is " . date('Y-m-d') . "\n";
+echo str_repeat('-', 30) . "\n";
+
+$nums = [1, 2, 3, 4, 5];
+echo "Sum of " . implode(',', $nums) . " = " . array_sum($nums) . "\n";
+			</script>
+		</php-snippet>
+
+		<h2>2. WordPress HTML API</h2>
+		<php-snippet name="lazy-load-images.php">
+			<script type="application/x-php">
+<?php
+require '/wordpress/wp-load.php';
+
+$html = '<article>
+    <img src="hero.jpg" alt="Hero">
+    <img src="inline.jpg" alt="Inline">
+</article>';
+
+$tags = new WP_HTML_Tag_Processor( $html );
+while ( $tags->next_tag( 'img' ) ) {
+    $tags->set_attribute( 'loading', 'lazy' );
+    $tags->add_class( 'responsive' );
+}
+
+echo $tags->get_updated_html();
+			</script>
+		</php-snippet>
+
+		<h2>3. Block parser</h2>
+		<php-snippet name="parse-blocks.php">
+			<script type="application/x-php">
+<?php
+require '/wordpress/wp-load.php';
+
+$post_content = "<!-- wp:paragraph -->
+<p>Hello, <strong>block editor</strong>!</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>One</li><li>Two</li></ul>
+<!-- /wp:list -->";
+
+$blocks = parse_blocks( $post_content );
+foreach ( $blocks as $block ) {
+    if ( ! empty( $block['blockName'] ) ) {
+        echo "- " . $block['blockName'] . "\n";
+    }
+}
+			</script>
+		</php-snippet>
+
+		<script type="module" src="./php-code-snippet.js"></script>
+	</body>
+</html>

@@ -1,0 +1,114 @@
+import { test, expect } from '@playwright/test';
+
+/**
+ * E2E tests for the <php-snippet> web component embed.
+ * Verifies that:
+ *   - the demo page renders three snippets,
+ *   - clicking Run on the first shows a real progress bar with a caption
+ *     and percent that advance toward 100,
+ *   - the first snippet executes and shows PHP output,
+ *   - subsequent snippets reuse the same Playground runtime (much faster
+ *     than the first boot) and produce their own output.
+ */
+
+const DEMO_URL = './php-code-snippet-demo.html';
+
+test.describe('php-code-snippet embed', () => {
+	test('renders three snippets with Run buttons', async ({ page }) => {
+		await page.goto(DEMO_URL);
+		const snippets = page.locator('php-snippet');
+		await expect(snippets).toHaveCount(3);
+		for (const name of [
+			'hello.php',
+			'lazy-load-images.php',
+			'parse-blocks.php',
+		]) {
+			const snippet = page.locator(`php-snippet[name="${name}"]`);
+			await expect(snippet).toBeVisible();
+			await expect(snippet.locator('.run')).toBeVisible();
+		}
+	});
+
+	test('first Run boots the runtime and shows progress + output', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const first = page.locator('php-snippet').nth(0);
+
+		await expect(first.locator('.progress')).toBeHidden();
+		await first.locator('.run').click();
+
+		// Progress bar appears with caption + percent text.
+		await expect(first.locator('.progress')).toBeVisible();
+		await expect(first.locator('.caption')).not.toHaveText('');
+		await expect(first.locator('.percent')).toContainText(/%$/);
+
+		// The percent advances past 0 (real progress, not just "0%" forever).
+		await expect
+			.poll(
+				async () =>
+					Number(
+						(
+							(await first
+								.locator('.percent')
+								.textContent()) || '0%'
+						).replace('%', '')
+					),
+				{ timeout: 120_000, intervals: [500] }
+			)
+			.toBeGreaterThan(0);
+
+		// Eventually the run completes and the output panel appears.
+		await expect(first.locator('.output')).toBeVisible({
+			timeout: 240_000,
+		});
+		await expect(first.locator('.output-body')).toContainText(
+			'Hello from PHP'
+		);
+
+		// Progress hides once the run finishes.
+		await expect(first.locator('.progress')).toBeHidden();
+	});
+
+	test('subsequent snippets reuse the shared runtime', async ({ page }) => {
+		await page.goto(DEMO_URL);
+		const first = page.locator('php-snippet').nth(0);
+		const second = page.locator('php-snippet').nth(1);
+		const third = page.locator('php-snippet').nth(2);
+
+		// Boot the runtime via the first snippet.
+		await first.locator('.run').click();
+		await expect(first.locator('.output')).toBeVisible({
+			timeout: 240_000,
+		});
+
+		// Second run should reuse the runtime — well under the 240s
+		// boot budget. Allow a generous 60s upper bound for CI noise.
+		const secondStart = Date.now();
+		await second.locator('.run').click();
+		await expect(second.locator('.output')).toBeVisible({
+			timeout: 60_000,
+		});
+		const secondElapsed = Date.now() - secondStart;
+		expect(secondElapsed).toBeLessThan(60_000);
+		await expect(second.locator('.output-body')).toContainText(
+			'loading="lazy"'
+		);
+
+		// Third snippet — same shared runtime.
+		await third.locator('.run').click();
+		await expect(third.locator('.output')).toBeVisible({
+			timeout: 60_000,
+		});
+		await expect(third.locator('.output-body')).toContainText(
+			'core/paragraph'
+		);
+
+		// Only one runtime iframe should have been added to the host page,
+		// regardless of how many snippets ran.
+		const runtimeIframes = await page
+			.locator('iframe[title="PHP Snippet runtime"]')
+			.count();
+		expect(runtimeIframes).toBe(1);
+	});
+});
