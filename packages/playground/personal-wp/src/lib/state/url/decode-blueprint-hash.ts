@@ -5,18 +5,18 @@
 export function decodeBlueprintHash(rawHash: string): string {
 	const stripped = rawHash.startsWith('#') ? rawHash.slice(1) : rawHash;
 
-	let decodedURI: string | undefined;
+	let decodedComponent: string | undefined;
 	try {
-		decodedURI = decodeURI(stripped);
-		JSON.parse(decodedURI);
-		return decodedURI;
+		decodedComponent = decodeURIComponent(stripped);
+		JSON.parse(decodedComponent);
+		return decodedComponent;
 	} catch {
 		// fall through
 	}
 
 	try {
-		return decodeURIComponent(stripped);
+		return decodeURI(stripped);
 	} catch {
-		return decodedURI ?? stripped;
+		return decodedComponent ?? stripped;
 	}
 }

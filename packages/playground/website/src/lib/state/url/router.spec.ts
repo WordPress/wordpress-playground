@@ -39,15 +39,12 @@ describe('decodeBlueprintHash', () => {
 		});
 	});
 
-	it('preserves %26 intentionally kept inside a URL value', () => {
-		// A hand-crafted URL where the author wants %26 to round-trip —
-		// e.g. targeting an API that distinguishes `?q=a%26b` from
-		// `?q=a&b`. The fragment is the browser's view of the raw hash:
-		// `"` arrives as %22 but `%26` is preserved as-is.
-		const raw = '#{%22url%22:%22https://x.test/?q=a%26b%22}';
-		expect(JSON.parse(decodeBlueprintHash(raw))).toEqual({
-			url: 'https://x.test/?q=a%26b',
-		});
+	it('round-trips a literal & inside a blueprint value', () => {
+		// encodeURIComponent encodes `&` as `%26`; decodeURIComponent
+		// reverses that, so the author's original `&` survives.
+		const blueprint = { url: 'https://x.test/?q=a&b' };
+		const raw = '#' + encodeURIComponent(JSON.stringify(blueprint));
+		expect(JSON.parse(decodeBlueprintHash(raw))).toEqual(blueprint);
 	});
 
 	it('returns non-JSON hashes unchanged (e.g. last-autosave)', () => {

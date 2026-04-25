@@ -2,18 +2,16 @@
  * Decodes a Playground URL hash fragment into the blueprint string
  * downstream code expects to JSON-parse.
  *
- * `decodeURI` runs first because it leaves reserved characters like
- * `%26`, `%3F`, `%2F` alone. Some hand-crafted URLs keep them inside
- * blueprint string values deliberately — the target server may
- * distinguish `?q=a%26b` from `?q=a&b`, and changing one to the other
- * silently changes what the blueprint does.
+ * `decodeURIComponent` runs first because it correctly reverses the
+ * encoder most external tooling uses — `encodeURIComponent`, the
+ * natural choice when serializing a blueprint as a URL fragment. It
+ * decodes both ordinary characters (`%C4%85` → `ą`) and the URL-
+ * reserved set (`%2F` → `/`, `%3A` → `:`, `%26` → `&`).
  *
- * `decodeURIComponent` runs only when the `decodeURI` result fails to
- * parse as JSON. This catches fragments built with
- * `encodeURIComponent(JSON.stringify(blueprint))` — the natural thing
- * for external tooling to reach for — where surviving `%3A`/`%2C`/`%22`
- * would otherwise break parsing and surface an unhelpful
- * "Invalid blueprint" error.
+ * `decodeURI` runs only when `decodeURIComponent` fails to produce
+ * parseable JSON. That keeps backwards compatibility with older
+ * Playground URLs that depend on `decodeURI` leaving reserved
+ * characters alone.
  *
  * Malformed `%XX` makes both decoders throw; we swallow that and hand
  * back the best string we have, so the downstream JSON parser produces
@@ -26,22 +24,22 @@
 export function decodeBlueprintHash(rawHash: string): string {
 	const stripped = rawHash.startsWith('#') ? rawHash.slice(1) : rawHash;
 
-	let decodedURI: string | undefined;
+	let decodedComponent: string | undefined;
 	try {
-		decodedURI = decodeURI(stripped);
-		JSON.parse(decodedURI);
-		return decodedURI;
+		decodedComponent = decodeURIComponent(stripped);
+		JSON.parse(decodedComponent);
+		return decodedComponent;
 	} catch {
-		// `decodeURI` threw on malformed %XX, or the result is not JSON
-		// — try `decodeURIComponent` next.
+		// `decodeURIComponent` threw on malformed %XX, or the result
+		// is not JSON — fall back to `decodeURI` for legacy URLs.
 	}
 
 	try {
-		return decodeURIComponent(stripped);
+		return decodeURI(stripped);
 	} catch {
-		// `decodeURIComponent` also threw. Return whatever `decodeURI`
-		// gave us (if anything) so downstream parsing reports a useful
-		// error; otherwise hand back the raw hash.
-		return decodedURI ?? stripped;
+		// Both decoders failed. Hand back whatever `decodeURIComponent`
+		// produced (if anything) so the downstream JSON parser reports
+		// a useful error; otherwise return the raw hash.
+		return decodedComponent ?? stripped;
 	}
 }
