@@ -65,7 +65,11 @@ test('should navigate within WordPress when address bar URL changes', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./');
+	// Pre-navigate to /wp-admin/ and wait for the admin bar to confirm
+	// auto-login completed. Without this, the address-bar navigation below
+	// can race the login cookie and land on wp-login.php instead of edit.php.
+	await website.goto('./wp-admin/');
+	await expect(wordpress.locator('#wpadminbar')).toBeVisible();
 
 	const addressBar = website.addressBar();
 	await addressBar.click();

@@ -279,6 +279,20 @@ describe.each(blueprintVersions)(
 					'/wp-content/test-script/sleep.php',
 					cliServer.serverUrl
 				);
+				// Prime every worker with a sequential request before firing
+				// concurrent ones. Without this, the test races worker-pool
+				// lazy state on macOS: occasionally a secondary worker's first
+				// served request hits the symlinked mount before its NODEFS
+				// view of the host symlink is fully resolved, returning 500.
+				// Sending one request per worker upfront forces each worker to
+				// resolve the mount once in a non-contended way, so the
+				// subsequent concurrent burst exercises an already-warm pool.
+				const workerCount =
+					cliServer[internalsKeyForTesting].workerThreadCount;
+				await Promise.all(
+					Array.from({ length: workerCount }, () => fetch(sleepUrl))
+				);
+
 				const responses = await Promise.all([
 					fetch(sleepUrl),
 					fetch(sleepUrl),
@@ -286,8 +300,13 @@ describe.each(blueprintVersions)(
 					fetch(sleepUrl),
 				]);
 				for (const response of responses) {
-					expect(response.status).toBe(200);
 					const text = await response.text();
+					// Surface the PHP error body on failure so future flakes
+					// give us actionable diagnostics instead of a bare 500.
+					expect(
+						response.status,
+						`Unexpected ${response.status} from sleep.php. Body:\n${text}`
+					).toBe(200);
 					expect(text).toContain('Slept');
 				}
 			} finally {
