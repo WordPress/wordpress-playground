@@ -124,15 +124,10 @@ You can embed it in any page with an iframe:
 
 The fragment is a base64-encoded JSON payload of `{ code, php, wp }`.
 
-### Standalone vs. `<php-snippet>` — which should I use?
+### Standalone PHP Playground `<iframe>` vs. `<php-snippet>` — which should I use?
 
 | Use case                                                          | Pick                |
 | ----------------------------------------------------------------- | ------------------- |
 | Multiple read-only runnable examples in a docs page or blog post  | `<php-snippet>`     |
-| One editable example a reader can tweak and share via URL         | Standalone PHP Playground |
-| Per-page bandwidth budget matters and you have many snippets      | `<php-snippet>` (one shared runtime) |
-| You want a full-page coding environment with no host-page styling | Standalone PHP Playground |
-
-## Browser support
-
-Both options require [WebAssembly](https://caniuse.com/wasm) and [Service Workers](https://caniuse.com/serviceworkers), which are available in every modern browser. PHP 8.4 additionally requires [WebAssembly JSPI](https://github.com/WebAssembly/js-promise-integration) (Chrome 137+, Edge 137+); older PHP versions fall back to the broadly supported asyncify build.
+| Customizations, e.g. read-only code vs editable code  | `<php-snippet>`     |
+| A single code example you don't want to load foreign scripts on your site | Standalone PHP Playground |
