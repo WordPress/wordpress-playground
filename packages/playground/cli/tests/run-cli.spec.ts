@@ -289,9 +289,14 @@ describe.each(blueprintVersions)(
 				// subsequent concurrent burst exercises an already-warm pool.
 				const workerCount =
 					cliServer[internalsKeyForTesting].workerThreadCount;
-				await Promise.all(
-					Array.from({ length: workerCount }, () => fetch(sleepUrl))
-				);
+				for (let i = 0; i < workerCount; i++) {
+					const warmup = await fetch(sleepUrl);
+					const warmupText = await warmup.text();
+					expect(
+						warmup.status,
+						`Unexpected ${warmup.status} from warm-up sleep.php request. Body:\n${warmupText}`
+					).toBe(200);
+				}
 
 				const responses = await Promise.all([
 					fetch(sleepUrl),
