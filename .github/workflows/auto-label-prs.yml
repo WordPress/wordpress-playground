@@ -1,0 +1,136 @@
+name: Auto-label PRs with Copilot
+
+# Uses GitHub's Copilot-powered AI inference action to read each PR's title,
+# body, and changed file paths, then suggest labels drawn from the repo's
+# existing label set. Helpful because labels here are structured ([Type],
+# [Aspect], [Feature], [Package][@..]) and easy to forget on smaller PRs.
+#
+# The model is constrained to existing labels only — it cannot invent new ones.
+# Re-runs on edits and on every push, but only adds missing labels; it never
+# removes labels a human applied.
+
+on:
+    pull_request_target:
+        types: [opened, reopened, edited, synchronize, ready_for_review]
+
+permissions:
+    contents: read
+    pull-requests: write
+    models: read
+
+jobs:
+    suggest-labels:
+        if: github.repository == 'WordPress/wordpress-playground' && github.event.pull_request.draft == false
+        runs-on: ubuntu-latest
+        steps:
+            - name: Collect PR context
+              id: context
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+                  PR_BODY: ${{ github.event.pull_request.body }}
+              run: |
+                  set -euo pipefail
+
+                  # Pull the full label set from the repo so the model can only
+                  # choose from labels that actually exist. Excludes meta labels
+                  # that don't describe the change (Triage, Duplicate, etc.).
+                  gh label list --limit 200 --json name,description \
+                      --jq '[.[] | select(.name | test("^(Needs Triage|Duplicate|Wontfix|Help Wanted|Good First Issue|Do not merge|Blocker|Blocked|Mission-critical|\\[Priority\\]|\\[Type\\] Invalid|\\[Type\\] Question|\\[Type\\] Discussion|\\[Type\\] Idea|\\[Type\\] Tracking|\\[Type\\] Exploration|\\[Type\\] Marketing|\\[Type\\] Devrel|\\[Type\\] Community|\\[Type\\] Repo / Project Management|Breaking change|Tests|Accessibility|dependencies)") | not)]' \
+                      > /tmp/labels.json
+
+                  # File paths give the model strong signal for [Package][@..]
+                  # and [Aspect] labels — far more reliable than title parsing.
+                  gh pr view "$PR_NUMBER" --json files \
+                      --jq '[.files[].path] | .[0:200]' > /tmp/files.json
+
+                  # Existing labels: we'll merge with suggestions, never override.
+                  gh pr view "$PR_NUMBER" --json labels \
+                      --jq '[.labels[].name]' > /tmp/existing.json
+
+                  {
+                      echo "PR #${PR_NUMBER}"
+                      echo ""
+                      echo "Title: ${PR_TITLE}"
+                      echo ""
+                      echo "Body:"
+                      echo "${PR_BODY:-(empty)}"
+                      echo ""
+                      echo "Changed files:"
+                      jq -r '.[]' /tmp/files.json
+                      echo ""
+                      echo "Currently applied labels:"
+                      jq -r '.[]' /tmp/existing.json
+                      echo ""
+                      echo "Available labels (JSON):"
+                      cat /tmp/labels.json
+                  } > /tmp/prompt-input.txt
+
+                  echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+            - name: Ask Copilot for label suggestions
+              id: ai
+              uses: actions/ai-inference@v1
+              with:
+                  model: openai/gpt-4o-mini
+                  system-prompt: |
+                      You triage GitHub pull requests for the WordPress Playground monorepo.
+
+                      Given a PR's title, body, changed files, and a JSON list of available labels with descriptions, pick the labels that best describe the change.
+
+                      Rules:
+                      - Pick labels ONLY from the provided list. Never invent labels.
+                      - Pick exactly one [Type] label if the change is clearly a bug fix, enhancement, documentation update, performance work, reliability work, developer experience, or new API. Skip if unclear.
+                      - Pick [Aspect], [Feature], and [Focus] labels when they clearly apply (multiple allowed).
+                      - Pick [Package][@..] labels based on changed file paths under packages/. A file under packages/playground/website/ implies [Package][@wp-playground] Website. A file under packages/php-wasm/web/ implies [Package][@php-wasm] Web. And so on.
+                      - Prefer fewer, high-confidence labels over many uncertain ones. Aim for 1–5 labels total.
+                      - Pure i18n / translation PRs: only [Type] Documentation.
+                      - Output ONLY a JSON array of strings, no prose, no code fences. Example: ["[Type] Bug","[Package][@php-wasm] Web"]
+                  prompt-file: /tmp/prompt-input.txt
+                  max-tokens: 400
+
+            - name: Apply suggested labels
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+                  AI_RESPONSE: ${{ steps.ai.outputs.response }}
+              run: |
+                  set -euo pipefail
+
+                  # Strip code fences if the model added them despite instructions.
+                  CLEAN=$(printf '%s' "$AI_RESPONSE" | sed -E 's/^```(json)?//; s/```$//' | tr -d '\r')
+
+                  if ! echo "$CLEAN" | jq -e 'type == "array"' > /dev/null 2>&1; then
+                      echo "Model did not return a JSON array. Raw response:"
+                      echo "$AI_RESPONSE"
+                      exit 0
+                  fi
+
+                  # Intersect suggestions with the canonical label list to filter
+                  # any hallucinations that slipped past the system prompt.
+                  jq -r '.[]' /tmp/labels.json | jq -R -s -c 'split("\n") | map(select(length > 0))' > /tmp/valid.json
+                  SUGGESTED=$(echo "$CLEAN" | jq --argjson valid "$(cat /tmp/valid.json)" -c '[.[] | select(. as $l | $valid | index($l))]')
+
+                  echo "Suggested labels: $SUGGESTED"
+
+                  COUNT=$(echo "$SUGGESTED" | jq 'length')
+                  if [ "$COUNT" -eq 0 ]; then
+                      echo "No valid label suggestions. Skipping."
+                      exit 0
+                  fi
+
+                  # Add only labels not already on the PR. We never remove labels
+                  # — humans may have applied them deliberately.
+                  TO_ADD=$(jq -n --argjson s "$SUGGESTED" --slurpfile e /tmp/existing.json \
+                      '[$s[] | select(. as $l | $e[0] | index($l) | not)]')
+
+                  if [ "$(echo "$TO_ADD" | jq 'length')" -eq 0 ]; then
+                      echo "All suggested labels already applied. Nothing to do."
+                      exit 0
+                  fi
+
+                  echo "$TO_ADD" | jq -r '.[]' | while read -r label; do
+                      echo "Adding: $label"
+                      gh pr edit "$PR_NUMBER" --add-label "$label" || true
+                  done
