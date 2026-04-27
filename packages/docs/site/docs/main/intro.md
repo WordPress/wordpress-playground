@@ -83,7 +83,7 @@ As with all WordPress projects, we want to ensure a welcoming environment for ev
 
 WordPress Playground is designed to work with AI coding agents and AI-powered tools. It runs entirely client-side in WebAssembly — no authentication, no backend required, and isolated to the browser with no persistent side effects outside the sandbox — making it a safe, reliable environment for AI-generated demos and prototypes.
 
-- **[Using Playground with AI agents](../guides/agent-skill-wp-playground)** — Install the `wp-playground` skill for Claude Code, Cursor, Gemini CLI, GitHub Copilot, and other coding agents. Describe what you need; the agent runs the commands.
+- **[Using Playground with AI agents](/guides/agent-skill-wp-playground)** — Install the `wp-playground` skill for Claude Code, Cursor, Gemini CLI, GitHub Copilot, and other coding agents. Describe what you need; the agent runs the commands.
 - **[AI-readable site index](https://playground.wordpress.net/llms.txt)** — Machine-readable summary of Playground's capabilities, APIs, and docs in `llms.txt` format.
 - **[AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md)** — Guidance for AI coding agents contributing to this codebase.
 
@@ -92,3 +92,4 @@ WordPress Playground is designed to work with AI coding agents and AI-powered to
 WordPress Playground is free software released under the terms of the GNU General Public License version 2 or (at your option) any later version. For a complete license, see [LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).
 
 <br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>
+
