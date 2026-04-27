@@ -33,11 +33,16 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  # Pull the full label set from the repo so the model can only
-                  # choose from labels that actually exist. Excludes meta labels
-                  # that don't describe the change (Triage, Duplicate, etc.).
-                  gh label list --limit 200 --json name,description \
-                      --jq '[.[] | select(.name | test("^(Needs Triage|Duplicate|Wontfix|Help Wanted|Good First Issue|Do not merge|Blocker|Blocked|Mission-critical|\\[Priority\\]|\\[Type\\] Invalid|\\[Type\\] Question|\\[Type\\] Discussion|\\[Type\\] Idea|\\[Type\\] Tracking|\\[Type\\] Exploration|\\[Type\\] Marketing|\\[Type\\] Devrel|\\[Type\\] Community|\\[Type\\] Repo / Project Management|Breaking change|Tests|Accessibility|dependencies)") | not)]' \
+                  # Pull the label set from the repo so the model can only
+                  # choose from labels that actually exist. Allow-list the four
+                  # structured families that describe the change itself —
+                  # Type / Aspect / Feature / Focus and any [Package][@..]
+                  # variant. Anything else (Priority, Triage, Discussion,
+                  # Breaking change, …) needs human judgment, so we keep it
+                  # off-limits to the model. Limit raised well above the
+                  # current ~110 labels so future additions aren't truncated.
+                  gh label list --limit 500 --json name,description \
+                      --jq '[.[] | select(.name | test("^(\\[(Type|Aspect|Feature|Focus)\\]|\\[Package\\]\\[@)"))]' \
                       > /tmp/labels.json
 
                   # File paths give the model strong signal for [Package][@..]
@@ -98,8 +103,13 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  # Strip code fences if the model added them despite instructions.
-                  CLEAN=$(printf '%s' "$AI_RESPONSE" | sed -E 's/^```(json)?//; s/```$//' | tr -d '\r')
+                  # The model is told not to wrap output in code fences, but
+                  # smaller models do it anyway. Strip any leading/trailing
+                  # ``` lines (with optional language tag and surrounding
+                  # whitespace) before handing the text to jq.
+                  CLEAN=$(printf '%s' "$AI_RESPONSE" \
+                      | tr -d '\r' \
+                      | sed -E '/^[[:space:]]*```[[:alnum:]_-]*[[:space:]]*$/d')
 
                   if ! echo "$CLEAN" | jq -e 'type == "array"' > /dev/null 2>&1; then
                       echo "Model did not return a JSON array. Raw response:"
@@ -107,9 +117,11 @@ jobs:
                       exit 0
                   fi
 
-                  # Intersect suggestions with the canonical label list to filter
-                  # any hallucinations that slipped past the system prompt.
-                  jq -r '.[]' /tmp/labels.json | jq -R -s -c 'split("\n") | map(select(length > 0))' > /tmp/valid.json
+                  # Intersect suggestions with the canonical label list to
+                  # drop any hallucinations that slipped past the system
+                  # prompt. labels.json is an array of {name, description}
+                  # objects — pick out the names so we can compare strings.
+                  jq -c 'map(.name)' /tmp/labels.json > /tmp/valid.json
                   SUGGESTED=$(echo "$CLEAN" | jq --argjson valid "$(cat /tmp/valid.json)" -c '[.[] | select(. as $l | $valid | index($l))]')
 
                   echo "Suggested labels: $SUGGESTED"
