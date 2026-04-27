@@ -29,10 +29,12 @@
  *   editable              make the snippet editable; visitors type into a
  *                         transparent textarea overlaid on the highlighted
  *                         code, and Run executes whatever they typed
- *   setup="my-blueprint"  CSS-selector-or-id of a <template> on the page
- *                         containing a JSON Blueprint. Snippets that share
- *                         the same setup share one runtime — the blueprint
- *                         is JSON-stringified and folded into the cache key.
+ *   setup="my-blueprint"  CSS-selector-or-id of a JSON Blueprint container
+ *                         on the page (a <script type="application/json"> is
+ *                         recommended; <template> works too). Snippets that
+ *                         share the same setup share one runtime — the
+ *                         blueprint is JSON-stringified and folded into the
+ *                         cache key.
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
  */

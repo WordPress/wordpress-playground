@@ -92,10 +92,10 @@ While the boot is in progress, every snippet that has its Run clicked shows the 
 
 ### Sharing setup across snippets
 
-If several snippets need the same baseline — a mu-plugin, a couple of files, a configured option — drop a single `<template>` on the page that contains a JSON [Blueprint](/blueprints/), and point each snippet at it with a `setup` attribute:
+If several snippets need the same baseline — a mu-plugin, a couple of files, a configured option — drop a single `<script type="application/json">` on the page that contains a JSON [Blueprint](/blueprints/), and point each snippet at it with a `setup` attribute:
 
 ```html
-<template id="toolkit-setup" data-php-snippet-blueprint>
+<script id="toolkit-setup" type="application/json">
 {
   "steps": [
     {
@@ -105,7 +105,7 @@ If several snippets need the same baseline — a mu-plugin, a couple of files, a
     }
   ]
 }
-</template>
+</script>
 
 <php-snippet name="a.php" setup="toolkit-setup">
   <script type="application/x-php">
@@ -120,13 +120,9 @@ If several snippets need the same baseline — a mu-plugin, a couple of files, a
 </php-snippet>
 ```
 
-Browsers don't render or execute `<template>` content, so the JSON sits inert until the component reads it. The blueprint is JSON-stringified and folded into the runtime cache key, so two snippets with the same `setup` share one runtime boot. Two snippets with different `setup` values get separate runtimes — usually what you want.
+Browsers don't execute scripts whose `type` they don't recognize, so the JSON sits inert until the component reads it. The blueprint is JSON-stringified and folded into the runtime cache key, so two snippets with the same `setup` share one runtime boot. Two snippets with different `setup` values get separate runtimes — usually what you want.
 
-The `setup` attribute accepts either an id or any CSS selector.
-
-:::caution
-HTML still applies its parser to the contents of a `<template>`. If your blueprint string contains a literal `<?` (for example a `writeFile` step that drops `<?php` into a PHP file), the HTML parser treats `<?` as the start of a bogus comment and consumes everything up to the next `>` — which can swallow the closing `</template>` tag and break the page. Escape the `<` as `\u003c` in your JSON: `"data": "\u003c?php …"`. The JSON parser turns it back into `<` at runtime.
-:::
+The `setup` attribute accepts either an id or any CSS selector. Any element will do — `<script type="application/json">` is recommended because the HTML parser treats its contents as raw text, so a literal `<?php` inside the JSON is harmless. A `<template>` works too, but its content is parsed as HTML, and the `<?` in `<?php` is treated as the start of a bogus comment that runs to the next `>`. That can swallow the closing `</template>` and quietly break the page. If you do use a `<template>`, escape `<` as `\u003c` in the JSON.
 
 ### Editable snippets
 
@@ -153,7 +149,7 @@ Useful for "now you try" sections in tutorials, or for letting readers experimen
 | `wp`                 | `latest`                             | WordPress version                             |
 | `src`                | —                                    | Load PHP from a URL instead of inline         |
 | `editable`           | (off)                                | Let visitors edit the code before running     |
-| `setup`              | —                                    | Id or CSS selector of a `<template>` containing a JSON Blueprint to run before the snippet |
+| `setup`              | —                                    | Id or CSS selector of a `<script type="application/json">` (or `<template>`) containing a JSON Blueprint to run before the snippet |
 | `playground-origin`  | `https://playground.wordpress.net`   | Override the runtime origin (local dev, etc.) |
 
 Snippets that share the same `php`, `wp`, and `playground-origin` values share one runtime; mixing different versions on the same page boots a separate runtime per combination.
