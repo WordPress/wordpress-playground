@@ -90,6 +90,22 @@ Every later Run — on the same snippet or any other — calls `client.run({ cod
 
 While the boot is in progress, every snippet that has its Run clicked shows the same staged progress bar (download → install → ready) drawn from the live progress events Playground emits internally.
 
+### Editable snippets
+
+Add the `editable` attribute and visitors can tweak the code before clicking Run. The keystrokes go into a transparent textarea overlaid on the highlighted code, so the syntax colors update as they type.
+
+```html
+<php-snippet name="scratch.php" editable>
+	<script type="application/x-php">
+<?php
+$nums = range(1, 10);
+echo "Sum: " . array_sum($nums);
+	</script>
+</php-snippet>
+```
+
+Useful for "now you try" sections in tutorials, or for letting readers experiment with their own values. Edits live only in the page — there's no persistence — so a refresh resets the snippet to its initial code.
+
 ### Attributes
 
 | Attribute            | Default                              | Purpose                                       |
@@ -98,6 +114,7 @@ While the boot is in progress, every snippet that has its Run clicked shows the 
 | `php`                | `8.4`                                | PHP version (see [supported versions][php])   |
 | `wp`                 | `latest`                             | WordPress version                             |
 | `src`                | —                                    | Load PHP from a URL instead of inline         |
+| `editable`           | (off)                                | Let visitors edit the code before running     |
 | `playground-origin`  | `https://playground.wordpress.net`   | Override the runtime origin (local dev, etc.) |
 
 Snippets that share the same `php`, `wp`, and `playground-origin` values share one runtime; mixing different versions on the same page boots a separate runtime per combination.

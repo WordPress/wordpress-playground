@@ -26,6 +26,9 @@
  *   php="8.4"             PHP version (default: 8.4)
  *   wp="latest"           WordPress version (default: latest)
  *   src="path/to.php"     load code from a URL instead of inline
+ *   editable              make the snippet editable; visitors type into a
+ *                         transparent textarea overlaid on the highlighted
+ *                         code, and Run executes whatever they typed
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
  */
@@ -233,14 +236,40 @@ function highlightPhp(code) {
 	const tokens = [];
 	let i = 0;
 	const len = code.length;
+	// Quoted string with backslash escapes (handles \", \', \\, \n, etc.).
+	// Used for ', ", and ` (shell-exec). Returns the index past the closing
+	// quote, or len if the string is unterminated.
+	const scanQuoted = (start, quote) => {
+		let j = start + 1;
+		while (j < len && code[j] !== quote) {
+			if (code[j] === '\\' && j + 1 < len) j++;
+			j++;
+		}
+		return Math.min(j + 1, len);
+	};
 	while (i < len) {
 		const c = code[i];
 		const rest = code.slice(i);
-		// Heredoc/nowdoc — bail to plain
+		// Heredoc / nowdoc: <<<LABEL ... \nLABEL;  (nowdoc wraps label in '')
 		if (rest.startsWith('<<<')) {
-			tokens.push(['plain', code[i]]);
-			i++;
-			continue;
+			const m = rest.match(/^<<<[ \t]*('?)([A-Za-z_][A-Za-z0-9_]*)\1\r?\n/);
+			if (m) {
+				const label = m[2];
+				const bodyStart = i + m[0].length;
+				// Closing label may be indented (PHP 7.3+); match at line start.
+				const closer = new RegExp(
+					`(^|\\n)[ \\t]*${label}\\b`,
+					'g'
+				);
+				closer.lastIndex = bodyStart;
+				const found = closer.exec(code);
+				const stop = found
+					? found.index + found[0].length
+					: len;
+				tokens.push(['string', code.slice(i, stop)]);
+				i = stop;
+				continue;
+			}
 		}
 		// Block comment
 		if (rest.startsWith('/*')) {
@@ -250,34 +279,22 @@ function highlightPhp(code) {
 			i = stop;
 			continue;
 		}
-		// Line comment
-		if (rest.startsWith('//') || rest.startsWith('#')) {
+		// Line comment ( // or # ).  #[ starts a PHP 8 attribute, not a comment.
+		if (
+			rest.startsWith('//') ||
+			(c === '#' && code[i + 1] !== '[')
+		) {
 			const end = code.indexOf('\n', i);
 			const stop = end === -1 ? len : end;
 			tokens.push(['comment', code.slice(i, stop)]);
 			i = stop;
 			continue;
 		}
-		// Single-quoted string
-		if (c === "'") {
-			let j = i + 1;
-			while (j < len && code[j] !== "'") {
-				if (code[j] === '\\') j++;
-				j++;
-			}
-			tokens.push(['string', code.slice(i, Math.min(j + 1, len))]);
-			i = j + 1;
-			continue;
-		}
-		// Double-quoted string
-		if (c === '"') {
-			let j = i + 1;
-			while (j < len && code[j] !== '"') {
-				if (code[j] === '\\') j++;
-				j++;
-			}
-			tokens.push(['string', code.slice(i, Math.min(j + 1, len))]);
-			i = j + 1;
+		// Quoted strings: '...', "...", `...` (shell exec)
+		if (c === "'" || c === '"' || c === '`') {
+			const stop = scanQuoted(i, c);
+			tokens.push(['string', code.slice(i, stop)]);
+			i = stop;
 			continue;
 		}
 		// PHP open/close tags
@@ -450,6 +467,39 @@ pre {
 .t-function { color: #8250df; }
 .t-class    { color: #6f42c1; }
 .t-tag      { color: #cf222e; font-weight: 500; }
+.editor {
+	position: relative;
+	background: #fff;
+}
+.editor pre, .editor textarea {
+	margin: 0;
+	padding: 16px;
+	border: 0;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 13px;
+	line-height: 1.5;
+	white-space: pre;
+	tab-size: 4;
+}
+.editor pre {
+	color: #24292f;
+	pointer-events: none;
+	overflow: hidden;
+	min-height: 1.5em;
+}
+.editor textarea {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	resize: none;
+	outline: 0;
+	background: transparent;
+	color: transparent;
+	caret-color: #24292f;
+	overflow: hidden;
+}
+.editor textarea::selection { background: #cfe7ff; color: transparent; }
 .output {
 	display: none;
 	border-top: 1px solid #e1e4e8;
@@ -514,8 +564,15 @@ class PhpSnippet extends HTMLElement {
 
 	_render() {
 		const name = this.getAttribute('name') || 'snippet.php';
+		const editable = this.hasAttribute('editable');
 		const style = document.createElement('style');
 		style.textContent = TEMPLATE_CSS;
+		const codeArea = editable
+			? `<div class="editor">
+					<pre aria-hidden="true"><code class="hl">${highlightPhp(this._code)}</code></pre>
+					<textarea class="ta" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Editable PHP code"></textarea>
+				</div>`
+			: `<pre><code>${highlightPhp(this._code)}</code></pre>`;
 		const tpl = document.createElement('template');
 		tpl.innerHTML = `
 			<div class="card">
@@ -528,7 +585,7 @@ class PhpSnippet extends HTMLElement {
 					<div class="bar"><div class="fill"></div></div>
 					<span class="percent">0%</span>
 				</div>
-				<pre><code>${highlightPhp(this._code)}</code></pre>
+				${codeArea}
 				<div class="output">
 					<div class="output-label">Output</div>
 					<pre class="output-body"></pre>
@@ -539,6 +596,31 @@ class PhpSnippet extends HTMLElement {
 		this.shadowRoot
 			.querySelector('.run')
 			.addEventListener('click', () => this._run());
+		if (editable) this._wireEditor();
+	}
+
+	_wireEditor() {
+		const textarea = this.shadowRoot.querySelector('.ta');
+		const hl = this.shadowRoot.querySelector('.hl');
+		textarea.value = this._code;
+		const sync = () => {
+			this._code = textarea.value;
+			hl.innerHTML = highlightPhp(this._code);
+		};
+		textarea.addEventListener('input', sync);
+		textarea.addEventListener('keydown', (e) => {
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				const start = textarea.selectionStart;
+				const end = textarea.selectionEnd;
+				textarea.value =
+					textarea.value.slice(0, start) +
+					'\t' +
+					textarea.value.slice(end);
+				textarea.selectionStart = textarea.selectionEnd = start + 1;
+				sync();
+			}
+		});
 	}
 
 	async _run() {
