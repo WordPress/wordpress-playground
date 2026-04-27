@@ -6,12 +6,13 @@ name: Auto-label PRs with Copilot
 # [Aspect], [Feature], [Package][@..]) and easy to forget on smaller PRs.
 #
 # The model is constrained to existing labels only — it cannot invent new ones.
-# Re-runs on edits and on every push, but only adds missing labels; it never
-# removes labels a human applied.
+# Runs once when a PR is opened so humans stay in control afterwards: if a
+# maintainer removes an AI-applied label, we won't sneak it back in on the
+# next push or description edit.
 
 on:
     pull_request_target:
-        types: [opened, reopened, edited, synchronize, ready_for_review]
+        types: [opened]
 
 permissions:
     contents: read
