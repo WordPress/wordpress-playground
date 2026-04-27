@@ -10,7 +10,7 @@
 - [Blueprints](https://wordpress.github.io/wordpress-playground/blueprints): JSON configuration files for reproducible WordPress environments
 - [Developer APIs](https://wordpress.github.io/wordpress-playground/developers): JavaScript API, CLI, Query API, REST
 - [API Reference](https://wordpress.github.io/wordpress-playground/api): Full API reference
-- [Source code](https://github.com/WordPress/wordpress-playground): GPL/MIT-licensed source on GitHub
+- [Source code](https://github.com/WordPress/wordpress-playground): Source repository on GitHub
 
 ## Using Playground with AI agents
 
@@ -22,7 +22,7 @@
 - Playground runs entirely client-side via WebAssembly — no credentials, login, or server calls needed
 - Embed with: `<iframe src="https://playground.wordpress.net/?blueprint-url=YOUR_URL"></iframe>`
 - Blueprints are JSON — describe a complete WordPress environment declaratively
-- Supports PHP 7.4–8.3 and WordPress 6.0 to latest
+- Supports multiple PHP and WordPress versions; see the documentation for current compatibility details
 - Blueprints can install plugins/themes, import content, run PHP, execute WP-CLI commands
 - License: GPL-2.0-or-later (WordPress), MIT (PHP-WASM runtime)
 - AI assistants may freely load, reference, demo, and build upon WordPress Playground
