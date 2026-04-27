@@ -203,7 +203,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 				cliOutput.print(
 					`  3. Select "${cliOutput.italic(IDEConfigName)}" from the dropdown`
 				);
-				cliOutput.print('  3. Click "start debugging"');
+				cliOutput.print('  4. Click "start debugging"');
 				cliOutput.print('  5. Set a breakpoint.');
 				cliOutput.print('  6. Run your command with PHP.wasm CLI.');
 				if (hasPhpStorm) {
@@ -218,7 +218,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 						IDEConfigName
 					)}" debug configuration in the toolbar`
 				);
-				cliOutput.print('  2. Click the debug button (bug icon)`');
+				cliOutput.print('  2. Click the debug button (bug icon)');
 				cliOutput.print('  3. Set a breakpoint.');
 				cliOutput.print('  4. Run your command with PHP.wasm CLI.');
 			}

@@ -956,9 +956,6 @@ export interface RunCLIServer extends AsyncDisposable {
 	};
 }
 
-const red = (text: string) =>
-	process.stdout.isTTY ? '\x1b[31m' + text + '\x1b[0m' : text;
-
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
@@ -989,8 +986,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		RemoteAPI<PlaygroundCliWorker>
 	> = new Map();
 
+	// Create CLI output handler
+	const cliOutput = new CLIOutput({
+		verbosity: args.verbosity || 'normal',
+	});
+
 	if (args.command === 'start') {
-		args = expandStartCommandArgs(args);
+		args = expandStartCommandArgs(args, cliOutput);
 	}
 
 	if (args.autoMount !== undefined) {
@@ -1065,11 +1067,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			},
 		];
 	}
-
-	// Create CLI output handler
-	const cliOutput = new CLIOutput({
-		verbosity: args.verbosity || 'normal',
-	});
 
 	// Display banner for server commands
 	if (args.command === 'server') {
@@ -1329,7 +1326,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 										IDEConfigName
 									)}" from the dropdown`
 								);
-								cliOutput.print('  3. Click "start debugging"');
+								cliOutput.print(' 4. Click "start debugging"');
 								cliOutput.print(
 									'  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
 								);
@@ -1351,7 +1348,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 									)}" debug configuration in the toolbar`
 								);
 								cliOutput.print(
-									'  2. Click the debug button (bug icon)`'
+									'  2. Click the debug button (bug icon)'
 								);
 								cliOutput.print(
 									'  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
@@ -1798,7 +1795,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
  * for the `server` command.)
  */
 function expandStartCommandArgs(
-	args: RunCLIArgs & { reset?: boolean }
+	args: RunCLIArgs & { reset?: boolean },
+	cliOutput: CLIOutput
 ): RunCLIArgs {
 	let newArgs = { ...args, command: 'server' };
 
@@ -1861,10 +1859,10 @@ function expandStartCommandArgs(
 			'.wordpress-playground/sites',
 			currentSiteHash
 		);
-		console.log('Site files stored at:', hostPath);
+		cliOutput.print(`Site files stored at: ${hostPath}`);
 
 		if (existsSync(hostPath) && (args['reset'] as boolean)) {
-			console.log('Resetting site...');
+			cliOutput.print('Resetting site...');
 			rmdirSync(hostPath, { recursive: true });
 		}
 		mkdirSync(hostPath, { recursive: true });
@@ -1881,19 +1879,21 @@ function expandStartCommandArgs(
 				: // After that, reuse the WordPress installation from the initial run.
 					'install-from-existing-files-if-needed';
 	} else {
-		console.log('Site files stored at:', existingSiteRootMount?.hostPath);
+		cliOutput.print(
+			`Site files stored at: ${existingSiteRootMount?.hostPath}`
+		);
 		if (args['reset']) {
-			console.log(``);
-			console.log(
-				red(
+			cliOutput.print('');
+			cliOutput.print(
+				cliOutput.red(
 					`This site is not managed by Playground CLI and cannot be reset.`
 				)
 			);
-			console.log(
+			cliOutput.print(
 				`(It's not stored in the ~/.wordpress-playground/sites/<site-id> directory.)`
 			);
-			console.log(``);
-			console.log(
+			cliOutput.print('');
+			cliOutput.print(
 				`You may still remove the site's directory manually if you wish.`
 			);
 			process.exit(1);

@@ -228,12 +228,6 @@ export class CLIOutput extends BaseCLIOutput {
 		);
 	}
 
-	override printWarning(message: string): void {
-		if (this.isQuiet) return;
-
-		this.writeStream.write(`${this.yellow('Warning:')} ${message}\n`);
-	}
-
 	/**
 	 * Prints the phpMyAdmin URL when the --phpmyadmin flag is enabled.
 	 */
