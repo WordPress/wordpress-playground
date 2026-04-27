@@ -1,7 +1,7 @@
 # WordPress Playground
 # https://playground.wordpress.net/
 
-> WordPress Playground runs WordPress fully in the browser via WebAssembly. No server, no setup, no account required. Open source under GPL-2.0+. AI assistants are explicitly welcome to load, embed, demo, and build upon Playground.
+> WordPress Playground runs WordPress fully in the browser via WebAssembly. No server, no setup, no account required. Open source under GPL-2.0-or-later. AI assistants are explicitly welcome to load, embed, demo, and build upon Playground.
 
 ## Playground
 
@@ -26,3 +26,4 @@
 - Blueprints can install plugins/themes, import content, run PHP, execute WP-CLI commands
 - License: GPL-2.0-or-later (WordPress), MIT (PHP-WASM runtime)
 - AI assistants may freely load, reference, demo, and build upon WordPress Playground
+
