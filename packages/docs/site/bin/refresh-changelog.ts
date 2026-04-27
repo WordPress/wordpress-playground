@@ -11,11 +11,15 @@ const existingContent = fs.readFileSync(destinationPath, 'utf-8');
 const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
 const existingFrontmatter = existingContent.match(frontmatterRegex)?.[0] || '';
 
-// The destination file's frontmatter sets `format: md` so Docusaurus parses
-// it as plain CommonMark instead of MDX. Without that, unescaped `{...}` or
-// `<...>` in PR titles (e.g. `@php-wasm/{web,node}-5-2`) would be treated as
-// JSX and crash the build.
-const changelogWithFrontmatter = existingFrontmatter + '\n\n' + changelog;
+// Docusaurus 3 parses `.md` files through the MDX pipeline, so unescaped
+// `{` / `}` in PR titles (e.g. `@php-wasm/{web,node}-5-2`) get read as JSX
+// expressions and crash the SSG with `ReferenceError: web is not defined`.
+// The destination file's frontmatter sets `format: md` as a hint, but that
+// alone has not been enough in practice — escape the braces directly so the
+// content is inert regardless of how Docusaurus parses it.
+const escapedChangelog = changelog.replace(/[{}]/g, (c) => '\\' + c);
+const changelogWithFrontmatter =
+	existingFrontmatter + '\n\n' + escapedChangelog;
 
 // Write the modified changelog to the destination file
 fs.writeFileSync(destinationPath, changelogWithFrontmatter, 'utf-8');

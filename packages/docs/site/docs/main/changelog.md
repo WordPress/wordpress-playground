@@ -19,7 +19,7 @@ format.
 ### Various
 
 - [Docs] Update trusted publisher setup instructions. ([#3505](https://github.com/WordPress/wordpress-playground/pull/3505))
-- [PHP] Align @php-wasm/{web,node}-5-2 with workspace and add READMEs. ([#3506](https://github.com/WordPress/wordpress-playground/pull/3506))
+- [PHP] Align @php-wasm/\{web,node\}-5-2 with workspace and add READMEs. ([#3506](https://github.com/WordPress/wordpress-playground/pull/3506))
 
 ### Contributors
 
