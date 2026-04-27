@@ -236,14 +236,40 @@ function highlightPhp(code) {
 	const tokens = [];
 	let i = 0;
 	const len = code.length;
+	// Quoted string with backslash escapes (handles \", \', \\, \n, etc.).
+	// Used for ', ", and ` (shell-exec). Returns the index past the closing
+	// quote, or len if the string is unterminated.
+	const scanQuoted = (start, quote) => {
+		let j = start + 1;
+		while (j < len && code[j] !== quote) {
+			if (code[j] === '\\' && j + 1 < len) j++;
+			j++;
+		}
+		return Math.min(j + 1, len);
+	};
 	while (i < len) {
 		const c = code[i];
 		const rest = code.slice(i);
-		// Heredoc/nowdoc — bail to plain
+		// Heredoc / nowdoc: <<<LABEL ... \nLABEL;  (nowdoc wraps label in '')
 		if (rest.startsWith('<<<')) {
-			tokens.push(['plain', code[i]]);
-			i++;
-			continue;
+			const m = rest.match(/^<<<[ \t]*('?)([A-Za-z_][A-Za-z0-9_]*)\1\r?\n/);
+			if (m) {
+				const label = m[2];
+				const bodyStart = i + m[0].length;
+				// Closing label may be indented (PHP 7.3+); match at line start.
+				const closer = new RegExp(
+					`(^|\\n)[ \\t]*${label}\\b`,
+					'g'
+				);
+				closer.lastIndex = bodyStart;
+				const found = closer.exec(code);
+				const stop = found
+					? found.index + found[0].length
+					: len;
+				tokens.push(['string', code.slice(i, stop)]);
+				i = stop;
+				continue;
+			}
 		}
 		// Block comment
 		if (rest.startsWith('/*')) {
@@ -253,34 +279,22 @@ function highlightPhp(code) {
 			i = stop;
 			continue;
 		}
-		// Line comment
-		if (rest.startsWith('//') || rest.startsWith('#')) {
+		// Line comment ( // or # ).  #[ starts a PHP 8 attribute, not a comment.
+		if (
+			rest.startsWith('//') ||
+			(c === '#' && code[i + 1] !== '[')
+		) {
 			const end = code.indexOf('\n', i);
 			const stop = end === -1 ? len : end;
 			tokens.push(['comment', code.slice(i, stop)]);
 			i = stop;
 			continue;
 		}
-		// Single-quoted string
-		if (c === "'") {
-			let j = i + 1;
-			while (j < len && code[j] !== "'") {
-				if (code[j] === '\\') j++;
-				j++;
-			}
-			tokens.push(['string', code.slice(i, Math.min(j + 1, len))]);
-			i = j + 1;
-			continue;
-		}
-		// Double-quoted string
-		if (c === '"') {
-			let j = i + 1;
-			while (j < len && code[j] !== '"') {
-				if (code[j] === '\\') j++;
-				j++;
-			}
-			tokens.push(['string', code.slice(i, Math.min(j + 1, len))]);
-			i = j + 1;
+		// Quoted strings: '...', "...", `...` (shell exec)
+		if (c === "'" || c === '"' || c === '`') {
+			const stop = scanQuoted(i, c);
+			tokens.push(['string', code.slice(i, stop)]);
+			i = stop;
 			continue;
 		}
 		// PHP open/close tags
