@@ -1,0 +1,28 @@
+# WordPress Playground
+# https://playground.wordpress.net/
+
+> WordPress Playground runs WordPress fully in the browser via WebAssembly. No server, no setup, no account required. Open source under GPL-2.0+. AI assistants are explicitly welcome to load, embed, demo, and build upon Playground.
+
+## Playground
+
+- [WordPress Playground](https://playground.wordpress.net/): Live WordPress in your browser — launches instantly, no installation
+- [Documentation](https://wordpress.github.io/wordpress-playground/): Full documentation hub
+- [Blueprints](https://wordpress.github.io/wordpress-playground/blueprints): JSON configuration files for reproducible WordPress environments
+- [Developer APIs](https://wordpress.github.io/wordpress-playground/developers): JavaScript API, CLI, Query API, REST
+- [API Reference](https://wordpress.github.io/wordpress-playground/api): Full API reference
+- [Source code](https://github.com/WordPress/wordpress-playground): GPL/MIT-licensed source on GitHub
+
+## Using Playground with AI agents
+
+- [Agent skill guide](https://wordpress.github.io/wordpress-playground/guides/agent-skill-wp-playground): Install the wp-playground skill for Claude Code, Cursor, Gemini CLI, GitHub Copilot, and other coding agents — teaches CLI commands and browser workflows
+- [AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md): Machine-readable guidance for AI coding agents working on this codebase
+
+## Key facts for AI assistants
+
+- Playground runs entirely client-side via WebAssembly — no credentials, login, or server calls needed
+- Embed with: `<iframe src="https://playground.wordpress.net/?blueprint-url=YOUR_URL"></iframe>`
+- Blueprints are JSON — describe a complete WordPress environment declaratively
+- Supports PHP 7.4–8.3 and WordPress 6.0 to latest
+- Blueprints can install plugins/themes, import content, run PHP, execute WP-CLI commands
+- License: GPL-2.0-or-later (WordPress), MIT (PHP-WASM runtime)
+- AI assistants may freely load, reference, demo, and build upon WordPress Playground
