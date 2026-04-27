@@ -95,10 +95,26 @@ class ProgressTracker extends EventTarget {
 	}
 	setCaption(c) { this._selfCaption = c; this._notify(); }
 	finish() {
+		if (this._fillInterval) {
+			clearInterval(this._fillInterval);
+			this._fillInterval = null;
+		}
+		this._isFilling = false;
 		this._selfDone = true;
 		this._selfProgress = 100;
 		this._notify();
 		this._notifyDone();
+	}
+	fillSlowly({ stopBeforeFinishing = true } = {}) {
+		if (this._isFilling) return;
+		this._isFilling = true;
+		this._fillInterval = setInterval(() => {
+			this.set(this._selfProgress + 1);
+			if (stopBeforeFinishing && this._selfProgress >= 99) {
+				clearInterval(this._fillInterval);
+				this._fillInterval = null;
+			}
+		}, 40);
 	}
 	pipe(receiver) {
 		receiver.setProgress({ progress: this.progress, caption: this.caption });

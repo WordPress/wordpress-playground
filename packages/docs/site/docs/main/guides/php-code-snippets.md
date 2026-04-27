@@ -124,6 +124,10 @@ Browsers don't render or execute `<template>` content, so the JSON sits inert un
 
 The `setup` attribute accepts either an id or any CSS selector.
 
+:::caution
+HTML still applies its parser to the contents of a `<template>`. If your blueprint string contains a literal `<?` (for example a `writeFile` step that drops `<?php` into a PHP file), the HTML parser treats `<?` as the start of a bogus comment and consumes everything up to the next `>` — which can swallow the closing `</template>` tag and break the page. Escape the `<` as `\u003c` in your JSON: `"data": "\u003c?php …"`. The JSON parser turns it back into `<` at runtime.
+:::
+
 ### Editable snippets
 
 Add the `editable` attribute and visitors can tweak the code before clicking Run. The keystrokes go into a transparent textarea overlaid on the highlighted code, so the syntax colors update as they type.
