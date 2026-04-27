@@ -11,7 +11,14 @@ const existingContent = fs.readFileSync(destinationPath, 'utf-8');
 const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
 const existingFrontmatter = existingContent.match(frontmatterRegex)?.[0] || '';
 
-const changelogWithFrontmatter = existingFrontmatter + '\n\n' + changelog;
+// Docusaurus parses `.md` files as MDX, so unescaped `{...}` in PR titles
+// (e.g. `@php-wasm/{web,node}-5-2`) gets evaluated as a JSX expression and
+// crashes the build with "ReferenceError: web is not defined". Escape braces
+// so they render as literal characters.
+const mdxSafeChangelog = changelog.replace(/[{}]/g, '\\$&');
+
+const changelogWithFrontmatter =
+	existingFrontmatter + '\n\n' + mdxSafeChangelog;
 
 // Write the modified changelog to the destination file
 fs.writeFileSync(destinationPath, changelogWithFrontmatter, 'utf-8');
