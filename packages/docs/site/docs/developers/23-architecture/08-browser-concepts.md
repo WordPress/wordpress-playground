@@ -51,5 +51,27 @@ export function greet(name) {
   return `Hello, ${name}!`;
 }
 
-Browser-only Code
+### Browser-only Code
+```bash
 document.getElementById("app").innerHTML = "Hello!";
+
+### Node.js-only Code
+```bash
+const fs = require("fs");
+fs.readFileSync("file.txt");
+
+---
+
+## Save file
+
+If nano:
+- Press `CTRL + X`
+- Press `Y`
+- Press `Enter`
+
+---
+
+## ✅ 6. Check changes
+
+```bash
+git status
