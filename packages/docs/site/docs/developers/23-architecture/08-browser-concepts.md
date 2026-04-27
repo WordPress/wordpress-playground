@@ -24,3 +24,32 @@ The [`@php-wasm/web`](https://github.com/WordPress/wordpress-playground/blob/tru
 - [**Iframe-based rendering**](/developers/architecture/browser-iframe-rendering) – Every response produced by the PHP server must be rendered in an iframe to avoid reloading the browser tab when the user clicks on a link.
 - [**PHP Worker Thread**](/developers/architecture/browser-php-worker-threads) – The PHP server is slow and must run in a web worker, otherwise handling requests freezes the website UI.
 - [**Service Worker routing**](/developers/architecture/browser-service-workers) – All HTTP requests originating in that iframe must be intercepted by a Service worker and passed on to the PHP worker thread for rendering.
+
+
+## Isomorphic (Universal) Packages
+
+Isomorphic (or universal) JavaScript packages are modules that can run both in the browser and in a Node.js environment without modification.
+
+This allows developers to reuse the same code across frontend and backend, improving consistency and reducing duplication.
+
+### Advantages
+
+- Portability: Works in both browser and server environments  
+- Code reuse: Same logic can be shared  
+- Consistency: Behavior remains the same everywhere  
+
+### Limitations
+
+- Cannot directly use environment-specific APIs (like `window` or `fs`)  
+- May require conditional logic  
+
+### Example
+
+#### Isomorphic Code
+```js
+export function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+Browser-only Code
+document.getElementById("app").innerHTML = "Hello!";
