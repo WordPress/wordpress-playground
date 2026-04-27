@@ -90,6 +90,40 @@ Every later Run — on the same snippet or any other — calls `client.run({ cod
 
 While the boot is in progress, every snippet that has its Run clicked shows the same staged progress bar (download → install → ready) drawn from the live progress events Playground emits internally.
 
+### Sharing setup across snippets
+
+If several snippets need the same baseline — a mu-plugin, a couple of files, a configured option — drop a single `<template>` on the page that contains a JSON [Blueprint](/blueprints/), and point each snippet at it with a `setup` attribute:
+
+```html
+<template id="toolkit-setup" data-php-snippet-blueprint>
+{
+  "steps": [
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/toolkit.php",
+      "data": "<?php\nfunction toolkit_say($s) { return strtoupper($s); }"
+    }
+  ]
+}
+</template>
+
+<php-snippet name="a.php" setup="toolkit-setup">
+  <script type="application/x-php">
+<?php require '/wordpress/wp-load.php'; echo toolkit_say('hello');
+  </script>
+</php-snippet>
+
+<php-snippet name="b.php" setup="toolkit-setup">
+  <script type="application/x-php">
+<?php require '/wordpress/wp-load.php'; echo toolkit_say('world');
+  </script>
+</php-snippet>
+```
+
+Browsers don't render or execute `<template>` content, so the JSON sits inert until the component reads it. The blueprint is JSON-stringified and folded into the runtime cache key, so two snippets with the same `setup` share one runtime boot. Two snippets with different `setup` values get separate runtimes — usually what you want.
+
+The `setup` attribute accepts either an id or any CSS selector.
+
 ### Editable snippets
 
 Add the `editable` attribute and visitors can tweak the code before clicking Run. The keystrokes go into a transparent textarea overlaid on the highlighted code, so the syntax colors update as they type.
@@ -115,6 +149,7 @@ Useful for "now you try" sections in tutorials, or for letting readers experimen
 | `wp`                 | `latest`                             | WordPress version                             |
 | `src`                | —                                    | Load PHP from a URL instead of inline         |
 | `editable`           | (off)                                | Let visitors edit the code before running     |
+| `setup`              | —                                    | Id or CSS selector of a `<template>` containing a JSON Blueprint to run before the snippet |
 | `playground-origin`  | `https://playground.wordpress.net`   | Override the runtime origin (local dev, etc.) |
 
 Snippets that share the same `php`, `wp`, and `playground-origin` values share one runtime; mixing different versions on the same page boots a separate runtime per combination.

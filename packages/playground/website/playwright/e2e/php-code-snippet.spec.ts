@@ -20,6 +20,8 @@ test.describe('php-code-snippet embed', () => {
 			'hello.php',
 			'lazy-load-images.php',
 			'parse-blocks.php',
+			'greet-alice.php',
+			'greet-bob.php',
 			'scratch.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
@@ -109,6 +111,35 @@ test.describe('php-code-snippet embed', () => {
 			.locator('iframe[title="PHP Snippet runtime"]')
 			.count();
 		expect(runtimeIframes).toBe(1);
+	});
+
+	test('snippets sharing a setup template share one runtime and see its mu-plugin', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const alice = page.locator('php-snippet[name="greet-alice.php"]');
+		const bob = page.locator('php-snippet[name="greet-bob.php"]');
+
+		await alice.locator('.run').click();
+		await expect(alice.locator('.output')).toBeVisible({
+			timeout: 240_000,
+		});
+		await expect(alice.locator('.output-body')).toContainText(
+			'Hello, Alice!'
+		);
+
+		await bob.locator('.run').click();
+		await expect(bob.locator('.output')).toBeVisible({ timeout: 60_000 });
+		await expect(bob.locator('.output-body')).toContainText(
+			'Hello, Bob!'
+		);
+
+		// Both snippets resolved to the same blueprint hash, so only one
+		// runtime iframe exists for this {origin, php, wp, blueprint} key.
+		const setupIframes = await page
+			.locator('iframe[title="PHP Snippet runtime"]')
+			.count();
+		expect(setupIframes).toBe(1);
 	});
 
 	test('editable snippet runs the user-typed code', async ({ page }) => {

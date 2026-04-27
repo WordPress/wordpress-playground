@@ -29,6 +29,10 @@
  *   editable              make the snippet editable; visitors type into a
  *                         transparent textarea overlaid on the highlighted
  *                         code, and Run executes whatever they typed
+ *   setup="my-blueprint"  CSS-selector-or-id of a <template> on the page
+ *                         containing a JSON Blueprint. Snippets that share
+ *                         the same setup share one runtime — the blueprint
+ *                         is JSON-stringified and folded into the cache key.
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
  */
@@ -136,8 +140,11 @@ class ProgressTracker extends EventTarget {
  */
 const runtimes = new Map();
 
-async function getSharedClient({ origin, php, wp }, onProgress) {
-	const key = `${origin}|${php}|${wp}`;
+async function getSharedClient(
+	{ origin, php, wp, blueprint, blueprintKey },
+	onProgress
+) {
+	const key = `${origin}|${php}|${wp}|${blueprintKey}`;
 	let entry = runtimes.get(key);
 
 	if (entry && entry.client) {
@@ -157,14 +164,15 @@ async function getSharedClient({ origin, php, wp }, onProgress) {
 			}
 		});
 		entry = { tracker, subscribers, client: null, promise: null };
-		entry.promise = bootRuntime({ origin, php, wp }, entry).catch(
-			(err) => {
-				// Drop the failed entry so a future Run can retry from scratch
-				// instead of forever awaiting the same rejected promise.
-				runtimes.delete(key);
-				throw err;
-			}
-		);
+		entry.promise = bootRuntime(
+			{ origin, php, wp, blueprint },
+			entry
+		).catch((err) => {
+			// Drop the failed entry so a future Run can retry from scratch
+			// instead of forever awaiting the same rejected promise.
+			runtimes.delete(key);
+			throw err;
+		});
 		runtimes.set(key, entry);
 	} else {
 		// Boot in flight — replay the latest progress so a late-arriving
@@ -183,7 +191,7 @@ async function getSharedClient({ origin, php, wp }, onProgress) {
 	}
 }
 
-async function bootRuntime({ origin, php, wp }, entry) {
+async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 	const { startPlaygroundWeb } = await import(
 		/* @vite-ignore */ `${origin}/client/index.js`
 	);
@@ -199,11 +207,73 @@ async function bootRuntime({ origin, php, wp }, entry) {
 		remoteUrl: iframe.src,
 		disableProgressBar: true,
 		progressTracker: entry.tracker,
-		blueprint: { preferredVersions: { php, wp } },
+		blueprint: {
+			...(blueprint || {}),
+			preferredVersions: { php, wp },
+		},
 	});
 	await client.isReady;
 	entry.client = client;
 	return client;
+}
+
+/**
+ * Resolve a snippet's `setup` attribute to a Blueprint object.
+ *
+ * The lookup tries in order: a CSS selector, then `getElementById`, then
+ * (if neither matched) returns null. The element is expected to be a
+ * <template> whose textContent is a JSON Blueprint. The text is parsed
+ * once per snippet but the resulting cache key collapses identical
+ * blueprints into a single runtime boot.
+ */
+function resolveSetupBlueprint(snippet) {
+	const ref = snippet.getAttribute('setup');
+	if (!ref) return { blueprint: null, key: '' };
+	let el = null;
+	try {
+		el = snippet.ownerDocument.querySelector(ref);
+	} catch {
+		// Invalid selector — fall through to getElementById.
+	}
+	if (!el) el = snippet.ownerDocument.getElementById(ref);
+	if (!el) {
+		throw new Error(
+			`<php-snippet setup="${ref}"> could not find a matching element on the page.`
+		);
+	}
+	const source =
+		el.tagName === 'TEMPLATE' ? el.content.textContent : el.textContent;
+	const text = (source || '').trim();
+	if (!text) return { blueprint: null, key: '' };
+	let blueprint;
+	try {
+		blueprint = JSON.parse(text);
+	} catch (err) {
+		throw new Error(
+			`<php-snippet setup="${ref}"> contains invalid JSON: ${err.message}`
+		);
+	}
+	// Stable stringification — the JSON object's textual form is the cache
+	// key suffix. Two snippets that point at the same <template> end up with
+	// the same string, hence the same key, hence one shared runtime.
+	return { blueprint, key: stableStringify(blueprint) };
+}
+
+function stableStringify(value) {
+	if (value === null || typeof value !== 'object') {
+		return JSON.stringify(value);
+	}
+	if (Array.isArray(value)) {
+		return '[' + value.map(stableStringify).join(',') + ']';
+	}
+	const keys = Object.keys(value).sort();
+	return (
+		'{' +
+		keys
+			.map((k) => JSON.stringify(k) + ':' + stableStringify(value[k]))
+			.join(',') +
+		'}'
+	);
 }
 
 /**
@@ -638,6 +708,8 @@ class PhpSnippet extends HTMLElement {
 		fill.style.width = '0%';
 		percent.textContent = '0%';
 		try {
+			const { blueprint, key: blueprintKey } =
+				resolveSetupBlueprint(this);
 			const client = await getSharedClient(
 				{
 					origin:
@@ -645,6 +717,8 @@ class PhpSnippet extends HTMLElement {
 						DEFAULT_ORIGIN,
 					php: this.getAttribute('php') || DEFAULT_PHP,
 					wp: this.getAttribute('wp') || DEFAULT_WP,
+					blueprint,
+					blueprintKey,
 				},
 				({ progress: pct, caption: cap }) => {
 					const rounded = Math.round(pct);

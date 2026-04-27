@@ -99,7 +99,41 @@ foreach ( $blocks as $block ) {
 			</script>
 		</php-snippet>
 
-		<h2>4. Editable</h2>
+		<h2>4. Shared setup via &lt;template&gt;</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
+			Two snippets reference the same blueprint by id, so their
+			runtime is booted once with a pre-installed mu-plugin.
+		</p>
+
+		<template id="greeter-setup" data-php-snippet-blueprint>
+			{
+				"steps": [
+					{
+						"step": "writeFile",
+						"path": "/wordpress/wp-content/mu-plugins/greeter.php",
+						"data": "<?php\nfunction greeter_say($name) { return 'Hello, ' . $name . '!'; }"
+					}
+				]
+			}
+		</template>
+
+		<php-snippet name="greet-alice.php" setup="greeter-setup">
+			<script type="application/x-php">
+<?php
+require '/wordpress/wp-load.php';
+echo greeter_say('Alice');
+			</script>
+		</php-snippet>
+
+		<php-snippet name="greet-bob.php" setup="greeter-setup">
+			<script type="application/x-php">
+<?php
+require '/wordpress/wp-load.php';
+echo greeter_say('Bob');
+			</script>
+		</php-snippet>
+
+		<h2>5. Editable</h2>
 		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
 			Type into the snippet, then click Run.
 		</p>
