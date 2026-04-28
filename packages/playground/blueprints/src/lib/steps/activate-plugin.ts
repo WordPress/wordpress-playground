@@ -115,6 +115,20 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	}
 
 	/**
+	 * Drain the scratch log immediately so the file is gone whether
+	 * activation succeeded or failed. We only need its contents on the
+	 * failure path below, but reading and deleting unconditionally
+	 * keeps cleanup off the error branches.
+	 */
+	let activationLog = '';
+	if (await playground.fileExists(activationLogPath)) {
+		activationLog = (
+			await playground.readFileAsText(activationLogPath)
+		).trim();
+		await playground.unlink(activationLogPath);
+	}
+
+	/**
 	 * Instead of trusting the activation response, check the active plugins list.
 	 *
 	 * We try to discard any extra output via output buffering. The output of the script below
@@ -175,15 +189,9 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	 * (otherwise it would have thrown). The plugin still isn't active,
 	 * which usually means activate_plugin() returned a WP_Error and the
 	 * activation snippet die()'d with the message — that text is in
-	 * activatePluginResult.text. PHP errors emitted via error_log() are
-	 * in our scratch log. Surface both.
+	 * activatePluginResult.text. Combine that with anything PHP wrote
+	 * to the scratch log during the activation request.
 	 */
-	let activationLog = '';
-	if (await playground.fileExists(activationLogPath)) {
-		activationLog = (await playground.readFileAsText(activationLogPath)).trim();
-		await playground.unlink(activationLogPath);
-	}
-
 	const details: string[] = [];
 	const wpOutput = (activatePluginResult.text ?? '').trim();
 	if (wpOutput) {

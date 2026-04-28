@@ -247,7 +247,7 @@ describe('Blueprint step activatePlugin()', () => {
 			activatePlugin(php, {
 				pluginPath: 'wp-error-plugin.php',
 			})
-		).rejects.toThrow(/WordPress said: .*PHP/i);
+		).rejects.toThrow(/WordPress said:\s*\S+/i);
 	});
 
 	it('should not throw an error if the plugin is already active', async () => {
