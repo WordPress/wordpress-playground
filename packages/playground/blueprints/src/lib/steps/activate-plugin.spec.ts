@@ -231,6 +231,25 @@ describe('Blueprint step activatePlugin()', () => {
 		).rejects.toThrow(/Uncaught Exception: Activation failed/);
 	});
 
+	it('should surface the WP_Error message when activation is rejected (e.g. unmet PHP requirement)', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/wp-error-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: WP Error Plugin
+			 * Requires PHP: 99.0
+			 */
+			`
+		);
+
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'wp-error-plugin.php',
+			})
+		).rejects.toThrow(/WordPress said: .*PHP/i);
+	});
+
 	it('should not throw an error if the plugin is already active', async () => {
 		const docroot = handler.documentRoot;
 		php.writeFile(
