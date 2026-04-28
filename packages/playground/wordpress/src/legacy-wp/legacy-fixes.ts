@@ -134,9 +134,6 @@ export async function patchWordPressSourceFiles(
 		await patchWp10EditPhpPostTitleLinks(php, documentRoot);
 		await patchWpFunctionsPhp(php, documentRoot);
 	}
-	if (2.0 <= wpVersion && wpVersion < 2.3) {
-		await patchLegacyWpCategoriesZeroPk(php, documentRoot);
-	}
 	if (2.1 <= wpVersion && wpVersion < 2.3) {
 		await patchWp21PluginsPhpInArray(php, documentRoot);
 	}
@@ -590,37 +587,6 @@ async function patchWp10LoginPlaintextCompare(php: PHP, documentRoot: string) {
 	);
 	if (patched !== content) {
 		await php.writeFile(loginPath, patched);
-	}
-}
-
-/**
- * WP 2.0–2.2 inserts `cat_ID = '0'` literally into wp_categories.
- * MySQL turns the 0 into the next AUTO_INCREMENT, but SQLite stores 0,
- * so `get_nested_categories()` then recurses forever (cat_ID 0 +
- * category_parent 0) and hangs the request. Rewrite the leading '0'
- * to NULL. WP 2.3+ uses helpers that pass NULL, so this is gated to
- * 2.0–2.2 by version.
- */
-async function patchLegacyWpCategoriesZeroPk(php: PHP, documentRoot: string) {
-	const files = [
-		// WP 2.0: install.php.
-		joinPaths(documentRoot, 'wp-admin/install.php'),
-		// WP 2.1/2.2: upgrade-functions.php.
-		joinPaths(documentRoot, 'wp-admin/upgrade-functions.php'),
-		// wp_create_category() for runtime-added categories.
-		joinPaths(documentRoot, 'wp-admin/admin-db.php'),
-	];
-	const insertRe =
-		/(INSERT INTO\s+[^`"']*?categories\s*\([^)]*\bcat_ID\b[^)]*\)\s*VALUES\s*\()\s*'0'\s*,/g;
-	for (const path of files) {
-		if (!php.fileExists(path)) continue;
-		const content = php.readFileAsText(path);
-		if (!insertRe.test(content)) continue;
-		insertRe.lastIndex = 0;
-		const patched = content.replace(insertRe, '$1NULL, ');
-		if (patched !== content) {
-			await php.writeFile(path, patched);
-		}
 	}
 }
 
