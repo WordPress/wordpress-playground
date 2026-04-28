@@ -126,9 +126,6 @@ export async function patchWordPressSourceFiles(
 	if (wpVersion < 1.5) {
 		await patchWp10AdminLogoLink(php, documentRoot);
 	}
-	if (1.2 <= wpVersion && wpVersion < 1.5) {
-		await patchWp12PostPhpInsertNullId(php, documentRoot);
-	}
 	if (1.5 <= wpVersion && wpVersion < 2.0) {
 		await patchWp15AdminPostAutoIncrement(php, documentRoot);
 		await patchWpAdminDashboard(php, documentRoot);
@@ -472,29 +469,6 @@ async function patchWp10EditPhpPostTitleLinks(php: PHP, documentRoot: string) {
 
 	if (patched !== content) {
 		await php.writeFile(editPhpPath, patched);
-	}
-}
-
-/**
- * Same SQLite zero-PK fix as WP 1.0, scoped to WP 1.2's post.php
- * (its VALUES prefix adds `$now_gmt`, making the needle unique).
- */
-async function patchWp12PostPhpInsertNullId(php: PHP, documentRoot: string) {
-	const postPhpPath = joinPaths(documentRoot, 'wp-admin/post.php');
-	if (!php.fileExists(postPhpPath)) return;
-	const content = php.readFileAsText(postPhpPath);
-	if (content.includes('/* pg_wp12_insert_null_id */')) return;
-
-	const needle =
-		"('0', '$user_ID', '$now', '$now_gmt', '$content', '$post_title'";
-	if (!content.includes(needle)) return;
-
-	const patched = content.replaceAll(
-		needle,
-		"(NULL /* pg_wp12_insert_null_id */, '$user_ID', '$now', '$now_gmt', '$content', '$post_title'"
-	);
-	if (patched !== content) {
-		await php.writeFile(postPhpPath, patched);
 	}
 }
 
