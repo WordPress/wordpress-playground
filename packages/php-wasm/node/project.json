@@ -344,6 +344,23 @@
 				"testNamePattern": "Memcached Network Integration"
 			}
 		},
+		"test-wp-mysql-parser-extension-asyncify": {
+			"executor": "@nx/vitest:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["wp-mysql-parser-extension.spec.ts"]
+			}
+		},
+		"test-wp-mysql-parser-extension-jspi": {
+			"executor": "@nx/vitest:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["wp-mysql-parser-extension.spec.ts"]
+			}
+		},
 		"test-file-locking-asyncify": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],

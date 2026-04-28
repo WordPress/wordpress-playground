@@ -995,6 +995,8 @@ export function init(RuntimeName, PHPLoader) {
 		var sym;
 		if (isSymbolDefined(symName)) {
 			sym = wasmImports[symName];
+		} else if (wasmExports && wasmExports[symName]) {
+			sym = wasmExports[symName];
 		}
 		return {
 			sym,
