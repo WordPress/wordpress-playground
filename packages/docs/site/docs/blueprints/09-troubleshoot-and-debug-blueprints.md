@@ -14,6 +14,12 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 
 ## Common Issues and Solutions
 
+### Invalid Blueprint After Opening a Link
+
+If Playground reports `Invalid blueprint`, read the detailed error message. It includes the underlying JSON parsing error when one is available.
+
+If the message says the input still contains `%XX` escapes after decoding, the URL fragment was likely double-encoded. Rebuild the link from the original Blueprint object and encode it once with `encodeURIComponent(JSON.stringify(blueprint))`, or use Base64. Do not encode a fragment that is already encoded.
+
 ### WP-CLI: Error Establishing a Database Connection on Mounted Sites
 
 When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files by default, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls.
@@ -91,13 +97,11 @@ The developer tools window allows you to inspect network requests, view console 
 
 You can `error_log` your own error messages through [`runPHP` step](/blueprints/steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](/web-instance#playground-options-menu) or from the browser's console.
 
-![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
+![Log errors snapshot](@site/static/img/blueprints/log-errors.webp)
 
-<div class="callout callout-info">
-
+:::info
 When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
-
-</div>
+:::
 
 ## Ask for help
 
