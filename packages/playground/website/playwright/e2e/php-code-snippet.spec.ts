@@ -160,7 +160,14 @@ test.describe('php-code-snippet embed', () => {
 		});
 
 		await page.goto(DEMO_URL);
+		// `wordpress: false` is part of THIS PR; the deployed
+		// playground.wordpress.net origin doesn't know about it yet, so
+		// force the snippet to boot against the local Playground build the
+		// dev server is serving (same one the demo page came from).
 		const phpOnly = page.locator('php-snippet[name="php-only.php"]');
+		await phpOnly.evaluate((el) =>
+			el.setAttribute('playground-origin', window.location.origin)
+		);
 		await phpOnly.locator('.run').click();
 		await expect(phpOnly.locator('.output')).toBeVisible({
 			timeout: 240_000,
