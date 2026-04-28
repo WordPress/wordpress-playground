@@ -19,6 +19,9 @@
 		"paths": {
 			"@php-wasm/cli": ["packages/php-wasm/cli/src/main.ts"],
 			"@php-wasm/cli-util": ["packages/php-wasm/cli-util/src/index.ts"],
+			"@php-wasm/compile-extension": [
+				"packages/php-wasm/compile-extension/src/cli.ts"
+			],
 			"@php-wasm/fs-journal": [
 				"packages/php-wasm/fs-journal/src/index.ts"
 			],
