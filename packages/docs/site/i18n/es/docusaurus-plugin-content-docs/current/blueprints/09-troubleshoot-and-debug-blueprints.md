@@ -223,10 +223,10 @@ You can `error_log` your own error messages through [`runPHP` step](/blueprints/
 Puedes registrar tus propios mensajes de error con `error_log` mediante el [paso `runPHP`](/blueprints/steps#RunPHPStep) (consulta el [ejemplo de Blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) y la [demo en vivo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) y revisarlos desde la opción ["View Logs"](/web-instance#playground-options-menu) o desde la consola del navegador.
 
 <!--
-![Log errors snapshot](@site/static/img/blueprints/log-errors.webp)
+![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 -->
 
-![Captura de errores de registro](@site/static/img/blueprints/log-errors.webp)
+![Captura de errores de registro](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
 :::info
 
