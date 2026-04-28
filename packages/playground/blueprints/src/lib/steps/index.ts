@@ -36,6 +36,7 @@ import type { EnableMultisiteStep } from './enable-multisite';
 import type { WPCLIStep } from './wp-cli';
 import type { ResetDataStep } from './reset-data';
 import type { SetSiteLanguageStep } from './set-site-language';
+import type { LoadPHPExtensionStep } from './load-php-extension';
 
 export type Step = GenericStep<FileReference, DirectoryReference>;
 export type StepDefinition = Step & {
@@ -80,7 +81,8 @@ export type GenericStep<FileResource, DirectoryResource> =
 	| WriteFileStep<FileResource>
 	| WriteFilesStep<DirectoryResource>
 	| WPCLIStep
-	| SetSiteLanguageStep;
+	| SetSiteLanguageStep
+	| LoadPHPExtensionStep;
 
 export type {
 	ActivatePluginStep,
@@ -115,6 +117,7 @@ export type {
 	WriteFilesStep,
 	WPCLIStep,
 	SetSiteLanguageStep,
+	LoadPHPExtensionStep,
 };
 
 /**

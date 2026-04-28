@@ -14,6 +14,8 @@ export { FSHelpers } from './fs-helpers';
 export type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 export { PHPWorker } from './php-worker';
 export { getPhpIniEntries, setPhpIniEntries, withPHPIniValues } from './ini';
+export { loadPHPExtension, PHP_EXTENSIONS_DIR } from './load-extension';
+export type { LoadPHPExtensionOptions } from './load-extension';
 export {
 	printDebugDetails,
 	prettyPrintFullStackTrace,
