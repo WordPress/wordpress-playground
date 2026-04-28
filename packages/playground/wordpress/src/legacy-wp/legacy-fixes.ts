@@ -127,7 +127,6 @@ export async function patchWordPressSourceFiles(
 		await patchWp10AdminLogoLink(php, documentRoot);
 	}
 	if (1.5 <= wpVersion && wpVersion < 2.0) {
-		await patchWp15AdminPostAutoIncrement(php, documentRoot);
 		await patchWpAdminDashboard(php, documentRoot);
 	}
 	if (wpVersion < 2.0) {
@@ -467,55 +466,6 @@ async function patchWp10EditPhpPostTitleLinks(php: PHP, documentRoot: string) {
 	if (patched !== content) {
 		await php.writeFile(editPhpPath, patched);
 	}
-}
-
-/**
- * Two WP 1.5 post.php fixes for SQLite:
- *   1. SHOW TABLE STATUS returns Auto_increment = NULL on SQLite, so
- *      add a MAX(ID)+1 fallback.
- *   2. The $postquery INSERT omits `pinged` and `post_content_filtered`,
- *      which are NOT NULL in the SQLite-built schema; add empty values.
- * Both needles are unique to WP 1.5's post.php.
- */
-async function patchWp15AdminPostAutoIncrement(php: PHP, documentRoot: string) {
-	const postPhpPath = joinPaths(documentRoot, 'wp-admin/post.php');
-	if (!php.fileExists(postPhpPath)) return;
-	let content = php.readFileAsText(postPhpPath);
-	if (content.includes('/* pg_wp15_post_id_fallback */')) return;
-
-	const needleAutoInc =
-		'$id_result = $wpdb->get_row("SHOW TABLE STATUS LIKE \'$wpdb->posts\'");\n' +
-		'\t$post_ID = $id_result->Auto_increment;';
-	if (!content.includes(needleAutoInc)) return;
-	content = content.replace(
-		needleAutoInc,
-		'$id_result = $wpdb->get_row("SHOW TABLE STATUS LIKE \'$wpdb->posts\'");\n' +
-			'\t$post_ID = $id_result->Auto_increment;\n' +
-			'\tif ( ! $post_ID ) { /* pg_wp15_post_id_fallback */\n' +
-			'\t\t$post_ID = (int) $wpdb->get_var("SELECT COALESCE(MAX(ID), 0) + 1 FROM $wpdb->posts");\n' +
-			'\t}'
-	);
-
-	const needleInsertCols =
-		'(ID, post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_password, post_name, to_ping, post_modified, post_modified_gmt, post_parent, menu_order)';
-	const needleInsertVals =
-		"('$post_ID', '$post_author', '$now', '$now_gmt', '$content', '$post_title', '$excerpt', '$post_status', '$comment_status', '$ping_status', '$post_password', '$post_name', '$trackback', '$now', '$now_gmt', '$post_parent', '$menu_order')";
-	if (
-		content.includes(needleInsertCols) &&
-		content.includes(needleInsertVals)
-	) {
-		content = content
-			.replace(
-				needleInsertCols,
-				'(ID, post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_password, post_name, to_ping, pinged, post_content_filtered, post_modified, post_modified_gmt, post_parent, menu_order)'
-			)
-			.replace(
-				needleInsertVals,
-				"('$post_ID', '$post_author', '$now', '$now_gmt', '$content', '$post_title', '$excerpt', '$post_status', '$comment_status', '$ping_status', '$post_password', '$post_name', '$trackback', '', '', '$now', '$now_gmt', '$post_parent', '$menu_order')"
-			);
-	}
-
-	await php.writeFile(postPhpPath, content);
 }
 
 /**
