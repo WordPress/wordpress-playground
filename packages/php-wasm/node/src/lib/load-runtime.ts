@@ -25,6 +25,10 @@ import {
 import { withIntl } from './extensions/intl/with-intl';
 import { withRedis } from './extensions/redis/with-redis';
 import { withMemcached } from './extensions/memcached/with-memcached';
+import {
+	withWpMysqlParser,
+	type WpMysqlParserOptions,
+} from './extensions/wp-mysql-parser/with-wp-mysql-parser';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
 
@@ -34,6 +38,7 @@ export interface PHPLoaderOptions {
 	withIntl?: boolean;
 	withRedis?: boolean;
 	withMemcached?: boolean;
+	withWpMysqlParser?: WpMysqlParserOptions;
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -342,6 +347,13 @@ export async function loadNodeRuntime(
 			emscriptenOptions = await withMemcached(
 				modernVersion,
 				emscriptenOptions
+			);
+		}
+		if (options?.withWpMysqlParser) {
+			emscriptenOptions = await withWpMysqlParser(
+				modernVersion,
+				emscriptenOptions,
+				options.withWpMysqlParser
 			);
 		}
 	}

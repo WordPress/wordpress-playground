@@ -52,6 +52,7 @@ interface WorkerBootRequestHandlerOptions {
 	withRedis?: boolean;
 	withMemcached?: boolean;
 	withXdebug?: boolean;
+	withWpMysqlParserSo?: string;
 	pathAliases?: PathAlias[];
 }
 
@@ -251,6 +252,9 @@ function createPhpRuntimeFactory(
 				withRedis: options.withRedis,
 				withMemcached: options.withMemcached,
 				withXdebug: options.withXdebug,
+				withWpMysqlParser: options.withWpMysqlParserSo
+					? { soPath: options.withWpMysqlParserSo }
+					: undefined,
 			}
 		);
 	};

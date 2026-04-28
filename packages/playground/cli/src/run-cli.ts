@@ -299,6 +299,14 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			'wp-mysql-parser-so': {
+				describe:
+					'Path to a wp_mysql_parser.so side module compiled for the ' +
+					'target PHP version. Only PHP 8.4 is supported in this build. ' +
+					'See https://github.com/WordPress/sqlite-database-integration/pull/381',
+				type: 'string',
+				normalize: true,
+			},
 			'experimental-unsafe-ide-integration': {
 				describe:
 					'Enable experimental IDE development tools. This option edits IDE config files ' +
@@ -890,6 +898,7 @@ export interface RunCLIArgs {
 	redis?: boolean;
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
+	'wp-mysql-parser-so'?: string;
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;

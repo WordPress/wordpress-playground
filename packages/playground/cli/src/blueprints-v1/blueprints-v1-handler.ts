@@ -201,6 +201,7 @@ export class BlueprintsV1Handler {
 			withRedis: this.args.redis,
 			withMemcached: this.args.memcached,
 			withXdebug: !!this.args.xdebug,
+			withWpMysqlParserSo: this.args['wp-mysql-parser-so'],
 			nativeInternalDirPath,
 			pathAliases: this.args.pathAliases,
 		});
