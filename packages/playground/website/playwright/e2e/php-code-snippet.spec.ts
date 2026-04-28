@@ -97,11 +97,40 @@ test.describe('php-code-snippet embed', () => {
 			'loading="lazy"'
 		);
 
+		await expect(third.locator('.progress')).toBeHidden();
+		await third.evaluate((snippet: HTMLElement) => {
+			const progress = snippet.shadowRoot?.querySelector('.progress');
+			if (!progress) {
+				throw new Error('Missing progress element');
+			}
+			const state = {
+				wasVisible: progress.classList.contains('visible'),
+				observer: new MutationObserver(() => {
+					if (progress.classList.contains('visible')) {
+						state.wasVisible = true;
+					}
+				}),
+			};
+			state.observer.observe(progress, {
+				attributes: true,
+				attributeFilter: ['class'],
+			});
+			(snippet as any).__progressVisibilityState = state;
+		});
+
 		// Third snippet — same shared runtime.
 		await third.locator('.run').click();
 		await expect(third.locator('.output')).toBeVisible({
 			timeout: 60_000,
 		});
+		const thirdProgressWasVisible = await third.evaluate(
+			(snippet: HTMLElement) => {
+				const state = (snippet as any).__progressVisibilityState;
+				state.observer.disconnect();
+				return state.wasVisible;
+			}
+		);
+		expect(thirdProgressWasVisible).toBe(false);
 		await expect(third.locator('.output-body')).toContainText(
 			'core/paragraph'
 		);

@@ -166,7 +166,6 @@ async function getSharedClient(
 	let entry = runtimes.get(key);
 
 	if (entry && entry.client) {
-		onProgress?.({ progress: 100, caption: '' });
 		return entry.client;
 	}
 
@@ -192,6 +191,7 @@ async function getSharedClient(
 			throw err;
 		});
 		runtimes.set(key, entry);
+		onProgress?.({ progress: 0, caption: 'Loading runtime…' });
 	} else {
 		// Boot in flight — replay the latest progress so a late-arriving
 		// snippet shows the same bar position.
@@ -759,7 +759,6 @@ class PhpSnippet extends HTMLElement {
 		const outputBody = this.shadowRoot.querySelector('.output-body');
 		btn.disabled = true;
 		outputBody.classList.remove('error');
-		progress.classList.add('visible');
 		caption.textContent = 'Loading runtime…';
 		fill.style.width = '0%';
 		percent.textContent = '0%';
@@ -777,6 +776,7 @@ class PhpSnippet extends HTMLElement {
 					blueprintKey,
 				},
 				({ progress: pct, caption: cap }) => {
+					progress.classList.add('visible');
 					const rounded = Math.round(pct);
 					fill.style.width = rounded + '%';
 					percent.textContent = rounded + '%';
