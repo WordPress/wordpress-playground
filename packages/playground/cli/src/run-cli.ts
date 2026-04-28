@@ -551,6 +551,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					args['wordpressInstallMode'] = 'do-not-attempt-installing';
 				}
 
+				if (args['phpmyadmin'] && args['skip-sqlite-setup']) {
+					throw new Error(
+						'The --phpmyadmin option requires SQLite setup. Remove --skip-sqlite-setup to use phpMyAdmin.'
+					);
+				}
+
 				if (
 					args['wp'] !== undefined &&
 					typeof args['wp'] === 'string' &&
