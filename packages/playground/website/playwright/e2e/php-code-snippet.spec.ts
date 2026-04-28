@@ -23,6 +23,7 @@ test.describe('php-code-snippet embed', () => {
 			'greet-alice.php',
 			'greet-bob.php',
 			'scratch.php',
+			'precomputed.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
@@ -163,5 +164,31 @@ test.describe('php-code-snippet embed', () => {
 		await expect(editable.locator('.output-body')).toContainText(
 			'edited:42'
 		);
+	});
+
+	test('expected output shows before Run and is replaced by real output', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const snippet = page.locator('php-snippet[name="precomputed.php"]');
+
+		await expect(snippet.locator('.progress')).toBeHidden();
+		await expect(snippet.locator('.output')).toBeVisible();
+		await expect(snippet.locator('.output-body')).toContainText(
+			'2 + 2 = 4'
+		);
+
+		await snippet.locator('.run').click();
+		await expect(snippet.locator('.progress')).toBeVisible();
+		await expect(snippet.locator('.output')).toBeVisible({
+			timeout: 240_000,
+		});
+		await expect(snippet.locator('.output-body')).toContainText(
+			'WordPress is awesome.'
+		);
+		await expect(snippet.locator('.progress')).toBeHidden();
+		await expect(
+			page.locator('iframe[title="PHP Snippet runtime"]')
+		).toHaveCount(1);
 	});
 });

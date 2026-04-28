@@ -148,12 +148,13 @@ echo "Product: " . array_product($nums) . "\n";
 			</script>
 		</php-snippet>
 
-		<h2>6. Expected output (no runtime boot)</h2>
+		<h2>6. Expected output</h2>
 		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
 			When <code>expected-output</code> is provided (as an attribute or a
 			<code>&lt;script type="text/expected-output"&gt;</code> child),
-			clicking Run shows that text immediately without loading the
-			Playground runtime.
+			the snippet displays that text before Run is clicked. Clicking Run
+			still loads the Playground runtime and replaces the placeholder with
+			the real output.
 		</p>
 		<php-snippet name="precomputed.php">
 			<script type="application/x-php">

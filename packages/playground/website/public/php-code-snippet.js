@@ -643,7 +643,18 @@ class PhpSnippet extends HTMLElement {
 		this._readCode().then((code) => {
 			this._code = code.trim();
 			this._render();
+			if (this._expectedOutput !== null) {
+				this._showExpectedOutput();
+			}
 		});
+	}
+
+	_showExpectedOutput() {
+		const outputWrap = this.shadowRoot.querySelector('.output');
+		const outputBody = this.shadowRoot.querySelector('.output-body');
+		outputBody.classList.remove('error');
+		outputBody.textContent = this._expectedOutput || '(no output)';
+		outputWrap.classList.add('visible');
 	}
 
 	_readExpectedOutput() {
@@ -748,12 +759,6 @@ class PhpSnippet extends HTMLElement {
 		const outputBody = this.shadowRoot.querySelector('.output-body');
 		btn.disabled = true;
 		outputBody.classList.remove('error');
-		if (this._expectedOutput !== null) {
-			outputBody.textContent = this._expectedOutput || '(no output)';
-			outputWrap.classList.add('visible');
-			btn.disabled = false;
-			return;
-		}
 		progress.classList.add('visible');
 		caption.textContent = 'Loading runtime…';
 		fill.style.width = '0%';
