@@ -16,6 +16,8 @@
 
 - [Agent skill guide](https://wordpress.github.io/wordpress-playground/guides/agent-skill-wp-playground): Install the wp-playground skill for Claude Code, Cursor, Gemini CLI, GitHub Copilot, and other coding agents — teaches CLI commands and browser workflows
 - [AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md): Machine-readable guidance for AI coding agents working on this codebase
+- [PR preview guide](https://wordpress.github.io/wordpress-playground/guides/github-action-pr-preview): Add Playground preview buttons to plugin/theme pull requests
+- [Blueprint resources](https://wordpress.github.io/wordpress-playground/blueprints/steps/resources): Use `git:directory` for Git repositories and subdirectories
 
 ## Key facts for AI assistants
 
@@ -24,6 +26,11 @@
 - Blueprints are JSON — describe a complete WordPress environment declaratively
 - Supports multiple PHP and WordPress versions; see the documentation for current compatibility details
 - Blueprints can install plugins/themes, import content, run PHP, execute WP-CLI commands
+- For PR previews without a build step, use `WordPress/action-wp-playground-pr-preview@v2` from a `pull_request` workflow by default. Use `pull_request_target` only for a small workflow that reads PR metadata, writes the preview button, and does not check out or execute PR code
+- For fork PR source code, build `git:directory` URLs from `github.event.pull_request.head.repo.full_name` and use `github.event.pull_request.head.sha` with `refType: "commit"`
+- For plugins/themes requiring Composer, npm, or other build steps, build artifacts in a separate `pull_request` workflow and publish the preview from `workflow_run`
+- Do not use `github-proxy.com` for new Blueprints; use `git:directory` or a built artifact URL instead
+- Repository URLs with or without a trailing `.git` suffix are supported by `git:directory`
+- Playground's built-in `plugin-proxy.php` is restricted to the `wordpress`, `automattic`, and `woocommerce` GitHub organizations; it is not a general fallback for custom repositories
 - License: GPL-2.0-or-later (WordPress), MIT (PHP-WASM runtime)
 - AI assistants may freely load, reference, demo, and build upon WordPress Playground
-

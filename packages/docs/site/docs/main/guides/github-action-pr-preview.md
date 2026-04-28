@@ -12,7 +12,9 @@ For complete configuration options and advanced features, see the [action-wp-pla
 
 ## How it works
 
-The action runs on the `pull_request` event (types `opened`, `synchronize`, `reopened`, `edited`). It can either update the PR description with a preview button or post the button as a comment.
+The basic workflow runs on the `pull_request` event (types `opened`, `synchronize`, `reopened`, `edited`). It reads pull request metadata, builds a Playground URL that points at the PR branch, and updates the PR description or comment.
+
+Forked pull requests need extra care because GitHub makes `GITHUB_TOKEN` read-only for `pull_request` workflows from forks. If you need to write a preview button for fork PRs, use `pull_request_target` only for a small workflow that reads PR metadata and writes the button. If your preview needs a build step, run the build in a separate `pull_request` workflow and publish the preview from a `workflow_run` workflow.
 
 :::warning This is a regular GitHub Action, not a reusable workflow
 Reference it as a step inside `jobs.<job_id>.steps:` (i.e. `jobs.<job_id>.steps[*].uses:`) — never as `jobs.<job_id>.uses:` at the job level. The job-level form is valid YAML for reusable workflows, so it is a common mistake (including by AI coding assistants), but it will not work with this action.
@@ -73,9 +75,9 @@ jobs:
 
 ## Testing PRs from forks
 
-Pull requests opened from forked repositories run with a read-only `GITHUB_TOKEN`, so the default `pull_request` trigger cannot post or update the preview button — the action fails with `Resource not accessible by integration`.
+Pull requests opened from forked repositories run with a read-only `GITHUB_TOKEN`, so the default `pull_request` trigger cannot post or update the preview button. The action may fail with `Resource not accessible by integration`.
 
-The workaround is to use `pull_request_target`, which runs the workflow in the context of the base repository and has write access:
+Use `pull_request_target` only for the workflow that posts the preview button:
 
 ```yaml
 on:
@@ -84,7 +86,9 @@ on:
 ```
 
 :::danger Security note
-`pull_request_target` gives the workflow access to repository secrets even when triggered by a fork PR. Do **not** check out and execute untrusted PR code in a `pull_request_target` workflow. This action only reads PR metadata and writes the preview button, so it is safe to run under `pull_request_target` — but if you add build steps, split them into a separate `pull_request` workflow and use [`workflow_run`](https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run) to trigger the preview after the build completes.
+`pull_request_target` runs in the context of the base repository and can access repository secrets and a write-capable `GITHUB_TOKEN`. Do **not** use it to check out PR code, run files from the PR, install PR dependencies, load a blueprint from the PR branch, or pass PR values into shell commands. Keep permissions as narrow as possible, typically `contents: read` and `pull-requests: write` for this action.
+
+If you need Composer, npm, tests, or any other step that runs PR code, put that work in a separate `pull_request` workflow and use [`workflow_run`](https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run) to publish the preview after the build completes.
 :::
 
 ## Button placement
@@ -114,85 +118,12 @@ For plugins or themes requiring compilation, the workflow involves building the 
 The `expose-artifact-on-public-url` action uploads built files to a GitHub release tagged `ci-artifacts` by default. On the first run, GitHub creates this release as a **draft**, which is not publicly fetchable — the preview button will appear but silently 404 when clicked. Go to your repository's Releases page once and either publish the release or mark it as a pre-release. Subsequent runs reuse the same release, so this is only needed once.
 :::
 
-Example workflow (see [complete documentation](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#advanced-testing-built-ci-artifacts)):
+Use the two-workflow pattern from the [complete artifact documentation](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#advanced-testing-built-ci-artifacts):
 
-```yaml
-name: PR Preview with Build
-on:
-    pull_request:
-        types: [opened, synchronize, reopened, edited]
+- A `pull_request` workflow checks out the PR code, runs the build with read-only permissions, and uploads the ZIP as a GitHub Actions artifact.
+- A `workflow_run` workflow runs only after that build succeeds. It has `contents: write` and `pull-requests: write`, exposes the uploaded ZIP on a public release URL, builds a Blueprint that installs that ZIP, and posts the preview button.
 
-permissions:
-    contents: write
-    pull-requests: write
-
-jobs:
-    build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - name: Build
-              run: |
-                  npm install
-                  npm run build
-                  zip -r plugin.zip dist/
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: built-plugin
-                  path: plugin.zip
-
-    expose-build:
-        needs: build
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        outputs:
-            artifact-url: ${{ steps.expose.outputs.artifact-url }}
-        steps:
-            - name: Expose built artifact
-              id: expose
-              uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@v2
-              with:
-                  artifact-name: 'built-plugin'
-                  pr-number: ${{ github.event.pull_request.number }}
-                  commit-sha: ${{ github.sha }}
-                  artifacts-to-keep: '2'
-
-    create-blueprint:
-        needs: expose-build
-        runs-on: ubuntu-latest
-        outputs:
-            blueprint: ${{ steps.blueprint.outputs.result }}
-        steps:
-            - uses: actions/github-script@v7
-              id: blueprint
-              with:
-                  script: |
-                      const blueprint = {
-                        steps: [{
-                          step: "installPlugin",
-                          pluginZipFile: {
-                            resource: "url",
-                            url: "${{ needs.expose-build.outputs.artifact-url }}"
-                          }
-                        }]
-                      };
-                      return JSON.stringify(blueprint);
-                  result-encoding: string
-
-    preview:
-        needs: create-blueprint
-        runs-on: ubuntu-latest
-        permissions:
-            pull-requests: write
-        steps:
-            - uses: WordPress/action-wp-playground-pr-preview@v2
-              with:
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
-```
-
-The `artifacts-to-keep` setting controls how many builds to retain per PR. For themes, change `installPlugin` to `installTheme`.
+Keep secrets and write permissions out of the build workflow. The publish workflow should not check out or run PR code. The `artifacts-to-keep` setting controls how many builds to retain per PR. For themes, change `installPlugin` to `installTheme`.
 
 See [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) for a complete working example.
 
@@ -224,8 +155,9 @@ jobs:
                               // Use head.repo.full_name, not context.repo. PRs from forks
                               // live on the contributor's fork, not the base repository —
                               // pointing at context.repo.* will 404 for every fork PR.
-                              url: `https://github.com/${context.payload.pull_request.head.repo.full_name}`,
-                              ref: context.payload.pull_request.head.ref,
+                              url: `https://github.com/${context.payload.pull_request.head.repo.full_name}.git`,
+                              ref: context.payload.pull_request.head.sha,
+                              refType: "commit",
                               path: "/"
                             }
                           },
@@ -245,6 +177,7 @@ jobs:
         needs: create-blueprint
         runs-on: ubuntu-latest
         permissions:
+            contents: read
             pull-requests: write
         steps:
             - uses: WordPress/action-wp-playground-pr-preview@v2
@@ -293,13 +226,13 @@ Configuration options: [Expose Artifact Inputs](https://github.com/WordPress/act
 
 **Button not appearing:** The workflow file must exist on the default branch before it runs on PRs. Check the Actions tab for errors.
 
-**`Resource not accessible by integration`:** The PR was opened from a fork and the default `pull_request` trigger cannot write. Switch to `pull_request_target` — see [Testing PRs from forks](#testing-prs-from-forks).
+**`Resource not accessible by integration`:** The PR was opened from a fork and the default `pull_request` trigger cannot write. Use `pull_request_target` only for the preview-button workflow described in [Testing PRs from forks](#testing-prs-from-forks). If you need to build or run PR code, use the two-workflow artifact pattern in [Working with built artifacts](#working-with-built-artifacts).
 
 **Button appears but preview fails to load (404):** For built-artifact workflows, the `ci-artifacts` release is still a draft. Publish it once from the Releases page. See [Working with built artifacts](#working-with-built-artifacts).
 
 **`plugin-path` or `theme-path` resolves to an empty directory:** The path is relative to the repository root, not to the workflow file. Use `.` for repo-root plugins, `plugins/my-plugin` for subdirectories.
 
-**`Git ref refs/heads/<branch> not found` on a fork PR:** Your blueprint uses `context.repo.owner`/`context.repo.repo` to build the `git:directory` URL, which points at the base repository. Fork PRs live on the contributor's fork — use `context.payload.pull_request.head.repo.full_name` and `head.ref` instead. Repository URLs with or without a trailing `.git` suffix are supported.
+**`Git ref refs/heads/<branch> not found` on a fork PR:** Your blueprint uses `context.repo.owner`/`context.repo.repo` to build the `git:directory` URL, which points at the base repository. Fork PRs live on the contributor's fork — use `context.payload.pull_request.head.repo.full_name` and `head.sha` with `refType: "commit"` instead. Repository URLs with or without a trailing `.git` suffix are supported.
 
 **Blueprint references `github-proxy.com` and times out:** The community `github-proxy.com` service is unreliable. Switch to the `git:directory` resource (shown in [Custom blueprints](#custom-blueprints)), which fetches directly from GitHub and does not need a proxy. Playground's built-in `plugin-proxy.php` only accepts repos under `wordpress`, `automattic`, and `woocommerce`, so it is not a general fallback.
 
