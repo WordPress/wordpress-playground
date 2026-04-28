@@ -69,7 +69,7 @@ function buildExtensionFiles(
 	for (const [key, value] of Object.entries(iniEntries)) {
 		iniLines.push(`${key}=${value}`);
 	}
-	return { soPath, iniPath, iniContent: iniLines.join('\n') + '\n' };
+	return { soPath, iniPath, iniContent: iniLines.join('\n') };
 }
 
 /**
