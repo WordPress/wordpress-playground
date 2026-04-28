@@ -32,6 +32,11 @@ export type Pooled<T extends object> = Omit<
  *
  * The returned proxy provides a promisified version of the original
  * interface: method calls and property accesses all return promises.
+ *
+ * Methods may return streamed response objects whose work continues
+ * after the method promise resolves. When a returned value exposes a
+ * `finished` promise, the pool keeps the instance checked out until
+ * that promise settles.
  */
 export function createObjectPoolProxy<T extends object>(
 	instances: T[]
@@ -65,6 +70,8 @@ export function createObjectPoolProxy<T extends object>(
 	function withInstance<R>(fn: (instance: T) => R | Promise<R>): Promise<R> {
 		return acquire().then((instance) => {
 			const releaseWhenComplete = (value: R): R => {
+				// `.finished` means this is a streamed response class.
+				// Keep the instance checked out until streaming settles.
 				const finished = (value as any)?.finished;
 				if (finished && typeof finished.then === 'function') {
 					Promise.resolve(finished).then(
