@@ -41,6 +41,11 @@
 					"additionalProperties": false,
 					"description": "Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints"
 				},
+				"wordpress": {
+					"type": "boolean",
+					"const": false,
+					"description": "Set to `false` to boot a PHP-only Playground without downloading or installing WordPress. Useful for running pure-PHP snippets.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time. `preferredVersions.wp` is ignored."
+				},
 				"preferredVersions": {
 					"type": "object",
 					"properties": {
