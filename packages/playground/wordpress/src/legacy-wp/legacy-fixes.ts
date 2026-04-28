@@ -121,7 +121,6 @@ export async function patchWordPressSourceFiles(
 
 	if (wpVersion < 1.2) {
 		await patchWp10DoubleQuotedSqlLiterals(php, documentRoot);
-		await patchWp10PostPhpInsertNullId(php, documentRoot);
 		await patchWp10LoginPlaintextCompare(php, documentRoot);
 	}
 	if (wpVersion < 1.5) {
@@ -473,31 +472,6 @@ async function patchWp10EditPhpPostTitleLinks(php: PHP, documentRoot: string) {
 
 	if (patched !== content) {
 		await php.writeFile(editPhpPath, patched);
-	}
-}
-
-/**
- * WP 1.0's wp-admin/post.php inserts `ID = '0'` literally, which MySQL
- * silently turns into the next AUTO_INCREMENT value but SQLite stores as
- * 0. Rewrite the literal to `NULL` so SQLite picks the next rowid.
- */
-async function patchWp10PostPhpInsertNullId(php: PHP, documentRoot: string) {
-	const postPhpPath = joinPaths(documentRoot, 'wp-admin/post.php');
-	if (!php.fileExists(postPhpPath)) return;
-	const content = php.readFileAsText(postPhpPath);
-	if (content.includes('/* pg_wp10_insert_null_id */')) return;
-
-	// Unique to WP 1.0 (WP 1.2 adds '$now_gmt' to this prefix). Matches
-	// both the plain and the geo-positions INSERT branches.
-	const needle = "('0', '$user_ID', '$now', '$content', '$post_title'";
-	if (!content.includes(needle)) return;
-
-	const patched = content.replaceAll(
-		needle,
-		"(NULL /* pg_wp10_insert_null_id */, '$user_ID', '$now', '$content', '$post_title'"
-	);
-	if (patched !== content) {
-		await php.writeFile(postPhpPath, patched);
 	}
 }
 
