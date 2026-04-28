@@ -4,7 +4,7 @@
  *
  * Pipeline:
  *
- *   1. Unzip `sqlite-database-integration-v2.2.22.zip` to a temp dir.
+ *   1. Unzip `sqlite-database-integration-v3.0.0-rc.3.zip` to a temp dir.
  *   2. Run `scripts/php52-downgrader/bin/downgrade.php` over the dir.
  *      The downgrader is an AST-based pipeline built on nikic/php-parser
  *      v5 that handles every mechanical PHP 7+ -> 5.2 rewrite — type
@@ -13,7 +13,7 @@
  *      don't survive a pure AST round-trip (PHP_VERSION_ID-gated
  *      traits, ReflectionProperty access, WP compatibility polyfills,
  *      etc.).
- *   4. Re-zip to `sqlite-database-integration-v2.2.22-php52.zip`.
+ *   4. Re-zip to `sqlite-database-integration-v3.0.0-rc.3-php52.zip`.
  *
  * Usage: node scripts/patch-sqlite-for-php52.mjs
  *
@@ -39,11 +39,11 @@ const REPO_ROOT = path.resolve(
 );
 const SRC_ZIP = path.join(
 	REPO_ROOT,
-	'packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v2.2.22.zip'
+	'packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v3.0.0-rc.3.zip'
 );
 const OUT_ZIP = path.join(
 	REPO_ROOT,
-	'packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v2.2.22-php52.zip'
+	'packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v3.0.0-rc.3-php52.zip'
 );
 const DOWNGRADER_DIR = path.join(REPO_ROOT, 'scripts/php52-downgrader');
 const DOWNGRADER = path.join(DOWNGRADER_DIR, 'bin/downgrade.php');

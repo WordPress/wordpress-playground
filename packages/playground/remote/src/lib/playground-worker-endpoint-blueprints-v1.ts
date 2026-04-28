@@ -154,12 +154,12 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			}
 
 			// Select the right SQLite version:
-			// - PHP 5.2: pre-patched v2.2.22 (closures replaced, PHP 5.2
+			// - PHP 5.2: pre-patched v3.0.0-rc.3 (closures replaced, PHP 5.2
 			//   polyfills added)
 			// - Everything else: whatever the caller requested
 			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 			const effectiveSqliteVersion = isLegacyPhp
-				? 'v2.2.22-php52'
+				? 'v3.0.0-rc.3-php52'
 				: sqliteDriverVersion!;
 			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
 				effectiveSqliteVersion
