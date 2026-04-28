@@ -258,9 +258,7 @@ describe('Blueprint step activatePlugin()', () => {
 			activatePlugin(php, {
 				pluginPath: 'no-such-plugin.php',
 			})
-		).rejects.toThrow(
-			/wasn't able to find the plugin no-such-plugin\.php/
-		);
+		).rejects.toThrow(/WordPress said: Plugin file does not exist/);
 	});
 
 	it('should include response headers and a pointer to the console in the error message', async () => {
@@ -291,18 +289,23 @@ describe('Blueprint step activatePlugin()', () => {
 
 	it('should surface PHP errors logged during activation in the scratch log', async () => {
 		const docroot = handler.documentRoot;
-		// A plugin that error_log()s and prints output at file scope.
-		// WordPress includes the file via plugin_sandbox_scrape during
-		// activation; the print triggers WP's "unexpected output"
-		// WP_Error, and the error_log() call lands in our scratch log.
+		// Activation hook calls error_log() then wp_die()s. Because
+		// wp_die fires inside do_action("activate_{$plugin}") — which
+		// runs *before* WordPress writes the active_plugins option —
+		// the plugin is never marked active, so the activation-status
+		// check returns false and the JS step throws. The error_log()
+		// output should be captured into our scratch log and surfaced
+		// in that thrown error.
 		php.writeFile(
 			`${docroot}/wp-content/plugins/error-log-plugin.php`,
 			`<?php
 			/**
 			 * Plugin Name: Error Log Plugin
 			 */
-			error_log('marker-from-plugin-file');
-			echo 'unexpected-output-from-plugin';
+			register_activation_hook(__FILE__, function() {
+				error_log('marker-from-activation-hook');
+				wp_die('halted-by-hook');
+			});
 			`
 		);
 
@@ -310,7 +313,9 @@ describe('Blueprint step activatePlugin()', () => {
 			activatePlugin(php, {
 				pluginPath: 'error-log-plugin.php',
 			})
-		).rejects.toThrow(/PHP error log:[\s\S]*marker-from-plugin-file/);
+		).rejects.toThrow(
+			/PHP error log:[\s\S]*marker-from-activation-hook/
+		);
 	});
 
 	it('should not throw an error if the plugin is already active', async () => {
