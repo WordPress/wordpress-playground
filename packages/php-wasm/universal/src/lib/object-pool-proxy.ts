@@ -64,6 +64,19 @@ export function createObjectPoolProxy<T extends object>(
 
 	function withInstance<R>(fn: (instance: T) => R | Promise<R>): Promise<R> {
 		return acquire().then((instance) => {
+			const releaseWhenComplete = (value: R): R => {
+				const finished = (value as any)?.finished;
+				if (finished && typeof finished.then === 'function') {
+					Promise.resolve(finished).then(
+						() => release(instance),
+						() => release(instance)
+					);
+				} else {
+					release(instance);
+				}
+				return value;
+			};
+
 			let result: R | Promise<R>;
 			try {
 				result = fn(instance);
@@ -73,18 +86,14 @@ export function createObjectPoolProxy<T extends object>(
 			}
 			if (result != null && typeof (result as any).then === 'function') {
 				return (result as Promise<R>).then(
-					(val) => {
-						release(instance);
-						return val;
-					},
+					(val) => releaseWhenComplete(val),
 					(err) => {
 						release(instance);
 						throw err;
 					}
 				);
 			}
-			release(instance);
-			return result as R;
+			return releaseWhenComplete(result as R);
 		});
 	}
 
