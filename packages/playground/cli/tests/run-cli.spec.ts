@@ -232,8 +232,6 @@ describe.each(blueprintVersions)(
 					? { allow: 'follow-symlinks' }
 					: { followSymlinks: true };
 
-			// TODO: Make sure test always uses a single worker.
-			// TODO: Is there a way to confirm we are testing use of a non-primary PHP instance?
 			const tmpDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-')
 			);
@@ -266,6 +264,9 @@ describe.each(blueprintVersions)(
 					...testArgs,
 					debug: true,
 					command: 'server',
+					// Keep one CLI worker so the secondary PHP runtime below
+					// is created by the PHP spawn handler, not request routing.
+					workers: 1,
 					'mount-before-install': [
 						{
 							hostPath: symlinkPath,
@@ -273,23 +274,29 @@ describe.each(blueprintVersions)(
 						},
 					],
 				});
-				// Make multiple simultaneous requests to force the use of a secondary PHP instance.
-				// TODO: Find way to confirm this. Maybe a custom response header that announces the worker.
-				const sleepUrl = new URL(
-					'/wp-content/test-script/sleep.php',
+				expect(
+					cliServer[internalsKeyForTesting].workerThreadCount
+				).toBe(1);
+
+				await cliServer.playground.writeFile(
+					'/wordpress/run-symlinked-script.php',
+					`<?php
+					echo 'primary:';
+					require '/wordpress/wp-content/test-script/sleep.php';
+					echo "\nsecondary:";
+					// Running php from PHP exercises a secondary PHP runtime.
+					echo shell_exec('php /wordpress/wp-content/test-script/sleep.php');
+					`
+				);
+				const scriptUrl = new URL(
+					'/run-symlinked-script.php',
 					cliServer.serverUrl
 				);
-				const responses = await Promise.all([
-					fetch(sleepUrl),
-					fetch(sleepUrl),
-					// Test a third request to hopefully test more than one secondary instance.
-					fetch(sleepUrl),
-				]);
-				for (const response of responses) {
-					expect(response.status).toBe(200);
-					const text = await response.text();
-					expect(text).toContain('Slept');
-				}
+				const response = await fetch(scriptUrl);
+				const text = await response.text();
+				expect(response.status, text).toBe(200);
+				expect(text).toContain('primary:Slept');
+				expect(text).toContain('secondary:Slept');
 			} finally {
 				if (existsSync(symlinkPath)) {
 					unlinkSync(symlinkPath);
