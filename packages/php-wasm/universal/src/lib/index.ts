@@ -96,6 +96,14 @@ export type {
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
+export { loadExtension } from './load-extension';
+export type {
+	LoadExtensionOptions,
+	LoadedExtension,
+	PHPWasmAsyncMode,
+	PHPWasmExtensionArtifact,
+	PHPWasmExtensionManifest,
+} from './load-extension';
 
 export {
 	DEFAULT_BASE_URL,

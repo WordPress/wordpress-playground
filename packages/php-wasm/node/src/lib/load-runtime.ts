@@ -114,6 +114,7 @@ export async function loadNodeRuntime(
 			: undefined);
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
+	const phpWasmAsyncMode = await detectPHPWasmAsyncMode();
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -138,6 +139,7 @@ export async function loadNodeRuntime(
 			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),
+		phpWasmAsyncMode,
 		processId,
 		// For legacy PHP: pre-create php.ini via a preRun step. See
 		// createLegacyPhpIniPreRunStep for why this must run before
@@ -352,4 +354,9 @@ export async function loadNodeRuntime(
 
 	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
 	return runtimeId;
+}
+
+async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
+	const { jspi } = await import('wasm-feature-detect');
+	return (await jspi()) ? 'jspi' : 'asyncify';
 }
