@@ -164,20 +164,6 @@
 			</script>
 		</php-snippet>
 
-		<h2>6. PHP-only (no WordPress)</h2>
-		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
-			<code>wp="none"</code> boots PHP without downloading or installing
-			WordPress. Open Network — no <code>wp-*.zip</code> request fires.
-		</p>
-		<php-snippet name="php-only.php" wp="none">
-			<script type="application/x-php">
-				<?php
-				echo "php:" . phpversion() . "\n";
-				echo "wp_loaded:" . (function_exists('wp_get_current_user') ? 'yes' : 'no') . "\n";
-				echo "wp_dir:" . (is_dir('/wordpress') ? 'yes' : 'no') . "\n";
-			</script>
-		</php-snippet>
-
 		<script type="module" src="./php-code-snippet.js"></script>
 	</body>
 </html>

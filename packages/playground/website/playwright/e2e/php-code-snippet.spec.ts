@@ -23,7 +23,6 @@ test.describe('php-code-snippet embed', () => {
 			'greet-alice.php',
 			'greet-bob.php',
 			'scratch.php',
-			'php-only.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
@@ -138,50 +137,6 @@ test.describe('php-code-snippet embed', () => {
 			.locator('iframe[title="PHP Snippet runtime"]')
 			.count();
 		expect(blueprintIframes).toBe(1);
-	});
-
-	test('wp="none" runs PHP without downloading or installing WordPress', async ({
-		page,
-	}) => {
-		// Track every network request the page issues. The download path for
-		// WordPress goes through `playground.wordpress.net/wp-*.zip`,
-		// `wordpress.org/wordpress-*.zip`, or the minified-builds bucket —
-		// any of those firing means we didn't actually skip the install.
-		const wpRequests: string[] = [];
-		page.on('request', (req) => {
-			const url = req.url();
-			if (
-				/\/wp-[\d.]+(?:-[\w.]+)?\.zip(?:$|\?)/.test(url) ||
-				/wordpress-[\d.]+(?:-[\w.]+)?\.zip(?:$|\?)/.test(url) ||
-				/\/wp\/[\d.]+\//.test(url)
-			) {
-				wpRequests.push(url);
-			}
-		});
-
-		await page.goto(DEMO_URL);
-		// `wordpress: false` is part of THIS PR; the deployed
-		// playground.wordpress.net origin doesn't know about it yet, so
-		// force the snippet to boot against the local Playground build the
-		// dev server is serving (same one the demo page came from).
-		const phpOnly = page.locator('php-snippet[name="php-only.php"]');
-		await phpOnly.evaluate((el) =>
-			el.setAttribute('playground-origin', window.location.origin)
-		);
-		await phpOnly.locator('.run').click();
-		await expect(phpOnly.locator('.output')).toBeVisible({
-			timeout: 240_000,
-		});
-
-		// Functional confirmation: the runtime is up, but `/wordpress` was
-		// never created and WP's globals never loaded.
-		const body = phpOnly.locator('.output-body');
-		await expect(body).toContainText('php:');
-		await expect(body).toContainText('wp_loaded:no');
-		await expect(body).toContainText('wp_dir:no');
-
-		// Network confirmation: no WordPress zip was fetched.
-		expect(wpRequests).toEqual([]);
 	});
 
 	test('editable snippet runs the user-typed code', async ({ page }) => {
