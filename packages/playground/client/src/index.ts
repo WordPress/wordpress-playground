@@ -37,6 +37,8 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import type { PathAlias } from '@php-wasm/universal';
 import { additionalRemoteOrigins } from './additional-remote-origins';
+import { getRuntimeRemoteOrigins } from './runtime-remote-origins';
+export { addRemoteOrigin } from './runtime-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
@@ -183,7 +185,7 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
 const devRemoteOrigin = `http://${remoteDevServerHost}:${remoteDevServerPort}`;
-const validRemoteOrigins = [
+const builtInRemoteOrigins = [
 	officialRemoteOrigin,
 	devRemoteOrigin,
 	// An older origin that's still used by some plugins.
@@ -217,6 +219,10 @@ const remoteOrigin =
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
 	const url = new URL(remoteHtmlUrl, remoteOrigin);
+	const validRemoteOrigins = [
+		...builtInRemoteOrigins,
+		...getRuntimeRemoteOrigins(),
+	];
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&

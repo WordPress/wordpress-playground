@@ -10,19 +10,7 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
-
-function validateOrigin(origin: string) {
-	try {
-		const url = new URL(origin);
-		if (url.href === `${origin}/`) {
-			return true;
-		}
-	} catch {
-		// Let exceptions fall through to the error below
-	}
-
-	throw new Error(`Invalid origin: '${origin}'`);
-}
+import { validateOrigin } from './src/validate-origin';
 
 const additionalRemoteOriginsModulePath = join(
 	__dirname,
@@ -67,11 +55,9 @@ export default defineConfig({
 					return code;
 				}
 
-				const additionalRemoteOrigins = process.env[
-					'ADDITIONAL_REMOTE_ORIGINS'
-				]
-					.split(',')
-					.filter(validateOrigin);
+				const additionalRemoteOrigins =
+					process.env['ADDITIONAL_REMOTE_ORIGINS'].split(',');
+				additionalRemoteOrigins.forEach(validateOrigin);
 				return `export const additionalRemoteOrigins = ${JSON.stringify(
 					additionalRemoteOrigins
 				)};`;
