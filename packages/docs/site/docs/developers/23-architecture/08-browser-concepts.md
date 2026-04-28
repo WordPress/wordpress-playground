@@ -25,7 +25,6 @@ The [`@php-wasm/web`](https://github.com/WordPress/wordpress-playground/blob/tru
 - [**PHP Worker Thread**](/developers/architecture/browser-php-worker-threads) – The PHP server is slow and must run in a web worker, otherwise handling requests freezes the website UI.
 - [**Service Worker routing**](/developers/architecture/browser-service-workers) – All HTTP requests originating in that iframe must be intercepted by a Service worker and passed on to the PHP worker thread for rendering.
 
-
 ## Isomorphic (Universal) Packages
 
 Isomorphic (or universal) JavaScript packages are modules that can run both in the browser and in a Node.js environment without modification.
@@ -34,44 +33,28 @@ This allows developers to reuse the same code across frontend and backend, impro
 
 ### Advantages
 
-- Portability: Works in both browser and server environments  
-- Code reuse: Same logic can be shared  
-- Consistency: Behavior remains the same everywhere  
+- Portability: Works in both browser and server environments
+- Code reuse: Same logic can be shared
+- Consistency: Behavior remains the same everywhere
 
 ### Limitations
 
-- Cannot directly use environment-specific APIs (like `window` or `fs`)  
-- May require conditional logic  
+- Cannot directly use environment-specific APIs (like `window` or `fs`)
+- May require conditional logic
 
 ### Example
 
 #### Isomorphic Code
+
 ```js
 export function greet(name) {
   return `Hello, ${name}!`;
 }
 
 ### Browser-only Code
-```bash
 document.getElementById("app").innerHTML = "Hello!";
 
 ### Node.js-only Code
-```bash
 const fs = require("fs");
 fs.readFileSync("file.txt");
-
----
-
-## Save file
-
-If nano:
-- Press `CTRL + X`
-- Press `Y`
-- Press `Enter`
-
----
-
-## ✅ 6. Check changes
-
-```bash
-git status
+```

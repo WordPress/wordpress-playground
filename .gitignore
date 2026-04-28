@@ -87,3 +87,5 @@ default.profraw
 
 # Git worktrees – a convenient, non-agent-specific place for worktrees
 .worktrees
+
+.claude/worktrees
