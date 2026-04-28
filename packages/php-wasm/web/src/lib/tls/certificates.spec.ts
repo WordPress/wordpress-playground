@@ -223,7 +223,7 @@ describe('generateCertificate', () => {
 		const siteCertPEM = certificateToPEM(SiteCert.certificate);
 		writeFileSync(siteCertPath, siteCertPEM);
 
-		// Plain `openssl x509 -text` is enough — it triggers the same
+		// `openssl x509 -noout -serial` is enough — it triggers the same
 		// ASN.1 INTEGER decode path that fails inside libcurl.
 		const out = execSync(
 			`openssl x509 -in ${siteCertPath} -noout -serial`
