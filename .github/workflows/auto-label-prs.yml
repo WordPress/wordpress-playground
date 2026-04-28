@@ -26,6 +26,13 @@ jobs:
         steps:
             - name: Collect PR context
               id: context
+              # SECURITY: PR_TITLE and PR_BODY are attacker-controlled (any
+              # PR author can set them). They MUST stay in env: and be
+              # referenced as "$PR_TITLE" / "$PR_BODY" inside the script —
+              # never interpolated as ${{ github.event.pull_request.title }}
+              # in the run: block, which would be shell injection with the
+              # write token. They flow only into the model prompt and stdout,
+              # both safe sinks. Don't pipe them into gh / curl / eval.
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GH_REPO: ${{ github.repository }}
@@ -78,7 +85,10 @@ jobs:
 
             - name: Ask Copilot for label suggestions
               id: ai
-              uses: actions/ai-inference@v1
+              # Pinned to a commit SHA, not a tag: this job runs with
+              # pull-requests:write, so a moved tag would be a supply-chain
+              # foothold. Bump deliberately when upgrading.
+              uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9 # v1
               with:
                   model: openai/gpt-4o-mini
                   system-prompt: |
