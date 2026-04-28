@@ -231,6 +231,93 @@ describe('Blueprint step activatePlugin()', () => {
 		).rejects.toThrow(/Uncaught Exception: Activation failed/);
 	});
 
+	it('should surface the WP_Error message when activation is rejected (e.g. unmet PHP requirement)', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/wp-error-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: WP Error Plugin
+			 * Requires PHP: 99.0
+			 */
+			`
+		);
+
+		// WP's own message for an unmet PHP requirement mentions PHP and
+		// the version it expected — assert the gist is reachable, not the
+		// exact phrasing.
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'wp-error-plugin.php',
+			})
+		).rejects.toThrow(/WordPress said:[^\n]*PHP/i);
+	});
+
+	it('should surface the missing-plugin message when the plugin file does not exist', async () => {
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'no-such-plugin.php',
+			})
+		).rejects.toThrow(/WordPress said: Plugin file does not exist/);
+	});
+
+	it('should include response headers and a pointer to the console in the error message', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/header-trailer-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Header Trailer Plugin
+			 * Requires PHP: 99.0
+			 */
+			`
+		);
+
+		let caught: Error | undefined;
+		try {
+			await activatePlugin(php, {
+				pluginPath: 'header-trailer-plugin.php',
+			});
+		} catch (error) {
+			caught = error as Error;
+		}
+
+		expect(caught).toBeDefined();
+		expect(caught!.message).toMatch(/Response headers:\s*\{/);
+		expect(caught!.message).toMatch(/Playground console.*CLI output/);
+	});
+
+	it('should surface PHP errors logged during activation in the scratch log', async () => {
+		const docroot = handler.documentRoot;
+		// Activation hook calls error_log() then wp_die()s. Because
+		// wp_die fires inside do_action("activate_{$plugin}") — which
+		// runs *before* WordPress writes the active_plugins option —
+		// the plugin is never marked active, so the activation-status
+		// check returns false and the JS step throws. The error_log()
+		// output should be captured into our scratch log and surfaced
+		// in that thrown error.
+		php.writeFile(
+			`${docroot}/wp-content/plugins/error-log-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Error Log Plugin
+			 */
+			register_activation_hook(__FILE__, function() {
+				error_log('marker-from-activation-hook');
+				wp_die('halted-by-hook');
+			});
+			`
+		);
+
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'error-log-plugin.php',
+			})
+		).rejects.toThrow(
+			/PHP error log:[\s\S]*marker-from-activation-hook/
+		);
+	});
+
 	it('should not throw an error if the plugin is already active', async () => {
 		const docroot = handler.documentRoot;
 		php.writeFile(

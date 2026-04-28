@@ -201,6 +201,36 @@ describe('generateCertificate', () => {
 		expect(decryptedMessage).toBe(testMessage);
 	});
 
+	it('should produce DER-valid certificates regardless of serial number byte pattern', async () => {
+		// Reproduces an `illegal padding` failure surfaced by OpenSSL's
+		// c2i_ibuf when an ASN.1 INTEGER has a redundant leading 0x00 byte
+		// (DER minimal-length rule, X.690 §8.3.2). The serial number in
+		// generateCertificate() is 4 random bytes by default, so roughly
+		// 1 in 256 sessions produces a serial like [0x00, 0x12, 0x34, 0x56]
+		// — invalid DER, and OpenSSL refuses to parse the cert with:
+		//   error:0D0E20DD:asn1 encoding routines:c2i_ibuf:illegal padding
+		// In Playground that breaks the entire TLS-over-fetch bridge for
+		// the lifetime of the session.
+		const SiteCert = await generateCertificate({
+			serialNumber: new Uint8Array([0x00, 0x12, 0x34, 0x56]),
+			subject: {
+				commonName: 'playground-site',
+				organizationName: 'Playground Site',
+				countryName: 'US',
+			},
+		});
+
+		const siteCertPEM = certificateToPEM(SiteCert.certificate);
+		writeFileSync(siteCertPath, siteCertPEM);
+
+		// `openssl x509 -noout -serial` is enough — it triggers the same
+		// ASN.1 INTEGER decode path that fails inside libcurl.
+		const out = execSync(
+			`openssl x509 -in ${siteCertPath} -noout -serial`
+		).toString();
+		expect(out).toMatch(/serial=/i);
+	});
+
 	it('should generate certificates that can be used for signing and verification', async () => {
 		const SiteCert = await generateCertificate({
 			subject: {

@@ -320,6 +320,18 @@ function escapeHtml(s) {
 		.replace(/>/g, '&gt;');
 }
 
+function dedentLeading(s) {
+	const lines = s.replace(/^\n+|\s+$/g, '').split('\n');
+	let min = Infinity;
+	for (const line of lines) {
+		if (!line.trim()) continue;
+		const m = line.match(/^[ \t]*/);
+		if (m && m[0].length < min) min = m[0].length;
+	}
+	if (!isFinite(min) || min === 0) return lines.join('\n');
+	return lines.map((l) => l.slice(min)).join('\n');
+}
+
 function highlightPhp(code) {
 	const tokens = [];
 	let i = 0;
@@ -623,13 +635,28 @@ class PhpSnippet extends HTMLElement {
 		super();
 		this.attachShadow({ mode: 'open' });
 		this._code = '';
+		this._expectedOutput = null;
 	}
 
 	connectedCallback() {
+		this._expectedOutput = this._readExpectedOutput();
 		this._readCode().then((code) => {
 			this._code = code.trim();
 			this._render();
 		});
+	}
+
+	_readExpectedOutput() {
+		const script = this.querySelector(
+			'script[type="text/expected-output"]'
+		);
+		if (script) {
+			return dedentLeading(script.textContent || '');
+		}
+		if (this.hasAttribute('expected-output')) {
+			return this.getAttribute('expected-output');
+		}
+		return null;
 	}
 
 	async _readCode() {
@@ -721,6 +748,12 @@ class PhpSnippet extends HTMLElement {
 		const outputBody = this.shadowRoot.querySelector('.output-body');
 		btn.disabled = true;
 		outputBody.classList.remove('error');
+		if (this._expectedOutput !== null) {
+			outputBody.textContent = this._expectedOutput || '(no output)';
+			outputWrap.classList.add('visible');
+			btn.disabled = false;
+			return;
+		}
 		progress.classList.add('visible');
 		caption.textContent = 'Loading runtime…';
 		fill.style.width = '0%';
