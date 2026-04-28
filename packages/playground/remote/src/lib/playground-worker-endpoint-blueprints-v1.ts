@@ -153,6 +153,21 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
+			// PHP-only mode: the caller asked us to skip the WordPress
+			// install, so there's nothing for `bootWordPress` to do — and
+			// running it without WP files would still drop in the SQLite
+			// shim and then assert a (nonexistent) DB connection. Apply the
+			// OPFS mounts and stop, so the caller gets a usable PHP runtime.
+			if (!shouldInstallWordPress) {
+				const primaryPhp = await requestHandler.getPrimaryPhp();
+				for (const mount of mounts) {
+					await endpoint.mountOpfsIntoPhp(primaryPhp, mount);
+				}
+				this.__internal_setRequestHandler(requestHandler);
+				setApiReady();
+				return;
+			}
+
 			// Select the right SQLite version:
 			// - PHP 5.2: pre-patched v2.2.22 (closures replaced, PHP 5.2
 			//   polyfills added)

@@ -962,6 +962,39 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 	);
 });
 
+test('Blueprint with `wordpress: false` boots Playground without WordPress', async ({
+	website,
+}) => {
+	const blueprint: Blueprint = { wordpress: false };
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`/#${encodedBlueprint}`);
+
+	// `window.playground` is exposed once the worker boot resolves.
+	await website.page.waitForFunction(
+		() => Boolean((window as any).playground),
+		null,
+		{ timeout: 240_000 }
+	);
+
+	const probe = await website.page.evaluate(async () => {
+		const playground = (window as any).playground;
+		const r = await playground.run({
+			code: `<?php echo json_encode([
+				'wp_dir' => is_dir('/wordpress'),
+				'wp_loaded' => function_exists('wp_get_current_user'),
+				'sqlite_drop_in' => file_exists('/internal/shared/preload/0-sqlite.php'),
+			]);`,
+		});
+		return r.text;
+	});
+
+	expect(JSON.parse(probe)).toEqual({
+		wp_dir: false,
+		wp_loaded: false,
+		sqlite_drop_in: false,
+	});
+});
+
 /**
  * WordPress 6.7 added a redirect from /sitemap.xml to /wp-sitemap.xml
  * (see https://core.trac.wordpress.org/ticket/61931). This test ensures
