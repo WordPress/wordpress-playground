@@ -782,6 +782,25 @@ describe.each(blueprintVersions)(
 		});
 
 		describe('phpMyAdmin', () => {
+			async function expectPhpMyAdminAlias(
+				cliServer: RunCLIServer,
+				urlPrefix: string
+			) {
+				const probeFile = 'playground-alias-check.txt';
+				await cliServer.playground.writeFile(
+					`${PHPMYADMIN_INSTALL_PATH}/${probeFile}`,
+					'phpMyAdmin alias works'
+				);
+
+				const probeUrl = new URL(
+					`${urlPrefix}/${probeFile}`,
+					cliServer.serverUrl
+				);
+				const response = await fetch(probeUrl);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toBe('phpMyAdmin alias works');
+			}
+
 			test('should install phpMyAdmin when --phpmyadmin flag is set', async () => {
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
@@ -808,12 +827,7 @@ describe.each(blueprintVersions)(
 				expect(configExists).toBe(true);
 
 				// Verify phpMyAdmin is accessible via rewrite rule
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/phpmyadmin');
 			}, 120000);
 
 			test('should not install phpMyAdmin when flag is not set', async () => {
@@ -837,12 +851,7 @@ describe.each(blueprintVersions)(
 				});
 
 				// When phpmyadmin is true (boolean), it should default to /phpmyadmin
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/phpmyadmin');
 			}, 120000);
 
 			test('should install phpMyAdmin at a custom path', async () => {
@@ -853,12 +862,7 @@ describe.each(blueprintVersions)(
 				});
 
 				// Verify phpMyAdmin is accessible at the custom path
-				const phpMyAdminUrl = new URL(
-					'/db-admin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/db-admin');
 			}, 120000);
 		});
 	},
