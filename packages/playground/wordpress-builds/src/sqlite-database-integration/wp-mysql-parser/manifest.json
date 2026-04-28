@@ -1,0 +1,19 @@
+{
+  "name": "wp_mysql_parser",
+  "version": "0.1.0",
+  "mode": "php-extension",
+  "artifacts": [
+    {
+      "phpVersion": "8.4",
+      "asyncMode": "asyncify",
+      "file": "./wp_mysql_parser-php8.4-asyncify.so",
+      "sha256": "ced33029ee76d9fbfedcc63d01bf4c3578e01105906b27d325a45bded02a3755"
+    },
+    {
+      "phpVersion": "8.4",
+      "asyncMode": "jspi",
+      "file": "./wp_mysql_parser-php8.4-jspi.so",
+      "sha256": "c210234dbe75f4254862ac1ee293e85df59c94fa4ce50d809f538a626ab80c72"
+    }
+  ]
+}
