@@ -23,6 +23,7 @@ test.describe('php-code-snippet embed', () => {
 			'greet-alice.php',
 			'greet-bob.php',
 			'scratch.php',
+			'php-only.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
@@ -50,9 +51,8 @@ test.describe('php-code-snippet embed', () => {
 				async () =>
 					Number(
 						(
-							(await first
-								.locator('.percent')
-								.textContent()) || '0%'
+							(await first.locator('.percent').textContent()) ||
+							'0%'
 						).replace('%', '')
 					),
 				{ timeout: 120_000, intervals: [500] }
@@ -130,9 +130,7 @@ test.describe('php-code-snippet embed', () => {
 
 		await bob.locator('.run').click();
 		await expect(bob.locator('.output')).toBeVisible({ timeout: 60_000 });
-		await expect(bob.locator('.output-body')).toContainText(
-			'Hello, Bob!'
-		);
+		await expect(bob.locator('.output-body')).toContainText('Hello, Bob!');
 
 		// Both snippets resolved to the same blueprint hash, so only one
 		// runtime iframe exists for this {origin, php, wp, blueprint} key.
@@ -140,6 +138,43 @@ test.describe('php-code-snippet embed', () => {
 			.locator('iframe[title="PHP Snippet runtime"]')
 			.count();
 		expect(blueprintIframes).toBe(1);
+	});
+
+	test('wp="none" runs PHP without downloading or installing WordPress', async ({
+		page,
+	}) => {
+		// Track every network request the page issues. The download path for
+		// WordPress goes through `playground.wordpress.net/wp-*.zip`,
+		// `wordpress.org/wordpress-*.zip`, or the minified-builds bucket —
+		// any of those firing means we didn't actually skip the install.
+		const wpRequests: string[] = [];
+		page.on('request', (req) => {
+			const url = req.url();
+			if (
+				/\/wp-[\d.]+(?:-[\w.]+)?\.zip(?:$|\?)/.test(url) ||
+				/wordpress-[\d.]+(?:-[\w.]+)?\.zip(?:$|\?)/.test(url) ||
+				/\/wp\/[\d.]+\//.test(url)
+			) {
+				wpRequests.push(url);
+			}
+		});
+
+		await page.goto(DEMO_URL);
+		const phpOnly = page.locator('php-snippet[name="php-only.php"]');
+		await phpOnly.locator('.run').click();
+		await expect(phpOnly.locator('.output')).toBeVisible({
+			timeout: 240_000,
+		});
+
+		// Functional confirmation: the runtime is up, but `/wordpress` was
+		// never created and WP's globals never loaded.
+		const body = phpOnly.locator('.output-body');
+		await expect(body).toContainText('php:');
+		await expect(body).toContainText('wp_loaded:no');
+		await expect(body).toContainText('wp_dir:no');
+
+		// Network confirmation: no WordPress zip was fetched.
+		expect(wpRequests).toEqual([]);
 	});
 
 	test('editable snippet runs the user-typed code', async ({ page }) => {
