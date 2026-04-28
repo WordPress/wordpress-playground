@@ -68,6 +68,12 @@ export interface MountDescriptor {
 	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
 }
 
+const WORDPRESS_MOUNTPOINT = '/wordpress';
+const SQLITE_DB_PATH = '/wordpress/wp-content/database/.ht.sqlite';
+const SQLITE_SNAPSHOT_SCRIPT_PATH = '/internal/shared/snapshot-sqlite.php';
+const SQLITE_SNAPSHOT_PATH = '/tmp/playground-sqlite-snapshot.sqlite';
+const SQLITE_SNAPSHOT_DEBOUNCE_MS = 500;
+
 export type WorkerBootOptions = {
 	wpVersion?: string;
 	sqliteDriverVersion?: string;
@@ -121,6 +127,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	unmounts: Record<string, () => any> = createNullPrototypeRecord();
 	private opfsMounts: Record<string, DirectoryHandleMount> =
 		createNullPrototypeRecord();
+	private opfsSqliteSnapshotTimers: Record<
+		string,
+		ReturnType<typeof setTimeout>
+	> = createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
@@ -451,7 +461,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (opfsMount === undefined) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		await opfsMount.flush();
+		await this.flushOpfsMountWithSnapshot(mountpoint, opfsMount);
 	}
 
 	async unmountOpfs(mountpoint: string) {
@@ -462,7 +472,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 		let flushError: unknown;
 		try {
-			await opfsMount.flush();
+			await this.flushOpfsMountWithSnapshot(mountpoint, opfsMount);
 		} catch (error) {
 			flushError = error;
 		}
@@ -474,6 +484,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			}
 			logger.error(error);
 		} finally {
+			this.clearSqliteSnapshotTimer(mountpoint);
 			delete this.unmounts[mountpoint];
 			delete this.opfsMounts[mountpoint];
 		}
@@ -555,6 +566,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				onMount(mount) {
 					opfsMount = mount;
 				},
+				onSqliteDatabaseWrite: () => {
+					this.scheduleSqliteSnapshot(options.mountpoint);
+				},
 			})
 		);
 		if (opfsMount === undefined) {
@@ -569,6 +583,107 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 		this.unmounts[options.mountpoint] = unmount;
 		this.opfsMounts[options.mountpoint] = opfsMount;
+		if (options.initialSyncDirection === 'memfs-to-opfs') {
+			try {
+				await this.persistSqliteSnapshotForOpfsMount(
+					options.mountpoint
+				);
+			} catch (error) {
+				delete this.unmounts[options.mountpoint];
+				delete this.opfsMounts[options.mountpoint];
+				try {
+					await unmount();
+				} catch (unmountError) {
+					logger.error(unmountError);
+				}
+				throw error;
+			}
+		}
+	}
+
+	private async flushOpfsMountWithSnapshot(
+		mountpoint: string,
+		opfsMount: DirectoryHandleMount
+	) {
+		this.clearSqliteSnapshotTimer(mountpoint);
+		const snapshotPath = await this.snapshotSqliteIfPresent(mountpoint);
+		await opfsMount.flush();
+		this.clearSqliteSnapshotTimer(mountpoint);
+		if (snapshotPath !== undefined) {
+			await opfsMount.persistSqliteSnapshot(snapshotPath);
+		}
+		this.clearSqliteSnapshotTimer(mountpoint);
+	}
+
+	private scheduleSqliteSnapshot(mountpoint: string) {
+		if (
+			mountpoint !== WORDPRESS_MOUNTPOINT ||
+			this.opfsSqliteSnapshotTimers[mountpoint] !== undefined
+		) {
+			return;
+		}
+		this.opfsSqliteSnapshotTimers[mountpoint] = setTimeout(() => {
+			delete this.opfsSqliteSnapshotTimers[mountpoint];
+			void this.persistSqliteSnapshotForOpfsMount(mountpoint).catch(
+				(error) => {
+					logger.error(error);
+				}
+			);
+		}, SQLITE_SNAPSHOT_DEBOUNCE_MS);
+	}
+
+	private clearSqliteSnapshotTimer(mountpoint: string) {
+		const timer = this.opfsSqliteSnapshotTimers[mountpoint];
+		if (timer === undefined) {
+			return;
+		}
+		clearTimeout(timer);
+		delete this.opfsSqliteSnapshotTimers[mountpoint];
+	}
+
+	private async persistSqliteSnapshotForOpfsMount(mountpoint: string) {
+		const opfsMount = this.opfsMounts[mountpoint];
+		if (opfsMount === undefined) {
+			return;
+		}
+		const snapshotPath = await this.snapshotSqliteIfPresent(mountpoint);
+		if (snapshotPath !== undefined) {
+			await opfsMount.flush();
+			this.clearSqliteSnapshotTimer(mountpoint);
+			await opfsMount.persistSqliteSnapshot(snapshotPath);
+			this.clearSqliteSnapshotTimer(mountpoint);
+		}
+	}
+
+	private async snapshotSqliteIfPresent(mountpoint: string) {
+		if (mountpoint !== WORDPRESS_MOUNTPOINT) {
+			return undefined;
+		}
+		const php = this.__internal_getPHP()!;
+		if (!php.isFile(SQLITE_DB_PATH)) {
+			return undefined;
+		}
+
+		const response = await php.run({
+			scriptPath: SQLITE_SNAPSHOT_SCRIPT_PATH,
+			env: {
+				PLAYGROUND_SQLITE_SNAPSHOT_PATH: SQLITE_SNAPSHOT_PATH,
+			},
+		});
+		const result = JSON.parse(response.text) as {
+			ok?: boolean;
+			path?: string;
+			error?: string;
+			integrity?: string;
+		};
+		if (!result.ok) {
+			throw new Error(
+				`Could not snapshot the SQLite database: ${
+					result.error ?? result.integrity ?? 'unknown error'
+				}`
+			);
+		}
+		return result.path ?? SQLITE_SNAPSHOT_PATH;
 	}
 }
 

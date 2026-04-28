@@ -42,6 +42,39 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		);
 	});
 
+	it('snapshots SQLite before flushing and persists it after journal flush', async () => {
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const order: string[] = [];
+		php.run.mockImplementation(async () => {
+			order.push('snapshot');
+			return {
+				text: JSON.stringify({
+					ok: true,
+					path: '/tmp/playground-sqlite-snapshot.sqlite',
+				}),
+			};
+		});
+		opfsMount.flush.mockImplementation(async () => {
+			order.push('flush');
+		});
+		opfsMount.persistSqliteSnapshot.mockImplementation(async () => {
+			order.push('persist');
+		});
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+
+		await endpoint.flushOpfs('/wordpress');
+
+		expect(order).toEqual(['snapshot', 'flush', 'persist']);
+		expect(opfsMount.persistSqliteSnapshot).toHaveBeenCalledWith(
+			'/tmp/playground-sqlite-snapshot.sqlite'
+		);
+	});
+
 	it('reports whether an OPFS mount is active', async () => {
 		const endpoint = await createEndpoint({
 			'/wordpress': createOpfsMount(),
@@ -288,6 +321,8 @@ async function createEndpoint(
 	const endpoint = Object.create(PlaygroundWorkerEndpoint.prototype) as any;
 	endpoint.opfsMounts = createNullPrototypeRecord(opfsMounts);
 	endpoint.unmounts = createNullPrototypeRecord(unmounts);
+	endpoint.opfsSqliteSnapshotTimers = createNullPrototypeRecord({});
+	endpoint.__internal_getPHP = () => createFakePhp();
 	return endpoint as {
 		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;
 		hasOpfsMount(mountpoint: string): Promise<boolean>;
@@ -312,6 +347,7 @@ function createNullPrototypeRecord<T>(entries: Record<string, T>) {
 function createOpfsMount() {
 	return {
 		flush: vi.fn(async () => {}),
+		persistSqliteSnapshot: vi.fn(async () => {}),
 		unmount: vi.fn(async () => {}),
 	};
 }
@@ -342,6 +378,13 @@ function createFakePhp(options: { skipMountHandler?: boolean } = {}) {
 			}
 			return await mountHandler(php, FS as any, mountpoint);
 		}),
+		isFile: vi.fn(() => false),
+		run: vi.fn(async () => ({
+			text: JSON.stringify({
+				ok: true,
+				path: '/tmp/playground-sqlite-snapshot.sqlite',
+			}),
+		})),
 	};
 	return php;
 }
