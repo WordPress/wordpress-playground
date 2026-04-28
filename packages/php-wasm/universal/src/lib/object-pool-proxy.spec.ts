@@ -156,6 +156,46 @@ describe('createPoolProxy', () => {
 		expect(accessLog).toEqual(['start-a', 'end-a', 'start-b', 'end-b']);
 	});
 
+	it('holds the lock until a streamed result finishes', async () => {
+		const accessLog: string[] = [];
+		let finishFirst!: () => void;
+
+		const instance = {
+			async requestStreamed(label: string) {
+				accessLog.push(`start-${label}`);
+				return {
+					label,
+					finished:
+						label === 'a'
+							? new Promise<void>((resolve) => {
+									finishFirst = resolve;
+								})
+							: Promise.resolve(),
+				};
+			},
+		};
+
+		const proxy = createObjectPoolProxy([instance]);
+		const first = await proxy.requestStreamed('a');
+		let secondResolved = false;
+		const secondPromise = proxy.requestStreamed('b').then((second) => {
+			secondResolved = true;
+			return second;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(secondResolved).toBe(false);
+		expect(accessLog).toEqual(['start-a']);
+
+		finishFirst();
+		await first.finished;
+		const second = await secondPromise;
+
+		expect(secondResolved).toBe(true);
+		expect(second.label).toBe('b');
+		expect(accessLog).toEqual(['start-a', 'start-b']);
+	});
+
 	it('is not treated as a thenable', async () => {
 		const instance = { value: 1 };
 		const proxy = createObjectPoolProxy([instance]);
