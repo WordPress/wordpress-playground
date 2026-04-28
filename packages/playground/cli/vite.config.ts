@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { copyFileSync } from 'fs';
+import { copyFileSync, cpSync, existsSync } from 'fs';
 import { createRequire } from 'module';
 import { dirname, join } from 'path';
 import { pathToFileURL } from 'url';
@@ -157,10 +157,22 @@ const plugins = [
 					wpBuildsRoot,
 					'src',
 					'sqlite-database-integration',
-					'sqlite-database-integration-trunk.zip'
+					'sqlite-database-integration-pr388.zip'
 				),
 				join(outputDir, 'sqlite-database-integration.zip')
 			);
+
+			const nativeParserDir = join(
+				wpBuildsRoot,
+				'src',
+				'sqlite-database-integration',
+				'wp-mysql-parser'
+			);
+			if (existsSync(nativeParserDir)) {
+				cpSync(nativeParserDir, join(outputDir, 'wp-mysql-parser'), {
+					recursive: true,
+				});
+			}
 		},
 	},
 	...viteGlobalExtensions,

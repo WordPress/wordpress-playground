@@ -1,4 +1,4 @@
-import type { FileLockManager } from '@php-wasm/universal';
+import type { FileLockManager, LoadExtensionOptions } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
@@ -24,6 +24,11 @@ import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
 
 import type { Mount } from '@php-wasm/cli-util';
+
+type PHPWasmExtensionManifestReference = Omit<
+	LoadExtensionOptions,
+	'php' | 'phpVersion' | 'asyncMode' | 'fetch'
+>;
 
 export type WorkerBootWordPressOptions = {
 	siteUrl: string;
@@ -52,6 +57,7 @@ interface WorkerBootRequestHandlerOptions {
 	withRedis?: boolean;
 	withMemcached?: boolean;
 	withXdebug?: boolean;
+	phpExtensionManifests?: PHPWasmExtensionManifestReference[];
 	pathAliases?: PathAlias[];
 }
 
@@ -251,6 +257,7 @@ function createPhpRuntimeFactory(
 				withRedis: options.withRedis,
 				withMemcached: options.withMemcached,
 				withXdebug: options.withXdebug,
+				phpExtensionManifests: options.phpExtensionManifests,
 			}
 		);
 	};

@@ -1,4 +1,9 @@
 import { PHP } from './php';
+import type { Emscripten } from './emscripten-types';
+import type { EmscriptenOptions } from './load-php-runtime';
+import { FSHelpers } from './fs-helpers';
+
+export const PHP_EXTENSIONS_DIR = '/internal/shared/extensions';
 
 export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
 
@@ -25,6 +30,27 @@ export interface LoadExtensionOptions {
 	extensionName?: string;
 	iniFileName?: string;
 	fetch?: typeof fetch;
+}
+
+export interface PHPExtensionFile {
+	path: string;
+	data: Uint8Array;
+}
+
+export interface PHPExtensionInstallOptions {
+	name: string;
+	soBytes: Uint8Array;
+	kind?: 'extension' | 'zend_extension';
+	iniEntries?: Record<string, string>;
+	extraFiles?: PHPExtensionFile[];
+	extensionDir?: string;
+	fileName?: string;
+	iniFileName?: string;
+}
+
+export interface PreparedPHPWasmExtension extends PHPExtensionInstallOptions {
+	manifest?: PHPWasmExtensionManifest;
+	artifact?: PHPWasmExtensionArtifact;
 }
 
 export interface LoadedExtension {
@@ -55,7 +81,7 @@ export async function loadExtension(
 		throw new Error('loadExtension() requires a fetch implementation.');
 	}
 
-	const manifestUrl = new URL(String(options.manifestUrl));
+	const manifestUrl = toUrl(options.manifestUrl);
 	const manifest = validateExtensionManifest(
 		await fetchJson(fetchFn, manifestUrl)
 	);
@@ -90,24 +116,166 @@ export async function loadExtension(
 		await assertSha256(artifactBytes, artifact.sha256, artifact.file);
 	}
 
-	const extensionDir = options.extensionDir ?? '/internal/shared/extensions';
-	const extensionName = options.extensionName ?? manifest.name;
-	const fileName = basename(artifact.file);
-	const extensionPath = `${extensionDir}/${fileName}`;
-	const iniPath = `${extensionDir}/${
-		options.iniFileName ?? `${extensionName}.ini`
-	}`;
+	const prepared: PreparedPHPWasmExtension = {
+		name: options.extensionName ?? manifest.name,
+		soBytes: new Uint8Array(artifactBytes),
+		extensionDir: options.extensionDir,
+		fileName: basename(artifact.file),
+		iniFileName: options.iniFileName,
+		manifest,
+		artifact,
+	};
+	const { soPath, iniPath, iniContent, extensionDir } =
+		buildExtensionFiles(prepared);
 
 	ensureDirectory(php, extensionDir);
-	php.writeFile(extensionPath, new Uint8Array(artifactBytes));
-	php.writeFile(iniPath, `extension=${extensionPath}\n`);
+	php.writeFile(soPath, prepared.soBytes);
+	php.writeFile(iniPath, iniContent);
+	for (const file of prepared.extraFiles ?? []) {
+		ensureDirectory(php, dirname(file.path));
+		php.writeFile(file.path, file.data);
+	}
 	registerScanDir(php, extensionDir);
 
 	return {
 		manifest,
 		artifact,
-		path: extensionPath,
+		path: soPath,
 		iniPath,
+	};
+}
+
+export async function prepareExtensionFromManifest(
+	options: Omit<LoadExtensionOptions, 'php'>
+): Promise<PreparedPHPWasmExtension> {
+	const fetchFn = options.fetch ?? globalThis.fetch;
+	if (!fetchFn) {
+		throw new Error(
+			'prepareExtensionFromManifest() requires a fetch implementation.'
+		);
+	}
+
+	if (!options.phpVersion) {
+		throw new Error(
+			'prepareExtensionFromManifest() requires phpVersion explicitly.'
+		);
+	}
+	if (!options.asyncMode) {
+		throw new Error(
+			'prepareExtensionFromManifest() requires asyncMode explicitly.'
+		);
+	}
+
+	const manifestUrl = toUrl(options.manifestUrl);
+	const manifest = validateExtensionManifest(
+		await fetchJson(fetchFn, manifestUrl)
+	);
+	const artifact = manifest.artifacts.find(
+		(candidate) =>
+			candidate.phpVersion === options.phpVersion &&
+			candidate.asyncMode === options.asyncMode
+	);
+	if (!artifact) {
+		throw new Error(
+			`No extension artifact found for PHP ${options.phpVersion} ${options.asyncMode}.`
+		);
+	}
+
+	const artifactUrl = new URL(artifact.file, manifestUrl);
+	const artifactBytes = await fetchArrayBuffer(fetchFn, artifactUrl);
+	if (artifact.sha256) {
+		await assertSha256(artifactBytes, artifact.sha256, artifact.file);
+	}
+
+	return {
+		name: options.extensionName ?? manifest.name,
+		soBytes: new Uint8Array(artifactBytes),
+		extensionDir: options.extensionDir,
+		fileName: basename(artifact.file),
+		iniFileName: options.iniFileName,
+		manifest,
+		artifact,
+	};
+}
+
+export function installPHPExtensionFilesSync(
+	fs: Emscripten.RootFS,
+	options: PHPExtensionInstallOptions
+): void {
+	const { soBytes, extraFiles = [] } = options;
+	const { soPath, iniPath, iniContent, extensionDir } =
+		buildExtensionFiles(options);
+
+	if (!FSHelpers.fileExists(fs, extensionDir)) {
+		fs.mkdirTree(extensionDir);
+	}
+	if (!FSHelpers.fileExists(fs, soPath)) {
+		fs.writeFile(soPath, soBytes);
+	}
+	if (!FSHelpers.fileExists(fs, iniPath)) {
+		fs.writeFile(iniPath, iniContent);
+	}
+	for (const file of extraFiles) {
+		if (FSHelpers.fileExists(fs, file.path)) {
+			continue;
+		}
+		const dir = dirname(file.path);
+		if (dir && !FSHelpers.fileExists(fs, dir)) {
+			fs.mkdirTree(dir);
+		}
+		fs.writeFile(file.path, file.data);
+	}
+}
+
+export function withPHPExtensionScanDir(
+	options: EmscriptenOptions,
+	extensionDir = PHP_EXTENSIONS_DIR
+): EmscriptenOptions {
+	return {
+		...options,
+		ENV: {
+			...options.ENV,
+			PHP_INI_SCAN_DIR: appendScanDir(
+				options.ENV?.PHP_INI_SCAN_DIR,
+				extensionDir
+			),
+		},
+	};
+}
+
+function buildExtensionFiles(options: PHPExtensionInstallOptions): {
+	extensionDir: string;
+	soPath: string;
+	iniPath: string;
+	iniContent: string;
+} {
+	const {
+		name,
+		kind = 'extension',
+		iniEntries = {},
+		extensionDir = PHP_EXTENSIONS_DIR,
+		fileName = `${name}.so`,
+		iniFileName = `${name}.ini`,
+	} = options;
+	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+		throw new Error(
+			`loadExtension: invalid extension name ${JSON.stringify(
+				name
+			)}. Use only [a-zA-Z0-9_-].`
+		);
+	}
+	const soPath = `${extensionDir}/${fileName}`;
+	const iniPath = `${extensionDir}/${iniFileName}`;
+	const iniLines = [`${kind}=${soPath}`];
+	for (const [key, value] of Object.entries(iniEntries)) {
+		iniLines.push(`${key}=${value}`);
+	}
+
+	return {
+		extensionDir,
+		soPath,
+		iniPath,
+		iniContent: iniLines.join('\n'),
 	};
 }
 
@@ -183,15 +351,21 @@ function ensureDirectory(php: PHP, directory: string) {
 function registerScanDir(php: PHP, extensionDir: string) {
 	const runtime = getPHPRuntime(php);
 	runtime.ENV = runtime.ENV ?? {};
-	const current = runtime.ENV['PHP_INI_SCAN_DIR'];
+	runtime.ENV['PHP_INI_SCAN_DIR'] = appendScanDir(
+		runtime.ENV['PHP_INI_SCAN_DIR'],
+		extensionDir
+	);
+}
+
+function appendScanDir(current: string | undefined, extensionDir: string) {
 	if (!current) {
-		runtime.ENV['PHP_INI_SCAN_DIR'] = extensionDir;
-		return;
+		return extensionDir;
 	}
 	const paths = current.split(':');
 	if (!paths.includes(extensionDir)) {
-		runtime.ENV['PHP_INI_SCAN_DIR'] = [...paths, extensionDir].join(':');
+		return [...paths, extensionDir].join(':');
 	}
+	return current;
 }
 
 function getPHPRuntime(php: PHP): {
@@ -237,4 +411,29 @@ function bytesToHex(bytes: ArrayBuffer): string {
 function basename(file: string): string {
 	const parts = file.split('/');
 	return parts[parts.length - 1] || file;
+}
+
+function toUrl(url: string | URL): URL {
+	if (url instanceof URL) {
+		return url;
+	}
+	try {
+		return new URL(url);
+	} catch {
+		const location = (globalThis as { location?: { href?: string } })
+			.location;
+		const base = location?.href ?? 'file://';
+		return new URL(url, base);
+	}
+}
+
+function dirname(file: string): string {
+	const index = file.lastIndexOf('/');
+	if (index === -1) {
+		return '';
+	}
+	if (index === 0) {
+		return '/';
+	}
+	return file.slice(0, index);
 }

@@ -4,12 +4,17 @@ import {
 	type EmscriptenOptions,
 	type PHPRuntime,
 	type FileLockManager,
+	type LoadExtensionOptions,
+	type PreparedPHPWasmExtension,
 	loadPHPRuntime,
 	FSHelpers,
 	FileLockManagerComposite,
 	createLegacyPhpIniPreRunStep,
 	isLegacyPHPVersion,
 	ProcessIdAllocator,
+	installPHPExtensionFilesSync,
+	prepareExtensionFromManifest,
+	withPHPExtensionScanDir,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
@@ -27,6 +32,12 @@ import { withRedis } from './extensions/redis/with-redis';
 import { withMemcached } from './extensions/memcached/with-memcached';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
+import { fileURLToPath } from 'url';
+
+type PHPWasmExtensionManifestReference = Omit<
+	LoadExtensionOptions,
+	'php' | 'phpVersion' | 'asyncMode' | 'fetch'
+>;
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
@@ -34,6 +45,8 @@ export interface PHPLoaderOptions {
 	withIntl?: boolean;
 	withRedis?: boolean;
 	withMemcached?: boolean;
+	phpExtensions?: PreparedPHPWasmExtension[];
+	phpExtensionManifests?: PHPWasmExtensionManifestReference[];
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -115,6 +128,19 @@ export async function loadNodeRuntime(
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
 	const phpWasmAsyncMode = await detectPHPWasmAsyncMode();
+	const phpExtensions = [
+		...(options.phpExtensions ?? []),
+		...(await Promise.all(
+			(options.phpExtensionManifests ?? []).map((manifest) =>
+				prepareExtensionFromManifest({
+					...manifest,
+					phpVersion,
+					asyncMode: phpWasmAsyncMode,
+					fetch: fetchUrlOrFile,
+				})
+			)
+		)),
+	];
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -154,6 +180,10 @@ export async function loadNodeRuntime(
 				}
 			: {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
+			for (const extension of phpExtensions) {
+				installPHPExtensionFilesSync(phpRuntime.FS, extension);
+			}
+
 			/**
 			 * When users mount a directory using the `mount` function,
 			 * the directory becomes accessible in the Emscripten's filesystem.
@@ -306,6 +336,13 @@ export async function loadNodeRuntime(
 		},
 	};
 
+	for (const extension of phpExtensions) {
+		emscriptenOptions = withPHPExtensionScanDir(
+			emscriptenOptions,
+			extension.extensionDir
+		);
+	}
+
 	if (
 		isLegacy &&
 		(options?.withXdebug ||
@@ -359,4 +396,15 @@ export async function loadNodeRuntime(
 async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
 	const { jspi } = await import('wasm-feature-detect');
 	return (await jspi()) ? 'jspi' : 'asyncify';
+}
+
+async function fetchUrlOrFile(input: RequestInfo | URL): Promise<Response> {
+	const url = input instanceof URL ? input : new URL(String(input));
+	if (url.protocol === 'file:') {
+		const data = await fs.promises.readFile(fileURLToPath(url));
+		return new Response(data, {
+			status: 200,
+		});
+	}
+	return fetch(input);
 }

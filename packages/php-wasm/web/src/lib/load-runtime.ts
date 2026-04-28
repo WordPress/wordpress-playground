@@ -1,24 +1,37 @@
 import type {
 	AllPHPVersion,
 	EmscriptenOptions,
+	LoadExtensionOptions,
 	PHPLoaderModule,
+	PHPRuntime,
+	PreparedPHPWasmExtension,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	createLegacyPhpIniPreRunStep,
+	installPHPExtensionFilesSync,
 	isLegacyPHPVersion,
 	loadPHPRuntime,
+	prepareExtensionFromManifest,
+	withPHPExtensionScanDir,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
 import { withIntl } from './extensions/intl/with-intl';
 
+type PHPWasmExtensionManifestReference = Omit<
+	LoadExtensionOptions,
+	'php' | 'phpVersion' | 'asyncMode' | 'fetch'
+>;
+
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
 	withIntl?: boolean;
+	phpExtensions?: PreparedPHPWasmExtension[];
+	phpExtensionManifests?: PHPWasmExtensionManifestReference[];
 }
 
 /**
@@ -69,12 +82,45 @@ export async function loadWebRuntime(
 	}
 
 	const phpWasmAsyncMode = await detectPHPWasmAsyncMode();
+	const phpExtensions = [
+		...(loaderOptions.phpExtensions ?? []),
+		...(await Promise.all(
+			(loaderOptions.phpExtensionManifests ?? []).map((manifest) =>
+				prepareExtensionFromManifest({
+					...manifest,
+					phpVersion,
+					asyncMode: phpWasmAsyncMode,
+				})
+			)
+		)),
+	];
 
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
 		...fakeWebsocket(),
 		...(loaderOptions.emscriptenOptions || {}),
 		phpWasmAsyncMode,
 	};
+
+	if (phpExtensions.length) {
+		let resolvedOptions = emscriptenOptions as EmscriptenOptions;
+		for (const extension of phpExtensions) {
+			resolvedOptions = withPHPExtensionScanDir(
+				resolvedOptions,
+				extension.extensionDir
+			);
+		}
+		const existingOnRuntimeInitialized =
+			resolvedOptions.onRuntimeInitialized;
+		emscriptenOptions = {
+			...resolvedOptions,
+			onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
+				existingOnRuntimeInitialized?.(phpRuntime);
+				for (const extension of phpExtensions) {
+					installPHPExtensionFilesSync(phpRuntime.FS, extension);
+				}
+			},
+		};
+	}
 
 	if (loaderOptions.tcpOverFetch) {
 		emscriptenOptions = tcpOverFetchWebsocket(

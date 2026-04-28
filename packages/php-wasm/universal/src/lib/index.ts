@@ -96,10 +96,19 @@ export type {
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
-export { loadExtension } from './load-extension';
+export {
+	loadExtension,
+	prepareExtensionFromManifest,
+	installPHPExtensionFilesSync,
+	withPHPExtensionScanDir,
+	PHP_EXTENSIONS_DIR,
+} from './load-extension';
 export type {
 	LoadExtensionOptions,
 	LoadedExtension,
+	PHPExtensionFile,
+	PHPExtensionInstallOptions,
+	PreparedPHPWasmExtension,
 	PHPWasmAsyncMode,
 	PHPWasmExtensionArtifact,
 	PHPWasmExtensionManifest,

@@ -3,11 +3,17 @@ import fs from 'fs-extra';
 import { createRequire } from 'module';
 import os from 'os';
 import path, { basename } from 'path';
+import { pathToFileURL } from 'url';
 
 export const CACHE_FOLDER = path.join(os.homedir(), '.wordpress-playground');
 
 export async function fetchSqliteIntegration(
-	version: 'trunk' | 'v2.1.16' | 'v2.2.22' | 'v2.2.22-php52' = 'trunk'
+	version:
+		| 'pr388'
+		| 'trunk'
+		| 'v2.1.16'
+		| 'v2.2.22'
+		| 'v2.2.22-php52' = 'pr388'
 ): Promise<File> {
 	// Production builds: the ZIP sits next to the bundled JS.
 	const dir =
@@ -29,6 +35,40 @@ export async function fetchSqliteIntegration(
 	}
 
 	return new File([await fs.readFile(zipPath)], path.basename(zipPath));
+}
+
+export function getSqliteNativeParserExtensionManifestUrl(): string {
+	const manifestPath = resolveSqliteAssetPath(
+		path.join('wp-mysql-parser', 'manifest.json')
+	);
+	if (!fs.existsSync(manifestPath)) {
+		throw new Error(
+			'The wp_mysql_parser PHP.wasm extension manifest is missing. ' +
+				'Build the PR #388 native parser side-module and place manifest.json ' +
+				'under packages/playground/wordpress-builds/src/sqlite-database-integration/wp-mysql-parser/.'
+		);
+	}
+	return pathToFileURL(manifestPath).toString();
+}
+
+function resolveSqliteAssetPath(assetPath: string): string {
+	const dir =
+		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
+	const productionPath = path.join(dir, assetPath);
+	if (fs.existsSync(productionPath)) {
+		return productionPath;
+	}
+
+	const require = createRequire(import.meta.url);
+	const wpBuildsDir = path.dirname(
+		require.resolve('@wp-playground/wordpress-builds/package.json')
+	);
+	return path.join(
+		wpBuildsDir,
+		'src',
+		'sqlite-database-integration',
+		assetPath
+	);
 }
 
 // @TODO: Support HTTP cache, invalidate the local file if the remote file has

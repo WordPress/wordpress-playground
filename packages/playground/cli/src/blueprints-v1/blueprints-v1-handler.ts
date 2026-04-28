@@ -19,6 +19,7 @@ import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
+	getSqliteNativeParserExtensionManifestUrl,
 	fetchSqliteIntegration,
 	readAsFile,
 } from './download';
@@ -121,7 +122,7 @@ export class BlueprintsV1Handler {
 			// with named functions, PHP 5.2 polyfills added offline).
 			const phpVersion = this.args.php || RecommendedPHPVersion;
 			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
-			const sqliteVersion = isLegacyPhp ? 'v2.2.22-php52' : 'trunk';
+			const sqliteVersion = isLegacyPhp ? 'v2.2.22-php52' : 'pr388';
 			sqliteIntegrationPluginZip =
 				await fetchSqliteIntegration(sqliteVersion);
 		}
@@ -188,6 +189,9 @@ export class BlueprintsV1Handler {
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
 			this.getEffectiveBlueprint()
 		);
+		const shouldLoadNativeParser =
+			!this.args.skipSqliteSetup &&
+			!isLegacyPHPVersion(runtimeConfiguration.phpVersion);
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootRequestHandler({
 			phpVersion: runtimeConfiguration.phpVersion,
@@ -203,6 +207,15 @@ export class BlueprintsV1Handler {
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			pathAliases: this.args.pathAliases,
+			phpExtensionManifests: shouldLoadNativeParser
+				? [
+						{
+							manifestUrl:
+								getSqliteNativeParserExtensionManifestUrl(),
+							extensionName: 'wp_mysql_parser',
+						},
+					]
+				: undefined,
 		});
 		await playground.isReady();
 		return playground;
