@@ -24,7 +24,9 @@
  * Attributes:
  *   name="…"              filename label shown in the header
  *   php="8.4"             PHP version (default: 8.4)
- *   wp="latest"           WordPress version (default: latest)
+ *   wp="latest"           WordPress version (default: latest). Use wp="none"
+ *                         to boot PHP without installing WordPress — handy for
+ *                         pure-PHP snippets that don't touch wp-load.php.
  *   src="path/to.php"     load code from a URL instead of inline
  *   editable              make the snippet editable; visitors type into a
  *                         transparent textarea overlaid on the highlighted
@@ -220,6 +222,10 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 		'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;';
 	iframe.src = `${origin}/remote.html`;
 	document.body.appendChild(iframe);
+	// wp="none" maps to the Blueprint's declarative `wordpress: false`, which
+	// skips the WordPress download entirely. preferredVersions.wp is then
+	// ignored downstream, so we still pass DEFAULT_WP for the schema.
+	const skipWordPress = wp === 'none';
 	const client = await startPlaygroundWeb({
 		iframe,
 		remoteUrl: iframe.src,
@@ -227,7 +233,11 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 		progressTracker: entry.tracker,
 		blueprint: {
 			...(blueprint || {}),
-			preferredVersions: { php, wp },
+			...(skipWordPress ? { wordpress: false } : {}),
+			preferredVersions: {
+				php,
+				wp: skipWordPress ? DEFAULT_WP : wp,
+			},
 		},
 	});
 	await client.isReady;

@@ -245,6 +245,69 @@ describe('Blueprints', () => {
 		});
 	});
 
+	describe('wordpress: false (PHP-only mode)', () => {
+		it('should compile a Blueprint with wordpress: false and run pure PHP', async () => {
+			const compiled = await compileBlueprintV1({
+				wordpress: false,
+				steps: [
+					{
+						step: 'writeFile',
+						path: '/index.php',
+						data: `<?php echo 'PHP only';`,
+					},
+				],
+			});
+			await runBlueprintV1Steps(compiled, php);
+			expect(php.readFileAsText('/index.php')).toBe(
+				`<?php echo 'PHP only';`
+			);
+		});
+
+		it('should reject `plugins` when wordpress is false', async () => {
+			await expect(
+				compileBlueprintV1({
+					wordpress: false,
+					plugins: ['gutenberg'],
+				})
+			).rejects.toThrow(/wordpress: false.*plugins/);
+		});
+
+		it('should reject `siteOptions` when wordpress is false', async () => {
+			await expect(
+				compileBlueprintV1({
+					wordpress: false,
+					siteOptions: { blogname: 'No WP' },
+				})
+			).rejects.toThrow(/wordpress: false.*siteOptions/);
+		});
+
+		it('should reject `login` when wordpress is false', async () => {
+			await expect(
+				compileBlueprintV1({
+					wordpress: false,
+					login: true,
+				})
+			).rejects.toThrow(/wordpress: false.*login/);
+		});
+
+		it('should reject WordPress-only steps when wordpress is false', async () => {
+			await expect(
+				compileBlueprintV1({
+					wordpress: false,
+					steps: [
+						{
+							step: 'installPlugin',
+							pluginData: {
+								resource: 'wordpress.org/plugins',
+								slug: 'gutenberg',
+							},
+						},
+					],
+				})
+			).rejects.toThrow(/wordpress: false.*installPlugin/);
+		});
+	});
+
 	describe('plugins shorthand', () => {
 		it('should convert a slug string to a wordpress.org/plugins resource', async () => {
 			let validatedBlueprint: any;

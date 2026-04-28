@@ -207,6 +207,10 @@ function compileBlueprintJson(
 
 	blueprint.steps = [...(blueprint.steps || []), ...(additionalSteps || [])];
 
+	if (blueprint.wordpress === false) {
+		assertNoWordPressFeatures(blueprint);
+	}
+
 	for (const step of blueprint.steps!) {
 		if (!step || typeof step !== 'object') {
 			continue;
@@ -791,6 +795,54 @@ export async function runBlueprintV1Steps(
 	playground: UniversalPHP
 ) {
 	await compiledBlueprint.run(playground);
+}
+
+/**
+ * Steps that require WordPress to be installed. When `wordpress: false` is
+ * set on the Blueprint, these steps are rejected at compile time.
+ */
+const WORDPRESS_ONLY_STEPS = new Set([
+	'installPlugin',
+	'installTheme',
+	'activatePlugin',
+	'activateTheme',
+	'login',
+	'setSiteOptions',
+	'updateUserMeta',
+	'importWxr',
+	'importFile',
+	'importWordPressFiles',
+	'enableMultisite',
+	'wp-cli',
+	'resetData',
+]);
+
+function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
+	const offenders: string[] = [];
+	if (blueprint.plugins?.length) offenders.push('plugins');
+	if (blueprint.siteOptions) offenders.push('siteOptions');
+	if (blueprint.login) offenders.push('login');
+	if (blueprint.extraLibraries?.includes('wp-cli')) {
+		offenders.push("extraLibraries: ['wp-cli']");
+	}
+	const badSteps = (blueprint.steps || [])
+		.filter(
+			(s): s is StepDefinition =>
+				!!s && typeof s === 'object' && 'step' in s
+		)
+		.map((s) => s.step)
+		.filter((name) => WORDPRESS_ONLY_STEPS.has(name as string));
+	if (badSteps.length) {
+		offenders.push(`steps: ${[...new Set(badSteps)].join(', ')}`);
+	}
+	if (offenders.length) {
+		throw new InvalidBlueprintError(
+			`Blueprint has \`wordpress: false\` but uses WordPress-only ` +
+				`features: ${offenders.join('; ')}. Remove these or drop ` +
+				`\`wordpress: false\`.`,
+			[]
+		);
+	}
 }
 
 function isGitRepoUrl(url: string): boolean {

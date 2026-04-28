@@ -53,11 +53,17 @@ export class BlueprintsV1Handler {
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
+		// Blueprint's `wordpress: false` is the declarative way to opt out of
+		// WordPress; the explicit `shouldInstallWordPress` option (if passed)
+		// still wins so callers can override per-boot.
+		const installWordPress =
+			shouldInstallWordPress ??
+			(blueprint as { wordpress?: false }).wordpress !== false;
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
-			shouldInstallWordPress,
+			shouldInstallWordPress: installWordPress,
 			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
