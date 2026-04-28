@@ -148,6 +148,25 @@ echo "Product: " . array_product($nums) . "\n";
 			</script>
 		</php-snippet>
 
+		<h2>6. Expected output (no runtime boot)</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
+			When <code>expected-output</code> is provided (as an attribute or a
+			<code>&lt;script type="text/expected-output"&gt;</code> child),
+			clicking Run shows that text immediately without loading the
+			Playground runtime.
+		</p>
+		<php-snippet name="precomputed.php">
+			<script type="application/x-php">
+<?php
+echo "2 + 2 = " . (2 + 2) . "\n";
+echo "WordPress is awesome.";
+			</script>
+			<script type="text/expected-output">
+				2 + 2 = 4
+				WordPress is awesome.
+			</script>
+		</php-snippet>
+
 		<script type="module" src="./php-code-snippet.js"></script>
 	</body>
 </html>
