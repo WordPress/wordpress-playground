@@ -131,6 +131,8 @@ See [adamziel/preview-in-playground-button-built-artifact-example](https://githu
 
 Use blueprints to configure the Playground environment. You can install additional plugins, set WordPress options, import content, or run custom PHP.
 
+For the canonical pattern of installing a plugin straight from a GitHub repository — and when to publish a built ZIP instead because your plugin needs a Composer or npm build step — see [Plugin in a GitHub repository](/guides/for-plugin-developers#plugin-in-a-github-repository).
+
 Example installing your plugin with WooCommerce:
 
 ```yaml
