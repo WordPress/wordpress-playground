@@ -8,10 +8,10 @@ description: Discover the different ways to use Blueprints, including via URL fr
 
 You can use Blueprints in one of the following ways:
 
--   By passing them as a URL fragment to the Playground.
--   By loading them from a URL using the `blueprint-url` parameter.
--   By using Blueprint bundles (ZIP files or directories).
--   By using the JavaScript API.
+- By passing them as a URL fragment to the Playground.
+- By loading them from a URL using the `blueprint-url` parameter.
+- By using Blueprint bundles (ZIP files or directories).
+- By using the JavaScript API.
 
 ## URL Fragment
 
@@ -45,6 +45,8 @@ const blueprintJson = `{
 	}
 }`;
 const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"8.3","wp":"6.5"}}
+const encodedBlueprint = encodeURIComponent(minifiedBlueprintJson);
+const playgroundUrl = `https://playground.wordpress.net/#${encodedBlueprint}`;
 ```
 
 :::
@@ -60,9 +62,22 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 	}
 }} />
 
-### Base64 encoded Blueprints
+### Encoded Blueprint fragments
 
-Some tools, including GitHub, might not format the Blueprint correctly when pasted into the URL. In such cases, encode your Blueprint in Base64 and append it to the URL. For example, that's the above Blueprint in Base64 format: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
+When you create Playground links from JavaScript or automation tools, encode the minified JSON once with `encodeURIComponent()` and append it after `#`:
+
+```js
+const blueprint = {
+	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
+	preferredVersions: {
+		php: '8.3',
+		wp: '6.5',
+	},
+};
+const playgroundUrl = `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(blueprint))}`;
+```
+
+Playground also supports Base64-encoded Blueprints. Base64 is useful when a platform modifies JSON fragments or when you want a compact, copyable link. For example, that's the above Blueprint in Base64 format: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
 
 To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 
