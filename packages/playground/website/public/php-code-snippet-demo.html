@@ -99,7 +99,7 @@ foreach ( $blocks as $block ) {
 			</script>
 		</php-snippet>
 
-		<h2>4. Shared setup via JSON script</h2>
+		<h2>4. Shared blueprint via JSON script</h2>
 		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
 			Two snippets reference the same blueprint by id, so their
 			runtime is booted once with a pre-installed mu-plugin.
@@ -107,7 +107,7 @@ foreach ( $blocks as $block ) {
 			the JSON contain literal <code>&lt;?php</code> without escaping.
 		</p>
 
-		<script id="greeter-setup" type="application/json">
+		<script id="greeter-blueprint" type="application/json">
 			{
 				"steps": [
 					{
@@ -119,7 +119,7 @@ foreach ( $blocks as $block ) {
 			}
 		</script>
 
-		<php-snippet name="greet-alice.php" setup="greeter-setup">
+		<php-snippet name="greet-alice.php" blueprint="greeter-blueprint">
 			<script type="application/x-php">
 <?php
 require '/wordpress/wp-load.php';
@@ -127,7 +127,7 @@ echo greeter_say('Alice');
 			</script>
 		</php-snippet>
 
-		<php-snippet name="greet-bob.php" setup="greeter-setup">
+		<php-snippet name="greet-bob.php" blueprint="greeter-blueprint">
 			<script type="application/x-php">
 <?php
 require '/wordpress/wp-load.php';

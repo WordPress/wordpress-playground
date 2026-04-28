@@ -113,7 +113,7 @@ test.describe('php-code-snippet embed', () => {
 		expect(runtimeIframes).toBe(1);
 	});
 
-	test('snippets sharing a setup template share one runtime and see its mu-plugin', async ({
+	test('snippets sharing a blueprint share one runtime and see its mu-plugin', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
@@ -136,10 +136,10 @@ test.describe('php-code-snippet embed', () => {
 
 		// Both snippets resolved to the same blueprint hash, so only one
 		// runtime iframe exists for this {origin, php, wp, blueprint} key.
-		const setupIframes = await page
+		const blueprintIframes = await page
 			.locator('iframe[title="PHP Snippet runtime"]')
 			.count();
-		expect(setupIframes).toBe(1);
+		expect(blueprintIframes).toBe(1);
 	});
 
 	test('editable snippet runs the user-typed code', async ({ page }) => {

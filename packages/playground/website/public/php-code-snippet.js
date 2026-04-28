@@ -29,10 +29,10 @@
  *   editable              make the snippet editable; visitors type into a
  *                         transparent textarea overlaid on the highlighted
  *                         code, and Run executes whatever they typed
- *   setup="my-blueprint"  CSS-selector-or-id of a JSON Blueprint container
+ *   blueprint="toolkit"  CSS-selector-or-id of a JSON Blueprint container
  *                         on the page (a <script type="application/json"> is
  *                         recommended; <template> works too). Snippets that
- *                         share the same setup share one runtime — the
+ *                         share the same blueprint share one runtime — the
  *                         blueprint is JSON-stringified and folded into the
  *                         cache key.
  *   playground-origin="https://playground.wordpress.net"
@@ -236,7 +236,7 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 }
 
 /**
- * Resolve a snippet's `setup` attribute to a Blueprint object.
+ * Resolve a snippet's `blueprint` attribute to a Blueprint object.
  *
  * The lookup tries in order: a CSS selector, then `getElementById`, then
  * (if neither matched) returns null. The element is expected to be a
@@ -245,7 +245,7 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
  * blueprints into a single runtime boot.
  */
 function resolveSetupBlueprint(snippet) {
-	const ref = snippet.getAttribute('setup');
+	const ref = snippet.getAttribute('blueprint');
 	if (!ref) return { blueprint: null, key: '' };
 	let el = null;
 	try {
@@ -256,7 +256,7 @@ function resolveSetupBlueprint(snippet) {
 	if (!el) el = snippet.ownerDocument.getElementById(ref);
 	if (!el) {
 		throw new Error(
-			`<php-snippet setup="${ref}"> could not find a matching element on the page.`
+			`<php-snippet blueprint="${ref}"> could not find a matching element on the page.`
 		);
 	}
 	const source =
@@ -268,7 +268,7 @@ function resolveSetupBlueprint(snippet) {
 		blueprint = JSON.parse(text);
 	} catch (err) {
 		throw new Error(
-			`<php-snippet setup="${ref}"> contains invalid JSON: ${err.message}`
+			`<php-snippet blueprint="${ref}"> contains invalid JSON: ${err.message}`
 		);
 	}
 	// Stable stringification — the JSON object's textual form is the cache
