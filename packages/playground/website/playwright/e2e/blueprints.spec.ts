@@ -967,7 +967,10 @@ test('Blueprint with `wordpress: false` boots Playground without WordPress', asy
 }) => {
 	const blueprint: Blueprint = { wordpress: false };
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
-	await website.goto(`/#${encodedBlueprint}`);
+	// `website.goto` waits for the WP iframe body to render, which never
+	// happens when WordPress isn't installed. Skip that wait and use the
+	// raw page navigation instead.
+	await website.page.goto(`/#${encodedBlueprint}`);
 
 	// `window.playground` is exposed once the worker boot resolves.
 	await website.page.waitForFunction(
