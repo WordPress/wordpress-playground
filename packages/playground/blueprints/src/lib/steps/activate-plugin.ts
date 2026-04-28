@@ -201,8 +201,31 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 		details.push(`PHP error log:\n${activationLog}`);
 	}
 
+	/**
+	 * Response headers are sometimes the only signal — e.g. plugins that
+	 * redirect during activation produce no body at all. Always include
+	 * them as a last line. Reuse the same JSON layout the previous error
+	 * message used so anyone grepping logs for "Response headers:" still
+	 * finds it.
+	 */
+	details.push(
+		`Response headers: ${JSON.stringify(
+			activatePluginResult.headers,
+			null,
+			2
+		)}`
+	);
+
+	/**
+	 * The browser app surfaces PHP debug logs via the in-page console;
+	 * the CLI prints them to stderr. Point at both so the message is
+	 * useful regardless of where the Blueprint is being run.
+	 */
+	details.push(
+		`If you need more context, check the Playground console (browser DevTools) or the CLI output where this Blueprint was run.`
+	);
+
 	throw new Error(
-		`Plugin ${pluginPath} could not be activated.` +
-			(details.length ? `\n\n${details.join('\n\n')}` : '')
+		`Plugin ${pluginPath} could not be activated.\n\n${details.join('\n\n')}`
 	);
 };

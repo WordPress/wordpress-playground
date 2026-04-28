@@ -243,11 +243,74 @@ describe('Blueprint step activatePlugin()', () => {
 			`
 		);
 
+		// WP's own message for an unmet PHP requirement mentions PHP and
+		// the version it expected — assert the gist is reachable, not the
+		// exact phrasing.
 		await expect(
 			activatePlugin(php, {
 				pluginPath: 'wp-error-plugin.php',
 			})
-		).rejects.toThrow(/WordPress said:\s*\S+/i);
+		).rejects.toThrow(/WordPress said:[^\n]*PHP/i);
+	});
+
+	it('should surface the missing-plugin message when the plugin file does not exist', async () => {
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'no-such-plugin.php',
+			})
+		).rejects.toThrow(
+			/wasn't able to find the plugin no-such-plugin\.php/
+		);
+	});
+
+	it('should include response headers and a pointer to the console in the error message', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/header-trailer-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Header Trailer Plugin
+			 * Requires PHP: 99.0
+			 */
+			`
+		);
+
+		let caught: Error | undefined;
+		try {
+			await activatePlugin(php, {
+				pluginPath: 'header-trailer-plugin.php',
+			});
+		} catch (error) {
+			caught = error as Error;
+		}
+
+		expect(caught).toBeDefined();
+		expect(caught!.message).toMatch(/Response headers:\s*\{/);
+		expect(caught!.message).toMatch(/Playground console.*CLI output/);
+	});
+
+	it('should surface PHP errors logged during activation in the scratch log', async () => {
+		const docroot = handler.documentRoot;
+		// A plugin that error_log()s and prints output at file scope.
+		// WordPress includes the file via plugin_sandbox_scrape during
+		// activation; the print triggers WP's "unexpected output"
+		// WP_Error, and the error_log() call lands in our scratch log.
+		php.writeFile(
+			`${docroot}/wp-content/plugins/error-log-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Error Log Plugin
+			 */
+			error_log('marker-from-plugin-file');
+			echo 'unexpected-output-from-plugin';
+			`
+		);
+
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'error-log-plugin.php',
+			})
+		).rejects.toThrow(/PHP error log:[\s\S]*marker-from-plugin-file/);
 	});
 
 	it('should not throw an error if the plugin is already active', async () => {
