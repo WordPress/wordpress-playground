@@ -3,6 +3,7 @@ import {
 	type PlaygroundClient,
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
+	isBlueprintBundle,
 	runBlueprintV1Steps,
 	resolveRuntimeConfiguration,
 	BlueprintReflection,
@@ -55,10 +56,13 @@ export class BlueprintsV1Handler {
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		// Blueprint's `wordpress: false` is the declarative way to opt out of
 		// WordPress; the explicit `shouldInstallWordPress` option (if passed)
-		// still wins so callers can override per-boot.
+		// still wins so callers can override per-boot. Bundles carry their
+		// declaration inside a JSON file we haven't read here, so we only
+		// honor the flag for inline declarations.
+		const declarativeOptOut =
+			!isBlueprintBundle(blueprint) && blueprint.wordpress === false;
 		const installWordPress =
-			shouldInstallWordPress ??
-			(blueprint as { wordpress?: false }).wordpress !== false;
+			shouldInstallWordPress ?? !declarativeOptOut;
 		await playground.boot({
 			mounts,
 			sapiName,

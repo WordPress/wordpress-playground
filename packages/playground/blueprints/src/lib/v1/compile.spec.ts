@@ -290,6 +290,15 @@ describe('Blueprints', () => {
 			).rejects.toThrow(/wordpress: false.*login/);
 		});
 
+		it("should reject extraLibraries: ['wp-cli'] when wordpress is false", async () => {
+			await expect(
+				compileBlueprintV1({
+					wordpress: false,
+					extraLibraries: ['wp-cli'],
+				})
+			).rejects.toThrow(/extraLibraries includes 'wp-cli'/);
+		});
+
 		it('should reject WordPress-only steps when wordpress is false', async () => {
 			await expect(
 				compileBlueprintV1({

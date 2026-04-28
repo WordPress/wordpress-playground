@@ -823,7 +823,7 @@ function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
 	if (blueprint.siteOptions) offenders.push('siteOptions');
 	if (blueprint.login) offenders.push('login');
 	if (blueprint.extraLibraries?.includes('wp-cli')) {
-		offenders.push("extraLibraries: ['wp-cli']");
+		offenders.push("extraLibraries includes 'wp-cli'");
 	}
 	const badSteps = (blueprint.steps || [])
 		.filter(
