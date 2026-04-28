@@ -16,7 +16,7 @@ There's a set of redirections in place to make it easier the access to some of t
 <li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
 <li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
 <li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
-<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(see <a href="/blueprints/steps/resources#urlreference">URLReference</a> for more info)</em></li>
+<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Legacy Playground Proxy Service <em>(for Git repositories, prefer <a href="/blueprints/steps/resources#gitdirectoryreference">git:directory</a>)</em></li>
 </ul>
 :::
 

@@ -45,11 +45,9 @@ The resource `url` type works really in combination with blueprint steps such as
 [`installTheme`](http://localhost:3000/wordpress-playground/blueprints/steps#InstallThemeStep).
 These steps require a `ResourceType` to define the location of the plugin or the theme to install.
 
-With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme via a URL that can point directly to a GitHub repo.
+With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme. Use this for built ZIP artifacts hosted on a publicly accessible URL that does not require authentication, such as a release asset or a CI artifact direct-download URL.
 
-:::tip
-The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others.
-:::
+For source code stored in a Git repository, prefer [`git:directory`](/blueprints/steps/resources#gitdirectoryreference). It can fetch a repository subdirectory from a branch, tag, or commit without requiring a ZIP archive.
 
 ### GitDirectoryReference
 

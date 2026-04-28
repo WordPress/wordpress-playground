@@ -299,9 +299,9 @@ Configuration options: [Expose Artifact Inputs](https://github.com/WordPress/act
 
 **`plugin-path` or `theme-path` resolves to an empty directory:** The path is relative to the repository root, not to the workflow file. Use `.` for repo-root plugins, `plugins/my-plugin` for subdirectories.
 
-**`Git ref refs/heads/<branch> not found` on a fork PR:** Your blueprint uses `context.repo.owner`/`context.repo.repo` to build the `git:directory` URL, which points at the base repository. Fork PRs live on the contributor's fork — use `context.payload.pull_request.head.repo.full_name` and `head.ref` instead. Repository URLs with or without a trailing `.git` suffix are supported.
+**`Git ref refs/heads/<branch> not found` on a fork PR:** Your blueprint uses `context.repo.owner`/`context.repo.repo` to build the [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) URL, which points at the base repository. Fork PRs live on the contributor's fork — use `context.payload.pull_request.head.repo.full_name` and `head.ref` instead. Repository URLs with or without a trailing `.git` suffix are supported.
 
-**Blueprint references `github-proxy.com` and times out:** The community `github-proxy.com` service is unreliable. Switch to the `git:directory` resource (shown in [Custom blueprints](#custom-blueprints)), which fetches directly from GitHub and does not need a proxy. Playground's built-in `plugin-proxy.php` only accepts repos under `wordpress`, `automattic`, and `woocommerce`, so it is not a general fallback.
+**Blueprint references an old repository ZIP service and times out:** Switch source-based previews to the [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) (shown in [Custom blueprints](#custom-blueprints)), which fetches directly from GitHub. For plugins or themes that need a build step, publish a built ZIP artifact and install that artifact with a `url` resource instead.
 
 **Plugin/theme not activated:** Check the browser console for PHP errors. Dependencies may be missing, or the plugin's main file may not match the directory name.
 

@@ -54,7 +54,7 @@ With the `pluginData` property of the [`installPlugin` blueprint step](/blueprin
 
 <div class="callout callout-info">
 
-For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load plugins from GitHub repositories, as it allows you to load a plugin from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
+Use the [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) to load plugin source code from a Git repository. It supports branches, tags, commits, and subdirectories without requiring you to create a ZIP archive first. If your plugin needs a Composer, npm, or other build step, publish a built ZIP artifact and install that artifact with a `url` resource instead.
 
 </div>
 
