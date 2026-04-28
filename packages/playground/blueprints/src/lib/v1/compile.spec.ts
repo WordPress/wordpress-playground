@@ -329,7 +329,30 @@ describe('Blueprints', () => {
 			});
 		});
 
-		it('should convert a GitLab .git URL to a zip(git:directory) resource', async () => {
+		it('should preserve a GitHub .git URL and normalize harmless whitespace and slashes', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['  https://github.com/user/project.git///  '],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://github.com/user/project.git',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should preserve a GitLab .git URL in a zip(git:directory) resource', async () => {
 			let validatedBlueprint: any;
 			await compileBlueprintV1(
 				{
@@ -346,7 +369,7 @@ describe('Blueprints', () => {
 				resource: 'zip',
 				inner: {
 					resource: 'git:directory',
-					url: 'https://gitlab.com/group/project',
+					url: 'https://gitlab.com/group/project.git',
 					ref: 'HEAD',
 				},
 			});
@@ -375,7 +398,7 @@ describe('Blueprints', () => {
 			});
 		});
 
-		it('should convert a self-hosted .git URL to a zip(git:directory) resource', async () => {
+		it('should preserve a self-hosted .git URL in a zip(git:directory) resource', async () => {
 			let validatedBlueprint: any;
 			await compileBlueprintV1(
 				{
@@ -392,7 +415,7 @@ describe('Blueprints', () => {
 				resource: 'zip',
 				inner: {
 					resource: 'git:directory',
-					url: 'https://git.example.com/org/repo',
+					url: 'https://git.example.com/org/repo.git',
 					ref: 'HEAD',
 				},
 			});

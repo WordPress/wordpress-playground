@@ -88,6 +88,7 @@ type GitDirectoryReference = {
 
 - When using a branch or tag name for `ref`, you must specify `refType` (e.g. `"refType": "branch"`). Without it, only `HEAD` is reliably resolved.
 - Playground automatically detects providers like GitHub and GitLab.
+- Repository URLs may include or omit a trailing `.git` suffix. Extra trailing slashes are ignored.
 - It handles CORS-proxied fetches and sparse checkouts, so you can use URLs that point to specific subdirectories or branches.
 - This resource can be used with steps like [`installPlugin`](/blueprints/steps#InstallPluginStep) and [`installTheme`](/blueprints/steps#InstallThemeStep).
 - Set `".git": true` to include a `.git` folder containing packfiles and refs so Git-aware tooling can detect the checkout. This currently mirrors a shallow clone of the selected ref.

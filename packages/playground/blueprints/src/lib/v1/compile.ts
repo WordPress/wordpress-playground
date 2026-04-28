@@ -260,9 +260,7 @@ function compileBlueprintJson(
 							resource: 'zip',
 							inner: {
 								resource: 'git:directory',
-								url: value
-									.replace(/\.git\/?$/, '')
-									.replace(/\/$/, ''),
+								url: value.trim().replace(/\/+$/, ''),
 								ref: 'HEAD',
 							},
 						} as FileReference;
@@ -794,15 +792,18 @@ export async function runBlueprintV1Steps(
 }
 
 function isGitRepoUrl(url: string): boolean {
-	if (/^https:\/\/.+\.git\/?$/.test(url)) {
+	const normalizedUrl = url.trim().replace(/\/+$/, '');
+	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
 		return true;
 	}
 	// GitHub: exactly /owner/repo
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(url)) {
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
 		return true;
 	}
 	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*\/?$/.test(url)) {
+	if (
+		/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)
+	) {
 		return true;
 	}
 	return false;
