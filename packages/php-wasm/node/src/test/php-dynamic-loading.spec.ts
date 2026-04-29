@@ -17,9 +17,45 @@ import { getIntlExtensionModule } from '../lib/extensions/intl/get-intl-extensio
 // Check JSPI availability at module load time (top-level await)
 // so the value is available when tests are registered.
 const isJspiAvailable = await jspi();
+const lifecyclePHPVersion = '8.4';
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
+
+const bundledLifecycleExtensionNames = [
+	'xdebug',
+	'intl',
+	...(isJspiAvailable ? ['redis', 'memcached'] : []),
+];
+
+const bundledLifecycleLoaderOptions = {
+	withXdebug: true,
+	withIntl: true,
+	withRedis: isJspiAvailable,
+	withMemcached: isJspiAvailable,
+};
+
+describe(`Bundled extension lifecycle - PHP ${lifecyclePHPVersion}`, () => {
+	it('keeps enabled extensions loaded after runtime rotation', async () => {
+		const recreateRuntime = vitest.fn(() =>
+			loadNodeRuntime(lifecyclePHPVersion, bundledLifecycleLoaderOptions)
+		);
+		const php = new PHP(await recreateRuntime());
+		php.enableRuntimeRotation({
+			recreateRuntime,
+			maxRequests: 1,
+		});
+
+		try {
+			await expectExtensionsLoaded(php, bundledLifecycleExtensionNames);
+			await expectExtensionsLoaded(php, bundledLifecycleExtensionNames);
+			expect(recreateRuntime).toHaveBeenCalledTimes(2);
+		} finally {
+			php.exit();
+		}
+	}, 30_000);
+});
+
 describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	describe('XDebug', () => {
 		let php: PHP;
@@ -526,3 +562,26 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		);
 	});
 });
+
+async function expectExtensionsLoaded(php: PHP, extensionNames: string[]) {
+	const result = await php.run({
+		code: `<?php
+			$extensions = ${phpArrayLiteral(extensionNames)};
+			foreach ($extensions as $extension) {
+				echo $extension . ':' . (extension_loaded($extension) ? 'loaded' : 'missing') . "\\n";
+			}
+		`,
+	});
+
+	expect(result.text).toBe(
+		extensionNames
+			.map((extensionName) => `${extensionName}:loaded\n`)
+			.join('')
+	);
+}
+
+function phpArrayLiteral(values: string[]) {
+	return `array(${values
+		.map((value) => `'${value.replaceAll("'", "\\'")}'`)
+		.join(', ')})`;
+}
