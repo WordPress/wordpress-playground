@@ -51,11 +51,66 @@ export const PlaygroundViewport = () => {
 	return activeSite ? <SeamlessViewport siteSlug={activeSite.slug} /> : null;
 };
 
-const NEW_USER_CARDS = [
+type IconTheme = 'blue' | 'green' | 'red' | 'neutral' | 'sky' | 'amber';
+
+const ICON_THEMES: Record<
+	IconTheme,
+	{ lightBg: string; lightColor: string; darkBg: string; darkColor: string }
+> = {
+	blue: {
+		lightBg: '#e7eaff',
+		lightColor: '#3858e9',
+		darkBg: '#1f2542',
+		darkColor: '#9eb3ff',
+	},
+	green: {
+		lightBg: '#ebf3e7',
+		lightColor: '#45741e',
+		darkBg: '#1e2c1a',
+		darkColor: '#a3d57c',
+	},
+	red: {
+		lightBg: '#fcebec',
+		lightColor: '#b32d2e',
+		darkBg: '#3a1f21',
+		darkColor: '#ff8e8f',
+	},
+	neutral: {
+		lightBg: '#f0f0f1',
+		lightColor: '#1e1e1e',
+		darkBg: '#2a2a2c',
+		darkColor: '#e8e8e8',
+	},
+	sky: {
+		lightBg: '#e0f0f7',
+		lightColor: '#2271b1',
+		darkBg: '#1a2730',
+		darkColor: '#7ec0e3',
+	},
+	amber: {
+		lightBg: '#fcf3e0',
+		lightColor: '#826a00',
+		darkBg: '#332a18',
+		darkColor: '#e8c574',
+	},
+};
+
+function iconStyle(theme: IconTheme): string {
+	const t = ICON_THEMES[theme];
+	return `background:light-dark(${t.lightBg},${t.darkBg});color:light-dark(${t.lightColor},${t.darkColor})`;
+}
+
+const NEW_USER_CARDS: Array<{
+	icon: string;
+	theme: IconTheme;
+	label: string;
+	sub: string;
+	detailLabel?: string;
+	detail: string;
+}> = [
 	{
 		icon: '✎',
-		iconBg: '#fef0e8',
-		iconColor: '#c44b2c',
+		theme: 'blue',
 		label: 'Journal',
 		sub: 'private notes',
 		detail: `
@@ -66,8 +121,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '★',
-		iconBg: '#e8f0e3',
-		iconColor: '#5a7a3f',
+		theme: 'green',
 		label: 'Reading list',
 		sub: 'save &amp; revisit',
 		detailLabel: '3 saved',
@@ -79,8 +133,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '✦',
-		iconBg: '#e8ecf4',
-		iconColor: '#3f5a7a',
+		theme: 'blue',
 		label: 'Install apps',
 		sub: 'tap + to browse',
 		detailLabel: 'How to install',
@@ -95,8 +148,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '♥',
-		iconBg: '#f4e8ef',
-		iconColor: '#7a3f5f',
+		theme: 'red',
 		label: 'Contacts',
 		sub: 'people you know',
 		detailLabel: 'Personal CRM',
@@ -108,8 +160,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '◐',
-		iconBg: '#fef5e0',
-		iconColor: '#a8762a',
+		theme: 'neutral',
 		label: 'Site Tools',
 		sub: 'bottom-left corner',
 		detailLabel: 'Always there',
@@ -122,8 +173,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '◎',
-		iconBg: '#eae4f2',
-		iconColor: '#5a3f7a',
+		theme: 'sky',
 		label: 'Daily backups',
 		sub: 'automatic',
 		detail: `
@@ -134,8 +184,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '◆',
-		iconBg: '#e0f0ee',
-		iconColor: '#2a7a6e',
+		theme: 'amber',
 		label: 'Bookmark this',
 		sub: "it's your WordPress",
 		detailLabel: "Don't lose this",
@@ -147,8 +196,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '⊙',
-		iconBg: '#f5e3e0',
-		iconColor: '#a54a3a',
+		theme: 'blue',
 		label: 'Your data',
 		sub: 'stays here',
 		detailLabel: 'Where it lives',
@@ -160,8 +208,7 @@ const NEW_USER_CARDS = [
 	},
 	{
 		icon: '♨',
-		iconBg: '#f0ece3',
-		iconColor: '#7a6040',
+		theme: 'green',
 		label: 'Recipes',
 		sub: 'save your favourites',
 		detail: `
@@ -175,105 +222,10 @@ const NEW_USER_CARDS = [
 	},
 ];
 
-function getWelcomeHtml(): string {
-	const radios = NEW_USER_CARDS.map(
-		(_, i) =>
-			`<input type="radio" name="card-panel" id="t${i + 1}" class="card-toggle">`
-	).join('\n  ');
-
-	return `
-<div class="stage">
-<style>
-  ${getCardStageCss()}
-
-  /* Positions + rotations — rotate excluded from keyframes so transition owns it. */
-  .c1 { top: 4%;  left: 4%;   rotate: -2deg;  animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 0.8s forwards; }
-  .c2 { top: 2%;  right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.4s forwards; }
-  .c3 { top: 26%; left: 12%;  rotate: -1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.3s forwards; }
-  .c4 { top: 26%; right: 4%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 3.0s forwards; }
-  .c5 { top: 48%; left: 6%;   rotate: -2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.1s forwards; }
-  .c6 { top: 50%; right: 10%; rotate:  2deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.0s forwards; }
-  .c7 { top: 72%; left: 14%;  rotate: -1deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.7s forwards; }
-  .c8 { top: 72%; right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.6s forwards; }
-  .c9 { top: 14%; left: 26%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.9s forwards; }
-
-  #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
-  #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
-  #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
-  #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
-  #t9:checked ~ .field .c9 {
-    rotate: 0deg !important;
-    width: min(240px, calc(100vw - 48px)) !important;
-    z-index: 20 !important;
-    box-shadow: 0 2px 4px rgba(31,29,26,0.06), 0 16px 40px rgba(31,29,26,0.14) !important;
-  }
-
-  #t1:checked ~ .field .c1 .card-detail, #t2:checked ~ .field .c2 .card-detail,
-  #t3:checked ~ .field .c3 .card-detail, #t4:checked ~ .field .c4 .card-detail,
-  #t5:checked ~ .field .c5 .card-detail, #t6:checked ~ .field .c6 .card-detail,
-  #t7:checked ~ .field .c7 .card-detail, #t8:checked ~ .field .c8 .card-detail,
-  #t9:checked ~ .field .c9 .card-detail {
-    max-height: 260px;
-  }
-
-  /* Bottom cards expand upward so they stay on screen */
-  #t7:checked ~ .field .c7,
-  #t8:checked ~ .field .c8 { transform: translateY(-140px) !important; }
-
-  @media (min-width: 640px) {
-    .c1 { top: 4%;  left: 2%;   right: auto; }
-    .c2 { top: 2%;  left: 36%;  right: auto; }
-    .c3 { top: 4%;  left: auto; right: 2%;   }
-    .c4 { top: 40%; left: auto; right: 2%;   }
-    .c5 { top: 38%; left: 6%;   right: auto; }
-    .c6 { top: 40%; left: 37%;  right: auto; }
-    .c7 { top: 72%; left: 12%;  right: auto; }
-    .c8 { top: 72%; left: auto; right: 4%;   }
-    .c9 { top: 72%; left: 37%;  right: auto; }
-    #t1:checked ~ .field .c1, #t2:checked ~ .field .c2,
-    #t3:checked ~ .field .c3, #t4:checked ~ .field .c4,
-    #t5:checked ~ .field .c5, #t6:checked ~ .field .c6,
-    #t7:checked ~ .field .c7, #t8:checked ~ .field .c8,
-    #t9:checked ~ .field .c9 {
-      width: min(280px, calc(100vw - 64px)) !important;
-    }
-    #t7:checked ~ .field .c7,
-    #t8:checked ~ .field .c8,
-    #t9:checked ~ .field .c9 { transform: translateY(-140px) !important; }
-  }
-</style>
-
-  <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
-  ${radios}
-
-  <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
-  <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
-  <p class="intro">Install the tools you need — a reading list, a contacts app, a journal — and they're yours alone, in this tab.</p>
-
-  <div class="field">
-    <div class="threads">
-      <svg viewBox="0 0 480 400" preserveAspectRatio="none">
-        <path d="M 90 60 Q 200 100 240 180"/>
-        <path d="M 380 50 Q 300 120 280 200"/>
-        <path d="M 120 180 Q 220 240 200 320"/>
-        <path d="M 400 220 Q 340 280 320 340"/>
-        <path d="M 240 180 Q 260 240 200 320"/>
-      </svg>
-    </div>
-
-    ${NEW_USER_CARDS.map((c, i) => renderCard(c, i)).join('\n')}
-  </div>
-
-  <div class="footer">
-    <span class="status">Setting things up…</span>
-  </div>
-</div>
-`;
-}
-
 function renderCard(
 	card: (typeof NEW_USER_CARDS)[number],
-	index: number
+	index: number,
+	idPrefix: string
 ): string {
 	const n = index + 1;
 	const detailHeader =
@@ -281,32 +233,198 @@ function renderCard(
 			? `<div class="detail-label">${card.detailLabel}</div>`
 			: '';
 	return `
-    <label class="card c${n}" for="t${n}">
-      <div class="card-front">
-        <div class="icon" style="background:${card.iconBg};color:${card.iconColor}">${card.icon}</div>
-        <div class="text"><div class="label">${card.label}</div><div class="sub">${card.sub}</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        ${detailHeader}
-        ${card.detail}
-      </div></div>
-    </label>`;
+      <label class="card c${n}" for="${idPrefix}${n}">
+        <div class="card-front">
+          <div class="icon" style="${iconStyle(card.theme)}">${card.icon}</div>
+          <div class="text"><div class="label">${card.label}</div><div class="sub">${card.sub}</div></div>
+        </div>
+        <div class="card-detail"><div class="detail-inner">
+          <label class="detail-close" for="${idPrefix}0">×</label>
+          ${detailHeader}
+          ${card.detail}
+        </div></div>
+      </label>`;
 }
 
-function getWhatsNewHtml(tourUrl: string): string {
+function renderIntroPanelInner(
+	idPrefix: string,
+	radioName: string,
+	opts: { backToggle?: boolean } = {}
+): string {
+	const radios = NEW_USER_CARDS.map(
+		(_, i) =>
+			`<input type="radio" name="${radioName}" id="${idPrefix}${
+				i + 1
+			}" class="card-toggle">`
+	).join('\n    ');
+
+	const backToggle = opts.backToggle
+		? `<label for="show-intro" class="back-toggle">← Back to what's new</label>`
+		: '';
+
+	return `
+    <input type="radio" name="${radioName}" id="${idPrefix}0" class="card-toggle" checked>
+    ${radios}
+
+    <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
+    <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
+    ${backToggle}
+    <p class="intro">Install the tools you need — a reading list, a contacts app, a journal — and they're yours alone, in this tab.</p>
+
+    <div class="field">
+      <div class="threads">
+        <svg viewBox="0 0 480 400" preserveAspectRatio="none">
+          <path d="M 90 60 Q 200 100 240 180"/>
+          <path d="M 380 50 Q 300 120 280 200"/>
+          <path d="M 120 180 Q 220 240 200 320"/>
+          <path d="M 400 220 Q 340 280 320 340"/>
+          <path d="M 240 180 Q 260 240 200 320"/>
+        </svg>
+      </div>
+      ${NEW_USER_CARDS.map((c, i) => renderCard(c, i, idPrefix)).join('\n      ')}
+    </div>
+
+    <div class="footer">
+      <span class="status">Setting things up…</span>
+    </div>
+`;
+}
+
+function getIntroPanelCss(idPrefix: string, scope: string): string {
+	const s = scope ? `${scope} ` : '';
+	const expandSel = NEW_USER_CARDS.map(
+		(_, i) => `#${idPrefix}${i + 1}:checked ~ .field .c${i + 1}`
+	).join(',\n  ');
+	const detailSel = NEW_USER_CARDS.map(
+		(_, i) =>
+			`#${idPrefix}${i + 1}:checked ~ .field .c${i + 1} .card-detail`
+	).join(',\n  ');
+
+	return `
+  /* Positions + rotations — rotate excluded from keyframes so transition owns it.
+     Top values are deliberately jittered between siblings so cards don't sit in
+     rigid horizontal rows. */
+  ${s}.c1 { top: 3%;  left: 4%;   rotate: -2deg;  animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 0.8s forwards; }
+  ${s}.c2 { top: 9%;  right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.4s forwards; }
+  ${s}.c3 { top: 23%; left: 12%;  rotate: -1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.3s forwards; }
+  ${s}.c4 { top: 30%; right: 4%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 3.0s forwards; }
+  ${s}.c5 { top: 45%; left: 6%;   rotate: -2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.1s forwards; }
+  ${s}.c6 { top: 53%; right: 10%; rotate:  2deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.0s forwards; }
+  ${s}.c7 { top: 68%; left: 14%;  rotate: -1deg;   animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.7s forwards; }
+  ${s}.c8 { top: 75%; right: 6%;  rotate:  2.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 2.6s forwards; }
+  ${s}.c9 { top: 14%; left: 26%;  rotate:  1.5deg; animation: drift-in 1s cubic-bezier(0.16,1,0.3,1) 1.9s forwards; }
+
+  ${expandSel} {
+    rotate: 0deg !important;
+    width: min(240px, calc(100vw - 48px)) !important;
+    z-index: 20 !important;
+    box-shadow: 0 2px 4px var(--shadow-md), 0 16px 40px var(--shadow-xl) !important;
+  }
+
+  ${detailSel} {
+    max-height: 260px;
+  }
+
+  /* Install-apps card has the most detail content; bump its max-height so the
+     last bullet doesn't get clipped. */
+  #${idPrefix}3:checked ~ .field .c3 .card-detail { max-height: 340px; }
+
+  /* Bottom cards expand upward so they stay on screen */
+  #${idPrefix}7:checked ~ .field .c7,
+  #${idPrefix}8:checked ~ .field .c8 { transform: translateY(-140px) !important; }
+
+  @media (min-width: 640px) {
+    ${s}.c1 { top: 4%;  left: 2%;   right: auto; }
+    ${s}.c2 { top: 0%;  left: 36%;  right: auto; }
+    ${s}.c3 { top: 8%;  left: auto; right: 2%;   }
+    ${s}.c4 { top: 38%; left: auto; right: 2%;   }
+    ${s}.c5 { top: 36%; left: 6%;   right: auto; }
+    ${s}.c6 { top: 44%; left: 37%;  right: auto; }
+    ${s}.c7 { top: 70%; left: 12%;  right: auto; }
+    ${s}.c8 { top: 73%; left: auto; right: 4%;   }
+    ${s}.c9 { top: 76%; left: 37%;  right: auto; }
+    ${expandSel} { width: min(280px, calc(100vw - 64px)) !important; }
+    #${idPrefix}7:checked ~ .field .c7,
+    #${idPrefix}8:checked ~ .field .c8,
+    #${idPrefix}9:checked ~ .field .c9 { transform: translateY(-140px) !important; }
+  }
+`;
+}
+
+function getSwapCss(): string {
+	return `
+  .welcome-back-panel, .intro-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+    min-height: 0;
+  }
+  .stage:has(#show-intro) .intro-panel { display: none; }
+  .stage:has(#show-intro:checked) .welcome-back-panel { display: none; }
+  .stage:has(#show-intro:checked) .intro-panel { display: flex; }
+  #show-intro { display: none; }
+
+  .intro-toggle, .back-toggle {
+    display: inline-block;
+    width: max-content;
+    max-width: 100%;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    cursor: pointer;
+    margin-bottom: 16px;
+    padding-bottom: 1px;
+    border-bottom: 1px solid var(--thread);
+    opacity: 0;
+    animation: rise 0.8s ease-out 0.4s forwards;
+    user-select: none;
+  }
+  .intro-toggle:hover, .back-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+`;
+}
+
+function getWelcomeHtml(): string {
+	return `
+<div class="stage">
+<style>
+  ${getCardStageCss()}
+  ${getIntroPanelCss('i', '.intro-panel')}
+  ${getSwapCss()}
+</style>
+  <div class="intro-panel">${renderIntroPanelInner('i', 'icard')}</div>
+</div>
+`;
+}
+
+function getWhatsNewHtml(): string {
 	const { tips, changelog } = welcomeStrings;
 	const tip = tips[Math.floor(Math.random() * tips.length)];
 
-	const cards = [
+	const cards: Array<{
+		icon: string;
+		theme: IconTheme;
+		label: string;
+		sub: string;
+		detail: string;
+		top: string;
+		left: string;
+		right: string;
+		rotate: string;
+		delay: string;
+		bottom: boolean;
+	}> = [
 		{
 			icon: '💡',
-			iconBg: '#fef5e0',
-			iconColor: '#a8762a',
+			theme: 'amber',
 			label: 'Tip',
 			sub: 'for your site',
 			detail: tip,
-			top: '8%',
+			top: '6%',
 			left: '4%',
 			right: '',
 			rotate: '-2deg',
@@ -314,12 +432,22 @@ function getWhatsNewHtml(tourUrl: string): string {
 			bottom: false,
 		},
 		...changelog.map((entry, i) => {
-			const variants = [
+			// Top values intentionally offset from the tip card so the layout
+			// doesn't read as rigid 2x2 pairs.
+			const variants: Array<{
+				icon: string;
+				theme: IconTheme;
+				top: string;
+				left: string;
+				right: string;
+				rotate: string;
+				delay: string;
+				bottom: boolean;
+			}> = [
 				{
 					icon: '✦',
-					iconBg: '#e8ecf4',
-					iconColor: '#3f5a7a',
-					top: '5%',
+					theme: 'blue',
+					top: '14%',
 					left: '',
 					right: '6%',
 					rotate: '2deg',
@@ -328,9 +456,8 @@ function getWhatsNewHtml(tourUrl: string): string {
 				},
 				{
 					icon: '◎',
-					iconBg: '#e8f0e3',
-					iconColor: '#5a7a3f',
-					top: '50%',
+					theme: 'green',
+					top: '46%',
 					left: '8%',
 					right: '',
 					rotate: '-1.5deg',
@@ -339,9 +466,8 @@ function getWhatsNewHtml(tourUrl: string): string {
 				},
 				{
 					icon: '◆',
-					iconBg: '#f4e8ef',
-					iconColor: '#7a3f5f',
-					top: '52%',
+					theme: 'sky',
+					top: '56%',
 					left: '',
 					right: '10%',
 					rotate: '2.5deg',
@@ -362,19 +488,19 @@ function getWhatsNewHtml(tourUrl: string): string {
 	const radios = cards
 		.map(
 			(_, i) =>
-				`<input type="radio" name="card-panel" id="t${i + 1}" class="card-toggle">`
+				`<input type="radio" name="wcard" id="w${i + 1}" class="card-toggle">`
 		)
-		.join('\n  ');
+		.join('\n    ');
 
 	const expandSel = cards
-		.map((_, i) => `#t${i + 1}:checked ~ .field .c${i + 1}`)
+		.map((_, i) => `#w${i + 1}:checked ~ .field .c${i + 1}`)
 		.join(', ');
 	const detailSel = cards
-		.map((_, i) => `#t${i + 1}:checked ~ .field .c${i + 1} .card-detail`)
+		.map((_, i) => `#w${i + 1}:checked ~ .field .c${i + 1} .card-detail`)
 		.join(', ');
 	const bottomSel = cards
 		.map((c, i) =>
-			c.bottom ? `#t${i + 1}:checked ~ .field .c${i + 1}` : ''
+			c.bottom ? `#w${i + 1}:checked ~ .field .c${i + 1}` : ''
 		)
 		.filter(Boolean)
 		.join(', ');
@@ -384,16 +510,16 @@ function getWhatsNewHtml(tourUrl: string): string {
 			const sideStyle = c.left ? `left:${c.left}` : `right:${c.right}`;
 			const style = `top:${c.top};${sideStyle};rotate:${c.rotate};animation:drift-in 1s cubic-bezier(0.16,1,0.3,1) ${c.delay} forwards`;
 			return `
-    <label class="card c${i + 1}" for="t${i + 1}" style="${style}">
-      <div class="card-front">
-        <div class="icon" style="background:${c.iconBg};color:${c.iconColor}">${c.icon}</div>
-        <div class="text"><div class="label">${c.label}</div><div class="sub">${c.sub}</div></div>
-      </div>
-      <div class="card-detail"><div class="detail-inner">
-        <label class="detail-close" for="t0">×</label>
-        <p class="detail-body">${c.detail}</p>
-      </div></div>
-    </label>`;
+      <label class="card c${i + 1}" for="w${i + 1}" style="${style}">
+        <div class="card-front">
+          <div class="icon" style="${iconStyle(c.theme)}">${c.icon}</div>
+          <div class="text"><div class="label">${c.label}</div><div class="sub">${c.sub}</div></div>
+        </div>
+        <div class="card-detail"><div class="detail-inner">
+          <label class="detail-close" for="w0">×</label>
+          <p class="detail-body">${c.detail}</p>
+        </div></div>
+      </label>`;
 		})
 		.join('');
 
@@ -401,58 +527,69 @@ function getWhatsNewHtml(tourUrl: string): string {
 <div class="stage">
 <style>
   ${getCardStageCss()}
+  ${getIntroPanelCss('i', '.intro-panel')}
+  ${getSwapCss()}
 
   ${expandSel} {
     rotate: 0deg !important;
     width: min(240px, calc(100vw - 48px)) !important;
     z-index: 20 !important;
-    box-shadow: 0 2px 4px rgba(31,29,26,0.06), 0 16px 40px rgba(31,29,26,0.14) !important;
+    box-shadow: 0 2px 4px var(--shadow-md), 0 16px 40px var(--shadow-xl) !important;
   }
   ${detailSel} { max-height: 260px; }
   ${bottomSel ? `${bottomSel} { transform: translateY(-140px) !important; }` : ''}
-
-  .tour-link {
-    font-size: 11px; color: var(--ink-faint); text-decoration: none;
-    border-bottom: 1px solid var(--thread); padding-bottom: 1px;
-  }
-  .tour-link:hover { color: var(--ink-soft); }
 
   @media (min-width: 640px) {
     ${expandSel} { width: min(280px, calc(100vw - 64px)) !important; }
     ${bottomSel ? `${bottomSel} { transform: translateY(-140px) !important; }` : ''}
   }
 </style>
+  <input type="checkbox" id="show-intro">
 
-  <input type="radio" name="card-panel" id="t0" class="card-toggle" checked>
-  ${radios}
+  <div class="welcome-back-panel">
+    <input type="radio" name="wcard" id="w0" class="card-toggle" checked>
+    ${radios}
 
-  <div class="eyebrow"><span class="pulse"></span>Your site is loading</div>
-  <h1 class="headline">Welcome <em>back.</em></h1>
+    <div class="eyebrow"><span class="pulse"></span>Your site is loading</div>
+    <h1 class="headline">Welcome <em>back.</em></h1>
+    <label for="show-intro" class="intro-toggle">First time here? See the intro →</label>
 
-  <div class="field">
-${cardsHtml}
+    <div class="field">${cardsHtml}
+    </div>
+
+    <div class="footer">
+      <span class="status">Loading your site…</span>
+    </div>
   </div>
 
-  <div class="footer">
-    <span class="status">Loading your site…</span>
-    <a href="${tourUrl}" target="_top" class="tour-link">First time here? See the intro →</a>
-  </div>
+  <div class="intro-panel">${renderIntroPanelInner('i', 'icard', {
+		backToggle: true,
+  })}</div>
 </div>
 `;
 }
 
 function getCardStageCss(): string {
 	return `
-  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap');
 
   :root {
-    --bg: #f5f1ea;
-    --bg-warm: #ede7dc;
-    --ink: #1f1d1a;
-    --ink-soft: #5a554c;
-    --ink-faint: #a8a197;
-    --accent: #c44b2c;
-    --thread: rgba(31, 29, 26, 0.08);
+    color-scheme: light dark;
+    --bg: light-dark(#ffffff, #18181a);
+    --bg-warm: light-dark(#f6f7f7, #242427);
+    --card-bg: light-dark(#ffffff, #242427);
+    --ink: light-dark(#1e1e1e, #e8e8e8);
+    --ink-soft: light-dark(#50575e, #a8acb0);
+    --ink-faint: light-dark(#8c8f94, #6c7075);
+    --accent: light-dark(#3858e9, #9eb3ff);
+    --accent-on: light-dark(#ffffff, #1a1a1c);
+    --accent-tint: light-dark(rgba(56, 88, 233, 0.05), rgba(158, 179, 255, 0.06));
+    --accent-tint-strong: light-dark(rgba(56, 88, 233, 0.12), rgba(158, 179, 255, 0.18));
+    --thread: light-dark(rgba(30, 30, 30, 0.08), rgba(232, 232, 232, 0.12));
+    --shadow-sm: light-dark(rgba(31, 29, 26, 0.04), rgba(0, 0, 0, 0.3));
+    --shadow-md: light-dark(rgba(31, 29, 26, 0.06), rgba(0, 0, 0, 0.4));
+    --shadow-lg: light-dark(rgba(31, 29, 26, 0.12), rgba(0, 0, 0, 0.55));
+    --shadow-xl: light-dark(rgba(30, 30, 30, 0.14), rgba(0, 0, 0, 0.6));
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -465,7 +602,7 @@ function getCardStageCss(): string {
     z-index: 4;
     background: var(--bg);
     color: var(--ink);
-    font-family: 'Inter Tight', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
@@ -478,8 +615,8 @@ function getCardStageCss(): string {
     position: fixed;
     inset: 0;
     background:
-      radial-gradient(ellipse at 30% 20%, rgba(196, 75, 44, 0.04), transparent 60%),
-      radial-gradient(ellipse at 70% 80%, rgba(232, 148, 120, 0.05), transparent 60%);
+      radial-gradient(ellipse at 30% 20%, var(--accent-tint), transparent 60%),
+      radial-gradient(ellipse at 70% 80%, var(--accent-tint), transparent 60%);
     pointer-events: none;
     z-index: 0;
   }
@@ -510,11 +647,11 @@ function getCardStageCss(): string {
   }
 
   .headline {
-    font-family: 'Instrument Serif', serif;
-    font-size: 38px;
+    font-family: 'EB Garamond', serif;
+    font-size: 40px;
     font-weight: 400;
     line-height: 1.05;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
     margin-bottom: 10px;
     opacity: 0;
     animation: rise 0.9s ease-out 0.3s forwards;
@@ -568,9 +705,9 @@ function getCardStageCss(): string {
     opacity: 0;
     cursor: pointer;
     display: block;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 14px;
-    box-shadow: 0 1px 2px rgba(31, 29, 26, 0.04), 0 8px 24px rgba(31, 29, 26, 0.06);
+    box-shadow: 0 1px 2px var(--shadow-sm), 0 8px 24px var(--shadow-md);
     overflow: hidden;
     /* rotate is intentionally absent from drift-in keyframes so this
        transition owns it and can override animation fill-mode on expand */
@@ -580,7 +717,7 @@ function getCardStageCss(): string {
       transform  0.3s ease,
       box-shadow 0.2s ease;
   }
-  .card:hover { box-shadow: 0 1px 3px rgba(31, 29, 26, 0.06), 0 10px 30px rgba(31, 29, 26, 0.12); }
+  .card:hover { box-shadow: 0 1px 3px var(--shadow-md), 0 10px 30px var(--shadow-lg); }
 
   .card-front {
     height: 66px;
@@ -658,7 +795,7 @@ function getCardStageCss(): string {
   .entry-date { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
   .entry-title { font-size: 13px; font-weight: 500; line-height: 1.3; color: var(--ink); margin-bottom: 8px; }
   .entry-body { font-size: 11.5px; line-height: 1.55; color: var(--ink-soft); }
-  .entry-body .hl { background: rgba(196,75,44,0.12); padding: 0 3px; color: var(--ink); }
+  .entry-body .hl { background: var(--accent-tint-strong); padding: 0 3px; color: var(--ink); }
 
   /* Reading list */
   .reading-item {
@@ -693,12 +830,12 @@ function getCardStageCss(): string {
 
   /* Site Tools habits */
   .habit-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 11.5px; }
-  .habit-check { width: 16px; height: 16px; border: 1.5px solid rgba(31,29,26,0.2); border-radius: 4px; flex-shrink: 0; position: relative; }
+  .habit-check { width: 16px; height: 16px; border: 1.5px solid light-dark(rgba(31,29,26,0.2), rgba(232,232,232,0.25)); border-radius: 4px; flex-shrink: 0; position: relative; }
   .habit-check.done { background: var(--accent); border-color: var(--accent); }
   .habit-check.done::after {
     content: '✓'; position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 10px; font-weight: 600;
+    color: var(--accent-on); font-size: 10px; font-weight: 600;
   }
   .habit-label { color: var(--ink-soft); flex: 1; }
   .habit-label.done { color: var(--ink); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
@@ -724,7 +861,7 @@ function getCardStageCss(): string {
 
   @media (min-width: 640px) {
     .stage { padding: 48px 48px 32px; }
-    .headline { font-size: 48px; }
+    .headline { font-size: 52px; }
     .intro { max-width: 460px; }
     .card { width: 220px; }
     .card-front { height: 78px; }
@@ -758,13 +895,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const forceWelcome = new URLSearchParams(window.location.search).has(
 		'welcome'
 	);
-	const tourUrl =
-		window.location.origin + window.location.pathname + '?welcome';
 
 	const welcomeHtml =
-		isReturningUser && !forceWelcome
-			? getWhatsNewHtml(tourUrl)
-			: getWelcomeHtml();
+		isReturningUser && !forceWelcome ? getWhatsNewHtml() : getWelcomeHtml();
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
