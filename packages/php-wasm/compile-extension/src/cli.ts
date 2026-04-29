@@ -10,7 +10,11 @@ import {
 	compileExtensionMatrix,
 	SupportedExtensionPHPVersions,
 } from './compile';
-import { detectExtensionName } from './detect';
+import {
+	detectExtensionName,
+	detectLanguage,
+	type ExtensionLanguage,
+} from './detect';
 import type { AsyncMode } from './manifest';
 
 const DefaultAsyncModes: AsyncMode[] = ['jspi', 'asyncify'];
@@ -72,6 +76,12 @@ export async function main(args = hideBin(process.argv)) {
 				type: 'number',
 				description: 'Maximum concurrent docker builds.',
 			},
+			language: {
+				type: 'string',
+				choices: ['c', 'rust'] as const,
+				description:
+					'Source language. Defaults to auto-detect: Cargo.toml ⇒ rust, config.m4 ⇒ c.',
+			},
 		})
 		.strict()
 		.help()
@@ -79,9 +89,12 @@ export async function main(args = hideBin(process.argv)) {
 
 	const workspaceRoot = findWorkspaceRoot(process.cwd());
 	const sourceDir = path.resolve(workspaceRoot, argv['source'] as string);
+	const language: ExtensionLanguage =
+		(argv['language'] as ExtensionLanguage | undefined) ??
+		(await detectLanguage(sourceDir));
 	const name =
 		(argv['name'] as string | undefined) ??
-		(await detectExtensionName(sourceDir));
+		(await detectExtensionName(sourceDir, language));
 	const phpVersions = parseCsv(
 		argv['php-versions'] as string,
 		'php-versions'
@@ -94,6 +107,7 @@ export async function main(args = hideBin(process.argv)) {
 		sourceDir,
 		outDir: argv['out'] as string,
 		name,
+		language,
 		phpVersions,
 		asyncModes,
 		extraCflags: argv['extra-cflags'] as string | undefined,

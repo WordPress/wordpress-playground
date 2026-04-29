@@ -1,0 +1,102 @@
+#
+# Rust extension build image.
+#
+# Layered on top of the PHP-cross-compile image produced by Dockerfile.ext:
+# we reuse its Emscripten toolchain, its cross-built PHP install at
+# /usr/local, and the PHP headers under /usr/local/include/php so
+# `bindgen` (driven by ext-php-rs's build.rs) can run on the host CPU
+# while the final cdylib is linked for wasm32-unknown-emscripten.
+#
+# We do NOT replace `phpize`-based builds — this image is selected only
+# when --language=rust (auto-detected from a Cargo.toml in the source).
+#
+FROM playground-php-wasm:base AS php-headers
+
+ARG PHP_VERSION
+ARG JSPI="no"
+
+RUN apt-get update && apt-get install -y bison
+
+RUN git clone https://github.com/php/php-src.git /root/php-src \
+	--branch php-$PHP_VERSION \
+	--single-branch \
+	--depth 1
+
+RUN cd /root/php-src && ./buildconf --force
+
+COPY ./compile/php/php*.patch /root/
+RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
+
+RUN source /root/emsdk/emsdk_env.sh && \
+	cd /root/php-src && \
+	emconfigure ./configure \
+	--disable-fiber-asm \
+	--enable-embed \
+	--disable-cgi \
+	--disable-opcache-jit \
+	--disable-opcache \
+	--disable-phpdbg \
+	--without-pcre-jit \
+	--disable-cli \
+	--disable-libxml \
+	--without-libxml \
+	--disable-dom \
+	--disable-xml \
+	--disable-simplexml \
+	--disable-xmlreader \
+	--disable-xmlwriter \
+	--without-sqlite3 \
+	--without-pdo-sqlite \
+	--without-iconv
+
+RUN /root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h
+RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h
+RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
+RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
+
+RUN source /root/emsdk/emsdk_env.sh && \
+	cd /root/php-src && \
+	emmake make install
+
+RUN mkdir -p /usr/local/include/php/ext/standard && \
+	if [ -f /root/php-src/ext/standard/php_smart_string.h ]; then \
+		cp /root/php-src/ext/standard/*.h /usr/local/include/php/ext/standard/; \
+	else \
+		echo '#include "Zend/zend_smart_string.h"' > /usr/local/include/php/ext/standard/php_smart_string.h; \
+	fi && \
+	if [ -d /root/php-src/ext/random ]; then \
+		cp /root/php-src/ext/random/*.h /usr/local/include/php/ext/standard/; \
+	fi
+
+#
+# Add the Rust toolchain. We need:
+#   - rustup + a stable toolchain (required by ext-php-rs)
+#   - the wasm32-unknown-emscripten target (third-tier but functional)
+#   - libclang for bindgen (ext-php-rs uses bindgen at build time to
+#     generate Rust FFI from PHP headers)
+#
+ENV RUSTUP_HOME=/root/rustup
+ENV CARGO_HOME=/root/cargo
+ENV PATH="/root/cargo/bin:${PATH}"
+
+RUN apt-get update && apt-get install -y \
+		curl \
+		ca-certificates \
+		clang \
+		llvm-dev \
+		libclang-dev \
+		pkg-config \
+	&& rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+	sh -s -- -y --default-toolchain stable --profile minimal
+
+RUN rustup target add wasm32-unknown-emscripten
+
+# bindgen looks here when LIBCLANG_PATH isn't set; pin it to be safe.
+ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib
+
+COPY ./compile-extension/scripts/build-rust-in-docker.sh /usr/local/bin/build-php-wasm-rust-extension
+RUN chmod +x /usr/local/bin/build-php-wasm-rust-extension
+
+ENTRYPOINT ["/usr/local/bin/build-php-wasm-rust-extension"]

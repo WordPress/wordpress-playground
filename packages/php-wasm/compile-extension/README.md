@@ -19,6 +19,54 @@ Docker is required. The build reuses the `packages/php-wasm/compile` base image
 and its PHP patch set, then runs `phpize`, `emconfigure`, and `emmake` inside
 the container.
 
+## Languages
+
+The CLI auto-detects the source language:
+
+- A `Cargo.toml` next to the source ⇒ **Rust** (built via `cargo build
+  --target=wasm32-unknown-emscripten`, see [Rust extensions](#rust-extensions)).
+- A `config.m4` next to the source ⇒ **C** (built via `phpize` + `emconfigure`).
+
+Override with `--language=rust|c` if the auto-detect picks the wrong one.
+
+## Rust extensions
+
+Pass a Rust crate that uses [`ext-php-rs`](https://crates.io/crates/ext-php-rs)
+with `crate-type = ["cdylib"]`:
+
+```toml
+[package]
+name = "wp_mysql_parser"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "wp_mysql_parser"
+crate-type = ["cdylib"]
+
+[dependencies]
+ext-php-rs = "0.12"
+```
+
+Then run the helper exactly as for a C extension:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./wp-mysql-parser \
+	--php-versions 8.4 \
+	--async-modes jspi
+```
+
+Under the hood, the helper layers a Rust toolchain onto the base PHP-cross
+image (`Dockerfile.rust-ext`), adds the `wasm32-unknown-emscripten` target,
+and runs `cargo build --release` with `-C link-arg=-sSIDE_MODULE=1` plus the
+matching JSPI/Asyncify flags. `bindgen` (driven by `ext-php-rs`'s `build.rs`)
+runs on the host CPU against the cross-compiled PHP headers staged at
+`/usr/local/include/php`.
+
+PHP 8.0+ is required for Rust extensions because `ext-php-rs` does not target
+the PHP 7 ABI.
+
 ## Loading the result
 
 Host the entire output directory somewhere static and pass the manifest URL to

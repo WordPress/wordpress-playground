@@ -9,6 +9,7 @@ import {
 	createDockerContext,
 	runExtensionBuild,
 } from './docker';
+import type { ExtensionLanguage } from './detect';
 import type { AsyncMode, BuiltArtifact } from './manifest';
 import { createManifest, writeManifest } from './manifest';
 
@@ -37,6 +38,7 @@ export interface CompileExtensionOptions {
 	sourceDir: string;
 	outDir: string;
 	name: string;
+	language: ExtensionLanguage;
 	phpVersions: string[];
 	asyncModes: AsyncMode[];
 	extraCflags?: string;
@@ -72,6 +74,7 @@ export async function compileExtensionMatrix(
 				phpVersion,
 				phpRelease,
 				asyncMode,
+				language: options.language,
 			});
 			await runExtensionBuild({
 				...context,
@@ -86,6 +89,7 @@ export async function compileExtensionMatrix(
 				extraCflags: options.extraCflags,
 				extraLdflags: options.extraLdflags,
 				configArgs: options.configArgs,
+				language: options.language,
 			});
 			return {
 				phpVersion,

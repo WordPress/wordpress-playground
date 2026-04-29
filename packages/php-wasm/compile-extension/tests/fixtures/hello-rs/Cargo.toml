@@ -1,0 +1,14 @@
+[package]
+name = "playground_hello_rs"
+version = "0.1.0"
+edition = "2021"
+
+# Mirrors the C `hello` fixture: smallest possible ext-php-rs extension
+# that we can boot under PHP.wasm to confirm the Rust pipeline works.
+
+[lib]
+name = "playground_hello_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+ext-php-rs = "0.12"

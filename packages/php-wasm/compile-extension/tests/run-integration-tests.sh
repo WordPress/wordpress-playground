@@ -130,6 +130,17 @@ verify_extension \
 	"dependency backed extension"
 echo "::endgroup::"
 
+echo "::group::Build and load Rust extension"
+compile_extension \
+	--source packages/php-wasm/compile-extension/tests/fixtures/hello-rs \
+	--language rust \
+	--out "$WORK_DIR/hello-rs"
+verify_extension \
+	"$WORK_DIR/hello-rs/manifest.json" \
+	"<?php echo hello_rs();" \
+	"Hello from a Rust PHP extension running in PHP.wasm"
+echo "::endgroup::"
+
 echo "::group::Build and load extension backed by non-Playground library"
 EXTERNAL_SOURCE="$WORK_DIR/external-lib-probe"
 cp -R \

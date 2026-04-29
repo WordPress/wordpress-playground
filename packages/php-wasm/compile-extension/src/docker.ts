@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
+import type { ExtensionLanguage } from './detect';
 import type { AsyncMode } from './manifest';
 
 export interface DockerBuildContext {
@@ -13,6 +14,7 @@ export interface DockerImageOptions extends DockerBuildContext {
 	phpVersion: string;
 	phpRelease: string;
 	asyncMode: AsyncMode;
+	language: ExtensionLanguage;
 }
 
 export interface DockerRunOptions extends DockerImageOptions {
@@ -58,12 +60,16 @@ export async function buildExtensionImage(
 	options: DockerImageOptions
 ): Promise<string> {
 	const imageTag = getExtensionImageTag(options);
+	const dockerfile =
+		options.language === 'rust'
+			? 'compile-extension/docker/Dockerfile.rust-ext'
+			: 'compile-extension/docker/Dockerfile.ext';
 	await runCommand(
 		'docker',
 		[
 			'build',
 			'-f',
-			'compile-extension/docker/Dockerfile.ext',
+			dockerfile,
 			'.',
 			`--tag=${imageTag}`,
 			'--progress=plain',
@@ -102,6 +108,8 @@ export async function runExtensionBuild(options: DockerRunOptions) {
 		`OPTIMIZE=${options.optimize}`,
 		'--env',
 		`CONFIG_ARGS_COUNT=${options.configArgs.length}`,
+		'--env',
+		`LANGUAGE=${options.language}`,
 	];
 
 	if (options.extraCflags) {
@@ -123,10 +131,11 @@ export async function runExtensionBuild(options: DockerRunOptions) {
 }
 
 function getExtensionImageTag(
-	options: Pick<DockerImageOptions, 'phpVersion' | 'asyncMode'>
+	options: Pick<DockerImageOptions, 'phpVersion' | 'asyncMode' | 'language'>
 ) {
 	const phpVersion = options.phpVersion.replaceAll('.', '-');
-	return `playground-php-wasm:compile-extension-php${phpVersion}-${options.asyncMode}`;
+	const langSuffix = options.language === 'rust' ? '-rust' : '';
+	return `playground-php-wasm:compile-extension-php${phpVersion}-${options.asyncMode}${langSuffix}`;
 }
 
 interface RunCommandOptions {
