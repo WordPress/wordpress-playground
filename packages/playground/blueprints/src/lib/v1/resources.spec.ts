@@ -6,6 +6,7 @@ import {
 	rewriteGithubProxyUrl,
 	ZipResource,
 	Resource,
+	isResourceReference,
 } from './resources';
 import { expect, describe, it, vi, beforeEach, afterEach } from 'vitest';
 import { StreamedFile } from '@php-wasm/stream-compression';
@@ -44,6 +45,20 @@ describe('UrlResource', () => {
 		expect(resource.getURL()).toBe(
 			'https://raw.githubusercontent.com/adamziel/blueprints/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json'
 		);
+	});
+});
+
+describe('isResourceReference', () => {
+	it('recognizes literal directory resources', () => {
+		expect(
+			isResourceReference({
+				resource: 'literal:directory',
+				name: 'assets',
+				files: {
+					'data.txt': 'sidecar',
+				},
+			})
+		).toBe(true);
 	});
 });
 

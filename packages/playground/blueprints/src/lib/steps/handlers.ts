@@ -20,6 +20,7 @@ export { exportWXR } from './export-wxr';
 export { unzip } from './unzip';
 export { installPlugin } from './install-plugin';
 export { installTheme } from './install-theme';
+export { loadPHPExtension } from './load-php-extension';
 export { login } from './login';
 export { resetData } from './reset-data';
 export { runWpInstallationWizard } from './run-wp-installation-wizard';

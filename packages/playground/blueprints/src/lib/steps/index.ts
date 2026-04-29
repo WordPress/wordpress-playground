@@ -36,6 +36,7 @@ import type { EnableMultisiteStep } from './enable-multisite';
 import type { WPCLIStep } from './wp-cli';
 import type { ResetDataStep } from './reset-data';
 import type { SetSiteLanguageStep } from './set-site-language';
+import type { LoadPHPExtensionStep } from './load-php-extension';
 
 export type Step = GenericStep<FileReference, DirectoryReference>;
 export type StepDefinition = Step & {
@@ -63,6 +64,7 @@ export type GenericStep<FileResource, DirectoryResource> =
 	| ImportWordPressFilesStep<FileResource>
 	| InstallPluginStep<FileResource, DirectoryResource>
 	| InstallThemeStep<FileResource, DirectoryResource>
+	| LoadPHPExtensionStep<FileResource, DirectoryResource>
 	| LoginStep
 	| MkdirStep
 	| MvStep
@@ -96,6 +98,7 @@ export type {
 	InstallPluginOptions,
 	InstallThemeStep,
 	InstallThemeOptions,
+	LoadPHPExtensionStep,
 	LoginStep,
 	MkdirStep,
 	MvStep,
@@ -127,7 +130,7 @@ export type StepProgress = {
 
 export type StepHandler<
 	S extends GenericStep<File, Directory>,
-	Return = any
+	Return = any,
 > = (
 	/**
 	 * A PHP instance or Playground client.

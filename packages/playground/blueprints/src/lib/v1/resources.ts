@@ -59,6 +59,7 @@ export type { FileTree };
 export const ResourceTypes = [
 	'vfs',
 	'literal',
+	'literal:directory',
 	'wordpress.org/themes',
 	'wordpress.org/plugins',
 	'url',
@@ -562,7 +563,12 @@ export abstract class FetchResource extends Resource<File> {
 					response.headers.get('content-disposition') || ''
 				) ||
 				encodeURIComponent(url);
-			return new File([await response.arrayBuffer()], filename);
+			const file = new File([await response.arrayBuffer()], filename);
+			Object.defineProperty(file, 'sourceUrl', {
+				value: url,
+				enumerable: false,
+			});
+			return file;
 		} catch (e) {
 			throw new ResourceDownloadError(
 				`Could not download "${url}".\n\n` +

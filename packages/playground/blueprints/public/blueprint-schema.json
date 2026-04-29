@@ -896,6 +896,87 @@
 						},
 						"step": {
 							"type": "string",
+							"const": "loadPHPExtension"
+						},
+						"source": {
+							"$ref": "#/definitions/FileReference",
+							"description": "The extension `.so` file or a compile-extension `manifest.json`."
+						},
+						"sourceFormat": {
+							"$ref": "#/definitions/PHPExtensionSourceFormat",
+							"description": "Defaults to \"manifest\" for `.json` files and \"so\" otherwise."
+						},
+						"name": {
+							"type": "string",
+							"description": "Required when loading a `.so` file whose filename is not named after the extension."
+						},
+						"loadTiming": {
+							"$ref": "#/definitions/PHPExtensionLoadTiming",
+							"description": "Defaults to \"auto\"."
+						},
+						"loadWithIniDirective": {
+							"$ref": "#/definitions/PHPExtensionIniDirective",
+							"description": "Defaults to \"extension\". Use \"zend_extension\" for extensions like Xdebug."
+						},
+						"iniEntries": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Extra `php.ini` entries to write next to the extension."
+						},
+						"extraFiles": {
+							"$ref": "#/definitions/DirectoryReference",
+							"description": "Extra files required by the extension, such as ICU data or shared libraries."
+						},
+						"extraFilesPath": {
+							"type": "string",
+							"description": "Where to write `extraFiles`. Defaults to an extension-specific assets directory."
+						},
+						"env": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Runtime environment variables needed by the extension."
+						},
+						"phpVersion": {
+							"type": "string",
+							"description": "Overrides manifest artifact selection. Defaults to the running PHP version."
+						},
+						"asyncMode": {
+							"$ref": "#/definitions/PHPWasmAsyncMode",
+							"description": "Overrides manifest artifact selection. Defaults to the running async mode."
+						},
+						"manifestBaseUrl": {
+							"type": "string",
+							"description": "Base URL for relative artifact paths in an inline or bundled manifest."
+						},
+						"extensionDir": {
+							"type": "string",
+							"description": "Where to install the extension `.so` and `.ini` files."
+						}
+					},
+					"required": ["source", "step"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
 							"const": "login"
 						},
 						"username": {
@@ -1503,6 +1584,22 @@
 				}
 			},
 			"additionalProperties": false
+		},
+		"PHPExtensionSourceFormat": {
+			"type": "string",
+			"enum": ["so", "manifest"]
+		},
+		"PHPExtensionLoadTiming": {
+			"type": "string",
+			"enum": ["before-php-startup", "after-php-startup", "auto"]
+		},
+		"PHPExtensionIniDirective": {
+			"type": "string",
+			"enum": ["extension", "zend_extension"]
+		},
+		"PHPWasmAsyncMode": {
+			"type": "string",
+			"enum": ["jspi", "asyncify"]
 		},
 		"PHPRequest": {
 			"type": "object",
