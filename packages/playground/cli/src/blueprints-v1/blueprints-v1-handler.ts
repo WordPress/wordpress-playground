@@ -117,11 +117,11 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = undefined;
 		} else {
 			this.cliOutput.updateProgress('Preparing SQLite database');
-			// Use pre-patched v2.2.22 for legacy PHP (closures replaced
+			// Use pre-patched v3.0.0-rc.3 for legacy PHP (closures replaced
 			// with named functions, PHP 5.2 polyfills added offline).
 			const phpVersion = this.args.php || RecommendedPHPVersion;
 			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
-			const sqliteVersion = isLegacyPhp ? 'v2.2.22-php52' : 'trunk';
+			const sqliteVersion = isLegacyPhp ? 'v3.0.0-rc.3-php52' : 'trunk';
 			sqliteIntegrationPluginZip =
 				await fetchSqliteIntegration(sqliteVersion);
 		}

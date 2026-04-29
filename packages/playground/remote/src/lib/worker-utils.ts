@@ -132,6 +132,16 @@ export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
  * See backfillStaticFilesRemovedFromMinifiedBuild for more details.
  */
 export async function getWordPressStaticZipUrl(php: PHP) {
+	// PHP-only mode (Blueprint `preferredVersions.wp: false`): no WP files exist, so
+	// `getLoadedWordPressVersion` would crash trying to require
+	// wp-includes/version.php. There's nothing to backfill — bail out.
+	const versionPhpPath = joinPaths(
+		php.requestHandler!.documentRoot,
+		'wp-includes/version.php'
+	);
+	if (!php.isFile(versionPhpPath)) {
+		return false;
+	}
 	const wpVersion = await getLoadedWordPressVersion(php.requestHandler!);
 	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
 	if (!staticAssetsDirectory) {

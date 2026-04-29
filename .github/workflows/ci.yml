@@ -394,6 +394,33 @@ jobs:
                   node-version: 20
             - run: packages/php-wasm/cli/tests/smoke-test.sh
 
+    test-legacy-wp-version-boot:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browser
+              run: npx playwright install chromium --with-deps
+            - name: Start dev server
+              run: |
+                  npm run dev > /tmp/playground-dev.log 2>&1 &
+                  timeout=120; elapsed=0
+                  until curl -s -o /dev/null http://127.0.0.1:5400/website-server/ 2>/dev/null; do
+                    sleep 3
+                    elapsed=$((elapsed + 3))
+                    if [ $elapsed -ge $timeout ]; then
+                      echo "Dev server failed to start within ${timeout}s"
+                      cat /tmp/playground-dev.log | tail -50
+                      exit 1
+                    fi
+                  done
+            - name: Test legacy WordPress version boot
+              run: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
+
     # Redis extension tests - verifies the php-redis extension loads
     # and provides the expected API, and can connect to a real Redis server.
     # Redis requires JSPI because asyncify cannot properly handle exceptions

@@ -27,6 +27,9 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		const bootWordPress = vi.fn(async (_requestHandler, options) => {
 			await options.hooks.beforeWordPressFiles(php);
 		});
+		const requestHandler = {
+			getPrimaryPhp: vi.fn(async () => php),
+		};
 		let endpoint:
 			| {
 					boot(options: Record<string, unknown>): Promise<void>;
@@ -51,7 +54,9 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
 			'http://playground.test'
 		);
-		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue({});
+		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
+			requestHandler
+		);
 		vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
 			undefined
 		);

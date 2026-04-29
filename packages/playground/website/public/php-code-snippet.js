@@ -24,7 +24,9 @@
  * Attributes:
  *   name="…"              filename label shown in the header
  *   php="8.4"             PHP version (default: 8.4)
- *   wp="latest"           WordPress version (default: latest)
+ *   wp="latest"           WordPress version (default: latest). Use wp="none"
+ *                         to boot PHP without installing WordPress — handy for
+ *                         pure-PHP snippets that don't touch wp-load.php.
  *   src="path/to.php"     load code from a URL instead of inline
  *   editable              make the snippet editable; visitors type into a
  *                         transparent textarea overlaid on the highlighted
@@ -61,7 +63,9 @@ class ProgressTracker extends EventTarget {
 		this._selfDone = false;
 		this._subs = [];
 	}
-	get weight() { return this._weight; }
+	get weight() {
+		return this._weight;
+	}
 	get progress() {
 		if (this._selfDone) return 100;
 		const sum = this._subs.reduce(
@@ -70,7 +74,9 @@ class ProgressTracker extends EventTarget {
 		);
 		return Math.round(sum * 10000) / 10000;
 	}
-	get done() { return this.progress + PROGRESS_EPSILON >= 100; }
+	get done() {
+		return this.progress + PROGRESS_EPSILON >= 100;
+	}
 	get caption() {
 		for (let i = this._subs.length - 1; i >= 0; i--) {
 			if (!this._subs[i].done && this._subs[i].caption) {
@@ -95,7 +101,10 @@ class ProgressTracker extends EventTarget {
 		this._notify();
 		if (this._selfProgress + PROGRESS_EPSILON >= 100) this.finish();
 	}
-	setCaption(c) { this._selfCaption = c; this._notify(); }
+	setCaption(c) {
+		this._selfCaption = c;
+		this._notify();
+	}
 	finish() {
 		if (this._fillInterval) {
 			clearInterval(this._fillInterval);
@@ -119,7 +128,10 @@ class ProgressTracker extends EventTarget {
 		}, 40);
 	}
 	pipe(receiver) {
-		receiver.setProgress({ progress: this.progress, caption: this.caption });
+		receiver.setProgress({
+			progress: this.progress,
+			caption: this.caption,
+		});
 		this.addEventListener('progress', (e) =>
 			receiver.setProgress({
 				progress: e.detail.progress,
@@ -220,6 +232,10 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 		'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;';
 	iframe.src = `${origin}/remote.html`;
 	document.body.appendChild(iframe);
+	// wp="none" maps to the Blueprint's declarative
+	// `preferredVersions.wp: false`, which skips the WordPress download
+	// entirely.
+	const skipWordPress = wp === 'none';
 	const client = await startPlaygroundWeb({
 		iframe,
 		remoteUrl: iframe.src,
@@ -227,7 +243,10 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 		progressTracker: entry.tracker,
 		blueprint: {
 			...(blueprint || {}),
-			preferredVersions: { php, wp },
+			preferredVersions: {
+				php,
+				wp: skipWordPress ? false : wp,
+			},
 		},
 	});
 	await client.isReady;
@@ -301,23 +320,79 @@ function stableStringify(value) {
  * patterns so they match first.
  */
 const PHP_KEYWORDS = new Set([
-	'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch',
-	'class', 'clone', 'const', 'continue', 'declare', 'default', 'do', 'echo',
-	'else', 'elseif', 'empty', 'enddeclare', 'endfor', 'endforeach', 'endif',
-	'endswitch', 'endwhile', 'extends', 'final', 'finally', 'fn', 'for',
-	'foreach', 'function', 'global', 'goto', 'if', 'implements', 'include',
-	'include_once', 'instanceof', 'insteadof', 'interface', 'isset', 'list',
-	'match', 'namespace', 'new', 'null', 'or', 'print', 'private', 'protected',
-	'public', 'readonly', 'require', 'require_once', 'return', 'static',
-	'switch', 'throw', 'trait', 'try', 'unset', 'use', 'var', 'while', 'xor',
-	'yield', 'true', 'false',
+	'abstract',
+	'and',
+	'array',
+	'as',
+	'break',
+	'callable',
+	'case',
+	'catch',
+	'class',
+	'clone',
+	'const',
+	'continue',
+	'declare',
+	'default',
+	'do',
+	'echo',
+	'else',
+	'elseif',
+	'empty',
+	'enddeclare',
+	'endfor',
+	'endforeach',
+	'endif',
+	'endswitch',
+	'endwhile',
+	'extends',
+	'final',
+	'finally',
+	'fn',
+	'for',
+	'foreach',
+	'function',
+	'global',
+	'goto',
+	'if',
+	'implements',
+	'include',
+	'include_once',
+	'instanceof',
+	'insteadof',
+	'interface',
+	'isset',
+	'list',
+	'match',
+	'namespace',
+	'new',
+	'null',
+	'or',
+	'print',
+	'private',
+	'protected',
+	'public',
+	'readonly',
+	'require',
+	'require_once',
+	'return',
+	'static',
+	'switch',
+	'throw',
+	'trait',
+	'try',
+	'unset',
+	'use',
+	'var',
+	'while',
+	'xor',
+	'yield',
+	'true',
+	'false',
 ]);
 
 function escapeHtml(s) {
-	return s
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function dedentLeading(s) {
@@ -352,20 +427,17 @@ function highlightPhp(code) {
 		const rest = code.slice(i);
 		// Heredoc / nowdoc: <<<LABEL ... \nLABEL;  (nowdoc wraps label in '')
 		if (rest.startsWith('<<<')) {
-			const m = rest.match(/^<<<[ \t]*('?)([A-Za-z_][A-Za-z0-9_]*)\1\r?\n/);
+			const m = rest.match(
+				/^<<<[ \t]*('?)([A-Za-z_][A-Za-z0-9_]*)\1\r?\n/
+			);
 			if (m) {
 				const label = m[2];
 				const bodyStart = i + m[0].length;
 				// Closing label may be indented (PHP 7.3+); match at line start.
-				const closer = new RegExp(
-					`(^|\\n)[ \\t]*${label}\\b`,
-					'g'
-				);
+				const closer = new RegExp(`(^|\\n)[ \\t]*${label}\\b`, 'g');
 				closer.lastIndex = bodyStart;
 				const found = closer.exec(code);
-				const stop = found
-					? found.index + found[0].length
-					: len;
+				const stop = found ? found.index + found[0].length : len;
 				tokens.push(['string', code.slice(i, stop)]);
 				i = stop;
 				continue;
@@ -380,10 +452,7 @@ function highlightPhp(code) {
 			continue;
 		}
 		// Line comment ( // or # ).  #[ starts a PHP 8 attribute, not a comment.
-		if (
-			rest.startsWith('//') ||
-			(c === '#' && code[i + 1] !== '[')
-		) {
+		if (rest.startsWith('//') || (c === '#' && code[i + 1] !== '[')) {
 			const end = code.indexOf('\n', i);
 			const stop = end === -1 ? len : end;
 			tokens.push(['comment', code.slice(i, stop)]);

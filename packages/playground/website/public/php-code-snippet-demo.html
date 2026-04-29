@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -6,17 +6,34 @@
 		<title>&lt;php-snippet&gt; demo</title>
 		<style>
 			body {
-				font-family: system-ui, -apple-system, sans-serif;
+				font-family:
+					system-ui,
+					-apple-system,
+					sans-serif;
 				max-width: 880px;
 				margin: 0 auto;
 				padding: 32px 20px 64px;
 				color: #1f2328;
 				line-height: 1.55;
 			}
-			h1 { font-size: 28px; margin: 0 0 8px; }
-			h2 { font-size: 20px; margin: 32px 0 8px; }
-			.lede { color: #57606a; margin: 0 0 24px; }
-			code { background: #eaeef2; padding: 2px 5px; border-radius: 4px; font-size: 0.9em; }
+			h1 {
+				font-size: 28px;
+				margin: 0 0 8px;
+			}
+			h2 {
+				font-size: 20px;
+				margin: 32px 0 8px;
+			}
+			.lede {
+				color: #57606a;
+				margin: 0 0 24px;
+			}
+			code {
+				background: #eaeef2;
+				padding: 2px 5px;
+				border-radius: 4px;
+				font-size: 0.9em;
+			}
 			.note {
 				background: #ddf4ff;
 				border-left: 4px solid #218bff;
@@ -30,81 +47,80 @@
 	<body>
 		<h1>&lt;php-snippet&gt; demo</h1>
 		<p class="lede">
-			Three independent snippets on one page. Click Run on any of
-			them — the PHP &amp; WordPress runtime downloads
+			Three independent snippets on one page. Click Run on any of them —
+			the PHP &amp; WordPress runtime downloads
 			<strong>once</strong> and is shared across all of them.
 		</p>
 
 		<div class="note">
 			Open DevTools → Network and watch: the first Run downloads
-			<code>remote.html</code> + the PHP WASM binary + WordPress.
-			The second and third Runs reuse the same runtime — no extra
-			downloads.
+			<code>remote.html</code> + the PHP WASM binary + WordPress. The
+			second and third Runs reuse the same runtime — no extra downloads.
 		</div>
 
 		<h2>1. Pure PHP</h2>
 		<php-snippet name="hello.php">
 			<script type="application/x-php">
-<?php
-echo "Hello from PHP " . phpversion() . "\n";
-echo "Today is " . date('Y-m-d') . "\n";
-echo str_repeat('-', 30) . "\n";
+				<?php
+				echo "Hello from PHP " . phpversion() . "\n";
+				echo "Today is " . date('Y-m-d') . "\n";
+				echo str_repeat('-', 30) . "\n";
 
-$nums = [1, 2, 3, 4, 5];
-echo "Sum of " . implode(',', $nums) . " = " . array_sum($nums) . "\n";
+				$nums = [1, 2, 3, 4, 5];
+				echo "Sum of " . implode(',', $nums) . " = " . array_sum($nums) . "\n";
 			</script>
 		</php-snippet>
 
 		<h2>2. WordPress HTML API</h2>
 		<php-snippet name="lazy-load-images.php">
 			<script type="application/x-php">
-<?php
-require '/wordpress/wp-load.php';
+				<?php
+				require '/wordpress/wp-load.php';
 
-$html = '<article>
-    <img src="hero.jpg" alt="Hero">
-    <img src="inline.jpg" alt="Inline">
-</article>';
+				$html = '<article>
+				    <img src="hero.jpg" alt="Hero">
+				    <img src="inline.jpg" alt="Inline">
+				</article>';
 
-$tags = new WP_HTML_Tag_Processor( $html );
-while ( $tags->next_tag( 'img' ) ) {
-    $tags->set_attribute( 'loading', 'lazy' );
-    $tags->add_class( 'responsive' );
-}
+				$tags = new WP_HTML_Tag_Processor( $html );
+				while ( $tags->next_tag( 'img' ) ) {
+				    $tags->set_attribute( 'loading', 'lazy' );
+				    $tags->add_class( 'responsive' );
+				}
 
-echo $tags->get_updated_html();
+				echo $tags->get_updated_html();
 			</script>
 		</php-snippet>
 
 		<h2>3. Block parser</h2>
 		<php-snippet name="parse-blocks.php">
 			<script type="application/x-php">
-<?php
-require '/wordpress/wp-load.php';
+				<?php
+				require '/wordpress/wp-load.php';
 
-$post_content = "<!-- wp:paragraph -->
-<p>Hello, <strong>block editor</strong>!</p>
-<!-- /wp:paragraph -->
+				$post_content = "<!-- wp:paragraph -->
+				<p>Hello, <strong>block editor</strong>!</p>
+				<!-- /wp:paragraph -->
 
-<!-- wp:list -->
-<ul><li>One</li><li>Two</li></ul>
-<!-- /wp:list -->";
+				<!-- wp:list -->
+				<ul><li>One</li><li>Two</li></ul>
+				<!-- /wp:list -->";
 
-$blocks = parse_blocks( $post_content );
-foreach ( $blocks as $block ) {
-    if ( ! empty( $block['blockName'] ) ) {
-        echo "- " . $block['blockName'] . "\n";
-    }
-}
+				$blocks = parse_blocks( $post_content );
+				foreach ( $blocks as $block ) {
+				    if ( ! empty( $block['blockName'] ) ) {
+				        echo "- " . $block['blockName'] . "\n";
+				    }
+				}
 			</script>
 		</php-snippet>
 
 		<h2>4. Shared blueprint via JSON script</h2>
-		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
-			Two snippets reference the same blueprint by id, so their
-			runtime is booted once with a pre-installed mu-plugin.
-			Using <code>&lt;script type="application/json"&gt;</code> lets
-			the JSON contain literal <code>&lt;?php</code> without escaping.
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			Two snippets reference the same blueprint by id, so their runtime is
+			booted once with a pre-installed mu-plugin. Using
+			<code>&lt;script type="application/json"&gt;</code> lets the JSON
+			contain literal <code>&lt;?php</code> without escaping.
 		</p>
 
 		<script id="greeter-blueprint" type="application/json">
@@ -121,50 +137,76 @@ foreach ( $blocks as $block ) {
 
 		<php-snippet name="greet-alice.php" blueprint="greeter-blueprint">
 			<script type="application/x-php">
-<?php
-require '/wordpress/wp-load.php';
-echo greeter_say('Alice');
+				<?php
+				require '/wordpress/wp-load.php';
+				echo greeter_say('Alice');
 			</script>
 		</php-snippet>
 
 		<php-snippet name="greet-bob.php" blueprint="greeter-blueprint">
 			<script type="application/x-php">
-<?php
-require '/wordpress/wp-load.php';
-echo greeter_say('Bob');
+				<?php
+				require '/wordpress/wp-load.php';
+				echo greeter_say('Bob');
 			</script>
 		</php-snippet>
 
 		<h2>5. Editable</h2>
-		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
 			Type into the snippet, then click Run.
 		</p>
 		<php-snippet name="scratch.php" editable>
 			<script type="application/x-php">
-<?php
-$nums = range(1, 10);
-echo "Sum: " . array_sum($nums) . "\n";
-echo "Product: " . array_product($nums) . "\n";
+				<?php
+				$nums = range(1, 10);
+				echo "Sum: " . array_sum($nums) . "\n";
+				echo "Product: " . array_product($nums) . "\n";
 			</script>
 		</php-snippet>
 
 		<h2>6. Expected output</h2>
-		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
 			When <code>expected-output</code> is provided (as an attribute or a
-			<code>&lt;script type="text/expected-output"&gt;</code> child),
-			the snippet displays that text before Run is clicked. Clicking Run
-			still loads the Playground runtime and replaces the placeholder with
-			the real output.
+			<code>&lt;script type="text/expected-output"&gt;</code> child), the
+			snippet displays that text before Run is clicked. Clicking Run still
+			loads the Playground runtime and replaces the placeholder with the
+			real output.
 		</p>
 		<php-snippet name="precomputed.php">
 			<script type="application/x-php">
-<?php
-echo "2 + 2 = " . (2 + 2) . "\n";
-echo "WordPress is awesome.";
+				<?php
+				echo "2 + 2 = " . (2 + 2) . "\n";
+				echo "WordPress is awesome.";
 			</script>
 			<script type="text/expected-output">
 				2 + 2 = 4
 				WordPress is awesome.
+			</script>
+		</php-snippet>
+
+		<h2>7. PHP-only (no WordPress)</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			<code>wp="none"</code> boots PHP without downloading or installing
+			WordPress. The PHP runtime still loads, but no
+			<code>wp-*.zip</code> request fires — handy for snippets that
+			showcase plain PHP language features without paying the WP boot
+			cost.
+		</p>
+		<php-snippet name="just-php.php" wp="none">
+			<script type="application/x-php">
+				<?php
+				echo "PHP " . phpversion() . "\n";
+				echo "WordPress installed: " . (file_exists('/wordpress/wp-includes/version.php') ? 'yes' : 'no') . "\n";
+
+				// Pure-PHP feature demo: enums (PHP 8.1+).
+				enum Status: string {
+				    case Draft   = 'draft';
+				    case Pending = 'pending';
+				    case Live    = 'live';
+				}
+				foreach (Status::cases() as $status) {
+				    echo "- {$status->name}: {$status->value}\n";
+				}
 			</script>
 		</php-snippet>
 

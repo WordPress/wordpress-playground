@@ -24,6 +24,7 @@ test.describe('php-code-snippet embed', () => {
 			'greet-bob.php',
 			'scratch.php',
 			'precomputed.php',
+			'just-php.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
@@ -51,9 +52,8 @@ test.describe('php-code-snippet embed', () => {
 				async () =>
 					Number(
 						(
-							(await first
-								.locator('.percent')
-								.textContent()) || '0%'
+							(await first.locator('.percent').textContent()) ||
+							'0%'
 						).replace('%', '')
 					),
 				{ timeout: 120_000, intervals: [500] }
@@ -160,9 +160,7 @@ test.describe('php-code-snippet embed', () => {
 
 		await bob.locator('.run').click();
 		await expect(bob.locator('.output')).toBeVisible({ timeout: 60_000 });
-		await expect(bob.locator('.output-body')).toContainText(
-			'Hello, Bob!'
-		);
+		await expect(bob.locator('.output-body')).toContainText('Hello, Bob!');
 
 		// Both snippets resolved to the same blueprint hash, so only one
 		// runtime iframe exists for this {origin, php, wp, blueprint} key.

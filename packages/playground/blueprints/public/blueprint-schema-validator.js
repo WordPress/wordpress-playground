@@ -61,9 +61,13 @@ const schema11 = {
 								'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 						},
 						wp: {
-							type: 'string',
+							anyOf: [
+								{ type: 'string' },
+								{ type: 'string', const: 'latest' },
+								{ type: 'boolean', const: false },
+							],
 							description:
-								'The preferred WordPress version to use. If not specified, the latest supported version will be used',
+								'The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time.',
 						},
 					},
 					required: ['php', 'wp'],
@@ -1475,9 +1479,13 @@ const schema12 = {
 						'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 				},
 				wp: {
-					type: 'string',
+					anyOf: [
+						{ type: 'string' },
+						{ type: 'string', const: 'latest' },
+						{ type: 'boolean', const: false },
+					],
 					description:
-						'The preferred WordPress version to use. If not specified, the latest supported version will be used',
+						'The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time.',
 				},
 			},
 			required: ['php', 'wp'],
@@ -20583,29 +20591,239 @@ function validate11(
 													if (
 														data8.wp !== undefined
 													) {
+														let data10 = data8.wp;
 														const _errs27 = errors;
+														const _errs28 = errors;
+														let valid5 = false;
+														const _errs29 = errors;
 														if (
-															typeof data8.wp !==
+															typeof data10 !==
 															'string'
 														) {
-															validate11.errors =
-																[
-																	{
-																		instancePath:
-																			instancePath +
-																			'/preferredVersions/wp',
-																		schemaPath:
-																			'#/properties/preferredVersions/properties/wp/type',
-																		keyword:
-																			'type',
-																		params: {
-																			type: 'string',
-																		},
-																		message:
-																			'must be string',
-																	},
+															const err3 = {
+																instancePath:
+																	instancePath +
+																	'/preferredVersions/wp',
+																schemaPath:
+																	'#/properties/preferredVersions/properties/wp/anyOf/0/type',
+																keyword: 'type',
+																params: {
+																	type: 'string',
+																},
+																message:
+																	'must be string',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err3,
 																];
+															} else {
+																vErrors.push(
+																	err3
+																);
+															}
+															errors++;
+														}
+														var _valid1 =
+															_errs29 === errors;
+														valid5 =
+															valid5 || _valid1;
+														if (!valid5) {
+															const _errs31 =
+																errors;
+															if (
+																typeof data10 !==
+																'string'
+															) {
+																const err4 = {
+																	instancePath:
+																		instancePath +
+																		'/preferredVersions/wp',
+																	schemaPath:
+																		'#/properties/preferredVersions/properties/wp/anyOf/1/type',
+																	keyword:
+																		'type',
+																	params: {
+																		type: 'string',
+																	},
+																	message:
+																		'must be string',
+																};
+																if (
+																	vErrors ===
+																	null
+																) {
+																	vErrors = [
+																		err4,
+																	];
+																} else {
+																	vErrors.push(
+																		err4
+																	);
+																}
+																errors++;
+															}
+															if (
+																'latest' !==
+																data10
+															) {
+																const err5 = {
+																	instancePath:
+																		instancePath +
+																		'/preferredVersions/wp',
+																	schemaPath:
+																		'#/properties/preferredVersions/properties/wp/anyOf/1/const',
+																	keyword:
+																		'const',
+																	params: {
+																		allowedValue:
+																			'latest',
+																	},
+																	message:
+																		'must be equal to constant',
+																};
+																if (
+																	vErrors ===
+																	null
+																) {
+																	vErrors = [
+																		err5,
+																	];
+																} else {
+																	vErrors.push(
+																		err5
+																	);
+																}
+																errors++;
+															}
+															var _valid1 =
+																_errs31 ===
+																errors;
+															valid5 =
+																valid5 ||
+																_valid1;
+															if (!valid5) {
+																const _errs33 =
+																	errors;
+																if (
+																	typeof data10 !==
+																	'boolean'
+																) {
+																	const err6 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/preferredVersions/wp',
+																			schemaPath:
+																				'#/properties/preferredVersions/properties/wp/anyOf/2/type',
+																			keyword:
+																				'type',
+																			params: {
+																				type: 'boolean',
+																			},
+																			message:
+																				'must be boolean',
+																		};
+																	if (
+																		vErrors ===
+																		null
+																	) {
+																		vErrors =
+																			[
+																				err6,
+																			];
+																	} else {
+																		vErrors.push(
+																			err6
+																		);
+																	}
+																	errors++;
+																}
+																if (
+																	false !==
+																	data10
+																) {
+																	const err7 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/preferredVersions/wp',
+																			schemaPath:
+																				'#/properties/preferredVersions/properties/wp/anyOf/2/const',
+																			keyword:
+																				'const',
+																			params: {
+																				allowedValue: false,
+																			},
+																			message:
+																				'must be equal to constant',
+																		};
+																	if (
+																		vErrors ===
+																		null
+																	) {
+																		vErrors =
+																			[
+																				err7,
+																			];
+																	} else {
+																		vErrors.push(
+																			err7
+																		);
+																	}
+																	errors++;
+																}
+																var _valid1 =
+																	_errs33 ===
+																	errors;
+																valid5 =
+																	valid5 ||
+																	_valid1;
+															}
+														}
+														if (!valid5) {
+															const err8 = {
+																instancePath:
+																	instancePath +
+																	'/preferredVersions/wp',
+																schemaPath:
+																	'#/properties/preferredVersions/properties/wp/anyOf',
+																keyword:
+																	'anyOf',
+																params: {},
+																message:
+																	'must match a schema in anyOf',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err8,
+																];
+															} else {
+																vErrors.push(
+																	err8
+																);
+															}
+															errors++;
+															validate11.errors =
+																vErrors;
 															return false;
+														} else {
+															errors = _errs28;
+															if (
+																vErrors !== null
+															) {
+																if (_errs28) {
+																	vErrors.length =
+																		_errs28;
+																} else {
+																	vErrors =
+																		null;
+																}
+															}
 														}
 														var valid3 =
 															_errs27 === errors;
@@ -20638,14 +20856,14 @@ function validate11(
 							if (valid0) {
 								if (data.features !== undefined) {
 									let data11 = data.features;
-									const _errs29 = errors;
-									if (errors === _errs29) {
+									const _errs35 = errors;
+									if (errors === _errs35) {
 										if (
 											data11 &&
 											typeof data11 == 'object' &&
 											!Array.isArray(data11)
 										) {
-											const _errs31 = errors;
+											const _errs37 = errors;
 											for (const key3 in data11) {
 												if (
 													!(
@@ -20674,9 +20892,9 @@ function validate11(
 													break;
 												}
 											}
-											if (_errs31 === errors) {
+											if (_errs37 === errors) {
 												if (data11.intl !== undefined) {
-													const _errs32 = errors;
+													const _errs38 = errors;
 													if (
 														typeof data11.intl !==
 														'boolean'
@@ -20698,17 +20916,17 @@ function validate11(
 														];
 														return false;
 													}
-													var valid5 =
-														_errs32 === errors;
+													var valid6 =
+														_errs38 === errors;
 												} else {
-													var valid5 = true;
+													var valid6 = true;
 												}
-												if (valid5) {
+												if (valid6) {
 													if (
 														data11.networking !==
 														undefined
 													) {
-														const _errs34 = errors;
+														const _errs40 = errors;
 														if (
 															typeof data11.networking !==
 															'boolean'
@@ -20732,10 +20950,10 @@ function validate11(
 																];
 															return false;
 														}
-														var valid5 =
-															_errs34 === errors;
+														var valid6 =
+															_errs40 === errors;
 													} else {
-														var valid5 = true;
+														var valid6 = true;
 													}
 												}
 											}
@@ -20755,17 +20973,17 @@ function validate11(
 											return false;
 										}
 									}
-									var valid0 = _errs29 === errors;
+									var valid0 = _errs35 === errors;
 								} else {
 									var valid0 = true;
 								}
 								if (valid0) {
 									if (data.extraLibraries !== undefined) {
 										let data14 = data.extraLibraries;
-										const _errs36 = errors;
-										if (errors === _errs36) {
+										const _errs42 = errors;
+										if (errors === _errs42) {
 											if (Array.isArray(data14)) {
-												var valid6 = true;
+												var valid7 = true;
 												const len1 = data14.length;
 												for (
 													let i1 = 0;
@@ -20773,7 +20991,7 @@ function validate11(
 													i1++
 												) {
 													let data15 = data14[i1];
-													const _errs38 = errors;
+													const _errs44 = errors;
 													if (
 														typeof data15 !==
 														'string'
@@ -20817,9 +21035,9 @@ function validate11(
 														];
 														return false;
 													}
-													var valid6 =
-														_errs38 === errors;
-													if (!valid6) {
+													var valid7 =
+														_errs44 === errors;
+													if (!valid7) {
 														break;
 													}
 												}
@@ -20842,16 +21060,16 @@ function validate11(
 												return false;
 											}
 										}
-										var valid0 = _errs36 === errors;
+										var valid0 = _errs42 === errors;
 									} else {
 										var valid0 = true;
 									}
 									if (valid0) {
 										if (data.constants !== undefined) {
 											let data16 = data.constants;
-											const _errs41 = errors;
-											const _errs42 = errors;
-											if (errors === _errs42) {
+											const _errs47 = errors;
+											const _errs48 = errors;
+											if (errors === _errs48) {
 												if (
 													data16 &&
 													typeof data16 == 'object' &&
@@ -20860,7 +21078,7 @@ function validate11(
 													for (const key4 in data16) {
 														let data17 =
 															data16[key4];
-														const _errs45 = errors;
+														const _errs51 = errors;
 														if (
 															typeof data17 !==
 																'string' &&
@@ -20902,9 +21120,9 @@ function validate11(
 																];
 															return false;
 														}
-														var valid9 =
-															_errs45 === errors;
-														if (!valid9) {
+														var valid10 =
+															_errs51 === errors;
+														if (!valid10) {
 															break;
 														}
 													}
@@ -20927,17 +21145,17 @@ function validate11(
 													return false;
 												}
 											}
-											var valid0 = _errs41 === errors;
+											var valid0 = _errs47 === errors;
 										} else {
 											var valid0 = true;
 										}
 										if (valid0) {
 											if (data.plugins !== undefined) {
 												let data18 = data.plugins;
-												const _errs47 = errors;
-												if (errors === _errs47) {
+												const _errs53 = errors;
+												if (errors === _errs53) {
 													if (Array.isArray(data18)) {
-														var valid10 = true;
+														var valid11 = true;
 														const len2 =
 															data18.length;
 														for (
@@ -20947,18 +21165,18 @@ function validate11(
 														) {
 															let data19 =
 																data18[i2];
-															const _errs49 =
+															const _errs55 =
 																errors;
-															const _errs50 =
+															const _errs56 =
 																errors;
-															let valid11 = false;
-															const _errs51 =
+															let valid12 = false;
+															const _errs57 =
 																errors;
 															if (
 																typeof data19 !==
 																'string'
 															) {
-																const err3 = {
+																const err9 = {
 																	instancePath:
 																		instancePath +
 																		'/plugins/' +
@@ -20978,23 +21196,23 @@ function validate11(
 																	null
 																) {
 																	vErrors = [
-																		err3,
+																		err9,
 																	];
 																} else {
 																	vErrors.push(
-																		err3
+																		err9
 																	);
 																}
 																errors++;
 															}
-															var _valid1 =
-																_errs51 ===
+															var _valid2 =
+																_errs57 ===
 																errors;
-															valid11 =
-																valid11 ||
-																_valid1;
-															if (!valid11) {
-																const _errs53 =
+															valid12 =
+																valid12 ||
+																_valid2;
+															if (!valid12) {
+																const _errs59 =
 																	errors;
 																if (
 																	!validate16(
@@ -21022,15 +21240,15 @@ function validate11(
 																	errors =
 																		vErrors.length;
 																}
-																var _valid1 =
-																	_errs53 ===
+																var _valid2 =
+																	_errs59 ===
 																	errors;
-																valid11 =
-																	valid11 ||
-																	_valid1;
+																valid12 =
+																	valid12 ||
+																	_valid2;
 															}
-															if (!valid11) {
-																const err4 = {
+															if (!valid12) {
+																const err10 = {
 																	instancePath:
 																		instancePath +
 																		'/plugins/' +
@@ -21048,11 +21266,11 @@ function validate11(
 																	null
 																) {
 																	vErrors = [
-																		err4,
+																		err10,
 																	];
 																} else {
 																	vErrors.push(
-																		err4
+																		err10
 																	);
 																}
 																errors++;
@@ -21061,26 +21279,26 @@ function validate11(
 																return false;
 															} else {
 																errors =
-																	_errs50;
+																	_errs56;
 																if (
 																	vErrors !==
 																	null
 																) {
 																	if (
-																		_errs50
+																		_errs56
 																	) {
 																		vErrors.length =
-																			_errs50;
+																			_errs56;
 																	} else {
 																		vErrors =
 																			null;
 																	}
 																}
 															}
-															var valid10 =
-																_errs49 ===
+															var valid11 =
+																_errs55 ===
 																errors;
-															if (!valid10) {
+															if (!valid11) {
 																break;
 															}
 														}
@@ -21103,7 +21321,7 @@ function validate11(
 														return false;
 													}
 												}
-												var valid0 = _errs47 === errors;
+												var valid0 = _errs53 === errors;
 											} else {
 												var valid0 = true;
 											}
@@ -21114,8 +21332,8 @@ function validate11(
 												) {
 													let data20 =
 														data.siteOptions;
-													const _errs54 = errors;
-													if (errors === _errs54) {
+													const _errs60 = errors;
+													if (errors === _errs60) {
 														if (
 															data20 &&
 															typeof data20 ==
@@ -21124,7 +21342,7 @@ function validate11(
 																data20
 															)
 														) {
-															const _errs56 =
+															const _errs62 =
 																errors;
 															for (const key5 in data20) {
 																if (
@@ -21133,7 +21351,7 @@ function validate11(
 																		'blogname'
 																	)
 																) {
-																	const _errs57 =
+																	const _errs63 =
 																		errors;
 																	if (
 																		typeof data20[
@@ -21169,18 +21387,18 @@ function validate11(
 																			];
 																		return false;
 																	}
-																	var valid12 =
-																		_errs57 ===
+																	var valid13 =
+																		_errs63 ===
 																		errors;
 																	if (
-																		!valid12
+																		!valid13
 																	) {
 																		break;
 																	}
 																}
 															}
 															if (
-																_errs56 ===
+																_errs62 ===
 																errors
 															) {
 																if (
@@ -21234,7 +21452,7 @@ function validate11(
 														}
 													}
 													var valid0 =
-														_errs54 === errors;
+														_errs60 === errors;
 												} else {
 													var valid0 = true;
 												}
@@ -21243,15 +21461,15 @@ function validate11(
 														data.login !== undefined
 													) {
 														let data23 = data.login;
-														const _errs61 = errors;
-														const _errs62 = errors;
-														let valid14 = false;
-														const _errs63 = errors;
+														const _errs67 = errors;
+														const _errs68 = errors;
+														let valid15 = false;
+														const _errs69 = errors;
 														if (
 															typeof data23 !==
 															'boolean'
 														) {
-															const err5 = {
+															const err11 = {
 																instancePath:
 																	instancePath +
 																	'/login',
@@ -21268,25 +21486,25 @@ function validate11(
 																vErrors === null
 															) {
 																vErrors = [
-																	err5,
+																	err11,
 																];
 															} else {
 																vErrors.push(
-																	err5
+																	err11
 																);
 															}
 															errors++;
 														}
-														var _valid2 =
-															_errs63 === errors;
-														valid14 =
-															valid14 || _valid2;
-														if (!valid14) {
-															const _errs65 =
+														var _valid3 =
+															_errs69 === errors;
+														valid15 =
+															valid15 || _valid3;
+														if (!valid15) {
+															const _errs71 =
 																errors;
 															if (
 																errors ===
-																_errs65
+																_errs71
 															) {
 																if (
 																	data23 &&
@@ -21307,7 +21525,7 @@ function validate11(
 																			(missing2 =
 																				'password'))
 																	) {
-																		const err6 =
+																		const err12 =
 																			{
 																				instancePath:
 																					instancePath +
@@ -21331,16 +21549,16 @@ function validate11(
 																		) {
 																			vErrors =
 																				[
-																					err6,
+																					err12,
 																				];
 																		} else {
 																			vErrors.push(
-																				err6
+																				err12
 																			);
 																		}
 																		errors++;
 																	} else {
-																		const _errs67 =
+																		const _errs73 =
 																			errors;
 																		for (const key6 in data23) {
 																			if (
@@ -21351,7 +21569,7 @@ function validate11(
 																						'password'
 																				)
 																			) {
-																				const err7 =
+																				const err13 =
 																					{
 																						instancePath:
 																							instancePath +
@@ -21373,11 +21591,11 @@ function validate11(
 																				) {
 																					vErrors =
 																						[
-																							err7,
+																							err13,
 																						];
 																				} else {
 																					vErrors.push(
-																						err7
+																						err13
 																					);
 																				}
 																				errors++;
@@ -21385,20 +21603,20 @@ function validate11(
 																			}
 																		}
 																		if (
-																			_errs67 ===
+																			_errs73 ===
 																			errors
 																		) {
 																			if (
 																				data23.username !==
 																				undefined
 																			) {
-																				const _errs68 =
+																				const _errs74 =
 																					errors;
 																				if (
 																					typeof data23.username !==
 																					'string'
 																				) {
-																					const err8 =
+																					const err14 =
 																						{
 																							instancePath:
 																								instancePath +
@@ -21419,35 +21637,35 @@ function validate11(
 																					) {
 																						vErrors =
 																							[
-																								err8,
+																								err14,
 																							];
 																					} else {
 																						vErrors.push(
-																							err8
+																							err14
 																						);
 																					}
 																					errors++;
 																				}
-																				var valid15 =
-																					_errs68 ===
+																				var valid16 =
+																					_errs74 ===
 																					errors;
 																			} else {
-																				var valid15 = true;
+																				var valid16 = true;
 																			}
 																			if (
-																				valid15
+																				valid16
 																			) {
 																				if (
 																					data23.password !==
 																					undefined
 																				) {
-																					const _errs70 =
+																					const _errs76 =
 																						errors;
 																					if (
 																						typeof data23.password !==
 																						'string'
 																					) {
-																						const err9 =
+																						const err15 =
 																							{
 																								instancePath:
 																									instancePath +
@@ -21468,26 +21686,26 @@ function validate11(
 																						) {
 																							vErrors =
 																								[
-																									err9,
+																									err15,
 																								];
 																						} else {
 																							vErrors.push(
-																								err9
+																								err15
 																							);
 																						}
 																						errors++;
 																					}
-																					var valid15 =
-																						_errs70 ===
+																					var valid16 =
+																						_errs76 ===
 																						errors;
 																				} else {
-																					var valid15 = true;
+																					var valid16 = true;
 																				}
 																			}
 																		}
 																	}
 																} else {
-																	const err10 =
+																	const err16 =
 																		{
 																			instancePath:
 																				instancePath +
@@ -21508,25 +21726,25 @@ function validate11(
 																	) {
 																		vErrors =
 																			[
-																				err10,
+																				err16,
 																			];
 																	} else {
 																		vErrors.push(
-																			err10
+																			err16
 																		);
 																	}
 																	errors++;
 																}
 															}
-															var _valid2 =
-																_errs65 ===
+															var _valid3 =
+																_errs71 ===
 																errors;
-															valid14 =
-																valid14 ||
-																_valid2;
+															valid15 =
+																valid15 ||
+																_valid3;
 														}
-														if (!valid14) {
-															const err11 = {
+														if (!valid15) {
+															const err17 = {
 																instancePath:
 																	instancePath +
 																	'/login',
@@ -21542,11 +21760,11 @@ function validate11(
 																vErrors === null
 															) {
 																vErrors = [
-																	err11,
+																	err17,
 																];
 															} else {
 																vErrors.push(
-																	err11
+																	err17
 																);
 															}
 															errors++;
@@ -21554,13 +21772,13 @@ function validate11(
 																vErrors;
 															return false;
 														} else {
-															errors = _errs62;
+															errors = _errs68;
 															if (
 																vErrors !== null
 															) {
-																if (_errs62) {
+																if (_errs68) {
 																	vErrors.length =
-																		_errs62;
+																		_errs68;
 																} else {
 																	vErrors =
 																		null;
@@ -21568,7 +21786,7 @@ function validate11(
 															}
 														}
 														var valid0 =
-															_errs61 === errors;
+															_errs67 === errors;
 													} else {
 														var valid0 = true;
 													}
@@ -21579,18 +21797,18 @@ function validate11(
 														) {
 															let data26 =
 																data.steps;
-															const _errs72 =
+															const _errs78 =
 																errors;
 															if (
 																errors ===
-																_errs72
+																_errs78
 															) {
 																if (
 																	Array.isArray(
 																		data26
 																	)
 																) {
-																	var valid16 = true;
+																	var valid17 = true;
 																	const len3 =
 																		data26.length;
 																	for (
@@ -21603,12 +21821,12 @@ function validate11(
 																			data26[
 																				i3
 																			];
-																		const _errs74 =
+																		const _errs80 =
 																			errors;
-																		const _errs75 =
+																		const _errs81 =
 																			errors;
-																		let valid17 = false;
-																		const _errs76 =
+																		let valid18 = false;
+																		const _errs82 =
 																			errors;
 																		if (
 																			!validate28(
@@ -21636,22 +21854,22 @@ function validate11(
 																			errors =
 																				vErrors.length;
 																		}
-																		var _valid3 =
-																			_errs76 ===
+																		var _valid4 =
+																			_errs82 ===
 																			errors;
-																		valid17 =
-																			valid17 ||
-																			_valid3;
+																		valid18 =
+																			valid18 ||
+																			_valid4;
 																		if (
-																			!valid17
+																			!valid18
 																		) {
-																			const _errs77 =
+																			const _errs83 =
 																				errors;
 																			if (
 																				typeof data27 !==
 																				'string'
 																			) {
-																				const err12 =
+																				const err18 =
 																					{
 																						instancePath:
 																							instancePath +
@@ -21673,27 +21891,27 @@ function validate11(
 																				) {
 																					vErrors =
 																						[
-																							err12,
+																							err18,
 																						];
 																				} else {
 																					vErrors.push(
-																						err12
+																						err18
 																					);
 																				}
 																				errors++;
 																			}
-																			var _valid3 =
-																				_errs77 ===
+																			var _valid4 =
+																				_errs83 ===
 																				errors;
-																			valid17 =
-																				valid17 ||
-																				_valid3;
+																			valid18 =
+																				valid18 ||
+																				_valid4;
 																			if (
-																				!valid17
+																				!valid18
 																			) {
-																				const _errs79 =
+																				const _errs85 =
 																					errors;
-																				const err13 =
+																				const err19 =
 																					{
 																						instancePath:
 																							instancePath +
@@ -21713,30 +21931,30 @@ function validate11(
 																				) {
 																					vErrors =
 																						[
-																							err13,
+																							err19,
 																						];
 																				} else {
 																					vErrors.push(
-																						err13
+																						err19
 																					);
 																				}
 																				errors++;
-																				var _valid3 =
-																					_errs79 ===
+																				var _valid4 =
+																					_errs85 ===
 																					errors;
-																				valid17 =
-																					valid17 ||
-																					_valid3;
+																				valid18 =
+																					valid18 ||
+																					_valid4;
 																				if (
-																					!valid17
+																					!valid18
 																				) {
-																					const _errs81 =
+																					const _errs87 =
 																						errors;
 																					if (
 																						typeof data27 !==
 																						'boolean'
 																					) {
-																						const err14 =
+																						const err20 =
 																							{
 																								instancePath:
 																									instancePath +
@@ -21758,11 +21976,11 @@ function validate11(
 																						) {
 																							vErrors =
 																								[
-																									err14,
+																									err20,
 																								];
 																						} else {
 																							vErrors.push(
-																								err14
+																								err20
 																							);
 																						}
 																						errors++;
@@ -21771,7 +21989,7 @@ function validate11(
 																						false !==
 																						data27
 																					) {
-																						const err15 =
+																						const err21 =
 																							{
 																								instancePath:
 																									instancePath +
@@ -21793,31 +22011,31 @@ function validate11(
 																						) {
 																							vErrors =
 																								[
-																									err15,
+																									err21,
 																								];
 																						} else {
 																							vErrors.push(
-																								err15
+																								err21
 																							);
 																						}
 																						errors++;
 																					}
-																					var _valid3 =
-																						_errs81 ===
+																					var _valid4 =
+																						_errs87 ===
 																						errors;
-																					valid17 =
-																						valid17 ||
-																						_valid3;
+																					valid18 =
+																						valid18 ||
+																						_valid4;
 																					if (
-																						!valid17
+																						!valid18
 																					) {
-																						const _errs83 =
+																						const _errs89 =
 																							errors;
 																						if (
 																							data27 !==
 																							null
 																						) {
-																							const err16 =
+																							const err22 =
 																								{
 																									instancePath:
 																										instancePath +
@@ -21839,29 +22057,29 @@ function validate11(
 																							) {
 																								vErrors =
 																									[
-																										err16,
+																										err22,
 																									];
 																							} else {
 																								vErrors.push(
-																									err16
+																									err22
 																								);
 																							}
 																							errors++;
 																						}
-																						var _valid3 =
-																							_errs83 ===
+																						var _valid4 =
+																							_errs89 ===
 																							errors;
-																						valid17 =
-																							valid17 ||
-																							_valid3;
+																						valid18 =
+																							valid18 ||
+																							_valid4;
 																					}
 																				}
 																			}
 																		}
 																		if (
-																			!valid17
+																			!valid18
 																		) {
-																			const err17 =
+																			const err23 =
 																				{
 																					instancePath:
 																						instancePath +
@@ -21881,11 +22099,11 @@ function validate11(
 																			) {
 																				vErrors =
 																					[
-																						err17,
+																						err23,
 																					];
 																			} else {
 																				vErrors.push(
-																					err17
+																					err23
 																				);
 																			}
 																			errors++;
@@ -21894,27 +22112,27 @@ function validate11(
 																			return false;
 																		} else {
 																			errors =
-																				_errs75;
+																				_errs81;
 																			if (
 																				vErrors !==
 																				null
 																			) {
 																				if (
-																					_errs75
+																					_errs81
 																				) {
 																					vErrors.length =
-																						_errs75;
+																						_errs81;
 																				} else {
 																					vErrors =
 																						null;
 																				}
 																			}
 																		}
-																		var valid16 =
-																			_errs74 ===
+																		var valid17 =
+																			_errs80 ===
 																			errors;
 																		if (
-																			!valid16
+																			!valid17
 																		) {
 																			break;
 																		}
@@ -21941,7 +22159,7 @@ function validate11(
 																}
 															}
 															var valid0 =
-																_errs72 ===
+																_errs78 ===
 																errors;
 														} else {
 															var valid0 = true;
@@ -21951,7 +22169,7 @@ function validate11(
 																data.$schema !==
 																undefined
 															) {
-																const _errs85 =
+																const _errs91 =
 																	errors;
 																if (
 																	typeof data.$schema !==
@@ -21977,7 +22195,7 @@ function validate11(
 																	return false;
 																}
 																var valid0 =
-																	_errs85 ===
+																	_errs91 ===
 																	errors;
 															} else {
 																var valid0 = true;
