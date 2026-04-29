@@ -147,6 +147,15 @@ export function bootSiteClient(
 			blueprint = site.metadata.originalBlueprint;
 		}
 
+		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
+		// declares it doesn't want WordPress, so honor that even if the
+		// storage layer thinks WP isn't installed yet — passing `true` here
+		// would conflict with the Blueprint and the handler would throw.
+		const blueprintRequestedNoWordPress =
+			!!blueprint &&
+			!isBlueprintBundle(blueprint) &&
+			blueprint.preferredVersions?.wp === false;
+
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
 			await startPlaygroundWeb({
@@ -175,17 +184,9 @@ export function bootSiteClient(
 							},
 						]
 					: [],
-				// PHP-only mode: a Blueprint with `preferredVersions.wp:
-				// false` declares it doesn't want WordPress, so honor that
-				// even if the storage layer thinks WP isn't installed yet
-				// — passing `true` here would conflict with the Blueprint
-				// and the handler would throw.
-				shouldInstallWordPress:
-					blueprint &&
-					!isBlueprintBundle(blueprint) &&
-					blueprint.preferredVersions?.wp === false
-						? false
-						: !isWordPressInstalled,
+				shouldInstallWordPress: blueprintRequestedNoWordPress
+					? false
+					: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 				pathAliases: [
