@@ -96,6 +96,28 @@ export type {
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
+export {
+	buildPHPExtensionInstallPlan,
+	installPHPExtensionFiles,
+	installPHPExtensionFilesSync,
+	loadPHPExtension,
+	PHP_EXTENSION_PRELOAD_DIR,
+	PHP_EXTENSIONS_DIR,
+} from './load-extension';
+export type {
+	InstallPHPExtensionFilesOptions,
+	LoadedPHPExtension,
+	LoadPHPExtensionOptions,
+	PHPExtensionExtraFiles,
+	PHPExtensionIniDirective,
+	PHPExtensionInstallPlan,
+	PHPExtensionLoadTiming,
+	PHPExtensionManifest,
+	PHPExtensionManifestArtifact,
+	PHPExtensionSource,
+	PHPExtensionSourceFormat,
+	PHPWasmAsyncMode,
+} from './load-extension';
 
 export {
 	DEFAULT_BASE_URL,
