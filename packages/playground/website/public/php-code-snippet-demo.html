@@ -165,22 +165,48 @@
 		</php-snippet>
 
 		<h2>6. Expected output</h2>
-		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px;">
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
 			When <code>expected-output</code> is provided (as an attribute or a
-			<code>&lt;script type="text/expected-output"&gt;</code> child),
-			the snippet displays that text before Run is clicked. Clicking Run
-			still loads the Playground runtime and replaces the placeholder with
-			the real output.
+			<code>&lt;script type="text/expected-output"&gt;</code> child), the
+			snippet displays that text before Run is clicked. Clicking Run still
+			loads the Playground runtime and replaces the placeholder with the
+			real output.
 		</p>
 		<php-snippet name="precomputed.php">
 			<script type="application/x-php">
-<?php
-echo "2 + 2 = " . (2 + 2) . "\n";
-echo "WordPress is awesome.";
+				<?php
+				echo "2 + 2 = " . (2 + 2) . "\n";
+				echo "WordPress is awesome.";
 			</script>
 			<script type="text/expected-output">
 				2 + 2 = 4
 				WordPress is awesome.
+			</script>
+		</php-snippet>
+
+		<h2>7. PHP-only (no WordPress)</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			<code>wp="none"</code> boots PHP without downloading or installing
+			WordPress. The PHP runtime still loads, but no
+			<code>wp-*.zip</code> request fires — handy for snippets that
+			showcase plain PHP language features without paying the WP boot
+			cost.
+		</p>
+		<php-snippet name="just-php.php" wp="none">
+			<script type="application/x-php">
+				<?php
+				echo "PHP " . phpversion() . "\n";
+				echo "WordPress installed: " . (file_exists('/wordpress/wp-includes/version.php') ? 'yes' : 'no') . "\n";
+
+				// Pure-PHP feature demo: enums (PHP 8.1+).
+				enum Status: string {
+				    case Draft   = 'draft';
+				    case Pending = 'pending';
+				    case Live    = 'live';
+				}
+				foreach (Status::cases() as $status) {
+				    echo "- {$status->name}: {$status->value}\n";
+				}
 			</script>
 		</php-snippet>
 

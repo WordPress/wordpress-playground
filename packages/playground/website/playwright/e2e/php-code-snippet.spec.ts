@@ -24,6 +24,7 @@ test.describe('php-code-snippet embed', () => {
 			'greet-bob.php',
 			'scratch.php',
 			'precomputed.php',
+			'just-php.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
