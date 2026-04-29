@@ -1,6 +1,7 @@
 import { dirname, joinPaths } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
+import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
 import { PHP, PHP_INI_PATH } from './php';
 import type { UniversalPHP } from './universal-php';
 import type { FileTree } from './write-files';
@@ -80,6 +81,14 @@ export interface LoadPHPExtensionOptions {
 	fetch?: typeof fetch;
 }
 
+export type ResolvePHPExtensionInstallPlanOptions = Omit<
+	LoadPHPExtensionOptions,
+	'phpVersion' | 'asyncMode'
+> & {
+	phpVersion: string;
+	asyncMode: PHPWasmAsyncMode;
+};
+
 export interface InstallPHPExtensionFilesOptions {
 	name: string;
 	soBytes: Uint8Array | ArrayBuffer;
@@ -114,6 +123,17 @@ export interface LoadedPHPExtension {
 	artifact?: PHPExtensionManifestArtifact;
 }
 
+export interface ResolvedPHPExtensionInstallPlan {
+	plan: PHPExtensionInstallPlan;
+	manifest?: PHPExtensionManifest;
+	artifact?: PHPExtensionManifestArtifact;
+}
+
+export interface PHPExtensionRuntimeInstall {
+	plan: PHPExtensionInstallPlan;
+	onInstalled?: (phpRuntime: PHPRuntime) => void;
+}
+
 interface ResolvedPHPExtensionSource {
 	name: string;
 	soBytes: Uint8Array;
@@ -125,8 +145,44 @@ export async function loadPHPExtension(
 	php: UniversalPHP,
 	options: LoadPHPExtensionOptions
 ): Promise<LoadedPHPExtension> {
-	const fetchFn = options.fetch ?? globalThis.fetch;
-	const resolved = await resolvePHPExtensionSource(php, options, fetchFn);
+	const phpVersion = options.phpVersion ?? getPHPVersionFromRuntime(php);
+	const asyncMode = options.asyncMode ?? getAsyncModeFromRuntime(php);
+	if (!phpVersion) {
+		throw new Error(
+			'Could not determine the PHP version for this runtime. Pass phpVersion explicitly.'
+		);
+	}
+	if (!asyncMode) {
+		throw new Error(
+			'Could not determine the PHP.wasm async mode for this runtime. Pass asyncMode explicitly.'
+		);
+	}
+
+	const resolved = await resolvePHPExtensionInstallPlan({
+		...options,
+		phpVersion,
+		asyncMode,
+	});
+
+	await installPHPExtensionFiles(php, resolved.plan);
+
+	return {
+		name: resolved.plan.name,
+		path: resolved.plan.soPath,
+		iniPath: resolved.plan.iniPath,
+		preloadPath: resolved.plan.preloadPath,
+		manifest: resolved.manifest,
+		artifact: resolved.artifact,
+	};
+}
+
+export async function resolvePHPExtensionInstallPlan(
+	options: ResolvePHPExtensionInstallPlanOptions
+): Promise<ResolvedPHPExtensionInstallPlan> {
+	const resolved = await resolvePHPExtensionSource(
+		options,
+		options.fetch ?? globalThis.fetch
+	);
 	const plan = buildPHPExtensionInstallPlan({
 		name: options.name ?? resolved.name,
 		soBytes: resolved.soBytes,
@@ -138,15 +194,45 @@ export async function loadPHPExtension(
 		extensionDir: options.extensionDir,
 	});
 
-	await installPHPExtensionFiles(php, plan);
-
 	return {
-		name: plan.name,
-		path: plan.soPath,
-		iniPath: plan.iniPath,
-		preloadPath: plan.preloadPath,
+		plan,
 		manifest: resolved.manifest,
 		artifact: resolved.artifact,
+	};
+}
+
+export function appendPHPExtensionInstallPlans(
+	options: EmscriptenOptions,
+	extensions: PHPExtensionRuntimeInstall[]
+): EmscriptenOptions {
+	if (!extensions.length) {
+		return options;
+	}
+
+	const env = {
+		...options.ENV,
+	};
+
+	for (const { plan } of extensions) {
+		Object.assign(env, plan.env);
+		if (plan.loadTiming === 'before-php-startup') {
+			env['PHP_INI_SCAN_DIR'] = appendPathEnv(
+				env['PHP_INI_SCAN_DIR'],
+				plan.extensionDir
+			);
+		}
+	}
+
+	return {
+		...options,
+		ENV: env,
+		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
+			options.onRuntimeInitialized?.(phpRuntime);
+			for (const { plan, onInstalled } of extensions) {
+				installPHPExtensionFilesSync(phpRuntime.FS, plan);
+				onInstalled?.(phpRuntime);
+			}
+		},
 	};
 }
 
@@ -264,8 +350,7 @@ export function installPHPExtensionFilesSync(
 }
 
 async function resolvePHPExtensionSource(
-	php: UniversalPHP,
-	options: LoadPHPExtensionOptions,
+	options: ResolvePHPExtensionInstallPlanOptions,
 	fetchFn: typeof fetch | undefined
 ): Promise<ResolvedPHPExtensionSource> {
 	const source = options.source;
@@ -307,28 +392,14 @@ async function resolvePHPExtensionSource(
 		'baseUrl' in source && source.baseUrl
 			? new URL(String(source.baseUrl))
 			: manifestUrl;
-	const phpVersion = options.phpVersion ?? getPHPVersionFromRuntime(php);
-	const asyncMode = options.asyncMode ?? getAsyncModeFromRuntime(php);
-
-	if (!phpVersion) {
-		throw new Error(
-			'Could not determine the PHP version for this runtime. Pass phpVersion explicitly.'
-		);
-	}
-	if (!asyncMode) {
-		throw new Error(
-			'Could not determine the PHP.wasm async mode for this runtime. Pass asyncMode explicitly.'
-		);
-	}
-
 	const artifact = manifest.artifacts.find(
 		(candidate) =>
-			candidate.phpVersion === phpVersion &&
-			candidate.asyncMode === asyncMode
+			candidate.phpVersion === options.phpVersion &&
+			candidate.asyncMode === options.asyncMode
 	);
 	if (!artifact) {
 		throw new Error(
-			`No extension artifact found for PHP ${phpVersion} ${asyncMode}.`
+			`No extension artifact found for PHP ${options.phpVersion} ${options.asyncMode}.`
 		);
 	}
 	if (!baseUrl) {

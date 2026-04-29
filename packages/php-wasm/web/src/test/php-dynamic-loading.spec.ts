@@ -47,7 +47,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -70,7 +70,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				async (options) => {
 					const recreateRuntime = async () =>
 						await window.loadWebRuntime(options.phpVersion as any, {
-							withIntl: true,
+							extensions: ['intl'],
 						});
 					const php = new window.PHP(await recreateRuntime());
 					let recreations = 1;
@@ -124,7 +124,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 									await window.loadWebRuntime(
 										options.phpVersion as any,
 										{
-											withIntl: true,
+											extensions: ['intl'],
 										}
 									)
 								),
@@ -171,7 +171,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -195,7 +195,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -217,12 +217,12 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const oldPhp = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 				const newPhp = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -259,7 +259,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -284,7 +284,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 

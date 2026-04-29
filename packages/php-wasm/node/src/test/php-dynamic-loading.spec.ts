@@ -1,4 +1,4 @@
-import { loadNodeRuntime } from '..';
+import { loadNodeRuntime, type PHPLoaderExtension } from '..';
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	PHP,
@@ -29,10 +29,11 @@ const bundledLifecycleExtensionNames = [
 ];
 
 const bundledLifecycleLoaderOptions = {
-	withXdebug: true,
-	withIntl: true,
-	withRedis: isJspiAvailable,
-	withMemcached: isJspiAvailable,
+	extensions: [
+		'xdebug',
+		'intl',
+		...(isJspiAvailable ? (['redis', 'memcached'] as const) : []),
+	] satisfies PHPLoaderExtension[],
 };
 
 describe(`Bundled extension lifecycle - PHP ${lifecyclePHPVersion}`, () => {
@@ -74,7 +75,11 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 			php = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withXdebug: options,
+					extensions: [
+						typeof options === 'object'
+							? { name: 'xdebug', options }
+							: 'xdebug',
+					],
 				})
 			);
 		});
@@ -237,7 +242,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withIntl: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: ['intl'],
+				})
 			);
 		});
 
@@ -336,7 +343,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('reads the icu data in PROXYFS', async () => {
 			const newPhp = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withIntl: true,
+					extensions: ['intl'],
 				})
 			);
 
@@ -404,7 +411,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				return;
 			}
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withRedis: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: ['redis'],
+				})
 			);
 		});
 
@@ -477,7 +486,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 			php = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withMemcached: true,
+					extensions: ['memcached'],
 				})
 			);
 		});

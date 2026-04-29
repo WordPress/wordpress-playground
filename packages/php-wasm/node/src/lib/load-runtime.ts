@@ -19,21 +19,15 @@ import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
 import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
 import {
-	withXdebug,
-	type XdebugOptions,
-} from './extensions/xdebug/with-xdebug';
-import { withIntl } from './extensions/intl/with-intl';
-import { withRedis } from './extensions/redis/with-redis';
-import { withMemcached } from './extensions/memcached/with-memcached';
+	applyPHPLoaderExtensions,
+	type PHPLoaderExtension,
+} from './extensions/load-extensions';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
-	withXdebug?: boolean | XdebugOptions;
-	withIntl?: boolean;
-	withRedis?: boolean;
-	withMemcached?: boolean;
+	extensions?: PHPLoaderExtension[];
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -306,13 +300,7 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (
-		isLegacy &&
-		(options?.withXdebug ||
-			options?.withIntl ||
-			options?.withRedis ||
-			options?.withMemcached)
-	) {
+	if (isLegacy && options.extensions?.length) {
 		throw new Error(
 			`Extensions (xdebug, intl, redis, memcached) are not ` +
 				`available for legacy PHP ${phpVersion}.`
@@ -321,31 +309,12 @@ export async function loadNodeRuntime(
 
 	if (!isLegacy) {
 		const modernVersion = phpVersion as SupportedPHPVersion;
-		if (options?.withXdebug) {
-			emscriptenOptions = await withXdebug(
-				modernVersion,
-				emscriptenOptions,
-				typeof options.withXdebug === 'object' ? options.withXdebug : {}
-			);
-		}
-		if (options?.withIntl === true) {
-			emscriptenOptions = await withIntl(
-				modernVersion,
-				emscriptenOptions
-			);
-		}
-		if (options?.withRedis === true) {
-			emscriptenOptions = await withRedis(
-				modernVersion,
-				emscriptenOptions
-			);
-		}
-		if (options?.withMemcached === true) {
-			emscriptenOptions = await withMemcached(
-				modernVersion,
-				emscriptenOptions
-			);
-		}
+		emscriptenOptions = await applyPHPLoaderExtensions(
+			modernVersion,
+			phpWasmAsyncMode,
+			emscriptenOptions,
+			options.extensions
+		);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);

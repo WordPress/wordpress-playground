@@ -75,7 +75,7 @@ if (!isJspiAvailable) {
 			beforeEach(async () => {
 				php = new PHP(
 					await loadNodeRuntime(phpVersion as any, {
-						withRedis: true,
+						extensions: ['redis'],
 					})
 				);
 			});
@@ -168,7 +168,7 @@ if (!isJspiAvailable) {
 			beforeEach(async () => {
 				php = new PHP(
 					await loadNodeRuntime(phpVersion as any, {
-						withRedis: true,
+						extensions: ['redis'],
 					})
 				);
 			});

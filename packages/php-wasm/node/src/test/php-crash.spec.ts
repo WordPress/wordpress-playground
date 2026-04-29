@@ -17,7 +17,9 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 
 		beforeEach(async () => {
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withXdebug: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: ['xdebug'],
+				})
 			);
 			await setPhpIniEntries(php, { allow_url_fopen: 1 });
 			vi.restoreAllMocks();

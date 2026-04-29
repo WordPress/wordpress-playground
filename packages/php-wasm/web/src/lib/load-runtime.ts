@@ -12,13 +12,16 @@ import {
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
-import { withIntl } from './extensions/intl/with-intl';
+import {
+	applyPHPWebLoaderExtensions,
+	type PHPWebLoaderExtension,
+} from './extensions/load-extensions';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
-	withIntl?: boolean;
+	extensions?: PHPWebLoaderExtension[];
 }
 
 /**
@@ -98,19 +101,19 @@ export async function loadWebRuntime(
 		};
 	}
 
-	if (isLegacy && loaderOptions.withIntl) {
+	if (isLegacy && loaderOptions.extensions?.length) {
 		throw new Error(
-			`The intl extension is not available for legacy PHP ${phpVersion}.`
+			`Extensions are not available for legacy PHP ${phpVersion}.`
 		);
 	}
 
 	if (!isLegacy) {
-		if (loaderOptions.withIntl) {
-			emscriptenOptions = withIntl(
-				phpVersion as SupportedPHPVersion,
-				emscriptenOptions
-			);
-		}
+		emscriptenOptions = applyPHPWebLoaderExtensions(
+			phpVersion as SupportedPHPVersion,
+			phpWasmAsyncMode,
+			await emscriptenOptions,
+			loaderOptions.extensions
+		);
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([

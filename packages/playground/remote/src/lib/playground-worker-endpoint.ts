@@ -5,6 +5,7 @@ import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
+	PHPWebLoaderExtension,
 	SyncProgressCallback,
 	TCPOverFetchOptions,
 } from '@php-wasm/web';
@@ -66,7 +67,7 @@ export type WorkerBootOptions = {
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
 	scope: string;
-	withIntl: boolean;
+	extensions?: PHPWebLoaderExtension[];
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -138,7 +139,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
-		withIntl,
+		extensions,
 		withNetworking,
 		phpVersion,
 		pathAliases,
@@ -147,7 +148,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
-		withIntl: boolean;
+		extensions?: PHPWebLoaderExtension[];
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
@@ -205,7 +206,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
-					withIntl,
+					extensions,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
