@@ -962,10 +962,12 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 	);
 });
 
-test('Blueprint with `wordpress: false` boots Playground without WordPress', async ({
+test('Blueprint with `preferredVersions.wp: false` boots Playground without WordPress', async ({
 	website,
 }) => {
-	const blueprint: Blueprint = { wordpress: false };
+	const blueprint: Blueprint = {
+		preferredVersions: { php: 'latest', wp: false },
+	};
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	// `website.goto` waits for the WP iframe body to render, which never
 	// happens when WordPress isn't installed. Skip that wait and use the

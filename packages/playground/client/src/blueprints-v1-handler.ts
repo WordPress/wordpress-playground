@@ -54,18 +54,19 @@ export class BlueprintsV1Handler {
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
-		// Blueprint's `wordpress: false` is the declarative way to opt out of
-		// WordPress. Bundles carry their declaration inside a JSON file we
-		// haven't read here, so we only honor the flag for inline
+		// Blueprint's `preferredVersions.wp: false` is the declarative way to
+		// opt out of WordPress. Bundles carry their declaration inside a JSON
+		// file we haven't read here, so we only honor the flag for inline
 		// declarations. If the caller also set `shouldInstallWordPress`
 		// explicitly and the two disagree, refuse to silently pick a winner.
 		const declarativeOptOut =
-			!isBlueprintBundle(blueprint) && blueprint.wordpress === false;
+			!isBlueprintBundle(blueprint) &&
+			blueprint.preferredVersions?.wp === false;
 		if (shouldInstallWordPress === true && declarativeOptOut) {
 			throw new Error(
 				'Conflicting options: `shouldInstallWordPress: true` was ' +
 					'passed to startPlaygroundWeb, but the Blueprint sets ' +
-					'`wordpress: false`. Pick one.'
+					'`preferredVersions.wp: false`. Pick one.'
 			);
 		}
 		const installWordPress = shouldInstallWordPress ?? !declarativeOptOut;

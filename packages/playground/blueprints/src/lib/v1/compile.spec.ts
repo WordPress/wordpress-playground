@@ -245,10 +245,10 @@ describe('Blueprints', () => {
 		});
 	});
 
-	describe('wordpress: false (PHP-only mode)', () => {
-		it('should compile a Blueprint with wordpress: false and run pure PHP', async () => {
+	describe('preferredVersions.wp: false (PHP-only mode)', () => {
+		it('should compile a Blueprint with preferredVersions.wp: false and run pure PHP', async () => {
 			const compiled = await compileBlueprintV1({
-				wordpress: false,
+				preferredVersions: { php: 'latest', wp: false },
 				steps: [
 					{
 						step: 'writeFile',
@@ -263,46 +263,46 @@ describe('Blueprints', () => {
 			);
 		});
 
-		it('should reject `plugins` when wordpress is false', async () => {
+		it('should reject `plugins` when preferredVersions.wp is false', async () => {
 			await expect(
 				compileBlueprintV1({
-					wordpress: false,
+					preferredVersions: { php: 'latest', wp: false },
 					plugins: ['gutenberg'],
 				})
-			).rejects.toThrow(/wordpress: false.*plugins/);
+			).rejects.toThrow(/preferredVersions\.wp: false.*plugins/);
 		});
 
-		it('should reject `siteOptions` when wordpress is false', async () => {
+		it('should reject `siteOptions` when preferredVersions.wp is false', async () => {
 			await expect(
 				compileBlueprintV1({
-					wordpress: false,
+					preferredVersions: { php: 'latest', wp: false },
 					siteOptions: { blogname: 'No WP' },
 				})
-			).rejects.toThrow(/wordpress: false.*siteOptions/);
+			).rejects.toThrow(/preferredVersions\.wp: false.*siteOptions/);
 		});
 
-		it('should reject `login` when wordpress is false', async () => {
+		it('should reject `login` when preferredVersions.wp is false', async () => {
 			await expect(
 				compileBlueprintV1({
-					wordpress: false,
+					preferredVersions: { php: 'latest', wp: false },
 					login: true,
 				})
-			).rejects.toThrow(/wordpress: false.*login/);
+			).rejects.toThrow(/preferredVersions\.wp: false.*login/);
 		});
 
-		it("should reject extraLibraries: ['wp-cli'] when wordpress is false", async () => {
+		it("should reject extraLibraries: ['wp-cli'] when preferredVersions.wp is false", async () => {
 			await expect(
 				compileBlueprintV1({
-					wordpress: false,
+					preferredVersions: { php: 'latest', wp: false },
 					extraLibraries: ['wp-cli'],
 				})
 			).rejects.toThrow(/extraLibraries includes 'wp-cli'/);
 		});
 
-		it('should reject WordPress-only steps when wordpress is false', async () => {
+		it('should reject WordPress-only steps when preferredVersions.wp is false', async () => {
 			await expect(
 				compileBlueprintV1({
-					wordpress: false,
+					preferredVersions: { php: 'latest', wp: false },
 					steps: [
 						{
 							step: 'installPlugin',
@@ -313,7 +313,7 @@ describe('Blueprints', () => {
 						},
 					],
 				})
-			).rejects.toThrow(/wordpress: false.*installPlugin/);
+			).rejects.toThrow(/preferredVersions\.wp: false.*installPlugin/);
 		});
 	});
 

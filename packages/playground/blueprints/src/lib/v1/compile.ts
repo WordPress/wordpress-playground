@@ -207,7 +207,7 @@ function compileBlueprintJson(
 
 	blueprint.steps = [...(blueprint.steps || []), ...(additionalSteps || [])];
 
-	if (blueprint.wordpress === false) {
+	if (blueprint.preferredVersions?.wp === false) {
 		assertNoWordPressFeatures(blueprint);
 	}
 
@@ -798,8 +798,9 @@ export async function runBlueprintV1Steps(
 }
 
 /**
- * Steps that require WordPress to be installed. When `wordpress: false` is
- * set on the Blueprint, these steps are rejected at compile time.
+ * Steps that require WordPress to be installed. When
+ * `preferredVersions.wp: false` is set on the Blueprint, these steps are
+ * rejected at compile time.
  */
 const WORDPRESS_ONLY_STEPS = new Set([
 	'installPlugin',
@@ -837,9 +838,9 @@ function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
 	}
 	if (offenders.length) {
 		throw new InvalidBlueprintError(
-			`Blueprint has \`wordpress: false\` but uses WordPress-only ` +
-				`features: ${offenders.join('; ')}. Remove these or drop ` +
-				`\`wordpress: false\`.`,
+			`Blueprint has \`preferredVersions.wp: false\` but uses ` +
+				`WordPress-only features: ${offenders.join('; ')}. Remove ` +
+				`these or drop \`preferredVersions.wp: false\`.`,
 			[]
 		);
 	}

@@ -49,12 +49,6 @@ const schema11 = {
 					description:
 						'Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints',
 				},
-				wordpress: {
-					type: 'boolean',
-					const: false,
-					description:
-						'Set to `false` to boot a PHP-only Playground without downloading or installing WordPress. Useful for running pure-PHP snippets.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time. `preferredVersions.wp` is ignored.',
-				},
 				preferredVersions: {
 					type: 'object',
 					properties: {
@@ -67,9 +61,13 @@ const schema11 = {
 								'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 						},
 						wp: {
-							type: 'string',
+							anyOf: [
+								{ type: 'string' },
+								{ type: 'string', const: 'latest' },
+								{ type: 'boolean', const: false },
+							],
 							description:
-								'The preferred WordPress version to use. If not specified, the latest supported version will be used',
+								'The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time.',
 						},
 					},
 					required: ['php', 'wp'],
@@ -1469,12 +1467,6 @@ const schema12 = {
 			description:
 				'Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints',
 		},
-		wordpress: {
-			type: 'boolean',
-			const: false,
-			description:
-				'Set to `false` to boot a PHP-only Playground without downloading or installing WordPress. Useful for running pure-PHP snippets.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time. `preferredVersions.wp` is ignored.',
-		},
 		preferredVersions: {
 			type: 'object',
 			properties: {
@@ -1487,9 +1479,13 @@ const schema12 = {
 						'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 				},
 				wp: {
-					type: 'string',
+					anyOf: [
+						{ type: 'string' },
+						{ type: 'string', const: 'latest' },
+						{ type: 'boolean', const: false },
+					],
 					description:
-						'The preferred WordPress version to use. If not specified, the latest supported version will be used',
+						'The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time.',
 				},
 			},
 			required: ['php', 'wp'],
@@ -20392,158 +20388,261 @@ function validate11(
 							var valid0 = true;
 						}
 						if (valid0) {
-							if (data.wordpress !== undefined) {
-								let data8 = data.wordpress;
+							if (data.preferredVersions !== undefined) {
+								let data8 = data.preferredVersions;
 								const _errs19 = errors;
-								if (typeof data8 !== 'boolean') {
-									validate11.errors = [
-										{
-											instancePath:
-												instancePath + '/wordpress',
-											schemaPath:
-												'#/properties/wordpress/type',
-											keyword: 'type',
-											params: { type: 'boolean' },
-											message: 'must be boolean',
-										},
-									];
-									return false;
-								}
-								if (false !== data8) {
-									validate11.errors = [
-										{
-											instancePath:
-												instancePath + '/wordpress',
-											schemaPath:
-												'#/properties/wordpress/const',
-											keyword: 'const',
-											params: { allowedValue: false },
-											message:
-												'must be equal to constant',
-										},
-									];
-									return false;
-								}
-								var valid0 = _errs19 === errors;
-							} else {
-								var valid0 = true;
-							}
-							if (valid0) {
-								if (data.preferredVersions !== undefined) {
-									let data9 = data.preferredVersions;
-									const _errs21 = errors;
-									if (errors === _errs21) {
+								if (errors === _errs19) {
+									if (
+										data8 &&
+										typeof data8 == 'object' &&
+										!Array.isArray(data8)
+									) {
+										let missing1;
 										if (
-											data9 &&
-											typeof data9 == 'object' &&
-											!Array.isArray(data9)
+											(data8.php === undefined &&
+												(missing1 = 'php')) ||
+											(data8.wp === undefined &&
+												(missing1 = 'wp'))
 										) {
-											let missing1;
-											if (
-												(data9.php === undefined &&
-													(missing1 = 'php')) ||
-												(data9.wp === undefined &&
-													(missing1 = 'wp'))
-											) {
-												validate11.errors = [
-													{
-														instancePath:
-															instancePath +
-															'/preferredVersions',
-														schemaPath:
-															'#/properties/preferredVersions/required',
-														keyword: 'required',
-														params: {
-															missingProperty:
-																missing1,
-														},
-														message:
-															"must have required property '" +
-															missing1 +
-															"'",
+											validate11.errors = [
+												{
+													instancePath:
+														instancePath +
+														'/preferredVersions',
+													schemaPath:
+														'#/properties/preferredVersions/required',
+													keyword: 'required',
+													params: {
+														missingProperty:
+															missing1,
 													},
-												];
-												return false;
-											} else {
-												const _errs23 = errors;
-												for (const key2 in data9) {
+													message:
+														"must have required property '" +
+														missing1 +
+														"'",
+												},
+											];
+											return false;
+										} else {
+											const _errs21 = errors;
+											for (const key2 in data8) {
+												if (
+													!(
+														key2 === 'php' ||
+														key2 === 'wp'
+													)
+												) {
+													validate11.errors = [
+														{
+															instancePath:
+																instancePath +
+																'/preferredVersions',
+															schemaPath:
+																'#/properties/preferredVersions/additionalProperties',
+															keyword:
+																'additionalProperties',
+															params: {
+																additionalProperty:
+																	key2,
+															},
+															message:
+																'must NOT have additional properties',
+														},
+													];
+													return false;
+													break;
+												}
+											}
+											if (_errs21 === errors) {
+												if (data8.php !== undefined) {
+													let data9 = data8.php;
+													const _errs22 = errors;
+													const _errs23 = errors;
+													let valid4 = false;
+													const _errs24 = errors;
 													if (
-														!(
-															key2 === 'php' ||
-															key2 === 'wp'
-														)
+														!validate12(data9, {
+															instancePath:
+																instancePath +
+																'/preferredVersions/php',
+															parentData: data8,
+															parentDataProperty:
+																'php',
+															rootData,
+														})
 													) {
-														validate11.errors = [
-															{
+														vErrors =
+															vErrors === null
+																? validate12.errors
+																: vErrors.concat(
+																		validate12.errors
+																	);
+														errors = vErrors.length;
+													}
+													var _valid0 =
+														_errs24 === errors;
+													valid4 = valid4 || _valid0;
+													if (!valid4) {
+														const _errs25 = errors;
+														if (
+															typeof data9 !==
+															'string'
+														) {
+															const err0 = {
 																instancePath:
 																	instancePath +
-																	'/preferredVersions',
+																	'/preferredVersions/php',
 																schemaPath:
-																	'#/properties/preferredVersions/additionalProperties',
-																keyword:
-																	'additionalProperties',
+																	'#/properties/preferredVersions/properties/php/anyOf/1/type',
+																keyword: 'type',
 																params: {
-																	additionalProperty:
-																		key2,
+																	type: 'string',
 																},
 																message:
-																	'must NOT have additional properties',
-															},
-														];
-														return false;
-														break;
-													}
-												}
-												if (_errs23 === errors) {
-													if (
-														data9.php !== undefined
-													) {
-														let data10 = data9.php;
-														const _errs24 = errors;
-														const _errs25 = errors;
-														let valid4 = false;
-														const _errs26 = errors;
-														if (
-															!validate12(
-																data10,
-																{
-																	instancePath:
-																		instancePath +
-																		'/preferredVersions/php',
-																	parentData:
-																		data9,
-																	parentDataProperty:
-																		'php',
-																	rootData,
-																}
-															)
-														) {
-															vErrors =
+																	'must be string',
+															};
+															if (
 																vErrors === null
-																	? validate12.errors
-																	: vErrors.concat(
-																			validate12.errors
-																		);
-															errors =
-																vErrors.length;
+															) {
+																vErrors = [
+																	err0,
+																];
+															} else {
+																vErrors.push(
+																	err0
+																);
+															}
+															errors++;
+														}
+														if (
+															'latest' !== data9
+														) {
+															const err1 = {
+																instancePath:
+																	instancePath +
+																	'/preferredVersions/php',
+																schemaPath:
+																	'#/properties/preferredVersions/properties/php/anyOf/1/const',
+																keyword:
+																	'const',
+																params: {
+																	allowedValue:
+																		'latest',
+																},
+																message:
+																	'must be equal to constant',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err1,
+																];
+															} else {
+																vErrors.push(
+																	err1
+																);
+															}
+															errors++;
 														}
 														var _valid0 =
-															_errs26 === errors;
+															_errs25 === errors;
 														valid4 =
 															valid4 || _valid0;
-														if (!valid4) {
-															const _errs27 =
+													}
+													if (!valid4) {
+														const err2 = {
+															instancePath:
+																instancePath +
+																'/preferredVersions/php',
+															schemaPath:
+																'#/properties/preferredVersions/properties/php/anyOf',
+															keyword: 'anyOf',
+															params: {},
+															message:
+																'must match a schema in anyOf',
+														};
+														if (vErrors === null) {
+															vErrors = [err2];
+														} else {
+															vErrors.push(err2);
+														}
+														errors++;
+														validate11.errors =
+															vErrors;
+														return false;
+													} else {
+														errors = _errs23;
+														if (vErrors !== null) {
+															if (_errs23) {
+																vErrors.length =
+																	_errs23;
+															} else {
+																vErrors = null;
+															}
+														}
+													}
+													var valid3 =
+														_errs22 === errors;
+												} else {
+													var valid3 = true;
+												}
+												if (valid3) {
+													if (
+														data8.wp !== undefined
+													) {
+														let data10 = data8.wp;
+														const _errs27 = errors;
+														const _errs28 = errors;
+														let valid5 = false;
+														const _errs29 = errors;
+														if (
+															typeof data10 !==
+															'string'
+														) {
+															const err3 = {
+																instancePath:
+																	instancePath +
+																	'/preferredVersions/wp',
+																schemaPath:
+																	'#/properties/preferredVersions/properties/wp/anyOf/0/type',
+																keyword: 'type',
+																params: {
+																	type: 'string',
+																},
+																message:
+																	'must be string',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err3,
+																];
+															} else {
+																vErrors.push(
+																	err3
+																);
+															}
+															errors++;
+														}
+														var _valid1 =
+															_errs29 === errors;
+														valid5 =
+															valid5 || _valid1;
+														if (!valid5) {
+															const _errs31 =
 																errors;
 															if (
 																typeof data10 !==
 																'string'
 															) {
-																const err0 = {
+																const err4 = {
 																	instancePath:
 																		instancePath +
-																		'/preferredVersions/php',
+																		'/preferredVersions/wp',
 																	schemaPath:
-																		'#/properties/preferredVersions/properties/php/anyOf/1/type',
+																		'#/properties/preferredVersions/properties/wp/anyOf/1/type',
 																	keyword:
 																		'type',
 																	params: {
@@ -20557,11 +20656,11 @@ function validate11(
 																	null
 																) {
 																	vErrors = [
-																		err0,
+																		err4,
 																	];
 																} else {
 																	vErrors.push(
-																		err0
+																		err4
 																	);
 																}
 																errors++;
@@ -20570,12 +20669,12 @@ function validate11(
 																'latest' !==
 																data10
 															) {
-																const err1 = {
+																const err5 = {
 																	instancePath:
 																		instancePath +
-																		'/preferredVersions/php',
+																		'/preferredVersions/wp',
 																	schemaPath:
-																		'#/properties/preferredVersions/properties/php/anyOf/1/const',
+																		'#/properties/preferredVersions/properties/wp/anyOf/1/const',
 																	keyword:
 																		'const',
 																	params: {
@@ -20584,804 +20683,6 @@ function validate11(
 																	},
 																	message:
 																		'must be equal to constant',
-																};
-																if (
-																	vErrors ===
-																	null
-																) {
-																	vErrors = [
-																		err1,
-																	];
-																} else {
-																	vErrors.push(
-																		err1
-																	);
-																}
-																errors++;
-															}
-															var _valid0 =
-																_errs27 ===
-																errors;
-															valid4 =
-																valid4 ||
-																_valid0;
-														}
-														if (!valid4) {
-															const err2 = {
-																instancePath:
-																	instancePath +
-																	'/preferredVersions/php',
-																schemaPath:
-																	'#/properties/preferredVersions/properties/php/anyOf',
-																keyword:
-																	'anyOf',
-																params: {},
-																message:
-																	'must match a schema in anyOf',
-															};
-															if (
-																vErrors === null
-															) {
-																vErrors = [
-																	err2,
-																];
-															} else {
-																vErrors.push(
-																	err2
-																);
-															}
-															errors++;
-															validate11.errors =
-																vErrors;
-															return false;
-														} else {
-															errors = _errs25;
-															if (
-																vErrors !== null
-															) {
-																if (_errs25) {
-																	vErrors.length =
-																		_errs25;
-																} else {
-																	vErrors =
-																		null;
-																}
-															}
-														}
-														var valid3 =
-															_errs24 === errors;
-													} else {
-														var valid3 = true;
-													}
-													if (valid3) {
-														if (
-															data9.wp !==
-															undefined
-														) {
-															const _errs29 =
-																errors;
-															if (
-																typeof data9.wp !==
-																'string'
-															) {
-																validate11.errors =
-																	[
-																		{
-																			instancePath:
-																				instancePath +
-																				'/preferredVersions/wp',
-																			schemaPath:
-																				'#/properties/preferredVersions/properties/wp/type',
-																			keyword:
-																				'type',
-																			params: {
-																				type: 'string',
-																			},
-																			message:
-																				'must be string',
-																		},
-																	];
-																return false;
-															}
-															var valid3 =
-																_errs29 ===
-																errors;
-														} else {
-															var valid3 = true;
-														}
-													}
-												}
-											}
-										} else {
-											validate11.errors = [
-												{
-													instancePath:
-														instancePath +
-														'/preferredVersions',
-													schemaPath:
-														'#/properties/preferredVersions/type',
-													keyword: 'type',
-													params: { type: 'object' },
-													message: 'must be object',
-												},
-											];
-											return false;
-										}
-									}
-									var valid0 = _errs21 === errors;
-								} else {
-									var valid0 = true;
-								}
-								if (valid0) {
-									if (data.features !== undefined) {
-										let data12 = data.features;
-										const _errs31 = errors;
-										if (errors === _errs31) {
-											if (
-												data12 &&
-												typeof data12 == 'object' &&
-												!Array.isArray(data12)
-											) {
-												const _errs33 = errors;
-												for (const key3 in data12) {
-													if (
-														!(
-															key3 === 'intl' ||
-															key3 ===
-																'networking'
-														)
-													) {
-														validate11.errors = [
-															{
-																instancePath:
-																	instancePath +
-																	'/features',
-																schemaPath:
-																	'#/properties/features/additionalProperties',
-																keyword:
-																	'additionalProperties',
-																params: {
-																	additionalProperty:
-																		key3,
-																},
-																message:
-																	'must NOT have additional properties',
-															},
-														];
-														return false;
-														break;
-													}
-												}
-												if (_errs33 === errors) {
-													if (
-														data12.intl !==
-														undefined
-													) {
-														const _errs34 = errors;
-														if (
-															typeof data12.intl !==
-															'boolean'
-														) {
-															validate11.errors =
-																[
-																	{
-																		instancePath:
-																			instancePath +
-																			'/features/intl',
-																		schemaPath:
-																			'#/properties/features/properties/intl/type',
-																		keyword:
-																			'type',
-																		params: {
-																			type: 'boolean',
-																		},
-																		message:
-																			'must be boolean',
-																	},
-																];
-															return false;
-														}
-														var valid5 =
-															_errs34 === errors;
-													} else {
-														var valid5 = true;
-													}
-													if (valid5) {
-														if (
-															data12.networking !==
-															undefined
-														) {
-															const _errs36 =
-																errors;
-															if (
-																typeof data12.networking !==
-																'boolean'
-															) {
-																validate11.errors =
-																	[
-																		{
-																			instancePath:
-																				instancePath +
-																				'/features/networking',
-																			schemaPath:
-																				'#/properties/features/properties/networking/type',
-																			keyword:
-																				'type',
-																			params: {
-																				type: 'boolean',
-																			},
-																			message:
-																				'must be boolean',
-																		},
-																	];
-																return false;
-															}
-															var valid5 =
-																_errs36 ===
-																errors;
-														} else {
-															var valid5 = true;
-														}
-													}
-												}
-											} else {
-												validate11.errors = [
-													{
-														instancePath:
-															instancePath +
-															'/features',
-														schemaPath:
-															'#/properties/features/type',
-														keyword: 'type',
-														params: {
-															type: 'object',
-														},
-														message:
-															'must be object',
-													},
-												];
-												return false;
-											}
-										}
-										var valid0 = _errs31 === errors;
-									} else {
-										var valid0 = true;
-									}
-									if (valid0) {
-										if (data.extraLibraries !== undefined) {
-											let data15 = data.extraLibraries;
-											const _errs38 = errors;
-											if (errors === _errs38) {
-												if (Array.isArray(data15)) {
-													var valid6 = true;
-													const len1 = data15.length;
-													for (
-														let i1 = 0;
-														i1 < len1;
-														i1++
-													) {
-														let data16 = data15[i1];
-														const _errs40 = errors;
-														if (
-															typeof data16 !==
-															'string'
-														) {
-															validate11.errors =
-																[
-																	{
-																		instancePath:
-																			instancePath +
-																			'/extraLibraries/' +
-																			i1,
-																		schemaPath:
-																			'#/definitions/ExtraLibrary/type',
-																		keyword:
-																			'type',
-																		params: {
-																			type: 'string',
-																		},
-																		message:
-																			'must be string',
-																	},
-																];
-															return false;
-														}
-														if (
-															'wp-cli' !== data16
-														) {
-															validate11.errors =
-																[
-																	{
-																		instancePath:
-																			instancePath +
-																			'/extraLibraries/' +
-																			i1,
-																		schemaPath:
-																			'#/definitions/ExtraLibrary/const',
-																		keyword:
-																			'const',
-																		params: {
-																			allowedValue:
-																				'wp-cli',
-																		},
-																		message:
-																			'must be equal to constant',
-																	},
-																];
-															return false;
-														}
-														var valid6 =
-															_errs40 === errors;
-														if (!valid6) {
-															break;
-														}
-													}
-												} else {
-													validate11.errors = [
-														{
-															instancePath:
-																instancePath +
-																'/extraLibraries',
-															schemaPath:
-																'#/properties/extraLibraries/type',
-															keyword: 'type',
-															params: {
-																type: 'array',
-															},
-															message:
-																'must be array',
-														},
-													];
-													return false;
-												}
-											}
-											var valid0 = _errs38 === errors;
-										} else {
-											var valid0 = true;
-										}
-										if (valid0) {
-											if (data.constants !== undefined) {
-												let data17 = data.constants;
-												const _errs43 = errors;
-												const _errs44 = errors;
-												if (errors === _errs44) {
-													if (
-														data17 &&
-														typeof data17 ==
-															'object' &&
-														!Array.isArray(data17)
-													) {
-														for (const key4 in data17) {
-															let data18 =
-																data17[key4];
-															const _errs47 =
-																errors;
-															if (
-																typeof data18 !==
-																	'string' &&
-																typeof data18 !==
-																	'boolean' &&
-																!(
-																	typeof data18 ==
-																		'number' &&
-																	isFinite(
-																		data18
-																	)
-																)
-															) {
-																validate11.errors =
-																	[
-																		{
-																			instancePath:
-																				instancePath +
-																				'/constants/' +
-																				key4
-																					.replace(
-																						/~/g,
-																						'~0'
-																					)
-																					.replace(
-																						/\//g,
-																						'~1'
-																					),
-																			schemaPath:
-																				'#/definitions/PHPConstants/additionalProperties/type',
-																			keyword:
-																				'type',
-																			params: {
-																				type: schema18
-																					.additionalProperties
-																					.type,
-																			},
-																			message:
-																				'must be string,boolean,number',
-																		},
-																	];
-																return false;
-															}
-															var valid9 =
-																_errs47 ===
-																errors;
-															if (!valid9) {
-																break;
-															}
-														}
-													} else {
-														validate11.errors = [
-															{
-																instancePath:
-																	instancePath +
-																	'/constants',
-																schemaPath:
-																	'#/definitions/PHPConstants/type',
-																keyword: 'type',
-																params: {
-																	type: 'object',
-																},
-																message:
-																	'must be object',
-															},
-														];
-														return false;
-													}
-												}
-												var valid0 = _errs43 === errors;
-											} else {
-												var valid0 = true;
-											}
-											if (valid0) {
-												if (
-													data.plugins !== undefined
-												) {
-													let data19 = data.plugins;
-													const _errs49 = errors;
-													if (errors === _errs49) {
-														if (
-															Array.isArray(
-																data19
-															)
-														) {
-															var valid10 = true;
-															const len2 =
-																data19.length;
-															for (
-																let i2 = 0;
-																i2 < len2;
-																i2++
-															) {
-																let data20 =
-																	data19[i2];
-																const _errs51 =
-																	errors;
-																const _errs52 =
-																	errors;
-																let valid11 = false;
-																const _errs53 =
-																	errors;
-																if (
-																	typeof data20 !==
-																	'string'
-																) {
-																	const err3 =
-																		{
-																			instancePath:
-																				instancePath +
-																				'/plugins/' +
-																				i2,
-																			schemaPath:
-																				'#/properties/plugins/items/anyOf/0/type',
-																			keyword:
-																				'type',
-																			params: {
-																				type: 'string',
-																			},
-																			message:
-																				'must be string',
-																		};
-																	if (
-																		vErrors ===
-																		null
-																	) {
-																		vErrors =
-																			[
-																				err3,
-																			];
-																	} else {
-																		vErrors.push(
-																			err3
-																		);
-																	}
-																	errors++;
-																}
-																var _valid1 =
-																	_errs53 ===
-																	errors;
-																valid11 =
-																	valid11 ||
-																	_valid1;
-																if (!valid11) {
-																	const _errs55 =
-																		errors;
-																	if (
-																		!validate16(
-																			data20,
-																			{
-																				instancePath:
-																					instancePath +
-																					'/plugins/' +
-																					i2,
-																				parentData:
-																					data19,
-																				parentDataProperty:
-																					i2,
-																				rootData,
-																			}
-																		)
-																	) {
-																		vErrors =
-																			vErrors ===
-																			null
-																				? validate16.errors
-																				: vErrors.concat(
-																						validate16.errors
-																					);
-																		errors =
-																			vErrors.length;
-																	}
-																	var _valid1 =
-																		_errs55 ===
-																		errors;
-																	valid11 =
-																		valid11 ||
-																		_valid1;
-																}
-																if (!valid11) {
-																	const err4 =
-																		{
-																			instancePath:
-																				instancePath +
-																				'/plugins/' +
-																				i2,
-																			schemaPath:
-																				'#/properties/plugins/items/anyOf',
-																			keyword:
-																				'anyOf',
-																			params: {},
-																			message:
-																				'must match a schema in anyOf',
-																		};
-																	if (
-																		vErrors ===
-																		null
-																	) {
-																		vErrors =
-																			[
-																				err4,
-																			];
-																	} else {
-																		vErrors.push(
-																			err4
-																		);
-																	}
-																	errors++;
-																	validate11.errors =
-																		vErrors;
-																	return false;
-																} else {
-																	errors =
-																		_errs52;
-																	if (
-																		vErrors !==
-																		null
-																	) {
-																		if (
-																			_errs52
-																		) {
-																			vErrors.length =
-																				_errs52;
-																		} else {
-																			vErrors =
-																				null;
-																		}
-																	}
-																}
-																var valid10 =
-																	_errs51 ===
-																	errors;
-																if (!valid10) {
-																	break;
-																}
-															}
-														} else {
-															validate11.errors =
-																[
-																	{
-																		instancePath:
-																			instancePath +
-																			'/plugins',
-																		schemaPath:
-																			'#/properties/plugins/type',
-																		keyword:
-																			'type',
-																		params: {
-																			type: 'array',
-																		},
-																		message:
-																			'must be array',
-																	},
-																];
-															return false;
-														}
-													}
-													var valid0 =
-														_errs49 === errors;
-												} else {
-													var valid0 = true;
-												}
-												if (valid0) {
-													if (
-														data.siteOptions !==
-														undefined
-													) {
-														let data21 =
-															data.siteOptions;
-														const _errs56 = errors;
-														if (
-															errors === _errs56
-														) {
-															if (
-																data21 &&
-																typeof data21 ==
-																	'object' &&
-																!Array.isArray(
-																	data21
-																)
-															) {
-																const _errs58 =
-																	errors;
-																for (const key5 in data21) {
-																	if (
-																		!(
-																			key5 ===
-																			'blogname'
-																		)
-																	) {
-																		const _errs59 =
-																			errors;
-																		if (
-																			typeof data21[
-																				key5
-																			] !==
-																			'string'
-																		) {
-																			validate11.errors =
-																				[
-																					{
-																						instancePath:
-																							instancePath +
-																							'/siteOptions/' +
-																							key5
-																								.replace(
-																									/~/g,
-																									'~0'
-																								)
-																								.replace(
-																									/\//g,
-																									'~1'
-																								),
-																						schemaPath:
-																							'#/properties/siteOptions/additionalProperties/type',
-																						keyword:
-																							'type',
-																						params: {
-																							type: 'string',
-																						},
-																						message:
-																							'must be string',
-																					},
-																				];
-																			return false;
-																		}
-																		var valid12 =
-																			_errs59 ===
-																			errors;
-																		if (
-																			!valid12
-																		) {
-																			break;
-																		}
-																	}
-																}
-																if (
-																	_errs58 ===
-																	errors
-																) {
-																	if (
-																		data21.blogname !==
-																		undefined
-																	) {
-																		if (
-																			typeof data21.blogname !==
-																			'string'
-																		) {
-																			validate11.errors =
-																				[
-																					{
-																						instancePath:
-																							instancePath +
-																							'/siteOptions/blogname',
-																						schemaPath:
-																							'#/properties/siteOptions/properties/blogname/type',
-																						keyword:
-																							'type',
-																						params: {
-																							type: 'string',
-																						},
-																						message:
-																							'must be string',
-																					},
-																				];
-																			return false;
-																		}
-																	}
-																}
-															} else {
-																validate11.errors =
-																	[
-																		{
-																			instancePath:
-																				instancePath +
-																				'/siteOptions',
-																			schemaPath:
-																				'#/properties/siteOptions/type',
-																			keyword:
-																				'type',
-																			params: {
-																				type: 'object',
-																			},
-																			message:
-																				'must be object',
-																		},
-																	];
-																return false;
-															}
-														}
-														var valid0 =
-															_errs56 === errors;
-													} else {
-														var valid0 = true;
-													}
-													if (valid0) {
-														if (
-															data.login !==
-															undefined
-														) {
-															let data24 =
-																data.login;
-															const _errs63 =
-																errors;
-															const _errs64 =
-																errors;
-															let valid14 = false;
-															const _errs65 =
-																errors;
-															if (
-																typeof data24 !==
-																'boolean'
-															) {
-																const err5 = {
-																	instancePath:
-																		instancePath +
-																		'/login',
-																	schemaPath:
-																		'#/properties/login/anyOf/0/type',
-																	keyword:
-																		'type',
-																	params: {
-																		type: 'boolean',
-																	},
-																	message:
-																		'must be boolean',
 																};
 																if (
 																	vErrors ===
@@ -21397,263 +20698,563 @@ function validate11(
 																}
 																errors++;
 															}
-															var _valid2 =
-																_errs65 ===
+															var _valid1 =
+																_errs31 ===
 																errors;
-															valid14 =
-																valid14 ||
-																_valid2;
-															if (!valid14) {
-																const _errs67 =
+															valid5 =
+																valid5 ||
+																_valid1;
+															if (!valid5) {
+																const _errs33 =
 																	errors;
 																if (
-																	errors ===
-																	_errs67
+																	typeof data10 !==
+																	'boolean'
 																) {
+																	const err6 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/preferredVersions/wp',
+																			schemaPath:
+																				'#/properties/preferredVersions/properties/wp/anyOf/2/type',
+																			keyword:
+																				'type',
+																			params: {
+																				type: 'boolean',
+																			},
+																			message:
+																				'must be boolean',
+																		};
 																	if (
-																		data24 &&
-																		typeof data24 ==
-																			'object' &&
-																		!Array.isArray(
-																			data24
-																		)
+																		vErrors ===
+																		null
 																	) {
-																		let missing2;
-																		if (
-																			(data24.username ===
-																				undefined &&
-																				(missing2 =
-																					'username')) ||
-																			(data24.password ===
-																				undefined &&
-																				(missing2 =
-																					'password'))
-																		) {
-																			const err6 =
-																				{
-																					instancePath:
-																						instancePath +
-																						'/login',
-																					schemaPath:
-																						'#/properties/login/anyOf/1/required',
-																					keyword:
-																						'required',
-																					params: {
-																						missingProperty:
-																							missing2,
-																					},
-																					message:
-																						"must have required property '" +
-																						missing2 +
-																						"'",
-																				};
-																			if (
-																				vErrors ===
-																				null
-																			) {
-																				vErrors =
-																					[
-																						err6,
-																					];
-																			} else {
-																				vErrors.push(
-																					err6
-																				);
-																			}
-																			errors++;
-																		} else {
-																			const _errs69 =
-																				errors;
-																			for (const key6 in data24) {
-																				if (
-																					!(
-																						key6 ===
-																							'username' ||
-																						key6 ===
-																							'password'
-																					)
-																				) {
-																					const err7 =
-																						{
-																							instancePath:
-																								instancePath +
-																								'/login',
-																							schemaPath:
-																								'#/properties/login/anyOf/1/additionalProperties',
-																							keyword:
-																								'additionalProperties',
-																							params: {
-																								additionalProperty:
-																									key6,
-																							},
-																							message:
-																								'must NOT have additional properties',
-																						};
-																					if (
-																						vErrors ===
-																						null
-																					) {
-																						vErrors =
-																							[
-																								err7,
-																							];
-																					} else {
-																						vErrors.push(
-																							err7
-																						);
-																					}
-																					errors++;
-																					break;
-																				}
-																			}
-																			if (
-																				_errs69 ===
-																				errors
-																			) {
-																				if (
-																					data24.username !==
-																					undefined
-																				) {
-																					const _errs70 =
-																						errors;
-																					if (
-																						typeof data24.username !==
-																						'string'
-																					) {
-																						const err8 =
-																							{
-																								instancePath:
-																									instancePath +
-																									'/login/username',
-																								schemaPath:
-																									'#/properties/login/anyOf/1/properties/username/type',
-																								keyword:
-																									'type',
-																								params: {
-																									type: 'string',
-																								},
-																								message:
-																									'must be string',
-																							};
-																						if (
-																							vErrors ===
-																							null
-																						) {
-																							vErrors =
-																								[
-																									err8,
-																								];
-																						} else {
-																							vErrors.push(
-																								err8
-																							);
-																						}
-																						errors++;
-																					}
-																					var valid15 =
-																						_errs70 ===
-																						errors;
-																				} else {
-																					var valid15 = true;
-																				}
-																				if (
-																					valid15
-																				) {
-																					if (
-																						data24.password !==
-																						undefined
-																					) {
-																						const _errs72 =
-																							errors;
-																						if (
-																							typeof data24.password !==
-																							'string'
-																						) {
-																							const err9 =
-																								{
-																									instancePath:
-																										instancePath +
-																										'/login/password',
-																									schemaPath:
-																										'#/properties/login/anyOf/1/properties/password/type',
-																									keyword:
-																										'type',
-																									params: {
-																										type: 'string',
-																									},
-																									message:
-																										'must be string',
-																								};
-																							if (
-																								vErrors ===
-																								null
-																							) {
-																								vErrors =
-																									[
-																										err9,
-																									];
-																							} else {
-																								vErrors.push(
-																									err9
-																								);
-																							}
-																							errors++;
-																						}
-																						var valid15 =
-																							_errs72 ===
-																							errors;
-																					} else {
-																						var valid15 = true;
-																					}
-																				}
-																			}
-																		}
+																		vErrors =
+																			[
+																				err6,
+																			];
 																	} else {
-																		const err10 =
-																			{
-																				instancePath:
-																					instancePath +
-																					'/login',
-																				schemaPath:
-																					'#/properties/login/anyOf/1/type',
-																				keyword:
-																					'type',
-																				params: {
-																					type: 'object',
-																				},
-																				message:
-																					'must be object',
-																			};
-																		if (
-																			vErrors ===
-																			null
-																		) {
-																			vErrors =
-																				[
-																					err10,
-																				];
-																		} else {
-																			vErrors.push(
-																				err10
-																			);
-																		}
-																		errors++;
+																		vErrors.push(
+																			err6
+																		);
 																	}
+																	errors++;
 																}
-																var _valid2 =
-																	_errs67 ===
+																if (
+																	false !==
+																	data10
+																) {
+																	const err7 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/preferredVersions/wp',
+																			schemaPath:
+																				'#/properties/preferredVersions/properties/wp/anyOf/2/const',
+																			keyword:
+																				'const',
+																			params: {
+																				allowedValue: false,
+																			},
+																			message:
+																				'must be equal to constant',
+																		};
+																	if (
+																		vErrors ===
+																		null
+																	) {
+																		vErrors =
+																			[
+																				err7,
+																			];
+																	} else {
+																		vErrors.push(
+																			err7
+																		);
+																	}
+																	errors++;
+																}
+																var _valid1 =
+																	_errs33 ===
 																	errors;
-																valid14 =
-																	valid14 ||
-																	_valid2;
+																valid5 =
+																	valid5 ||
+																	_valid1;
 															}
-															if (!valid14) {
-																const err11 = {
+														}
+														if (!valid5) {
+															const err8 = {
+																instancePath:
+																	instancePath +
+																	'/preferredVersions/wp',
+																schemaPath:
+																	'#/properties/preferredVersions/properties/wp/anyOf',
+																keyword:
+																	'anyOf',
+																params: {},
+																message:
+																	'must match a schema in anyOf',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err8,
+																];
+															} else {
+																vErrors.push(
+																	err8
+																);
+															}
+															errors++;
+															validate11.errors =
+																vErrors;
+															return false;
+														} else {
+															errors = _errs28;
+															if (
+																vErrors !== null
+															) {
+																if (_errs28) {
+																	vErrors.length =
+																		_errs28;
+																} else {
+																	vErrors =
+																		null;
+																}
+															}
+														}
+														var valid3 =
+															_errs27 === errors;
+													} else {
+														var valid3 = true;
+													}
+												}
+											}
+										}
+									} else {
+										validate11.errors = [
+											{
+												instancePath:
+													instancePath +
+													'/preferredVersions',
+												schemaPath:
+													'#/properties/preferredVersions/type',
+												keyword: 'type',
+												params: { type: 'object' },
+												message: 'must be object',
+											},
+										];
+										return false;
+									}
+								}
+								var valid0 = _errs19 === errors;
+							} else {
+								var valid0 = true;
+							}
+							if (valid0) {
+								if (data.features !== undefined) {
+									let data11 = data.features;
+									const _errs35 = errors;
+									if (errors === _errs35) {
+										if (
+											data11 &&
+											typeof data11 == 'object' &&
+											!Array.isArray(data11)
+										) {
+											const _errs37 = errors;
+											for (const key3 in data11) {
+												if (
+													!(
+														key3 === 'intl' ||
+														key3 === 'networking'
+													)
+												) {
+													validate11.errors = [
+														{
+															instancePath:
+																instancePath +
+																'/features',
+															schemaPath:
+																'#/properties/features/additionalProperties',
+															keyword:
+																'additionalProperties',
+															params: {
+																additionalProperty:
+																	key3,
+															},
+															message:
+																'must NOT have additional properties',
+														},
+													];
+													return false;
+													break;
+												}
+											}
+											if (_errs37 === errors) {
+												if (data11.intl !== undefined) {
+													const _errs38 = errors;
+													if (
+														typeof data11.intl !==
+														'boolean'
+													) {
+														validate11.errors = [
+															{
+																instancePath:
+																	instancePath +
+																	'/features/intl',
+																schemaPath:
+																	'#/properties/features/properties/intl/type',
+																keyword: 'type',
+																params: {
+																	type: 'boolean',
+																},
+																message:
+																	'must be boolean',
+															},
+														];
+														return false;
+													}
+													var valid6 =
+														_errs38 === errors;
+												} else {
+													var valid6 = true;
+												}
+												if (valid6) {
+													if (
+														data11.networking !==
+														undefined
+													) {
+														const _errs40 = errors;
+														if (
+															typeof data11.networking !==
+															'boolean'
+														) {
+															validate11.errors =
+																[
+																	{
+																		instancePath:
+																			instancePath +
+																			'/features/networking',
+																		schemaPath:
+																			'#/properties/features/properties/networking/type',
+																		keyword:
+																			'type',
+																		params: {
+																			type: 'boolean',
+																		},
+																		message:
+																			'must be boolean',
+																	},
+																];
+															return false;
+														}
+														var valid6 =
+															_errs40 === errors;
+													} else {
+														var valid6 = true;
+													}
+												}
+											}
+										} else {
+											validate11.errors = [
+												{
+													instancePath:
+														instancePath +
+														'/features',
+													schemaPath:
+														'#/properties/features/type',
+													keyword: 'type',
+													params: { type: 'object' },
+													message: 'must be object',
+												},
+											];
+											return false;
+										}
+									}
+									var valid0 = _errs35 === errors;
+								} else {
+									var valid0 = true;
+								}
+								if (valid0) {
+									if (data.extraLibraries !== undefined) {
+										let data14 = data.extraLibraries;
+										const _errs42 = errors;
+										if (errors === _errs42) {
+											if (Array.isArray(data14)) {
+												var valid7 = true;
+												const len1 = data14.length;
+												for (
+													let i1 = 0;
+													i1 < len1;
+													i1++
+												) {
+													let data15 = data14[i1];
+													const _errs44 = errors;
+													if (
+														typeof data15 !==
+														'string'
+													) {
+														validate11.errors = [
+															{
+																instancePath:
+																	instancePath +
+																	'/extraLibraries/' +
+																	i1,
+																schemaPath:
+																	'#/definitions/ExtraLibrary/type',
+																keyword: 'type',
+																params: {
+																	type: 'string',
+																},
+																message:
+																	'must be string',
+															},
+														];
+														return false;
+													}
+													if ('wp-cli' !== data15) {
+														validate11.errors = [
+															{
+																instancePath:
+																	instancePath +
+																	'/extraLibraries/' +
+																	i1,
+																schemaPath:
+																	'#/definitions/ExtraLibrary/const',
+																keyword:
+																	'const',
+																params: {
+																	allowedValue:
+																		'wp-cli',
+																},
+																message:
+																	'must be equal to constant',
+															},
+														];
+														return false;
+													}
+													var valid7 =
+														_errs44 === errors;
+													if (!valid7) {
+														break;
+													}
+												}
+											} else {
+												validate11.errors = [
+													{
+														instancePath:
+															instancePath +
+															'/extraLibraries',
+														schemaPath:
+															'#/properties/extraLibraries/type',
+														keyword: 'type',
+														params: {
+															type: 'array',
+														},
+														message:
+															'must be array',
+													},
+												];
+												return false;
+											}
+										}
+										var valid0 = _errs42 === errors;
+									} else {
+										var valid0 = true;
+									}
+									if (valid0) {
+										if (data.constants !== undefined) {
+											let data16 = data.constants;
+											const _errs47 = errors;
+											const _errs48 = errors;
+											if (errors === _errs48) {
+												if (
+													data16 &&
+													typeof data16 == 'object' &&
+													!Array.isArray(data16)
+												) {
+													for (const key4 in data16) {
+														let data17 =
+															data16[key4];
+														const _errs51 = errors;
+														if (
+															typeof data17 !==
+																'string' &&
+															typeof data17 !==
+																'boolean' &&
+															!(
+																typeof data17 ==
+																	'number' &&
+																isFinite(data17)
+															)
+														) {
+															validate11.errors =
+																[
+																	{
+																		instancePath:
+																			instancePath +
+																			'/constants/' +
+																			key4
+																				.replace(
+																					/~/g,
+																					'~0'
+																				)
+																				.replace(
+																					/\//g,
+																					'~1'
+																				),
+																		schemaPath:
+																			'#/definitions/PHPConstants/additionalProperties/type',
+																		keyword:
+																			'type',
+																		params: {
+																			type: schema18
+																				.additionalProperties
+																				.type,
+																		},
+																		message:
+																			'must be string,boolean,number',
+																	},
+																];
+															return false;
+														}
+														var valid10 =
+															_errs51 === errors;
+														if (!valid10) {
+															break;
+														}
+													}
+												} else {
+													validate11.errors = [
+														{
+															instancePath:
+																instancePath +
+																'/constants',
+															schemaPath:
+																'#/definitions/PHPConstants/type',
+															keyword: 'type',
+															params: {
+																type: 'object',
+															},
+															message:
+																'must be object',
+														},
+													];
+													return false;
+												}
+											}
+											var valid0 = _errs47 === errors;
+										} else {
+											var valid0 = true;
+										}
+										if (valid0) {
+											if (data.plugins !== undefined) {
+												let data18 = data.plugins;
+												const _errs53 = errors;
+												if (errors === _errs53) {
+													if (Array.isArray(data18)) {
+														var valid11 = true;
+														const len2 =
+															data18.length;
+														for (
+															let i2 = 0;
+															i2 < len2;
+															i2++
+														) {
+															let data19 =
+																data18[i2];
+															const _errs55 =
+																errors;
+															const _errs56 =
+																errors;
+															let valid12 = false;
+															const _errs57 =
+																errors;
+															if (
+																typeof data19 !==
+																'string'
+															) {
+																const err9 = {
 																	instancePath:
 																		instancePath +
-																		'/login',
+																		'/plugins/' +
+																		i2,
 																	schemaPath:
-																		'#/properties/login/anyOf',
+																		'#/properties/plugins/items/anyOf/0/type',
+																	keyword:
+																		'type',
+																	params: {
+																		type: 'string',
+																	},
+																	message:
+																		'must be string',
+																};
+																if (
+																	vErrors ===
+																	null
+																) {
+																	vErrors = [
+																		err9,
+																	];
+																} else {
+																	vErrors.push(
+																		err9
+																	);
+																}
+																errors++;
+															}
+															var _valid2 =
+																_errs57 ===
+																errors;
+															valid12 =
+																valid12 ||
+																_valid2;
+															if (!valid12) {
+																const _errs59 =
+																	errors;
+																if (
+																	!validate16(
+																		data19,
+																		{
+																			instancePath:
+																				instancePath +
+																				'/plugins/' +
+																				i2,
+																			parentData:
+																				data18,
+																			parentDataProperty:
+																				i2,
+																			rootData,
+																		}
+																	)
+																) {
+																	vErrors =
+																		vErrors ===
+																		null
+																			? validate16.errors
+																			: vErrors.concat(
+																					validate16.errors
+																				);
+																	errors =
+																		vErrors.length;
+																}
+																var _valid2 =
+																	_errs59 ===
+																	errors;
+																valid12 =
+																	valid12 ||
+																	_valid2;
+															}
+															if (!valid12) {
+																const err10 = {
+																	instancePath:
+																		instancePath +
+																		'/plugins/' +
+																		i2,
+																	schemaPath:
+																		'#/properties/plugins/items/anyOf',
 																	keyword:
 																		'anyOf',
 																	params: {},
@@ -21665,11 +21266,11 @@ function validate11(
 																	null
 																) {
 																	vErrors = [
-																		err11,
+																		err10,
 																	];
 																} else {
 																	vErrors.push(
-																		err11
+																		err10
 																	);
 																}
 																errors++;
@@ -21678,115 +21279,350 @@ function validate11(
 																return false;
 															} else {
 																errors =
-																	_errs64;
+																	_errs56;
 																if (
 																	vErrors !==
 																	null
 																) {
 																	if (
-																		_errs64
+																		_errs56
 																	) {
 																		vErrors.length =
-																			_errs64;
+																			_errs56;
 																	} else {
 																		vErrors =
 																			null;
 																	}
 																}
 															}
-															var valid0 =
-																_errs63 ===
+															var valid11 =
+																_errs55 ===
 																errors;
-														} else {
-															var valid0 = true;
+															if (!valid11) {
+																break;
+															}
 														}
-														if (valid0) {
-															if (
-																data.steps !==
-																undefined
-															) {
-																let data27 =
-																	data.steps;
-																const _errs74 =
-																	errors;
+													} else {
+														validate11.errors = [
+															{
+																instancePath:
+																	instancePath +
+																	'/plugins',
+																schemaPath:
+																	'#/properties/plugins/type',
+																keyword: 'type',
+																params: {
+																	type: 'array',
+																},
+																message:
+																	'must be array',
+															},
+														];
+														return false;
+													}
+												}
+												var valid0 = _errs53 === errors;
+											} else {
+												var valid0 = true;
+											}
+											if (valid0) {
+												if (
+													data.siteOptions !==
+													undefined
+												) {
+													let data20 =
+														data.siteOptions;
+													const _errs60 = errors;
+													if (errors === _errs60) {
+														if (
+															data20 &&
+															typeof data20 ==
+																'object' &&
+															!Array.isArray(
+																data20
+															)
+														) {
+															const _errs62 =
+																errors;
+															for (const key5 in data20) {
 																if (
-																	errors ===
-																	_errs74
+																	!(
+																		key5 ===
+																		'blogname'
+																	)
+																) {
+																	const _errs63 =
+																		errors;
+																	if (
+																		typeof data20[
+																			key5
+																		] !==
+																		'string'
+																	) {
+																		validate11.errors =
+																			[
+																				{
+																					instancePath:
+																						instancePath +
+																						'/siteOptions/' +
+																						key5
+																							.replace(
+																								/~/g,
+																								'~0'
+																							)
+																							.replace(
+																								/\//g,
+																								'~1'
+																							),
+																					schemaPath:
+																						'#/properties/siteOptions/additionalProperties/type',
+																					keyword:
+																						'type',
+																					params: {
+																						type: 'string',
+																					},
+																					message:
+																						'must be string',
+																				},
+																			];
+																		return false;
+																	}
+																	var valid13 =
+																		_errs63 ===
+																		errors;
+																	if (
+																		!valid13
+																	) {
+																		break;
+																	}
+																}
+															}
+															if (
+																_errs62 ===
+																errors
+															) {
+																if (
+																	data20.blogname !==
+																	undefined
 																) {
 																	if (
-																		Array.isArray(
-																			data27
-																		)
+																		typeof data20.blogname !==
+																		'string'
 																	) {
-																		var valid16 = true;
-																		const len3 =
-																			data27.length;
-																		for (
-																			let i3 = 0;
-																			i3 <
-																			len3;
-																			i3++
+																		validate11.errors =
+																			[
+																				{
+																					instancePath:
+																						instancePath +
+																						'/siteOptions/blogname',
+																					schemaPath:
+																						'#/properties/siteOptions/properties/blogname/type',
+																					keyword:
+																						'type',
+																					params: {
+																						type: 'string',
+																					},
+																					message:
+																						'must be string',
+																				},
+																			];
+																		return false;
+																	}
+																}
+															}
+														} else {
+															validate11.errors =
+																[
+																	{
+																		instancePath:
+																			instancePath +
+																			'/siteOptions',
+																		schemaPath:
+																			'#/properties/siteOptions/type',
+																		keyword:
+																			'type',
+																		params: {
+																			type: 'object',
+																		},
+																		message:
+																			'must be object',
+																	},
+																];
+															return false;
+														}
+													}
+													var valid0 =
+														_errs60 === errors;
+												} else {
+													var valid0 = true;
+												}
+												if (valid0) {
+													if (
+														data.login !== undefined
+													) {
+														let data23 = data.login;
+														const _errs67 = errors;
+														const _errs68 = errors;
+														let valid15 = false;
+														const _errs69 = errors;
+														if (
+															typeof data23 !==
+															'boolean'
+														) {
+															const err11 = {
+																instancePath:
+																	instancePath +
+																	'/login',
+																schemaPath:
+																	'#/properties/login/anyOf/0/type',
+																keyword: 'type',
+																params: {
+																	type: 'boolean',
+																},
+																message:
+																	'must be boolean',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err11,
+																];
+															} else {
+																vErrors.push(
+																	err11
+																);
+															}
+															errors++;
+														}
+														var _valid3 =
+															_errs69 === errors;
+														valid15 =
+															valid15 || _valid3;
+														if (!valid15) {
+															const _errs71 =
+																errors;
+															if (
+																errors ===
+																_errs71
+															) {
+																if (
+																	data23 &&
+																	typeof data23 ==
+																		'object' &&
+																	!Array.isArray(
+																		data23
+																	)
+																) {
+																	let missing2;
+																	if (
+																		(data23.username ===
+																			undefined &&
+																			(missing2 =
+																				'username')) ||
+																		(data23.password ===
+																			undefined &&
+																			(missing2 =
+																				'password'))
+																	) {
+																		const err12 =
+																			{
+																				instancePath:
+																					instancePath +
+																					'/login',
+																				schemaPath:
+																					'#/properties/login/anyOf/1/required',
+																				keyword:
+																					'required',
+																				params: {
+																					missingProperty:
+																						missing2,
+																				},
+																				message:
+																					"must have required property '" +
+																					missing2 +
+																					"'",
+																			};
+																		if (
+																			vErrors ===
+																			null
 																		) {
-																			let data28 =
-																				data27[
-																					i3
+																			vErrors =
+																				[
+																					err12,
 																				];
-																			const _errs76 =
-																				errors;
-																			const _errs77 =
-																				errors;
-																			let valid17 = false;
-																			const _errs78 =
-																				errors;
+																		} else {
+																			vErrors.push(
+																				err12
+																			);
+																		}
+																		errors++;
+																	} else {
+																		const _errs73 =
+																			errors;
+																		for (const key6 in data23) {
 																			if (
-																				!validate28(
-																					data28,
+																				!(
+																					key6 ===
+																						'username' ||
+																					key6 ===
+																						'password'
+																				)
+																			) {
+																				const err13 =
 																					{
 																						instancePath:
 																							instancePath +
-																							'/steps/' +
-																							i3,
-																						parentData:
-																							data27,
-																						parentDataProperty:
-																							i3,
-																						rootData,
-																					}
-																				)
-																			) {
-																				vErrors =
+																							'/login',
+																						schemaPath:
+																							'#/properties/login/anyOf/1/additionalProperties',
+																						keyword:
+																							'additionalProperties',
+																						params: {
+																							additionalProperty:
+																								key6,
+																						},
+																						message:
+																							'must NOT have additional properties',
+																					};
+																				if (
 																					vErrors ===
 																					null
-																						? validate28.errors
-																						: vErrors.concat(
-																								validate28.errors
-																							);
-																				errors =
-																					vErrors.length;
+																				) {
+																					vErrors =
+																						[
+																							err13,
+																						];
+																				} else {
+																					vErrors.push(
+																						err13
+																					);
+																				}
+																				errors++;
+																				break;
 																			}
-																			var _valid3 =
-																				_errs78 ===
-																				errors;
-																			valid17 =
-																				valid17 ||
-																				_valid3;
+																		}
+																		if (
+																			_errs73 ===
+																			errors
+																		) {
 																			if (
-																				!valid17
+																				data23.username !==
+																				undefined
 																			) {
-																				const _errs79 =
+																				const _errs74 =
 																					errors;
 																				if (
-																					typeof data28 !==
+																					typeof data23.username !==
 																					'string'
 																				) {
-																					const err12 =
+																					const err14 =
 																						{
 																							instancePath:
 																								instancePath +
-																								'/steps/' +
-																								i3,
+																								'/login/username',
 																							schemaPath:
-																								'#/properties/steps/items/anyOf/1/type',
+																								'#/properties/login/anyOf/1/properties/username/type',
 																							keyword:
 																								'type',
 																							params: {
@@ -21801,207 +21637,253 @@ function validate11(
 																					) {
 																						vErrors =
 																							[
-																								err12,
+																								err14,
 																							];
 																					} else {
 																						vErrors.push(
-																							err12
+																							err14
 																						);
 																					}
 																					errors++;
 																				}
-																				var _valid3 =
-																					_errs79 ===
+																				var valid16 =
+																					_errs74 ===
 																					errors;
-																				valid17 =
-																					valid17 ||
-																					_valid3;
-																				if (
-																					!valid17
-																				) {
-																					const _errs81 =
-																						errors;
-																					const err13 =
-																						{
-																							instancePath:
-																								instancePath +
-																								'/steps/' +
-																								i3,
-																							schemaPath:
-																								'#/properties/steps/items/anyOf/2/not',
-																							keyword:
-																								'not',
-																							params: {},
-																							message:
-																								'must NOT be valid',
-																						};
-																					if (
-																						vErrors ===
-																						null
-																					) {
-																						vErrors =
-																							[
-																								err13,
-																							];
-																					} else {
-																						vErrors.push(
-																							err13
-																						);
-																					}
-																					errors++;
-																					var _valid3 =
-																						_errs81 ===
-																						errors;
-																					valid17 =
-																						valid17 ||
-																						_valid3;
-																					if (
-																						!valid17
-																					) {
-																						const _errs83 =
-																							errors;
-																						if (
-																							typeof data28 !==
-																							'boolean'
-																						) {
-																							const err14 =
-																								{
-																									instancePath:
-																										instancePath +
-																										'/steps/' +
-																										i3,
-																									schemaPath:
-																										'#/properties/steps/items/anyOf/3/type',
-																									keyword:
-																										'type',
-																									params: {
-																										type: 'boolean',
-																									},
-																									message:
-																										'must be boolean',
-																								};
-																							if (
-																								vErrors ===
-																								null
-																							) {
-																								vErrors =
-																									[
-																										err14,
-																									];
-																							} else {
-																								vErrors.push(
-																									err14
-																								);
-																							}
-																							errors++;
-																						}
-																						if (
-																							false !==
-																							data28
-																						) {
-																							const err15 =
-																								{
-																									instancePath:
-																										instancePath +
-																										'/steps/' +
-																										i3,
-																									schemaPath:
-																										'#/properties/steps/items/anyOf/3/const',
-																									keyword:
-																										'const',
-																									params: {
-																										allowedValue: false,
-																									},
-																									message:
-																										'must be equal to constant',
-																								};
-																							if (
-																								vErrors ===
-																								null
-																							) {
-																								vErrors =
-																									[
-																										err15,
-																									];
-																							} else {
-																								vErrors.push(
-																									err15
-																								);
-																							}
-																							errors++;
-																						}
-																						var _valid3 =
-																							_errs83 ===
-																							errors;
-																						valid17 =
-																							valid17 ||
-																							_valid3;
-																						if (
-																							!valid17
-																						) {
-																							const _errs85 =
-																								errors;
-																							if (
-																								data28 !==
-																								null
-																							) {
-																								const err16 =
-																									{
-																										instancePath:
-																											instancePath +
-																											'/steps/' +
-																											i3,
-																										schemaPath:
-																											'#/properties/steps/items/anyOf/4/type',
-																										keyword:
-																											'type',
-																										params: {
-																											type: 'null',
-																										},
-																										message:
-																											'must be null',
-																									};
-																								if (
-																									vErrors ===
-																									null
-																								) {
-																									vErrors =
-																										[
-																											err16,
-																										];
-																								} else {
-																									vErrors.push(
-																										err16
-																									);
-																								}
-																								errors++;
-																							}
-																							var _valid3 =
-																								_errs85 ===
-																								errors;
-																							valid17 =
-																								valid17 ||
-																								_valid3;
-																						}
-																					}
-																				}
+																			} else {
+																				var valid16 = true;
 																			}
 																			if (
-																				!valid17
+																				valid16
 																			) {
-																				const err17 =
+																				if (
+																					data23.password !==
+																					undefined
+																				) {
+																					const _errs76 =
+																						errors;
+																					if (
+																						typeof data23.password !==
+																						'string'
+																					) {
+																						const err15 =
+																							{
+																								instancePath:
+																									instancePath +
+																									'/login/password',
+																								schemaPath:
+																									'#/properties/login/anyOf/1/properties/password/type',
+																								keyword:
+																									'type',
+																								params: {
+																									type: 'string',
+																								},
+																								message:
+																									'must be string',
+																							};
+																						if (
+																							vErrors ===
+																							null
+																						) {
+																							vErrors =
+																								[
+																									err15,
+																								];
+																						} else {
+																							vErrors.push(
+																								err15
+																							);
+																						}
+																						errors++;
+																					}
+																					var valid16 =
+																						_errs76 ===
+																						errors;
+																				} else {
+																					var valid16 = true;
+																				}
+																			}
+																		}
+																	}
+																} else {
+																	const err16 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/login',
+																			schemaPath:
+																				'#/properties/login/anyOf/1/type',
+																			keyword:
+																				'type',
+																			params: {
+																				type: 'object',
+																			},
+																			message:
+																				'must be object',
+																		};
+																	if (
+																		vErrors ===
+																		null
+																	) {
+																		vErrors =
+																			[
+																				err16,
+																			];
+																	} else {
+																		vErrors.push(
+																			err16
+																		);
+																	}
+																	errors++;
+																}
+															}
+															var _valid3 =
+																_errs71 ===
+																errors;
+															valid15 =
+																valid15 ||
+																_valid3;
+														}
+														if (!valid15) {
+															const err17 = {
+																instancePath:
+																	instancePath +
+																	'/login',
+																schemaPath:
+																	'#/properties/login/anyOf',
+																keyword:
+																	'anyOf',
+																params: {},
+																message:
+																	'must match a schema in anyOf',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err17,
+																];
+															} else {
+																vErrors.push(
+																	err17
+																);
+															}
+															errors++;
+															validate11.errors =
+																vErrors;
+															return false;
+														} else {
+															errors = _errs68;
+															if (
+																vErrors !== null
+															) {
+																if (_errs68) {
+																	vErrors.length =
+																		_errs68;
+																} else {
+																	vErrors =
+																		null;
+																}
+															}
+														}
+														var valid0 =
+															_errs67 === errors;
+													} else {
+														var valid0 = true;
+													}
+													if (valid0) {
+														if (
+															data.steps !==
+															undefined
+														) {
+															let data26 =
+																data.steps;
+															const _errs78 =
+																errors;
+															if (
+																errors ===
+																_errs78
+															) {
+																if (
+																	Array.isArray(
+																		data26
+																	)
+																) {
+																	var valid17 = true;
+																	const len3 =
+																		data26.length;
+																	for (
+																		let i3 = 0;
+																		i3 <
+																		len3;
+																		i3++
+																	) {
+																		let data27 =
+																			data26[
+																				i3
+																			];
+																		const _errs80 =
+																			errors;
+																		const _errs81 =
+																			errors;
+																		let valid18 = false;
+																		const _errs82 =
+																			errors;
+																		if (
+																			!validate28(
+																				data27,
+																				{
+																					instancePath:
+																						instancePath +
+																						'/steps/' +
+																						i3,
+																					parentData:
+																						data26,
+																					parentDataProperty:
+																						i3,
+																					rootData,
+																				}
+																			)
+																		) {
+																			vErrors =
+																				vErrors ===
+																				null
+																					? validate28.errors
+																					: vErrors.concat(
+																							validate28.errors
+																						);
+																			errors =
+																				vErrors.length;
+																		}
+																		var _valid4 =
+																			_errs82 ===
+																			errors;
+																		valid18 =
+																			valid18 ||
+																			_valid4;
+																		if (
+																			!valid18
+																		) {
+																			const _errs83 =
+																				errors;
+																			if (
+																				typeof data27 !==
+																				'string'
+																			) {
+																				const err18 =
 																					{
 																						instancePath:
 																							instancePath +
 																							'/steps/' +
 																							i3,
 																						schemaPath:
-																							'#/properties/steps/items/anyOf',
+																							'#/properties/steps/items/anyOf/1/type',
 																						keyword:
-																							'anyOf',
-																						params: {},
+																							'type',
+																						params: {
+																							type: 'string',
+																						},
 																						message:
-																							'must match a schema in anyOf',
+																							'must be string',
 																					};
 																				if (
 																					vErrors ===
@@ -22009,107 +21891,314 @@ function validate11(
 																				) {
 																					vErrors =
 																						[
-																							err17,
+																							err18,
 																						];
 																				} else {
 																					vErrors.push(
-																						err17
+																						err18
 																					);
 																				}
 																				errors++;
-																				validate11.errors =
-																					vErrors;
-																				return false;
-																			} else {
-																				errors =
-																					_errs77;
+																			}
+																			var _valid4 =
+																				_errs83 ===
+																				errors;
+																			valid18 =
+																				valid18 ||
+																				_valid4;
+																			if (
+																				!valid18
+																			) {
+																				const _errs85 =
+																					errors;
+																				const err19 =
+																					{
+																						instancePath:
+																							instancePath +
+																							'/steps/' +
+																							i3,
+																						schemaPath:
+																							'#/properties/steps/items/anyOf/2/not',
+																						keyword:
+																							'not',
+																						params: {},
+																						message:
+																							'must NOT be valid',
+																					};
 																				if (
-																					vErrors !==
+																					vErrors ===
 																					null
 																				) {
+																					vErrors =
+																						[
+																							err19,
+																						];
+																				} else {
+																					vErrors.push(
+																						err19
+																					);
+																				}
+																				errors++;
+																				var _valid4 =
+																					_errs85 ===
+																					errors;
+																				valid18 =
+																					valid18 ||
+																					_valid4;
+																				if (
+																					!valid18
+																				) {
+																					const _errs87 =
+																						errors;
 																					if (
-																						_errs77
+																						typeof data27 !==
+																						'boolean'
 																					) {
-																						vErrors.length =
-																							_errs77;
-																					} else {
-																						vErrors =
-																							null;
+																						const err20 =
+																							{
+																								instancePath:
+																									instancePath +
+																									'/steps/' +
+																									i3,
+																								schemaPath:
+																									'#/properties/steps/items/anyOf/3/type',
+																								keyword:
+																									'type',
+																								params: {
+																									type: 'boolean',
+																								},
+																								message:
+																									'must be boolean',
+																							};
+																						if (
+																							vErrors ===
+																							null
+																						) {
+																							vErrors =
+																								[
+																									err20,
+																								];
+																						} else {
+																							vErrors.push(
+																								err20
+																							);
+																						}
+																						errors++;
+																					}
+																					if (
+																						false !==
+																						data27
+																					) {
+																						const err21 =
+																							{
+																								instancePath:
+																									instancePath +
+																									'/steps/' +
+																									i3,
+																								schemaPath:
+																									'#/properties/steps/items/anyOf/3/const',
+																								keyword:
+																									'const',
+																								params: {
+																									allowedValue: false,
+																								},
+																								message:
+																									'must be equal to constant',
+																							};
+																						if (
+																							vErrors ===
+																							null
+																						) {
+																							vErrors =
+																								[
+																									err21,
+																								];
+																						} else {
+																							vErrors.push(
+																								err21
+																							);
+																						}
+																						errors++;
+																					}
+																					var _valid4 =
+																						_errs87 ===
+																						errors;
+																					valid18 =
+																						valid18 ||
+																						_valid4;
+																					if (
+																						!valid18
+																					) {
+																						const _errs89 =
+																							errors;
+																						if (
+																							data27 !==
+																							null
+																						) {
+																							const err22 =
+																								{
+																									instancePath:
+																										instancePath +
+																										'/steps/' +
+																										i3,
+																									schemaPath:
+																										'#/properties/steps/items/anyOf/4/type',
+																									keyword:
+																										'type',
+																									params: {
+																										type: 'null',
+																									},
+																									message:
+																										'must be null',
+																								};
+																							if (
+																								vErrors ===
+																								null
+																							) {
+																								vErrors =
+																									[
+																										err22,
+																									];
+																							} else {
+																								vErrors.push(
+																									err22
+																								);
+																							}
+																							errors++;
+																						}
+																						var _valid4 =
+																							_errs89 ===
+																							errors;
+																						valid18 =
+																							valid18 ||
+																							_valid4;
 																					}
 																				}
 																			}
-																			var valid16 =
-																				_errs76 ===
-																				errors;
-																			if (
-																				!valid16
-																			) {
-																				break;
-																			}
 																		}
-																	} else {
-																		validate11.errors =
-																			[
+																		if (
+																			!valid18
+																		) {
+																			const err23 =
 																				{
 																					instancePath:
 																						instancePath +
-																						'/steps',
+																						'/steps/' +
+																						i3,
 																					schemaPath:
-																						'#/properties/steps/type',
+																						'#/properties/steps/items/anyOf',
 																					keyword:
-																						'type',
-																					params: {
-																						type: 'array',
-																					},
+																						'anyOf',
+																					params: {},
 																					message:
-																						'must be array',
-																				},
-																			];
-																		return false;
+																						'must match a schema in anyOf',
+																				};
+																			if (
+																				vErrors ===
+																				null
+																			) {
+																				vErrors =
+																					[
+																						err23,
+																					];
+																			} else {
+																				vErrors.push(
+																					err23
+																				);
+																			}
+																			errors++;
+																			validate11.errors =
+																				vErrors;
+																			return false;
+																		} else {
+																			errors =
+																				_errs81;
+																			if (
+																				vErrors !==
+																				null
+																			) {
+																				if (
+																					_errs81
+																				) {
+																					vErrors.length =
+																						_errs81;
+																				} else {
+																					vErrors =
+																						null;
+																				}
+																			}
+																		}
+																		var valid17 =
+																			_errs80 ===
+																			errors;
+																		if (
+																			!valid17
+																		) {
+																			break;
+																		}
 																	}
+																} else {
+																	validate11.errors =
+																		[
+																			{
+																				instancePath:
+																					instancePath +
+																					'/steps',
+																				schemaPath:
+																					'#/properties/steps/type',
+																				keyword:
+																					'type',
+																				params: {
+																					type: 'array',
+																				},
+																				message:
+																					'must be array',
+																			},
+																		];
+																	return false;
+																}
+															}
+															var valid0 =
+																_errs78 ===
+																errors;
+														} else {
+															var valid0 = true;
+														}
+														if (valid0) {
+															if (
+																data.$schema !==
+																undefined
+															) {
+																const _errs91 =
+																	errors;
+																if (
+																	typeof data.$schema !==
+																	'string'
+																) {
+																	validate11.errors =
+																		[
+																			{
+																				instancePath:
+																					instancePath +
+																					'/$schema',
+																				schemaPath:
+																					'#/properties/%24schema/type',
+																				keyword:
+																					'type',
+																				params: {
+																					type: 'string',
+																				},
+																				message:
+																					'must be string',
+																			},
+																		];
+																	return false;
 																}
 																var valid0 =
-																	_errs74 ===
+																	_errs91 ===
 																	errors;
 															} else {
 																var valid0 = true;
-															}
-															if (valid0) {
-																if (
-																	data.$schema !==
-																	undefined
-																) {
-																	const _errs87 =
-																		errors;
-																	if (
-																		typeof data.$schema !==
-																		'string'
-																	) {
-																		validate11.errors =
-																			[
-																				{
-																					instancePath:
-																						instancePath +
-																						'/$schema',
-																					schemaPath:
-																						'#/properties/%24schema/type',
-																					keyword:
-																						'type',
-																					params: {
-																						type: 'string',
-																					},
-																					message:
-																						'must be string',
-																				},
-																			];
-																		return false;
-																	}
-																	var valid0 =
-																		_errs87 ===
-																		errors;
-																} else {
-																	var valid0 = true;
-																}
 															}
 														}
 													}

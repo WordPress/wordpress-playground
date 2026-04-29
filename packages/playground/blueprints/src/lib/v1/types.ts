@@ -60,15 +60,6 @@ export type BlueprintV1Declaration = {
 		categories?: string[];
 	};
 	/**
-	 * Set to `false` to boot a PHP-only Playground without downloading or
-	 * installing WordPress. Useful for running pure-PHP snippets.
-	 *
-	 * When set to `false`, WordPress-specific Blueprint fields (`plugins`,
-	 * `siteOptions`, `login`, and WordPress-only steps) are rejected at
-	 * compile time. `preferredVersions.wp` is ignored.
-	 */
-	wordpress?: false;
-	/**
 	 * The preferred PHP and WordPress versions to use.
 	 */
 	preferredVersions?: {
@@ -80,10 +71,15 @@ export type BlueprintV1Declaration = {
 		 */
 		php: BlueprintPHPVersion | 'latest';
 		/**
-		 * The preferred WordPress version to use.
-		 * If not specified, the latest supported version will be used
+		 * The preferred WordPress version to use, or `false` to boot a
+		 * PHP-only Playground without downloading or installing WordPress.
+		 * If not specified, the latest supported version will be used.
+		 *
+		 * When set to `false`, WordPress-specific Blueprint fields
+		 * (`plugins`, `siteOptions`, `login`, and WordPress-only steps)
+		 * are rejected at compile time.
 		 */
-		wp: string | 'latest';
+		wp: string | 'latest' | false;
 	};
 	features?: {
 		/** Should boot with support for Intl dynamic extension */

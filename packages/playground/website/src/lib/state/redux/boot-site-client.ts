@@ -14,6 +14,7 @@ import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
+	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
@@ -174,13 +175,15 @@ export function bootSiteClient(
 							},
 						]
 					: [],
-				// PHP-only mode: a Blueprint with `wordpress: false`
-				// declares it doesn't want WordPress, so honor that even
-				// if the storage layer thinks WP isn't installed yet —
-				// passing `true` here would conflict with the Blueprint
+				// PHP-only mode: a Blueprint with `preferredVersions.wp:
+				// false` declares it doesn't want WordPress, so honor that
+				// even if the storage layer thinks WP isn't installed yet
+				// — passing `true` here would conflict with the Blueprint
 				// and the handler would throw.
 				shouldInstallWordPress:
-					(blueprint as { wordpress?: false })?.wordpress === false
+					blueprint &&
+					!isBlueprintBundle(blueprint) &&
+					blueprint.preferredVersions?.wp === false
 						? false
 						: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
