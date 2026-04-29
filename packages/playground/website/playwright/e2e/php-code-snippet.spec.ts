@@ -32,6 +32,23 @@ test.describe('php-code-snippet embed', () => {
 		}
 	});
 
+	test('runnable=false renders a read-only snippet without Run', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const snippet = page.locator('php-snippet[name="illustration.php"]');
+
+		await expect(snippet).toBeVisible();
+		await expect(snippet.locator('.run')).toHaveCount(0);
+		await expect(snippet.locator('textarea.ta')).toHaveCount(0);
+		await expect(snippet.locator('pre code')).toContainText(
+			'Just an illustration'
+		);
+		await expect(
+			page.locator('iframe[title="PHP Snippet runtime"]')
+		).toHaveCount(0);
+	});
+
 	test('first Run boots the runtime and shows progress + output', async ({
 		page,
 	}) => {
@@ -172,7 +189,7 @@ test.describe('php-code-snippet embed', () => {
 
 	test('editable snippet runs the user-typed code', async ({ page }) => {
 		await page.goto(DEMO_URL);
-		const editable = page.locator('php-snippet[editable]');
+		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 		const textarea = editable.locator('textarea.ta');
 		await expect(textarea).toBeVisible();
