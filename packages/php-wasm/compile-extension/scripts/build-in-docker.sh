@@ -15,6 +15,9 @@ ASYNC_MODE="${ASYNC_MODE:-asyncify}"
 OPTIMIZE="${OPTIMIZE:-2}"
 ARTIFACT_FILENAME="${ARTIFACT_FILENAME:-${EXTENSION_NAME}-php${PHP_VERSION_SHORT:-unknown}-${ASYNC_MODE}.so}"
 MAKE_JOBS="${MAKE_JOBS:-$(nproc)}"
+USER_EXTRA_CFLAGS="${EXTRA_CFLAGS:-}"
+USER_EXTRA_LDFLAGS="${EXTRA_LDFLAGS:-}"
+unset EXTRA_CFLAGS EXTRA_LDFLAGS
 
 rm -rf /build
 mkdir -p /build /out
@@ -37,10 +40,25 @@ else
 	exit 1
 fi
 
-export CFLAGS="${BASE_CFLAGS} ${EXTRA_CFLAGS:-}"
-export CXXFLAGS="${BASE_CFLAGS} ${EXTRA_CFLAGS:-}"
-export LDFLAGS="${BASE_LDFLAGS} ${ASYNC_FLAGS} ${EXTRA_LDFLAGS:-}"
-export EMCC_FLAGS="${LDFLAGS}"
+EXTRA_LINK_FLAGS=""
+EXTRA_STATIC_ARCHIVES=""
+for flag in $USER_EXTRA_LDFLAGS; do
+	if [[ "$flag" == *.a ]]; then
+		EXTRA_STATIC_ARCHIVES="${EXTRA_STATIC_ARCHIVES} ${flag}"
+	else
+		EXTRA_LINK_FLAGS="${EXTRA_LINK_FLAGS} ${flag}"
+	fi
+done
+
+export CFLAGS="${BASE_CFLAGS} ${USER_EXTRA_CFLAGS}"
+export CXXFLAGS="${BASE_CFLAGS} ${USER_EXTRA_CFLAGS}"
+CONFIGURE_LDFLAGS="${BASE_LDFLAGS} ${ASYNC_FLAGS}"
+BUILD_LDFLAGS="${CONFIGURE_LDFLAGS}${EXTRA_LINK_FLAGS}"
+export LDFLAGS="${CONFIGURE_LDFLAGS}"
+# The libtool patch below injects EMCC_FLAGS into the final archive command.
+# Keep dependency archives out of LDFLAGS so libtool does not drop or duplicate them.
+export EMCC_FLAGS="${BUILD_LDFLAGS}"
+export EMCC_STATIC_ARCHIVES="${EXTRA_STATIC_ARCHIVES}"
 
 configure_args=("--host=i386-unknown-freebsd" "--enable-${EXTENSION_NAME}" "--disable-static" "--enable-shared")
 config_args_count="${CONFIG_ARGS_COUNT:-0}"
@@ -49,10 +67,19 @@ for ((i = 0; i < config_args_count; i++)); do
 	configure_args+=("${!arg_name}")
 done
 
-emconfigure ./configure "${configure_args[@]}"
+if ! emconfigure ./configure "${configure_args[@]}"; then
+	if [ -f config.log ]; then
+		cat config.log >&2
+	fi
+	exit 1
+fi
 
 if [ -f libtool ]; then
-	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS|' libtool || true
+	if [ -n "$EMCC_STATIC_ARCHIVES" ]; then
+		/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive \\\$EMCC_STATIC_ARCHIVES --no-whole-archive|' libtool || true
+	else
+		/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS|' libtool || true
+	fi
 fi
 
 emmake make -j"${MAKE_JOBS}"

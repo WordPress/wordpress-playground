@@ -38,6 +38,11 @@ VERIFY_EXTENSION=(
 	"${ROOT_DIR}/packages/php-wasm/compile-extension/tests/load-built-extension.mjs"
 )
 
+extension_image_tag() {
+	local php_version_tag="${PHP_VERSION//./-}"
+	echo "playground-php-wasm:compile-extension-php${php_version_tag}-${ASYNC_MODE}"
+}
+
 compile_extension() {
 	"${COMPILE_EXTENSION[@]}" \
 		--php-versions "$PHP_VERSION" \
@@ -56,6 +61,25 @@ verify_extension() {
 		"$ASYNC_MODE" \
 		"$php_code" \
 		"$expected_output"
+}
+
+build_string_score_dependency() {
+	local source_dir="$1"
+	docker run --rm \
+		--entrypoint bash \
+		-v "${source_dir}:/src" \
+		"$(extension_image_tag)" \
+		-lc '
+			set -euo pipefail
+			source /root/emsdk/emsdk_env.sh
+			cd /src/vendor/string-score
+			mkdir -p build install/include install/lib
+			emcc -D__x86_64__ -fPIC -O2 -c string_score.c -o build/string_score.o
+			emar rcs install/lib/libstring_score.a build/string_score.o
+			emranlib install/lib/libstring_score.a
+			cp string_score.h install/include/
+			chmod -R a+rwX /src/vendor/string-score
+		'
 }
 
 echo "::group::Build and load simple extension"
@@ -90,19 +114,36 @@ verify_extension \
 	"29"
 echo "::endgroup::"
 
-echo "::group::Build and load libxml2-backed extension"
-make -C "$ROOT_DIR/packages/php-wasm/compile" "libxml2_${ASYNC_MODE}"
+echo "::group::Build and load zlib-backed extension"
+make -C "$ROOT_DIR/packages/php-wasm/compile" "libz_${ASYNC_MODE}"
 DEPS_ROOT="/php-wasm-compile"
-LIBXML_PREFIX="${DEPS_ROOT}/libxml2/${ASYNC_MODE}/dist/root/lib"
 LIBZ_PREFIX="${DEPS_ROOT}/libz/${ASYNC_MODE}/dist/root/lib"
 compile_extension \
-	--source packages/php-wasm/compile-extension/tests/fixtures/xml-probe \
-	--name xml_probe \
-	--out "$WORK_DIR/xml-probe" \
-	--extra-cflags "-I${LIBXML_PREFIX}/include/libxml2 -I${LIBZ_PREFIX}/include" \
-	--extra-ldflags "${LIBXML_PREFIX}/lib/libxml2.a ${LIBZ_PREFIX}/lib/libz.a"
+	--source packages/php-wasm/compile-extension/tests/fixtures/zlib-probe \
+	--name zlib_probe \
+	--out "$WORK_DIR/zlib-probe" \
+	--extra-cflags "-I${LIBZ_PREFIX}/include" \
+	--extra-ldflags "${LIBZ_PREFIX}/lib/libz.a"
 verify_extension \
-	"$WORK_DIR/xml-probe/manifest.json" \
-	"<?php echo xml_probe_root_name('<root><child /></root>');" \
-	"root"
+	"$WORK_DIR/zlib-probe/manifest.json" \
+	"<?php echo zlib_probe_roundtrip('dependency backed extension');" \
+	"dependency backed extension"
+echo "::endgroup::"
+
+echo "::group::Build and load extension backed by non-Playground library"
+EXTERNAL_SOURCE="$WORK_DIR/external-lib-probe"
+cp -R \
+	"$ROOT_DIR/packages/php-wasm/compile-extension/tests/fixtures/external-lib-probe" \
+	"$EXTERNAL_SOURCE"
+build_string_score_dependency "$EXTERNAL_SOURCE"
+compile_extension \
+	--source "$EXTERNAL_SOURCE" \
+	--name external_lib_probe \
+	--out "$WORK_DIR/external-lib-probe-dist" \
+	--extra-cflags "-I/build/vendor/string-score/install/include" \
+	--extra-ldflags "/build/vendor/string-score/install/lib/libstring_score.a"
+verify_extension \
+	"$WORK_DIR/external-lib-probe-dist/manifest.json" \
+	"<?php echo external_lib_probe_score('wasm');" \
+	"1094"
 echo "::endgroup::"

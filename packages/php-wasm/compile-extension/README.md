@@ -52,28 +52,108 @@ For dependencies already built by Playground, build the matching target and pass
 the mounted path under `/php-wasm-compile`:
 
 ```bash
-make -C packages/php-wasm/compile libxml2_jspi
+make -C packages/php-wasm/compile libz_jspi
 
 npx @php-wasm/compile-extension \
-	--source ./xml-probe \
-	--name xml_probe \
+	--source ./zlib-probe \
+	--name zlib_probe \
 	--php-versions 8.3 \
 	--async-modes jspi \
-	--extra-cflags "-I/php-wasm-compile/libxml2/jspi/dist/root/lib/include/libxml2 -I/php-wasm-compile/libz/jspi/dist/root/lib/include" \
-	--extra-ldflags "/php-wasm-compile/libxml2/jspi/dist/root/lib/lib/libxml2.a /php-wasm-compile/libz/jspi/dist/root/lib/lib/libz.a"
+	--extra-cflags "-I/php-wasm-compile/libz/jspi/dist/root/lib/include" \
+	--extra-ldflags "/php-wasm-compile/libz/jspi/dist/root/lib/lib/libz.a"
 ```
 
 For dependencies that are not in `packages/php-wasm/compile`, either:
 
 - Vendor the dependency source under your extension and build it from
   `config.m4`, using paths under `/build` after the helper copies `/src`.
-- Add a Docker layer that builds the dependency with Emscripten, then pass its
-  include and archive paths through `--extra-cflags`, `--extra-ldflags`, and
-  `--config-args`.
+- Build the dependency with Emscripten before running the helper, place the
+  resulting headers and `.a` archive under the extension source directory, and
+  pass `/build/...` paths through `--extra-cflags` and `--extra-ldflags`.
+- Add a Docker layer that builds the dependency with Emscripten, then pass the
+  resulting include and archive paths through `--extra-cflags`,
+  `--extra-ldflags`, and `--config-args`.
+
+For example, if an extension vendors an external library that is not provided by
+Playground and stores its Emscripten build output under
+`vendor/string-score/install`, pass the copied `/build` paths:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./external-lib-probe \
+	--name external_lib_probe \
+	--php-versions 8.3 \
+	--async-modes asyncify \
+	--extra-cflags "-I/build/vendor/string-score/install/include" \
+	--extra-ldflags "/build/vendor/string-score/install/lib/libstring_score.a"
+```
+
+If the dependency uses CMake, build it as a static archive with Emscripten and
+store the install tree under the extension source directory:
+
+```bash
+# Run this inside the same Emscripten toolchain used for the target PHP.wasm
+# version and async mode.
+source /root/emsdk/emsdk_env.sh
+
+emcmake cmake \
+	-S vendor/libfoo \
+	-B vendor/libfoo/build \
+	-DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_INSTALL_PREFIX="$PWD/vendor/libfoo/install" \
+	-DBUILD_SHARED_LIBS=OFF
+
+emmake cmake --build vendor/libfoo/build --target install
+
+npx @php-wasm/compile-extension \
+	--source . \
+	--name my_extension \
+	--php-versions 8.3 \
+	--async-modes asyncify \
+	--extra-cflags "-I/build/vendor/libfoo/install/include" \
+	--extra-ldflags "/build/vendor/libfoo/install/lib/libfoo.a"
+```
+
+For plain Makefile dependencies, force the Makefile to use Emscripten tools and
+link the resulting archive the same way:
+
+```bash
+source /root/emsdk/emsdk_env.sh
+
+emmake make -C vendor/libfoo \
+	CC=emcc \
+	CXX=em++ \
+	AR=emar \
+	RANLIB=emranlib \
+	PREFIX="$PWD/vendor/libfoo/install" \
+	install
+
+npx @php-wasm/compile-extension \
+	--source . \
+	--name my_extension \
+	--php-versions 8.3 \
+	--async-modes asyncify \
+	--extra-cflags "-I/build/vendor/libfoo/install/include" \
+	--extra-ldflags "/build/vendor/libfoo/install/lib/libfoo.a"
+```
+
+The final PHP extension still needs to be a `phpize` extension with `config.m4`.
+If an extension is CMake-only or Makefile-only and produces the final `.so`
+without `phpize`, add a thin `config.m4` wrapper that builds the PHP extension
+and treats the CMake/Make output as dependency code. A fully custom final build
+script is outside v1.
 
 Keep the dependency async mode aligned with the extension. A `jspi` side module
 must link `jspi` dependency archives; an `asyncify` side module must link
 `asyncify` dependency archives.
+
+`--extra-cflags` is visible during `./configure`. `--extra-ldflags` is applied
+to the final side-module link so dependency archives do not break Autoconf's
+compiler smoke tests. If an extension's `config.m4` insists on link-probing a
+dependency, pass explicit `--config-args` to select the known dependency path or
+patch the extension's build recipe to use the WebAssembly archive directly.
+Static `.a` archives passed via `--extra-ldflags` are force-linked with
+`--whole-archive` so the side module contains the dependency code it needs.
 
 ## Troubleshooting
 
@@ -105,6 +185,14 @@ for JSPI runtimes and `asyncify` artifacts for Asyncify runtimes.
 
 One of the linked libraries is a native host library. Rebuild that dependency
 with Emscripten and link the resulting `.a` file.
+
+`bad export type for 'stdin'` or another C runtime global
+
+The side module pulled in a dependency object that expects a mutable C runtime
+global the main PHP.wasm module does not export. Rebuild the dependency with the
+unused feature disabled, link a smaller archive that excludes that object, or
+move the dependency into the main PHP.wasm build so the global is provided by
+the runtime.
 
 `phpize` cannot find headers
 
