@@ -69,22 +69,25 @@ verify_extension \
 	"hello from php-wasm"
 echo "::endgroup::"
 
-# phpredis and serializer extensions such as igbinary currently import PHP
-# main-module data globals that are not exported in a side-module-compatible
-# shape. ext-ds still exercises a non-trivial phpize extension.
-echo "::group::Build and load ext-ds"
-git clone https://github.com/php-ds/ext-ds.git "$WORK_DIR/ext-ds" \
-	--branch v1.6.0 \
+# Several PECL extensions import PHP main-module data globals that are not yet
+# exported in a side-module-compatible shape. ext/calendar is still a real
+# multi-file phpize extension and gives this helper a non-trivial load test.
+echo "::group::Build and load php-src ext/calendar"
+git clone https://github.com/php/php-src.git "$WORK_DIR/php-src" \
+	--branch php-8.3.30 \
 	--single-branch \
-	--depth 1
+	--depth 1 \
+	--filter=blob:none \
+	--sparse
+git -C "$WORK_DIR/php-src" sparse-checkout set ext/calendar
 compile_extension \
-	--source "$WORK_DIR/ext-ds" \
-	--name ds \
-	--out "$WORK_DIR/ds"
+	--source "$WORK_DIR/php-src/ext/calendar" \
+	--name calendar \
+	--out "$WORK_DIR/calendar"
 verify_extension \
-	"$WORK_DIR/ds/manifest.json" \
-	"<?php \$vector = new Ds\\Vector([1, 2, 3]); \$vector->push(4); echo \$vector->get(3);" \
-	"4"
+	"$WORK_DIR/calendar/manifest.json" \
+	"<?php echo cal_days_in_month(CAL_GREGORIAN, 2, 2024);" \
+	"29"
 echo "::endgroup::"
 
 echo "::group::Build and load libxml2-backed extension"
