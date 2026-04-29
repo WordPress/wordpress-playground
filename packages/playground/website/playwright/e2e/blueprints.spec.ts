@@ -982,8 +982,12 @@ test('Blueprint with `wordpress: false` boots Playground without WordPress', asy
 	const probe = await website.page.evaluate(async () => {
 		const playground = (window as any).playground;
 		const r = await playground.run({
+			// `/wordpress` itself is created by PHPRequestHandler as the
+			// document root regardless of WP, so that's not a useful signal.
+			// What we really want is: no WP files, no WP runtime, no SQLite
+			// drop-in installed.
 			code: `<?php echo json_encode([
-				'wp_dir' => is_dir('/wordpress'),
+				'wp_files' => file_exists('/wordpress/wp-includes/version.php'),
 				'wp_loaded' => function_exists('wp_get_current_user'),
 				'sqlite_drop_in' => file_exists('/internal/shared/preload/0-sqlite.php'),
 			]);`,
@@ -992,7 +996,7 @@ test('Blueprint with `wordpress: false` boots Playground without WordPress', asy
 	});
 
 	expect(JSON.parse(probe)).toEqual({
-		wp_dir: false,
+		wp_files: false,
 		wp_loaded: false,
 		sqlite_drop_in: false,
 	});
