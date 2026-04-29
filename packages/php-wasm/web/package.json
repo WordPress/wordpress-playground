@@ -37,6 +37,9 @@
 	"main": "./index.cjs",
 	"module": "./index.js",
 	"types": "index.d.ts",
+	"dependencies": {
+		"wasm-feature-detect": "1.8.0"
+	},
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
 	"engines": {
 		"node": ">=20.10.0",

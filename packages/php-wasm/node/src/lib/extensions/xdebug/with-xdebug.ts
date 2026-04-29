@@ -3,8 +3,9 @@ import {
 	type EmscriptenOptions,
 	type PHPRuntime,
 	type SupportedPHPVersion,
-	FSHelpers,
+	installPHPExtensionFilesSync,
 	LatestSupportedPHPVersion,
+	PHP_EXTENSIONS_DIR,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
@@ -27,68 +28,34 @@ export async function withXdebug(
 	options: EmscriptenOptions,
 	xdebugOptions: XdebugOptions
 ): Promise<EmscriptenOptions> {
-	const fileName = 'xdebug.so';
 	const filePath = await getXdebugExtensionModule(version);
-	const extension = fs.readFileSync(filePath);
+	const soBytes = new Uint8Array(fs.readFileSync(filePath));
 
 	return {
 		...options,
 		ENV: {
 			...options.ENV,
-			PHP_INI_SCAN_DIR: '/internal/shared/extensions',
+			PHP_INI_SCAN_DIR: PHP_EXTENSIONS_DIR,
 		},
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/*
-			 * The extension file previously read
-			 * is written inside the /extensions directory
-			 */
-			if (
-				!FSHelpers.fileExists(
-					phpRuntime.FS,
-					'/internal/shared/extensions'
-				)
-			) {
-				phpRuntime.FS.mkdirTree('/internal/shared/extensions');
-			}
-			if (
-				!FSHelpers.fileExists(
-					phpRuntime.FS,
-					`/internal/shared/extensions/${fileName}`
-				)
-			) {
-				phpRuntime.FS.writeFile(
-					`/internal/shared/extensions/${fileName}`,
-					new Uint8Array(extension)
-				);
-			}
-			/*
-			 * The extension has its share of ini entries
-			 * to write in a separate ini file
-			 */
-			if (
-				!FSHelpers.fileExists(
-					phpRuntime.FS,
-					'/internal/shared/extensions/xdebug.ini'
-				)
-			) {
-				const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
-				phpRuntime.FS.writeFile(
-					'/internal/shared/extensions/xdebug.ini',
-					[
-						'zend_extension=/internal/shared/extensions/xdebug.so',
-						'xdebug.mode=debug,develop',
-						'xdebug.start_with_request=yes',
-						`xdebug.idekey="${ideKey}"`,
-						// Path mapping is only available starting
-						// from Xdebug 3.5, which is used by PHP 8.5+
-						// Previous versions will ignore this entry.
-						'xdebug.path_mapping=yes',
-					].join('\n')
-				);
-			}
+			const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
+			installPHPExtensionFilesSync(phpRuntime.FS, {
+				name: 'xdebug',
+				soBytes,
+				loadTiming: 'before-php-startup',
+				loadWithIniDirective: 'zend_extension',
+				iniEntries: {
+					'xdebug.mode': 'debug,develop',
+					'xdebug.start_with_request': 'yes',
+					'xdebug.idekey': `"${ideKey}"`,
+					// Path mapping is only available starting from Xdebug 3.5,
+					// which is used by PHP 8.5+. Previous versions ignore it.
+					'xdebug.path_mapping': 'yes',
+				},
+			});
 			/*
 			 * Path mapping and skipping is only
 			 * available starting from Xdebug 3.5,

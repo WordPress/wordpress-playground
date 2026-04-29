@@ -2,13 +2,17 @@ import { loadNodeRuntime } from '..';
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	PHP,
+	loadPHPExtension,
 	proxyFileSystem,
 	setPhpIniEntries,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+import fs from 'fs';
+import path from 'path';
 import { createServer, type AddressInfo } from 'net';
 import { jspi } from 'wasm-feature-detect';
+import { getIntlExtensionModule } from '../lib/extensions/intl/get-intl-extension-module';
 
 // Check JSPI availability at module load time (top-level await)
 // so the value is available when tests are registered.
@@ -220,6 +224,50 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('supports dynamic loading', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('intl'));
+					var_dump(class_exists('Collator'));`,
+			});
+
+			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
+		});
+
+		it('loads through loadPHPExtension()', async () => {
+			php.exit();
+			php = new PHP(await loadNodeRuntime(phpVersion as any));
+
+			const extensionPath = await getIntlExtensionModule(
+				phpVersion as any
+			);
+			const testDir =
+				typeof __dirname !== 'undefined'
+					? __dirname
+					: import.meta.dirname;
+			const icuDataPath = path.join(
+				testDir,
+				'../lib/extensions/intl/shared/icu.dat'
+			);
+
+			await loadPHPExtension(php, {
+				source: {
+					format: 'so',
+					name: 'intl',
+					bytes: new Uint8Array(fs.readFileSync(extensionPath)),
+				},
+				extraFiles: {
+					targetPath: '/internal/shared',
+					files: {
+						'icudt74l.dat': new Uint8Array(
+							fs.readFileSync(icuDataPath)
+						),
+					},
+				},
+				env: {
+					ICU_DATA: '/internal/shared',
+				},
+			});
+
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('intl'));
