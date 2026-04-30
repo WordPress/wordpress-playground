@@ -71,7 +71,7 @@ test('should navigate within WordPress when address bar URL changes', async ({
 	// only after the client has connected and React has re-rendered with a
 	// valid clientInfo — without this wait, clientInfo?.client.goTo() is a
 	// no-op and the navigation silently fails.
-	await expect(website.addressBar()).toHaveValue(/.+/);
+	await expect(website.addressBar()).toHaveValue(/^\//); // any URL path starting with /
 
 	const addressBar = website.addressBar();
 	await addressBar.click();
