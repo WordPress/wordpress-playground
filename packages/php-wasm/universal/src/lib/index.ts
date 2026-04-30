@@ -99,21 +99,16 @@ export type { FileTree } from './write-files';
 export {
 	appendPHPExtensionInstallPlans,
 	buildPHPExtensionInstallPlan,
-	installPHPExtensionFiles,
 	installPHPExtensionFilesSync,
-	loadPHPExtension,
-	PHP_EXTENSION_PRELOAD_DIR,
 	PHP_EXTENSIONS_DIR,
 	resolvePHPExtensionInstallPlan,
 } from './load-extension';
 export type {
 	InstallPHPExtensionFilesOptions,
-	LoadedPHPExtension,
-	LoadPHPExtensionOptions,
 	PHPExtensionExtraFiles,
 	PHPExtensionIniDirective,
+	PHPExtensionInstallOptions,
 	PHPExtensionInstallPlan,
-	PHPExtensionLoadAt,
 	PHPExtensionManifest,
 	PHPExtensionManifestArtifact,
 	PHPExtensionRuntimeInstall,

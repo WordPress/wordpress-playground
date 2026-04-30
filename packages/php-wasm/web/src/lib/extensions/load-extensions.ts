@@ -2,8 +2,8 @@ import { createMemoizedFetch } from '@wp-playground/common';
 import type {
 	EmscriptenOptions,
 	PHPExtensionRuntimeInstall,
+	PHPExtensionInstallOptions,
 	PHPWasmAsyncMode,
-	ResolvePHPExtensionInstallPlanOptions,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
@@ -25,10 +25,7 @@ export type BuiltInPHPWebExtensionName = 'intl';
  * resolving the source, so callers only provide the artifact source and
  * install options.
  */
-export type RuntimePHPWebExtensionSource = Omit<
-	ResolvePHPExtensionInstallPlanOptions,
-	'phpVersion' | 'asyncMode'
->;
+export type RuntimePHPWebExtensionSource = PHPExtensionInstallOptions;
 
 /**
  * PHP extension request accepted by the Web runtime loader.
@@ -84,7 +81,6 @@ async function resolveRuntimePHPWebExtension(
 	if (isRuntimePHPWebExtensionSource(extension)) {
 		const { plan } = await resolvePHPExtensionInstallPlan({
 			...extension,
-			loadAt: extension.loadAt ?? 'before-php-startup',
 			phpVersion: version,
 			asyncMode,
 		});
@@ -122,7 +118,6 @@ async function resolveIntlExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'intl',
 			soBytes: new Uint8Array(extension),
-			loadAt: 'before-php-startup',
 			env: {
 				ICU_DATA: '/internal/shared',
 			},

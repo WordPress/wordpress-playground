@@ -3,8 +3,8 @@ import type {
 	EmscriptenOptions,
 	PHPExtensionRuntimeInstall,
 	PHPRuntime,
+	PHPExtensionInstallOptions,
 	PHPWasmAsyncMode,
-	ResolvePHPExtensionInstallPlanOptions,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
@@ -21,6 +21,10 @@ import { getMemcachedExtensionModule } from './memcached/get-memcached-extension
 import { getRedisExtensionModule } from './redis/get-redis-extension-module';
 import { type XdebugOptions, type PathMapping } from './xdebug/with-xdebug';
 import { getXdebugExtensionModule } from './xdebug/get-xdebug-extension-module';
+import {
+	fetchNodeExtensionResource,
+	normalizeNodeExtensionSource,
+} from './node-extension-resources';
 
 /**
  * Built-in PHP extensions shipped with `@php-wasm/node`.
@@ -33,10 +37,7 @@ export type BuiltInPHPExtensionName = 'intl' | 'xdebug' | 'redis' | 'memcached';
  * The loader supplies the active PHP version and async mode before resolving
  * the source, so callers only provide the artifact source and install options.
  */
-export type RuntimePHPExtensionSource = Omit<
-	ResolvePHPExtensionInstallPlanOptions,
-	'phpVersion' | 'asyncMode'
->;
+export type RuntimePHPExtensionSource = PHPExtensionInstallOptions;
 
 /**
  * Built-in PHP extension request accepted by `loadNodeRuntime()`.
@@ -63,10 +64,14 @@ export type BuiltInPHPExtension =
  * await loadNodeRuntime('8.4', {
  *   extensions: [
  *     'intl',
- *     { source: { format: 'manifest', manifestUrl } },
+ *     { source: { format: 'manifest', manifestUrl: './manifest.json' } },
  *   ],
  * });
  * ```
+ *
+ * In Node, local manifest and artifact files work without a custom `fetch`
+ * implementation. Pass `manifestUrl` as a filesystem path, a `file:` URL, or
+ * an HTTP URL.
  */
 export type PHPLoaderExtension =
 	| BuiltInPHPExtension
@@ -105,9 +110,10 @@ async function resolveRuntimePHPExtension(
 	if (isRuntimePHPExtensionSource(extension)) {
 		const { plan } = await resolvePHPExtensionInstallPlan({
 			...extension,
-			loadAt: extension.loadAt ?? 'before-php-startup',
+			source: normalizeNodeExtensionSource(extension.source),
 			phpVersion: version,
 			asyncMode,
+			fetch: extension.fetch ?? fetchNodeExtensionResource,
 		});
 		return { plan };
 	}
@@ -152,7 +158,6 @@ async function resolveIntlExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'intl',
 			soBytes,
-			loadAt: 'before-php-startup',
 			env: {
 				ICU_DATA: '/internal/shared',
 			},
@@ -193,7 +198,6 @@ async function resolveRedisExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'redis',
 			soBytes: new Uint8Array(fs.readFileSync(extensionPath)),
-			loadAt: 'before-php-startup',
 		}),
 	};
 }
@@ -206,7 +210,6 @@ async function resolveMemcachedExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'memcached',
 			soBytes: new Uint8Array(fs.readFileSync(extensionPath)),
-			loadAt: 'before-php-startup',
 		}),
 	};
 }
@@ -222,7 +225,6 @@ async function resolveXdebugExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'xdebug',
 			soBytes: new Uint8Array(fs.readFileSync(filePath)),
-			loadAt: 'before-php-startup',
 			loadWithIniDirective: 'zend_extension',
 			iniEntries: {
 				'xdebug.mode': 'debug,develop',

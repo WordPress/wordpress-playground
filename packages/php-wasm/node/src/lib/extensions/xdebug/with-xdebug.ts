@@ -45,7 +45,6 @@ export async function withXdebug(
 			installPHPExtensionFilesSync(phpRuntime.FS, {
 				name: 'xdebug',
 				soBytes,
-				loadAt: 'before-php-startup',
 				loadWithIniDirective: 'zend_extension',
 				iniEntries: {
 					'xdebug.mode': 'debug,develop',

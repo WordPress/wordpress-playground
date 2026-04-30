@@ -14,18 +14,9 @@
  * 1. Resolve the extension source into `.so` bytes.
  * 2. Choose where those bytes will be staged in the PHP VFS.
  * 3. Create `iniPath` and `iniContent` for the small per-extension ini file.
- * 4. Create a preload script when a running PHP instance must call `dl()`.
  *
  * `buildPHPExtensionInstallPlan()` derives `iniPath` and `iniContent` from
- * the same options that describe the extension:
- *
- * - `name` and `extensionDir` decide `iniPath`.
- *   Example: `/internal/shared/extensions/xdebug.ini`.
- * - `loadWithIniDirective` decides whether `iniContent` starts with
- *   `extension=...` or `zend_extension=...`.
- * - `iniEntries` become the remaining `key=value` lines.
- *
- * For example, these options:
+ * the extension options. For example, these options:
  *
  * ```ts
  * {
@@ -47,20 +38,13 @@
  * xdebug.start_with_request=yes
  * ```
  *
- * `installPHPExtensionFiles()` and `installPHPExtensionFilesSync()` write that
- * `iniContent` to `iniPath` in the PHP VFS next to the staged `.so` file.
+ * `installPHPExtensionFilesSync()` writes that `iniContent` to `iniPath` in
+ * the PHP VFS next to the staged `.so` file.
  *
- * The remaining question is when PHP can read that file. There are two cases:
- *
- * 1. Startup-time
- * 2. Post-startup
- *
- * ## Startup-time loading
- *
- * If the runtime has not started yet, we can use PHP's normal extension
- * loading path. The installer writes `soBytes` to `soPath` and `iniContent`
- * to `iniPath`, then adds the extension directory to `PHP_INI_SCAN_DIR`. When
- * PHP starts, it scans that directory and reads the ini file.
+ * Extension files are installed before PHP startup. The installer writes
+ * `soBytes` to `soPath` and `iniContent` to `iniPath`, then adds the extension
+ * directory to `PHP_INI_SCAN_DIR`. When PHP starts, it scans that directory
+ * and reads the ini file.
  *
  * This is required for `zend_extension` entries such as Xdebug:
  *
@@ -75,9 +59,9 @@
  * PHP_INI_SCAN_DIR=/internal/shared/extensions
  * ```
  *
- * It is also useful for regular extensions that need startup-time state. For
- * example, even though `intl` is a regular `extension`, it must be loaded
- * before PHP startup because it relies on the `ICU_DATA` environment variable:
+ * Regular extensions use the same path. For example, `intl` relies on the
+ * `ICU_DATA` environment variable, so the extension, its data file, and the
+ * environment entry must all be present before PHP starts:
  *
  * ```ini
  * extension=/internal/shared/extensions/intl.so
@@ -88,49 +72,16 @@
  * ICU_DATA=/internal/shared
  * ```
  *
- * ## Post-startup loading
- *
- * If PHP is already running, the startup scan is over. The installer still
- * writes `iniContent` to `iniPath`, because the file records what was staged,
- * but that file will not make the current PHP process load the extension.
- *
- * Regular PHP extensions have one remaining path: `dl()`. For those
- * extensions we create a preload script in `/internal/shared/preload`; the PHP
- * wrapper requires those scripts before user code and the script calls
- * `dl('name.so')`.
- *
- * PHP's `dl()` accepts a file name rather than an absolute path. The preload
- * script therefore sets `extension_dir` to the directory where the side module
- * was staged before calling `dl()`.
- *
- * A manifest-loaded extension such as `wp_mysql_parser` can therefore be
- * installed into an already-running PHP instance with:
- *
- * ```ini
- * extension=/internal/shared/extensions/wp_mysql_parser.so
- * extension_dir=/internal/shared/extensions
- * enable_dl=On
- * ```
- *
- * ```php
- * <?php
- * ini_set('extension_dir', '/internal/shared/extensions');
- * dl('wp_mysql_parser.so');
- * ```
- *
- * Manifest URLs are URLs, not filesystem-relative paths. In Node, pass a URL
- * object such as `new URL('./manifest.json', import.meta.url)` and provide a
- * `fetch` implementation for schemes that global `fetch` does not support,
- * such as `file:`.
+ * Manifest URLs identify the JSON manifest to resolve. In `@php-wasm/node`,
+ * local manifest paths and `file:` URLs work without passing a custom `fetch`
+ * implementation; the Node loader converts them before calling into this
+ * universal resolver.
  */
 import { dirname, joinPaths } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
-import { PHP, PHP_INI_PATH } from './php';
-import type { UniversalPHP } from './universal-php';
 import type { FileTree } from './write-files';
-import { writeFiles } from './write-files';
 
 /**
  * Default VFS directory where this loader stages extension `.so` files and
@@ -139,31 +90,12 @@ import { writeFiles } from './write-files';
 export const PHP_EXTENSIONS_DIR = '/internal/shared/extensions';
 
 /**
- * Default VFS directory for preload scripts that call `dl()` after PHP has
- * already started.
- */
-export const PHP_EXTENSION_PRELOAD_DIR = '/internal/shared/preload';
-
-/**
  * Async mode used by the PHP.wasm build that will load the extension.
  *
  * Extension side modules must be compiled for the same mode as the main PHP
  * module.
  */
 export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
-
-/**
- * Point in the PHP lifecycle where the extension should become available.
- *
- * Use `before-php-startup` for extensions that must be present while PHP
- * starts. Use `after-php-startup` for regular extensions that can be loaded
- * with `dl()`. `auto` chooses the correct default for `extension` versus
- * `zend_extension`.
- */
-export type PHPExtensionLoadAt =
-	| 'before-php-startup'
-	| 'after-php-startup'
-	| 'auto';
 
 /**
  * The php.ini directive used to load the extension.
@@ -208,7 +140,7 @@ export interface PHPExtensionManifestArtifact {
  * Extension artifact manifest.
  *
  * A manifest lets callers publish a matrix of `.so` files and lets
- * `loadPHPExtension()` select the artifact that matches the current PHP
+ * `resolvePHPExtensionInstallPlan()` select the artifact that matches the current PHP
  * version and async mode.
  */
 export interface PHPExtensionManifest {
@@ -229,7 +161,7 @@ export type PHPExtensionSource =
 	| {
 			format: 'so';
 			/**
-			 * Required when `LoadPHPExtensionOptions.name` is not set.
+			 * Required when `PHPExtensionInstallOptions.name` is not set.
 			 */
 			name?: string;
 			bytes: Uint8Array | ArrayBuffer;
@@ -250,10 +182,9 @@ export type PHPExtensionSource =
 			/**
 			 * URL of the extension manifest.
 			 *
-			 * String values must be absolute URLs, not filesystem-relative
-			 * paths. In Node, use a URL object for local package assets, e.g.
-			 * `new URL('./manifest.json', import.meta.url)`, and pass a
-			 * `fetch` implementation that supports `file:` URLs.
+			 * In `@php-wasm/universal`, string values must be absolute URLs.
+			 * In `@php-wasm/node`, this may also be a filesystem path or a
+			 * `file:` URL; the Node loader resolves local paths before fetching.
 			 */
 			manifestUrl: string | URL;
 			/**
@@ -295,9 +226,9 @@ export interface PHPExtensionExtraFiles {
 }
 
 /**
- * Options for loading a PHP extension into an existing PHP instance.
+ * Options for staging a PHP extension before startup.
  */
-export interface LoadPHPExtensionOptions {
+export interface PHPExtensionInstallOptions {
 	/**
 	 * The extension artifact bytes, URL, or manifest.
 	 */
@@ -309,29 +240,6 @@ export interface LoadPHPExtensionOptions {
 	 * This overrides a name inferred from `source`.
 	 */
 	name?: string;
-
-	/**
-	 * PHP version used to select a manifest artifact.
-	 *
-	 * If omitted, the loader reads it from the PHP runtime when possible.
-	 */
-	phpVersion?: string;
-
-	/**
-	 * PHP.wasm async mode used to select a manifest artifact.
-	 *
-	 * If omitted, the loader reads it from the PHP runtime when possible.
-	 */
-	asyncMode?: PHPWasmAsyncMode;
-
-	/**
-	 * When the extension should become available.
-	 *
-	 * Defaults to `auto`: regular `extension` entries get a preload script
-	 * that calls `dl()` after startup, while `zend_extension` entries must load
-	 * before startup via `PHP_INI_SCAN_DIR`.
-	 */
-	loadAt?: PHPExtensionLoadAt;
 
 	/**
 	 * First directive written to the per-extension ini file.
@@ -371,8 +279,9 @@ export interface LoadPHPExtensionOptions {
 	 * Fetch implementation used for `format: 'url'`, `manifestUrl`, and
 	 * manifest artifacts.
 	 *
-	 * In Node, provide this when loading `file:` URLs or any other scheme not
-	 * supported by global `fetch`.
+	 * Runtime loaders may provide environment-specific defaults. For example,
+	 * `@php-wasm/node` provides local file support for extension manifests and
+	 * artifacts.
 	 */
 	fetch?: typeof fetch;
 }
@@ -380,22 +289,18 @@ export interface LoadPHPExtensionOptions {
 /**
  * Options for resolving an install plan before a PHP instance exists.
  */
-export type ResolvePHPExtensionInstallPlanOptions = Omit<
-	LoadPHPExtensionOptions,
-	'phpVersion' | 'asyncMode'
-> & {
-	phpVersion: string;
-	asyncMode: PHPWasmAsyncMode;
-};
+export type ResolvePHPExtensionInstallPlanOptions =
+	PHPExtensionInstallOptions & {
+		phpVersion: string;
+		asyncMode: PHPWasmAsyncMode;
+	};
 
 /**
- * Inputs used to build the staged `.so` path, per-extension ini file, and
- * optional preload script.
+ * Inputs used to build the staged `.so` path and per-extension ini file.
  */
 export interface InstallPHPExtensionFilesOptions {
 	name: string;
 	soBytes: Uint8Array | ArrayBuffer;
-	loadAt?: PHPExtensionLoadAt;
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	iniEntries?: Record<string, string>;
 	extraFiles?: PHPExtensionExtraFiles;
@@ -415,24 +320,10 @@ export interface PHPExtensionInstallPlan {
 	soBytes: Uint8Array;
 	iniPath: string;
 	iniContent: string;
-	preloadPath?: string;
 	extraFiles?: PHPExtensionExtraFiles & { targetPath: string };
 	env?: Record<string, string>;
-	loadAt: Exclude<PHPExtensionLoadAt, 'auto'>;
 	loadWithIniDirective: PHPExtensionIniDirective;
 	extensionDir: string;
-}
-
-/**
- * Result returned after `loadPHPExtension()` installs an extension.
- */
-export interface LoadedPHPExtension {
-	name: string;
-	path: string;
-	iniPath: string;
-	preloadPath?: string;
-	manifest?: PHPExtensionManifest;
-	artifact?: PHPExtensionManifestArtifact;
 }
 
 /**
@@ -460,52 +351,6 @@ interface ResolvedPHPExtensionSource {
 }
 
 /**
- * Loads a PHP extension into an already-running PHP instance.
- *
- * The loader writes the staged `.so` file, writes the per-extension ini file
- * from `iniPath`/`iniContent`, stages any `extraFiles`, updates `php.ini`, and
- * creates a preload script when the extension should load after PHP startup.
- *
- * @param php - PHP instance that will receive the extension files.
- * @param options - Extension source and install options.
- * @returns Metadata for the installed extension and selected manifest artifact.
- */
-export async function loadPHPExtension(
-	php: UniversalPHP,
-	options: LoadPHPExtensionOptions
-): Promise<LoadedPHPExtension> {
-	const phpVersion = options.phpVersion ?? getPHPVersionFromRuntime(php);
-	const asyncMode = options.asyncMode ?? getAsyncModeFromRuntime(php);
-	if (!phpVersion) {
-		throw new Error(
-			'Could not determine the PHP version for this runtime. Pass phpVersion explicitly.'
-		);
-	}
-	if (!asyncMode) {
-		throw new Error(
-			'Could not determine the PHP.wasm async mode for this runtime. Pass asyncMode explicitly.'
-		);
-	}
-
-	const resolved = await resolvePHPExtensionInstallPlan({
-		...options,
-		phpVersion,
-		asyncMode,
-	});
-
-	await installPHPExtensionFiles(php, resolved.plan);
-
-	return {
-		name: resolved.plan.name,
-		path: resolved.plan.soPath,
-		iniPath: resolved.plan.iniPath,
-		preloadPath: resolved.plan.preloadPath,
-		manifest: resolved.manifest,
-		artifact: resolved.artifact,
-	};
-}
-
-/**
  * Resolves an extension source into an install plan without mutating a PHP
  * instance.
  *
@@ -522,7 +367,6 @@ export async function resolvePHPExtensionInstallPlan(
 	const plan = buildPHPExtensionInstallPlan({
 		name: options.name ?? resolved.name,
 		soBytes: resolved.soBytes,
-		loadAt: options.loadAt,
 		loadWithIniDirective: options.loadWithIniDirective,
 		iniEntries: options.iniEntries,
 		extraFiles: options.extraFiles,
@@ -541,7 +385,7 @@ export async function resolvePHPExtensionInstallPlan(
  * Appends extension install plans to Emscripten options.
  *
  * The returned options install extension files during `onRuntimeInitialized`
- * and update `PHP_INI_SCAN_DIR` before startup for extensions that require it.
+ * and update `PHP_INI_SCAN_DIR` before PHP startup.
  */
 export function appendPHPExtensionInstallPlans(
 	options: EmscriptenOptions,
@@ -557,12 +401,10 @@ export function appendPHPExtensionInstallPlans(
 
 	for (const { plan } of extensions) {
 		Object.assign(env, plan.env);
-		if (plan.loadAt === 'before-php-startup') {
-			env['PHP_INI_SCAN_DIR'] = appendPathEnv(
-				env['PHP_INI_SCAN_DIR'],
-				plan.extensionDir
-			);
-		}
+		env['PHP_INI_SCAN_DIR'] = appendPathEnv(
+			env['PHP_INI_SCAN_DIR'],
+			plan.extensionDir
+		);
 	}
 
 	return {
@@ -579,8 +421,7 @@ export function appendPHPExtensionInstallPlans(
 }
 
 /**
- * Builds the VFS paths, per-extension ini content, and optional preload path
- * for an extension.
+ * Builds the VFS paths and per-extension ini content for an extension.
  */
 export function buildPHPExtensionInstallPlan(
 	options: InstallPHPExtensionFilesOptions
@@ -588,10 +429,6 @@ export function buildPHPExtensionInstallPlan(
 	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
 	const name = validateExtensionName(options.name);
 	const loadWithIniDirective = options.loadWithIniDirective ?? 'extension';
-	const loadAt = normalizeLoadAt(
-		options.loadAt ?? 'auto',
-		loadWithIniDirective
-	);
 	const soPath = joinPaths(extensionDir, `${name}.so`);
 	const iniPath = joinPaths(extensionDir, `${name}.ini`);
 	const iniContent = buildIniContent({
@@ -599,10 +436,6 @@ export function buildPHPExtensionInstallPlan(
 		soPath,
 		iniEntries: options.iniEntries ?? {},
 	});
-	const preloadPath =
-		loadAt === 'after-php-startup'
-			? joinPaths(PHP_EXTENSION_PRELOAD_DIR, `${name}.php`)
-			: undefined;
 	const extraFiles = options.extraFiles
 		? {
 				...options.extraFiles,
@@ -618,61 +451,11 @@ export function buildPHPExtensionInstallPlan(
 		soBytes: toUint8Array(options.soBytes),
 		iniPath,
 		iniContent,
-		preloadPath,
 		extraFiles,
 		env: options.env,
-		loadAt,
 		loadWithIniDirective,
 		extensionDir,
 	};
-}
-
-/**
- * Installs a resolved extension plan into an existing PHP instance.
- *
- * This writes `plan.soBytes` to `plan.soPath` and `plan.iniContent` to
- * `plan.iniPath`.
- */
-export async function installPHPExtensionFiles(
-	php: UniversalPHP,
-	plan: PHPExtensionInstallPlan
-): Promise<void> {
-	await ensureDirectory(php, plan.extensionDir);
-	await php.writeFile(plan.soPath, plan.soBytes);
-	await php.writeFile(plan.iniPath, plan.iniContent);
-
-	if (plan.extraFiles) {
-		await writeFiles(
-			php,
-			plan.extraFiles.targetPath,
-			plan.extraFiles.files
-		);
-	}
-
-	if (plan.env && php instanceof PHP) {
-		registerRuntimeEnv(php, plan.env);
-	}
-	if (php instanceof PHP) {
-		registerRuntimeEnv(php, {
-			PHP_INI_SCAN_DIR: appendPathEnv(
-				getRuntimeEnv(php)['PHP_INI_SCAN_DIR'],
-				plan.extensionDir
-			),
-		});
-	}
-
-	await upsertPhpIniEntries(php, {
-		extension_dir: plan.extensionDir,
-		...(plan.loadAt === 'after-php-startup' ? { enable_dl: 'On' } : {}),
-	});
-
-	if (plan.preloadPath) {
-		await ensureDirectory(php, dirname(plan.preloadPath));
-		await php.writeFile(
-			plan.preloadPath,
-			createExtensionPreloadScript(plan.name, plan.soPath)
-		);
-	}
 }
 
 /**
@@ -696,13 +479,6 @@ export function installPHPExtensionFilesSync(
 			fs,
 			plan.extraFiles.targetPath,
 			plan.extraFiles.files
-		);
-	}
-	if (plan.preloadPath) {
-		ensureDirectorySync(fs, dirname(plan.preloadPath));
-		fs.writeFile(
-			plan.preloadPath,
-			createExtensionPreloadScript(plan.name, plan.soPath)
 		);
 	}
 	return plan;
@@ -790,7 +566,9 @@ async function fetchJson(
 	url: URL
 ): Promise<unknown> {
 	if (!fetchFn) {
-		throw new Error('loadPHPExtension() requires a fetch implementation.');
+		throw new Error(
+			'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+		);
 	}
 	const response = await fetchFn(url);
 	if (!response.ok) {
@@ -804,7 +582,9 @@ async function fetchBytes(
 	url: URL
 ): Promise<Uint8Array> {
 	if (!fetchFn) {
-		throw new Error('loadPHPExtension() requires a fetch implementation.');
+		throw new Error(
+			'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+		);
 	}
 	const response = await fetchFn(url);
 	if (!response.ok) {
@@ -838,24 +618,6 @@ function validateExtensionManifest(candidate: unknown): PHPExtensionManifest {
 	return manifest;
 }
 
-function normalizeLoadAt(
-	loadAt: PHPExtensionLoadAt,
-	loadWithIniDirective: PHPExtensionIniDirective
-): Exclude<PHPExtensionLoadAt, 'auto'> {
-	if (
-		loadWithIniDirective === 'zend_extension' &&
-		loadAt === 'after-php-startup'
-	) {
-		throw new Error('Zend extensions must load before PHP startup.');
-	}
-	if (loadAt === 'auto') {
-		return loadWithIniDirective === 'zend_extension'
-			? 'before-php-startup'
-			: 'after-php-startup';
-	}
-	return loadAt;
-}
-
 function buildIniContent({
 	loadWithIniDirective,
 	soPath,
@@ -874,7 +636,7 @@ function buildIniContent({
 function validateExtensionName(name: string): string {
 	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
 		throw new Error(
-			`loadPHPExtension: invalid extension name ${JSON.stringify(
+			`Invalid PHP extension name ${JSON.stringify(
 				name
 			)}. Use only [a-zA-Z0-9_-].`
 		);
@@ -888,63 +650,6 @@ function inferExtensionName(url: string | URL): string | undefined {
 	return file.endsWith('.so') ? file.slice(0, -3) : undefined;
 }
 
-function getPHPVersionFromRuntime(php: UniversalPHP): string | undefined {
-	if (!(php instanceof PHP)) {
-		return undefined;
-	}
-	const runtime = getPHPRuntime(php);
-	const version = runtime?.phpVersion;
-	if (
-		typeof version?.major === 'number' &&
-		typeof version?.minor === 'number'
-	) {
-		return `${version.major}.${version.minor}`;
-	}
-	return undefined;
-}
-
-function getAsyncModeFromRuntime(
-	php: UniversalPHP
-): PHPWasmAsyncMode | undefined {
-	if (!(php instanceof PHP)) {
-		return undefined;
-	}
-	return getPHPRuntime(php).phpWasmAsyncMode;
-}
-
-function getPHPRuntime(php: PHP): {
-	ENV?: Record<string, string>;
-	phpVersion?: { major?: number; minor?: number };
-	phpWasmAsyncMode?: PHPWasmAsyncMode;
-} {
-	const privateSymbol = Object.getOwnPropertySymbols(php)[0];
-	if (!privateSymbol) {
-		throw new Error(
-			'loadPHPExtension() requires an initialized PHP runtime.'
-		);
-	}
-	// The PHP wrapper intentionally hides the runtime. The loader only reads
-	// runtime metadata needed to pick a manifest artifact.
-	// @ts-ignore
-	const runtime = php[privateSymbol];
-	if (!runtime) {
-		throw new Error(
-			'loadPHPExtension() requires an initialized PHP runtime.'
-		);
-	}
-	return runtime;
-}
-
-function getRuntimeEnv(php: PHP): Record<string, string> {
-	const runtime = getPHPRuntime(php);
-	runtime.ENV = runtime.ENV ?? {};
-	return runtime.ENV;
-}
-
-function registerRuntimeEnv(php: PHP, env: Record<string, string>) {
-	Object.assign(getRuntimeEnv(php), env);
-}
-
 function appendPathEnv(current: string | undefined, path: string): string {
 	if (!current) {
 		return path;
@@ -953,63 +658,10 @@ function appendPathEnv(current: string | undefined, path: string): string {
 	return paths.includes(path) ? current : [...paths, path].join(':');
 }
 
-async function ensureDirectory(php: UniversalPHP, directory: string) {
-	if (!(await php.fileExists(directory))) {
-		await php.mkdirTree(directory);
-	}
-}
-
 function ensureDirectorySync(fs: Emscripten.RootFS, directory: string) {
 	if (!FSHelpers.fileExists(fs, directory)) {
 		fs.mkdirTree(directory);
 	}
-}
-
-async function upsertPhpIniEntries(
-	php: UniversalPHP,
-	entries: Record<string, string>
-) {
-	let phpIni = await php.readFileAsText(PHP_INI_PATH);
-	for (const [key, value] of Object.entries(entries)) {
-		phpIni = upsertPhpIniEntry(phpIni, key, value);
-	}
-	await php.writeFile(PHP_INI_PATH, phpIni);
-}
-
-function upsertPhpIniEntry(phpIni: string, key: string, value: string): string {
-	const entry = `${key}=${value}`;
-	const pattern = new RegExp(`^\\s*${escapeRegExp(key)}\\s*=.*$`, 'm');
-	if (pattern.test(phpIni)) {
-		return phpIni.replace(pattern, entry);
-	}
-	return `${phpIni.trimEnd()}\n${entry}\n`;
-}
-
-function createExtensionPreloadScript(
-	extensionName: string,
-	extensionPath: string
-) {
-	const extensionDir = dirname(extensionPath);
-	const extensionFile = `${extensionName}.so`;
-	return `<?php
-if (!extension_loaded(${phpStringLiteral(extensionName)})) {
-	if (!function_exists('dl')) {
-		throw new RuntimeException(${phpStringLiteral(
-			`Cannot load PHP.wasm extension ${extensionName}: dl() is not available.`
-		)});
-	}
-	// PHP's dl() only accepts a filename, so point extension_dir at the
-	// directory where PHP.wasm staged the side module before loading it.
-	ini_set('extension_dir', ${phpStringLiteral(extensionDir)});
-	if (!dl(${phpStringLiteral(extensionFile)}) && !extension_loaded(${phpStringLiteral(
-		extensionName
-	)})) {
-		throw new RuntimeException(${phpStringLiteral(
-			`Failed to load PHP.wasm extension ${extensionName}.`
-		)});
-	}
-}
-`;
 }
 
 function writeFileTreeSync(
@@ -1056,12 +708,4 @@ function bytesToHex(bytes: ArrayBuffer): string {
 
 function toUint8Array(bytes: Uint8Array | ArrayBuffer): Uint8Array {
 	return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-}
-
-function phpStringLiteral(value: string): string {
-	return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-}
-
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

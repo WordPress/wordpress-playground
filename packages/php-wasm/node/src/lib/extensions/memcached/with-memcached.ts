@@ -31,7 +31,6 @@ export async function withMemcached(
 			installPHPExtensionFilesSync(phpRuntime.FS, {
 				name: 'memcached',
 				soBytes,
-				loadAt: 'before-php-startup',
 			});
 		},
 	};
