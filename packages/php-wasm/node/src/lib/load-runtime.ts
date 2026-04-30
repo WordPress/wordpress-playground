@@ -25,6 +25,7 @@ import {
 import type { XdebugOptions } from './extensions/xdebug/with-xdebug';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
+import { jspi } from 'wasm-feature-detect';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
@@ -132,7 +133,6 @@ export async function loadNodeRuntime(
 			: undefined);
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
-	const { jspi } = await import('wasm-feature-detect');
 	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
 	const requestedExtensions = [...(options.extensions ?? [])];
 

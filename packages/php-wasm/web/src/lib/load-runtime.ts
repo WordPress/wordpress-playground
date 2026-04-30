@@ -16,6 +16,7 @@ import {
 	applyPHPWebLoaderExtensions,
 	type PHPWebLoaderExtension,
 } from './extensions/load-extensions';
+import { jspi } from 'wasm-feature-detect';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -81,7 +82,6 @@ export async function loadWebRuntime(
 		) => setTimeout(fn, 0);
 	}
 
-	const { jspi } = await import('wasm-feature-detect');
 	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
 
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
