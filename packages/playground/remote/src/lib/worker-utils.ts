@@ -114,7 +114,11 @@ export async function backfillStaticFilesRemovedFromMinifiedBuild(php?: PHP) {
 	}
 }
 
-export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
+export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php?: PHP) {
+	if (!php?.requestHandler) {
+		logger.warn('No PHP request handler available');
+		return false;
+	}
 	const staticAssetsUrl = await getWordPressStaticZipUrl(php);
 	if (!staticAssetsUrl) {
 		return false;
@@ -131,8 +135,8 @@ export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
  *
  * See backfillStaticFilesRemovedFromMinifiedBuild for more details.
  */
-export async function getWordPressStaticZipUrl(php?: PHP) {
-	if (!php?.requestHandler) {
+export async function getWordPressStaticZipUrl(php: PHP) {
+	if (!php.requestHandler) {
 		logger.warn('No PHP request handler available');
 		return false;
 	}
@@ -140,13 +144,13 @@ export async function getWordPressStaticZipUrl(php?: PHP) {
 	// `getLoadedWordPressVersion` would crash trying to require
 	// wp-includes/version.php. There's nothing to backfill — bail out.
 	const versionPhpPath = joinPaths(
-		php.requestHandler!.documentRoot,
+		php.requestHandler.documentRoot,
 		'wp-includes/version.php'
 	);
 	if (!php.isFile(versionPhpPath)) {
 		return false;
 	}
-	const wpVersion = await getLoadedWordPressVersion(php.requestHandler!);
+	const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
 	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
 	if (!staticAssetsDirectory) {
 		return false;

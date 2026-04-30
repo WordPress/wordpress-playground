@@ -90,6 +90,14 @@ const workerGlobal = self as unknown as {
 const alreadyExposedComlinkEndpoint =
 	workerGlobal.__playgroundWorkerEndpointBlueprintsV2;
 if (alreadyExposedComlinkEndpoint) {
+	/*
+	 * This worker entrypoint owns exactly one Comlink endpoint. Seeing this
+	 * guard means the same module was evaluated twice in the same worker
+	 * global, most likely because a generated chunk imported the worker
+	 * entrypoint to reuse one of its exports. Keep shared imports in
+	 * side-effect-free modules so loading PHP chunks cannot re-run worker
+	 * startup code.
+	 */
 	throw new Error(
 		'The Blueprints v2 Playground worker tried to expose its Comlink endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
 	);

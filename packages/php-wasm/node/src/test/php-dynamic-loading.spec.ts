@@ -109,7 +109,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			php.exit();
 		});
 
-		it('does not load dynamically by default', async () => {
+		it('does not load at startup by default', async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
 
 			const result = await php.runStream({
@@ -120,7 +120,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(await result.stdoutText).toEqual('bool(false)\n');
 		});
 
-		it('supports dynamic loading', async () => {
+		it('loads at startup when requested', async () => {
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('xdebug'));`,
@@ -273,7 +273,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			php.exit();
 		});
 
-		it('does not load dynamically by default', async () => {
+		it('does not load at startup by default', async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
 
 			const result = await php.runStream({
@@ -287,7 +287,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			);
 		});
 
-		it('supports dynamic loading', async () => {
+		it('loads at startup when requested', async () => {
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('intl'));
@@ -401,7 +401,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it.skipIf(!isJspiAvailable)(
-			'does not load dynamically by default',
+			'does not load at startup by default',
 			async () => {
 				php = new PHP(await loadNodeRuntime(phpVersion as any));
 
@@ -417,15 +417,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'loads at startup when requested',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					var_dump(extension_loaded('redis'));
 					var_dump(class_exists('Redis'));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
-		});
+				expect(await result.stdoutText).toEqual(
+					'bool(true)\nbool(true)\n'
+				);
+			}
+		);
 
 		it.skipIf(!isJspiAvailable)(
 			'has its own ini file and entries',
@@ -475,7 +480,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it.skipIf(!isJspiAvailable)(
-			'does not load dynamically by default',
+			'does not load at startup by default',
 			async () => {
 				php = new PHP(await loadNodeRuntime(phpVersion as any));
 
@@ -491,15 +496,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'loads at startup when requested',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					var_dump(extension_loaded('memcached'));
 					var_dump(class_exists('Memcached'));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
-		});
+				expect(await result.stdoutText).toEqual(
+					'bool(true)\nbool(true)\n'
+				);
+			}
+		);
 
 		it.skipIf(!isJspiAvailable)(
 			'has its own ini file and entries',

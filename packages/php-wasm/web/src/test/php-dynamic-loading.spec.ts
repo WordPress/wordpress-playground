@@ -23,7 +23,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			});
 		});
 
-		test('does not load dynamically by default', async ({ page }) => {
+		test('does not load at startup by default', async ({ page }) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any)
@@ -43,7 +43,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			test.expect(result).toEqual('bool(false)\nbool(false)\n');
 		});
 
-		test('supports dynamic loading', async ({ page }) => {
+		test('loads at startup when requested', async ({ page }) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
