@@ -62,7 +62,7 @@ describe('WP MySQL parser PHP.wasm extension', () => {
 					{
 						source: {
 							format: 'manifest',
-							url: parserExtensionManifestUrl,
+							manifestUrl: parserExtensionManifestUrl,
 						},
 						fetch: fetchLocalFile,
 					},
