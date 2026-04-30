@@ -199,7 +199,11 @@ function prepareForExpose<Methods, PipedAPI>(
 			} else if (prop in target) {
 				return target[prop];
 			}
-			return (pipedApi as any)?.[prop];
+			const pipedValue = (pipedApi as any)?.[prop];
+			if (typeof pipedValue === 'function') {
+				return (...args: any[]) => (pipedApi as any)[prop](...args);
+			}
+			return pipedValue;
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
