@@ -26,19 +26,10 @@ export function normalizeNodeExtensionSource(
 			: source;
 	}
 
-	if ('manifestUrl' in source && source.manifestUrl) {
-		return {
-			...source,
-			manifestUrl: toNodeResourceUrl(source.manifestUrl),
-		};
-	}
-
-	return 'url' in source && source.url
-		? {
-				...source,
-				url: toNodeResourceUrl(source.url),
-			}
-		: source;
+	return {
+		...source,
+		manifestUrl: toNodeResourceUrl(source.manifestUrl),
+	};
 }
 
 export async function fetchNodeExtensionResource(

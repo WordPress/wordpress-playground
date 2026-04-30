@@ -1,14 +1,13 @@
 import { createMemoizedFetch } from '@wp-playground/common';
 import type {
 	EmscriptenOptions,
-	PHPExtensionRuntimeInstall,
 	PHPExtensionInstallOptions,
+	PHPExtensionInstallPlan,
 	PHPWasmAsyncMode,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	appendPHPExtensionInstallPlans,
-	buildPHPExtensionInstallPlan,
 	resolvePHPExtensionInstallPlan,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
@@ -77,21 +76,20 @@ async function resolveRuntimePHPWebExtension(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	extension: PHPWebLoaderExtension
-): Promise<PHPExtensionRuntimeInstall> {
+): Promise<PHPExtensionInstallPlan> {
 	if (isRuntimePHPWebExtensionSource(extension)) {
-		const { plan } = await resolvePHPExtensionInstallPlan({
+		return await resolvePHPExtensionInstallPlan({
 			...extension,
 			phpVersion: version,
 			asyncMode,
 		});
-		return { plan };
 	}
 
 	const name = typeof extension === 'string' ? extension : extension.name;
 	if (name !== 'intl') {
 		throw new Error(`Unknown bundled PHP web extension: ${String(name)}.`);
 	}
-	return await resolveIntlExtension(version);
+	return await resolveIntlExtension(version, asyncMode);
 }
 
 function isRuntimePHPWebExtensionSource(
@@ -101,8 +99,9 @@ function isRuntimePHPWebExtensionSource(
 }
 
 async function resolveIntlExtension(
-	version: SupportedPHPVersion
-): Promise<PHPExtensionRuntimeInstall> {
+	version: SupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode
+): Promise<PHPExtensionInstallPlan> {
 	const memoizedFetch = createMemoizedFetch(fetch);
 
 	const extensionPath = await getIntlExtensionModule(version);
@@ -114,20 +113,23 @@ async function resolveIntlExtension(
 		memoizedFetch(dataPath).then((response) => response.arrayBuffer()),
 	]);
 
-	return {
-		plan: buildPHPExtensionInstallPlan({
+	return await resolvePHPExtensionInstallPlan({
+		source: {
+			format: 'so',
 			name: 'intl',
-			soBytes: new Uint8Array(extension),
-			env: {
-				ICU_DATA: '/internal/shared',
+			bytes: new Uint8Array(extension),
+		},
+		phpVersion: version,
+		asyncMode,
+		env: {
+			ICU_DATA: '/internal/shared',
+		},
+		extraFiles: {
+			targetPath: '/internal/shared',
+			files: {
+				// The Intl extension looks for the hard-coded ICU data name.
+				'icudt74l.dat': new Uint8Array(ICUData),
 			},
-			extraFiles: {
-				targetPath: '/internal/shared',
-				files: {
-					// The Intl extension looks for the hard-coded ICU data name.
-					'icudt74l.dat': new Uint8Array(ICUData),
-				},
-			},
-		}),
-	};
+		},
+	});
 }

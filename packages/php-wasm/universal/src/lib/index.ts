@@ -98,7 +98,6 @@ export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
 export {
 	appendPHPExtensionInstallPlans,
-	buildPHPExtensionInstallPlan,
 	installPHPExtensionFilesSync,
 	PHP_EXTENSIONS_DIR,
 	resolvePHPExtensionInstallPlan,
@@ -111,11 +110,8 @@ export type {
 	PHPExtensionInstallPlan,
 	PHPExtensionManifest,
 	PHPExtensionManifestArtifact,
-	PHPExtensionRuntimeInstall,
 	PHPExtensionSource,
-	PHPExtensionSourceFormat,
 	PHPWasmAsyncMode,
-	ResolvedPHPExtensionInstallPlan,
 	ResolvePHPExtensionInstallPlanOptions,
 } from './load-extension';
 

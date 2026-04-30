@@ -94,12 +94,6 @@ export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
 export type PHPExtensionIniDirective = 'extension' | 'zend_extension';
 
 /**
- * Format of an extension source that can be resolved without an already
- * running PHP instance.
- */
-export type PHPExtensionSourceFormat = 'so' | 'url' | 'manifest';
-
-/**
  * One compiled extension artifact in a manifest.
  */
 export interface PHPExtensionManifestArtifact {
@@ -175,18 +169,6 @@ export type PHPExtensionSource =
 			 * `file:` URL; the Node loader resolves local paths before fetching.
 			 */
 			manifestUrl: string | URL;
-			/**
-			 * @deprecated Use `manifestUrl` instead.
-			 */
-			url?: string | URL;
-	  }
-	| {
-			format: 'manifest';
-			/**
-			 * @deprecated Use `manifestUrl` instead.
-			 */
-			url: string | URL;
-			manifestUrl?: string | URL;
 	  }
 	| {
 			format: 'manifest';
@@ -303,39 +285,18 @@ export interface InstallPHPExtensionFilesOptions {
  * writes into the PHP VFS.
  */
 export interface PHPExtensionInstallPlan {
-	name: string;
 	soPath: string;
 	soBytes: Uint8Array;
 	iniPath: string;
 	iniContent: string;
 	extraFiles?: PHPExtensionExtraFiles & { targetPath: string };
 	env?: Record<string, string>;
-	loadWithIniDirective: PHPExtensionIniDirective;
 	extensionDir: string;
-}
-
-/**
- * Resolved install plan plus manifest metadata, when the source was a manifest.
- */
-export interface ResolvedPHPExtensionInstallPlan {
-	plan: PHPExtensionInstallPlan;
-	manifest?: PHPExtensionManifest;
-	artifact?: PHPExtensionManifestArtifact;
-}
-
-/**
- * Extension install payload applied while the Emscripten PHP runtime starts.
- */
-export interface PHPExtensionRuntimeInstall {
-	plan: PHPExtensionInstallPlan;
-	onInstalled?: (phpRuntime: PHPRuntime) => void;
 }
 
 interface ResolvedPHPExtensionSource {
 	name: string;
 	soBytes: Uint8Array;
-	manifest?: PHPExtensionManifest;
-	artifact?: PHPExtensionManifestArtifact;
 }
 
 /**
@@ -347,12 +308,12 @@ interface ResolvedPHPExtensionSource {
  */
 export async function resolvePHPExtensionInstallPlan(
 	options: ResolvePHPExtensionInstallPlanOptions
-): Promise<ResolvedPHPExtensionInstallPlan> {
+): Promise<PHPExtensionInstallPlan> {
 	const resolved = await resolvePHPExtensionSource(
 		options,
 		options.fetch ?? globalThis.fetch
 	);
-	const plan = buildPHPExtensionInstallPlan({
+	return buildPHPExtensionInstallPlan({
 		name: options.name ?? resolved.name,
 		soBytes: resolved.soBytes,
 		loadWithIniDirective: options.loadWithIniDirective,
@@ -361,12 +322,6 @@ export async function resolvePHPExtensionInstallPlan(
 		env: options.env,
 		extensionDir: options.extensionDir,
 	});
-
-	return {
-		plan,
-		manifest: resolved.manifest,
-		artifact: resolved.artifact,
-	};
 }
 
 /**
@@ -377,7 +332,7 @@ export async function resolvePHPExtensionInstallPlan(
  */
 export function appendPHPExtensionInstallPlans(
 	options: EmscriptenOptions,
-	extensions: PHPExtensionRuntimeInstall[]
+	extensions: PHPExtensionInstallPlan[]
 ): EmscriptenOptions {
 	if (!extensions.length) {
 		return options;
@@ -387,12 +342,14 @@ export function appendPHPExtensionInstallPlans(
 		...options.ENV,
 	};
 
-	for (const { plan } of extensions) {
+	for (const plan of extensions) {
 		Object.assign(env, plan.env);
-		env['PHP_INI_SCAN_DIR'] = appendPathEnv(
-			env['PHP_INI_SCAN_DIR'],
-			plan.extensionDir
-		);
+		const currentScanDir = env['PHP_INI_SCAN_DIR'];
+		const paths = currentScanDir ? currentScanDir.split(':') : [];
+		env['PHP_INI_SCAN_DIR'] =
+			!currentScanDir || !paths.includes(plan.extensionDir)
+				? [...paths, plan.extensionDir].join(':')
+				: currentScanDir;
 	}
 
 	return {
@@ -400,9 +357,8 @@ export function appendPHPExtensionInstallPlans(
 		ENV: env,
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			options.onRuntimeInitialized?.(phpRuntime);
-			for (const { plan, onInstalled } of extensions) {
+			for (const plan of extensions) {
 				installPHPExtensionFilesSync(phpRuntime.FS, plan);
-				onInstalled?.(phpRuntime);
 			}
 		},
 	};
@@ -411,19 +367,27 @@ export function appendPHPExtensionInstallPlans(
 /**
  * Builds the VFS paths and per-extension ini content for an extension.
  */
-export function buildPHPExtensionInstallPlan(
+function buildPHPExtensionInstallPlan(
 	options: InstallPHPExtensionFilesOptions
 ): PHPExtensionInstallPlan {
 	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
-	const name = validateExtensionName(options.name);
+	const name = options.name;
+	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+		throw new Error(
+			`Invalid PHP extension name ${JSON.stringify(
+				name
+			)}. Extension names are used to build VFS file names and ini paths, so they may only contain [a-zA-Z0-9_-].`
+		);
+	}
 	const loadWithIniDirective = options.loadWithIniDirective ?? 'extension';
 	const soPath = joinPaths(extensionDir, `${name}.so`);
 	const iniPath = joinPaths(extensionDir, `${name}.ini`);
-	const iniContent = buildIniContent({
-		loadWithIniDirective,
-		soPath,
-		iniEntries: options.iniEntries ?? {},
-	});
+	const iniContent = [
+		`${loadWithIniDirective}=${soPath}`,
+		...Object.entries(options.iniEntries ?? {}).map(
+			([key, value]) => `${key}=${value}`
+		),
+	].join('\n');
 	const extraFiles = options.extraFiles
 		? {
 				...options.extraFiles,
@@ -434,14 +398,12 @@ export function buildPHPExtensionInstallPlan(
 		: undefined;
 
 	return {
-		name,
 		soPath,
 		soBytes: toUint8Array(options.soBytes),
 		iniPath,
 		iniContent,
 		extraFiles,
 		env: options.env,
-		loadWithIniDirective,
 		extensionDir,
 	};
 }
@@ -492,7 +454,14 @@ async function resolvePHPExtensionSource(
 
 	if (source.format === 'url') {
 		const name =
-			options.name ?? source.name ?? inferExtensionName(source.url);
+			options.name ??
+			source.name ??
+			(() => {
+				const path = new URL(String(source.url), 'https://example.com')
+					.pathname;
+				const file = path.split('/').pop() ?? '';
+				return file.endsWith('.so') ? file.slice(0, -3) : undefined;
+			})();
 		if (!name) {
 			throw new Error(
 				'name is required when loading an extension from a direct URL.'
@@ -506,15 +475,14 @@ async function resolvePHPExtensionSource(
 	}
 
 	const manifestUrl =
-		'manifestUrl' in source && source.manifestUrl
+		'manifestUrl' in source
 			? new URL(String(source.manifestUrl))
-			: 'url' in source
-				? new URL(String(source.url))
-				: undefined;
-	const manifest =
+			: undefined;
+	const manifest = validateExtensionManifest(
 		'manifest' in source
-			? validateExtensionManifest(source.manifest)
-			: validateExtensionManifest(await fetchJson(fetchFn, manifestUrl!));
+			? source.manifest
+			: await fetchJson(fetchFn, manifestUrl!)
+	);
 	const baseUrl =
 		'baseUrl' in source && source.baseUrl
 			? new URL(String(source.baseUrl))
@@ -544,8 +512,6 @@ async function resolvePHPExtensionSource(
 	return {
 		name: manifest.name,
 		soBytes,
-		manifest,
-		artifact,
 	};
 }
 
@@ -606,46 +572,6 @@ function validateExtensionManifest(candidate: unknown): PHPExtensionManifest {
 	return manifest;
 }
 
-function buildIniContent({
-	loadWithIniDirective,
-	soPath,
-	iniEntries,
-}: {
-	loadWithIniDirective: PHPExtensionIniDirective;
-	soPath: string;
-	iniEntries: Record<string, string>;
-}): string {
-	return [
-		`${loadWithIniDirective}=${soPath}`,
-		...Object.entries(iniEntries).map(([key, value]) => `${key}=${value}`),
-	].join('\n');
-}
-
-function validateExtensionName(name: string): string {
-	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-		throw new Error(
-			`Invalid PHP extension name ${JSON.stringify(
-				name
-			)}. Use only [a-zA-Z0-9_-].`
-		);
-	}
-	return name;
-}
-
-function inferExtensionName(url: string | URL): string | undefined {
-	const path = new URL(String(url), 'https://example.com').pathname;
-	const file = path.split('/').pop() ?? '';
-	return file.endsWith('.so') ? file.slice(0, -3) : undefined;
-}
-
-function appendPathEnv(current: string | undefined, path: string): string {
-	if (!current) {
-		return path;
-	}
-	const paths = current.split(':');
-	return paths.includes(path) ? current : [...paths, path].join(':');
-}
-
 function ensureDirectorySync(fs: Emscripten.RootFS, directory: string) {
 	if (!FSHelpers.fileExists(fs, directory)) {
 		fs.mkdirTree(directory);
@@ -680,18 +606,13 @@ async function assertSha256(
 			`Cannot verify ${file}: crypto.subtle is not available.`
 		);
 	}
-	const actual = bytesToHex(
-		await subtle.digest('SHA-256', toUint8Array(bytes))
-	);
+	const digest = await subtle.digest('SHA-256', toUint8Array(bytes));
+	const actual = Array.from(new Uint8Array(digest))
+		.map((byte) => byte.toString(16).padStart(2, '0'))
+		.join('');
 	if (actual !== expected) {
 		throw new Error(`SHA-256 mismatch for ${file}.`);
 	}
-}
-
-function bytesToHex(bytes: ArrayBuffer): string {
-	return Array.from(new Uint8Array(bytes))
-		.map((byte) => byte.toString(16).padStart(2, '0'))
-		.join('');
 }
 
 function toUint8Array(bytes: Uint8Array | ArrayBuffer): Uint8Array {

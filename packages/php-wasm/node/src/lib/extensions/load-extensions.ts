@@ -1,15 +1,13 @@
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import type {
 	EmscriptenOptions,
-	PHPExtensionRuntimeInstall,
-	PHPRuntime,
 	PHPExtensionInstallOptions,
+	PHPExtensionInstallPlan,
 	PHPWasmAsyncMode,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	appendPHPExtensionInstallPlans,
-	buildPHPExtensionInstallPlan,
 	resolvePHPExtensionInstallPlan,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
@@ -106,16 +104,15 @@ async function resolveRuntimePHPExtension(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	extension: PHPLoaderExtension
-): Promise<PHPExtensionRuntimeInstall> {
+): Promise<PHPExtensionInstallPlan> {
 	if (isRuntimePHPExtensionSource(extension)) {
-		const { plan } = await resolvePHPExtensionInstallPlan({
+		return await resolvePHPExtensionInstallPlan({
 			...extension,
 			source: normalizeNodeExtensionSource(extension.source),
 			phpVersion: version,
 			asyncMode,
 			fetch: extension.fetch ?? fetchNodeExtensionResource,
 		});
-		return { plan };
 	}
 
 	const builtIn: { name: BuiltInPHPExtensionName; options?: XdebugOptions } =
@@ -123,13 +120,17 @@ async function resolveRuntimePHPExtension(
 
 	switch (builtIn.name) {
 		case 'intl':
-			return await resolveIntlExtension(version);
+			return await resolveIntlExtension(version, asyncMode);
 		case 'redis':
-			return await resolveRedisExtension(version);
+			return await resolveRedisExtension(version, asyncMode);
 		case 'memcached':
-			return await resolveMemcachedExtension(version);
+			return await resolveMemcachedExtension(version, asyncMode);
 		case 'xdebug':
-			return await resolveXdebugExtension(version, builtIn.options ?? {});
+			return await resolveXdebugExtension(
+				version,
+				asyncMode,
+				builtIn.options ?? {}
+			);
 		default:
 			throw new Error(
 				`Unknown bundled PHP extension: ${String(builtIn.name)}.`
@@ -144,8 +145,9 @@ function isRuntimePHPExtensionSource(
 }
 
 async function resolveIntlExtension(
-	version: SupportedPHPVersion
-): Promise<PHPExtensionRuntimeInstall> {
+	version: SupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode
+): Promise<PHPExtensionInstallPlan> {
 	const extensionPath = await getIntlExtensionModule(version);
 	const soBytes = new Uint8Array(fs.readFileSync(extensionPath));
 
@@ -154,22 +156,25 @@ async function resolveIntlExtension(
 		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
 	const ICUData = fs.readFileSync(resolveIntlDataPath(moduleDir, dataName));
 
-	return {
-		plan: buildPHPExtensionInstallPlan({
+	return await resolvePHPExtensionInstallPlan({
+		source: {
+			format: 'so',
 			name: 'intl',
-			soBytes,
-			env: {
-				ICU_DATA: '/internal/shared',
+			bytes: soBytes,
+		},
+		phpVersion: version,
+		asyncMode,
+		env: {
+			ICU_DATA: '/internal/shared',
+		},
+		extraFiles: {
+			targetPath: '/internal/shared',
+			files: {
+				// The Intl extension looks for the hard-coded ICU data name.
+				'icudt74l.dat': new Uint8Array(ICUData),
 			},
-			extraFiles: {
-				targetPath: '/internal/shared',
-				files: {
-					// The Intl extension looks for the hard-coded ICU data name.
-					'icudt74l.dat': new Uint8Array(ICUData),
-				},
-			},
-		}),
-	};
+		},
+	});
 }
 
 function resolveIntlDataPath(moduleDir: string, dataName: string): string {
@@ -191,61 +196,70 @@ function resolveIntlDataPath(moduleDir: string, dataName: string): string {
 }
 
 async function resolveRedisExtension(
-	version: SupportedPHPVersion
-): Promise<PHPExtensionRuntimeInstall> {
+	version: SupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode
+): Promise<PHPExtensionInstallPlan> {
 	const extensionPath = await getRedisExtensionModule(version);
-	return {
-		plan: buildPHPExtensionInstallPlan({
+	return await resolvePHPExtensionInstallPlan({
+		source: {
+			format: 'so',
 			name: 'redis',
-			soBytes: new Uint8Array(fs.readFileSync(extensionPath)),
-		}),
-	};
+			bytes: new Uint8Array(fs.readFileSync(extensionPath)),
+		},
+		phpVersion: version,
+		asyncMode,
+	});
 }
 
 async function resolveMemcachedExtension(
-	version: SupportedPHPVersion
-): Promise<PHPExtensionRuntimeInstall> {
+	version: SupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode
+): Promise<PHPExtensionInstallPlan> {
 	const extensionPath = await getMemcachedExtensionModule(version);
-	return {
-		plan: buildPHPExtensionInstallPlan({
+	return await resolvePHPExtensionInstallPlan({
+		source: {
+			format: 'so',
 			name: 'memcached',
-			soBytes: new Uint8Array(fs.readFileSync(extensionPath)),
-		}),
-	};
+			bytes: new Uint8Array(fs.readFileSync(extensionPath)),
+		},
+		phpVersion: version,
+		asyncMode,
+	});
 }
 
 async function resolveXdebugExtension(
 	version: SupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode,
 	xdebugOptions: XdebugOptions
-): Promise<PHPExtensionRuntimeInstall> {
+): Promise<PHPExtensionInstallPlan> {
 	const filePath = await getXdebugExtensionModule(version);
 	const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
 
-	return {
-		plan: buildPHPExtensionInstallPlan({
+	return await resolvePHPExtensionInstallPlan({
+		source: {
+			format: 'so',
 			name: 'xdebug',
-			soBytes: new Uint8Array(fs.readFileSync(filePath)),
-			loadWithIniDirective: 'zend_extension',
-			iniEntries: {
-				'xdebug.mode': 'debug,develop',
-				'xdebug.start_with_request': 'yes',
-				'xdebug.idekey': `"${ideKey}"`,
-				// Path mapping is only available starting from Xdebug 3.5,
-				// which is used by PHP 8.5+. Previous versions ignore it.
-				'xdebug.path_mapping': 'yes',
-			},
-		}),
-		onInstalled: (phpRuntime) => {
-			writeXdebugMaps(phpRuntime, version, xdebugOptions);
+			bytes: new Uint8Array(fs.readFileSync(filePath)),
 		},
-	};
+		phpVersion: version,
+		asyncMode,
+		loadWithIniDirective: 'zend_extension',
+		iniEntries: {
+			'xdebug.mode': 'debug,develop',
+			'xdebug.start_with_request': 'yes',
+			'xdebug.idekey': `"${ideKey}"`,
+			// Path mapping is only available starting from Xdebug 3.5,
+			// which is used by PHP 8.5+. Previous versions ignore it.
+			'xdebug.path_mapping': 'yes',
+		},
+		extraFiles: resolveXdebugExtraFiles(version, xdebugOptions),
+	});
 }
 
-function writeXdebugMaps(
-	phpRuntime: PHPRuntime,
+function resolveXdebugExtraFiles(
 	version: SupportedPHPVersion,
 	xdebugOptions: XdebugOptions
-) {
+): PHPExtensionInstallOptions['extraFiles'] | undefined {
 	/*
 	 * Path mapping and skipping is only available starting from Xdebug 3.5,
 	 * which is used by PHP 8.5 or higher.
@@ -255,28 +269,29 @@ function writeXdebugMaps(
 		SupportedPHPVersions.indexOf('8.5');
 
 	if (!isPHP85orHigher) {
-		return;
+		return undefined;
 	}
 
 	const { pathMappings, pathSkippings } = xdebugOptions;
 
 	if (!pathMappings && !pathSkippings) {
-		return;
+		return undefined;
 	}
 
-	phpRuntime.FS.mkdir('/.xdebug');
+	const files: Record<string, string> = {};
 	if (pathMappings) {
-		phpRuntime.FS.writeFile(
-			'/.xdebug/path.map',
-			serializeXdebugPathMappings(pathMappings)
-		);
+		files['path.map'] = serializeXdebugPathMappings(pathMappings);
 	}
 	if (pathSkippings) {
-		phpRuntime.FS.writeFile(
-			'/.xdebug/skip.map',
-			pathSkippings.map((path) => `${path} = SKIP`).join('\n')
-		);
+		files['skip.map'] = pathSkippings
+			.map((path) => `${path} = SKIP`)
+			.join('\n');
 	}
+
+	return {
+		targetPath: '/.xdebug',
+		files,
+	};
 }
 
 function serializeXdebugPathMappings(pathMappings: PathMapping[]) {
