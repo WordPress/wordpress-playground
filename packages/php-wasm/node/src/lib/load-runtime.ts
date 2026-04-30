@@ -132,8 +132,41 @@ export async function loadNodeRuntime(
 			: undefined);
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
-	const phpWasmAsyncMode = await detectPHPWasmAsyncMode();
-	const requestedExtensions = getRequestedPHPLoaderExtensions(options);
+	const { jspi } = await import('wasm-feature-detect');
+	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
+	const requestedExtensions = [...(options.extensions ?? [])];
+
+	/*
+	 * Keep the deprecated `with*` options as aliases for built-in extension
+	 * requests. If callers already requested the same built-in through
+	 * `extensions`, do not add it again.
+	 */
+	if (options.withIntl && !hasBuiltInExtension(requestedExtensions, 'intl')) {
+		requestedExtensions.push('intl');
+	}
+	if (
+		options.withRedis &&
+		!hasBuiltInExtension(requestedExtensions, 'redis')
+	) {
+		requestedExtensions.push('redis');
+	}
+	if (
+		options.withMemcached &&
+		!hasBuiltInExtension(requestedExtensions, 'memcached')
+	) {
+		requestedExtensions.push('memcached');
+	}
+
+	if (
+		options.withXdebug &&
+		!hasBuiltInExtension(requestedExtensions, 'xdebug')
+	) {
+		requestedExtensions.push(
+			typeof options.withXdebug === 'object'
+				? { name: 'xdebug', options: options.withXdebug }
+				: 'xdebug'
+		);
+	}
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -348,40 +381,6 @@ export async function loadNodeRuntime(
 
 	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
 	return runtimeId;
-}
-
-async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
-	const { jspi } = await import('wasm-feature-detect');
-	return (await jspi()) ? 'jspi' : 'asyncify';
-}
-
-function getRequestedPHPLoaderExtensions(
-	options: PHPLoaderOptions
-): PHPLoaderExtension[] {
-	const extensions = [...(options.extensions ?? [])];
-
-	if (options.withIntl && !hasBuiltInExtension(extensions, 'intl')) {
-		extensions.push('intl');
-	}
-	if (options.withRedis && !hasBuiltInExtension(extensions, 'redis')) {
-		extensions.push('redis');
-	}
-	if (
-		options.withMemcached &&
-		!hasBuiltInExtension(extensions, 'memcached')
-	) {
-		extensions.push('memcached');
-	}
-
-	if (options.withXdebug && !hasBuiltInExtension(extensions, 'xdebug')) {
-		extensions.push(
-			typeof options.withXdebug === 'object'
-				? { name: 'xdebug', options: options.withXdebug }
-				: 'xdebug'
-		);
-	}
-
-	return extensions;
 }
 
 /**

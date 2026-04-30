@@ -81,7 +81,8 @@ export async function loadWebRuntime(
 		) => setTimeout(fn, 0);
 	}
 
-	const phpWasmAsyncMode = await detectPHPWasmAsyncMode();
+	const { jspi } = await import('wasm-feature-detect');
+	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
 
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
 		...fakeWebsocket(),
@@ -141,11 +142,6 @@ export async function loadWebRuntime(
 	loaderOptions.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 
 	return await loadPHPRuntime(phpLoaderModule, options);
-}
-
-async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
-	const { jspi } = await import('wasm-feature-detect');
-	return (await jspi()) ? 'jspi' : 'asyncify';
 }
 
 /**
