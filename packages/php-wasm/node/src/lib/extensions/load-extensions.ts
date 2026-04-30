@@ -124,7 +124,13 @@ async function resolveRuntimePHPExtension(
 	asyncMode: PHPWasmAsyncMode,
 	extension: PHPLoaderExtension
 ): Promise<PHPExtensionInstallPlan> {
-	if (isRuntimePHPExtensionSource(extension)) {
+	/*
+	 * External extension requests always carry a `source`. Built-in extension
+	 * requests are either strings or `{ name }` objects. This shape check lets
+	 * the `extensions` array mix both forms without treating a caller-provided
+	 * manifest, URL, or byte source as one of the bundled extensions.
+	 */
+	if (typeof extension === 'object' && 'source' in extension) {
 		return await resolvePHPExtensionInstallPlan({
 			...extension,
 			source: normalizeNodeExtensionSource(extension.source),
@@ -225,12 +231,6 @@ async function resolveRuntimePHPExtension(
 				`Unknown bundled PHP extension: ${String(builtIn.name)}.`
 			);
 	}
-}
-
-function isRuntimePHPExtensionSource(
-	extension: PHPLoaderExtension
-): extension is RuntimePHPExtensionSource {
-	return typeof extension === 'object' && 'source' in extension;
 }
 
 function resolveIntlDataPath(moduleDir: string, dataName: string): string {

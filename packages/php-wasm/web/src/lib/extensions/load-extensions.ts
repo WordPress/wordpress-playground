@@ -77,7 +77,14 @@ async function resolveRuntimePHPWebExtension(
 	asyncMode: PHPWasmAsyncMode,
 	extension: PHPWebLoaderExtension
 ): Promise<PHPExtensionInstallPlan> {
-	if (isRuntimePHPWebExtensionSource(extension)) {
+	/*
+	 * External extension requests always carry a `source`. Built-in web
+	 * extension requests are either strings or `{ name }` objects. This shape
+	 * check lets the `extensions` array mix both forms without treating a
+	 * caller-provided manifest, URL, or byte source as the bundled `intl`
+	 * extension.
+	 */
+	if (typeof extension === 'object' && 'source' in extension) {
 		return await resolvePHPExtensionInstallPlan({
 			...extension,
 			phpVersion: version,
@@ -119,10 +126,4 @@ async function resolveRuntimePHPWebExtension(
 			},
 		},
 	});
-}
-
-function isRuntimePHPWebExtensionSource(
-	extension: PHPWebLoaderExtension
-): extension is RuntimePHPWebExtensionSource {
-	return typeof extension === 'object' && 'source' in extension;
 }
