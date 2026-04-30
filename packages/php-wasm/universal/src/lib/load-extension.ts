@@ -1,3 +1,27 @@
+/**
+ * PHP.wasm extensions are Emscripten side modules, and they can enter PHP
+ * through two different paths:
+ *
+ * 1. Startup-time loading stages the `.so` file and a generated `.ini` file
+ * before PHP starts, then adds the extension directory to `PHP_INI_SCAN_DIR`.
+ * PHP reads the generated ini file during module startup. This is required
+ * for `zend_extension` entries such as Xdebug, and for regular extensions
+ * that must register ini entries, globals, classes, hooks, or startup state
+ * before user code runs.
+ *
+ * 2. Post-startup loading is for a PHP instance that already exists. At that
+ * point PHP has already scanned its ini directories, so writing a new `.ini`
+ * file is not enough. For regular extensions we create a preload script in
+ * `/internal/shared/preload`; the PHP wrapper requires those scripts before
+ * user code and the script calls `dl('name.so')`. PHP's `dl()` accepts a file
+ * name rather than an absolute path, so the script also points `extension_dir`
+ * at the directory where the side module was staged.
+ *
+ * Manifest URLs are URLs, not filesystem-relative paths. In Node, pass a URL
+ * object such as `new URL('./manifest.json', import.meta.url)` and provide a
+ * `fetch` implementation for schemes that global `fetch` does not support,
+ * such as `file:`.
+ */
 import { dirname, joinPaths } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
@@ -52,7 +76,7 @@ export type PHPExtensionIniDirective = 'extension' | 'zend_extension';
  * Format of an extension source that can be resolved without an already
  * running PHP instance.
  */
-export type PHPExtensionSourceFormat = 'so' | 'manifest';
+export type PHPExtensionSourceFormat = 'so' | 'url' | 'manifest';
 
 /**
  * One compiled extension artifact in a manifest.
@@ -122,7 +146,27 @@ export type PHPExtensionSource =
 	  }
 	| {
 			format: 'manifest';
+			/**
+			 * URL of the extension manifest.
+			 *
+			 * String values must be absolute URLs, not filesystem-relative
+			 * paths. In Node, use a URL object for local package assets, e.g.
+			 * `new URL('./manifest.json', import.meta.url)`, and pass a
+			 * `fetch` implementation that supports `file:` URLs.
+			 */
+			manifestUrl: string | URL;
+			/**
+			 * @deprecated Use `manifestUrl` instead.
+			 */
+			url?: string | URL;
+	  }
+	| {
+			format: 'manifest';
+			/**
+			 * @deprecated Use `manifestUrl` instead.
+			 */
 			url: string | URL;
+			manifestUrl?: string | URL;
 	  }
 	| {
 			format: 'manifest';
@@ -179,12 +223,56 @@ export interface LoadPHPExtensionOptions {
 	 */
 	asyncMode?: PHPWasmAsyncMode;
 
+	/**
+	 * When the extension should become available.
+	 *
+	 * Defaults to `auto`: regular `extension` entries load after startup with
+	 * `dl()`, while `zend_extension` entries load before startup via
+	 * `PHP_INI_SCAN_DIR`.
+	 */
 	loadTiming?: PHPExtensionLoadTiming;
+
+	/**
+	 * php.ini directive used to load the staged `.so`.
+	 *
+	 * Use `extension` for regular PHP extensions. Use `zend_extension` for
+	 * Zend extensions such as Xdebug. Defaults to `extension`.
+	 */
 	loadWithIniDirective?: PHPExtensionIniDirective;
+
+	/**
+	 * Additional php.ini entries to write next to the generated extension
+	 * directive, e.g. extension-specific settings.
+	 */
 	iniEntries?: Record<string, string>;
+
+	/**
+	 * Sidecar files to write into the PHP VFS before the extension is loaded.
+	 *
+	 * Use this for data files or dependency assets the extension expects at
+	 * runtime.
+	 */
 	extraFiles?: PHPExtensionExtraFiles;
+
+	/**
+	 * Environment variables to add to the PHP runtime before the extension is
+	 * loaded.
+	 */
 	env?: Record<string, string>;
+
+	/**
+	 * VFS directory where the extension `.so` and generated `.ini` file are
+	 * staged. Defaults to `PHP_EXTENSIONS_DIR`.
+	 */
 	extensionDir?: string;
+
+	/**
+	 * Fetch implementation used for `format: 'url'`, `manifestUrl`, and
+	 * manifest artifacts.
+	 *
+	 * In Node, provide this when loading `file:` URLs or any other scheme not
+	 * supported by global `fetch`.
+	 */
 	fetch?: typeof fetch;
 }
 
@@ -545,7 +633,11 @@ async function resolvePHPExtensionSource(
 	}
 
 	const manifestUrl =
-		'url' in source ? new URL(String(source.url)) : undefined;
+		'manifestUrl' in source && source.manifestUrl
+			? new URL(String(source.manifestUrl))
+			: 'url' in source
+				? new URL(String(source.url))
+				: undefined;
 	const manifest =
 		'manifest' in source
 			? validateExtensionManifest(source.manifest)
