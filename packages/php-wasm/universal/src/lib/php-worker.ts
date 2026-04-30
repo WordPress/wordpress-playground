@@ -217,6 +217,15 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	): Promise<StreamedPHPResponse> {
 		const state = _private.get(this)!;
 		const primaryPhp = state.php;
+		console.warn(
+			`[PHPWorker.cli state] hasRequestHandler=${Boolean(
+				state.requestHandler
+			)} hasPrimaryPhp=${Boolean(
+				primaryPhp
+			)} hasPrimaryPhpRequestHandler=${Boolean(
+				primaryPhp?.requestHandler
+			)} constructor=${this.constructor.name}`
+		);
 		if (
 			!state.requestHandler &&
 			!primaryPhp?.requestHandler &&

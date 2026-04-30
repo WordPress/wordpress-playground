@@ -9,9 +9,24 @@ test('playground.cli() streams stdout', async ({ website }) => {
 
 	const output = await website.page.evaluate(async () => {
 		const playground = (window as any).playground;
-		await playground.writeFile('/tmp/script.php', "<?php echo 'hi!'; ");
-		const response = await playground.cli(['php', '/tmp/script.php']);
-		return await response.stdoutText;
+		let step = 'writeFile';
+		try {
+			await playground.writeFile('/tmp/script.php', "<?php echo 'hi!'; ");
+			console.warn('[client.spec] writeFile ok');
+			step = 'cli';
+			const response = await playground.cli(['php', '/tmp/script.php']);
+			console.warn('[client.spec] cli ok');
+			step = 'stdoutText';
+			return await response.stdoutText;
+		} catch (error) {
+			console.error('[client.spec] failed', {
+				step,
+				name: (error as Error)?.name,
+				message: (error as Error)?.message,
+				stack: (error as Error)?.stack,
+			});
+			throw error;
+		}
 	});
 
 	await expect(output).toContain('hi!');

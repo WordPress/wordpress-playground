@@ -412,6 +412,13 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (requestHandler || !required) {
 			return requestHandler;
 		}
+		console.warn(
+			`[PlaygroundWorkerEndpoint.getRequestHandler] required=${required} hasInstanceRequestHandler=${Boolean(
+				this.requestHandler
+			)} hasActiveRequestHandler=${Boolean(
+				activeRequestHandler
+			)} booted=${this.booted}`
+		);
 		throw new Error(
 			'Playground worker is not connected to a request handler.'
 		);
