@@ -258,9 +258,13 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 	}
 }
 
-const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
-);
+const workerGlobal = self as unknown as {
+	__playgroundWorkerEndpointBlueprintsV1?: ReturnType<typeof exposeAPI>;
+};
+const [setApiReady, setAPIError] =
+	(workerGlobal.__playgroundWorkerEndpointBlueprintsV1 ??= exposeAPI(
+		new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
+	));
 
 /**
  * Normalizes WordPress version strings for wordpress.org downloads.
