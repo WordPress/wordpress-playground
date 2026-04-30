@@ -43,6 +43,40 @@ console.log(response.text);
 // Hello John
 ```
 
+## Loading PHP extensions
+
+Pass `extensions` to `loadWebRuntime()` to load optional PHP extensions before
+PHP starts:
+
+```js
+const php = new PHP(
+	await loadWebRuntime('8.4', {
+		extensions: ['intl'],
+	})
+);
+```
+
+`@php-wasm/web` ships the `intl` extension. Browser builds can also load
+external `.so` artifacts from a manifest:
+
+```js
+const php = new PHP(
+	await loadWebRuntime('8.4', {
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: new URL('/extensions/wp_mysql_parser/manifest.json', location.href),
+				},
+			},
+		],
+	})
+);
+```
+
+In browser runtimes, pass an HTTP(S) URL or a `URL` object. Relative artifact
+files in the manifest are resolved against the manifest URL.
+
 ## Usage with bundlers
 
 If you use `@php-wasm/web` with a bundler such as Vite, you may see the following errors:
@@ -65,12 +99,10 @@ In Vite, you can use the following options to support importing all the required
 
 ```js
 export default defineConfig({
-  assetsInclude: [/\.dat$/, /\.wasm$/, /\.so$/, /\.la$/],
-  optimizeDeps: {
-     exclude: [
-      '@php-wasm/web'
-    ]
-  }
+	assetsInclude: [/\.dat$/, /\.wasm$/, /\.so$/, /\.la$/],
+	optimizeDeps: {
+		exclude: ['@php-wasm/web'],
+	},
 });
 ```
 

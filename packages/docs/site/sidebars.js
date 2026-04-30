@@ -182,6 +182,7 @@ const sidebars = {
 								'developers/apis/javascript-api/blueprint-json-in-api-client',
 								'developers/apis/javascript-api/blueprint-functions-in-api-client',
 								'developers/apis/javascript-api/mount-data',
+								'developers/apis/javascript-api/php-extensions',
 							],
 						},
 					],

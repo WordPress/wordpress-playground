@@ -29,14 +29,50 @@ const output = await php.runStream({
 console.log(await output.stdoutText);
 ```
 
+### Loading PHP extensions
+
+Use the `extensions` loader option to enable optional extensions before PHP
+starts:
+
+```javascript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: ['intl', 'redis', 'memcached', { name: 'xdebug', options: { ideKey: 'PLAYGROUND' } }],
+	})
+);
+```
+
+The same array can load external `.so` artifacts from a manifest:
+
+```javascript
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: './dist/wp_mysql_parser/manifest.json',
+				},
+			},
+		],
+	})
+);
+```
+
+See [Loading PHP extensions](/developers/apis/javascript-api/php-extensions)
+for manifest format, browser usage, sidecar files, and compatibility notes.
+
 ## Use cases
 
 Run PHP inside Node.js without a native PHP install. Allow developer to produce the following solutions:
 
--   CI/CD jobs and developer tooling.
--   Support education and WordPress workflows: Power interactive tutorials, sandboxes, and coding challenges.
--   Generate content and prototype server behavior.
--   Render HTML using PHP templates, and quickly stand up mock API endpoints to simulate requests.
+- CI/CD jobs and developer tooling.
+- Support education and WordPress workflows: Power interactive tutorials, sandboxes, and coding challenges.
+- Generate content and prototype server behavior.
+- Render HTML using PHP templates, and quickly stand up mock API endpoints to simulate requests.
 
 ## Practical demos
 
@@ -578,7 +614,7 @@ try {
 
 ## Performance considerations
 
--   **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible.
--   **Batch operations**: Group multiple file operations together rather than running separate scripts.
--   **Memory management**: Large files may impact performance. Consider streaming for big datasets.
--   **Caching**: Cache compiled PHP scripts and frequently accessed data.
+- **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible.
+- **Batch operations**: Group multiple file operations together rather than running separate scripts.
+- **Memory management**: Large files may impact performance. Consider streaming for big datasets.
+- **Caching**: Cache compiled PHP scripts and frequently accessed data.

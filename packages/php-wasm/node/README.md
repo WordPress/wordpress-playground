@@ -2,12 +2,12 @@
 
 This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It comes with the following PHP extensions:
 
--   SQLite
--   Libzip
--   Libpng
--   CLI
--   OpenSSL
--   MySQL
+- SQLite
+- Libzip
+- Libpng
+- CLI
+- OpenSSL
+- MySQL
 
 It uses the host filesystem directly and can access the network if you plug in a custom
 WS proxy.
@@ -26,6 +26,45 @@ const output = await php.runStream({
 
 console.log(await output.stdoutText);
 ```
+
+## Loading PHP extensions
+
+Pass `extensions` to `loadNodeRuntime()` to load optional PHP extensions before
+PHP starts:
+
+```js
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: ['intl', 'redis', 'memcached', { name: 'xdebug', options: { ideKey: 'PLAYGROUND' } }],
+	})
+);
+```
+
+`@php-wasm/node` ships `intl`, `xdebug`, `redis`, and `memcached`. It can also
+load external `.so` artifacts from a manifest:
+
+```js
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: './dist/wp_mysql_parser/manifest.json',
+				},
+			},
+		],
+	})
+);
+```
+
+In Node.js, `manifestUrl` may be a local path, a `file:` URL, or an HTTP(S)
+URL. Relative local paths are resolved from the current working directory.
+Relative artifact files in the manifest are resolved against the manifest
+location.
+
+The older `withIntl`, `withXdebug`, `withRedis`, and `withMemcached` loader
+options still work, but new code should use `extensions`.
 
 ## Attribution
 
