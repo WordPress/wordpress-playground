@@ -84,6 +84,10 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 	}
 }
 
-const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpointV2(downloadMonitor)
-);
+const workerGlobal = self as unknown as {
+	__playgroundWorkerEndpointBlueprintsV2?: ReturnType<typeof exposeAPI>;
+};
+const [setApiReady, setAPIError] =
+	(workerGlobal.__playgroundWorkerEndpointBlueprintsV2 ??= exposeAPI(
+		new PlaygroundWorkerEndpointV2(downloadMonitor)
+	));
