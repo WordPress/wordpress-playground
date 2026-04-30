@@ -206,16 +206,19 @@ export interface PHPExtensionInstallOptions {
 	name?: string;
 
 	/**
-	 * First directive written to the per-extension ini file.
+	 * The directive PHP.wasm writes as the first line of the generated
+	 * startup `.ini` file for this extension.
 	 *
-	 * Use `extension` for regular PHP extensions. Use `zend_extension` for
-	 * Zend extensions such as Xdebug. Defaults to `extension`.
+	 * Regular PHP extensions need `extension=/path/to/name.so`. Zend
+	 * extensions, such as Xdebug, need `zend_extension=/path/to/name.so`.
+	 * This does not edit the main `php.ini`; it controls the generated
+	 * per-extension `.ini` file PHP reads while starting.
 	 */
 	loadWithIniDirective?: PHPExtensionIniDirective;
 
 	/**
-	 * Additional `key=value` lines written after the `extension=` or
-	 * `zend_extension=` directive.
+	 * Additional `key=value` lines written to the generated startup `.ini`
+	 * file after the `extension=` or `zend_extension=` directive.
 	 */
 	iniEntries?: Record<string, string>;
 

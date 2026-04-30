@@ -8,9 +8,10 @@ export * from './file-lock-manager-for-windows';
 export type {
 	BuiltInPHPExtension,
 	BuiltInPHPExtensionName,
+	PathMapping,
 	PHPExtension,
 	RuntimePHPExtensionSource,
+	XdebugOptions,
 } from './extensions/load-extensions';
-export * from './extensions/xdebug/with-xdebug';
 export * from './wasm-user-space';
 export * from './wasm-kernel-space';

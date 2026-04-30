@@ -16,12 +16,22 @@ import path from 'path';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 import { getMemcachedExtensionModule } from './memcached/get-memcached-extension-module';
 import { getRedisExtensionModule } from './redis/get-redis-extension-module';
-import { type XdebugOptions } from './xdebug/with-xdebug';
 import { getXdebugExtensionModule } from './xdebug/get-xdebug-extension-module';
 import {
 	fetchNodeExtensionResource,
 	normalizeNodeExtensionSource,
 } from './node-extension-resources';
+
+export interface PathMapping {
+	hostPath: string;
+	vfsPath: string;
+}
+
+export interface XdebugOptions {
+	ideKey?: string;
+	pathMappings?: PathMapping[];
+	pathSkippings?: string[];
+}
 
 /**
  * Built-in PHP extensions shipped with `@php-wasm/node`.

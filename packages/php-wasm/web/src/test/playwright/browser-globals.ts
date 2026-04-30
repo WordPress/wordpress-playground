@@ -1,10 +1,10 @@
-import type {
+import {
 	PHP,
 	PHPRequestHandler,
 	proxyFileSystem,
 	setPhpIniEntries,
 } from '@php-wasm/universal';
-import type { loadWebRuntime, generateCertificate } from '../../lib';
+import { generateCertificate, loadWebRuntime } from '../../lib';
 
 declare global {
 	interface Window {
@@ -16,3 +16,10 @@ declare global {
 		generateCertificate: typeof generateCertificate;
 	}
 }
+
+window.PHP = PHP;
+window.PHPRequestHandler = PHPRequestHandler;
+window.loadWebRuntime = loadWebRuntime;
+window.proxyFileSystem = proxyFileSystem;
+window.setPhpIniEntries = setPhpIniEntries;
+window.generateCertificate = generateCertificate;

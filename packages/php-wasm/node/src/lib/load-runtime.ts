@@ -21,8 +21,8 @@ import { withNetworking } from './networking/with-networking';
 import {
 	withPHPExtensions,
 	type PHPExtension,
+	type XdebugOptions,
 } from './extensions/load-extensions';
-import type { XdebugOptions } from './extensions/xdebug/with-xdebug';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
 import { jspi } from 'wasm-feature-detect';

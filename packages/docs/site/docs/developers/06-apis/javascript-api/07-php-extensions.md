@@ -159,13 +159,28 @@ await loadWebRuntime('8.4', {
 });
 ```
 
-## Startup settings
+## Startup files
 
-Every extension source may also provide startup settings:
+PHP loads extensions from `.ini` files it reads during startup. PHP.wasm builds
+those files from the extension request before the runtime starts:
 
-- `loadWithIniDirective`: `extension` for regular PHP extensions or
-  `zend_extension` for Zend extensions such as Xdebug.
-- `iniEntries`: extra `php.ini` entries written after the extension directive.
+```ini
+extension=/internal/shared/extensions/my_extension.so
+my_extension.option=value
+```
+
+`loadWithIniDirective` chooses the first line of that generated `.ini` file.
+Regular PHP extensions use `extension`. Zend extensions such as Xdebug use
+`zend_extension`:
+
+```ini
+zend_extension=/internal/shared/extensions/xdebug.so
+xdebug.mode=debug,develop
+```
+
+The remaining startup options describe what PHP.wasm writes before PHP starts:
+
+- `iniEntries`: extra lines in the generated extension `.ini` file.
 - `extraFiles`: sidecar files staged in the PHP virtual filesystem.
 - `env`: environment variables set before PHP starts.
 - `extensionDir`: the virtual directory for the `.so` and generated `.ini`

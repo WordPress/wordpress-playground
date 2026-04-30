@@ -72,7 +72,7 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 		await page.goto('/');
 		await page.addScriptTag({
 			type: 'module',
-			url: '/src/test/playwright/globals.ts',
+			url: '/src/test/playwright/browser-globals.ts',
 		});
 	});
 
