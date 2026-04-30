@@ -53,7 +53,11 @@ export async function fetchNodeExtensionResource(
 	input: RequestInfo | URL
 ): Promise<Response> {
 	const url =
-		input instanceof Request ? new URL(input.url) : toNodeFetchUrl(input);
+		input instanceof Request
+			? new URL(input.url)
+			: input instanceof URL
+				? input
+				: toNodeResourceUrl(String(input));
 	if (url.protocol === 'file:') {
 		try {
 			return new Response(await readFile(fileURLToPath(url)));
@@ -85,11 +89,4 @@ function toNodeResourceUrl(urlOrPath: string | URL): URL {
 	} catch {
 		return pathToFileURL(path.resolve(urlOrPath));
 	}
-}
-
-function toNodeFetchUrl(input: RequestInfo | URL): URL {
-	if (input instanceof URL) {
-		return input;
-	}
-	return toNodeResourceUrl(String(input));
 }

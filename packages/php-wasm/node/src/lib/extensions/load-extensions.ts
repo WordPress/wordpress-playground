@@ -104,7 +104,7 @@ export async function applyPHPLoaderExtensions(
  * Turns one user-facing Node extension request into the install plan PHP needs
  * before startup.
  *
- * The request has two shapes:
+ * The request has one of two shapes:
  *
  * 1. An external source supplied by the caller: bytes, a URL, or a manifest.
  *    Node normalizes local paths into `file:` URLs and uses
