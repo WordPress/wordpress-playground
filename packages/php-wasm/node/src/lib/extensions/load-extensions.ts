@@ -100,6 +100,25 @@ export async function applyPHPLoaderExtensions(
 	return appendPHPExtensionInstallPlans(options, resolvedExtensions);
 }
 
+/**
+ * Turns one user-facing Node extension request into the install plan PHP needs
+ * before startup.
+ *
+ * The request has two shapes:
+ *
+ * 1. An external source supplied by the caller: bytes, a URL, or a manifest.
+ *    Node normalizes local paths into `file:` URLs and uses
+ *    `fetchNodeExtensionResource()` so local files and remote artifacts go
+ *    through the same resolver.
+ * 2. A built-in extension name: `intl`, `redis`, `memcached`, or `xdebug`.
+ *    The Node package already knows where those artifacts live and adds any
+ *    extra startup state they require, such as ICU data for `intl` or Xdebug
+ *    ini entries.
+ *
+ * This function does not install files into a PHP instance. It only resolves
+ * the bytes, sidecar files, environment variables, and ini entries. The caller
+ * appends all plans to Emscripten options so PHP sees them during startup.
+ */
 async function resolveRuntimePHPExtension(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
