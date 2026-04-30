@@ -678,6 +678,12 @@ export function init(RuntimeName, PHPLoader) {
 		var sym;
 		if (isSymbolDefined(symName)) {
 			sym = wasmImports[symName];
+		} else if (symName === 'setTempRet0') {
+			sym = setTempRet0;
+		} else if (symName === 'getTempRet0') {
+			sym = getTempRet0;
+		} else if (wasmExports && wasmExports[symName]) {
+			sym = wasmExports[symName];
 		} else if (symName.startsWith('invoke_')) {
 			sym = wasmImports[symName] = createNamedFunction(
 				symName,
