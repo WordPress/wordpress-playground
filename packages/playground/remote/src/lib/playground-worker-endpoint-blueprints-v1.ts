@@ -19,14 +19,28 @@ import type { PHP } from '@php-wasm/universal';
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
 const diagnosticGlobal = globalThis as any;
+const diagnosticGlobalId = (diagnosticGlobal.__playgroundEndpointV1GlobalId ??=
+	Math.random().toString(36).slice(2));
 const diagnosticModuleEvalCount =
 	(diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount =
 		(diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount ?? 0) + 1);
-console.warn('[diagnostic endpoint-v1 module eval]', {
-	moduleEvalCount: diagnosticModuleEvalCount,
-	location: globalThis.location?.href,
-	stack: new Error().stack,
-});
+try {
+	throw new Error('[diagnostic endpoint-v1 module eval trace]');
+} catch (error) {
+	console.warn('[diagnostic endpoint-v1 module eval]', {
+		globalId: diagnosticGlobalId,
+		moduleEvalCount: diagnosticModuleEvalCount,
+		location: globalThis.location?.href,
+		importMetaUrl: import.meta.url,
+		selfConstructor: self.constructor?.name,
+		selfName: self.name,
+		performanceNow: performance.now(),
+		knownDiagnosticGlobals: Object.keys(diagnosticGlobal).filter((key) =>
+			key.startsWith('__playgroundEndpointV1')
+		),
+		stack: (error as Error).stack,
+	});
+}
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -264,15 +278,44 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 const diagnosticExposeCount =
 	(diagnosticGlobal.__playgroundEndpointV1ExposeCount =
 		(diagnosticGlobal.__playgroundEndpointV1ExposeCount ?? 0) + 1);
-console.warn('[diagnostic endpoint-v1 before exposeAPI]', {
-	moduleEvalCount: diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount,
-	exposeCount: diagnosticExposeCount,
-	location: globalThis.location?.href,
-	stack: new Error().stack,
-});
-const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
-);
+const [setApiReady, setAPIError] = (() => {
+	try {
+		throw new Error('[diagnostic endpoint-v1 exposeAPI call trace]');
+	} catch (error) {
+		console.warn('[diagnostic endpoint-v1 before exposeAPI]', {
+			globalId: diagnosticGlobalId,
+			moduleEvalCount:
+				diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount,
+			exposeCount: diagnosticExposeCount,
+			location: globalThis.location?.href,
+			importMetaUrl: import.meta.url,
+			selfConstructor: self.constructor?.name,
+			selfName: self.name,
+			performanceNow: performance.now(),
+			stack: (error as Error).stack,
+		});
+	}
+	try {
+		return exposeAPI(
+			new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
+		);
+	} catch (error) {
+		console.error('[diagnostic endpoint-v1 exposeAPI threw]', {
+			globalId: diagnosticGlobalId,
+			moduleEvalCount:
+				diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount,
+			exposeCount: diagnosticExposeCount,
+			errorName: (error as Error)?.name,
+			errorMessage: (error as Error)?.message,
+			errorStack: (error as Error)?.stack,
+			location: globalThis.location?.href,
+			importMetaUrl: import.meta.url,
+			stack: new Error('[diagnostic endpoint-v1 exposeAPI catch trace]')
+				.stack,
+		});
+		throw error;
+	}
+})();
 
 /**
  * Normalizes WordPress version strings for wordpress.org downloads.

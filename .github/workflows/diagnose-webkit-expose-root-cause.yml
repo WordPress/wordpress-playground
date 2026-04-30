@@ -27,6 +27,38 @@ jobs:
               run: sudo npx playwright install webkit --with-deps
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Inspect worker URL references
+              run: |
+                  node <<'NODE'
+                  const fs = require('fs');
+                  const path = require('path');
+                  const base = 'dist/packages/playground/remote';
+                  const files = [
+                    ...fs.readdirSync(base).map((file) => path.join(base, file)),
+                    ...fs.readdirSync(path.join(base, 'assets')).map((file) =>
+                      path.join(base, 'assets', file)
+                    ),
+                  ].filter((file) => file.endsWith('.js') || file.endsWith('.html'));
+                  for (const file of files) {
+                    const text = fs.readFileSync(file, 'utf8');
+                    let index = text.indexOf('playground-worker-endpoint-blueprints-v1');
+                    if (index === -1) {
+                      continue;
+                    }
+                    console.log(`[worker-url-reference] ${file}`);
+                    while (index !== -1) {
+                      console.log(
+                        text
+                          .slice(Math.max(0, index - 120), index + 180)
+                          .replace(/\s+/g, ' ')
+                      );
+                      index = text.indexOf(
+                        'playground-worker-endpoint-blueprints-v1',
+                        index + 1
+                      );
+                    }
+                  }
+                  NODE
             - name: Run focused WebKit diagnostic
               run: |
                   sudo CI=true PLAYWRIGHT_HTML_OPEN=never npx playwright test \
