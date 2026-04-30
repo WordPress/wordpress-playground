@@ -252,12 +252,19 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 }
 
 const workerGlobal = self as unknown as {
-	__playgroundWorkerEndpointBlueprintsV1?: ReturnType<typeof exposeAPI>;
+	__playgroundWorkerEndpointBlueprintsV1?: boolean;
 };
-const [setApiReady, setAPIError] =
-	(workerGlobal.__playgroundWorkerEndpointBlueprintsV1 ??= exposeAPI(
-		new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
-	));
+const alreadyExposedComlinkEndpoint =
+	workerGlobal.__playgroundWorkerEndpointBlueprintsV1;
+if (alreadyExposedComlinkEndpoint) {
+	throw new Error(
+		'The Blueprints v1 Playground worker tried to expose its Comlink endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
+	);
+}
+workerGlobal.__playgroundWorkerEndpointBlueprintsV1 = true;
+const [setApiReady, setAPIError] = exposeAPI(
+	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
+);
 
 /**
  * Normalizes WordPress version strings for wordpress.org downloads.

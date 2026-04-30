@@ -140,6 +140,12 @@ export default defineConfig(({ mode }) => {
 						}
 						return 'assets/[name]-[hash].js';
 					},
+					manualChunks(id) {
+						if (/[\\/]wasm-feature-detect[\\/]/.test(id)) {
+							return 'wasm-feature-detect';
+						}
+						return undefined;
+					},
 					// Ensure the service worker always has the same name
 					entryFileNames: (chunkInfo: any) => {
 						if (chunkInfo.name === 'service-worker') {

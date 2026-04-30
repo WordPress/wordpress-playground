@@ -79,4 +79,22 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 
 		expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
 	}, 10000);
+
+	it('throws a diagnostic error if the worker entrypoint is evaluated twice in the same worker global', async () => {
+		vi.doMock('@php-wasm/web', () => ({
+			certificateToPEM: vi.fn(),
+			createDirectoryHandleMountHandler: vi.fn(),
+			exposeAPI: vi.fn(() => [vi.fn(), vi.fn()]),
+			loadWebRuntime: vi.fn(),
+		}));
+
+		await import('./playground-worker-endpoint-blueprints-v1');
+
+		vi.resetModules();
+		await expect(
+			import('./playground-worker-endpoint-blueprints-v1')
+		).rejects.toThrow(
+			'The Blueprints v1 Playground worker tried to expose its Comlink endpoint more than once in the same worker global.'
+		);
+	});
 });
