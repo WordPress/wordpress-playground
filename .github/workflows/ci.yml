@@ -204,36 +204,10 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                # 3 shards per browser for balanced parallel execution
-                # (4 shards caused uneven distribution due to serial test files)
+                # Temporary WebKit diagnostic stack for PR #3566.
+                # Keep this small so failed runs upload artifacts quickly.
                 include:
-                    - browser: 'chromium'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'chromium'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'chromium'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
-                    - browser: 'firefox'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'firefox'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'firefox'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
                     - browser: 'webkit'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'webkit'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'webkit'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -256,27 +230,42 @@ jobs:
               run: sudo npx playwright install ${{ matrix.browser }} --with-deps
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
-            - name: Run Playwright tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
+            - name: Run Playwright tests - WebKit diagnostics
               run: |
-                  SHARD_ARG=""
-                  if [ -n "${{ matrix.shard }}" ]; then
-                    SHARD_ARG="--shard=${{ matrix.shard }}"
-                  fi
-                  if [ "${{ matrix.browser }}" = "firefox" ]; then
-                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
-                  else
-                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
-                  fi
+                  sudo CI=true npx playwright test \
+                    --config=packages/playground/website/playwright/playwright.ci.config.ts \
+                    --project=webkit \
+                    --retries=1 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:11 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:25 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:59 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:128 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:143 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:159 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:175 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:209 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:228 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:262 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:284 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:296 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:314 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:924 \
+                    packages/playground/website/playwright/e2e/blueprints.spec.ts:1013 \
+                    packages/playground/website/playwright/e2e/client.spec.ts:3 \
+                    packages/playground/website/playwright/e2e/query-api.spec.ts:14 \
+                    packages/playground/website/playwright/e2e/query-api.spec.ts:22 \
+                    packages/playground/website/playwright/e2e/sites-api.spec.ts:3 \
+                    packages/playground/website/playwright/e2e/website-ui.spec.ts:12
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ always() }}
               with:
-                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
+                  name: playwright-report-webkit-diagnostic
                   path: packages/playground/website/playwright-report/
                   if-no-files-found: ignore
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ always() }}
               with:
-                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
+                  name: playwright-snapshots-webkit-diagnostic
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
 
