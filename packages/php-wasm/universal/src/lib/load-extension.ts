@@ -1,25 +1,20 @@
 /**
- * PHP does not load an extension because a `.so` file exists. It loads an
- * extension because, during startup, PHP reads an `.ini` entry that points at
- * that file.
+ * During startup, PHP loads .so extensions that are explicitly listed in one
+ * of the loaded `php.ini` files.
  *
- * In PHP.wasm that `.ini` entry cannot always be baked into the PHP build. A
- * caller may provide an extension as bytes, as a URL, or through a manifest
- * that chooses the right artifact for the active PHP version and async mode.
- * The extension may also need extra files or environment variables before PHP
- * starts.
- *
- * This module turns those inputs into resolved startup files. It fetches the
- * `.so` bytes, stages them in the PHP virtual filesystem, writes a small
+ * PHP.wasm can be configured to run arbitraty extensions, so that `.ini`
+ * configuration must be constructed dynamically. That's what this module does.
+ * It fetches the `.so` bytes, stages them in the PHP virtual filesystem, writes a small
  * per-extension `.ini` file next to them, stages any sidecar files, and adds
  * the extension directory to `PHP_INI_SCAN_DIR` before PHP starts.
  *
- * The startup boundary matters. This module does not load extensions into an
- * already-running PHP instance. Once PHP has started, the ini scan is over.
- * Some regular extensions can be loaded later with `dl()`, but Zend extensions
- * cannot, and extensions that depend on startup-time files or environment
- * variables are easy to initialize incorrectly. PHP.wasm therefore treats
- * extension loading as part of runtime creation.
+ * This module only supports loading extensions **before** the PHP runtime
+ * initialization. Once PHP has started, the ini scan is over.
+ * Technically, some regular extensions can be loaded later with `dl()`, and
+ * a support for that could be added eventually. However, Zend extensions
+ * cannot be loaded that way. Also, extensions that depend on startup-time files
+ * or environment variables are easy to initialize incorrectly. PHP.wasm therefore
+ * treats extension loading as part of runtime creation.
  *
  * A Zend extension such as Xdebug becomes an `.ini` file like this:
  *
