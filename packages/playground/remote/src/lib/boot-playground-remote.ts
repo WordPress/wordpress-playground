@@ -141,7 +141,15 @@ export async function bootPlaygroundRemote() {
 		 * that has not booted yet.
 		 */
 		async cli(argv, options) {
-			return await phpWorkerApi.cli(argv, options);
+			console.warn('[phpRemoteApi.cli] forwarding to worker', {
+				argv,
+				options,
+			});
+			const response = await phpWorkerApi.cli(argv, options);
+			console.warn('[phpRemoteApi.cli] worker returned response', {
+				constructor: response?.constructor?.name,
+			});
+			return response;
 		},
 		async journalFSEvents(root: string, callback) {
 			return phpWorkerApi.journalFSEvents(root, callback);

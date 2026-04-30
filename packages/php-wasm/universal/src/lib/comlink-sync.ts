@@ -392,9 +392,8 @@ export type ProxyOrClone<T> = T extends ProxyMarked ? Remote<T> : T;
 /**
  * Inverse of `ProxyOrClone<T>`.
  */
-export type UnproxyOrClone<T> = T extends RemoteObject<ProxyMarked>
-	? Local<T>
-	: T;
+export type UnproxyOrClone<T> =
+	T extends RemoteObject<ProxyMarked> ? Local<T> : T;
 
 /**
  * Takes the raw type of a remote object in the other thread and returns the type as it is visible
@@ -439,7 +438,7 @@ export type Remote<T> =
 					...args: {
 						[I in keyof TArguments]: UnproxyOrClone<TArguments[I]>;
 					}
-			  ) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
+				) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -452,7 +451,7 @@ export type Remote<T> =
 							>;
 						}
 					): Promisify<Remote<TInstance>>;
-			  }
+				}
 			: unknown) &
 		// Include additional special comlink methods available on the proxy.
 		ProxyMethods;
@@ -478,8 +477,8 @@ export type Local<T> =
 					...args: {
 						[I in keyof TArguments]: ProxyOrClone<TArguments[I]>;
 					}
-			  ) => // The raw function could either be sync or async, but is always proxied automatically
-			  MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
+				) => // The raw function could either be sync or async, but is always proxied automatically
+				MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -493,7 +492,7 @@ export type Local<T> =
 						}
 					): // The raw constructor could either be sync or async, but is always proxied automatically
 					MaybePromise<Local<Unpromisify<TInstance>>>;
-			  }
+				}
 			: unknown);
 
 const isObject = (val: unknown): val is object =>
@@ -645,6 +644,20 @@ export function expose(
 				.slice(0, -1)
 				.reduce((obj, prop) => obj[prop], obj);
 			const rawValue = path.reduce((obj, prop) => obj[prop], obj);
+			if (path.includes('cli')) {
+				console.warn('[Comlink.expose cli]', {
+					location:
+						typeof globalThis.location !== 'undefined'
+							? globalThis.location.href
+							: undefined,
+					id,
+					type,
+					path,
+					objectConstructor: obj?.constructor?.name,
+					rawType: typeof rawValue,
+					rawName: rawValue?.name,
+				});
+			}
 			switch (type) {
 				case MessageType.GET:
 					{
