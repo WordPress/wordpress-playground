@@ -1,8 +1,23 @@
 import { test, expect } from '../playground-fixtures.ts';
 
 test('playground.cli() streams stdout', async ({ website }) => {
-	website.page.on('console', (message) => {
-		console.log(`[browser-console:${message.type()}] ${message.text()}`);
+	website.page.on('console', async (message) => {
+		const args = await Promise.all(
+			message.args().map(async (arg) => {
+				try {
+					return await arg.jsonValue();
+				} catch {
+					return arg.toString();
+				}
+			})
+		);
+		console.log(
+			`[browser-console:${message.type()}] ${args
+				.map((arg) =>
+					typeof arg === 'string' ? arg : JSON.stringify(arg)
+				)
+				.join(' ')}`
+		);
 	});
 	website.page.on('worker', (worker) => {
 		console.log(`[browser-worker] ${worker.url()}`);
