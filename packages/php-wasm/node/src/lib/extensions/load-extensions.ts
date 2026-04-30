@@ -17,7 +17,7 @@ import path from 'path';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 import { getMemcachedExtensionModule } from './memcached/get-memcached-extension-module';
 import { getRedisExtensionModule } from './redis/get-redis-extension-module';
-import { type XdebugOptions, type PathMapping } from './xdebug/with-xdebug';
+import { type XdebugOptions } from './xdebug/with-xdebug';
 import { getXdebugExtensionModule } from './xdebug/get-xdebug-extension-module';
 import {
 	fetchNodeExtensionResource,
@@ -272,7 +272,9 @@ function resolveXdebugExtraFiles(
 
 	const files: Record<string, string> = {};
 	if (pathMappings) {
-		files['path.map'] = serializeXdebugPathMappings(pathMappings);
+		files['path.map'] = pathMappings
+			.map((map) => `${map.vfsPath} = ${map.hostPath}`)
+			.join('\n');
 	}
 	if (pathSkippings) {
 		files['skip.map'] = pathSkippings
@@ -284,10 +286,4 @@ function resolveXdebugExtraFiles(
 		targetPath: '/.xdebug',
 		files,
 	};
-}
-
-function serializeXdebugPathMappings(pathMappings: PathMapping[]) {
-	return pathMappings
-		.map((map) => `${map.vfsPath} = ${map.hostPath}`)
-		.join('\n');
 }
