@@ -78,7 +78,7 @@ export class BlueprintsV1Handler {
 			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
-			withIntl: runtimeConfiguration.intl,
+			extensions: runtimeConfiguration.intl ? ['intl'] : [],
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,

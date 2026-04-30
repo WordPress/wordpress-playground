@@ -5,6 +5,7 @@ import {
 	loadPHPExtension,
 	PHP_EXTENSION_PRELOAD_DIR,
 	PHP_EXTENSIONS_DIR,
+	resolvePHPExtensionInstallPlan,
 } from './load-extension';
 import { PHP_INI_PATH } from './php';
 
@@ -48,6 +49,46 @@ describe('buildPHPExtensionInstallPlan', () => {
 				loadWithIniDirective: 'zend_extension',
 			})
 		).toThrow('Zend extensions must load before PHP startup.');
+	});
+});
+
+describe('resolvePHPExtensionInstallPlan', () => {
+	it('selects a manifest artifact before PHP startup', async () => {
+		const artifactBytes = new Uint8Array([4, 5, 6]);
+		const { plan, artifact } = await resolvePHPExtensionInstallPlan({
+			source: {
+				format: 'manifest',
+				url: 'https://example.com/extensions/manifest.json',
+			},
+			phpVersion: '8.4',
+			asyncMode: 'asyncify',
+			loadTiming: 'before-php-startup',
+			fetch: async (url) => {
+				const requestUrl = String(url);
+				if (requestUrl.endsWith('/manifest.json')) {
+					return Response.json({
+						name: 'example',
+						version: '1.0.0',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								asyncMode: 'asyncify',
+								file: 'example-php8.4-asyncify.so',
+							},
+						],
+					});
+				}
+				if (requestUrl.endsWith('/example-php8.4-asyncify.so')) {
+					return new Response(artifactBytes);
+				}
+				return new Response('Not found', { status: 404 });
+			},
+		});
+
+		expect(artifact?.file).toBe('example-php8.4-asyncify.so');
+		expect(plan.loadTiming).toBe('before-php-startup');
+		expect(plan.soBytes).toEqual(artifactBytes);
+		expect(plan.preloadPath).toBeUndefined();
 	});
 });
 

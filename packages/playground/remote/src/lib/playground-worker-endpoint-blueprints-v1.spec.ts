@@ -74,7 +74,6 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			mounts: [mount as any],
 			phpVersion: '8.3',
 			shouldInstallWordPress: false,
-			withIntl: false,
 			withNetworking: false,
 		});
 

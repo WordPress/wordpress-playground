@@ -12,12 +12,19 @@ import {
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
-import { withIntl } from './extensions/intl/with-intl';
+import {
+	applyPHPWebLoaderExtensions,
+	type PHPWebLoaderExtension,
+} from './extensions/load-extensions';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
+	extensions?: PHPWebLoaderExtension[];
+	/**
+	 * @deprecated Use `extensions: ['intl']` instead.
+	 */
 	withIntl?: boolean;
 }
 
@@ -84,6 +91,8 @@ export async function loadWebRuntime(
 	}
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
+	const requestedExtensions =
+		getRequestedPHPWebLoaderExtensions(loaderOptions);
 
 	// For legacy PHP: pre-create php.ini via a preRun step. See
 	// createLegacyPhpIniPreRunStep for why this must run before the
@@ -98,19 +107,19 @@ export async function loadWebRuntime(
 		};
 	}
 
-	if (isLegacy && loaderOptions.withIntl) {
+	if (isLegacy && requestedExtensions.length) {
 		throw new Error(
-			`The intl extension is not available for legacy PHP ${phpVersion}.`
+			`Extensions are not available for legacy PHP ${phpVersion}.`
 		);
 	}
 
 	if (!isLegacy) {
-		if (loaderOptions.withIntl) {
-			emscriptenOptions = withIntl(
-				phpVersion as SupportedPHPVersion,
-				emscriptenOptions
-			);
-		}
+		emscriptenOptions = applyPHPWebLoaderExtensions(
+			phpVersion as SupportedPHPVersion,
+			phpWasmAsyncMode,
+			await emscriptenOptions,
+			requestedExtensions
+		);
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([
@@ -126,4 +135,26 @@ export async function loadWebRuntime(
 async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
 	const { jspi } = await import('wasm-feature-detect');
 	return (await jspi()) ? 'jspi' : 'asyncify';
+}
+
+function getRequestedPHPWebLoaderExtensions(
+	options: LoaderOptions
+): PHPWebLoaderExtension[] {
+	const extensions = [...(options.extensions ?? [])];
+	if (options.withIntl && !hasBuiltInExtension(extensions, 'intl')) {
+		extensions.push('intl');
+	}
+	return extensions;
+}
+
+function hasBuiltInExtension(
+	extensions: PHPWebLoaderExtension[],
+	name: string
+): boolean {
+	return extensions.some((extension) => {
+		if (typeof extension === 'string') {
+			return extension === name;
+		}
+		return !('source' in extension) && extension.name === name;
+	});
 }

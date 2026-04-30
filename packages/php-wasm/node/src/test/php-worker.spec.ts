@@ -1,6 +1,6 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
 import { PHP, PHPRequestHandler, PHPWorker } from '@php-wasm/universal';
-import { loadNodeRuntime } from '..';
+import { loadNodeRuntime, type PHPLoaderExtension } from '..';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { jspi } from 'wasm-feature-detect';
 
@@ -11,10 +11,11 @@ const workerLifecycleExtensionNames = [
 	...(isJspiAvailable ? ['redis', 'memcached'] : []),
 ];
 const workerLifecycleLoaderOptions = {
-	withXdebug: true,
-	withIntl: true,
-	withRedis: isJspiAvailable,
-	withMemcached: isJspiAvailable,
+	extensions: [
+		'xdebug',
+		'intl',
+		...(isJspiAvailable ? (['redis', 'memcached'] as const) : []),
+	] satisfies PHPLoaderExtension[],
 };
 
 describe('PHP Worker', () => {

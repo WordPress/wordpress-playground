@@ -24,7 +24,9 @@ describe('XdebugCDPBridge', () => {
 
 	beforeEach(async () => {
 		php = new PHP(
-			await loadNodeRuntime(RecommendedPHPVersion, { withXdebug: true })
+			await loadNodeRuntime(RecommendedPHPVersion, {
+				extensions: ['xdebug'],
+			})
 		);
 
 		useHostFilesystem(php);
