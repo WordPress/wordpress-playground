@@ -5,9 +5,32 @@
  * 1. Startup-time loading stages the `.so` file and a generated `.ini` file
  * before PHP starts, then adds the extension directory to `PHP_INI_SCAN_DIR`.
  * PHP reads the generated ini file during module startup. This is required
- * for `zend_extension` entries such as Xdebug, and for regular extensions
- * that must register ini entries, globals, classes, hooks, or startup state
- * before user code runs.
+ * for `zend_extension` entries such as Xdebug:
+ *
+ * ```ini
+ * zend_extension=/internal/shared/extensions/xdebug.so
+ * xdebug.mode=debug,develop
+ * xdebug.start_with_request=yes
+ * xdebug.idekey="PHPSTORM"
+ * ```
+ *
+ * ```sh
+ * PHP_INI_SCAN_DIR=/internal/shared/extensions
+ * ```
+ *
+ * It is also useful for regular extensions that must register ini entries,
+ * globals, classes, hooks, or startup state before user code runs. For
+ * example, `intl` is a regular `extension` loaded before startup because it
+ * needs `ICU_DATA` available when PHP initializes:
+ *
+ * ```ini
+ * extension=/internal/shared/extensions/intl.so
+ * ```
+ *
+ * ```sh
+ * PHP_INI_SCAN_DIR=/internal/shared/extensions
+ * ICU_DATA=/internal/shared
+ * ```
  *
  * 2. Post-startup loading is for a PHP instance that already exists. At that
  * point PHP has already scanned its ini directories, so writing a new `.ini`
@@ -15,7 +38,21 @@
  * `/internal/shared/preload`; the PHP wrapper requires those scripts before
  * user code and the script calls `dl('name.so')`. PHP's `dl()` accepts a file
  * name rather than an absolute path, so the script also points `extension_dir`
- * at the directory where the side module was staged.
+ * at the directory where the side module was staged. A manifest-loaded
+ * extension such as `wp_mysql_parser` can therefore be installed into an
+ * already-running PHP instance with:
+ *
+ * ```ini
+ * extension=/internal/shared/extensions/wp_mysql_parser.so
+ * extension_dir=/internal/shared/extensions
+ * enable_dl=On
+ * ```
+ *
+ * ```php
+ * <?php
+ * ini_set('extension_dir', '/internal/shared/extensions');
+ * dl('wp_mysql_parser.so');
+ * ```
  *
  * Manifest URLs are URLs, not filesystem-relative paths. In Node, pass a URL
  * object such as `new URL('./manifest.json', import.meta.url)` and provide a
