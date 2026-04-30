@@ -84,7 +84,7 @@ async function resolveRuntimePHPWebExtension(
 	if (isRuntimePHPWebExtensionSource(extension)) {
 		const { plan } = await resolvePHPExtensionInstallPlan({
 			...extension,
-			loadTiming: extension.loadTiming ?? 'before-php-startup',
+			loadAt: extension.loadAt ?? 'before-php-startup',
 			phpVersion: version,
 			asyncMode,
 		});
@@ -122,7 +122,7 @@ async function resolveIntlExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'intl',
 			soBytes: new Uint8Array(extension),
-			loadTiming: 'before-php-startup',
+			loadAt: 'before-php-startup',
 			env: {
 				ICU_DATA: '/internal/shared',
 			},

@@ -113,7 +113,7 @@ export type {
 	PHPExtensionExtraFiles,
 	PHPExtensionIniDirective,
 	PHPExtensionInstallPlan,
-	PHPExtensionLoadTiming,
+	PHPExtensionLoadAt,
 	PHPExtensionManifest,
 	PHPExtensionManifestArtifact,
 	PHPExtensionRuntimeInstall,

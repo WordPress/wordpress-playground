@@ -16,7 +16,7 @@ describe('buildPHPExtensionInstallPlan', () => {
 			soBytes: new Uint8Array([1, 2, 3]),
 		});
 
-		expect(plan.loadTiming).toBe('after-php-startup');
+		expect(plan.loadAt).toBe('after-php-startup');
 		expect(plan.soPath).toBe(`${PHP_EXTENSIONS_DIR}/example.so`);
 		expect(plan.iniContent).toBe(
 			`extension=${PHP_EXTENSIONS_DIR}/example.so`
@@ -33,7 +33,7 @@ describe('buildPHPExtensionInstallPlan', () => {
 			loadWithIniDirective: 'zend_extension',
 		});
 
-		expect(plan.loadTiming).toBe('before-php-startup');
+		expect(plan.loadAt).toBe('before-php-startup');
 		expect(plan.iniContent).toBe(
 			`zend_extension=${PHP_EXTENSIONS_DIR}/xdebug.so`
 		);
@@ -45,7 +45,7 @@ describe('buildPHPExtensionInstallPlan', () => {
 			buildPHPExtensionInstallPlan({
 				name: 'xdebug',
 				soBytes: new Uint8Array([1, 2, 3]),
-				loadTiming: 'after-php-startup',
+				loadAt: 'after-php-startup',
 				loadWithIniDirective: 'zend_extension',
 			})
 		).toThrow('Zend extensions must load before PHP startup.');
@@ -62,7 +62,7 @@ describe('resolvePHPExtensionInstallPlan', () => {
 			},
 			phpVersion: '8.4',
 			asyncMode: 'asyncify',
-			loadTiming: 'before-php-startup',
+			loadAt: 'before-php-startup',
 			fetch: async (url) => {
 				const requestUrl = String(url);
 				if (requestUrl.endsWith('/manifest.json')) {
@@ -86,7 +86,7 @@ describe('resolvePHPExtensionInstallPlan', () => {
 		});
 
 		expect(artifact?.file).toBe('example-php8.4-asyncify.so');
-		expect(plan.loadTiming).toBe('before-php-startup');
+		expect(plan.loadAt).toBe('before-php-startup');
 		expect(plan.soBytes).toEqual(artifactBytes);
 		expect(plan.preloadPath).toBeUndefined();
 	});

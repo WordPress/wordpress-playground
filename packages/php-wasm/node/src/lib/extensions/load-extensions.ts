@@ -105,7 +105,7 @@ async function resolveRuntimePHPExtension(
 	if (isRuntimePHPExtensionSource(extension)) {
 		const { plan } = await resolvePHPExtensionInstallPlan({
 			...extension,
-			loadTiming: extension.loadTiming ?? 'before-php-startup',
+			loadAt: extension.loadAt ?? 'before-php-startup',
 			phpVersion: version,
 			asyncMode,
 		});
@@ -152,7 +152,7 @@ async function resolveIntlExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'intl',
 			soBytes,
-			loadTiming: 'before-php-startup',
+			loadAt: 'before-php-startup',
 			env: {
 				ICU_DATA: '/internal/shared',
 			},
@@ -193,7 +193,7 @@ async function resolveRedisExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'redis',
 			soBytes: new Uint8Array(fs.readFileSync(extensionPath)),
-			loadTiming: 'before-php-startup',
+			loadAt: 'before-php-startup',
 		}),
 	};
 }
@@ -206,7 +206,7 @@ async function resolveMemcachedExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'memcached',
 			soBytes: new Uint8Array(fs.readFileSync(extensionPath)),
-			loadTiming: 'before-php-startup',
+			loadAt: 'before-php-startup',
 		}),
 	};
 }
@@ -222,7 +222,7 @@ async function resolveXdebugExtension(
 		plan: buildPHPExtensionInstallPlan({
 			name: 'xdebug',
 			soBytes: new Uint8Array(fs.readFileSync(filePath)),
-			loadTiming: 'before-php-startup',
+			loadAt: 'before-php-startup',
 			loadWithIniDirective: 'zend_extension',
 			iniEntries: {
 				'xdebug.mode': 'debug,develop',
