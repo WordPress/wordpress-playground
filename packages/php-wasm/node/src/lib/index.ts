@@ -8,7 +8,7 @@ export * from './file-lock-manager-for-windows';
 export type {
 	BuiltInPHPExtension,
 	BuiltInPHPExtensionName,
-	PHPLoaderExtension,
+	PHPExtension,
 	RuntimePHPExtensionSource,
 } from './extensions/load-extensions';
 export * from './extensions/xdebug/with-xdebug';

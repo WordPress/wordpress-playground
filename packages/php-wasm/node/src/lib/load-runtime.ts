@@ -19,8 +19,8 @@ import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
 import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
 import {
-	applyPHPLoaderExtensions,
-	type PHPLoaderExtension,
+	withPHPExtensions,
+	type PHPExtension,
 } from './extensions/load-extensions';
 import type { XdebugOptions } from './extensions/xdebug/with-xdebug';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
@@ -35,7 +35,7 @@ export interface PHPLoaderOptions {
 	 * Use built-in names such as `intl`, `xdebug`, `redis`, and `memcached`,
 	 * or pass an external extension source such as a manifest.
 	 */
-	extensions?: PHPLoaderExtension[];
+	extensions?: PHPExtension[];
 	/**
 	 * @deprecated Use `extensions: ['xdebug']` or
 	 * `extensions: [{ name: 'xdebug', options }]` instead.
@@ -367,7 +367,7 @@ export async function loadNodeRuntime(
 
 	if (!isLegacy) {
 		const modernVersion = phpVersion as SupportedPHPVersion;
-		emscriptenOptions = await applyPHPLoaderExtensions(
+		emscriptenOptions = await withPHPExtensions(
 			modernVersion,
 			phpWasmAsyncMode,
 			emscriptenOptions,
@@ -392,7 +392,7 @@ export async function loadNodeRuntime(
  * from bytes, URLs, or manifests.
  */
 function hasBuiltInExtension(
-	extensions: PHPLoaderExtension[],
+	extensions: PHPExtension[],
 	name: string
 ): boolean {
 	return extensions.some((extension) => {

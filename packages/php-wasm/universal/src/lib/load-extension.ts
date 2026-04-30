@@ -9,11 +9,10 @@
  * The extension may also need extra files or environment variables before PHP
  * starts.
  *
- * This module turns those inputs into a startup install plan. The runtime
- * loader resolves the `.so` bytes, stages them in the PHP virtual filesystem,
- * writes a small per-extension `.ini` file next to them, stages any sidecar
- * files, and adds the extension directory to `PHP_INI_SCAN_DIR` before PHP
- * starts.
+ * This module turns those inputs into resolved startup files. It fetches the
+ * `.so` bytes, stages them in the PHP virtual filesystem, writes a small
+ * per-extension `.ini` file next to them, stages any sidecar files, and adds
+ * the extension directory to `PHP_INI_SCAN_DIR` before PHP starts.
  *
  * The startup boundary matters. This module does not load extensions into an
  * already-running PHP instance. Once PHP has started, the ini scan is over.
@@ -44,8 +43,8 @@
  * ICU_DATA=/internal/shared
  * ```
  *
- * External extensions use the same plan. A manifest is only a selector for the
- * correct `.so` artifact:
+ * External extensions use the same startup path. A manifest is only a selector
+ * for the correct `.so` artifact:
  *
  * ```json
  * {
@@ -61,9 +60,9 @@
  * ```
  *
  * In `@php-wasm/universal`, URL sources are resolved with the provided
- * `fetch` implementation. In `@php-wasm/node`, the runtime loader also accepts
- * local manifest paths and `file:` URLs, then normalizes them before calling
- * this resolver.
+ * `fetch` implementation. In `@php-wasm/node`, `loadNodeRuntime()` also
+ * accepts local manifest paths and `file:` URLs, then normalizes them before
+ * calling this resolver.
  */
 import { dirname, joinPaths } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
@@ -72,7 +71,7 @@ import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
 import type { FileTree } from './write-files';
 
 /**
- * Default VFS directory where this loader stages extension `.so` files and
+ * Default VFS directory where PHP.wasm stages extension `.so` files and
  * writes their per-extension ini files.
  */
 export const PHP_EXTENSIONS_DIR = '/internal/shared/extensions';
@@ -122,7 +121,7 @@ export interface PHPExtensionManifestArtifact {
  * Extension artifact manifest.
  *
  * A manifest lets callers publish a matrix of `.so` files and lets
- * `resolvePHPExtensionInstallPlan()` select the artifact that matches the current PHP
+ * `resolvePHPExtension()` select the artifact that matches the current PHP
  * version and async mode.
  */
 export interface PHPExtensionManifest {
@@ -136,7 +135,7 @@ export interface PHPExtensionManifest {
  * Source for a PHP extension `.so`.
  *
  * Use `format: 'so'` when the caller already has bytes, `format: 'url'` for a
- * direct artifact URL, and `format: 'manifest'` when the loader should select
+ * direct artifact URL, and `format: 'manifest'` when PHP.wasm should select
  * the right artifact from a manifest.
  */
 export type PHPExtensionSource =
@@ -152,7 +151,7 @@ export type PHPExtensionSource =
 	| {
 			format: 'url';
 			/**
-			 * Optional extension name. If omitted, the loader infers the name
+			 * Optional extension name. If omitted, PHP.wasm infers the name
 			 * from a `.so` filename in the URL.
 			 */
 			name?: string;
@@ -166,7 +165,7 @@ export type PHPExtensionSource =
 			 *
 			 * In `@php-wasm/universal`, string values must be absolute URLs.
 			 * In `@php-wasm/node`, this may also be a filesystem path or a
-			 * `file:` URL; the Node loader resolves local paths before fetching.
+			 * `file:` URL; `@php-wasm/node` resolves local paths before fetching.
 			 */
 			manifestUrl: string | URL;
 	  }
@@ -240,7 +239,7 @@ export interface PHPExtensionInstallOptions {
 	env?: Record<string, string>;
 
 	/**
-	 * VFS directory where the loader writes the extension `.so` file and its
+	 * VFS directory where PHP.wasm writes the extension `.so` file and its
 	 * per-extension ini file. Defaults to `PHP_EXTENSIONS_DIR`.
 	 */
 	extensionDir?: string;
@@ -249,7 +248,7 @@ export interface PHPExtensionInstallOptions {
 	 * Fetch implementation used for `format: 'url'`, `manifestUrl`, and
 	 * manifest artifacts.
 	 *
-	 * Runtime loaders may provide environment-specific defaults. For example,
+	 * Runtimes may provide environment-specific defaults. For example,
 	 * `@php-wasm/node` provides local file support for extension manifests and
 	 * artifacts.
 	 */
@@ -257,13 +256,12 @@ export interface PHPExtensionInstallOptions {
 }
 
 /**
- * Options for resolving an install plan before a PHP instance exists.
+ * Options for resolving an extension before a PHP instance exists.
  */
-export type ResolvePHPExtensionInstallPlanOptions =
-	PHPExtensionInstallOptions & {
-		phpVersion: string;
-		asyncMode: PHPWasmAsyncMode;
-	};
+export type ResolvePHPExtensionOptions = PHPExtensionInstallOptions & {
+	phpVersion: string;
+	asyncMode: PHPWasmAsyncMode;
+};
 
 /**
  * Inputs used to build the staged `.so` path and per-extension ini file.
@@ -281,10 +279,10 @@ export interface InstallPHPExtensionFilesOptions {
 /**
  * Fully resolved files and settings needed to install one extension.
  *
- * `iniPath` and `iniContent` describe the per-extension ini file this loader
+ * `iniPath` and `iniContent` describe the per-extension ini file PHP.wasm
  * writes into the PHP VFS.
  */
-export interface PHPExtensionInstallPlan {
+export interface ResolvedPHPExtension {
 	soPath: string;
 	soBytes: Uint8Array;
 	iniPath: string;
@@ -300,20 +298,19 @@ interface ResolvedPHPExtensionSource {
 }
 
 /**
- * Resolves an extension source into an install plan without mutating a PHP
- * instance.
+ * Resolves an extension source without mutating a PHP instance.
  *
- * Use this from runtime loaders that need to fetch extension bytes and compute
+ * Use this from runtimes that need to fetch extension bytes and compute
  * `iniPath`/`iniContent` before Emscripten initializes PHP.
  */
-export async function resolvePHPExtensionInstallPlan(
-	options: ResolvePHPExtensionInstallPlanOptions
-): Promise<PHPExtensionInstallPlan> {
+export async function resolvePHPExtension(
+	options: ResolvePHPExtensionOptions
+): Promise<ResolvedPHPExtension> {
 	const resolved = await resolvePHPExtensionSource(
 		options,
 		options.fetch ?? globalThis.fetch
 	);
-	return buildPHPExtensionInstallPlan({
+	return buildResolvedPHPExtension({
 		name: options.name ?? resolved.name,
 		soBytes: resolved.soBytes,
 		loadWithIniDirective: options.loadWithIniDirective,
@@ -325,14 +322,14 @@ export async function resolvePHPExtensionInstallPlan(
 }
 
 /**
- * Appends extension install plans to Emscripten options.
+ * Adds resolved extensions to Emscripten options.
  *
  * The returned options install extension files during `onRuntimeInitialized`
  * and update `PHP_INI_SCAN_DIR` before PHP startup.
  */
-export function appendPHPExtensionInstallPlans(
+export function withResolvedPHPExtensions(
 	options: EmscriptenOptions,
-	extensions: PHPExtensionInstallPlan[]
+	extensions: ResolvedPHPExtension[]
 ): EmscriptenOptions {
 	if (!extensions.length) {
 		return options;
@@ -342,13 +339,13 @@ export function appendPHPExtensionInstallPlans(
 		...options.ENV,
 	};
 
-	for (const plan of extensions) {
-		Object.assign(env, plan.env);
+	for (const extension of extensions) {
+		Object.assign(env, extension.env);
 		const currentScanDir = env['PHP_INI_SCAN_DIR'];
 		const paths = currentScanDir ? currentScanDir.split(':') : [];
 		env['PHP_INI_SCAN_DIR'] =
-			!currentScanDir || !paths.includes(plan.extensionDir)
-				? [...paths, plan.extensionDir].join(':')
+			!currentScanDir || !paths.includes(extension.extensionDir)
+				? [...paths, extension.extensionDir].join(':')
 				: currentScanDir;
 	}
 
@@ -357,8 +354,8 @@ export function appendPHPExtensionInstallPlans(
 		ENV: env,
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			options.onRuntimeInitialized?.(phpRuntime);
-			for (const plan of extensions) {
-				installPHPExtensionFilesSync(phpRuntime.FS, plan);
+			for (const extension of extensions) {
+				installPHPExtensionFilesSync(phpRuntime.FS, extension);
 			}
 		},
 	};
@@ -367,9 +364,9 @@ export function appendPHPExtensionInstallPlans(
 /**
  * Builds the VFS paths and per-extension ini content for an extension.
  */
-function buildPHPExtensionInstallPlan(
+function buildResolvedPHPExtension(
 	options: InstallPHPExtensionFilesOptions
-): PHPExtensionInstallPlan {
+): ResolvedPHPExtension {
 	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
 	const name = options.name;
 	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
@@ -412,28 +409,28 @@ function buildPHPExtensionInstallPlan(
  * Installs extension files through Emscripten's synchronous filesystem API.
  *
  * Use this while the PHP runtime is initializing and only the raw Emscripten
- * `FS` object is available. This writes `plan.soBytes` to `plan.soPath` and
- * `plan.iniContent` to `plan.iniPath`.
+ * `FS` object is available. This writes the `.so` file and generated `.ini`
+ * file to their resolved VFS paths.
  */
 export function installPHPExtensionFilesSync(
 	fs: Emscripten.RootFS,
-	options: InstallPHPExtensionFilesOptions | PHPExtensionInstallPlan
-): PHPExtensionInstallPlan {
-	const plan =
-		'soPath' in options ? options : buildPHPExtensionInstallPlan(options);
-	if (!FSHelpers.fileExists(fs, plan.extensionDir)) {
-		fs.mkdirTree(plan.extensionDir);
+	options: InstallPHPExtensionFilesOptions | ResolvedPHPExtension
+): ResolvedPHPExtension {
+	const extension =
+		'soPath' in options ? options : buildResolvedPHPExtension(options);
+	if (!FSHelpers.fileExists(fs, extension.extensionDir)) {
+		fs.mkdirTree(extension.extensionDir);
 	}
-	fs.writeFile(plan.soPath, plan.soBytes);
-	fs.writeFile(plan.iniPath, plan.iniContent);
-	if (plan.extraFiles) {
+	fs.writeFile(extension.soPath, extension.soBytes);
+	fs.writeFile(extension.iniPath, extension.iniContent);
+	if (extension.extraFiles) {
 		writeFileTreeSync(
 			fs,
-			plan.extraFiles.targetPath,
-			plan.extraFiles.files
+			extension.extraFiles.targetPath,
+			extension.extraFiles.files
 		);
 	}
-	return plan;
+	return extension;
 }
 
 /**
@@ -447,7 +444,7 @@ export function installPHPExtensionFilesSync(
  * what gets written into the PHP virtual filesystem.
  */
 async function resolvePHPExtensionSource(
-	options: ResolvePHPExtensionInstallPlanOptions,
+	options: ResolvePHPExtensionOptions,
 	fetchFn: typeof fetch | undefined
 ): Promise<ResolvedPHPExtensionSource> {
 	const source = options.source;
@@ -481,7 +478,7 @@ async function resolvePHPExtensionSource(
 		}
 		if (!fetchFn) {
 			throw new Error(
-				'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+				'resolvePHPExtension() requires a fetch implementation.'
 			);
 		}
 		const response = await fetchFn(new URL(String(source.url)));
@@ -507,7 +504,7 @@ async function resolvePHPExtensionSource(
 	} else {
 		if (!fetchFn) {
 			throw new Error(
-				'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+				'resolvePHPExtension() requires a fetch implementation.'
 			);
 		}
 		const response = await fetchFn(manifestUrl!);
@@ -562,7 +559,7 @@ async function resolvePHPExtensionSource(
 	const artifactUrl = new URL(artifact.file, baseUrl);
 	if (!fetchFn) {
 		throw new Error(
-			'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+			'resolvePHPExtension() requires a fetch implementation.'
 		);
 	}
 	const response = await fetchFn(artifactUrl);

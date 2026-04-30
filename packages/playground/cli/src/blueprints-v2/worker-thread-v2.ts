@@ -4,7 +4,7 @@ import {
 	bindUserSpace,
 	createNodeFsMountHandler,
 	loadNodeRuntime,
-	type PHPLoaderExtension,
+	type PHPExtension,
 	type WasmUserSpaceContext,
 } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -169,7 +169,7 @@ export type SecondaryWorkerBootArgs = {
 	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
-	extensions?: PHPLoaderExtension[];
+	extensions?: PHPExtension[];
 	pathAliases?: PathAlias[];
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;

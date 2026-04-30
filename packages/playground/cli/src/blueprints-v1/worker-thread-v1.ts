@@ -1,5 +1,5 @@
 import type { FileLockManager } from '@php-wasm/universal';
-import { loadNodeRuntime, type PHPLoaderExtension } from '@php-wasm/node';
+import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
 import {
@@ -48,7 +48,7 @@ interface WorkerBootRequestHandlerOptions {
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
 	followSymlinks: boolean;
-	extensions?: PHPLoaderExtension[];
+	extensions?: PHPExtension[];
 	pathAliases?: PathAlias[];
 }
 

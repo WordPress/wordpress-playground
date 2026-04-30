@@ -13,8 +13,8 @@ import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
 import {
-	applyPHPWebLoaderExtensions,
-	type PHPWebLoaderExtension,
+	withPHPExtensions,
+	type PHPWebExtension,
 } from './extensions/load-extensions';
 import { jspi } from 'wasm-feature-detect';
 
@@ -28,7 +28,7 @@ export interface LoaderOptions {
 	 * Use built-in names such as `intl`, or pass an external extension source
 	 * such as a manifest.
 	 */
-	extensions?: PHPWebLoaderExtension[];
+	extensions?: PHPWebExtension[];
 	/**
 	 * @deprecated Use `extensions: ['intl']` instead.
 	 */
@@ -126,7 +126,7 @@ export async function loadWebRuntime(
 	}
 
 	if (!isLegacy) {
-		emscriptenOptions = applyPHPWebLoaderExtensions(
+		emscriptenOptions = withPHPExtensions(
 			phpVersion as SupportedPHPVersion,
 			phpWasmAsyncMode,
 			await emscriptenOptions,
@@ -153,7 +153,7 @@ export async function loadWebRuntime(
  * from bytes, URLs, or manifests.
  */
 function hasBuiltInExtension(
-	extensions: PHPWebLoaderExtension[],
+	extensions: PHPWebExtension[],
 	name: string
 ): boolean {
 	return extensions.some((extension) => {

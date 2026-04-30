@@ -2,13 +2,13 @@ import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import type {
 	EmscriptenOptions,
 	PHPExtensionInstallOptions,
-	PHPExtensionInstallPlan,
+	ResolvedPHPExtension,
 	PHPWasmAsyncMode,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
-	appendPHPExtensionInstallPlans,
-	resolvePHPExtensionInstallPlan,
+	withResolvedPHPExtensions,
+	resolvePHPExtension,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
@@ -32,7 +32,7 @@ export type BuiltInPHPExtensionName = 'intl' | 'xdebug' | 'redis' | 'memcached';
 /**
  * External PHP extension source that can be installed before PHP starts.
  *
- * The loader supplies the active PHP version and async mode before resolving
+ * The runtime supplies the active PHP version and async mode before resolving
  * the source, so callers only provide the artifact source and install options.
  */
 export type RuntimePHPExtensionSource = PHPExtensionInstallOptions;
@@ -54,7 +54,7 @@ export type BuiltInPHPExtension =
 	  };
 
 /**
- * PHP extension request accepted by the Node runtime loader.
+ * PHP extension request accepted by `loadNodeRuntime()`.
  *
  * The array may mix built-in extension names with external extension sources:
  *
@@ -71,22 +71,19 @@ export type BuiltInPHPExtension =
  * implementation. Pass `manifestUrl` as a filesystem path, a `file:` URL, or
  * an HTTP URL.
  */
-export type PHPLoaderExtension =
-	| BuiltInPHPExtension
-	| RuntimePHPExtensionSource;
+export type PHPExtension = BuiltInPHPExtension | RuntimePHPExtensionSource;
 
 /**
- * Resolves all requested Node runtime extensions and appends their install
- * plans to Emscripten options.
+ * Adds PHP extensions to Emscripten options before the Node runtime starts.
  *
  * Extension sources are resolved in parallel so multiple manifest or artifact
  * downloads do not block each other.
  */
-export async function applyPHPLoaderExtensions(
+export async function withPHPExtensions(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	options: EmscriptenOptions,
-	extensions: PHPLoaderExtension[] = []
+	extensions: PHPExtension[] = []
 ): Promise<EmscriptenOptions> {
 	if (!extensions.length) {
 		return options;
@@ -97,12 +94,11 @@ export async function applyPHPLoaderExtensions(
 			resolveRuntimePHPExtension(version, asyncMode, extension)
 		)
 	);
-	return appendPHPExtensionInstallPlans(options, resolvedExtensions);
+	return withResolvedPHPExtensions(options, resolvedExtensions);
 }
 
 /**
- * Turns one user-facing Node extension request into the install plan PHP needs
- * before startup.
+ * Resolves one user-facing Node extension request before PHP starts.
  *
  * The request has one of two shapes:
  *
@@ -117,13 +113,14 @@ export async function applyPHPLoaderExtensions(
  *
  * This function does not install files into a PHP instance. It only resolves
  * the bytes, sidecar files, environment variables, and ini entries. The caller
- * appends all plans to Emscripten options so PHP sees them during startup.
+ * then adds those resolved extensions to Emscripten options so PHP sees them
+ * during startup.
  */
 async function resolveRuntimePHPExtension(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
-	extension: PHPLoaderExtension
-): Promise<PHPExtensionInstallPlan> {
+	extension: PHPExtension
+): Promise<ResolvedPHPExtension> {
 	/*
 	 * External extension requests always carry a `source`. Built-in extension
 	 * requests are either strings or `{ name }` objects. This shape check lets
@@ -131,7 +128,7 @@ async function resolveRuntimePHPExtension(
 	 * manifest, URL, or byte source as one of the bundled extensions.
 	 */
 	if (typeof extension === 'object' && 'source' in extension) {
-		return await resolvePHPExtensionInstallPlan({
+		return await resolvePHPExtension({
 			...extension,
 			source: normalizeNodeExtensionSource(extension.source),
 			phpVersion: version,
@@ -157,7 +154,7 @@ async function resolveRuntimePHPExtension(
 				resolveIntlDataPath(moduleDir, dataName)
 			);
 
-			return await resolvePHPExtensionInstallPlan({
+			return await resolvePHPExtension({
 				source: {
 					format: 'so',
 					name: 'intl',
@@ -179,7 +176,7 @@ async function resolveRuntimePHPExtension(
 		}
 		case 'redis': {
 			const extensionPath = await getRedisExtensionModule(version);
-			return await resolvePHPExtensionInstallPlan({
+			return await resolvePHPExtension({
 				source: {
 					format: 'so',
 					name: 'redis',
@@ -191,7 +188,7 @@ async function resolveRuntimePHPExtension(
 		}
 		case 'memcached': {
 			const extensionPath = await getMemcachedExtensionModule(version);
-			return await resolvePHPExtensionInstallPlan({
+			return await resolvePHPExtension({
 				source: {
 					format: 'so',
 					name: 'memcached',
@@ -206,7 +203,7 @@ async function resolveRuntimePHPExtension(
 			const filePath = await getXdebugExtensionModule(version);
 			const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
 
-			return await resolvePHPExtensionInstallPlan({
+			return await resolvePHPExtension({
 				source: {
 					format: 'so',
 					name: 'xdebug',

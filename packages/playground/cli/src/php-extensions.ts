@@ -1,4 +1,4 @@
-import type { PHPLoaderExtension, XdebugOptions } from '@php-wasm/node';
+import type { PHPExtension, XdebugOptions } from '@php-wasm/node';
 
 /**
  * Converts Playground CLI extension flags into the runtime `extensions` list.
@@ -18,8 +18,8 @@ export function getRequestedPHPExtensions(args: {
 	redis?: boolean;
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
-}): PHPLoaderExtension[] {
-	const extensions: PHPLoaderExtension[] = [];
+}): PHPExtension[] {
+	const extensions: PHPExtension[] = [];
 	if (args.intl) {
 		extensions.push('intl');
 	}

@@ -2,13 +2,13 @@ import { createMemoizedFetch } from '@wp-playground/common';
 import type {
 	EmscriptenOptions,
 	PHPExtensionInstallOptions,
-	PHPExtensionInstallPlan,
+	ResolvedPHPExtension,
 	PHPWasmAsyncMode,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
-	appendPHPExtensionInstallPlans,
-	resolvePHPExtensionInstallPlan,
+	withResolvedPHPExtensions,
+	resolvePHPExtension,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 
@@ -20,14 +20,14 @@ export type BuiltInPHPWebExtensionName = 'intl';
 /**
  * External PHP extension source that can be installed before PHP starts.
  *
- * The web loader supplies the active PHP version and async mode before
+ * The runtime supplies the active PHP version and async mode before
  * resolving the source, so callers only provide the artifact source and
  * install options.
  */
 export type RuntimePHPWebExtensionSource = PHPExtensionInstallOptions;
 
 /**
- * PHP extension request accepted by the Web runtime loader.
+ * PHP extension request accepted by `loadWebRuntime()`.
  *
  * The array may mix built-in extension names with external extension sources:
  *
@@ -40,7 +40,7 @@ export type RuntimePHPWebExtensionSource = PHPExtensionInstallOptions;
  * });
  * ```
  */
-export type PHPWebLoaderExtension =
+export type PHPWebExtension =
 	| BuiltInPHPWebExtensionName
 	| {
 			name: BuiltInPHPWebExtensionName;
@@ -48,17 +48,16 @@ export type PHPWebLoaderExtension =
 	| RuntimePHPWebExtensionSource;
 
 /**
- * Resolves all requested Web runtime extensions and appends their install
- * plans to Emscripten options.
+ * Adds PHP extensions to Emscripten options before the Web runtime starts.
  *
  * Extension sources are resolved in parallel so multiple manifest or artifact
  * downloads do not block each other.
  */
-export async function applyPHPWebLoaderExtensions(
+export async function withPHPExtensions(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	options: EmscriptenOptions,
-	extensions: PHPWebLoaderExtension[] = []
+	extensions: PHPWebExtension[] = []
 ): Promise<EmscriptenOptions> {
 	if (!extensions.length) {
 		return options;
@@ -69,14 +68,14 @@ export async function applyPHPWebLoaderExtensions(
 			resolveRuntimePHPWebExtension(version, asyncMode, extension)
 		)
 	);
-	return appendPHPExtensionInstallPlans(options, resolvedExtensions);
+	return withResolvedPHPExtensions(options, resolvedExtensions);
 }
 
 async function resolveRuntimePHPWebExtension(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
-	extension: PHPWebLoaderExtension
-): Promise<PHPExtensionInstallPlan> {
+	extension: PHPWebExtension
+): Promise<ResolvedPHPExtension> {
 	/*
 	 * External extension requests always carry a `source`. Built-in web
 	 * extension requests are either strings or `{ name }` objects. This shape
@@ -85,7 +84,7 @@ async function resolveRuntimePHPWebExtension(
 	 * extension.
 	 */
 	if (typeof extension === 'object' && 'source' in extension) {
-		return await resolvePHPExtensionInstallPlan({
+		return await resolvePHPExtension({
 			...extension,
 			phpVersion: version,
 			asyncMode,
@@ -107,7 +106,7 @@ async function resolveRuntimePHPWebExtension(
 		memoizedFetch(dataPath).then((response) => response.arrayBuffer()),
 	]);
 
-	return await resolvePHPExtensionInstallPlan({
+	return await resolvePHPExtension({
 		source: {
 			format: 'so',
 			name: 'intl',

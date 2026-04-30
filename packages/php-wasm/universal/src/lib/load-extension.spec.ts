@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-	PHP_EXTENSIONS_DIR,
-	resolvePHPExtensionInstallPlan,
-} from './load-extension';
+import { PHP_EXTENSIONS_DIR, resolvePHPExtension } from './load-extension';
 
-describe('resolvePHPExtensionInstallPlan', () => {
-	it('builds a regular extension startup plan', async () => {
-		const plan = await resolvePHPExtensionInstallPlan({
+describe('resolvePHPExtension', () => {
+	it('resolves a regular extension for startup', async () => {
+		const extension = await resolvePHPExtension({
 			source: {
 				format: 'so',
 				name: 'example',
@@ -17,14 +14,14 @@ describe('resolvePHPExtensionInstallPlan', () => {
 			asyncMode: 'jspi',
 		});
 
-		expect(plan.soPath).toBe(`${PHP_EXTENSIONS_DIR}/example.so`);
-		expect(plan.iniContent).toBe(
+		expect(extension.soPath).toBe(`${PHP_EXTENSIONS_DIR}/example.so`);
+		expect(extension.iniContent).toBe(
 			`extension=${PHP_EXTENSIONS_DIR}/example.so`
 		);
 	});
 
-	it('builds a zend extension startup plan', async () => {
-		const plan = await resolvePHPExtensionInstallPlan({
+	it('resolves a zend extension for startup', async () => {
+		const extension = await resolvePHPExtension({
 			source: {
 				format: 'so',
 				name: 'xdebug',
@@ -35,14 +32,14 @@ describe('resolvePHPExtensionInstallPlan', () => {
 			loadWithIniDirective: 'zend_extension',
 		});
 
-		expect(plan.iniContent).toBe(
+		expect(extension.iniContent).toBe(
 			`zend_extension=${PHP_EXTENSIONS_DIR}/xdebug.so`
 		);
 	});
 
 	it('rejects extension names that cannot be used as safe VFS basenames', async () => {
 		await expect(
-			resolvePHPExtensionInstallPlan({
+			resolvePHPExtension({
 				source: {
 					format: 'so',
 					name: '../example',
@@ -56,7 +53,7 @@ describe('resolvePHPExtensionInstallPlan', () => {
 
 	it('selects a manifest artifact before PHP startup', async () => {
 		const artifactBytes = new Uint8Array([4, 5, 6]);
-		const plan = await resolvePHPExtensionInstallPlan({
+		const extension = await resolvePHPExtension({
 			source: {
 				format: 'manifest',
 				manifestUrl: 'https://example.com/extensions/manifest.json',
@@ -85,6 +82,6 @@ describe('resolvePHPExtensionInstallPlan', () => {
 			},
 		});
 
-		expect(plan.soBytes).toEqual(artifactBytes);
+		expect(extension.soBytes).toEqual(artifactBytes);
 	});
 });

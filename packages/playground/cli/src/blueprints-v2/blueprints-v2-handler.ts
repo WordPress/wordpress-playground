@@ -13,7 +13,7 @@ import {
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
-import { getRequestedPHPExtensions } from '../php-loader-extensions';
+import { getRequestedPHPExtensions } from '../php-extensions';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.

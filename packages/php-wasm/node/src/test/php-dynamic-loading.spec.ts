@@ -1,4 +1,4 @@
-import { loadNodeRuntime, type PHPLoaderExtension } from '..';
+import { loadNodeRuntime, type PHPExtension } from '..';
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	PHP,
@@ -29,7 +29,7 @@ const bundledLifecycleLoaderOptions = {
 		'xdebug',
 		'intl',
 		...(isJspiAvailable ? (['redis', 'memcached'] as const) : []),
-	] satisfies PHPLoaderExtension[],
+	] satisfies PHPExtension[],
 };
 
 describe(`Bundled extension lifecycle - PHP ${lifecyclePHPVersion}`, () => {

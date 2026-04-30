@@ -97,22 +97,22 @@ export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
 export {
-	appendPHPExtensionInstallPlans,
+	withResolvedPHPExtensions,
 	installPHPExtensionFilesSync,
 	PHP_EXTENSIONS_DIR,
-	resolvePHPExtensionInstallPlan,
+	resolvePHPExtension,
 } from './load-extension';
 export type {
 	InstallPHPExtensionFilesOptions,
 	PHPExtensionExtraFiles,
 	PHPExtensionIniDirective,
 	PHPExtensionInstallOptions,
-	PHPExtensionInstallPlan,
+	ResolvedPHPExtension,
 	PHPExtensionManifest,
 	PHPExtensionManifestArtifact,
 	PHPExtensionSource,
 	PHPWasmAsyncMode,
-	ResolvePHPExtensionInstallPlanOptions,
+	ResolvePHPExtensionOptions,
 } from './load-extension';
 
 export {

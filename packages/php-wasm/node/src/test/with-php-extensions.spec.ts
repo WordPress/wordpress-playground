@@ -2,9 +2,9 @@ import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { PHP_EXTENSIONS_DIR } from '@php-wasm/universal';
-import { applyPHPLoaderExtensions } from '../lib/extensions/load-extensions';
+import { withPHPExtensions } from '../lib/extensions/load-extensions';
 
-describe('PHP loader extensions', () => {
+describe('withPHPExtensions', () => {
 	it('resolves local manifest paths without a custom fetch implementation', async () => {
 		const tempDir = await mkdtemp(
 			path.join(tmpdir(), 'php-wasm-extension-')
@@ -26,7 +26,7 @@ describe('PHP loader extensions', () => {
 				})
 			);
 
-			const options = await applyPHPLoaderExtensions('8.4', 'jspi', {}, [
+			const options = await withPHPExtensions('8.4', 'jspi', {}, [
 				{
 					source: {
 						format: 'manifest',

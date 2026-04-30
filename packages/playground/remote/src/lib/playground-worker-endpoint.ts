@@ -5,7 +5,7 @@ import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
-	PHPWebLoaderExtension,
+	PHPWebExtension,
 	SyncProgressCallback,
 	TCPOverFetchOptions,
 } from '@php-wasm/web';
@@ -67,7 +67,7 @@ export type WorkerBootOptions = {
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
 	scope: string;
-	extensions?: PHPWebLoaderExtension[];
+	extensions?: PHPWebExtension[];
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -148,7 +148,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
-		extensions?: PHPWebLoaderExtension[];
+		extensions?: PHPWebExtension[];
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
