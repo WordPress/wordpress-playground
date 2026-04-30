@@ -22,6 +22,10 @@ export interface LoaderOptions {
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
 	extensions?: PHPWebLoaderExtension[];
+	/**
+	 * @deprecated Use `extensions: ['intl']` instead.
+	 */
+	withIntl?: boolean;
 }
 
 /**
@@ -87,6 +91,8 @@ export async function loadWebRuntime(
 	}
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
+	const requestedExtensions =
+		getRequestedPHPWebLoaderExtensions(loaderOptions);
 
 	// For legacy PHP: pre-create php.ini via a preRun step. See
 	// createLegacyPhpIniPreRunStep for why this must run before the
@@ -101,7 +107,7 @@ export async function loadWebRuntime(
 		};
 	}
 
-	if (isLegacy && loaderOptions.extensions?.length) {
+	if (isLegacy && requestedExtensions.length) {
 		throw new Error(
 			`Extensions are not available for legacy PHP ${phpVersion}.`
 		);
@@ -112,7 +118,7 @@ export async function loadWebRuntime(
 			phpVersion as SupportedPHPVersion,
 			phpWasmAsyncMode,
 			await emscriptenOptions,
-			loaderOptions.extensions
+			requestedExtensions
 		);
 	}
 
@@ -129,4 +135,26 @@ export async function loadWebRuntime(
 async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
 	const { jspi } = await import('wasm-feature-detect');
 	return (await jspi()) ? 'jspi' : 'asyncify';
+}
+
+function getRequestedPHPWebLoaderExtensions(
+	options: LoaderOptions
+): PHPWebLoaderExtension[] {
+	const extensions = [...(options.extensions ?? [])];
+	if (options.withIntl && !hasBuiltInExtension(extensions, 'intl')) {
+		extensions.push('intl');
+	}
+	return extensions;
+}
+
+function hasBuiltInExtension(
+	extensions: PHPWebLoaderExtension[],
+	name: string
+): boolean {
+	return extensions.some((extension) => {
+		if (typeof extension === 'string') {
+			return extension === name;
+		}
+		return !('source' in extension) && extension.name === name;
+	});
 }

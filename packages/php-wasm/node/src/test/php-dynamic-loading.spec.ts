@@ -55,6 +55,31 @@ describe(`Bundled extension lifecycle - PHP ${lifecyclePHPVersion}`, () => {
 			php.exit();
 		}
 	}, 30_000);
+
+	it('keeps deprecated with* loader options working', async () => {
+		const extensionNames = [
+			'xdebug',
+			'intl',
+			...(isJspiAvailable ? ['redis', 'memcached'] : []),
+		];
+		const php = new PHP(
+			await loadNodeRuntime(lifecyclePHPVersion, {
+				withXdebug: { ideKey: 'BC_TEST' },
+				withIntl: true,
+				withRedis: isJspiAvailable,
+				withMemcached: isJspiAvailable,
+			})
+		);
+
+		try {
+			await expectExtensionsLoaded(php, extensionNames);
+			expect(
+				php.readFileAsText('/internal/shared/extensions/xdebug.ini')
+			).toContain('xdebug.idekey="BC_TEST"');
+		} finally {
+			php.exit();
+		}
+	}, 30_000);
 });
 
 describe.each(phpVersions)('PHP %s', (phpVersion) => {

@@ -11,6 +11,7 @@ import os from 'os';
 import { rootCertificates } from 'tls';
 import {
 	CLIOutput,
+	makeXdebugConfig,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
 	DEFAULT_PATH_SKIPPINGS,
@@ -125,7 +126,16 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
-			extensions: hasXdebugOption ? ['xdebug'] : [],
+			extensions: hasXdebugOption
+				? [
+						{
+							name: 'xdebug',
+							options: makeXdebugConfig({
+								pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
+							}),
+						},
+					]
+				: [],
 		})
 	);
 	php.setSpawnHandler((command: string, args: string[]): any =>

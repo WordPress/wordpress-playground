@@ -65,6 +65,31 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			test.expect(result).toEqual('bool(true)\nbool(true)\n');
 		});
 
+		lifecycleTest(
+			'supports deprecated withIntl loader option',
+			async ({ page }) => {
+				const result = await page.evaluate(async (phpVersion) => {
+					const php = new window.PHP(
+						await window.loadWebRuntime(phpVersion as any, {
+							withIntl: true,
+						})
+					);
+
+					const response = await php.runStream({
+						code: `<?php
+						var_dump(extension_loaded('intl'));
+						var_dump(class_exists('Collator'));`,
+					});
+
+					php.exit();
+
+					return await response.stdoutText;
+				}, phpVersion);
+
+				test.expect(result).toEqual('bool(true)\nbool(true)\n');
+			}
+		);
+
 		lifecycleTest('survives runtime rotation', async ({ page }) => {
 			const result = await page.evaluate(
 				async (options) => {

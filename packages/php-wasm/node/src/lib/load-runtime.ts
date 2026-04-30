@@ -22,12 +22,30 @@ import {
 	applyPHPLoaderExtensions,
 	type PHPLoaderExtension,
 } from './extensions/load-extensions';
+import type { XdebugOptions } from './extensions/xdebug/with-xdebug';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
 	extensions?: PHPLoaderExtension[];
+	/**
+	 * @deprecated Use `extensions: ['xdebug']` or
+	 * `extensions: [{ name: 'xdebug', options }]` instead.
+	 */
+	withXdebug?: boolean | XdebugOptions;
+	/**
+	 * @deprecated Use `extensions: ['intl']` instead.
+	 */
+	withIntl?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['redis']` instead.
+	 */
+	withRedis?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['memcached']` instead.
+	 */
+	withMemcached?: boolean;
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -109,6 +127,7 @@ export async function loadNodeRuntime(
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
 	const phpWasmAsyncMode = await detectPHPWasmAsyncMode();
+	const requestedExtensions = getRequestedPHPLoaderExtensions(options);
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -300,7 +319,7 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (isLegacy && options.extensions?.length) {
+	if (isLegacy && requestedExtensions.length) {
 		throw new Error(
 			`Extensions (xdebug, intl, redis, memcached) are not ` +
 				`available for legacy PHP ${phpVersion}.`
@@ -313,7 +332,7 @@ export async function loadNodeRuntime(
 			modernVersion,
 			phpWasmAsyncMode,
 			emscriptenOptions,
-			options.extensions
+			requestedExtensions
 		);
 	}
 
@@ -328,4 +347,50 @@ export async function loadNodeRuntime(
 async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
 	const { jspi } = await import('wasm-feature-detect');
 	return (await jspi()) ? 'jspi' : 'asyncify';
+}
+
+function getRequestedPHPLoaderExtensions(
+	options: PHPLoaderOptions
+): PHPLoaderExtension[] {
+	const extensions = [...(options.extensions ?? [])];
+
+	appendDeprecatedBuiltInExtension(extensions, 'intl', options.withIntl);
+	appendDeprecatedBuiltInExtension(extensions, 'redis', options.withRedis);
+	appendDeprecatedBuiltInExtension(
+		extensions,
+		'memcached',
+		options.withMemcached
+	);
+
+	if (options.withXdebug && !hasBuiltInExtension(extensions, 'xdebug')) {
+		extensions.push(
+			typeof options.withXdebug === 'object'
+				? { name: 'xdebug', options: options.withXdebug }
+				: 'xdebug'
+		);
+	}
+
+	return extensions;
+}
+
+function appendDeprecatedBuiltInExtension(
+	extensions: PHPLoaderExtension[],
+	name: 'intl' | 'redis' | 'memcached',
+	enabled?: boolean
+) {
+	if (enabled && !hasBuiltInExtension(extensions, name)) {
+		extensions.push(name);
+	}
+}
+
+function hasBuiltInExtension(
+	extensions: PHPLoaderExtension[],
+	name: string
+): boolean {
+	return extensions.some((extension) => {
+		if (typeof extension === 'string') {
+			return extension === name;
+		}
+		return !('source' in extension) && extension.name === name;
+	});
 }
