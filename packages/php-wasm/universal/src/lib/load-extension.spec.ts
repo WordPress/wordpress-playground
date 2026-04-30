@@ -115,4 +115,99 @@ describe('resolvePHPExtension', () => {
 			})
 		).rejects.toThrow('Extension manifests do not use asyncMode');
 	});
+
+	it('resolves manifest-declared sidecar files', async () => {
+		const extension = await resolvePHPExtension({
+			source: {
+				format: 'manifest',
+				manifestUrl: 'https://example.com/extensions/manifest.json',
+			},
+			phpVersion: '8.4',
+			fetch: async (url) => {
+				const requestUrl = String(url);
+				if (requestUrl.endsWith('/manifest.json')) {
+					return Response.json({
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								file: 'example.so',
+							},
+						],
+						extraFiles: {
+							targetPath: '/internal/shared',
+							directories: ['profiler-data'],
+							files: [
+								{
+									path: 'profiler-web-ui/index.html',
+									file: 'web-ui/index.html',
+								},
+								{
+									path: 'profiler-web-ui/css/main.css',
+									file: 'web-ui/css/main.css',
+								},
+							],
+						},
+					});
+				}
+				if (requestUrl.endsWith('/example.so')) {
+					return new Response(new Uint8Array([1, 2, 3]));
+				}
+				if (requestUrl.endsWith('/web-ui/index.html')) {
+					return new Response('<html></html>');
+				}
+				if (requestUrl.endsWith('/web-ui/css/main.css')) {
+					return new Response('body { margin: 0; }');
+				}
+				return new Response('Not found', { status: 404 });
+			},
+		});
+
+		expect(extension.extraFiles).toEqual({
+			targetPath: '/internal/shared',
+			files: {
+				'profiler-data': {},
+				'profiler-web-ui': {
+					'index.html': new Uint8Array(
+						new TextEncoder().encode('<html></html>')
+					),
+					css: {
+						'main.css': new Uint8Array(
+							new TextEncoder().encode('body { margin: 0; }')
+						),
+					},
+				},
+			},
+		});
+	});
+
+	it('rejects manifest extra file paths that escape the target directory', async () => {
+		await expect(
+			resolvePHPExtension({
+				source: {
+					format: 'manifest',
+					manifest: {
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								file: 'example.so',
+							},
+						],
+						extraFiles: {
+							files: [
+								{
+									path: '../index.html',
+									file: 'index.html',
+								},
+							],
+						},
+					},
+					baseUrl: 'https://example.com/extensions/',
+				},
+				phpVersion: '8.4',
+				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+			})
+		).rejects.toThrow('Invalid extension extra file path');
+	});
 });

@@ -38,8 +38,8 @@
  * ICU_DATA=/internal/shared
  * ```
  *
- * External extensions use the same startup path. A manifest is only a selector
- * for the correct `.so` artifact:
+ * External extensions use the same startup path. A manifest selects the
+ * correct `.so` artifact and may declare URL-backed sidecar files:
  *
  * ```json
  * {
@@ -49,7 +49,14 @@
  *       "phpVersion": "8.4",
  *       "file": "wp_mysql_parser-php8.4-jspi.so"
  *     }
- *   ]
+ *   ],
+ *   "extraFiles": {
+ *     "targetPath": "/internal/shared",
+ *     "directories": ["spx-data"],
+ *     "files": [
+ *       { "path": "spx-web-ui/index.html", "file": "web-ui/index.html" }
+ *     ]
+ *   }
  * }
  * ```
  *
@@ -58,7 +65,7 @@
  * accepts local manifest paths and `file:` URLs, then normalizes them before
  * calling this resolver.
  */
-import { dirname, joinPaths } from '@php-wasm/util';
+import { dirname, joinPaths, normalizePath } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
@@ -96,6 +103,49 @@ export interface PHPExtensionManifestArtifact {
 	 * Optional SHA-256 checksum for the fetched `.so` artifact.
 	 */
 	sha256?: string;
+
+	/**
+	 * Additional URL-backed files to fetch for this artifact.
+	 *
+	 * Use this for files that differ by PHP version or async mode.
+	 */
+	extraFiles?: PHPExtensionManifestExtraFiles;
+}
+
+/**
+ * One sidecar file declared by an extension manifest.
+ */
+export interface PHPExtensionManifestExtraFile {
+	/**
+	 * Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`.
+	 */
+	path: string;
+
+	/**
+	 * Relative to the manifest URL/base URL, or an absolute URL.
+	 */
+	file: string;
+}
+
+/**
+ * URL-backed files to stage with a manifest extension.
+ */
+export interface PHPExtensionManifestExtraFiles {
+	/**
+	 * Files and directories are written here. Defaults to
+	 * `/internal/shared/extensions/<name>-assets`.
+	 */
+	targetPath?: string;
+
+	/**
+	 * Empty directories to create under `targetPath`.
+	 */
+	directories?: string[];
+
+	/**
+	 * Files to fetch and stage under `targetPath`.
+	 */
+	files?: PHPExtensionManifestExtraFile[];
 }
 
 /**
@@ -110,6 +160,10 @@ export interface PHPExtensionManifest {
 	version?: string;
 	mode?: 'php-extension';
 	artifacts: PHPExtensionManifestArtifact[];
+	/**
+	 * Additional URL-backed files shared by all artifacts.
+	 */
+	extraFiles?: PHPExtensionManifestExtraFiles;
 }
 
 /**
@@ -278,6 +332,7 @@ export interface ResolvedPHPExtension {
 interface ResolvedPHPExtensionSource {
 	name: string;
 	soBytes: Uint8Array;
+	extraFiles?: PHPExtensionExtraFiles;
 }
 
 /**
@@ -293,12 +348,13 @@ export async function resolvePHPExtension(
 		options,
 		options.fetch ?? globalThis.fetch
 	);
+	const name = options.name ?? resolved.name;
 	return buildResolvedPHPExtension({
-		name: options.name ?? resolved.name,
+		name,
 		soBytes: resolved.soBytes,
 		loadWithIniDirective: options.loadWithIniDirective,
 		iniEntries: options.iniEntries,
-		extraFiles: options.extraFiles,
+		extraFiles: mergeExtraFiles(options.extraFiles, resolved.extraFiles),
 		env: options.env,
 		extensionDir: options.extensionDir,
 	});
@@ -518,6 +574,7 @@ async function resolvePHPExtensionSource(
 	if (!Array.isArray(manifest.artifacts)) {
 		throw new Error('Extension manifest must include an artifacts array.');
 	}
+	validateManifestExtraFiles(manifest.extraFiles);
 	for (const artifact of manifest.artifacts) {
 		if (
 			!artifact ||
@@ -531,6 +588,7 @@ async function resolvePHPExtensionSource(
 				'Extension manifests do not use asyncMode. External PHP extensions require JSPI.'
 			);
 		}
+		validateManifestExtraFiles(artifact.extraFiles);
 	}
 	const baseUrl =
 		'baseUrl' in source && source.baseUrl
@@ -566,11 +624,195 @@ async function resolvePHPExtensionSource(
 	if (artifact.sha256) {
 		await assertSha256(soBytes, artifact.sha256, artifact.file);
 	}
+	const extraFiles = await resolveManifestExtraFiles(
+		fetchFn,
+		baseUrl,
+		manifest.extraFiles,
+		artifact.extraFiles
+	);
 
 	return {
 		name: manifest.name,
 		soBytes,
+		extraFiles,
 	};
+}
+
+async function resolveManifestExtraFiles(
+	fetchFn: typeof fetch | undefined,
+	baseUrl: URL,
+	...extraFilesList: Array<PHPExtensionManifestExtraFiles | undefined>
+): Promise<PHPExtensionExtraFiles | undefined> {
+	let resolvedExtraFiles: PHPExtensionExtraFiles | undefined;
+	for (const extraFiles of extraFilesList) {
+		if (!extraFiles) {
+			continue;
+		}
+		resolvedExtraFiles = mergeExtraFiles(
+			resolvedExtraFiles,
+			await fetchManifestExtraFiles(fetchFn, baseUrl, extraFiles)
+		);
+	}
+	return resolvedExtraFiles;
+}
+
+async function fetchManifestExtraFiles(
+	fetchFn: typeof fetch | undefined,
+	baseUrl: URL,
+	extraFiles: PHPExtensionManifestExtraFiles
+): Promise<PHPExtensionExtraFiles> {
+	if (!fetchFn) {
+		throw new Error(
+			'resolvePHPExtension() requires a fetch implementation.'
+		);
+	}
+
+	const files: FileTree = {};
+	for (const directory of extraFiles.directories ?? []) {
+		setFileTreeEntry(files, directory, {});
+	}
+	await Promise.all(
+		(extraFiles.files ?? []).map(async (file) => {
+			const fileUrl = new URL(file.file, baseUrl);
+			const response = await fetchFn(fileUrl);
+			if (!response.ok) {
+				throw new Error(
+					`Failed to fetch ${String(fileUrl)}: ${response.status}`
+				);
+			}
+			const bytes = new Uint8Array(await response.arrayBuffer());
+			setFileTreeEntry(files, file.path, bytes);
+		})
+	);
+
+	return {
+		targetPath: extraFiles.targetPath,
+		files,
+	};
+}
+
+function mergeExtraFiles(
+	first?: PHPExtensionExtraFiles,
+	second?: PHPExtensionExtraFiles
+): PHPExtensionExtraFiles | undefined {
+	if (!first) {
+		return second;
+	}
+	if (!second) {
+		return first;
+	}
+	const targetPath = first.targetPath ?? second.targetPath;
+	if (
+		first.targetPath &&
+		second.targetPath &&
+		first.targetPath !== second.targetPath
+	) {
+		throw new Error(
+			'Cannot merge extension extra files with different targetPath values.'
+		);
+	}
+	return {
+		targetPath,
+		files: mergeFileTrees(first.files, second.files),
+	};
+}
+
+function mergeFileTrees(first: FileTree, second: FileTree): FileTree {
+	const merged: FileTree = { ...first };
+	for (const [path, content] of Object.entries(second)) {
+		const existing = merged[path];
+		if (
+			existing &&
+			!(existing instanceof Uint8Array) &&
+			typeof existing !== 'string' &&
+			!(content instanceof Uint8Array) &&
+			typeof content !== 'string'
+		) {
+			merged[path] = mergeFileTrees(existing, content);
+		} else {
+			merged[path] = content;
+		}
+	}
+	return merged;
+}
+
+function setFileTreeEntry(
+	files: FileTree,
+	relativePath: string,
+	content: Uint8Array | FileTree
+) {
+	const normalizedPath = validateRelativeManifestPath(relativePath);
+	const parts = normalizedPath.split('/');
+	let current = files;
+	for (const part of parts.slice(0, -1)) {
+		const next = current[part];
+		if (
+			next instanceof Uint8Array ||
+			typeof next === 'string' ||
+			next === undefined
+		) {
+			current[part] = {};
+		}
+		current = current[part] as FileTree;
+	}
+	current[parts[parts.length - 1]] = content;
+}
+
+function validateManifestExtraFiles(
+	extraFiles: PHPExtensionManifestExtraFiles | undefined
+) {
+	if (extraFiles === undefined) {
+		return;
+	}
+	if (!extraFiles || typeof extraFiles !== 'object') {
+		throw new Error('Extension manifest contains invalid extra files.');
+	}
+	if (
+		extraFiles.targetPath !== undefined &&
+		typeof extraFiles.targetPath !== 'string'
+	) {
+		throw new Error('Extension manifest contains invalid extra files.');
+	}
+	if (
+		extraFiles.directories !== undefined &&
+		!Array.isArray(extraFiles.directories)
+	) {
+		throw new Error('Extension manifest contains invalid extra files.');
+	}
+	for (const directory of extraFiles.directories ?? []) {
+		if (typeof directory !== 'string') {
+			throw new Error('Extension manifest contains invalid extra files.');
+		}
+		validateRelativeManifestPath(directory);
+	}
+	if (extraFiles.files !== undefined && !Array.isArray(extraFiles.files)) {
+		throw new Error('Extension manifest contains invalid extra files.');
+	}
+	for (const file of extraFiles.files ?? []) {
+		if (
+			!file ||
+			typeof file.path !== 'string' ||
+			typeof file.file !== 'string'
+		) {
+			throw new Error('Extension manifest contains invalid extra files.');
+		}
+		validateRelativeManifestPath(file.path);
+	}
+}
+
+function validateRelativeManifestPath(path: string): string {
+	const normalized = normalizePath(path);
+	if (
+		!normalized ||
+		normalized.startsWith('/') ||
+		normalized === '..' ||
+		normalized.startsWith('../')
+	) {
+		throw new Error(
+			`Invalid extension extra file path ${JSON.stringify(path)}.`
+		);
+	}
+	return normalized;
 }
 
 function writeFileTreeSync(

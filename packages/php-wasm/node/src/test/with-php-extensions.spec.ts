@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { PHP_EXTENSIONS_DIR } from '@php-wasm/universal';
@@ -12,7 +12,18 @@ describe('withPHPExtensions', () => {
 		);
 		try {
 			const extensionBytes = new Uint8Array([1, 2, 3]);
+			await mkdir(path.join(tempDir, 'web-ui', 'css'), {
+				recursive: true,
+			});
 			await writeFile(path.join(tempDir, 'example.so'), extensionBytes);
+			await writeFile(
+				path.join(tempDir, 'web-ui', 'index.html'),
+				'<html></html>'
+			);
+			await writeFile(
+				path.join(tempDir, 'web-ui', 'css', 'main.css'),
+				'body { margin: 0; }'
+			);
 			await writeFile(
 				path.join(tempDir, 'manifest.json'),
 				JSON.stringify({
@@ -23,6 +34,20 @@ describe('withPHPExtensions', () => {
 							file: 'example.so',
 						},
 					],
+					extraFiles: {
+						targetPath: '/internal/shared',
+						directories: ['profiler-data'],
+						files: [
+							{
+								path: 'profiler-web-ui/index.html',
+								file: 'web-ui/index.html',
+							},
+							{
+								path: 'profiler-web-ui/css/main.css',
+								file: 'web-ui/css/main.css',
+							},
+						],
+					},
 				})
 			);
 
@@ -44,6 +69,19 @@ describe('withPHPExtensions', () => {
 			);
 			expect(fs.files.get(`${PHP_EXTENSIONS_DIR}/example.ini`)).toBe(
 				`extension=${PHP_EXTENSIONS_DIR}/example.so`
+			);
+			expect(fs.directories.has('/internal/shared/profiler-data')).toBe(
+				true
+			);
+			expect(
+				fs.files.get('/internal/shared/profiler-web-ui/index.html')
+			).toEqual(
+				new Uint8Array(new TextEncoder().encode('<html></html>'))
+			);
+			expect(
+				fs.files.get('/internal/shared/profiler-web-ui/css/main.css')
+			).toEqual(
+				new Uint8Array(new TextEncoder().encode('body { margin: 0; }'))
 			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });

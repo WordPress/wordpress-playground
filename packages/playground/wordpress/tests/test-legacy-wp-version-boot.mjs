@@ -247,6 +247,24 @@ function isLoggedIn(body) {
 	);
 }
 
+const ADMIN_INDICATORS = [
+	'Dashboard',
+	'Write',
+	'Manage',
+	'Options',
+	'Log Out',
+	'Logout',
+	'Settings',
+	'Posts',
+	'Plugins',
+	'Create New Post',
+	'My Profile',
+];
+
+function hasAdminIndicator(body) {
+	return ADMIN_INDICATORS.some((ind) => body.includes(ind));
+}
+
 // WP < 2.5 uses post.php for new posts; 2.5+ uses post-new.php.
 // WP 1.0-2.0 render the "new post" form via wp-admin/post.php's
 // default case. WP 2.1 introduced wp-admin/post-new.php and made
@@ -262,6 +280,19 @@ const MATRIX = WP_ONLY
 	? WP_VERSIONS.filter(({ wp }) => WP_ONLY.has(wp))
 	: WP_VERSIONS;
 
+function captureConsoleErrors(page, consoleErrors) {
+	page.on('console', (msg) => {
+		if (msg.type() === 'error')
+			consoleErrors.push(msg.text().slice(0, 300));
+	});
+}
+
+function shouldRetryFrontPageBoot(consoleErrors) {
+	return consoleErrors.some((message) =>
+		message.includes('WebWorker failed to load')
+	);
+}
+
 const browser = await chromium.launch({ headless: true });
 
 for (const { wp, php } of MATRIX) {
@@ -275,13 +306,10 @@ for (const { wp, php } of MATRIX) {
 	// and cookies don't leak between versions. Without this, earlier
 	// versions' patched files and scopes bleed into later ones and
 	// the test becomes non-deterministic.
-	const context = await browser.newContext();
-	const page = await context.newPage();
-	const consoleErrors = [];
-	page.on('console', (msg) => {
-		if (msg.type() === 'error')
-			consoleErrors.push(msg.text().slice(0, 300));
-	});
+	let context = await browser.newContext();
+	let page = await context.newPage();
+	let consoleErrors = [];
+	captureConsoleErrors(page, consoleErrors);
 
 	let frontStatus = null;
 	let adminStatus = null;
@@ -296,7 +324,20 @@ for (const { wp, php } of MATRIX) {
 		});
 
 		// --- Phase 1: Front page ---
-		const wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		let wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		if (!wp1 && shouldRetryFrontPageBoot(consoleErrors)) {
+			await page.close();
+			await context.close();
+			context = await browser.newContext();
+			page = await context.newPage();
+			consoleErrors = [];
+			captureConsoleErrors(page, consoleErrors);
+			await page.goto(url, {
+				timeout: 180_000,
+				waitUntil: 'domcontentloaded',
+			});
+			wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		}
 
 		if (!wp1) {
 			const lastError = consoleErrors[consoleErrors.length - 1] || '';
@@ -413,6 +454,18 @@ for (const { wp, php } of MATRIX) {
 						TIMEOUT_S
 					);
 				}
+				if (
+					wp2 &&
+					!findPHPError(wp2.body) &&
+					!hasAdminIndicator(wp2.body)
+				) {
+					const settled = await waitForWPFrame(page, 30, {
+						contentPredicate: hasAdminIndicator,
+					});
+					if (settled) {
+						wp2 = settled;
+					}
+				}
 				if (!wp2) {
 					adminStatus = { status: 'TIMEOUT' };
 				} else {
@@ -424,22 +477,7 @@ for (const { wp, php } of MATRIX) {
 							body: wp2.body,
 						};
 					} else {
-						const adminIndicators = [
-							'Dashboard',
-							'Write',
-							'Manage',
-							'Options',
-							'Log Out',
-							'Logout',
-							'Settings',
-							'Posts',
-							'Plugins',
-							'Create New Post',
-							'My Profile',
-						];
-						const hasAdmin = adminIndicators.some((ind) =>
-							wp2.body.includes(ind)
-						);
+						const hasAdmin = hasAdminIndicator(wp2.body);
 						const loggedIn = isLoggedIn(wp2.body);
 						if (hasAdmin && loggedIn) {
 							adminStatus = { status: 'OK' };

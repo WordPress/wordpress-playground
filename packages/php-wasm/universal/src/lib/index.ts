@@ -110,6 +110,8 @@ export type {
 	ResolvedPHPExtension,
 	PHPExtensionManifest,
 	PHPExtensionManifestArtifact,
+	PHPExtensionManifestExtraFile,
+	PHPExtensionManifestExtraFiles,
 	PHPExtensionSource,
 	ResolvePHPExtensionOptions,
 } from './load-extension';
