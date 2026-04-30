@@ -134,6 +134,18 @@ export function exposeAPI<Methods, PipedAPI>(
 	pipedApi?: PipedAPI,
 	targetWorker?: MessagePort | NodeWorker | NodeProcess
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
+	const exposeDiagnosticsGlobal = globalThis as any;
+	const exposeDiagnosticsCount =
+		(exposeDiagnosticsGlobal.__playgroundExposeAPICount =
+			(exposeDiagnosticsGlobal.__playgroundExposeAPICount ?? 0) + 1);
+	console.warn('[diagnostic exposeAPI enter]', {
+		count: exposeDiagnosticsCount,
+		location: globalThis.location?.href,
+		apiConstructor: (apiMethods as any)?.constructor?.name,
+		hasPipedApi: !!pipedApi,
+		targetWorkerConstructor: (targetWorker as any)?.constructor?.name,
+		stack: new Error().stack,
+	});
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
 		pipedApi

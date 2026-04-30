@@ -1,6 +1,16 @@
 import { test, expect } from '../playground-fixtures.ts';
 
 test('playground.cli() streams stdout', async ({ website }) => {
+	website.page.on('console', (message) => {
+		console.log(`[browser-console:${message.type()}] ${message.text()}`);
+	});
+	website.page.on('worker', (worker) => {
+		console.log(`[browser-worker] ${worker.url()}`);
+		worker.on('close', () => {
+			console.log(`[browser-worker-closed] ${worker.url()}`);
+		});
+	});
+
 	await website.goto('./');
 	// Ensure the Playground client is connected and exposed on window
 	await website.page.waitForFunction(() =>

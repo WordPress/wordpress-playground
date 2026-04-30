@@ -5,7 +5,13 @@
  * @returns The spawned Worker Thread.
  */
 export async function spawnPHPWorkerThread(workerUrl: string) {
+	console.warn('[diagnostic spawnPHPWorkerThread create]', {
+		workerUrl,
+		location: globalThis.location?.href,
+		stack: new Error().stack,
+	});
 	const worker = new Worker(workerUrl, { type: 'module' });
+	let startupMessageCount = 0;
 	return new Promise<Worker>((resolve, reject) => {
 		worker.onerror = (e) => {
 			const error = new Error(
@@ -20,6 +26,12 @@ export async function spawnPHPWorkerThread(workerUrl: string) {
 		// executing, so we use a message to signal that.
 		function onStartup(event: { data: string }) {
 			if (event.data === 'worker-script-started') {
+				startupMessageCount++;
+				console.warn('[diagnostic spawnPHPWorkerThread startup]', {
+					workerUrl,
+					startupMessageCount,
+					location: globalThis.location?.href,
+				});
 				resolve(worker);
 				worker.removeEventListener('message', onStartup);
 			}

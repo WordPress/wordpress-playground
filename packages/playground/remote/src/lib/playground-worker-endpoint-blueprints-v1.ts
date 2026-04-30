@@ -18,6 +18,16 @@ import type { PHP } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
+const diagnosticGlobal = globalThis as any;
+const diagnosticModuleEvalCount =
+	(diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount =
+		(diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount ?? 0) + 1);
+console.warn('[diagnostic endpoint-v1 module eval]', {
+	moduleEvalCount: diagnosticModuleEvalCount,
+	location: globalThis.location?.href,
+	stack: new Error().stack,
+});
+
 // post message to parent
 self.postMessage('worker-script-started');
 
@@ -251,13 +261,18 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 	}
 }
 
-const workerGlobal = self as unknown as {
-	__playgroundWorkerEndpointBlueprintsV1?: ReturnType<typeof exposeAPI>;
-};
-const [setApiReady, setAPIError] =
-	(workerGlobal.__playgroundWorkerEndpointBlueprintsV1 ??= exposeAPI(
-		new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
-	));
+const diagnosticExposeCount =
+	(diagnosticGlobal.__playgroundEndpointV1ExposeCount =
+		(diagnosticGlobal.__playgroundEndpointV1ExposeCount ?? 0) + 1);
+console.warn('[diagnostic endpoint-v1 before exposeAPI]', {
+	moduleEvalCount: diagnosticGlobal.__playgroundEndpointV1ModuleEvalCount,
+	exposeCount: diagnosticExposeCount,
+	location: globalThis.location?.href,
+	stack: new Error().stack,
+});
+const [setApiReady, setAPIError] = exposeAPI(
+	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
+);
 
 /**
  * Normalizes WordPress version strings for wordpress.org downloads.

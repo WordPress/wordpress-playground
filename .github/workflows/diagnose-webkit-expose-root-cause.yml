@@ -1,0 +1,37 @@
+name: Diagnose WebKit exposeAPI root cause
+
+on:
+    pull_request:
+
+jobs:
+    diagnose:
+        if: github.event.pull_request.head.ref == 'codex/diagnose-webkit-expose-root-cause'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Free up runner disk space
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  df -h
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  df -h
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install WebKit
+              run: sudo npx playwright install webkit --with-deps
+            - name: Build app for E2E tests
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Run focused WebKit diagnostic
+              run: |
+                  sudo CI=true PLAYWRIGHT_HTML_OPEN=never npx playwright test \
+                    --config=packages/playground/website/playwright/playwright.ci.config.ts \
+                    packages/playground/website/playwright/e2e/client.spec.ts \
+                    --project=webkit \
+                    --workers=1 \
+                    --retries=0
