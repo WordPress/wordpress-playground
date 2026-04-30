@@ -1,29 +1,65 @@
 /**
- * PHP.wasm extensions are Emscripten side modules. They can enter PHP through
- * two paths:
+ * PHP.wasm extensions are Emscripten side modules. They are just `.so` files
+ * until PHP is told to load them.
  *
- * 1. Startup-time
- * 2. Post-startup
+ * In native PHP that usually happens through an ini file. The ini file says
+ * which shared object to load, and may provide extension-specific settings.
+ * In PHP.wasm we cannot assume that such a file already exists in the runtime
+ * filesystem, because an extension may arrive as bytes, a URL, or a manifest
+ * artifact after the PHP build was packaged.
  *
- * In this file, "generated `.ini` file" means the small per-extension ini file
- * created by `buildPHPExtensionInstallPlan()`. It is not part of the extension
- * artifact. The loader derives it from `LoadPHPExtensionOptions`:
+ * This module therefore does three things:
  *
- * - `name` and `extensionDir` decide the file path, e.g.
- *   `/internal/shared/extensions/xdebug.ini`.
+ * 1. Resolve the extension source into `.so` bytes.
+ * 2. Stage those bytes in the PHP VFS.
+ * 3. Create the small ini/preload files PHP needs in order to see the module.
+ *
+ * When this file says "generated `.ini` file", it means a file created by
+ * `buildPHPExtensionInstallPlan()`, not a file shipped by the extension
+ * author. The loader derives it from `LoadPHPExtensionOptions`:
+ *
+ * - `name` and `extensionDir` decide the file path.
+ *   Example: `/internal/shared/extensions/xdebug.ini`.
  * - `loadWithIniDirective` decides whether the first line is `extension=...`
  *   or `zend_extension=...`.
  * - `iniEntries` become the remaining `key=value` lines.
  *
+ * For example, these options:
+ *
+ * ```ts
+ * {
+ *   name: 'xdebug',
+ *   loadWithIniDirective: 'zend_extension',
+ *   iniEntries: {
+ *     'xdebug.mode': 'debug,develop',
+ *     'xdebug.start_with_request': 'yes',
+ *   },
+ * }
+ * ```
+ *
+ * produce this file:
+ *
+ * ```ini
+ * ; /internal/shared/extensions/xdebug.ini
+ * zend_extension=/internal/shared/extensions/xdebug.so
+ * xdebug.mode=debug,develop
+ * xdebug.start_with_request=yes
+ * ```
+ *
  * `installPHPExtensionFiles()` and `installPHPExtensionFilesSync()` write that
  * ini file into the PHP VFS next to the staged `.so` file.
  *
+ * The remaining question is when PHP can read that file. There are two cases:
+ *
+ * 1. Startup-time
+ * 2. Post-startup
+ *
  * ## Startup-time loading
  *
- * Startup-time loading stages the `.so` file and generated `.ini` file before
- * PHP starts. The runtime adds the extension directory to
- * `PHP_INI_SCAN_DIR`, and PHP reads the generated ini file during module
- * startup.
+ * If the runtime has not started yet, we can use PHP's normal extension
+ * loading path. The loader stages the `.so` file and generated `.ini` file,
+ * then adds the extension directory to `PHP_INI_SCAN_DIR`. When PHP starts, it
+ * scans that directory and reads the generated file.
  *
  * This is required for `zend_extension` entries such as Xdebug:
  *
@@ -38,8 +74,7 @@
  * PHP_INI_SCAN_DIR=/internal/shared/extensions
  * ```
  *
- * It is also useful for regular extensions that must register ini entries,
- * globals, classes, hooks, or startup state before user code runs. For
+ * It is also useful for regular extensions that need startup-time state. For
  * example, even though `intl` is a regular `extension`, it must be loaded
  * before PHP startup because it relies on the `ICU_DATA` environment variable:
  *
@@ -54,15 +89,18 @@
  *
  * ## Post-startup loading
  *
- * Post-startup loading is for a PHP instance that already exists. At that
- * point PHP has already scanned its ini directories, so writing a new `.ini`
- * file is not enough.
+ * If PHP is already running, the startup scan is over. Writing
+ * `/internal/shared/extensions/example.ini` still records the intended load
+ * directive, but it will not make the current PHP process load the extension.
  *
- * For regular extensions we create a preload script in
- * `/internal/shared/preload`; the PHP wrapper requires those scripts before
- * user code and the script calls `dl('name.so')`. PHP's `dl()` accepts a file
- * name rather than an absolute path, so the script also points `extension_dir`
- * at the directory where the side module was staged.
+ * Regular PHP extensions have one remaining path: `dl()`. For those
+ * extensions we create a preload script in `/internal/shared/preload`; the PHP
+ * wrapper requires those scripts before user code and the script calls
+ * `dl('name.so')`.
+ *
+ * PHP's `dl()` accepts a file name rather than an absolute path. The preload
+ * script therefore sets `extension_dir` to the directory where the side module
+ * was staged before calling `dl()`.
  *
  * A manifest-loaded extension such as `wp_mysql_parser` can therefore be
  * installed into an already-running PHP instance with:
