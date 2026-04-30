@@ -40,8 +40,8 @@
  *
  * It is also useful for regular extensions that must register ini entries,
  * globals, classes, hooks, or startup state before user code runs. For
- * example, `intl` is a regular `extension` loaded before startup because it
- * needs `ICU_DATA` available when PHP initializes:
+ * example, even though `intl` is a regular `extension`, it must be loaded
+ * before PHP startup because it relies on the `ICU_DATA` environment variable:
  *
  * ```ini
  * extension=/internal/shared/extensions/intl.so
