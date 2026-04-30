@@ -32,18 +32,25 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync, spawnSync } from 'child_process';
+import {
+	getSqliteIntegrationZipPath,
+	registerSqliteIntegrationVersion,
+} from '../packages/playground/wordpress-builds/build/sqlite-integration-registry.js';
 
 const REPO_ROOT = path.resolve(
 	path.dirname(new URL(import.meta.url).pathname),
 	'..'
 );
-const SRC_ZIP = path.join(
+const SQLITE_PLUGIN_VERSION = 'v3.0.0-rc.3';
+const SQLITE_PHP52_PLUGIN_VERSION = `${SQLITE_PLUGIN_VERSION}-php52`;
+const SQLITE_DIR = path.join(
 	REPO_ROOT,
-	'packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v3.0.0-rc.3.zip'
+	'packages/playground/wordpress-builds/src/sqlite-database-integration'
 );
-const OUT_ZIP = path.join(
-	REPO_ROOT,
-	'packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v3.0.0-rc.3-php52.zip'
+const SRC_ZIP = getSqliteIntegrationZipPath(SQLITE_DIR, SQLITE_PLUGIN_VERSION);
+const OUT_ZIP = getSqliteIntegrationZipPath(
+	SQLITE_DIR,
+	SQLITE_PHP52_PLUGIN_VERSION
 );
 const DOWNGRADER_DIR = path.join(REPO_ROOT, 'scripts/php52-downgrader');
 const DOWNGRADER = path.join(DOWNGRADER_DIR, 'bin/downgrade.php');
@@ -537,8 +544,16 @@ if ( ! function_exists( 'array_column' ) ) {
 	if (fs.existsSync(OUT_ZIP)) fs.unlinkSync(OUT_ZIP);
 	execSync(`cd "${TMP_DIR}" && zip -r -q "${OUT_ZIP}" .`);
 	console.log(`\nCreated: ${OUT_ZIP}`);
+	registerPatchedZip();
 } finally {
 	fs.rmSync(TMP_DIR, { recursive: true, force: true });
+}
+
+function registerPatchedZip() {
+	registerSqliteIntegrationVersion(SQLITE_DIR, SQLITE_PHP52_PLUGIN_VERSION, {
+		removeVersions: [SQLITE_PLUGIN_VERSION],
+	});
+	console.log(`Registered: ${SQLITE_PHP52_PLUGIN_VERSION}`);
 }
 
 /** Returns the index of the `}` matching the `{` at `openIdx`, or -1. */
