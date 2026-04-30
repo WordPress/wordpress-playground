@@ -62,8 +62,8 @@ import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
  * By skipping existing files, we ensure that the backfill process doesn't overwrite any user
  * changes.
  */
-export async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
-	if (!php.requestHandler) {
+export async function backfillStaticFilesRemovedFromMinifiedBuild(php?: PHP) {
+	if (!php?.requestHandler) {
 		logger.warn('No PHP request handler available');
 		return;
 	}

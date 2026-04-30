@@ -314,6 +314,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 		const primaryPhp = await requestHandler.getPrimaryPhp();
 		await this.setPrimaryPHP(primaryPhp);
+		this.__internal_setRequestHandler(requestHandler);
 		return requestHandler;
 	}
 
