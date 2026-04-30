@@ -1,6 +1,7 @@
 import { PHPWorker } from './php-worker';
 import { describe, expect, test, vi } from 'vitest';
 import type { PHP } from './php';
+import type { PHPRequestHandler } from './php-request-handler';
 
 type PhpEvent = { type: string; [key: string]: unknown };
 type PhpEventListener = (event: PhpEvent) => void | Promise<void>;
@@ -51,6 +52,21 @@ class TestEndpoint extends PHPWorker {
 	async boot(_: unknown = undefined) {}
 }
 
+class EndpointWithoutRequestHandler extends TestEndpoint {
+	protected override getRequestHandler(required?: true): PHPRequestHandler;
+	protected override getRequestHandler(
+		required: false
+	): PHPRequestHandler | undefined;
+	protected override getRequestHandler(
+		required?: boolean
+	): PHPRequestHandler | undefined {
+		void required;
+		throw new Error(
+			'request handler lookup should not run before primary PHP fallback'
+		);
+	}
+}
+
 describe('PlaygroundWorkerEndpoint', () => {
 	test('listeners receive events from each PHP instance', async () => {
 		const endpoint = new TestEndpoint();
@@ -80,5 +96,92 @@ describe('PlaygroundWorkerEndpoint', () => {
 			'*',
 			expect.any(Function)
 		);
+	});
+
+	test('recovers request handler from the primary PHP instance', async () => {
+		const endpoint = new TestEndpoint();
+		const response = {
+			finished: Promise.resolve(),
+		};
+		const cliPhp = {
+			chdir: vi.fn(),
+			cli: vi.fn().mockResolvedValue(response),
+			addEventListener: vi.fn(),
+			onMessage: vi.fn(),
+		};
+		const requestHandler = {
+			absoluteUrl: 'http://127.0.0.1/',
+			documentRoot: '/wordpress',
+			instanceManager: {
+				acquirePHPInstance: vi.fn().mockResolvedValue({
+					php: cliPhp,
+					reap: vi.fn(),
+				}),
+			},
+		};
+		const primaryPhp = {
+			...createMockPHP(),
+			requestHandler,
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+		await endpoint.cli(['php', '/tmp/script.php']);
+
+		expect(
+			requestHandler.instanceManager.acquirePHPInstance
+		).toHaveBeenCalled();
+		expect(cliPhp.cli).toHaveBeenCalledWith(
+			['php', '/tmp/script.php'],
+			undefined
+		);
+	});
+
+	test('runs CLI on the primary PHP instance without a request handler', async () => {
+		const endpoint = new TestEndpoint();
+		const response = {
+			finished: Promise.resolve(),
+		};
+		const primaryPhp = {
+			...createMockPHP(),
+			cli: vi.fn().mockResolvedValue(response),
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+		const actualResponse = await endpoint.cli(['php', '/tmp/script.php']);
+
+		expect(actualResponse).toBe(response);
+		expect(primaryPhp.cli).toHaveBeenCalledWith(
+			['php', '/tmp/script.php'],
+			undefined
+		);
+	});
+
+	test('uses the primary PHP instance before resolving a missing request handler', async () => {
+		const endpoint = new EndpointWithoutRequestHandler();
+		const cliResponse = {
+			finished: Promise.resolve(),
+		};
+		const runResponse = {};
+		const primaryPhp = {
+			...createMockPHP(),
+			cli: vi.fn().mockResolvedValue(cliResponse),
+			run: vi.fn().mockResolvedValue(runResponse),
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+
+		await expect(endpoint.cli(['php', '/tmp/script.php'])).resolves.toBe(
+			cliResponse
+		);
+		await expect(endpoint.run({ code: "<?php echo 'hi!';" })).resolves.toBe(
+			runResponse
+		);
+		expect(primaryPhp.cli).toHaveBeenCalledWith(
+			['php', '/tmp/script.php'],
+			undefined
+		);
+		expect(primaryPhp.run).toHaveBeenCalledWith({
+			code: "<?php echo 'hi!';",
+		});
 	});
 });
