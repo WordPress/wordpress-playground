@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 /**
  * E2E tests for the <php-snippet> web component embed.
@@ -12,8 +13,24 @@ import { test, expect } from '@playwright/test';
  */
 
 const DEMO_URL = './php-code-snippet-demo.html';
+const pageErrors = new WeakMap<Page, string[]>();
 
 test.describe('php-code-snippet embed', () => {
+	test.beforeEach(async ({ page }) => {
+		const errors: string[] = [];
+		pageErrors.set(page, errors);
+		page.on('pageerror', (error) => {
+			errors.push(error.message);
+		});
+	});
+
+	test.afterEach(async ({ page }) => {
+		expect(
+			pageErrors.get(page) || [],
+			'<php-snippet> should not emit uncaught browser errors'
+		).toEqual([]);
+	});
+
 	test('renders all snippets with Run buttons', async ({ page }) => {
 		await page.goto(DEMO_URL);
 		for (const name of [
