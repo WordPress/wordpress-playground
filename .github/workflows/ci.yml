@@ -235,27 +235,10 @@ jobs:
                   sudo CI=true npx playwright test \
                     --config=packages/playground/website/playwright/playwright.ci.config.ts \
                     --project=webkit \
-                    --retries=1 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:11 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:25 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:59 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:128 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:143 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:159 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:175 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:209 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:228 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:262 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:284 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:296 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:314 \
+                    --retries=0 \
                     packages/playground/website/playwright/e2e/blueprints.spec.ts:924 \
-                    packages/playground/website/playwright/e2e/blueprints.spec.ts:1013 \
                     packages/playground/website/playwright/e2e/client.spec.ts:3 \
-                    packages/playground/website/playwright/e2e/query-api.spec.ts:14 \
-                    packages/playground/website/playwright/e2e/query-api.spec.ts:22 \
-                    packages/playground/website/playwright/e2e/sites-api.spec.ts:3 \
-                    packages/playground/website/playwright/e2e/website-ui.spec.ts:12
+                    packages/playground/website/playwright/e2e/sites-api.spec.ts:3
             - uses: actions/upload-artifact@v4
               if: ${{ always() }}
               with:
