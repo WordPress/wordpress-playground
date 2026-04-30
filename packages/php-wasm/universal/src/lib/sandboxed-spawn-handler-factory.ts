@@ -95,7 +95,17 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
+		console.warn('[sandboxedSpawnHandlerFactory] acquiring PHP', {
+			args,
+			binaryName,
+			cwd: options.cwd,
+		});
 		const { php, reap } = await getPHPInstance();
+		console.warn('[sandboxedSpawnHandlerFactory] acquired PHP', {
+			args,
+			binaryName,
+			phpConstructor: (php as any)?.constructor?.name,
+		});
 
 		try {
 			if (options.cwd) {
@@ -158,11 +168,12 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
-			const errMsg = e instanceof Error
-				? e.message + '\n' + e.stack
-				: typeof e === 'object' && e !== null
-					? JSON.stringify(e, Object.getOwnPropertyNames(e))
-					: String(e);
+			const errMsg =
+				e instanceof Error
+					? e.message + '\n' + e.stack
+					: typeof e === 'object' && e !== null
+						? JSON.stringify(e, Object.getOwnPropertyNames(e))
+						: String(e);
 			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;

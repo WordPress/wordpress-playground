@@ -1,0 +1,43 @@
+name: WebKit Diagnostic
+
+on:
+    workflow_dispatch:
+    push:
+        branches:
+            - codex/webkit-ci-diagnostic
+
+jobs:
+    client-cli:
+        name: client.spec WebKit
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - name: Free up runner disk space
+              run: |
+                  set -euo pipefail
+                  df -h
+                  sudo rm -rf /usr/local/lib/android /usr/share/dotnet "$AGENT_TOOLSDIRECTORY" /opt/ghc /opt/hostedtoolcache/CodeQL
+                  df -h
+
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+
+            - uses: ./.github/actions/prepare-playground
+
+            - name: Install WebKit
+              run: sudo npx playwright install webkit --with-deps
+
+            - name: Build website e2e app
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+
+            - name: Run one WebKit test
+              run: |
+                  sudo CI=true npx playwright test \
+                    --config=packages/playground/website/playwright/playwright.ci.config.ts \
+                    --project=webkit \
+                    --retries=0 \
+                    --workers=1 \
+                    --reporter=list \
+                    --trace=off \
+                    packages/playground/website/playwright/e2e/client.spec.ts:3

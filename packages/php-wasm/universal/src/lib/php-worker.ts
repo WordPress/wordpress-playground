@@ -226,6 +226,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 				primaryPhp?.requestHandler
 			)} constructor=${this.constructor.name}`
 		);
+		console.warn('[PHPWorker.cli stack]', new Error().stack);
 		if (
 			!state.requestHandler &&
 			!primaryPhp?.requestHandler &&
