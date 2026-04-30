@@ -7,27 +7,85 @@ import type { UniversalPHP } from './universal-php';
 import type { FileTree } from './write-files';
 import { writeFiles } from './write-files';
 
+/**
+ * Default VFS directory where PHP extension `.so` files and generated `.ini`
+ * files are installed.
+ */
 export const PHP_EXTENSIONS_DIR = '/internal/shared/extensions';
+
+/**
+ * Default VFS directory for preload scripts that call `dl()` after PHP has
+ * already started.
+ */
 export const PHP_EXTENSION_PRELOAD_DIR = '/internal/shared/preload';
 
+/**
+ * Async mode used by the PHP.wasm build that will load the extension.
+ *
+ * Extension side modules must be compiled for the same mode as the main PHP
+ * module.
+ */
 export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
+
+/**
+ * Point in the PHP lifecycle where the extension should become available.
+ *
+ * Use `before-php-startup` for extensions that must be present while PHP
+ * starts. Use `after-php-startup` for regular extensions that can be loaded
+ * with `dl()`. `auto` chooses the correct default for `extension` versus
+ * `zend_extension`.
+ */
 export type PHPExtensionLoadTiming =
 	| 'before-php-startup'
 	| 'after-php-startup'
 	| 'auto';
+
+/**
+ * The php.ini directive used to load the extension.
+ *
+ * Use `extension` for regular PHP extensions and `zend_extension` for Zend
+ * extensions such as Xdebug.
+ */
 export type PHPExtensionIniDirective = 'extension' | 'zend_extension';
+
+/**
+ * Format of an extension source that can be resolved without an already
+ * running PHP instance.
+ */
 export type PHPExtensionSourceFormat = 'so' | 'manifest';
 
+/**
+ * One compiled extension artifact in a manifest.
+ */
 export interface PHPExtensionManifestArtifact {
+	/**
+	 * PHP major/minor version the artifact was compiled against, e.g. `8.4`.
+	 */
 	phpVersion: string;
+
+	/**
+	 * PHP.wasm async mode the artifact was compiled against.
+	 */
 	asyncMode: PHPWasmAsyncMode;
+
 	/**
 	 * Relative to the manifest URL/base URL, or an absolute URL.
 	 */
 	file: string;
+
+	/**
+	 * Optional SHA-256 checksum for the fetched `.so` artifact.
+	 */
 	sha256?: string;
 }
 
+/**
+ * Extension artifact manifest.
+ *
+ * A manifest lets callers publish a matrix of `.so` files and lets
+ * `loadPHPExtension()` select the artifact that matches the current PHP
+ * version and async mode.
+ */
 export interface PHPExtensionManifest {
 	name: string;
 	version?: string;
@@ -35,15 +93,29 @@ export interface PHPExtensionManifest {
 	artifacts: PHPExtensionManifestArtifact[];
 }
 
+/**
+ * Source for a PHP extension `.so`.
+ *
+ * Use `format: 'so'` when the caller already has bytes, `format: 'url'` for a
+ * direct artifact URL, and `format: 'manifest'` when the loader should select
+ * the right artifact from a manifest.
+ */
 export type PHPExtensionSource =
 	| {
 			format: 'so';
+			/**
+			 * Required when `LoadPHPExtensionOptions.name` is not set.
+			 */
 			name?: string;
 			bytes: Uint8Array | ArrayBuffer;
 			sha256?: string;
 	  }
 	| {
 			format: 'url';
+			/**
+			 * Optional extension name. If omitted, the loader infers the name
+			 * from a `.so` filename in the URL.
+			 */
 			name?: string;
 			url: string | URL;
 			sha256?: string;
@@ -55,9 +127,19 @@ export type PHPExtensionSource =
 	| {
 			format: 'manifest';
 			manifest: PHPExtensionManifest;
+			/**
+			 * Base URL used to resolve relative artifact paths in an inline
+			 * manifest.
+			 */
 			baseUrl?: string | URL;
 	  };
 
+/**
+ * Extra files to stage next to an extension.
+ *
+ * Use this for sidecar data files such as ICU data or native-library assets
+ * that the extension expects to find at runtime.
+ */
 export interface PHPExtensionExtraFiles {
 	/**
 	 * Files are written here. Defaults to
@@ -67,11 +149,36 @@ export interface PHPExtensionExtraFiles {
 	files: FileTree;
 }
 
+/**
+ * Options for loading a PHP extension into an existing PHP instance.
+ */
 export interface LoadPHPExtensionOptions {
+	/**
+	 * The extension artifact bytes, URL, or manifest.
+	 */
 	source: PHPExtensionSource;
+
+	/**
+	 * Extension name used for generated file names and ini entries.
+	 *
+	 * This overrides a name inferred from `source`.
+	 */
 	name?: string;
+
+	/**
+	 * PHP version used to select a manifest artifact.
+	 *
+	 * If omitted, the loader reads it from the PHP runtime when possible.
+	 */
 	phpVersion?: string;
+
+	/**
+	 * PHP.wasm async mode used to select a manifest artifact.
+	 *
+	 * If omitted, the loader reads it from the PHP runtime when possible.
+	 */
 	asyncMode?: PHPWasmAsyncMode;
+
 	loadTiming?: PHPExtensionLoadTiming;
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	iniEntries?: Record<string, string>;
@@ -81,6 +188,9 @@ export interface LoadPHPExtensionOptions {
 	fetch?: typeof fetch;
 }
 
+/**
+ * Options for resolving an install plan before a PHP instance exists.
+ */
 export type ResolvePHPExtensionInstallPlanOptions = Omit<
 	LoadPHPExtensionOptions,
 	'phpVersion' | 'asyncMode'
@@ -89,6 +199,9 @@ export type ResolvePHPExtensionInstallPlanOptions = Omit<
 	asyncMode: PHPWasmAsyncMode;
 };
 
+/**
+ * Inputs needed to build or install extension files directly.
+ */
 export interface InstallPHPExtensionFilesOptions {
 	name: string;
 	soBytes: Uint8Array | ArrayBuffer;
@@ -100,6 +213,9 @@ export interface InstallPHPExtensionFilesOptions {
 	extensionDir?: string;
 }
 
+/**
+ * Fully resolved set of files and ini entries needed to install one extension.
+ */
 export interface PHPExtensionInstallPlan {
 	name: string;
 	soPath: string;
@@ -114,6 +230,9 @@ export interface PHPExtensionInstallPlan {
 	extensionDir: string;
 }
 
+/**
+ * Result returned after `loadPHPExtension()` installs an extension.
+ */
 export interface LoadedPHPExtension {
 	name: string;
 	path: string;
@@ -123,12 +242,18 @@ export interface LoadedPHPExtension {
 	artifact?: PHPExtensionManifestArtifact;
 }
 
+/**
+ * Resolved install plan plus manifest metadata, when the source was a manifest.
+ */
 export interface ResolvedPHPExtensionInstallPlan {
 	plan: PHPExtensionInstallPlan;
 	manifest?: PHPExtensionManifest;
 	artifact?: PHPExtensionManifestArtifact;
 }
 
+/**
+ * Extension install payload applied while the Emscripten PHP runtime starts.
+ */
 export interface PHPExtensionRuntimeInstall {
 	plan: PHPExtensionInstallPlan;
 	onInstalled?: (phpRuntime: PHPRuntime) => void;
@@ -141,6 +266,17 @@ interface ResolvedPHPExtensionSource {
 	artifact?: PHPExtensionManifestArtifact;
 }
 
+/**
+ * Loads a PHP extension into an already-running PHP instance.
+ *
+ * The loader writes the `.so`, generates an `.ini` file, stages any
+ * `extraFiles`, updates `php.ini`, and creates a preload script when the
+ * extension should load after PHP startup.
+ *
+ * @param php - PHP instance that will receive the extension files.
+ * @param options - Extension source and install options.
+ * @returns Metadata for the installed extension and selected manifest artifact.
+ */
 export async function loadPHPExtension(
 	php: UniversalPHP,
 	options: LoadPHPExtensionOptions
@@ -176,6 +312,13 @@ export async function loadPHPExtension(
 	};
 }
 
+/**
+ * Resolves an extension source into an install plan without mutating a PHP
+ * instance.
+ *
+ * Use this from runtime loaders that need to fetch extension bytes before
+ * Emscripten initializes PHP.
+ */
 export async function resolvePHPExtensionInstallPlan(
 	options: ResolvePHPExtensionInstallPlanOptions
 ): Promise<ResolvedPHPExtensionInstallPlan> {
@@ -201,6 +344,12 @@ export async function resolvePHPExtensionInstallPlan(
 	};
 }
 
+/**
+ * Appends extension install plans to Emscripten options.
+ *
+ * The returned options install extension files during `onRuntimeInitialized`
+ * and update `PHP_INI_SCAN_DIR` before startup for extensions that require it.
+ */
 export function appendPHPExtensionInstallPlans(
 	options: EmscriptenOptions,
 	extensions: PHPExtensionRuntimeInstall[]
@@ -236,6 +385,10 @@ export function appendPHPExtensionInstallPlans(
 	};
 }
 
+/**
+ * Builds the VFS paths, ini content, and optional preload path for an
+ * extension.
+ */
 export function buildPHPExtensionInstallPlan(
 	options: InstallPHPExtensionFilesOptions
 ): PHPExtensionInstallPlan {
@@ -281,6 +434,9 @@ export function buildPHPExtensionInstallPlan(
 	};
 }
 
+/**
+ * Installs a resolved extension plan into an existing PHP instance.
+ */
 export async function installPHPExtensionFiles(
 	php: UniversalPHP,
 	plan: PHPExtensionInstallPlan
@@ -323,6 +479,12 @@ export async function installPHPExtensionFiles(
 	}
 }
 
+/**
+ * Installs extension files through Emscripten's synchronous filesystem API.
+ *
+ * Use this while the PHP runtime is initializing and only the raw Emscripten
+ * `FS` object is available.
+ */
 export function installPHPExtensionFilesSync(
 	fs: Emscripten.RootFS,
 	options: InstallPHPExtensionFilesOptions | PHPExtensionInstallPlan

@@ -28,6 +28,12 @@ import { platform } from 'os';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
+	/**
+	 * PHP extensions to install before the runtime starts.
+	 *
+	 * Use built-in names such as `intl`, `xdebug`, `redis`, and `memcached`,
+	 * or pass an external extension source such as a manifest.
+	 */
 	extensions?: PHPLoaderExtension[];
 	/**
 	 * @deprecated Use `extensions: ['xdebug']` or

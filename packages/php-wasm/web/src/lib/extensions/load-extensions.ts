@@ -13,13 +13,37 @@ import {
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 
+/**
+ * Built-in PHP extensions shipped with `@php-wasm/web`.
+ */
 export type BuiltInPHPWebExtensionName = 'intl';
 
+/**
+ * External PHP extension source that can be installed before PHP starts.
+ *
+ * The web loader supplies the active PHP version and async mode before
+ * resolving the source, so callers only provide the artifact source and
+ * install options.
+ */
 export type RuntimePHPWebExtensionSource = Omit<
 	ResolvePHPExtensionInstallPlanOptions,
 	'phpVersion' | 'asyncMode'
 >;
 
+/**
+ * PHP extension request accepted by the Web runtime loader.
+ *
+ * The array may mix built-in extension names with external extension sources:
+ *
+ * ```ts
+ * await loadWebRuntime('8.4', {
+ *   extensions: [
+ *     'intl',
+ *     { source: { format: 'manifest', url: manifestUrl } },
+ *   ],
+ * });
+ * ```
+ */
 export type PHPWebLoaderExtension =
 	| BuiltInPHPWebExtensionName
 	| {
@@ -27,6 +51,13 @@ export type PHPWebLoaderExtension =
 	  }
 	| RuntimePHPWebExtensionSource;
 
+/**
+ * Resolves all requested Web runtime extensions and appends their install
+ * plans to Emscripten options.
+ *
+ * Extension sources are resolved in parallel so multiple manifest or artifact
+ * downloads do not block each other.
+ */
 export async function applyPHPWebLoaderExtensions(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,

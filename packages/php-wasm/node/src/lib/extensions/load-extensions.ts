@@ -22,13 +22,28 @@ import { getRedisExtensionModule } from './redis/get-redis-extension-module';
 import { type XdebugOptions, type PathMapping } from './xdebug/with-xdebug';
 import { getXdebugExtensionModule } from './xdebug/get-xdebug-extension-module';
 
+/**
+ * Built-in PHP extensions shipped with `@php-wasm/node`.
+ */
 export type BuiltInPHPExtensionName = 'intl' | 'xdebug' | 'redis' | 'memcached';
 
+/**
+ * External PHP extension source that can be installed before PHP starts.
+ *
+ * The loader supplies the active PHP version and async mode before resolving
+ * the source, so callers only provide the artifact source and install options.
+ */
 export type RuntimePHPExtensionSource = Omit<
 	ResolvePHPExtensionInstallPlanOptions,
 	'phpVersion' | 'asyncMode'
 >;
 
+/**
+ * Built-in PHP extension request accepted by `loadNodeRuntime()`.
+ *
+ * Pass a string for defaults, or an object when a built-in extension exposes
+ * options. Currently only `xdebug` has options.
+ */
 export type BuiltInPHPExtension =
 	| BuiltInPHPExtensionName
 	| {
@@ -39,10 +54,31 @@ export type BuiltInPHPExtension =
 			name: Exclude<BuiltInPHPExtensionName, 'xdebug'>;
 	  };
 
+/**
+ * PHP extension request accepted by the Node runtime loader.
+ *
+ * The array may mix built-in extension names with external extension sources:
+ *
+ * ```ts
+ * await loadNodeRuntime('8.4', {
+ *   extensions: [
+ *     'intl',
+ *     { source: { format: 'manifest', url: manifestUrl } },
+ *   ],
+ * });
+ * ```
+ */
 export type PHPLoaderExtension =
 	| BuiltInPHPExtension
 	| RuntimePHPExtensionSource;
 
+/**
+ * Resolves all requested Node runtime extensions and appends their install
+ * plans to Emscripten options.
+ *
+ * Extension sources are resolved in parallel so multiple manifest or artifact
+ * downloads do not block each other.
+ */
 export async function applyPHPLoaderExtensions(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
