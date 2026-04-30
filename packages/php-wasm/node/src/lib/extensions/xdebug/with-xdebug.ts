@@ -23,6 +23,14 @@ export interface XdebugOptions {
 	pathSkippings?: string[];
 }
 
+/**
+ * Adds Xdebug to Emscripten options before PHP starts.
+ *
+ * @deprecated Prefer `loadNodeRuntime(version, { extensions: [{ name:
+ * 'xdebug', options }] })`. The runtime `extensions` array is the shared path
+ * for bundled and external PHP extensions, and it keeps extension setup in one
+ * place.
+ */
 export async function withXdebug(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions,
