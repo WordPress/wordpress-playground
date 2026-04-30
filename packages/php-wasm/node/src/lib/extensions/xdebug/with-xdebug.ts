@@ -37,18 +37,12 @@ export async function withXdebug(
 ): Promise<EmscriptenOptions> {
 	const filePath = await getXdebugExtensionModule(version);
 	const soBytes = new Uint8Array(fs.readFileSync(filePath));
-	const currentScanDir = options.ENV?.['PHP_INI_SCAN_DIR'];
-	const nextScanDir =
-		!currentScanDir ||
-		currentScanDir.split(':').includes(PHP_EXTENSIONS_DIR)
-			? (currentScanDir ?? PHP_EXTENSIONS_DIR)
-			: `${currentScanDir}:${PHP_EXTENSIONS_DIR}`;
 
 	return {
 		...options,
 		ENV: {
 			...options.ENV,
-			PHP_INI_SCAN_DIR: nextScanDir,
+			PHP_INI_SCAN_DIR: PHP_EXTENSIONS_DIR,
 		},
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			if (options.onRuntimeInitialized) {
