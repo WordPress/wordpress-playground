@@ -58,7 +58,7 @@ describe('resolvePHPExtensionInstallPlan', () => {
 		const { plan, artifact } = await resolvePHPExtensionInstallPlan({
 			source: {
 				format: 'manifest',
-				url: 'https://example.com/extensions/manifest.json',
+				manifestUrl: 'https://example.com/extensions/manifest.json',
 			},
 			phpVersion: '8.4',
 			asyncMode: 'asyncify',
@@ -90,6 +90,39 @@ describe('resolvePHPExtensionInstallPlan', () => {
 		expect(plan.soBytes).toEqual(artifactBytes);
 		expect(plan.preloadPath).toBeUndefined();
 	});
+
+	it('supports deprecated manifest url alias', async () => {
+		const artifactBytes = new Uint8Array([7, 8, 9]);
+		const { plan } = await resolvePHPExtensionInstallPlan({
+			source: {
+				format: 'manifest',
+				url: 'https://example.com/extensions/manifest.json',
+			},
+			phpVersion: '8.4',
+			asyncMode: 'jspi',
+			fetch: async (url) => {
+				const requestUrl = String(url);
+				if (requestUrl.endsWith('/manifest.json')) {
+					return Response.json({
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								asyncMode: 'jspi',
+								file: 'example-php8.4-jspi.so',
+							},
+						],
+					});
+				}
+				if (requestUrl.endsWith('/example-php8.4-jspi.so')) {
+					return new Response(artifactBytes);
+				}
+				return new Response('Not found', { status: 404 });
+			},
+		});
+
+		expect(plan.soBytes).toEqual(artifactBytes);
+	});
 });
 
 describe('loadPHPExtension', () => {
@@ -100,7 +133,7 @@ describe('loadPHPExtension', () => {
 		await loadPHPExtension(php as any, {
 			source: {
 				format: 'manifest',
-				url: 'https://example.com/extensions/manifest.json',
+				manifestUrl: 'https://example.com/extensions/manifest.json',
 			},
 			phpVersion: '8.4',
 			asyncMode: 'asyncify',

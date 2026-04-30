@@ -63,7 +63,7 @@ export type BuiltInPHPExtension =
  * await loadNodeRuntime('8.4', {
  *   extensions: [
  *     'intl',
- *     { source: { format: 'manifest', url: manifestUrl } },
+ *     { source: { format: 'manifest', manifestUrl } },
  *   ],
  * });
  * ```
