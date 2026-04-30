@@ -370,6 +370,21 @@ jobs:
             - name: Build packages, start local registry, and run integration tests
               run: packages/playground/test-built-npm-packages/run-tests.sh
 
+    test-playground-client-types-rollup:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+            - name: Verify bundled client declarations
+              run: |
+                  npm exec -- nx run playground-client:test:rollup-declarations
+                  npm pack --dry-run dist/packages/playground/client
+
     test-running-unbuilt-playground-cli:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
