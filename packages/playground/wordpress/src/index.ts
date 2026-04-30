@@ -453,19 +453,30 @@ export async function preloadSqliteIntegration(
  * Builds the 0-sqlite.php preload content for modern PHP (7+).
  * Matches trunk behavior: require_once, simple db.php guard,
  * minimal mysqli_connect stub.
+ *
+ * The mysqli_connect stub is defined BEFORE the db.php guard so that
+ * it is always available, even when an existing wp-content/db.php causes
+ * the preload to return early. WordPress 5.0–6.1 checks
+ * function_exists('mysqli_connect') in require_wp_db() — a check that
+ * backportWpPreV62MysqlCheck() introduces — before it tests whether
+ * $wpdb is already set. Without the stub, sites whose backup contains a
+ * db.php drop-in would hit "Your PHP installation appears to be missing
+ * the MySQL extension" even though they are running on SQLite.
  */
 function buildModernSqlitePreload(
 	stopIfDbPhpExists: string,
 	muPluginPath: string
 ): string {
 	return (
+		`<?php
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
+?>` +
 		stopIfDbPhpExists +
 		`<?php
 
 ${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
 
 		`
 	);

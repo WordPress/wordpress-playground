@@ -67,6 +67,12 @@ test('should navigate within WordPress when address bar URL changes', async ({
 }) => {
 	await website.goto('./');
 
+	// Wait for the Playground client to be ready. The address bar shows a URL
+	// only after the client has connected and React has re-rendered with a
+	// valid clientInfo — without this wait, clientInfo?.client.goTo() is a
+	// no-op and the navigation silently fails.
+	await expect(website.addressBar()).toHaveValue(/.+/);
+
 	const addressBar = website.addressBar();
 	await addressBar.click();
 	await addressBar.fill('/wp-admin/edit.php');
