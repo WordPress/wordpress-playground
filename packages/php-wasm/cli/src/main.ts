@@ -126,11 +126,16 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
-			withXdebug:
-				hasXdebugOption ??
-				makeXdebugConfig({
-					pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
-				}),
+			extensions: hasXdebugOption
+				? [
+						{
+							name: 'xdebug',
+							options: makeXdebugConfig({
+								pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
+							}),
+						},
+					]
+				: [],
 		})
 	);
 	php.setSpawnHandler((command: string, args: string[]): any =>

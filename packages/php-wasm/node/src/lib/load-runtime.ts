@@ -19,20 +19,32 @@ import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
 import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
 import {
-	withXdebug,
-	type XdebugOptions,
-} from './extensions/xdebug/with-xdebug';
-import { withIntl } from './extensions/intl/with-intl';
-import { withRedis } from './extensions/redis/with-redis';
-import { withMemcached } from './extensions/memcached/with-memcached';
+	applyPHPLoaderExtensions,
+	type PHPLoaderExtension,
+} from './extensions/load-extensions';
+import type { XdebugOptions } from './extensions/xdebug/with-xdebug';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
+	extensions?: PHPLoaderExtension[];
+	/**
+	 * @deprecated Use `extensions: ['xdebug']` or
+	 * `extensions: [{ name: 'xdebug', options }]` instead.
+	 */
 	withXdebug?: boolean | XdebugOptions;
+	/**
+	 * @deprecated Use `extensions: ['intl']` instead.
+	 */
 	withIntl?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['redis']` instead.
+	 */
 	withRedis?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['memcached']` instead.
+	 */
 	withMemcached?: boolean;
 }
 
@@ -115,6 +127,7 @@ export async function loadNodeRuntime(
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
 	const phpWasmAsyncMode = await detectPHPWasmAsyncMode();
+	const requestedExtensions = getRequestedPHPLoaderExtensions(options);
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -306,13 +319,7 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (
-		isLegacy &&
-		(options?.withXdebug ||
-			options?.withIntl ||
-			options?.withRedis ||
-			options?.withMemcached)
-	) {
+	if (isLegacy && requestedExtensions.length) {
 		throw new Error(
 			`Extensions (xdebug, intl, redis, memcached) are not ` +
 				`available for legacy PHP ${phpVersion}.`
@@ -321,31 +328,12 @@ export async function loadNodeRuntime(
 
 	if (!isLegacy) {
 		const modernVersion = phpVersion as SupportedPHPVersion;
-		if (options?.withXdebug) {
-			emscriptenOptions = await withXdebug(
-				modernVersion,
-				emscriptenOptions,
-				typeof options.withXdebug === 'object' ? options.withXdebug : {}
-			);
-		}
-		if (options?.withIntl === true) {
-			emscriptenOptions = await withIntl(
-				modernVersion,
-				emscriptenOptions
-			);
-		}
-		if (options?.withRedis === true) {
-			emscriptenOptions = await withRedis(
-				modernVersion,
-				emscriptenOptions
-			);
-		}
-		if (options?.withMemcached === true) {
-			emscriptenOptions = await withMemcached(
-				modernVersion,
-				emscriptenOptions
-			);
-		}
+		emscriptenOptions = await applyPHPLoaderExtensions(
+			modernVersion,
+			phpWasmAsyncMode,
+			emscriptenOptions,
+			requestedExtensions
+		);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
@@ -359,4 +347,50 @@ export async function loadNodeRuntime(
 async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
 	const { jspi } = await import('wasm-feature-detect');
 	return (await jspi()) ? 'jspi' : 'asyncify';
+}
+
+function getRequestedPHPLoaderExtensions(
+	options: PHPLoaderOptions
+): PHPLoaderExtension[] {
+	const extensions = [...(options.extensions ?? [])];
+
+	appendDeprecatedBuiltInExtension(extensions, 'intl', options.withIntl);
+	appendDeprecatedBuiltInExtension(extensions, 'redis', options.withRedis);
+	appendDeprecatedBuiltInExtension(
+		extensions,
+		'memcached',
+		options.withMemcached
+	);
+
+	if (options.withXdebug && !hasBuiltInExtension(extensions, 'xdebug')) {
+		extensions.push(
+			typeof options.withXdebug === 'object'
+				? { name: 'xdebug', options: options.withXdebug }
+				: 'xdebug'
+		);
+	}
+
+	return extensions;
+}
+
+function appendDeprecatedBuiltInExtension(
+	extensions: PHPLoaderExtension[],
+	name: 'intl' | 'redis' | 'memcached',
+	enabled?: boolean
+) {
+	if (enabled && !hasBuiltInExtension(extensions, name)) {
+		extensions.push(name);
+	}
+}
+
+function hasBuiltInExtension(
+	extensions: PHPLoaderExtension[],
+	name: string
+): boolean {
+	return extensions.some((extension) => {
+		if (typeof extension === 'string') {
+			return extension === name;
+		}
+		return !('source' in extension) && extension.name === name;
+	});
 }

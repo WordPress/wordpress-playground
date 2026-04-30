@@ -5,6 +5,12 @@ export * from './use-host-filesystem';
 export * from './node-fs-mount';
 export * from './file-lock-manager-for-posix';
 export * from './file-lock-manager-for-windows';
+export type {
+	BuiltInPHPExtension,
+	BuiltInPHPExtensionName,
+	PHPLoaderExtension,
+	RuntimePHPExtensionSource,
+} from './extensions/load-extensions';
 export * from './extensions/xdebug/with-xdebug';
 export * from './wasm-user-space';
 export * from './wasm-kernel-space';
