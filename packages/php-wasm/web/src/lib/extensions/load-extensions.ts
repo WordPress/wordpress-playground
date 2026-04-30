@@ -89,26 +89,13 @@ async function resolveRuntimePHPWebExtension(
 	if (name !== 'intl') {
 		throw new Error(`Unknown bundled PHP web extension: ${String(name)}.`);
 	}
-	return await resolveIntlExtension(version, asyncMode);
-}
-
-function isRuntimePHPWebExtensionSource(
-	extension: PHPWebLoaderExtension
-): extension is RuntimePHPWebExtensionSource {
-	return typeof extension === 'object' && 'source' in extension;
-}
-
-async function resolveIntlExtension(
-	version: SupportedPHPVersion,
-	asyncMode: PHPWasmAsyncMode
-): Promise<PHPExtensionInstallPlan> {
 	const memoizedFetch = createMemoizedFetch(fetch);
 
 	const extensionPath = await getIntlExtensionModule(version);
 	// @ts-ignore
 	const dataPath = (await import('./intl/shared/icu.dat')).default;
 
-	const [extension, ICUData] = await Promise.all([
+	const [extensionBytes, ICUData] = await Promise.all([
 		memoizedFetch(extensionPath).then((response) => response.arrayBuffer()),
 		memoizedFetch(dataPath).then((response) => response.arrayBuffer()),
 	]);
@@ -117,7 +104,7 @@ async function resolveIntlExtension(
 		source: {
 			format: 'so',
 			name: 'intl',
-			bytes: new Uint8Array(extension),
+			bytes: new Uint8Array(extensionBytes),
 		},
 		phpVersion: version,
 		asyncMode,
@@ -132,4 +119,10 @@ async function resolveIntlExtension(
 			},
 		},
 	});
+}
+
+function isRuntimePHPWebExtensionSource(
+	extension: PHPWebLoaderExtension
+): extension is RuntimePHPWebExtensionSource {
+	return typeof extension === 'object' && 'source' in extension;
 }

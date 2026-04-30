@@ -421,7 +421,9 @@ export function installPHPExtensionFilesSync(
 ): PHPExtensionInstallPlan {
 	const plan =
 		'soPath' in options ? options : buildPHPExtensionInstallPlan(options);
-	ensureDirectorySync(fs, plan.extensionDir);
+	if (!FSHelpers.fileExists(fs, plan.extensionDir)) {
+		fs.mkdirTree(plan.extensionDir);
+	}
 	fs.writeFile(plan.soPath, plan.soBytes);
 	fs.writeFile(plan.iniPath, plan.iniContent);
 	if (plan.extraFiles) {
@@ -434,6 +436,16 @@ export function installPHPExtensionFilesSync(
 	return plan;
 }
 
+/**
+ * Resolves the three supported source shapes into the extension name and the
+ * `.so` bytes PHP will load.
+ *
+ * Direct byte sources are already available, URL sources are fetched as a
+ * single artifact, and manifest sources first choose the artifact matching the
+ * active PHP version and async mode. Manifests are validated here because they
+ * may come from user-provided URLs and their `name`/`file` values later decide
+ * what gets written into the PHP virtual filesystem.
+ */
 async function resolvePHPExtensionSource(
 	options: ResolvePHPExtensionInstallPlanOptions,
 	fetchFn: typeof fetch | undefined
@@ -467,7 +479,18 @@ async function resolvePHPExtensionSource(
 				'name is required when loading an extension from a direct URL.'
 			);
 		}
-		const soBytes = await fetchBytes(fetchFn, new URL(String(source.url)));
+		if (!fetchFn) {
+			throw new Error(
+				'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+			);
+		}
+		const response = await fetchFn(new URL(String(source.url)));
+		if (!response.ok) {
+			throw new Error(
+				`Failed to fetch ${String(source.url)}: ${response.status}`
+			);
+		}
+		const soBytes = new Uint8Array(await response.arrayBuffer());
 		if (source.sha256) {
 			await assertSha256(soBytes, source.sha256, String(source.url));
 		}
@@ -478,11 +501,44 @@ async function resolvePHPExtensionSource(
 		'manifestUrl' in source
 			? new URL(String(source.manifestUrl))
 			: undefined;
-	const manifest = validateExtensionManifest(
-		'manifest' in source
-			? source.manifest
-			: await fetchJson(fetchFn, manifestUrl!)
-	);
+	let manifestCandidate: unknown;
+	if ('manifest' in source) {
+		manifestCandidate = source.manifest;
+	} else {
+		if (!fetchFn) {
+			throw new Error(
+				'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+			);
+		}
+		const response = await fetchFn(manifestUrl!);
+		if (!response.ok) {
+			throw new Error(
+				`Failed to fetch ${String(manifestUrl)}: ${response.status}`
+			);
+		}
+		manifestCandidate = await response.json();
+	}
+	if (!manifestCandidate || typeof manifestCandidate !== 'object') {
+		throw new Error('Extension manifest must be an object.');
+	}
+	const manifest = manifestCandidate as PHPExtensionManifest;
+	if (typeof manifest.name !== 'string' || !manifest.name) {
+		throw new Error('Extension manifest must include a name.');
+	}
+	if (!Array.isArray(manifest.artifacts)) {
+		throw new Error('Extension manifest must include an artifacts array.');
+	}
+	for (const artifact of manifest.artifacts) {
+		if (
+			!artifact ||
+			typeof artifact.phpVersion !== 'string' ||
+			(artifact.asyncMode !== 'jspi' &&
+				artifact.asyncMode !== 'asyncify') ||
+			typeof artifact.file !== 'string'
+		) {
+			throw new Error('Extension manifest contains an invalid artifact.');
+		}
+	}
 	const baseUrl =
 		'baseUrl' in source && source.baseUrl
 			? new URL(String(source.baseUrl))
@@ -504,7 +560,18 @@ async function resolvePHPExtensionSource(
 	}
 
 	const artifactUrl = new URL(artifact.file, baseUrl);
-	const soBytes = await fetchBytes(fetchFn, artifactUrl);
+	if (!fetchFn) {
+		throw new Error(
+			'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
+		);
+	}
+	const response = await fetchFn(artifactUrl);
+	if (!response.ok) {
+		throw new Error(
+			`Failed to fetch ${String(artifactUrl)}: ${response.status}`
+		);
+	}
+	const soBytes = new Uint8Array(await response.arrayBuffer());
 	if (artifact.sha256) {
 		await assertSha256(soBytes, artifact.sha256, artifact.file);
 	}
@@ -515,78 +582,20 @@ async function resolvePHPExtensionSource(
 	};
 }
 
-async function fetchJson(
-	fetchFn: typeof fetch | undefined,
-	url: URL
-): Promise<unknown> {
-	if (!fetchFn) {
-		throw new Error(
-			'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
-		);
-	}
-	const response = await fetchFn(url);
-	if (!response.ok) {
-		throw new Error(`Failed to fetch ${url}: ${response.status}`);
-	}
-	return await response.json();
-}
-
-async function fetchBytes(
-	fetchFn: typeof fetch | undefined,
-	url: URL
-): Promise<Uint8Array> {
-	if (!fetchFn) {
-		throw new Error(
-			'resolvePHPExtensionInstallPlan() requires a fetch implementation.'
-		);
-	}
-	const response = await fetchFn(url);
-	if (!response.ok) {
-		throw new Error(`Failed to fetch ${url}: ${response.status}`);
-	}
-	return new Uint8Array(await response.arrayBuffer());
-}
-
-function validateExtensionManifest(candidate: unknown): PHPExtensionManifest {
-	if (!candidate || typeof candidate !== 'object') {
-		throw new Error('Extension manifest must be an object.');
-	}
-	const manifest = candidate as PHPExtensionManifest;
-	if (typeof manifest.name !== 'string' || !manifest.name) {
-		throw new Error('Extension manifest must include a name.');
-	}
-	if (!Array.isArray(manifest.artifacts)) {
-		throw new Error('Extension manifest must include an artifacts array.');
-	}
-	for (const artifact of manifest.artifacts) {
-		if (
-			!artifact ||
-			typeof artifact.phpVersion !== 'string' ||
-			(artifact.asyncMode !== 'jspi' &&
-				artifact.asyncMode !== 'asyncify') ||
-			typeof artifact.file !== 'string'
-		) {
-			throw new Error('Extension manifest contains an invalid artifact.');
-		}
-	}
-	return manifest;
-}
-
-function ensureDirectorySync(fs: Emscripten.RootFS, directory: string) {
-	if (!FSHelpers.fileExists(fs, directory)) {
-		fs.mkdirTree(directory);
-	}
-}
-
 function writeFileTreeSync(
 	fs: Emscripten.RootFS,
 	root: string,
 	files: FileTree
 ) {
-	ensureDirectorySync(fs, root);
+	if (!FSHelpers.fileExists(fs, root)) {
+		fs.mkdirTree(root);
+	}
 	for (const [relativePath, content] of Object.entries(files)) {
 		const filePath = joinPaths(root, relativePath);
-		ensureDirectorySync(fs, dirname(filePath));
+		const directory = dirname(filePath);
+		if (!FSHelpers.fileExists(fs, directory)) {
+			fs.mkdirTree(directory);
+		}
 		if (content instanceof Uint8Array || typeof content === 'string') {
 			fs.writeFile(filePath, content);
 		} else {

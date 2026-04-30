@@ -119,18 +119,88 @@ async function resolveRuntimePHPExtension(
 		typeof extension === 'string' ? { name: extension } : extension;
 
 	switch (builtIn.name) {
-		case 'intl':
-			return await resolveIntlExtension(version, asyncMode);
-		case 'redis':
-			return await resolveRedisExtension(version, asyncMode);
-		case 'memcached':
-			return await resolveMemcachedExtension(version, asyncMode);
-		case 'xdebug':
-			return await resolveXdebugExtension(
-				version,
-				asyncMode,
-				builtIn.options ?? {}
+		case 'intl': {
+			const extensionPath = await getIntlExtensionModule(version);
+			const soBytes = new Uint8Array(fs.readFileSync(extensionPath));
+
+			const dataName = 'icu.dat';
+			const moduleDir =
+				typeof __dirname !== 'undefined'
+					? __dirname
+					: import.meta.dirname;
+			const ICUData = fs.readFileSync(
+				resolveIntlDataPath(moduleDir, dataName)
 			);
+
+			return await resolvePHPExtensionInstallPlan({
+				source: {
+					format: 'so',
+					name: 'intl',
+					bytes: soBytes,
+				},
+				phpVersion: version,
+				asyncMode,
+				env: {
+					ICU_DATA: '/internal/shared',
+				},
+				extraFiles: {
+					targetPath: '/internal/shared',
+					files: {
+						// The Intl extension looks for the hard-coded ICU data name.
+						'icudt74l.dat': new Uint8Array(ICUData),
+					},
+				},
+			});
+		}
+		case 'redis': {
+			const extensionPath = await getRedisExtensionModule(version);
+			return await resolvePHPExtensionInstallPlan({
+				source: {
+					format: 'so',
+					name: 'redis',
+					bytes: new Uint8Array(fs.readFileSync(extensionPath)),
+				},
+				phpVersion: version,
+				asyncMode,
+			});
+		}
+		case 'memcached': {
+			const extensionPath = await getMemcachedExtensionModule(version);
+			return await resolvePHPExtensionInstallPlan({
+				source: {
+					format: 'so',
+					name: 'memcached',
+					bytes: new Uint8Array(fs.readFileSync(extensionPath)),
+				},
+				phpVersion: version,
+				asyncMode,
+			});
+		}
+		case 'xdebug': {
+			const xdebugOptions = builtIn.options ?? {};
+			const filePath = await getXdebugExtensionModule(version);
+			const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
+
+			return await resolvePHPExtensionInstallPlan({
+				source: {
+					format: 'so',
+					name: 'xdebug',
+					bytes: new Uint8Array(fs.readFileSync(filePath)),
+				},
+				phpVersion: version,
+				asyncMode,
+				loadWithIniDirective: 'zend_extension',
+				iniEntries: {
+					'xdebug.mode': 'debug,develop',
+					'xdebug.start_with_request': 'yes',
+					'xdebug.idekey': `"${ideKey}"`,
+					// Path mapping is only available starting from Xdebug 3.5,
+					// which is used by PHP 8.5+. Previous versions ignore it.
+					'xdebug.path_mapping': 'yes',
+				},
+				extraFiles: resolveXdebugExtraFiles(version, xdebugOptions),
+			});
+		}
 		default:
 			throw new Error(
 				`Unknown bundled PHP extension: ${String(builtIn.name)}.`
@@ -142,39 +212,6 @@ function isRuntimePHPExtensionSource(
 	extension: PHPLoaderExtension
 ): extension is RuntimePHPExtensionSource {
 	return typeof extension === 'object' && 'source' in extension;
-}
-
-async function resolveIntlExtension(
-	version: SupportedPHPVersion,
-	asyncMode: PHPWasmAsyncMode
-): Promise<PHPExtensionInstallPlan> {
-	const extensionPath = await getIntlExtensionModule(version);
-	const soBytes = new Uint8Array(fs.readFileSync(extensionPath));
-
-	const dataName = 'icu.dat';
-	const moduleDir =
-		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
-	const ICUData = fs.readFileSync(resolveIntlDataPath(moduleDir, dataName));
-
-	return await resolvePHPExtensionInstallPlan({
-		source: {
-			format: 'so',
-			name: 'intl',
-			bytes: soBytes,
-		},
-		phpVersion: version,
-		asyncMode,
-		env: {
-			ICU_DATA: '/internal/shared',
-		},
-		extraFiles: {
-			targetPath: '/internal/shared',
-			files: {
-				// The Intl extension looks for the hard-coded ICU data name.
-				'icudt74l.dat': new Uint8Array(ICUData),
-			},
-		},
-	});
 }
 
 function resolveIntlDataPath(moduleDir: string, dataName: string): string {
@@ -193,67 +230,6 @@ function resolveIntlDataPath(moduleDir: string, dataName: string): string {
 		);
 	}
 	return dataPath;
-}
-
-async function resolveRedisExtension(
-	version: SupportedPHPVersion,
-	asyncMode: PHPWasmAsyncMode
-): Promise<PHPExtensionInstallPlan> {
-	const extensionPath = await getRedisExtensionModule(version);
-	return await resolvePHPExtensionInstallPlan({
-		source: {
-			format: 'so',
-			name: 'redis',
-			bytes: new Uint8Array(fs.readFileSync(extensionPath)),
-		},
-		phpVersion: version,
-		asyncMode,
-	});
-}
-
-async function resolveMemcachedExtension(
-	version: SupportedPHPVersion,
-	asyncMode: PHPWasmAsyncMode
-): Promise<PHPExtensionInstallPlan> {
-	const extensionPath = await getMemcachedExtensionModule(version);
-	return await resolvePHPExtensionInstallPlan({
-		source: {
-			format: 'so',
-			name: 'memcached',
-			bytes: new Uint8Array(fs.readFileSync(extensionPath)),
-		},
-		phpVersion: version,
-		asyncMode,
-	});
-}
-
-async function resolveXdebugExtension(
-	version: SupportedPHPVersion,
-	asyncMode: PHPWasmAsyncMode,
-	xdebugOptions: XdebugOptions
-): Promise<PHPExtensionInstallPlan> {
-	const filePath = await getXdebugExtensionModule(version);
-	const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
-
-	return await resolvePHPExtensionInstallPlan({
-		source: {
-			format: 'so',
-			name: 'xdebug',
-			bytes: new Uint8Array(fs.readFileSync(filePath)),
-		},
-		phpVersion: version,
-		asyncMode,
-		loadWithIniDirective: 'zend_extension',
-		iniEntries: {
-			'xdebug.mode': 'debug,develop',
-			'xdebug.start_with_request': 'yes',
-			'xdebug.idekey': `"${ideKey}"`,
-			// Path mapping is only available starting from Xdebug 3.5,
-			// which is used by PHP 8.5+. Previous versions ignore it.
-			'xdebug.path_mapping': 'yes',
-		},
-		extraFiles: resolveXdebugExtraFiles(version, xdebugOptions),
-	});
 }
 
 function resolveXdebugExtraFiles(

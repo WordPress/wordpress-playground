@@ -360,13 +360,18 @@ function getRequestedPHPLoaderExtensions(
 ): PHPLoaderExtension[] {
 	const extensions = [...(options.extensions ?? [])];
 
-	appendDeprecatedBuiltInExtension(extensions, 'intl', options.withIntl);
-	appendDeprecatedBuiltInExtension(extensions, 'redis', options.withRedis);
-	appendDeprecatedBuiltInExtension(
-		extensions,
-		'memcached',
-		options.withMemcached
-	);
+	if (options.withIntl && !hasBuiltInExtension(extensions, 'intl')) {
+		extensions.push('intl');
+	}
+	if (options.withRedis && !hasBuiltInExtension(extensions, 'redis')) {
+		extensions.push('redis');
+	}
+	if (
+		options.withMemcached &&
+		!hasBuiltInExtension(extensions, 'memcached')
+	) {
+		extensions.push('memcached');
+	}
 
 	if (options.withXdebug && !hasBuiltInExtension(extensions, 'xdebug')) {
 		extensions.push(
@@ -379,16 +384,14 @@ function getRequestedPHPLoaderExtensions(
 	return extensions;
 }
 
-function appendDeprecatedBuiltInExtension(
-	extensions: PHPLoaderExtension[],
-	name: 'intl' | 'redis' | 'memcached',
-	enabled?: boolean
-) {
-	if (enabled && !hasBuiltInExtension(extensions, name)) {
-		extensions.push(name);
-	}
-}
-
+/**
+ * Checks whether a built-in extension has already been requested.
+ *
+ * This keeps deprecated `with*` flags backwards compatible without installing
+ * the same built-in twice when callers also pass the newer `extensions` array.
+ * External extension sources are ignored because their names are resolved later
+ * from bytes, URLs, or manifests.
+ */
 function hasBuiltInExtension(
 	extensions: PHPLoaderExtension[],
 	name: string

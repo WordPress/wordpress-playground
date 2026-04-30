@@ -97,8 +97,13 @@ export async function loadWebRuntime(
 	}
 
 	const isLegacy = isLegacyPHPVersion(phpVersion);
-	const requestedExtensions =
-		getRequestedPHPWebLoaderExtensions(loaderOptions);
+	const requestedExtensions = [...(loaderOptions.extensions ?? [])];
+	if (
+		loaderOptions.withIntl &&
+		!hasBuiltInExtension(requestedExtensions, 'intl')
+	) {
+		requestedExtensions.push('intl');
+	}
 
 	// For legacy PHP: pre-create php.ini via a preRun step. See
 	// createLegacyPhpIniPreRunStep for why this must run before the
@@ -143,16 +148,14 @@ async function detectPHPWasmAsyncMode(): Promise<'jspi' | 'asyncify'> {
 	return (await jspi()) ? 'jspi' : 'asyncify';
 }
 
-function getRequestedPHPWebLoaderExtensions(
-	options: LoaderOptions
-): PHPWebLoaderExtension[] {
-	const extensions = [...(options.extensions ?? [])];
-	if (options.withIntl && !hasBuiltInExtension(extensions, 'intl')) {
-		extensions.push('intl');
-	}
-	return extensions;
-}
-
+/**
+ * Checks whether a built-in web extension has already been requested.
+ *
+ * This keeps deprecated `withIntl` calls backwards compatible without adding a
+ * duplicate `intl` install when callers also pass `extensions: ['intl']`.
+ * External extension sources are ignored because their names are resolved later
+ * from bytes, URLs, or manifests.
+ */
 function hasBuiltInExtension(
 	extensions: PHPWebLoaderExtension[],
 	name: string
