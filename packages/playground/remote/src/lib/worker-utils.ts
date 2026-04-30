@@ -131,7 +131,11 @@ export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
  *
  * See backfillStaticFilesRemovedFromMinifiedBuild for more details.
  */
-export async function getWordPressStaticZipUrl(php: PHP) {
+export async function getWordPressStaticZipUrl(php?: PHP) {
+	if (!php?.requestHandler) {
+		logger.warn('No PHP request handler available');
+		return false;
+	}
 	// PHP-only mode (Blueprint `preferredVersions.wp: false`): no WP files exist, so
 	// `getLoadedWordPressVersion` would crash trying to require
 	// wp-includes/version.php. There's nothing to backfill — bail out.
