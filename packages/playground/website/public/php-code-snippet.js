@@ -28,6 +28,9 @@
  *                         to boot PHP without installing WordPress — handy for
  *                         pure-PHP snippets that don't touch wp-load.php.
  *   src="path/to.php"     load code from a URL instead of inline
+ *   runnable="false"      hide the Run button and render the snippet as a
+ *                         read-only, syntax-highlighted code block. Useful for
+ *                         illustrative examples that aren't meant to execute.
  *   editable              make the snippet editable; visitors type into a
  *                         transparent textarea overlaid on the highlighted
  *                         code, and Run executes whatever they typed
@@ -759,7 +762,8 @@ class PhpSnippet extends HTMLElement {
 
 	_render() {
 		const name = this.getAttribute('name') || 'snippet.php';
-		const editable = this.hasAttribute('editable');
+		const runnable = this.getAttribute('runnable') !== 'false';
+		const editable = runnable && this.hasAttribute('editable');
 		const style = document.createElement('style');
 		style.textContent = TEMPLATE_CSS;
 		const codeArea = editable
@@ -773,7 +777,7 @@ class PhpSnippet extends HTMLElement {
 			<div class="card">
 				<div class="header">
 					<span class="name">${escapeHtml(name)}</span>
-					<button class="run" type="button">Run</button>
+					${runnable ? '<button class="run" type="button">Run</button>' : ''}
 				</div>
 				<div class="progress" role="status" aria-live="polite" aria-atomic="true">
 					<span class="caption">Loading…</span>
@@ -788,9 +792,10 @@ class PhpSnippet extends HTMLElement {
 			</div>
 		`;
 		this.shadowRoot.replaceChildren(style, tpl.content);
-		this.shadowRoot
-			.querySelector('.run')
-			.addEventListener('click', () => this._run());
+		const runBtn = this.shadowRoot.querySelector('.run');
+		if (runBtn) {
+			runBtn.addEventListener('click', () => this._run());
+		}
 		if (editable) this._wireEditor();
 	}
 
