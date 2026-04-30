@@ -8,20 +8,21 @@
  * filesystem, because an extension may arrive as bytes, a URL, or a manifest
  * artifact after the PHP build was packaged.
  *
- * This module therefore does three things:
+ * This module therefore builds an install plan with all of the files and
+ * settings PHP needs:
  *
  * 1. Resolve the extension source into `.so` bytes.
- * 2. Stage those bytes in the PHP VFS.
- * 3. Create the small ini/preload files PHP needs in order to see the module.
+ * 2. Choose where those bytes will be staged in the PHP VFS.
+ * 3. Create `iniPath` and `iniContent` for the small per-extension ini file.
+ * 4. Create a preload script when a running PHP instance must call `dl()`.
  *
- * When this file says "generated `.ini` file", it means a file created by
- * `buildPHPExtensionInstallPlan()`, not a file shipped by the extension
- * author. The loader derives it from `LoadPHPExtensionOptions`:
+ * `buildPHPExtensionInstallPlan()` derives `iniPath` and `iniContent` from
+ * the same options that describe the extension:
  *
- * - `name` and `extensionDir` decide the file path.
+ * - `name` and `extensionDir` decide `iniPath`.
  *   Example: `/internal/shared/extensions/xdebug.ini`.
- * - `loadWithIniDirective` decides whether the first line is `extension=...`
- *   or `zend_extension=...`.
+ * - `loadWithIniDirective` decides whether `iniContent` starts with
+ *   `extension=...` or `zend_extension=...`.
  * - `iniEntries` become the remaining `key=value` lines.
  *
  * For example, these options:
@@ -47,7 +48,7 @@
  * ```
  *
  * `installPHPExtensionFiles()` and `installPHPExtensionFilesSync()` write that
- * ini file into the PHP VFS next to the staged `.so` file.
+ * `iniContent` to `iniPath` in the PHP VFS next to the staged `.so` file.
  *
  * The remaining question is when PHP can read that file. There are two cases:
  *
@@ -57,9 +58,9 @@
  * ## Startup-time loading
  *
  * If the runtime has not started yet, we can use PHP's normal extension
- * loading path. The loader stages the `.so` file and generated `.ini` file,
- * then adds the extension directory to `PHP_INI_SCAN_DIR`. When PHP starts, it
- * scans that directory and reads the generated file.
+ * loading path. The installer writes `soBytes` to `soPath` and `iniContent`
+ * to `iniPath`, then adds the extension directory to `PHP_INI_SCAN_DIR`. When
+ * PHP starts, it scans that directory and reads the ini file.
  *
  * This is required for `zend_extension` entries such as Xdebug:
  *
@@ -89,9 +90,9 @@
  *
  * ## Post-startup loading
  *
- * If PHP is already running, the startup scan is over. Writing
- * `/internal/shared/extensions/example.ini` still records the intended load
- * directive, but it will not make the current PHP process load the extension.
+ * If PHP is already running, the startup scan is over. The installer still
+ * writes `iniContent` to `iniPath`, because the file records what was staged,
+ * but that file will not make the current PHP process load the extension.
  *
  * Regular PHP extensions have one remaining path: `dl()`. For those
  * extensions we create a preload script in `/internal/shared/preload`; the PHP
@@ -132,8 +133,8 @@ import type { FileTree } from './write-files';
 import { writeFiles } from './write-files';
 
 /**
- * Default VFS directory where PHP extension `.so` files and generated `.ini`
- * files are installed.
+ * Default VFS directory where this loader stages extension `.so` files and
+ * writes their per-extension ini files.
  */
 export const PHP_EXTENSIONS_DIR = '/internal/shared/extensions';
 
@@ -159,7 +160,7 @@ export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
  * with `dl()`. `auto` chooses the correct default for `extension` versus
  * `zend_extension`.
  */
-export type PHPExtensionLoadTiming =
+export type PHPExtensionLoadAt =
 	| 'before-php-startup'
 	| 'after-php-startup'
 	| 'auto';
@@ -303,7 +304,7 @@ export interface LoadPHPExtensionOptions {
 	source: PHPExtensionSource;
 
 	/**
-	 * Extension name used for generated file names and ini entries.
+	 * Extension name used for staged file names and the first ini directive.
 	 *
 	 * This overrides a name inferred from `source`.
 	 */
@@ -326,14 +327,14 @@ export interface LoadPHPExtensionOptions {
 	/**
 	 * When the extension should become available.
 	 *
-	 * Defaults to `auto`: regular `extension` entries load after startup with
-	 * `dl()`, while `zend_extension` entries load before startup via
-	 * `PHP_INI_SCAN_DIR`.
+	 * Defaults to `auto`: regular `extension` entries get a preload script
+	 * that calls `dl()` after startup, while `zend_extension` entries must load
+	 * before startup via `PHP_INI_SCAN_DIR`.
 	 */
-	loadTiming?: PHPExtensionLoadTiming;
+	loadAt?: PHPExtensionLoadAt;
 
 	/**
-	 * php.ini directive used to load the staged `.so`.
+	 * First directive written to the per-extension ini file.
 	 *
 	 * Use `extension` for regular PHP extensions. Use `zend_extension` for
 	 * Zend extensions such as Xdebug. Defaults to `extension`.
@@ -341,8 +342,8 @@ export interface LoadPHPExtensionOptions {
 	loadWithIniDirective?: PHPExtensionIniDirective;
 
 	/**
-	 * Additional php.ini entries to write next to the generated extension
-	 * directive, e.g. extension-specific settings.
+	 * Additional `key=value` lines written after the `extension=` or
+	 * `zend_extension=` directive.
 	 */
 	iniEntries?: Record<string, string>;
 
@@ -361,8 +362,8 @@ export interface LoadPHPExtensionOptions {
 	env?: Record<string, string>;
 
 	/**
-	 * VFS directory where the extension `.so` and generated `.ini` file are
-	 * staged. Defaults to `PHP_EXTENSIONS_DIR`.
+	 * VFS directory where the loader writes the extension `.so` file and its
+	 * per-extension ini file. Defaults to `PHP_EXTENSIONS_DIR`.
 	 */
 	extensionDir?: string;
 
@@ -388,12 +389,13 @@ export type ResolvePHPExtensionInstallPlanOptions = Omit<
 };
 
 /**
- * Inputs needed to build or install extension files directly.
+ * Inputs used to build the staged `.so` path, per-extension ini file, and
+ * optional preload script.
  */
 export interface InstallPHPExtensionFilesOptions {
 	name: string;
 	soBytes: Uint8Array | ArrayBuffer;
-	loadTiming?: PHPExtensionLoadTiming;
+	loadAt?: PHPExtensionLoadAt;
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	iniEntries?: Record<string, string>;
 	extraFiles?: PHPExtensionExtraFiles;
@@ -402,7 +404,10 @@ export interface InstallPHPExtensionFilesOptions {
 }
 
 /**
- * Fully resolved set of files and ini entries needed to install one extension.
+ * Fully resolved files and settings needed to install one extension.
+ *
+ * `iniPath` and `iniContent` describe the per-extension ini file this loader
+ * writes into the PHP VFS.
  */
 export interface PHPExtensionInstallPlan {
 	name: string;
@@ -413,7 +418,7 @@ export interface PHPExtensionInstallPlan {
 	preloadPath?: string;
 	extraFiles?: PHPExtensionExtraFiles & { targetPath: string };
 	env?: Record<string, string>;
-	loadTiming: Exclude<PHPExtensionLoadTiming, 'auto'>;
+	loadAt: Exclude<PHPExtensionLoadAt, 'auto'>;
 	loadWithIniDirective: PHPExtensionIniDirective;
 	extensionDir: string;
 }
@@ -457,9 +462,9 @@ interface ResolvedPHPExtensionSource {
 /**
  * Loads a PHP extension into an already-running PHP instance.
  *
- * The loader writes the `.so`, generates an `.ini` file, stages any
- * `extraFiles`, updates `php.ini`, and creates a preload script when the
- * extension should load after PHP startup.
+ * The loader writes the staged `.so` file, writes the per-extension ini file
+ * from `iniPath`/`iniContent`, stages any `extraFiles`, updates `php.ini`, and
+ * creates a preload script when the extension should load after PHP startup.
  *
  * @param php - PHP instance that will receive the extension files.
  * @param options - Extension source and install options.
@@ -504,8 +509,8 @@ export async function loadPHPExtension(
  * Resolves an extension source into an install plan without mutating a PHP
  * instance.
  *
- * Use this from runtime loaders that need to fetch extension bytes before
- * Emscripten initializes PHP.
+ * Use this from runtime loaders that need to fetch extension bytes and compute
+ * `iniPath`/`iniContent` before Emscripten initializes PHP.
  */
 export async function resolvePHPExtensionInstallPlan(
 	options: ResolvePHPExtensionInstallPlanOptions
@@ -517,7 +522,7 @@ export async function resolvePHPExtensionInstallPlan(
 	const plan = buildPHPExtensionInstallPlan({
 		name: options.name ?? resolved.name,
 		soBytes: resolved.soBytes,
-		loadTiming: options.loadTiming,
+		loadAt: options.loadAt,
 		loadWithIniDirective: options.loadWithIniDirective,
 		iniEntries: options.iniEntries,
 		extraFiles: options.extraFiles,
@@ -552,7 +557,7 @@ export function appendPHPExtensionInstallPlans(
 
 	for (const { plan } of extensions) {
 		Object.assign(env, plan.env);
-		if (plan.loadTiming === 'before-php-startup') {
+		if (plan.loadAt === 'before-php-startup') {
 			env['PHP_INI_SCAN_DIR'] = appendPathEnv(
 				env['PHP_INI_SCAN_DIR'],
 				plan.extensionDir
@@ -574,8 +579,8 @@ export function appendPHPExtensionInstallPlans(
 }
 
 /**
- * Builds the VFS paths, ini content, and optional preload path for an
- * extension.
+ * Builds the VFS paths, per-extension ini content, and optional preload path
+ * for an extension.
  */
 export function buildPHPExtensionInstallPlan(
 	options: InstallPHPExtensionFilesOptions
@@ -583,8 +588,8 @@ export function buildPHPExtensionInstallPlan(
 	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
 	const name = validateExtensionName(options.name);
 	const loadWithIniDirective = options.loadWithIniDirective ?? 'extension';
-	const loadTiming = normalizeLoadTiming(
-		options.loadTiming ?? 'auto',
+	const loadAt = normalizeLoadAt(
+		options.loadAt ?? 'auto',
 		loadWithIniDirective
 	);
 	const soPath = joinPaths(extensionDir, `${name}.so`);
@@ -595,7 +600,7 @@ export function buildPHPExtensionInstallPlan(
 		iniEntries: options.iniEntries ?? {},
 	});
 	const preloadPath =
-		loadTiming === 'after-php-startup'
+		loadAt === 'after-php-startup'
 			? joinPaths(PHP_EXTENSION_PRELOAD_DIR, `${name}.php`)
 			: undefined;
 	const extraFiles = options.extraFiles
@@ -616,7 +621,7 @@ export function buildPHPExtensionInstallPlan(
 		preloadPath,
 		extraFiles,
 		env: options.env,
-		loadTiming,
+		loadAt,
 		loadWithIniDirective,
 		extensionDir,
 	};
@@ -624,6 +629,9 @@ export function buildPHPExtensionInstallPlan(
 
 /**
  * Installs a resolved extension plan into an existing PHP instance.
+ *
+ * This writes `plan.soBytes` to `plan.soPath` and `plan.iniContent` to
+ * `plan.iniPath`.
  */
 export async function installPHPExtensionFiles(
 	php: UniversalPHP,
@@ -655,7 +663,7 @@ export async function installPHPExtensionFiles(
 
 	await upsertPhpIniEntries(php, {
 		extension_dir: plan.extensionDir,
-		...(plan.loadTiming === 'after-php-startup' ? { enable_dl: 'On' } : {}),
+		...(plan.loadAt === 'after-php-startup' ? { enable_dl: 'On' } : {}),
 	});
 
 	if (plan.preloadPath) {
@@ -671,7 +679,8 @@ export async function installPHPExtensionFiles(
  * Installs extension files through Emscripten's synchronous filesystem API.
  *
  * Use this while the PHP runtime is initializing and only the raw Emscripten
- * `FS` object is available.
+ * `FS` object is available. This writes `plan.soBytes` to `plan.soPath` and
+ * `plan.iniContent` to `plan.iniPath`.
  */
 export function installPHPExtensionFilesSync(
 	fs: Emscripten.RootFS,
@@ -829,22 +838,22 @@ function validateExtensionManifest(candidate: unknown): PHPExtensionManifest {
 	return manifest;
 }
 
-function normalizeLoadTiming(
-	loadTiming: PHPExtensionLoadTiming,
+function normalizeLoadAt(
+	loadAt: PHPExtensionLoadAt,
 	loadWithIniDirective: PHPExtensionIniDirective
-): Exclude<PHPExtensionLoadTiming, 'auto'> {
+): Exclude<PHPExtensionLoadAt, 'auto'> {
 	if (
 		loadWithIniDirective === 'zend_extension' &&
-		loadTiming === 'after-php-startup'
+		loadAt === 'after-php-startup'
 	) {
 		throw new Error('Zend extensions must load before PHP startup.');
 	}
-	if (loadTiming === 'auto') {
+	if (loadAt === 'auto') {
 		return loadWithIniDirective === 'zend_extension'
 			? 'before-php-startup'
 			: 'after-php-startup';
 	}
-	return loadTiming;
+	return loadAt;
 }
 
 function buildIniContent({

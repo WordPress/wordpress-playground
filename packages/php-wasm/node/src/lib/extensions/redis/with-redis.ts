@@ -31,7 +31,7 @@ export async function withRedis(
 			installPHPExtensionFilesSync(phpRuntime.FS, {
 				name: 'redis',
 				soBytes,
-				loadTiming: 'before-php-startup',
+				loadAt: 'before-php-startup',
 			});
 		},
 	};

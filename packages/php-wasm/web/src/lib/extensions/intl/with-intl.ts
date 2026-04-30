@@ -40,7 +40,7 @@ export async function withIntl(
 			installPHPExtensionFilesSync(phpRuntime.FS, {
 				name: 'intl',
 				soBytes: new Uint8Array(extension),
-				loadTiming: 'before-php-startup',
+				loadAt: 'before-php-startup',
 				extraFiles: {
 					targetPath: '/internal/shared',
 					files: {
