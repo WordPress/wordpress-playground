@@ -5,10 +5,23 @@
  * 1. Startup-time
  * 2. Post-startup
  *
+ * In this file, "generated `.ini` file" means the small per-extension ini file
+ * created by `buildPHPExtensionInstallPlan()`. It is not part of the extension
+ * artifact. The loader derives it from `LoadPHPExtensionOptions`:
+ *
+ * - `name` and `extensionDir` decide the file path, e.g.
+ *   `/internal/shared/extensions/xdebug.ini`.
+ * - `loadWithIniDirective` decides whether the first line is `extension=...`
+ *   or `zend_extension=...`.
+ * - `iniEntries` become the remaining `key=value` lines.
+ *
+ * `installPHPExtensionFiles()` and `installPHPExtensionFilesSync()` write that
+ * ini file into the PHP VFS next to the staged `.so` file.
+ *
  * ## Startup-time loading
  *
- * Startup-time loading stages the `.so` file and a generated `.ini` file
- * before PHP starts. The runtime adds the extension directory to
+ * Startup-time loading stages the `.so` file and generated `.ini` file before
+ * PHP starts. The runtime adds the extension directory to
  * `PHP_INI_SCAN_DIR`, and PHP reads the generated ini file during module
  * startup.
  *
