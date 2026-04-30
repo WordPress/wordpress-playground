@@ -1,52 +1,28 @@
 /**
- * PHP.wasm extensions are Emscripten side modules. They are just `.so` files
- * until PHP is told to load them.
+ * PHP does not load an extension because a `.so` file exists. It loads an
+ * extension because, during startup, PHP reads an `.ini` entry that points at
+ * that file.
  *
- * In native PHP that usually happens through an ini file. The ini file says
- * which shared object to load, and may provide extension-specific settings.
- * In PHP.wasm we cannot assume that such a file already exists in the runtime
- * filesystem, because an extension may arrive as bytes, a URL, or a manifest
- * artifact after the PHP build was packaged.
+ * In PHP.wasm that `.ini` entry cannot always be baked into the PHP build. A
+ * caller may provide an extension as bytes, as a URL, or through a manifest
+ * that chooses the right artifact for the active PHP version and async mode.
+ * The extension may also need extra files or environment variables before PHP
+ * starts.
  *
- * This module therefore builds an install plan with all of the files and
- * settings PHP needs:
+ * This module turns those inputs into a startup install plan. The runtime
+ * loader resolves the `.so` bytes, stages them in the PHP virtual filesystem,
+ * writes a small per-extension `.ini` file next to them, stages any sidecar
+ * files, and adds the extension directory to `PHP_INI_SCAN_DIR` before PHP
+ * starts.
  *
- * 1. Resolve the extension source into `.so` bytes.
- * 2. Choose where those bytes will be staged in the PHP VFS.
- * 3. Create `iniPath` and `iniContent` for the small per-extension ini file.
+ * The startup boundary matters. This module does not load extensions into an
+ * already-running PHP instance. Once PHP has started, the ini scan is over.
+ * Some regular extensions can be loaded later with `dl()`, but Zend extensions
+ * cannot, and extensions that depend on startup-time files or environment
+ * variables are easy to initialize incorrectly. PHP.wasm therefore treats
+ * extension loading as part of runtime creation.
  *
- * `buildPHPExtensionInstallPlan()` derives `iniPath` and `iniContent` from
- * the extension options. For example, these options:
- *
- * ```ts
- * {
- *   name: 'xdebug',
- *   loadWithIniDirective: 'zend_extension',
- *   iniEntries: {
- *     'xdebug.mode': 'debug,develop',
- *     'xdebug.start_with_request': 'yes',
- *   },
- * }
- * ```
- *
- * produce this file:
- *
- * ```ini
- * ; /internal/shared/extensions/xdebug.ini
- * zend_extension=/internal/shared/extensions/xdebug.so
- * xdebug.mode=debug,develop
- * xdebug.start_with_request=yes
- * ```
- *
- * `installPHPExtensionFilesSync()` writes that `iniContent` to `iniPath` in
- * the PHP VFS next to the staged `.so` file.
- *
- * Extension files are installed before PHP startup. The installer writes
- * `soBytes` to `soPath` and `iniContent` to `iniPath`, then adds the extension
- * directory to `PHP_INI_SCAN_DIR`. When PHP starts, it scans that directory
- * and reads the ini file.
- *
- * This is required for `zend_extension` entries such as Xdebug:
+ * A Zend extension such as Xdebug becomes an `.ini` file like this:
  *
  * ```ini
  * zend_extension=/internal/shared/extensions/xdebug.so
@@ -55,13 +31,9 @@
  * xdebug.idekey="PHPSTORM"
  * ```
  *
- * ```sh
- * PHP_INI_SCAN_DIR=/internal/shared/extensions
- * ```
- *
- * Regular extensions use the same path. For example, `intl` relies on the
- * `ICU_DATA` environment variable, so the extension, its data file, and the
- * environment entry must all be present before PHP starts:
+ * A regular extension such as `intl` uses the same startup path. Its `.ini`
+ * file contains the regular `extension=` directive, and its ICU data is staged
+ * before startup with `ICU_DATA` pointing at that staged file:
  *
  * ```ini
  * extension=/internal/shared/extensions/intl.so
@@ -72,10 +44,26 @@
  * ICU_DATA=/internal/shared
  * ```
  *
- * Manifest URLs identify the JSON manifest to resolve. In `@php-wasm/node`,
- * local manifest paths and `file:` URLs work without passing a custom `fetch`
- * implementation; the Node loader converts them before calling into this
- * universal resolver.
+ * External extensions use the same plan. A manifest is only a selector for the
+ * correct `.so` artifact:
+ *
+ * ```json
+ * {
+ *   "name": "wp_mysql_parser",
+ *   "artifacts": [
+ *     {
+ *       "phpVersion": "8.4",
+ *       "asyncMode": "jspi",
+ *       "file": "wp_mysql_parser-php8.4-jspi.so"
+ *     }
+ *   ]
+ * }
+ * ```
+ *
+ * In `@php-wasm/universal`, URL sources are resolved with the provided
+ * `fetch` implementation. In `@php-wasm/node`, the runtime loader also accepts
+ * local manifest paths and `file:` URLs, then normalizes them before calling
+ * this resolver.
  */
 import { dirname, joinPaths } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
