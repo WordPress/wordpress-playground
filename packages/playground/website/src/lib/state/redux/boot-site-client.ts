@@ -197,6 +197,13 @@ export function bootSiteClient(
 				],
 			});
 		} catch (e) {
+			// Diagnostic branch only: preserve the original boot error before Redux wraps it.
+			console.error('[bootSiteClient error]', {
+				name: (e as Error)?.name,
+				message: (e as Error)?.message,
+				stack: (e as Error)?.stack,
+				cause: (e as Error & { cause?: unknown })?.cause,
+			});
 			logger.error(e);
 			logTrackingEvent('error', { source: 'bootSiteClient' });
 

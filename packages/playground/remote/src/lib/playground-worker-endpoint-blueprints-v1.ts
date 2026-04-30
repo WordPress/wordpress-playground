@@ -245,6 +245,13 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			);
 			setApiReady();
 		} catch (e) {
+			// Diagnostic branch only: surface the original worker-side stack in WebKit CI.
+			console.error('[worker boot error]', {
+				name: (e as Error)?.name,
+				message: (e as Error)?.message,
+				stack: (e as Error)?.stack,
+				cause: (e as Error & { cause?: unknown })?.cause,
+			});
 			setAPIError(e as Error);
 			throw e as Error;
 		}
