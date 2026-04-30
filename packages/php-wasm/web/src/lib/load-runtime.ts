@@ -21,6 +21,12 @@ export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
+	/**
+	 * PHP extensions to install before the runtime starts.
+	 *
+	 * Use built-in names such as `intl`, or pass an external extension source
+	 * such as a manifest.
+	 */
 	extensions?: PHPWebLoaderExtension[];
 	/**
 	 * @deprecated Use `extensions: ['intl']` instead.
