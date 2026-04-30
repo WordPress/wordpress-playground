@@ -3,6 +3,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { PHP_EXTENSIONS_DIR } from '@php-wasm/universal';
 import { withPHPExtensions } from '../lib/extensions/load-extensions';
+import { normalizeNodeExtensionSource } from '../lib/extensions/node-extension-resources';
 
 describe('withPHPExtensions', () => {
 	it('resolves local manifest paths without a custom fetch implementation', async () => {
@@ -48,6 +49,19 @@ describe('withPHPExtensions', () => {
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
+	});
+
+	it('treats drive-letter-shaped strings as local paths, not URL schemes', () => {
+		const source = normalizeNodeExtensionSource({
+			format: 'manifest',
+			manifestUrl: 'C:/extensions/example/manifest.json',
+		});
+
+		if (!('manifestUrl' in source)) {
+			throw new Error('Expected a manifest URL source.');
+		}
+		expect(source.manifestUrl).toBeInstanceOf(URL);
+		expect((source.manifestUrl as URL).protocol).toBe('file:');
 	});
 });
 

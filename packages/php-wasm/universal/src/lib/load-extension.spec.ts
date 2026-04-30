@@ -51,6 +51,20 @@ describe('resolvePHPExtension', () => {
 		).rejects.toThrow('Invalid PHP extension name');
 	});
 
+	it('explains that direct URL sources require absolute URLs', async () => {
+		await expect(
+			resolvePHPExtension({
+				source: {
+					format: 'url',
+					url: './example.so',
+				},
+				phpVersion: '8.4',
+				asyncMode: 'jspi',
+				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+			})
+		).rejects.toThrow('source.url must be an absolute URL');
+	});
+
 	it('selects a manifest artifact before PHP startup', async () => {
 		const artifactBytes = new Uint8Array([4, 5, 6]);
 		const extension = await resolvePHPExtension({

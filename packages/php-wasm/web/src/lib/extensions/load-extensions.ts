@@ -71,6 +71,15 @@ export async function withPHPExtensions(
 	return withResolvedPHPExtensions(options, resolvedExtensions);
 }
 
+/**
+ * Resolves one Web runtime extension request before PHP starts.
+ *
+ * Web has two extension sources. External extensions already describe their
+ * own artifact source, so this passes the active PHP version and async mode to
+ * the universal resolver. Built-in `intl` is different: its `.so` and ICU data
+ * are bundled assets that must both be fetched and staged before PHP reads the
+ * generated `intl.ini`.
+ */
 async function resolveRuntimePHPWebExtension(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
@@ -101,10 +110,19 @@ async function resolveRuntimePHPWebExtension(
 	// @ts-ignore
 	const dataPath = (await import('./intl/shared/icu.dat')).default;
 
-	const [extensionBytes, ICUData] = await Promise.all([
-		memoizedFetch(extensionPath).then((response) => response.arrayBuffer()),
-		memoizedFetch(dataPath).then((response) => response.arrayBuffer()),
-	]);
+	const [extensionBytes, ICUData] = await Promise.all(
+		[extensionPath, dataPath].map(async (url) => {
+			const response = await memoizedFetch(url);
+			if (!response.ok) {
+				throw new Error(
+					`Failed to fetch bundled PHP web extension asset: ${
+						response.url || url
+					} (${response.status} ${response.statusText}).`
+				);
+			}
+			return await response.arrayBuffer();
+		})
+	);
 
 	return await resolvePHPExtension({
 		source: {

@@ -2,7 +2,7 @@
  * During startup, PHP loads .so extensions that are explicitly listed in one
  * of the loaded `php.ini` files.
  *
- * PHP.wasm can be configured to run arbitraty extensions, so that `.ini`
+ * PHP.wasm can be configured to run arbitrary extensions, so that `.ini`
  * configuration must be constructed dynamically. That's what this module does.
  * It fetches the `.so` bytes, stages them in the PHP virtual filesystem, writes a small
  * per-extension `.ini` file next to them, stages any sidecar files, and adds
@@ -457,12 +457,21 @@ async function resolvePHPExtensionSource(
 	}
 
 	if (source.format === 'url') {
+		let sourceUrl: URL;
+		try {
+			sourceUrl = new URL(String(source.url));
+		} catch {
+			throw new Error(
+				`source.url must be an absolute URL when loading a PHP extension from a direct URL. Received: ${String(
+					source.url
+				)}`
+			);
+		}
 		const name =
 			options.name ??
 			source.name ??
 			(() => {
-				const path = new URL(String(source.url), 'https://example.com')
-					.pathname;
+				const path = sourceUrl.pathname;
 				const file = path.split('/').pop() ?? '';
 				return file.endsWith('.so') ? file.slice(0, -3) : undefined;
 			})();
@@ -476,15 +485,15 @@ async function resolvePHPExtensionSource(
 				'resolvePHPExtension() requires a fetch implementation.'
 			);
 		}
-		const response = await fetchFn(new URL(String(source.url)));
+		const response = await fetchFn(sourceUrl);
 		if (!response.ok) {
 			throw new Error(
-				`Failed to fetch ${String(source.url)}: ${response.status}`
+				`Failed to fetch ${String(sourceUrl)}: ${response.status}`
 			);
 		}
 		const soBytes = new Uint8Array(await response.arrayBuffer());
 		if (source.sha256) {
-			await assertSha256(soBytes, source.sha256, String(source.url));
+			await assertSha256(soBytes, source.sha256, String(sourceUrl));
 		}
 		return { name, soBytes };
 	}

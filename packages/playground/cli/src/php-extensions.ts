@@ -1,7 +1,8 @@
 import type { PHPExtension, XdebugOptions } from '@php-wasm/node';
 
 /**
- * Converts Playground CLI extension flags into the runtime `extensions` list.
+ * Converts the legacy Playground CLI extension options object into the runtime
+ * `extensions` array.
  *
  * The CLI still receives extensions as individual options: `intl`, `redis`,
  * `memcached`, and `xdebug`. The PHP runtime no longer has separate `with*`
@@ -13,7 +14,7 @@ import type { PHPExtension, XdebugOptions } from '@php-wasm/node';
  * the built-in `xdebug` request, while an object preserves the Xdebug settings
  * and passes them through to the Node runtime.
  */
-export function getRequestedPHPExtensions(args: {
+export function legacyPHPExtensionsObjectToExtensionsArray(args: {
 	intl?: boolean;
 	redis?: boolean;
 	memcached?: boolean;

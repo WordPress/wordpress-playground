@@ -10,7 +10,6 @@ import {
 	withResolvedPHPExtensions,
 	resolvePHPExtension,
 	SupportedPHPVersions,
-	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import fs from 'fs';
 import path from 'path';
@@ -230,6 +229,14 @@ async function resolveRuntimePHPExtension(
 	}
 }
 
+/**
+ * Finds the bundled ICU data file for Node `intl`.
+ *
+ * The path is different in source tests and in the built package. Source tests
+ * run beside `extensions/intl/shared/icu.dat`; published builds copy the same
+ * file to the package-level `shared` directory. `intl` will not initialize
+ * correctly without this data, so the error lists every checked path.
+ */
 function resolveIntlDataPath(moduleDir: string, dataName: string): string {
 	const candidatePaths = [
 		// Built package layout: dist/packages/php-wasm/node/shared/icu.dat.
@@ -248,6 +255,16 @@ function resolveIntlDataPath(moduleDir: string, dataName: string): string {
 	return dataPath;
 }
 
+/**
+ * Builds Xdebug sidecar files that must exist before PHP starts.
+ *
+ * Xdebug 3.5 adds path mapping and path skipping files under `/.xdebug`.
+ * Older bundled Xdebug versions ignore `xdebug.path_mapping`, so there is no
+ * sidecar work to do for PHP builds that ship an older Xdebug. When the caller
+ * provides mappings or skippings for a supported version, the returned
+ * `extraFiles` object lets the shared extension installer stage those files
+ * together with `xdebug.so` and `xdebug.ini`.
+ */
 function resolveXdebugExtraFiles(
 	version: SupportedPHPVersion,
 	xdebugOptions: XdebugOptions
@@ -257,7 +274,7 @@ function resolveXdebugExtraFiles(
 	 * which is used by PHP 8.5 or higher.
 	 */
 	const isPHP85orHigher =
-		SupportedPHPVersionsList.indexOf(version) <=
+		SupportedPHPVersions.indexOf(version) <=
 		SupportedPHPVersions.indexOf('8.5');
 
 	if (!isPHP85orHigher) {

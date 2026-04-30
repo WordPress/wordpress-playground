@@ -72,12 +72,12 @@ export async function fetchNodeExtensionResource(
 }
 
 /**
- * Treats syntactically valid URL strings as URLs and every other string as a
- * local filesystem path relative to the current working directory.
+ * Treats `http:`, `https:`, and `file:` strings as URLs and every other string
+ * as a local filesystem path relative to the current working directory.
  *
- * This deliberately avoids guessing which path shapes are valid on which host
- * OS. If `new URL(value)` accepts the string, it is a URL. If parsing throws,
- * Node resolves it as a path and turns it into a `file:` URL.
+ * This keeps Windows paths such as `C:/dir/extension.json` from being treated
+ * as a URL with a `c:` scheme while still avoiding OS-specific path-shape
+ * checks.
  */
 function toNodeResourceUrl(urlOrPath: string | URL): URL {
 	if (urlOrPath instanceof URL) {
@@ -85,8 +85,17 @@ function toNodeResourceUrl(urlOrPath: string | URL): URL {
 	}
 
 	try {
-		return new URL(urlOrPath);
+		const url = new URL(urlOrPath);
+		if (
+			url.protocol === 'http:' ||
+			url.protocol === 'https:' ||
+			url.protocol === 'file:'
+		) {
+			return url;
+		}
 	} catch {
-		return pathToFileURL(path.resolve(urlOrPath));
+		// Fall through to local path handling.
 	}
+
+	return pathToFileURL(path.resolve(urlOrPath));
 }

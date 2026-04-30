@@ -7,7 +7,6 @@ import {
 	LatestSupportedPHPVersion,
 	PHP_EXTENSIONS_DIR,
 	SupportedPHPVersions,
-	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import fs from 'fs';
 import { getXdebugExtensionModule } from './get-xdebug-extension-module';
@@ -38,12 +37,18 @@ export async function withXdebug(
 ): Promise<EmscriptenOptions> {
 	const filePath = await getXdebugExtensionModule(version);
 	const soBytes = new Uint8Array(fs.readFileSync(filePath));
+	const currentScanDir = options.ENV?.['PHP_INI_SCAN_DIR'];
+	const nextScanDir =
+		!currentScanDir ||
+		currentScanDir.split(':').includes(PHP_EXTENSIONS_DIR)
+			? (currentScanDir ?? PHP_EXTENSIONS_DIR)
+			: `${currentScanDir}:${PHP_EXTENSIONS_DIR}`;
 
 	return {
 		...options,
 		ENV: {
 			...options.ENV,
-			PHP_INI_SCAN_DIR: PHP_EXTENSIONS_DIR,
+			PHP_INI_SCAN_DIR: nextScanDir,
 		},
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			if (options.onRuntimeInitialized) {
@@ -69,7 +74,7 @@ export async function withXdebug(
 			 * which is used by PHP 8.5 or higher.
 			 */
 			const isPHP85orHigher =
-				SupportedPHPVersionsList.indexOf(version) <=
+				SupportedPHPVersions.indexOf(version) <=
 				SupportedPHPVersions.indexOf('8.5');
 
 			if (isPHP85orHigher) {

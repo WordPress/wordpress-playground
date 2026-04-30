@@ -32,7 +32,7 @@ import {
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
-import { getRequestedPHPExtensions } from '../php-extensions';
+import { legacyPHPExtensionsObjectToExtensionsArray } from '../php-extensions';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -198,7 +198,7 @@ export class BlueprintsV1Handler {
 			processId: worker.processId,
 			followSymlinks: this.args.followSymlinks === true,
 			trace: this.args.experimentalTrace === true,
-			extensions: getRequestedPHPExtensions(this.args),
+			extensions: legacyPHPExtensionsObjectToExtensionsArray(this.args),
 			nativeInternalDirPath,
 			pathAliases: this.args.pathAliases,
 		});
