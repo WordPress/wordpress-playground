@@ -22,7 +22,13 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
-The npm package is still published for build tools and TypeScript users. TypeScript is highly recommended as this package ships with comprehensive types – hit ctrl+space in your IDE after `client.` and you'll see all the available methods.
+## npm package
+
+The npm package exists for projects that want to install `@wp-playground/client` through a package manager, bundle it with their application, or use its TypeScript declarations locally.
+
+Prefer the direct `https://playground.wordpress.net/client/index.js` import for browser applications that use the hosted Playground runtime. An npm-installed client can drift from the `remote.html` it controls, and that may expose protocol mismatches between the parent page and iframe. If you use the npm package, make sure the client and remote runtime are versioned together.
+
+The npm package ships comprehensive types for the client API. In TypeScript, your editor can show the available methods after `client.`.
 
 ## TypeScript declarations
 
