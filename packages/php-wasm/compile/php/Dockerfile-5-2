@@ -2190,6 +2190,30 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 COPY ./compile/php/exported-functions.list /root/exported-functions.list
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 
+RUN set -eux; \
+	if [ "$WITH_JSPI" != "yes" ]; then \
+		exit 0; \
+	fi; \
+	{ \
+		echo 'zend_ce_traversable'; \
+		echo 'zend_ce_iterator'; \
+		echo 'zend_ce_aggregate'; \
+		echo 'zend_ce_arrayaccess'; \
+		echo 'zend_ce_serializable'; \
+		echo 'std_object_handlers'; \
+		echo 'executor_globals'; \
+		echo 'compiler_globals'; \
+		echo 'sapi_globals'; \
+		echo 'file_globals'; \
+		echo 'sapi_module'; \
+		echo 'compile_string'; \
+		echo 'execute'; \
+		echo '_zval_ptr_dtor'; \
+		echo 'destroy_op_array'; \
+		echo '_efree'; \
+		echo '_zend_bailout'; \
+	} >> /root/.WASM_ABI_EXPORTS
+
 # WORKAROUND: Asyncify builds do not currently include __c_longjmp,
 # but we require it for JSPI builds. Including the symbol in our
 # main exported-functions.list will cause Asyncify build errors,

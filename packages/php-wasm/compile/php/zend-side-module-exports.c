@@ -81,8 +81,11 @@ playground_side_module_function _playground_zend_side_module_function_exports[] 
 	(playground_side_module_function)zend_execute,
 #if PHP_VERSION_ID >= 70000
 	(playground_side_module_function)zval_ptr_dtor,
+#endif
+#if PHP_VERSION_ID >= 80100
 	(playground_side_module_function)zend_destroy_static_vars,
-#else
+#endif
+#if PHP_VERSION_ID < 70000
 	(playground_side_module_function)_zval_ptr_dtor,
 #endif
 	(playground_side_module_function)destroy_op_array,

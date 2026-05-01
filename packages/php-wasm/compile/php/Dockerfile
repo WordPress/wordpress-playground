@@ -2235,8 +2235,12 @@ RUN set -eux; \
 		echo 'zend_execute'; \
 		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
 			echo 'zval_ptr_dtor'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 8 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 8 ] && [ "$PHP_VERSION_MINOR" -ge 1 ]; }; then \
 			echo 'zend_destroy_static_vars'; \
-		else \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -lt 7 ]; then \
 			echo '_zval_ptr_dtor'; \
 		fi; \
 		echo 'destroy_op_array'; \
