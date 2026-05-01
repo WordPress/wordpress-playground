@@ -42,6 +42,7 @@ test.describe('php-code-snippet embed', () => {
 			'scratch.php',
 			'precomputed.php',
 			'just-php.php',
+			'quickstart.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
@@ -224,6 +225,43 @@ test.describe('php-code-snippet embed', () => {
 		});
 		await expect(editable.locator('.output-body')).toContainText(
 			'edited:42'
+		);
+	});
+
+	test('wp="none" + blueprint installs a PHP toolkit usable from the snippet', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const snippet = page.locator('php-snippet[name="quickstart.php"]');
+
+		await expect(snippet).toBeVisible();
+		const localClientUrl = new URL('/client/index.js', page.url()).href;
+		const localClientResponse = await page.request.get(localClientUrl);
+		test.skip(
+			!localClientResponse.ok(),
+			'This regression test needs the deploy layout that serves /client/index.js.'
+		);
+		await snippet.evaluate((element) => {
+			element.setAttribute('playground-origin', window.location.origin);
+		});
+		// The snippet ships with an expected-output script that pre-fills the
+		// output panel. Wait for the real run to execute by watching the
+		// progress bar appear and then disappear.
+		await snippet.locator('.run').click();
+		await expect(snippet.locator('.progress')).toBeVisible({
+			timeout: 30_000,
+		});
+		await expect(snippet.locator('.progress')).toBeHidden({
+			timeout: 240_000,
+		});
+
+		const body = snippet.locator('.output-body');
+		await expect(body).not.toHaveClass(/error/);
+		await expect(body).toContainText(
+			'<img src="hero.jpg" alt="Hero shot" loading="lazy">'
+		);
+		await expect(body).toContainText(
+			'<img src="diagram.png" alt="" loading="eager">'
 		);
 	});
 

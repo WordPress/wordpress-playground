@@ -210,6 +210,56 @@
 			</script>
 		</php-snippet>
 
+		<h2>8a. Pure PHP toolkit (no WordPress)</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			Uses <code>wp="none"</code> together with a blueprint that installs
+			a tiny PHP toolkit at <code>/tmp/php-toolkit</code>. The snippet
+			boots PHP only, autoloads the toolkit, and uses
+			<code>WP_HTML_Tag_Processor</code> outside of WordPress.
+		</p>
+
+		<script id="toolkit-setup" type="application/json">
+			{
+				"steps": [
+					{ "step": "mkdir", "path": "/tmp/php-toolkit/vendor" },
+					{
+						"step": "writeFile",
+						"path": "/tmp/php-toolkit/vendor/autoload.php",
+						"data": "<?php\nclass WP_HTML_Tag_Processor {\n    private $html;\n    private $offset = 0;\n    private $tag_start = -1;\n    private $tag_end = -1;\n    private $attrs = [];\n    public function __construct($html) { $this->html = $html; }\n    public function next_tag($name) {\n        $name = strtolower($name);\n        $len = strlen($this->html);\n        while ($this->offset < $len) {\n            $lt = strpos($this->html, '<', $this->offset);\n            if ($lt === false) return false;\n            if (substr($this->html, $lt, 4) === '<!--') {\n                $e = strpos($this->html, '-->', $lt + 4);\n                $this->offset = $e === false ? $len : $e + 3;\n                continue;\n            }\n            $nx = isset($this->html[$lt + 1]) ? $this->html[$lt + 1] : '';\n            if ($nx === '/' || $nx === '!' || $nx === '?') { $this->offset = $lt + 1; continue; }\n            $en = $lt + 1;\n            while ($en < $len && ctype_alnum($this->html[$en])) $en++;\n            $tag = strtolower(substr($this->html, $lt + 1, $en - $lt - 1));\n            $gt = strpos($this->html, '>', $en);\n            if ($gt === false) return false;\n            $this->offset = $gt + 1;\n            if ($tag !== $name) continue;\n            $this->tag_start = $lt;\n            $this->tag_end = $gt;\n            $this->attrs = [];\n            $attr_str = substr($this->html, $en, $gt - $en);\n            preg_match_all('/([a-zA-Z_:][a-zA-Z0-9:_.-]*)\\\\s*=\\\\s*\"([^\"]*)\"/', $attr_str, $m, PREG_SET_ORDER);\n            foreach ($m as $a) $this->attrs[strtolower($a[1])] = $a[2];\n            return true;\n        }\n        return false;\n    }\n    public function get_attribute($name) {\n        $k = strtolower($name);\n        return array_key_exists($k, $this->attrs) ? $this->attrs[$k] : null;\n    }\n    public function set_attribute($name, $value) {\n        $tag_str = substr($this->html, $this->tag_start, $this->tag_end - $this->tag_start + 1);\n        $self_close = '';\n        $body = substr($tag_str, 1, -1);\n        if (substr($body, -1) === '/') { $self_close = ' /'; $body = substr($body, 0, -1); }\n        $body = rtrim($body);\n        $k = strtolower($name);\n        $attr_pat = '/\\\\s+' . preg_quote($name, '/') . '\\\\s*=\\\\s*\"[^\"]*\"/i';\n        if (array_key_exists($k, $this->attrs)) {\n            $body = preg_replace($attr_pat, ' ' . $name . '=\"' . htmlspecialchars($value, ENT_QUOTES) . '\"', $body, 1);\n        } else {\n            $body .= ' ' . $name . '=\"' . htmlspecialchars($value, ENT_QUOTES) . '\"';\n        }\n        $new_tag = '<' . $body . $self_close . '>';\n        $delta = strlen($new_tag) - strlen($tag_str);\n        $this->html = substr($this->html, 0, $this->tag_start) . $new_tag . substr($this->html, $this->tag_end + 1);\n        $this->tag_end += $delta;\n        $this->offset += $delta;\n        $this->attrs[$k] = $value;\n    }\n    public function get_updated_html() { return $this->html; }\n}\n"
+					}
+				]
+			}
+		</script>
+
+		<php-snippet wp="none" blueprint="toolkit-setup" name="quickstart.php">
+			<script type="application/x-php">
+				<?php
+				require '/tmp/php-toolkit/vendor/autoload.php';
+
+				$html = '<article>
+					<img src="hero.jpg" alt="Hero shot">
+					<p>Welcome to the site.</p>
+					<img src="diagram.png" alt="" loading="eager">
+				</article>';
+
+				$tags = new WP_HTML_Tag_Processor( $html );
+				while ( $tags->next_tag( 'img' ) ) {
+					if ( null === $tags->get_attribute( 'loading' ) ) {
+						$tags->set_attribute( 'loading', 'lazy' );
+					}
+				}
+
+				echo $tags->get_updated_html();
+			</script>
+			<script type="text/expected-output">
+				<article>
+					<img src="hero.jpg" alt="Hero shot" loading="lazy">
+					<p>Welcome to the site.</p>
+					<img src="diagram.png" alt="" loading="eager">
+				</article>
+			</script>
+		</php-snippet>
+
 		<h2>8. Read-only illustration</h2>
 		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
 			This snippet is syntax-highlighted but is not meant to execute.
