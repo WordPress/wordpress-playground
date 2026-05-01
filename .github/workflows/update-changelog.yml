@@ -14,19 +14,31 @@ on:
 
 jobs:
     release:
-        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
+        # Only run this workflow on the playground repo, from the trunk branch.
+        # For workflow_run triggers, require the parent workflow to have succeeded
+        # so we don't update the changelog (and cascade-trigger the GitHub Release
+        # workflow) when an npm publish actually failed. For workflow_dispatch,
+        # restrict to Playground maintainers.
         if: >
             github.repository == 'WordPress/wordpress-playground' &&
             github.ref == 'refs/heads/trunk' && (
-                github.event.workflow_run.conclusion == 'success' ||
-                github.actor == 'adamziel' ||
-                github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl' ||
-                github.actor == 'janjakes' ||
-                github.actor == 'mho22' ||
-                github.actor == 'ashfame'
+                (
+                    github.event_name == 'workflow_run' &&
+                    github.event.workflow_run.conclusion == 'success'
+                ) ||
+                (
+                    github.event_name == 'workflow_dispatch' &&
+                    (
+                        github.actor == 'adamziel' ||
+                        github.actor == 'dmsnell' ||
+                        github.actor == 'bgrgicak' ||
+                        github.actor == 'brandonpayton' ||
+                        github.actor == 'zaerl' ||
+                        github.actor == 'janjakes' ||
+                        github.actor == 'mho22' ||
+                        github.actor == 'ashfame'
+                    )
+                )
             )
 
         # Specify runner + deployment step
