@@ -74,6 +74,7 @@ test.describe('php-code-snippet embed', () => {
 			const snippet = document.createElement('php-snippet');
 			snippet.setAttribute('name', 'plain-ok.php');
 			snippet.setAttribute('wp', 'none');
+			snippet.setAttribute('playground-origin', window.location.origin);
 
 			const script = document.createElement('script');
 			script.type = 'application/x-php';
