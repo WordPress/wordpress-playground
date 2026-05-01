@@ -4,7 +4,7 @@ Provides a [PlaygroundClient](https://wordpress.github.io/wordpress-playground/a
 
 In browser applications, consume the client over HTTP from the same Playground deployment that serves `remote.html`:
 
-```ts
+```js
 import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
 const client = await startPlaygroundWeb({
