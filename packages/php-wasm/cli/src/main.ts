@@ -39,7 +39,12 @@ const caBundlePath = new URL('ca-bundle.crt', baseUrl).pathname;
 if (!existsSync(caBundlePath)) {
 	writeFileSync(caBundlePath, rootCertificates.join('\n'));
 }
-args.unshift('-d', `openssl.cafile=${caBundlePath}`);
+args.unshift(
+	'-d',
+	`openssl.cafile=${caBundlePath}`,
+	'-d',
+	`curl.cainfo=${caBundlePath}`
+);
 
 async function run() {
 	const defaultPhpIniPath = new URL('php.ini', baseUrl).pathname;

@@ -27,7 +27,8 @@
  * class as follows:
  *
  * 1. We generate a self-signed CA certificate and tell PHP to trust it using the
- *    `openssl.cafile` PHP.ini option
+ *    `openssl.cafile` and `curl.cainfo` PHP.ini options (so both PHP streams
+ *    and libcurl validate the MITM cert against the same CA bundle)
  * 2. We create a domain-specific child certificate and sign it with the CA private key.
  * 3. We start accepting raw encrypted bytes, process them as structured TLS records,
  *    and perform the TLS handshake.

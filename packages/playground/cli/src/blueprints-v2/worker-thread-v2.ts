@@ -229,6 +229,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 
 		await setPhpIniEntries(php, {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			'curl.cainfo': '/internal/shared/ca-bundle.crt',
 			allow_url_fopen: '1',
 			disable_functions: '',
 		});

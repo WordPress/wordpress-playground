@@ -128,6 +128,63 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 		test.expect(parsed.bodyStart).toBe(longText.slice(0, 50));
 	});
 
+	test('PHP curl can verify HTTPS peers via the curl.cainfo CA bundle', async ({
+		page,
+	}) => {
+		const result = await page.evaluate(async () => {
+			const CAroot = await window.generateCertificate({
+				subject: {
+					commonName: 'TestCA',
+					organizationName: 'Test',
+					countryName: 'US',
+				},
+				basicConstraints: { ca: true },
+			});
+
+			const php = new window.PHP(
+				await window.loadWebRuntime('8.4', {
+					tcpOverFetch: { CAroot },
+				})
+			);
+
+			const caBundlePath = '/internal/shared/ca-bundle.crt';
+			php.mkdir('/internal/shared');
+			php.writeFile(caBundlePath, window.certificateToPEM(CAroot.certificate));
+
+			await window.setPhpIniEntries(php, {
+				allow_url_fopen: '1',
+				disable_functions: '',
+				'openssl.cafile': caBundlePath,
+				'curl.cainfo': caBundlePath,
+			});
+
+			const response = await php.runStream({
+				code: `<?php
+					$ch = curl_init('https://api.wordpress.org/stats/php/1.0/');
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					$body = curl_exec($ch);
+					$error = curl_error($ch);
+					$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					curl_close($ch);
+					$json = json_decode($body, true);
+					echo json_encode([
+						'code' => $code,
+						'error' => $error,
+						'has83' => is_array($json) && array_key_exists('8.3', $json),
+					]);
+				`,
+			});
+			const text = await response.stdoutText;
+			php.exit();
+			return text;
+		});
+
+		const parsed = JSON.parse(result);
+		test.expect(parsed.code).toBe(200);
+		test.expect(parsed.error).toBe('');
+		test.expect(parsed.has83).toBe(true);
+	});
+
 	test('PHP curl receives decompressed body for brotli-compressed response', async ({
 		page,
 	}) => {

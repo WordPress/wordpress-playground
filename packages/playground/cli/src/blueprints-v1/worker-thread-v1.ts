@@ -131,6 +131,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				phpIniEntries: {
 					'openssl.cafile': '/internal/shared/ca-bundle.crt',
+					'curl.cainfo': '/internal/shared/ca-bundle.crt',
 					allow_url_fopen: '1',
 					disable_functions: '',
 				},

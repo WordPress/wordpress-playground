@@ -4,7 +4,11 @@ import {
 	proxyFileSystem,
 	setPhpIniEntries,
 } from '@php-wasm/universal';
-import { generateCertificate, loadWebRuntime } from '../../lib';
+import {
+	certificateToPEM,
+	generateCertificate,
+	loadWebRuntime,
+} from '../../lib';
 
 declare global {
 	interface Window {
@@ -14,6 +18,7 @@ declare global {
 		proxyFileSystem: typeof proxyFileSystem;
 		setPhpIniEntries: typeof setPhpIniEntries;
 		generateCertificate: typeof generateCertificate;
+		certificateToPEM: typeof certificateToPEM;
 	}
 }
 
@@ -23,3 +28,4 @@ window.loadWebRuntime = loadWebRuntime;
 window.proxyFileSystem = proxyFileSystem;
 window.setPhpIniEntries = setPhpIniEntries;
 window.generateCertificate = generateCertificate;
+window.certificateToPEM = certificateToPEM;

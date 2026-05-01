@@ -163,6 +163,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			'curl.cainfo': '/internal/shared/ca-bundle.crt',
 		};
 
 		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
