@@ -1,7 +1,9 @@
 ---
 title: Changelog
 slug: /changelog
-format: md
+hide_table_of_contents: true
+mdx:
+  format: md
 ---
 
 # Changelog
