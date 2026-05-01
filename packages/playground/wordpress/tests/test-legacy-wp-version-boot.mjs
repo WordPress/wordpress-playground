@@ -296,48 +296,66 @@ for (const { wp, php } of MATRIX) {
 		});
 
 		// --- Phase 1: Front page ---
-		const wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		// Retry a front-page timeout once. On shared CI runners the first
+		// Vite worker request can occasionally race the dev server's cold
+		// transform and fail before WordPress boots, while a fresh navigation
+		// succeeds. Real PHP/page errors still fail immediately.
+		let wp1 = null;
+		for (let attempt = 0; attempt < 2; attempt++) {
+			if (attempt > 0) {
+				consoleErrors.length = 0;
+				await page.goto(url, {
+					timeout: 180_000,
+					waitUntil: 'domcontentloaded',
+				});
+			}
+			wp1 = await waitForWPFrame(page, TIMEOUT_S);
 
-		if (!wp1) {
-			const lastError = consoleErrors[consoleErrors.length - 1] || '';
-			frontStatus = {
-				status: 'TIMEOUT',
-				detail: lastError,
-			};
-		} else {
-			const error = findPHPError(wp1.body);
-			if (error) {
+			if (!wp1) {
+				const lastError = consoleErrors[consoleErrors.length - 1] || '';
 				frontStatus = {
-					status: 'ERROR',
-					detail: error,
-					body: wp1.body,
+					status: 'TIMEOUT',
+					detail: lastError,
 				};
 			} else {
-				const hasHelloWorld =
-					wp1.body.includes('Hello world') ||
-					wp1.body.includes('Hello World');
-				const hasWP =
-					wp1.body.includes('WordPress') ||
-					wp1.body.includes('My WordPress') ||
-					wp1.body.includes('My Weblog');
-
-				if (hasHelloWorld) {
-					frontStatus = { status: 'OK' };
-				} else if (wp1.body.includes('Not Found') && !hasHelloWorld) {
-					frontStatus = { status: 'NOT_FOUND', body: wp1.body };
-				} else if (hasWP) {
+				const error = findPHPError(wp1.body);
+				if (error) {
 					frontStatus = {
-						status: 'PARTIAL',
-						detail: wp1.body.slice(0, 120).replace(/\n/g, ' '),
-					};
-				} else {
-					frontStatus = {
-						status: 'UNKNOWN',
-						detail: wp1.body.slice(0, 120).replace(/\n/g, ' '),
+						status: 'ERROR',
+						detail: error,
 						body: wp1.body,
 					};
+				} else {
+					const hasHelloWorld =
+						wp1.body.includes('Hello world') ||
+						wp1.body.includes('Hello World');
+					const hasWP =
+						wp1.body.includes('WordPress') ||
+						wp1.body.includes('My WordPress') ||
+						wp1.body.includes('My Weblog');
+
+					if (hasHelloWorld) {
+						frontStatus = { status: 'OK' };
+					} else if (
+						wp1.body.includes('Not Found') &&
+						!hasHelloWorld
+					) {
+						frontStatus = { status: 'NOT_FOUND', body: wp1.body };
+					} else if (hasWP) {
+						frontStatus = {
+							status: 'PARTIAL',
+							detail: wp1.body.slice(0, 120).replace(/\n/g, ' '),
+						};
+					} else {
+						frontStatus = {
+							status: 'UNKNOWN',
+							detail: wp1.body.slice(0, 120).replace(/\n/g, ' '),
+							body: wp1.body,
+						};
+					}
 				}
 			}
+			if (frontStatus.status !== 'TIMEOUT') break;
 		}
 
 		// --- Phase 2: View single post (click "Hello world!") ---
