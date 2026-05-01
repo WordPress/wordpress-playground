@@ -79,7 +79,7 @@ The following contributors merged PRs in this release:
 ### Website
 
 - Embeddable PHP code snippets via &lt;php-snippet&gt;. ([#3528](https://github.com/WordPress/wordpress-playground/pull/3528))
-- &lt;php-snippet&gt; setup blueprints via <template>. ([#3536](https://github.com/WordPress/wordpress-playground/pull/3536))
+- &lt;php-snippet&gt; setup blueprints via &lt;template&gt;. ([#3536](https://github.com/WordPress/wordpress-playground/pull/3536))
 - &lt;php-snippet&gt; – display expected output by default. ([#3557](https://github.com/WordPress/wordpress-playground/pull/3557))
 - Accept encodeURIComponent-produced blueprint URL fragments. ([#3527](https://github.com/WordPress/wordpress-playground/pull/3527))
 - Add AI discoverability: Llms.txt, meta tags, documentation section. ([#3534](https://github.com/WordPress/wordpress-playground/pull/3534))
