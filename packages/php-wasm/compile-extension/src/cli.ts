@@ -11,9 +11,7 @@ import {
 	SupportedExtensionPHPVersions,
 } from './compile';
 import { detectExtensionName } from './detect';
-import type { AsyncMode } from './manifest';
 
-const DefaultAsyncModes: AsyncMode[] = ['jspi', 'asyncify'];
 const OptionsWithDashPrefixedValues = new Set([
 	'--config-args',
 	'--extra-cflags',
@@ -38,11 +36,6 @@ export async function main(args = hideBin(process.argv)) {
 				type: 'string',
 				default: SupportedExtensionPHPVersions.join(','),
 				description: 'Comma-separated PHP major.minor versions.',
-			},
-			'async-modes': {
-				type: 'string',
-				default: DefaultAsyncModes.join(','),
-				description: 'Comma-separated async modes: jspi,asyncify.',
 			},
 			out: {
 				type: 'string',
@@ -86,7 +79,6 @@ export async function main(args = hideBin(process.argv)) {
 		argv['php-versions'] as string,
 		'php-versions'
 	);
-	const asyncModes = parseAsyncModes(argv['async-modes'] as string);
 	const configArgs = splitShellWords((argv['config-args'] as string) || '');
 
 	const result = await compileExtensionMatrix({
@@ -95,7 +87,6 @@ export async function main(args = hideBin(process.argv)) {
 		outDir: argv['out'] as string,
 		name,
 		phpVersions,
-		asyncModes,
 		extraCflags: argv['extra-cflags'] as string | undefined,
 		extraLdflags: argv['extra-ldflags'] as string | undefined,
 		configArgs,
@@ -141,16 +132,6 @@ function parseCsv(value: string, name: string): string[] {
 		throw new Error(`--${name} must contain at least one value.`);
 	}
 	return values;
-}
-
-function parseAsyncModes(value: string): AsyncMode[] {
-	const modes = parseCsv(value, 'async-modes');
-	for (const mode of modes) {
-		if (mode !== 'jspi' && mode !== 'asyncify') {
-			throw new Error(`Unsupported async mode: ${mode}`);
-		}
-	}
-	return modes as AsyncMode[];
 }
 
 export function splitShellWords(value: string): string[] {

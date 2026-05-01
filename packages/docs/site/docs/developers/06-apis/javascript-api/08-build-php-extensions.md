@@ -18,7 +18,6 @@ npx @php-wasm/compile-extension \
 	--source ./wp-mysql-parser \
 	--name wp_mysql_parser \
 	--php-versions 8.4 \
-	--async-modes jspi,asyncify \
 	--out ./dist/wp_mysql_parser
 ```
 
@@ -26,15 +25,17 @@ Docker is required. The helper reuses the PHP.wasm compile image, builds a
 matching PHP source tree, and runs `phpize`, `emconfigure`, and `emmake` with
 the side-module flags expected by PHP.wasm.
 
+Custom extensions are built for JSPI runtimes. The helper does not build
+Asyncify side modules.
+
 ## Output
 
-The output directory contains one artifact for each PHP version and async mode
-plus `manifest.json`:
+The output directory contains one JSPI artifact for each PHP version plus
+`manifest.json`:
 
 ```text
 dist/wp_mysql_parser/
 |-- manifest.json
-|-- wp_mysql_parser-php8.4-asyncify.so
 `-- wp_mysql_parser-php8.4-jspi.so
 ```
 
@@ -48,7 +49,6 @@ paths, and `sha256` hashes:
 	"artifacts": [
 		{
 			"phpVersion": "8.4",
-			"asyncMode": "jspi",
 			"file": "wp_mysql_parser-php8.4-jspi.so",
 			"sha256": "..."
 		}
@@ -82,9 +82,9 @@ const php = new PHP(
 ```
 
 Node.js accepts local paths, `file:` URLs, and HTTP(S) URLs for `manifestUrl`.
-The loader selects the artifact whose `phpVersion` and `asyncMode` match the
-runtime, verifies `sha256` when present, writes a generated `.ini` file, and
-starts PHP with the extension scan directory configured.
+The loader selects the artifact whose `phpVersion` matches the runtime,
+verifies `sha256` when present, writes a generated `.ini` file, and starts PHP
+with the extension scan directory configured.
 
 ## Loading in the browser
 
@@ -133,9 +133,9 @@ await loadWebRuntime('8.4', {
 
 ## Compatibility
 
-Build every PHP version and async mode you plan to support. A `.so` built for
-PHP 8.4 cannot be loaded into PHP 8.3, and a JSPI side module cannot be loaded
-into an Asyncify runtime.
+Build every PHP version you plan to support. A `.so` built for PHP 8.4 cannot
+be loaded into PHP 8.3. Custom extension artifacts are JSPI-only and must be
+loaded by a JSPI runtime.
 
 Extension loading is startup-only. Declare custom extensions in the
 `extensions` option before the runtime is created.

@@ -12,10 +12,13 @@ if ! command -v docker >/dev/null 2>&1; then
 	exit 1
 fi
 
-if [ "$ASYNC_MODE" = "jspi" ]; then
-	NODE_JSPI_FLAGS=(--experimental-wasm-jspi)
-	node "${NODE_JSPI_FLAGS[@]}" -e "import('wasm-feature-detect').then(async ({ jspi }) => { if (!(await jspi())) process.exit(1); })"
+if [ "$ASYNC_MODE" != "jspi" ]; then
+	echo "Unsupported ASYNC_MODE: ${ASYNC_MODE}." >&2
+	echo "Custom extensions are JSPI-only." >&2
+	exit 1
 fi
+NODE_JSPI_FLAGS=(--experimental-wasm-jspi)
+node "${NODE_JSPI_FLAGS[@]}" -e "import('wasm-feature-detect').then(async ({ jspi }) => { if (!(await jspi())) process.exit(1); })"
 
 rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR"
@@ -46,7 +49,6 @@ extension_image_tag() {
 compile_extension() {
 	"${COMPILE_EXTENSION[@]}" \
 		--php-versions "$PHP_VERSION" \
-		--async-modes "$ASYNC_MODE" \
 		--jobs 1 \
 		"$@"
 }
@@ -58,7 +60,6 @@ verify_extension() {
 	"${VERIFY_EXTENSION[@]}" \
 		"$manifest_path" \
 		"$PHP_VERSION" \
-		"$ASYNC_MODE" \
 		"$php_code" \
 		"$expected_output"
 }
@@ -104,22 +105,20 @@ verify_extension \
 	"hello from php-wasm"
 echo "::endgroup::"
 
-if [ "$ASYNC_MODE" = "jspi" ]; then
-	echo "::group::Build and load Redis extension"
-	REDIS_SOURCE="$WORK_DIR/phpredis"
-	prepare_redis_source "$REDIS_SOURCE"
-	compile_extension \
-		--source "$REDIS_SOURCE" \
-		--name redis \
-		--out "$WORK_DIR/redis" \
-		--extra-cflags "-Dsetsockopt=wasm_setsockopt -Dusleep=__wrap_usleep" \
-		--config-args "--disable-redis-session --disable-redis-json --disable-redis-igbinary --disable-redis-msgpack --disable-redis-lzf --disable-redis-zstd --disable-redis-lz4"
-	verify_extension \
-		"$WORK_DIR/redis/manifest.json" \
-		"<?php echo class_exists('Redis') ? get_class(new Redis()) : 'missing';" \
-		"Redis"
-	echo "::endgroup::"
-fi
+echo "::group::Build and load Redis extension"
+REDIS_SOURCE="$WORK_DIR/phpredis"
+prepare_redis_source "$REDIS_SOURCE"
+compile_extension \
+	--source "$REDIS_SOURCE" \
+	--name redis \
+	--out "$WORK_DIR/redis" \
+	--extra-cflags "-Dsetsockopt=wasm_setsockopt -Dusleep=__wrap_usleep" \
+	--config-args "--disable-redis-session --disable-redis-json --disable-redis-igbinary --disable-redis-msgpack --disable-redis-lzf --disable-redis-zstd --disable-redis-lz4"
+verify_extension \
+	"$WORK_DIR/redis/manifest.json" \
+	"<?php echo class_exists('Redis') ? get_class(new Redis()) : 'missing';" \
+	"Redis"
+echo "::endgroup::"
 
 # Some PECL extensions import PHP main-module data globals that are not yet
 # exported in a side-module-compatible shape. ext/calendar is still a real

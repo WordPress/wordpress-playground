@@ -70,7 +70,7 @@ export async function buildExtensionImage(
 			'--build-arg',
 			`PHP_VERSION=${options.phpRelease}`,
 			'--build-arg',
-			`JSPI=${options.asyncMode === 'jspi' ? 'yes' : 'no'}`,
+			'JSPI=yes',
 		],
 		{
 			cwd: options.phpWasmRoot,

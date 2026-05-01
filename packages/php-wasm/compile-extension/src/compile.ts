@@ -10,7 +10,7 @@ import {
 	runExtensionBuild,
 } from './docker';
 import type { AsyncMode, BuiltArtifact } from './manifest';
-import { createManifest, writeManifest } from './manifest';
+import { createManifest, ExtensionAsyncMode, writeManifest } from './manifest';
 
 export const SupportedExtensionPHPVersions = [
 	'8.5',
@@ -38,7 +38,6 @@ export interface CompileExtensionOptions {
 	outDir: string;
 	name: string;
 	phpVersions: string[];
-	asyncModes: AsyncMode[];
 	extraCflags?: string;
 	extraLdflags?: string;
 	configArgs: string[];
@@ -51,9 +50,11 @@ export async function compileExtensionMatrix(options: CompileExtensionOptions) {
 	const sourceDir = path.resolve(options.workspaceRoot, options.sourceDir);
 	const context = createDockerContext(options.workspaceRoot);
 	const version = await detectManifestVersion(sourceDir);
-	const matrix = options.phpVersions.flatMap((phpVersion) =>
-		options.asyncModes.map((asyncMode) => ({ phpVersion, asyncMode }))
-	);
+	const matrix: Array<{ phpVersion: string; asyncMode: AsyncMode }> =
+		options.phpVersions.map((phpVersion) => ({
+			phpVersion,
+			asyncMode: ExtensionAsyncMode,
+		}));
 
 	await mkdir(outDir, { recursive: true });
 	await assertDockerIsAvailable();
@@ -87,7 +88,6 @@ export async function compileExtensionMatrix(options: CompileExtensionOptions) {
 			});
 			return {
 				phpVersion,
-				asyncMode,
 				file: artifactFile,
 				path: path.join(outDir, artifactFile),
 			} satisfies BuiltArtifact;

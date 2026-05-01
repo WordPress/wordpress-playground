@@ -1,16 +1,12 @@
 import { loadNodeRuntime } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 
-const [manifestPath, phpVersion, asyncMode, code, expectedOutput] =
-	process.argv.slice(2);
+const [manifestPath, phpVersion, code, expectedOutput] = process.argv.slice(2);
 
-if (!manifestPath || !phpVersion || !asyncMode || !code) {
+if (!manifestPath || !phpVersion || !code) {
 	throw new Error(
-		'Usage: load-built-extension.mjs <manifest> <php-version> <async-mode> <php-code> <expected-output>'
+		'Usage: load-built-extension.mjs <manifest> <php-version> <php-code> <expected-output>'
 	);
-}
-if (asyncMode !== 'jspi' && asyncMode !== 'asyncify') {
-	throw new Error(`Unsupported async mode: ${asyncMode}`);
 }
 
 const php = new PHP(

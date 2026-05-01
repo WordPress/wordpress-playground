@@ -1,19 +1,18 @@
 # @php-wasm/compile-extension
 
-Builds a PHP extension source directory into PHP.wasm side modules for a PHP
-version and async-mode matrix.
+Builds a PHP extension source directory into PHP.wasm JSPI side modules for a
+PHP version matrix.
 
 ```bash
 npx @php-wasm/compile-extension \
 	--source ./ext-src \
 	--name wp_mysql_parser \
 	--php-versions 8.4 \
-	--async-modes jspi,asyncify \
 	--out ./dist
 ```
 
-The command writes one `.so` per matrix entry and a `manifest.json` that can be
-consumed by PHP.wasm extension-loading helpers.
+The command writes one JSPI `.so` per PHP version and a `manifest.json` that
+can be consumed by PHP.wasm extension-loading helpers.
 
 Docker is required. The build reuses the `packages/php-wasm/compile` base image
 and its PHP patch set, then runs `phpize`, `emconfigure`, and `emmake` inside
@@ -42,10 +41,10 @@ const php = new PHP(
 );
 ```
 
-The loader chooses the artifact whose `phpVersion` and `asyncMode` match the
-running PHP.wasm runtime, downloads it, verifies `sha256` when present, stages
-the `.so`, writes a startup `.ini` file, and registers the extension scan
-directory before PHP starts.
+The loader chooses the artifact whose `phpVersion` matches the running
+PHP.wasm runtime, downloads it, verifies `sha256` when present, stages the
+`.so`, writes a startup `.ini` file, and registers the extension scan directory
+before PHP starts.
 
 In Node.js, `manifestUrl` may also be a local path:
 
@@ -90,7 +89,7 @@ Xdebug. Use `extraFiles` and `env` for sidecar files needed by the extension.
 ## Dependencies
 
 The helper can only link WebAssembly objects built with the same Emscripten
-toolchain and async mode as the PHP runtime. Native host libraries from
+toolchain and JSPI ABI as the PHP runtime. Native host libraries from
 `/usr/lib`, Homebrew, apt, or npm packages cannot be linked into the `.so`.
 
 For dependencies already built by Playground, build the matching target and pass
@@ -103,7 +102,6 @@ npx @php-wasm/compile-extension \
 	--source ./zlib-probe \
 	--name zlib_probe \
 	--php-versions 8.4 \
-	--async-modes jspi \
 	--extra-cflags "-I/php-wasm-compile/libz/jspi/dist/root/lib/include" \
 	--extra-ldflags "/php-wasm-compile/libz/jspi/dist/root/lib/lib/libz.a"
 ```
@@ -128,7 +126,6 @@ npx @php-wasm/compile-extension \
 	--source ./external-lib-probe \
 	--name external_lib_probe \
 	--php-versions 8.4 \
-	--async-modes asyncify \
 	--extra-cflags "-I/build/vendor/string-score/install/include" \
 	--extra-ldflags "/build/vendor/string-score/install/lib/libstring_score.a"
 ```
@@ -142,7 +139,6 @@ npx @php-wasm/compile-extension \
 	--source ./my-rust-extension \
 	--name my_rust_extension \
 	--php-versions 8.4 \
-	--async-modes jspi \
 	--extra-ldflags "/build/target/wasm32-unknown-emscripten/release/libmy_rust_extension.a"
 ```
 
@@ -156,7 +152,7 @@ store the install tree under the extension source directory:
 
 ```bash
 # Run this inside the same Emscripten toolchain used for the target PHP.wasm
-# version and async mode.
+# version and JSPI ABI.
 source /root/emsdk/emsdk_env.sh
 
 emcmake cmake \
@@ -172,7 +168,6 @@ npx @php-wasm/compile-extension \
 	--source . \
 	--name my_extension \
 	--php-versions 8.4 \
-	--async-modes asyncify \
 	--extra-cflags "-I/build/vendor/libfoo/install/include" \
 	--extra-ldflags "/build/vendor/libfoo/install/lib/libfoo.a"
 ```
@@ -195,7 +190,6 @@ npx @php-wasm/compile-extension \
 	--source . \
 	--name my_extension \
 	--php-versions 8.4 \
-	--async-modes asyncify \
 	--extra-cflags "-I/build/vendor/libfoo/install/include" \
 	--extra-ldflags "/build/vendor/libfoo/install/lib/libfoo.a"
 ```
@@ -221,9 +215,8 @@ RUSTFLAGS="-C panic=abort" cargo +nightly build \
 	-Zbuild-std=std,panic_abort
 ```
 
-Keep the dependency async mode aligned with the extension. A `jspi` side module
-must link `jspi` dependency archives; an `asyncify` side module must link
-`asyncify` dependency archives.
+Keep dependencies aligned with the custom extension target. Custom extensions
+are JSPI-only, so link `jspi` dependency archives.
 
 `--extra-cflags` is visible during `./configure`. `--extra-ldflags` is applied
 to the final side-module link so dependency archives do not break Autoconf's
@@ -256,8 +249,8 @@ must come from PHP core.
 
 `WebAssembly.LinkError` or startup crashes
 
-Check that the artifact async mode matches the runtime. Build `jspi` artifacts
-for JSPI runtimes and `asyncify` artifacts for Asyncify runtimes.
+Check that the extension loads in a JSPI runtime. The custom extension helper
+does not build Asyncify artifacts.
 
 `wasm-ld: unknown file type` or `file not recognized`
 

@@ -10,18 +10,15 @@ describe('findExtensionArtifact', () => {
 			artifacts: [
 				{
 					phpVersion: '8.4',
-					asyncMode: 'jspi',
 					file: 'example-php8.4-jspi.so',
 					sha256: 'abc',
 				},
 			],
 		};
 
-		expect(findExtensionArtifact(manifest, '8.4', 'jspi')?.file).toBe(
+		expect(findExtensionArtifact(manifest, '8.4')?.file).toBe(
 			'example-php8.4-jspi.so'
 		);
-		expect(findExtensionArtifact(manifest, '8.4', 'asyncify')).toBe(
-			undefined
-		);
+		expect(findExtensionArtifact(manifest, '8.3')).toBe(undefined);
 	});
 });

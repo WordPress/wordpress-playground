@@ -3,11 +3,11 @@ import { createReadStream } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-export type AsyncMode = 'jspi' | 'asyncify';
+export const ExtensionAsyncMode = 'jspi';
+export type AsyncMode = typeof ExtensionAsyncMode;
 
 export interface ExtensionArtifact {
 	phpVersion: string;
-	asyncMode: AsyncMode;
 	file: string;
 	sha256: string;
 }
@@ -20,7 +20,6 @@ export interface ExtensionManifest {
 
 export interface BuiltArtifact {
 	phpVersion: string;
-	asyncMode: AsyncMode;
 	file: string;
 	path: string;
 }
@@ -47,7 +46,6 @@ export async function createManifest(options: {
 		artifacts: await Promise.all(
 			options.artifacts.map(async (artifact) => ({
 				phpVersion: artifact.phpVersion,
-				asyncMode: artifact.asyncMode,
 				file: artifact.file,
 				sha256: await sha256File(artifact.path),
 			}))
@@ -70,12 +68,9 @@ export async function writeManifest(options: {
 
 export function findExtensionArtifact(
 	manifest: ExtensionManifest,
-	phpVersion: string,
-	asyncMode: AsyncMode
+	phpVersion: string
 ): ExtensionArtifact | undefined {
 	return manifest.artifacts.find(
-		(artifact) =>
-			artifact.phpVersion === phpVersion &&
-			artifact.asyncMode === asyncMode
+		(artifact) => artifact.phpVersion === phpVersion
 	);
 }

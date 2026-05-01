@@ -11,7 +11,7 @@ if [ -z "${EXTENSION_NAME:-}" ]; then
 	exit 1
 fi
 
-ASYNC_MODE="${ASYNC_MODE:-asyncify}"
+ASYNC_MODE="${ASYNC_MODE:-jspi}"
 OPTIMIZE="${OPTIMIZE:-2}"
 ARTIFACT_FILENAME="${ARTIFACT_FILENAME:-${EXTENSION_NAME}-php${PHP_VERSION_SHORT:-unknown}-${ASYNC_MODE}.so}"
 MAKE_JOBS="${MAKE_JOBS:-$(nproc)}"
@@ -30,16 +30,13 @@ export EMSDK_SYSROOT="${EMSDK_SYSROOT:-${EMSDK}/upstream/emscripten/cache/sysroo
 
 BASE_CFLAGS="-DZEND_ENABLE_ZVAL_LONG64 -D__x86_64__ -fPIC -O${OPTIMIZE}"
 BASE_LDFLAGS="-sSIDE_MODULE=1 -sWASM_BIGINT -fPIC -O${OPTIMIZE}"
-ASYNC_FLAGS=""
 
-if [ "$ASYNC_MODE" = "jspi" ]; then
-	ASYNC_FLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"
-elif [ "$ASYNC_MODE" = "asyncify" ]; then
-	ASYNC_FLAGS="-sASYNCIFY=1 -sASYNCIFY_ADVISE"
-else
-	echo "Unsupported ASYNC_MODE: ${ASYNC_MODE}" >&2
+if [ "$ASYNC_MODE" != "jspi" ]; then
+	echo "Unsupported ASYNC_MODE: ${ASYNC_MODE}." >&2
+	echo "Custom extensions can only be built for JSPI runtimes." >&2
 	exit 1
 fi
+ASYNC_FLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"
 
 EXTRA_LINK_FLAGS=""
 EXTRA_STATIC_ARCHIVES=""

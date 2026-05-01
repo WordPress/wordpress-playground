@@ -7,8 +7,8 @@ description: Link WebAssembly dependencies when building custom PHP.wasm extensi
 # PHP extension dependencies
 
 Custom PHP.wasm extensions can only link WebAssembly code built with the same
-Emscripten toolchain and async mode as the PHP runtime. Native host libraries
-from `/usr/lib`, Homebrew, apt, or npm packages cannot be linked into the final
+Emscripten toolchain and JSPI ABI as the PHP runtime. Native host libraries from
+`/usr/lib`, Homebrew, apt, or npm packages cannot be linked into the final
 `.so`.
 
 Build dependencies as static WebAssembly archives and pass their headers and
@@ -17,8 +17,7 @@ archives to `@php-wasm/compile-extension`.
 ## Playground-built dependencies
 
 Some libraries already have recipes in `packages/php-wasm/compile`. Build the
-matching async-mode target and pass the mounted path inside the helper
-container:
+JSPI target and pass the mounted path inside the helper container:
 
 ```bash
 make -C packages/php-wasm/compile libz_jspi
@@ -27,13 +26,11 @@ npx @php-wasm/compile-extension \
 	--source ./zlib-probe \
 	--name zlib_probe \
 	--php-versions 8.4 \
-	--async-modes jspi \
 	--extra-cflags "-I/php-wasm-compile/libz/jspi/dist/root/lib/include" \
 	--extra-ldflags "/php-wasm-compile/libz/jspi/dist/root/lib/lib/libz.a"
 ```
 
-Use the `jspi` archive for JSPI builds and the `asyncify` archive for Asyncify
-builds.
+Use the `jspi` archive for custom extension builds.
 
 ## Vendored dependencies
 
@@ -46,7 +43,6 @@ npx @php-wasm/compile-extension \
 	--source ./external-lib-probe \
 	--name external_lib_probe \
 	--php-versions 8.4 \
-	--async-modes asyncify \
 	--extra-cflags "-I/build/vendor/string-score/install/include" \
 	--extra-ldflags "/build/vendor/string-score/install/lib/libstring_score.a"
 ```
@@ -66,7 +62,6 @@ npx @php-wasm/compile-extension \
 	--source ./my-rust-extension \
 	--name my_rust_extension \
 	--php-versions 8.4 \
-	--async-modes jspi \
 	--extra-cflags "-I/build/include" \
 	--extra-ldflags "/build/target/wasm32-unknown-emscripten/release/libmy_rust_extension.a"
 ```
@@ -105,7 +100,6 @@ npx @php-wasm/compile-extension \
 	--source . \
 	--name my_extension \
 	--php-versions 8.4 \
-	--async-modes asyncify \
 	--extra-cflags "-I/build/vendor/libfoo/install/include" \
 	--extra-ldflags "/build/vendor/libfoo/install/lib/libfoo.a"
 ```
@@ -129,7 +123,6 @@ npx @php-wasm/compile-extension \
 	--source . \
 	--name my_extension \
 	--php-versions 8.4 \
-	--async-modes asyncify \
 	--extra-cflags "-I/build/vendor/libfoo/install/include" \
 	--extra-ldflags "/build/vendor/libfoo/install/lib/libfoo.a"
 ```
@@ -201,8 +194,8 @@ symbol must come from PHP core.
 
 `WebAssembly.LinkError` or startup crashes
 
-Check that the artifact async mode matches the runtime. Build JSPI artifacts
-for JSPI runtimes and Asyncify artifacts for Asyncify runtimes.
+Check that the extension loads in a JSPI runtime. The custom extension helper
+does not build Asyncify artifacts.
 
 `wasm-ld: unknown file type` or `file not recognized`
 
