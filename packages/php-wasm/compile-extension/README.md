@@ -133,6 +133,24 @@ npx @php-wasm/compile-extension \
 	--extra-ldflags "/build/vendor/string-score/install/lib/libstring_score.a"
 ```
 
+Prebuilt static archives, including Rust `staticlib` archives, should also be
+passed through `--extra-ldflags`. The helper detects `.a` entries and
+force-links them into the final side module with `--whole-archive`:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./my-rust-extension \
+	--name my_rust_extension \
+	--php-versions 8.4 \
+	--async-modes jspi \
+	--extra-ldflags "/build/target/wasm32-unknown-emscripten/release/libmy_rust_extension.a"
+```
+
+Do not use `PHP_ADD_LIBRARY_WITH_PATH` for sibling `.a` archives in
+`config.m4`. PHP's libtool setup can look for a matching `.so`, fail to link
+the archive into the side module, and still leave a build artifact behind. Use
+`--extra-ldflags` for static archives instead.
+
 If the dependency uses CMake, build it as a static archive with Emscripten and
 store the install tree under the extension source directory:
 
@@ -188,6 +206,21 @@ without `phpize`, add a thin `config.m4` wrapper that builds the PHP extension
 and treats the CMake/Make output as dependency code. A fully custom final build
 script is outside v1.
 
+Rust extensions should wrap the Rust crate with a small `config.m4` and C shim
+that defines the PHP module entry and calls exported Rust functions over C ABI.
+The helper image includes a host `php` CLI for build scripts such as
+`ext-php-rs`, exports `BINDGEN_EXTRA_CLANG_ARGS` for the PHP.wasm target and
+sysroot, and sets `CFLAGS_wasm32_unknown_emscripten=-fPIC` for `cc-rs` build
+scripts. Rust `staticlib` archives must still be built with `panic=abort` and a
+nightly rebuilt standard library:
+
+```bash
+RUSTFLAGS="-C panic=abort" cargo +nightly build \
+	--release \
+	--target wasm32-unknown-emscripten \
+	-Zbuild-std=std,panic_abort
+```
+
 Keep the dependency async mode aligned with the extension. A `jspi` side module
 must link `jspi` dependency archives; an `asyncify` side module must link
 `asyncify` dependency archives.
@@ -230,6 +263,18 @@ for JSPI runtimes and `asyncify` artifacts for Asyncify runtimes.
 
 One of the linked libraries is a native host library. Rebuild that dependency
 with Emscripten and link the resulting `.a` file.
+
+`R_WASM_MEMORY_ADDR_SLEB cannot be used against symbol`
+
+A C or C++ object in a static archive was not compiled as position-independent
+code. Rebuild it with `-fPIC`, or make sure Rust `cc-rs` sees
+`CFLAGS_wasm32_unknown_emscripten=-fPIC`.
+
+`__cpp_exception` is undefined when loading a Rust extension
+
+The Rust archive was built against an unwinding `std`. Rebuild it with
+`RUSTFLAGS="-C panic=abort"` and
+`cargo +nightly build -Zbuild-std=std,panic_abort`.
 
 `bad export type for 'stdin'` or another C runtime global
 

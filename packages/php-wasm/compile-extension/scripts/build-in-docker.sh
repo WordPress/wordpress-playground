@@ -26,6 +26,7 @@ cd /build
 
 phpize .
 source /root/emsdk/emsdk_env.sh
+export EMSDK_SYSROOT="${EMSDK_SYSROOT:-${EMSDK}/upstream/emscripten/cache/sysroot}"
 
 BASE_CFLAGS="-DZEND_ENABLE_ZVAL_LONG64 -D__x86_64__ -fPIC -O${OPTIMIZE}"
 BASE_LDFLAGS="-sSIDE_MODULE=1 -sWASM_BIGINT -fPIC -O${OPTIMIZE}"
@@ -52,6 +53,13 @@ done
 
 export CFLAGS="${BASE_CFLAGS} ${USER_EXTRA_CFLAGS}"
 export CXXFLAGS="${BASE_CFLAGS} ${USER_EXTRA_CFLAGS}"
+export BINDGEN_EXTRA_CLANG_ARGS="--target=wasm32-unknown-emscripten --sysroot=${EMSDK_SYSROOT} -DZEND_ENABLE_ZVAL_LONG64 -D__x86_64__ ${BINDGEN_EXTRA_CLANG_ARGS:-}"
+export CFLAGS_wasm32_unknown_emscripten="-fPIC ${CFLAGS_wasm32_unknown_emscripten:-}"
+export CXXFLAGS_wasm32_unknown_emscripten="-fPIC ${CXXFLAGS_wasm32_unknown_emscripten:-}"
+export CC_wasm32_unknown_emscripten="${CC_wasm32_unknown_emscripten:-emcc}"
+export CXX_wasm32_unknown_emscripten="${CXX_wasm32_unknown_emscripten:-em++}"
+export AR_wasm32_unknown_emscripten="${AR_wasm32_unknown_emscripten:-emar}"
+export RANLIB_wasm32_unknown_emscripten="${RANLIB_wasm32_unknown_emscripten:-emranlib}"
 CONFIGURE_LDFLAGS="${BASE_LDFLAGS} ${ASYNC_FLAGS}"
 BUILD_LDFLAGS="${CONFIGURE_LDFLAGS}${EXTRA_LINK_FLAGS}"
 export LDFLAGS="${CONFIGURE_LDFLAGS}"

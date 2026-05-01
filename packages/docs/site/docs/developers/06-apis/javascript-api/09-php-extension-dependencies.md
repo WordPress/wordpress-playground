@@ -55,6 +55,35 @@ npx @php-wasm/compile-extension \
 to the final side-module link so dependency archives do not break Autoconf's
 compiler smoke tests.
 
+## Prebuilt static archives
+
+Use `--extra-ldflags` to link prebuilt static archives such as a Rust
+`staticlib`. The helper detects `.a` entries in `--extra-ldflags` and
+force-links them into the final side module with `--whole-archive`.
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./my-rust-extension \
+	--name my_rust_extension \
+	--php-versions 8.4 \
+	--async-modes jspi \
+	--extra-cflags "-I/build/include" \
+	--extra-ldflags "/build/target/wasm32-unknown-emscripten/release/libmy_rust_extension.a"
+```
+
+The extension still needs a small `phpize` wrapper. A common Rust pattern is:
+
+- `config.m4` declares the PHP extension and builds a tiny C shim with
+  `PHP_NEW_EXTENSION`.
+- `_shim.c` defines the PHP module entry and calls exported Rust functions over
+  C ABI.
+- `--extra-ldflags` points at the Rust `staticlib` archive under `/build`.
+
+Do not use `PHP_ADD_LIBRARY_WITH_PATH` for a sibling `.a` archive in
+`config.m4`. PHP's libtool setup can look for a matching `.so`, fail to link
+the archive into the side module, and still leave a build artifact behind. Pass
+static archives through `--extra-ldflags` instead.
+
 ## CMake dependencies
 
 Build CMake dependencies as static archives with Emscripten and store the
@@ -110,6 +139,50 @@ itself is CMake-only or Makefile-only, add a thin `config.m4` wrapper that
 builds the PHP extension and treats the CMake or Make output as dependency
 code.
 
+## Rust build systems
+
+The helper image includes a host `php` CLI because `ext-php-rs` and similar
+build systems often shell out to `php` for version detection. The host CLI is
+only for build scripts. The compiled extension must still link against the
+PHP.wasm headers and side-module ABI.
+
+Rust extensions that use `bindgen` need the same target, sysroot, and Zend
+defines as PHP.wasm. The helper exports `BINDGEN_EXTRA_CLANG_ARGS` with:
+
+```bash
+--target=wasm32-unknown-emscripten \
+--sysroot=$EMSDK_SYSROOT \
+-DZEND_ENABLE_ZVAL_LONG64 \
+-D__x86_64__
+```
+
+If you build the Rust archive outside the helper container, set the same value
+before running `cargo`.
+
+Rust `cc-rs` build scripts also need position-independent objects for side
+module linking. The helper exports target-specific compiler variables including
+`CFLAGS_wasm32_unknown_emscripten=-fPIC` and
+`CXXFLAGS_wasm32_unknown_emscripten=-fPIC`. Without `-fPIC`, the final link can
+fail with an error like:
+
+```text
+R_WASM_MEMORY_ADDR_SLEB cannot be used against symbol ...; recompile with -fPIC
+```
+
+Rust's precompiled `std` for `wasm32-unknown-emscripten` is built with
+unwinding support. That imports a `__cpp_exception` WebAssembly tag that
+PHP.wasm does not export. Build Rust static libraries with `panic=abort` and a
+nightly rebuilt standard library:
+
+```bash
+RUSTFLAGS="-C panic=abort" cargo +nightly build \
+	--release \
+	--target wasm32-unknown-emscripten \
+	-Zbuild-std=std,panic_abort
+```
+
+Link the resulting `lib*.a` with `--extra-ldflags`.
+
 ## Troubleshooting
 
 `configure: error: ... not found`
@@ -135,6 +208,18 @@ for JSPI runtimes and Asyncify artifacts for Asyncify runtimes.
 
 One of the linked libraries is a native host library. Rebuild that dependency
 with Emscripten and link the resulting `.a` file.
+
+`R_WASM_MEMORY_ADDR_SLEB cannot be used against symbol`
+
+A C or C++ object in a static archive was not compiled as position-independent
+code. Rebuild it with `-fPIC`, or make sure Rust `cc-rs` sees
+`CFLAGS_wasm32_unknown_emscripten=-fPIC`.
+
+`__cpp_exception` is undefined when loading a Rust extension
+
+The Rust archive was built against an unwinding `std`. Rebuild it with
+`RUSTFLAGS="-C panic=abort"` and
+`cargo +nightly build -Zbuild-std=std,panic_abort`.
 
 `bad export type for 'stdin'` or another C runtime global
 
