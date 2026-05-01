@@ -1,6 +1,6 @@
 import dependencyFilename from './5_2_17/php_5_2.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 9427349;
+export const dependenciesTotalSize = 9427343;
 const phpVersionString = '5.2.17';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -8022,7 +8022,7 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var ___heap_base = 5123904;
+	var ___heap_base = 5123888;
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncjs__js_module_onMessage,
