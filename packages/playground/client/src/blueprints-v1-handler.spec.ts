@@ -64,8 +64,9 @@ describe('BlueprintsV1Handler', () => {
 	});
 
 	it('does not prefetch WordPress updates for PHP-only blueprints', async () => {
+		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
-			iframe: createIframe(),
+			iframe,
 			remoteUrl: 'http://example.com/remote.html',
 			blueprint: {
 				preferredVersions: {
@@ -75,7 +76,7 @@ describe('BlueprintsV1Handler', () => {
 			},
 		});
 
-		await handler.bootPlayground(createIframe(), createProgressTracker());
+		await handler.bootPlayground(iframe, createProgressTracker());
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -86,13 +87,14 @@ describe('BlueprintsV1Handler', () => {
 	});
 
 	it('prefetches WordPress updates when WordPress is installed', async () => {
+		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
-			iframe: createIframe(),
+			iframe,
 			remoteUrl: 'http://example.com/remote.html',
 			blueprint: {},
 		});
 
-		await handler.bootPlayground(createIframe(), createProgressTracker());
+		await handler.bootPlayground(iframe, createProgressTracker());
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({

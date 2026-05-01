@@ -13,6 +13,8 @@ import type { Page } from '@playwright/test';
  */
 
 const DEMO_URL = './php-code-snippet-demo.html';
+const CLIENT_INDEX_SOURCE = `${process.cwd()}/packages/playground/client/src/index.ts`;
+const TOOLKIT_AUTOLOAD_SOURCE = `${process.cwd()}/packages/playground/website/public/php-toolkit-autoload.txt`;
 const pageErrors = new WeakMap<Page, string[]>();
 
 test.describe('php-code-snippet embed', () => {
@@ -235,12 +237,8 @@ test.describe('php-code-snippet embed', () => {
 		const snippet = page.locator('php-snippet[name="quickstart.php"]');
 
 		await expect(snippet).toBeVisible();
-		const localClientUrl = new URL('/client/index.js', page.url()).href;
-		const localClientResponse = await page.request.get(localClientUrl);
-		test.skip(
-			!localClientResponse.ok(),
-			'This regression test needs the deploy layout that serves /client/index.js.'
-		);
+		await ensurePlaygroundClientIsServed(page);
+		await ensureToolkitAutoloadIsServed(page);
 		await snippet.evaluate((element) => {
 			element.setAttribute('playground-origin', window.location.origin);
 		});
@@ -291,3 +289,32 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(1);
 	});
 });
+
+async function ensurePlaygroundClientIsServed(page: Page) {
+	const clientUrl = new URL('/client/index.js', page.url()).href;
+	const response = await page.request.get(clientUrl);
+	if (response.ok()) {
+		return;
+	}
+
+	const sourceUrl = new URL(`/@fs${CLIENT_INDEX_SOURCE}`, page.url()).href;
+	await page.route(clientUrl, async (route) => {
+		const response = await page.request.get(sourceUrl);
+		await route.fulfill({ response });
+	});
+}
+
+async function ensureToolkitAutoloadIsServed(page: Page) {
+	const autoloadUrl = new URL('/php-toolkit-autoload.txt', page.url()).href;
+	const response = await page.request.get(autoloadUrl);
+	if (response.ok()) {
+		return;
+	}
+
+	await page.route(autoloadUrl, async (route) => {
+		await route.fulfill({
+			path: TOOLKIT_AUTOLOAD_SOURCE,
+			contentType: 'text/plain',
+		});
+	});
+}
