@@ -88,23 +88,20 @@ jobs:
 
             - uses: ./.github/actions/prepare-playground
 
-            # Run the build standalone before lerna publish so any failure
-            # produces clear, streamed output. lerna's prepublishOnly will
-            # re-run this build, but it should hit the nx cache and finish
-            # quickly. Without this step, build output gets swallowed by
-            # lerna's lifecycle handling and a failure shows up only as
-            # "lifecycle 'prepublishOnly' errored" with no diagnostics.
-            - name: Build all packages (verbose)
-              run: npm run build -- --output-style=stream --verbose
-              env:
-                  NX_TUI: 'false'
-                  NX_VERBOSE_LOGGING: 'true'
-
             - name: Publish NPM packages
               # Version bump, release, tag a new version on GitHub.
               # On non-trunk branches, --no-push avoids pushing the version
               # bump commit back to the branch. The published packages still
               # get the version bump in their package.json on npm.
+              #
+              # NX_TUI=false disables Nx's terminal UI mode, which otherwise
+              # buffers all task output until the run ends. lerna runs the
+              # build via the prepublishOnly lifecycle script; without this,
+              # if the build crashes mid-run (e.g. an OOM kill), the entire
+              # buffer is lost and the only signal in the log is
+              # "lifecycle 'prepublishOnly' errored" with no diagnostics.
+              env:
+                  NX_TUI: 'false'
               run: >
                   lerna publish ${{ inputs.version_bump || 'patch' }}
                   --yes --no-private --loglevel=verbose

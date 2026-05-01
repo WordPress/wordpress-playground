@@ -14,20 +14,24 @@ on:
 
 jobs:
     release:
-        # Only run this workflow on the playground repo, from the trunk branch.
-        # For workflow_run triggers, require the parent workflow to have succeeded
-        # so we don't update the changelog (and cascade-trigger the GitHub Release
-        # workflow) when an npm publish actually failed. For workflow_dispatch,
-        # restrict to Playground maintainers.
+        # Only run this workflow on the playground repo. For workflow_run triggers,
+        # require the parent workflow to have succeeded on trunk so we don't update
+        # the changelog (and cascade-trigger the GitHub Release workflow) when an
+        # npm publish actually failed or ran on a non-trunk branch. Note: for
+        # workflow_run events, github.ref is always the default branch where this
+        # file lives, so we must use workflow_run.head_branch to gate on the
+        # parent's actual branch. For workflow_dispatch, restrict to Playground
+        # maintainers running on trunk.
         if: >
-            github.repository == 'WordPress/wordpress-playground' &&
-            github.ref == 'refs/heads/trunk' && (
+            github.repository == 'WordPress/wordpress-playground' && (
                 (
                     github.event_name == 'workflow_run' &&
-                    github.event.workflow_run.conclusion == 'success'
+                    github.event.workflow_run.conclusion == 'success' &&
+                    github.event.workflow_run.head_branch == 'trunk'
                 ) ||
                 (
                     github.event_name == 'workflow_dispatch' &&
+                    github.ref == 'refs/heads/trunk' &&
                     (
                         github.actor == 'adamziel' ||
                         github.actor == 'dmsnell' ||
