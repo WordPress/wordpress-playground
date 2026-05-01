@@ -35,6 +35,7 @@ import type {
 	PathAlias,
 	PHP,
 	PHPRequestHandler,
+	PHPRunOptions,
 } from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
@@ -123,6 +124,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
+	private runAsPlainPhp = false;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
@@ -419,6 +421,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
+	protected enablePlainPhpRunMode() {
+		this.runAsPlainPhp = true;
+	}
+
 	/**
 	 * @returns WordPress module details, including the static assets directory and default theme.
 	 */
@@ -430,6 +436,17 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				? wpVersionToStaticAssetsDirectory(this.loadedWordPressVersion)
 				: undefined,
 		};
+	}
+
+	override async run(request: PHPRunOptions): Promise<PHPResponse> {
+		if (!this.runAsPlainPhp) {
+			return await super.run(request);
+		}
+		const php = this.__internal_getPHP();
+		if (!php) {
+			throw new Error('Playground worker is not connected to PHP.');
+		}
+		return await php.run(request);
 	}
 
 	async getMinifiedWordPressVersions() {

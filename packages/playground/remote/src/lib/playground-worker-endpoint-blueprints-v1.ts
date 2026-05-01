@@ -160,6 +160,8 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// OPFS mounts and stop, so the caller gets a usable PHP runtime.
 			if (!shouldInstallWordPress) {
 				const primaryPhp = await requestHandler.getPrimaryPhp();
+				await this.setPrimaryPHP(primaryPhp);
+				this.enablePlainPhpRunMode();
 				for (const mount of mounts) {
 					await endpoint.mountOpfsIntoPhp(primaryPhp, mount);
 				}

@@ -33,6 +33,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		let endpoint:
 			| {
 					boot(options: Record<string, unknown>): Promise<void>;
+					run(request: Record<string, unknown>): Promise<unknown>;
 			  }
 			| undefined;
 		vi.doMock('@wp-playground/wordpress', () => ({
@@ -78,6 +79,53 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		});
 
 		expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
+	}, 10000);
+
+	it('runs code on the primary PHP runtime when WordPress is skipped', async () => {
+		const run = vi.fn(async () => ({ text: 'ok' }));
+		const php = { run } as unknown as PHP;
+		const requestHandler = {
+			getPrimaryPhp: vi.fn(async () => php),
+		};
+		let endpoint:
+			| {
+					boot(options: Record<string, unknown>): Promise<void>;
+					run(request: Record<string, unknown>): Promise<unknown>;
+			  }
+			| undefined;
+		vi.doMock('@wp-playground/wordpress', () => ({
+			bootWordPress: vi.fn(),
+		}));
+		vi.doMock('@php-wasm/web', () => ({
+			certificateToPEM: vi.fn(),
+			createDirectoryHandleMountHandler: vi.fn(),
+			exposeAPI: vi.fn((api) => {
+				endpoint = api;
+				return [vi.fn(), vi.fn()];
+			}),
+			loadWebRuntime: vi.fn(),
+		}));
+		await import('./playground-worker-endpoint-blueprints-v1');
+		if (!endpoint) {
+			throw new Error('Expected exposeAPI to receive an endpoint');
+		}
+		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+			'http://playground.test'
+		);
+		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
+			requestHandler
+		);
+
+		await endpoint.boot({
+			scope: 'test',
+			phpVersion: '8.3',
+			shouldInstallWordPress: false,
+			withNetworking: false,
+		});
+		const response = await endpoint.run({ code: '<?php echo "ok";' });
+
+		expect(response).toEqual({ text: 'ok' });
+		expect(run).toHaveBeenCalledWith({ code: '<?php echo "ok";' });
 	}, 10000);
 
 	it('throws a diagnostic error if the worker entrypoint is evaluated twice in the same worker global', async () => {
