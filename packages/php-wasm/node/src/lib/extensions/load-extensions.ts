@@ -3,7 +3,6 @@ import type {
 	EmscriptenOptions,
 	PHPExtensionInstallOptions,
 	ResolvedPHPExtension,
-	PHPWasmAsyncMode,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
@@ -21,6 +20,8 @@ import {
 	fetchNodeExtensionResource,
 	normalizeNodeExtensionSource,
 } from './node-extension-resources';
+
+type PHPWasmAsyncMode = 'jspi' | 'asyncify';
 
 export interface PathMapping {
 	hostPath: string;
@@ -41,8 +42,8 @@ export type BuiltInPHPExtensionName = 'intl' | 'xdebug' | 'redis' | 'memcached';
 /**
  * External PHP extension source that can be installed before PHP starts.
  *
- * The runtime supplies the active PHP version and async mode before resolving
- * the source, so callers only provide the artifact source and install options.
+ * External sources are supported in JSPI runtimes only. Asyncify support is
+ * limited to bundled extensions shipped with this package.
  */
 export type RuntimePHPExtensionSource = PHPExtensionInstallOptions;
 
@@ -114,7 +115,8 @@ export async function withPHPExtensions(
  * 1. An external source supplied by the caller: bytes, a URL, or a manifest.
  *    Node normalizes local paths into `file:` URLs and uses
  *    `fetchNodeExtensionResource()` so local files and remote artifacts go
- *    through the same resolver.
+ *    through the same resolver. External sources are rejected for Asyncify
+ *    runtimes.
  * 2. A built-in extension name: `intl`, `redis`, `memcached`, or `xdebug`.
  *    The Node package already knows where those artifacts live and adds any
  *    extra startup state they require, such as ICU data for `intl` or Xdebug
@@ -137,11 +139,15 @@ async function resolveRuntimePHPExtension(
 	 * manifest, URL, or byte source as one of the bundled extensions.
 	 */
 	if (typeof extension === 'object' && 'source' in extension) {
+		if (asyncMode === 'asyncify') {
+			throw new Error(
+				'External PHP extensions require JSPI. Asyncify is only supported for PHP.wasm bundled extensions.'
+			);
+		}
 		return await resolvePHPExtension({
 			...extension,
 			source: normalizeNodeExtensionSource(extension.source),
 			phpVersion: version,
-			asyncMode,
 			fetch: extension.fetch ?? fetchNodeExtensionResource,
 		});
 	}
@@ -170,7 +176,6 @@ async function resolveRuntimePHPExtension(
 					bytes: soBytes,
 				},
 				phpVersion: version,
-				asyncMode,
 				env: {
 					ICU_DATA: '/internal/shared',
 				},
@@ -192,7 +197,6 @@ async function resolveRuntimePHPExtension(
 					bytes: new Uint8Array(fs.readFileSync(extensionPath)),
 				},
 				phpVersion: version,
-				asyncMode,
 			});
 		}
 		case 'memcached': {
@@ -204,7 +208,6 @@ async function resolveRuntimePHPExtension(
 					bytes: new Uint8Array(fs.readFileSync(extensionPath)),
 				},
 				phpVersion: version,
-				asyncMode,
 			});
 		}
 		case 'xdebug': {
@@ -219,7 +222,6 @@ async function resolveRuntimePHPExtension(
 					bytes: new Uint8Array(fs.readFileSync(filePath)),
 				},
 				phpVersion: version,
-				asyncMode,
 				loadWithIniDirective: 'zend_extension',
 				iniEntries: {
 					'xdebug.mode': 'debug,develop',

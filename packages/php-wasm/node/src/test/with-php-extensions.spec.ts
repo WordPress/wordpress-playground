@@ -20,7 +20,6 @@ describe('withPHPExtensions', () => {
 					artifacts: [
 						{
 							phpVersion: '8.4',
-							asyncMode: 'jspi',
 							file: 'example.so',
 						},
 					],
@@ -49,6 +48,20 @@ describe('withPHPExtensions', () => {
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
+	});
+
+	it('rejects external extension sources for Asyncify runtimes', async () => {
+		await expect(
+			withPHPExtensions('8.4', 'asyncify', {}, [
+				{
+					name: 'example',
+					source: {
+						format: 'so',
+						bytes: new Uint8Array([1, 2, 3]),
+					},
+				},
+			])
+		).rejects.toThrow('External PHP extensions require JSPI');
 	});
 
 	it('treats drive-letter-shaped strings as local paths, not URL schemes', () => {

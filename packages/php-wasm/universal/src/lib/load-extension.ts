@@ -47,7 +47,6 @@
  *   "artifacts": [
  *     {
  *       "phpVersion": "8.4",
- *       "asyncMode": "jspi",
  *       "file": "wp_mysql_parser-php8.4-jspi.so"
  *     }
  *   ]
@@ -72,14 +71,6 @@ import type { FileTree } from './write-files';
 export const PHP_EXTENSIONS_DIR = '/internal/shared/extensions';
 
 /**
- * Async mode used by the PHP.wasm build that will load the extension.
- *
- * Extension side modules must be compiled for the same mode as the main PHP
- * module.
- */
-export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
-
-/**
  * The php.ini directive used to load the extension.
  *
  * Use `extension` for regular PHP extensions and `zend_extension` for Zend
@@ -97,11 +88,6 @@ export interface PHPExtensionManifestArtifact {
 	phpVersion: string;
 
 	/**
-	 * PHP.wasm async mode the artifact was compiled against.
-	 */
-	asyncMode: PHPWasmAsyncMode;
-
-	/**
 	 * Relative to the manifest URL/base URL, or an absolute URL.
 	 */
 	file: string;
@@ -117,7 +103,7 @@ export interface PHPExtensionManifestArtifact {
  *
  * A manifest lets callers publish a matrix of `.so` files and lets
  * `resolvePHPExtension()` select the artifact that matches the current PHP
- * version and async mode.
+ * version. External extension artifacts are JSPI-only.
  */
 export interface PHPExtensionManifest {
 	name: string;
@@ -258,7 +244,6 @@ export interface PHPExtensionInstallOptions {
  */
 export type ResolvePHPExtensionOptions = PHPExtensionInstallOptions & {
 	phpVersion: string;
-	asyncMode: PHPWasmAsyncMode;
 };
 
 /**
@@ -437,9 +422,10 @@ export function installPHPExtensionFilesSync(
  *
  * Direct byte sources are already available, URL sources are fetched as a
  * single artifact, and manifest sources first choose the artifact matching the
- * active PHP version and async mode. Manifests are validated here because they
- * may come from user-provided URLs and their `name`/`file` values later decide
- * what gets written into the PHP virtual filesystem.
+ * active PHP version. External extension artifacts are JSPI-only, so the
+ * manifest does not expose an async-mode selector. Manifests are validated
+ * here because they may come from user-provided URLs and their `name`/`file`
+ * values later decide what gets written into the PHP virtual filesystem.
  */
 async function resolvePHPExtensionSource(
 	options: ResolvePHPExtensionOptions,
@@ -536,11 +522,14 @@ async function resolvePHPExtensionSource(
 		if (
 			!artifact ||
 			typeof artifact.phpVersion !== 'string' ||
-			(artifact.asyncMode !== 'jspi' &&
-				artifact.asyncMode !== 'asyncify') ||
 			typeof artifact.file !== 'string'
 		) {
 			throw new Error('Extension manifest contains an invalid artifact.');
+		}
+		if ('asyncMode' in artifact) {
+			throw new Error(
+				'Extension manifests do not use asyncMode. External PHP extensions require JSPI.'
+			);
 		}
 	}
 	const baseUrl =
@@ -548,13 +537,11 @@ async function resolvePHPExtensionSource(
 			? new URL(String(source.baseUrl))
 			: manifestUrl;
 	const artifact = manifest.artifacts.find(
-		(candidate) =>
-			candidate.phpVersion === options.phpVersion &&
-			candidate.asyncMode === options.asyncMode
+		(candidate) => candidate.phpVersion === options.phpVersion
 	);
 	if (!artifact) {
 		throw new Error(
-			`No extension artifact found for PHP ${options.phpVersion} ${options.asyncMode}.`
+			`No extension artifact found for PHP ${options.phpVersion}.`
 		);
 	}
 	if (!baseUrl) {

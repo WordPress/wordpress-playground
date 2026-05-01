@@ -111,7 +111,6 @@ export type {
 	PHPExtensionManifest,
 	PHPExtensionManifestArtifact,
 	PHPExtensionSource,
-	PHPWasmAsyncMode,
 	ResolvePHPExtensionOptions,
 } from './load-extension';
 

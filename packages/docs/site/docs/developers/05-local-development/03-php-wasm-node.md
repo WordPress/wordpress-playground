@@ -45,7 +45,7 @@ const php = new PHP(
 );
 ```
 
-The same array can load external `.so` artifacts from a manifest:
+The same array can load external JSPI `.so` artifacts from a manifest:
 
 ```javascript
 const php = new PHP(
@@ -61,6 +61,9 @@ const php = new PHP(
 	})
 );
 ```
+
+External extensions require JSPI. Asyncify support is limited to the bundled
+extensions shipped with the PHP.wasm packages.
 
 See [Loading PHP extensions](/developers/apis/javascript-api/php-extensions)
 for manifest format, browser usage, sidecar files, and compatibility notes.

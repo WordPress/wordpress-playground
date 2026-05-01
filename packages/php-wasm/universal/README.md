@@ -10,8 +10,9 @@ staging primitives.
 
 ## PHP extension manifests
 
-External PHP extensions are loaded before PHP starts. A manifest lets a package
-publish one extension name with artifacts for the PHP and async-mode matrix:
+External PHP extensions are loaded before PHP starts. They are supported in
+JSPI runtimes only. A manifest lets a package publish one extension name with
+artifacts for the PHP version matrix:
 
 ```json
 {
@@ -20,7 +21,6 @@ publish one extension name with artifacts for the PHP and async-mode matrix:
 	"artifacts": [
 		{
 			"phpVersion": "8.4",
-			"asyncMode": "jspi",
 			"file": "wp_mysql_parser-php8.4-jspi.so",
 			"sha256": "..."
 		}
@@ -31,6 +31,9 @@ publish one extension name with artifacts for the PHP and async-mode matrix:
 `file` may be absolute, or relative to the manifest URL. If you pass an inline
 manifest instead of `manifestUrl`, pass `baseUrl` to choose where relative
 artifact files are resolved from.
+
+Asyncify extension loading is reserved for bundled extensions shipped with the
+PHP.wasm packages, such as `intl`, `xdebug`, `redis`, and `memcached`.
 
 ## Lower-level extension staging
 
@@ -44,7 +47,6 @@ import { resolvePHPExtension, withResolvedPHPExtensions } from '@php-wasm/univer
 
 const extension = await resolvePHPExtension({
 	phpVersion: '8.4',
-	asyncMode: 'jspi',
 	source: {
 		format: 'manifest',
 		manifestUrl: new URL('https://cdn.example.com/wp_mysql_parser/manifest.json'),
@@ -59,7 +61,6 @@ Direct bytes skip URL resolution:
 ```ts
 await resolvePHPExtension({
 	phpVersion: '8.4',
-	asyncMode: 'jspi',
 	name: 'wp_mysql_parser',
 	source: { format: 'so', bytes },
 });

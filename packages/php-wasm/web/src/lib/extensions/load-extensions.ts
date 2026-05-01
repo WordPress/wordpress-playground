@@ -3,7 +3,6 @@ import type {
 	EmscriptenOptions,
 	PHPExtensionInstallOptions,
 	ResolvedPHPExtension,
-	PHPWasmAsyncMode,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
@@ -11,6 +10,8 @@ import {
 	resolvePHPExtension,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
+
+type PHPWasmAsyncMode = 'jspi' | 'asyncify';
 
 /**
  * Built-in PHP extensions shipped with `@php-wasm/web`.
@@ -20,9 +21,8 @@ export type BuiltInPHPWebExtensionName = 'intl';
 /**
  * External PHP extension source that can be installed before PHP starts.
  *
- * The runtime supplies the active PHP version and async mode before
- * resolving the source, so callers only provide the artifact source and
- * install options.
+ * External sources are supported in JSPI runtimes only. Asyncify support is
+ * limited to bundled extensions shipped with this package.
  */
 export type RuntimePHPWebExtensionSource = PHPExtensionInstallOptions;
 
@@ -75,10 +75,10 @@ export async function withPHPExtensions(
  * Resolves one Web runtime extension request before PHP starts.
  *
  * Web has two extension sources. External extensions already describe their
- * own artifact source, so this passes the active PHP version and async mode to
- * the universal resolver. Built-in `intl` is different: its `.so` and ICU data
- * are bundled assets that must both be fetched and staged before PHP reads the
- * generated `intl.ini`.
+ * own artifact source, so this passes the active PHP version to the universal
+ * resolver after rejecting external Asyncify requests. Built-in `intl` is
+ * different: its `.so` and ICU data are bundled assets that must both be
+ * fetched and staged before PHP reads the generated `intl.ini`.
  */
 async function resolveRuntimePHPWebExtension(
 	version: SupportedPHPVersion,
@@ -93,10 +93,14 @@ async function resolveRuntimePHPWebExtension(
 	 * extension.
 	 */
 	if (typeof extension === 'object' && 'source' in extension) {
+		if (asyncMode === 'asyncify') {
+			throw new Error(
+				'External PHP extensions require JSPI. Asyncify is only supported for PHP.wasm bundled extensions.'
+			);
+		}
 		return await resolvePHPExtension({
 			...extension,
 			phpVersion: version,
-			asyncMode,
 		});
 	}
 
@@ -131,7 +135,6 @@ async function resolveRuntimePHPWebExtension(
 			bytes: new Uint8Array(extensionBytes),
 		},
 		phpVersion: version,
-		asyncMode,
 		env: {
 			ICU_DATA: '/internal/shared',
 		},

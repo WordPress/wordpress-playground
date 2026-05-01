@@ -11,7 +11,6 @@ describe('resolvePHPExtension', () => {
 				bytes: new Uint8Array([1, 2, 3]),
 			},
 			phpVersion: '8.4',
-			asyncMode: 'jspi',
 		});
 
 		expect(extension.soPath).toBe(`${PHP_EXTENSIONS_DIR}/example.so`);
@@ -28,7 +27,6 @@ describe('resolvePHPExtension', () => {
 				bytes: new Uint8Array([1, 2, 3]),
 			},
 			phpVersion: '8.4',
-			asyncMode: 'jspi',
 			loadWithIniDirective: 'zend_extension',
 		});
 
@@ -46,7 +44,6 @@ describe('resolvePHPExtension', () => {
 					bytes: new Uint8Array([1, 2, 3]),
 				},
 				phpVersion: '8.4',
-				asyncMode: 'jspi',
 			})
 		).rejects.toThrow('Invalid PHP extension name');
 	});
@@ -59,7 +56,6 @@ describe('resolvePHPExtension', () => {
 					url: './example.so',
 				},
 				phpVersion: '8.4',
-				asyncMode: 'jspi',
 				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
 			})
 		).rejects.toThrow('source.url must be an absolute URL');
@@ -73,7 +69,6 @@ describe('resolvePHPExtension', () => {
 				manifestUrl: 'https://example.com/extensions/manifest.json',
 			},
 			phpVersion: '8.4',
-			asyncMode: 'asyncify',
 			fetch: async (url) => {
 				const requestUrl = String(url);
 				if (requestUrl.endsWith('/manifest.json')) {
@@ -83,13 +78,12 @@ describe('resolvePHPExtension', () => {
 						artifacts: [
 							{
 								phpVersion: '8.4',
-								asyncMode: 'asyncify',
-								file: 'example-php8.4-asyncify.so',
+								file: 'example-php8.4-jspi.so',
 							},
 						],
 					});
 				}
-				if (requestUrl.endsWith('/example-php8.4-asyncify.so')) {
+				if (requestUrl.endsWith('/example-php8.4-jspi.so')) {
 					return new Response(artifactBytes);
 				}
 				return new Response('Not found', { status: 404 });
@@ -97,5 +91,28 @@ describe('resolvePHPExtension', () => {
 		});
 
 		expect(extension.soBytes).toEqual(artifactBytes);
+	});
+
+	it('rejects asyncMode in external manifests', async () => {
+		await expect(
+			resolvePHPExtension({
+				source: {
+					format: 'manifest',
+					manifest: {
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								asyncMode: 'asyncify',
+								file: 'example-php8.4-asyncify.so',
+							},
+						],
+					} as any,
+					baseUrl: 'https://example.com/extensions/',
+				},
+				phpVersion: '8.4',
+				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+			})
+		).rejects.toThrow('Extension manifests do not use asyncMode');
 	});
 });

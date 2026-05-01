@@ -57,7 +57,7 @@ const php = new PHP(
 ```
 
 `@php-wasm/web` ships the `intl` extension. Browser builds can also load
-external `.so` artifacts from a manifest:
+external JSPI `.so` artifacts from a manifest:
 
 ```js
 const php = new PHP(
@@ -76,6 +76,9 @@ const php = new PHP(
 
 In browser runtimes, pass an HTTP(S) URL or a `URL` object. Relative artifact
 files in the manifest are resolved against the manifest URL.
+
+External extensions are only supported when JSPI is available. Asyncify support
+is limited to the bundled `intl` extension shipped with this package.
 
 ## Usage with bundlers
 

@@ -33,7 +33,7 @@ export interface PHPLoaderOptions {
 	 * PHP extensions to install before the runtime starts.
 	 *
 	 * Use built-in names such as `intl`, `xdebug`, `redis`, and `memcached`,
-	 * or pass an external extension source such as a manifest.
+	 * or pass an external JSPI extension source such as a manifest.
 	 */
 	extensions?: PHPExtension[];
 	/**

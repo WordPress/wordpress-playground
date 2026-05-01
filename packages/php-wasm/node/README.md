@@ -41,7 +41,7 @@ const php = new PHP(
 ```
 
 `@php-wasm/node` ships `intl`, `xdebug`, `redis`, and `memcached`. It can also
-load external `.so` artifacts from a manifest:
+load external JSPI `.so` artifacts from a manifest:
 
 ```js
 const php = new PHP(
@@ -62,6 +62,10 @@ In Node.js, `manifestUrl` may be a local path, a `file:` URL, or an HTTP(S)
 URL. Relative local paths are resolved from the current working directory.
 Relative artifact files in the manifest are resolved against the manifest
 location.
+
+External extensions are only supported when the Node.js runtime has JSPI
+available. Asyncify support is limited to the bundled extensions shipped with
+this package.
 
 The older `withIntl`, `withXdebug`, `withRedis`, and `withMemcached` loader
 options still work, but new code should use `extensions`.

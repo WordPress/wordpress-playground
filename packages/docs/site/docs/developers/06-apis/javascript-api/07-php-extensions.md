@@ -48,7 +48,7 @@ because it also supports external extensions.
 ## External extensions
 
 An external extension needs a WebAssembly `.so` built for the same PHP version
-and async mode as the PHP.wasm runtime. Publish the artifact with a manifest:
+as the PHP.wasm JSPI runtime. Publish the artifact with a manifest:
 
 ```json
 {
@@ -57,7 +57,6 @@ and async mode as the PHP.wasm runtime. Publish the artifact with a manifest:
 	"artifacts": [
 		{
 			"phpVersion": "8.4",
-			"asyncMode": "jspi",
 			"file": "wp_mysql_parser-php8.4-jspi.so",
 			"sha256": "..."
 		}
@@ -91,6 +90,10 @@ const php = new PHP(
 
 Node.js applies the same local-path support to direct artifact URLs and inline
 manifest `baseUrl` values.
+
+External extensions are only supported when JSPI is available. Asyncify support
+is limited to the bundled extensions shipped with the PHP.wasm packages, such
+as `intl`, `xdebug`, `redis`, and `memcached`.
 
 In the browser, pass an absolute URL or construct one with the base URL you want:
 
