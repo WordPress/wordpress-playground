@@ -2176,7 +2176,58 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 
 # List global and exports symbols
 COPY ./compile/php/exported-functions.list /root/exported-functions.list
+COPY ./compile/php/zend-side-module-exports.c /root/zend-side-module-exports.c
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
+
+RUN set -eux; \
+	PHP_VERSION_MAJOR="${PHP_VERSION%%.*}"; \
+	PHP_VERSION_REST="${PHP_VERSION#*.}"; \
+	PHP_VERSION_MINOR="${PHP_VERSION_REST%%.*}"; \
+	{ \
+		echo 'zend_ce_exception'; \
+		echo 'zend_ce_traversable'; \
+		echo 'zend_ce_iterator'; \
+		echo 'zend_ce_aggregate'; \
+		echo 'zend_ce_arrayaccess'; \
+		if [ "$PHP_VERSION_MAJOR" -gt 7 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 7 ] && [ "$PHP_VERSION_MINOR" -ge 2 ]; }; then \
+			echo 'zend_ce_countable'; \
+		fi; \
+		echo 'zend_ce_throwable'; \
+		if [ "$PHP_VERSION_MAJOR" -lt 9 ]; then \
+			echo 'zend_ce_serializable'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -ge 8 ]; then \
+			echo 'zend_ce_stringable'; \
+			echo 'zend_ce_unhandled_match_error'; \
+			echo 'zend_ce_division_by_zero_error'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 8 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 8 ] && [ "$PHP_VERSION_MINOR" -ge 1 ]; }; then \
+			echo 'zend_ce_unit_enum'; \
+			echo 'zend_ce_backed_enum'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 7 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 7 ] && [ "$PHP_VERSION_MINOR" -ge 3 ]; }; then \
+			echo 'zend_string_init_interned'; \
+		fi; \
+		echo 'zend_empty_string'; \
+		echo 'zend_one_char_string'; \
+		echo 'std_object_handlers'; \
+		echo 'executor_globals'; \
+		echo 'compiler_globals'; \
+		echo 'sapi_globals'; \
+		echo 'file_globals'; \
+		echo 'sapi_module'; \
+		echo 'zend_compile_string'; \
+		echo 'zend_get_executed_scope'; \
+		echo 'zend_execute'; \
+		echo 'zval_ptr_dtor'; \
+		echo 'zend_destroy_static_vars'; \
+		echo 'destroy_op_array'; \
+		echo '_efree'; \
+		echo '_zend_bailout'; \
+	} >> /root/.WASM_ABI_EXPORTS
 
 # WORKAROUND: Asyncify builds do not currently include __c_longjmp,
 # but we require it for JSPI builds. Including the symbol in our
@@ -2302,6 +2353,7 @@ RUN set -euxo pipefail; \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
+		/root/zend-side-module-exports.c \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
