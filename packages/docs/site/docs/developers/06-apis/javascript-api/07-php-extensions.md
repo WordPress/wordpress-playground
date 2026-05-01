@@ -162,6 +162,11 @@ await loadWebRuntime('8.4', {
 });
 ```
 
+To build your own extension artifacts, see
+[Building PHP extensions](/developers/apis/javascript-api/build-php-extensions)
+and
+[PHP extension dependencies](/developers/apis/javascript-api/php-extension-dependencies).
+
 ## Startup files
 
 PHP loads extensions from `.ini` files it reads during startup. PHP.wasm builds
