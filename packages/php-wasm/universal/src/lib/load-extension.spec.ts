@@ -93,7 +93,7 @@ describe('resolvePHPExtension', () => {
 		expect(extension.soBytes).toEqual(artifactBytes);
 	});
 
-	it('rejects asyncMode in external manifests', async () => {
+	it('rejects manifests that do not match the generated schema validator', async () => {
 		await expect(
 			resolvePHPExtension({
 				source: {
@@ -113,7 +113,7 @@ describe('resolvePHPExtension', () => {
 				phpVersion: '8.4',
 				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
 			})
-		).rejects.toThrow('Extension manifests do not use asyncMode');
+		).rejects.toThrow('Invalid PHP extension manifest');
 	});
 
 	it('resolves manifest-declared sidecar files', async () => {

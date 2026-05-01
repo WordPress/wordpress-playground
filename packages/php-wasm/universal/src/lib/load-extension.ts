@@ -70,6 +70,7 @@ import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
 import type { FileTree } from './write-files';
+import validatePHPExtensionManifest from '../../public/php-extension-manifest-schema-validator';
 
 /**
  * Default VFS directory where PHP.wasm stages extension `.so` files and
@@ -336,6 +337,15 @@ interface ResolvedPHPExtensionSource {
 }
 
 /**
+ * Error shape returned by the generated AJV extension manifest validator.
+ */
+interface ManifestValidationError {
+	instancePath?: string;
+	message?: string;
+	params?: Record<string, unknown>;
+}
+
+/**
  * Resolves an extension source without mutating a PHP instance.
  *
  * Use this from runtimes that need to fetch extension bytes and compute
@@ -564,31 +574,10 @@ async function resolvePHPExtensionSource(
 		}
 		manifestCandidate = await response.json();
 	}
-	if (!manifestCandidate || typeof manifestCandidate !== 'object') {
-		throw new Error('Extension manifest must be an object.');
-	}
-	const manifest = manifestCandidate as PHPExtensionManifest;
-	if (typeof manifest.name !== 'string' || !manifest.name) {
-		throw new Error('Extension manifest must include a name.');
-	}
-	if (!Array.isArray(manifest.artifacts)) {
-		throw new Error('Extension manifest must include an artifacts array.');
-	}
-	validateManifestExtraFiles(manifest.extraFiles);
+	const manifest = assertValidPHPExtensionManifest(manifestCandidate);
+	validateManifestExtraFilePaths(manifest.extraFiles);
 	for (const artifact of manifest.artifacts) {
-		if (
-			!artifact ||
-			typeof artifact.phpVersion !== 'string' ||
-			typeof artifact.file !== 'string'
-		) {
-			throw new Error('Extension manifest contains an invalid artifact.');
-		}
-		if ('asyncMode' in artifact) {
-			throw new Error(
-				'Extension manifests do not use asyncMode. External PHP extensions require JSPI.'
-			);
-		}
-		validateManifestExtraFiles(artifact.extraFiles);
+		validateManifestExtraFilePaths(artifact.extraFiles);
 	}
 	const baseUrl =
 		'baseUrl' in source && source.baseUrl
@@ -793,49 +782,71 @@ function setFileTreeEntry(
 }
 
 /**
- * Validates the shape and relative VFS paths of a manifest sidecar group.
+ * Validates untrusted manifest JSON using the generated AJV validator.
  *
- * This rejects malformed entries before any network fetches begin, keeping
- * manifest errors separate from artifact download errors.
+ * The validator is generated from `PHPExtensionManifest`, so the runtime
+ * object-shape checks stay aligned with the public TypeScript type.
  */
-function validateManifestExtraFiles(
+function assertValidPHPExtensionManifest(
+	manifestCandidate: unknown
+): PHPExtensionManifest {
+	if (validatePHPExtensionManifest(manifestCandidate)) {
+		return manifestCandidate as PHPExtensionManifest;
+	}
+	throw new Error(
+		`Invalid PHP extension manifest: ${formatManifestValidationErrors(
+			validatePHPExtensionManifest.errors
+		)}`
+	);
+}
+
+/**
+ * Formats generated validator errors into a concise exception message.
+ *
+ * AJV reports structural failures in a machine-oriented form. This preserves
+ * the failing location while spelling out missing and unknown properties in a
+ * way that is useful to manifest authors.
+ */
+function formatManifestValidationErrors(
+	errors: ManifestValidationError[] | null | undefined
+): string {
+	if (!errors?.length) {
+		return 'unknown validation error.';
+	}
+	return errors
+		.map((error) => {
+			const location = error.instancePath || '<root>';
+			if (typeof error.params?.['missingProperty'] === 'string') {
+				return `${location} must include ${JSON.stringify(
+					error.params['missingProperty']
+				)}`;
+			}
+			if (typeof error.params?.['additionalProperty'] === 'string') {
+				return `${location} must not include ${JSON.stringify(
+					error.params['additionalProperty']
+				)}`;
+			}
+			return `${location} ${error.message ?? 'is invalid'}`;
+		})
+		.join('; ');
+}
+
+/**
+ * Validates sidecar VFS paths after the manifest schema passes.
+ *
+ * The generated schema verifies object shape. This extra pass enforces the
+ * path-specific constraint that sidecar files must remain inside `targetPath`.
+ */
+function validateManifestExtraFilePaths(
 	extraFiles: PHPExtensionManifestExtraFiles | undefined
 ) {
-	if (extraFiles === undefined) {
+	if (!extraFiles) {
 		return;
 	}
-	if (!extraFiles || typeof extraFiles !== 'object') {
-		throw new Error('Extension manifest contains invalid extra files.');
-	}
-	if (
-		extraFiles.targetPath !== undefined &&
-		typeof extraFiles.targetPath !== 'string'
-	) {
-		throw new Error('Extension manifest contains invalid extra files.');
-	}
-	if (
-		extraFiles.directories !== undefined &&
-		!Array.isArray(extraFiles.directories)
-	) {
-		throw new Error('Extension manifest contains invalid extra files.');
-	}
 	for (const directory of extraFiles.directories ?? []) {
-		if (typeof directory !== 'string') {
-			throw new Error('Extension manifest contains invalid extra files.');
-		}
 		validateRelativeManifestPath(directory);
 	}
-	if (extraFiles.files !== undefined && !Array.isArray(extraFiles.files)) {
-		throw new Error('Extension manifest contains invalid extra files.');
-	}
 	for (const file of extraFiles.files ?? []) {
-		if (
-			!file ||
-			typeof file.path !== 'string' ||
-			typeof file.file !== 'string'
-		) {
-			throw new Error('Extension manifest contains invalid extra files.');
-		}
 		validateRelativeManifestPath(file.path);
 	}
 }

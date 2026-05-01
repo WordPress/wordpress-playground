@@ -1,0 +1,99 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$ref": "#/definitions/PHPExtensionManifest",
+	"definitions": {
+		"PHPExtensionManifest": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"version": {
+					"type": "string"
+				},
+				"mode": {
+					"type": "string",
+					"const": "php-extension"
+				},
+				"artifacts": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/PHPExtensionManifestArtifact"
+					}
+				},
+				"extraFiles": {
+					"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
+					"description": "Additional URL-backed files shared by all artifacts."
+				}
+			},
+			"required": ["name", "artifacts"],
+			"additionalProperties": false,
+			"description": "Extension artifact manifest.\n\nA manifest lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact that matches the current PHP version. External extension artifacts are JSPI-only."
+		},
+		"PHPExtensionManifestArtifact": {
+			"type": "object",
+			"properties": {
+				"phpVersion": {
+					"type": "string",
+					"description": "PHP major/minor version the artifact was compiled against, e.g. `8.4`."
+				},
+				"file": {
+					"type": "string",
+					"description": "Relative to the manifest URL/base URL, or an absolute URL."
+				},
+				"sha256": {
+					"type": "string",
+					"description": "Optional SHA-256 checksum for the fetched `.so` artifact."
+				},
+				"extraFiles": {
+					"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
+					"description": "Additional URL-backed files to fetch for this artifact.\n\nUse this for files that differ by PHP version or async mode."
+				}
+			},
+			"required": ["phpVersion", "file"],
+			"additionalProperties": false,
+			"description": "One compiled extension artifact in a manifest."
+		},
+		"PHPExtensionManifestExtraFiles": {
+			"type": "object",
+			"properties": {
+				"targetPath": {
+					"type": "string",
+					"description": "Files and directories are written here. Defaults to `/internal/shared/extensions/<name>-assets`."
+				},
+				"directories": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Empty directories to create under `targetPath`."
+				},
+				"files": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/PHPExtensionManifestExtraFile"
+					},
+					"description": "Files to fetch and stage under `targetPath`."
+				}
+			},
+			"additionalProperties": false,
+			"description": "URL-backed files to stage with a manifest extension."
+		},
+		"PHPExtensionManifestExtraFile": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string",
+					"description": "Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`."
+				},
+				"file": {
+					"type": "string",
+					"description": "Relative to the manifest URL/base URL, or an absolute URL."
+				}
+			},
+			"required": ["path", "file"],
+			"additionalProperties": false,
+			"description": "One sidecar file declared by an extension manifest."
+		}
+	}
+}
