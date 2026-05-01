@@ -66,6 +66,41 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(0);
 	});
 
+	test('wp=none runs plain PHP without loading WordPress', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		await page.evaluate(() => {
+			const snippet = document.createElement('php-snippet');
+			snippet.setAttribute('name', 'plain-ok.php');
+			snippet.setAttribute('wp', 'none');
+
+			const script = document.createElement('script');
+			script.type = 'application/x-php';
+			script.textContent = `<?php
+echo "ok\\n";
+$loaded = file_exists('/wordpress/wp-load.php') ? 'yes' : 'no';
+echo "wp-load:$loaded\\n";
+`;
+			snippet.append(script);
+			document.body.append(snippet);
+		});
+
+		const snippet = page.locator('php-snippet[name="plain-ok.php"]');
+		await expect(snippet.locator('.run')).toBeVisible();
+		await snippet.locator('.run').click();
+		await expect(snippet.locator('.output')).toBeVisible({
+			timeout: 240_000,
+		});
+		await expect(snippet.locator('.output-body')).toContainText('ok');
+		await expect(snippet.locator('.output-body')).toContainText(
+			'wp-load:no'
+		);
+		await expect(snippet.locator('.output-body')).not.toContainText(
+			'/wordpress/wp-load.php'
+		);
+	});
+
 	test('first Run boots the runtime and shows progress + output', async ({
 		page,
 	}) => {
