@@ -120,7 +120,11 @@ export class BlueprintsV1Handler {
 		 */
 		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
 		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
-		if (runtimeConfiguration.networking && !isLegacyWpVersion) {
+		if (
+			installWordPress &&
+			runtimeConfiguration.networking &&
+			!isLegacyWpVersion
+		) {
 			await playground.prefetchUpdateChecks();
 		}
 
