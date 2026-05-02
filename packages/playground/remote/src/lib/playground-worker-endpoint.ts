@@ -78,6 +78,7 @@ export type WorkerBootOptions = {
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
+	shouldBootWordPress?: boolean;
 	corsProxyUrl?: string;
 	/** When true, skip default WP install and run Blueprints v2 in the worker */
 	experimentalBlueprintsV2Runner?: boolean;

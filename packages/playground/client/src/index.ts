@@ -69,7 +69,18 @@ export interface StartPlaygroundOptions {
 	 */
 	sapiName?: string;
 	mounts?: Array<MountDescriptor>;
+	/**
+	 * Whether to download/install WordPress files. Set this to false when
+	 * WordPress files already come from a mounted site.
+	 */
 	shouldInstallWordPress?: boolean;
+	/**
+	 * Whether to run WordPress boot setup. This is separate from
+	 * shouldInstallWordPress because saved sites boot from existing mounted
+	 * WordPress files without downloading or installing a fresh copy. Set this
+	 * to false for PHP-only Playgrounds.
+	 */
+	shouldBootWordPress?: boolean;
 	/**
 	 * The string prefix used in the site URL served by the currently
 	 * running remote.html. E.g. for a prefix like `/scope:playground/`,

@@ -149,7 +149,7 @@ export function bootSiteClient(
 
 		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
 		// declares it doesn't want WordPress, so honor that even if the
-		// storage layer thinks WP isn't installed yet — passing `true` here
+		// storage layer thinks WP isn't installed yet. Passing `true` here
 		// would conflict with the Blueprint and the handler would throw.
 		const blueprintRequestedNoWordPress =
 			!!blueprint &&
@@ -187,6 +187,9 @@ export function bootSiteClient(
 				shouldInstallWordPress: blueprintRequestedNoWordPress
 					? false
 					: !isWordPressInstalled,
+				shouldBootWordPress: blueprintRequestedNoWordPress
+					? false
+					: undefined,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 				pathAliases: [

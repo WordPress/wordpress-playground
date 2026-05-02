@@ -15,6 +15,7 @@ import {
 	type BlueprintV1Declaration,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
+	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
@@ -380,6 +381,15 @@ export function bootSiteClient(
 			blueprint = site.metadata.originalBlueprint;
 		}
 
+		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
+		// declares it doesn't want WordPress, so honor that even if the
+		// storage layer thinks WP isn't installed yet. Passing `true` here
+		// would conflict with the Blueprint and the handler would throw.
+		const blueprintRequestedNoWordPress =
+			!!blueprint &&
+			!isBlueprintBundle(blueprint) &&
+			blueprint.preferredVersions?.wp === false;
+
 		// Check if we're in recovery mode (Health Check troubleshooting).
 		// Recovery mode uses 'do-not-attempt-installing' to skip the
 		// isWordPressInstalled() check that would load WordPress and crash
@@ -422,7 +432,12 @@ export function bootSiteClient(
 							},
 						]
 					: [],
-				shouldInstallWordPress: !isWordPressInstalled,
+				shouldInstallWordPress: blueprintRequestedNoWordPress
+					? false
+					: !isWordPressInstalled,
+				shouldBootWordPress: blueprintRequestedNoWordPress
+					? false
+					: undefined,
 				corsProxy: corsProxyUrl,
 			});
 		} catch (e) {

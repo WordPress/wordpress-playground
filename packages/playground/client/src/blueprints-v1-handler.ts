@@ -31,6 +31,7 @@ export class BlueprintsV1Handler {
 			sapiName,
 			scope,
 			shouldInstallWordPress,
+			shouldBootWordPress,
 			sqliteDriverVersion,
 			wordpressInstallMode,
 			onClientConnected,
@@ -57,24 +58,35 @@ export class BlueprintsV1Handler {
 		// Blueprint's `preferredVersions.wp: false` is the declarative way to
 		// opt out of WordPress. Bundles carry their declaration inside a JSON
 		// file we haven't read here, so we only honor the flag for inline
-		// declarations. If the caller also set `shouldInstallWordPress`
-		// explicitly and the two disagree, refuse to silently pick a winner.
+		// declarations. If the caller also requested WordPress explicitly and
+		// the two disagree, refuse to silently pick a winner.
 		const declarativeOptOut =
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
-		if (shouldInstallWordPress === true && declarativeOptOut) {
+		if (
+			(shouldInstallWordPress === true || shouldBootWordPress === true) &&
+			declarativeOptOut
+		) {
 			throw new Error(
-				'Conflicting options: `shouldInstallWordPress: true` was ' +
-					'passed to startPlaygroundWeb, but the Blueprint sets ' +
+				'Conflicting options: WordPress boot was requested, ' +
+					'but the Blueprint sets ' +
 					'`preferredVersions.wp: false`. Pick one.'
 			);
 		}
-		const installWordPress = shouldInstallWordPress ?? !declarativeOptOut;
+		const bootWordPress = shouldBootWordPress ?? !declarativeOptOut;
+		const installWordPress = shouldInstallWordPress ?? bootWordPress;
+		if (installWordPress && !bootWordPress) {
+			throw new Error(
+				'Conflicting options: WordPress installation was requested, ' +
+					'but WordPress boot was disabled. Pick one.'
+			);
+		}
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress: installWordPress,
+			shouldBootWordPress: bootWordPress,
 			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,

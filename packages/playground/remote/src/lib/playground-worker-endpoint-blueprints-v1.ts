@@ -40,7 +40,8 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		sapiName = 'cli',
 		extensions = [],
 		withNetworking = true,
-		shouldInstallWordPress = true,
+		shouldInstallWordPress,
+		shouldBootWordPress = true,
 		wordpressInstallMode = 'install-from-existing-files-if-needed',
 		corsProxyUrl,
 		pathAliases,
@@ -58,6 +59,14 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
+			const installWordPress =
+				shouldInstallWordPress ?? shouldBootWordPress;
+			if (installWordPress && !shouldBootWordPress) {
+				throw new Error(
+					'Conflicting options: WordPress installation was requested, ' +
+						'but WordPress boot was disabled. Pick one.'
+				);
+			}
 			const siteUrl = this.computeSiteUrl(scope);
 
 			const requestHandler = await this.createRequestHandler({
@@ -82,7 +91,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			const wpDetails = getWordPressModuleDetails(wpVersion);
 			let wordPressRequest: Promise<Response> | null = null;
-			if (shouldInstallWordPress) {
+			if (installWordPress) {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
 						.monitorFetch(
@@ -153,12 +162,9 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
-			// PHP-only mode: the caller asked us to skip the WordPress
-			// install, so there's nothing for `bootWordPress` to do — and
-			// running it without WP files would still drop in the SQLite
-			// shim and then assert a (nonexistent) DB connection. Apply the
-			// OPFS mounts and stop, so the caller gets a usable PHP runtime.
-			if (!shouldInstallWordPress) {
+			// PHP-only mode: the caller asked us to skip WordPress boot entirely.
+			// Apply mounts and stop, so the caller gets a usable PHP runtime.
+			if (!shouldBootWordPress) {
 				const primaryPhp = await requestHandler.getPrimaryPhp();
 				for (const mount of mounts) {
 					await endpoint.mountOpfsIntoPhp(primaryPhp, mount);
@@ -189,7 +195,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			await bootWordPress(requestHandler, {
 				siteUrl,
 				phpVersion,
-				constants: shouldInstallWordPress
+				constants: installWordPress
 					? {
 							// Disable WP_DEBUG for legacy PHP (< 7) because
 							// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
