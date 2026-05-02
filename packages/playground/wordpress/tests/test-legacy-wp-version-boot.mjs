@@ -300,6 +300,9 @@ const ADMIN_INDICATORS = [
 	'My Profile',
 ];
 
+/**
+ * Checks whether body text contains UI copy that identifies an admin screen.
+ */
 function hasAdminIndicator(body) {
 	return ADMIN_INDICATORS.some((ind) => body.includes(ind));
 }
@@ -319,6 +322,9 @@ const MATRIX = WP_ONLY
 	? WP_VERSIONS.filter(({ wp }) => WP_ONLY.has(wp))
 	: WP_VERSIONS;
 
+/**
+ * Captures browser console errors so timeout failures can report context.
+ */
 function captureConsoleErrors(page, consoleErrors) {
 	page.on('console', (msg) => {
 		if (msg.type() === 'error')
@@ -326,6 +332,9 @@ function captureConsoleErrors(page, consoleErrors) {
 	});
 }
 
+/**
+ * Indicates whether the front-page boot hit a transient worker load failure.
+ */
 function shouldRetryFrontPageBoot(consoleErrors) {
 	return consoleErrors.some((message) =>
 		message.includes('WebWorker failed to load')

@@ -638,6 +638,13 @@ async function resolvePHPExtensionSource(
 	};
 }
 
+/**
+ * Resolves all manifest sidecar file groups into one staged file tree.
+ *
+ * Manifest-level sidecars are fetched first, then artifact-level sidecars are
+ * merged on top. This lets a manifest define shared assets while individual
+ * PHP-version artifacts override or add files when needed.
+ */
 async function resolveManifestExtraFiles(
 	fetchFn: typeof fetch | undefined,
 	baseUrl: URL,
@@ -656,6 +663,13 @@ async function resolveManifestExtraFiles(
 	return resolvedExtraFiles;
 }
 
+/**
+ * Fetches one manifest sidecar file group and converts it to a VFS file tree.
+ *
+ * Directory entries are materialized as empty nested objects. File entries are
+ * resolved relative to the manifest base URL and stored at their declared VFS
+ * path under the group's target path.
+ */
 async function fetchManifestExtraFiles(
 	fetchFn: typeof fetch | undefined,
 	baseUrl: URL,
@@ -691,6 +705,13 @@ async function fetchManifestExtraFiles(
 	};
 }
 
+/**
+ * Merges two staged sidecar file groups.
+ *
+ * Both groups must either share the same target path or let one side omit it.
+ * This prevents accidentally staging one extension's sidecar files across two
+ * unrelated VFS roots.
+ */
 function mergeExtraFiles(
 	first?: PHPExtensionExtraFiles,
 	second?: PHPExtensionExtraFiles
@@ -717,6 +738,12 @@ function mergeExtraFiles(
 	};
 }
 
+/**
+ * Recursively merges two VFS file trees.
+ *
+ * Directory nodes are merged so manifest-level directories can receive
+ * artifact-level files. File nodes replace existing entries at the same path.
+ */
 function mergeFileTrees(first: FileTree, second: FileTree): FileTree {
 	const merged: FileTree = { ...first };
 	for (const [path, content] of Object.entries(second)) {
@@ -736,6 +763,13 @@ function mergeFileTrees(first: FileTree, second: FileTree): FileTree {
 	return merged;
 }
 
+/**
+ * Writes a file or directory entry into a nested VFS file tree.
+ *
+ * Manifest paths are normalized and validated before insertion. If a directory
+ * path crosses an existing file node, the later directory wins so the final
+ * tree still matches the manifest's last declaration for that path.
+ */
 function setFileTreeEntry(
 	files: FileTree,
 	relativePath: string,
@@ -758,6 +792,12 @@ function setFileTreeEntry(
 	current[parts[parts.length - 1]] = content;
 }
 
+/**
+ * Validates the shape and relative VFS paths of a manifest sidecar group.
+ *
+ * This rejects malformed entries before any network fetches begin, keeping
+ * manifest errors separate from artifact download errors.
+ */
 function validateManifestExtraFiles(
 	extraFiles: PHPExtensionManifestExtraFiles | undefined
 ) {
@@ -800,6 +840,13 @@ function validateManifestExtraFiles(
 	}
 }
 
+/**
+ * Returns a normalized manifest sidecar path if it stays inside targetPath.
+ *
+ * Manifest sidecar paths are relative VFS paths, not host paths or URLs. This
+ * rejects absolute paths and parent-directory escapes before building the file
+ * tree that will be mounted into the PHP runtime.
+ */
 function validateRelativeManifestPath(path: string): string {
 	const normalized = normalizePath(path);
 	if (
