@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { findExtensionArtifact, type ExtensionManifest } from './manifest';
 
 describe('findExtensionArtifact', () => {
-	it('selects the PHP and async-mode match', () => {
+	it('selects the PHP version match', () => {
 		const manifest: ExtensionManifest = {
 			name: 'example',
 			version: '0.1.0',

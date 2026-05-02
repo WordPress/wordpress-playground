@@ -1,7 +1,7 @@
 {
 	"name": "@php-wasm/compile-extension",
 	"version": "0.1.0",
-	"description": "Build PHP.wasm extension side modules across PHP and async-mode matrices",
+	"description": "Build PHP.wasm extension side modules across PHP versions",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playground"

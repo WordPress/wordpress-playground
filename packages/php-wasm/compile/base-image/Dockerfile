@@ -53,8 +53,7 @@ RUN set -euxo pipefail;\
 # https://github.com/emscripten-core/emscripten/commit/4d16f757adcc801fb3f990ccb6100b747c815650
 #
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN <<EOF
-    set -euxo pipefail
+RUN bash -euxo pipefail <<'EOF'
     git clone https://github.com/emscripten-core/emsdk.git
     EMSDK_NOTTY=1 EMSDK_USE_CURL=1 ./emsdk/emsdk install --notty 4.0.19
     EMSDK_NOTTY=1 /root/emsdk/emsdk activate --notty 4.0.19

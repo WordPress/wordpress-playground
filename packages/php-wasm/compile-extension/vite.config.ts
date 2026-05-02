@@ -40,7 +40,7 @@ export default defineConfig({
 				'yargs',
 				'yargs/helpers',
 			],
-			input: 'packages/php-wasm/compile-extension/src/cli.ts',
+			input: join(__dirname, 'src/cli.ts'),
 			output: {
 				format: 'esm',
 				entryFileNames: 'cli.js',

@@ -58,7 +58,7 @@ export CXX_wasm32_unknown_emscripten="${CXX_wasm32_unknown_emscripten:-em++}"
 export AR_wasm32_unknown_emscripten="${AR_wasm32_unknown_emscripten:-emar}"
 export RANLIB_wasm32_unknown_emscripten="${RANLIB_wasm32_unknown_emscripten:-emranlib}"
 CONFIGURE_LDFLAGS="${BASE_LDFLAGS} ${ASYNC_FLAGS}"
-BUILD_LDFLAGS="${CONFIGURE_LDFLAGS}${EXTRA_LINK_FLAGS}"
+BUILD_LDFLAGS="${CONFIGURE_LDFLAGS} ${EXTRA_LINK_FLAGS}"
 export LDFLAGS="${CONFIGURE_LDFLAGS}"
 # The libtool patch below injects EMCC_FLAGS into the final archive command.
 # Keep dependency archives out of LDFLAGS so libtool does not drop or duplicate them.
