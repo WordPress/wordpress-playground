@@ -461,12 +461,13 @@ function buildResolvedPHPExtension(
 		const targetPath =
 			options.extraFiles.targetPath ??
 			joinPaths(extensionDir, `${name}-assets`);
-		extraFiles = {
-			...normalizeResolvedExtraFiles({
-				...options.extraFiles,
-				targetPath,
-			}),
+		const normalizedExtraFiles = normalizeResolvedExtraFiles({
+			...options.extraFiles,
 			targetPath,
+		});
+		extraFiles = {
+			...normalizedExtraFiles,
+			targetPath: normalizedExtraFiles.targetPath!,
 		};
 	}
 
@@ -624,10 +625,6 @@ async function resolvePHPExtensionSource(
 		);
 	}
 	const manifest = manifestCandidate as PHPExtensionManifest;
-	validateManifestExtraFilePaths(manifest.extraFiles);
-	for (const artifact of manifest.artifacts) {
-		validateManifestExtraFilePaths(artifact.extraFiles);
-	}
 	const baseUrl =
 		'baseUrl' in source && source.baseUrl
 			? new URL(String(source.baseUrl))
@@ -775,11 +772,11 @@ async function fetchManifestExtraFiles(
 		})
 	);
 
-	return normalizeResolvedExtraFiles({
+	return {
 		targetPath: extraFiles.targetPath,
 		directories,
 		files,
-	});
+	};
 }
 
 /**
@@ -801,8 +798,7 @@ async function fetchManifestExtraFiles(
  * );
  * ```
  *
- * Directory declarations may overlap, but file paths must be disjoint and must
- * not shadow directory paths.
+ * Directory declarations may overlap, but file paths must be disjoint.
  */
 function mergeExtraFiles(
 	first?: PHPExtensionExtraFiles,
@@ -833,55 +829,37 @@ function mergeExtraFiles(
 		}
 		files[path] = content;
 	}
-	return normalizeResolvedExtraFiles({
+	return {
 		targetPath,
 		directories: [
 			...(first.directories ?? []),
 			...(second.directories ?? []),
 		],
 		files,
-	});
+	};
 }
 
 /**
  * Normalizes and validates a flat sidecar file group.
  *
- * Sidecar paths are always relative VFS paths under one `targetPath`. Empty
- * directories may overlap with directories implied by file paths, but file
- * paths must be unique and must not also act as directory ancestors.
+ * Sidecar paths are always relative VFS paths under one `targetPath`. This is
+ * the last validation pass before the files are installed into Emscripten's
+ * filesystem, so later code can treat paths as already normalized.
  */
 function normalizeResolvedExtraFiles(
 	extraFiles: PHPExtensionExtraFiles
 ): PHPExtensionExtraFiles {
 	let targetPath = extraFiles.targetPath;
 	if (targetPath !== undefined) {
-		const normalizedTargetPath = normalizePath(targetPath);
-		if (
-			!targetPath.startsWith('/') ||
-			normalizedTargetPath !== targetPath
-		) {
+		targetPath = normalizePath(targetPath);
+		if (!targetPath.startsWith('/')) {
 			throw new Error(
-				`Invalid extension extra file targetPath: ${targetPath}`
+				`Invalid extension extra file targetPath: ${extraFiles.targetPath}`
 			);
 		}
-		targetPath = normalizedTargetPath;
 	}
 	const directories = new Set<string>();
 	const filePaths = new Set<string>();
-	for (const directory of extraFiles.directories ?? []) {
-		const normalizedDirectory = validateRelativeManifestPath(directory);
-		for (const filePath of filePaths) {
-			if (
-				normalizedDirectory === filePath ||
-				normalizedDirectory.startsWith(`${filePath}/`)
-			) {
-				throw new Error(
-					`Extension sidecar files declare conflicting path: ${normalizedDirectory}`
-				);
-			}
-		}
-		directories.add(normalizedDirectory);
-	}
 	const files: Record<string, Uint8Array | string> = {};
 	for (const [path, content] of Object.entries(extraFiles.files)) {
 		const normalizedPath = validateRelativeManifestPath(path);
@@ -889,16 +867,6 @@ function normalizeResolvedExtraFiles(
 			throw new Error(
 				`Extension sidecar files declare conflicting path: ${normalizedPath}`
 			);
-		}
-		for (const directory of directories) {
-			if (
-				directory === normalizedPath ||
-				directory.startsWith(`${normalizedPath}/`)
-			) {
-				throw new Error(
-					`Extension sidecar files declare conflicting path: ${normalizedPath}`
-				);
-			}
 		}
 		for (const existingPath of filePaths) {
 			if (
@@ -912,6 +880,9 @@ function normalizeResolvedExtraFiles(
 		}
 		filePaths.add(normalizedPath);
 		files[normalizedPath] = content;
+	}
+	for (const directory of extraFiles.directories ?? []) {
+		directories.add(validateRelativeManifestPath(directory));
 	}
 	return {
 		targetPath,
@@ -949,37 +920,6 @@ function formatManifestValidationErrors(
 			return `${location} ${error.message ?? 'is invalid'}`;
 		})
 		.join('; ');
-}
-
-/**
- * Validates sidecar VFS paths after the manifest schema passes.
- *
- * The generated schema verifies object shape. This extra pass enforces the
- * path-specific constraint that sidecar files must remain inside `targetPath`.
- */
-function validateManifestExtraFilePaths(
-	extraFiles: PHPExtensionManifestExtraFiles | undefined
-) {
-	if (!extraFiles) {
-		return;
-	}
-	if (extraFiles.targetPath !== undefined) {
-		const normalizedTargetPath = normalizePath(extraFiles.targetPath);
-		if (
-			!extraFiles.targetPath.startsWith('/') ||
-			normalizedTargetPath !== extraFiles.targetPath
-		) {
-			throw new Error(
-				`Invalid extension extra file targetPath: ${extraFiles.targetPath}`
-			);
-		}
-	}
-	for (const directory of extraFiles.directories ?? []) {
-		validateRelativeManifestPath(directory);
-	}
-	for (const file of extraFiles.files ?? []) {
-		validateRelativeManifestPath(file.path);
-	}
 }
 
 /**

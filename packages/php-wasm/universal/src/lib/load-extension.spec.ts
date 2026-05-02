@@ -286,7 +286,7 @@ describe('resolvePHPExtension', () => {
 		);
 	});
 
-	it('rejects sidecar file paths that conflict with sidecar directories', async () => {
+	it('rejects sidecar file paths that shadow other sidecar files', async () => {
 		await expect(
 			resolvePHPExtension({
 				source: {
@@ -300,11 +300,14 @@ describe('resolvePHPExtension', () => {
 							},
 						],
 						extraFiles: {
-							directories: ['web-ui'],
 							files: [
 								{
 									path: 'web-ui',
 									file: 'web-ui',
+								},
+								{
+									path: 'web-ui/index.html',
+									file: 'web-ui/index.html',
 								},
 							],
 						},
@@ -315,7 +318,7 @@ describe('resolvePHPExtension', () => {
 				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
 			})
 		).rejects.toThrow(
-			'Extension sidecar files declare conflicting path: web-ui'
+			'Extension sidecar files declare conflicting path: web-ui/index.html'
 		);
 	});
 
