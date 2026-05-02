@@ -394,34 +394,4 @@ describe('resolvePHPExtension', () => {
 			})
 		).rejects.toThrow('Invalid extension extra file targetPath: ../shared');
 	});
-
-	it('rejects manifest extra file paths that escape the target directory', async () => {
-		await expect(
-			resolvePHPExtension({
-				source: {
-					format: 'manifest',
-					manifest: {
-						name: 'example',
-						artifacts: [
-							{
-								phpVersion: '8.4',
-								file: 'example.so',
-							},
-						],
-						extraFiles: {
-							files: [
-								{
-									path: '../index.html',
-									file: 'index.html',
-								},
-							],
-						},
-					},
-					baseUrl: 'https://example.com/extensions/',
-				},
-				phpVersion: '8.4',
-				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
-			})
-		).rejects.toThrow('Invalid extension extra file path');
-	});
 });

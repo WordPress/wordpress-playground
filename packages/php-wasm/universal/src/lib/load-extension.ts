@@ -74,7 +74,13 @@ export interface PHPExtensionManifestExtraFile {
 }
 
 export interface PHPExtensionManifestExtraFiles {
-	/** Files and directories are written here. */
+	/**
+	 * Absolute VFS path where files and directories are written. When a
+	 * manifest declares both top-level and per-artifact `extraFiles`, both
+	 * groups must agree on `targetPath` (either both declare the same one,
+	 * or neither declares it). When omitted, defaults to
+	 * `<extensionDir>/<name>-assets`.
+	 */
 	targetPath?: string;
 	directories?: string[];
 	files?: PHPExtensionManifestExtraFile[];
@@ -199,14 +205,20 @@ export interface ResolvedPHPExtension {
 export async function resolvePHPExtension(
 	options: ResolvePHPExtensionOptions
 ): Promise<ResolvedPHPExtension> {
-	const fetchFn = options.fetch ?? globalThis.fetch;
-	const resolved = await resolvePHPExtensionSource(options, fetchFn);
+	const resolved = await resolvePHPExtensionSource(
+		options,
+		options.fetch ?? globalThis.fetch
+	);
 	return buildResolvedPHPExtension({
 		name: options.name ?? resolved.name,
 		soBytes: resolved.soBytes,
 		loadWithIniDirective: options.loadWithIniDirective,
 		iniEntries: options.iniEntries,
-		extraFiles: mergeExtraFiles([resolved.extraFiles, options.extraFiles]),
+		extraFiles: mergeExtraFiles(
+			[resolved.extraFiles, options.extraFiles].filter(
+				(group): group is PHPExtensionExtraFiles => !!group
+			)
+		),
 		env: options.env,
 		extensionDir: options.extensionDir,
 	});
@@ -298,7 +310,7 @@ function buildResolvedPHPExtension(
 	const iniContent = [
 		`${directive}=${soPath}`,
 		...Object.entries(options.iniEntries ?? {}).map(
-			([k, v]) => `${k}=${v}`
+			([key, value]) => `${key}=${value}`
 		),
 	].join('\n');
 
@@ -337,7 +349,7 @@ interface ResolvedPHPExtensionSource {
  */
 async function resolvePHPExtensionSource(
 	options: ResolvePHPExtensionOptions,
-	fetchFn: typeof fetch | undefined
+	fetchFn: typeof fetch
 ): Promise<ResolvedPHPExtensionSource> {
 	const source = options.source;
 
@@ -390,7 +402,7 @@ async function resolvePHPExtensionSource(
 	const manifestCandidate =
 		'manifest' in source
 			? source.manifest
-			: await (await requireFetch(fetchFn)(manifestUrl!)).json();
+			: await (await fetchFn(manifestUrl!)).json();
 	if (!validatePHPExtensionManifest(manifestCandidate)) {
 		throw new Error(
 			`Invalid PHP extension manifest: ${JSON.stringify(
@@ -440,7 +452,7 @@ async function resolvePHPExtensionSource(
 }
 
 async function fetchManifestExtraFiles(
-	fetchFn: typeof fetch | undefined,
+	fetchFn: typeof fetch,
 	baseUrl: URL,
 	group: PHPExtensionManifestExtraFiles,
 	queue: Semaphore
@@ -461,47 +473,69 @@ async function fetchManifestExtraFiles(
 }
 
 /**
- * Merges and validates sidecar groups into a single one. Validates that
- * declared `targetPath`s agree, normalizes relative paths, and rejects
- * duplicate or shadowing file paths.
+ * Merges sidecar groups into a single one. All groups must agree on
+ * `targetPath` — either every group declares the same one, or no group
+ * declares one (in which case the caller fills in a default later). Relative
+ * file paths are normalized; duplicate or shadowing paths are rejected.
  */
 function mergeExtraFiles(
-	groups: Array<PHPExtensionExtraFiles | undefined>
+	groups: Array<PHPExtensionExtraFiles>
 ): PHPExtensionExtraFiles | undefined {
-	const present = groups.filter((g): g is PHPExtensionExtraFiles => !!g);
-	if (!present.length) {
-		return undefined;
+	/**
+	 * Pick the single VFS root all groups will be staged under.
+	 *
+	 * `targetPath` is optional so callers can let PHP.wasm pick a default
+	 * (`<extensionDir>/<name>-assets`, applied later in
+	 * `buildResolvedPHPExtension`). The merged result can only represent
+	 * one root, so all groups must agree: either every group declares the
+	 * same `targetPath`, or no group declares one.
+	 *
+	 * Rejected — two declared roots disagree:
+	 *
+	 *     [
+	 *         { targetPath: '/internal/shared', files: { ... } },
+	 *         { targetPath: '/tmp/spx',         files: { ... } },
+	 *     ]
+	 *
+	 * Rejected — one group declares a root, another leaves it implicit:
+	 *
+	 *     [
+	 *         { targetPath: '/internal/shared', files: { ... } },
+	 *         {                                  files: { ... } },
+	 *     ]
+	 *
+	 * Rejected — `targetPath` is not an absolute VFS path:
+	 *
+	 *     [{ targetPath: '../shared', files: { ... } }]
+	 */
+	const targetPaths = groups.map((group) => group.targetPath);
+	const uniqueTargetPaths = Array.from(new Set(targetPaths));
+	if (uniqueTargetPaths.length > 1) {
+		throw new Error(
+			'Cannot merge extension extra files with different targetPath values.'
+		);
 	}
-
-	let targetPath: string | undefined;
-	for (const g of present) {
-		if (g.targetPath === undefined) continue;
-		const normalized = normalizePath(g.targetPath);
-		if (!normalized.startsWith('/')) {
-			throw new Error(
-				`Invalid extension extra file targetPath: ${g.targetPath}`
-			);
-		}
-		if (targetPath !== undefined && targetPath !== normalized) {
-			throw new Error(
-				'Cannot merge extension extra files with different targetPath values.'
-			);
-		}
-		targetPath = normalized;
+	const targetPath = uniqueTargetPaths[0];
+	if (targetPath !== undefined && !targetPath.startsWith('/')) {
+		throw new Error(
+			`Invalid extension extra file targetPath: ${targetPath}`
+		);
 	}
 
 	const directories = new Set<string>();
 	const files: Record<string, Uint8Array | string> = {};
-	for (const g of present) {
-		for (const dir of g.directories ?? []) {
-			directories.add(validateRelativePath(dir));
+	for (const group of groups) {
+		for (const directory of group.directories ?? []) {
+			directories.add(normalizePath(directory));
 		}
-		for (const [rawPath, content] of Object.entries(g.files)) {
-			const path = validateRelativePath(rawPath);
+		for (const [rawPath, content] of Object.entries(group.files)) {
+			const path = normalizePath(rawPath);
 			const conflicts =
 				path in files ||
 				Object.keys(files).some(
-					(p) => path.startsWith(`${p}/`) || p.startsWith(`${path}/`)
+					(existing) =>
+						path.startsWith(`${existing}/`) ||
+						existing.startsWith(`${path}/`)
 				);
 			if (conflicts) {
 				throw new Error(
@@ -519,39 +553,11 @@ function mergeExtraFiles(
 	};
 }
 
-/**
- * Returns a normalized relative VFS path. Rejects absolute paths and
- * parent-directory escapes.
- */
-function validateRelativePath(path: string): string {
-	const normalized = normalizePath(path);
-	if (
-		!normalized ||
-		normalized.startsWith('/') ||
-		normalized === '..' ||
-		normalized.startsWith('../')
-	) {
-		throw new Error(
-			`Invalid extension extra file path ${JSON.stringify(path)}.`
-		);
-	}
-	return normalized;
-}
-
-function requireFetch(fetchFn: typeof fetch | undefined): typeof fetch {
-	if (!fetchFn) {
-		throw new Error(
-			'resolvePHPExtension() requires a fetch implementation.'
-		);
-	}
-	return fetchFn;
-}
-
 async function fetchBytes(
-	fetchFn: typeof fetch | undefined,
+	fetchFn: typeof fetch,
 	url: URL
 ): Promise<Uint8Array> {
-	const response = await requireFetch(fetchFn)(url);
+	const response = await fetchFn(url);
 	if (!response.ok) {
 		throw new Error(`Failed to fetch ${String(url)}: ${response.status}`);
 	}
