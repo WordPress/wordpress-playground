@@ -817,8 +817,11 @@ function mergeFileTrees(
 			);
 			continue;
 		}
-		throwConflictingSidecarPath(
-			currentPath ? joinPaths(currentPath, path) : path
+		const conflictingPath = currentPath
+			? joinPaths(currentPath, path)
+			: path;
+		throw new Error(
+			`Extension sidecar files declare conflicting path: ${conflictingPath}`
 		);
 	}
 	return merged;
@@ -845,7 +848,9 @@ function setFileTreeEntry(
 			current[part] = {};
 		}
 		if (!isFileTreeDirectory(current[part])) {
-			throwConflictingSidecarPath(normalizedPath);
+			throw new Error(
+				`Extension sidecar files declare conflicting path: ${normalizedPath}`
+			);
 		}
 		current = current[part] as FileTree;
 	}
@@ -855,7 +860,9 @@ function setFileTreeEntry(
 		existing !== undefined &&
 		!(isFileTreeDirectory(existing) && isFileTreeDirectory(content))
 	) {
-		throwConflictingSidecarPath(normalizedPath);
+		throw new Error(
+			`Extension sidecar files declare conflicting path: ${normalizedPath}`
+		);
 	}
 	current[leafName] = content;
 }
@@ -870,18 +877,6 @@ function isFileTreeDirectory(
 	content: Uint8Array | string | FileTree
 ): content is FileTree {
 	return !(content instanceof Uint8Array) && typeof content !== 'string';
-}
-
-/**
- * Reports duplicate or structurally incompatible sidecar paths.
- *
- * Rejecting conflicts avoids override rules between manifest-level and
- * artifact-level sidecars and catches malformed single-group declarations.
- */
-function throwConflictingSidecarPath(path: string): never {
-	throw new Error(
-		`Extension sidecar files declare conflicting path: ${path}`
-	);
 }
 
 /**
