@@ -56,15 +56,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN <<EOF
     set -euxo pipefail
     git clone https://github.com/emscripten-core/emsdk.git
-    for attempt in 1 2 3; do
-        if EMSDK_NOTTY=1 EMSDK_USE_CURL=1 ./emsdk/emsdk install --notty 4.0.19; then
-            break
-        fi
-        if [ "$attempt" = "3" ]; then
-            exit 1
-        fi
-        sleep $((attempt * 10))
-    done
+    EMSDK_NOTTY=1 EMSDK_USE_CURL=1 ./emsdk/emsdk install --notty 4.0.19
     EMSDK_NOTTY=1 /root/emsdk/emsdk activate --notty 4.0.19
 EOF
 
