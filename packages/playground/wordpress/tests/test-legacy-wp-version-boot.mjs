@@ -239,6 +239,45 @@ async function navigateViaUrlBar(page, path, timeoutSeconds = 60) {
 }
 
 /**
+ * Waits for the plugin activation click to produce a new plugins page body.
+ *
+ * Some WordPress versions redirect back to the same `plugins.php` URL after
+ * activation. Comparing both URL and body lets us ignore the pre-click plugin
+ * list without requiring a URL change that may never come.
+ */
+async function waitForPluginActivation(
+	page,
+	previousFrameUrl,
+	previousBody,
+	timeoutSeconds = 60
+) {
+	const deadline = Date.now() + timeoutSeconds * 1000;
+	while (Date.now() < deadline) {
+		await page.waitForTimeout(500);
+		for (const frame of page.frames()) {
+			try {
+				if (!frame.url().includes('scope:')) continue;
+				const body = await frame
+					.locator('body')
+					.innerText({ timeout: 2000 });
+				const changed =
+					frame.url() !== previousFrameUrl || body !== previousBody;
+				if (!changed) continue;
+				if (
+					body.includes('Plugin activated') ||
+					body.includes('Deactivate') ||
+					body.includes('Are you sure') ||
+					findPHPError(body)
+				) {
+					return { body, frame };
+				}
+			} catch {}
+		}
+	}
+	return null;
+}
+
+/**
  * Checks whether a body text indicates the user is logged in.
  */
 function isLoggedIn(body) {
@@ -632,34 +671,40 @@ for (const { wp, php } of MATRIX) {
 							? helloActivate
 							: anyActivate;
 					if ((await activateLink.count()) > 0) {
+						const bodyBeforeActivation = await wp4.frame
+							.locator('body')
+							.innerText({ timeout: 2000 })
+							.catch(() => wp4.body);
 						const prevFrameUrl = wp4.frame.url();
 						await activateLink.click({ timeout: 5000 });
-						const wp4b = await waitForWPFrame(page, 20, {
-							excludeUrl: prevFrameUrl,
-							// Don't match on the intermediate admin shell
-							// between the POST and the post-redirect body —
-							// only return once the result page actually
-							// shows activation outcome text.
-							contentPredicate: (body) =>
-								body.includes('Plugin activated') ||
-								body.includes('Deactivate') ||
-								body.includes('Are you sure'),
-						});
+						const wp4b = await waitForPluginActivation(
+							page,
+							prevFrameUrl,
+							bodyBeforeActivation
+						);
 						if (!wp4b) {
 							pluginStatus = { status: 'TIMEOUT' };
 						} else {
+							const error = findPHPError(wp4b.body);
 							const ok =
 								wp4b.body.includes('Plugin activated') ||
 								wp4b.body.includes('Deactivate');
 							const bad = wp4b.body.includes('Are you sure');
-							pluginStatus = ok
-								? { status: 'OK' }
-								: {
-										status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
-										detail: wp4b.body
-											.slice(0, 120)
-											.replace(/\n/g, ' '),
-									};
+							if (error) {
+								pluginStatus = {
+									status: 'ERROR',
+									detail: error,
+								};
+							} else if (ok) {
+								pluginStatus = { status: 'OK' };
+							} else {
+								pluginStatus = {
+									status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
+									detail: wp4b.body
+										.slice(0, 120)
+										.replace(/\n/g, ' '),
+								};
+							}
 						}
 					} else {
 						pluginStatus = {
