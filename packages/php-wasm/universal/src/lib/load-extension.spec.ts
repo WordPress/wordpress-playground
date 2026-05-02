@@ -323,6 +323,79 @@ describe('resolvePHPExtension', () => {
 		);
 	});
 
+	it('rejects sidecar groups with conflicting target paths', async () => {
+		await expect(
+			resolvePHPExtension({
+				source: {
+					format: 'manifest',
+					manifest: {
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								file: 'example.so',
+								extraFiles: {
+									targetPath: '/internal/artifact',
+									files: [
+										{
+											path: 'artifact.txt',
+											file: 'artifact.txt',
+										},
+									],
+								},
+							},
+						],
+						extraFiles: {
+							targetPath: '/internal/manifest',
+							files: [
+								{
+									path: 'manifest.txt',
+									file: 'manifest.txt',
+								},
+							],
+						},
+					},
+					baseUrl: 'https://example.com/extensions/',
+				},
+				phpVersion: '8.4',
+				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+			})
+		).rejects.toThrow(
+			'Cannot merge extension extra files with different targetPath values.'
+		);
+	});
+
+	it('rejects manifest extra file target paths that are not absolute VFS paths', async () => {
+		await expect(
+			resolvePHPExtension({
+				source: {
+					format: 'manifest',
+					manifest: {
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								file: 'example.so',
+							},
+						],
+						extraFiles: {
+							targetPath: '../shared',
+							files: [
+								{
+									path: 'index.html',
+									file: 'index.html',
+								},
+							],
+						},
+					},
+					baseUrl: 'https://example.com/extensions/',
+				},
+				phpVersion: '8.4',
+				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+			})
+		).rejects.toThrow('Invalid extension extra file targetPath: ../shared');
+	});
+
 	it('rejects manifest extra file paths that escape the target directory', async () => {
 		await expect(
 			resolvePHPExtension({
