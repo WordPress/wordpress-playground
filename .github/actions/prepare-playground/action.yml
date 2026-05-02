@@ -11,17 +11,24 @@ runs:
     using: 'composite'
     steps:
         - name: Use non-Azure apt mirror
+          if: runner.os == 'Linux'
           shell: bash
           # GitHub-hosted runners default to azure.archive.ubuntu.com, which
           # has had repeated DNS resolution failures. Switch to the canonical
           # archive.ubuntu.com mirror to avoid transient `apt-get` breakage
           # in steps like `playwright install --with-deps`.
           run: |
-              sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' /etc/apt/sources.list || true
+              if ! command -v apt-get >/dev/null 2>&1; then
+                echo "Skipping apt mirror rewrite because apt-get is unavailable."
+                exit 0
+              fi
+              if [ -f /etc/apt/sources.list ]; then
+                sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' /etc/apt/sources.list
+              fi
               if [ -d /etc/apt/sources.list.d ]; then
                 sudo find /etc/apt/sources.list.d -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' {} +
               fi
-              sudo apt-get update -y || true
+              sudo apt-get update -o Acquire::Retries=3
         - name: Fetch trunk
           shell: bash
           run: git fetch origin trunk --depth=1 --recurse-submodules
