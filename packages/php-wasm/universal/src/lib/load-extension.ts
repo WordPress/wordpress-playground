@@ -69,7 +69,6 @@ import { dirname, joinPaths, normalizePath, Semaphore } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
-import type { FileTree } from './write-files';
 import validatePHPExtensionManifest from '../../public/php-extension-manifest-schema-validator';
 
 /**
@@ -236,11 +235,21 @@ export type PHPExtensionSource =
  */
 export interface PHPExtensionExtraFiles {
 	/**
-	 * Files are written here. Defaults to
+	 * Files and directories are written here. Defaults to
 	 * `/internal/shared/extensions/<name>-assets`.
 	 */
 	targetPath?: string;
-	files: FileTree;
+
+	/**
+	 * Empty directories to create under `targetPath`.
+	 */
+	directories?: string[];
+
+	/**
+	 * Flat map of relative VFS paths to file contents written under
+	 * `targetPath`.
+	 */
+	files: Record<string, Uint8Array | string>;
 }
 
 /**
@@ -447,14 +456,19 @@ function buildResolvedPHPExtension(
 			([key, value]) => `${key}=${value}`
 		),
 	].join('\n');
-	const extraFiles = options.extraFiles
-		? {
+	let extraFiles: ResolvedPHPExtension['extraFiles'];
+	if (options.extraFiles) {
+		const targetPath =
+			options.extraFiles.targetPath ??
+			joinPaths(extensionDir, `${name}-assets`);
+		extraFiles = {
+			...normalizeResolvedExtraFiles({
 				...options.extraFiles,
-				targetPath:
-					options.extraFiles.targetPath ??
-					joinPaths(extensionDir, `${name}-assets`),
-			}
-		: undefined;
+				targetPath,
+			}),
+			targetPath,
+		};
+	}
 
 	return {
 		soPath,
@@ -486,11 +500,24 @@ export function installPHPExtensionFilesSync(
 	fs.writeFile(extension.soPath, extension.soBytes);
 	fs.writeFile(extension.iniPath, extension.iniContent);
 	if (extension.extraFiles) {
-		writeFileTreeSync(
-			fs,
-			extension.extraFiles.targetPath,
-			extension.extraFiles.files
-		);
+		const { targetPath, directories = [], files } = extension.extraFiles;
+		if (!FSHelpers.fileExists(fs, targetPath)) {
+			fs.mkdirTree(targetPath);
+		}
+		for (const directory of directories) {
+			const directoryPath = joinPaths(targetPath, directory);
+			if (!FSHelpers.fileExists(fs, directoryPath)) {
+				fs.mkdirTree(directoryPath);
+			}
+		}
+		for (const [relativePath, content] of Object.entries(files)) {
+			const filePath = joinPaths(targetPath, relativePath);
+			const directory = dirname(filePath);
+			if (!FSHelpers.fileExists(fs, directory)) {
+				fs.mkdirTree(directory);
+			}
+			fs.writeFile(filePath, content);
+		}
 	}
 	return extension;
 }
@@ -650,7 +677,7 @@ async function resolvePHPExtensionSource(
 }
 
 /**
- * Resolves all manifest sidecar file groups into one staged file tree.
+ * Resolves all manifest sidecar file groups into one staged sidecar group.
  *
  * A manifest may declare shared sidecars once at the top level and
  * artifact-specific sidecars next to the selected `.so` file:
@@ -698,10 +725,10 @@ async function resolveManifestExtraFiles(
 }
 
 /**
- * Fetches one manifest sidecar file group and converts it to a VFS file tree.
+ * Fetches one manifest sidecar file group into a flat VFS path map.
  *
- * Directory entries are materialized as empty nested objects. File entries are
- * resolved relative to the manifest base URL and stored at their declared VFS
+ * Directory entries stay as relative directory paths. File entries are resolved
+ * relative to the manifest base URL and stored by their declared relative VFS
  * path under the group's target path.
  */
 async function fetchManifestExtraFiles(
@@ -716,12 +743,24 @@ async function fetchManifestExtraFiles(
 		);
 	}
 
-	const files: FileTree = {};
-	for (const directory of extraFiles.directories ?? []) {
-		setFileTreeEntry(files, directory, {});
+	const directories = (extraFiles.directories ?? []).map((directory) =>
+		validateRelativeManifestPath(directory)
+	);
+	const files: Record<string, Uint8Array> = {};
+	const fileEntries: Array<{ path: string; file: string }> = [];
+	const declaredFilePaths = new Set<string>();
+	for (const file of extraFiles.files ?? []) {
+		const filePath = validateRelativeManifestPath(file.path);
+		if (declaredFilePaths.has(filePath)) {
+			throw new Error(
+				`Extension sidecar files declare conflicting path: ${filePath}`
+			);
+		}
+		declaredFilePaths.add(filePath);
+		fileEntries.push({ path: filePath, file: file.file });
 	}
 	await Promise.all(
-		(extraFiles.files ?? []).map(async (file) => {
+		fileEntries.map(async (file) => {
 			const fileUrl = new URL(file.file, baseUrl);
 			const bytes = await fetchQueue.run(async () => {
 				const response = await fetchFn(fileUrl);
@@ -732,14 +771,15 @@ async function fetchManifestExtraFiles(
 				}
 				return new Uint8Array(await response.arrayBuffer());
 			});
-			setFileTreeEntry(files, file.path, bytes);
+			files[file.path] = bytes;
 		})
 	);
 
-	return {
+	return normalizeResolvedExtraFiles({
 		targetPath: extraFiles.targetPath,
+		directories,
 		files,
-	};
+	});
 }
 
 /**
@@ -761,8 +801,8 @@ async function fetchManifestExtraFiles(
  * );
  * ```
  *
- * Sidecar file paths must be disjoint; directory nodes are the only entries
- * that may be merged.
+ * Directory declarations may overlap, but file paths must be disjoint and must
+ * not shadow directory paths.
  */
 function mergeExtraFiles(
 	first?: PHPExtensionExtraFiles,
@@ -784,99 +824,100 @@ function mergeExtraFiles(
 			'Cannot merge extension extra files with different targetPath values.'
 		);
 	}
-	return {
-		targetPath,
-		files: mergeFileTrees(first.files, second.files),
-	};
-}
-
-/**
- * Recursively merges two VFS file trees.
- *
- * Directory nodes are merged so manifest-level directories can receive files
- * from artifact-level sidecars. File paths must be unique across all sidecar
- * groups, which keeps manifests explicit and avoids hidden override rules.
- */
-function mergeFileTrees(
-	first: FileTree,
-	second: FileTree,
-	currentPath = ''
-): FileTree {
-	const merged: FileTree = { ...first };
-	for (const [path, content] of Object.entries(second)) {
-		const existing = merged[path];
-		if (existing === undefined) {
-			merged[path] = content;
-			continue;
-		}
-		if (isFileTreeDirectory(existing) && isFileTreeDirectory(content)) {
-			merged[path] = mergeFileTrees(
-				existing,
-				content,
-				currentPath ? joinPaths(currentPath, path) : path
+	const files: Record<string, Uint8Array | string> = { ...first.files };
+	for (const [path, content] of Object.entries(second.files)) {
+		if (Object.prototype.hasOwnProperty.call(files, path)) {
+			throw new Error(
+				`Extension sidecar files declare conflicting path: ${path}`
 			);
-			continue;
 		}
-		const conflictingPath = currentPath
-			? joinPaths(currentPath, path)
-			: path;
-		throw new Error(
-			`Extension sidecar files declare conflicting path: ${conflictingPath}`
-		);
+		files[path] = content;
 	}
-	return merged;
+	return normalizeResolvedExtraFiles({
+		targetPath,
+		directories: [
+			...(first.directories ?? []),
+			...(second.directories ?? []),
+		],
+		files,
+	});
 }
 
 /**
- * Writes a file or directory entry into a nested VFS file tree.
+ * Normalizes and validates a flat sidecar file group.
  *
- * Manifest paths are normalized and validated before insertion. Directories may
- * be declared more than once, but file paths and file/directory paths must not
- * conflict inside the same sidecar group.
+ * Sidecar paths are always relative VFS paths under one `targetPath`. Empty
+ * directories may overlap with directories implied by file paths, but file
+ * paths must be unique and must not also act as directory ancestors.
  */
-function setFileTreeEntry(
-	files: FileTree,
-	relativePath: string,
-	content: Uint8Array | FileTree
-) {
-	const normalizedPath = validateRelativeManifestPath(relativePath);
-	const parts = normalizedPath.split('/');
-	let current = files;
-	for (const part of parts.slice(0, -1)) {
-		const next = current[part];
-		if (next === undefined) {
-			current[part] = {};
+function normalizeResolvedExtraFiles(
+	extraFiles: PHPExtensionExtraFiles
+): PHPExtensionExtraFiles {
+	let targetPath = extraFiles.targetPath;
+	if (targetPath !== undefined) {
+		const normalizedTargetPath = normalizePath(targetPath);
+		if (
+			!targetPath.startsWith('/') ||
+			normalizedTargetPath !== targetPath
+		) {
+			throw new Error(
+				`Invalid extension extra file targetPath: ${targetPath}`
+			);
 		}
-		if (!isFileTreeDirectory(current[part])) {
+		targetPath = normalizedTargetPath;
+	}
+	const directories = new Set<string>();
+	const filePaths = new Set<string>();
+	for (const directory of extraFiles.directories ?? []) {
+		const normalizedDirectory = validateRelativeManifestPath(directory);
+		for (const filePath of filePaths) {
+			if (
+				normalizedDirectory === filePath ||
+				normalizedDirectory.startsWith(`${filePath}/`)
+			) {
+				throw new Error(
+					`Extension sidecar files declare conflicting path: ${normalizedDirectory}`
+				);
+			}
+		}
+		directories.add(normalizedDirectory);
+	}
+	const files: Record<string, Uint8Array | string> = {};
+	for (const [path, content] of Object.entries(extraFiles.files)) {
+		const normalizedPath = validateRelativeManifestPath(path);
+		if (filePaths.has(normalizedPath)) {
 			throw new Error(
 				`Extension sidecar files declare conflicting path: ${normalizedPath}`
 			);
 		}
-		current = current[part] as FileTree;
+		for (const directory of directories) {
+			if (
+				directory === normalizedPath ||
+				directory.startsWith(`${normalizedPath}/`)
+			) {
+				throw new Error(
+					`Extension sidecar files declare conflicting path: ${normalizedPath}`
+				);
+			}
+		}
+		for (const existingPath of filePaths) {
+			if (
+				normalizedPath.startsWith(`${existingPath}/`) ||
+				existingPath.startsWith(`${normalizedPath}/`)
+			) {
+				throw new Error(
+					`Extension sidecar files declare conflicting path: ${normalizedPath}`
+				);
+			}
+		}
+		filePaths.add(normalizedPath);
+		files[normalizedPath] = content;
 	}
-	const leafName = parts[parts.length - 1];
-	const existing = current[leafName];
-	if (
-		existing !== undefined &&
-		!(isFileTreeDirectory(existing) && isFileTreeDirectory(content))
-	) {
-		throw new Error(
-			`Extension sidecar files declare conflicting path: ${normalizedPath}`
-		);
-	}
-	current[leafName] = content;
-}
-
-/**
- * Checks whether a staged sidecar entry is a directory node.
- *
- * `FileTree` can also contain bytes and strings. This guard keeps merge and
- * insertion logic focused on the only node type that may be merged.
- */
-function isFileTreeDirectory(
-	content: Uint8Array | string | FileTree
-): content is FileTree {
-	return !(content instanceof Uint8Array) && typeof content !== 'string';
+	return {
+		targetPath,
+		directories: directories.size ? [...directories] : undefined,
+		files,
+	};
 }
 
 /**
@@ -945,8 +986,8 @@ function validateManifestExtraFilePaths(
  * Returns a normalized manifest sidecar path if it stays inside targetPath.
  *
  * Manifest sidecar paths are relative VFS paths, not host paths or URLs. This
- * rejects absolute paths and parent-directory escapes before building the file
- * tree that will be mounted into the PHP runtime.
+ * rejects absolute paths and parent-directory escapes before staging the files
+ * in the PHP runtime.
  */
 function validateRelativeManifestPath(path: string): string {
 	const normalized = normalizePath(path);
@@ -961,28 +1002,6 @@ function validateRelativeManifestPath(path: string): string {
 		);
 	}
 	return normalized;
-}
-
-function writeFileTreeSync(
-	fs: Emscripten.RootFS,
-	root: string,
-	files: FileTree
-) {
-	if (!FSHelpers.fileExists(fs, root)) {
-		fs.mkdirTree(root);
-	}
-	for (const [relativePath, content] of Object.entries(files)) {
-		const filePath = joinPaths(root, relativePath);
-		const directory = dirname(filePath);
-		if (!FSHelpers.fileExists(fs, directory)) {
-			fs.mkdirTree(directory);
-		}
-		if (content instanceof Uint8Array || typeof content === 'string') {
-			fs.writeFile(filePath, content);
-		} else {
-			writeFileTreeSync(fs, filePath, content);
-		}
-	}
 }
 
 async function assertSha256(

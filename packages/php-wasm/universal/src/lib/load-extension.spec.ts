@@ -165,18 +165,14 @@ describe('resolvePHPExtension', () => {
 
 		expect(extension.extraFiles).toEqual({
 			targetPath: '/internal/shared',
+			directories: ['profiler-data'],
 			files: {
-				'profiler-data': {},
-				'profiler-web-ui': {
-					'index.html': new Uint8Array(
-						new TextEncoder().encode('<html></html>')
-					),
-					css: {
-						'main.css': new Uint8Array(
-							new TextEncoder().encode('body { margin: 0; }')
-						),
-					},
-				},
+				'profiler-web-ui/index.html': new Uint8Array(
+					new TextEncoder().encode('<html></html>')
+				),
+				'profiler-web-ui/css/main.css': new Uint8Array(
+					new TextEncoder().encode('body { margin: 0; }')
+				),
 			},
 		});
 	});

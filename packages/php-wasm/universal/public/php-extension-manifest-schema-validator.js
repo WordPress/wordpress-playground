@@ -20,7 +20,7 @@ const schema11 = {
 				extraFiles: {
 					$ref: '#/definitions/PHPExtensionManifestExtraFiles',
 					description:
-						'Additional URL-backed files shared by all artifacts.',
+						"URL-backed files shared by every artifact in this manifest.\n\nUse this for common sidecars such as an extension web UI. Files needed only by one compiled artifact belong in that artifact's `extraFiles`.",
 				},
 			},
 			required: ['name', 'artifacts'],
@@ -49,7 +49,7 @@ const schema11 = {
 				extraFiles: {
 					$ref: '#/definitions/PHPExtensionManifestExtraFiles',
 					description:
-						'Additional URL-backed files to fetch for this artifact.\n\nUse this for files that differ by PHP version or async mode.',
+						'URL-backed files needed only by this artifact.\n\nUse this for files that differ by PHP version or async mode. Shared files, such as an extension web UI, belong in manifest-level `extraFiles` instead.',
 				},
 			},
 			required: ['phpVersion', 'file'],
@@ -113,7 +113,8 @@ const schema12 = {
 		},
 		extraFiles: {
 			$ref: '#/definitions/PHPExtensionManifestExtraFiles',
-			description: 'Additional URL-backed files shared by all artifacts.',
+			description:
+				"URL-backed files shared by every artifact in this manifest.\n\nUse this for common sidecars such as an extension web UI. Files needed only by one compiled artifact belong in that artifact's `extraFiles`.",
 		},
 	},
 	required: ['name', 'artifacts'],
@@ -142,7 +143,7 @@ const schema13 = {
 		extraFiles: {
 			$ref: '#/definitions/PHPExtensionManifestExtraFiles',
 			description:
-				'Additional URL-backed files to fetch for this artifact.\n\nUse this for files that differ by PHP version or async mode.',
+				'URL-backed files needed only by this artifact.\n\nUse this for files that differ by PHP version or async mode. Shared files, such as an extension web UI, belong in manifest-level `extraFiles` instead.',
 		},
 	},
 	required: ['phpVersion', 'file'],
