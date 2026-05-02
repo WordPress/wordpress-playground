@@ -76,9 +76,8 @@ export interface PHPExtensionManifestExtraFile {
 export interface PHPExtensionManifestExtraFiles {
 	/**
 	 * Absolute VFS path where files and directories are written. When a
-	 * manifest declares both top-level and per-artifact `extraFiles`, both
-	 * groups must agree on `targetPath` (either both declare the same one,
-	 * or neither declares it). When omitted, defaults to
+	 * manifest declares both top-level and per-artifact `extraFiles`, the
+	 * first declared `targetPath` wins. Defaults to
 	 * `<extensionDir>/<name>-assets`.
 	 */
 	targetPath?: string;
@@ -473,54 +472,20 @@ async function fetchManifestExtraFiles(
 }
 
 /**
- * Merges sidecar groups into a single one. All groups must agree on
- * `targetPath` — either every group declares the same one, or no group
- * declares one (in which case the caller fills in a default later). Relative
- * file paths are normalized; duplicate or shadowing paths are rejected.
+ * Merges sidecar groups into a single one. The merged result has at most one
+ * `targetPath` (the first declared one wins) because `ResolvedPHPExtension`
+ * stages everything under a single VFS root. Relative file paths are
+ * normalized; duplicate or shadowing paths are rejected.
  */
 function mergeExtraFiles(
 	groups: Array<PHPExtensionExtraFiles>
 ): PHPExtensionExtraFiles | undefined {
-	/**
-	 * Pick the single VFS root all groups will be staged under.
-	 *
-	 * `targetPath` is optional so callers can let PHP.wasm pick a default
-	 * (`<extensionDir>/<name>-assets`, applied later in
-	 * `buildResolvedPHPExtension`). The merged result can only represent
-	 * one root, so all groups must agree: either every group declares the
-	 * same `targetPath`, or no group declares one.
-	 *
-	 * Rejected — two declared roots disagree:
-	 *
-	 *     [
-	 *         { targetPath: '/internal/shared', files: { ... } },
-	 *         { targetPath: '/tmp/spx',         files: { ... } },
-	 *     ]
-	 *
-	 * Rejected — one group declares a root, another leaves it implicit:
-	 *
-	 *     [
-	 *         { targetPath: '/internal/shared', files: { ... } },
-	 *         {                                  files: { ... } },
-	 *     ]
-	 *
-	 * Rejected — `targetPath` is not an absolute VFS path:
-	 *
-	 *     [{ targetPath: '../shared', files: { ... } }]
-	 */
-	const targetPaths = groups.map((group) => group.targetPath);
-	const uniqueTargetPaths = Array.from(new Set(targetPaths));
-	if (uniqueTargetPaths.length > 1) {
-		throw new Error(
-			'Cannot merge extension extra files with different targetPath values.'
-		);
+	if (!groups.length) {
+		return undefined;
 	}
-	const targetPath = uniqueTargetPaths[0];
-	if (targetPath !== undefined && !targetPath.startsWith('/')) {
-		throw new Error(
-			`Invalid extension extra file targetPath: ${targetPath}`
-		);
-	}
+	const targetPath = groups
+		.map((group) => group.targetPath)
+		.find((path) => path !== undefined);
 
 	const directories = new Set<string>();
 	const files: Record<string, Uint8Array | string> = {};
