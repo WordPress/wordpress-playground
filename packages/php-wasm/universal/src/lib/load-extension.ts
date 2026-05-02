@@ -114,9 +114,11 @@ export interface PHPExtensionManifestArtifact {
 	sha256?: string;
 
 	/**
-	 * Additional URL-backed files to fetch for this artifact.
+	 * URL-backed files needed only by this artifact.
 	 *
-	 * Use this for files that differ by PHP version or async mode.
+	 * Use this for files that differ by PHP version or async mode. Shared
+	 * files, such as an extension web UI, belong in manifest-level
+	 * `extraFiles` instead.
 	 */
 	extraFiles?: PHPExtensionManifestExtraFiles;
 }
@@ -170,7 +172,10 @@ export interface PHPExtensionManifest {
 	mode?: 'php-extension';
 	artifacts: PHPExtensionManifestArtifact[];
 	/**
-	 * Additional URL-backed files shared by all artifacts.
+	 * URL-backed files shared by every artifact in this manifest.
+	 *
+	 * Use this for common sidecars such as an extension web UI. Files needed
+	 * only by one compiled artifact belong in that artifact's `extraFiles`.
 	 */
 	extraFiles?: PHPExtensionManifestExtraFiles;
 }
@@ -647,9 +652,26 @@ async function resolvePHPExtensionSource(
 /**
  * Resolves all manifest sidecar file groups into one staged file tree.
  *
- * Manifest-level and artifact-level sidecars are fetched in parallel, then
- * merged in declaration order. This lets a manifest define shared assets while
- * individual PHP-version artifacts add files when needed.
+ * A manifest may declare shared sidecars once at the top level and
+ * artifact-specific sidecars next to the selected `.so` file:
+ *
+ * ```json
+ * {
+ *   "extraFiles": { "files": [{ "path": "spx/ui.html", "file": "ui.html" }] },
+ *   "artifacts": [
+ *     {
+ *       "phpVersion": "8.4",
+ *       "file": "spx-php8.4.so",
+ *       "extraFiles": {
+ *         "files": [{ "path": "spx/8.4.ini", "file": "8.4.ini" }]
+ *       }
+ *     }
+ *   ]
+ * }
+ * ```
+ *
+ * Both groups are fetched in parallel and then merged in declaration order:
+ * manifest-level first, selected artifact second. Paths must not conflict.
  */
 async function resolveManifestExtraFiles(
 	fetchFn: typeof fetch | undefined,
