@@ -582,7 +582,16 @@ async function resolvePHPExtensionSource(
 		}
 		manifestCandidate = await response.json();
 	}
-	const manifest = assertValidPHPExtensionManifest(manifestCandidate);
+	// The generated validator is built from `PHPExtensionManifest`, so runtime
+	// checks stay aligned with the public TypeScript type.
+	if (!validatePHPExtensionManifest(manifestCandidate)) {
+		throw new Error(
+			`Invalid PHP extension manifest: ${formatManifestValidationErrors(
+				validatePHPExtensionManifest.errors
+			)}`
+		);
+	}
+	const manifest = manifestCandidate as PHPExtensionManifest;
 	validateManifestExtraFilePaths(manifest.extraFiles);
 	for (const artifact of manifest.artifacts) {
 		validateManifestExtraFilePaths(artifact.extraFiles);
@@ -640,14 +649,17 @@ async function resolvePHPExtensionSource(
  *
  * Manifest-level and artifact-level sidecars are fetched in parallel, then
  * merged in declaration order. This lets a manifest define shared assets while
- * individual PHP-version artifacts override or add files when needed.
+ * individual PHP-version artifacts add files when needed.
  */
 async function resolveManifestExtraFiles(
 	fetchFn: typeof fetch | undefined,
 	baseUrl: URL,
 	...extraFilesList: Array<PHPExtensionManifestExtraFiles | undefined>
 ): Promise<PHPExtensionExtraFiles | undefined> {
-	const definedExtraFiles = extraFilesList.filter(isDefinedExtraFiles);
+	const definedExtraFiles = extraFilesList.filter(
+		(extraFiles): extraFiles is PHPExtensionManifestExtraFiles =>
+			!!extraFiles
+	);
 	const fetchQueue = new Semaphore({
 		concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
 	});
@@ -661,18 +673,6 @@ async function resolveManifestExtraFiles(
 			mergeExtraFiles(mergedExtraFiles, extraFiles),
 		undefined
 	);
-}
-
-/**
- * Narrows optional manifest sidecar groups before resolving them in parallel.
- *
- * The resolver accepts optional manifest-level and artifact-level declarations.
- * Filtering them first keeps the parallel work list free of placeholders.
- */
-function isDefinedExtraFiles(
-	extraFiles: PHPExtensionManifestExtraFiles | undefined
-): extraFiles is PHPExtensionManifestExtraFiles {
-	return !!extraFiles;
 }
 
 /**
@@ -723,9 +723,24 @@ async function fetchManifestExtraFiles(
 /**
  * Merges two staged sidecar file groups.
  *
- * Both groups must either share the same target path or let one side omit it.
- * This prevents accidentally staging one extension's sidecar files across two
- * unrelated VFS roots.
+ * If both inputs declare `targetPath`, they must declare the same one. An input
+ * without `targetPath` inherits the other input's root:
+ *
+ * ```ts
+ * mergeExtraFiles(
+ *     { targetPath: '/internal/shared', files: { 'spx/ui.html': bytes } },
+ *     { targetPath: '/internal/shared', files: { 'spx/ui.css': bytes } }
+ * );
+ *
+ * // Throws because the merged result can only represent one VFS root.
+ * mergeExtraFiles(
+ *     { targetPath: '/internal/shared', files: {} },
+ *     { targetPath: '/tmp/spx', files: {} }
+ * );
+ * ```
+ *
+ * Sidecar file paths must be disjoint; directory nodes are the only entries
+ * that may be merged.
  */
 function mergeExtraFiles(
 	first?: PHPExtensionExtraFiles,
@@ -844,25 +859,6 @@ function isFileTreeDirectory(
 function throwConflictingSidecarPath(path: string): never {
 	throw new Error(
 		`Extension sidecar files declare conflicting path: ${path}`
-	);
-}
-
-/**
- * Validates untrusted manifest JSON using the generated AJV validator.
- *
- * The validator is generated from `PHPExtensionManifest`, so the runtime
- * object-shape checks stay aligned with the public TypeScript type.
- */
-function assertValidPHPExtensionManifest(
-	manifestCandidate: unknown
-): PHPExtensionManifest {
-	if (validatePHPExtensionManifest(manifestCandidate)) {
-		return manifestCandidate as PHPExtensionManifest;
-	}
-	throw new Error(
-		`Invalid PHP extension manifest: ${formatManifestValidationErrors(
-			validatePHPExtensionManifest.errors
-		)}`
 	);
 }
 
