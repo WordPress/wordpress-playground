@@ -253,7 +253,13 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browser
-              run: sudo npx playwright install ${{ matrix.browser }} --with-deps
+              run: |
+                  for i in 1 2 3; do
+                    sudo npx playwright install ${{ matrix.browser }} --with-deps && break
+                    if [ $i -eq 3 ]; then echo "playwright install failed after 3 attempts" >&2; exit 1; fi
+                    echo "playwright install failed (attempt $i), retrying after 30s..." >&2
+                    sleep 30
+                  done
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
             - name: Run Playwright tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
@@ -288,7 +294,13 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browser
-              run: npx playwright install chromium --with-deps
+              run: |
+                  for i in 1 2 3; do
+                    npx playwright install chromium --with-deps && break
+                    if [ $i -eq 3 ]; then echo "playwright install failed after 3 attempts" >&2; exit 1; fi
+                    echo "playwright install failed (attempt $i), retrying after 30s..." >&2
+                    sleep 30
+                  done
             - name: Run personal-wp Playwright e2e tests
               run: CI=true npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts --project=chromium
             - uses: actions/upload-artifact@v4
@@ -307,7 +319,13 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
-              run: npx playwright install --with-deps chromium
+              run: |
+                  for i in 1 2 3; do
+                    npx playwright install --with-deps chromium && break
+                    if [ $i -eq 3 ]; then echo "playwright install failed after 3 attempts" >&2; exit 1; fi
+                    echo "playwright install failed (attempt $i), retrying after 30s..." >&2
+                    sleep 30
+                  done
             - name: Run Playwright tests for components
               run: npx nx e2e playground-components
             - uses: actions/upload-artifact@v4
@@ -328,7 +346,13 @@ jobs:
               with:
                   node-version: '22'
             - name: Install Playwright Browsers
-              run: npx playwright install --with-deps chromium
+              run: |
+                  for i in 1 2 3; do
+                    npx playwright install --with-deps chromium && break
+                    if [ $i -eq 3 ]; then echo "playwright install failed after 3 attempts" >&2; exit 1; fi
+                    echo "playwright install failed (attempt $i), retrying after 30s..." >&2
+                    sleep 30
+                  done
             - name: Run MCP e2e tests
               run: npx nx test:mcp playground-mcp
             - uses: actions/upload-artifact@v4
@@ -347,7 +371,13 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
-              run: npx playwright install --with-deps chromium
+              run: |
+                  for i in 1 2 3; do
+                    npx playwright install --with-deps chromium && break
+                    if [ $i -eq 3 ]; then echo "playwright install failed after 3 attempts" >&2; exit 1; fi
+                    echo "playwright install failed (attempt $i), retrying after 30s..." >&2
+                    sleep 30
+                  done
             - name: Verify docs API reference
               run: npx nx run docs-site:api-e2e
             - uses: actions/upload-artifact@v4
@@ -419,7 +449,13 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browser
-              run: npx playwright install chromium --with-deps
+              run: |
+                  for i in 1 2 3; do
+                    npx playwright install chromium --with-deps && break
+                    if [ $i -eq 3 ]; then echo "playwright install failed after 3 attempts" >&2; exit 1; fi
+                    echo "playwright install failed (attempt $i), retrying after 30s..." >&2
+                    sleep 30
+                  done
             - name: Start dev server
               run: |
                   npm run dev > /tmp/playground-dev.log 2>&1 &

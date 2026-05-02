@@ -10,6 +10,18 @@ inputs:
 runs:
     using: 'composite'
     steps:
+        - name: Use non-Azure apt mirror
+          shell: bash
+          # GitHub-hosted runners default to azure.archive.ubuntu.com, which
+          # has had repeated DNS resolution failures. Switch to the canonical
+          # archive.ubuntu.com mirror to avoid transient `apt-get` breakage
+          # in steps like `playwright install --with-deps`.
+          run: |
+              sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' /etc/apt/sources.list || true
+              if [ -d /etc/apt/sources.list.d ]; then
+                sudo find /etc/apt/sources.list.d -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' {} +
+              fi
+              sudo apt-get update -y || true
         - name: Fetch trunk
           shell: bash
           run: git fetch origin trunk --depth=1 --recurse-submodules
