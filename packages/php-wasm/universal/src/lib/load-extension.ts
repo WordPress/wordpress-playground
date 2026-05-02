@@ -737,7 +737,7 @@ async function fetchManifestExtraFiles(
 	);
 
 	return {
-		targetPath: normalizeManifestTargetPath(extraFiles.targetPath),
+		targetPath: extraFiles.targetPath,
 		files,
 	};
 }
@@ -922,39 +922,23 @@ function validateManifestExtraFilePaths(
 	if (!extraFiles) {
 		return;
 	}
-	normalizeManifestTargetPath(extraFiles.targetPath);
+	if (extraFiles.targetPath !== undefined) {
+		const normalizedTargetPath = normalizePath(extraFiles.targetPath);
+		if (
+			!extraFiles.targetPath.startsWith('/') ||
+			normalizedTargetPath !== extraFiles.targetPath
+		) {
+			throw new Error(
+				`Invalid extension extra file targetPath: ${extraFiles.targetPath}`
+			);
+		}
+	}
 	for (const directory of extraFiles.directories ?? []) {
 		validateRelativeManifestPath(directory);
 	}
 	for (const file of extraFiles.files ?? []) {
 		validateRelativeManifestPath(file.path);
 	}
-}
-
-/**
- * Returns a normalized absolute VFS root for manifest sidecar files.
- *
- * Sidecars are staged inside this VFS directory, so the manifest must provide a
- * canonical absolute path. Rejecting parent segments keeps untrusted manifests
- * from smuggling files into unexpected locations through targetPath.
- */
-function normalizeManifestTargetPath(
-	targetPath: string | undefined
-): string | undefined {
-	if (targetPath === undefined) {
-		return undefined;
-	}
-	const normalizedPath = normalizePath(targetPath);
-	if (
-		!targetPath.startsWith('/') ||
-		targetPath.split('/').includes('..') ||
-		normalizedPath !== targetPath
-	) {
-		throw new Error(
-			`Invalid extension extra file targetPath: ${targetPath}`
-		);
-	}
-	return normalizedPath;
 }
 
 /**
