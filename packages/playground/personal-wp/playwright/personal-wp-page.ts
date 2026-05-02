@@ -12,6 +12,11 @@ export class PersonalWPPage {
 		await expect(this.wordpress().locator('body')).not.toBeEmpty();
 	}
 
+	async waitForReady() {
+		await this.waitForNestedIframes();
+		await expect(this.addressBar()).toHaveValue(/^\//);
+	}
+
 	wordpress() {
 		return this.page
 			.frameLocator(
@@ -23,7 +28,7 @@ export class PersonalWPPage {
 	async goto(url: string, options?: Parameters<Page['goto']>[1]) {
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
-		await this.waitForNestedIframes();
+		await this.waitForReady();
 		return response;
 	}
 
