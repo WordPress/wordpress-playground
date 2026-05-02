@@ -181,6 +181,148 @@ describe('resolvePHPExtension', () => {
 		});
 	});
 
+	it('resolves manifest sidecar file groups in parallel with a request limit', async () => {
+		let activeSidecarFetches = 0;
+		let maxActiveSidecarFetches = 0;
+		let completedSidecarFetches = 0;
+		let completedManifestFetches = 0;
+		let artifactStartedBeforeManifestCompleted = false;
+		const manifestFiles = Array.from({ length: 6 }, (_, index) => ({
+			path: `manifest/file-${index}.txt`,
+			file: `manifest/file-${index}.txt`,
+		}));
+		const artifactFiles = Array.from({ length: 6 }, (_, index) => ({
+			path: `artifact/file-${index}.txt`,
+			file: `artifact/file-${index}.txt`,
+		}));
+
+		await resolvePHPExtension({
+			source: {
+				format: 'manifest',
+				manifest: {
+					name: 'example',
+					artifacts: [
+						{
+							phpVersion: '8.4',
+							file: 'example.so',
+							extraFiles: {
+								files: artifactFiles,
+							},
+						},
+					],
+					extraFiles: {
+						files: manifestFiles,
+					},
+				},
+				baseUrl: 'https://example.com/extensions/',
+			},
+			phpVersion: '8.4',
+			fetch: async (url) => {
+				const requestUrl = String(url);
+				if (requestUrl.endsWith('/example.so')) {
+					return new Response(new Uint8Array([1, 2, 3]));
+				}
+
+				const isManifestSidecar = requestUrl.includes('/manifest/');
+				if (
+					!isManifestSidecar &&
+					completedManifestFetches < manifestFiles.length
+				) {
+					artifactStartedBeforeManifestCompleted = true;
+				}
+				activeSidecarFetches++;
+				maxActiveSidecarFetches = Math.max(
+					maxActiveSidecarFetches,
+					activeSidecarFetches
+				);
+				await new Promise((resolve) => setTimeout(resolve, 10));
+				activeSidecarFetches--;
+				completedSidecarFetches++;
+				if (isManifestSidecar) {
+					completedManifestFetches++;
+				}
+				return new Response(requestUrl);
+			},
+		});
+
+		expect(completedSidecarFetches).toBe(12);
+		expect(artifactStartedBeforeManifestCompleted).toBe(true);
+		expect(maxActiveSidecarFetches).toBe(5);
+	});
+
+	it('rejects duplicate sidecar file paths across manifest groups', async () => {
+		await expect(
+			resolvePHPExtension({
+				source: {
+					format: 'manifest',
+					manifest: {
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								file: 'example.so',
+								extraFiles: {
+									files: [
+										{
+											path: 'web-ui/index.html',
+											file: 'artifact-index.html',
+										},
+									],
+								},
+							},
+						],
+						extraFiles: {
+							files: [
+								{
+									path: 'web-ui/index.html',
+									file: 'manifest-index.html',
+								},
+							],
+						},
+					},
+					baseUrl: 'https://example.com/extensions/',
+				},
+				phpVersion: '8.4',
+				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+			})
+		).rejects.toThrow(
+			'Extension sidecar files declare conflicting path: web-ui/index.html'
+		);
+	});
+
+	it('rejects sidecar file paths that conflict with sidecar directories', async () => {
+		await expect(
+			resolvePHPExtension({
+				source: {
+					format: 'manifest',
+					manifest: {
+						name: 'example',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								file: 'example.so',
+							},
+						],
+						extraFiles: {
+							directories: ['web-ui'],
+							files: [
+								{
+									path: 'web-ui',
+									file: 'web-ui',
+								},
+							],
+						},
+					},
+					baseUrl: 'https://example.com/extensions/',
+				},
+				phpVersion: '8.4',
+				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+			})
+		).rejects.toThrow(
+			'Extension sidecar files declare conflicting path: web-ui'
+		);
+	});
+
 	it('rejects manifest extra file paths that escape the target directory', async () => {
 		await expect(
 			resolvePHPExtension({

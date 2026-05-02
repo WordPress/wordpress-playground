@@ -65,7 +65,7 @@
  * accepts local manifest paths and `file:` URLs, then normalizes them before
  * calling this resolver.
  */
-import { dirname, joinPaths, normalizePath } from '@php-wasm/util';
+import { dirname, joinPaths, normalizePath, Semaphore } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
@@ -77,6 +77,14 @@ import validatePHPExtensionManifest from '../../public/php-extension-manifest-sc
  * writes their per-extension ini files.
  */
 export const PHP_EXTENSIONS_DIR = '/internal/shared/extensions';
+
+/**
+ * Maximum number of sidecar file responses read at the same time.
+ *
+ * SPX ships multiple UI assets next to its `.so` file. Fetching those assets in
+ * parallel keeps startup responsive, while this limit avoids flooding the host.
+ */
+const MAX_EXTENSION_SIDECAR_FILE_REQUESTS = 5;
 
 /**
  * The php.ini directive used to load the extension.
@@ -630,26 +638,41 @@ async function resolvePHPExtensionSource(
 /**
  * Resolves all manifest sidecar file groups into one staged file tree.
  *
- * Manifest-level sidecars are fetched first, then artifact-level sidecars are
- * merged on top. This lets a manifest define shared assets while individual
- * PHP-version artifacts override or add files when needed.
+ * Manifest-level and artifact-level sidecars are fetched in parallel, then
+ * merged in declaration order. This lets a manifest define shared assets while
+ * individual PHP-version artifacts override or add files when needed.
  */
 async function resolveManifestExtraFiles(
 	fetchFn: typeof fetch | undefined,
 	baseUrl: URL,
 	...extraFilesList: Array<PHPExtensionManifestExtraFiles | undefined>
 ): Promise<PHPExtensionExtraFiles | undefined> {
-	let resolvedExtraFiles: PHPExtensionExtraFiles | undefined;
-	for (const extraFiles of extraFilesList) {
-		if (!extraFiles) {
-			continue;
-		}
-		resolvedExtraFiles = mergeExtraFiles(
-			resolvedExtraFiles,
-			await fetchManifestExtraFiles(fetchFn, baseUrl, extraFiles)
-		);
-	}
-	return resolvedExtraFiles;
+	const definedExtraFiles = extraFilesList.filter(isDefinedExtraFiles);
+	const fetchQueue = new Semaphore({
+		concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
+	});
+	const resolvedExtraFiles = await Promise.all(
+		definedExtraFiles.map((extraFiles) =>
+			fetchManifestExtraFiles(fetchFn, baseUrl, extraFiles, fetchQueue)
+		)
+	);
+	return resolvedExtraFiles.reduce<PHPExtensionExtraFiles | undefined>(
+		(mergedExtraFiles, extraFiles) =>
+			mergeExtraFiles(mergedExtraFiles, extraFiles),
+		undefined
+	);
+}
+
+/**
+ * Narrows optional manifest sidecar groups before resolving them in parallel.
+ *
+ * The resolver accepts optional manifest-level and artifact-level declarations.
+ * Filtering them first keeps the parallel work list free of placeholders.
+ */
+function isDefinedExtraFiles(
+	extraFiles: PHPExtensionManifestExtraFiles | undefined
+): extraFiles is PHPExtensionManifestExtraFiles {
+	return !!extraFiles;
 }
 
 /**
@@ -662,7 +685,8 @@ async function resolveManifestExtraFiles(
 async function fetchManifestExtraFiles(
 	fetchFn: typeof fetch | undefined,
 	baseUrl: URL,
-	extraFiles: PHPExtensionManifestExtraFiles
+	extraFiles: PHPExtensionManifestExtraFiles,
+	fetchQueue: Semaphore
 ): Promise<PHPExtensionExtraFiles> {
 	if (!fetchFn) {
 		throw new Error(
@@ -677,13 +701,15 @@ async function fetchManifestExtraFiles(
 	await Promise.all(
 		(extraFiles.files ?? []).map(async (file) => {
 			const fileUrl = new URL(file.file, baseUrl);
-			const response = await fetchFn(fileUrl);
-			if (!response.ok) {
-				throw new Error(
-					`Failed to fetch ${String(fileUrl)}: ${response.status}`
-				);
-			}
-			const bytes = new Uint8Array(await response.arrayBuffer());
+			const bytes = await fetchQueue.run(async () => {
+				const response = await fetchFn(fileUrl);
+				if (!response.ok) {
+					throw new Error(
+						`Failed to fetch ${String(fileUrl)}: ${response.status}`
+					);
+				}
+				return new Uint8Array(await response.arrayBuffer());
+			});
 			setFileTreeEntry(files, file.path, bytes);
 		})
 	);
@@ -730,24 +756,33 @@ function mergeExtraFiles(
 /**
  * Recursively merges two VFS file trees.
  *
- * Directory nodes are merged so manifest-level directories can receive
- * artifact-level files. File nodes replace existing entries at the same path.
+ * Directory nodes are merged so manifest-level directories can receive files
+ * from artifact-level sidecars. File paths must be unique across all sidecar
+ * groups, which keeps manifests explicit and avoids hidden override rules.
  */
-function mergeFileTrees(first: FileTree, second: FileTree): FileTree {
+function mergeFileTrees(
+	first: FileTree,
+	second: FileTree,
+	currentPath = ''
+): FileTree {
 	const merged: FileTree = { ...first };
 	for (const [path, content] of Object.entries(second)) {
 		const existing = merged[path];
-		if (
-			existing &&
-			!(existing instanceof Uint8Array) &&
-			typeof existing !== 'string' &&
-			!(content instanceof Uint8Array) &&
-			typeof content !== 'string'
-		) {
-			merged[path] = mergeFileTrees(existing, content);
-		} else {
+		if (existing === undefined) {
 			merged[path] = content;
+			continue;
 		}
+		if (isFileTreeDirectory(existing) && isFileTreeDirectory(content)) {
+			merged[path] = mergeFileTrees(
+				existing,
+				content,
+				currentPath ? joinPaths(currentPath, path) : path
+			);
+			continue;
+		}
+		throwConflictingSidecarPath(
+			currentPath ? joinPaths(currentPath, path) : path
+		);
 	}
 	return merged;
 }
@@ -755,9 +790,9 @@ function mergeFileTrees(first: FileTree, second: FileTree): FileTree {
 /**
  * Writes a file or directory entry into a nested VFS file tree.
  *
- * Manifest paths are normalized and validated before insertion. If a directory
- * path crosses an existing file node, the later directory wins so the final
- * tree still matches the manifest's last declaration for that path.
+ * Manifest paths are normalized and validated before insertion. Directories may
+ * be declared more than once, but file paths and file/directory paths must not
+ * conflict inside the same sidecar group.
  */
 function setFileTreeEntry(
 	files: FileTree,
@@ -769,16 +804,47 @@ function setFileTreeEntry(
 	let current = files;
 	for (const part of parts.slice(0, -1)) {
 		const next = current[part];
-		if (
-			next instanceof Uint8Array ||
-			typeof next === 'string' ||
-			next === undefined
-		) {
+		if (next === undefined) {
 			current[part] = {};
+		}
+		if (!isFileTreeDirectory(current[part])) {
+			throwConflictingSidecarPath(normalizedPath);
 		}
 		current = current[part] as FileTree;
 	}
-	current[parts[parts.length - 1]] = content;
+	const leafName = parts[parts.length - 1];
+	const existing = current[leafName];
+	if (
+		existing !== undefined &&
+		!(isFileTreeDirectory(existing) && isFileTreeDirectory(content))
+	) {
+		throwConflictingSidecarPath(normalizedPath);
+	}
+	current[leafName] = content;
+}
+
+/**
+ * Checks whether a staged sidecar entry is a directory node.
+ *
+ * `FileTree` can also contain bytes and strings. This guard keeps merge and
+ * insertion logic focused on the only node type that may be merged.
+ */
+function isFileTreeDirectory(
+	content: Uint8Array | string | FileTree
+): content is FileTree {
+	return !(content instanceof Uint8Array) && typeof content !== 'string';
+}
+
+/**
+ * Reports duplicate or structurally incompatible sidecar paths.
+ *
+ * Rejecting conflicts avoids override rules between manifest-level and
+ * artifact-level sidecars and catches malformed single-group declarations.
+ */
+function throwConflictingSidecarPath(path: string): never {
+	throw new Error(
+		`Extension sidecar files declare conflicting path: ${path}`
+	);
 }
 
 /**
