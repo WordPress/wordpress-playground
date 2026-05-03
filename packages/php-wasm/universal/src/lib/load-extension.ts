@@ -130,7 +130,7 @@ export type PHPExtensionSource =
 			baseUrl?: string | URL;
 	  };
 
-export interface PHPExtensionInstallOptions {
+export interface ResolvedInstallOptions {
 	phpVersion: string;
 	source: PHPExtensionSource;
 	/** Overrides the name inferred from `source`. */
@@ -143,7 +143,7 @@ export interface PHPExtensionInstallOptions {
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
-	extraFiles?: PHPExtensionExtraNodes;
+	extraFiles?: ResolvedExtraNodes;
 	/** Environment variables added before the extension is loaded. */
 	env?: Record<string, string>;
 	/** Defaults to `PHP_EXTENSIONS_DIR`. */
@@ -157,10 +157,23 @@ export interface PHPExtensionInstallOptions {
 }
 
 /**
+ * Fully resolved files and settings needed to install one extension.
+ */
+export interface ResolvedPHPExtension {
+	soPath: string;
+	soBytes: Uint8Array;
+	iniPath: string;
+	iniContent: string;
+	extraNodes?: ResolvedExtraNodes;
+	env?: Record<string, string>;
+	extensionDir: string;
+}
+
+/**
  * Sidecar files to stage next to an extension. Use this for data files or
  * native-library assets the extension expects at runtime.
  */
-export interface PHPExtensionExtraNodes {
+export interface ResolvedExtraNodes {
 	/** Defaults to `/internal/shared/extensions/<name>-assets`. */
 	targetPath?: string;
 	directories?: string[];
@@ -173,22 +186,9 @@ export interface InstallPHPExtensionFilesOptions {
 	soBytes: Uint8Array | ArrayBuffer;
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	iniEntries?: Record<string, string>;
-	extraFiles?: PHPExtensionExtraNodes;
+	extraFiles?: ResolvedExtraNodes;
 	env?: Record<string, string>;
 	extensionDir?: string;
-}
-
-/**
- * Fully resolved files and settings needed to install one extension.
- */
-export interface ResolvedPHPExtension {
-	soPath: string;
-	soBytes: Uint8Array;
-	iniPath: string;
-	iniContent: string;
-	extraFiles?: PHPExtensionExtraNodes & { targetPath: string };
-	env?: Record<string, string>;
-	extensionDir: string;
 }
 
 /**
@@ -197,7 +197,7 @@ export interface ResolvedPHPExtension {
  * before Emscripten initializes PHP.
  */
 export async function resolvePHPExtension(
-	options: PHPExtensionInstallOptions
+	options: ResolvedInstallOptions
 ): Promise<ResolvedPHPExtension> {
 	const resolved = await resolvePHPExtensionSource(options);
 	return buildResolvedPHPExtension({
@@ -207,7 +207,7 @@ export async function resolvePHPExtension(
 		iniEntries: options.iniEntries,
 		extraFiles: mergeExtraFiles(
 			[resolved.extraNodes, options.extraFiles].filter(
-				(group): group is PHPExtensionExtraNodes => !!group
+				(group): group is ResolvedExtraNodes => !!group
 			)
 		),
 		env: options.env,
@@ -262,8 +262,8 @@ export function installPHPExtensionFilesSync(
 	mkdirIfMissing(fs, ext.extensionDir);
 	fs.writeFile(ext.soPath, ext.soBytes);
 	fs.writeFile(ext.iniPath, ext.iniContent);
-	if (ext.extraFiles) {
-		const { targetPath, directories = [], files } = ext.extraFiles;
+	if (ext.extraNodes) {
+		const { targetPath, directories = [], files } = ext.extraNodes;
 		mkdirIfMissing(fs, targetPath);
 		for (const dir of directories) {
 			mkdirIfMissing(fs, joinPaths(targetPath, dir));
@@ -305,7 +305,7 @@ function buildResolvedPHPExtension(
 		),
 	].join('\n');
 
-	let extraFiles: ResolvedPHPExtension['extraFiles'];
+	let extraFiles: ResolvedPHPExtension['extraNodes'];
 	if (options.extraFiles) {
 		const merged = mergeExtraFiles([options.extraFiles])!;
 		extraFiles = {
@@ -320,7 +320,7 @@ function buildResolvedPHPExtension(
 		soBytes: toUint8Array(options.soBytes),
 		iniPath,
 		iniContent,
-		extraFiles,
+		extraNodes: extraFiles,
 		env: options.env,
 		extensionDir,
 	};
@@ -329,7 +329,7 @@ function buildResolvedPHPExtension(
 interface ResolvedPHPExtensionSource {
 	name: string;
 	soBytes: Uint8Array;
-	extraNodes?: PHPExtensionExtraNodes;
+	extraNodes?: ResolvedExtraNodes;
 }
 
 /**
@@ -339,7 +339,7 @@ interface ResolvedPHPExtensionSource {
  * PHP virtual filesystem.
  */
 async function resolvePHPExtensionSource(
-	options: PHPExtensionInstallOptions
+	options: ResolvedInstallOptions
 ): Promise<ResolvedPHPExtensionSource> {
 	const fetchFn = options.fetch ?? globalThis.fetch;
 	const source = options.source;
@@ -417,12 +417,12 @@ async function resolvePHPExtensionSource(
 	const queue = new Semaphore({
 		concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
 	});
-	const fetchedGroups: PHPExtensionExtraNodes[] = [];
+	const fetchedGroups: ResolvedExtraNodes[] = [];
 	const [soBytes] = await Promise.all([
 		fetchBytes(fetchFn, new URL(artifact.sourcePath, baseUrl)),
 		...[manifest.extraFiles, artifact.extraFiles].map(async (group) => {
 			if (!group) return;
-			const fetched: PHPExtensionExtraNodes = {
+			const fetched: ResolvedExtraNodes = {
 				targetPath: group.vfsRoot,
 				directories: [],
 				files: {},
@@ -456,8 +456,8 @@ async function resolvePHPExtensionSource(
  * normalized; duplicate or shadowing paths are rejected.
  */
 function mergeExtraFiles(
-	groups: Array<PHPExtensionExtraNodes>
-): PHPExtensionExtraNodes | undefined {
+	groups: Array<ResolvedExtraNodes>
+): ResolvedExtraNodes | undefined {
 	if (!groups.length) {
 		return undefined;
 	}
