@@ -44,9 +44,59 @@ npx @php-wasm/compile-extension \
 Empty directories are recorded as `type: "directory"` nodes so the loader
 creates them before PHP starts.
 
+The supported `--php-versions` are `7.4` and `8.0` through `8.5`.
+
 Docker is required. The build reuses the `packages/php-wasm/compile` base image
 and its PHP patch set, then runs `phpize`, `emconfigure`, and `emmake` inside
 the container.
+
+## Using the helper from a downstream repository
+
+This package is not yet on npm. CI jobs in other repositories should pull a
+sparse checkout of `WordPress/wordpress-playground` and run the helper from
+there:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+      repository: WordPress/wordpress-playground
+      ref: trunk
+      path: wordpress-playground
+      sparse-checkout-cone-mode: false
+      sparse-checkout: |
+          /package.json
+          /package-lock.json
+          /nx.json
+          /tsconfig.base.json
+          /packages/meta/
+          /packages/nx-extensions/
+          /packages/php-wasm/cli-util/
+          /packages/php-wasm/compile-extension/
+          /packages/php-wasm/compile/
+          /packages/php-wasm/fs-journal/
+          /packages/php-wasm/logger/
+          /packages/php-wasm/node/
+          /packages/php-wasm/node-builds/8-0/
+          /packages/php-wasm/node-builds/8-1/
+          /packages/php-wasm/node-builds/8-2/
+          /packages/php-wasm/node-builds/8-3/
+          /packages/php-wasm/node-builds/8-4/
+          /packages/php-wasm/node-builds/8-5/
+          /packages/php-wasm/progress/
+          /packages/php-wasm/scopes/
+          /packages/php-wasm/stream-compression/
+          /packages/php-wasm/universal/
+          /packages/php-wasm/util/
+
+- working-directory: wordpress-playground
+  run: npm ci --ignore-scripts
+```
+
+Trim the `node-builds` entries to the PHP versions the matrix actually builds.
+Keep `packages/php-wasm/compile` even when the build runs inside Docker; the
+helper resolves headers and side-module link inputs from there. Prefer
+`max-parallel: 1` for the WASM lanes — parallel Docker builds on hosted
+runners often hit apt-mirror flakes during the base image build.
 
 ## Loading the result
 
@@ -246,6 +296,12 @@ RUSTFLAGS="-C panic=abort" cargo +nightly build \
 
 Keep dependencies aligned with the custom extension target. Custom extensions
 are JSPI-only, so link `jspi` dependency archives.
+
+`ext-php-rs` `0.15` depends on PHP 8 Zend APIs and does not compile against
+PHP `7.4` headers, so Rust extensions built on top of `ext-php-rs` `0.15`
+should restrict `--php-versions` to `8.0` through `8.5`. The helper itself
+still supports PHP `7.4` for non-Rust extensions and for Rust extensions that
+bind Zend directly through `bindgen`.
 
 `--extra-cflags` is visible during `./configure`. `--extra-ldflags` is applied
 to the final side-module link so dependency archives do not break Autoconf's
