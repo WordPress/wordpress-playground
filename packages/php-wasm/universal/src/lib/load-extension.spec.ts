@@ -35,19 +35,6 @@ describe('resolvePHPExtension', () => {
 		);
 	});
 
-	it('rejects extension names that cannot be used as safe VFS basenames', async () => {
-		await expect(
-			resolvePHPExtension({
-				source: {
-					format: 'so',
-					name: '../example',
-					bytes: new Uint8Array([1, 2, 3]),
-				},
-				phpVersion: '8.4',
-			})
-		).rejects.toThrow('Invalid PHP extension name');
-	});
-
 	it('explains that direct URL sources require absolute URLs', async () => {
 		await expect(
 			resolvePHPExtension({

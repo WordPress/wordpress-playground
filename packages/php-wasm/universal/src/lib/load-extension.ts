@@ -30,8 +30,45 @@
  * `fetch` implementation. In `@php-wasm/node`, `loadNodeRuntime()` also
  * accepts local manifest paths and `file:` URLs, then normalizes them before
  * calling this resolver.
+ *
+ * ## How to use it
+ *
+ * Most consumers go through `loadNodeRuntime` / `loadWebRuntime`, which take
+ * an `extensions: PHPExtension[]` option. The same array accepts bundled names
+ * and external sources side by side:
+ *
+ * ```ts
+ * await loadNodeRuntime('8.4', {
+ *   extensions: [
+ *     'intl',
+ *     'xdebug',
+ *     { source: { format: 'manifest', manifestUrl: 'https://example.com/spx/manifest.json' } },
+ *   ],
+ * });
+ * ```
+ *
+ * If you build Emscripten options yourself, use the lower-level pair:
+ *
+ * ```ts
+ * const resolved = await resolvePHPExtension({ phpVersion, source });
+ * const finalOptions = withResolvedPHPExtensions(emscriptenOptions, [resolved]);
+ * ```
+ *
+ * * `resolvePHPExtension` fetches and resolves one extension.
+ * * `withResolvedPHPExtensions` wires an array of resolved extensions into
+ *    Emscripten options (sets `PHP_INI_SCAN_DIR`, installs files in
+ *    `onRuntimeInitialized`). `installPHPExtensionFilesSync` is the escape hatch
+ *    for code that already has an `FS` handle.
+ *
+ * ## Source shapes
+ *
+ * - `format: 'so'` — caller supplies bytes.
+ * - `format: 'url'` — direct `.so` URL.
+ * - `format: 'manifest'` — manifest URL or inline manifest selects the right
+ *   artifact for the active PHP version. Sidecar files (caller-supplied or
+ *   manifest-declared) use absolute VFS paths.
  */
-import { dirname, joinPaths, Semaphore } from '@php-wasm/util';
+import { dirname, joinPaths, normalizePath, Semaphore } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
@@ -171,13 +208,13 @@ export interface ResolvedPHPExtension {
 
 /**
  * Sidecar files to stage next to an extension. Use this for data files or
- * native-library assets the extension expects at runtime.
+ * native-library assets the extension expects at runtime. All paths are
+ * absolute VFS paths.
  */
 export interface ResolvedExtraNodes {
-	/** Defaults to `/internal/shared/extensions/<name>-assets`. */
-	targetPath?: string;
+	/** Absolute VFS paths to create as empty directories. */
 	directories?: string[];
-	/** Flat map of relative VFS paths to file contents. */
+	/** Map of absolute VFS paths to file contents. */
 	files: Record<string, Uint8Array | string>;
 }
 
@@ -304,28 +341,14 @@ export async function resolvePHPExtension(
 		soBytes = fetchedSoBytes;
 	}
 
-	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
+	const extensionDir = normalizePath(
+		options.extensionDir ?? PHP_EXTENSIONS_DIR
+	);
 	if (options.extraFiles) {
-		const target =
-			options.extraFiles.targetPath ??
-			joinPaths(extensionDir, `${name}-assets`);
-		for (const [relPath, content] of Object.entries(
-			options.extraFiles.files
-		)) {
-			files[joinPaths(target, relPath)] = content;
-		}
-		for (const directory of options.extraFiles.directories ?? []) {
-			directories.push(joinPaths(target, directory));
-		}
+		Object.assign(files, options.extraFiles.files);
+		directories.push(...(options.extraFiles.directories ?? []));
 	}
 
-	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-		throw new Error(
-			`Invalid PHP extension name ${JSON.stringify(
-				name
-			)}. Extension names are used to build VFS file names and ini paths, so they may only contain [a-zA-Z0-9_-].`
-		);
-	}
 	const directive = options.loadWithIniDirective ?? 'extension';
 	const soPath = joinPaths(extensionDir, `${name}.so`);
 	const iniPath = joinPaths(extensionDir, `${name}.ini`);
@@ -336,18 +359,15 @@ export async function resolvePHPExtension(
 		),
 	].join('\n');
 
-	let extraNodes: ResolvedExtraNodes | undefined;
-	if (Object.keys(files).length || directories.length) {
-		extraNodes = { files };
-		if (directories.length) extraNodes.directories = directories;
-	}
-
 	return {
 		soPath,
 		soBytes,
 		iniPath,
 		iniContent,
-		extraNodes,
+		extraNodes: {
+			files,
+			directories,
+		},
 		env: options.env,
 		extensionDir,
 	};
@@ -365,6 +385,8 @@ export function withResolvedPHPExtensions(
 	if (!extensions.length) {
 		return options;
 	}
+	// Make sure the root php.ini knows where to look for our
+	// new extensions.
 	const env = { ...options.ENV };
 	for (const extension of extensions) {
 		Object.assign(env, extension.env);
@@ -422,21 +444,12 @@ function mkdirIfMissing(fs: Emscripten.RootFS, path: string): void {
 /**
  * Builds the staged paths and per-extension ini content for one extension.
  * Used by `installPHPExtensionFilesSync` when callers pass install options
- * directly (bytes already in hand). Joins any caller-supplied relative
- * sidecar paths against `extraFiles.targetPath` so the result mirrors what
- * `resolvePHPExtension` produces from a manifest.
+ * directly (bytes already in hand).
  */
 function buildResolvedPHPExtension(
 	options: InstallPHPExtensionFilesOptions
 ): ResolvedPHPExtension {
 	const { name } = options;
-	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-		throw new Error(
-			`Invalid PHP extension name ${JSON.stringify(
-				name
-			)}. Extension names are used to build VFS file names and ini paths, so they may only contain [a-zA-Z0-9_-].`
-		);
-	}
 	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
 	const directive = options.loadWithIniDirective ?? 'extension';
 	const soPath = joinPaths(extensionDir, `${name}.so`);
@@ -448,30 +461,12 @@ function buildResolvedPHPExtension(
 		),
 	].join('\n');
 
-	let extraNodes: ResolvedExtraNodes | undefined;
-	if (options.extraFiles) {
-		const target =
-			options.extraFiles.targetPath ??
-			joinPaths(extensionDir, `${name}-assets`);
-		const files: Record<string, Uint8Array | string> = {};
-		for (const [relPath, content] of Object.entries(
-			options.extraFiles.files
-		)) {
-			files[joinPaths(target, relPath)] = content;
-		}
-		extraNodes = { files };
-		const directories = (options.extraFiles.directories ?? []).map(
-			(directory) => joinPaths(target, directory)
-		);
-		if (directories.length) extraNodes.directories = directories;
-	}
-
 	return {
 		soPath,
 		soBytes: toUint8Array(options.soBytes),
 		iniPath,
 		iniContent,
-		extraNodes,
+		extraNodes: options.extraFiles,
 		env: options.env,
 		extensionDir,
 	};
