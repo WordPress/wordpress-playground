@@ -262,6 +262,26 @@ const MATRIX = WP_ONLY
 	? WP_VERSIONS.filter(({ wp }) => WP_ONLY.has(wp))
 	: WP_VERSIONS;
 
+async function loadInitialFrontPage(page, url, consoleErrors) {
+	for (let attempt = 1; attempt <= 2; attempt++) {
+		await page.goto(url, {
+			timeout: 180_000,
+			waitUntil: 'domcontentloaded',
+		});
+
+		const wpFrame = await waitForWPFrame(page, TIMEOUT_S);
+		if (wpFrame) {
+			return wpFrame;
+		}
+
+		const lastError = consoleErrors[consoleErrors.length - 1] || '';
+		if (!lastError.includes('WebWorker failed to load')) {
+			return null;
+		}
+	}
+	return null;
+}
+
 const browser = await chromium.launch({ headless: true });
 
 for (const { wp, php } of MATRIX) {
@@ -290,13 +310,8 @@ for (const { wp, php } of MATRIX) {
 	let pluginStatus = null;
 
 	try {
-		await page.goto(url, {
-			timeout: 180_000,
-			waitUntil: 'domcontentloaded',
-		});
-
 		// --- Phase 1: Front page ---
-		const wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		const wp1 = await loadInitialFrontPage(page, url, consoleErrors);
 
 		if (!wp1) {
 			const lastError = consoleErrors[consoleErrors.length - 1] || '';
