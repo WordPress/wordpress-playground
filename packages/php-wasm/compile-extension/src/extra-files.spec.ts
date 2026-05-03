@@ -24,6 +24,15 @@ describe('parseExtraFilesSpec', () => {
 			'must be an absolute VFS path'
 		);
 	});
+
+	it('preserves Windows-style hostDir that contains a colon', () => {
+		expect(
+			parseExtraFilesSpec('C:\\path\\to\\ui:/internal/shared/spx')
+		).toEqual({
+			hostDir: 'C:\\path\\to\\ui',
+			vfsRoot: '/internal/shared/spx',
+		});
+	});
 });
 
 describe('stageExtraFilesIntoOutDir', () => {
@@ -74,6 +83,64 @@ describe('stageExtraFilesIntoOutDir', () => {
 		expect(extraFiles?.nodes).toEqual([
 			{ vfsPath: 'data', type: 'directory' },
 		]);
+	});
+
+	it('rejects two specs whose hostDirs share a basename', async () => {
+		const workspace = await mkdtemp(
+			path.join(os.tmpdir(), 'compile-extension-extras-')
+		);
+		await mkdir(path.join(workspace, 'a', 'ui'), { recursive: true });
+		await mkdir(path.join(workspace, 'b', 'ui'), { recursive: true });
+
+		await expect(
+			stageExtraFilesIntoOutDir(
+				[
+					{
+						hostDir: path.join(workspace, 'a', 'ui'),
+						vfsRoot: '/x',
+					},
+					{
+						hostDir: path.join(workspace, 'b', 'ui'),
+						vfsRoot: '/x',
+					},
+				],
+				path.join(workspace, 'dist'),
+				workspace
+			)
+		).rejects.toThrow('destination collides on disk');
+	});
+
+	it('rejects two specs that produce the same vfsPath', async () => {
+		const workspace = await mkdtemp(
+			path.join(os.tmpdir(), 'compile-extension-extras-')
+		);
+		await mkdir(path.join(workspace, 'first'), { recursive: true });
+		await mkdir(path.join(workspace, 'second'), { recursive: true });
+		await writeFile(
+			path.join(workspace, 'first', 'index.html'),
+			'<html></html>'
+		);
+		await writeFile(
+			path.join(workspace, 'second', 'index.html'),
+			'<html></html>'
+		);
+
+		await expect(
+			stageExtraFilesIntoOutDir(
+				[
+					{
+						hostDir: path.join(workspace, 'first'),
+						vfsRoot: '/x',
+					},
+					{
+						hostDir: path.join(workspace, 'second'),
+						vfsRoot: '/x',
+					},
+				],
+				path.join(workspace, 'dist'),
+				workspace
+			)
+		).rejects.toThrow('vfsPath collides across specs');
 	});
 
 	it('rejects mixed vfsRoot values across specs', async () => {

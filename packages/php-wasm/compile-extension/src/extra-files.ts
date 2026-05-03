@@ -10,13 +10,14 @@ import type {
  * Parses a `--extra-files` CLI argument of the form `<hostDir>:<vfsRoot>`.
  *
  * `vfsRoot` must be an absolute VFS path so the loader can stage files
- * without making up a default root.
+ * without making up a default root. Splitting on the *last* colon lets
+ * Windows host paths like `C:\dir:/internal/root` round-trip cleanly.
  */
 export function parseExtraFilesSpec(spec: string): {
 	hostDir: string;
 	vfsRoot: string;
 } {
-	const separator = spec.indexOf(':');
+	const separator = spec.lastIndexOf(':');
 	if (separator < 0) {
 		throw new Error(
 			`Invalid --extra-files value ${JSON.stringify(
@@ -72,10 +73,19 @@ export async function stageExtraFilesIntoOutDir(
 	}
 
 	const nodes: ExtensionManifestExtraFile[] = [];
+	const claimedVfsPaths = new Set<string>();
+	const claimedDestinations = new Set<string>();
 	for (const spec of specs) {
 		const absoluteHostDir = path.resolve(workspaceRoot, spec.hostDir);
 		const targetSubdir = path.basename(absoluteHostDir);
 		const destinationDir = path.join(outDir, targetSubdir);
+		if (claimedDestinations.has(destinationDir)) {
+			throw new Error(
+				`--extra-files destination collides on disk: ${destinationDir}. ` +
+					`Two host directories share the same basename, so one would overwrite the other.`
+			);
+		}
+		claimedDestinations.add(destinationDir);
 		await mkdir(path.dirname(destinationDir), { recursive: true });
 		await cp(absoluteHostDir, destinationDir, { recursive: true });
 
@@ -90,21 +100,38 @@ export async function stageExtraFilesIntoOutDir(
 			const sourcePath = `${targetSubdir}/${relativeUnderRoot}`;
 			if (isDirectory) {
 				const empty = (await readdir(entryPath)).length === 0;
-				if (empty) {
-					nodes.push({
-						vfsPath: relativeUnderRoot,
-						type: 'directory',
-					});
+				if (!empty) {
+					return;
 				}
+				if (claimedVfsPaths.has(relativeUnderRoot)) {
+					throw new Error(
+						`--extra-files vfsPath collides across specs: ${relativeUnderRoot}.`
+					);
+				}
+				claimedVfsPaths.add(relativeUnderRoot);
+				nodes.push({
+					vfsPath: relativeUnderRoot,
+					type: 'directory',
+				});
 				return;
 			}
+			if (claimedVfsPaths.has(relativeUnderRoot)) {
+				throw new Error(
+					`--extra-files vfsPath collides across specs: ${relativeUnderRoot}.`
+				);
+			}
+			claimedVfsPaths.add(relativeUnderRoot);
 			nodes.push({
 				vfsPath: relativeUnderRoot,
 				sourcePath,
 			});
 		});
 	}
-	nodes.sort((a, b) => a.vfsPath.localeCompare(b.vfsPath));
+	// Sort with a locale-independent comparator so the manifest is byte-stable
+	// across machines (`localeCompare` honors the host locale).
+	nodes.sort((a, b) =>
+		a.vfsPath < b.vfsPath ? -1 : a.vfsPath > b.vfsPath ? 1 : 0
+	);
 
 	return {
 		vfsRoot,
@@ -114,7 +141,7 @@ export async function stageExtraFilesIntoOutDir(
 
 async function walk(
 	dir: string,
-	visitor: (path: string, isDirectory: boolean) => Promise<void>
+	visitor: (entryPath: string, isDirectory: boolean) => Promise<void>
 ): Promise<void> {
 	for (const entry of await readdir(dir)) {
 		const entryPath = path.join(dir, entry);
