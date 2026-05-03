@@ -104,14 +104,12 @@ export {
 } from './load-extension';
 export type {
 	InstallPHPExtensionFilesOptions,
-	PHPExtensionExtraFiles,
 	PHPExtensionIniDirective,
-	PHPExtensionInstallOptions,
+	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	PHPExtensionManifest,
-	PHPExtensionManifestArtifact,
+	PHPExtensionManifestExtraFiles,
 	PHPExtensionSource,
-	ResolvePHPExtensionOptions,
 } from './load-extension';
 
 export {

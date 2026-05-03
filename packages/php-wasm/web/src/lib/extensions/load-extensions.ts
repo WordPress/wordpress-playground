@@ -1,7 +1,7 @@
 import { createMemoizedFetch } from '@wp-playground/common';
 import type {
 	EmscriptenOptions,
-	PHPExtensionInstallOptions,
+	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
@@ -24,7 +24,10 @@ export type BuiltInPHPWebExtensionName = 'intl';
  * External sources are supported in JSPI runtimes only. Asyncify support is
  * limited to bundled extensions shipped with this package.
  */
-export type RuntimePHPWebExtensionSource = PHPExtensionInstallOptions;
+export type RuntimePHPWebExtensionSource = Omit<
+	ResolvedInstallOptions,
+	'phpVersion'
+>;
 
 /**
  * PHP extension request accepted by `loadWebRuntime()`.
@@ -139,10 +142,9 @@ async function resolveRuntimePHPWebExtension(
 			ICU_DATA: '/internal/shared',
 		},
 		extraFiles: {
-			targetPath: '/internal/shared',
 			files: {
 				// The Intl extension looks for the hard-coded ICU data name.
-				'icudt74l.dat': new Uint8Array(ICUData),
+				'/internal/shared/icudt74l.dat': new Uint8Array(ICUData),
 			},
 		},
 	});

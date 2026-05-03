@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/logger",
-	"version": "3.1.24",
+	"version": "3.1.25",
 	"description": "A logger for PHP-wasm clients like Playground and WP-now.",
 	"repository": {
 		"type": "git",

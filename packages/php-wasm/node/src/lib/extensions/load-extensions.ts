@@ -1,7 +1,7 @@
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import type {
 	EmscriptenOptions,
-	PHPExtensionInstallOptions,
+	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
@@ -45,7 +45,10 @@ export type BuiltInPHPExtensionName = 'intl' | 'xdebug' | 'redis' | 'memcached';
  * External sources are supported in JSPI runtimes only. Asyncify support is
  * limited to bundled extensions shipped with this package.
  */
-export type RuntimePHPExtensionSource = PHPExtensionInstallOptions;
+export type RuntimePHPExtensionSource = Omit<
+	ResolvedInstallOptions,
+	'phpVersion'
+>;
 
 /**
  * Built-in PHP extension request accepted by `loadNodeRuntime()`.
@@ -180,10 +183,11 @@ async function resolveRuntimePHPExtension(
 					ICU_DATA: '/internal/shared',
 				},
 				extraFiles: {
-					targetPath: '/internal/shared',
 					files: {
 						// The Intl extension looks for the hard-coded ICU data name.
-						'icudt74l.dat': new Uint8Array(ICUData),
+						'/internal/shared/icudt74l.dat': new Uint8Array(
+							ICUData
+						),
 					},
 				},
 			});
@@ -280,7 +284,7 @@ function resolveIntlDataPath(moduleDir: string, dataName: string): string {
 function resolveXdebugExtraFiles(
 	version: SupportedPHPVersion,
 	xdebugOptions: XdebugOptions
-): PHPExtensionInstallOptions['extraFiles'] | undefined {
+): ResolvedInstallOptions['extraFiles'] | undefined {
 	/*
 	 * Path mapping and skipping is only available starting from Xdebug 3.5,
 	 * which is used by PHP 8.5 or higher.
@@ -301,18 +305,15 @@ function resolveXdebugExtraFiles(
 
 	const files: Record<string, string> = {};
 	if (pathMappings) {
-		files['path.map'] = pathMappings
+		files['/.xdebug/path.map'] = pathMappings
 			.map((map) => `${map.vfsPath} = ${map.hostPath}`)
 			.join('\n');
 	}
 	if (pathSkippings) {
-		files['skip.map'] = pathSkippings
+		files['/.xdebug/skip.map'] = pathSkippings
 			.map((path) => `${path} = SKIP`)
 			.join('\n');
 	}
 
-	return {
-		targetPath: '/.xdebug',
-		files,
-	};
+	return { files };
 }
