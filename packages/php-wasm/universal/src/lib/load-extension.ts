@@ -73,7 +73,13 @@
  *   artifact for the active PHP version. Sidecar files (caller-supplied or
  *   manifest-declared) use absolute VFS paths.
  */
-import { dirname, joinPaths, normalizePath, Semaphore } from '@php-wasm/util';
+import {
+	basename,
+	dirname,
+	joinPaths,
+	normalizePath,
+	Semaphore,
+} from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
@@ -173,6 +179,7 @@ export type PHPExtensionSource =
 	  };
 
 export interface ResolvedInstallOptions {
+	/** PHP major/minor version the active runtime is initializing for. */
 	phpVersion: string;
 	source: PHPExtensionSource;
 	/** Overrides the name inferred from `source`. */
@@ -185,10 +192,18 @@ export interface ResolvedInstallOptions {
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
+	/**
+	 * Sidecar files to write into the PHP VFS before the extension is loaded.
+	 * Use this for data files or dependency assets the extension expects at
+	 * runtime.
+	 */
 	extraFiles?: ResolvedExtraNodes;
 	/** Environment variables added before the extension is loaded. */
 	env?: Record<string, string>;
-	/** Defaults to `PHP_EXTENSIONS_DIR`. */
+	/**
+	 * VFS directory where PHP.wasm writes the extension `.so` file and its
+	 * per-extension ini file. Defaults to `PHP_EXTENSIONS_DIR`.
+	 */
 	extensionDir?: string;
 	/**
 	 * Fetch implementation used for URL and manifest sources. Runtimes may
@@ -199,15 +214,28 @@ export interface ResolvedInstallOptions {
 }
 
 /**
- * Fully resolved files and settings needed to install one extension.
+ * Fully resolved files and settings needed to install one extension. Produced
+ * by `resolvePHPExtension`; consumed by `withResolvedPHPExtensions` and
+ * `installPHPExtensionFilesSync`.
  */
 export interface ResolvedPHPExtension {
+	/** Absolute VFS path the `.so` file is staged at. */
 	soPath: string;
+	/** Compiled extension bytes to write at `soPath`. */
 	soBytes: Uint8Array;
+	/** Absolute VFS path the generated per-extension ini file is staged at. */
 	iniPath: string;
+	/**
+	 * Contents of the generated per-extension ini file. The first line is the
+	 * `extension=` or `zend_extension=` directive; remaining lines are the
+	 * caller-supplied `iniEntries`.
+	 */
 	iniContent: string;
+	/** Sidecar files staged alongside the extension. Optional. */
 	extraNodes?: ResolvedExtraNodes;
+	/** Environment variables added before PHP startup. */
 	env?: Record<string, string>;
+	/** VFS directory the `.so` and ini file live in. */
 	extensionDir: string;
 }
 
@@ -223,13 +251,32 @@ export interface ResolvedExtraNodes {
 	files: Record<string, Uint8Array | string>;
 }
 
+/**
+ * Inputs used to build the staged `.so` path and per-extension ini file when
+ * `installPHPExtensionFilesSync` is called with raw install options instead of
+ * a `ResolvedPHPExtension`.
+ */
 export interface InstallPHPExtensionFilesOptions {
+	/** Extension name used for staged file names and the ini directive. */
 	name: string;
+	/** Compiled extension bytes. */
 	soBytes: Uint8Array | ArrayBuffer;
+	/**
+	 * The first directive of the generated startup `.ini` file. Regular
+	 * extensions need `extension=...`; Zend extensions like Xdebug need
+	 * `zend_extension=...`.
+	 */
 	loadWithIniDirective?: PHPExtensionIniDirective;
+	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
+	/** Sidecar files to write into the PHP VFS before the extension is loaded. */
 	extraFiles?: ResolvedExtraNodes;
+	/** Environment variables added before the extension is loaded. */
 	env?: Record<string, string>;
+	/**
+	 * VFS directory where PHP.wasm writes the extension `.so` file and its
+	 * per-extension ini file. Defaults to `PHP_EXTENSIONS_DIR`.
+	 */
 	extensionDir?: string;
 }
 
@@ -275,10 +322,12 @@ export async function resolvePHPExtension(
 				)}`
 			);
 		}
-		const inferred = sourceUrl.pathname.split('/').pop() ?? '';
-		name ??=
-			source.name ??
-			(inferred.endsWith('.so') ? inferred.slice(0, -3) : undefined);
+		if (!name) {
+			name = source.name;
+		}
+		if (!name && sourceUrl.pathname.endsWith('.so')) {
+			name = basename(sourceUrl.pathname).slice(0, -3);
+		}
 		if (!name) {
 			throw new Error(
 				'name is required when loading an extension from a direct URL.'
