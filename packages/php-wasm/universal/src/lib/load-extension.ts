@@ -60,6 +60,11 @@
  *    `onRuntimeInitialized`). `installPHPExtensionFilesSync` is the escape hatch
  *    for code that already has an `FS` handle.
  *
+ * ## Security
+ *
+ * This is a low-level API that mostly trusts the inputs. The consumer of this module
+ * is responsible for normalizing all the paths to avoid path traversals (`../`).
+ *
  * ## Source shapes
  *
  * - `format: 'so'` — caller supplies bytes.
@@ -235,6 +240,10 @@ export interface InstallPHPExtensionFilesOptions {
  *
  * Manifest-declared extra files are joined with their group's `vfsRoot` so the
  * returned `extraNodes` always uses absolute VFS paths.
+ *
+ * TODO: Remove the remote manifest.json resolution and move it to Blueprints
+ *       where the paths can be validated and downloads scheduled using the
+ *       same code paths as we do for all other paths and URLs.
  */
 export async function resolvePHPExtension(
 	options: ResolvedInstallOptions
