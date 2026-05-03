@@ -81,23 +81,22 @@ export interface PHPExtensionManifestArtifact {
 
 export interface PHPExtensionManifestExtraFiles {
 	/**
-	 * Absolute VFS prefix joined with each node's `vfsPath` to produce its
-	 * final location. When a manifest declares both top-level and
-	 * per-artifact `extraFiles`, each group's `vfsRoot` applies only to
-	 * its own nodes. Defaults to no prefix, so node paths must already be
-	 * absolute.
+	 * Absolute VFS path where files and directories are written. When a
+	 * manifest declares both top-level and per-artifact `extraFiles`, the
+	 * first declared `targetPath` wins. Defaults to
+	 * `<extensionDir>/<name>-assets`.
 	 */
 	vfsRoot?: string;
 	nodes?: PHPExtensionManifestExtraFile[];
 }
 
 export interface PHPExtensionManifestExtraFile {
-	/** Joined with the group's `vfsRoot` to form the final VFS path. */
+	/** Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`. */
 	vfsPath: string;
-	/** Defaults to "file". Directory nodes do not require `sourcePath`. */
+	/** Defaults to "file" */
 	type?: 'file' | 'directory';
 	/** Relative to the manifest URL/base URL, or an absolute URL. */
-	sourcePath?: string;
+	sourcePath: string;
 }
 
 /**
@@ -131,19 +130,8 @@ export type PHPExtensionSource =
 			baseUrl?: string | URL;
 	  };
 
-/**
- * Sidecar files to stage next to an extension. Use this for data files or
- * native-library assets the extension expects at runtime. Paths are absolute
- * VFS paths.
- */
-export interface PHPExtensionExtraNodes {
-	/** Map of absolute VFS paths to file contents. */
-	files?: Record<string, Uint8Array | string>;
-	/** Absolute VFS paths to create as empty directories. */
-	directories?: string[];
-}
-
 export interface PHPExtensionInstallOptions {
+	phpVersion: string;
 	source: PHPExtensionSource;
 	/** Overrides the name inferred from `source`. */
 	name?: string;
@@ -168,6 +156,18 @@ export interface PHPExtensionInstallOptions {
 	fetch?: typeof fetch;
 }
 
+/**
+ * Sidecar files to stage next to an extension. Use this for data files or
+ * native-library assets the extension expects at runtime.
+ */
+export interface PHPExtensionExtraNodes {
+	/** Defaults to `/internal/shared/extensions/<name>-assets`. */
+	targetPath?: string;
+	directories?: string[];
+	/** Flat map of relative VFS paths to file contents. */
+	files: Record<string, Uint8Array | string>;
+}
+
 export interface InstallPHPExtensionFilesOptions {
 	name: string;
 	soBytes: Uint8Array | ArrayBuffer;
@@ -186,7 +186,7 @@ export interface ResolvedPHPExtension {
 	soBytes: Uint8Array;
 	iniPath: string;
 	iniContent: string;
-	extraFiles?: PHPExtensionExtraNodes;
+	extraFiles?: PHPExtensionExtraNodes & { targetPath: string };
 	env?: Record<string, string>;
 	extensionDir: string;
 }
@@ -197,9 +197,7 @@ export interface ResolvedPHPExtension {
  * before Emscripten initializes PHP.
  */
 export async function resolvePHPExtension(
-	options: PHPExtensionInstallOptions & {
-		phpVersion: string;
-	}
+	options: PHPExtensionInstallOptions
 ): Promise<ResolvedPHPExtension> {
 	const resolved = await resolvePHPExtensionSource(options);
 	return buildResolvedPHPExtension({
@@ -208,7 +206,7 @@ export async function resolvePHPExtension(
 		loadWithIniDirective: options.loadWithIniDirective,
 		iniEntries: options.iniEntries,
 		extraFiles: mergeExtraFiles(
-			[resolved.extraFiles, options.extraFiles].filter(
+			[resolved.extraNodes, options.extraFiles].filter(
 				(group): group is PHPExtensionExtraNodes => !!group
 			)
 		),
@@ -265,13 +263,15 @@ export function installPHPExtensionFilesSync(
 	fs.writeFile(ext.soPath, ext.soBytes);
 	fs.writeFile(ext.iniPath, ext.iniContent);
 	if (ext.extraFiles) {
-		const { files = {}, directories = [] } = ext.extraFiles;
-		for (const directory of directories) {
-			mkdirIfMissing(fs, directory);
+		const { targetPath, directories = [], files } = ext.extraFiles;
+		mkdirIfMissing(fs, targetPath);
+		for (const dir of directories) {
+			mkdirIfMissing(fs, joinPaths(targetPath, dir));
 		}
 		for (const [path, content] of Object.entries(files)) {
-			mkdirIfMissing(fs, dirname(path));
-			fs.writeFile(path, content);
+			const filePath = joinPaths(targetPath, path);
+			mkdirIfMissing(fs, dirname(filePath));
+			fs.writeFile(filePath, content);
 		}
 	}
 	return ext;
@@ -305,14 +305,22 @@ function buildResolvedPHPExtension(
 		),
 	].join('\n');
 
+	let extraFiles: ResolvedPHPExtension['extraFiles'];
+	if (options.extraFiles) {
+		const merged = mergeExtraFiles([options.extraFiles])!;
+		extraFiles = {
+			...merged,
+			targetPath:
+				merged.targetPath ?? joinPaths(extensionDir, `${name}-assets`),
+		};
+	}
+
 	return {
 		soPath,
 		soBytes: toUint8Array(options.soBytes),
 		iniPath,
 		iniContent,
-		extraFiles: options.extraFiles
-			? mergeExtraFiles([options.extraFiles])
-			: undefined,
+		extraFiles,
 		env: options.env,
 		extensionDir,
 	};
@@ -321,7 +329,7 @@ function buildResolvedPHPExtension(
 interface ResolvedPHPExtensionSource {
 	name: string;
 	soBytes: Uint8Array;
-	extraFiles?: PHPExtensionExtraNodes;
+	extraNodes?: PHPExtensionExtraNodes;
 }
 
 /**
@@ -331,9 +339,7 @@ interface ResolvedPHPExtensionSource {
  * PHP virtual filesystem.
  */
 async function resolvePHPExtensionSource(
-	options: PHPExtensionInstallOptions & {
-		phpVersion: string;
-	}
+	options: PHPExtensionInstallOptions
 ): Promise<ResolvedPHPExtensionSource> {
 	const fetchFn = options.fetch ?? globalThis.fetch;
 	const source = options.source;
@@ -411,32 +417,26 @@ async function resolvePHPExtensionSource(
 	const queue = new Semaphore({
 		concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
 	});
-	const fetchedGroups: Array<PHPExtensionExtraNodes> = [];
+	const fetchedGroups: PHPExtensionExtraNodes[] = [];
 	const [soBytes] = await Promise.all([
 		fetchBytes(fetchFn, new URL(artifact.sourcePath, baseUrl)),
 		...[manifest.extraFiles, artifact.extraFiles].map(async (group) => {
 			if (!group) return;
 			const fetched: PHPExtensionExtraNodes = {
-				files: {},
+				targetPath: group.vfsRoot,
 				directories: [],
+				files: {},
 			};
 			fetchedGroups.push(fetched);
 			await Promise.all(
 				(group.nodes ?? []).map(async (node) => {
-					const vfsPath = joinPaths(
-						group.vfsRoot ?? '',
-						node.vfsPath
-					);
 					if (node.type === 'directory') {
-						fetched.directories!.push(vfsPath);
-					} else {
-						fetched.files![vfsPath] = await queue.run(() =>
-							fetchBytes(
-								fetchFn,
-								new URL(node.sourcePath!, baseUrl)
-							)
-						);
+						fetched.directories!.push(node.vfsPath);
+						return;
 					}
+					fetched.files[node.vfsPath] = await queue.run(() =>
+						fetchBytes(fetchFn, new URL(node.sourcePath, baseUrl))
+					);
 				})
 			);
 		}),
@@ -445,13 +445,15 @@ async function resolvePHPExtensionSource(
 	return {
 		name: manifest.name,
 		soBytes,
-		extraFiles: mergeExtraFiles(fetchedGroups),
+		extraNodes: mergeExtraFiles(fetchedGroups),
 	};
 }
 
 /**
- * Merges sidecar groups into a single one. File paths are normalized;
- * duplicate or shadowing paths are rejected.
+ * Merges sidecar groups into a single one. The merged result has at most one
+ * `targetPath` (the first declared one wins) because `ResolvedPHPExtension`
+ * stages everything under a single VFS root. Relative file paths are
+ * normalized; duplicate or shadowing paths are rejected.
  */
 function mergeExtraFiles(
 	groups: Array<PHPExtensionExtraNodes>
@@ -459,13 +461,17 @@ function mergeExtraFiles(
 	if (!groups.length) {
 		return undefined;
 	}
+	const targetPath = groups
+		.map((group) => group.targetPath)
+		.find((path) => path !== undefined);
+
 	const directories = new Set<string>();
 	const files: Record<string, Uint8Array | string> = {};
 	for (const group of groups) {
 		for (const directory of group.directories ?? []) {
 			directories.add(normalizePath(directory));
 		}
-		for (const [rawPath, content] of Object.entries(group.files ?? {})) {
+		for (const [rawPath, content] of Object.entries(group.files)) {
 			const path = normalizePath(rawPath);
 			const conflicts =
 				path in files ||
@@ -484,8 +490,9 @@ function mergeExtraFiles(
 	}
 
 	return {
+		targetPath,
 		directories: directories.size ? [...directories] : undefined,
-		files: Object.keys(files).length ? files : undefined,
+		files,
 	};
 }
 

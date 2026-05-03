@@ -104,7 +104,6 @@ export {
 } from './load-extension';
 export type {
 	InstallPHPExtensionFilesOptions,
-	PHPExtensionExtraNodes as PHPExtensionExtraFiles,
 	PHPExtensionIniDirective,
 	PHPExtensionInstallOptions,
 	ResolvedPHPExtension,
@@ -112,7 +111,6 @@ export type {
 	PHPExtensionManifestArtifact,
 	PHPExtensionManifestExtraFile,
 	PHPExtensionManifestExtraFiles,
-	PHPExtensionSource,
 } from './load-extension';
 
 export {
