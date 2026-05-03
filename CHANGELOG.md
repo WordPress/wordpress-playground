@@ -4,6 +4,126 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.24] (2026-05-01) 
+
+
+
+
+## [v3.1.23] (2026-05-01) 
+
+### Public API
+
+
+#### Blueprints
+
+- [Client] Restore bundled type declarations. ([#3576](https://github.com/WordPress/wordpress-playground/pull/3576))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.1.22] (2026-05-01) 
+
+### Blueprints
+
+- Support .git repository URLs. ([#3541](https://github.com/WordPress/wordpress-playground/pull/3541))
+- Surface more activation errors from activatePlugin. ([#3549](https://github.com/WordPress/wordpress-playground/pull/3549))
+
+### Tools
+
+- [CLI-util] Replace Xdebug console logs with CLI output. ([#3460](https://github.com/WordPress/wordpress-playground/pull/3460))
+
+#### PHP WebAssembly
+
+- [PHP] Add runtime extensions array API. ([#3569](https://github.com/WordPress/wordpress-playground/pull/3569))
+- [PHP] Support custom PHP.wasm extensions. ([#3566](https://github.com/WordPress/wordpress-playground/pull/3566))
+
+#### GitHub integration
+
+- [GitHub Actions] Fix GitHub release missing changelog. ([#3502](https://github.com/WordPress/wordpress-playground/pull/3502))
+- [Github actions] Modify the time slot of the `refresh-sqlite-integration` workflow. ([#3510](https://github.com/WordPress/wordpress-playground/pull/3510))
+
+### Documentation
+
+- Docs: Treat changelog as a markdown file. ([#3531](https://github.com/WordPress/wordpress-playground/pull/3531))
+- Update documentation blueprint supporting encodeURIComponent URL fragments. ([#3556](https://github.com/WordPress/wordpress-playground/pull/3556))
+- [Docs] Link PR preview guide to canonical GitHub plugin pattern; refresh WP alias list. ([#3548](https://github.com/WordPress/wordpress-playground/pull/3548))
+- [Docs] Remove GitHub proxy mentions from active documentation. ([#3540](https://github.com/WordPress/wordpress-playground/pull/3540))
+- [PHP.wasm] Document bundler configuration for the .dat file import in `@php-wasm/web`. ([#2776](https://github.com/WordPress/wordpress-playground/pull/2776))
+- [docs] Replacing info component by compatible handbook element. ([#3496](https://github.com/WordPress/wordpress-playground/pull/3496))
+
+### PHP WebAssembly
+
+- [Asyncify] Fix `fix-asyncify` command. ([#3509](https://github.com/WordPress/wordpress-playground/pull/3509))
+- [CLI] Stabilize phpMyAdmin CLI tests. ([#3554](https://github.com/WordPress/wordpress-playground/pull/3554))
+- Stabilize file lock test cleanup. ([#3552](https://github.com/WordPress/wordpress-playground/pull/3552))
+- [Node] Handle symlinked directories in Node FS mounts. ([#3551](https://github.com/WordPress/wordpress-playground/pull/3551))
+- [PHP] Hold pooled workers until streamed responses finish. ([#3553](https://github.com/WordPress/wordpress-playground/pull/3553))
+- [PHP] Add `TSRMLS_CC` fallback defines for PHP versions above 7. ([#3512](https://github.com/WordPress/wordpress-playground/pull/3512))
+- [PHP] Fix MEMFS symlink crash during PHP runtime rotation. ([#3500](https://github.com/WordPress/wordpress-playground/pull/3500))
+- [Web] Fix non-deterministic TLS bridge failures from non-minimal DER serial numbers. ([#3550](https://github.com/WordPress/wordpress-playground/pull/3550))
+
+#### Website
+
+- Add legacy WordPress support on PHP 5.2. ([#3490](https://github.com/WordPress/wordpress-playground/pull/3490))
+
+### Website
+
+- Embeddable PHP code snippets via &lt;php-snippet&gt;. ([#3528](https://github.com/WordPress/wordpress-playground/pull/3528))
+- &lt;php-snippet&gt; setup blueprints via <template>. ([#3536](https://github.com/WordPress/wordpress-playground/pull/3536))
+- &lt;php-snippet&gt; – display expected output by default. ([#3557](https://github.com/WordPress/wordpress-playground/pull/3557))
+- Accept encodeURIComponent-produced blueprint URL fragments. ([#3527](https://github.com/WordPress/wordpress-playground/pull/3527))
+- Add AI discoverability: Llms.txt, meta tags, documentation section. ([#3534](https://github.com/WordPress/wordpress-playground/pull/3534))
+- Avoid php-snippet progress flash for cached runtimes. ([#3560](https://github.com/WordPress/wordpress-playground/pull/3560))
+- Editable &lt;php-snippet&gt; + richer PHP tokenizer. ([#3529](https://github.com/WordPress/wordpress-playground/pull/3529))
+- [Docs] Clarify PR preview button documentation for fork PRs. ([#3537](https://github.com/WordPress/wordpress-playground/pull/3537))
+- [Web] expected-output in &lt;php-snippet&gt; component. ([#3555](https://github.com/WordPress/wordpress-playground/pull/3555))
+- [php-code-snippet] Add wp="none" demo example. ([#3562](https://github.com/WordPress/wordpress-playground/pull/3562))
+- [php-snippet] Add non-runnable PHP snippets. ([#3563](https://github.com/WordPress/wordpress-playground/pull/3563))
+- [php-snippet] Fix "Progress bar not available" error on code run. ([#3578](https://github.com/WordPress/wordpress-playground/pull/3578))
+
+#### Blueprints
+
+- [Blueprints] support `preferredVersions.wp: False` for PHP-only Playgrounds. ([#3543](https://github.com/WordPress/wordpress-playground/pull/3543))
+
+#### Documentation
+
+- Add error notices and delete confirmation modal to site management. ([#3454](https://github.com/WordPress/wordpress-playground/pull/3454))
+
+### Internal
+
+- Auto-label PRs: Path-based labeler (replaces GitHub Models). ([#3544](https://github.com/WordPress/wordpress-playground/pull/3544))
+- Auto-label PRs: Run on drafts too. ([#3542](https://github.com/WordPress/wordpress-playground/pull/3542))
+
+### Various
+
+- Add explicit OPFS flush API. ([#3517](https://github.com/WordPress/wordpress-playground/pull/3517))
+- CI: Suggest PR labels once on open via Copilot AI. ([#3532](https://github.com/WordPress/wordpress-playground/pull/3532))
+- Docs: Escape MDX braces in changelog body. ([#3533](https://github.com/WordPress/wordpress-playground/pull/3533))
+- Docs: Make the PR Preview guide easier to get right on the first try. ([#3525](https://github.com/WordPress/wordpress-playground/pull/3525))
+- Register SQLite rc.3 PHP 5.2 rebuild. ([#3577](https://github.com/WordPress/wordpress-playground/pull/3577))
+- [CLI] Add --workers=&lt;n|auto&gt; flag to configure worker thread count. ([#3504](https://github.com/WordPress/wordpress-playground/pull/3504))
+- [CLI] Pin file-locking test suite to 3 workers. ([#3521](https://github.com/WordPress/wordpress-playground/pull/3521))
+- [CLI] make --no-auto-mount actually disable auto-detection on start. ([#3503](https://github.com/WordPress/wordpress-playground/pull/3503))
+- [Compilation][#3512] PHP Node and Web. ([#3513](https://github.com/WordPress/wordpress-playground/pull/3513))
+- [Compilation][#3512] PHP.wasm Node. ([#3518](https://github.com/WordPress/wordpress-playground/pull/3518))
+- [Compilation][#3512] PHP.wasm Web. ([#3526](https://github.com/WordPress/wordpress-playground/pull/3526))
+- [Remote] Re-enable client-side media processing via Document-Isolation-Policy. ([#3515](https://github.com/WordPress/wordpress-playground/pull/3515))
+- [i18n] Added Gujarati Translation for Blueprints 01-index.md File. ([#3507](https://github.com/WordPress/wordpress-playground/pull/3507))
+- [i18n] Adding first translation for Hindi. ([#3475](https://github.com/WordPress/wordpress-playground/pull/3475))
+- [i18n] Create index.md and add French text. ([#3167](https://github.com/WordPress/wordpress-playground/pull/3167))
+- [i18n] Docs: Add Gujarati translation for intro.md file. ([#3508](https://github.com/WordPress/wordpress-playground/pull/3508))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamsilverstein @adamziel @apeatling @beryl-dlg @bgrgicak @fellyph @JanJakes @mho22 @pento @shail-mehta
+
+
 ## [v3.1.21] (2026-04-20) 
 
 ### PHP WebAssembly

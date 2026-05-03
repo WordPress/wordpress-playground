@@ -78,7 +78,7 @@ export class BlueprintsV1Handler {
 			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
-			withIntl: runtimeConfiguration.intl,
+			extensions: runtimeConfiguration.intl ? ['intl'] : [],
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
@@ -120,7 +120,14 @@ export class BlueprintsV1Handler {
 		 */
 		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
 		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
-		if (runtimeConfiguration.networking && !isLegacyWpVersion) {
+		// Prefetch only makes sense when WordPress is actually installed.
+		// In PHP-only mode (`preferredVersions.wp: false`), wp-load.php
+		// doesn't exist and the prefetch crashes the runtime.
+		if (
+			runtimeConfiguration.networking &&
+			!isLegacyWpVersion &&
+			installWordPress
+		) {
 			await playground.prefetchUpdateChecks();
 		}
 

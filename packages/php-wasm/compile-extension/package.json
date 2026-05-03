@@ -1,0 +1,30 @@
+{
+	"name": "@php-wasm/compile-extension",
+	"version": "0.1.0",
+	"description": "Build PHP.wasm extension side modules across PHP versions",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/php-wasm/compile-extension"
+	},
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"main": "./cli.js",
+	"module": "./cli.js",
+	"types": "./cli.d.ts",
+	"bin": {
+		"php-wasm-compile-extension": "./cli.js"
+	},
+	"dependencies": {
+		"yargs": "17.7.2"
+	},
+	"engines": {
+		"node": ">=20.10.0",
+		"npm": ">=10.2.3"
+	}
+}

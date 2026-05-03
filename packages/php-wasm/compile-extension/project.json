@@ -1,0 +1,96 @@
+{
+	"name": "php-wasm-compile-extension",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/compile-extension/src",
+	"projectType": "library",
+	"tags": ["scope:php-wasm-public", "scope:cli"],
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README", "build:docker-assets"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/compile-extension/README.md dist/packages/php-wasm/compile-extension"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:docker-assets": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp -R packages/php-wasm/compile-extension/docker dist/packages/php-wasm/compile-extension/docker",
+					"cp -R packages/php-wasm/compile-extension/scripts dist/packages/php-wasm/compile-extension/scripts"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/compile-extension/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/compile-extension",
+				"buildTarget": "php-wasm-compile-extension:build:bundle:production"
+			}
+		},
+		"build:bundle": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/php-wasm/compile-extension"
+			},
+			"defaultConfiguration": "production",
+			"configurations": {
+				"development": {
+					"minify": false
+				},
+				"production": {
+					"minify": true
+				}
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": [
+					"packages/php-wasm/compile-extension/**/*.ts"
+				],
+				"maxWarnings": 0
+			}
+		},
+		"test": {
+			"executor": "@nx/vitest:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/php-wasm/compile-extension"
+			],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/compile-extension",
+				"typecheck": {
+					"tsconfig": "{projectRoot}/tsconfig.spec.json"
+				}
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/compile-extension/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/compile-extension/tsconfig.spec.json --noEmit"
+				]
+			}
+		},
+		"test-compile-extension-integration": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "packages/php-wasm/compile-extension/tests/run-integration-tests.sh"
+			}
+		}
+	}
+}

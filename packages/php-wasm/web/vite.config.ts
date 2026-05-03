@@ -40,7 +40,7 @@ export default defineConfig({
 		 */
 		viteExternalDynamicImports([
 			{
-				// Source: src/lib/extensions/intl/with-intl.ts
+				// Source: src/lib/extensions/load-extensions.ts
 				// Input:  './lib/extensions/intl/shared/icu.dat'
 				// Output: './shared/icu.dat'
 				regex: /icu\.dat$/,

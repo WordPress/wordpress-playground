@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 /**
  * E2E tests for the <php-snippet> web component embed.
@@ -12,8 +13,26 @@ import { test, expect } from '@playwright/test';
  */
 
 const DEMO_URL = './php-code-snippet-demo.html';
+const CLIENT_INDEX_SOURCE = `${process.cwd()}/packages/playground/client/src/index.ts`;
+const TOOLKIT_AUTOLOAD_SOURCE = `${process.cwd()}/packages/playground/website/public/php-toolkit-autoload.txt`;
+const pageErrors = new WeakMap<Page, string[]>();
 
 test.describe('php-code-snippet embed', () => {
+	test.beforeEach(async ({ page }) => {
+		const errors: string[] = [];
+		pageErrors.set(page, errors);
+		page.on('pageerror', (error) => {
+			errors.push(error.message);
+		});
+	});
+
+	test.afterEach(async ({ page }) => {
+		expect(
+			pageErrors.get(page) || [],
+			'<php-snippet> should not emit uncaught browser errors'
+		).toEqual([]);
+	});
+
 	test('renders all snippets with Run buttons', async ({ page }) => {
 		await page.goto(DEMO_URL);
 		for (const name of [
@@ -25,6 +44,7 @@ test.describe('php-code-snippet embed', () => {
 			'scratch.php',
 			'precomputed.php',
 			'just-php.php',
+			'quickstart.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
@@ -210,6 +230,39 @@ test.describe('php-code-snippet embed', () => {
 		);
 	});
 
+	test('wp="none" + blueprint installs a PHP toolkit usable from the snippet', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const snippet = page.locator('php-snippet[name="quickstart.php"]');
+
+		await expect(snippet).toBeVisible();
+		await ensurePlaygroundClientIsServed(page);
+		await ensureToolkitAutoloadIsServed(page);
+		await snippet.evaluate((element) => {
+			element.setAttribute('playground-origin', window.location.origin);
+		});
+		// The snippet ships with an expected-output script that pre-fills the
+		// output panel. Wait for the real run to execute by watching the
+		// progress bar appear and then disappear.
+		await snippet.locator('.run').click();
+		await expect(snippet.locator('.progress')).toBeVisible({
+			timeout: 30_000,
+		});
+		await expect(snippet.locator('.progress')).toBeHidden({
+			timeout: 240_000,
+		});
+
+		const body = snippet.locator('.output-body');
+		await expect(body).not.toHaveClass(/error/);
+		await expect(body).toContainText(
+			'<img src="hero.jpg" alt="Hero shot" loading="lazy">'
+		);
+		await expect(body).toContainText(
+			'<img src="diagram.png" alt="" loading="eager">'
+		);
+	});
+
 	test('expected output shows before Run and is replaced by real output', async ({
 		page,
 	}) => {
@@ -236,3 +289,32 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(1);
 	});
 });
+
+async function ensurePlaygroundClientIsServed(page: Page) {
+	const clientUrl = new URL('/client/index.js', page.url()).href;
+	const response = await page.request.get(clientUrl);
+	if (response.ok()) {
+		return;
+	}
+
+	const sourceUrl = new URL(`/@fs${CLIENT_INDEX_SOURCE}`, page.url()).href;
+	await page.route(clientUrl, async (route) => {
+		const response = await page.request.get(sourceUrl);
+		await route.fulfill({ response });
+	});
+}
+
+async function ensureToolkitAutoloadIsServed(page: Page) {
+	const autoloadUrl = new URL('/php-toolkit-autoload.txt', page.url()).href;
+	const response = await page.request.get(autoloadUrl);
+	if (response.ok()) {
+		return;
+	}
+
+	await page.route(autoloadUrl, async (route) => {
+		await route.fulfill({
+			path: TOOLKIT_AUTOLOAD_SOURCE,
+			contentType: 'text/plain',
+		});
+	});
+}

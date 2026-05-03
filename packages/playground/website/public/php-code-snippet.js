@@ -242,7 +242,6 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 	const client = await startPlaygroundWeb({
 		iframe,
 		remoteUrl: iframe.src,
-		disableProgressBar: true,
 		progressTracker: entry.tracker,
 		blueprint: {
 			...(blueprint || {}),

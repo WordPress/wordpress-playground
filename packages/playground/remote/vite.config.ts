@@ -140,6 +140,29 @@ export default defineConfig(({ mode }) => {
 						}
 						return 'assets/[name]-[hash].js';
 					},
+					/**
+					 * Keep `wasm-feature-detect` out of worker entry chunks.
+					 *
+					 * The PHP loader chunks import `jspi` from
+					 * `wasm-feature-detect` to choose between JSPI and
+					 * Asyncify builds. Rollup may otherwise decide that the
+					 * Blueprints worker entry chunk is the cheapest place to
+					 * host that shared import. In WebKit, dynamically loading a
+					 * PHP loader chunk would then import the worker entrypoint as
+					 * a normal module dependency inside the same worker global.
+					 * That re-evaluates the entrypoint and tries to expose the
+					 * Comlink endpoint a second time.
+					 *
+					 * A dedicated, side-effect-free chunk makes PHP loader chunks
+					 * import `wasm-feature-detect` directly instead of importing
+					 * the worker entrypoint.
+					 */
+					manualChunks(id) {
+						if (/[\\/]wasm-feature-detect[\\/]/.test(id)) {
+							return 'wasm-feature-detect';
+						}
+						return undefined;
+					},
 					// Ensure the service worker always has the same name
 					entryFileNames: (chunkInfo: any) => {
 						if (chunkInfo.name === 'service-worker') {

@@ -210,7 +210,60 @@
 			</script>
 		</php-snippet>
 
-		<h2>8. Read-only illustration</h2>
+		<h2>8. Pure PHP toolkit (no WordPress)</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			Uses <code>wp="none"</code> together with a blueprint that installs
+			a tiny PHP toolkit at <code>/tmp/php-toolkit</code>. The snippet
+			boots PHP only, autoloads the toolkit, and uses
+			<code>WP_HTML_Tag_Processor</code> outside of WordPress.
+		</p>
+
+		<script id="toolkit-setup" type="application/json">
+			{
+				"steps": [
+					{ "step": "mkdir", "path": "/tmp/php-toolkit/vendor" },
+					{
+						"step": "writeFile",
+						"path": "/tmp/php-toolkit/vendor/autoload.php",
+						"data": {
+							"resource": "url",
+							"url": "/php-toolkit-autoload.txt"
+						}
+					}
+				]
+			}
+		</script>
+
+		<php-snippet wp="none" blueprint="toolkit-setup" name="quickstart.php">
+			<script type="application/x-php">
+				<?php
+				require '/tmp/php-toolkit/vendor/autoload.php';
+
+				$html = '<article>
+					<img src="hero.jpg" alt="Hero shot">
+					<p>Welcome to the site.</p>
+					<img src="diagram.png" alt="" loading="eager">
+				</article>';
+
+				$tags = new WP_HTML_Tag_Processor( $html );
+				while ( $tags->next_tag( 'img' ) ) {
+					if ( null === $tags->get_attribute( 'loading' ) ) {
+						$tags->set_attribute( 'loading', 'lazy' );
+					}
+				}
+
+				echo $tags->get_updated_html();
+			</script>
+			<script type="text/expected-output">
+				<article>
+					<img src="hero.jpg" alt="Hero shot" loading="lazy">
+					<p>Welcome to the site.</p>
+					<img src="diagram.png" alt="" loading="eager">
+				</article>
+			</script>
+		</php-snippet>
+
+		<h2>9. Read-only illustration</h2>
 		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
 			This snippet is syntax-highlighted but is not meant to execute.
 		</p>

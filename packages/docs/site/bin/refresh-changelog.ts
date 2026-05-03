@@ -14,9 +14,8 @@ const existingFrontmatter = existingContent.match(frontmatterRegex)?.[0] || '';
 // Docusaurus 3 parses `.md` files through the MDX pipeline, so unescaped
 // `{` / `}` in PR titles (e.g. `@php-wasm/{web,node}-5-2`) get read as JSX
 // expressions and crash the SSG with `ReferenceError: web is not defined`.
-// The destination file's frontmatter sets `format: md` as a hint, but that
-// alone has not been enough in practice — escape the braces directly so the
-// content is inert regardless of how Docusaurus parses it.
+// The destination file opts into CommonMark via `mdx.format: md`, but also
+// escape braces so the content stays inert if Docusaurus parses it as MDX.
 const escapedChangelog = changelog.replace(/[{}]/g, (c) => '\\' + c);
 const changelogWithFrontmatter =
 	existingFrontmatter + '\n\n' + escapedChangelog;

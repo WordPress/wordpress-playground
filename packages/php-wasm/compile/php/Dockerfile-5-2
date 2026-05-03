@@ -107,8 +107,8 @@ RUN cd /tmp && wget -q https://ftp.gnu.org/gnu/autoconf/autoconf-2.13.tar.gz && 
 	tar xzf autoconf-2.13.tar.gz && cd autoconf-2.13 && \
 	./configure --program-suffix=-2.13 --quiet && make -s && make install && \
 	cd / && rm -rf /tmp/autoconf-2.13* && \
-	wget -q -O /root/php-src/config.guess 'https://git.savannah.gnu.org/cgit/config.git/plain/config.guess' && \
-	wget -q -O /root/php-src/config.sub 'https://git.savannah.gnu.org/cgit/config.git/plain/config.sub' && \
+	wget -q -O /root/php-src/config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' && \
+	wget -q -O /root/php-src/config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' && \
 	chmod +x /root/php-src/config.guess /root/php-src/config.sub && \
 	mv /usr/bin/flex /usr/bin/flex.real && \
 	printf '#!/bin/bash\nfor a in "$@"; do case "$a" in -V|-v|--version) echo "flex 2.5.4"; exit 0;; esac; done\n/usr/bin/flex.real "$@"\n' > /usr/bin/flex && \
@@ -2189,6 +2189,30 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 # List global and exports symbols
 COPY ./compile/php/exported-functions.list /root/exported-functions.list
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
+
+RUN set -eux; \
+	if [ "$WITH_JSPI" != "yes" ]; then \
+		exit 0; \
+	fi; \
+	{ \
+		echo 'zend_ce_traversable'; \
+		echo 'zend_ce_iterator'; \
+		echo 'zend_ce_aggregate'; \
+		echo 'zend_ce_arrayaccess'; \
+		echo 'zend_ce_serializable'; \
+		echo 'std_object_handlers'; \
+		echo 'executor_globals'; \
+		echo 'compiler_globals'; \
+		echo 'sapi_globals'; \
+		echo 'file_globals'; \
+		echo 'sapi_module'; \
+		echo 'compile_string'; \
+		echo 'execute'; \
+		echo '_zval_ptr_dtor'; \
+		echo 'destroy_op_array'; \
+		echo '_efree'; \
+		echo '_zend_bailout'; \
+	} >> /root/.WASM_ABI_EXPORTS
 
 # WORKAROUND: Asyncify builds do not currently include __c_longjmp,
 # but we require it for JSPI builds. Including the symbol in our
