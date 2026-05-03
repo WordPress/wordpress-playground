@@ -200,14 +200,14 @@ describe('resolvePHPExtension', () => {
 					artifacts: [
 						{
 							phpVersion: '8.4',
-							file: 'example.so',
+							sourcePath: 'example.so',
 							extraFiles: {
-								files: artifactFiles,
+								nodes: artifactFiles,
 							},
 						},
 					],
 					extraFiles: {
-						files: manifestFiles,
+						nodes: manifestFiles,
 					},
 				},
 				baseUrl: 'https://example.com/extensions/',
@@ -256,22 +256,22 @@ describe('resolvePHPExtension', () => {
 						artifacts: [
 							{
 								phpVersion: '8.4',
-								file: 'example.so',
+								sourcePath: 'example.so',
 								extraFiles: {
-									files: [
+									nodes: [
 										{
-											path: 'web-ui/index.html',
-											file: 'artifact-index.html',
+											vfsPath: 'web-ui/index.html',
+											sourcePath: 'artifact-index.html',
 										},
 									],
 								},
 							},
 						],
 						extraFiles: {
-							files: [
+							nodes: [
 								{
-									path: 'web-ui/index.html',
-									file: 'manifest-index.html',
+									vfsPath: 'web-ui/index.html',
+									sourcePath: 'manifest-index.html',
 								},
 							],
 						},
@@ -296,18 +296,18 @@ describe('resolvePHPExtension', () => {
 						artifacts: [
 							{
 								phpVersion: '8.4',
-								file: 'example.so',
+								sourcePath: 'example.so',
 							},
 						],
 						extraFiles: {
-							files: [
+							nodes: [
 								{
-									path: 'web-ui',
-									file: 'web-ui',
+									vfsPath: 'web-ui',
+									sourcePath: 'web-ui',
 								},
 								{
-									path: 'web-ui/index.html',
-									file: 'web-ui/index.html',
+									vfsPath: 'web-ui/index.html',
+									sourcePath: 'web-ui/index.html',
 								},
 							],
 						},

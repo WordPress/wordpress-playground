@@ -56,35 +56,6 @@ const MAX_EXTENSION_SIDECAR_FILE_REQUESTS = 5;
  */
 export type PHPExtensionIniDirective = 'extension' | 'zend_extension';
 
-export interface PHPExtensionManifestArtifact {
-	/** PHP major/minor version, e.g. `8.4`. */
-	phpVersion: string;
-	/** Relative to the manifest URL/base URL, or an absolute URL. */
-	file: string;
-	sha256?: string;
-	/** URL-backed files needed only by this artifact. */
-	extraFiles?: PHPExtensionManifestExtraFiles;
-}
-
-export interface PHPExtensionManifestExtraFile {
-	/** Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`. */
-	path: string;
-	/** Relative to the manifest URL/base URL, or an absolute URL. */
-	file: string;
-}
-
-export interface PHPExtensionManifestExtraFiles {
-	/**
-	 * Absolute VFS path where files and directories are written. When a
-	 * manifest declares both top-level and per-artifact `extraFiles`, the
-	 * first declared `targetPath` wins. Defaults to
-	 * `<extensionDir>/<name>-assets`.
-	 */
-	targetPath?: string;
-	directories?: string[];
-	files?: PHPExtensionManifestExtraFile[];
-}
-
 /**
  * Extension artifact manifest. Lets callers publish a matrix of `.so` files
  * and lets `resolvePHPExtension()` select the artifact matching the current
@@ -99,6 +70,35 @@ export interface PHPExtensionManifest {
 	extraFiles?: PHPExtensionManifestExtraFiles;
 }
 
+export interface PHPExtensionManifestArtifact {
+	/** PHP major/minor version, e.g. `8.4`. */
+	phpVersion: string;
+	/** Relative to the manifest URL/base URL, or an absolute URL. */
+	sourcePath: string;
+	/** URL-backed files needed only by this artifact. */
+	extraFiles?: PHPExtensionManifestExtraFiles;
+}
+
+export interface PHPExtensionManifestExtraFiles {
+	/**
+	 * Absolute VFS path where files and directories are written. When a
+	 * manifest declares both top-level and per-artifact `extraFiles`, the
+	 * first declared `targetPath` wins. Defaults to
+	 * `<extensionDir>/<name>-assets`.
+	 */
+	vfsRoot?: string;
+	nodes?: PHPExtensionManifestExtraFile[];
+}
+
+export interface PHPExtensionManifestExtraFile {
+	/** Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`. */
+	vfsPath: string;
+	/** Defaults to "file" */
+	type?: 'file' | 'directory';
+	/** Relative to the manifest URL/base URL, or an absolute URL. */
+	sourcePath: string;
+}
+
 /**
  * Source for a PHP extension `.so`. Use `format: 'so'` when the caller has
  * bytes, `format: 'url'` for a direct artifact URL, and `format: 'manifest'`
@@ -109,13 +109,11 @@ export type PHPExtensionSource =
 			format: 'so';
 			name?: string;
 			bytes: Uint8Array | ArrayBuffer;
-			sha256?: string;
 	  }
 	| {
 			format: 'url';
 			name?: string;
 			url: string | URL;
-			sha256?: string;
 	  }
 	| {
 			format: 'manifest';
@@ -136,7 +134,7 @@ export type PHPExtensionSource =
  * Sidecar files to stage next to an extension. Use this for data files or
  * native-library assets the extension expects at runtime.
  */
-export interface PHPExtensionExtraFiles {
+export interface PHPExtensionExtraNodes {
 	/** Defaults to `/internal/shared/extensions/<name>-assets`. */
 	targetPath?: string;
 	directories?: string[];
@@ -156,7 +154,7 @@ export interface PHPExtensionInstallOptions {
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
-	extraFiles?: PHPExtensionExtraFiles;
+	extraFiles?: PHPExtensionExtraNodes;
 	/** Environment variables added before the extension is loaded. */
 	env?: Record<string, string>;
 	/** Defaults to `PHP_EXTENSIONS_DIR`. */
@@ -169,16 +167,12 @@ export interface PHPExtensionInstallOptions {
 	fetch?: typeof fetch;
 }
 
-export type ResolvePHPExtensionOptions = PHPExtensionInstallOptions & {
-	phpVersion: string;
-};
-
 export interface InstallPHPExtensionFilesOptions {
 	name: string;
 	soBytes: Uint8Array | ArrayBuffer;
 	loadWithIniDirective?: PHPExtensionIniDirective;
 	iniEntries?: Record<string, string>;
-	extraFiles?: PHPExtensionExtraFiles;
+	extraFiles?: PHPExtensionExtraNodes;
 	env?: Record<string, string>;
 	extensionDir?: string;
 }
@@ -191,7 +185,7 @@ export interface ResolvedPHPExtension {
 	soBytes: Uint8Array;
 	iniPath: string;
 	iniContent: string;
-	extraFiles?: PHPExtensionExtraFiles & { targetPath: string };
+	extraFiles?: PHPExtensionExtraNodes & { targetPath: string };
 	env?: Record<string, string>;
 	extensionDir: string;
 }
@@ -202,20 +196,19 @@ export interface ResolvedPHPExtension {
  * before Emscripten initializes PHP.
  */
 export async function resolvePHPExtension(
-	options: ResolvePHPExtensionOptions
+	options: PHPExtensionInstallOptions & {
+		phpVersion: string;
+	}
 ): Promise<ResolvedPHPExtension> {
-	const resolved = await resolvePHPExtensionSource(
-		options,
-		options.fetch ?? globalThis.fetch
-	);
+	const resolved = await resolvePHPExtensionSource(options);
 	return buildResolvedPHPExtension({
 		name: options.name ?? resolved.name,
 		soBytes: resolved.soBytes,
 		loadWithIniDirective: options.loadWithIniDirective,
 		iniEntries: options.iniEntries,
 		extraFiles: mergeExtraFiles(
-			[resolved.extraFiles, options.extraFiles].filter(
-				(group): group is PHPExtensionExtraFiles => !!group
+			[resolved.extraNodes, options.extraFiles].filter(
+				(group): group is PHPExtensionExtraNodes => !!group
 			)
 		),
 		env: options.env,
@@ -337,7 +330,7 @@ function buildResolvedPHPExtension(
 interface ResolvedPHPExtensionSource {
 	name: string;
 	soBytes: Uint8Array;
-	extraFiles?: PHPExtensionExtraFiles;
+	extraNodes?: PHPExtensionExtraNodes;
 }
 
 /**
@@ -347,9 +340,11 @@ interface ResolvedPHPExtensionSource {
  * PHP virtual filesystem.
  */
 async function resolvePHPExtensionSource(
-	options: ResolvePHPExtensionOptions,
-	fetchFn: typeof fetch
+	options: PHPExtensionInstallOptions & {
+		phpVersion: string;
+	}
 ): Promise<ResolvedPHPExtensionSource> {
+	const fetchFn = options.fetch ?? globalThis.fetch;
 	const source = options.source;
 
 	if (source.format === 'so') {
@@ -360,9 +355,6 @@ async function resolvePHPExtensionSource(
 			);
 		}
 		const soBytes = toUint8Array(source.bytes);
-		if (source.sha256) {
-			await assertSha256(soBytes, source.sha256, name);
-		}
 		return { name, soBytes };
 	}
 
@@ -388,38 +380,40 @@ async function resolvePHPExtensionSource(
 			);
 		}
 		const soBytes = await fetchBytes(fetchFn, sourceUrl);
-		if (source.sha256) {
-			await assertSha256(soBytes, source.sha256, String(sourceUrl));
-		}
 		return { name, soBytes };
 	}
 
-	const manifestUrl =
-		'manifestUrl' in source
-			? new URL(String(source.manifestUrl))
-			: undefined;
-	const manifestCandidate =
-		'manifest' in source
-			? source.manifest
-			: await (await fetchFn(manifestUrl!)).json();
-	if (!validatePHPExtensionManifest(manifestCandidate)) {
+	// Resolve the manifest-declared files
+	let manifest: PHPExtensionManifest | undefined;
+	let manifestUrl: URL | string | undefined;
+	let baseUrl: URL | undefined;
+	if ('manifest' in source) {
+		manifest = source.manifest;
+	} else if ('manifestUrl' in source) {
+		manifestUrl = source.manifestUrl;
+		const manifestResponse = await fetchFn(source.manifestUrl!);
+		manifest = await manifestResponse.json();
+		baseUrl = new URL(manifestUrl);
+	}
+
+	if (!validatePHPExtensionManifest(manifest)) {
 		throw new Error(
 			`Invalid PHP extension manifest: ${JSON.stringify(
 				validatePHPExtensionManifest.errors
 			)}`
 		);
 	}
-	const manifest = manifestCandidate as PHPExtensionManifest;
-	const baseUrl =
-		'baseUrl' in source && source.baseUrl
-			? new URL(String(source.baseUrl))
-			: manifestUrl;
+
+	if (!baseUrl && 'baseUrl' in source && source.baseUrl) {
+		baseUrl = new URL(String(source.baseUrl));
+	}
 	if (!baseUrl) {
 		throw new Error(
 			'Manifest artifacts require a manifest URL or baseUrl so relative files can be resolved.'
 		);
 	}
-	const artifact = manifest.artifacts.find(
+
+	const artifact = manifest!.artifacts.find(
 		(candidate) => candidate.phpVersion === options.phpVersion
 	);
 	if (!artifact) {
@@ -428,46 +422,36 @@ async function resolvePHPExtensionSource(
 		);
 	}
 
+	// Resolve all the files referenced in the manifest.
+	const extraFiles = [manifest!.extraFiles, artifact.extraFiles].flatMap(
+		(group) => {
+			const nodes = group?.nodes || [];
+			return nodes.map((node) => ({
+				url: new URL(node.sourcePath, baseUrl),
+				vfsPath: joinPaths(group?.vfsRoot || '', node.vfsPath),
+			}));
+		}
+	);
+	const soUrl = new URL(artifact.sourcePath, baseUrl);
+
 	const queue = new Semaphore({
 		concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
 	});
-	const [soBytes, ...resolvedSidecarGroups] = await Promise.all([
-		fetchBytes(fetchFn, new URL(artifact.file, baseUrl)),
-		...[manifest.extraFiles, artifact.extraFiles]
-			.filter((g): g is PHPExtensionManifestExtraFiles => !!g)
-			.map((group) =>
-				fetchManifestExtraFiles(fetchFn, baseUrl, group, queue)
-			),
-	]);
-	if (artifact.sha256) {
-		await assertSha256(soBytes, artifact.sha256, artifact.file);
+	async function queuedFetch({ vfsPath, url }: any) {
+		resolvedExtraFiles[vfsPath] = await queue.run(() =>
+			fetchBytes(fetchFn, url)
+		);
 	}
+	const resolvedExtraFiles: Record<string, Uint8Array> = {};
+	const [soBytes] = await Promise.all([
+		fetchBytes(fetchFn, soUrl),
+		...extraFiles.map(queuedFetch),
+	]);
 
 	return {
-		name: manifest.name,
+		name: manifest!.name,
 		soBytes,
-		extraFiles: mergeExtraFiles(resolvedSidecarGroups),
-	};
-}
-
-async function fetchManifestExtraFiles(
-	fetchFn: typeof fetch,
-	baseUrl: URL,
-	group: PHPExtensionManifestExtraFiles,
-	queue: Semaphore
-): Promise<PHPExtensionExtraFiles> {
-	const files: Record<string, Uint8Array> = {};
-	await Promise.all(
-		(group.files ?? []).map(async ({ path, file }) => {
-			files[path] = await queue.run(() =>
-				fetchBytes(fetchFn, new URL(file, baseUrl))
-			);
-		})
-	);
-	return {
-		targetPath: group.targetPath,
-		directories: group.directories,
-		files,
+		extraNodes: resolvedExtraFiles,
 	};
 }
 
@@ -478,8 +462,8 @@ async function fetchManifestExtraFiles(
  * normalized; duplicate or shadowing paths are rejected.
  */
 function mergeExtraFiles(
-	groups: Array<PHPExtensionExtraFiles>
-): PHPExtensionExtraFiles | undefined {
+	groups: Array<PHPExtensionExtraNodes>
+): PHPExtensionExtraNodes | undefined {
 	if (!groups.length) {
 		return undefined;
 	}
@@ -527,26 +511,6 @@ async function fetchBytes(
 		throw new Error(`Failed to fetch ${String(url)}: ${response.status}`);
 	}
 	return new Uint8Array(await response.arrayBuffer());
-}
-
-async function assertSha256(
-	bytes: Uint8Array | ArrayBuffer,
-	expected: string,
-	file: string
-): Promise<void> {
-	const subtle = globalThis.crypto?.subtle;
-	if (!subtle) {
-		throw new Error(
-			`Cannot verify ${file}: crypto.subtle is not available.`
-		);
-	}
-	const digest = await subtle.digest('SHA-256', toUint8Array(bytes));
-	const actual = Array.from(new Uint8Array(digest))
-		.map((byte) => byte.toString(16).padStart(2, '0'))
-		.join('');
-	if (actual !== expected) {
-		throw new Error(`SHA-256 mismatch for ${file}.`);
-	}
 }
 
 function toUint8Array(bytes: Uint8Array | ArrayBuffer): Uint8Array {

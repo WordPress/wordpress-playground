@@ -104,7 +104,7 @@ export {
 } from './load-extension';
 export type {
 	InstallPHPExtensionFilesOptions,
-	PHPExtensionExtraFiles,
+	PHPExtensionExtraNodes as PHPExtensionExtraFiles,
 	PHPExtensionIniDirective,
 	PHPExtensionInstallOptions,
 	ResolvedPHPExtension,
