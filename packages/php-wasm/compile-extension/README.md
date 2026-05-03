@@ -59,44 +59,71 @@ there:
 ```yaml
 - uses: actions/checkout@v4
   with:
-      repository: WordPress/wordpress-playground
-      ref: trunk
-      path: wordpress-playground
-      sparse-checkout-cone-mode: false
-      sparse-checkout: |
-          /package.json
-          /package-lock.json
-          /nx.json
-          /tsconfig.base.json
-          /packages/meta/
-          /packages/nx-extensions/
-          /packages/php-wasm/cli-util/
-          /packages/php-wasm/compile-extension/
-          /packages/php-wasm/compile/
-          /packages/php-wasm/fs-journal/
-          /packages/php-wasm/logger/
-          /packages/php-wasm/node/
-          /packages/php-wasm/node-builds/8-0/
-          /packages/php-wasm/node-builds/8-1/
-          /packages/php-wasm/node-builds/8-2/
-          /packages/php-wasm/node-builds/8-3/
-          /packages/php-wasm/node-builds/8-4/
-          /packages/php-wasm/node-builds/8-5/
-          /packages/php-wasm/progress/
-          /packages/php-wasm/scopes/
-          /packages/php-wasm/stream-compression/
-          /packages/php-wasm/universal/
-          /packages/php-wasm/util/
+    repository: WordPress/wordpress-playground
+    ref: trunk
+    path: wordpress-playground
+    sparse-checkout-cone-mode: false
+    sparse-checkout: |
+      /package.json
+      /package-lock.json
+      /nx.json
+      /tsconfig.base.json
+      /packages/meta/
+      /packages/nx-extensions/
+      /packages/php-wasm/cli-util/
+      /packages/php-wasm/compile-extension/
+      /packages/php-wasm/compile/
+      /packages/php-wasm/fs-journal/
+      /packages/php-wasm/logger/
+      /packages/php-wasm/node/
+      /packages/php-wasm/node-builds/8-0/
+      /packages/php-wasm/node-builds/8-1/
+      /packages/php-wasm/node-builds/8-2/
+      /packages/php-wasm/node-builds/8-3/
+      /packages/php-wasm/node-builds/8-4/
+      /packages/php-wasm/node-builds/8-5/
+      /packages/php-wasm/progress/
+      /packages/php-wasm/scopes/
+      /packages/php-wasm/stream-compression/
+      /packages/php-wasm/universal/
+      /packages/php-wasm/util/
 
 - working-directory: wordpress-playground
   run: npm ci --ignore-scripts
 ```
 
-Trim the `node-builds` entries to the PHP versions the matrix actually builds.
-Keep `packages/php-wasm/compile` even when the build runs inside Docker; the
-helper resolves headers and side-module link inputs from there. Prefer
-`max-parallel: 1` for the WASM lanes — parallel Docker builds on hosted
-runners often hit apt-mirror flakes during the base image build.
+Adjust the `node-builds` entries to the matrix. Add
+`/packages/php-wasm/node-builds/7-4/` when the matrix includes PHP `7.4`, and
+drop entries for versions the matrix does not build. Keep
+`packages/php-wasm/compile` even when the build runs inside Docker — the
+helper resolves headers and side-module link inputs from there.
+
+`npm ci --ignore-scripts` skips the package build, so the `cli.js` referenced
+by the bin entry does not exist yet. Run the CLI source directly through
+Node's type-stripping flags:
+
+```bash
+cd wordpress-playground
+
+node \
+	--experimental-strip-types \
+	--experimental-transform-types \
+	--disable-warning=ExperimentalWarning \
+	--import "$PWD/packages/meta/src/node-es-module-loader/register.mts" \
+	./packages/php-wasm/compile-extension/src/cli.ts \
+	--source ../my-extension \
+	--name my_extension \
+	--php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+	--out ../my-extension/dist
+```
+
+`--source` and any `--extra-ldflags` archive paths are copied into the
+container under `/build`, so the extension does not need to live inside the
+`wordpress-playground` checkout.
+
+In GitHub Actions, set `strategy.max-parallel: 1` on the WASM job. Parallel
+Docker builds on hosted runners often hit apt-mirror flakes during the base
+image build.
 
 ## Loading the result
 
