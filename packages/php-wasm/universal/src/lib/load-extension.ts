@@ -174,7 +174,9 @@ export type PHPExtensionSource =
 			baseUrl?: string | URL;
 	  };
 
-export interface DataToResolvePhpExtension {
+export type DataToResolvePhpExtension = ResolvedInstallOptions;
+
+export interface ResolvedInstallOptions {
 	/** PHP major/minor version the active runtime is initializing for. */
 	phpVersion: string;
 	source: PHPExtensionSource;
@@ -282,7 +284,7 @@ export interface InstallPHPExtensionFilesOptions {
  * before Emscripten initializes PHP.
  *
  * Manifest-declared extra files are joined with their group's `vfsRoot` so the
- * returned `extraNodes` always uses absolute VFS paths.
+ * returned `extraFiles` always uses absolute VFS paths.
  *
  * TODO: Remove the remote manifest.json resolution and move it to Blueprints
  *       where the paths can be validated and downloads scheduled using the
