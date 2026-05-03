@@ -45,7 +45,10 @@ export type BuiltInPHPExtensionName = 'intl' | 'xdebug' | 'redis' | 'memcached';
  * External sources are supported in JSPI runtimes only. Asyncify support is
  * limited to bundled extensions shipped with this package.
  */
-export type RuntimePHPExtensionSource = PHPExtensionInstallOptions;
+export type RuntimePHPExtensionSource = Omit<
+	PHPExtensionInstallOptions,
+	'phpVersion'
+>;
 
 /**
  * Built-in PHP extension request accepted by `loadNodeRuntime()`.

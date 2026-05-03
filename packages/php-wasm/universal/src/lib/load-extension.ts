@@ -31,7 +31,7 @@
  * accepts local manifest paths and `file:` URLs, then normalizes them before
  * calling this resolver.
  */
-import { dirname, joinPaths, normalizePath, Semaphore } from '@php-wasm/util';
+import { dirname, joinPaths, Semaphore } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import { FSHelpers } from './fs-helpers';
 import type { EmscriptenOptions, PHPRuntime } from './load-php-runtime';
@@ -91,12 +91,12 @@ export interface PHPExtensionManifestExtraFiles {
 }
 
 export interface PHPExtensionManifestExtraFile {
-	/** Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`. */
+	/** Joined with the group's `vfsRoot` to form the final VFS path. */
 	vfsPath: string;
-	/** Defaults to "file" */
+	/** Defaults to "file". Only file nodes need a `sourcePath`. */
 	type?: 'file' | 'directory';
 	/** Relative to the manifest URL/base URL, or an absolute URL. */
-	sourcePath: string;
+	sourcePath?: string;
 }
 
 /**
@@ -195,24 +195,162 @@ export interface InstallPHPExtensionFilesOptions {
  * Resolves an extension source without mutating a PHP instance. Use this from
  * runtimes that need to fetch extension bytes and compute `iniPath`/`iniContent`
  * before Emscripten initializes PHP.
+ *
+ * Manifest-declared extra files are joined with their group's `vfsRoot` so the
+ * returned `extraNodes` always uses absolute VFS paths.
  */
 export async function resolvePHPExtension(
 	options: ResolvedInstallOptions
 ): Promise<ResolvedPHPExtension> {
-	const resolved = await resolvePHPExtensionSource(options);
-	return buildResolvedPHPExtension({
-		name: options.name ?? resolved.name,
-		soBytes: resolved.soBytes,
-		loadWithIniDirective: options.loadWithIniDirective,
-		iniEntries: options.iniEntries,
-		extraFiles: mergeExtraFiles(
-			[resolved.extraNodes, options.extraFiles].filter(
-				(group): group is ResolvedExtraNodes => !!group
-			)
+	const fetchFn = options.fetch ?? globalThis.fetch;
+	const source = options.source;
+
+	let name = options.name;
+	let soBytes: Uint8Array;
+	const files: Record<string, Uint8Array | string> = {};
+	const directories: string[] = [];
+
+	if (source.format === 'so') {
+		name ??= source.name;
+		if (!name) {
+			throw new Error(
+				'name is required when loading an extension from direct bytes.'
+			);
+		}
+		soBytes = toUint8Array(source.bytes);
+	} else if (source.format === 'url') {
+		let sourceUrl: URL;
+		try {
+			sourceUrl = new URL(String(source.url));
+		} catch {
+			throw new Error(
+				`source.url must be an absolute URL when loading a PHP extension from a direct URL. Received: ${String(
+					source.url
+				)}`
+			);
+		}
+		const inferred = sourceUrl.pathname.split('/').pop() ?? '';
+		name ??=
+			source.name ??
+			(inferred.endsWith('.so') ? inferred.slice(0, -3) : undefined);
+		if (!name) {
+			throw new Error(
+				'name is required when loading an extension from a direct URL.'
+			);
+		}
+		soBytes = await fetchBytes(fetchFn, sourceUrl);
+	} else {
+		let manifestCandidate: unknown;
+		let baseUrl: URL | undefined;
+		if ('manifest' in source) {
+			manifestCandidate = source.manifest;
+			if (source.baseUrl) {
+				baseUrl = new URL(String(source.baseUrl));
+			}
+		} else {
+			baseUrl = new URL(String(source.manifestUrl));
+			manifestCandidate = await (await fetchFn(baseUrl)).json();
+		}
+		if (!validatePHPExtensionManifest(manifestCandidate)) {
+			throw new Error(
+				`Invalid PHP extension manifest: ${JSON.stringify(
+					validatePHPExtensionManifest.errors
+				)}`
+			);
+		}
+		const manifest = manifestCandidate as PHPExtensionManifest;
+		if (!baseUrl) {
+			throw new Error(
+				'Manifest artifacts require a manifest URL or baseUrl so relative files can be resolved.'
+			);
+		}
+
+		const artifact = manifest.artifacts.find(
+			(candidate) => candidate.phpVersion === options.phpVersion
+		);
+		if (!artifact) {
+			throw new Error(
+				`No extension artifact found for PHP ${options.phpVersion}.`
+			);
+		}
+		name ??= manifest.name;
+
+		const queue = new Semaphore({
+			concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
+		});
+		const fetches: Array<Promise<void>> = [];
+		for (const group of [manifest.extraFiles, artifact.extraFiles]) {
+			for (const node of group?.nodes ?? []) {
+				const vfsPath = joinPaths(group!.vfsRoot ?? '', node.vfsPath);
+				if (node.type === 'directory') {
+					directories.push(vfsPath);
+					continue;
+				}
+				if (!node.sourcePath) continue;
+				const sourceUrl = new URL(node.sourcePath, baseUrl);
+				fetches.push(
+					queue
+						.run(() => fetchBytes(fetchFn, sourceUrl))
+						.then((bytes) => {
+							files[vfsPath] = bytes;
+						})
+				);
+			}
+		}
+		const [fetchedSoBytes] = await Promise.all([
+			fetchBytes(fetchFn, new URL(artifact.sourcePath, baseUrl)),
+			...fetches,
+		]);
+		soBytes = fetchedSoBytes;
+	}
+
+	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
+	if (options.extraFiles) {
+		const target =
+			options.extraFiles.targetPath ??
+			joinPaths(extensionDir, `${name}-assets`);
+		for (const [relPath, content] of Object.entries(
+			options.extraFiles.files
+		)) {
+			files[joinPaths(target, relPath)] = content;
+		}
+		for (const directory of options.extraFiles.directories ?? []) {
+			directories.push(joinPaths(target, directory));
+		}
+	}
+
+	if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+		throw new Error(
+			`Invalid PHP extension name ${JSON.stringify(
+				name
+			)}. Extension names are used to build VFS file names and ini paths, so they may only contain [a-zA-Z0-9_-].`
+		);
+	}
+	const directive = options.loadWithIniDirective ?? 'extension';
+	const soPath = joinPaths(extensionDir, `${name}.so`);
+	const iniPath = joinPaths(extensionDir, `${name}.ini`);
+	const iniContent = [
+		`${directive}=${soPath}`,
+		...Object.entries(options.iniEntries ?? {}).map(
+			([key, value]) => `${key}=${value}`
 		),
+	].join('\n');
+
+	let extraNodes: ResolvedExtraNodes | undefined;
+	if (Object.keys(files).length || directories.length) {
+		extraNodes = { files };
+		if (directories.length) extraNodes.directories = directories;
+	}
+
+	return {
+		soPath,
+		soBytes,
+		iniPath,
+		iniContent,
+		extraNodes,
 		env: options.env,
-		extensionDir: options.extensionDir,
-	});
+		extensionDir,
+	};
 }
 
 /**
@@ -263,15 +401,13 @@ export function installPHPExtensionFilesSync(
 	fs.writeFile(ext.soPath, ext.soBytes);
 	fs.writeFile(ext.iniPath, ext.iniContent);
 	if (ext.extraNodes) {
-		const { targetPath, directories = [], files } = ext.extraNodes;
-		mkdirIfMissing(fs, targetPath);
-		for (const dir of directories) {
-			mkdirIfMissing(fs, joinPaths(targetPath, dir));
+		const { directories = [], files } = ext.extraNodes;
+		for (const directory of directories) {
+			mkdirIfMissing(fs, directory);
 		}
 		for (const [path, content] of Object.entries(files)) {
-			const filePath = joinPaths(targetPath, path);
-			mkdirIfMissing(fs, dirname(filePath));
-			fs.writeFile(filePath, content);
+			mkdirIfMissing(fs, dirname(path));
+			fs.writeFile(path, content);
 		}
 	}
 	return ext;
@@ -283,6 +419,13 @@ function mkdirIfMissing(fs: Emscripten.RootFS, path: string): void {
 	}
 }
 
+/**
+ * Builds the staged paths and per-extension ini content for one extension.
+ * Used by `installPHPExtensionFilesSync` when callers pass install options
+ * directly (bytes already in hand). Joins any caller-supplied relative
+ * sidecar paths against `extraFiles.targetPath` so the result mirrors what
+ * `resolvePHPExtension` produces from a manifest.
+ */
 function buildResolvedPHPExtension(
 	options: InstallPHPExtensionFilesOptions
 ): ResolvedPHPExtension {
@@ -305,14 +448,22 @@ function buildResolvedPHPExtension(
 		),
 	].join('\n');
 
-	let extraFiles: ResolvedPHPExtension['extraNodes'];
+	let extraNodes: ResolvedExtraNodes | undefined;
 	if (options.extraFiles) {
-		const merged = mergeExtraFiles([options.extraFiles])!;
-		extraFiles = {
-			...merged,
-			targetPath:
-				merged.targetPath ?? joinPaths(extensionDir, `${name}-assets`),
-		};
+		const target =
+			options.extraFiles.targetPath ??
+			joinPaths(extensionDir, `${name}-assets`);
+		const files: Record<string, Uint8Array | string> = {};
+		for (const [relPath, content] of Object.entries(
+			options.extraFiles.files
+		)) {
+			files[joinPaths(target, relPath)] = content;
+		}
+		extraNodes = { files };
+		const directories = (options.extraFiles.directories ?? []).map(
+			(directory) => joinPaths(target, directory)
+		);
+		if (directories.length) extraNodes.directories = directories;
 	}
 
 	return {
@@ -320,179 +471,9 @@ function buildResolvedPHPExtension(
 		soBytes: toUint8Array(options.soBytes),
 		iniPath,
 		iniContent,
-		extraNodes: extraFiles,
+		extraNodes,
 		env: options.env,
 		extensionDir,
-	};
-}
-
-interface ResolvedPHPExtensionSource {
-	name: string;
-	soBytes: Uint8Array;
-	extraNodes?: ResolvedExtraNodes;
-}
-
-/**
- * Resolves the three supported source shapes into the extension name and
- * `.so` bytes. Manifests are validated here because they may come from
- * user-provided URLs and their values later decide what gets written into the
- * PHP virtual filesystem.
- */
-async function resolvePHPExtensionSource(
-	options: ResolvedInstallOptions
-): Promise<ResolvedPHPExtensionSource> {
-	const fetchFn = options.fetch ?? globalThis.fetch;
-	const source = options.source;
-
-	if (source.format === 'so') {
-		const name = options.name ?? source.name;
-		if (!name) {
-			throw new Error(
-				'name is required when loading an extension from direct bytes.'
-			);
-		}
-		const soBytes = toUint8Array(source.bytes);
-		return { name, soBytes };
-	}
-
-	if (source.format === 'url') {
-		let sourceUrl: URL;
-		try {
-			sourceUrl = new URL(String(source.url));
-		} catch {
-			throw new Error(
-				`source.url must be an absolute URL when loading a PHP extension from a direct URL. Received: ${String(
-					source.url
-				)}`
-			);
-		}
-		const inferred = sourceUrl.pathname.split('/').pop() ?? '';
-		const name =
-			options.name ??
-			source.name ??
-			(inferred.endsWith('.so') ? inferred.slice(0, -3) : undefined);
-		if (!name) {
-			throw new Error(
-				'name is required when loading an extension from a direct URL.'
-			);
-		}
-		const soBytes = await fetchBytes(fetchFn, sourceUrl);
-		return { name, soBytes };
-	}
-
-	let manifestCandidate: unknown;
-	let baseUrl: URL | undefined;
-	if ('manifest' in source) {
-		manifestCandidate = source.manifest;
-		if (source.baseUrl) {
-			baseUrl = new URL(String(source.baseUrl));
-		}
-	} else {
-		baseUrl = new URL(String(source.manifestUrl));
-		manifestCandidate = await (await fetchFn(baseUrl)).json();
-	}
-	if (!validatePHPExtensionManifest(manifestCandidate)) {
-		throw new Error(
-			`Invalid PHP extension manifest: ${JSON.stringify(
-				validatePHPExtensionManifest.errors
-			)}`
-		);
-	}
-	const manifest = manifestCandidate as PHPExtensionManifest;
-	if (!baseUrl) {
-		throw new Error(
-			'Manifest artifacts require a manifest URL or baseUrl so relative files can be resolved.'
-		);
-	}
-
-	const artifact = manifest.artifacts.find(
-		(candidate) => candidate.phpVersion === options.phpVersion
-	);
-	if (!artifact) {
-		throw new Error(
-			`No extension artifact found for PHP ${options.phpVersion}.`
-		);
-	}
-
-	const queue = new Semaphore({
-		concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
-	});
-	const fetchedGroups: ResolvedExtraNodes[] = [];
-	const [soBytes] = await Promise.all([
-		fetchBytes(fetchFn, new URL(artifact.sourcePath, baseUrl)),
-		...[manifest.extraFiles, artifact.extraFiles].map(async (group) => {
-			if (!group) return;
-			const fetched: ResolvedExtraNodes = {
-				targetPath: group.vfsRoot,
-				directories: [],
-				files: {},
-			};
-			fetchedGroups.push(fetched);
-			await Promise.all(
-				(group.nodes ?? []).map(async (node) => {
-					if (node.type === 'directory') {
-						fetched.directories!.push(node.vfsPath);
-						return;
-					}
-					fetched.files[node.vfsPath] = await queue.run(() =>
-						fetchBytes(fetchFn, new URL(node.sourcePath, baseUrl))
-					);
-				})
-			);
-		}),
-	]);
-
-	return {
-		name: manifest.name,
-		soBytes,
-		extraNodes: mergeExtraFiles(fetchedGroups),
-	};
-}
-
-/**
- * Merges sidecar groups into a single one. The merged result has at most one
- * `targetPath` (the first declared one wins) because `ResolvedPHPExtension`
- * stages everything under a single VFS root. Relative file paths are
- * normalized; duplicate or shadowing paths are rejected.
- */
-function mergeExtraFiles(
-	groups: Array<ResolvedExtraNodes>
-): ResolvedExtraNodes | undefined {
-	if (!groups.length) {
-		return undefined;
-	}
-	const targetPath = groups
-		.map((group) => group.targetPath)
-		.find((path) => path !== undefined);
-
-	const directories = new Set<string>();
-	const files: Record<string, Uint8Array | string> = {};
-	for (const group of groups) {
-		for (const directory of group.directories ?? []) {
-			directories.add(normalizePath(directory));
-		}
-		for (const [rawPath, content] of Object.entries(group.files)) {
-			const path = normalizePath(rawPath);
-			const conflicts =
-				path in files ||
-				Object.keys(files).some(
-					(existing) =>
-						path.startsWith(`${existing}/`) ||
-						existing.startsWith(`${path}/`)
-				);
-			if (conflicts) {
-				throw new Error(
-					`Extension sidecar files declare conflicting path: ${path}`
-				);
-			}
-			files[path] = content;
-		}
-	}
-
-	return {
-		targetPath,
-		directories: directories.size ? [...directories] : undefined,
-		files,
 	};
 }
 

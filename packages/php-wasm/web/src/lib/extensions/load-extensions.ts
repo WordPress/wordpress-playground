@@ -24,7 +24,10 @@ export type BuiltInPHPWebExtensionName = 'intl';
  * External sources are supported in JSPI runtimes only. Asyncify support is
  * limited to bundled extensions shipped with this package.
  */
-export type RuntimePHPWebExtensionSource = PHPExtensionInstallOptions;
+export type RuntimePHPWebExtensionSource = Omit<
+	PHPExtensionInstallOptions,
+	'phpVersion'
+>;
 
 /**
  * PHP extension request accepted by `loadWebRuntime()`.

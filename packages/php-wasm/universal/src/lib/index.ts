@@ -111,6 +111,7 @@ export type {
 	PHPExtensionManifestArtifact,
 	PHPExtensionManifestExtraFile,
 	PHPExtensionManifestExtraFiles,
+	PHPExtensionSource,
 } from './load-extension';
 
 export {

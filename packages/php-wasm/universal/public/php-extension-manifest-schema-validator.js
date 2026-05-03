@@ -55,7 +55,7 @@ const schema11 = {
 				vfsRoot: {
 					type: 'string',
 					description:
-						"Absolute VFS prefix joined with each node's `vfsPath` to produce its final location. When a manifest declares both top-level and per-artifact `extraFiles`, each group's `vfsRoot` applies only to its own nodes. Defaults to no prefix, so node paths must already be absolute.",
+						'Absolute VFS path where files and directories are written. When a manifest declares both top-level and per-artifact `extraFiles`, the first declared `targetPath` wins. Defaults to `<extensionDir>/<name>-assets`.',
 				},
 				nodes: {
 					type: 'array',
@@ -78,7 +78,7 @@ const schema11 = {
 					type: 'string',
 					enum: ['file', 'directory'],
 					description:
-						'Defaults to "file". Directory nodes do not require `sourcePath`.',
+						'Defaults to "file". Only file nodes need a `sourcePath`.',
 				},
 				sourcePath: {
 					type: 'string',
@@ -138,7 +138,7 @@ const schema14 = {
 		vfsRoot: {
 			type: 'string',
 			description:
-				"Absolute VFS prefix joined with each node's `vfsPath` to produce its final location. When a manifest declares both top-level and per-artifact `extraFiles`, each group's `vfsRoot` applies only to its own nodes. Defaults to no prefix, so node paths must already be absolute.",
+				'Absolute VFS path where files and directories are written. When a manifest declares both top-level and per-artifact `extraFiles`, the first declared `targetPath` wins. Defaults to `<extensionDir>/<name>-assets`.',
 		},
 		nodes: {
 			type: 'array',
@@ -159,7 +159,7 @@ const schema15 = {
 			type: 'string',
 			enum: ['file', 'directory'],
 			description:
-				'Defaults to "file". Directory nodes do not require `sourcePath`.',
+				'Defaults to "file". Only file nodes need a `sourcePath`.',
 		},
 		sourcePath: {
 			type: 'string',
