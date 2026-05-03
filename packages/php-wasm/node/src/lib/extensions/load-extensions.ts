@@ -1,7 +1,7 @@
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import type {
 	EmscriptenOptions,
-	PHPExtensionInstallOptions,
+	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
@@ -46,7 +46,7 @@ export type BuiltInPHPExtensionName = 'intl' | 'xdebug' | 'redis' | 'memcached';
  * limited to bundled extensions shipped with this package.
  */
 export type RuntimePHPExtensionSource = Omit<
-	PHPExtensionInstallOptions,
+	ResolvedInstallOptions,
 	'phpVersion'
 >;
 
@@ -284,7 +284,7 @@ function resolveIntlDataPath(moduleDir: string, dataName: string): string {
 function resolveXdebugExtraFiles(
 	version: SupportedPHPVersion,
 	xdebugOptions: XdebugOptions
-): PHPExtensionInstallOptions['extraFiles'] | undefined {
+): ResolvedInstallOptions['extraFiles'] | undefined {
 	/*
 	 * Path mapping and skipping is only available starting from Xdebug 3.5,
 	 * which is used by PHP 8.5 or higher.

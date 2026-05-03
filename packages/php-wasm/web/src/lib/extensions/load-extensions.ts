@@ -1,7 +1,7 @@
 import { createMemoizedFetch } from '@wp-playground/common';
 import type {
 	EmscriptenOptions,
-	PHPExtensionInstallOptions,
+	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
@@ -25,7 +25,7 @@ export type BuiltInPHPWebExtensionName = 'intl';
  * limited to bundled extensions shipped with this package.
  */
 export type RuntimePHPWebExtensionSource = Omit<
-	PHPExtensionInstallOptions,
+	ResolvedInstallOptions,
 	'phpVersion'
 >;
 
