@@ -39,8 +39,9 @@ dist/wp_mysql_parser/
 `-- wp_mysql_parser-php8.4-jspi.so
 ```
 
-The manifest records the extension name, artifact matrix, relative `.so` file
-paths, and `sha256` hashes:
+The manifest matches the `PHPExtensionManifest` shape from
+`@php-wasm/universal`. It records the extension name, the artifact matrix,
+and a `sourcePath` for each artifact relative to the manifest URL:
 
 ```json
 {
@@ -49,8 +50,7 @@ paths, and `sha256` hashes:
 	"artifacts": [
 		{
 			"phpVersion": "8.4",
-			"file": "wp_mysql_parser-php8.4-jspi.so",
-			"sha256": "..."
+			"sourcePath": "wp_mysql_parser-php8.4-jspi.so"
 		}
 	]
 }
@@ -58,6 +58,28 @@ paths, and `sha256` hashes:
 
 Host the whole output directory from the same static location. Relative
 artifact paths are resolved from the manifest URL.
+
+### Sidecar files
+
+Pass `--extra-files <hostDir>:<vfsRoot>` to stage data directories, web UI
+assets, ICU data, or anything else the extension needs at runtime. The host
+directory is copied next to the manifest, and each entry is recorded under
+`extraFiles.nodes` with a `vfsPath` relative to `vfsRoot` and a `sourcePath`
+relative to the manifest URL:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./spx-src \
+	--name spx \
+	--php-versions 8.2 \
+	--extra-files ./web-ui:/internal/shared/spx \
+	--out ./dist/spx
+```
+
+Empty directories are recorded as `type: "directory"` nodes so the loader
+creates them before PHP starts. Multiple `--extra-files` entries are
+allowed, but they must agree on `vfsRoot` — the manifest format stores a
+single root per group.
 
 ## Loading in Node.js
 
@@ -83,8 +105,9 @@ const php = new PHP(
 
 Node.js accepts local paths, `file:` URLs, and HTTP(S) URLs for `manifestUrl`.
 The loader selects the artifact whose `phpVersion` matches the runtime,
-verifies `sha256` when present, writes a generated `.ini` file, and starts PHP
-with the extension scan directory configured.
+stages the `.so`, copies any `extraFiles` declared in the manifest, writes a
+generated `.ini` file, and starts PHP with the extension scan directory
+configured.
 
 ## Loading in the browser
 
@@ -124,7 +147,6 @@ await loadWebRuntime('8.4', {
 				format: 'url',
 				name: 'wp_mysql_parser',
 				url: new URL('https://cdn.example.com/wp_mysql_parser-php8.4-jspi.so'),
-				sha256: '...',
 			},
 		},
 	],
