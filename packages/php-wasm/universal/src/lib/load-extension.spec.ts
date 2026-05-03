@@ -153,7 +153,7 @@ describe('resolvePHPExtension', () => {
 			},
 		});
 
-		expect(extension.extraNodes).toEqual({
+		expect(extension.extraFiles).toEqual({
 			directories: ['/internal/shared/profiler-data'],
 			files: {
 				'/internal/shared/profiler-web-ui/index.html': new Uint8Array(

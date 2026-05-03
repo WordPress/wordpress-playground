@@ -105,11 +105,9 @@ export {
 export type {
 	InstallPHPExtensionFilesOptions,
 	PHPExtensionIniDirective,
-	ResolvedInstallOptions,
+	DataToResolvePhpExtension as ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	PHPExtensionManifest,
-	PHPExtensionManifestArtifact,
-	PHPExtensionManifestExtraFile,
 	PHPExtensionManifestExtraFiles,
 	PHPExtensionSource,
 } from './load-extension';

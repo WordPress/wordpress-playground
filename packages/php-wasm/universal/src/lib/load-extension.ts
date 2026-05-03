@@ -50,8 +50,8 @@
  * If you build Emscripten options yourself, use the lower-level pair:
  *
  * ```ts
- * const resolved = await resolvePHPExtension({ phpVersion, source });
- * const finalOptions = withResolvedPHPExtensions(emscriptenOptions, [resolved]);
+ * const extension = await resolvePHPExtension({ phpVersion, source });
+ * const finalOptions = withResolvedPHPExtensions(emscriptenOptions, [extension]);
  * ```
  *
  * * `resolvePHPExtension` fetches and resolves one extension.
@@ -113,17 +113,15 @@ export interface PHPExtensionManifest {
 	name: string;
 	version?: string;
 	mode?: 'php-extension';
-	artifacts: PHPExtensionManifestArtifact[];
+	artifacts: Array<{
+		/** PHP major/minor version, e.g. `8.4`. */
+		phpVersion: string;
+		/** Relative to the manifest URL/base URL, or an absolute URL. */
+		sourcePath: string;
+		/** URL-backed files needed only by this artifact. */
+		extraFiles?: PHPExtensionManifestExtraFiles;
+	}>;
 	/** URL-backed files shared by every artifact in this manifest. */
-	extraFiles?: PHPExtensionManifestExtraFiles;
-}
-
-export interface PHPExtensionManifestArtifact {
-	/** PHP major/minor version, e.g. `8.4`. */
-	phpVersion: string;
-	/** Relative to the manifest URL/base URL, or an absolute URL. */
-	sourcePath: string;
-	/** URL-backed files needed only by this artifact. */
 	extraFiles?: PHPExtensionManifestExtraFiles;
 }
 
@@ -135,16 +133,14 @@ export interface PHPExtensionManifestExtraFiles {
 	 * `<extensionDir>/<name>-assets`.
 	 */
 	vfsRoot?: string;
-	nodes?: PHPExtensionManifestExtraFile[];
-}
-
-export interface PHPExtensionManifestExtraFile {
-	/** Joined with the group's `vfsRoot` to form the final VFS path. */
-	vfsPath: string;
-	/** Defaults to "file". Only file nodes need a `sourcePath`. */
-	type?: 'file' | 'directory';
-	/** Relative to the manifest URL/base URL, or an absolute URL. */
-	sourcePath?: string;
+	nodes?: Array<{
+		/** Joined with the group's `vfsRoot` to form the final VFS path. */
+		vfsPath: string;
+		/** Defaults to "file". Only file nodes need a `sourcePath`. */
+		type?: 'file' | 'directory';
+		/** Relative to the manifest URL/base URL, or an absolute URL. */
+		sourcePath?: string;
+	}>;
 }
 
 /**
@@ -178,7 +174,7 @@ export type PHPExtensionSource =
 			baseUrl?: string | URL;
 	  };
 
-export interface ResolvedInstallOptions {
+export interface DataToResolvePhpExtension {
 	/** PHP major/minor version the active runtime is initializing for. */
 	phpVersion: string;
 	source: PHPExtensionSource;
@@ -197,7 +193,7 @@ export interface ResolvedInstallOptions {
 	 * Use this for data files or dependency assets the extension expects at
 	 * runtime.
 	 */
-	extraFiles?: ResolvedExtraNodes;
+	extraFiles?: ResolvedExtraFiles;
 	/** Environment variables added before the extension is loaded. */
 	env?: Record<string, string>;
 	/**
@@ -232,7 +228,7 @@ export interface ResolvedPHPExtension {
 	 */
 	iniContent: string;
 	/** Sidecar files staged alongside the extension. Optional. */
-	extraNodes?: ResolvedExtraNodes;
+	extraFiles?: ResolvedExtraFiles;
 	/** Environment variables added before PHP startup. */
 	env?: Record<string, string>;
 	/** VFS directory the `.so` and ini file live in. */
@@ -244,7 +240,7 @@ export interface ResolvedPHPExtension {
  * native-library assets the extension expects at runtime. All paths are
  * absolute VFS paths.
  */
-export interface ResolvedExtraNodes {
+export interface ResolvedExtraFiles {
 	/** Absolute VFS paths to create as empty directories. */
 	directories?: string[];
 	/** Map of absolute VFS paths to file contents. */
@@ -270,7 +266,7 @@ export interface InstallPHPExtensionFilesOptions {
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
 	/** Sidecar files to write into the PHP VFS before the extension is loaded. */
-	extraFiles?: ResolvedExtraNodes;
+	extraFiles?: ResolvedExtraFiles;
 	/** Environment variables added before the extension is loaded. */
 	env?: Record<string, string>;
 	/**
@@ -293,7 +289,7 @@ export interface InstallPHPExtensionFilesOptions {
  *       same code paths as we do for all other paths and URLs.
  */
 export async function resolvePHPExtension(
-	options: ResolvedInstallOptions
+	options: DataToResolvePhpExtension
 ): Promise<ResolvedPHPExtension> {
 	const fetchFn = options.fetch ?? globalThis.fetch;
 	const source = options.source;
@@ -304,7 +300,9 @@ export async function resolvePHPExtension(
 	const directories: string[] = [];
 
 	if (source.format === 'so') {
-		name ??= source.name;
+		if (!name) {
+			name = source.name;
+		}
 		if (!name) {
 			throw new Error(
 				'name is required when loading an extension from direct bytes.'
@@ -422,7 +420,7 @@ export async function resolvePHPExtension(
 		soBytes,
 		iniPath,
 		iniContent,
-		extraNodes: {
+		extraFiles: {
 			files,
 			directories,
 		},
@@ -475,13 +473,33 @@ export function installPHPExtensionFilesSync(
 	fs: Emscripten.RootFS,
 	options: InstallPHPExtensionFilesOptions | ResolvedPHPExtension
 ): ResolvedPHPExtension {
-	const ext =
-		'soPath' in options ? options : buildResolvedPHPExtension(options);
+	let ext: ResolvedPHPExtension;
+	if ('soPath' in options) {
+		ext = options;
+	} else {
+		const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
+		const directive = options.loadWithIniDirective ?? 'extension';
+		const soPath = joinPaths(extensionDir, `${options.name}.so`);
+		ext = {
+			soPath,
+			soBytes: toUint8Array(options.soBytes),
+			iniPath: joinPaths(extensionDir, `${options.name}.ini`),
+			iniContent: [
+				`${directive}=${soPath}`,
+				...Object.entries(options.iniEntries ?? {}).map(
+					([key, value]) => `${key}=${value}`
+				),
+			].join('\n'),
+			extraFiles: options.extraFiles,
+			env: options.env,
+			extensionDir,
+		};
+	}
 	mkdirIfMissing(fs, ext.extensionDir);
 	fs.writeFile(ext.soPath, ext.soBytes);
 	fs.writeFile(ext.iniPath, ext.iniContent);
-	if (ext.extraNodes) {
-		const { directories = [], files } = ext.extraNodes;
+	if (ext.extraFiles) {
+		const { directories = [], files } = ext.extraFiles;
 		for (const directory of directories) {
 			mkdirIfMissing(fs, directory);
 		}
@@ -497,37 +515,6 @@ function mkdirIfMissing(fs: Emscripten.RootFS, path: string): void {
 	if (!FSHelpers.fileExists(fs, path)) {
 		fs.mkdirTree(path);
 	}
-}
-
-/**
- * Builds the staged paths and per-extension ini content for one extension.
- * Used by `installPHPExtensionFilesSync` when callers pass install options
- * directly (bytes already in hand).
- */
-function buildResolvedPHPExtension(
-	options: InstallPHPExtensionFilesOptions
-): ResolvedPHPExtension {
-	const { name } = options;
-	const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
-	const directive = options.loadWithIniDirective ?? 'extension';
-	const soPath = joinPaths(extensionDir, `${name}.so`);
-	const iniPath = joinPaths(extensionDir, `${name}.ini`);
-	const iniContent = [
-		`${directive}=${soPath}`,
-		...Object.entries(options.iniEntries ?? {}).map(
-			([key, value]) => `${key}=${value}`
-		),
-	].join('\n');
-
-	return {
-		soPath,
-		soBytes: toUint8Array(options.soBytes),
-		iniPath,
-		iniContent,
-		extraNodes: options.extraFiles,
-		env: options.env,
-		extensionDir,
-	};
 }
 
 async function fetchBytes(
