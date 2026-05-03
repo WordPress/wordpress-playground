@@ -23,77 +23,67 @@
 				},
 				"extraFiles": {
 					"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
-					"description": "URL-backed files shared by every artifact in this manifest.\n\nUse this for common sidecars such as an extension web UI. Files needed only by one compiled artifact belong in that artifact's `extraFiles`."
+					"description": "URL-backed files shared by every artifact in this manifest."
 				}
 			},
 			"required": ["name", "artifacts"],
 			"additionalProperties": false,
-			"description": "Extension artifact manifest.\n\nA manifest lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact that matches the current PHP version. External extension artifacts are JSPI-only."
+			"description": "Extension artifact manifest. Lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact matching the current PHP version. External extension artifacts are JSPI-only."
 		},
 		"PHPExtensionManifestArtifact": {
 			"type": "object",
 			"properties": {
 				"phpVersion": {
 					"type": "string",
-					"description": "PHP major/minor version the artifact was compiled against, e.g. `8.4`."
+					"description": "PHP major/minor version, e.g. `8.4`."
 				},
-				"file": {
+				"sourcePath": {
 					"type": "string",
 					"description": "Relative to the manifest URL/base URL, or an absolute URL."
 				},
-				"sha256": {
-					"type": "string",
-					"description": "Optional SHA-256 checksum for the fetched `.so` artifact."
-				},
 				"extraFiles": {
 					"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
-					"description": "URL-backed files needed only by this artifact.\n\nUse this for files that differ by PHP version or async mode. Shared files, such as an extension web UI, belong in manifest-level `extraFiles` instead."
+					"description": "URL-backed files needed only by this artifact."
 				}
 			},
-			"required": ["phpVersion", "file"],
-			"additionalProperties": false,
-			"description": "One compiled extension artifact in a manifest."
+			"required": ["phpVersion", "sourcePath"],
+			"additionalProperties": false
 		},
 		"PHPExtensionManifestExtraFiles": {
 			"type": "object",
 			"properties": {
-				"targetPath": {
+				"vfsRoot": {
 					"type": "string",
-					"description": "Files and directories are written here. Defaults to `/internal/shared/extensions/<name>-assets`."
+					"description": "Absolute VFS prefix joined with each node's `vfsPath` to produce its final location. When a manifest declares both top-level and per-artifact `extraFiles`, each group's `vfsRoot` applies only to its own nodes. Defaults to no prefix, so node paths must already be absolute."
 				},
-				"directories": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"description": "Empty directories to create under `targetPath`."
-				},
-				"files": {
+				"nodes": {
 					"type": "array",
 					"items": {
 						"$ref": "#/definitions/PHPExtensionManifestExtraFile"
-					},
-					"description": "Files to fetch and stage under `targetPath`."
+					}
 				}
 			},
-			"additionalProperties": false,
-			"description": "URL-backed files to stage with a manifest extension."
+			"additionalProperties": false
 		},
 		"PHPExtensionManifestExtraFile": {
 			"type": "object",
 			"properties": {
-				"path": {
+				"vfsPath": {
 					"type": "string",
-					"description": "Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`."
+					"description": "Joined with the group's `vfsRoot` to form the final VFS path."
 				},
-				"file": {
+				"type": {
+					"type": "string",
+					"enum": ["file", "directory"],
+					"description": "Defaults to \"file\". Directory nodes do not require `sourcePath`."
+				},
+				"sourcePath": {
 					"type": "string",
 					"description": "Relative to the manifest URL/base URL, or an absolute URL."
 				}
 			},
-			"required": ["path", "file"],
-			"additionalProperties": false,
-			"description": "One sidecar file declared by an extension manifest."
+			"required": ["vfsPath"],
+			"additionalProperties": false
 		}
 	}
 }

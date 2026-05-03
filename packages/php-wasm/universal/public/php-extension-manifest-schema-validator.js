@@ -20,84 +20,74 @@ const schema11 = {
 				extraFiles: {
 					$ref: '#/definitions/PHPExtensionManifestExtraFiles',
 					description:
-						"URL-backed files shared by every artifact in this manifest.\n\nUse this for common sidecars such as an extension web UI. Files needed only by one compiled artifact belong in that artifact's `extraFiles`.",
+						'URL-backed files shared by every artifact in this manifest.',
 				},
 			},
 			required: ['name', 'artifacts'],
 			additionalProperties: false,
 			description:
-				'Extension artifact manifest.\n\nA manifest lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact that matches the current PHP version. External extension artifacts are JSPI-only.',
+				'Extension artifact manifest. Lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact matching the current PHP version. External extension artifacts are JSPI-only.',
 		},
 		PHPExtensionManifestArtifact: {
 			type: 'object',
 			properties: {
 				phpVersion: {
 					type: 'string',
-					description:
-						'PHP major/minor version the artifact was compiled against, e.g. `8.4`.',
+					description: 'PHP major/minor version, e.g. `8.4`.',
 				},
-				file: {
+				sourcePath: {
 					type: 'string',
 					description:
 						'Relative to the manifest URL/base URL, or an absolute URL.',
-				},
-				sha256: {
-					type: 'string',
-					description:
-						'Optional SHA-256 checksum for the fetched `.so` artifact.',
 				},
 				extraFiles: {
 					$ref: '#/definitions/PHPExtensionManifestExtraFiles',
 					description:
-						'URL-backed files needed only by this artifact.\n\nUse this for files that differ by PHP version or async mode. Shared files, such as an extension web UI, belong in manifest-level `extraFiles` instead.',
+						'URL-backed files needed only by this artifact.',
 				},
 			},
-			required: ['phpVersion', 'file'],
+			required: ['phpVersion', 'sourcePath'],
 			additionalProperties: false,
-			description: 'One compiled extension artifact in a manifest.',
 		},
 		PHPExtensionManifestExtraFiles: {
 			type: 'object',
 			properties: {
-				targetPath: {
+				vfsRoot: {
 					type: 'string',
 					description:
-						'Files and directories are written here. Defaults to `/internal/shared/extensions/<name>-assets`.',
+						"Absolute VFS prefix joined with each node's `vfsPath` to produce its final location. When a manifest declares both top-level and per-artifact `extraFiles`, each group's `vfsRoot` applies only to its own nodes. Defaults to no prefix, so node paths must already be absolute.",
 				},
-				directories: {
-					type: 'array',
-					items: { type: 'string' },
-					description:
-						'Empty directories to create under `targetPath`.',
-				},
-				files: {
+				nodes: {
 					type: 'array',
 					items: {
 						$ref: '#/definitions/PHPExtensionManifestExtraFile',
 					},
-					description: 'Files to fetch and stage under `targetPath`.',
 				},
 			},
 			additionalProperties: false,
-			description: 'URL-backed files to stage with a manifest extension.',
 		},
 		PHPExtensionManifestExtraFile: {
 			type: 'object',
 			properties: {
-				path: {
+				vfsPath: {
 					type: 'string',
 					description:
-						'Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`.',
+						"Joined with the group's `vfsRoot` to form the final VFS path.",
 				},
-				file: {
+				type: {
+					type: 'string',
+					enum: ['file', 'directory'],
+					description:
+						'Defaults to "file". Directory nodes do not require `sourcePath`.',
+				},
+				sourcePath: {
 					type: 'string',
 					description:
 						'Relative to the manifest URL/base URL, or an absolute URL.',
 				},
 			},
-			required: ['path', 'file'],
+			required: ['vfsPath'],
 			additionalProperties: false,
-			description: 'One sidecar file declared by an extension manifest.',
 		},
 	},
 };
@@ -114,81 +104,71 @@ const schema12 = {
 		extraFiles: {
 			$ref: '#/definitions/PHPExtensionManifestExtraFiles',
 			description:
-				"URL-backed files shared by every artifact in this manifest.\n\nUse this for common sidecars such as an extension web UI. Files needed only by one compiled artifact belong in that artifact's `extraFiles`.",
+				'URL-backed files shared by every artifact in this manifest.',
 		},
 	},
 	required: ['name', 'artifacts'],
 	additionalProperties: false,
 	description:
-		'Extension artifact manifest.\n\nA manifest lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact that matches the current PHP version. External extension artifacts are JSPI-only.',
+		'Extension artifact manifest. Lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact matching the current PHP version. External extension artifacts are JSPI-only.',
 };
 const schema13 = {
 	type: 'object',
 	properties: {
 		phpVersion: {
 			type: 'string',
-			description:
-				'PHP major/minor version the artifact was compiled against, e.g. `8.4`.',
+			description: 'PHP major/minor version, e.g. `8.4`.',
 		},
-		file: {
+		sourcePath: {
 			type: 'string',
 			description:
 				'Relative to the manifest URL/base URL, or an absolute URL.',
 		},
-		sha256: {
-			type: 'string',
-			description:
-				'Optional SHA-256 checksum for the fetched `.so` artifact.',
-		},
 		extraFiles: {
 			$ref: '#/definitions/PHPExtensionManifestExtraFiles',
-			description:
-				'URL-backed files needed only by this artifact.\n\nUse this for files that differ by PHP version or async mode. Shared files, such as an extension web UI, belong in manifest-level `extraFiles` instead.',
+			description: 'URL-backed files needed only by this artifact.',
 		},
 	},
-	required: ['phpVersion', 'file'],
+	required: ['phpVersion', 'sourcePath'],
 	additionalProperties: false,
-	description: 'One compiled extension artifact in a manifest.',
 };
 const schema14 = {
 	type: 'object',
 	properties: {
-		targetPath: {
+		vfsRoot: {
 			type: 'string',
 			description:
-				'Files and directories are written here. Defaults to `/internal/shared/extensions/<name>-assets`.',
+				"Absolute VFS prefix joined with each node's `vfsPath` to produce its final location. When a manifest declares both top-level and per-artifact `extraFiles`, each group's `vfsRoot` applies only to its own nodes. Defaults to no prefix, so node paths must already be absolute.",
 		},
-		directories: {
-			type: 'array',
-			items: { type: 'string' },
-			description: 'Empty directories to create under `targetPath`.',
-		},
-		files: {
+		nodes: {
 			type: 'array',
 			items: { $ref: '#/definitions/PHPExtensionManifestExtraFile' },
-			description: 'Files to fetch and stage under `targetPath`.',
 		},
 	},
 	additionalProperties: false,
-	description: 'URL-backed files to stage with a manifest extension.',
 };
 const schema15 = {
 	type: 'object',
 	properties: {
-		path: {
+		vfsPath: {
 			type: 'string',
 			description:
-				'Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`.',
+				"Joined with the group's `vfsRoot` to form the final VFS path.",
 		},
-		file: {
+		type: {
+			type: 'string',
+			enum: ['file', 'directory'],
+			description:
+				'Defaults to "file". Directory nodes do not require `sourcePath`.',
+		},
+		sourcePath: {
 			type: 'string',
 			description:
 				'Relative to the manifest URL/base URL, or an absolute URL.',
 		},
 	},
-	required: ['path', 'file'],
+	required: ['vfsPath'],
 	additionalProperties: false,
-	description: 'One sidecar file declared by an extension manifest.',
 };
 function validate13(
 	data,
@@ -200,13 +180,7 @@ function validate13(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			const _errs1 = errors;
 			for (const key0 in data) {
-				if (
-					!(
-						key0 === 'targetPath' ||
-						key0 === 'directories' ||
-						key0 === 'files'
-					)
-				) {
+				if (!(key0 === 'vfsRoot' || key0 === 'nodes')) {
 					validate13.errors = [
 						{
 							instancePath,
@@ -221,13 +195,13 @@ function validate13(
 				}
 			}
 			if (_errs1 === errors) {
-				if (data.targetPath !== undefined) {
+				if (data.vfsRoot !== undefined) {
 					const _errs2 = errors;
-					if (typeof data.targetPath !== 'string') {
+					if (typeof data.vfsRoot !== 'string') {
 						validate13.errors = [
 							{
-								instancePath: instancePath + '/targetPath',
-								schemaPath: '#/properties/targetPath/type',
+								instancePath: instancePath + '/vfsRoot',
+								schemaPath: '#/properties/vfsRoot/type',
 								keyword: 'type',
 								params: { type: 'string' },
 								message: 'must be string',
@@ -240,142 +214,129 @@ function validate13(
 					var valid0 = true;
 				}
 				if (valid0) {
-					if (data.directories !== undefined) {
-						let data1 = data.directories;
+					if (data.nodes !== undefined) {
+						let data1 = data.nodes;
 						const _errs4 = errors;
 						if (errors === _errs4) {
 							if (Array.isArray(data1)) {
 								var valid1 = true;
 								const len0 = data1.length;
 								for (let i0 = 0; i0 < len0; i0++) {
+									let data2 = data1[i0];
 									const _errs6 = errors;
-									if (typeof data1[i0] !== 'string') {
-										validate13.errors = [
-											{
-												instancePath:
-													instancePath +
-													'/directories/' +
-													i0,
-												schemaPath:
-													'#/properties/directories/items/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											},
-										];
-										return false;
-									}
-									var valid1 = _errs6 === errors;
-									if (!valid1) {
-										break;
-									}
-								}
-							} else {
-								validate13.errors = [
-									{
-										instancePath:
-											instancePath + '/directories',
-										schemaPath:
-											'#/properties/directories/type',
-										keyword: 'type',
-										params: { type: 'array' },
-										message: 'must be array',
-									},
-								];
-								return false;
-							}
-						}
-						var valid0 = _errs4 === errors;
-					} else {
-						var valid0 = true;
-					}
-					if (valid0) {
-						if (data.files !== undefined) {
-							let data3 = data.files;
-							const _errs8 = errors;
-							if (errors === _errs8) {
-								if (Array.isArray(data3)) {
-									var valid2 = true;
-									const len1 = data3.length;
-									for (let i1 = 0; i1 < len1; i1++) {
-										let data4 = data3[i1];
-										const _errs10 = errors;
-										const _errs11 = errors;
-										if (errors === _errs11) {
+									const _errs7 = errors;
+									if (errors === _errs7) {
+										if (
+											data2 &&
+											typeof data2 == 'object' &&
+											!Array.isArray(data2)
+										) {
+											let missing0;
 											if (
-												data4 &&
-												typeof data4 == 'object' &&
-												!Array.isArray(data4)
+												data2.vfsPath === undefined &&
+												(missing0 = 'vfsPath')
 											) {
-												let missing0;
-												if (
-													(data4.path === undefined &&
-														(missing0 = 'path')) ||
-													(data4.file === undefined &&
-														(missing0 = 'file'))
-												) {
-													validate13.errors = [
-														{
-															instancePath:
-																instancePath +
-																'/files/' +
-																i1,
-															schemaPath:
-																'#/definitions/PHPExtensionManifestExtraFile/required',
-															keyword: 'required',
-															params: {
-																missingProperty:
-																	missing0,
-															},
-															message:
-																"must have required property '" +
-																missing0 +
-																"'",
+												validate13.errors = [
+													{
+														instancePath:
+															instancePath +
+															'/nodes/' +
+															i0,
+														schemaPath:
+															'#/definitions/PHPExtensionManifestExtraFile/required',
+														keyword: 'required',
+														params: {
+															missingProperty:
+																missing0,
 														},
-													];
-													return false;
-												} else {
-													const _errs13 = errors;
-													for (const key1 in data4) {
+														message:
+															"must have required property '" +
+															missing0 +
+															"'",
+													},
+												];
+												return false;
+											} else {
+												const _errs9 = errors;
+												for (const key1 in data2) {
+													if (
+														!(
+															key1 ===
+																'vfsPath' ||
+															key1 === 'type' ||
+															key1 ===
+																'sourcePath'
+														)
+													) {
+														validate13.errors = [
+															{
+																instancePath:
+																	instancePath +
+																	'/nodes/' +
+																	i0,
+																schemaPath:
+																	'#/definitions/PHPExtensionManifestExtraFile/additionalProperties',
+																keyword:
+																	'additionalProperties',
+																params: {
+																	additionalProperty:
+																		key1,
+																},
+																message:
+																	'must NOT have additional properties',
+															},
+														];
+														return false;
+														break;
+													}
+												}
+												if (_errs9 === errors) {
+													if (
+														data2.vfsPath !==
+														undefined
+													) {
+														const _errs10 = errors;
 														if (
-															!(
-																key1 ===
-																	'path' ||
-																key1 === 'file'
-															)
+															typeof data2.vfsPath !==
+															'string'
 														) {
 															validate13.errors =
 																[
 																	{
 																		instancePath:
 																			instancePath +
-																			'/files/' +
-																			i1,
+																			'/nodes/' +
+																			i0 +
+																			'/vfsPath',
 																		schemaPath:
-																			'#/definitions/PHPExtensionManifestExtraFile/additionalProperties',
+																			'#/definitions/PHPExtensionManifestExtraFile/properties/vfsPath/type',
 																		keyword:
-																			'additionalProperties',
+																			'type',
 																		params: {
-																			additionalProperty:
-																				key1,
+																			type: 'string',
 																		},
 																		message:
-																			'must NOT have additional properties',
+																			'must be string',
 																	},
 																];
 															return false;
-															break;
 														}
+														var valid3 =
+															_errs10 === errors;
+													} else {
+														var valid3 = true;
 													}
-													if (_errs13 === errors) {
+													if (valid3) {
 														if (
-															data4.path !==
+															data2.type !==
 															undefined
 														) {
-															const _errs14 =
+															let data4 =
+																data2.type;
+															const _errs12 =
 																errors;
 															if (
-																typeof data4.path !==
+																typeof data4 !==
 																'string'
 															) {
 																validate13.errors =
@@ -383,11 +344,11 @@ function validate13(
 																		{
 																			instancePath:
 																				instancePath +
-																				'/files/' +
-																				i1 +
-																				'/path',
+																				'/nodes/' +
+																				i0 +
+																				'/type',
 																			schemaPath:
-																				'#/definitions/PHPExtensionManifestExtraFile/properties/path/type',
+																				'#/definitions/PHPExtensionManifestExtraFile/properties/type/type',
 																			keyword:
 																				'type',
 																			params: {
@@ -399,21 +360,54 @@ function validate13(
 																	];
 																return false;
 															}
-															var valid4 =
-																_errs14 ===
+															if (
+																!(
+																	data4 ===
+																		'file' ||
+																	data4 ===
+																		'directory'
+																)
+															) {
+																validate13.errors =
+																	[
+																		{
+																			instancePath:
+																				instancePath +
+																				'/nodes/' +
+																				i0 +
+																				'/type',
+																			schemaPath:
+																				'#/definitions/PHPExtensionManifestExtraFile/properties/type/enum',
+																			keyword:
+																				'enum',
+																			params: {
+																				allowedValues:
+																					schema15
+																						.properties
+																						.type
+																						.enum,
+																			},
+																			message:
+																				'must be equal to one of the allowed values',
+																		},
+																	];
+																return false;
+															}
+															var valid3 =
+																_errs12 ===
 																errors;
 														} else {
-															var valid4 = true;
+															var valid3 = true;
 														}
-														if (valid4) {
+														if (valid3) {
 															if (
-																data4.file !==
+																data2.sourcePath !==
 																undefined
 															) {
-																const _errs16 =
+																const _errs14 =
 																	errors;
 																if (
-																	typeof data4.file !==
+																	typeof data2.sourcePath !==
 																	'string'
 																) {
 																	validate13.errors =
@@ -421,11 +415,11 @@ function validate13(
 																			{
 																				instancePath:
 																					instancePath +
-																					'/files/' +
-																					i1 +
-																					'/file',
+																					'/nodes/' +
+																					i0 +
+																					'/sourcePath',
 																				schemaPath:
-																					'#/definitions/PHPExtensionManifestExtraFile/properties/file/type',
+																					'#/definitions/PHPExtensionManifestExtraFile/properties/sourcePath/type',
 																				keyword:
 																					'type',
 																				params: {
@@ -437,59 +431,54 @@ function validate13(
 																		];
 																	return false;
 																}
-																var valid4 =
-																	_errs16 ===
+																var valid3 =
+																	_errs14 ===
 																	errors;
 															} else {
-																var valid4 = true;
+																var valid3 = true;
 															}
 														}
 													}
 												}
-											} else {
-												validate13.errors = [
-													{
-														instancePath:
-															instancePath +
-															'/files/' +
-															i1,
-														schemaPath:
-															'#/definitions/PHPExtensionManifestExtraFile/type',
-														keyword: 'type',
-														params: {
-															type: 'object',
-														},
-														message:
-															'must be object',
-													},
-												];
-												return false;
 											}
-										}
-										var valid2 = _errs10 === errors;
-										if (!valid2) {
-											break;
+										} else {
+											validate13.errors = [
+												{
+													instancePath:
+														instancePath +
+														'/nodes/' +
+														i0,
+													schemaPath:
+														'#/definitions/PHPExtensionManifestExtraFile/type',
+													keyword: 'type',
+													params: { type: 'object' },
+													message: 'must be object',
+												},
+											];
+											return false;
 										}
 									}
-								} else {
-									validate13.errors = [
-										{
-											instancePath:
-												instancePath + '/files',
-											schemaPath:
-												'#/properties/files/type',
-											keyword: 'type',
-											params: { type: 'array' },
-											message: 'must be array',
-										},
-									];
-									return false;
+									var valid1 = _errs6 === errors;
+									if (!valid1) {
+										break;
+									}
 								}
+							} else {
+								validate13.errors = [
+									{
+										instancePath: instancePath + '/nodes',
+										schemaPath: '#/properties/nodes/type',
+										keyword: 'type',
+										params: { type: 'array' },
+										message: 'must be array',
+									},
+								];
+								return false;
 							}
-							var valid0 = _errs8 === errors;
-						} else {
-							var valid0 = true;
 						}
+						var valid0 = _errs4 === errors;
+					} else {
+						var valid0 = true;
 					}
 				}
 			}
@@ -520,7 +509,7 @@ function validate12(
 			let missing0;
 			if (
 				(data.phpVersion === undefined && (missing0 = 'phpVersion')) ||
-				(data.file === undefined && (missing0 = 'file'))
+				(data.sourcePath === undefined && (missing0 = 'sourcePath'))
 			) {
 				validate12.errors = [
 					{
@@ -539,8 +528,7 @@ function validate12(
 					if (
 						!(
 							key0 === 'phpVersion' ||
-							key0 === 'file' ||
-							key0 === 'sha256' ||
+							key0 === 'sourcePath' ||
 							key0 === 'extraFiles'
 						)
 					) {
@@ -577,13 +565,15 @@ function validate12(
 						var valid0 = true;
 					}
 					if (valid0) {
-						if (data.file !== undefined) {
+						if (data.sourcePath !== undefined) {
 							const _errs4 = errors;
-							if (typeof data.file !== 'string') {
+							if (typeof data.sourcePath !== 'string') {
 								validate12.errors = [
 									{
-										instancePath: instancePath + '/file',
-										schemaPath: '#/properties/file/type',
+										instancePath:
+											instancePath + '/sourcePath',
+										schemaPath:
+											'#/properties/sourcePath/type',
 										keyword: 'type',
 										params: { type: 'string' },
 										message: 'must be string',
@@ -596,50 +586,26 @@ function validate12(
 							var valid0 = true;
 						}
 						if (valid0) {
-							if (data.sha256 !== undefined) {
+							if (data.extraFiles !== undefined) {
 								const _errs6 = errors;
-								if (typeof data.sha256 !== 'string') {
-									validate12.errors = [
-										{
-											instancePath:
-												instancePath + '/sha256',
-											schemaPath:
-												'#/properties/sha256/type',
-											keyword: 'type',
-											params: { type: 'string' },
-											message: 'must be string',
-										},
-									];
-									return false;
+								if (
+									!validate13(data.extraFiles, {
+										instancePath:
+											instancePath + '/extraFiles',
+										parentData: data,
+										parentDataProperty: 'extraFiles',
+										rootData,
+									})
+								) {
+									vErrors =
+										vErrors === null
+											? validate13.errors
+											: vErrors.concat(validate13.errors);
+									errors = vErrors.length;
 								}
 								var valid0 = _errs6 === errors;
 							} else {
 								var valid0 = true;
-							}
-							if (valid0) {
-								if (data.extraFiles !== undefined) {
-									const _errs8 = errors;
-									if (
-										!validate13(data.extraFiles, {
-											instancePath:
-												instancePath + '/extraFiles',
-											parentData: data,
-											parentDataProperty: 'extraFiles',
-											rootData,
-										})
-									) {
-										vErrors =
-											vErrors === null
-												? validate13.errors
-												: vErrors.concat(
-														validate13.errors
-													);
-										errors = vErrors.length;
-									}
-									var valid0 = _errs8 === errors;
-								} else {
-									var valid0 = true;
-								}
 							}
 						}
 					}

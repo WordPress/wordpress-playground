@@ -113,7 +113,6 @@ export type {
 	PHPExtensionManifestExtraFile,
 	PHPExtensionManifestExtraFiles,
 	PHPExtensionSource,
-	ResolvePHPExtensionOptions,
 } from './load-extension';
 
 export {

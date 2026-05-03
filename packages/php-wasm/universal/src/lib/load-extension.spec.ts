@@ -78,7 +78,7 @@ describe('resolvePHPExtension', () => {
 						artifacts: [
 							{
 								phpVersion: '8.4',
-								file: 'example-php8.4-jspi.so',
+								sourcePath: 'example-php8.4-jspi.so',
 							},
 						],
 					});
@@ -104,7 +104,7 @@ describe('resolvePHPExtension', () => {
 							{
 								phpVersion: '8.4',
 								asyncMode: 'asyncify',
-								file: 'example-php8.4-asyncify.so',
+								sourcePath: 'example-php8.4-asyncify.so',
 							},
 						],
 					} as any,
@@ -131,20 +131,23 @@ describe('resolvePHPExtension', () => {
 						artifacts: [
 							{
 								phpVersion: '8.4',
-								file: 'example.so',
+								sourcePath: 'example.so',
 							},
 						],
 						extraFiles: {
-							targetPath: '/internal/shared',
-							directories: ['profiler-data'],
-							files: [
+							vfsRoot: '/internal/shared',
+							nodes: [
 								{
-									path: 'profiler-web-ui/index.html',
-									file: 'web-ui/index.html',
+									vfsPath: 'profiler-data',
+									type: 'directory',
 								},
 								{
-									path: 'profiler-web-ui/css/main.css',
-									file: 'web-ui/css/main.css',
+									vfsPath: 'profiler-web-ui/index.html',
+									sourcePath: 'web-ui/index.html',
+								},
+								{
+									vfsPath: 'profiler-web-ui/css/main.css',
+									sourcePath: 'web-ui/css/main.css',
 								},
 							],
 						},
@@ -164,13 +167,12 @@ describe('resolvePHPExtension', () => {
 		});
 
 		expect(extension.extraFiles).toEqual({
-			targetPath: '/internal/shared',
-			directories: ['profiler-data'],
+			directories: ['/internal/shared/profiler-data'],
 			files: {
-				'profiler-web-ui/index.html': new Uint8Array(
+				'/internal/shared/profiler-web-ui/index.html': new Uint8Array(
 					new TextEncoder().encode('<html></html>')
 				),
-				'profiler-web-ui/css/main.css': new Uint8Array(
+				'/internal/shared/profiler-web-ui/css/main.css': new Uint8Array(
 					new TextEncoder().encode('body { margin: 0; }')
 				),
 			},
@@ -184,12 +186,12 @@ describe('resolvePHPExtension', () => {
 		let completedManifestFetches = 0;
 		let artifactStartedBeforeManifestCompleted = false;
 		const manifestFiles = Array.from({ length: 6 }, (_, index) => ({
-			path: `manifest/file-${index}.txt`,
-			file: `manifest/file-${index}.txt`,
+			vfsPath: `manifest/file-${index}.txt`,
+			sourcePath: `manifest/file-${index}.txt`,
 		}));
 		const artifactFiles = Array.from({ length: 6 }, (_, index) => ({
-			path: `artifact/file-${index}.txt`,
-			file: `artifact/file-${index}.txt`,
+			vfsPath: `artifact/file-${index}.txt`,
+			sourcePath: `artifact/file-${index}.txt`,
 		}));
 
 		await resolvePHPExtension({
@@ -282,7 +284,7 @@ describe('resolvePHPExtension', () => {
 				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
 			})
 		).rejects.toThrow(
-			'Extension sidecar files declare conflicting path: web-ui/index.html'
+			'Extension sidecar files declare conflicting path: /web-ui/index.html'
 		);
 	});
 
@@ -318,7 +320,7 @@ describe('resolvePHPExtension', () => {
 				fetch: async () => new Response(new Uint8Array([1, 2, 3])),
 			})
 		).rejects.toThrow(
-			'Extension sidecar files declare conflicting path: web-ui/index.html'
+			'Extension sidecar files declare conflicting path: /web-ui/index.html'
 		);
 	});
 });

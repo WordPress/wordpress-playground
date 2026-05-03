@@ -81,22 +81,23 @@ export interface PHPExtensionManifestArtifact {
 
 export interface PHPExtensionManifestExtraFiles {
 	/**
-	 * Absolute VFS path where files and directories are written. When a
-	 * manifest declares both top-level and per-artifact `extraFiles`, the
-	 * first declared `targetPath` wins. Defaults to
-	 * `<extensionDir>/<name>-assets`.
+	 * Absolute VFS prefix joined with each node's `vfsPath` to produce its
+	 * final location. When a manifest declares both top-level and
+	 * per-artifact `extraFiles`, each group's `vfsRoot` applies only to
+	 * its own nodes. Defaults to no prefix, so node paths must already be
+	 * absolute.
 	 */
 	vfsRoot?: string;
 	nodes?: PHPExtensionManifestExtraFile[];
 }
 
 export interface PHPExtensionManifestExtraFile {
-	/** Relative VFS path under `PHPExtensionManifestExtraFiles.targetPath`. */
+	/** Joined with the group's `vfsRoot` to form the final VFS path. */
 	vfsPath: string;
-	/** Defaults to "file" */
+	/** Defaults to "file". Directory nodes do not require `sourcePath`. */
 	type?: 'file' | 'directory';
 	/** Relative to the manifest URL/base URL, or an absolute URL. */
-	sourcePath: string;
+	sourcePath?: string;
 }
 
 /**
@@ -132,14 +133,14 @@ export type PHPExtensionSource =
 
 /**
  * Sidecar files to stage next to an extension. Use this for data files or
- * native-library assets the extension expects at runtime.
+ * native-library assets the extension expects at runtime. Paths are absolute
+ * VFS paths.
  */
 export interface PHPExtensionExtraNodes {
-	/** Defaults to `/internal/shared/extensions/<name>-assets`. */
-	targetPath?: string;
+	/** Map of absolute VFS paths to file contents. */
+	files?: Record<string, Uint8Array | string>;
+	/** Absolute VFS paths to create as empty directories. */
 	directories?: string[];
-	/** Flat map of relative VFS paths to file contents. */
-	files: Record<string, Uint8Array | string>;
 }
 
 export interface PHPExtensionInstallOptions {
@@ -185,7 +186,7 @@ export interface ResolvedPHPExtension {
 	soBytes: Uint8Array;
 	iniPath: string;
 	iniContent: string;
-	extraFiles?: PHPExtensionExtraNodes & { targetPath: string };
+	extraFiles?: PHPExtensionExtraNodes;
 	env?: Record<string, string>;
 	extensionDir: string;
 }
@@ -207,7 +208,7 @@ export async function resolvePHPExtension(
 		loadWithIniDirective: options.loadWithIniDirective,
 		iniEntries: options.iniEntries,
 		extraFiles: mergeExtraFiles(
-			[resolved.extraNodes, options.extraFiles].filter(
+			[resolved.extraFiles, options.extraFiles].filter(
 				(group): group is PHPExtensionExtraNodes => !!group
 			)
 		),
@@ -264,15 +265,13 @@ export function installPHPExtensionFilesSync(
 	fs.writeFile(ext.soPath, ext.soBytes);
 	fs.writeFile(ext.iniPath, ext.iniContent);
 	if (ext.extraFiles) {
-		const { targetPath, directories = [], files } = ext.extraFiles;
-		mkdirIfMissing(fs, targetPath);
-		for (const dir of directories) {
-			mkdirIfMissing(fs, joinPaths(targetPath, dir));
+		const { files = {}, directories = [] } = ext.extraFiles;
+		for (const directory of directories) {
+			mkdirIfMissing(fs, directory);
 		}
 		for (const [path, content] of Object.entries(files)) {
-			const filePath = joinPaths(targetPath, path);
-			mkdirIfMissing(fs, dirname(filePath));
-			fs.writeFile(filePath, content);
+			mkdirIfMissing(fs, dirname(path));
+			fs.writeFile(path, content);
 		}
 	}
 	return ext;
@@ -306,22 +305,14 @@ function buildResolvedPHPExtension(
 		),
 	].join('\n');
 
-	let extraFiles: ResolvedPHPExtension['extraFiles'];
-	if (options.extraFiles) {
-		const merged = mergeExtraFiles([options.extraFiles])!;
-		extraFiles = {
-			...merged,
-			targetPath:
-				merged.targetPath ?? joinPaths(extensionDir, `${name}-assets`),
-		};
-	}
-
 	return {
 		soPath,
 		soBytes: toUint8Array(options.soBytes),
 		iniPath,
 		iniContent,
-		extraFiles,
+		extraFiles: options.extraFiles
+			? mergeExtraFiles([options.extraFiles])
+			: undefined,
 		env: options.env,
 		extensionDir,
 	};
@@ -330,7 +321,7 @@ function buildResolvedPHPExtension(
 interface ResolvedPHPExtensionSource {
 	name: string;
 	soBytes: Uint8Array;
-	extraNodes?: PHPExtensionExtraNodes;
+	extraFiles?: PHPExtensionExtraNodes;
 }
 
 /**
@@ -383,37 +374,32 @@ async function resolvePHPExtensionSource(
 		return { name, soBytes };
 	}
 
-	// Resolve the manifest-declared files
-	let manifest: PHPExtensionManifest | undefined;
-	let manifestUrl: URL | string | undefined;
+	let manifestCandidate: unknown;
 	let baseUrl: URL | undefined;
 	if ('manifest' in source) {
-		manifest = source.manifest;
-	} else if ('manifestUrl' in source) {
-		manifestUrl = source.manifestUrl;
-		const manifestResponse = await fetchFn(source.manifestUrl!);
-		manifest = await manifestResponse.json();
-		baseUrl = new URL(manifestUrl);
+		manifestCandidate = source.manifest;
+		if (source.baseUrl) {
+			baseUrl = new URL(String(source.baseUrl));
+		}
+	} else {
+		baseUrl = new URL(String(source.manifestUrl));
+		manifestCandidate = await (await fetchFn(baseUrl)).json();
 	}
-
-	if (!validatePHPExtensionManifest(manifest)) {
+	if (!validatePHPExtensionManifest(manifestCandidate)) {
 		throw new Error(
 			`Invalid PHP extension manifest: ${JSON.stringify(
 				validatePHPExtensionManifest.errors
 			)}`
 		);
 	}
-
-	if (!baseUrl && 'baseUrl' in source && source.baseUrl) {
-		baseUrl = new URL(String(source.baseUrl));
-	}
+	const manifest = manifestCandidate as PHPExtensionManifest;
 	if (!baseUrl) {
 		throw new Error(
 			'Manifest artifacts require a manifest URL or baseUrl so relative files can be resolved.'
 		);
 	}
 
-	const artifact = manifest!.artifacts.find(
+	const artifact = manifest.artifacts.find(
 		(candidate) => candidate.phpVersion === options.phpVersion
 	);
 	if (!artifact) {
@@ -422,44 +408,50 @@ async function resolvePHPExtensionSource(
 		);
 	}
 
-	// Resolve all the files referenced in the manifest.
-	const extraFiles = [manifest!.extraFiles, artifact.extraFiles].flatMap(
-		(group) => {
-			const nodes = group?.nodes || [];
-			return nodes.map((node) => ({
-				url: new URL(node.sourcePath, baseUrl),
-				vfsPath: joinPaths(group?.vfsRoot || '', node.vfsPath),
-			}));
-		}
-	);
-	const soUrl = new URL(artifact.sourcePath, baseUrl);
-
 	const queue = new Semaphore({
 		concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
 	});
-	async function queuedFetch({ vfsPath, url }: any) {
-		resolvedExtraFiles[vfsPath] = await queue.run(() =>
-			fetchBytes(fetchFn, url)
-		);
-	}
-	const resolvedExtraFiles: Record<string, Uint8Array> = {};
+	const fetchedGroups: Array<PHPExtensionExtraNodes> = [];
 	const [soBytes] = await Promise.all([
-		fetchBytes(fetchFn, soUrl),
-		...extraFiles.map(queuedFetch),
+		fetchBytes(fetchFn, new URL(artifact.sourcePath, baseUrl)),
+		...[manifest.extraFiles, artifact.extraFiles].map(async (group) => {
+			if (!group) return;
+			const fetched: PHPExtensionExtraNodes = {
+				files: {},
+				directories: [],
+			};
+			fetchedGroups.push(fetched);
+			await Promise.all(
+				(group.nodes ?? []).map(async (node) => {
+					const vfsPath = joinPaths(
+						group.vfsRoot ?? '',
+						node.vfsPath
+					);
+					if (node.type === 'directory') {
+						fetched.directories!.push(vfsPath);
+					} else {
+						fetched.files![vfsPath] = await queue.run(() =>
+							fetchBytes(
+								fetchFn,
+								new URL(node.sourcePath!, baseUrl)
+							)
+						);
+					}
+				})
+			);
+		}),
 	]);
 
 	return {
-		name: manifest!.name,
+		name: manifest.name,
 		soBytes,
-		extraNodes: resolvedExtraFiles,
+		extraFiles: mergeExtraFiles(fetchedGroups),
 	};
 }
 
 /**
- * Merges sidecar groups into a single one. The merged result has at most one
- * `targetPath` (the first declared one wins) because `ResolvedPHPExtension`
- * stages everything under a single VFS root. Relative file paths are
- * normalized; duplicate or shadowing paths are rejected.
+ * Merges sidecar groups into a single one. File paths are normalized;
+ * duplicate or shadowing paths are rejected.
  */
 function mergeExtraFiles(
 	groups: Array<PHPExtensionExtraNodes>
@@ -467,17 +459,13 @@ function mergeExtraFiles(
 	if (!groups.length) {
 		return undefined;
 	}
-	const targetPath = groups
-		.map((group) => group.targetPath)
-		.find((path) => path !== undefined);
-
 	const directories = new Set<string>();
 	const files: Record<string, Uint8Array | string> = {};
 	for (const group of groups) {
 		for (const directory of group.directories ?? []) {
 			directories.add(normalizePath(directory));
 		}
-		for (const [rawPath, content] of Object.entries(group.files)) {
+		for (const [rawPath, content] of Object.entries(group.files ?? {})) {
 			const path = normalizePath(rawPath);
 			const conflicts =
 				path in files ||
@@ -496,9 +484,8 @@ function mergeExtraFiles(
 	}
 
 	return {
-		targetPath,
 		directories: directories.size ? [...directories] : undefined,
-		files,
+		files: Object.keys(files).length ? files : undefined,
 	};
 }
 

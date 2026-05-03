@@ -139,10 +139,9 @@ async function resolveRuntimePHPWebExtension(
 			ICU_DATA: '/internal/shared',
 		},
 		extraFiles: {
-			targetPath: '/internal/shared',
 			files: {
 				// The Intl extension looks for the hard-coded ICU data name.
-				'icudt74l.dat': new Uint8Array(ICUData),
+				'/internal/shared/icudt74l.dat': new Uint8Array(ICUData),
 			},
 		},
 	});

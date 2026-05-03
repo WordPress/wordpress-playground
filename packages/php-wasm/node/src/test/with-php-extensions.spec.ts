@@ -31,20 +31,23 @@ describe('withPHPExtensions', () => {
 					artifacts: [
 						{
 							phpVersion: '8.4',
-							file: 'example.so',
+							sourcePath: 'example.so',
 						},
 					],
 					extraFiles: {
-						targetPath: '/internal/shared',
-						directories: ['profiler-data'],
-						files: [
+						vfsRoot: '/internal/shared',
+						nodes: [
 							{
-								path: 'profiler-web-ui/index.html',
-								file: 'web-ui/index.html',
+								vfsPath: 'profiler-data',
+								type: 'directory',
 							},
 							{
-								path: 'profiler-web-ui/css/main.css',
-								file: 'web-ui/css/main.css',
+								vfsPath: 'profiler-web-ui/index.html',
+								sourcePath: 'web-ui/index.html',
+							},
+							{
+								vfsPath: 'profiler-web-ui/css/main.css',
+								sourcePath: 'web-ui/css/main.css',
 							},
 						],
 					},

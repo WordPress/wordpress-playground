@@ -180,10 +180,11 @@ async function resolveRuntimePHPExtension(
 					ICU_DATA: '/internal/shared',
 				},
 				extraFiles: {
-					targetPath: '/internal/shared',
 					files: {
 						// The Intl extension looks for the hard-coded ICU data name.
-						'icudt74l.dat': new Uint8Array(ICUData),
+						'/internal/shared/icudt74l.dat': new Uint8Array(
+							ICUData
+						),
 					},
 				},
 			});
@@ -301,18 +302,15 @@ function resolveXdebugExtraFiles(
 
 	const files: Record<string, string> = {};
 	if (pathMappings) {
-		files['path.map'] = pathMappings
+		files['/.xdebug/path.map'] = pathMappings
 			.map((map) => `${map.vfsPath} = ${map.hostPath}`)
 			.join('\n');
 	}
 	if (pathSkippings) {
-		files['skip.map'] = pathSkippings
+		files['/.xdebug/skip.map'] = pathSkippings
 			.map((path) => `${path} = SKIP`)
 			.join('\n');
 	}
 
-	return {
-		targetPath: '/.xdebug',
-		files,
-	};
+	return { files };
 }
