@@ -12,7 +12,37 @@ npx @php-wasm/compile-extension \
 ```
 
 The command writes one JSPI `.so` per PHP version and a `manifest.json` that
-can be consumed by PHP.wasm extension-loading helpers.
+can be consumed by PHP.wasm extension-loading helpers. The manifest matches
+the `PHPExtensionManifest` shape from `@php-wasm/universal`:
+
+```json
+{
+	"name": "wp_mysql_parser",
+	"version": "0.1.0",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "wp_mysql_parser-php8.4-jspi.so"
+		}
+	]
+}
+```
+
+To stage sidecar files (data directories, web UI assets, ICU data, etc.) under
+an absolute VFS prefix, pass `--extra-files <hostDir>:<vfsRoot>`. The host
+directory is copied next to the manifest and recorded under `extraFiles.nodes`:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./spx-src \
+	--name spx \
+	--php-versions 8.2 \
+	--extra-files ./web-ui:/internal/shared/spx \
+	--out ./dist
+```
+
+Empty directories are recorded as `type: "directory"` nodes so the loader
+creates them before PHP starts.
 
 Docker is required. The build reuses the `packages/php-wasm/compile` base image
 and its PHP patch set, then runs `phpize`, `emconfigure`, and `emmake` inside
@@ -42,9 +72,9 @@ const php = new PHP(
 ```
 
 The loader chooses the artifact whose `phpVersion` matches the running
-PHP.wasm runtime, downloads it, verifies `sha256` when present, stages the
-`.so`, writes a startup `.ini` file, and registers the extension scan directory
-before PHP starts.
+PHP.wasm runtime, downloads it, stages the `.so`, writes a startup `.ini`
+file, copies any `extraFiles` declared in the manifest, and registers the
+extension scan directory before PHP starts.
 
 In Node.js, `manifestUrl` may also be a local path:
 
@@ -75,7 +105,6 @@ const php = new PHP(
 				source: {
 					format: 'url',
 					url: 'https://example.com/extensions/wp_mysql_parser-php8.4-jspi.so',
-					sha256: '...',
 				},
 			},
 		],

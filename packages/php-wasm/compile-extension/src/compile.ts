@@ -9,7 +9,11 @@ import {
 	createDockerContext,
 	runExtensionBuild,
 } from './docker';
-import type { AsyncMode, BuiltArtifact } from './manifest';
+import type {
+	AsyncMode,
+	BuiltArtifact,
+	ExtensionManifestExtraFiles,
+} from './manifest';
 import { createManifest, ExtensionAsyncMode, writeManifest } from './manifest';
 
 export const SupportedExtensionPHPVersions = [
@@ -43,6 +47,8 @@ export interface CompileExtensionOptions {
 	configArgs: string[];
 	optimize: string;
 	jobs?: number;
+	/** Sidecar files to record at the manifest level. */
+	extraFiles?: ExtensionManifestExtraFiles;
 }
 
 export async function compileExtensionMatrix(options: CompileExtensionOptions) {
@@ -88,7 +94,7 @@ export async function compileExtensionMatrix(options: CompileExtensionOptions) {
 			});
 			return {
 				phpVersion,
-				file: artifactFile,
+				sourcePath: artifactFile,
 				path: path.join(outDir, artifactFile),
 			} satisfies BuiltArtifact;
 		}
@@ -98,6 +104,7 @@ export async function compileExtensionMatrix(options: CompileExtensionOptions) {
 		name: options.name,
 		version,
 		artifacts,
+		extraFiles: options.extraFiles,
 	});
 	const manifestPath = await writeManifest({ outDir, manifest });
 	return { manifestPath, artifacts, manifest };
