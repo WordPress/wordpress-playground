@@ -151,85 +151,26 @@ npx @php-wasm/compile-extension \
 Extension loading is startup-only. Declare custom extensions in the
 `extensions` option before the runtime is created.
 
-## Using the helper from a downstream repository
+## Running the helper in CI
 
-`@php-wasm/compile-extension` is not yet published to npm. Until it is, run it
-from a checkout of `WordPress/wordpress-playground`. CI jobs that build a
-single extension only need a few packages from the monorepo, so a
-sparse-checkout keeps the clone small and the install step fast.
-
-Example GitHub Actions step that pulls just the packages the helper needs to
-build a JSPI side module for PHP `8.0` through `8.5`:
+The helper is published as `@php-wasm/compile-extension` on npm and only
+needs Docker and Node. A typical GitHub Actions job:
 
 ```yaml
-- name: Check out wordpress-playground
-  uses: actions/checkout@v4
+- uses: actions/checkout@v4
+
+- uses: actions/setup-node@v4
   with:
-    repository: WordPress/wordpress-playground
-    ref: trunk
-    path: wordpress-playground
-    sparse-checkout-cone-mode: false
-    sparse-checkout: |
-      /package.json
-      /package-lock.json
-      /nx.json
-      /tsconfig.base.json
-      /packages/meta/
-      /packages/nx-extensions/
-      /packages/php-wasm/cli-util/
-      /packages/php-wasm/compile-extension/
-      /packages/php-wasm/compile/
-      /packages/php-wasm/fs-journal/
-      /packages/php-wasm/logger/
-      /packages/php-wasm/node/
-      /packages/php-wasm/node-builds/8-0/
-      /packages/php-wasm/node-builds/8-1/
-      /packages/php-wasm/node-builds/8-2/
-      /packages/php-wasm/node-builds/8-3/
-      /packages/php-wasm/node-builds/8-4/
-      /packages/php-wasm/node-builds/8-5/
-      /packages/php-wasm/progress/
-      /packages/php-wasm/scopes/
-      /packages/php-wasm/stream-compression/
-      /packages/php-wasm/universal/
-      /packages/php-wasm/util/
+    node-version: '24'
 
-- name: Install Playground deps
-  working-directory: wordpress-playground
-  run: npm ci --ignore-scripts
+- name: Build the extension matrix
+  run: |
+    npx --yes @php-wasm/compile-extension \
+      --source ./my-extension \
+      --name my_extension \
+      --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+      --out ./dist/my-extension
 ```
-
-Adjust the `node-builds` lines to the PHP versions the matrix builds. Add
-`/packages/php-wasm/node-builds/7-4/` when the matrix includes PHP `7.4`, and
-drop entries for versions you do not need. The helper resolves headers and
-side-module link inputs from `packages/php-wasm/compile`, so keep that
-package included even when the build itself runs inside the helper's Docker
-image.
-
-Run the helper from the `wordpress-playground` checkout. `npm ci
---ignore-scripts` does not build the package's bin script, so until
-`@php-wasm/compile-extension` is published to npm, invoke the CLI source
-directly through Node's type-stripping flags:
-
-```bash
-cd wordpress-playground
-
-node \
-	--experimental-strip-types \
-	--experimental-transform-types \
-	--disable-warning=ExperimentalWarning \
-	--import "$PWD/packages/meta/src/node-es-module-loader/register.mts" \
-	./packages/php-wasm/compile-extension/src/cli.ts \
-	--source ../my-extension \
-	--name my_extension \
-	--php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
-	--out ../my-extension/dist
-```
-
-`--source` and any archives listed in `--extra-ldflags` are copied into the
-container under `/build`, so the extension source does not need to live
-inside the `wordpress-playground` checkout. Pass a relative or absolute path
-that points at the extension directory in the downstream repository.
 
 When you build the matrix in GitHub Actions, set `strategy.max-parallel: 1`
 on the WASM job. Parallel Docker builds on hosted runners frequently hit
