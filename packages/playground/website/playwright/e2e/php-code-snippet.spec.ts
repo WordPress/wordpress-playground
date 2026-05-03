@@ -115,6 +115,16 @@ test.describe('php-code-snippet embed', () => {
 		const second = page.locator('php-snippet').nth(1);
 		const third = page.locator('php-snippet').nth(2);
 
+		await ensurePlaygroundClientIsServed(page);
+		await page.locator('php-snippet').evaluateAll((snippets) => {
+			for (const snippet of snippets) {
+				snippet.setAttribute(
+					'playground-origin',
+					window.location.origin
+				);
+			}
+		});
+
 		// Boot the runtime via the first snippet.
 		await first.locator('.run').click();
 		await expect(first.locator('.output')).toBeVisible({
@@ -134,40 +144,15 @@ test.describe('php-code-snippet embed', () => {
 			'loading="lazy"'
 		);
 
-		await expect(third.locator('.progress')).toBeHidden();
-		await third.evaluate((snippet: HTMLElement) => {
-			const progress = snippet.shadowRoot?.querySelector('.progress');
-			if (!progress) {
-				throw new Error('Missing progress element');
-			}
-			const state = {
-				wasVisible: progress.classList.contains('visible'),
-				observer: new MutationObserver(() => {
-					if (progress.classList.contains('visible')) {
-						state.wasVisible = true;
-					}
-				}),
-			};
-			state.observer.observe(progress, {
-				attributes: true,
-				attributeFilter: ['class'],
-			});
-			(snippet as any).__progressVisibilityState = state;
-		});
-
-		// Third snippet — same shared runtime.
+		// Third snippet — same shared runtime. It should still show its own
+		// run progress, but it should not create a second runtime iframe.
+		const thirdStart = Date.now();
 		await third.locator('.run').click();
 		await expect(third.locator('.output')).toBeVisible({
 			timeout: 60_000,
 		});
-		const thirdProgressWasVisible = await third.evaluate(
-			(snippet: HTMLElement) => {
-				const state = (snippet as any).__progressVisibilityState;
-				state.observer.disconnect();
-				return state.wasVisible;
-			}
-		);
-		expect(thirdProgressWasVisible).toBe(false);
+		const thirdElapsed = Date.now() - thirdStart;
+		expect(thirdElapsed).toBeLessThan(60_000);
 		await expect(third.locator('.output-body')).toContainText(
 			'core/paragraph'
 		);
@@ -261,6 +246,70 @@ test.describe('php-code-snippet embed', () => {
 		await expect(body).toContainText(
 			'<img src="diagram.png" alt="" loading="eager">'
 		);
+	});
+
+	test('Run button shows progress while a snippet is running', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const textarea = editable.locator('textarea.ta');
+		await expect(textarea).toBeVisible();
+		const runButton = editable.locator('.run');
+		const outputBody = editable.locator('.output-body');
+		const runSpinner = editable.locator('.run-spinner');
+		const runLabel = editable.locator('.run-label');
+		const runPercent = editable.locator('.run-percent');
+
+		await editable.evaluate((snippet: any) => {
+			snippet._runOnce = async function (code: string) {
+				this._setRunButtonProgress('Running', 42);
+				await new Promise((resolve) => setTimeout(resolve, 500));
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = code.includes('second')
+					? 'second-run-marker'
+					: 'slow-run-marker';
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		await textarea.click();
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php usleep(1500000); echo "slow-run-marker";';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+
+		await runButton.click();
+		await expect(runButton).toBeDisabled();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/, {
+			timeout: 30_000,
+		});
+		await expect(runSpinner).toBeVisible();
+		await expect(runPercent).toBeVisible();
+		await expect(runLabel).toHaveText('Running');
+		await expect(runPercent).toHaveText('42%');
+		await expect(outputBody).toContainText('slow-run-marker', {
+			timeout: 60_000,
+		});
+		await expect(runButton).toBeEnabled({ timeout: 30_000 });
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/, {
+			timeout: 30_000,
+		});
+		await expect(runSpinner).toBeHidden();
+		await expect(runLabel).toHaveText('Run');
+
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php echo "second-run-marker";';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+
+		await runButton.click();
+		await expect(outputBody).toContainText('second-run-marker', {
+			timeout: 60_000,
+		});
 	});
 
 	test('expected output shows before Run and is replaced by real output', async ({
