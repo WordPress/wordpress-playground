@@ -72,7 +72,7 @@ export interface StartPlaygroundOptions {
 	/**
 	 * Whether to download/install WordPress files.
 	 *
-	 * Set this to false when WordPress files are already available, for example
+	 * Set this to `false` when WordPress files are already available, for example
 	 * from `mounts` or a saved site.
 	 *
 	 * This option cannot be set to `true` when `shouldBootWordPress` is `false`,
