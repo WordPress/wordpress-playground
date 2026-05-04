@@ -207,17 +207,17 @@ const NEW_USER_CARDS: Array<{
       `,
 	},
 	{
-		icon: '♨',
-		theme: 'green',
-		label: 'Recipes',
-		sub: 'save your favourites',
+		icon: '⚙',
+		theme: 'sky',
+		label: 'Booting up',
+		sub: 'behind the scenes',
+		detailLabel: 'No server, just your browser',
 		detail: `
-        <div class="recipe-name">Your private online space</div>
-        <div class="recipe-meta">WordPress · Playground · your apps</div>
-        <div class="recipe-section">Ingredients</div>
-        <ul class="recipe-list"><li>WordPress (1 tab)</li><li>Playground (already included)</li><li>Your favourite apps, to taste</li></ul>
-        <div class="recipe-section">Method</div>
-        <ul class="recipe-list"><li>Combine in one browser tab</li><li>Add apps to taste</li><li>Bookmark and serve</li></ul>
+        <div class="habit-row boot-step bs1"><div class="habit-check"></div><div class="habit-label">Prepare WASM environment</div></div>
+        <div class="habit-row boot-step bs2"><div class="habit-check"></div><div class="habit-label">Download PHP runtime</div></div>
+        <div class="habit-row boot-step bs3"><div class="habit-check"></div><div class="habit-label">Download WordPress</div></div>
+        <div class="habit-row boot-step bs4"><div class="habit-check"></div><div class="habit-label">Set up your private database</div></div>
+        <div class="habit-row boot-step bs5"><div class="habit-check"></div><div class="habit-label">Start your site</div></div>
       `,
 	},
 ];
@@ -266,7 +266,6 @@ function renderIntroPanelInner(
     <input type="radio" name="${radioName}" id="${idPrefix}0" class="card-toggle" checked>
     ${radios}
 
-    <div class="eyebrow"><span class="pulse"></span>Preparing your space</div>
     <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
     ${backToggle}
     <p class="intro">Install the tools you need — a reading list, a contacts app, a journal — and they're yours alone, in this tab.</p>
@@ -282,10 +281,6 @@ function renderIntroPanelInner(
         </svg>
       </div>
       ${NEW_USER_CARDS.map((c, i) => renderCard(c, i, idPrefix)).join('\n      ')}
-    </div>
-
-    <div class="footer">
-      <span class="status">Setting things up…</span>
     </div>
 `;
 }
@@ -550,15 +545,10 @@ function getWhatsNewHtml(): string {
     <input type="radio" name="wcard" id="w0" class="card-toggle" checked>
     ${radios}
 
-    <div class="eyebrow"><span class="pulse"></span>Your site is loading</div>
     <h1 class="headline">Welcome <em>back.</em></h1>
     <label for="show-intro" class="intro-toggle">First time here? See the intro →</label>
 
     <div class="field">${cardsHtml}
-    </div>
-
-    <div class="footer">
-      <span class="status">Loading your site…</span>
     </div>
   </div>
 
@@ -619,31 +609,6 @@ function getCardStageCss(): string {
       radial-gradient(ellipse at 70% 80%, var(--accent-tint), transparent 60%);
     pointer-events: none;
     z-index: 0;
-  }
-
-  .eyebrow {
-    font-size: 12px;
-    color: var(--ink-soft);
-    letter-spacing: 0.04em;
-    margin-bottom: 12px;
-    opacity: 0;
-    animation: rise 0.8s ease-out 0.1s forwards;
-    position: relative;
-    z-index: 1;
-  }
-  .eyebrow .pulse {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: var(--accent);
-    border-radius: 50%;
-    margin-right: 8px;
-    vertical-align: middle;
-    animation: blink 1.6s ease-in-out infinite;
-  }
-  @keyframes blink {
-    0%, 100% { opacity: 0.35; }
-    50%       { opacity: 1; }
   }
 
   .headline {
@@ -777,18 +742,6 @@ function getCardStageCss(): string {
     100% { opacity: 1; translate: 0 0;    scale: 1;    }
   }
 
-  .footer {
-    margin-top: 14px;
-    opacity: 0;
-    animation: rise 0.8s ease-out 0.7s forwards;
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .status { font-size: 11px; color: var(--ink-soft); letter-spacing: 0.04em; }
-
   .card-toggle { display: none; position: absolute; }
 
   /* Journal */
@@ -840,6 +793,52 @@ function getCardStageCss(): string {
   .habit-label { color: var(--ink-soft); flex: 1; }
   .habit-label.done { color: var(--ink); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
   .habit-streak { font-size: 10px; color: var(--ink-faint); }
+
+  /* Boot progress: checkmarks fill in over time, regardless of expansion
+     state, so opening the card late shows progress already made. Timings
+     are a visual narrative, not real progress. */
+  .boot-step .habit-check::after {
+    content: '✓';
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent-on); font-size: 10px; font-weight: 600;
+    opacity: 0;
+  }
+  .boot-step .habit-check {
+    animation: boot-fill 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .boot-step .habit-check::after {
+    animation: boot-mark 0.3s ease-out forwards;
+  }
+  .boot-step .habit-label {
+    animation: boot-strike 0.3s ease-out forwards;
+  }
+  @keyframes boot-fill {
+    to { background: var(--accent); border-color: var(--accent); }
+  }
+  @keyframes boot-mark { to { opacity: 1; } }
+  @keyframes boot-strike {
+    to {
+      color: var(--ink);
+      text-decoration: line-through;
+      text-decoration-color: var(--ink-faint);
+    }
+  }
+  .boot-step.bs1 .habit-check,
+  .boot-step.bs1 .habit-check::after,
+  .boot-step.bs1 .habit-label { animation-delay: 1s; }
+  .boot-step.bs2 .habit-check,
+  .boot-step.bs2 .habit-check::after,
+  .boot-step.bs2 .habit-label { animation-delay: 3s; }
+  .boot-step.bs3 .habit-check,
+  .boot-step.bs3 .habit-check::after,
+  .boot-step.bs3 .habit-label { animation-delay: 6s; }
+  .boot-step.bs4 .habit-check,
+  .boot-step.bs4 .habit-check::after,
+  .boot-step.bs4 .habit-label { animation-delay: 9s; }
+  .boot-step.bs5 .habit-check,
+  .boot-step.bs5 .habit-check::after,
+  .boot-step.bs5 .habit-label { animation-delay: 12s; }
 
   /* Backups wiki */
   .wiki-term { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
