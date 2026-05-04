@@ -1,0 +1,10 @@
+{
+	"compilations": [
+		{
+			"platform": "web",
+			"phpVersion": "7.4",
+			"variant": "jspi",
+			"requestedAt": "2026-03-16T13:13:49.438Z"
+		}
+	]
+}

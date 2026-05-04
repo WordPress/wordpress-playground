@@ -1,0 +1,263 @@
+name: Compile PHP WASM
+
+on:
+    push:
+        paths:
+            - 'packages/php-wasm/.recompile-request.json'
+
+permissions:
+    id-token: write
+    contents: write
+    pull-requests: write
+
+jobs:
+    read-matrix:
+        runs-on: ubuntu-latest
+        outputs:
+            compile_matrix: ${{ steps.set-matrix.outputs.compile_matrix }}
+            publish_matrix: ${{ steps.set-matrix.outputs.publish_matrix }}
+            has_compilations: ${{ steps.set-matrix.outputs.has_compilations }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Build job matrix from .recompile-request.json
+              id: set-matrix
+              run: |
+                  if [ ! -f packages/php-wasm/.recompile-request.json ]; then
+                    echo "has_compilations=false" >> "$GITHUB_OUTPUT"
+                    echo "compile_matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+                    echo "publish_matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+                  node -e "
+                    const data = JSON.parse(require('fs').readFileSync('packages/php-wasm/.recompile-request.json', 'utf8'));
+                    const compilations = (data.compilations ?? []).filter(c => c.requestedAt);
+
+                    // One compile job per platform+version+variant
+                    const compileItems = compilations.map(c => ({
+                      platform: c.platform,
+                      phpVersion: c.phpVersion,
+                      phpVersionSlug: c.phpVersion.replace('.', '-'),
+                      variant: c.variant,
+                      artifactSuffix: c.platform + '-' + c.phpVersion.replace('.', '-') + '-' + c.variant,
+                      requestedAt: c.requestedAt
+                    }));
+
+                    // One publish job per unique platform+version, using the latest requestedAt
+                    const publishMap = new Map();
+                    for (const c of compilations) {
+                      const key = c.platform + '-' + c.phpVersion;
+                      const existing = publishMap.get(key);
+                      if (!existing || c.requestedAt > existing.requestedAt) {
+                        publishMap.set(key, {
+                          platform: c.platform,
+                          phpVersion: c.phpVersion,
+                          phpVersionSlug: c.phpVersion.replace('.', '-'),
+                          packageSuffix: c.platform + '-' + c.phpVersion.replace('.', '-'),
+                          requestedAt: c.requestedAt
+                        });
+                      }
+                    }
+
+                    const fs = require('fs');
+                    fs.appendFileSync(process.env.GITHUB_OUTPUT, 'compile_matrix=' + JSON.stringify({ include: compileItems }) + '\n');
+                    fs.appendFileSync(process.env.GITHUB_OUTPUT, 'publish_matrix=' + JSON.stringify({ include: [...publishMap.values()] }) + '\n');
+                  "
+                  echo "has_compilations=true" >> "$GITHUB_OUTPUT"
+
+    compile:
+        needs: read-matrix
+        # Skip on trunk: dev packages are published from the PR branch, and
+        # the merge commit to trunk would otherwise retrigger compile for the
+        # same requestedAt.
+        if: >
+            needs.read-matrix.outputs.has_compilations == 'true' &&
+            github.ref != 'refs/heads/trunk'
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix: ${{ fromJSON(needs.read-matrix.outputs.compile_matrix) }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Free up runner disk space
+              run: |
+                  set -euo pipefail
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+            - name: Compile ${{ matrix.variant }} variant
+              run: >
+                  node packages/php-wasm/compile/build.js
+                  --PLATFORM=${{ matrix.platform }}
+                  --PHP_VERSION=${{ matrix.phpVersion }}
+                  --JSPI=${{ matrix.variant == 'jspi' && 'true' || 'false' }}
+
+            - name: Upload compiled artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: php-wasm-${{ matrix.artifactSuffix }}
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/${{ matrix.variant }}/
+                  retention-days: 3
+
+    publish:
+        needs: [read-matrix, compile]
+        # Only Playground maintainers can publish to npm. Non-maintainers can
+        # still trigger compile to iterate on binaries; publish is the gated
+        # step. Trunk is skipped so merges don't republish the same version.
+        if: >
+            needs.read-matrix.outputs.has_compilations == 'true' &&
+            github.ref != 'refs/heads/trunk' &&
+            (
+              github.actor == 'adamziel' ||
+              github.actor == 'dmsnell' ||
+              github.actor == 'bgrgicak' ||
+              github.actor == 'brandonpayton' ||
+              github.actor == 'zaerl' ||
+              github.actor == 'janjakes' ||
+              github.actor == 'mho22' ||
+              github.actor == 'ashfame'
+            )
+        runs-on: ubuntu-latest
+        environment:
+            name: npm
+        strategy:
+            fail-fast: false
+            matrix: ${{ fromJSON(needs.read-matrix.outputs.publish_matrix) }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+
+            - name: Set up Node.js with OIDC
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  registry-url: 'https://registry.npmjs.org'
+
+            - name: Upgrade npm for trusted publishing
+              run: npm install -g npm@latest
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Download jspi artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: php-wasm-${{ matrix.packageSuffix }}-jspi
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/jspi/
+              continue-on-error: true
+
+            - name: Download asyncify artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: php-wasm-${{ matrix.packageSuffix }}-asyncify
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/asyncify/
+              continue-on-error: true
+
+            - name: Build package
+              run: >
+                  npx nx build
+                  php-wasm-${{ matrix.packageSuffix }}
+
+            - name: Determine version
+              # Version is derived from the entry's requestedAt timestamp in
+              # .recompile-request.json — the same value download-wasm.mjs uses
+              # locally. No bot commit needed: the version is deterministic from
+              # file content already in the repository.
+              id: version
+              run: |
+                  CURRENT=$(node -e "console.log(require('./lerna.json').version)")
+                  COMPACT=$(node -e "console.log('${{ matrix.requestedAt }}'.replace(/[-:.Z]/g, '').slice(0, 15))")
+                  VERSION="${CURRENT}-wasm.${COMPACT}"
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+            - name: Inject version and dev name into dist package.json
+              # Dev builds are published under a distinct name
+              # (`@php-wasm/dev-<suffix>`) so they're visibly segregated from
+              # the production `@php-wasm/<suffix>` packages on npm. The
+              # source package.json is untouched — only the dist copy is
+              # renamed for publish.
+              run: |
+                  node -e "
+                    const pkgPath = 'dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/package.json';
+                    const pkg = JSON.parse(require('fs').readFileSync(pkgPath, 'utf8'));
+                    pkg.name = '@php-wasm/dev-${{ matrix.packageSuffix }}';
+                    pkg.version = '${{ steps.version.outputs.version }}';
+                    require('fs').writeFileSync(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
+                  "
+
+            - name: Publish to npm
+              run: >
+                  npm publish
+                  --tag wasm
+                  --access public
+              working-directory: dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Output published version
+              run: echo "Published @php-wasm/dev-${{ matrix.packageSuffix }}@${{ steps.version.outputs.version }}"
+
+    post-comment:
+        needs: [read-matrix, publish]
+        runs-on: ubuntu-latest
+        # Trigger is `on: push`, so github.event.pull_request is empty.
+        # We resolve the PR number from the pushed branch with `gh pr list`.
+        if: >
+            needs.read-matrix.outputs.has_compilations == 'true' &&
+            github.ref != 'refs/heads/trunk'
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Resolve PR number from branch
+              id: pr
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  PR=$(gh pr list \
+                    --head "${{ github.ref_name }}" \
+                    --state open \
+                    --json number \
+                    --jq '.[0].number // empty')
+                  echo "number=$PR" >> "$GITHUB_OUTPUT"
+
+            - name: Post PR comment
+              if: steps.pr.outputs.number != ''
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const matrix = ${{ needs.read-matrix.outputs.publish_matrix }};
+                      const lernaVersion = require('./lerna.json').version;
+                      const lines = matrix.include.map(item => {
+                        const compact = item.requestedAt.replace(/[-:.Z]/g, '').slice(0, 15);
+                        const version = `${lernaVersion}-wasm.${compact}`;
+                        return `- \`@php-wasm/dev-${item.packageSuffix}@${version}\``;
+                      });
+                      const body = [
+                        '### PHP WASM packages published',
+                        '',
+                        'The following pre-release packages are now available on npm:',
+                        '',
+                        ...lines,
+                        '',
+                        'Run `npm run prepare-wasm` to download them locally.',
+                      ].join('\n');
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: Number('${{ steps.pr.outputs.number }}'),
+                        body,
+                      });

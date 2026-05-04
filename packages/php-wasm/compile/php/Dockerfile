@@ -138,7 +138,7 @@ RUN touch /root/.configure-flags && \
 	touch /root/.JS_ABI_EXPORTS && \
 	touch /root/.WASM_ABI_EXPORTS
 
-RUN apt install -y bison;
+RUN apt update && apt install -y --no-install-recommends bison && apt clean && rm -rf /var/lib/apt/lists/*;
 
 # Add libzip and zlib files if needed
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
@@ -2256,7 +2256,9 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then 
 		echo '___c_longjmp' >> /root/.JS_ABI_EXPORTS; \
 	fi;
 
-COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
+ARG PHP_VERSION_DIR
+ARG ASYNCIFY_OR_JSPI_DIR
+COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${ASYNCIFY_OR_JSPI_DIR}/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${ASYNCIFY_OR_JSPI_DIR}/
 COPY ./compile/shared/ /root/shared/
 RUN	set -eux; \
 	PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \

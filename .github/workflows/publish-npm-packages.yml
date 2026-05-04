@@ -88,13 +88,39 @@ jobs:
 
             - uses: ./.github/actions/prepare-playground
 
-            - name: Publish NPM packages
-              # Version bump, release, tag a new version on GitHub.
-              # On non-trunk branches, --no-push avoids pushing the version
-              # bump commit back to the branch. The published packages still
-              # get the version bump in their package.json on npm.
+            - name: Bump version (trunk)
+              # Bump all package versions and create a local git commit + tag,
+              # but do not push yet — the next step amends the commit to include
+              # the recompile overrides reset so both land as one commit.
+              if: github.ref == 'refs/heads/trunk'
+              run: lerna version ${{ inputs.version_bump || 'patch' }} --yes --no-push
+
+            - name: Delete recompile request and push (trunk)
+              # Delete .recompile-request.json so download-wasm.mjs falls back
+              # to each package's own package.json version (the new stable release).
+              # Deleting avoids leaving stale entries and keeps the "no active
+              # recompile" state unambiguous.
+              if: github.ref == 'refs/heads/trunk'
+              run: |
+                  git rm --ignore-unmatch packages/php-wasm/.recompile-request.json
+                  git commit --amend --no-edit
+                  NEW_VERSION=$(node -e "console.log(require('./lerna.json').version)")
+                  git tag -f "v${NEW_VERSION}"
+                  git push origin trunk --follow-tags
+
+            - name: Publish NPM packages (trunk)
+              if: github.ref == 'refs/heads/trunk'
+              run: >
+                  lerna publish from-git
+                  --yes --no-private --loglevel=verbose
+                  --dist-tag=${{ inputs.dist_tag || 'latest' }}
+
+            - name: Publish NPM packages (non-trunk)
+              # On non-trunk branches no commit or tag is created — the version
+              # bump only affects the published package.json on npm.
+              if: github.ref != 'refs/heads/trunk'
               run: >
                   lerna publish ${{ inputs.version_bump || 'patch' }}
                   --yes --no-private --loglevel=verbose
                   --dist-tag=${{ inputs.dist_tag || 'latest' }}
-                  ${{ github.ref != 'refs/heads/trunk' && '--no-push --no-git-tag-version' || '' }}
+                  --no-push --no-git-tag-version

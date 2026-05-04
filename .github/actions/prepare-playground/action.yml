@@ -39,6 +39,9 @@ runs:
         - name: Set NX_HEAD
           shell: bash
           run: echo "NX_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        - name: Download PHP WASM binaries
+          shell: bash
+          run: npm run prepare-wasm
         - name: Reset NX cache
           shell: bash
           run: npx nx reset
