@@ -192,6 +192,16 @@ async function waitForNewPostEditorHtml(frame, timeoutSeconds = 30) {
 }
 
 /**
+ * Checks for the TinyMCE inline-style regression without waiting for
+ * TinyMCE itself to initialize. The bug surfaces as a script parse/init
+ * error while the new-post page loads.
+ */
+function checkTinyMCEInlineStyleErrors(consoleErrors, consoleStartIndex) {
+	const error = findTinyMCEInitError(consoleErrors, consoleStartIndex);
+	return error ? { status: 'ERROR', detail: error } : { status: 'OK' };
+}
+
+/**
  * Navigates inside the Playground via the URL bar and then waits for
  * the WordPress content frame to actually navigate to `path`.
  *
@@ -329,6 +339,20 @@ function captureConsoleErrors(page, consoleErrors) {
 	page.on('console', (msg) => {
 		if (msg.type() === 'error')
 			consoleErrors.push(msg.text().slice(0, 300));
+	});
+	page.on('pageerror', (error) => {
+		consoleErrors.push(error.message.slice(0, 300));
+	});
+}
+
+function findTinyMCEInitError(consoleErrors, startIndex = 0) {
+	return consoleErrors.slice(startIndex).find((message) => {
+		const lower = message.toLowerCase();
+		return (
+			lower.includes('tinymcepreinit') ||
+			lower.includes('truetype') ||
+			lower.includes('content_style')
+		);
 	});
 }
 
@@ -561,6 +585,7 @@ for (const { wp, php } of MATRIX) {
 				const newPostPath = NEW_POST_URL_VERSIONS.has(wp)
 					? '/wp-admin/post.php'
 					: '/wp-admin/post-new.php';
+				const consoleStartIndex = consoleErrors.length;
 				const wp3 = await navigateViaUrlBar(page, newPostPath, 30);
 				if (!wp3) {
 					newPostStatus = { status: 'TIMEOUT' };
@@ -620,7 +645,18 @@ for (const { wp, php } of MATRIX) {
 								: 'permission denied',
 						};
 					} else if (hasEditor) {
-						newPostStatus = { status: 'OK' };
+						const tinyMCEStatus = checkTinyMCEInlineStyleErrors(
+							consoleErrors,
+							consoleStartIndex
+						);
+						if (tinyMCEStatus.status === 'OK') {
+							newPostStatus = { status: 'OK' };
+						} else {
+							newPostStatus = {
+								status: tinyMCEStatus.status,
+								detail: tinyMCEStatus.detail,
+							};
+						}
 					} else {
 						newPostStatus = {
 							status: 'UNKNOWN',

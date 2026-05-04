@@ -201,12 +201,35 @@ export async function writeCommonPlatformMuPlugins(
 				if (!empty($settings['content_style'])) {
 					$inline_css = $settings['content_style'] . "\\n" . $inline_css;
 				}
-				$settings['content_style'] = $inline_css;
+				$settings['content_style'] =
+					playground_escape_tinymce_content_style_for_wp_editor_serializer($inline_css);
 				$settings['content_css'] = '';
 			}
 			return $settings;
 		}
 		add_filter('tiny_mce_before_init', 'playground_inline_tinymce_content_css');
+
+		// _WP_Editors::_parse_init() wraps strings in double quotes without escaping them.
+		// Encode the CSS as a JavaScript string body before WordPress adds those quotes.
+		function playground_escape_tinymce_content_style_for_wp_editor_serializer($css) {
+			$encoded = json_encode($css);
+			if (
+				is_string($encoded) &&
+				substr($encoded, 0, 1) === chr(34) &&
+				substr($encoded, -1) === chr(34)
+			) {
+				$escaped = substr($encoded, 1, -1);
+			} else {
+				// Fallback: json_encode() can fail on non-UTF-8 CSS bytes.
+				// Escape the bytes that would break _WP_Editors::_parse_init().
+				$escaped = str_replace(
+					array('\\\\', chr(34), "\\r", "\\n", "\\xe2\\x80\\xa8", "\\xe2\\x80\\xa9"),
+					array('\\\\\\\\', '\\\\' . chr(34), '\\\\r', '\\\\n', '\\\\u2028', '\\\\u2029'),
+					$css
+				);
+			}
+			return str_replace('</', '<\\/', $escaped);
+		}
 		`
 	);
 }
