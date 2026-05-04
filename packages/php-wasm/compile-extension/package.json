@@ -21,6 +21,7 @@
 		"php-wasm-compile-extension": "./cli.js"
 	},
 	"dependencies": {
+		"isomorphic-git": "1.37.6",
 		"yargs": "17.7.2"
 	},
 	"engines": {

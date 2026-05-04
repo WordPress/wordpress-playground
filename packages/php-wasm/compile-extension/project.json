@@ -7,7 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:docker-assets"]
+			"dependsOn": ["build:README"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -18,16 +18,11 @@
 			},
 			"dependsOn": ["build:package-json"]
 		},
-		"build:docker-assets": {
+		"build:clean": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": [
-					"cp -R packages/php-wasm/compile-extension/docker dist/packages/php-wasm/compile-extension/docker",
-					"cp -R packages/php-wasm/compile-extension/scripts dist/packages/php-wasm/compile-extension/scripts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:package-json"]
+				"command": "rm -rf dist/packages/php-wasm/compile-extension"
+			}
 		},
 		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
@@ -35,7 +30,8 @@
 				"tsConfig": "packages/php-wasm/compile-extension/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/compile-extension",
 				"buildTarget": "php-wasm-compile-extension:build:bundle:production"
-			}
+			},
+			"dependsOn": ["build:clean"]
 		},
 		"build:bundle": {
 			"executor": "@nx/vite:build",
@@ -90,6 +86,12 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"command": "packages/php-wasm/compile-extension/tests/run-integration-tests.sh"
+			}
+		},
+		"test-lazy-docker-asset-fetch": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "packages/php-wasm/compile-extension/tests/test-lazy-docker-asset-fetch.sh"
 			}
 		}
 	}

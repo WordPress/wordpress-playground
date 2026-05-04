@@ -27,6 +27,8 @@ export default defineConfig({
 				'crypto',
 				'fs',
 				'fs/promises',
+				'isomorphic-git',
+				'isomorphic-git/http/node',
 				'node:child_process',
 				'node:crypto',
 				'node:fs',

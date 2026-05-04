@@ -1,12 +1,20 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import {
+	ensureDockerAssets,
+	isPhpWasmDockerContext,
+	type EnsureDockerAssetsOptions,
+} from './docker-assets';
 import type { AsyncMode } from './manifest';
 
 export interface DockerBuildContext {
 	workspaceRoot: string;
 	phpWasmRoot: string;
 	compileRoot: string;
+	compileExtensionRoot: string;
 }
 
 export interface DockerImageOptions extends DockerBuildContext {
@@ -26,13 +34,57 @@ export interface DockerRunOptions extends DockerImageOptions {
 	configArgs: string[];
 }
 
-export function createDockerContext(workspaceRoot: string): DockerBuildContext {
-	const phpWasmRoot = path.join(workspaceRoot, 'packages/php-wasm');
+export interface CreateDockerContextOptions {
+	packageRoot?: string;
+	cacheRoot?: string;
+	fetchDockerAssets?: EnsureDockerAssetsOptions['fetchDockerAssets'];
+}
+
+export async function createDockerContext(
+	workspaceRoot: string,
+	options: CreateDockerContextOptions = {}
+): Promise<DockerBuildContext> {
+	const workspacePhpWasmRoot = path.join(workspaceRoot, 'packages/php-wasm');
+	if (isPhpWasmDockerContext(workspacePhpWasmRoot)) {
+		return createContext(workspaceRoot, workspacePhpWasmRoot);
+	}
+
+	const packageRoot = options.packageRoot ?? findPackageRoot();
+	const packagePhpWasmRoot = path.join(packageRoot, 'php-wasm');
+	if (isPhpWasmDockerContext(packagePhpWasmRoot)) {
+		return createContext(workspaceRoot, packagePhpWasmRoot);
+	}
+
+	const fetchedPhpWasmRoot = await ensureDockerAssets({
+		workspaceRoot,
+		packageRoot,
+		cacheRoot: options.cacheRoot,
+		fetchDockerAssets: options.fetchDockerAssets,
+	});
+	return createContext(workspaceRoot, fetchedPhpWasmRoot);
+}
+
+function createContext(
+	workspaceRoot: string,
+	phpWasmRoot: string
+): DockerBuildContext {
 	return {
 		workspaceRoot,
 		phpWasmRoot,
 		compileRoot: path.join(phpWasmRoot, 'compile'),
+		compileExtensionRoot: path.join(phpWasmRoot, 'compile-extension'),
 	};
+}
+
+function findPackageRoot(): string {
+	let directory = path.dirname(fileURLToPath(import.meta.url));
+	while (directory !== path.dirname(directory)) {
+		if (existsSync(path.join(directory, 'package.json'))) {
+			return directory;
+		}
+		directory = path.dirname(directory);
+	}
+	return path.dirname(fileURLToPath(import.meta.url));
 }
 
 export async function assertDockerIsAvailable(): Promise<void> {
@@ -49,9 +101,20 @@ export async function assertDockerIsAvailable(): Promise<void> {
 }
 
 export async function buildBaseImage(context: DockerBuildContext) {
-	await runCommand('make', ['base-image'], {
-		cwd: context.compileRoot,
-	});
+	await runCommand(
+		'docker',
+		[
+			'build',
+			'-f',
+			'./Dockerfile',
+			'.',
+			'--tag=playground-php-wasm:base',
+			'--progress=plain',
+		],
+		{
+			cwd: path.join(context.compileRoot, 'base-image'),
+		}
+	);
 }
 
 export async function buildExtensionImage(

@@ -8,6 +8,7 @@ import { hideBin } from 'yargs/helpers';
 
 import {
 	compileExtensionMatrix,
+	prepareExtensionBuildImages,
 	SupportedExtensionPHPVersions,
 } from './compile';
 import { detectExtensionName } from './detect';
@@ -22,12 +23,17 @@ const OptionsWithDashPrefixedValues = new Set([
 export async function main(args = hideBin(process.argv)) {
 	const argv = await yargs(normalizeDashPrefixedOptionValues(args))
 		.scriptName('@php-wasm/compile-extension')
-		.usage('Usage: $0 --source <dir> [options]')
+		.usage('Usage: $0 [--source <dir> | --prepare-image] [options]')
 		.options({
 			source: {
 				type: 'string',
-				demandOption: true,
 				description: 'Extension source directory containing config.m4',
+			},
+			'prepare-image': {
+				type: 'boolean',
+				default: false,
+				description:
+					'Build the Docker images for the requested PHP versions and exit without compiling an extension source directory.',
 			},
 			name: {
 				type: 'string',
@@ -79,14 +85,34 @@ export async function main(args = hideBin(process.argv)) {
 		.parse();
 
 	const workspaceRoot = findWorkspaceRoot(process.cwd());
-	const sourceDir = path.resolve(workspaceRoot, argv['source'] as string);
-	const name =
-		(argv['name'] as string | undefined) ??
-		(await detectExtensionName(sourceDir));
 	const phpVersions = parseCsv(
 		argv['php-versions'] as string,
 		'php-versions'
 	);
+
+	if (argv['prepare-image']) {
+		const result = await prepareExtensionBuildImages({
+			workspaceRoot,
+			phpVersions,
+			jobs: argv['jobs'] as number | undefined,
+		});
+		console.log(
+			`Prepared ${result.images.length} PHP.wasm extension build images.`
+		);
+		for (const image of result.images) {
+			console.log(image.imageTag);
+		}
+		return;
+	}
+
+	const source = argv['source'] as string | undefined;
+	if (!source) {
+		throw new Error('--source is required unless --prepare-image is set.');
+	}
+	const sourceDir = path.resolve(workspaceRoot, source);
+	const name =
+		(argv['name'] as string | undefined) ??
+		(await detectExtensionName(sourceDir));
 	const configArgs = splitShellWords((argv['config-args'] as string) || '');
 	const extraFilesSpecs = (argv['extra-files'] as string[]).map(
 		parseExtraFilesSpec
@@ -206,7 +232,12 @@ function findWorkspaceRoot(startDirectory: string): string {
 	let directory = path.resolve(startDirectory);
 	while (directory !== path.dirname(directory)) {
 		if (
-			existsSync(path.join(directory, 'packages/php-wasm/compile')) &&
+			existsSync(
+				path.join(
+					directory,
+					'packages/php-wasm/compile-extension/package.json'
+				)
+			) &&
 			existsSync(path.join(directory, 'nx.json'))
 		) {
 			return directory;

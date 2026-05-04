@@ -1,0 +1,208 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import {
+	readJsonFile,
+	sparseCheckoutFiles,
+	stableHash,
+} from './git-sparse-checkout';
+
+export const PlaygroundRepositoryUrl =
+	'https://github.com/WordPress/wordpress-playground.git';
+
+export const DockerAssetPaths = [
+	'compile/base-image/Dockerfile',
+	'compile/base-image/emcc-for-php-wasm.sh',
+	'compile/base-image/replace.sh',
+	'compile/base-image/replace-across-lines.sh',
+	'compile/php/php7.4.patch',
+	'compile/php/php8.0.patch',
+	'compile/php/php8.1.patch',
+	'compile/php/php8.2.patch',
+	'compile/php/php8.3.patch',
+	'compile/php/php8.4.patch',
+	'compile/php/php8.5.patch',
+	'compile-extension/docker/Dockerfile.ext',
+	'compile-extension/scripts/build-in-docker.sh',
+];
+
+const PlaygroundDockerAssetPaths = DockerAssetPaths.map(
+	(relativePath) => `packages/php-wasm/${relativePath}`
+);
+
+export interface EnsureDockerAssetsOptions {
+	workspaceRoot: string;
+	packageRoot: string;
+	cacheRoot?: string;
+	fetchDockerAssets?: typeof fetchDockerAssets;
+}
+
+export interface FetchDockerAssetsOptions {
+	ref: string;
+	cacheRoot: string;
+}
+
+export async function ensureDockerAssets({
+	workspaceRoot,
+	packageRoot,
+	cacheRoot = getDockerAssetsCacheRoot(),
+	fetchDockerAssets: fetchDockerAssetsOption,
+}: EnsureDockerAssetsOptions): Promise<string> {
+	const ref = resolveDockerAssetsRef({ workspaceRoot, packageRoot });
+	const phpWasmRoot = path.join(cacheRoot, stableHash(ref), 'php-wasm');
+
+	if (isPhpWasmDockerContext(phpWasmRoot)) {
+		return phpWasmRoot;
+	}
+
+	console.log(
+		`Fetching PHP.wasm Docker assets from WordPress/wordpress-playground ${ref}.`
+	);
+	const fetchedPhpWasmRoot = await (
+		fetchDockerAssetsOption ?? fetchDockerAssets
+	)({ ref, cacheRoot });
+	if (!isPhpWasmDockerContext(fetchedPhpWasmRoot)) {
+		throw new Error(
+			`Fetched PHP.wasm Docker assets from ${ref}, but the cache is incomplete.`
+		);
+	}
+	return fetchedPhpWasmRoot;
+}
+
+export async function fetchDockerAssets({
+	ref,
+	cacheRoot,
+}: FetchDockerAssetsOptions): Promise<string> {
+	const cacheDir = path.join(cacheRoot, stableHash(ref));
+	const phpWasmRoot = path.join(cacheDir, 'php-wasm');
+	const tempDir = `${cacheDir}-${process.pid}-${Date.now()}.tmp`;
+	const tempPhpWasmRoot = path.join(tempDir, 'php-wasm');
+
+	await rm(tempDir, { recursive: true, force: true });
+	await mkdir(tempPhpWasmRoot, { recursive: true });
+
+	try {
+		await sparseCheckoutFiles({
+			repoUrl: PlaygroundRepositoryUrl,
+			ref,
+			paths: PlaygroundDockerAssetPaths,
+			outDir: tempDir,
+			workDir: path.join(tempDir, '.git-work'),
+		});
+
+		for (const relativePath of DockerAssetPaths) {
+			const source = path.join(
+				tempDir,
+				'packages/php-wasm',
+				relativePath
+			);
+			const destination = path.join(tempPhpWasmRoot, relativePath);
+			await mkdir(path.dirname(destination), { recursive: true });
+			await rename(source, destination);
+		}
+
+		await writeFile(
+			path.join(tempPhpWasmRoot, 'source.json'),
+			`${JSON.stringify({ repository: PlaygroundRepositoryUrl, ref }, null, 2)}\n`
+		);
+		await rm(path.join(tempDir, '.git-work'), {
+			recursive: true,
+			force: true,
+		});
+		await rm(path.join(tempDir, 'packages'), {
+			recursive: true,
+			force: true,
+		});
+
+		await rm(cacheDir, { recursive: true, force: true });
+		await mkdir(path.dirname(cacheDir), { recursive: true });
+		await rename(tempDir, cacheDir);
+	} catch (error) {
+		await rm(tempDir, { recursive: true, force: true });
+		throw error;
+	}
+
+	return phpWasmRoot;
+}
+
+export function isPhpWasmDockerContext(phpWasmRoot: string): boolean {
+	return DockerAssetPaths.every((relativePath) =>
+		existsSync(path.join(phpWasmRoot, relativePath))
+	);
+}
+
+export function resolveDockerAssetsRef({
+	workspaceRoot,
+	packageRoot,
+}: {
+	workspaceRoot: string;
+	packageRoot: string;
+}): string {
+	if (isPlaygroundWorkspace(workspaceRoot)) {
+		return 'trunk';
+	}
+	const packageJson = readPackageJson(packageRoot);
+	const version = packageJson.version;
+	if (!version) {
+		throw new Error(
+			`Could not resolve @php-wasm/compile-extension version from ${packageRoot}.`
+		);
+	}
+	return `v${version}`;
+}
+
+export function isPlaygroundWorkspace(workspaceRoot: string): boolean {
+	return (
+		existsSync(path.join(workspaceRoot, 'nx.json')) &&
+		existsSync(
+			path.join(
+				workspaceRoot,
+				'packages/php-wasm/compile-extension/package.json'
+			)
+		)
+	);
+}
+
+export function getDockerAssetsCacheRoot(): string {
+	const configuredCacheDir =
+		process.env['PHP_WASM_COMPILE_EXTENSION_CACHE_DIR'];
+	if (configuredCacheDir) {
+		return configuredCacheDir;
+	}
+	const xdgCacheHome = process.env['XDG_CACHE_HOME'];
+	if (xdgCacheHome) {
+		return path.join(
+			xdgCacheHome,
+			'php-wasm/compile-extension/docker-assets'
+		);
+	}
+	const home = os.homedir();
+	if (home) {
+		return path.join(home, '.cache/php-wasm/compile-extension/docker-assets');
+	}
+	return path.join(os.tmpdir(), 'php-wasm/compile-extension/docker-assets');
+}
+
+function readPackageJson(packageRoot: string): { version?: string } {
+	const packageJsonPath = path.join(packageRoot, 'package.json');
+	if (!existsSync(packageJsonPath)) {
+		return {};
+	}
+	return JSON.parse(
+		// This file is tiny and read synchronously while resolving CLI startup
+		// paths; keeping the API sync avoids threading async through ref helpers.
+		readFileSync(packageJsonPath, 'utf8')
+	) as { version?: string };
+}
+
+export async function readDockerAssetSource(
+	phpWasmRoot: string
+): Promise<{ repository: string; ref: string } | undefined> {
+	const sourceFile = path.join(phpWasmRoot, 'source.json');
+	if (!existsSync(sourceFile)) {
+		return undefined;
+	}
+	return readJsonFile(sourceFile);
+}

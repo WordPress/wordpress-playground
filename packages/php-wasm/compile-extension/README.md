@@ -46,13 +46,14 @@ creates them before PHP starts.
 
 The supported `--php-versions` are `7.4` and `8.0` through `8.5`.
 
-Docker is required. The build reuses the `packages/php-wasm/compile` base image
-and its PHP patch set, then runs `phpize`, `emconfigure`, and `emmake` inside
-the container.
+Docker is required. The CLI lazily fetches the small PHP.wasm Docker asset set
+needed to prepare the Emscripten base image and PHP patch set, then runs
+`phpize`, `emconfigure`, and `emmake` inside the container.
 
 ## Running in CI
 
-The package only needs Docker and Node. A typical GitHub Actions job:
+The package only needs Docker and Node. It does not require a checkout of
+`WordPress/wordpress-playground`. A typical GitHub Actions job:
 
 ```yaml
 - uses: actions/checkout@v4
@@ -72,6 +73,34 @@ The package only needs Docker and Node. A typical GitHub Actions job:
 In a matrix workflow, set `strategy.max-parallel: 1` on the WASM job —
 parallel Docker builds on hosted runners often hit apt-mirror flakes during
 the base image build.
+
+On first use, a published `@php-wasm/compile-extension` package fetches Docker
+assets from the matching `WordPress/wordpress-playground` tag, such as
+`v3.1.27` for package version `3.1.27`. When running from a Playground
+workspace, it uses local workspace assets when available and otherwise fetches
+from `trunk`. Fetched assets are cached under
+`~/.cache/php-wasm/compile-extension/docker-assets`, or under
+`PHP_WASM_COMPILE_EXTENSION_CACHE_DIR` when that environment variable is set.
+
+## Preparing the build image
+
+Advanced workflows may need to run another build step inside the same
+Emscripten/PHP image before compiling the final phpize extension. For example,
+a Rust extension can build a `wasm32-unknown-emscripten` `staticlib` first and
+then pass that archive through `--extra-ldflags`.
+
+Use `--prepare-image` to build the package-owned Docker image and exit without
+compiling an extension source directory:
+
+```bash
+npx @php-wasm/compile-extension \
+	--prepare-image \
+	--php-versions 8.4 \
+	--jobs 1
+```
+
+For PHP `8.4`, the prepared image tag is
+`playground-php-wasm:compile-extension-php8-4-jspi`.
 
 ## Loading the result
 
@@ -146,21 +175,11 @@ The helper can only link WebAssembly objects built with the same Emscripten
 toolchain and JSPI ABI as the PHP runtime. Native host libraries from
 `/usr/lib`, Homebrew, apt, or npm packages cannot be linked into the `.so`.
 
-For dependencies already built by Playground, build the matching target and pass
-the mounted path under `/php-wasm-compile`:
+The lazy-fetched asset set includes only the Docker files required for the PHP
+extension build itself. It does not include prebuilt Playground dependency
+archives such as `libz`, `libxml2`, or `libpng`.
 
-```bash
-make -C packages/php-wasm/compile libz_jspi
-
-npx @php-wasm/compile-extension \
-	--source ./zlib-probe \
-	--name zlib_probe \
-	--php-versions 8.4 \
-	--extra-cflags "-I/php-wasm-compile/libz/jspi/dist/root/lib/include" \
-	--extra-ldflags "/php-wasm-compile/libz/jspi/dist/root/lib/lib/libz.a"
-```
-
-For dependencies that are not in `packages/php-wasm/compile`, either:
+For dependencies:
 
 - Vendor the dependency source under your extension and build it from
   `config.m4`, using paths under `/build` after the helper copies `/src`.
@@ -286,6 +305,11 @@ patch the extension's build recipe to use the WebAssembly archive directly.
 Static `.a` archives passed via `--extra-ldflags` are force-linked with
 `--whole-archive` so the side module contains the dependency code it needs.
 
+When developing inside the WordPress Playground monorepo, the CLI still prefers
+the workspace Docker assets. In that monorepo-only workflow, dependency archives
+built under `packages/php-wasm/compile` are mounted at `/php-wasm-compile`.
+Package consumers should not need that path in CI.
+
 ## Troubleshooting
 
 `Could not detect the extension name`
@@ -296,9 +320,10 @@ Pass `--name` explicitly, or make sure `config.m4` contains `PHP_ARG_ENABLE`,
 `configure: error: ... not found`
 
 The dependency headers or libraries are not visible inside the container. Use
-paths under `/build` for files copied from `--source`, or
-`/php-wasm-compile/<dependency>/<mode>/dist/root/lib` for Playground-built
-dependencies.
+paths under `/build` for files copied from `--source`. The
+`/php-wasm-compile/<dependency>/<mode>/dist/root/lib` paths are only available
+when running inside a WordPress Playground monorepo checkout with those
+dependency archives already built.
 
 `undefined symbol` when loading the extension
 

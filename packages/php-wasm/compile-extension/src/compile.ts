@@ -51,19 +51,57 @@ export interface CompileExtensionOptions {
 	extraFiles?: ExtensionManifestExtraFiles;
 }
 
-export async function compileExtensionMatrix(options: CompileExtensionOptions) {
-	const outDir = path.resolve(options.workspaceRoot, options.outDir);
-	const sourceDir = path.resolve(options.workspaceRoot, options.sourceDir);
-	const context = createDockerContext(options.workspaceRoot);
-	const version = await detectManifestVersion(sourceDir);
+export interface PrepareExtensionBuildImagesOptions {
+	workspaceRoot: string;
+	phpVersions: string[];
+	jobs?: number;
+}
+
+export async function prepareExtensionBuildImages(
+	options: PrepareExtensionBuildImagesOptions
+) {
+	await assertDockerIsAvailable();
+
+	const context = await createDockerContext(options.workspaceRoot);
 	const matrix: Array<{ phpVersion: string; asyncMode: AsyncMode }> =
 		options.phpVersions.map((phpVersion) => ({
 			phpVersion,
 			asyncMode: ExtensionAsyncMode,
 		}));
 
-	await mkdir(outDir, { recursive: true });
+	await buildBaseImage(context);
+
+	const images = await mapLimit(
+		matrix,
+		normalizeJobCount(options.jobs, matrix.length),
+		async ({ phpVersion, asyncMode }) => {
+			const imageTag = await buildExtensionImage({
+				...context,
+				phpVersion,
+				phpRelease: resolvePHPRelease(phpVersion),
+				asyncMode,
+			});
+			return { phpVersion, asyncMode, imageTag };
+		}
+	);
+
+	return { images };
+}
+
+export async function compileExtensionMatrix(options: CompileExtensionOptions) {
+	const outDir = path.resolve(options.workspaceRoot, options.outDir);
+	const sourceDir = path.resolve(options.workspaceRoot, options.sourceDir);
 	await assertDockerIsAvailable();
+
+	const context = await createDockerContext(options.workspaceRoot);
+	const version = await detectManifestVersion(sourceDir);
+	const matrix: Array<{ phpVersion: string; asyncMode: AsyncMode }> =
+		options.phpVersions.map((phpVersion) => ({
+			phpVersion,
+			asyncMode: ExtensionAsyncMode,
+	}));
+
+	await mkdir(outDir, { recursive: true });
 	await buildBaseImage(context);
 
 	const artifacts = await mapLimit(

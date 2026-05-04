@@ -472,6 +472,8 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 24
+            - name: Verify lazy Docker asset fetch from built package
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-compile-extension:test-lazy-docker-asset-fetch --output-style=stream
             - name: Build and load PHP.wasm extension fixtures
               run: node --expose-gc node_modules/nx/bin/nx affected --target=test-compile-extension-integration --parallel=1 --output-style=stream
 
