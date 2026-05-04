@@ -1,56 +1,71 @@
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export const ExtensionAsyncMode = 'jspi';
 export type AsyncMode = typeof ExtensionAsyncMode;
 
+/**
+ * One sidecar file or empty directory staged alongside an artifact.
+ *
+ * Mirrors `PHPExtensionManifestExtraFile` in `@php-wasm/universal`.
+ */
+export interface ExtensionManifestExtraFile {
+	/** Joined with the group's `vfsRoot` to form the final VFS path. */
+	vfsPath: string;
+	/** Defaults to "file". Only file nodes need a `sourcePath`. */
+	type?: 'file' | 'directory';
+	/** Relative to the manifest URL/base URL, or an absolute URL. */
+	sourcePath?: string;
+}
+
+export interface ExtensionManifestExtraFiles {
+	/** Absolute VFS prefix joined with each node's `vfsPath`. */
+	vfsRoot?: string;
+	nodes?: ExtensionManifestExtraFile[];
+}
+
 export interface ExtensionArtifact {
 	phpVersion: string;
-	file: string;
-	sha256: string;
+	/** Path to the `.so` file, relative to the manifest URL or absolute. */
+	sourcePath: string;
+	/** URL-backed files needed only by this artifact. */
+	extraFiles?: ExtensionManifestExtraFiles;
 }
 
 export interface ExtensionManifest {
 	name: string;
 	version: string;
 	artifacts: ExtensionArtifact[];
+	/** URL-backed files shared by every artifact in this manifest. */
+	extraFiles?: ExtensionManifestExtraFiles;
 }
 
 export interface BuiltArtifact {
 	phpVersion: string;
-	file: string;
+	/** Path to the `.so` file, relative to the manifest URL. */
+	sourcePath: string;
+	/** Absolute path on disk where the `.so` was written. */
 	path: string;
-}
-
-export async function sha256File(filePath: string): Promise<string> {
-	const hash = createHash('sha256');
-	await new Promise<void>((resolve, reject) => {
-		const stream = createReadStream(filePath);
-		stream.on('data', (chunk) => hash.update(chunk));
-		stream.on('error', reject);
-		stream.on('end', resolve);
-	});
-	return hash.digest('hex');
 }
 
 export async function createManifest(options: {
 	name: string;
 	version: string;
 	artifacts: BuiltArtifact[];
+	extraFiles?: ExtensionManifestExtraFiles;
 }): Promise<ExtensionManifest> {
-	return {
+	const manifest: ExtensionManifest = {
 		name: options.name,
 		version: options.version,
-		artifacts: await Promise.all(
-			options.artifacts.map(async (artifact) => ({
-				phpVersion: artifact.phpVersion,
-				file: artifact.file,
-				sha256: await sha256File(artifact.path),
-			}))
-		),
+		artifacts: options.artifacts.map((artifact) => ({
+			phpVersion: artifact.phpVersion,
+			sourcePath: artifact.sourcePath,
+		})),
 	};
+	if (options.extraFiles) {
+		manifest.extraFiles = options.extraFiles;
+	}
+	return manifest;
 }
 
 export async function writeManifest(options: {

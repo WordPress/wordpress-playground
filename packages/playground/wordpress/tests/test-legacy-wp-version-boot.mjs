@@ -239,12 +239,72 @@ async function navigateViaUrlBar(page, path, timeoutSeconds = 60) {
 }
 
 /**
+ * Waits for the plugin activation click to produce a new plugins page body.
+ *
+ * Some WordPress versions redirect back to the same `plugins.php` URL after
+ * activation. Comparing both URL and body lets us ignore the pre-click plugin
+ * list without requiring a URL change that may never come.
+ */
+async function waitForPluginActivation(
+	page,
+	previousFrameUrl,
+	previousBody,
+	timeoutSeconds = 60
+) {
+	const deadline = Date.now() + timeoutSeconds * 1000;
+	while (Date.now() < deadline) {
+		await page.waitForTimeout(500);
+		for (const frame of page.frames()) {
+			try {
+				if (!frame.url().includes('scope:')) continue;
+				const body = await frame
+					.locator('body')
+					.innerText({ timeout: 2000 });
+				const changed =
+					frame.url() !== previousFrameUrl || body !== previousBody;
+				if (!changed) continue;
+				if (
+					body.includes('Plugin activated') ||
+					body.includes('Deactivate') ||
+					body.includes('Are you sure') ||
+					findPHPError(body)
+				) {
+					return { body, frame };
+				}
+			} catch {}
+		}
+	}
+	return null;
+}
+
+/**
  * Checks whether a body text indicates the user is logged in.
  */
 function isLoggedIn(body) {
 	return ['Logout', 'Log Out', 'Sign Out', 'Howdy'].some((s) =>
 		body.includes(s)
 	);
+}
+
+const ADMIN_INDICATORS = [
+	'Dashboard',
+	'Write',
+	'Manage',
+	'Options',
+	'Log Out',
+	'Logout',
+	'Settings',
+	'Posts',
+	'Plugins',
+	'Create New Post',
+	'My Profile',
+];
+
+/**
+ * Checks whether body text contains UI copy that identifies an admin screen.
+ */
+function hasAdminIndicator(body) {
+	return ADMIN_INDICATORS.some((ind) => body.includes(ind));
 }
 
 // WP < 2.5 uses post.php for new posts; 2.5+ uses post-new.php.
@@ -262,6 +322,25 @@ const MATRIX = WP_ONLY
 	? WP_VERSIONS.filter(({ wp }) => WP_ONLY.has(wp))
 	: WP_VERSIONS;
 
+/**
+ * Captures browser console errors so timeout failures can report context.
+ */
+function captureConsoleErrors(page, consoleErrors) {
+	page.on('console', (msg) => {
+		if (msg.type() === 'error')
+			consoleErrors.push(msg.text().slice(0, 300));
+	});
+}
+
+/**
+ * Indicates whether the front-page boot hit a transient worker load failure.
+ */
+function shouldRetryFrontPageBoot(consoleErrors) {
+	return consoleErrors.some((message) =>
+		message.includes('WebWorker failed to load')
+	);
+}
+
 const browser = await chromium.launch({ headless: true });
 
 for (const { wp, php } of MATRIX) {
@@ -275,13 +354,10 @@ for (const { wp, php } of MATRIX) {
 	// and cookies don't leak between versions. Without this, earlier
 	// versions' patched files and scopes bleed into later ones and
 	// the test becomes non-deterministic.
-	const context = await browser.newContext();
-	const page = await context.newPage();
-	const consoleErrors = [];
-	page.on('console', (msg) => {
-		if (msg.type() === 'error')
-			consoleErrors.push(msg.text().slice(0, 300));
-	});
+	let context = await browser.newContext();
+	let page = await context.newPage();
+	let consoleErrors = [];
+	captureConsoleErrors(page, consoleErrors);
 
 	let frontStatus = null;
 	let adminStatus = null;
@@ -296,7 +372,20 @@ for (const { wp, php } of MATRIX) {
 		});
 
 		// --- Phase 1: Front page ---
-		const wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		let wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		if (!wp1 && shouldRetryFrontPageBoot(consoleErrors)) {
+			await page.close();
+			await context.close();
+			context = await browser.newContext();
+			page = await context.newPage();
+			consoleErrors = [];
+			captureConsoleErrors(page, consoleErrors);
+			await page.goto(url, {
+				timeout: 180_000,
+				waitUntil: 'domcontentloaded',
+			});
+			wp1 = await waitForWPFrame(page, TIMEOUT_S);
+		}
 
 		if (!wp1) {
 			const lastError = consoleErrors[consoleErrors.length - 1] || '';
@@ -413,6 +502,18 @@ for (const { wp, php } of MATRIX) {
 						TIMEOUT_S
 					);
 				}
+				if (
+					wp2 &&
+					!findPHPError(wp2.body) &&
+					!hasAdminIndicator(wp2.body)
+				) {
+					const settled = await waitForWPFrame(page, 30, {
+						contentPredicate: hasAdminIndicator,
+					});
+					if (settled) {
+						wp2 = settled;
+					}
+				}
 				if (!wp2) {
 					adminStatus = { status: 'TIMEOUT' };
 				} else {
@@ -424,22 +525,7 @@ for (const { wp, php } of MATRIX) {
 							body: wp2.body,
 						};
 					} else {
-						const adminIndicators = [
-							'Dashboard',
-							'Write',
-							'Manage',
-							'Options',
-							'Log Out',
-							'Logout',
-							'Settings',
-							'Posts',
-							'Plugins',
-							'Create New Post',
-							'My Profile',
-						];
-						const hasAdmin = adminIndicators.some((ind) =>
-							wp2.body.includes(ind)
-						);
+						const hasAdmin = hasAdminIndicator(wp2.body);
 						const loggedIn = isLoggedIn(wp2.body);
 						if (hasAdmin && loggedIn) {
 							adminStatus = { status: 'OK' };
@@ -594,34 +680,40 @@ for (const { wp, php } of MATRIX) {
 							? helloActivate
 							: anyActivate;
 					if ((await activateLink.count()) > 0) {
+						const bodyBeforeActivation = await wp4.frame
+							.locator('body')
+							.innerText({ timeout: 2000 })
+							.catch(() => wp4.body);
 						const prevFrameUrl = wp4.frame.url();
 						await activateLink.click({ timeout: 5000 });
-						const wp4b = await waitForWPFrame(page, 20, {
-							excludeUrl: prevFrameUrl,
-							// Don't match on the intermediate admin shell
-							// between the POST and the post-redirect body —
-							// only return once the result page actually
-							// shows activation outcome text.
-							contentPredicate: (body) =>
-								body.includes('Plugin activated') ||
-								body.includes('Deactivate') ||
-								body.includes('Are you sure'),
-						});
+						const wp4b = await waitForPluginActivation(
+							page,
+							prevFrameUrl,
+							bodyBeforeActivation
+						);
 						if (!wp4b) {
 							pluginStatus = { status: 'TIMEOUT' };
 						} else {
+							const error = findPHPError(wp4b.body);
 							const ok =
 								wp4b.body.includes('Plugin activated') ||
 								wp4b.body.includes('Deactivate');
 							const bad = wp4b.body.includes('Are you sure');
-							pluginStatus = ok
-								? { status: 'OK' }
-								: {
-										status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
-										detail: wp4b.body
-											.slice(0, 120)
-											.replace(/\n/g, ' '),
-									};
+							if (error) {
+								pluginStatus = {
+									status: 'ERROR',
+									detail: error,
+								};
+							} else if (ok) {
+								pluginStatus = { status: 'OK' };
+							} else {
+								pluginStatus = {
+									status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
+									detail: wp4b.body
+										.slice(0, 120)
+										.replace(/\n/g, ' '),
+								};
+							}
 						}
 					} else {
 						pluginStatus = {

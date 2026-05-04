@@ -11,6 +11,7 @@ import {
 	SupportedExtensionPHPVersions,
 } from './compile';
 import { detectExtensionName } from './detect';
+import { parseExtraFilesSpec, stageExtraFilesIntoOutDir } from './extra-files';
 
 const OptionsWithDashPrefixedValues = new Set([
 	'--config-args',
@@ -65,6 +66,13 @@ export async function main(args = hideBin(process.argv)) {
 				type: 'number',
 				description: 'Maximum concurrent docker builds.',
 			},
+			'extra-files': {
+				type: 'string',
+				array: true,
+				default: [] as string[],
+				description:
+					'Stage a host directory under an absolute VFS root. Format: <hostDir>:<vfsRoot>. Files are copied next to the manifest and recorded in extraFiles.',
+			},
 		})
 		.strict()
 		.help()
@@ -80,6 +88,15 @@ export async function main(args = hideBin(process.argv)) {
 		'php-versions'
 	);
 	const configArgs = splitShellWords((argv['config-args'] as string) || '');
+	const extraFilesSpecs = (argv['extra-files'] as string[]).map(
+		parseExtraFilesSpec
+	);
+	const outDir = path.resolve(workspaceRoot, argv['out'] as string);
+	const extraFiles = await stageExtraFilesIntoOutDir(
+		extraFilesSpecs,
+		outDir,
+		workspaceRoot
+	);
 
 	const result = await compileExtensionMatrix({
 		workspaceRoot,
@@ -92,6 +109,7 @@ export async function main(args = hideBin(process.argv)) {
 		configArgs,
 		optimize: argv['optimize'] as string,
 		jobs: argv['jobs'] as number | undefined,
+		extraFiles,
 	});
 
 	console.log(`Wrote ${result.artifacts.length} artifacts.`);

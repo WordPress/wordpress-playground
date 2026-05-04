@@ -57,18 +57,40 @@ as the PHP.wasm JSPI runtime. Publish the artifact with a manifest:
 	"artifacts": [
 		{
 			"phpVersion": "8.4",
-			"file": "wp_mysql_parser-php8.4-jspi.so",
-			"sha256": "..."
+			"sourcePath": "wp_mysql_parser-php8.4-jspi.so"
 		}
 	]
 }
 ```
 
-`file` may be an absolute URL or a path relative to the manifest URL. If the
-manifest lives at
-`https://cdn.example.com/extensions/wp_mysql_parser/manifest.json`, the `file`
-above resolves to
+`sourcePath` may be an absolute URL or a path relative to the manifest URL. If
+the manifest lives at
+`https://cdn.example.com/extensions/wp_mysql_parser/manifest.json`, the
+`sourcePath` above resolves to
 `https://cdn.example.com/extensions/wp_mysql_parser/wp_mysql_parser-php8.4-jspi.so`.
+
+If the extension ships sidecar assets (UI files, data, empty directories), list
+them under `extraFiles`. Each `node` declares its final VFS path as
+`vfsRoot + vfsPath`:
+
+```json
+{
+	"name": "spx",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "spx-php8.4-jspi.so",
+			"extraFiles": {
+				"vfsRoot": "/internal/shared/spx",
+				"nodes": [
+					{ "vfsPath": "data", "type": "directory" },
+					{ "vfsPath": "ui/index.html", "sourcePath": "ui/index.html" }
+				]
+			}
+		}
+	]
+}
+```
 
 In Node.js, `manifestUrl` may be a local path, a `file:` URL, or an HTTP(S)
 URL. Relative local paths are resolved from the current working directory:
@@ -155,7 +177,6 @@ await loadWebRuntime('8.4', {
 				format: 'url',
 				name: 'wp_mysql_parser',
 				url: new URL('https://cdn.example.com/wp_mysql_parser-php8.4-jspi.so'),
-				sha256: '...',
 			},
 		},
 	],
@@ -213,7 +234,7 @@ await loadNodeRuntime('8.4', {
 ```
 
 An extension with data files can stage them before PHP starts and point the
-extension at their virtual path:
+extension at their virtual path. `extraFiles` keys are absolute VFS paths:
 
 ```ts
 await loadNodeRuntime('8.4', {
@@ -225,9 +246,8 @@ await loadNodeRuntime('8.4', {
 				MY_TEXT_DATA: '/internal/shared/my_text_extension',
 			},
 			extraFiles: {
-				targetPath: '/internal/shared/my_text_extension',
 				files: {
-					'data.bin': dataBytes,
+					'/internal/shared/my_text_extension/data.bin': dataBytes,
 				},
 			},
 		},

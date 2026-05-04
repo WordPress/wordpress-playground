@@ -12,6 +12,63 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.27] (2026-05-04) 
+
+
+
+
+## [v3.1.26] (2026-05-03) 
+
+### Documentation
+
+- [Docs] how to use @php-wasm/compile-extension from a downstream repo. ([#3595](https://github.com/WordPress/wordpress-playground/pull/3595))
+
+### PHP WebAssembly
+
+- [PHP] Support `extraFiles` for custom PHP extensions. ([#3580](https://github.com/WordPress/wordpress-playground/pull/3580))
+- [compile-extension] Emit the new PHPExtensionManifest shape, add --extra-files. ([#3596](https://github.com/WordPress/wordpress-playground/pull/3596))
+
+### Website
+
+- [php-snippet] Highlight PHP snippet reruns. ([#3594](https://github.com/WordPress/wordpress-playground/pull/3594))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.1.25] (2026-05-03) 
+
+### Tools
+
+
+#### Website
+
+- [Networking] Set curl.cainfo alongside openssl.cafile. ([#3583](https://github.com/WordPress/wordpress-playground/pull/3583))
+
+### Documentation
+
+- [Docs] Treat documentation changelog as CommonMark. ([#3586](https://github.com/WordPress/wordpress-playground/pull/3586))
+
+### PHP WebAssembly
+
+- [PHP.wasm] Export Zend symbols for compiling PHP extensions. ([#3584](https://github.com/WordPress/wordpress-playground/pull/3584))
+- [PHP] Limit external extensions to JSPI. ([#3587](https://github.com/WordPress/wordpress-playground/pull/3587))
+- [PHP] `@php-wasm/compile-extension` – a workflow for building custom extensions. ([#3582](https://github.com/WordPress/wordpress-playground/pull/3582))
+
+### Website
+
+- [PHP] Don't call prefetchUpdateChecks() when WordPress is disabled. ([#3589](https://github.com/WordPress/wordpress-playground/pull/3589))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
 ## [v3.1.24] (2026-05-01) 
 
 
@@ -81,7 +138,7 @@ The following contributors merged PRs in this release:
 ### Website
 
 - Embeddable PHP code snippets via &lt;php-snippet&gt;. ([#3528](https://github.com/WordPress/wordpress-playground/pull/3528))
-- &lt;php-snippet&gt; setup blueprints via &lt;template&gt;. ([#3536](https://github.com/WordPress/wordpress-playground/pull/3536))
+- &lt;php-snippet&gt; setup blueprints via <template>. ([#3536](https://github.com/WordPress/wordpress-playground/pull/3536))
 - &lt;php-snippet&gt; – display expected output by default. ([#3557](https://github.com/WordPress/wordpress-playground/pull/3557))
 - Accept encodeURIComponent-produced blueprint URL fragments. ([#3527](https://github.com/WordPress/wordpress-playground/pull/3527))
 - Add AI discoverability: Llms.txt, meta tags, documentation section. ([#3534](https://github.com/WordPress/wordpress-playground/pull/3534))

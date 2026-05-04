@@ -176,6 +176,30 @@ RUSTFLAGS="-C panic=abort" cargo +nightly build \
 
 Link the resulting `lib*.a` with `--extra-ldflags`.
 
+### PHP version support for `ext-php-rs`
+
+`ext-php-rs` `0.15` depends on PHP 8 Zend APIs and does not compile against
+PHP `7.4` headers. Rust extensions built on top of `ext-php-rs` `0.15` should
+restrict the PHP matrix to `8.0` through `8.5`:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./my-rust-extension \
+	--name my_rust_extension \
+	--php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+	--extra-ldflags "/build/target/wasm32-unknown-emscripten/release/libmy_rust_extension.a"
+```
+
+The helper itself still supports PHP `7.4`. The limitation is in the Rust
+binding layer, not in the WebAssembly side-module ABI. Hand-written Rust
+extensions that bind Zend directly through `bindgen` can target PHP `7.4` if
+the C ABI shim does the same.
+
+`ext-php-rs` also generates bindings for one PHP version at a time. When you
+build the same Rust crate for several PHP versions, rebuild the staticlib for
+each PHP version with that version's Zend API number visible to the build
+script, and link the matching archive into each `--php-versions` lane.
+
 ## Troubleshooting
 
 `configure: error: ... not found`

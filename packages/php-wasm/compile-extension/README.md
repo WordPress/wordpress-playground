@@ -12,11 +12,66 @@ npx @php-wasm/compile-extension \
 ```
 
 The command writes one JSPI `.so` per PHP version and a `manifest.json` that
-can be consumed by PHP.wasm extension-loading helpers.
+can be consumed by PHP.wasm extension-loading helpers. The manifest matches
+the `PHPExtensionManifest` shape from `@php-wasm/universal`:
+
+```json
+{
+	"name": "wp_mysql_parser",
+	"version": "0.1.0",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "wp_mysql_parser-php8.4-jspi.so"
+		}
+	]
+}
+```
+
+To stage sidecar files (data directories, web UI assets, ICU data, etc.) under
+an absolute VFS prefix, pass `--extra-files <hostDir>:<vfsRoot>`. The host
+directory is copied next to the manifest and recorded under `extraFiles.nodes`:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./spx-src \
+	--name spx \
+	--php-versions 8.2 \
+	--extra-files ./web-ui:/internal/shared/spx \
+	--out ./dist
+```
+
+Empty directories are recorded as `type: "directory"` nodes so the loader
+creates them before PHP starts.
+
+The supported `--php-versions` are `7.4` and `8.0` through `8.5`.
 
 Docker is required. The build reuses the `packages/php-wasm/compile` base image
 and its PHP patch set, then runs `phpize`, `emconfigure`, and `emmake` inside
 the container.
+
+## Running in CI
+
+The package only needs Docker and Node. A typical GitHub Actions job:
+
+```yaml
+- uses: actions/checkout@v4
+
+- uses: actions/setup-node@v4
+  with:
+    node-version: '24'
+
+- run: |
+    npx --yes @php-wasm/compile-extension \
+      --source ./my-extension \
+      --name my_extension \
+      --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+      --out ./dist/my-extension
+```
+
+In a matrix workflow, set `strategy.max-parallel: 1` on the WASM job —
+parallel Docker builds on hosted runners often hit apt-mirror flakes during
+the base image build.
 
 ## Loading the result
 
@@ -42,9 +97,9 @@ const php = new PHP(
 ```
 
 The loader chooses the artifact whose `phpVersion` matches the running
-PHP.wasm runtime, downloads it, verifies `sha256` when present, stages the
-`.so`, writes a startup `.ini` file, and registers the extension scan directory
-before PHP starts.
+PHP.wasm runtime, downloads it, stages the `.so`, writes a startup `.ini`
+file, copies any `extraFiles` declared in the manifest, and registers the
+extension scan directory before PHP starts.
 
 In Node.js, `manifestUrl` may also be a local path:
 
@@ -75,7 +130,6 @@ const php = new PHP(
 				source: {
 					format: 'url',
 					url: 'https://example.com/extensions/wp_mysql_parser-php8.4-jspi.so',
-					sha256: '...',
 				},
 			},
 		],
@@ -217,6 +271,12 @@ RUSTFLAGS="-C panic=abort" cargo +nightly build \
 
 Keep dependencies aligned with the custom extension target. Custom extensions
 are JSPI-only, so link `jspi` dependency archives.
+
+`ext-php-rs` `0.15` depends on PHP 8 Zend APIs and does not compile against
+PHP `7.4` headers, so Rust extensions built on top of `ext-php-rs` `0.15`
+should restrict `--php-versions` to `8.0` through `8.5`. The helper itself
+still supports PHP `7.4` for non-Rust extensions and for Rust extensions that
+bind Zend directly through `bindgen`.
 
 `--extra-cflags` is visible during `./configure`. `--extra-ldflags` is applied
 to the final side-module link so dependency archives do not break Autoconf's
