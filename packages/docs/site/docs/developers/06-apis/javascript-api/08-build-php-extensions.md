@@ -39,8 +39,9 @@ dist/wp_mysql_parser/
 `-- wp_mysql_parser-php8.4-jspi.so
 ```
 
-The manifest records the extension name, artifact matrix, relative `.so` file
-paths, and `sha256` hashes:
+The manifest matches the `PHPExtensionManifest` shape from
+`@php-wasm/universal`. It records the extension name, the artifact matrix,
+and a `sourcePath` for each artifact relative to the manifest URL:
 
 ```json
 {
@@ -49,8 +50,7 @@ paths, and `sha256` hashes:
 	"artifacts": [
 		{
 			"phpVersion": "8.4",
-			"file": "wp_mysql_parser-php8.4-jspi.so",
-			"sha256": "..."
+			"sourcePath": "wp_mysql_parser-php8.4-jspi.so"
 		}
 	]
 }
@@ -58,6 +58,28 @@ paths, and `sha256` hashes:
 
 Host the whole output directory from the same static location. Relative
 artifact paths are resolved from the manifest URL.
+
+### Sidecar files
+
+Pass `--extra-files <hostDir>:<vfsRoot>` to stage data directories, web UI
+assets, ICU data, or anything else the extension needs at runtime. The host
+directory is copied next to the manifest, and each entry is recorded under
+`extraFiles.nodes` with a `vfsPath` relative to `vfsRoot` and a `sourcePath`
+relative to the manifest URL:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./spx-src \
+	--name spx \
+	--php-versions 8.2 \
+	--extra-files ./web-ui:/internal/shared/spx \
+	--out ./dist/spx
+```
+
+Empty directories are recorded as `type: "directory"` nodes so the loader
+creates them before PHP starts. Multiple `--extra-files` entries are
+allowed, but they must agree on `vfsRoot` — the manifest format stores a
+single root per group.
 
 ## Loading in Node.js
 
@@ -83,8 +105,9 @@ const php = new PHP(
 
 Node.js accepts local paths, `file:` URLs, and HTTP(S) URLs for `manifestUrl`.
 The loader selects the artifact whose `phpVersion` matches the runtime,
-verifies `sha256` when present, writes a generated `.ini` file, and starts PHP
-with the extension scan directory configured.
+stages the `.so`, copies any `extraFiles` declared in the manifest, writes a
+generated `.ini` file, and starts PHP with the extension scan directory
+configured.
 
 ## Loading in the browser
 
@@ -124,7 +147,6 @@ await loadWebRuntime('8.4', {
 				format: 'url',
 				name: 'wp_mysql_parser',
 				url: new URL('https://cdn.example.com/wp_mysql_parser-php8.4-jspi.so'),
-				sha256: '...',
 			},
 		},
 	],
@@ -137,8 +159,44 @@ Build every PHP version you plan to support. A `.so` built for PHP 8.4 cannot
 be loaded into PHP 8.3. Custom extension artifacts are JSPI-only and must be
 loaded by a JSPI runtime.
 
+The helper supports PHP `7.4` and `8.0` through `8.5`. Pass the matrix as a
+comma-separated list:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./wp-mysql-parser \
+	--name wp_mysql_parser \
+	--php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+	--out ./dist/wp_mysql_parser
+```
+
 Extension loading is startup-only. Declare custom extensions in the
 `extensions` option before the runtime is created.
+
+## Running the helper in CI
+
+The helper is published as `@php-wasm/compile-extension` on npm and only
+needs Docker and Node. A typical GitHub Actions job:
+
+```yaml
+- uses: actions/checkout@v4
+
+- uses: actions/setup-node@v4
+  with:
+    node-version: '24'
+
+- name: Build the extension matrix
+  run: |
+    npx --yes @php-wasm/compile-extension \
+      --source ./my-extension \
+      --name my_extension \
+      --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+      --out ./dist/my-extension
+```
+
+When you build the matrix in GitHub Actions, set `strategy.max-parallel: 1`
+on the WASM job. Parallel Docker builds on hosted runners frequently hit
+apt-mirror flakes during the base image build.
 
 For native dependencies, see
 [PHP extension dependencies](/developers/apis/javascript-api/php-extension-dependencies).

@@ -569,10 +569,33 @@ const TEMPLATE_CSS = `
 	font-weight: 500;
 	cursor: pointer;
 	flex-shrink: 0;
+	min-width: 86px;
+	justify-content: center;
 }
 .run:hover { background: #1d4ed8; }
 .run:disabled { background: #93c5fd; cursor: progress; }
-.run::before { content: "▶"; font-size: 10px; }
+.run:disabled:hover { background: #93c5fd; }
+.run-icon { font-size: 10px; }
+.run-spinner {
+	display: none;
+	width: 12px;
+	height: 12px;
+	border: 2px solid rgba(255, 255, 255, 0.45);
+	border-top-color: #ffffff;
+	border-radius: 50%;
+	animation: php-snippet-spin 700ms linear infinite;
+}
+.run-percent {
+	display: none;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.run[aria-busy="true"] .run-icon { display: none; }
+.run[aria-busy="true"] .run-spinner,
+.run[aria-busy="true"] .run-percent { display: inline-block; }
+@keyframes php-snippet-spin {
+	to { transform: rotate(360deg); }
+}
 .progress {
 	display: none;
 	align-items: center;
@@ -699,6 +722,25 @@ pre {
 	overflow-y: auto;
 }
 .output-body.error { color: #ff8182; }
+/*
+ * Brief blue wash that fades to transparent every time the output is
+ * refreshed. Re-running an idempotent snippet produces the same text, so
+ * without a visible cue the click feels like a no-op — users were clicking
+ * Run twice. The animation is purely cosmetic, ~700ms, with reduced-motion
+ * users getting an instant on/off swap instead.
+ */
+.output-body.flash {
+	animation: php-snippet-flash 700ms ease-out;
+}
+@keyframes php-snippet-flash {
+	0%   { background-color: rgba(56, 139, 253, 0.35); }
+	100% { background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.output-body.flash {
+		animation: php-snippet-flash 200ms steps(2, end);
+	}
+}
 `;
 
 class PhpSnippet extends HTMLElement {
@@ -776,7 +818,16 @@ class PhpSnippet extends HTMLElement {
 			<div class="card">
 				<div class="header">
 					<span class="name">${escapeHtml(name)}</span>
-					${runnable ? '<button class="run" type="button">Run</button>' : ''}
+					${
+						runnable
+							? `<button class="run" type="button">
+								<span class="run-icon" aria-hidden="true">▶</span>
+								<span class="run-spinner" aria-hidden="true"></span>
+								<span class="run-label">Run</span>
+								<span class="run-percent" aria-hidden="true">0%</span>
+							</button>`
+							: ''
+					}
 				</div>
 				<div class="progress" role="status" aria-live="polite" aria-atomic="true">
 					<span class="caption">Loading…</span>
@@ -824,17 +875,34 @@ class PhpSnippet extends HTMLElement {
 
 	async _run() {
 		const btn = this.shadowRoot.querySelector('.run');
+		if (btn.disabled) {
+			return;
+		}
+
+		btn.disabled = true;
+		btn.setAttribute('aria-busy', 'true');
+		this._setRunButtonProgress('Loading', 0);
+		try {
+			await this._runOnce(this._code);
+		} finally {
+			btn.disabled = false;
+			btn.removeAttribute('aria-busy');
+			this._setRunButtonProgress('Run', 0);
+		}
+	}
+
+	async _runOnce(code) {
 		const progress = this.shadowRoot.querySelector('.progress');
 		const caption = this.shadowRoot.querySelector('.caption');
 		const fill = this.shadowRoot.querySelector('.fill');
 		const percent = this.shadowRoot.querySelector('.percent');
 		const outputWrap = this.shadowRoot.querySelector('.output');
 		const outputBody = this.shadowRoot.querySelector('.output-body');
-		btn.disabled = true;
 		outputBody.classList.remove('error');
 		caption.textContent = 'Loading runtime…';
 		fill.style.width = '0%';
 		percent.textContent = '0%';
+		progress.classList.add('visible');
 		try {
 			const { blueprint, key: blueprintKey } =
 				resolveSetupBlueprint(this);
@@ -853,29 +921,63 @@ class PhpSnippet extends HTMLElement {
 					const rounded = Math.round(pct);
 					fill.style.width = rounded + '%';
 					percent.textContent = rounded + '%';
-					if (cap) caption.textContent = cap;
+					this._setRunButtonProgress(cap || 'Loading', rounded);
+					if (cap) {
+						caption.textContent = cap;
+					}
 				}
 			);
 			caption.textContent = 'Running…';
 			fill.style.width = '100%';
 			percent.textContent = '100%';
-			const response = await client.run({ code: this._code });
+			this._setRunButtonProgress('Running', 100);
+			const response = await client.run({ code });
 			outputBody.textContent = response.text || '(no output)';
 			if (response.errors) {
 				outputBody.textContent +=
 					(outputBody.textContent ? '\n\n' : '') + response.errors;
 			}
 			outputWrap.classList.add('visible');
+			this._flashOutput(outputBody);
 		} catch (err) {
 			outputBody.classList.add('error');
 			outputBody.textContent = String(
 				err && err.message ? err.message : err
 			);
 			outputWrap.classList.add('visible');
+			this._flashOutput(outputBody);
 		} finally {
 			progress.classList.remove('visible');
-			btn.disabled = false;
 		}
+	}
+
+	_setRunButtonProgress(label, pct) {
+		const runLabel = this.shadowRoot.querySelector('.run-label');
+		const runPercent = this.shadowRoot.querySelector('.run-percent');
+		if (runLabel) {
+			runLabel.textContent = label;
+		}
+		if (runPercent) {
+			runPercent.textContent = Math.round(pct) + '%';
+		}
+	}
+
+	/*
+	 * Restart the flash animation on every Run, even if the previous one
+	 * is mid-fade. Removing the class, forcing a synchronous reflow, then
+	 * re-adding it is the standard trick to retrigger a CSS animation.
+	 * The class is cleared on animationend so the DOM doesn't carry stale
+	 * state between runs.
+	 */
+	_flashOutput(outputBody) {
+		outputBody.classList.remove('flash');
+		outputBody.getBoundingClientRect();
+		outputBody.classList.add('flash');
+		const clear = () => {
+			outputBody.classList.remove('flash');
+			outputBody.removeEventListener('animationend', clear);
+		};
+		outputBody.addEventListener('animationend', clear);
 	}
 }
 
