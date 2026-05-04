@@ -1,13 +1,8 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-
-import {
-	readJsonFile,
-	sparseCheckoutFiles,
-	stableHash,
-} from './git-sparse-checkout';
 
 export const PlaygroundRepositoryUrl =
 	'https://github.com/WordPress/wordpress-playground.git';
@@ -84,6 +79,7 @@ export async function fetchDockerAssets({
 	await mkdir(tempPhpWasmRoot, { recursive: true });
 
 	try {
+		const { sparseCheckoutFiles } = await import('./git-sparse-checkout');
 		await sparseCheckoutFiles({
 			repoUrl: PlaygroundRepositoryUrl,
 			ref,
@@ -205,4 +201,12 @@ export async function readDockerAssetSource(
 		return undefined;
 	}
 	return readJsonFile(sourceFile);
+}
+
+function stableHash(value: string): string {
+	return createHash('sha256').update(value).digest('hex').slice(0, 16);
+}
+
+async function readJsonFile<T>(filename: string): Promise<T> {
+	return JSON.parse(await readFile(filename, 'utf8')) as T;
 }
