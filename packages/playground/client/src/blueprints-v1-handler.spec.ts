@@ -145,6 +145,30 @@ describe('BlueprintsV1Handler', () => {
 		expect(mocks.playground.boot).not.toHaveBeenCalled();
 	});
 
+	it('rejects WordPress installation for PHP-only blueprints', async () => {
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {
+				preferredVersions: {
+					php: '8.4',
+					wp: false,
+				},
+			},
+			shouldInstallWordPress: true,
+		});
+
+		await expect(
+			handler.bootPlayground(iframe, createProgressTracker())
+		).rejects.toThrow(
+			'Conflicting options: WordPress install or boot was requested, ' +
+				'but the Blueprint sets ' +
+				'`preferredVersions.wp: false`. Pick one.'
+		);
+		expect(mocks.playground.boot).not.toHaveBeenCalled();
+	});
+
 	it('prefetches WordPress updates when WordPress is installed', async () => {
 		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({

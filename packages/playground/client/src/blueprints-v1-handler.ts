@@ -68,7 +68,7 @@ export class BlueprintsV1Handler {
 			declarativeOptOut
 		) {
 			throw new Error(
-				'Conflicting options: WordPress boot was requested, ' +
+				'Conflicting options: WordPress install or boot was requested, ' +
 					'but the Blueprint sets ' +
 					'`preferredVersions.wp: false`. Pick one.'
 			);
