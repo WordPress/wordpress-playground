@@ -2,6 +2,7 @@ import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
+import { shouldUseFileBrowserQuery } from '../url/filebrowser-query';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -184,15 +185,16 @@ const initialState: UIState = {
 	// to be open by default or closed by default, and we do not want to lose
 	// specific reasons for the manager to be closed.
 	siteManagerIsOpen:
-		shouldOpenSiteManagerByDefault &&
-		// The site manager should not be shown at all in seamless mode.
-		query.get('mode') !== 'seamless' &&
-		// We do not expect to render the Playground app UI in an iframe.
-		!isEmbeddedInAnIframe &&
-		// Don't default to the site manager on small screens (mobile/tablet),
-		// as that would mean seeing something that's not Playground filling
-		// your entire screen – quite a confusing experience.
-		window.innerWidth >= BREAKPOINTS.tablet,
+		shouldUseFileBrowserQuery(query, isEmbeddedInAnIframe) ||
+		(shouldOpenSiteManagerByDefault &&
+			// The site manager should not be shown at all in seamless mode.
+			query.get('mode') !== 'seamless' &&
+			// We do not expect to render the Playground app UI in an iframe.
+			!isEmbeddedInAnIframe &&
+			// Don't default to the site manager on small screens (mobile/tablet),
+			// as that would mean seeing something that's not Playground filling
+			// your entire screen – quite a confusing experience.
+			window.innerWidth >= BREAKPOINTS.tablet),
 	siteManagerSection: 'site-details',
 };
 
