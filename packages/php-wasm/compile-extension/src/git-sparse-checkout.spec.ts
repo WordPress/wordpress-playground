@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	createTreeFetchRequest,
 	parseUploadPackResponse,
+	pathSegmentMatchesPattern,
 } from './git-sparse-checkout';
 
 describe('parseUploadPackResponse', () => {
@@ -27,6 +28,21 @@ describe('createTreeFetchRequest', () => {
 			.toString('utf8');
 
 		expect(request.match(/done\n/g)).toHaveLength(1);
+	});
+});
+
+describe('pathSegmentMatchesPattern', () => {
+	it('matches a single path segment against a star wildcard', () => {
+		expect(pathSegmentMatchesPattern('php8.5.patch', 'php*.patch')).toBe(
+			true
+		);
+		expect(
+			pathSegmentMatchesPattern(
+				'php-chunk-alloc-zend-assert-8.5.patch',
+				'php*.patch'
+			)
+		).toBe(true);
+		expect(pathSegmentMatchesPattern('README.md', 'php*.patch')).toBe(false);
 	});
 });
 

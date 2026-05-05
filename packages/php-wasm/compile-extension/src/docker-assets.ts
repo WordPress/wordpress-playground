@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,13 +12,7 @@ export const DockerAssetPaths = [
 	'compile/base-image/emcc-for-php-wasm.sh',
 	'compile/base-image/replace.sh',
 	'compile/base-image/replace-across-lines.sh',
-	'compile/php/php7.4.patch',
-	'compile/php/php8.0.patch',
-	'compile/php/php8.1.patch',
-	'compile/php/php8.2.patch',
-	'compile/php/php8.3.patch',
-	'compile/php/php8.4.patch',
-	'compile/php/php8.5.patch',
+	'compile/php/php*.patch',
 	'compile-extension/docker/Dockerfile.ext',
 	'compile-extension/scripts/build-in-docker.sh',
 ];
@@ -80,7 +74,7 @@ export async function fetchDockerAssets({
 
 	try {
 		const { sparseCheckoutFiles } = await import('./git-sparse-checkout');
-		await sparseCheckoutFiles({
+		const fetchedPaths = await sparseCheckoutFiles({
 			repoUrl: PlaygroundRepositoryUrl,
 			ref,
 			paths: PlaygroundDockerAssetPaths,
@@ -88,7 +82,8 @@ export async function fetchDockerAssets({
 			workDir: path.join(tempDir, '.git-work'),
 		});
 
-		for (const relativePath of DockerAssetPaths) {
+		for (const fetchedPath of fetchedPaths) {
+			const relativePath = stripPhpWasmPathPrefix(fetchedPath);
 			const source = path.join(
 				tempDir,
 				'packages/php-wasm',
@@ -126,9 +121,12 @@ export async function fetchDockerAssets({
 }
 
 export function isPhpWasmDockerContext(phpWasmRoot: string): boolean {
-	return DockerAssetPaths.every((relativePath) =>
-		existsSync(path.join(phpWasmRoot, relativePath))
-	);
+	return DockerAssetPaths.every((relativePath) => {
+		if (!relativePath.includes('*')) {
+			return existsSync(path.join(phpWasmRoot, relativePath));
+		}
+		return findMatchingLocalFiles(phpWasmRoot, relativePath).length > 0;
+	});
 }
 
 export async function publishFetchedDockerAssets({
@@ -228,6 +226,54 @@ export async function readDockerAssetSource(
 
 function stableHash(value: string): string {
 	return createHash('sha256').update(value).digest('hex').slice(0, 16);
+}
+
+function stripPhpWasmPathPrefix(fetchedPath: string): string {
+	const prefix = 'packages/php-wasm/';
+	if (!fetchedPath.startsWith(prefix)) {
+		throw new Error(`Unexpected fetched Docker asset path: ${fetchedPath}`);
+	}
+	return fetchedPath.slice(prefix.length);
+}
+
+function findMatchingLocalFiles(
+	root: string,
+	relativePathPattern: string
+): string[] {
+	const directory = path.join(root, path.dirname(relativePathPattern));
+	const basenamePattern = path.basename(relativePathPattern);
+	if (!existsSync(directory)) {
+		return [];
+	}
+	return readdirSync(directory, { withFileTypes: true })
+		.filter(
+			(entry) =>
+				entry.isFile() &&
+				pathSegmentMatchesPattern(entry.name, basenamePattern)
+		)
+		.map((entry) =>
+			path
+				.join(path.dirname(relativePathPattern), entry.name)
+				.split(path.sep)
+				.join('/')
+		)
+		.sort();
+}
+
+function pathSegmentMatchesPattern(segment: string, pattern: string): boolean {
+	if (!pattern.includes('*')) {
+		return segment === pattern;
+	}
+	return new RegExp(
+		`^${pattern
+			.split('*')
+			.map(escapeRegExp)
+			.join('.*')}$`
+	).test(segment);
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 async function readJsonFile<T>(filename: string): Promise<T> {

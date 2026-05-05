@@ -156,6 +156,32 @@ describe('isPhpWasmDockerContext', () => {
 
 		expect(isPhpWasmDockerContext(phpWasmRoot)).toBe(true);
 	});
+
+	it('accepts any php*.patch file instead of a hardcoded PHP version list', async () => {
+		const root = await mkdtemp(
+			path.join(os.tmpdir(), 'compile-extension-context-')
+		);
+		const phpWasmRoot = path.join(root, 'php-wasm');
+
+		for (const relativePath of DockerAssetPaths.filter(
+			(relativePath) => !relativePath.includes('*')
+		)) {
+			const filename = path.join(phpWasmRoot, relativePath);
+			await mkdir(path.dirname(filename), { recursive: true });
+			await writeFile(filename, '');
+		}
+
+		expect(isPhpWasmDockerContext(phpWasmRoot)).toBe(false);
+
+		const patchPath = path.join(
+			phpWasmRoot,
+			'compile/php/php-next-version.patch'
+		);
+		await mkdir(path.dirname(patchPath), { recursive: true });
+		await writeFile(patchPath, '');
+
+		expect(isPhpWasmDockerContext(phpWasmRoot)).toBe(true);
+	});
 });
 
 describe('publishFetchedDockerAssets', () => {
@@ -185,9 +211,17 @@ describe('publishFetchedDockerAssets', () => {
 
 async function createPhpWasmDockerAssets(phpWasmRoot: string) {
 	for (const relativePath of DockerAssetPaths) {
-		const filename = path.join(phpWasmRoot, relativePath);
-		await mkdir(path.dirname(filename), { recursive: true });
-		await writeFile(filename, '');
+		const fixturePaths = relativePath.includes('*')
+			? [
+					'compile/php/php8.4.patch',
+					'compile/php/php-chunk-alloc-zend-assert-8.5.patch',
+				]
+			: [relativePath];
+		for (const fixturePath of fixturePaths) {
+			const filename = path.join(phpWasmRoot, fixturePath);
+			await mkdir(path.dirname(filename), { recursive: true });
+			await writeFile(filename, '');
+		}
 	}
 }
 

@@ -96,6 +96,7 @@ for asset in \
 	compile/base-image/replace.sh \
 	compile/base-image/replace-across-lines.sh \
 	compile/php/php8.4.patch \
+	compile/php/php-chunk-alloc-zend-assert-8.5.patch \
 	compile-extension/docker/Dockerfile.ext \
 	compile-extension/scripts/build-in-docker.sh
 do

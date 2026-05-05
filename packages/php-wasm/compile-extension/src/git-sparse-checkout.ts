@@ -31,9 +31,9 @@ export async function sparseCheckoutFiles({
 	paths: string[];
 	outDir: string;
 	workDir: string;
-}) {
+}): Promise<string[]> {
 	if (paths.length === 0) {
-		return;
+		return [];
 	}
 
 	await rm(workDir, { recursive: true, force: true });
@@ -60,10 +60,13 @@ export async function sparseCheckoutFiles({
 	);
 	const entries = new Map<string, TreeEntry>();
 	for (const filepath of paths) {
-		entries.set(
-			filepath,
-			await resolveTreeEntry(workDir, rootTree, filepath)
-		);
+		for (const [matchedPath, entry] of await resolveTreeEntries(
+			workDir,
+			rootTree,
+			filepath
+		)) {
+			entries.set(matchedPath, entry);
+		}
 	}
 
 	await fetchAndIndexPack({
@@ -93,6 +96,8 @@ export async function sparseCheckoutFiles({
 			await writeFile(outputPath, blob.object);
 		})
 	);
+
+	return Array.from(entries.keys()).sort();
 }
 
 async function resolveRemoteCommit(
@@ -185,33 +190,83 @@ async function readParsedObject<T>(
 	return result.object as T;
 }
 
-async function resolveTreeEntry(
+async function resolveTreeEntries(
 	dir: string,
 	rootTree: TreeObject,
 	filepath: string
-): Promise<TreeEntry> {
-	let tree = rootTree;
-	const segments = filepath.split('/');
+): Promise<Array<[string, TreeEntry]>> {
+	const entries = await resolveTreeEntriesFromSegments(
+		dir,
+		rootTree,
+		filepath.split('/'),
+		[]
+	);
+	if (entries.length === 0) {
+		throw new Error(`Path not found in the repo: ${filepath}`);
+	}
+	return entries;
+}
 
-	for (let index = 0; index < segments.length; index++) {
-		const segment = segments[index];
-		const entry = tree.find((item) => item.path === segment);
-		if (!entry) {
-			throw new Error(`Path not found in the repo: ${filepath}`);
-		}
-		if (index === segments.length - 1) {
-			if (entry.type !== 'blob') {
-				throw new Error(`Expected ${filepath} to resolve to a file.`);
-			}
-			return entry;
-		}
-		if (entry.type !== 'tree') {
-			throw new Error(`Path not found in the repo: ${filepath}`);
-		}
-		tree = await readParsedObject<TreeObject>(dir, entry.oid, 'tree');
+async function resolveTreeEntriesFromSegments(
+	dir: string,
+	tree: TreeObject,
+	segments: string[],
+	resolvedSegments: string[]
+): Promise<Array<[string, TreeEntry]>> {
+	const [segment, ...remainingSegments] = segments;
+	const matchedEntries = tree.filter((entry) =>
+		pathSegmentMatchesPattern(entry.path, segment)
+	);
+
+	if (matchedEntries.length === 0) {
+		return [];
 	}
 
-	throw new Error(`Path not found in the repo: ${filepath}`);
+	const matches: Array<[string, TreeEntry]> = [];
+	for (const entry of matchedEntries) {
+		const nextResolvedSegments = [...resolvedSegments, entry.path];
+		if (remainingSegments.length === 0) {
+			if (entry.type !== 'blob') {
+				throw new Error(
+					`Expected ${nextResolvedSegments.join('/')} to resolve to a file.`
+				);
+			}
+			matches.push([nextResolvedSegments.join('/'), entry]);
+			continue;
+		}
+		if (entry.type !== 'tree') {
+			continue;
+		}
+		matches.push(
+			...(await resolveTreeEntriesFromSegments(
+				dir,
+				await readParsedObject<TreeObject>(dir, entry.oid, 'tree'),
+				remainingSegments,
+				nextResolvedSegments
+			))
+		);
+	}
+
+	return matches;
+}
+
+export function pathSegmentMatchesPattern(
+	segment: string,
+	pattern: string
+): boolean {
+	if (!pattern.includes('*')) {
+		return segment === pattern;
+	}
+	return new RegExp(
+		`^${pattern
+			.split('*')
+			.map(escapeRegExp)
+			.join('.*')}$`
+	).test(segment);
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export function createTreeFetchRequest(commitHash: string): Buffer {

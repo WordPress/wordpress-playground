@@ -47,8 +47,8 @@ creates them before PHP starts.
 The supported `--php-versions` are `7.4` and `8.0` through `8.5`.
 
 Docker is required. The CLI lazily fetches the small PHP.wasm Docker asset set
-needed to prepare the Emscripten base image and PHP patch set, then runs
-`phpize`, `emconfigure`, and `emmake` inside the container.
+needed to prepare the Emscripten base image and all `compile/php/php*.patch`
+files, then runs `phpize`, `emconfigure`, and `emmake` inside the container.
 
 ## Running in CI
 
