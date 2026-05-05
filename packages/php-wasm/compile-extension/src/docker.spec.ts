@@ -7,6 +7,7 @@ import { createDockerContext } from './docker';
 import {
 	DockerAssetPaths,
 	isPhpWasmDockerContext,
+	publishFetchedDockerAssets,
 	resolveDockerAssetsRef,
 } from './docker-assets';
 
@@ -154,6 +155,31 @@ describe('isPhpWasmDockerContext', () => {
 		await createPhpWasmDockerAssets(phpWasmRoot);
 
 		expect(isPhpWasmDockerContext(phpWasmRoot)).toBe(true);
+	});
+});
+
+describe('publishFetchedDockerAssets', () => {
+	it('keeps an already-populated cache from a concurrent fetch', async () => {
+		const root = await mkdtemp(
+			path.join(os.tmpdir(), 'compile-extension-context-')
+		);
+		const cacheDir = path.join(root, 'cache');
+		const phpWasmRoot = path.join(cacheDir, 'php-wasm');
+		const tempDir = path.join(root, 'fetch.tmp');
+
+		await createPhpWasmDockerAssets(phpWasmRoot);
+		await createPhpWasmDockerAssets(path.join(tempDir, 'php-wasm'));
+
+		await publishFetchedDockerAssets({
+			tempDir,
+			cacheDir,
+			phpWasmRoot,
+		});
+
+		expect(isPhpWasmDockerContext(phpWasmRoot)).toBe(true);
+		expect(isPhpWasmDockerContext(path.join(tempDir, 'php-wasm'))).toBe(
+			false
+		);
 	});
 });
 

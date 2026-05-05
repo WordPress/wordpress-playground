@@ -112,9 +112,11 @@ export async function fetchDockerAssets({
 			force: true,
 		});
 
-		await rm(cacheDir, { recursive: true, force: true });
-		await mkdir(path.dirname(cacheDir), { recursive: true });
-		await rename(tempDir, cacheDir);
+		await publishFetchedDockerAssets({
+			tempDir,
+			cacheDir,
+			phpWasmRoot,
+		});
 	} catch (error) {
 		await rm(tempDir, { recursive: true, force: true });
 		throw error;
@@ -127,6 +129,27 @@ export function isPhpWasmDockerContext(phpWasmRoot: string): boolean {
 	return DockerAssetPaths.every((relativePath) =>
 		existsSync(path.join(phpWasmRoot, relativePath))
 	);
+}
+
+export async function publishFetchedDockerAssets({
+	tempDir,
+	cacheDir,
+	phpWasmRoot,
+}: {
+	tempDir: string;
+	cacheDir: string;
+	phpWasmRoot: string;
+}): Promise<void> {
+	await mkdir(path.dirname(cacheDir), { recursive: true });
+	try {
+		await rename(tempDir, cacheDir);
+	} catch (error) {
+		if (isExistingPathError(error) && isPhpWasmDockerContext(phpWasmRoot)) {
+			await rm(tempDir, { recursive: true, force: true });
+			return;
+		}
+		throw error;
+	}
 }
 
 export function resolveDockerAssetsRef({
@@ -209,4 +232,13 @@ function stableHash(value: string): string {
 
 async function readJsonFile<T>(filename: string): Promise<T> {
 	return JSON.parse(await readFile(filename, 'utf8')) as T;
+}
+
+function isExistingPathError(error: unknown): boolean {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'code' in error &&
+		['EEXIST', 'ENOTEMPTY', 'EPERM'].includes(String(error.code))
+	);
 }

@@ -80,6 +80,8 @@ export async function main(args = hideBin(process.argv)) {
 					'Stage a host directory under an absolute VFS root. Format: <hostDir>:<vfsRoot>. Files are copied next to the manifest and recorded in extraFiles.',
 			},
 		})
+		.conflicts('source', 'prepare-image')
+		.check(validateCliMode)
 		.strict()
 		.help()
 		.parse();
@@ -105,10 +107,7 @@ export async function main(args = hideBin(process.argv)) {
 		return;
 	}
 
-	const source = argv['source'] as string | undefined;
-	if (!source) {
-		throw new Error('--source is required unless --prepare-image is set.');
-	}
+	const source = argv['source'] as string;
 	const sourceDir = path.resolve(workspaceRoot, source);
 	const name =
 		(argv['name'] as string | undefined) ??
@@ -165,6 +164,28 @@ export function normalizeDashPrefixedOptionValues(args: string[]): string[] {
 		normalized.push(arg);
 	}
 	return normalized;
+}
+
+export function validateCliMode(argv: {
+	source?: unknown;
+	'prepare-image'?: unknown;
+	prepareImage?: unknown;
+	help?: unknown;
+}): true {
+	if (argv.help) {
+		return true;
+	}
+	const hasSource = typeof argv.source === 'string' && argv.source.length > 0;
+	const prepareImage = Boolean(argv['prepare-image'] ?? argv.prepareImage);
+
+	if (hasSource && prepareImage) {
+		throw new Error('--source and --prepare-image cannot be used together.');
+	}
+	if (!hasSource && !prepareImage) {
+		throw new Error('--source is required unless --prepare-image is set.');
+	}
+
+	return true;
 }
 
 function parseCsv(value: string, name: string): string[] {

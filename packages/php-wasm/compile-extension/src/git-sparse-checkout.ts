@@ -214,7 +214,7 @@ async function resolveTreeEntry(
 	throw new Error(`Path not found in the repo: ${filepath}`);
 }
 
-function createTreeFetchRequest(commitHash: string): Buffer {
+export function createTreeFetchRequest(commitHash: string): Buffer {
 	return Buffer.concat([
 		pktLine(
 			`want ${commitHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 filter \n`
@@ -223,7 +223,6 @@ function createTreeFetchRequest(commitHash: string): Buffer {
 		pktLine(`shallow ${commitHash}\n`),
 		pktLine('deepen 1\n'),
 		flushPkt(),
-		pktLine('done\n'),
 		pktLine('done\n'),
 	]);
 }
@@ -240,7 +239,7 @@ function createObjectFetchRequest(objectHashes: string[]): Buffer {
 	]);
 }
 
-function parseUploadPackResponse(response: Buffer): Buffer {
+export function parseUploadPackResponse(response: Buffer): Buffer {
 	const packChunks: Buffer[] = [];
 	let offset = 0;
 
@@ -250,10 +249,19 @@ function parseUploadPackResponse(response: Buffer): Buffer {
 			16
 		);
 		offset += 4;
+		if (!Number.isFinite(lineLength)) {
+			throw new Error('Invalid Git pkt-line response.');
+		}
 		if (lineLength === 0) {
 			continue;
 		}
-		if (!Number.isFinite(lineLength) || lineLength < 4) {
+		if (lineLength === 1) {
+			continue;
+		}
+		if (lineLength === 2) {
+			break;
+		}
+		if (lineLength < 4) {
 			throw new Error('Invalid Git pkt-line response.');
 		}
 		const payloadLength = lineLength - 4;

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeDashPrefixedOptionValues, splitShellWords } from './cli';
+import {
+	normalizeDashPrefixedOptionValues,
+	splitShellWords,
+	validateCliMode,
+} from './cli';
 
 describe('normalizeDashPrefixedOptionValues', () => {
 	it('keeps configure and compiler flags as option values', () => {
@@ -18,6 +22,31 @@ describe('normalizeDashPrefixedOptionValues', () => {
 			'--extra-cflags=-Dsetsockopt=wasm_setsockopt',
 			'--extra-ldflags=-sERROR_ON_UNDEFINED_SYMBOLS=0',
 		]);
+	});
+});
+
+describe('validateCliMode', () => {
+	it('accepts extension compile mode', () => {
+		expect(validateCliMode({ source: './ext-src' })).toBe(true);
+	});
+
+	it('accepts prepare-image mode', () => {
+		expect(validateCliMode({ 'prepare-image': true })).toBe(true);
+	});
+
+	it('requires one CLI mode', () => {
+		expect(() => validateCliMode({})).toThrow(
+			'--source is required unless --prepare-image is set.'
+		);
+	});
+
+	it('rejects conflicting CLI modes', () => {
+		expect(() =>
+			validateCliMode({
+				source: './ext-src',
+				'prepare-image': true,
+			})
+		).toThrow('--source and --prepare-image cannot be used together.');
 	});
 });
 
