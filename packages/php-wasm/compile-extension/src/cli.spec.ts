@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	normalizeDashPrefixedOptionValues,
+	parseCliArgs,
 	splitShellWords,
 	validateCliMode,
 } from './cli';
@@ -47,6 +48,21 @@ describe('validateCliMode', () => {
 				'prepare-image': true,
 			})
 		).toThrow('--source and --prepare-image cannot be used together.');
+	});
+});
+
+describe('parseCliArgs', () => {
+	it('accepts source mode without treating absent prepare-image as a conflict', async () => {
+		const argv = await parseCliArgs(['--source', './ext-src']);
+
+		expect(argv.source).toBe('./ext-src');
+		expect(argv['prepare-image']).toBeUndefined();
+	});
+
+	it('rejects source and prepare-image together', async () => {
+		await expect(
+			parseCliArgs(['--source', './ext-src', '--prepare-image'])
+		).rejects.toThrow('Arguments source and prepare-image are mutually exclusive');
 	});
 });
 

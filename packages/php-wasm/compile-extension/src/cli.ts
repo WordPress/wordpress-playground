@@ -21,71 +21,7 @@ const OptionsWithDashPrefixedValues = new Set([
 ]);
 
 export async function main(args = hideBin(process.argv)) {
-	const argv = await yargs(normalizeDashPrefixedOptionValues(args))
-		.scriptName('@php-wasm/compile-extension')
-		.usage('Usage: $0 [--source <dir> | --prepare-image] [options]')
-		.options({
-			source: {
-				type: 'string',
-				description: 'Extension source directory containing config.m4',
-			},
-			'prepare-image': {
-				type: 'boolean',
-				default: false,
-				description:
-					'Build the Docker images for the requested PHP versions and exit without compiling an extension source directory.',
-			},
-			name: {
-				type: 'string',
-				description: 'Extension name. Defaults to parsing config.m4.',
-			},
-			'php-versions': {
-				type: 'string',
-				default: SupportedExtensionPHPVersions.join(','),
-				description: 'Comma-separated PHP major.minor versions.',
-			},
-			out: {
-				type: 'string',
-				default: './dist',
-				description: 'Output directory.',
-			},
-			'extra-cflags': {
-				type: 'string',
-				description: 'Extra CFLAGS appended to the side-module build.',
-			},
-			'extra-ldflags': {
-				type: 'string',
-				description: 'Extra LDFLAGS appended to the side-module build.',
-			},
-			'config-args': {
-				type: 'string',
-				default: '',
-				description:
-					'Extra ./configure arguments, parsed as shell words.',
-			},
-			optimize: {
-				type: 'string',
-				default: '2',
-				description: 'Optimization level passed as -O<level>.',
-			},
-			jobs: {
-				type: 'number',
-				description: 'Maximum concurrent docker builds.',
-			},
-			'extra-files': {
-				type: 'string',
-				array: true,
-				default: [] as string[],
-				description:
-					'Stage a host directory under an absolute VFS root. Format: <hostDir>:<vfsRoot>. Files are copied next to the manifest and recorded in extraFiles.',
-			},
-		})
-		.conflicts('source', 'prepare-image')
-		.check(validateCliMode)
-		.strict()
-		.help()
-		.parse();
-
+	const argv = await parseCliArgs(args);
 	const workspaceRoot = findWorkspaceRoot(process.cwd());
 	const phpVersions = parseCsv(
 		argv['php-versions'] as string,
@@ -139,6 +75,73 @@ export async function main(args = hideBin(process.argv)) {
 
 	console.log(`Wrote ${result.artifacts.length} artifacts.`);
 	console.log(`Wrote ${result.manifestPath}.`);
+}
+
+export async function parseCliArgs(args: string[]) {
+	return await yargs(normalizeDashPrefixedOptionValues(args))
+		.scriptName('@php-wasm/compile-extension')
+		.usage('Usage: $0 [--source <dir> | --prepare-image] [options]')
+		.options({
+			source: {
+				type: 'string',
+				description: 'Extension source directory containing config.m4',
+			},
+			'prepare-image': {
+				type: 'boolean',
+				description:
+					'Build the Docker images for the requested PHP versions and exit without compiling an extension source directory.',
+			},
+			name: {
+				type: 'string',
+				description: 'Extension name. Defaults to parsing config.m4.',
+			},
+			'php-versions': {
+				type: 'string',
+				default: SupportedExtensionPHPVersions.join(','),
+				description: 'Comma-separated PHP major.minor versions.',
+			},
+			out: {
+				type: 'string',
+				default: './dist',
+				description: 'Output directory.',
+			},
+			'extra-cflags': {
+				type: 'string',
+				description: 'Extra CFLAGS appended to the side-module build.',
+			},
+			'extra-ldflags': {
+				type: 'string',
+				description: 'Extra LDFLAGS appended to the side-module build.',
+			},
+			'config-args': {
+				type: 'string',
+				default: '',
+				description:
+					'Extra ./configure arguments, parsed as shell words.',
+			},
+			optimize: {
+				type: 'string',
+				default: '2',
+				description: 'Optimization level passed as -O<level>.',
+			},
+			jobs: {
+				type: 'number',
+				description: 'Maximum concurrent docker builds.',
+			},
+			'extra-files': {
+				type: 'string',
+				array: true,
+				default: [] as string[],
+				description:
+					'Stage a host directory under an absolute VFS root. Format: <hostDir>:<vfsRoot>. Files are copied next to the manifest and recorded in extraFiles.',
+			},
+		})
+		.conflicts('source', 'prepare-image')
+		.check(validateCliMode)
+		.exitProcess(false)
+		.strict()
+		.help()
+		.parse();
 }
 
 if (isCliEntrypoint(import.meta.url)) {
