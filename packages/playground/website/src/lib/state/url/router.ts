@@ -23,6 +23,7 @@ interface QueryAPIParams {
 	url?: string;
 	'blueprint-url'?: string;
 	'page-title'?: string;
+	filebrowser?: string;
 }
 
 /**
@@ -58,7 +59,10 @@ export function parseBlueprint(rawData: string) {
  * base64-decode-then-parse error if the input looks base64-shaped,
  * otherwise the plain JSON.parse error.
  */
-function formatInvalidBlueprintError(rawData: string, errors: unknown[]): string {
+function formatInvalidBlueprintError(
+	rawData: string,
+	errors: unknown[]
+): string {
 	const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(rawData.trim());
 	const primary = looksLikeBase64 && errors[1] ? errors[1] : errors[0];
 	const detail =
@@ -87,6 +91,7 @@ export class PlaygroundRoute {
 				'login',
 				'url',
 				'page-title',
+				'filebrowser',
 				'mcp',
 				'mcp-port',
 				'can-save',
