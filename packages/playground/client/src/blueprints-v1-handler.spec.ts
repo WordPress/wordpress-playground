@@ -81,7 +81,7 @@ describe('BlueprintsV1Handler', () => {
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
 				shouldBootWordPress: false,
-				shouldInstallWordPress: false,
+				wordpressInstallMode: 'do-not-attempt-installing',
 			})
 		);
 		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
@@ -101,7 +101,7 @@ describe('BlueprintsV1Handler', () => {
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
 				shouldBootWordPress: true,
-				shouldInstallWordPress: false,
+				wordpressInstallMode: 'install-from-existing-files-if-needed',
 			})
 		);
 	});
@@ -161,7 +161,7 @@ describe('BlueprintsV1Handler', () => {
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
 				shouldBootWordPress: false,
-				shouldInstallWordPress: false,
+				wordpressInstallMode: 'do-not-attempt-installing',
 			})
 		);
 		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
@@ -175,6 +175,25 @@ describe('BlueprintsV1Handler', () => {
 			blueprint: {},
 			shouldBootWordPress: false,
 			shouldInstallWordPress: true,
+		});
+
+		await expect(
+			handler.bootPlayground(iframe, createProgressTracker())
+		).rejects.toThrow(
+			'Conflicting options: WordPress installation was requested, ' +
+				'but WordPress boot was disabled. Pick one.'
+		);
+		expect(mocks.playground.boot).not.toHaveBeenCalled();
+	});
+
+	it('rejects WordPress install mode when boot is disabled', async () => {
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {},
+			shouldBootWordPress: false,
+			wordpressInstallMode: 'download-and-install',
 		});
 
 		await expect(
@@ -222,7 +241,7 @@ describe('BlueprintsV1Handler', () => {
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
-				shouldInstallWordPress: true,
+				wordpressInstallMode: 'download-and-install',
 			})
 		);
 		expect(mocks.playground.prefetchUpdateChecks).toHaveBeenCalledTimes(1);

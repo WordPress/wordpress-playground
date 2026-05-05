@@ -42,7 +42,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		withNetworking = true,
 		shouldInstallWordPress,
 		shouldBootWordPress = true,
-		wordpressInstallMode = 'install-from-existing-files-if-needed',
+		wordpressInstallMode,
 		corsProxyUrl,
 		pathAliases,
 	}: WorkerBootOptions) {
@@ -59,9 +59,15 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
-			const installWordPress =
-				shouldInstallWordPress ?? shouldBootWordPress;
-			if (installWordPress && !shouldBootWordPress) {
+			const resolvedWordPressInstallMode = getWordPressInstallMode({
+				shouldBootWordPress,
+				shouldInstallWordPress,
+				wordpressInstallMode,
+			});
+			if (
+				!shouldBootWordPress &&
+				resolvedWordPressInstallMode !== 'do-not-attempt-installing'
+			) {
 				throw new Error(
 					'Conflicting options: WordPress installation was requested, ' +
 						'but WordPress boot was disabled. Pick one.'
@@ -91,7 +97,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			const wpDetails = getWordPressModuleDetails(wpVersion);
 			let wordPressRequest: Promise<Response> | null = null;
-			if (installWordPress) {
+			if (resolvedWordPressInstallMode === 'download-and-install') {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
 						.monitorFetch(
@@ -195,32 +201,27 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			await bootWordPress(requestHandler, {
 				siteUrl,
 				phpVersion,
-				constants: installWordPress
-					? {
-							// Disable WP_DEBUG for legacy PHP (< 7) because
-							// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
-							// and shows all notices when WP_DEBUG is true,
-							// breaking header output and install responses.
-							WP_DEBUG: !isLegacyPhp,
-							WP_DEBUG_LOG: true,
-							WP_DEBUG_DISPLAY: false,
-							AUTH_KEY: randomString(40),
-							SECURE_AUTH_KEY: randomString(40),
-							LOGGED_IN_KEY: randomString(40),
-							NONCE_KEY: randomString(40),
-							AUTH_SALT: randomString(40),
-							SECURE_AUTH_SALT: randomString(40),
-							LOGGED_IN_SALT: randomString(40),
-							NONCE_SALT: randomString(40),
-						}
-					: {},
-				// Passing this even when shouldInstallWordPress is false is counter-intuitive.
-				// Before this line was introduced, `wordpressInstallMode` was always undefined
-				// which defaulted to 'install-from-existing-files'. Using the `-if-needed` variant
-				// saves around 600ms during the boot on a macbook pro so it's worth it.
-				// @TODO: Deprecate the `shouldInstallWordPress` semantics entirely and get the client
-				//        and the Playground website to pass `wordpressInstallMode` directly.
-				wordpressInstallMode,
+				constants:
+					resolvedWordPressInstallMode === 'download-and-install'
+						? {
+								// Disable WP_DEBUG for legacy PHP (< 7) because
+								// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
+								// and shows all notices when WP_DEBUG is true,
+								// breaking header output and install responses.
+								WP_DEBUG: !isLegacyPhp,
+								WP_DEBUG_LOG: true,
+								WP_DEBUG_DISPLAY: false,
+								AUTH_KEY: randomString(40),
+								SECURE_AUTH_KEY: randomString(40),
+								LOGGED_IN_KEY: randomString(40),
+								NONCE_KEY: randomString(40),
+								AUTH_SALT: randomString(40),
+								SECURE_AUTH_SALT: randomString(40),
+								LOGGED_IN_SALT: randomString(40),
+								NONCE_SALT: randomString(40),
+							}
+						: {},
+				wordpressInstallMode: resolvedWordPressInstallMode,
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
@@ -255,6 +256,34 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			throw e as Error;
 		}
 	}
+}
+
+type WordPressInstallMode = NonNullable<
+	WorkerBootOptions['wordpressInstallMode']
+>;
+
+function getWordPressInstallMode({
+	shouldBootWordPress,
+	shouldInstallWordPress,
+	wordpressInstallMode,
+}: {
+	shouldBootWordPress: boolean;
+	shouldInstallWordPress?: boolean;
+	wordpressInstallMode?: WordPressInstallMode;
+}): WordPressInstallMode {
+	if (wordpressInstallMode) {
+		return wordpressInstallMode;
+	}
+	if (shouldInstallWordPress === true) {
+		return 'download-and-install';
+	}
+	if (!shouldBootWordPress) {
+		return 'do-not-attempt-installing';
+	}
+	if (shouldInstallWordPress === false) {
+		return 'install-from-existing-files-if-needed';
+	}
+	return 'download-and-install';
 }
 
 const workerGlobal = self as unknown as {

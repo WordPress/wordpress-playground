@@ -73,12 +73,15 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			scope: 'test',
 			mounts: [mount as any],
 			phpVersion: '8.3',
-			shouldInstallWordPress: false,
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
 			withNetworking: false,
 		});
 
 		expect(bootWordPress).toHaveBeenCalledTimes(1);
 		expect(bootWordPress.mock.calls[0][1].wordPressZip).toBeUndefined();
+		expect(bootWordPress.mock.calls[0][1].wordpressInstallMode).toBe(
+			'install-from-existing-files-if-needed'
+		);
 		expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
 	}, 10000);
 
@@ -165,7 +168,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 				scope: 'test',
 				phpVersion: '8.3',
 				shouldBootWordPress: false,
-				shouldInstallWordPress: true,
+				wordpressInstallMode: 'download-and-install',
 				withNetworking: false,
 			})
 		).rejects.toThrow(

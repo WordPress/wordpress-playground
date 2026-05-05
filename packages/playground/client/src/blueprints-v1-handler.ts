@@ -68,9 +68,19 @@ export class BlueprintsV1Handler {
 		const declarativeOptOut =
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
+		const bootWordPress = shouldBootWordPress ?? !declarativeOptOut;
+		const resolvedWordPressInstallMode = getWordPressInstallMode({
+			bootWordPress,
+			shouldInstallWordPress,
+			wordpressInstallMode,
+		});
 		if (
-			(shouldInstallWordPress === true || shouldBootWordPress === true) &&
-			declarativeOptOut
+			wordpressWasRequestedExplicitly({
+				declarativeOptOut,
+				resolvedWordPressInstallMode,
+				shouldBootWordPress,
+				shouldInstallWordPress,
+			})
 		) {
 			throw new Error(
 				'Conflicting options: WordPress install or boot was requested, ' +
@@ -78,9 +88,10 @@ export class BlueprintsV1Handler {
 					'`preferredVersions.wp: false`. Pick one.'
 			);
 		}
-		const bootWordPress = shouldBootWordPress ?? !declarativeOptOut;
-		const installWordPress = shouldInstallWordPress ?? bootWordPress;
-		if (installWordPress && !bootWordPress) {
+		if (
+			!bootWordPress &&
+			resolvedWordPressInstallMode !== 'do-not-attempt-installing'
+		) {
 			throw new Error(
 				'Conflicting options: WordPress installation was requested, ' +
 					'but WordPress boot was disabled. Pick one.'
@@ -90,9 +101,8 @@ export class BlueprintsV1Handler {
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
-			shouldInstallWordPress: installWordPress,
 			shouldBootWordPress: bootWordPress,
-			wordpressInstallMode,
+			wordpressInstallMode: resolvedWordPressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			extensions,
@@ -143,11 +153,58 @@ export class BlueprintsV1Handler {
 		if (
 			runtimeConfiguration.networking &&
 			!isLegacyWpVersion &&
-			installWordPress
+			resolvedWordPressInstallMode === 'download-and-install'
 		) {
 			await playground.prefetchUpdateChecks();
 		}
 
 		return playground;
 	}
+}
+
+type WordPressInstallMode = NonNullable<
+	StartPlaygroundOptions['wordpressInstallMode']
+>;
+
+function getWordPressInstallMode({
+	bootWordPress,
+	shouldInstallWordPress,
+	wordpressInstallMode,
+}: {
+	bootWordPress: boolean;
+	shouldInstallWordPress?: boolean;
+	wordpressInstallMode?: WordPressInstallMode;
+}): WordPressInstallMode {
+	if (wordpressInstallMode) {
+		return wordpressInstallMode;
+	}
+	if (shouldInstallWordPress === true) {
+		return 'download-and-install';
+	}
+	if (!bootWordPress) {
+		return 'do-not-attempt-installing';
+	}
+	if (shouldInstallWordPress === false) {
+		return 'install-from-existing-files-if-needed';
+	}
+	return 'download-and-install';
+}
+
+function wordpressWasRequestedExplicitly({
+	declarativeOptOut,
+	resolvedWordPressInstallMode,
+	shouldBootWordPress,
+	shouldInstallWordPress,
+}: {
+	declarativeOptOut: boolean;
+	resolvedWordPressInstallMode: WordPressInstallMode;
+	shouldBootWordPress?: boolean;
+	shouldInstallWordPress?: boolean;
+}) {
+	return (
+		declarativeOptOut &&
+		(shouldBootWordPress === true ||
+			shouldInstallWordPress === true ||
+			resolvedWordPressInstallMode !== 'do-not-attempt-installing')
+	);
 }
