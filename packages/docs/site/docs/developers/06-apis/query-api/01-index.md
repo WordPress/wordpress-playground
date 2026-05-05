@@ -47,11 +47,30 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `mcp`              | `no`                  | Starts the MCP (Model Context Protocol) server bridge, allowing external MCP clients to connect to and control the Playground instance. Accepts `yes` or `no`.                                                                                                                                                                                                                                                                                                              |
 | `mcp-port`         | `7999`                | Sets the WebSocket port used by the MCP bridge to communicate with the MCP server. Must be used together with `mcp=yes`. For example, `mcp=yes&mcp-port=8080`.                                                                                                                                                                                                                                                                                                              |
 | `overlay`          |                       | Opens a UI overlay on page load. Currently supports `blueprints` to open the Blueprint Gallery directly. For example, `?overlay=blueprints`. The parameter is removed from the URL when the overlay is closed.                                                                                                                                                                                                                                                              |
+| `filebrowser`      |                       | Opens the Site Manager directly to the File Browser tab. Accepts an optional file path relative to the WordPress document root, and an optional `:<line>` suffix to place the editor cursor on a 1-based line.                                                                                                                                                                                                                                                              |
 
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin and opens the post editor:
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
+```
+
+To open the File Browser tab, use:
+
+```text
+https://playground.wordpress.net/?filebrowser
+```
+
+To open the File Browser tab with a specific file, use a path relative to the WordPress document root:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php
+```
+
+To place the cursor on a specific 1-based line number, append `:<line>` to the path:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php:20
 ```
 
 <div class="callout callout-info">
