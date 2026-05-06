@@ -61,7 +61,7 @@ export function shouldUseFileBrowserQuery(
 	isEmbeddedInIframe: boolean
 ) {
 	return (
-		parseFileBrowserQuery(searchParams).isRequested &&
+		searchParams.has('filebrowser') &&
 		searchParams.get('mode') !== 'seamless' &&
 		!isEmbeddedInIframe
 	);
