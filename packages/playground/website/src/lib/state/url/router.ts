@@ -84,7 +84,7 @@ export class PlaygroundRoute {
 		if (site.metadata.storage === 'none') {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+			const baseParams = new URL(baseUrl).searchParams;
 			const preserveParamsKeys = [
 				'mode',
 				'networking',
