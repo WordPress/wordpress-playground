@@ -12,6 +12,26 @@ $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 $docRoot = $_SERVER['DOCUMENT_ROOT'];
 $file = $docRoot . $uri;
 
+// First-request middleware: mirrors run-cli.ts's classic-mode handler
+// that clears a stale `playground_auto_login_already_happened` cookie
+// on the first real request after boot. The marker file is created by
+// posix-kernel-handler.ts after ensureWordPressInstalled completes, so
+// the install probe never trips this branch. @unlink is atomic across
+// FPM workers — only the first request consumes the marker. We only
+// emit the 302 when the cookie is actually present, otherwise the
+// marker is consumed silently and the request falls through normally.
+$firstRequestMarker = $_SERVER['PLAYGROUND_FIRST_REQUEST_MARKER'] ?? '';
+if ($firstRequestMarker !== '' && @unlink($firstRequestMarker)) {
+    $cookieHeader = $_SERVER['HTTP_COOKIE'] ?? '';
+    if (strpos($cookieHeader, 'playground_auto_login_already_happened') !== false) {
+        header('Content-Type: text/plain');
+        header('Content-Length: 0');
+        header('Location: ' . $_SERVER['REQUEST_URI'], true, 302);
+        header('Set-Cookie: playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/');
+        exit;
+    }
+}
+
 // Apply Playground-defined constants (set via --define / --define-bool
 // / --define-number and persisted by KernelLimitedPHPApi.defineConstant)
 // before any user PHP runs. The same file is loaded as a WordPress

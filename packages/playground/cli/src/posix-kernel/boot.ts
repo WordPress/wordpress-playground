@@ -41,6 +41,7 @@ export interface PosixKernelBootResult extends AsyncDisposable {
 	serverUrl: string;
 	wordPressRoot: string;
 	runtime: KernelRuntime;
+	resetFirstRequestMarker: () => void;
 	[Symbol.asyncDispose](): Promise<void>;
 }
 
@@ -74,12 +75,22 @@ export async function bootPosixKernelWordPress(
 
 	const routerScriptPath = joinPaths(dir, 'router.php');
 	const fpmConfPath = joinPaths(dir, 'configs', 'php-fpm.conf');
+	// The marker path is wired into nginx now, but the file is created
+	// later (by the handler, after the WP installer probe). If the file
+	// existed during the install probe, router.php would short-circuit
+	// the probe with a 302, defeating ensureWordPressInstalled's
+	// install.php detection.
+	const firstRequestMarker = joinPaths(
+		options.tempDir,
+		'first-request-pending'
+	);
 	const renderedNginxConf = renderNginxConf({
 		port: options.port,
 		serverName: options.serverName ?? 'localhost',
 		wordPressRoot: options.wordPressRoot,
 		routerScript: routerScriptPath,
 		tempDir: options.tempDir,
+		firstRequestMarker,
 	});
 
 	// Time-multiplexed stdio capture. The kernel currently emits every
@@ -184,6 +195,7 @@ export async function bootPosixKernelWordPress(
 		serverUrl: `http://127.0.0.1:${options.port}`,
 		wordPressRoot: options.wordPressRoot,
 		runtime,
+		resetFirstRequestMarker: () => writeFileSync(firstRequestMarker, ''),
 		async [Symbol.asyncDispose]() {
 			await dispose();
 		},
@@ -218,6 +230,7 @@ function renderNginxConf(args: {
 	wordPressRoot: string;
 	routerScript: string;
 	tempDir: string;
+	firstRequestMarker: string;
 }): string {
 	const template = readFileSync(
 		joinPaths(dir, 'configs', 'nginx.conf'),
@@ -227,7 +240,8 @@ function renderNginxConf(args: {
 		.replaceAll('__PORT__', String(args.port))
 		.replaceAll('__SERVER_NAME__', args.serverName)
 		.replaceAll('__WORDPRESS_ROOT__', args.wordPressRoot)
-		.replaceAll('__ROUTER_SCRIPT__', args.routerScript);
+		.replaceAll('__ROUTER_SCRIPT__', args.routerScript)
+		.replaceAll('__FIRST_REQUEST_MARKER__', args.firstRequestMarker);
 	const outPath = joinPaths(args.tempDir, 'nginx.conf');
 	writeFileSync(outPath, rendered);
 	return outPath;

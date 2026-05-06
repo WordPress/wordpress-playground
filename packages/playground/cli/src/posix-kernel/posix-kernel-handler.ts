@@ -126,6 +126,13 @@ export class PosixKernelHandler {
 			throw e;
 		}
 
+		// Arm the first-request marker now that install has completed.
+		// router.php watches for the marker and serves a 302 + cookie-
+		// clearing Set-Cookie on the first real request, mirroring the
+		// classic CLI's Express middleware. We arm it post-install so
+		// the install probe sees a clean pipeline.
+		booted.resetFirstRequestMarker();
+
 		return { serverUrl: booted.serverUrl, api, dispose };
 	}
 
