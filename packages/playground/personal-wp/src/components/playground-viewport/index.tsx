@@ -91,7 +91,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
 			if (isInstallBlueprintMessage(event, iframeRef.current)) {
-				applyBlueprint(event.data.blueprintUrl);
+				if (confirmBlueprintInstall(event.data.blueprintUrl)) {
+					applyBlueprint(event.data.blueprintUrl);
+				}
 			}
 		}
 		window.addEventListener('message', handleMessage);
@@ -153,6 +155,14 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+function confirmBlueprintInstall(blueprintUrl: string): boolean {
+	const url = new URL(blueprintUrl);
+	const source = url.protocol === 'data:' ? 'an inline blueprint' : url.host;
+	return window.confirm(
+		`Install an app from ${source}? This may change your WordPress site.`
 	);
 }
 

@@ -8,30 +8,9 @@ import type { Blueprint } from '@wp-playground/blueprints';
 // don't re-test individual step types (writeFile, wp-cli, etc.).
 // These smoke tests verify personal-wp's own parsing → boot chain.
 
-test('should land on the welcome page on first visit', async ({ website }) => {
+test('should land on My Apps on first visit', async ({ website }) => {
 	await website.goto('./');
-	await expect(website.page).toHaveURL(
-		/\/wp-admin\/tools\.php\?page=playground-welcome/
-	);
-});
-
-test('should complete welcome flow and update site title', async ({
-	website,
-	wordpress,
-}) => {
-	await website.goto('./');
-	await expect(website.page).toHaveURL(
-		/\/wp-admin\/tools\.php\?page=playground-welcome/
-	);
-
-	const nameInput = wordpress.locator('#display_name');
-	await nameInput.fill('John Doe');
-	await nameInput.press('Enter');
-
-	await expect(website.page).toHaveURL(/\/$/);
-	await expect(wordpress.locator('p.wp-block-site-title')).toHaveText(
-		"John Doe's WordPress"
-	);
+	await expect(website.page).toHaveURL(/\/my-apps\/$/);
 });
 
 test('should apply a blueprint passed via URL hash', async ({ website }) => {

@@ -1,16 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PlaygroundRoute } from './router';
 import { getAppBaseUrl } from './app-base-url';
 import type { SiteInfo } from '../redux/slice-sites';
 
-vi.stubGlobal('window', {
-	location: {
-		href: 'https://example.com/',
-		origin: 'https://example.com',
-	},
-});
-
 describe('PlaygroundRoute', () => {
+	beforeAll(() => {
+		vi.stubGlobal('window', {
+			location: {
+				href: 'https://example.com/',
+				origin: 'https://example.com',
+			},
+		});
+	});
+
+	afterAll(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it('strips Playground query keys and preserves WordPress/plugin params at the app base path', () => {
 		const url = appBaseUrlWithSearch(
 			'url=%2Fwp-admin%2F&blueprint-url=https%3A%2F%2Fexample.com%2Fblueprint.json&plugin=friends&app-store=1&p=42'

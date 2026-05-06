@@ -249,11 +249,9 @@ export function bootSiteClient(
 					);
 					// Use the browser URL path + query as landing page
 					// (set via pushState during WordPress navigation).
-					const browserPath =
-						window.location.pathname + window.location.search;
 					const landingPage =
 						dependentUrlParams.get('url') ||
-						(browserPath !== '/' ? browserPath : null) ||
+						getBrowserPathAsLandingPage() ||
 						'/wp-admin/';
 					// Resolve relative to scopedUrl so a query string in
 					// landingPage stays in URL.search instead of being
@@ -338,7 +336,7 @@ export function bootSiteClient(
 					dispatch(
 						updateSiteMetadata({
 							slug: site.slug,
-							changes: {
+							metadata: {
 								lastAccessDate: Date.now(),
 							},
 						})
@@ -376,12 +374,7 @@ export function bootSiteClient(
 				// (set via pushState during WordPress navigation).
 				// Falls back to the default admin page.
 				landingPage:
-					urlParamLandingPage ||
-					(() => {
-						const pathAndQuery =
-							window.location.pathname + window.location.search;
-						return pathAndQuery !== '/' ? pathAndQuery : undefined;
-					})(),
+					urlParamLandingPage || getBrowserPathAsLandingPage(),
 			};
 
 			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
@@ -557,6 +550,13 @@ export function bootSiteClient(
 
 		signal.onabort = null;
 	};
+}
+
+function getBrowserPathAsLandingPage(): string | undefined {
+	if (isAppBasePath(window.location.pathname)) {
+		return undefined;
+	}
+	return window.location.pathname + window.location.search;
 }
 
 /**

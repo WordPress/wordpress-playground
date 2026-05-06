@@ -151,10 +151,10 @@ export function deriveSiteNameFromSlug(slug: string) {
  */
 export function updateSiteMetadata({
 	slug,
-	changes,
+	metadata,
 }: {
 	slug: string;
-	changes: Partial<SiteMetadata>;
+	metadata: Partial<SiteMetadata>;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -167,7 +167,7 @@ export function updateSiteMetadata({
 				changes: {
 					metadata: {
 						...storedSite.metadata,
-						...changes,
+						...metadata,
 					},
 				},
 			})

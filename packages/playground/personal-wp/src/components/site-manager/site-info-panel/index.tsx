@@ -388,7 +388,7 @@ function BackupSection() {
 		dispatch(
 			updateSiteMetadata({
 				slug: activeSite.slug,
-				changes: {
+				metadata: {
 					autoBackupInterval: e.target.value as AutoBackupInterval,
 				},
 			})
