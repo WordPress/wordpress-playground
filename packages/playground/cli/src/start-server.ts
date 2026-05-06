@@ -34,6 +34,28 @@ export function isPortInUse(port: number): Promise<boolean> {
 	});
 }
 
+/**
+ * Reserve a free TCP port on 127.0.0.1 by binding to :0 and releasing
+ * it. Used by `--experimental-posix-kernel` because the kernel-resident
+ * nginx needs an explicit numeric port — we can't pass :0 to it and
+ * read the bound port back the way Node's `http.Server` does.
+ */
+export function reserveFreePort(): Promise<number> {
+	return new Promise((resolve, reject) => {
+		const server = express().listen(0, '127.0.0.1', () => {
+			const address = server.address();
+			if (typeof address !== 'object' || address === null) {
+				server.close();
+				reject(new Error('Server address is not available'));
+				return;
+			}
+			const port = address.port;
+			server.close((err) => (err ? reject(err) : resolve(port)));
+		});
+		server.once('error', reject);
+	});
+}
+
 export async function startServer(
 	options: ServerOptions
 ): Promise<RunCLIServer | void> {
