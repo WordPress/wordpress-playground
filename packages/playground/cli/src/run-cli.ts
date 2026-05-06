@@ -326,8 +326,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe:
 					'Run WordPress under nginx + PHP-FPM hosted by ' +
 					'wasm-posix-kernel instead of PHP.wasm. Requires a ' +
-					'sibling wasm-posix-kernel checkout (set ' +
-					'WASM_POSIX_KERNEL_DIR to override its default location).',
+					'wasm-posix-kernel checkout; set ' +
+					'WASM_POSIX_KERNEL_DIR to its absolute path.',
 				type: 'boolean',
 				default: false,
 				hidden: true,

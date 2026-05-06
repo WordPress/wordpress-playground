@@ -13,8 +13,6 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { joinPaths } from '@php-wasm/util';
 
-const DEFAULT_KERNEL_DIR = '/Users/mho/Work/projects/kandelo/wasm-posix-kernel';
-
 /** Subset of NodeKernelHost's options the CLI uses. */
 export interface NodeKernelHostOptions {
 	maxWorkers?: number;
@@ -73,16 +71,22 @@ async function doLoadHostBridge(): Promise<HostBridge> {
 
 function resolveKernelDir(): string {
 	const fromEnv = process.env['WASM_POSIX_KERNEL_DIR'];
-	const candidate =
-		fromEnv && fromEnv.trim() !== '' ? fromEnv : DEFAULT_KERNEL_DIR;
-	if (!existsSync(joinPaths(candidate, 'host'))) {
+	if (!fromEnv || fromEnv.trim() === '') {
 		throw new Error(
-			`wasm-posix-kernel checkout not found at ${candidate}. ` +
-				`Set WASM_POSIX_KERNEL_DIR to a working tree that contains ` +
-				`'host/dist/index.js' and the kernel binaries.`
+			`WASM_POSIX_KERNEL_DIR is not set. ` +
+				`--experimental-posix-kernel requires a wasm-posix-kernel ` +
+				`checkout containing 'host/dist/index.js' and the kernel ` +
+				`binaries. Set WASM_POSIX_KERNEL_DIR to its absolute path.`
 		);
 	}
-	return candidate;
+	if (!existsSync(joinPaths(fromEnv, 'host'))) {
+		throw new Error(
+			`wasm-posix-kernel checkout not found at ${fromEnv}. ` +
+				`WASM_POSIX_KERNEL_DIR must point to a working tree that ` +
+				`contains 'host/dist/index.js' and the kernel binaries.`
+		);
+	}
+	return fromEnv;
 }
 
 function resolveKernelBinaries(kernelDir: string): PosixKernelBinaries {
