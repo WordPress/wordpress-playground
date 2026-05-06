@@ -6,7 +6,6 @@ import {
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
-import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 
 import css from './style.module.css';
 import {
@@ -151,12 +150,7 @@ type InstallBlueprintMessage = MessageEvent<{
 async function fetchBlueprint(
 	blueprintUrl: string
 ): Promise<BlueprintV1Declaration> {
-	const response = await fetchWithCorsProxy(
-		blueprintUrl,
-		undefined,
-		corsProxyUrl,
-		window.location.href
-	);
+	const response = await fetch(blueprintUrl);
 	if (!response.ok) {
 		throw new Error(
 			`Could not download blueprint: ${response.status} ${response.statusText}`
