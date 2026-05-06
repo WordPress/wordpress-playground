@@ -18,6 +18,7 @@ import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
+import { getAppBaseUrl, isAppBasePath } from '../../lib/state/url/app-base-url';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -158,10 +159,9 @@ async function createNewTemporarySite(
 	// and their params belong to WordPress, not to the blueprint
 	// system.
 	const currentUrl = new URL(window.location.href);
-	const blueprintUrl =
-		currentUrl.pathname === '/'
-			? currentUrl
-			: new URL(window.location.origin);
+	const blueprintUrl = isAppBasePath(currentUrl.pathname)
+		? currentUrl
+		: getAppBaseUrl();
 
 	const newSiteInfo = await dispatch(
 		setTemporarySiteSpec(siteName, blueprintUrl)

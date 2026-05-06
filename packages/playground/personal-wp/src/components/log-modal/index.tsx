@@ -49,6 +49,7 @@ const ignoredPatterns = [
 	'wp_update_themes()',
 	'wp_version_check()',
 ];
+const debugLogReadOffsets = new WeakMap<PlaygroundClient, number>();
 
 function isIgnoredLogLine(line: string): boolean {
 	return ignoredPatterns.some((pattern) => line.includes(pattern));
@@ -60,21 +61,22 @@ async function refreshDebugLog(playground: PlaygroundClient) {
 			return;
 		}
 		const content = await playground.readFileAsText(errorLogPath);
-		if (content.length > 0) {
-			const filtered = content
-				.split('\n')
-				.filter((line) => line.trim() && !isIgnoredLogLine(line))
-				.join('\n');
-			if (filtered.length > 0) {
-				const existingLogs = logger.getLogs().join('\n');
-				if (!existingLogs.includes(filtered.trim())) {
-					logger.logMessage({
-						message: filtered,
-						severity: LogSeverity.Log,
-						raw: true,
-					});
-				}
-			}
+		let readOffset = debugLogReadOffsets.get(playground) ?? 0;
+		if (content.length < readOffset) {
+			readOffset = 0;
+		}
+		const unreadContent = content.slice(readOffset);
+		debugLogReadOffsets.set(playground, content.length);
+		const filtered = unreadContent
+			.split('\n')
+			.filter((line) => line.trim() && !isIgnoredLogLine(line))
+			.join('\n');
+		if (filtered.length > 0) {
+			logger.logMessage({
+				message: filtered,
+				severity: LogSeverity.Log,
+				raw: true,
+			});
 		}
 	} catch {
 		// Playground may not be ready yet

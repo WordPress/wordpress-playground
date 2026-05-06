@@ -108,7 +108,7 @@ export class PlaygroundRoute {
 				// anything else (e.g. WordPress query vars like
 				// ?p=42 or plugin-specific params like ?app-store=1)
 				// so the URL remains bookmarkable.
-				const url = new URL(baseUrl);
+				const url = new URL(baseUrl, window.location.href);
 				for (const key of PLAYGROUND_QUERY_KEYS) {
 					url.searchParams.delete(key);
 				}

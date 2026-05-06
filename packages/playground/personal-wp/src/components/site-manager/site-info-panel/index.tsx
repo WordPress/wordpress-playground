@@ -46,6 +46,7 @@ import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
 import { broadcastSiteReset } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
 import { encodeStringAsBase64 } from '../../../lib/base64';
+import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -93,7 +94,7 @@ const APPS_BASE_URL =
 	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
 
 function getAppBlueprintUrl(blueprintUrl: string): string {
-	const url = new URL(window.location.origin);
+	const url = getAppBaseUrl();
 	url.searchParams.set('blueprint-url', blueprintUrl);
 	return url.toString();
 }
@@ -127,12 +128,36 @@ function looksLikeBlueprint(text: string): boolean {
 	return false;
 }
 
+function isPasteFromAppSection(
+	section: HTMLDivElement | null,
+	target: EventTarget | null
+): boolean {
+	return target instanceof Node && !!section?.contains(target);
+}
+
+function isEditablePasteTarget(target: EventTarget | null): boolean {
+	if (!(target instanceof Element)) {
+		return false;
+	}
+	return (
+		(target instanceof HTMLElement && target.isContentEditable) ||
+		target.matches('input, textarea, select') ||
+		target.closest('[contenteditable="true"]') !== null
+	);
+}
+
 function InstallAppsSection() {
 	const { customApps, addApp, removeApp } = useCustomApps();
-	const [copiedAppPath, setCopiedAppPath] = useState<string | null>(null);
+	const sectionRef = useRef<HTMLDivElement>(null);
 
 	const handlePaste = useCallback(
 		(e: ClipboardEvent) => {
+			if (
+				!isPasteFromAppSection(sectionRef.current, e.target) ||
+				isEditablePasteTarget(e.target)
+			) {
+				return;
+			}
 			const text = e.clipboardData?.getData('text');
 			if (!text) return;
 			const trimmed = text.trim();
@@ -223,7 +248,7 @@ function InstallAppsSection() {
 	];
 
 	return (
-		<div className={css.aboutSection}>
+		<div className={css.aboutSection} ref={sectionRef}>
 			<h4 className={css.aboutSectionTitle}>Install Apps</h4>
 			<p className={css.aboutSectionHint}>
 				Paste a blueprint URL or JSON to add a custom app.
@@ -266,6 +291,7 @@ function InstallAppsSection() {
 								<button
 									className={css.appRemoveButton}
 									onClick={() => removeApp(app.path)}
+									aria-label={`Remove app ${app.title}`}
 									title="Remove app"
 								>
 									<Icon icon={trash} size={16} />

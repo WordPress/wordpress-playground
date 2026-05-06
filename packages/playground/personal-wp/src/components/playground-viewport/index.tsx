@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import {
+	type BlueprintV1Declaration,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 
 import css from './style.module.css';
 import {
@@ -27,13 +30,12 @@ import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 export const PlaygroundViewport = () => {
 	const activeSite = useActiveSite();
-	return activeSite ? (
-		<SeamlessViewport siteSlug={activeSite.slug} />
-	) : null;
+	return activeSite ? <SeamlessViewport siteSlug={activeSite.slug} /> : null;
 };
 
 function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const dispatch = useAppDispatch();
+	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
@@ -53,8 +55,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			}
 			try {
 				setInstallingBlueprint('Installing\u2026');
-				const response = await fetch(blueprintUrl);
-				const blueprint = await response.json();
+				const blueprint = await fetchBlueprint(blueprintUrl);
 				const title = blueprint.meta?.title || 'app';
 				setInstallingBlueprint(`Installing ${title}\u2026`);
 
@@ -89,12 +90,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	// Handle install-blueprint relay messages from WordPress plugins.
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
-			if (
-				typeof event.data === 'object' &&
-				event.data?.type === 'relay' &&
-				event.data?.relayType === 'install-blueprint' &&
-				event.data?.blueprintUrl
-			) {
+			if (isInstallBlueprintMessage(event, iframeRef.current)) {
 				applyBlueprint(event.data.blueprintUrl);
 			}
 		}
@@ -119,7 +115,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			{installingBlueprint && (
 				<div className={css.installBanner}>{installingBlueprint}</div>
 			)}
-			<JustViewport siteSlug={siteSlug} />
+			<JustViewport siteSlug={siteSlug} iframeRef={iframeRef} />
 
 			<div
 				className={classNames(css.sidebarLatch, {
@@ -146,12 +142,90 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	);
 }
 
+type InstallBlueprintMessage = MessageEvent<{
+	type: 'relay';
+	relayType: 'install-blueprint';
+	blueprintUrl: string;
+}>;
+
+async function fetchBlueprint(
+	blueprintUrl: string
+): Promise<BlueprintV1Declaration> {
+	const response = await fetchWithCorsProxy(
+		blueprintUrl,
+		undefined,
+		corsProxyUrl,
+		window.location.href
+	);
+	if (!response.ok) {
+		throw new Error(
+			`Could not download blueprint: ${response.status} ${response.statusText}`
+		);
+	}
+	try {
+		return (await response.json()) as BlueprintV1Declaration;
+	} catch (e) {
+		throw new Error('Blueprint response was not valid JSON.', {
+			cause: e,
+		});
+	}
+}
+
+function isInstallBlueprintMessage(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null
+): event is InstallBlueprintMessage {
+	if (
+		!iframe?.contentWindow ||
+		event.source !== iframe.contentWindow ||
+		event.origin !== window.location.origin ||
+		typeof event.data !== 'object' ||
+		event.data === null
+	) {
+		return false;
+	}
+	const data = event.data as Partial<InstallBlueprintMessage['data']>;
+	return (
+		data.type === 'relay' &&
+		data.relayType === 'install-blueprint' &&
+		isAllowedBlueprintUrl(data.blueprintUrl)
+	);
+}
+
+function isAllowedBlueprintUrl(blueprintUrl: unknown): blueprintUrl is string {
+	if (typeof blueprintUrl !== 'string') {
+		return false;
+	}
+	try {
+		const url = new URL(blueprintUrl);
+		return (
+			url.protocol === 'https:' ||
+			url.protocol === 'data:' ||
+			(url.protocol === 'http:' && isLocalhost(url.hostname))
+		);
+	} catch {
+		return false;
+	}
+}
+
+function isLocalhost(hostname: string): boolean {
+	return (
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1' ||
+		hostname === '::1' ||
+		hostname === '[::1]'
+	);
+}
+
 export const JustViewport = function JustViewport({
 	siteSlug,
+	iframeRef: externalIframeRef,
 }: {
 	siteSlug: string;
+	iframeRef?: RefObject<HTMLIFrameElement>;
 }) {
-	const iframeRef = useRef<HTMLIFrameElement>(null);
+	const internalIframeRef = useRef<HTMLIFrameElement>(null);
+	const iframeRef = externalIframeRef || internalIframeRef;
 	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug))!;
 
 	const dispatch = useAppDispatch();

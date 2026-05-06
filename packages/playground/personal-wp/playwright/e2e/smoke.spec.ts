@@ -10,7 +10,7 @@ import type { Blueprint } from '@wp-playground/blueprints';
 
 test('should land on the welcome page on first visit', async ({ website }) => {
 	await website.goto('./');
-	await expect(website.addressBar()).toHaveValue(
+	await expect(website.page).toHaveURL(
 		/\/wp-admin\/tools\.php\?page=playground-welcome/
 	);
 });
@@ -20,7 +20,7 @@ test('should complete welcome flow and update site title', async ({
 	wordpress,
 }) => {
 	await website.goto('./');
-	await expect(website.addressBar()).toHaveValue(
+	await expect(website.page).toHaveURL(
 		/\/wp-admin\/tools\.php\?page=playground-welcome/
 	);
 
@@ -28,7 +28,7 @@ test('should complete welcome flow and update site title', async ({
 	await nameInput.fill('John Doe');
 	await nameInput.press('Enter');
 
-	await expect(website.addressBar()).toHaveValue(/\/$/);
+	await expect(website.page).toHaveURL(/\/$/);
 	await expect(wordpress.locator('p.wp-block-site-title')).toHaveText(
 		"John Doe's WordPress"
 	);
@@ -37,12 +37,17 @@ test('should complete welcome flow and update site title', async ({
 test('should apply a blueprint passed via URL hash', async ({ website }) => {
 	const blueprint: Blueprint = { landingPage: '/sample-page/' };
 	await website.goto(`./#${JSON.stringify(blueprint)}`);
-	await expect(website.addressBar()).toHaveValue(/sample-page/);
+	await expect(website.page).toHaveURL(/sample-page/);
 });
 
-test('should display the toolbar with address bar', async ({ website }) => {
+test('should display the seamless viewport and Site Tools latch', async ({
+	website,
+}) => {
 	await website.goto('./');
 	await expect(
-		website.page.locator('header[aria-label="Playground toolbar"]')
+		website.page.locator('.playground-viewport:visible')
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: /Open Site Tools/ })
 	).toBeVisible();
 });
