@@ -270,4 +270,22 @@ describe('PlaygroundRoute.site', () => {
 			'wp-content/plugins/foo/index.php'
 		);
 	});
+
+	it('preserves filebrowser without absorbing the URL hash', () => {
+		const url = PlaygroundRoute.site(
+			{
+				slug: 'saved-site',
+				metadata: {
+					storage: 'opfs',
+				},
+			} as unknown as SiteInfo,
+			'https://playground.test/?filebrowser=wp-content/plugins/foo/index.php#%7B%22steps%22%3A%5B%5D%7D'
+		);
+
+		const nextUrl = new URL(url);
+		expect(nextUrl.searchParams.get('filebrowser')).toBe(
+			'wp-content/plugins/foo/index.php'
+		);
+		expect(nextUrl.hash).toBe('');
+	});
 });
