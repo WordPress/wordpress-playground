@@ -131,6 +131,11 @@ test('should open a file from the filebrowser query parameter', async ({
 			.locator('[class*="editorPath"]')
 			.filter({ hasText: fileBrowserTestAbsolutePath })
 	).toBeVisible();
+	await expect(
+		website.page
+			.locator(`button[data-path="${fileBrowserTestAbsolutePath}"]`)
+			.first()
+	).toHaveClass(/_selected_/);
 });
 
 test('should activate the requested filebrowser line', async ({ website }) => {
