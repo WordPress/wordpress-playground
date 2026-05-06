@@ -12,6 +12,7 @@ WordPress Playground consists of the following high-level components:
 - [Browser bindings](/developers/architecture/browser-concepts)
 - [PHP.wasm packages](/developers/architecture/php-wasm-packages) for the shared
   API, platform bindings, and version-specific binaries
+- [Universal packages](/developers/architecture/universal-packages)
 - [Public API](/developers/apis/)
 
 Visit each section to learn more about the specific parts of the architecture.
