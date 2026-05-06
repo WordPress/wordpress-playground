@@ -74,7 +74,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					corsProxy: corsProxyUrl,
 					progress,
 				});
-				await runBlueprintV1Steps(compiled, playground);
+				await runBlueprintV1Steps(
+					compiled,
+					getBlueprintRunnerClient(playground, blueprint)
+				);
 				if (blueprint.landingPage) {
 					await playground.goTo(blueprint.landingPage);
 				}
@@ -347,6 +350,46 @@ function isAllowedBlueprintUrl(blueprintUrl: unknown): blueprintUrl is string {
 	} catch {
 		return false;
 	}
+}
+
+function getBlueprintRunnerClient<T extends object>(
+	playground: T,
+	blueprint: BlueprintV1Declaration
+): T {
+	if (shouldAllowBlueprintRunnerRedirect(blueprint)) {
+		return playground;
+	}
+	return withoutGoTo(playground);
+}
+
+function shouldAllowBlueprintRunnerRedirect(
+	blueprint: BlueprintV1Declaration
+): boolean {
+	return (
+		!!blueprint.landingPage ||
+		!!blueprint.login ||
+		!!blueprint.steps?.some(isLoginStep)
+	);
+}
+
+function isLoginStep(step: unknown): boolean {
+	return (
+		!!step &&
+		typeof step === 'object' &&
+		'step' in step &&
+		(step as { step?: unknown }).step === 'login'
+	);
+}
+
+function withoutGoTo<T extends object>(playground: T): T {
+	return new Proxy(playground, {
+		get(target, property, receiver) {
+			if (property === 'goTo') {
+				return async () => undefined;
+			}
+			return Reflect.get(target, property, receiver);
+		},
+	});
 }
 
 function getErrorMessage(error: unknown): string {
