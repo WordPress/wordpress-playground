@@ -49,9 +49,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 	// Apply a blueprint in-place on the running instance.
 	const applyBlueprint = useCallback(
-		async (blueprintUrl: string) => {
+		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
 			if (!playground) {
-				return;
+				return {
+					status: 'error',
+					error: 'Playground is not ready.',
+				};
 			}
 			try {
 				setInstallingBlueprint('Installing\u2026');
@@ -80,9 +83,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				console.error('Failed to apply blueprint:', e);
 				setInstallingBlueprint('Installation failed');
 				setTimeout(() => setInstallingBlueprint(null), 3000);
-				return;
+				return {
+					status: 'error',
+					error: getErrorMessage(e),
+				};
 			}
 			setInstallingBlueprint(null);
+			return { status: 'success' };
 		},
 		[playground]
 	);
@@ -95,11 +102,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				iframeRef.current
 			);
 			if (relayValidation.isValid) {
-				if (
-					confirmBlueprintInstall(relayValidation.data.blueprintUrl)
-				) {
-					applyBlueprint(relayValidation.data.blueprintUrl);
-				}
+				void installBlueprintFromRelay(event, relayValidation.data);
 			}
 		}
 		window.addEventListener('message', handleMessage);
@@ -107,6 +110,27 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			window.removeEventListener('message', handleMessage);
 		};
 	}, [applyBlueprint, siteSlug]);
+
+	async function installBlueprintFromRelay(
+		event: MessageEvent,
+		message: InstallBlueprintMessageData
+	) {
+		const { blueprintUrl, requestId } = message;
+		if (!confirmBlueprintInstall(blueprintUrl)) {
+			postInstallBlueprintResult(event, {
+				blueprintUrl,
+				requestId,
+				status: 'cancelled',
+			});
+			return;
+		}
+
+		postInstallBlueprintResult(event, {
+			blueprintUrl,
+			requestId,
+			...(await applyBlueprint(blueprintUrl)),
+		});
+	}
 
 	// Reflect the WordPress URL in the browser's address bar.
 	useEffect(() => {
@@ -174,11 +198,28 @@ function confirmBlueprintInstall(blueprintUrl: string): boolean {
 	);
 }
 
-type InstallBlueprintMessage = MessageEvent<{
+type InstallBlueprintMessageData = {
 	type: 'relay';
 	relayType: 'install-blueprint';
 	blueprintUrl: string;
-}>;
+	requestId?: string;
+};
+
+type InstallBlueprintResult = {
+	status: 'success' | 'error';
+	error?: string;
+};
+
+type InstallBlueprintResultMessage = {
+	type: 'relay';
+	relayType: 'install-blueprint-result';
+	blueprintUrl: string;
+	requestId?: string;
+	status: InstallBlueprintResult['status'] | 'cancelled';
+	error?: string;
+};
+
+type InstallBlueprintMessage = MessageEvent<InstallBlueprintMessageData>;
 
 async function fetchBlueprint(
 	blueprintUrl: string
@@ -204,12 +245,12 @@ function getInstallBlueprintMessageValidation(
 ):
 	| {
 			isValid: true;
-			data: InstallBlueprintMessage['data'];
+			data: InstallBlueprintMessageData;
 	  }
 	| {
 			isValid: false;
 			reason: string;
-			data?: Partial<InstallBlueprintMessage['data']>;
+			data?: Partial<InstallBlueprintMessageData>;
 	  } {
 	if (typeof event.data !== 'object' || event.data === null) {
 		return { isValid: false, reason: 'invalid-data' };
@@ -235,10 +276,31 @@ function getInstallBlueprintMessageValidation(
 				type: data.type,
 				relayType: data.relayType,
 				blueprintUrl: data.blueprintUrl,
+				requestId:
+					typeof data.requestId === 'string'
+						? data.requestId
+						: undefined,
 			},
 		};
 	}
 	return { isValid: false, reason: 'invalid-message', data };
+}
+
+function postInstallBlueprintResult(
+	event: MessageEvent,
+	result: Omit<InstallBlueprintResultMessage, 'type' | 'relayType'>
+) {
+	if (!event.source) {
+		return;
+	}
+	(event.source as Window).postMessage(
+		{
+			type: 'relay',
+			relayType: 'install-blueprint-result',
+			...result,
+		} satisfies InstallBlueprintResultMessage,
+		event.origin
+	);
 }
 
 function isMessageFromIframeTree(
@@ -285,6 +347,10 @@ function isAllowedBlueprintUrl(blueprintUrl: unknown): blueprintUrl is string {
 	} catch {
 		return false;
 	}
+}
+
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function isLocalhost(hostname: string): boolean {
