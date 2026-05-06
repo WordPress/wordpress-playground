@@ -1,4 +1,5 @@
 import React, {
+	useEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -67,6 +68,44 @@ export function FileExplorerSidebar({
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		null
 	);
+
+	useEffect(() => {
+		if (!currentPath || !treeRef.current) {
+			return;
+		}
+
+		let cancelled = false;
+		const syncCurrentPathSelection = async () => {
+			const tree = treeRef.current;
+			if (!tree) {
+				return;
+			}
+			for (const path of getParentPathChain(currentPath, documentRoot)) {
+				if (cancelled) {
+					return;
+				}
+				await tree.refresh(path);
+			}
+			if (cancelled) {
+				return;
+			}
+			await tree.expandToPath(currentPath);
+			if (cancelled) {
+				return;
+			}
+			tree.focusPath(currentPath, {
+				select: true,
+				domFocus: false,
+				notify: false,
+			});
+			setLastSelectedPath(currentPath);
+		};
+
+		void syncCurrentPathSelection();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentPath, documentRoot]);
 
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
@@ -212,4 +251,30 @@ export function FileExplorerSidebar({
 			</div>
 		</div>
 	);
+}
+
+function getParentPathChain(path: string, root: string) {
+	const normalizedPath = normalizePath(path);
+	const normalizedRoot = normalizePath(root);
+	const parts = normalizedPath.split('/').filter(Boolean);
+	const parentParts = parts.slice(0, -1);
+	const chain: string[] = [];
+	const hasLeadingSlash = normalizedPath.startsWith('/');
+	let currentPath = hasLeadingSlash ? '' : '.';
+
+	for (const part of parentParts) {
+		if (!currentPath || currentPath === '.') {
+			currentPath = hasLeadingSlash ? `/${part}` : part;
+		} else {
+			currentPath = `${currentPath}/${part}`;
+		}
+		if (
+			currentPath === normalizedRoot ||
+			currentPath.startsWith(`${normalizedRoot}/`)
+		) {
+			chain.push(currentPath);
+		}
+	}
+
+	return chain;
 }
