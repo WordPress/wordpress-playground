@@ -52,6 +52,84 @@ Health Check integration detects and recovers from site crashes automatically, e
 
 Sophisticated tab coordination ensures only one worker runs per site. Dependent tabs connect automatically, and a takeover protocol handles tab conflicts gracefully.
 
+### WordPress Page Relay Messages
+
+WordPress pages running inside Personal Playground can send supported relay messages to
+the parent window. Messages must use `type: 'relay'` and are only accepted from the
+active Playground iframe tree.
+
+#### Detect Window State
+
+Use `get-playground-window-state` before offering actions that require the main
+Playground worker, such as installing an app blueprint.
+
+```js
+const requestId = crypto.randomUUID();
+
+window.addEventListener('message', function onMessage(event) {
+	const data = event.data;
+	if (data?.type === 'relay' && data?.relayType === 'playground-window-state' && data?.requestId === requestId) {
+		window.removeEventListener('message', onMessage);
+		// Hide install UI when data.canInstallBlueprint is false.
+	}
+});
+
+window.parent.postMessage(
+	{
+		type: 'relay',
+		relayType: 'get-playground-window-state',
+		requestId,
+	},
+	'*'
+);
+```
+
+Response:
+
+```ts
+{
+	type: 'relay';
+	relayType: 'playground-window-state';
+	requestId?: string;
+	isDependentMode: boolean;
+	canInstallBlueprint: boolean;
+}
+```
+
+#### Install Blueprint
+
+Use `install-blueprint` to ask Personal Playground to install a blueprint into the
+current site. Personal Playground confirms the action with the user before applying
+the blueprint.
+
+```js
+window.parent.postMessage(
+	{
+		type: 'relay',
+		relayType: 'install-blueprint',
+		blueprintUrl: 'https://example.com/blueprint.json',
+		requestId,
+	},
+	'*'
+);
+```
+
+Response:
+
+```ts
+{
+	type: 'relay';
+	relayType: 'install-blueprint-result';
+	blueprintUrl: string;
+	requestId?: string;
+	status: 'success' | 'error' | 'cancelled';
+	error?: string;
+}
+```
+
+Blueprint URLs must be `https:`, `data:`, or local `http:` URLs. Dependent tabs
+cannot install blueprints and will return an error result.
+
 ### Offline Support
 
 Works as a Progressive Web App (PWA) for offline use. Install it on your device for a native app-like experience.
