@@ -429,7 +429,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 CodeEditor.displayName = 'CodeEditor';
 
 function setEditorCursorPosition(view: EditorView, pos: number) {
-	const clampedPos = Math.min(pos, view.state.doc.length);
+	const clampedPos = Math.max(0, Math.min(pos, view.state.doc.length));
 	const selection = EditorSelection.create([
 		EditorSelection.range(clampedPos, clampedPos),
 	]);
