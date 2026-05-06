@@ -7,12 +7,18 @@
 #include <main/php.h>
 #include <main/SAPI.h>
 #include <ext/standard/file.h>
+#include <pthread.h>
+#include <sched.h>
+#include <stdlib.h>
+#include <sys/uio.h>
+#include <unistd.h>
 
 #include "zend_API.h"
 #include "zend_compile.h"
 #include "zend_exceptions.h"
 #include "zend_execute.h"
 #include "zend_globals.h"
+#include "zend_inheritance.h"
 #include "zend_interfaces.h"
 #include "zend_object_handlers.h"
 #include "zend_objects.h"
@@ -24,6 +30,10 @@
 
 #if PHP_VERSION_ID >= 80100
 #include "zend_enum.h"
+#endif
+
+#if defined(__EMSCRIPTEN__)
+extern int getentropy(void *buffer, size_t length);
 #endif
 
 #define PLAYGROUND_SIDE_MODULE_EXPORT __attribute__((used, visibility("default")))
@@ -91,5 +101,33 @@ playground_side_module_function _playground_zend_side_module_function_exports[] 
 	(playground_side_module_function)destroy_op_array,
 	(playground_side_module_function)_efree,
 	(playground_side_module_function)_zend_bailout,
+	(playground_side_module_function)getentropy,
+	(playground_side_module_function)posix_memalign,
+	(playground_side_module_function)pthread_cond_signal,
+	(playground_side_module_function)pthread_cond_wait,
+	(playground_side_module_function)pthread_condattr_destroy,
+	(playground_side_module_function)pthread_condattr_init,
+	(playground_side_module_function)pthread_condattr_setclock,
+	(playground_side_module_function)pthread_mutex_trylock,
+	(playground_side_module_function)pthread_mutexattr_destroy,
+	(playground_side_module_function)pthread_mutexattr_init,
+	(playground_side_module_function)pthread_mutexattr_settype,
+	(playground_side_module_function)sched_yield,
+	(playground_side_module_function)writev,
+#if PHP_VERSION_ID >= 80000
+	(playground_side_module_function)zend_array_count,
+	(playground_side_module_function)zend_declare_property,
+	(playground_side_module_function)zend_do_implement_interface,
+	(playground_side_module_function)zend_hash_get_current_key_zval_ex,
+	(playground_side_module_function)zend_is_callable,
+	(playground_side_module_function)zend_is_iterable,
+	(playground_side_module_function)zend_lookup_class_ex,
+	(playground_side_module_function)zend_objects_new,
+	(playground_side_module_function)zend_register_internal_interface,
+	(playground_side_module_function)zend_std_has_property,
+	(playground_side_module_function)zend_std_read_property,
+	(playground_side_module_function)zend_std_write_property,
+	(playground_side_module_function)zend_throw_exception_object,
+#endif
 	NULL,
 };

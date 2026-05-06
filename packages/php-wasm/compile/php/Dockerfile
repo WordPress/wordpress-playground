@@ -2246,6 +2246,34 @@ RUN set -eux; \
 		echo 'destroy_op_array'; \
 		echo '_efree'; \
 		echo '_zend_bailout'; \
+		echo 'getentropy'; \
+		echo 'posix_memalign'; \
+		echo 'pthread_cond_signal'; \
+		echo 'pthread_cond_wait'; \
+		echo 'pthread_condattr_destroy'; \
+		echo 'pthread_condattr_init'; \
+		echo 'pthread_condattr_setclock'; \
+		echo 'pthread_mutex_trylock'; \
+		echo 'pthread_mutexattr_destroy'; \
+		echo 'pthread_mutexattr_init'; \
+		echo 'pthread_mutexattr_settype'; \
+		echo 'sched_yield'; \
+		echo 'writev'; \
+		if [ "$PHP_VERSION_MAJOR" -ge 8 ]; then \
+			echo 'zend_array_count'; \
+			echo 'zend_declare_property'; \
+			echo 'zend_do_implement_interface'; \
+			echo 'zend_hash_get_current_key_zval_ex'; \
+			echo 'zend_is_callable'; \
+			echo 'zend_is_iterable'; \
+			echo 'zend_lookup_class_ex'; \
+			echo 'zend_objects_new'; \
+			echo 'zend_register_internal_interface'; \
+			echo 'zend_std_has_property'; \
+			echo 'zend_std_read_property'; \
+			echo 'zend_std_write_property'; \
+			echo 'zend_throw_exception_object'; \
+		fi; \
 	} >> /root/.WASM_ABI_EXPORTS
 
 # WORKAROUND: Asyncify builds do not currently include __c_longjmp,

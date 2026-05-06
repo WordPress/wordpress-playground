@@ -7,3 +7,17 @@
 !compile-extension/docker/Dockerfile.ext
 !compile-extension/scripts/
 !compile-extension/scripts/build-in-docker.sh
+
+# The PHP build scans existing extension side modules to make the main
+# runtime export all symbols they import. Include only those extension assets,
+# not the already-built PHP JS/WASM binaries.
+!node-builds/
+!node-builds/*/
+!node-builds/*/*/
+!node-builds/*/*/extensions/
+!node-builds/*/*/extensions/**
+!web-builds/
+!web-builds/*/
+!web-builds/*/*/
+!web-builds/*/*/extensions/
+!web-builds/*/*/extensions/**
