@@ -43,6 +43,7 @@ import {
 	setDependentMode,
 	requestTakeover,
 } from './tab-coordinator';
+import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 
 export interface BootSiteClientOptions {
@@ -544,10 +545,11 @@ export function bootSiteClient(
 			dispatch(setBlueprintResolvedFromUrl(null));
 			if (clearUrlAfterBlueprintApplied) {
 				const cleanUrl = new URL(window.location.href);
-				for (const key of PLAYGROUND_QUERY_KEYS) {
-					cleanUrl.searchParams.delete(key);
+				if (isAppBasePath(cleanUrl.pathname)) {
+					for (const key of PLAYGROUND_QUERY_KEYS) {
+						cleanUrl.searchParams.delete(key);
+					}
 				}
-				cleanUrl.searchParams.delete('blueprint-url');
 				cleanUrl.hash = '';
 				window.history.replaceState({}, '', cleanUrl.toString());
 			}

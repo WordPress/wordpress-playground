@@ -49,6 +49,7 @@ const ignoredPatterns = [
 	'wp_update_themes()',
 	'wp_version_check()',
 ];
+const debugLogMaxUnreadChars = 256 * 1024;
 const debugLogReadOffsets = new WeakMap<PlaygroundClient, number>();
 
 function isIgnoredLogLine(line: string): boolean {
@@ -65,6 +66,10 @@ async function refreshDebugLog(playground: PlaygroundClient) {
 		if (content.length < readOffset) {
 			readOffset = 0;
 		}
+		readOffset = Math.max(
+			readOffset,
+			content.length - debugLogMaxUnreadChars
+		);
 		const unreadContent = content.slice(readOffset);
 		debugLogReadOffsets.set(playground, content.length);
 		const filtered = unreadContent

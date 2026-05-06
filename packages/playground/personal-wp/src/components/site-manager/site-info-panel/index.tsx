@@ -16,6 +16,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
+import type { ChangeEvent } from 'react';
 import { importWordPressFiles } from '@wp-playground/client';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
@@ -337,7 +338,7 @@ function BackupSection() {
 		restoreInputRef.current?.click();
 	};
 
-	const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleRestore = async (e: ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		const resetInput = () => {
 			if (restoreInputRef.current) {
@@ -375,15 +376,15 @@ function BackupSection() {
 
 	const { backupHistory = [], autoBackupInterval = 'daily' } =
 		activeSite.metadata;
+	const autoBackupSelectValue =
+		autoBackupInterval === 'ignore' ? 'none' : autoBackupInterval;
 	const lastBackup = backupHistory[0];
 
 	const lastBackupText = lastBackup
 		? `Last download: ${getRelativeDate(new Date(lastBackup.timestamp))}`
 		: 'Never backed up';
 
-	const handleAutoBackupChange = (
-		e: React.ChangeEvent<HTMLSelectElement>
-	) => {
+	const handleAutoBackupChange = (e: ChangeEvent<HTMLSelectElement>) => {
 		dispatch(
 			updateSiteMetadata({
 				slug: activeSite.slug,
@@ -413,7 +414,7 @@ function BackupSection() {
 						<div className={css.backupRow}>
 							<select
 								className={css.backupSelect}
-								value={autoBackupInterval}
+								value={autoBackupSelectValue}
 								onChange={handleAutoBackupChange}
 							>
 								{autoBackupOptions.map((option) => (

@@ -23,6 +23,7 @@ import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { playgroundLogo } from '@wp-playground/components';
+import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -108,6 +109,20 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			window.history.pushState({}, '', browserUrl);
 		}
 	}, [url]);
+
+	useEffect(() => {
+		if (!playground) {
+			return;
+		}
+		function handlePopState() {
+			const pathname = isAppBasePath(window.location.pathname)
+				? '/'
+				: window.location.pathname;
+			void playground?.goTo(pathname + window.location.search);
+		}
+		window.addEventListener('popstate', handlePopState);
+		return () => window.removeEventListener('popstate', handlePopState);
+	}, [playground]);
 
 	return (
 		<div className={css.seamlessWrapper}>

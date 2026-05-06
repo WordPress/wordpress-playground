@@ -2,6 +2,7 @@ import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '../../base64';
 import { personalWPSiteSlug } from 'virtual:website-defaults';
+import { isAppBasePath } from './app-base-url';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -44,6 +45,8 @@ export const PLAYGROUND_QUERY_KEYS = [
 	'theme',
 	'login',
 	'plugin',
+	'url',
+	'blueprint-url',
 	'blueprint',
 	'import-site',
 	'import-wxr',
@@ -109,12 +112,25 @@ export class PlaygroundRoute {
 				// ?p=42 or plugin-specific params like ?app-store=1)
 				// so the URL remains bookmarkable.
 				const url = new URL(baseUrl, window.location.href);
-				for (const key of PLAYGROUND_QUERY_KEYS) {
-					url.searchParams.delete(key);
+				if (isAppBasePath(url.pathname)) {
+					for (const key of PLAYGROUND_QUERY_KEYS) {
+						url.searchParams.delete(key);
+					}
 				}
 				return url.toString();
 			}
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+			const url = new URL(baseUrl, window.location.href);
+			if (!isAppBasePath(url.pathname)) {
+				return updateUrl(
+					url.toString(),
+					{
+						searchParams: { 'site-slug': site.slug },
+						hash: '',
+					},
+					'merge'
+				);
+			}
+			const baseParams = url.searchParams;
 			const preserveParamsKeys = [
 				'mode',
 				'networking',
