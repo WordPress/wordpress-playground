@@ -90,15 +90,23 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	// Handle install-blueprint relay messages from WordPress plugins.
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
-			if (isInstallBlueprintMessage(event, iframeRef.current)) {
-				if (confirmBlueprintInstall(event.data.blueprintUrl)) {
-					applyBlueprint(event.data.blueprintUrl);
+			const relayValidation = getInstallBlueprintMessageValidation(
+				event,
+				iframeRef.current
+			);
+			if (relayValidation.isValid) {
+				if (
+					confirmBlueprintInstall(relayValidation.data.blueprintUrl)
+				) {
+					applyBlueprint(relayValidation.data.blueprintUrl);
 				}
 			}
 		}
 		window.addEventListener('message', handleMessage);
-		return () => window.removeEventListener('message', handleMessage);
-	}, [applyBlueprint]);
+		return () => {
+			window.removeEventListener('message', handleMessage);
+		};
+	}, [applyBlueprint, siteSlug]);
 
 	// Reflect the WordPress URL in the browser's address bar.
 	useEffect(() => {
@@ -190,25 +198,77 @@ async function fetchBlueprint(
 	}
 }
 
-function isInstallBlueprintMessage(
+function getInstallBlueprintMessageValidation(
 	event: MessageEvent,
 	iframe: HTMLIFrameElement | null
-): event is InstallBlueprintMessage {
-	if (
-		!iframe?.contentWindow ||
-		event.source !== iframe.contentWindow ||
-		event.origin !== window.location.origin ||
-		typeof event.data !== 'object' ||
-		event.data === null
-	) {
-		return false;
+):
+	| {
+			isValid: true;
+			data: InstallBlueprintMessage['data'];
+	  }
+	| {
+			isValid: false;
+			reason: string;
+			data?: Partial<InstallBlueprintMessage['data']>;
+	  } {
+	if (typeof event.data !== 'object' || event.data === null) {
+		return { isValid: false, reason: 'invalid-data' };
 	}
 	const data = event.data as Partial<InstallBlueprintMessage['data']>;
-	return (
+	if (data.type !== 'relay') {
+		return { isValid: false, reason: 'not-relay', data };
+	}
+	if (!isMessageFromIframeTree(event, iframe)) {
+		return { isValid: false, reason: 'unexpected-source', data };
+	}
+	if (event.origin !== window.location.origin) {
+		return { isValid: false, reason: 'unexpected-origin', data };
+	}
+	if (
 		data.type === 'relay' &&
 		data.relayType === 'install-blueprint' &&
 		isAllowedBlueprintUrl(data.blueprintUrl)
-	);
+	) {
+		return {
+			isValid: true,
+			data: {
+				type: data.type,
+				relayType: data.relayType,
+				blueprintUrl: data.blueprintUrl,
+			},
+		};
+	}
+	return { isValid: false, reason: 'invalid-message', data };
+}
+
+function isMessageFromIframeTree(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null
+): boolean {
+	if (!iframe?.contentWindow || !event.source) {
+		return false;
+	}
+	if (event.source === iframe.contentWindow) {
+		return true;
+	}
+	return isDescendantWindow(iframe.contentWindow, event.source);
+}
+
+function isDescendantWindow(
+	root: Window,
+	candidate: MessageEventSource
+): boolean {
+	try {
+		for (let i = 0; i < root.frames.length; i++) {
+			const child = root.frames[i];
+			if (child === candidate || isDescendantWindow(child, candidate)) {
+				return true;
+			}
+		}
+	} catch {
+		// Cross-origin frames are not inspectable and therefore not accepted.
+	}
+	return false;
 }
 
 function isAllowedBlueprintUrl(blueprintUrl: unknown): blueprintUrl is string {
