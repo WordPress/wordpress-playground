@@ -42,6 +42,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const url = clientInfo?.url;
 	const playground = clientInfo?.client;
+	const isDependentMode = clientInfo?.isDependentMode ?? false;
+	const canInstallBlueprint = !!playground && !isDependentMode;
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
@@ -97,28 +99,57 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		[playground]
 	);
 
-	// Handle install-blueprint relay messages from WordPress plugins.
+	// Handle relay messages from WordPress plugins.
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
-			const relayValidation = getInstallBlueprintMessageValidation(
+			const relayValidation = getRelayMessageValidation(
 				event,
 				iframeRef.current
 			);
-			if (relayValidation.isValid) {
-				void installBlueprintFromRelay(event, relayValidation.data);
+			if (!relayValidation.isValid) {
+				return;
+			}
+
+			const windowStateMessage = getPlaygroundWindowStateMessageData(
+				relayValidation.data
+			);
+			if (windowStateMessage) {
+				postPlaygroundWindowState(event, {
+					requestId: windowStateMessage.requestId,
+					isDependentMode,
+					canInstallBlueprint,
+				});
+				return;
+			}
+
+			const installBlueprintMessage = getInstallBlueprintMessageData(
+				relayValidation.data
+			);
+			if (installBlueprintMessage) {
+				void installBlueprintFromRelay(event, installBlueprintMessage);
 			}
 		}
 		window.addEventListener('message', handleMessage);
 		return () => {
 			window.removeEventListener('message', handleMessage);
 		};
-	}, [applyBlueprint, siteSlug]);
+	}, [applyBlueprint, canInstallBlueprint, isDependentMode, siteSlug]);
 
 	async function installBlueprintFromRelay(
 		event: MessageEvent,
 		message: InstallBlueprintMessageData
 	) {
 		const { blueprintUrl, requestId } = message;
+		if (isDependentMode) {
+			postInstallBlueprintResult(event, {
+				blueprintUrl,
+				requestId,
+				status: 'error',
+				error: 'This tab is viewing a site controlled by another tab.',
+			});
+			return;
+		}
+
 		if (!confirmBlueprintInstall(blueprintUrl)) {
 			postInstallBlueprintResult(event, {
 				blueprintUrl,
@@ -201,10 +232,23 @@ function confirmBlueprintInstall(blueprintUrl: string): boolean {
 	);
 }
 
+type RelayMessageData = {
+	type: 'relay';
+	relayType?: unknown;
+	blueprintUrl?: unknown;
+	requestId?: unknown;
+};
+
 type InstallBlueprintMessageData = {
 	type: 'relay';
 	relayType: 'install-blueprint';
 	blueprintUrl: string;
+	requestId?: string;
+};
+
+type PlaygroundWindowStateMessageData = {
+	type: 'relay';
+	relayType: 'get-playground-window-state';
 	requestId?: string;
 };
 
@@ -222,7 +266,13 @@ type InstallBlueprintResultMessage = {
 	error?: string;
 };
 
-type InstallBlueprintMessage = MessageEvent<InstallBlueprintMessageData>;
+type PlaygroundWindowStateResultMessage = {
+	type: 'relay';
+	relayType: 'playground-window-state';
+	requestId?: string;
+	isDependentMode: boolean;
+	canInstallBlueprint: boolean;
+};
 
 async function fetchBlueprint(
 	blueprintUrl: string
@@ -242,23 +292,23 @@ async function fetchBlueprint(
 	}
 }
 
-function getInstallBlueprintMessageValidation(
+function getRelayMessageValidation(
 	event: MessageEvent,
 	iframe: HTMLIFrameElement | null
 ):
 	| {
 			isValid: true;
-			data: InstallBlueprintMessageData;
+			data: RelayMessageData;
 	  }
 	| {
 			isValid: false;
 			reason: string;
-			data?: Partial<InstallBlueprintMessageData>;
+			data?: Partial<RelayMessageData>;
 	  } {
 	if (typeof event.data !== 'object' || event.data === null) {
 		return { isValid: false, reason: 'invalid-data' };
 	}
-	const data = event.data as Partial<InstallBlueprintMessage['data']>;
+	const data = event.data as Partial<RelayMessageData>;
 	if (data.type !== 'relay') {
 		return { isValid: false, reason: 'not-relay', data };
 	}
@@ -268,25 +318,41 @@ function getInstallBlueprintMessageValidation(
 	if (event.origin !== window.location.origin) {
 		return { isValid: false, reason: 'unexpected-origin', data };
 	}
+	return { isValid: true, data: { type: 'relay', ...data } };
+}
+
+function getInstallBlueprintMessageData(
+	data: RelayMessageData
+): InstallBlueprintMessageData | undefined {
 	if (
-		data.type === 'relay' &&
-		data.relayType === 'install-blueprint' &&
-		isAllowedBlueprintUrl(data.blueprintUrl)
+		data.relayType !== 'install-blueprint' ||
+		!isAllowedBlueprintUrl(data.blueprintUrl)
 	) {
+		return;
+	}
+	return {
+		type: 'relay',
+		relayType: 'install-blueprint',
+		blueprintUrl: data.blueprintUrl,
+		requestId: getRequestId(data),
+	};
+}
+
+function getPlaygroundWindowStateMessageData(
+	data: RelayMessageData
+): PlaygroundWindowStateMessageData | undefined {
+	if (data.relayType === 'get-playground-window-state') {
 		return {
-			isValid: true,
-			data: {
-				type: data.type,
-				relayType: data.relayType,
-				blueprintUrl: data.blueprintUrl,
-				requestId:
-					typeof data.requestId === 'string'
-						? data.requestId
-						: undefined,
-			},
+			type: 'relay',
+			relayType: 'get-playground-window-state',
+			requestId: getRequestId(data),
 		};
 	}
-	return { isValid: false, reason: 'invalid-message', data };
+	return;
+}
+
+function getRequestId(data: RelayMessageData): string | undefined {
+	return typeof data.requestId === 'string' ? data.requestId : undefined;
 }
 
 function postInstallBlueprintResult(
@@ -302,6 +368,23 @@ function postInstallBlueprintResult(
 			relayType: 'install-blueprint-result',
 			...result,
 		} satisfies InstallBlueprintResultMessage,
+		event.origin
+	);
+}
+
+function postPlaygroundWindowState(
+	event: MessageEvent,
+	result: Omit<PlaygroundWindowStateResultMessage, 'type' | 'relayType'>
+) {
+	if (!event.source) {
+		return;
+	}
+	(event.source as Window).postMessage(
+		{
+			type: 'relay',
+			relayType: 'playground-window-state',
+			...result,
+		} satisfies PlaygroundWindowStateResultMessage,
 		event.origin
 	);
 }
