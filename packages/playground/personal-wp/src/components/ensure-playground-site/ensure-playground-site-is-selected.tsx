@@ -96,6 +96,10 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
+			if (!isAppBasePath(url.pathname) && activeSite) {
+				return;
+			}
+
 			// If only the 'modal' parameter changes in searchParams, don't reload the page
 			const notRefreshingParam = 'modal';
 			const oldParams = new URLSearchParams(prevUrl?.search);

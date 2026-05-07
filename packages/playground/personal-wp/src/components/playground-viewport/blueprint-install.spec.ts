@@ -1,4 +1,8 @@
-import { prepareBlueprintForRemoteInstall } from './blueprint-install';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+	fetchBlueprint,
+	prepareBlueprintForRemoteInstall,
+} from './blueprint-install';
 
 describe('prepareBlueprintForRemoteInstall', () => {
 	beforeEach(() => {
@@ -67,6 +71,32 @@ describe('prepareBlueprintForRemoteInstall', () => {
 		).resolves.toEqual({
 			blueprintUrl: 'https://example.com/blueprint.json',
 		});
+	});
+
+	it('fetches remote blueprints through the CORS proxy fallback', async () => {
+		const fetchMock = vi
+			.fn()
+			.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ steps: [] }), {
+					headers: {
+						'X-Playground-Cors-Proxy': '1',
+					},
+				})
+			);
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(
+			fetchBlueprint(
+				'https://example.com/blueprint.json',
+				'https://proxy.example.com/'
+			)
+		).resolves.toEqual({ steps: [] });
+
+		const proxiedRequest = fetchMock.mock.calls[1][0] as Request;
+		expect(proxiedRequest.url).toBe(
+			'https://proxy.example.com/https://example.com/blueprint.json'
+		);
 	});
 });
 

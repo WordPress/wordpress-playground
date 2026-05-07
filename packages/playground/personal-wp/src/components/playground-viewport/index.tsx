@@ -6,6 +6,7 @@ import {
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
+import { logger } from '@php-wasm/logger';
 
 import css from './style.module.css';
 import {
@@ -36,6 +37,7 @@ import {
 	fetchBlueprint,
 	prepareBlueprintForRemoteInstall,
 } from './blueprint-install';
+import { isAllowedBlueprintUrl } from '../../lib/blueprint-url';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -78,7 +80,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			const allowNavigation = options.allowNavigation ?? true;
 			try {
 				setInstallingBlueprint('Installing\u2026');
-				const blueprint = await fetchBlueprint(blueprintUrl);
+				const blueprint = await fetchBlueprint(
+					blueprintUrl,
+					corsProxyUrl
+				);
 				const title = blueprint.meta?.title || 'app';
 				setInstallingBlueprint(`Installing ${title}\u2026`);
 
@@ -106,8 +111,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					await playground.goTo(blueprint.landingPage);
 				}
 			} catch (e) {
-				// eslint-disable-next-line no-console
-				console.error('Failed to apply blueprint:', e);
+				logger.error('Failed to apply blueprint:', e);
 				setInstallingBlueprint('Installation failed');
 				setTimeout(() => setInstallingBlueprint(null), 3000);
 				return {
@@ -125,8 +129,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
 			try {
 				setInstallingBlueprint('Installing in the active tab\u2026');
-				const install =
-					await prepareBlueprintForRemoteInstall(blueprintUrl);
+				const install = await prepareBlueprintForRemoteInstall(
+					blueprintUrl,
+					corsProxyUrl
+				);
 				const result = await requestRemoteBlueprintInstall(
 					siteSlug,
 					install.blueprintUrl
@@ -510,22 +516,6 @@ function isDescendantWindow(
 	return false;
 }
 
-function isAllowedBlueprintUrl(blueprintUrl: unknown): blueprintUrl is string {
-	if (typeof blueprintUrl !== 'string') {
-		return false;
-	}
-	try {
-		const url = new URL(blueprintUrl);
-		return (
-			url.protocol === 'https:' ||
-			url.protocol === 'data:' ||
-			(url.protocol === 'http:' && isLocalhost(url.hostname))
-		);
-	} catch {
-		return false;
-	}
-}
-
 function getBlueprintRunnerClient<T extends object>(
 	playground: T,
 	blueprint: BlueprintV1Declaration,
@@ -569,15 +559,6 @@ function withoutGoTo<T extends object>(playground: T): T {
 
 function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
-}
-
-function isLocalhost(hostname: string): boolean {
-	return (
-		hostname === 'localhost' ||
-		hostname === '127.0.0.1' ||
-		hostname === '::1' ||
-		hostname === '[::1]'
-	);
 }
 
 export const JustViewport = function JustViewport({

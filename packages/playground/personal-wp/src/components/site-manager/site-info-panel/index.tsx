@@ -48,6 +48,7 @@ import { broadcastSiteReset } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
+import { isAllowedBlueprintUrl } from '../../../lib/blueprint-url';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -100,22 +101,13 @@ function getAppBlueprintUrl(blueprintUrl: string): string {
 	return url.toString();
 }
 
-function isValidUrl(str: string): boolean {
-	try {
-		new URL(str);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
 function blueprintToDataUrl(blueprint: string): string {
 	return `data:application/json;base64,${encodeStringAsBase64(blueprint)}`;
 }
 
 function looksLikeBlueprint(text: string): boolean {
 	const trimmed = text.trim();
-	if (isValidUrl(trimmed)) {
+	if (isAllowedBlueprintUrl(trimmed)) {
 		return true;
 	}
 	if (trimmed.startsWith('{')) {
@@ -170,7 +162,7 @@ function InstallAppsSection() {
 			let author = '';
 			let blueprintUrl: string;
 
-			if (isValidUrl(trimmed)) {
+			if (isAllowedBlueprintUrl(trimmed)) {
 				blueprintUrl = trimmed;
 				const filename =
 					new URL(trimmed).pathname.split('/').pop() || '';

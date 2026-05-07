@@ -375,6 +375,31 @@ describe('tab-coordinator', () => {
 		});
 	});
 
+	it('returns recovery guidance when remote blueprint install times out', async () => {
+		vi.useFakeTimers();
+		await initTabCoordinator('my-site');
+
+		const installResult = requestRemoteBlueprintInstall(
+			'my-site',
+			'https://example.com/blueprint.json',
+			5000
+		);
+		await vi.advanceTimersByTimeAsync(5000);
+
+		await expect(installResult).resolves.toEqual({
+			status: 'error',
+			error: expect.stringContaining(
+				'Timed out after 5 seconds waiting for the main tab'
+			),
+		});
+		await expect(installResult).resolves.toEqual({
+			status: 'error',
+			error: expect.stringContaining(
+				'reload this tab or open a new tab to reconnect'
+			),
+		});
+	});
+
 	it('focuses and highlights the main tab on request', async () => {
 		vi.useFakeTimers();
 		const documentStub = { title: 'My WordPress' };

@@ -318,7 +318,7 @@ export async function requestRemoteBlueprintInstall(
 				currentChannel.removeEventListener('message', resultHandler);
 				resolve({
 					status: 'error',
-					error: 'Timed out waiting for the main tab to install the app.',
+					error: getInstallBlueprintTimeoutMessage(timeoutMs),
 				});
 			}
 		}, timeoutMs);
@@ -383,6 +383,15 @@ export function getMainTabUnavailableMessage(status: MainTabStatus): string {
 		return 'The active WordPress tab is still reconnecting. Try again in a moment.';
 	}
 	return 'The active WordPress tab was closed or disconnected. Reload this tab or open a new tab to reconnect.';
+}
+
+function getInstallBlueprintTimeoutMessage(timeoutMs: number): string {
+	const timeoutSeconds = Math.round(timeoutMs / 1000);
+	return (
+		`Timed out after ${timeoutSeconds} seconds waiting for the main tab ` +
+		'to install the app. Focus the active WordPress tab and try again. ' +
+		'If it was closed, reload this tab or open a new tab to reconnect.'
+	);
 }
 
 function setupBroadcastChannel(): void {

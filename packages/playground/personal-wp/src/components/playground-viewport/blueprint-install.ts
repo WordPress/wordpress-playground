@@ -1,4 +1,5 @@
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 
 import { encodeStringAsBase64 } from '../../lib/base64';
 
@@ -8,9 +9,10 @@ export type RemoteBlueprintInstall = {
 };
 
 export async function prepareBlueprintForRemoteInstall(
-	blueprintUrl: string
+	blueprintUrl: string,
+	corsProxyUrl?: string
 ): Promise<RemoteBlueprintInstall> {
-	const blueprint = await fetchBlueprint(blueprintUrl);
+	const blueprint = await fetchBlueprint(blueprintUrl, corsProxyUrl);
 	const landingPage = getBlueprintLandingPage(blueprint);
 	if (!landingPage) {
 		return { blueprintUrl };
@@ -25,9 +27,17 @@ export async function prepareBlueprintForRemoteInstall(
 }
 
 export async function fetchBlueprint(
-	blueprintUrl: string
+	blueprintUrl: string,
+	corsProxyUrl?: string
 ): Promise<BlueprintV1Declaration> {
-	const response = await fetch(blueprintUrl);
+	const playgroundUrl =
+		typeof window === 'undefined' ? undefined : window.location.href;
+	const response = await fetchWithCorsProxy(
+		blueprintUrl,
+		{ credentials: 'omit' },
+		corsProxyUrl,
+		playgroundUrl
+	);
 	if (!response.ok) {
 		throw new Error(
 			`Could not download blueprint: ${response.status} ${response.statusText}`
