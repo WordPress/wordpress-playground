@@ -239,7 +239,6 @@ export async function requestRemoteBackup(
 
 	return new Promise((resolve) => {
 		let resolved = false;
-		let timeoutId: ReturnType<typeof setTimeout>;
 
 		const completedHandler = (
 			event: MessageEvent<TabCoordinatorMessage>
@@ -262,7 +261,7 @@ export async function requestRemoteBackup(
 		}
 
 		currentChannel.addEventListener('message', completedHandler);
-		timeoutId = setTimeout(() => {
+		const timeoutId = setTimeout(() => {
 			if (!resolved) {
 				resolved = true;
 				cleanup();
@@ -295,7 +294,6 @@ export async function requestRemoteBlueprintInstall(
 
 	return new Promise((resolve) => {
 		let resolved = false;
-		let timeoutId: ReturnType<typeof setTimeout>;
 
 		const resultHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
 			const message = event.data;
@@ -317,7 +315,7 @@ export async function requestRemoteBlueprintInstall(
 		}
 
 		currentChannel.addEventListener('message', resultHandler);
-		timeoutId = setTimeout(() => {
+		const timeoutId = setTimeout(() => {
 			if (!resolved) {
 				resolved = true;
 				cleanup();
@@ -350,7 +348,6 @@ export async function requestMainTabFocus(
 
 	return new Promise((resolve) => {
 		let resolved = false;
-		let timeoutId: ReturnType<typeof setTimeout>;
 
 		const ackHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
 			const message = event.data;
@@ -371,7 +368,7 @@ export async function requestMainTabFocus(
 		}
 
 		currentChannel.addEventListener('message', ackHandler);
-		timeoutId = setTimeout(() => {
+		const timeoutId = setTimeout(() => {
 			if (!resolved) {
 				resolved = true;
 				cleanup();
