@@ -210,7 +210,7 @@ async function waitForPluginActivation(
 	page,
 	previousFrameUrl,
 	previousBody,
-	timeoutSeconds = 60
+	timeoutSeconds = PLUGIN_ACTIVATION_TIMEOUT_S
 ) {
 	const deadline = Date.now() + timeoutSeconds * 1000;
 	while (Date.now() < deadline) {
@@ -224,18 +224,123 @@ async function waitForPluginActivation(
 				const changed =
 					frame.url() !== previousFrameUrl || body !== previousBody;
 				if (!changed) continue;
-				if (
-					body.includes('Plugin activated') ||
-					body.includes('Deactivate') ||
-					body.includes('Are you sure') ||
-					findPHPError(body)
-				) {
+				if (isPluginActivationTerminalBody(body)) {
 					return { body, frame };
 				}
 			} catch {}
 		}
 	}
 	return null;
+}
+
+async function recheckPluginActivation(page, frame) {
+	const currentFrame = await getCurrentWPFrameBody(page);
+	if (currentFrame && isPluginActivationTerminalBody(currentFrame.body)) {
+		return currentFrame;
+	}
+
+	const reloadedFrame = await reloadScopedFrame(
+		frame,
+		`/wp-admin/plugins.php?playground-plugin-check=${Date.now()}`,
+		30
+	);
+	if (reloadedFrame && isPluginActivationTerminalBody(reloadedFrame.body)) {
+		return reloadedFrame;
+	}
+
+	return reloadedFrame || currentFrame;
+}
+
+function getPluginActivationStatus(body) {
+	const error = findPHPError(body);
+	const ok = isPluginActivationComplete(body);
+	const bad = body.includes('Are you sure');
+	if (error) {
+		return { status: 'ERROR', detail: error };
+	}
+	if (ok) {
+		return { status: 'OK' };
+	}
+	return {
+		status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
+		detail: body.slice(0, 120).replace(/\n/g, ' '),
+	};
+}
+
+function getPluginActivationTimeoutStatus(
+	frameBeforeActivation,
+	latestFrame,
+	consoleErrors,
+	consoleStartIndex
+) {
+	const recentErrors = consoleErrors.slice(consoleStartIndex).slice(-3);
+	const detail = [
+		`timed out after ${PLUGIN_ACTIVATION_TIMEOUT_S}s`,
+		`before URL: ${frameBeforeActivation.url}`,
+		latestFrame ? `latest URL: ${latestFrame.frame.url()}` : null,
+		recentErrors.length
+			? `recent console errors: ${recentErrors.join(' | ')}`
+			: null,
+	]
+		.filter(Boolean)
+		.join('; ');
+
+	return {
+		status: 'TIMEOUT',
+		detail,
+		body: latestFrame?.body,
+	};
+}
+
+function isPluginActivationTerminalBody(body) {
+	return (
+		isPluginActivationComplete(body) ||
+		body.includes('Are you sure') ||
+		!!findPHPError(body)
+	);
+}
+
+function isPluginActivationComplete(body) {
+	return body.includes('Plugin activated') || body.includes('Deactivate');
+}
+
+async function getCurrentWPFrameBody(page) {
+	for (const frame of page.frames()) {
+		try {
+			if (!frame.url().includes('scope:')) continue;
+			const body = await frame.locator('body').innerText({
+				timeout: 2000,
+			});
+			return { body, frame };
+		} catch {}
+	}
+	return null;
+}
+
+async function reloadScopedFrame(frame, path, timeoutSeconds) {
+	const url = getScopedUrl(frame.url(), path);
+	if (!url) return null;
+	try {
+		await frame.goto(url, {
+			timeout: timeoutSeconds * 1000,
+			waitUntil: 'domcontentloaded',
+		});
+	} catch {}
+	return waitForWPFrame(frame.page(), timeoutSeconds, {
+		contentPredicate: (body) =>
+			body.includes('Plugins') || isPluginActivationTerminalBody(body),
+	});
+}
+
+function getScopedUrl(frameUrl, path) {
+	const url = new URL(frameUrl);
+	const match = url.pathname.match(/^(\/scope:[^/]+)(?:\/.*)?$/);
+	if (!match) return null;
+	const [pathname, search = ''] = path.split('?');
+	url.pathname = `${match[1]}${pathname}`;
+	url.search = search ? `?${search}` : '';
+	url.hash = '';
+	return url.href;
 }
 
 /**
@@ -639,6 +744,7 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 5: Plugin activation ---
 		if (adminStatus && adminStatus.status === 'OK') {
 			try {
+				const consoleStartIndex = consoleErrors.length;
 				const wp4 = await navigateViaUrlBar(
 					page,
 					'/wp-admin/plugins.php',
@@ -692,29 +798,26 @@ for (const { wp, php } of MATRIX) {
 							prevFrameUrl,
 							bodyBeforeActivation
 						);
-						if (!wp4b) {
-							pluginStatus = { status: 'TIMEOUT' };
+						const finalFrame =
+							wp4b ||
+							(await recheckPluginActivation(page, wp4.frame));
+						if (
+							!wp4b &&
+							(!finalFrame ||
+								!isPluginActivationTerminalBody(
+									finalFrame.body
+								))
+						) {
+							pluginStatus = getPluginActivationTimeoutStatus(
+								{ url: prevFrameUrl },
+								finalFrame,
+								consoleErrors,
+								consoleStartIndex
+							);
 						} else {
-							const error = findPHPError(wp4b.body);
-							const ok =
-								wp4b.body.includes('Plugin activated') ||
-								wp4b.body.includes('Deactivate');
-							const bad = wp4b.body.includes('Are you sure');
-							if (error) {
-								pluginStatus = {
-									status: 'ERROR',
-									detail: error,
-								};
-							} else if (ok) {
-								pluginStatus = { status: 'OK' };
-							} else {
-								pluginStatus = {
-									status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
-									detail: wp4b.body
-										.slice(0, 120)
-										.replace(/\n/g, ' '),
-								};
-							}
+							pluginStatus = getPluginActivationStatus(
+								finalFrame.body
+							);
 						}
 					} else {
 						pluginStatus = {
