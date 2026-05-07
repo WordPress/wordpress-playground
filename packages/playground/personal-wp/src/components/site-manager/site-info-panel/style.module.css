@@ -263,6 +263,36 @@
 	margin: 0 0 12px 0;
 }
 
+.focus-main-tab-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 14px;
+	border: 1px solid #3858e9;
+	border-radius: 4px;
+	background: #3858e9;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.focus-main-tab-button:hover:not(:disabled) {
+	background: #2d4bd1;
+	border-color: #2d4bd1;
+}
+
+.focus-main-tab-button:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}
+
+.dependent-tab-status {
+	margin-top: 8px !important;
+	font-size: 13px;
+	color: #757575;
+}
+
 /* ── Apps ── */
 
 .apps-loading {

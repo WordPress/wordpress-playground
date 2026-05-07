@@ -9,6 +9,7 @@ import {
 	requestStaleTabsShutdown,
 	requestTakeover,
 	requestRemoteBackup,
+	requestMainTabFocus,
 	broadcastSiteReset,
 	setBackupRequestCallback,
 	type TabInfo,
@@ -643,6 +644,103 @@ describe('tab-coordinator', () => {
 				siteSlug: 'my-site',
 				success: true,
 			});
+
+			otherChannel.close();
+		});
+	});
+
+	describe('requestMainTabFocus', () => {
+		it('returns false when not initialized', async () => {
+			const result = await requestMainTabFocus('my-site');
+			expect(result).toBe(false);
+		});
+
+		it('resolves to true when acknowledged', async () => {
+			const tabInfo = initTabCoordinator('my-site');
+
+			const otherChannel = new MockBroadcastChannel(
+				'playground-tab-coordinator'
+			);
+			otherChannel.onmessage = (event: MessageEvent) => {
+				if (event.data.type === 'main-tab-focus-request') {
+					otherChannel.postMessage({
+						type: 'main-tab-focus-acknowledged',
+						targetTabId: tabInfo.tabId,
+						siteSlug: 'my-site',
+					});
+				}
+			};
+
+			const result = await requestMainTabFocus('my-site', 100);
+			expect(result).toBe(true);
+
+			otherChannel.close();
+		});
+
+		it('focuses and highlights the main tab on request', async () => {
+			vi.useFakeTimers();
+			const focus = vi.fn();
+			const documentStub = { title: 'My WordPress' };
+			vi.stubGlobal('window', {
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn(),
+				focus,
+			});
+			vi.stubGlobal('document', documentStub);
+
+			initTabCoordinator('my-site');
+
+			const responses: unknown[] = [];
+			const otherChannel = new MockBroadcastChannel(
+				'playground-tab-coordinator'
+			);
+			otherChannel.onmessage = (event: MessageEvent) => {
+				responses.push(event.data);
+			};
+
+			otherChannel.postMessage({
+				type: 'main-tab-focus-request',
+				requestingTabId: 'requester-tab',
+				siteSlug: 'my-site',
+			});
+
+			expect(focus).toHaveBeenCalled();
+			expect(responses).toEqual([
+				{
+					type: 'main-tab-focus-acknowledged',
+					targetTabId: 'requester-tab',
+					siteSlug: 'my-site',
+				},
+			]);
+
+			vi.advanceTimersByTime(700);
+			expect(documentStub.title).toBe('● My WordPress');
+			vi.advanceTimersByTime(8000);
+			expect(documentStub.title).toBe('My WordPress');
+
+			otherChannel.close();
+			vi.useRealTimers();
+		});
+
+		it('does not respond to focus request in dependent mode', () => {
+			initTabCoordinator('my-site');
+			setDependentMode(true);
+
+			const responses: unknown[] = [];
+			const otherChannel = new MockBroadcastChannel(
+				'playground-tab-coordinator'
+			);
+			otherChannel.onmessage = (event: MessageEvent) => {
+				responses.push(event.data);
+			};
+
+			otherChannel.postMessage({
+				type: 'main-tab-focus-request',
+				requestingTabId: 'requester-tab',
+				siteSlug: 'my-site',
+			});
+
+			expect(responses).toHaveLength(0);
 
 			otherChannel.close();
 		});

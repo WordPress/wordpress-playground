@@ -61,6 +61,18 @@ type BackupCompletedMessage = {
 	success: boolean;
 };
 
+type MainTabFocusRequestMessage = {
+	type: 'main-tab-focus-request';
+	requestingTabId: string;
+	siteSlug: string;
+};
+
+type MainTabFocusAcknowledgedMessage = {
+	type: 'main-tab-focus-acknowledged';
+	targetTabId: string;
+	siteSlug: string;
+};
+
 type SiteResetMessage = {
 	type: 'site-reset';
 	siteSlug: string;
@@ -74,6 +86,8 @@ type TabCoordinatorMessage =
 	| TakeoverAcknowledgedMessage
 	| BackupRequestMessage
 	| BackupCompletedMessage
+	| MainTabFocusRequestMessage
+	| MainTabFocusAcknowledgedMessage
 	| SiteResetMessage;
 
 const CHANNEL_NAME = 'playground-tab-coordinator';
@@ -90,6 +104,9 @@ let siteResetCallback: (() => void) | null = null;
 let beforeUnloadHandler: (() => void) | null = null;
 let isCheckingTabs = false;
 let lastCheckTime = 0;
+let titleFlashInterval: ReturnType<typeof setInterval> | null = null;
+let titleFlashTimeout: ReturnType<typeof setTimeout> | null = null;
+let titleFlashOriginalTitle: string | null = null;
 
 /**
  * Initialize the tab coordinator for a specific site.
@@ -173,6 +190,7 @@ export function destroyTabCoordinator(): void {
 	siteResetCallback = null;
 	isCheckingTabs = false;
 	lastCheckTime = 0;
+	clearTitleFlash();
 }
 
 /**
@@ -416,6 +434,57 @@ export async function requestRemoteBackup(
 }
 
 /**
+ * Ask the main tab to focus itself and flash its title.
+ *
+ * @param siteSlug - The site whose main tab should be highlighted
+ * @param timeoutMs - How long to wait for acknowledgment (default 2000ms)
+ */
+export async function requestMainTabFocus(
+	siteSlug: string,
+	timeoutMs = 2000
+): Promise<boolean> {
+	if (!channel || !currentTabInfo) {
+		return false;
+	}
+
+	const tabId = currentTabInfo.tabId;
+	const currentChannel = channel;
+
+	return new Promise((resolve) => {
+		let resolved = false;
+
+		const ackHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
+			const message = event.data;
+			if (
+				message.type === 'main-tab-focus-acknowledged' &&
+				message.siteSlug === siteSlug &&
+				message.targetTabId === tabId
+			) {
+				resolved = true;
+				currentChannel.removeEventListener('message', ackHandler);
+				resolve(true);
+			}
+		};
+
+		currentChannel.addEventListener('message', ackHandler);
+
+		const requestMessage: MainTabFocusRequestMessage = {
+			type: 'main-tab-focus-request',
+			requestingTabId: tabId,
+			siteSlug,
+		};
+		currentChannel.postMessage(requestMessage);
+
+		setTimeout(() => {
+			if (!resolved) {
+				currentChannel.removeEventListener('message', ackHandler);
+				resolve(false);
+			}
+		}, timeoutMs);
+	});
+}
+
+/**
  * Broadcast that a site is being reset/deleted.
  * This notifies other tabs to reload since the site data is being deleted.
  *
@@ -501,10 +570,64 @@ function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
 		case 'backup-completed':
 			break;
 
+		case 'main-tab-focus-request':
+			if (
+				message.siteSlug === currentTabInfo.siteSlug &&
+				!currentTabInfo.isDependentMode
+			) {
+				focusAndHighlightCurrentTab();
+				const ackMessage: MainTabFocusAcknowledgedMessage = {
+					type: 'main-tab-focus-acknowledged',
+					targetTabId: message.requestingTabId,
+					siteSlug: message.siteSlug,
+				};
+				channel.postMessage(ackMessage);
+			}
+			break;
+
+		case 'main-tab-focus-acknowledged':
+			break;
+
 		case 'site-reset':
 			if (message.siteSlug === currentTabInfo.siteSlug) {
 				siteResetCallback?.();
 			}
 			break;
 	}
+}
+
+function focusAndHighlightCurrentTab(): void {
+	if (typeof window !== 'undefined') {
+		window.focus();
+	}
+	if (typeof document === 'undefined') {
+		return;
+	}
+
+	clearTitleFlash();
+
+	titleFlashOriginalTitle = document.title;
+	let isHighlighted = false;
+	titleFlashInterval = setInterval(() => {
+		isHighlighted = !isHighlighted;
+		document.title = isHighlighted
+			? `● ${titleFlashOriginalTitle}`
+			: titleFlashOriginalTitle || '';
+	}, 700);
+	titleFlashTimeout = setTimeout(clearTitleFlash, 8000);
+}
+
+function clearTitleFlash(): void {
+	if (titleFlashInterval) {
+		clearInterval(titleFlashInterval);
+		titleFlashInterval = null;
+	}
+	if (titleFlashTimeout) {
+		clearTimeout(titleFlashTimeout);
+		titleFlashTimeout = null;
+	}
+	if (titleFlashOriginalTitle !== null && typeof document !== 'undefined') {
+		document.title = titleFlashOriginalTitle;
+	}
+	titleFlashOriginalTitle = null;
 }
