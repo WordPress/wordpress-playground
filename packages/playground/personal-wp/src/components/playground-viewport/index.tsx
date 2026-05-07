@@ -19,6 +19,13 @@ import {
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import { selectSiteBySlug } from '../../lib/state/redux/slice-sites';
+import {
+	getMainTabUnavailableMessage,
+	markMainTabReady,
+	refreshMainTabStatus,
+	requestRemoteBlueprintInstall,
+	setInstallBlueprintRequestCallback,
+} from '../../lib/state/redux/tab-coordinator';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
@@ -43,8 +50,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const url = clientInfo?.url;
 	const playground = clientInfo?.client;
 	const isDependentMode = clientInfo?.isDependentMode ?? false;
+	const mainTabStatus =
+		clientInfo?.mainTabStatus ??
+		(isDependentMode ? 'missing' : 'connected');
+	const hasLocalRuntimeClient = !isDependentMode && !!playground;
 	const canInstallBlueprint =
-		!isDependentMode && isBlueprintRunnableClient(playground);
+		hasLocalRuntimeClient ||
+		(isDependentMode && mainTabStatus === 'connected');
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
@@ -57,12 +69,6 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				return {
 					status: 'error',
 					error: 'Playground is not ready.',
-				};
-			}
-			if (!isBlueprintRunnableClient(playground)) {
-				return {
-					status: 'error',
-					error: getDependentModeInstallErrorMessage(),
 				};
 			}
 			try {
@@ -106,6 +112,44 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		[playground]
 	);
 
+	const applyBlueprintInMainTab = useCallback(
+		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
+			try {
+				setInstallingBlueprint('Installing in the active tab\u2026');
+				const result = await requestRemoteBlueprintInstall(
+					siteSlug,
+					blueprintUrl
+				);
+				if (result.status === 'error') {
+					setInstallingBlueprint('Installation failed');
+					setTimeout(() => setInstallingBlueprint(null), 3000);
+				} else {
+					setInstallingBlueprint(null);
+				}
+				return result;
+			} catch (e) {
+				setInstallingBlueprint('Installation failed');
+				setTimeout(() => setInstallingBlueprint(null), 3000);
+				return {
+					status: 'error',
+					error: getErrorMessage(e),
+				};
+			}
+		},
+		[siteSlug]
+	);
+
+	useEffect(() => {
+		if (!hasLocalRuntimeClient) {
+			return;
+		}
+		setInstallBlueprintRequestCallback(applyBlueprint);
+		void markMainTabReady();
+		return () => {
+			setInstallBlueprintRequestCallback(null);
+		};
+	}, [applyBlueprint, hasLocalRuntimeClient]);
+
 	// Handle relay messages from WordPress plugins.
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
@@ -140,19 +184,51 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		return () => {
 			window.removeEventListener('message', handleMessage);
 		};
-	}, [applyBlueprint, canInstallBlueprint, isDependentMode, siteSlug]);
+	}, [
+		applyBlueprint,
+		applyBlueprintInMainTab,
+		canInstallBlueprint,
+		hasLocalRuntimeClient,
+		isDependentMode,
+		siteSlug,
+	]);
 
 	async function installBlueprintFromRelay(
 		event: MessageEvent,
 		message: InstallBlueprintMessageData
 	) {
 		const { blueprintUrl, requestId } = message;
-		if (!canInstallBlueprint) {
+		let installLocally = hasLocalRuntimeClient;
+		if (!installLocally) {
+			if (!isDependentMode) {
+				postInstallBlueprintResult(event, {
+					blueprintUrl,
+					requestId,
+					status: 'error',
+					error: 'Playground is not ready.',
+				});
+				return;
+			}
+
+			const status = await refreshMainTabStatus();
+			if (status !== 'connected') {
+				postInstallBlueprintResult(event, {
+					blueprintUrl,
+					requestId,
+					status: 'error',
+					error: getMainTabUnavailableMessage(status),
+				});
+				return;
+			}
+			installLocally = false;
+		}
+
+		if (!canInstallBlueprint && !isDependentMode) {
 			postInstallBlueprintResult(event, {
 				blueprintUrl,
 				requestId,
 				status: 'error',
-				error: getDependentModeInstallErrorMessage(),
+				error: 'Playground is not ready.',
 			});
 			return;
 		}
@@ -169,7 +245,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		postInstallBlueprintResult(event, {
 			blueprintUrl,
 			requestId,
-			...(await applyBlueprint(blueprintUrl)),
+			...(installLocally
+				? await applyBlueprint(blueprintUrl)
+				: await applyBlueprintInMainTab(blueprintUrl)),
 		});
 	}
 
@@ -205,6 +283,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				<div className={css.installBanner}>{installingBlueprint}</div>
 			)}
 			<JustViewport siteSlug={siteSlug} iframeRef={iframeRef} />
+			<MainTabRecoveryNotice
+				isDependentMode={isDependentMode}
+				mainTabStatus={mainTabStatus}
+			/>
 
 			<div
 				className={classNames(css.sidebarLatch, {
@@ -227,6 +309,59 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
 			</div>
+		</div>
+	);
+}
+
+function MainTabRecoveryNotice({
+	isDependentMode,
+	mainTabStatus,
+}: {
+	isDependentMode: boolean;
+	mainTabStatus: 'connected' | 'booting' | 'missing';
+}) {
+	if (!isDependentMode || mainTabStatus === 'connected') {
+		return null;
+	}
+
+	const isMissing = mainTabStatus === 'missing';
+
+	return (
+		<div className={css.mainTabNotice} role="status" aria-live="polite">
+			<div className={css.mainTabNoticeText}>
+				<strong>
+					{isMissing
+						? 'The active WordPress tab was disconnected.'
+						: 'The active WordPress tab is reconnecting.'}
+				</strong>
+				<span>
+					{isMissing
+						? ' This page is preserved, but WordPress cannot handle new requests until a tab reconnects.'
+						: ' This page is preserved while WordPress starts again.'}
+				</span>
+			</div>
+			{isMissing && (
+				<div className={css.mainTabNoticeActions}>
+					<button
+						type="button"
+						onClick={() => window.location.reload()}
+					>
+						Reload this tab
+					</button>
+					<button
+						type="button"
+						onClick={() =>
+							window.open(
+								window.location.href,
+								'_blank',
+								'noopener,noreferrer'
+							)
+						}
+					>
+						Open new tab
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -480,19 +615,6 @@ function withoutGoTo<T extends object>(playground: T): T {
 			return Reflect.get(target, property, receiver);
 		},
 	});
-}
-
-function isBlueprintRunnableClient(playground: unknown): playground is object {
-	return (
-		!!playground &&
-		typeof playground === 'object' &&
-		typeof (playground as { fileExists?: unknown }).fileExists ===
-			'function'
-	);
-}
-
-function getDependentModeInstallErrorMessage(): string {
-	return 'This tab is viewing a site controlled by another tab. Use the main tab to install apps.';
 }
 
 function getErrorMessage(error: unknown): string {

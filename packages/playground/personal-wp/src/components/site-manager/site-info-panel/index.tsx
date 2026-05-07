@@ -44,10 +44,7 @@ import {
 } from '../../../lib/health-check-recovery';
 import { getRelativeDate } from '../../../lib/utils/get-relative-date';
 import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
-import {
-	broadcastSiteReset,
-	requestMainTabFocus,
-} from '../../../lib/state/redux/tab-coordinator';
+import { broadcastSiteReset } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
@@ -583,54 +580,6 @@ function RecoverySection() {
 
 // ── About Tab (composed) ──────────────────────────────────────
 
-function DependentTabSection() {
-	const activeSite = useActiveSite();
-	const [focusStatus, setFocusStatus] = useState<
-		'idle' | 'requesting' | 'sent' | 'missing'
-	>('idle');
-
-	async function handleFindMainTab() {
-		if (!activeSite) {
-			return;
-		}
-
-		setFocusStatus('requesting');
-		const didReachMainTab = await requestMainTabFocus(activeSite.slug);
-		setFocusStatus(didReachMainTab ? 'sent' : 'missing');
-	}
-
-	return (
-		<div className={css.aboutSection}>
-			<h4 className={css.aboutSectionTitle}>Main Tab Required</h4>
-			<p>
-				This tab can view the site, but apps, backups, recovery mode,
-				and reset controls are available only in the main tab with the
-				active WordPress connection.
-			</p>
-			<button
-				className={css.focusMainTabButton}
-				type="button"
-				onClick={handleFindMainTab}
-				disabled={focusStatus === 'requesting' || !activeSite}
-			>
-				{focusStatus === 'requesting'
-					? 'Finding main tab...'
-					: 'Find main tab'}
-			</button>
-			{focusStatus === 'sent' && (
-				<p className={css.dependentTabStatus}>
-					The main tab was asked to come forward and flash its title.
-				</p>
-			)}
-			{focusStatus === 'missing' && (
-				<p className={css.dependentTabStatus}>
-					No main tab responded. Reload this tab to reconnect.
-				</p>
-			)}
-		</div>
-	);
-}
-
 function AboutTab() {
 	const clientInfo = usePlaygroundClientInfo();
 	const isDependentMode = clientInfo?.isDependentMode ?? false;
@@ -644,9 +593,7 @@ function AboutTab() {
 				device.
 			</p>
 
-			{isDependentMode ? (
-				<DependentTabSection />
-			) : (
+			{!isDependentMode && (
 				<>
 					<InstallAppsSection />
 					<BackupSection />

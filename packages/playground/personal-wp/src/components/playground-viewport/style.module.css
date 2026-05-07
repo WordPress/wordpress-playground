@@ -95,3 +95,64 @@
 		transform: translateX(-50%) translateY(0);
 	}
 }
+
+.main-tab-notice {
+	position: absolute;
+	top: 16px;
+	left: 50%;
+	z-index: 35;
+	display: flex;
+	max-width: min(720px, calc(100% - 32px));
+	transform: translateX(-50%);
+	align-items: center;
+	gap: 16px;
+	padding: 12px 14px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+	color: #1e1e1e;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.main-tab-notice-text {
+	min-width: 0;
+}
+
+.main-tab-notice-actions {
+	display: flex;
+	flex: none;
+	gap: 8px;
+}
+
+.main-tab-notice-actions button {
+	padding: 6px 10px;
+	border: 1px solid #3858e9;
+	border-radius: 4px;
+	background: #3858e9;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.main-tab-notice-actions button + button {
+	border-color: #dcdcde;
+	background: #fff;
+	color: #1e1e1e;
+}
+
+@media (max-width: 640px) {
+	.main-tab-notice {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.main-tab-notice-actions {
+		flex-wrap: wrap;
+	}
+}

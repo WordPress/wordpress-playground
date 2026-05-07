@@ -36,13 +36,7 @@ import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
-import {
-	initTabCoordinator,
-	checkForExistingTabs,
-	requestStaleTabsShutdown,
-	setDependentMode,
-	requestTakeover,
-} from './tab-coordinator';
+import { initTabCoordinator, destroyTabCoordinator } from './tab-coordinator';
 import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 
@@ -70,6 +64,7 @@ export function bootSiteClient(
 		getState: () => PlaygroundReduxState
 	) => {
 		signal.onabort = () => {
+			destroyTabCoordinator();
 			dispatch(removeClientInfo(siteSlug));
 		};
 		const site = selectSiteBySlug(getState(), siteSlug);
@@ -141,172 +136,39 @@ export function bootSiteClient(
 			}
 		}
 
-		// Initialize tab coordinator for multi-tab detection
-		// Only for persistent sites - temporary sites don't need coordination
+		// Only one tab may run the Personal WP runtime at a time. Other tabs
+		// preserve their iframe and observe the browser-managed main-tab locks.
 		if (site.metadata.storage !== 'none') {
-			initTabCoordinator(
-				site.slug,
-				(reason) => {
-					dispatch(
-						setActiveSiteError({
-							error: 'tab-superseded',
-							details: new Error(reason),
-						})
-					);
-				},
-				() => {
-					// This callback is called when another tab requests to take over as main
-					// We switch to dependent mode without showing an error
-					const remoteUrl = getRemoteUrl();
-					const scopedSiteUrl = `/scope:${encodeURIComponent(site.slug)}/`;
-
-					const dependentModeClient = {
-						goTo: async (path: string) => {
-							const newUrl = new URL(
-								scopedSiteUrl + path.replace(/^\//, ''),
-								remoteUrl
-							);
-							iframe.src = newUrl.toString();
-						},
-						getCurrentURL: async () => {
-							try {
-								const iframeUrl = new URL(
-									iframe.contentWindow?.location?.href || ''
-								);
-								const path = iframeUrl.pathname.replace(
-									new RegExp(
-										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
-									),
-									'/'
-								);
-								return path + iframeUrl.search;
-							} catch {
-								return '/';
-							}
-						},
-					} as PlaygroundClient;
-
+			const tabInfo = await initTabCoordinator(site.slug, {
+				onMainTabStatusChange: (mainTabStatus) => {
+					if (!selectClientInfoBySiteSlug(getState(), site.slug)) {
+						return;
+					}
 					dispatch(
 						updateClientInfo({
 							siteSlug: site.slug,
-							changes: {
-								client: dependentModeClient,
-								isDependentMode: true,
-								opfsMountDescriptor: undefined,
-							},
+							changes: { mainTabStatus },
 						})
-					);
-
-					setDependentMode(true);
-
-					logger.info(
-						'Switched to dependent mode - another tab has taken over as main'
 					);
 				},
-				undefined,
-				() => {
-					// Site was reset by another tab - reload to start fresh
+				onSiteReset: () => {
 					window.location.href =
 						window.location.origin + window.location.pathname;
-				}
-			);
+				},
+			});
 
-			const { existingTabs, hasFreshTab, hasStaleTab } =
-				await checkForExistingTabs(site.slug);
-
-			if (hasStaleTab) {
-				requestStaleTabsShutdown(existingTabs);
-			}
-
-			if (hasFreshTab) {
-				const urlParams = new URLSearchParams(window.location.search);
-				const hasBlueprintUrl = !!urlParams.get('blueprint-url');
-				const pendingBlueprintForCheck =
-					selectBlueprintResolvedFromUrl(getState());
-				const hasPendingBlueprintForSite =
-					pendingBlueprintForCheck &&
-					pendingBlueprintForCheck.targetSiteSlug === site.slug;
-				const needsMainMode =
-					hasBlueprintUrl || hasPendingBlueprintForSite;
-
-				if (needsMainMode) {
-					await requestTakeover(site.slug);
-				} else {
-					const existingClient = selectClientInfoBySiteSlug(
-						getState(),
-						site.slug
-					);
-					if (existingClient?.isDependentMode) {
-						return;
-					}
-
-					const remoteUrl = getRemoteUrl();
-					const scopedSiteUrl = `/scope:${encodeURIComponent(site.slug)}/`;
-					const scopedUrl = new URL(scopedSiteUrl, remoteUrl);
-
-					const landingPage = getBrowserPathAsLandingPage() || '/';
-					// Resolve relative to scopedUrl so a query string in
-					// landingPage stays in URL.search instead of being
-					// percent-encoded into URL.pathname.
-					iframe.src = new URL(
-						landingPage.replace(/^\//, ''),
-						scopedUrl
-					).toString();
-
-					const dependentModeClient = {
-						goTo: async (path: string) => {
-							const newUrl = new URL(
-								scopedSiteUrl + path.replace(/^\//, ''),
-								remoteUrl
-							);
-							iframe.src = newUrl.toString();
-						},
-						getCurrentURL: async () => {
-							try {
-								const iframeUrl = new URL(
-									iframe.contentWindow?.location?.href || ''
-								);
-								const path = iframeUrl.pathname.replace(
-									new RegExp(
-										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
-									),
-									'/'
-								);
-								return path + iframeUrl.search;
-							} catch {
-								return '/';
-							}
-						},
-					} as PlaygroundClient;
-
-					dispatch(
-						addClientInfo({
-							siteSlug: site.slug,
-							url: landingPage,
-							client: dependentModeClient,
-							opfsMountDescriptor: undefined,
-							isDependentMode: true,
-						})
-					);
-
-					signal.onabort = () => {
-						dispatch(removeClientInfo(site.slug));
-					};
-
-					dispatch(
-						updateSiteMetadata({
-							slug: site.slug,
-							metadata: {
-								lastAccessDate: Date.now(),
-							},
-						})
-					);
-
-					logger.info(
-						'Playground running in dependent mode - reusing existing service worker from another tab'
-					);
-					return;
-				}
+			if (tabInfo.isDependentMode) {
+				bootDependentModeClient({
+					siteSlug: site.slug,
+					iframe,
+					dispatch,
+					getState,
+					mainTabStatus: tabInfo.mainTabStatus || 'missing',
+				});
+				logger.info(
+					'Playground running in dependent mode - using the main tab worker'
+				);
+				return;
 			}
 		}
 
@@ -462,6 +324,7 @@ export function bootSiteClient(
 		}
 
 		if (signal.aborted || !playground) {
+			destroyTabCoordinator();
 			return;
 		}
 
@@ -473,6 +336,8 @@ export function bootSiteClient(
 				url: '/',
 				client: playground,
 				opfsMountDescriptor: mountDescriptor,
+				isDependentMode: false,
+				mainTabStatus: 'booting',
 			})
 		);
 
@@ -502,7 +367,10 @@ export function bootSiteClient(
 			}
 		}
 
-		signal.onabort = null;
+		signal.onabort = () => {
+			destroyTabCoordinator();
+			dispatch(removeClientInfo(site.slug));
+		};
 	};
 }
 
@@ -511,6 +379,92 @@ function getBrowserPathAsLandingPage(): string | undefined {
 		return undefined;
 	}
 	return window.location.pathname + window.location.search;
+}
+
+function bootDependentModeClient({
+	siteSlug,
+	iframe,
+	dispatch,
+	getState,
+	mainTabStatus,
+}: {
+	siteSlug: string;
+	iframe: HTMLIFrameElement;
+	dispatch: PlaygroundDispatch;
+	getState: () => PlaygroundReduxState;
+	mainTabStatus: 'connected' | 'booting' | 'missing';
+}): void {
+	const remoteUrl = getRemoteUrl();
+	const scopedSiteUrl = `/scope:${encodeURIComponent(siteSlug)}/`;
+	const scopedUrl = new URL(scopedSiteUrl, remoteUrl);
+	const landingPage = getBrowserPathAsLandingPage() || '/';
+
+	// Resolve relative to scopedUrl so query strings stay in URL.search.
+	iframe.src = new URL(landingPage.replace(/^\//, ''), scopedUrl).toString();
+
+	const dependentModeClient = {
+		goTo: async (path: string) => {
+			const newUrl = new URL(
+				scopedSiteUrl + path.replace(/^\//, ''),
+				remoteUrl
+			);
+			iframe.src = newUrl.toString();
+		},
+		getCurrentURL: async () => {
+			try {
+				const iframeUrl = new URL(
+					iframe.contentWindow?.location?.href || ''
+				);
+				const scopePattern = `^${scopedSiteUrl.replace(
+					/[.*+?^${}()|[\]\\]/g,
+					'\\$&'
+				)}`;
+				const path = iframeUrl.pathname.replace(
+					new RegExp(scopePattern),
+					'/'
+				);
+				return path + iframeUrl.search;
+			} catch {
+				return '/';
+			}
+		},
+	} as PlaygroundClient;
+
+	const existingClient = selectClientInfoBySiteSlug(getState(), siteSlug);
+	if (existingClient) {
+		dispatch(
+			updateClientInfo({
+				siteSlug,
+				changes: {
+					url: landingPage,
+					client: dependentModeClient,
+					opfsMountDescriptor: undefined,
+					isDependentMode: true,
+					mainTabStatus,
+				},
+			})
+		);
+	} else {
+		dispatch(
+			addClientInfo({
+				siteSlug,
+				url: landingPage,
+				client: dependentModeClient,
+				opfsMountDescriptor: undefined,
+				isDependentMode: true,
+				mainTabStatus,
+			})
+		);
+	}
+
+	dispatch(
+		updateSiteMetadata({
+			slug: siteSlug,
+			metadata: {
+				lastAccessDate: Date.now(),
+			},
+		})
+	);
 }
 
 /**
