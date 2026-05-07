@@ -1,9 +1,4 @@
-export function isAllowedBlueprintUrl(
-	blueprintUrl: unknown
-): blueprintUrl is string {
-	if (typeof blueprintUrl !== 'string') {
-		return false;
-	}
+export function isAllowedBlueprintUrl(blueprintUrl: string): boolean {
 	try {
 		const url = new URL(blueprintUrl);
 		return (

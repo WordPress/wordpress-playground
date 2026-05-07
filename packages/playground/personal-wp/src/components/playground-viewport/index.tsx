@@ -453,6 +453,7 @@ function getInstallBlueprintMessageData(
 ): InstallBlueprintMessageData | undefined {
 	if (
 		data.relayType !== 'install-blueprint' ||
+		typeof data.blueprintUrl !== 'string' ||
 		!isAllowedBlueprintUrl(data.blueprintUrl)
 	) {
 		return;
