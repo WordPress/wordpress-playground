@@ -18,7 +18,9 @@ import {
 	type SpawnOptions,
 } from './host-bridge';
 
-const dir = typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
+import ROUTER_PHP from './router.php?raw';
+import NGINX_CONF_TEMPLATE from './configs/nginx.conf?raw';
+import PHP_FPM_CONF from './configs/php-fpm.conf?raw';
 
 export interface PosixKernelBootOptions {
 	host?: string;
@@ -76,8 +78,13 @@ export async function bootPosixKernelWordPress(
 	const phpFpmBytes = readWasm(bridge.binaries.phpFpmWasm);
 	const nginxBytes = readWasm(bridge.binaries.nginxWasm);
 
-	const routerScriptPath = joinPaths(dir, 'router.php');
-	const fpmConfPath = joinPaths(dir, 'configs', 'php-fpm.conf');
+	// Materialize the FastCGI router + php-fpm config from inlined
+	// `?raw` strings so the published CLI bundle is self-contained
+	// (no neighbouring .php / .conf source files in dist/).
+	const routerScriptPath = joinPaths(options.tempDir, 'router.php');
+	writeFileSync(routerScriptPath, ROUTER_PHP);
+	const fpmConfPath = joinPaths(options.tempDir, 'php-fpm.conf');
+	writeFileSync(fpmConfPath, PHP_FPM_CONF);
 	// The marker path is wired into nginx now, but the file is created
 	// later (by the handler, after the WP installer probe). If the file
 	// existed during the install probe, router.php would short-circuit
@@ -96,6 +103,7 @@ export async function bootPosixKernelWordPress(
 		routerScript: routerScriptPath,
 		tempDir: options.tempDir,
 		firstRequestMarker,
+		template: NGINX_CONF_TEMPLATE,
 	});
 
 	// Time-multiplexed stdio capture. The kernel currently emits every
@@ -165,7 +173,7 @@ export async function bootPosixKernelWordPress(
 			/* nginx will retry */
 		});
 
-		spawnNginx(kernelHost, nginxBytes, renderedNginxConf, dir);
+		spawnNginx(kernelHost, nginxBytes, renderedNginxConf, options.tempDir);
 		await waitForLoopback(host, options.port, NGINX_READY_TIMEOUT_MS);
 	} catch (e) {
 		await dispose();
@@ -246,12 +254,9 @@ function renderNginxConf(args: {
 	routerScript: string;
 	tempDir: string;
 	firstRequestMarker: string;
+	template: string;
 }): string {
-	const template = readFileSync(
-		joinPaths(dir, 'configs', 'nginx.conf'),
-		'utf8'
-	);
-	const rendered = template
+	const rendered = args.template
 		.replaceAll('__HOST__', args.host)
 		.replaceAll('__PORT__', String(args.port))
 		.replaceAll('__SERVER_NAME__', args.serverName)

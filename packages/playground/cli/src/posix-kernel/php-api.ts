@@ -30,12 +30,7 @@ import { PHPResponse } from '@php-wasm/universal';
 import { dirname, joinPaths } from '@php-wasm/util';
 import type { KernelRuntime } from './boot';
 
-const dir = typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
-
-const DEFINES_MU_PLUGIN_PHP = readFileSync(
-	joinPaths(dir, 'wp-templates/playground-defines.php'),
-	'utf8'
-);
+import DEFINES_MU_PLUGIN_PHP from './wp-templates/playground-defines.php?raw';
 
 const VFS_DOCUMENT_ROOT = '/wordpress';
 

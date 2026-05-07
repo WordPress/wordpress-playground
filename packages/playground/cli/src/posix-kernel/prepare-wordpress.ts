@@ -8,13 +8,7 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { decodeZip } from '@php-wasm/stream-compression';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import {
-	mkdirSync,
-	writeFileSync,
-	existsSync,
-	copyFileSync,
-	readFileSync,
-} from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
 import { dirname, joinPaths } from '@php-wasm/util';
 import {
 	cachedDownload,
@@ -22,20 +16,9 @@ import {
 } from '../blueprints-v1/download';
 import type { KernelLimitedPHPApi } from './php-api';
 
-const dir = typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
-
-const DISABLE_WP_MAIL_MU_PLUGIN_PHP = readFileSync(
-	joinPaths(dir, 'wp-templates/disable-wp-mail.php'),
-	'utf8'
-);
-const AUTO_LOGIN_MU_PLUGIN_PHP = readFileSync(
-	joinPaths(dir, 'wp-templates/auto-login.php'),
-	'utf8'
-);
-const WP_CONFIG_PHP = readFileSync(
-	joinPaths(dir, 'wp-templates/wp-config.php'),
-	'utf8'
-);
+import DISABLE_WP_MAIL_MU_PLUGIN_PHP from './wp-templates/disable-wp-mail.php?raw';
+import AUTO_LOGIN_MU_PLUGIN_PHP from './wp-templates/auto-login.php?raw';
+import WP_CONFIG_PHP from './wp-templates/wp-config.php?raw';
 
 export interface PrepareWordPressOptions {
 	wordPressRoot: string;
