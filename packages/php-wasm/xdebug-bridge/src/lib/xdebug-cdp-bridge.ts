@@ -197,7 +197,14 @@ export class XdebugCDPBridge {
 				.map((_value, index) => (index === 0 ? 'AAAA' : 'AACA'))
 				.join(';');
 
-			const sourceMap = {
+			const sourceMap: {
+				version: number;
+				file: string;
+				sources: string[];
+				sourcesContent: string[];
+				mappings: string;
+				x_google_ignoreList?: number[];
+			} = {
 				version: 3,
 				// File uri has to match the script parsed url
 				// While the sources url has to match the syntax
@@ -207,6 +214,10 @@ export class XdebugCDPBridge {
 				sourcesContent: [phpContent],
 				mappings,
 			};
+
+			if (this.isExcludedPath(url)) {
+				sourceMap.x_google_ignoreList = [0];
+			}
 
 			const encodedMap = Buffer.from(
 				JSON.stringify(sourceMap),
@@ -259,9 +270,7 @@ export class XdebugCDPBridge {
 	}
 
 	private isExcludedPath(fileUri: string): boolean {
-		return this.excludedPaths.some((prefix) =>
-			fileUri.startsWith(prefix)
-		);
+		return this.excludedPaths.some((prefix) => fileUri.startsWith(prefix));
 	}
 
 	// Utility: escape and quote Xdebug fullname for property_get
@@ -699,15 +708,10 @@ export class XdebugCDPBridge {
 						);
 
 						if (bridgeUri && !this.scriptIdByUrl.has(bridgeUri)) {
-							if (this.isExcludedPath(bridgeUri)) {
-								this.sendDbgpCommand('step_over');
-								break;
-							} else {
-								await this.sendScriptToCDP(
-									bridgeUri,
-									this.getOrCreateScriptId(bridgeUri)
-								);
-							}
+							await this.sendScriptToCDP(
+								bridgeUri,
+								this.getOrCreateScriptId(bridgeUri)
+							);
 						}
 					}
 					if (status === 'break') {
@@ -899,7 +903,7 @@ export class XdebugCDPBridge {
 											? this.objectHandles.get(
 													pending.params
 														.parentObjectId
-											  )?.contextId || 0
+												)?.contextId || 0
 											: 0;
 									const depth =
 										pending.cdpMethod ===
@@ -908,7 +912,7 @@ export class XdebugCDPBridge {
 											? this.objectHandles.get(
 													pending.params
 														.parentObjectId
-											  )?.depth || 0
+												)?.depth || 0
 											: 0;
 									// Use same depth/context as parent
 									this.objectHandles.set(childObjectId, {

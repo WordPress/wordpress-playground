@@ -45,10 +45,7 @@ export async function startBridge(config: StartBridgeConfig) {
 	logger.log(`XDebug receiver running on port ${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');
 
-	// Recursively get a list of .php files in phpRoot, skipping any directory
-	// that matches an excluded path prefix. Skipping early avoids walking into
-	// large trees like /internal/shared, node_modules, or wp-includes when the
-	// caller doesn't want them in the DevTools file tree.
+	// Recursively get a list of .php files in phpRoot
 	async function getPhpFiles(dir: string): Promise<string[]> {
 		if (excludedPaths.some((prefix) => dir.startsWith(prefix))) {
 			return [];

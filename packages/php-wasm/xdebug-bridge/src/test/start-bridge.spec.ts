@@ -156,6 +156,9 @@ describe('Bridge', () => {
 			expect(args.excludedPaths).toEqual(paths);
 		});
 
+		// Excluded prefixes prune the recursive walk so we never enumerate
+		// huge trees like /internal/shared, node_modules, or wp-includes
+		// that DevTools has no business listing.
 		it('skips excluded directories while walking the filesystem', async () => {
 			const filesystem: Record<string, string[]> = {
 				'/foo': ['bar.php', 'internal'],
@@ -178,13 +181,16 @@ describe('Bridge', () => {
 
 			const args = (XdebugCDPBridge as any).mock.calls[0][2];
 
-			// Excluded directories should be pruned from the initial enumeration
-			// so DevTools never receives them (and listFiles is never called on them).
+			// Only the non-excluded file is reported.
 			expect(args.knownScriptUrls).toEqual(['/foo/bar.php']);
+
+			// And we never recursed into the excluded subtree at all —
+			// no listFiles call ever hits it.
 			expect(php.listFiles).not.toHaveBeenCalledWith('/foo/internal');
 			expect(php.listFiles).not.toHaveBeenCalledWith(
 				'/foo/internal/shared'
 			);
+		});
 	});
 
 	describe('Log', () => {
