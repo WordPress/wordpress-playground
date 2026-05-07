@@ -35,7 +35,12 @@ export async function resolveBlueprintForInstall(
 	return await resolveRemoteBlueprint(blueprintUrl, {
 		corsProxy: corsProxyUrl,
 		fetch: (input, init) =>
-			fetchWithCorsProxy(input, init, corsProxyUrl, playgroundUrl),
+			fetchWithCorsProxy(
+				input instanceof URL ? input.toString() : input,
+				init,
+				corsProxyUrl,
+				playgroundUrl
+			),
 	});
 }
 
