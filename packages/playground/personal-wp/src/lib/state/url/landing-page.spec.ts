@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBrowserPathAsLandingPage } from './landing-page';
+import { getAppBaseUrl } from './app-base-url';
 
 describe('getBrowserPathAsLandingPage', () => {
 	beforeEach(() => {
@@ -17,7 +18,7 @@ describe('getBrowserPathAsLandingPage', () => {
 	it('preserves front-page WordPress query params at the app base path', () => {
 		expect(
 			getBrowserPathAsLandingPage({
-				pathname: '/',
+				pathname: getAppBaseUrl().pathname,
 				search: '?p=42&s=term&plugin=friends&app-store=1',
 			})
 		).toBe('/?p=42&s=term&app-store=1');
@@ -26,7 +27,7 @@ describe('getBrowserPathAsLandingPage', () => {
 	it('ignores app base path searches that only contain Playground params', () => {
 		expect(
 			getBrowserPathAsLandingPage({
-				pathname: '/',
+				pathname: getAppBaseUrl().pathname,
 				search: '?plugin=friends&blueprint-url=https%3A%2F%2Fexample.com%2Fblueprint.json',
 			})
 		).toBeUndefined();
