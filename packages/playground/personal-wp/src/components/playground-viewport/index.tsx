@@ -43,7 +43,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const url = clientInfo?.url;
 	const playground = clientInfo?.client;
 	const isDependentMode = clientInfo?.isDependentMode ?? false;
-	const canInstallBlueprint = !!playground && !isDependentMode;
+	const canInstallBlueprint =
+		!isDependentMode && isBlueprintRunnableClient(playground);
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
@@ -56,6 +57,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				return {
 					status: 'error',
 					error: 'Playground is not ready.',
+				};
+			}
+			if (!isBlueprintRunnableClient(playground)) {
+				return {
+					status: 'error',
+					error: getDependentModeInstallErrorMessage(),
 				};
 			}
 			try {
@@ -140,12 +147,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		message: InstallBlueprintMessageData
 	) {
 		const { blueprintUrl, requestId } = message;
-		if (isDependentMode) {
+		if (!canInstallBlueprint) {
 			postInstallBlueprintResult(event, {
 				blueprintUrl,
 				requestId,
 				status: 'error',
-				error: 'This tab is viewing a site controlled by another tab.',
+				error: getDependentModeInstallErrorMessage(),
 			});
 			return;
 		}
@@ -168,7 +175,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 	// Reflect the WordPress URL in the browser's address bar.
 	useEffect(() => {
-		if (!url) {
+		if (!url || isDependentMode) {
 			return;
 		}
 		const browserUrl =
@@ -176,7 +183,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		if (browserUrl !== window.location.href) {
 			window.history.pushState({}, '', browserUrl);
 		}
-	}, [url]);
+	}, [isDependentMode, url]);
 
 	useEffect(() => {
 		if (!playground) {
@@ -473,6 +480,19 @@ function withoutGoTo<T extends object>(playground: T): T {
 			return Reflect.get(target, property, receiver);
 		},
 	});
+}
+
+function isBlueprintRunnableClient(playground: unknown): playground is object {
+	return (
+		!!playground &&
+		typeof playground === 'object' &&
+		typeof (playground as { fileExists?: unknown }).fileExists ===
+			'function'
+	);
+}
+
+function getDependentModeInstallErrorMessage(): string {
+	return 'This tab is viewing a site controlled by another tab. Use the main tab to install apps.';
 }
 
 function getErrorMessage(error: unknown): string {

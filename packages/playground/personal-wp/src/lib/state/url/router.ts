@@ -22,7 +22,6 @@ interface QueryAPIParams {
 	'import-site'?: string;
 	'import-wxr'?: string;
 	'import-content'?: string;
-	url?: string;
 	'blueprint-url'?: string;
 	'page-title'?: string;
 }
@@ -45,7 +44,6 @@ export const PLAYGROUND_QUERY_KEYS = [
 	'theme',
 	'login',
 	'plugin',
-	'url',
 	'blueprint-url',
 	'blueprint',
 	'import-site',
@@ -135,7 +133,6 @@ export class PlaygroundRoute {
 				'mode',
 				'networking',
 				'login',
-				'url',
 				'page-title',
 			];
 			const preserveParams: Record<string, string | null> = {};

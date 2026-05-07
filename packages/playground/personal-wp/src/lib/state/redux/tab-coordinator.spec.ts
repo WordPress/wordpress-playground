@@ -171,6 +171,48 @@ describe('tab-coordinator', () => {
 			expect(tabInfo1.tabId).not.toBe(tabInfo2.tabId);
 			expect(tabInfo2.siteSlug).toBe('site-b');
 		});
+
+		it('reuses the tab ID across a reload in the same browser tab', () => {
+			const storage = new Map<string, string>();
+			vi.stubGlobal('sessionStorage', {
+				getItem: (key: string) => storage.get(key) || null,
+				setItem: (key: string, value: string) => {
+					storage.set(key, value);
+				},
+			});
+			vi.stubGlobal('performance', {
+				getEntriesByType: () => [{ type: 'navigate' }],
+			});
+
+			const tabInfo1 = initTabCoordinator('my-site');
+			destroyTabCoordinator();
+
+			vi.stubGlobal('performance', {
+				getEntriesByType: () => [{ type: 'reload' }],
+			});
+
+			const tabInfo2 = initTabCoordinator('my-site');
+			expect(tabInfo2.tabId).toBe(tabInfo1.tabId);
+		});
+
+		it('creates a new tab ID for non-reload navigation', () => {
+			const storage = new Map<string, string>();
+			vi.stubGlobal('sessionStorage', {
+				getItem: (key: string) => storage.get(key) || null,
+				setItem: (key: string, value: string) => {
+					storage.set(key, value);
+				},
+			});
+			vi.stubGlobal('performance', {
+				getEntriesByType: () => [{ type: 'navigate' }],
+			});
+
+			const tabInfo1 = initTabCoordinator('my-site');
+			destroyTabCoordinator();
+
+			const tabInfo2 = initTabCoordinator('my-site');
+			expect(tabInfo2.tabId).not.toBe(tabInfo1.tabId);
+		});
 	});
 
 	describe('getCurrentTabInfo', () => {
@@ -323,6 +365,34 @@ describe('tab-coordinator', () => {
 							createdAt: Date.now(),
 							siteSlug: 'my-site',
 							isDependentMode: true,
+						},
+					});
+				}
+			};
+
+			const result = await checkForExistingTabs('my-site');
+			expect(result.existingTabs).toHaveLength(1);
+			expect(result.hasFreshTab).toBe(false);
+
+			otherChannel.close();
+		});
+
+		it('ignores tabs that are closing when checking for fresh tabs', async () => {
+			initTabCoordinator('my-site');
+
+			const otherChannel = new MockBroadcastChannel(
+				'playground-tab-coordinator'
+			);
+
+			otherChannel.onmessage = (event: MessageEvent) => {
+				if (event.data.type === 'ping') {
+					otherChannel.postMessage({
+						type: 'pong',
+						tabInfo: {
+							tabId: 'closing-tab',
+							createdAt: Date.now(),
+							siteSlug: 'my-site',
+							isClosing: true,
 						},
 					});
 				}

@@ -16,6 +16,7 @@ export type TabInfo = {
 	siteSlug: string;
 	isReady?: boolean;
 	isDependentMode?: boolean;
+	isClosing?: boolean;
 };
 
 type PingMessage = {
@@ -91,6 +92,7 @@ type TabCoordinatorMessage =
 	| SiteResetMessage;
 
 const CHANNEL_NAME = 'playground-tab-coordinator';
+const TAB_ID_STORAGE_KEY = 'playground-tab-coordinator-tab-id';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PING_TIMEOUT_MS = 150;
 const MIN_CHECK_INTERVAL_MS = 1000;
@@ -139,7 +141,7 @@ export function initTabCoordinator(
 	}
 
 	currentTabInfo = {
-		tabId: crypto.randomUUID(),
+		tabId: getBrowserTabId(),
 		createdAt: Date.now(),
 		siteSlug,
 	};
@@ -155,6 +157,9 @@ export function initTabCoordinator(
 
 		beforeUnloadHandler = () => {
 			if (channel) {
+				if (currentTabInfo) {
+					currentTabInfo.isClosing = true;
+				}
 				channel.postMessage({
 					type: 'tab-closing',
 					tabId: currentTabInfo?.tabId,
@@ -244,10 +249,16 @@ export async function checkForExistingTabs(siteSlug: string): Promise<{
 
 	const checkTime = Date.now();
 	const hasFreshTab = existingTabs.some(
-		(tab) => checkTime - tab.createdAt < ONE_DAY_MS && !tab.isDependentMode
+		(tab) =>
+			checkTime - tab.createdAt < ONE_DAY_MS &&
+			!tab.isDependentMode &&
+			!tab.isClosing
 	);
 	const hasStaleTab = existingTabs.some(
-		(tab) => checkTime - tab.createdAt >= ONE_DAY_MS && !tab.isDependentMode
+		(tab) =>
+			checkTime - tab.createdAt >= ONE_DAY_MS &&
+			!tab.isDependentMode &&
+			!tab.isClosing
 	);
 
 	isCheckingTabs = false;
@@ -511,7 +522,10 @@ function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
 
 	switch (message.type) {
 		case 'ping':
-			if (message.siteSlug === currentTabInfo.siteSlug) {
+			if (
+				message.siteSlug === currentTabInfo.siteSlug &&
+				!currentTabInfo.isClosing
+			) {
 				const pongMessage: PongMessage = {
 					type: 'pong',
 					tabInfo: currentTabInfo,
@@ -593,6 +607,48 @@ function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
 				siteResetCallback?.();
 			}
 			break;
+	}
+}
+
+function getBrowserTabId(): string {
+	const navigationType = getNavigationType();
+	if (navigationType === 'reload') {
+		const existingTabId = getStoredTabId();
+		if (existingTabId) {
+			return existingTabId;
+		}
+	}
+
+	const tabId = crypto.randomUUID();
+	storeTabId(tabId);
+	return tabId;
+}
+
+function getNavigationType(): string | undefined {
+	if (typeof performance === 'undefined') {
+		return;
+	}
+	const navigationEntries = performance.getEntriesByType?.('navigation');
+	const navigation = navigationEntries?.[0];
+	if (!navigation || !('type' in navigation)) {
+		return;
+	}
+	return String(navigation.type);
+}
+
+function getStoredTabId(): string | null {
+	try {
+		return sessionStorage.getItem(TAB_ID_STORAGE_KEY);
+	} catch {
+		return null;
+	}
+}
+
+function storeTabId(tabId: string): void {
+	try {
+		sessionStorage.setItem(TAB_ID_STORAGE_KEY, tabId);
+	} catch {
+		// sessionStorage can be unavailable in restricted browser contexts.
 	}
 }
 

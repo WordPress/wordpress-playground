@@ -244,15 +244,7 @@ export function bootSiteClient(
 					const scopedSiteUrl = `/scope:${encodeURIComponent(site.slug)}/`;
 					const scopedUrl = new URL(scopedSiteUrl, remoteUrl);
 
-					const dependentUrlParams = new URLSearchParams(
-						window.location.search
-					);
-					// Use the browser URL path + query as landing page
-					// (set via pushState during WordPress navigation).
-					const landingPage =
-						dependentUrlParams.get('url') ||
-						getBrowserPathAsLandingPage() ||
-						'/wp-admin/';
+					const landingPage = getBrowserPathAsLandingPage() || '/';
 					// Resolve relative to scopedUrl so a query string in
 					// landingPage stays in URL.search instead of being
 					// percent-encoded into URL.pathname.
@@ -297,39 +289,7 @@ export function bootSiteClient(
 						})
 					);
 
-					const handleIframeNavigation = () => {
-						try {
-							const iframeHref =
-								iframe.contentWindow?.location?.href;
-							if (iframeHref) {
-								const iframeUrl = new URL(iframeHref);
-								const path = iframeUrl.pathname.replace(
-									new RegExp(
-										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
-									),
-									'/'
-								);
-								dispatch(
-									updateClientInfo({
-										siteSlug: site.slug,
-										changes: {
-											url: path + iframeUrl.search,
-										},
-									})
-								);
-							}
-						} catch {
-							// Cross-origin access denied
-						}
-					};
-
-					iframe.addEventListener('load', handleIframeNavigation);
-
 					signal.onabort = () => {
-						iframe.removeEventListener(
-							'load',
-							handleIframeNavigation
-						);
 						dispatch(removeClientInfo(site.slug));
 					};
 
@@ -352,11 +312,6 @@ export function bootSiteClient(
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
-			// Use URL param landing page if present, otherwise restore last URL
-			const urlParamLandingPage = new URLSearchParams(
-				window.location.search
-			).get('url');
-
 			blueprint = {
 				preferredVersions: {
 					php: site.metadata.runtimeConfiguration.phpVersion,
@@ -373,8 +328,7 @@ export function bootSiteClient(
 				// Use the browser URL path + query as landing page
 				// (set via pushState during WordPress navigation).
 				// Falls back to the default admin page.
-				landingPage:
-					urlParamLandingPage || getBrowserPathAsLandingPage(),
+				landingPage: getBrowserPathAsLandingPage(),
 			};
 
 			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
