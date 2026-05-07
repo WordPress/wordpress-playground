@@ -487,7 +487,44 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browser
-              run: npx playwright install chromium --with-deps
+              run: |
+                  for attempt in 1 2 3; do
+                    if npx playwright install chromium --with-deps; then
+                      exit 0
+                    fi
+                    if [ "$attempt" -eq 3 ]; then
+                      exit 1
+                    fi
+                    sleep "$((attempt * 15))"
+                  done
+            - name: Restore legacy WordPress ZIP cache
+              id: legacy-wp-zip-cache
+              uses: actions/cache/restore@v4
+              with:
+                  path: /tmp/legacy-wordpress-zips
+                  key: legacy-wordpress-zips-v1-${{ hashFiles('packages/playground/wordpress/tests/legacy-wp-versions.mjs') }}
+                  restore-keys: legacy-wordpress-zips-v1-
+            - name: Download legacy WordPress ZIPs
+              run: node packages/playground/wordpress/tests/download-legacy-wp-zips.mjs /tmp/legacy-wordpress-zips
+            - name: Save legacy WordPress ZIP cache
+              if: steps.legacy-wp-zip-cache.outputs.cache-hit != 'true'
+              uses: actions/cache/save@v4
+              with:
+                  path: /tmp/legacy-wordpress-zips
+                  key: legacy-wordpress-zips-v1-${{ hashFiles('packages/playground/wordpress/tests/legacy-wp-versions.mjs') }}
+            - name: Serve legacy WordPress ZIP cache
+              run: |
+                  node packages/playground/wordpress/tests/serve-legacy-wp-zips.mjs /tmp/legacy-wordpress-zips 5410 > /tmp/legacy-wordpress-zips.log 2>&1 &
+                  timeout=30; elapsed=0
+                  until curl -s -o /dev/null http://127.0.0.1:5410/wordpress-6.2.zip 2>/dev/null; do
+                    sleep 1
+                    elapsed=$((elapsed + 1))
+                    if [ $elapsed -ge $timeout ]; then
+                      echo "Legacy WordPress ZIP server failed to start within ${timeout}s"
+                      cat /tmp/legacy-wordpress-zips.log | tail -50
+                      exit 1
+                    fi
+                  done
             - name: Start dev server
               run: |
                   npm run dev > /tmp/playground-dev.log 2>&1 &
@@ -502,6 +539,8 @@ jobs:
                     fi
                   done
             - name: Test legacy WordPress version boot
+              env:
+                  LEGACY_WP_ZIP_BASE_URL: http://127.0.0.1:5410/
               run: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
 
     # Redis extension tests - verifies the php-redis extension loads

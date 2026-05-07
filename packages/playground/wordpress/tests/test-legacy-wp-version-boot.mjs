@@ -1,6 +1,6 @@
 /**
  * Tests that legacy and mid-modern WordPress versions boot
- * successfully through Playground's wordpress.org download path:
+ * successfully through Playground's WordPress ZIP download path:
  *
  *   - WP 1.0 – 4.9 on PHP 5.2 (legacy SQLite driver)
  *   - WP 5.0 – 6.2 on PHP 7.4 (modern SQLite driver)
@@ -24,66 +24,17 @@
  * Usage: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
  */
 import { chromium } from 'playwright';
-
-// Matrix of (WordPress, PHP) combinations to test.
-// Versions that were never released: 1.1, 1.3, 1.4, 2.4.
-// The web worker normalizes bare versions automatically (1.5 → 1.5.2,
-// 2.0 → 2.0.11, etc.) and resolves them to wordpress.org downloads.
-// Modern WP (5.0–6.2) is paired with PHP 7.4 because it's the newest
-// PHP the legacy SQLite driver supports and is far enough from the
-// PHP 5.2 leg to make regressions obvious.
-const WP_VERSIONS = [
-	// Mid-modern WordPress (PHP 7.4).
-	{ wp: '6.2', php: '7.4' },
-	{ wp: '6.1', php: '7.4' },
-	{ wp: '6.0', php: '7.4' },
-	{ wp: '5.9', php: '7.4' },
-	{ wp: '5.8', php: '7.4' },
-	{ wp: '5.7', php: '7.4' },
-	{ wp: '5.6', php: '7.4' },
-	{ wp: '5.5', php: '7.4' },
-	{ wp: '5.4', php: '7.4' },
-	{ wp: '5.3', php: '7.4' },
-	{ wp: '5.2', php: '7.4' },
-	{ wp: '5.1', php: '7.4' },
-	{ wp: '5.0', php: '7.4' },
-	// Legacy WordPress on PHP 5.2 WASM.
-	{ wp: '4.9', php: '5.2' },
-	{ wp: '4.8', php: '5.2' },
-	{ wp: '4.7', php: '5.2' },
-	{ wp: '4.6', php: '5.2' },
-	{ wp: '4.5', php: '5.2' },
-	{ wp: '4.4', php: '5.2' },
-	{ wp: '4.3', php: '5.2' },
-	{ wp: '4.2', php: '5.2' },
-	{ wp: '4.1', php: '5.2' },
-	{ wp: '4.0', php: '5.2' },
-	{ wp: '3.9', php: '5.2' },
-	{ wp: '3.8', php: '5.2' },
-	{ wp: '3.7', php: '5.2' },
-	{ wp: '3.6', php: '5.2' },
-	{ wp: '3.5', php: '5.2' },
-	{ wp: '3.4', php: '5.2' },
-	{ wp: '3.3', php: '5.2' },
-	{ wp: '3.2', php: '5.2' },
-	{ wp: '3.1', php: '5.2' },
-	{ wp: '3.0', php: '5.2' },
-	{ wp: '2.9', php: '5.2' },
-	{ wp: '2.8', php: '5.2' },
-	{ wp: '2.7', php: '5.2' },
-	{ wp: '2.6', php: '5.2' },
-	{ wp: '2.5', php: '5.2' },
-	{ wp: '2.3', php: '5.2' },
-	{ wp: '2.2', php: '5.2' },
-	{ wp: '2.1', php: '5.2' },
-	{ wp: '2.0', php: '5.2' },
-	{ wp: '1.5', php: '5.2' },
-	{ wp: '1.2', php: '5.2' },
-	{ wp: '1.0', php: '5.2' },
-];
+import {
+	WP_VERSIONS,
+	getWordPressDownloadFilename,
+} from './legacy-wp-versions.mjs';
 
 const PORT = 5400;
 const TIMEOUT_S = 120;
+const PLUGIN_ACTIVATION_TIMEOUT_S = 60;
+const LEGACY_WP_ZIP_BASE_URL = normalizeDirectoryUrl(
+	process.env.LEGACY_WP_ZIP_BASE_URL || ''
+);
 const results = [];
 
 /**
@@ -365,13 +316,27 @@ function shouldRetryFrontPageBoot(consoleErrors) {
 	);
 }
 
+function getWordPressVersionQuery(wp) {
+	if (!LEGACY_WP_ZIP_BASE_URL) {
+		return wp;
+	}
+	return new URL(getWordPressDownloadFilename(wp), LEGACY_WP_ZIP_BASE_URL)
+		.href;
+}
+
+function normalizeDirectoryUrl(url) {
+	if (!url) return '';
+	return url.endsWith('/') ? url : `${url}/`;
+}
+
 const browser = await chromium.launch({ headless: true });
 
 for (const { wp, php } of MATRIX) {
 	const label = `WP ${wp} (PHP ${php})`;
 	process.stdout.write(`${label}... `);
 
-	const url = `http://127.0.0.1:${PORT}/website-server/?php=${php}&wp=${wp}`;
+	const wpVersionQuery = encodeURIComponent(getWordPressVersionQuery(wp));
+	const url = `http://127.0.0.1:${PORT}/website-server/?php=${php}&wp=${wpVersionQuery}`;
 
 	// Isolate every version in a fresh browser context so that OPFS
 	// (where Playground persists site state), IndexedDB, localStorage
