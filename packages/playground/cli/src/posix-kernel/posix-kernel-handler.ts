@@ -80,9 +80,7 @@ export class PosixKernelHandler {
 			}
 		}
 
-		this.cliOutput.print(
-			`Booting WordPress under wasm-posix-kernel on http://127.0.0.1:${port}`
-		);
+		this.cliOutput.print(`Booting WordPress under wasm-posix-kernel...`);
 
 		let booted: Awaited<ReturnType<typeof bootPosixKernelWordPress>>;
 		try {
@@ -113,6 +111,16 @@ export class PosixKernelHandler {
 			runtime: booted.runtime,
 		});
 
+		// Apply --define / --define-bool / --define-number flags before
+		// the install POST so the installer sees the same constant
+		// environment as classic mode (notably WP_DEBUG* defaults set
+		// in run-cli.ts). The classic path applies these via
+		// bootWordPress() before install; here we mirror that ordering.
+		const cliConstants = mergeDefinedConstants(this.args);
+		for (const [name, value] of Object.entries(cliConstants)) {
+			api.defineConstant(name, value as string | number | boolean | null);
+		}
+
 		try {
 			// Drive WP's installer programmatically once per fresh doc
 			// root. The classic path does this implicitly via
@@ -137,15 +145,6 @@ export class PosixKernelHandler {
 	}
 
 	async runBlueprint(api: KernelLimitedPHPApi): Promise<void> {
-		// Apply --define / --define-bool / --define-number flags. The
-		// classic path does this implicitly via bootWordPress(); here we
-		// drive it ourselves so the equivalent constants make it into
-		// the generated mu-plugin before any blueprint step runs.
-		const cliConstants = mergeDefinedConstants(this.args);
-		for (const [name, value] of Object.entries(cliConstants)) {
-			api.defineConstant(name, value as string | number | boolean | null);
-		}
-
 		const blueprint = this.getEffectiveBlueprint();
 		const additionalSteps = this.args['additional-blueprint-steps'] || [];
 		if (blueprint === undefined && additionalSteps.length === 0) {

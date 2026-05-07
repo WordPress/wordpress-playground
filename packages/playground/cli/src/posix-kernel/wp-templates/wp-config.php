@@ -31,7 +31,7 @@ if (!defined('WP_DEBUG_LOG')) {
     define('WP_DEBUG_LOG', true);
 }
 if (!defined('WP_DEBUG_DISPLAY')) {
-    define('WP_DEBUG_DISPLAY', true);
+    define('WP_DEBUG_DISPLAY', false);
 }
 
 if (isset($_SERVER['HTTP_HOST'])) {

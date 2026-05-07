@@ -21,14 +21,17 @@ import {
 const dir = typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
 
 export interface PosixKernelBootOptions {
+	host?: string;
 	port: number;
 	serverName?: string;
 	wordPressRoot: string;
 	tempDir: string;
 }
 
+const DEFAULT_HOST = '127.0.0.1';
+
 export interface KernelRuntime {
-	host: NodeKernelHost;
+	kernelHost: NodeKernelHost;
 	phpWasmPath: string;
 	spawnCapturing(args: {
 		programBytes: ArrayBuffer;
@@ -84,7 +87,9 @@ export async function bootPosixKernelWordPress(
 		options.tempDir,
 		'first-request-pending'
 	);
+	const host = options.host ?? DEFAULT_HOST;
 	const renderedNginxConf = renderNginxConf({
+		host,
 		port: options.port,
 		serverName: options.serverName ?? 'localhost',
 		wordPressRoot: options.wordPressRoot,
@@ -108,7 +113,7 @@ export async function bootPosixKernelWordPress(
 
 	let activeCapture: ActiveCapture | null = null;
 
-	const host = new bridge.NodeKernelHost({
+	const kernelHost = new bridge.NodeKernelHost({
 		maxWorkers: 8,
 		onStdout: (_pid, data) => {
 			if (activeCapture) {
@@ -125,7 +130,7 @@ export async function bootPosixKernelWordPress(
 			}
 		},
 	});
-	await host.init();
+	await kernelHost.init();
 
 	let disposed = false;
 
@@ -135,24 +140,33 @@ export async function bootPosixKernelWordPress(
 		}
 		disposed = true;
 		try {
-			await host.destroy();
+			await kernelHost.destroy();
 		} catch (e) {
 			logger.debug(
-				`[posix-kernel] host.destroy() raised: ${describeError(e)}`
+				`[posix-kernel] kernelHost.destroy() raised: ${describeError(e)}`
 			);
 		}
 	};
 
 	try {
-		spawnPhpFpm(host, phpFpmBytes, fpmConfPath, options.wordPressRoot);
-		await waitForLoopback(FPM_LOOPBACK_PORT, FPM_BOOT_GRACE_MS).catch(
-			() => {
-				/* nginx will retry */
-			}
+		spawnPhpFpm(
+			kernelHost,
+			phpFpmBytes,
+			fpmConfPath,
+			options.wordPressRoot
 		);
+		// FPM is kernel-internal; probe the kernel's loopback bridge,
+		// not the user-chosen nginx bind host.
+		await waitForLoopback(
+			DEFAULT_HOST,
+			FPM_LOOPBACK_PORT,
+			FPM_BOOT_GRACE_MS
+		).catch(() => {
+			/* nginx will retry */
+		});
 
-		spawnNginx(host, nginxBytes, renderedNginxConf, dir);
-		await waitForLoopback(options.port, NGINX_READY_TIMEOUT_MS);
+		spawnNginx(kernelHost, nginxBytes, renderedNginxConf, dir);
+		await waitForLoopback(host, options.port, NGINX_READY_TIMEOUT_MS);
 	} catch (e) {
 		await dispose();
 		throw e;
@@ -161,14 +175,14 @@ export async function bootPosixKernelWordPress(
 	let captureChain: Promise<unknown> = Promise.resolve();
 
 	const runtime: KernelRuntime = {
-		host,
+		kernelHost,
 		phpWasmPath: bridge.binaries.phpWasm,
 		spawnCapturing({ programBytes, argv, options: spawnOptions }) {
 			const next = captureChain.then(async () => {
 				const capture: ActiveCapture = { stdout: [], stderr: [] };
 				activeCapture = capture;
 				try {
-					const exitCode = await host.spawn(
+					const exitCode = await kernelHost.spawn(
 						programBytes,
 						argv,
 						spawnOptions
@@ -192,7 +206,7 @@ export async function bootPosixKernelWordPress(
 	};
 
 	return {
-		serverUrl: `http://127.0.0.1:${options.port}`,
+		serverUrl: `http://${host}:${options.port}`,
 		wordPressRoot: options.wordPressRoot,
 		runtime,
 		resetFirstRequestMarker: () => writeFileSync(firstRequestMarker, ''),
@@ -225,6 +239,7 @@ function concatBytes(chunks: Uint8Array[]): Uint8Array {
 }
 
 function renderNginxConf(args: {
+	host: string;
 	port: number;
 	serverName: string;
 	wordPressRoot: string;
@@ -237,6 +252,7 @@ function renderNginxConf(args: {
 		'utf8'
 	);
 	const rendered = template
+		.replaceAll('__HOST__', args.host)
 		.replaceAll('__PORT__', String(args.port))
 		.replaceAll('__SERVER_NAME__', args.serverName)
 		.replaceAll('__WORDPRESS_ROOT__', args.wordPressRoot)
@@ -299,13 +315,17 @@ function spawnLongRunning(
 	);
 }
 
-async function waitForLoopback(port: number, timeoutMs: number): Promise<void> {
+async function waitForLoopback(
+	host: string,
+	port: number,
+	timeoutMs: number
+): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
 	let lastError: unknown;
 	while (Date.now() < deadline) {
 		try {
 			await new Promise<void>((resolve, reject) => {
-				const socket = connect({ port, host: '127.0.0.1' });
+				const socket = connect({ port, host });
 				socket.once('connect', () => {
 					socket.end();
 					resolve();
@@ -319,7 +339,7 @@ async function waitForLoopback(port: number, timeoutMs: number): Promise<void> {
 		}
 	}
 	throw new Error(
-		`Timed out waiting for 127.0.0.1:${port} after ${timeoutMs}ms ` +
+		`Timed out waiting for ${host}:${port} after ${timeoutMs}ms ` +
 			`(${describeError(lastError)}).`
 	);
 }
