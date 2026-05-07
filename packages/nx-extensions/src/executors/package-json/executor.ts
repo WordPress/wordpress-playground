@@ -214,7 +214,7 @@ interface MonorepoDependency {
 }
 
 function isSourceFile(filePath: string): boolean {
-	return !/\/tests?\//.test(filePath);
+	return /\/src\//.test(filePath) && !/\/tests?\//.test(filePath);
 }
 
 function getSourceOnlyFileMap(): ProjectFileMap {
