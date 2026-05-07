@@ -9,3 +9,5 @@
 !compile-extension/scripts/build-in-docker.sh
 !node-builds/
 !node-builds/**
+!web-builds/
+!web-builds/**
