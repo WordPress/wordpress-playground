@@ -236,6 +236,7 @@ export default defineConfig({
 		},
 		environment: 'node',
 		include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		setupFiles: ['./tests/posix-kernel/setup.ts'],
 		reporters: ['default'],
 		// Increase timeout to:
 		// - Ensure CLI tests can download WordPress
