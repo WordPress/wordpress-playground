@@ -32,6 +32,10 @@ import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { playgroundLogo } from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
+import {
+	fetchBlueprint,
+	prepareBlueprintForRemoteInstall,
+} from './blueprint-install';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -64,13 +68,17 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 	// Apply a blueprint in-place on the running instance.
 	const applyBlueprint = useCallback(
-		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
+		async (
+			blueprintUrl: string,
+			options: ApplyBlueprintOptions = {}
+		): Promise<InstallBlueprintResult> => {
 			if (!playground) {
 				return {
 					status: 'error',
 					error: 'Playground is not ready.',
 				};
 			}
+			const allowNavigation = options.allowNavigation ?? true;
 			try {
 				setInstallingBlueprint('Installing\u2026');
 				const blueprint = await fetchBlueprint(blueprintUrl);
@@ -91,9 +99,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				});
 				await runBlueprintV1Steps(
 					compiled,
-					getBlueprintRunnerClient(playground, blueprint)
+					getBlueprintRunnerClient(
+						playground,
+						blueprint,
+						allowNavigation
+					)
 				);
-				if (blueprint.landingPage) {
+				if (allowNavigation && blueprint.landingPage) {
 					await playground.goTo(blueprint.landingPage);
 				}
 			} catch (e) {
@@ -116,14 +128,31 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
 			try {
 				setInstallingBlueprint('Installing in the active tab\u2026');
+				const install =
+					await prepareBlueprintForRemoteInstall(blueprintUrl);
 				const result = await requestRemoteBlueprintInstall(
 					siteSlug,
-					blueprintUrl
+					install.blueprintUrl
 				);
 				if (result.status === 'error') {
 					setInstallingBlueprint('Installation failed');
 					setTimeout(() => setInstallingBlueprint(null), 3000);
 				} else {
+					if (install.landingPage) {
+						if (!playground) {
+							setInstallingBlueprint('Installation failed');
+							setTimeout(
+								() => setInstallingBlueprint(null),
+								3000
+							);
+							return {
+								status: 'error',
+								error: 'The app was installed, but this tab could not open it.',
+							};
+						}
+						setInstallingBlueprint('Opening app\u2026');
+						await playground.goTo(install.landingPage);
+					}
 					setInstallingBlueprint(null);
 				}
 				return result;
@@ -136,14 +165,18 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				};
 			}
 		},
-		[siteSlug]
+		[playground, siteSlug]
 	);
 
 	useEffect(() => {
 		if (!hasLocalRuntimeClient) {
 			return;
 		}
-		setInstallBlueprintRequestCallback(applyBlueprint);
+		setInstallBlueprintRequestCallback((blueprintUrl) =>
+			applyBlueprint(blueprintUrl, {
+				allowNavigation: false,
+			})
+		);
 		void markMainTabReady();
 		return () => {
 			setInstallBlueprintRequestCallback(null);
@@ -388,6 +421,10 @@ type InstallBlueprintMessageData = {
 	requestId?: string;
 };
 
+type ApplyBlueprintOptions = {
+	allowNavigation?: boolean;
+};
+
 type PlaygroundWindowStateMessageData = {
 	type: 'relay';
 	relayType: 'get-playground-window-state';
@@ -415,24 +452,6 @@ type PlaygroundWindowStateResultMessage = {
 	isDependentMode: boolean;
 	canInstallBlueprint: boolean;
 };
-
-async function fetchBlueprint(
-	blueprintUrl: string
-): Promise<BlueprintV1Declaration> {
-	const response = await fetch(blueprintUrl);
-	if (!response.ok) {
-		throw new Error(
-			`Could not download blueprint: ${response.status} ${response.statusText}`
-		);
-	}
-	try {
-		return (await response.json()) as BlueprintV1Declaration;
-	} catch (e) {
-		throw new Error('Blueprint response was not valid JSON.', {
-			cause: e,
-		});
-	}
-}
 
 function getRelayMessageValidation(
 	event: MessageEvent,
@@ -579,9 +598,10 @@ function isAllowedBlueprintUrl(blueprintUrl: unknown): blueprintUrl is string {
 
 function getBlueprintRunnerClient<T extends object>(
 	playground: T,
-	blueprint: BlueprintV1Declaration
+	blueprint: BlueprintV1Declaration,
+	allowNavigation: boolean
 ): T {
-	if (shouldAllowBlueprintRunnerRedirect(blueprint)) {
+	if (allowNavigation && shouldAllowBlueprintRunnerRedirect(blueprint)) {
 		return playground;
 	}
 	return withoutGoTo(playground);
