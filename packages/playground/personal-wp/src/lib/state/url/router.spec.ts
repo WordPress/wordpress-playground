@@ -21,9 +21,7 @@ describe('PlaygroundRoute', () => {
 		const url = appBaseUrlWithSearch(
 			'url=%2Fwp-admin%2F&blueprint-url=https%3A%2F%2Fexample.com%2Fblueprint.json&plugin=friends&app-store=1&p=42'
 		);
-		const expected = appBaseUrlWithSearch(
-			'url=%2Fwp-admin%2F&app-store=1&p=42'
-		);
+		const expected = appBaseUrlWithSearch('app-store=1&p=42');
 
 		expect(PlaygroundRoute.site(createDefaultSite(), url)).toBe(expected);
 	});

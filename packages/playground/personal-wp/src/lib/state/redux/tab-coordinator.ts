@@ -764,15 +764,23 @@ function focusAndHighlightCurrentTab(): void {
 	titleFlashOriginalTitle = document.title;
 	let isHighlighted = false;
 	titleFlashInterval = setInterval(() => {
+		if (titleFlashOriginalTitle === null) {
+			return;
+		}
+		if (!isTitleFlashVariant(document.title, titleFlashOriginalTitle)) {
+			titleFlashOriginalTitle = document.title;
+			isHighlighted = false;
+		}
 		isHighlighted = !isHighlighted;
 		document.title = isHighlighted
-			? `* ${titleFlashOriginalTitle}`
+			? getHighlightedTitle(titleFlashOriginalTitle)
 			: titleFlashOriginalTitle || '';
 	}, 700);
 	titleFlashTimeout = setTimeout(clearTitleFlash, 8000);
 }
 
 function clearTitleFlash(): void {
+	const originalTitle = titleFlashOriginalTitle;
 	if (titleFlashInterval) {
 		clearInterval(titleFlashInterval);
 		titleFlashInterval = null;
@@ -781,8 +789,22 @@ function clearTitleFlash(): void {
 		clearTimeout(titleFlashTimeout);
 		titleFlashTimeout = null;
 	}
-	if (titleFlashOriginalTitle !== null && typeof document !== 'undefined') {
-		document.title = titleFlashOriginalTitle;
+	if (
+		originalTitle !== null &&
+		typeof document !== 'undefined' &&
+		isTitleFlashVariant(document.title, originalTitle)
+	) {
+		document.title = originalTitle;
 	}
 	titleFlashOriginalTitle = null;
+}
+
+function isTitleFlashVariant(title: string, originalTitle: string): boolean {
+	return (
+		title === originalTitle || title === getHighlightedTitle(originalTitle)
+	);
+}
+
+function getHighlightedTitle(title: string): string {
+	return `* ${title}`;
 }

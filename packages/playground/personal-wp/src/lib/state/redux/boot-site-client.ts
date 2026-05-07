@@ -163,6 +163,7 @@ export function bootSiteClient(
 					iframe,
 					dispatch,
 					getState,
+					signal,
 					mainTabStatus: tabInfo.mainTabStatus || 'missing',
 				});
 				logger.info(
@@ -386,21 +387,20 @@ function bootDependentModeClient({
 	iframe,
 	dispatch,
 	getState,
+	signal,
 	mainTabStatus,
 }: {
 	siteSlug: string;
 	iframe: HTMLIFrameElement;
 	dispatch: PlaygroundDispatch;
 	getState: () => PlaygroundReduxState;
+	signal: AbortSignal;
 	mainTabStatus: 'connected' | 'booting' | 'missing';
 }): void {
 	const remoteUrl = getRemoteUrl();
 	const scopedSiteUrl = `/scope:${encodeURIComponent(siteSlug)}/`;
 	const scopedUrl = new URL(scopedSiteUrl, remoteUrl);
 	const landingPage = getBrowserPathAsLandingPage() || '/';
-
-	// Resolve relative to scopedUrl so query strings stay in URL.search.
-	iframe.src = new URL(landingPage.replace(/^\//, ''), scopedUrl).toString();
 
 	const dependentModeClient = {
 		goTo: async (path: string) => {
@@ -411,24 +411,22 @@ function bootDependentModeClient({
 			iframe.src = newUrl.toString();
 		},
 		getCurrentURL: async () => {
-			try {
-				const iframeUrl = new URL(
-					iframe.contentWindow?.location?.href || ''
-				);
-				const scopePattern = `^${scopedSiteUrl.replace(
-					/[.*+?^${}()|[\]\\]/g,
-					'\\$&'
-				)}`;
-				const path = iframeUrl.pathname.replace(
-					new RegExp(scopePattern),
-					'/'
-				);
-				return path + iframeUrl.search;
-			} catch {
-				return '/';
-			}
+			return getDependentModeCurrentUrl(iframe, scopedSiteUrl) || '/';
 		},
 	} as PlaygroundClient;
+
+	const updateUrlFromIframe = () => {
+		const url = getDependentModeCurrentUrl(iframe, scopedSiteUrl);
+		if (!url) {
+			return;
+		}
+		dispatch(
+			updateClientInfo({
+				siteSlug,
+				changes: { url },
+			})
+		);
+	};
 
 	const existingClient = selectClientInfoBySiteSlug(getState(), siteSlug);
 	if (existingClient) {
@@ -465,6 +463,36 @@ function bootDependentModeClient({
 			},
 		})
 	);
+
+	iframe.addEventListener('load', updateUrlFromIframe);
+	signal.addEventListener(
+		'abort',
+		() => iframe.removeEventListener('load', updateUrlFromIframe),
+		{ once: true }
+	);
+
+	// Resolve relative to scopedUrl so query strings stay in URL.search.
+	iframe.src = new URL(landingPage.replace(/^\//, ''), scopedUrl).toString();
+}
+
+function getDependentModeCurrentUrl(
+	iframe: HTMLIFrameElement,
+	scopedSiteUrl: string
+): string | undefined {
+	try {
+		const iframeHref = iframe.contentWindow?.location?.href;
+		if (!iframeHref) {
+			return;
+		}
+		const iframeUrl = new URL(iframeHref);
+		if (!iframeUrl.pathname.startsWith(scopedSiteUrl)) {
+			return;
+		}
+		const path = '/' + iframeUrl.pathname.slice(scopedSiteUrl.length);
+		return path + iframeUrl.search;
+	} catch {
+		return;
+	}
 }
 
 /**

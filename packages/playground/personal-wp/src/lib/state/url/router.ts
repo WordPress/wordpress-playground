@@ -44,6 +44,7 @@ export const PLAYGROUND_QUERY_KEYS = [
 	'theme',
 	'login',
 	'plugin',
+	'url',
 	'blueprint-url',
 	'blueprint',
 	'import-site',

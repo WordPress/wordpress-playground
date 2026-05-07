@@ -435,6 +435,30 @@ describe('tab-coordinator', () => {
 		expect(documentStub.title).toBe('My WordPress');
 	});
 
+	it('does not clobber title changes while flashing the main tab', async () => {
+		vi.useFakeTimers();
+		const documentStub = { title: 'My WordPress' };
+		vi.stubGlobal('document', documentStub);
+		await initTabCoordinator('my-site');
+
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.postMessage({
+			type: 'main-tab-focus-request',
+			requestingTabId: 'dependent-tab',
+			siteSlug: 'my-site',
+		});
+
+		vi.advanceTimersByTime(700);
+		expect(documentStub.title).toBe('* My WordPress');
+
+		documentStub.title = 'Updated WordPress';
+		vi.advanceTimersByTime(8000);
+
+		expect(documentStub.title).toBe('Updated WordPress');
+	});
+
 	it('requestMainTabFocus resolves when acknowledged', async () => {
 		const tabInfo = await initTabCoordinator('my-site');
 		const otherChannel = new MockBroadcastChannel(

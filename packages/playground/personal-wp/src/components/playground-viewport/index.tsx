@@ -266,7 +266,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 	// Reflect the WordPress URL in the browser's address bar.
 	useEffect(() => {
-		if (!url || isDependentMode) {
+		if (!url) {
 			return;
 		}
 		const browserUrl =
@@ -274,7 +274,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		if (browserUrl !== window.location.href) {
 			window.history.pushState({}, '', browserUrl);
 		}
-	}, [isDependentMode, url]);
+	}, [url]);
 
 	useEffect(() => {
 		if (!playground) {
