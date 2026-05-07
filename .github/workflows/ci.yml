@@ -138,6 +138,15 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
+            # The wasm-posix-kernel/host bundle is consumed at runtime by the
+            # --experimental-posix-kernel tests via dynamic import. Its bundle
+            # leaves `fflate` and `fzstd` as external imports (declared in
+            # wasm-posix-kernel/host/package.json), so they must be installed
+            # in the submodule's local node_modules before the kernel-mode
+            # specs can resolve them.
+            - name: Install wasm-posix-kernel host runtime deps
+              shell: bash
+              run: npm install --omit=dev --no-package-lock --ignore-scripts --prefix wasm-posix-kernel/host
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli
     test-file-locking:
