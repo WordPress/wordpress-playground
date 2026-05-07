@@ -1,7 +1,12 @@
-import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import type {
+	BlueprintBundle,
+	BlueprintV1Declaration,
+} from '@wp-playground/blueprints';
+import {
+	getBlueprintDeclaration,
+	resolveRemoteBlueprint,
+} from '@wp-playground/blueprints';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
-
-import { encodeStringAsBase64 } from '../../lib/base64';
 
 export type RemoteBlueprintInstall = {
 	blueprintUrl: string;
@@ -12,44 +17,37 @@ export async function prepareBlueprintForRemoteInstall(
 	blueprintUrl: string,
 	corsProxyUrl?: string
 ): Promise<RemoteBlueprintInstall> {
-	const blueprint = await fetchBlueprint(blueprintUrl, corsProxyUrl);
-	const landingPage = getBlueprintLandingPage(blueprint);
-	if (!landingPage) {
-		return { blueprintUrl };
-	}
+	const blueprint = await resolveBlueprintForInstall(
+		blueprintUrl,
+		corsProxyUrl
+	);
+	const declaration = await getBlueprintDeclaration(blueprint);
+	const landingPage = getBlueprintLandingPage(declaration);
+	return landingPage ? { blueprintUrl, landingPage } : { blueprintUrl };
+}
 
-	return {
-		blueprintUrl: blueprintToDataUrl(
-			getBlueprintWithoutLandingPage(blueprint)
-		),
-		landingPage,
-	};
+export async function resolveBlueprintForInstall(
+	blueprintUrl: string,
+	corsProxyUrl?: string
+): Promise<BlueprintBundle> {
+	const playgroundUrl =
+		typeof window === 'undefined' ? undefined : window.location.href;
+	return await resolveRemoteBlueprint(blueprintUrl, {
+		corsProxy: corsProxyUrl,
+		fetch: (input, init) =>
+			fetchWithCorsProxy(input, init, corsProxyUrl, playgroundUrl),
+	});
 }
 
 export async function fetchBlueprint(
 	blueprintUrl: string,
 	corsProxyUrl?: string
 ): Promise<BlueprintV1Declaration> {
-	const playgroundUrl =
-		typeof window === 'undefined' ? undefined : window.location.href;
-	const response = await fetchWithCorsProxy(
+	const blueprint = await resolveBlueprintForInstall(
 		blueprintUrl,
-		{ credentials: 'omit' },
-		corsProxyUrl,
-		playgroundUrl
+		corsProxyUrl
 	);
-	if (!response.ok) {
-		throw new Error(
-			`Could not download blueprint: ${response.status} ${response.statusText}`
-		);
-	}
-	try {
-		return (await response.json()) as BlueprintV1Declaration;
-	} catch (e) {
-		throw new Error('Blueprint response was not valid JSON.', {
-			cause: e,
-		});
-	}
+	return await getBlueprintDeclaration(blueprint);
 }
 
 function getBlueprintLandingPage(
@@ -58,17 +56,4 @@ function getBlueprintLandingPage(
 	return typeof blueprint.landingPage === 'string' && blueprint.landingPage
 		? blueprint.landingPage
 		: undefined;
-}
-
-function getBlueprintWithoutLandingPage(
-	blueprint: BlueprintV1Declaration
-): BlueprintV1Declaration {
-	const { landingPage, ...blueprintWithoutLandingPage } = blueprint;
-	return blueprintWithoutLandingPage;
-}
-
-function blueprintToDataUrl(blueprint: BlueprintV1Declaration): string {
-	return `data:application/json;base64,${encodeStringAsBase64(
-		JSON.stringify(blueprint)
-	)}`;
 }

@@ -1,21 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { BlueprintBundle } from '@wp-playground/blueprints';
 import {
 	fetchBlueprint,
 	prepareBlueprintForRemoteInstall,
+	resolveBlueprintForInstall,
 } from './blueprint-install';
 
 describe('prepareBlueprintForRemoteInstall', () => {
-	beforeEach(() => {
-		vi.stubGlobal('btoa', (value: string) =>
-			Buffer.from(value, 'binary').toString('base64')
-		);
-	});
-
 	afterEach(() => {
 		vi.unstubAllGlobals();
 	});
 
-	it('removes landingPage before forwarding a blueprint to the main tab', async () => {
+	it('keeps the original blueprint URL when forwarding to the main tab', async () => {
 		stubFetchBlueprint({
 			meta: {
 				title: 'Friends',
@@ -37,21 +33,7 @@ describe('prepareBlueprintForRemoteInstall', () => {
 		);
 
 		expect(result.landingPage).toBe('/wp-admin/admin.php?page=friends');
-		expect(result.blueprintUrl).toMatch(/^data:application\/json;base64,/);
-		expect(decodeDataUrlBlueprint(result.blueprintUrl)).toEqual({
-			meta: {
-				title: 'Friends',
-			},
-			steps: [
-				{
-					step: 'installPlugin',
-					pluginZipFile: {
-						resource: 'url',
-						url: 'https://example.com/friends.zip',
-					},
-				},
-			],
-		});
+		expect(result.blueprintUrl).toBe('https://example.com/blueprint.json');
 	});
 
 	it('keeps the original blueprint URL when there is no landingPage', async () => {
@@ -86,31 +68,79 @@ describe('prepareBlueprintForRemoteInstall', () => {
 			);
 		vi.stubGlobal('fetch', fetchMock);
 
-		await expect(
-			fetchBlueprint(
-				'https://example.com/blueprint.json',
-				'https://proxy.example.com/'
-			)
-		).resolves.toEqual({ steps: [] });
+		const blueprint = await resolveBlueprintForInstall(
+			'https://example.com/blueprint.json',
+			'https://proxy.example.com/'
+		);
+
+		expect(isBlueprintBundle(blueprint)).toBe(true);
 
 		const proxiedRequest = fetchMock.mock.calls[1][0] as Request;
 		expect(proxiedRequest.url).toBe(
 			'https://proxy.example.com/https://example.com/blueprint.json'
 		);
 	});
+
+	it('keeps bundled resources available relative to JSON blueprints', async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(
+				new Response(
+					JSON.stringify({
+						steps: [
+							{
+								step: 'writeFile',
+								path: '/wordpress/hello.txt',
+								data: {
+									resource: 'bundled',
+									path: '/hello.txt',
+								},
+							},
+						],
+					})
+				)
+			)
+			.mockResolvedValueOnce(new Response('Hello from bundle'));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const blueprint = await resolveBlueprintForInstall(
+			'https://example.com/blueprints/app/blueprint.json'
+		);
+		const bundledFile = await blueprint.read('/hello.txt');
+
+		await expect(bundledFile.text()).resolves.toBe('Hello from bundle');
+		expect(fetchMock.mock.calls[1][0]).toBe(
+			'https://example.com/blueprints/app/hello.txt'
+		);
+	});
+
+	it('fetchBlueprint returns the declaration from the resolved bundle', async () => {
+		stubFetchBlueprint({
+			landingPage: '/wp-admin/',
+			steps: [],
+		});
+
+		await expect(
+			fetchBlueprint('https://example.com/blueprint.json')
+		).resolves.toEqual({
+			landingPage: '/wp-admin/',
+			steps: [],
+		});
+	});
 });
 
 function stubFetchBlueprint(blueprint: object): void {
 	vi.stubGlobal(
 		'fetch',
-		vi.fn().mockResolvedValue({
-			ok: true,
-			json: async () => blueprint,
-		})
+		vi.fn().mockResolvedValue(new Response(JSON.stringify(blueprint)))
 	);
 }
 
-function decodeDataUrlBlueprint(blueprintUrl: string): unknown {
-	const encoded = blueprintUrl.replace(/^data:application\/json;base64,/, '');
-	return JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+function isBlueprintBundle(value: unknown): value is BlueprintBundle {
+	return (
+		!!value &&
+		typeof value === 'object' &&
+		'read' in value &&
+		typeof value.read === 'function'
+	);
 }

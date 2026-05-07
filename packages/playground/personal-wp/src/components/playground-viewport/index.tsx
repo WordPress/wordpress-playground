@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
 	compileBlueprintV1,
+	getBlueprintDeclaration,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
@@ -34,8 +35,8 @@ import { playgroundLogo } from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
 import {
-	fetchBlueprint,
 	prepareBlueprintForRemoteInstall,
+	resolveBlueprintForInstall,
 } from './blueprint-install';
 import { isAllowedBlueprintUrl } from '../../lib/blueprint-url';
 // @ts-ignore
@@ -103,11 +104,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			clearInstallBannerResetTimeout();
 			try {
 				setInstallingBlueprint('Installing\u2026');
-				const blueprint = await fetchBlueprint(
+				const blueprint = await resolveBlueprintForInstall(
 					blueprintUrl,
 					corsProxyUrl
 				);
-				const title = blueprint.meta?.title || 'app';
+				const declaration = await getBlueprintDeclaration(blueprint);
+				const title = declaration.meta?.title || 'app';
 				setInstallingBlueprint(`Installing ${title}\u2026`);
 
 				const progress = new ProgressTracker();
@@ -126,12 +128,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					compiled,
 					getBlueprintRunnerClient(
 						playground,
-						blueprint,
+						declaration,
 						allowNavigation
 					)
 				);
-				if (allowNavigation && blueprint.landingPage) {
-					await playground.goTo(blueprint.landingPage);
+				if (allowNavigation && declaration.landingPage) {
+					await playground.goTo(declaration.landingPage);
 				}
 			} catch (e) {
 				logger.error('Failed to apply blueprint:', e);

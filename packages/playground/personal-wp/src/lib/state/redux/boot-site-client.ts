@@ -39,6 +39,7 @@ import {
 import { initTabCoordinator, destroyTabCoordinator } from './tab-coordinator';
 import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
+import { getBrowserPathAsLandingPage } from '../url/landing-page';
 
 export interface BootSiteClientOptions {
 	signal: AbortSignal;
@@ -372,13 +373,6 @@ export function bootSiteClient(
 			dispatch(removeClientInfo(site.slug));
 		};
 	};
-}
-
-function getBrowserPathAsLandingPage(): string | undefined {
-	if (isAppBasePath(window.location.pathname)) {
-		return undefined;
-	}
-	return window.location.pathname + window.location.search;
 }
 
 function bootDependentModeClient({
