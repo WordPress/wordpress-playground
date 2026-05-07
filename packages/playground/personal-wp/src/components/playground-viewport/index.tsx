@@ -64,6 +64,28 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
 	>(null);
+	const installBannerResetTimeoutRef = useRef<ReturnType<
+		typeof setTimeout
+	> | null>(null);
+
+	const clearInstallBannerResetTimeout = useCallback(() => {
+		if (installBannerResetTimeoutRef.current) {
+			clearTimeout(installBannerResetTimeoutRef.current);
+			installBannerResetTimeoutRef.current = null;
+		}
+	}, []);
+
+	const scheduleInstallBannerReset = useCallback(() => {
+		clearInstallBannerResetTimeout();
+		installBannerResetTimeoutRef.current = setTimeout(() => {
+			installBannerResetTimeoutRef.current = null;
+			setInstallingBlueprint(null);
+		}, 3000);
+	}, [clearInstallBannerResetTimeout]);
+
+	useEffect(() => {
+		return clearInstallBannerResetTimeout;
+	}, [clearInstallBannerResetTimeout]);
 
 	// Apply a blueprint in-place on the running instance.
 	const applyBlueprint = useCallback(
@@ -78,6 +100,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				};
 			}
 			const allowNavigation = options.allowNavigation ?? true;
+			clearInstallBannerResetTimeout();
 			try {
 				setInstallingBlueprint('Installing\u2026');
 				const blueprint = await fetchBlueprint(
@@ -113,7 +136,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			} catch (e) {
 				logger.error('Failed to apply blueprint:', e);
 				setInstallingBlueprint('Installation failed');
-				setTimeout(() => setInstallingBlueprint(null), 3000);
+				scheduleInstallBannerReset();
 				return {
 					status: 'error',
 					error: getErrorMessage(e),
@@ -122,11 +145,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			setInstallingBlueprint(null);
 			return { status: 'success' };
 		},
-		[playground]
+		[clearInstallBannerResetTimeout, playground, scheduleInstallBannerReset]
 	);
 
 	const applyBlueprintInMainTab = useCallback(
 		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
+			clearInstallBannerResetTimeout();
 			try {
 				setInstallingBlueprint('Installing in the active tab\u2026');
 				const install = await prepareBlueprintForRemoteInstall(
@@ -139,15 +163,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				);
 				if (result.status === 'error') {
 					setInstallingBlueprint('Installation failed');
-					setTimeout(() => setInstallingBlueprint(null), 3000);
+					scheduleInstallBannerReset();
 				} else {
 					if (install.landingPage) {
 						if (!playground) {
 							setInstallingBlueprint('Installation failed');
-							setTimeout(
-								() => setInstallingBlueprint(null),
-								3000
-							);
+							scheduleInstallBannerReset();
 							return {
 								status: 'error',
 								error: 'The app was installed, but this tab could not open it.',
@@ -161,14 +182,19 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				return result;
 			} catch (e) {
 				setInstallingBlueprint('Installation failed');
-				setTimeout(() => setInstallingBlueprint(null), 3000);
+				scheduleInstallBannerReset();
 				return {
 					status: 'error',
 					error: getErrorMessage(e),
 				};
 			}
 		},
-		[playground, siteSlug]
+		[
+			clearInstallBannerResetTimeout,
+			playground,
+			scheduleInstallBannerReset,
+			siteSlug,
+		]
 	);
 
 	useEffect(() => {

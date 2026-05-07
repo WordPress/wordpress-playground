@@ -286,6 +286,7 @@ function InstallAppsSection() {
 									onClick={() => removeApp(app.path)}
 									aria-label={`Remove app ${app.title}`}
 									title="Remove app"
+									type="button"
 								>
 									<Icon icon={trash} size={16} />
 								</button>

@@ -239,6 +239,7 @@ export async function requestRemoteBackup(
 
 	return new Promise((resolve) => {
 		let resolved = false;
+		let timeoutId: ReturnType<typeof setTimeout>;
 
 		const completedHandler = (
 			event: MessageEvent<TabCoordinatorMessage>
@@ -250,24 +251,29 @@ export async function requestRemoteBackup(
 				message.targetTabId === tabId
 			) {
 				resolved = true;
-				currentChannel.removeEventListener('message', completedHandler);
+				cleanup();
 				resolve(message.success);
 			}
 		};
 
+		function cleanup() {
+			currentChannel.removeEventListener('message', completedHandler);
+			clearTimeout(timeoutId);
+		}
+
 		currentChannel.addEventListener('message', completedHandler);
+		timeoutId = setTimeout(() => {
+			if (!resolved) {
+				resolved = true;
+				cleanup();
+				resolve(false);
+			}
+		}, timeoutMs);
 		currentChannel.postMessage({
 			type: 'backup-request',
 			requestingTabId: tabId,
 			siteSlug,
 		} satisfies BackupRequestMessage);
-
-		setTimeout(() => {
-			if (!resolved) {
-				currentChannel.removeEventListener('message', completedHandler);
-				resolve(false);
-			}
-		}, timeoutMs);
 	});
 }
 
@@ -289,6 +295,7 @@ export async function requestRemoteBlueprintInstall(
 
 	return new Promise((resolve) => {
 		let resolved = false;
+		let timeoutId: ReturnType<typeof setTimeout>;
 
 		const resultHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
 			const message = event.data;
@@ -299,12 +306,27 @@ export async function requestRemoteBlueprintInstall(
 				message.requestId === requestId
 			) {
 				resolved = true;
-				currentChannel.removeEventListener('message', resultHandler);
+				cleanup();
 				resolve(message.result);
 			}
 		};
 
+		function cleanup() {
+			currentChannel.removeEventListener('message', resultHandler);
+			clearTimeout(timeoutId);
+		}
+
 		currentChannel.addEventListener('message', resultHandler);
+		timeoutId = setTimeout(() => {
+			if (!resolved) {
+				resolved = true;
+				cleanup();
+				resolve({
+					status: 'error',
+					error: getInstallBlueprintTimeoutMessage(timeoutMs),
+				});
+			}
+		}, timeoutMs);
 		currentChannel.postMessage({
 			type: 'install-blueprint-request',
 			requestId,
@@ -312,16 +334,6 @@ export async function requestRemoteBlueprintInstall(
 			siteSlug,
 			blueprintUrl,
 		} satisfies InstallBlueprintRequestMessage);
-
-		setTimeout(() => {
-			if (!resolved) {
-				currentChannel.removeEventListener('message', resultHandler);
-				resolve({
-					status: 'error',
-					error: getInstallBlueprintTimeoutMessage(timeoutMs),
-				});
-			}
-		}, timeoutMs);
 	});
 }
 
@@ -338,6 +350,7 @@ export async function requestMainTabFocus(
 
 	return new Promise((resolve) => {
 		let resolved = false;
+		let timeoutId: ReturnType<typeof setTimeout>;
 
 		const ackHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
 			const message = event.data;
@@ -347,24 +360,29 @@ export async function requestMainTabFocus(
 				message.targetTabId === tabId
 			) {
 				resolved = true;
-				currentChannel.removeEventListener('message', ackHandler);
+				cleanup();
 				resolve(true);
 			}
 		};
 
+		function cleanup() {
+			currentChannel.removeEventListener('message', ackHandler);
+			clearTimeout(timeoutId);
+		}
+
 		currentChannel.addEventListener('message', ackHandler);
+		timeoutId = setTimeout(() => {
+			if (!resolved) {
+				resolved = true;
+				cleanup();
+				resolve(false);
+			}
+		}, timeoutMs);
 		currentChannel.postMessage({
 			type: 'main-tab-focus-request',
 			requestingTabId: tabId,
 			siteSlug,
 		} satisfies MainTabFocusRequestMessage);
-
-		setTimeout(() => {
-			if (!resolved) {
-				currentChannel.removeEventListener('message', ackHandler);
-				resolve(false);
-			}
-		}, timeoutMs);
 	});
 }
 

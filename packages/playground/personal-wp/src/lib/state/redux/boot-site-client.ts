@@ -188,9 +188,8 @@ export function bootSiteClient(
 					.extraLibraries as any[],
 				constants: site.metadata.runtimeConfiguration.constants,
 				login: autoLogin,
-				// Use the browser URL path + query as landing page
-				// (set via pushState during WordPress navigation).
-				// Falls back to the default admin page.
+				// Use the browser URL path + query as the landing page
+				// when it points at a reflected WordPress route.
 				landingPage: getBrowserPathAsLandingPage(),
 			};
 

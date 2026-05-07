@@ -116,6 +116,7 @@ export class PlaygroundRoute {
 						url.searchParams.delete(key);
 					}
 				}
+				url.hash = '';
 				return url.toString();
 			}
 			const url = new URL(baseUrl, window.location.href);
