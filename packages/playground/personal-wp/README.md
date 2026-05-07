@@ -50,7 +50,7 @@ Health Check integration detects and recovers from site crashes automatically, e
 
 ### Multi-Tab Support
 
-Sophisticated tab coordination ensures only one worker runs per site. Dependent tabs connect automatically, and a takeover protocol handles tab conflicts gracefully.
+Browser-managed tab coordination ensures only one worker runs per site. Dependent tabs can view and navigate the site while operations that need the active WordPress runtime are forwarded to the active tab.
 
 ### WordPress Page Relay Messages
 
@@ -58,49 +58,12 @@ WordPress pages running inside Personal Playground can send supported relay mess
 the parent window. Messages must use `type: 'relay'` and are only accepted from the
 active Playground iframe tree.
 
-#### Detect Window State
-
-Use `get-playground-window-state` before offering actions that require the main
-Playground worker, such as installing an app blueprint.
-
-```js
-const requestId = crypto.randomUUID();
-
-window.addEventListener('message', function onMessage(event) {
-	const data = event.data;
-	if (data?.type === 'relay' && data?.relayType === 'playground-window-state' && data?.requestId === requestId) {
-		window.removeEventListener('message', onMessage);
-		// Hide install UI when data.canInstallBlueprint is false.
-	}
-});
-
-window.parent.postMessage(
-	{
-		type: 'relay',
-		relayType: 'get-playground-window-state',
-		requestId,
-	},
-	'*'
-);
-```
-
-Response:
-
-```ts
-{
-	type: 'relay';
-	relayType: 'playground-window-state';
-	requestId?: string;
-	isDependentMode: boolean;
-	canInstallBlueprint: boolean;
-}
-```
-
 #### Install Blueprint
 
 Use `install-blueprint` to ask Personal Playground to install a blueprint into the
 current site. Personal Playground confirms the action with the user before applying
-the blueprint.
+the blueprint. Dependent tabs forward the install to the active tab and keep the
+final blueprint navigation in the requesting tab.
 
 ```js
 window.parent.postMessage(

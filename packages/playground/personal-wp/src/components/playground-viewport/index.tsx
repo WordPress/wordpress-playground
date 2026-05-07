@@ -58,9 +58,6 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		clientInfo?.mainTabStatus ??
 		(isDependentMode ? 'missing' : 'connected');
 	const hasLocalRuntimeClient = !isDependentMode && !!playground;
-	const canInstallBlueprint =
-		hasLocalRuntimeClient ||
-		(isDependentMode && mainTabStatus === 'connected');
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
@@ -194,18 +191,6 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				return;
 			}
 
-			const windowStateMessage = getPlaygroundWindowStateMessageData(
-				relayValidation.data
-			);
-			if (windowStateMessage) {
-				postPlaygroundWindowState(event, {
-					requestId: windowStateMessage.requestId,
-					isDependentMode,
-					canInstallBlueprint,
-				});
-				return;
-			}
-
 			const installBlueprintMessage = getInstallBlueprintMessageData(
 				relayValidation.data
 			);
@@ -220,7 +205,6 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	}, [
 		applyBlueprint,
 		applyBlueprintInMainTab,
-		canInstallBlueprint,
 		hasLocalRuntimeClient,
 		isDependentMode,
 		siteSlug,
@@ -254,16 +238,6 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				return;
 			}
 			installLocally = false;
-		}
-
-		if (!canInstallBlueprint && !isDependentMode) {
-			postInstallBlueprintResult(event, {
-				blueprintUrl,
-				requestId,
-				status: 'error',
-				error: 'Playground is not ready.',
-			});
-			return;
 		}
 
 		if (!confirmBlueprintInstall(blueprintUrl)) {
@@ -425,12 +399,6 @@ type ApplyBlueprintOptions = {
 	allowNavigation?: boolean;
 };
 
-type PlaygroundWindowStateMessageData = {
-	type: 'relay';
-	relayType: 'get-playground-window-state';
-	requestId?: string;
-};
-
 type InstallBlueprintResult = {
 	status: 'success' | 'error';
 	error?: string;
@@ -443,14 +411,6 @@ type InstallBlueprintResultMessage = {
 	requestId?: string;
 	status: InstallBlueprintResult['status'] | 'cancelled';
 	error?: string;
-};
-
-type PlaygroundWindowStateResultMessage = {
-	type: 'relay';
-	relayType: 'playground-window-state';
-	requestId?: string;
-	isDependentMode: boolean;
-	canInstallBlueprint: boolean;
 };
 
 function getRelayMessageValidation(
@@ -499,19 +459,6 @@ function getInstallBlueprintMessageData(
 	};
 }
 
-function getPlaygroundWindowStateMessageData(
-	data: RelayMessageData
-): PlaygroundWindowStateMessageData | undefined {
-	if (data.relayType === 'get-playground-window-state') {
-		return {
-			type: 'relay',
-			relayType: 'get-playground-window-state',
-			requestId: getRequestId(data),
-		};
-	}
-	return;
-}
-
 function getRequestId(data: RelayMessageData): string | undefined {
 	return typeof data.requestId === 'string' ? data.requestId : undefined;
 }
@@ -529,23 +476,6 @@ function postInstallBlueprintResult(
 			relayType: 'install-blueprint-result',
 			...result,
 		} satisfies InstallBlueprintResultMessage,
-		event.origin
-	);
-}
-
-function postPlaygroundWindowState(
-	event: MessageEvent,
-	result: Omit<PlaygroundWindowStateResultMessage, 'type' | 'relayType'>
-) {
-	if (!event.source) {
-		return;
-	}
-	(event.source as Window).postMessage(
-		{
-			type: 'relay',
-			relayType: 'playground-window-state',
-			...result,
-		} satisfies PlaygroundWindowStateResultMessage,
 		event.origin
 	);
 }
