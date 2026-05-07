@@ -600,6 +600,7 @@ function AboutTab() {
 					<RecoverySection />
 				</>
 			)}
+			{isDependentMode && <DependentTabToolsNotice />}
 
 			<div className={css.aboutSection}>
 				<a
@@ -612,6 +613,19 @@ function AboutTab() {
 					<span>Open playground.wordpress.net</span>
 				</a>
 			</div>
+		</div>
+	);
+}
+
+function DependentTabToolsNotice() {
+	return (
+		<div className={css.dependentTabToolsNotice}>
+			<h4>Tools available in the active tab</h4>
+			<p>
+				This tab can view and navigate the site. Apps, backups,
+				recovery, and reset controls are shown only in the tab with the
+				active WordPress runtime.
+			</p>
 		</div>
 	);
 }

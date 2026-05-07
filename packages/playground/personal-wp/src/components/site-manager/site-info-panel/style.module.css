@@ -263,6 +263,29 @@
 	margin: 0 0 12px 0;
 }
 
+.dependent-tab-tools-notice {
+	margin-top: 20px;
+	padding: 12px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+	color: #50575e;
+}
+
+.dependent-tab-tools-notice h4 {
+	margin: 0 0 4px;
+	color: #1e1e1e;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 18px;
+}
+
+.dependent-tab-tools-notice p {
+	margin: 0;
+	font-size: 13px;
+	line-height: 18px;
+}
+
 /* ── Apps ── */
 
 .apps-loading {
