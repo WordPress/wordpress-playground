@@ -471,9 +471,10 @@ describe('XdebugCDPBridge', () => {
 			excludedPaths: [ignoredScript],
 		});
 
-		// Act: start the bridge and decode every source map it emits,
-		// keyed by the original PHP file URI inside `sources`.
-		const sourceMapsByPhpFile: Record<string, any> = {};
+		// Act: start the bridge and decode the source maps for the two
+		// scripts we care about, identifying each by its original path.
+		let ignoredMap: any;
+		let userMap: any;
 
 		await new Promise<void>((resolve) => {
 			const original = cdpServer.sendMessage.bind(cdpServer);
@@ -485,9 +486,13 @@ describe('XdebugCDPBridge', () => {
 							'base64'
 						).toString('utf8')
 					);
-					sourceMapsByPhpFile[sourceMap.sources[0]] = sourceMap;
-
-					if (Object.keys(sourceMapsByPhpFile).length === 2) {
+					const source = sourceMap.sources[0];
+					if (source.endsWith(ignoredScript)) {
+						ignoredMap = sourceMap;
+					} else if (source.endsWith(userScript)) {
+						userMap = sourceMap;
+					}
+					if (ignoredMap && userMap) {
 						resolve();
 					}
 				}
@@ -499,13 +504,7 @@ describe('XdebugCDPBridge', () => {
 
 		// Assert: only the ignored script carries the ignore-list entry;
 		// the user script's source map stays untouched.
-		expect(
-			sourceMapsByPhpFile[`file://PHP.wasm/${ignoredScript}`]
-				.x_google_ignoreList
-		).toEqual([0]);
-		expect(
-			sourceMapsByPhpFile[`file://PHP.wasm/${userScript}`]
-				.x_google_ignoreList
-		).toBeUndefined();
+		expect(ignoredMap.x_google_ignoreList).toEqual([0]);
+		expect(userMap.x_google_ignoreList).toBeUndefined();
 	});
 });

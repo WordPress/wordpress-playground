@@ -270,7 +270,9 @@ export class XdebugCDPBridge {
 	}
 
 	private isExcludedPath(fileUri: string): boolean {
-		return this.excludedPaths.some((prefix) => fileUri.startsWith(prefix));
+		return this.excludedPaths.some(
+			(prefix) => fileUri === prefix || fileUri.startsWith(prefix + '/')
+		);
 	}
 
 	// Utility: escape and quote Xdebug fullname for property_get

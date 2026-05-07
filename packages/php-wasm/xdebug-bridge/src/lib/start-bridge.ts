@@ -45,9 +45,15 @@ export async function startBridge(config: StartBridgeConfig) {
 	logger.log(`XDebug receiver running on port ${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');
 
+	function isExcluded(p: string): boolean {
+		return excludedPaths.some(
+			(prefix) => p === prefix || p.startsWith(prefix + '/')
+		);
+	}
+
 	// Recursively get a list of .php files in phpRoot
 	async function getPhpFiles(dir: string): Promise<string[]> {
-		if (excludedPaths.some((prefix) => dir.startsWith(prefix))) {
+		if (isExcluded(dir)) {
 			return [];
 		}
 		const results: string[] = [];
@@ -56,6 +62,9 @@ export async function startBridge(config: StartBridgeConfig) {
 			: readdirSync(dir);
 		for (const file of list) {
 			const filePath = path.join(dir, file);
+			if (isExcluded(filePath)) {
+				continue;
+			}
 			try {
 				// lstat avoids crashes when encountering symlinks
 				const stat = config.phpInstance
