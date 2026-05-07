@@ -508,6 +508,7 @@ jobs:
               run: node packages/playground/wordpress/tests/download-legacy-wp-zips.mjs /tmp/legacy-wordpress-zips
             - name: Save legacy WordPress ZIP cache
               if: steps.legacy-wp-zip-cache.outputs.cache-hit != 'true'
+              continue-on-error: true
               uses: actions/cache/save@v4
               with:
                   path: /tmp/legacy-wordpress-zips
