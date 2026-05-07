@@ -124,6 +124,7 @@ playground_side_module_function _playground_zend_side_module_function_exports[] 
 	(playground_side_module_function)zend_lookup_class_ex,
 	(playground_side_module_function)zend_objects_new,
 	(playground_side_module_function)zend_register_internal_interface,
+	(playground_side_module_function)zend_std_get_properties,
 	(playground_side_module_function)zend_std_has_property,
 	(playground_side_module_function)zend_std_read_property,
 	(playground_side_module_function)zend_std_write_property,

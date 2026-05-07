@@ -2269,6 +2269,7 @@ RUN set -eux; \
 			echo 'zend_lookup_class_ex'; \
 			echo 'zend_objects_new'; \
 			echo 'zend_register_internal_interface'; \
+			echo 'zend_std_get_properties'; \
 			echo 'zend_std_has_property'; \
 			echo 'zend_std_read_property'; \
 			echo 'zend_std_write_property'; \
