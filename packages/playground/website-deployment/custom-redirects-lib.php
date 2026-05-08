@@ -194,12 +194,15 @@ function playground_maybe_rewrite( $original_requested_path ) {
 }
 
 function playground_is_my_wordpress_net_request() {
-	if (empty($_SERVER['HTTP_HOST'])) {
+	if ( empty( $_SERVER['HTTP_HOST'] ) ) {
 		return false;
 	}
-	$host = preg_replace( '/:\d+$/', '', $host );
 
-	return 'my.wordpress.net' === $host;
+	if ( ! preg_match( '/^my\.wordpress\.net(:\d+)?$/i', $_SERVER['HTTP_HOST'] ) ) {
+		return false;
+	}
+
+	return true;
 }
 
 function playground_resolve_my_wordpress_net_index_fallback() {
