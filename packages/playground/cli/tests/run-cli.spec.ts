@@ -1880,7 +1880,7 @@ describe('other run-cli behaviors', () => {
 			} finally {
 				rmSync(tmpDir, { recursive: true });
 			}
-		});
+		}, 60_000 /* allow extra time to avoid testing timeouts on Windows */);
 
 		test('runCLI returns RunCLIServer for server command', async () => {
 			await using result = await runCLI({
@@ -1952,7 +1952,7 @@ describe('other run-cli behaviors', () => {
 			} finally {
 				rmSync(tmpDir, { recursive: true });
 			}
-		});
+		}, 60_000 /* allow extra time to avoid testing timeouts on Windows */);
 
 		test('parseOptionsAndRunCLI returns CLIExitResult for php command', async () => {
 			const stdoutSpy = vi
