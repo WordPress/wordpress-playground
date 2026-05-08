@@ -2,6 +2,7 @@ import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '../../base64';
 import { personalWPSiteSlug } from 'virtual:website-defaults';
+import { isAppBasePath } from './app-base-url';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -21,10 +22,37 @@ interface QueryAPIParams {
 	'import-site'?: string;
 	'import-wxr'?: string;
 	'import-content'?: string;
-	url?: string;
 	'blueprint-url'?: string;
 	'page-title'?: string;
 }
+
+/**
+ * Playground-specific query keys that should be removed from the URL
+ * once they've been consumed by the boot pipeline. Anything outside
+ * this list (e.g. WordPress query vars or plugin-specific params) is
+ * left in place so the URL remains bookmarkable.
+ */
+export const PLAYGROUND_QUERY_KEYS = [
+	'site-slug',
+	'mode',
+	'name',
+	'wp',
+	'php',
+	'language',
+	'multisite',
+	'networking',
+	'theme',
+	'login',
+	'plugin',
+	'url',
+	'blueprint-url',
+	'blueprint',
+	'import-site',
+	'import-wxr',
+	'import-content',
+	'page-title',
+	'experimental-blueprints-v2-runner',
+];
 
 /**
  * Parses a blueprint string into a blueprint object. Accepts plain
@@ -48,7 +76,10 @@ export function parseBlueprint(rawData: string) {
 	throw new Error(formatInvalidBlueprintError(rawData, errors));
 }
 
-function formatInvalidBlueprintError(rawData: string, errors: unknown[]): string {
+function formatInvalidBlueprintError(
+	rawData: string,
+	errors: unknown[]
+): string {
 	const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(rawData.trim());
 	// Prefer the base64-decode-then-parse error if the input looks
 	// base64-shaped; otherwise the plain JSON.parse error is the more
@@ -75,27 +106,35 @@ export class PlaygroundRoute {
 		} else {
 			// If this is the default site, don't add site-slug to the URL
 			if (personalWPSiteSlug && site.slug === personalWPSiteSlug) {
-				// Preserve blueprint-url and url parameters if present
-				const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
-				const preserveParamsKeys = ['blueprint-url', 'url'];
-				const preserveParams: Record<string, string> = {};
-				for (const param of preserveParamsKeys) {
-					const value = baseParams.get(param);
-					if (value !== null) {
-						preserveParams[param] = value;
+				// Strip Playground-specific query params, but keep
+				// anything else (e.g. WordPress query vars like
+				// ?p=42 or plugin-specific params like ?app-store=1)
+				// so the URL remains bookmarkable.
+				const url = new URL(baseUrl, window.location.href);
+				if (isAppBasePath(url.pathname)) {
+					for (const key of PLAYGROUND_QUERY_KEYS) {
+						url.searchParams.delete(key);
 					}
 				}
-				return updateUrl(baseUrl, {
-					searchParams: preserveParams,
-					hash: '',
-				});
+				url.hash = '';
+				return url.toString();
 			}
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+			const url = new URL(baseUrl, window.location.href);
+			if (!isAppBasePath(url.pathname)) {
+				return updateUrl(
+					url.toString(),
+					{
+						searchParams: { 'site-slug': site.slug },
+						hash: '',
+					},
+					'merge'
+				);
+			}
+			const baseParams = url.searchParams;
 			const preserveParamsKeys = [
 				'mode',
 				'networking',
 				'login',
-				'url',
 				'page-title',
 			];
 			const preserveParams: Record<string, string | null> = {};

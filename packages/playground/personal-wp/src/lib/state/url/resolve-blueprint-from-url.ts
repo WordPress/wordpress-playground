@@ -276,11 +276,6 @@ function applyQueryOverridesToDeclaration(
 		blueprint.login = true;
 	}
 
-	// Landing page
-	if (query.get('url')) {
-		blueprint.landingPage = query.get('url')!;
-	}
-
 	/*
 	 * The 6.3 release includes a caching bug where
 	 * registered styles aren't enqueued when they

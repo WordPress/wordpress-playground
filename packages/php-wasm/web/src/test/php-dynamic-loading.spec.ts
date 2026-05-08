@@ -10,6 +10,8 @@ import { SupportedPHPVersions } from '../../../universal/src/lib/supported-php-v
 // which must wrap the entire process.
 SupportedPHPVersions.forEach((phpVersion) => {
 	test.describe(`Intl - PHP ${phpVersion}`, () => {
+		const lifecycleTest = phpVersion === '8.4' ? test : test.skip;
+
 		test.beforeEach(async ({ page }) => {
 			page.on('console', (log) => console.log(log.text()));
 
@@ -17,11 +19,11 @@ SupportedPHPVersions.forEach((phpVersion) => {
 
 			await page.addScriptTag({
 				type: 'module',
-				url: '/src/test/playwright/globals.ts',
+				url: '/src/test/playwright/browser-globals.ts',
 			});
 		});
 
-		test('does not load dynamically by default', async ({ page }) => {
+		test('does not load at startup by default', async ({ page }) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any)
@@ -41,11 +43,11 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			test.expect(result).toEqual('bool(false)\nbool(false)\n');
 		});
 
-		test('supports dynamic loading', async ({ page }) => {
+		test('loads at startup when requested', async ({ page }) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -63,11 +65,138 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			test.expect(result).toEqual('bool(true)\nbool(true)\n');
 		});
 
+		lifecycleTest(
+			'supports deprecated withIntl loader option',
+			async ({ page }) => {
+				const result = await page.evaluate(async (phpVersion) => {
+					const php = new window.PHP(
+						await window.loadWebRuntime(phpVersion as any, {
+							withIntl: true,
+						})
+					);
+
+					const response = await php.runStream({
+						code: `<?php
+						var_dump(extension_loaded('intl'));
+						var_dump(class_exists('Collator'));`,
+					});
+
+					php.exit();
+
+					return await response.stdoutText;
+				}, phpVersion);
+
+				test.expect(result).toEqual('bool(true)\nbool(true)\n');
+			}
+		);
+
+		lifecycleTest('survives runtime rotation', async ({ page }) => {
+			const result = await page.evaluate(
+				async (options) => {
+					const recreateRuntime = async () =>
+						await window.loadWebRuntime(options.phpVersion as any, {
+							extensions: ['intl'],
+						});
+					const php = new window.PHP(await recreateRuntime());
+					let recreations = 1;
+					php.enableRuntimeRotation({
+						recreateRuntime: async () => {
+							recreations++;
+							return await recreateRuntime();
+						},
+						maxRequests: 1,
+					});
+
+					try {
+						const beforeRotation = await php.run({
+							code: options.checkCode,
+						});
+						const afterRotation = await php.run({
+							code: options.checkCode,
+						});
+						return {
+							beforeRotation: beforeRotation.text,
+							afterRotation: afterRotation.text,
+							recreations,
+						};
+					} finally {
+						php.exit();
+					}
+				},
+				{
+					phpVersion,
+					checkCode: intlExtensionCheckCode(),
+				}
+			);
+
+			test.expect(result).toEqual({
+				beforeRotation: 'loaded',
+				afterRotation: 'loaded',
+				recreations: 2,
+			});
+		});
+
+		lifecycleTest(
+			'loads in every PHPRequestHandler PHP instance',
+			async ({ page }) => {
+				const result = await page.evaluate(
+					async (options) => {
+						const handler = new window.PHPRequestHandler({
+							documentRoot: '/www',
+							absoluteUrl: 'http://127.0.0.1:9400',
+							phpFactory: async () =>
+								new window.PHP(
+									await window.loadWebRuntime(
+										options.phpVersion as any,
+										{
+											extensions: ['intl'],
+										}
+									)
+								),
+							maxPhpInstances: 3,
+						});
+						const acquired = [];
+
+						try {
+							acquired.push(
+								await handler.instanceManager.acquirePHPInstance()
+							);
+							acquired.push(
+								await handler.instanceManager.acquirePHPInstance()
+							);
+							acquired.push(
+								await handler.instanceManager.acquirePHPInstance()
+							);
+
+							const checks = await Promise.all(
+								acquired.map(({ php }) =>
+									php.run({ code: options.checkCode })
+								)
+							);
+
+							return checks.map(({ text }) => text);
+						} finally {
+							for (const acquiredPhp of acquired) {
+								acquiredPhp.reap();
+							}
+							await handler[Symbol.asyncDispose]();
+						}
+					},
+					{
+						phpVersion,
+						checkCode: intlExtensionCheckCode(),
+					}
+				);
+
+				test.expect(result).toEqual(['loaded', 'loaded', 'loaded']);
+			}
+		);
+
 		test('has its own ini file and entries', async ({ page }) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -91,7 +220,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -113,16 +242,18 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const oldPhp = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 				const newPhp = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
-				await window.proxyFileSystem(oldPhp, newPhp, ['/internal/shared']);
+				await window.proxyFileSystem(oldPhp, newPhp, [
+					'/internal/shared',
+				]);
 
 				const response = await newPhp.runStream({
 					code: `<?php
@@ -153,7 +284,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -178,7 +309,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any, {
-						withIntl: true,
+						extensions: ['intl'],
 					})
 				);
 
@@ -207,3 +338,9 @@ SupportedPHPVersions.forEach((phpVersion) => {
 		});
 	});
 });
+
+function intlExtensionCheckCode() {
+	return `<?php
+		echo extension_loaded('intl') && class_exists('Collator') ? 'loaded' : 'missing';
+	`;
+}

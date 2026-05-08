@@ -14,8 +14,7 @@ export type SiteError =
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
 	| 'network-firewall-interference'
-	| 'resource-download-failed'
-	| 'tab-superseded';
+	| 'resource-download-failed';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
@@ -180,8 +179,6 @@ const initialState: UIState = {
 	// specific reasons for the manager to be closed.
 	siteManagerIsOpen:
 		shouldOpenSiteManagerByDefault &&
-		// The site manager should not be shown at all in seamless mode.
-		query.get('mode') !== 'seamless' &&
 		// We do not expect to render the Playground app UI in an iframe.
 		!isEmbeddedInAnIframe &&
 		// Don't default to the site manager on mobile, as that would mean

@@ -14,6 +14,12 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 
 ## Common Issues and Solutions
 
+### Invalid Blueprint After Opening a Link
+
+If Playground reports `Invalid blueprint`, read the detailed error message. It includes the underlying JSON parsing error when one is available.
+
+If the message says the input still contains `%XX` escapes after decoding, the URL fragment was likely double-encoded. Rebuild the link from the original Blueprint object and encode it once with `encodeURIComponent(JSON.stringify(blueprint))`, or use Base64. Do not encode a fragment that is already encoded.
+
 ### WP-CLI: Error Establishing a Database Connection on Mounted Sites
 
 When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files by default, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls.
@@ -93,11 +99,9 @@ You can `error_log` your own error messages through [`runPHP` step](/blueprints/
 
 ![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
-<div class="callout callout-info">
-
+:::info
 When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
-
-</div>
+:::
 
 ## Ask for help
 

@@ -24,8 +24,13 @@
  * Attributes:
  *   name="…"              filename label shown in the header
  *   php="8.4"             PHP version (default: 8.4)
- *   wp="latest"           WordPress version (default: latest)
+ *   wp="latest"           WordPress version (default: latest). Use wp="none"
+ *                         to boot PHP without installing WordPress — handy for
+ *                         pure-PHP snippets that don't touch wp-load.php.
  *   src="path/to.php"     load code from a URL instead of inline
+ *   runnable="false"      hide the Run button and render the snippet as a
+ *                         read-only, syntax-highlighted code block. Useful for
+ *                         illustrative examples that aren't meant to execute.
  *   editable              make the snippet editable; visitors type into a
  *                         transparent textarea overlaid on the highlighted
  *                         code, and Run executes whatever they typed
@@ -61,7 +66,9 @@ class ProgressTracker extends EventTarget {
 		this._selfDone = false;
 		this._subs = [];
 	}
-	get weight() { return this._weight; }
+	get weight() {
+		return this._weight;
+	}
 	get progress() {
 		if (this._selfDone) return 100;
 		const sum = this._subs.reduce(
@@ -70,7 +77,9 @@ class ProgressTracker extends EventTarget {
 		);
 		return Math.round(sum * 10000) / 10000;
 	}
-	get done() { return this.progress + PROGRESS_EPSILON >= 100; }
+	get done() {
+		return this.progress + PROGRESS_EPSILON >= 100;
+	}
 	get caption() {
 		for (let i = this._subs.length - 1; i >= 0; i--) {
 			if (!this._subs[i].done && this._subs[i].caption) {
@@ -95,7 +104,10 @@ class ProgressTracker extends EventTarget {
 		this._notify();
 		if (this._selfProgress + PROGRESS_EPSILON >= 100) this.finish();
 	}
-	setCaption(c) { this._selfCaption = c; this._notify(); }
+	setCaption(c) {
+		this._selfCaption = c;
+		this._notify();
+	}
 	finish() {
 		if (this._fillInterval) {
 			clearInterval(this._fillInterval);
@@ -119,7 +131,10 @@ class ProgressTracker extends EventTarget {
 		}, 40);
 	}
 	pipe(receiver) {
-		receiver.setProgress({ progress: this.progress, caption: this.caption });
+		receiver.setProgress({
+			progress: this.progress,
+			caption: this.caption,
+		});
 		this.addEventListener('progress', (e) =>
 			receiver.setProgress({
 				progress: e.detail.progress,
@@ -166,7 +181,6 @@ async function getSharedClient(
 	let entry = runtimes.get(key);
 
 	if (entry && entry.client) {
-		onProgress?.({ progress: 100, caption: '' });
 		return entry.client;
 	}
 
@@ -192,6 +206,7 @@ async function getSharedClient(
 			throw err;
 		});
 		runtimes.set(key, entry);
+		onProgress?.({ progress: 0, caption: 'Loading runtime…' });
 	} else {
 		// Boot in flight — replay the latest progress so a late-arriving
 		// snippet shows the same bar position.
@@ -220,14 +235,20 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 		'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;';
 	iframe.src = `${origin}/remote.html`;
 	document.body.appendChild(iframe);
+	// wp="none" maps to the Blueprint's declarative
+	// `preferredVersions.wp: false`, which skips the WordPress download
+	// entirely.
+	const skipWordPress = wp === 'none';
 	const client = await startPlaygroundWeb({
 		iframe,
 		remoteUrl: iframe.src,
-		disableProgressBar: true,
 		progressTracker: entry.tracker,
 		blueprint: {
 			...(blueprint || {}),
-			preferredVersions: { php, wp },
+			preferredVersions: {
+				php,
+				wp: skipWordPress ? false : wp,
+			},
 		},
 	});
 	await client.isReady;
@@ -301,23 +322,79 @@ function stableStringify(value) {
  * patterns so they match first.
  */
 const PHP_KEYWORDS = new Set([
-	'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch',
-	'class', 'clone', 'const', 'continue', 'declare', 'default', 'do', 'echo',
-	'else', 'elseif', 'empty', 'enddeclare', 'endfor', 'endforeach', 'endif',
-	'endswitch', 'endwhile', 'extends', 'final', 'finally', 'fn', 'for',
-	'foreach', 'function', 'global', 'goto', 'if', 'implements', 'include',
-	'include_once', 'instanceof', 'insteadof', 'interface', 'isset', 'list',
-	'match', 'namespace', 'new', 'null', 'or', 'print', 'private', 'protected',
-	'public', 'readonly', 'require', 'require_once', 'return', 'static',
-	'switch', 'throw', 'trait', 'try', 'unset', 'use', 'var', 'while', 'xor',
-	'yield', 'true', 'false',
+	'abstract',
+	'and',
+	'array',
+	'as',
+	'break',
+	'callable',
+	'case',
+	'catch',
+	'class',
+	'clone',
+	'const',
+	'continue',
+	'declare',
+	'default',
+	'do',
+	'echo',
+	'else',
+	'elseif',
+	'empty',
+	'enddeclare',
+	'endfor',
+	'endforeach',
+	'endif',
+	'endswitch',
+	'endwhile',
+	'extends',
+	'final',
+	'finally',
+	'fn',
+	'for',
+	'foreach',
+	'function',
+	'global',
+	'goto',
+	'if',
+	'implements',
+	'include',
+	'include_once',
+	'instanceof',
+	'insteadof',
+	'interface',
+	'isset',
+	'list',
+	'match',
+	'namespace',
+	'new',
+	'null',
+	'or',
+	'print',
+	'private',
+	'protected',
+	'public',
+	'readonly',
+	'require',
+	'require_once',
+	'return',
+	'static',
+	'switch',
+	'throw',
+	'trait',
+	'try',
+	'unset',
+	'use',
+	'var',
+	'while',
+	'xor',
+	'yield',
+	'true',
+	'false',
 ]);
 
 function escapeHtml(s) {
-	return s
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function dedentLeading(s) {
@@ -352,20 +429,17 @@ function highlightPhp(code) {
 		const rest = code.slice(i);
 		// Heredoc / nowdoc: <<<LABEL ... \nLABEL;  (nowdoc wraps label in '')
 		if (rest.startsWith('<<<')) {
-			const m = rest.match(/^<<<[ \t]*('?)([A-Za-z_][A-Za-z0-9_]*)\1\r?\n/);
+			const m = rest.match(
+				/^<<<[ \t]*('?)([A-Za-z_][A-Za-z0-9_]*)\1\r?\n/
+			);
 			if (m) {
 				const label = m[2];
 				const bodyStart = i + m[0].length;
 				// Closing label may be indented (PHP 7.3+); match at line start.
-				const closer = new RegExp(
-					`(^|\\n)[ \\t]*${label}\\b`,
-					'g'
-				);
+				const closer = new RegExp(`(^|\\n)[ \\t]*${label}\\b`, 'g');
 				closer.lastIndex = bodyStart;
 				const found = closer.exec(code);
-				const stop = found
-					? found.index + found[0].length
-					: len;
+				const stop = found ? found.index + found[0].length : len;
 				tokens.push(['string', code.slice(i, stop)]);
 				i = stop;
 				continue;
@@ -380,10 +454,7 @@ function highlightPhp(code) {
 			continue;
 		}
 		// Line comment ( // or # ).  #[ starts a PHP 8 attribute, not a comment.
-		if (
-			rest.startsWith('//') ||
-			(c === '#' && code[i + 1] !== '[')
-		) {
+		if (rest.startsWith('//') || (c === '#' && code[i + 1] !== '[')) {
 			const end = code.indexOf('\n', i);
 			const stop = end === -1 ? len : end;
 			tokens.push(['comment', code.slice(i, stop)]);
@@ -498,10 +569,33 @@ const TEMPLATE_CSS = `
 	font-weight: 500;
 	cursor: pointer;
 	flex-shrink: 0;
+	min-width: 86px;
+	justify-content: center;
 }
 .run:hover { background: #1d4ed8; }
 .run:disabled { background: #93c5fd; cursor: progress; }
-.run::before { content: "▶"; font-size: 10px; }
+.run:disabled:hover { background: #93c5fd; }
+.run-icon { font-size: 10px; }
+.run-spinner {
+	display: none;
+	width: 12px;
+	height: 12px;
+	border: 2px solid rgba(255, 255, 255, 0.45);
+	border-top-color: #ffffff;
+	border-radius: 50%;
+	animation: php-snippet-spin 700ms linear infinite;
+}
+.run-percent {
+	display: none;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.run[aria-busy="true"] .run-icon { display: none; }
+.run[aria-busy="true"] .run-spinner,
+.run[aria-busy="true"] .run-percent { display: inline-block; }
+@keyframes php-snippet-spin {
+	to { transform: rotate(360deg); }
+}
 .progress {
 	display: none;
 	align-items: center;
@@ -628,6 +722,25 @@ pre {
 	overflow-y: auto;
 }
 .output-body.error { color: #ff8182; }
+/*
+ * Brief blue wash that fades to transparent every time the output is
+ * refreshed. Re-running an idempotent snippet produces the same text, so
+ * without a visible cue the click feels like a no-op — users were clicking
+ * Run twice. The animation is purely cosmetic, ~700ms, with reduced-motion
+ * users getting an instant on/off swap instead.
+ */
+.output-body.flash {
+	animation: php-snippet-flash 700ms ease-out;
+}
+@keyframes php-snippet-flash {
+	0%   { background-color: rgba(56, 139, 253, 0.35); }
+	100% { background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.output-body.flash {
+		animation: php-snippet-flash 200ms steps(2, end);
+	}
+}
 `;
 
 class PhpSnippet extends HTMLElement {
@@ -643,7 +756,18 @@ class PhpSnippet extends HTMLElement {
 		this._readCode().then((code) => {
 			this._code = code.trim();
 			this._render();
+			if (this._expectedOutput !== null) {
+				this._showExpectedOutput();
+			}
 		});
+	}
+
+	_showExpectedOutput() {
+		const outputWrap = this.shadowRoot.querySelector('.output');
+		const outputBody = this.shadowRoot.querySelector('.output-body');
+		outputBody.classList.remove('error');
+		outputBody.textContent = this._expectedOutput || '(no output)';
+		outputWrap.classList.add('visible');
 	}
 
 	_readExpectedOutput() {
@@ -679,7 +803,8 @@ class PhpSnippet extends HTMLElement {
 
 	_render() {
 		const name = this.getAttribute('name') || 'snippet.php';
-		const editable = this.hasAttribute('editable');
+		const runnable = this.getAttribute('runnable') !== 'false';
+		const editable = runnable && this.hasAttribute('editable');
 		const style = document.createElement('style');
 		style.textContent = TEMPLATE_CSS;
 		const codeArea = editable
@@ -693,7 +818,16 @@ class PhpSnippet extends HTMLElement {
 			<div class="card">
 				<div class="header">
 					<span class="name">${escapeHtml(name)}</span>
-					<button class="run" type="button">Run</button>
+					${
+						runnable
+							? `<button class="run" type="button">
+								<span class="run-icon" aria-hidden="true">▶</span>
+								<span class="run-spinner" aria-hidden="true"></span>
+								<span class="run-label">Run</span>
+								<span class="run-percent" aria-hidden="true">0%</span>
+							</button>`
+							: ''
+					}
 				</div>
 				<div class="progress" role="status" aria-live="polite" aria-atomic="true">
 					<span class="caption">Loading…</span>
@@ -708,9 +842,10 @@ class PhpSnippet extends HTMLElement {
 			</div>
 		`;
 		this.shadowRoot.replaceChildren(style, tpl.content);
-		this.shadowRoot
-			.querySelector('.run')
-			.addEventListener('click', () => this._run());
+		const runBtn = this.shadowRoot.querySelector('.run');
+		if (runBtn) {
+			runBtn.addEventListener('click', () => this._run());
+		}
 		if (editable) this._wireEditor();
 	}
 
@@ -740,24 +875,34 @@ class PhpSnippet extends HTMLElement {
 
 	async _run() {
 		const btn = this.shadowRoot.querySelector('.run');
+		if (btn.disabled) {
+			return;
+		}
+
+		btn.disabled = true;
+		btn.setAttribute('aria-busy', 'true');
+		this._setRunButtonProgress('Loading', 0);
+		try {
+			await this._runOnce(this._code);
+		} finally {
+			btn.disabled = false;
+			btn.removeAttribute('aria-busy');
+			this._setRunButtonProgress('Run', 0);
+		}
+	}
+
+	async _runOnce(code) {
 		const progress = this.shadowRoot.querySelector('.progress');
 		const caption = this.shadowRoot.querySelector('.caption');
 		const fill = this.shadowRoot.querySelector('.fill');
 		const percent = this.shadowRoot.querySelector('.percent');
 		const outputWrap = this.shadowRoot.querySelector('.output');
 		const outputBody = this.shadowRoot.querySelector('.output-body');
-		btn.disabled = true;
 		outputBody.classList.remove('error');
-		if (this._expectedOutput !== null) {
-			outputBody.textContent = this._expectedOutput || '(no output)';
-			outputWrap.classList.add('visible');
-			btn.disabled = false;
-			return;
-		}
-		progress.classList.add('visible');
 		caption.textContent = 'Loading runtime…';
 		fill.style.width = '0%';
 		percent.textContent = '0%';
+		progress.classList.add('visible');
 		try {
 			const { blueprint, key: blueprintKey } =
 				resolveSetupBlueprint(this);
@@ -772,32 +917,67 @@ class PhpSnippet extends HTMLElement {
 					blueprintKey,
 				},
 				({ progress: pct, caption: cap }) => {
+					progress.classList.add('visible');
 					const rounded = Math.round(pct);
 					fill.style.width = rounded + '%';
 					percent.textContent = rounded + '%';
-					if (cap) caption.textContent = cap;
+					this._setRunButtonProgress(cap || 'Loading', rounded);
+					if (cap) {
+						caption.textContent = cap;
+					}
 				}
 			);
 			caption.textContent = 'Running…';
 			fill.style.width = '100%';
 			percent.textContent = '100%';
-			const response = await client.run({ code: this._code });
+			this._setRunButtonProgress('Running', 100);
+			const response = await client.run({ code });
 			outputBody.textContent = response.text || '(no output)';
 			if (response.errors) {
 				outputBody.textContent +=
 					(outputBody.textContent ? '\n\n' : '') + response.errors;
 			}
 			outputWrap.classList.add('visible');
+			this._flashOutput(outputBody);
 		} catch (err) {
 			outputBody.classList.add('error');
 			outputBody.textContent = String(
 				err && err.message ? err.message : err
 			);
 			outputWrap.classList.add('visible');
+			this._flashOutput(outputBody);
 		} finally {
 			progress.classList.remove('visible');
-			btn.disabled = false;
 		}
+	}
+
+	_setRunButtonProgress(label, pct) {
+		const runLabel = this.shadowRoot.querySelector('.run-label');
+		const runPercent = this.shadowRoot.querySelector('.run-percent');
+		if (runLabel) {
+			runLabel.textContent = label;
+		}
+		if (runPercent) {
+			runPercent.textContent = Math.round(pct) + '%';
+		}
+	}
+
+	/*
+	 * Restart the flash animation on every Run, even if the previous one
+	 * is mid-fade. Removing the class, forcing a synchronous reflow, then
+	 * re-adding it is the standard trick to retrigger a CSS animation.
+	 * The class is cleared on animationend so the DOM doesn't carry stale
+	 * state between runs.
+	 */
+	_flashOutput(outputBody) {
+		outputBody.classList.remove('flash');
+		outputBody.getBoundingClientRect();
+		outputBody.classList.add('flash');
+		const clear = () => {
+			outputBody.classList.remove('flash');
+			outputBody.removeEventListener('animationend', clear);
+		};
+		outputBody.addEventListener('animationend', clear);
 	}
 }
 

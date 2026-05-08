@@ -110,7 +110,7 @@ export async function resolveUrlParamsForExistingSite(
 		let blueprint = isBlueprintBundle(resolved.blueprint)
 			? await getBlueprintDeclaration(resolved.blueprint)
 			: (resolved.blueprint as BlueprintV1Declaration);
-		// Apply query overrides (e.g., ?url= for landing page, ?login=, etc.)
+		// Apply query overrides (e.g., ?login=, ?php=, etc.)
 		blueprint = (await applyQueryOverrides(
 			blueprint,
 			url.searchParams

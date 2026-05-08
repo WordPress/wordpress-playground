@@ -1,13 +1,19 @@
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 import { SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
-import { useEffect, useMemo } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useEffect, useMemo, useState } from 'react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	getForcedPhpVersionForWordPress,
+	isOlderWordPressVersion,
+	OlderWordPressVersions,
+} from './older-wordpress-versions';
+import { formatWordPressVersionLabel } from './wordpress-release-names';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -24,7 +30,7 @@ export interface SiteSettingsFormProps {
 }
 
 export interface SiteFormData {
-	phpVersion: SupportedPHPVersion;
+	phpVersion: AllPHPVersion;
 	wpVersion: string;
 	language: string;
 	withNetworking: boolean;
@@ -45,7 +51,7 @@ export function UnconnectedSiteSettingsForm({
 }: SiteSettingsFormProps) {
 	const mergedDefaults = useMemo<SiteFormData>(
 		() => ({
-			phpVersion: RecommendedPHPVersion as SupportedPHPVersion,
+			phpVersion: RecommendedPHPVersion as AllPHPVersion,
 			wpVersion: 'latest',
 			language: '',
 			withNetworking: true,
@@ -68,6 +74,16 @@ export function UnconnectedSiteSettingsForm({
 	const { supportedWPVersions, latestWPVersion } =
 		useSupportedWordPressVersions();
 
+	// If the caller restored a stored site running an older WP
+	// version, expand the dropdown automatically so the current
+	// value is visible in the list.
+	const [includeOlderVersions, setIncludeOlderVersions] = useState(() =>
+		isOlderWordPressVersion(mergedDefaults.wpVersion)
+	);
+
+	const currentWpVersion = useWatch({ control, name: 'wpVersion' });
+	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
+
 	useEffect(() => {
 		if (
 			latestWPVersion &&
@@ -76,6 +92,83 @@ export function UnconnectedSiteSettingsForm({
 			setValue('wpVersion', latestWPVersion);
 		}
 	}, [latestWPVersion, setValue, getValues]);
+
+	// Lock phpVersion to whatever is compatible with the selected
+	// WordPress release. The callback fires on every wpVersion
+	// change, so picking a different modern version (say 6.5 → 4.9)
+	// correctly downgrades PHP, and picking 4.9 → 6.5 releases the
+	// lock back to the recommended default.
+	useEffect(() => {
+		const current = getValues('phpVersion');
+		if (forcedPhpVersion) {
+			if (current !== forcedPhpVersion) {
+				setValue('phpVersion', forcedPhpVersion);
+			}
+			return;
+		}
+		// Unlocking: if the current value isn't one of the modern
+		// supported versions (e.g. it was just 5.2 or 7.4 for a
+		// locked older WP), reset to the recommended default so the
+		// dropdown doesn't render a value that isn't in its options.
+		if (
+			!(SupportedPHPVersionsList as readonly string[]).includes(current)
+		) {
+			setValue('phpVersion', RecommendedPHPVersion as AllPHPVersion);
+		}
+	}, [forcedPhpVersion, setValue, getValues]);
+
+	const wpVersionOptions = useMemo(() => {
+		const modernOptions = Object.keys(supportedWPVersions || {}).map(
+			(version) => ({
+				label: formatWordPressVersionLabel(
+					`${supportedWPVersions[version]}`
+				),
+				value: version,
+			})
+		);
+		if (!includeOlderVersions) {
+			return [
+				// Without an empty option, React sometimes says the
+				// current selected version is "trunk" when `wp` is
+				// actually "6.4".
+				{ label: '-- Select a version --', value: '' },
+				...modernOptions,
+			];
+		}
+		return [
+			{ label: '-- Select a version --', value: '' },
+			{
+				label: '── Current versions ──',
+				value: '__modern_sep',
+				disabled: true,
+			},
+			...modernOptions,
+			{
+				label: '── Older versions ──',
+				value: '__older_sep',
+				disabled: true,
+			},
+			...OlderWordPressVersions.map((version) => ({
+				label: formatWordPressVersionLabel(version),
+				value: version,
+			})),
+		];
+	}, [supportedWPVersions, includeOlderVersions]);
+
+	const phpVersionOptions = useMemo(() => {
+		if (forcedPhpVersion) {
+			return [
+				{
+					label: `PHP ${forcedPhpVersion}`,
+					value: forcedPhpVersion,
+				},
+			];
+		}
+		return SupportedPHPVersionsList.map((version) => ({
+			label: `PHP ${version}`,
+			value: version,
+		}));
+	}, [forcedPhpVersion]);
 
 	return (
 		<form
@@ -105,25 +198,7 @@ export function UnconnectedSiteSettingsForm({
 								className={classNames(css.addSiteInput, {
 									[css.invalidInput]: !!errors.wpVersion,
 								})}
-								options={
-									/*
-									 * Without an empty option, React sometimes says
-									 * the current selected version is "trunk" when
-									 * `wp` is actually "6.4".
-									 */
-									[
-										{
-											label: '-- Select a version --',
-											value: '',
-										},
-										...Object.keys(
-											supportedWPVersions || {}
-										).map((version) => ({
-											label: `${supportedWPVersions[version]}`,
-											value: version,
-										})),
-									]
-								}
+								options={wpVersionOptions}
 								onChange={(value, extra) => {
 									onChange(extra?.event);
 								}}
@@ -131,14 +206,16 @@ export function UnconnectedSiteSettingsForm({
 							/>
 
 							{enabledFields.wpVersion && (
-								<a
-									href="https://wordpress.github.io/wordpress-playground/blueprints/examples#load-an-older-wordpress-version"
-									target="_blank"
-									rel="noreferrer"
-									style={{ fontSize: '0.9em' }}
-								>
-									Need an older version?
-								</a>
+								<CheckboxControl
+									label="Include older versions"
+									help={
+										includeOlderVersions
+											? 'Selecting an older version locks the PHP version to the one it runs on.'
+											: undefined
+									}
+									checked={includeOlderVersions}
+									onChange={setIncludeOlderVersions}
+								/>
 							)}
 						</div>
 					)}
@@ -159,16 +236,16 @@ export function UnconnectedSiteSettingsForm({
 							__nextHasNoMarginBottom={true}
 							label="PHP Version"
 							labelPosition="side"
-							help={errors.phpVersion?.message}
+							disabled={!!forcedPhpVersion}
+							help={
+								forcedPhpVersion
+									? `Locked to PHP ${forcedPhpVersion} for this WordPress version.`
+									: errors.phpVersion?.message
+							}
 							className={classNames(css.addSiteInput, {
 								[css.invalidInput]: !!errors.phpVersion,
 							})}
-							options={SupportedPHPVersionsList.map(
-								(version) => ({
-									label: `PHP ${version}`,
-									value: version,
-								})
-							)}
+							options={phpVersionOptions}
 							onChange={(value, extra) => {
 								onChange(extra?.event);
 							}}

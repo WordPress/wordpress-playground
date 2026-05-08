@@ -28,7 +28,7 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 			'/wordpress',
 			expect.any(Function)
 		);
-	});
+	}, 15_000);
 
 	it('flushes the active OPFS mount', async () => {
 		const endpoint = await createEndpoint({

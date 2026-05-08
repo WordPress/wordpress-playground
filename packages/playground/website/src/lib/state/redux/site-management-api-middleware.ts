@@ -18,10 +18,10 @@ import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 
 export interface SiteSettings {
-	phpVersion?: SupportedPHPVersion;
+	phpVersion?: AllPHPVersion;
 	wpVersion?: string;
 	networking?: boolean;
 	language?: string;
@@ -92,7 +92,7 @@ export interface PlaygroundSitesAPI {
 	 * @param version The PHP version to use (e.g. `"8.4"`).
 	 * @throws When no site is selected or the site is temporary.
 	 */
-	setPhpVersion(version: SupportedPHPVersion): Promise<void>;
+	setPhpVersion(version: AllPHPVersion): Promise<void>;
 
 	/**
 	 * Enables or disables network access for the active site
@@ -238,7 +238,7 @@ export function createSitesAPI(
 			return { slug: site.slug, storage };
 		},
 
-		async setPhpVersion(version: SupportedPHPVersion) {
+		async setPhpVersion(version: AllPHPVersion) {
 			const site = selectActiveSite(getState());
 			if (!site) {
 				throw new Error('No active site selected');

@@ -16,9 +16,21 @@ description: Um guia com dicas e ferramentas para ajudar você a solucionar prob
 
 ## Problemas e Soluções Comuns
 
+<!-- Invalid Blueprint After Opening a Link -->
+
+### Blueprint inválido após abrir um link
+
+<!-- If Playground reports `Invalid blueprint`, read the detailed error message. It includes the underlying JSON parsing error when one is available. -->
+
+Se o Playground informar `Invalid blueprint`, leia a mensagem de erro detalhada. Ela inclui o erro de análise JSON subjacente quando ele estiver disponível.
+
+<!-- If the message says the input still contains `%XX` escapes after decoding, the URL fragment was likely double-encoded. Rebuild the link from the original Blueprint object and encode it once with `encodeURIComponent(JSON.stringify(blueprint))`, or use Base64. Do not encode a fragment that is already encoded. -->
+
+Se a mensagem disser que a entrada ainda contém escapes `%XX` após a decodificação, o fragmento de URL provavelmente foi codificado duas vezes. Recrie o link a partir do objeto Blueprint original e codifique-o uma vez com `encodeURIComponent(JSON.stringify(blueprint))`, ou use Base64. Não codifique um fragmento que já está codificado.
+
 <!-- WP-CLI: Error Establishing a Database Connection on Mounted Sites -->
 
-### WP-CLI: Erro ao Estabelecer Conexão com Banco de Dados em Sites Montados
+### WP-CLI: Erro ao Estabelecer Conexão com Banco de Dados em Sites Montados {#wp-cli-error-establishing-a-database-connection-on-mounted-sites}
 
 <!-- When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files by default, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls. -->
 
@@ -114,15 +126,15 @@ Você pode usar `error_log` para suas próprias mensagens de erro através da [e
 
 <!-- Log errors snapshot -->
 
-![Captura de tela de erros de log](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
+![Captura de tela de erros de log](@site/static/img/blueprints/log-errors.webp)
 
 <!-- :::info When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance. ::: -->
 
-<div class="callout callout-info">
+:::info
 
 Quando você baixa sua instância do Playground como um `zip` através da opção ["Baixar como zip"](/web-instance#playground-options-menu), você também baixa o arquivo `debug.log` contendo todos os logs de sua instância do Playground.
 
-</div>
+:::
 
 <!-- Ask for help -->
 

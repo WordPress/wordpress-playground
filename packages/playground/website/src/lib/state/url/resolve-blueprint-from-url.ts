@@ -229,6 +229,13 @@ function applyQueryOverridesToDeclaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
 ): BlueprintV1Declaration {
+	// PHP-only blueprints opt out of WordPress entirely. Skip the WP-bound
+	// query overrides — adding `login`, `enableMultisite`, etc. would
+	// trip the compile-time guard that rejects WP-only features when
+	// `preferredVersions.wp: false` is set.
+	if (blueprint.preferredVersions?.wp === false) {
+		return blueprint;
+	}
 	/**
 	 * Allow overriding PHP and WordPress versions defined in a Blueprint
 	 * via query params.

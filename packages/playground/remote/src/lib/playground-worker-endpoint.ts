@@ -5,6 +5,7 @@ import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
+	PHPWebExtension,
 	SyncProgressCallback,
 	TCPOverFetchOptions,
 } from '@php-wasm/web';
@@ -29,7 +30,12 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { AllPHPVersion, PathAlias, PHP } from '@php-wasm/universal';
+import type {
+	AllPHPVersion,
+	PathAlias,
+	PHP,
+	PHPRequestHandler,
+} from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
 	PHPResponse,
@@ -54,6 +60,8 @@ import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import playgroundWebMuPluginPhp52 from './playground-mu-plugin/0-playground-php52.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
+let activeRequestHandler: PHPRequestHandler | undefined;
+
 export interface MountDescriptor {
 	mountpoint: string;
 	device: MountDevice;
@@ -66,10 +74,11 @@ export type WorkerBootOptions = {
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
 	scope: string;
-	withIntl: boolean;
+	extensions?: PHPWebExtension[];
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
+	shouldBootWordPress?: boolean;
 	corsProxyUrl?: string;
 	/** When true, skip default WP install and run Blueprints v2 in the worker */
 	experimentalBlueprintsV2Runner?: boolean;
@@ -114,6 +123,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
+	private requestHandler: PHPRequestHandler | undefined;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
@@ -138,7 +148,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
-		withIntl,
+		extensions,
 		withNetworking,
 		phpVersion,
 		pathAliases,
@@ -147,13 +157,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
-		withIntl: boolean;
+		extensions?: PHPWebExtension[];
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			'curl.cainfo': '/internal/shared/ca-bundle.crt',
 		};
 
 		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
@@ -205,7 +216,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
-					withIntl,
+					extensions,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
@@ -312,7 +323,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 
 		const primaryPhp = await requestHandler.getPrimaryPhp();
+		primaryPhp.requestHandler ??= requestHandler;
 		await this.setPrimaryPHP(primaryPhp);
+		this.__internal_setRequestHandler(requestHandler);
+		this.requestHandler = requestHandler;
+		activeRequestHandler = requestHandler;
 		return requestHandler;
 	}
 
@@ -322,6 +337,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		knownRemoteAssetPaths: Set<string>
 	) {
 		const primaryPhp = await requestHandler.getPrimaryPhp();
+		primaryPhp.requestHandler ??= requestHandler;
+		this.requestHandler = requestHandler;
+		activeRequestHandler = requestHandler;
 
 		if (withNetworking) {
 			/**
@@ -382,6 +400,23 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		this.__internal_setRequestHandler(requestHandler);
+	}
+
+	protected override getRequestHandler(required?: true): PHPRequestHandler;
+	protected override getRequestHandler(
+		required: false
+	): PHPRequestHandler | undefined;
+	protected override getRequestHandler(required = true) {
+		const requestHandler =
+			super.getRequestHandler(false) ??
+			this.requestHandler ??
+			activeRequestHandler;
+		if (requestHandler || !required) {
+			return requestHandler;
+		}
+		throw new Error(
+			'Playground worker is not connected to a request handler.'
+		);
 	}
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints

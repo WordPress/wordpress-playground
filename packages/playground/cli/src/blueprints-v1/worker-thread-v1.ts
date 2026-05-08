@@ -1,5 +1,5 @@
 import type { FileLockManager } from '@php-wasm/universal';
-import { loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
 import {
@@ -48,10 +48,7 @@ interface WorkerBootRequestHandlerOptions {
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
 	followSymlinks: boolean;
-	withIntl?: boolean;
-	withRedis?: boolean;
-	withMemcached?: boolean;
-	withXdebug?: boolean;
+	extensions?: PHPExtension[];
 	pathAliases?: PathAlias[];
 }
 
@@ -134,6 +131,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				phpIniEntries: {
 					'openssl.cafile': '/internal/shared/ca-bundle.crt',
+					'curl.cainfo': '/internal/shared/ca-bundle.crt',
 					allow_url_fopen: '1',
 					disable_functions: '',
 				},
@@ -247,10 +245,7 @@ function createPhpRuntimeFactory(
 					nativeInternalDirPath: options.nativeInternalDirPath,
 				},
 				followSymlinks: options.followSymlinks,
-				withIntl: options.withIntl,
-				withRedis: options.withRedis,
-				withMemcached: options.withMemcached,
-				withXdebug: options.withXdebug,
+				extensions: options.extensions,
 			}
 		);
 	};

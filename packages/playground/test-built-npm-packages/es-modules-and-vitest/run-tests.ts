@@ -35,55 +35,59 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 	);
 }
 
+const testFiles = ['./tests/deps.spec.ts', './tests/wp.spec.ts'];
+
 for (const phpVersion of SupportedPHPVersions) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);
 
-	const child = spawn(
-		process.execPath,
-		[
-			'--experimental-strip-types',
-			'--experimental-transform-types',
-			'--test',
-			'--test-concurrency=1',
-			'./tests/wp.spec.ts',
-		],
-		{
-			env: {
-				...process.env,
-				PHP_VERSION: phpVersion,
-			},
-			stdio: 'inherit',
-		}
-	);
+	for (const file of testFiles) {
+		const child = spawn(
+			process.execPath,
+			[
+				'--experimental-strip-types',
+				'--experimental-transform-types',
+				'--test',
+				'--test-concurrency=1',
+				file,
+			],
+			{
+				env: {
+					...process.env,
+					PHP_VERSION: phpVersion,
+				},
+				stdio: 'inherit',
+			}
+		);
 
-	let timeoutHandle: NodeJS.Timeout | undefined;
-	const promiseToClose = new Promise<number | null>((resolve) => {
-		child.on('close', (code) => resolve(code));
-	});
-	const promiseToTimeout = new Promise<never>((_, reject) => {
-		timeoutHandle = setTimeout(() => {
-			reject(new Error(`Test timed out after ${timeoutMs}ms`));
-		}, timeoutMs);
-	});
+		let timeoutHandle: NodeJS.Timeout | undefined;
+		const promiseToClose = new Promise<number | null>((resolve) => {
+			child.on('close', (code) => resolve(code));
+		});
+		const promiseToTimeout = new Promise<never>((_, reject) => {
+			timeoutHandle = setTimeout(() => {
+				reject(new Error(`Test timed out after ${timeoutMs}ms`));
+			}, timeoutMs);
+		});
 
-	try {
-		const code = await Promise.race([promiseToClose, promiseToTimeout]);
-		results.push({
-			phpVersion,
-			code,
-		});
-	} catch (e) {
-		console.error(`PHP ${phpVersion}: timed out after ${timeoutMs}ms.`);
-		results.push({
-			phpVersion,
-			code: null,
-			timeout: true,
-		});
-		child.kill('SIGKILL');
-		await promiseToClose;
-	} finally {
-		if (timeoutHandle) {
-			clearTimeout(timeoutHandle);
+		try {
+			const code = await Promise.race([promiseToClose, promiseToTimeout]);
+			results.push({
+				phpVersion,
+				code,
+			});
+		} catch (e) {
+			console.error(`PHP ${phpVersion}: timed out after ${timeoutMs}ms.`);
+			results.push({
+				phpVersion,
+				code: null,
+				timeout: true,
+			});
+			child.kill('SIGKILL');
+			await promiseToClose;
+		} finally {
+			if (timeoutHandle) {
+				clearTimeout(timeoutHandle);
+			}
 		}
 	}
 }

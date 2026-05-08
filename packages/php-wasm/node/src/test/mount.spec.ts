@@ -92,9 +92,8 @@ describe('Mounting', () => {
 					createNodeFsMountHandler(filePath)
 				);
 
-				const originalContent = await php.readFileAsText(
-					fileMountPoint
-				);
+				const originalContent =
+					await php.readFileAsText(fileMountPoint);
 				await php.writeFile(fileMountPoint, 'new content');
 
 				expect(await php.readFileAsText(fileMountPoint)).toBe(
@@ -521,6 +520,17 @@ describe('Mounting', () => {
 
 				unmount();
 				expect(php.isDir(directoryMountPoint)).toBe(true);
+			});
+
+			it('Should create a directory node when mounting a directory', async () => {
+				await php.mount(
+					directoryMountPoint,
+					createNodeFsMountHandler(directoryPath)
+				);
+
+				const FS = php[__private__dont__use].FS;
+				const lookup = FS.lookupPath(directoryMountPoint);
+				expect(FS.isDir(lookup.node.mode)).toBe(true);
 			});
 
 			it('Should remount mounted directory after unmounting', async () => {
