@@ -6,6 +6,7 @@ import {
 	parseOptionsAndRunCLI,
 	internalsKeyForTesting,
 	resolveWorkerCount,
+	describeError,
 } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
@@ -1197,6 +1198,29 @@ describe('start command', () => {
 			rmSync(tmpDir, { recursive: true, force: true });
 		}
 	}, 180000);
+});
+
+describe('describeError', () => {
+	test('falls back to Error cause when message is empty', () => {
+		const error = new Error('', {
+			cause: new Error(
+				'Error when executing the blueprint step #1: PHP.run() failed with exit code 255.'
+			),
+		});
+
+		const description = describeError(error);
+		expect(description).toContain(
+			'Error when executing the blueprint step #1'
+		);
+		expect(description.startsWith('Error —')).toBe(false);
+	});
+
+	test('terminates circular cause chains', () => {
+		const error = new Error('');
+		error.cause = error;
+
+		expect(describeError(error)).toContain('[Circular error cause]');
+	});
 });
 
 describe('php command', () => {
