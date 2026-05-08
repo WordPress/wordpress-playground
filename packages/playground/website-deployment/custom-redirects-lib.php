@@ -194,7 +194,9 @@ function playground_maybe_rewrite( $original_requested_path ) {
 }
 
 function playground_is_my_wordpress_net_request() {
-	$host = strtolower( $_SERVER['HTTP_HOST'] ?? '' );
+	if (empty($_SERVER['HTTP_HOST'])) {
+		return false;
+	}
 	$host = preg_replace( '/:\d+$/', '', $host );
 
 	return 'my.wordpress.net' === $host;
