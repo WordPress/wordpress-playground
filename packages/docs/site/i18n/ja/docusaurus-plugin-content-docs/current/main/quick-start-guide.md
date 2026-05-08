@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: Playground を使い始めるための5分ガイド。プラグインのテスト、テーマの試用、そして様々なバージョンのWP/PHPの使い方を学びましょう。
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 # 5 分で WordPress Playground を使い始める
 
 <!--
@@ -60,11 +58,13 @@ It's that easy to start!
 The entire site lives in your browser and is scraped when you close the tab. Want to start over? Just refresh the page!
  -->
 
-:::info WordPress Playground はプライベートです
+<div class="callout callout-info">
+
+**WordPress Playground はプライベートです**
 
 作成したものはすべてブラウザ内に保存され、他の場所には**送信されません**。完成したら、サイトを zip ファイルとしてエクスポートできます。または、ページを更新して最初からやり直すこともできます。
 
-:::
+</div>
 
 <!--
 :::info WordPress Playground is private
@@ -138,7 +138,7 @@ You can also mix and match these parameters and even add multiple plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ## サイトを保存する
 
@@ -222,11 +222,13 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 
 ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
-:::info プラグインまたはテーマをテストする
+<div class="callout callout-info">
+
+**プラグインまたはテーマをテストする**
 
 数多くの WordPress および PHP バージョンとの互換性テストは、いつも面倒でした。 WordPress Playground を使えば、このプロセスが楽になります。ぜひご活用ください !
 
-:::
+</div>
 
 <!--
 :::info Test your plugin or theme
@@ -245,7 +247,7 @@ You can also use the `wp` and `php` [query parameters](/developers/apis/query-ap
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
-  <ThisIsQueryApi />
+  This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
@@ -253,9 +255,13 @@ To learn more about preparing content for demos, see the [providing content for 
 
 デモのコンテンツ準備の詳細については、[デモのコンテンツ提供ガイド](/guides/providing-content-for-your-demo)を参照してください。
 
-:::info メジャーバージョンのみ
+<div class="callout callout-info">
+
+**メジャーバージョンのみ**
+
 `wp=6.2` や `php=8.1` のようなメジャーバージョンを指定すると、そのバージョンラインの最新リリースが期待されます。ただし、古いマイナーバージョンを指定することはできないため、`wp=6.1.2` や `php=7.4.9` は動作しません。
-:::
+
+</div>
 
 <!--
 :::info Major versions only

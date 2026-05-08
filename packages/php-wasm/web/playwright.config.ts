@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
 	outputDir: './src/test/test-results',
 	testDir: './src/test',
+	testMatch: 'php-dynamic-loading.spec.ts',
 	fullyParallel: false,
 	forbidOnly: !!process.env['CI'],
 	workers: 1,

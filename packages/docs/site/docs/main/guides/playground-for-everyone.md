@@ -92,9 +92,13 @@ Thinking about switching themes? Test your new theme in Playground to see how it
 
 Open multiple browser tabs with different Playground setups. Compare plugin A versus plugin B, or see how your content looks in different themes. Make informed decisions before touching your production site.
 
-:::info Your Real Site Stays Safe
+<div class="callout callout-info">
+
+**Your Real Site Stays Safe**
+
 Every Playground runs independently in your browser. Nothing syncs to any external server, and nothing affects your live WordPress installation.
-:::
+
+</div>
 
 ## If You Use WordPress Daily
 

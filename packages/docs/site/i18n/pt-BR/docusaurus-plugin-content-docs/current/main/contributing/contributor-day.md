@@ -53,10 +53,10 @@ Esta seção descreve como você pode contribuir diretamente com o projeto WordP
 -   **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, the application, and any server-side tools.
 -->
 
--   **Documentação:** Melhore nossa documentação aprimorando o conteúdo existente, desenvolvendo novos guias ou traduzindo materiais para diferentes idiomas.
--   **Blueprints:** Crie demonstrações de plugins para os plugins no repositório de Plugins do WordPress, ou desenvolva novos Blueprints para enriquecer nossa documentação do projeto.
--   **Testes do ambiente Playground:** Participe dos testes do próprio projeto WordPress Playground. Você pode fazer isso criando cuidadosamente novos issues que descrevam os problemas que você encontrou e sugerindo soluções práticas. Teste nossa instância web do WordPress (o site playground.wordpress.net), ou explore os vários aplicativos alimentados pelo Playground. Teste essas ferramentas, observe sua funcionalidade e forneça feedback detalhado.
--   **Feedback do produto:** Suas ideias são inestimáveis para melhorar a experiência do Playground. Isso inclui feedback geral sobre a instância web, o aplicativo e quaisquer ferramentas do lado do servidor.
+- **Documentação:** Melhore nossa documentação aprimorando o conteúdo existente, desenvolvendo novos guias ou traduzindo materiais para diferentes idiomas.
+- **Blueprints:** Crie demonstrações de plugins para os plugins no repositório de Plugins do WordPress, ou desenvolva novos Blueprints para enriquecer nossa documentação do projeto.
+- **Testes do ambiente Playground:** Participe dos testes do próprio projeto WordPress Playground. Você pode fazer isso criando cuidadosamente novos issues que descrevam os problemas que você encontrou e sugerindo soluções práticas. Teste nossa instância web do WordPress (o site playground.wordpress.net), ou explore os vários aplicativos alimentados pelo Playground. Teste essas ferramentas, observe sua funcionalidade e forneça feedback detalhado.
+- **Feedback do produto:** Suas ideias são inestimáveis para melhorar a experiência do Playground. Isso inclui feedback geral sobre a instância web, o aplicativo e quaisquer ferramentas do lado do servidor.
 
 <!--
 All feedback, including reported issues and test results, can be submitted through our GitHub repository.
@@ -220,11 +220,11 @@ If you're unsure about the steps listed above, visit the official [Gutenberg Pro
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 Se você não tiver certeza sobre os passos listados acima, visite o [Guia do Contribuidor do Projeto Gutenberg](https://developer.wordpress.org/block-editor/contributors/) oficial. Note que neste caso, `@wp-playground/cli` substitui `wp-env`.
 
-:::
+</div>
 
 <!--
 Open a new terminal terminal tab, navigate to the Gutenberg directory, and start WordPress using `@wp-playground/cli`:
@@ -324,6 +324,6 @@ Tem uma pergunta ou uma ideia para um novo recurso? Encontrou um bug? Algo não 
 -   Share your feedback on the [**#playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
 -->
 
--   Durante o Dia do Contribuidor, você pode nos encontrar na **mesa do Playground**.
--   Abra um issue no [repositório GitHub do WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/new). Se seu foco é a extensão VS Code, pacote NPM ou os plugins, abra um issue no [repositório Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
--   Compartilhe seu feedback no [canal Slack **#playground**](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+- Durante o Dia do Contribuidor, você pode nos encontrar na **mesa do Playground**.
+- Abra um issue no [repositório GitHub do WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/new). Se seu foco é a extensão VS Code, pacote NPM ou os plugins, abra um issue no [repositório Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
+- Compartilhe seu feedback no [canal Slack **#playground**](https://wordpress.slack.com/archives/C04EWKGDJ0K).

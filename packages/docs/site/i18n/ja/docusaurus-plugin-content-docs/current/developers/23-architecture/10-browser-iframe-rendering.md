@@ -59,13 +59,17 @@ Now, consider an iframe with the same link in it:
 This time, click the link in the browser to load `page.php` **inside the iframe**. The top-level `index.html`, where the PHP application runs, remains unaffected. That's why iframes are crucial for the `@php-wasm/web` setup.
 -->
 
-:::info Crash reports
+<div class="callout callout-info">
+
+**Crash reports**
+
 Playgroundでは、クラッシュレポートが自動的に収集されることはありません。その代わり、ブラウザでインスタンスの実行に失敗した場合に、ユーザーにクラッシュレポートの提出を促します。
 
 レポートにはログ、説明、URL が含まれており、ユーザーは送信前にレポートを変更できます。
 
 [Logger API](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php) がそこから処理を行います。このシンプルな REST API はデータを検証し、**Making WordPress** [#playground-logs Slack チャンネル](https://wordpress.slack.com/archives/C06Q5DCKZ3L) に送信します。
-:::
+
+</div>
 
 <!--
 :::info Crash reports

@@ -8,7 +8,9 @@ description: Une galerie d’exemples pratiques de Blueprint pour diverses tâch
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 # Exemples de Blueprints
+
 <!-- # Blueprints Examples -->
+
 :::tip
 Consultez la [Galerie de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) pour découvrir des exemples de code réels utilisant WordPress Playground pour lancer un site WordPress avec une variété de configurations.
 
@@ -412,8 +414,10 @@ Pour plus d’informations sur les lots de Blueprint, consultez la documentation
 
 <!-- For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation. -->
 
-:::info
+<div class="callout callout-info">
+
 Traduction automatisée, relecture et corrections par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
 
 Dernière mise à jour le 21 janvier 2026
-:::
+
+</div>

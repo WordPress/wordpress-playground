@@ -1,0 +1,89 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$ref": "#/definitions/PHPExtensionManifest",
+	"definitions": {
+		"PHPExtensionManifest": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"version": {
+					"type": "string"
+				},
+				"mode": {
+					"type": "string",
+					"const": "php-extension"
+				},
+				"artifacts": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/PHPExtensionManifestArtifact"
+					}
+				},
+				"extraFiles": {
+					"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
+					"description": "URL-backed files shared by every artifact in this manifest."
+				}
+			},
+			"required": ["name", "artifacts"],
+			"additionalProperties": false,
+			"description": "Extension artifact manifest. Lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact matching the current PHP version. External extension artifacts are JSPI-only."
+		},
+		"PHPExtensionManifestArtifact": {
+			"type": "object",
+			"properties": {
+				"phpVersion": {
+					"type": "string",
+					"description": "PHP major/minor version, e.g. `8.4`."
+				},
+				"sourcePath": {
+					"type": "string",
+					"description": "Relative to the manifest URL/base URL, or an absolute URL."
+				},
+				"extraFiles": {
+					"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
+					"description": "URL-backed files needed only by this artifact."
+				}
+			},
+			"required": ["phpVersion", "sourcePath"],
+			"additionalProperties": false
+		},
+		"PHPExtensionManifestExtraFiles": {
+			"type": "object",
+			"properties": {
+				"vfsRoot": {
+					"type": "string",
+					"description": "Absolute VFS path where files and directories are written. When a manifest declares both top-level and per-artifact `extraFiles`, the first declared `targetPath` wins. Defaults to `<extensionDir>/<name>-assets`."
+				},
+				"nodes": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/PHPExtensionManifestExtraFile"
+					}
+				}
+			},
+			"additionalProperties": false
+		},
+		"PHPExtensionManifestExtraFile": {
+			"type": "object",
+			"properties": {
+				"vfsPath": {
+					"type": "string",
+					"description": "Joined with the group's `vfsRoot` to form the final VFS path."
+				},
+				"type": {
+					"type": "string",
+					"enum": ["file", "directory"],
+					"description": "Defaults to \"file\". Only file nodes need a `sourcePath`."
+				},
+				"sourcePath": {
+					"type": "string",
+					"description": "Relative to the manifest URL/base URL, or an absolute URL."
+				}
+			},
+			"required": ["vfsPath"],
+			"additionalProperties": false
+		}
+	}
+}

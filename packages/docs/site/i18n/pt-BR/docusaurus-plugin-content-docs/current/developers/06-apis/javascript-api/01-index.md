@@ -14,13 +14,15 @@ O WordPress Playground vem com um cliente de API JavaScript que oferece controle
 The term API here refers to a set of functions you can
 call inside JavaScript. This is **not** a network-based REST API. -->
 
-:::info API aqui não significa "REST API"
+<div class="callout callout-info">
+
+**API aqui não significa "REST API"**
 
 O WordPress Playground é uma aplicação baseada em navegador.
 O termo API aqui se refere a um conjunto de funções que você pode
 chamar dentro do JavaScript. Isso **não** é uma API REST baseada em rede.
 
-:::
+</div>
 
 <!-- ## Quick start -->
 
@@ -30,25 +32,38 @@ chamar dentro do JavaScript. Isso **não** é uma API REST baseada em rede.
 
 Para usar a API JavaScript, você vai precisar de:
 
--   Um elemento `<iframe>`
--   O pacote `@wp-playground/client` (do npm ou de um CDN)
+- Um elemento `<iframe>`
+- O pacote `@wp-playground/client` (do npm ou de um CDN)
 
 <!-- Here's the shortest example of how to use the JavaScript API in a HTML page: -->
 
 Aqui está o exemplo mais curto de como usar a API JavaScript em uma página HTML:
 
-import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx';
+```html
+<iframe id="wp" style="width: 100%; height: 300px; border: 1px solid #000;"></iframe>
+<script type="module">
+	// Use unpkg for convenience
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
-<JSApiShortExample />
+	const client = await startPlaygroundWeb({
+		iframe: document.getElementById('wp'),
+		remoteUrl: `https://playground.wordpress.net/remote.html`,
+	});
+	// Let's wait until Playground is fully loaded
+	await client.isReady();
+</script>
+```
 
-:::info /remote.html é uma URL especial
+<div class="callout callout-info">
+
+**/remote.html é uma URL especial**
 
 <!-- `/remote.html` is a special URL that loads the Playground
 API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](/developers/apis/javascript-api/-html-vs-remote-html). -->
 
 `/remote.html` é uma URL especial que carrega o endpoint da API do Playground em vez do aplicativo de demonstração com a interface do navegador. Leia mais sobre a diferença entre `/` e `/remote.html` [nesta página](/developers/apis/javascript-api/-html-vs-remote-html).
 
-:::
+</div>
 
 <!-- ## Controlling the website -->
 
@@ -58,9 +73,9 @@ API endpoint instead of the demo app with the browser UI. Read more about the di
 
 Agora que você tem um objeto `client`, pode usá-lo para controlar o site dentro do iframe. Existem três maneiras de fazer isso:
 
--   [Cliente da API do Playground](/developers/apis/javascript-api/playground-api-client)
--   [Blueprint JSON](/developers/apis/javascript-api/blueprint-json-in-api-client)
--   [Funções Blueprint](/developers/apis/javascript-api/blueprint-functions-in-api-client)
+- [Cliente da API do Playground](/developers/apis/javascript-api/playground-api-client)
+- [Blueprint JSON](/developers/apis/javascript-api/blueprint-json-in-api-client)
+- [Funções Blueprint](/developers/apis/javascript-api/blueprint-functions-in-api-client)
 
 <!-- ## Debugging and testing -->
 

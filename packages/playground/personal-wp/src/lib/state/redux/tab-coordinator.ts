@@ -1,51 +1,28 @@
 /**
- * Tab Coordinator
+ * Coordinates the single Personal WP runtime across browser tabs.
  *
- * Manages coordination between multiple browser tabs accessing the same
- * WordPress Playground site. Handles:
+ * Ownership is browser-managed via Web Locks:
+ * - personal-wp:main is held while a tab owns the runtime.
+ * - personal-wp:ready is held only after the runtime can serve requests.
  *
- * 1. Detection of existing tabs with active PHP workers
- * 2. Age-based decisions (tabs > 1 day old should yield to newer tabs)
- * 3. Graceful shutdown of stale tabs
- * 4. Signaling when a new tab can reuse an existing service worker
+ * Dependent tabs never acquire these locks while already running. They only
+ * observe lock state and preserve the current WordPress iframe when the main
+ * runtime disappears.
  */
+
+export type MainTabStatus = 'connected' | 'booting' | 'missing';
 
 export type TabInfo = {
 	tabId: string;
 	createdAt: number;
 	siteSlug: string;
-	isReady?: boolean;
 	isDependentMode?: boolean;
+	mainTabStatus?: MainTabStatus;
 };
 
-type PingMessage = {
-	type: 'ping';
-	tabId: string;
-	siteSlug: string;
-};
-
-type PongMessage = {
-	type: 'pong';
-	tabInfo: TabInfo;
-};
-
-type ShutdownRequestMessage = {
-	type: 'shutdown-request';
-	targetTabId: string;
-	reason: 'stale' | 'superseded';
-};
-
-type TakeoverRequestMessage = {
-	type: 'takeover-request';
-	requestingTabId: string;
-	siteSlug: string;
-};
-
-type TakeoverAcknowledgedMessage = {
-	type: 'takeover-acknowledged';
-	previousMainTabId: string;
-	targetTabId: string;
-	siteSlug: string;
+export type InstallBlueprintCommandResult = {
+	status: 'success' | 'error';
+	error?: string;
 };
 
 type BackupRequestMessage = {
@@ -61,313 +38,194 @@ type BackupCompletedMessage = {
 	success: boolean;
 };
 
+type MainTabFocusRequestMessage = {
+	type: 'main-tab-focus-request';
+	requestingTabId: string;
+	siteSlug: string;
+};
+
+type MainTabFocusAcknowledgedMessage = {
+	type: 'main-tab-focus-acknowledged';
+	targetTabId: string;
+	siteSlug: string;
+};
+
+type MainTabStatusMessage = {
+	type: 'main-tab-status';
+	tabId: string;
+	siteSlug: string;
+	status: MainTabStatus;
+};
+
+type InstallBlueprintRequestMessage = {
+	type: 'install-blueprint-request';
+	requestId: string;
+	requestingTabId: string;
+	siteSlug: string;
+	blueprintUrl: string;
+};
+
+type InstallBlueprintResultMessage = {
+	type: 'install-blueprint-result';
+	requestId: string;
+	targetTabId: string;
+	siteSlug: string;
+	result: InstallBlueprintCommandResult;
+};
+
 type SiteResetMessage = {
 	type: 'site-reset';
 	siteSlug: string;
 };
 
 type TabCoordinatorMessage =
-	| PingMessage
-	| PongMessage
-	| ShutdownRequestMessage
-	| TakeoverRequestMessage
-	| TakeoverAcknowledgedMessage
 	| BackupRequestMessage
 	| BackupCompletedMessage
+	| MainTabFocusRequestMessage
+	| MainTabFocusAcknowledgedMessage
+	| MainTabStatusMessage
+	| InstallBlueprintRequestMessage
+	| InstallBlueprintResultMessage
 	| SiteResetMessage;
 
+type TabCoordinatorOptions = {
+	onMainTabStatusChange?: (status: MainTabStatus) => void;
+	onSiteReset?: () => void;
+};
+
+type LockManagerLike = {
+	request<T>(
+		name: string,
+		options: {
+			mode?: 'exclusive';
+			ifAvailable?: boolean;
+		},
+		callback: (lock: unknown | null) => T | Promise<T>
+	): Promise<T>;
+	query?: () => Promise<{
+		held?: Array<{ name?: string }>;
+		pending?: Array<{ name?: string }>;
+	}>;
+};
+
 const CHANNEL_NAME = 'playground-tab-coordinator';
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const PING_TIMEOUT_MS = 150;
-const MIN_CHECK_INTERVAL_MS = 1000;
+const TAB_ID_STORAGE_KEY = 'playground-tab-coordinator-tab-id';
+const MAIN_LOCK_NAME = 'personal-wp:main';
+const READY_LOCK_NAME = 'personal-wp:ready';
+const MAIN_TAB_STATUS_POLL_INTERVAL_MS = 2000;
+const INSTALL_BLUEPRINT_TIMEOUT_MS = 300000;
 
 let channel: BroadcastChannel | null = null;
 let currentTabInfo: TabInfo | null = null;
-let shutdownCallback: ((reason: string) => void) | null = null;
-let takeoverCallback: (() => void) | null = null;
+let currentOptions: TabCoordinatorOptions = {};
 let backupRequestCallback: (() => Promise<boolean>) | null = null;
-let siteResetCallback: (() => void) | null = null;
-let beforeUnloadHandler: (() => void) | null = null;
-let isCheckingTabs = false;
-let lastCheckTime = 0;
+let installBlueprintRequestCallback:
+	| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
+	| null = null;
+let mainLockRelease: (() => void) | null = null;
+let readyLockRelease: (() => void) | null = null;
+let mainLockRequest: Promise<unknown> | null = null;
+let readyLockRequest: Promise<unknown> | null = null;
+let pendingLockRelease: Promise<void> = Promise.resolve();
+let mainTabStatusPollInterval: ReturnType<typeof setInterval> | null = null;
+let visibilityChangeHandler: (() => void) | null = null;
+let titleFlashInterval: ReturnType<typeof setInterval> | null = null;
+let titleFlashTimeout: ReturnType<typeof setTimeout> | null = null;
+let titleFlashOriginalTitle: string | null = null;
 
-/**
- * Initialize the tab coordinator for a specific site.
- *
- * @param siteSlug - The slug of the site being loaded
- * @param onShutdownRequested - Callback when this tab should shut down
- * @param onTakeoverRequested - Callback when another tab requests to become main
- * @param onBackupRequested - Callback when another tab requests a backup (main tab only)
- * @param onSiteReset - Callback when another tab has reset/deleted the site
- * @returns TabInfo for the current tab
- */
-export function initTabCoordinator(
+export async function initTabCoordinator(
 	siteSlug: string,
-	onShutdownRequested?: (reason: string) => void,
-	onTakeoverRequested?: () => void,
-	onBackupRequested?: () => Promise<boolean>,
-	onSiteReset?: () => void
-): TabInfo {
-	if (currentTabInfo && currentTabInfo.siteSlug === siteSlug) {
+	options: TabCoordinatorOptions = {}
+): Promise<TabInfo> {
+	if (currentTabInfo?.siteSlug === siteSlug) {
+		currentOptions = options;
 		return currentTabInfo;
 	}
 
-	// Clean up existing if switching sites
-	if (channel) {
-		channel.close();
-	}
-	if (beforeUnloadHandler && typeof window !== 'undefined') {
-		window.removeEventListener('beforeunload', beforeUnloadHandler);
-		beforeUnloadHandler = null;
-	}
+	destroyTabCoordinator();
+	await pendingLockRelease;
 
+	currentOptions = options;
 	currentTabInfo = {
-		tabId: crypto.randomUUID(),
+		tabId: getBrowserTabId(),
 		createdAt: Date.now(),
 		siteSlug,
 	};
 
-	shutdownCallback = onShutdownRequested || null;
-	takeoverCallback = onTakeoverRequested || null;
-	backupRequestCallback = onBackupRequested || null;
-	siteResetCallback = onSiteReset || null;
+	setupBroadcastChannel();
 
-	try {
-		channel = new BroadcastChannel(CHANNEL_NAME);
-		channel.onmessage = handleMessage;
-
-		beforeUnloadHandler = () => {
-			if (channel) {
-				channel.postMessage({
-					type: 'tab-closing',
-					tabId: currentTabInfo?.tabId,
-				});
-				channel.close();
-				channel = null;
-			}
-		};
-		window.addEventListener('beforeunload', beforeUnloadHandler);
-	} catch {
-		// BroadcastChannel not supported
+	if (await acquireMainLock()) {
+		currentTabInfo.isDependentMode = false;
+		setCurrentMainTabStatus('booting');
+		broadcastMainTabStatus('booting');
+		return currentTabInfo;
 	}
 
+	currentTabInfo.isDependentMode = true;
+	setCurrentMainTabStatus(await queryMainTabStatus());
+	startMainTabStatusWatcher();
 	return currentTabInfo;
 }
 
-/**
- * Clean up the tab coordinator.
- */
 export function destroyTabCoordinator(): void {
+	const wasMainTab = isCurrentMainTab();
+	stopMainTabStatusWatcher();
+	releaseHeldLocks();
+	if (wasMainTab) {
+		broadcastMainTabStatus('missing');
+	}
 	if (channel) {
 		channel.close();
 		channel = null;
 	}
-	if (beforeUnloadHandler && typeof window !== 'undefined') {
-		window.removeEventListener('beforeunload', beforeUnloadHandler);
-		beforeUnloadHandler = null;
-	}
 	currentTabInfo = null;
-	shutdownCallback = null;
-	takeoverCallback = null;
+	currentOptions = {};
 	backupRequestCallback = null;
-	siteResetCallback = null;
-	isCheckingTabs = false;
-	lastCheckTime = 0;
+	installBlueprintRequestCallback = null;
+	clearTitleFlash();
 }
 
-/**
- * Check for existing tabs running the same site.
- *
- * @param siteSlug - The site to check for
- * @returns Promise resolving to info about existing tabs (if any)
- */
-export async function checkForExistingTabs(siteSlug: string): Promise<{
-	existingTabs: TabInfo[];
-	hasFreshTab: boolean;
-	hasStaleTab: boolean;
-}> {
-	if (!channel || !currentTabInfo) {
-		return { existingTabs: [], hasFreshTab: false, hasStaleTab: false };
-	}
-
-	// Safeguard: prevent concurrent checks and rate limit
-	const now = Date.now();
-	if (isCheckingTabs || now - lastCheckTime < MIN_CHECK_INTERVAL_MS) {
-		return { existingTabs: [], hasFreshTab: false, hasStaleTab: false };
-	}
-	isCheckingTabs = true;
-	lastCheckTime = now;
-
-	const existingTabs: TabInfo[] = [];
-
-	const pongHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
-		const message = event.data;
-		if (
-			message.type === 'pong' &&
-			message.tabInfo.siteSlug === siteSlug &&
-			message.tabInfo.tabId !== currentTabInfo?.tabId
-		) {
-			existingTabs.push(message.tabInfo);
-		}
-	};
-
-	channel.addEventListener('message', pongHandler);
-
-	const pingMessage: PingMessage = {
-		type: 'ping',
-		tabId: currentTabInfo.tabId,
-		siteSlug,
-	};
-	channel.postMessage(pingMessage);
-
-	await new Promise((resolve) => setTimeout(resolve, PING_TIMEOUT_MS));
-
-	channel.removeEventListener('message', pongHandler);
-
-	const checkTime = Date.now();
-	const hasFreshTab = existingTabs.some(
-		(tab) => checkTime - tab.createdAt < ONE_DAY_MS && !tab.isDependentMode
-	);
-	const hasStaleTab = existingTabs.some(
-		(tab) => checkTime - tab.createdAt >= ONE_DAY_MS && !tab.isDependentMode
-	);
-
-	isCheckingTabs = false;
-	return { existingTabs, hasFreshTab, hasStaleTab };
-}
-
-/**
- * Request a specific tab to shut down.
- *
- * @param targetTabId - The tab ID to shut down
- * @param reason - Why the tab should shut down
- */
-function requestTabShutdown(
-	targetTabId: string,
-	reason: 'stale' | 'superseded'
-): void {
-	if (!channel) {
-		return;
-	}
-
-	const message: ShutdownRequestMessage = {
-		type: 'shutdown-request',
-		targetTabId,
-		reason,
-	};
-	channel.postMessage(message);
-}
-
-/**
- * Request all stale tabs for a site to shut down.
- *
- * @param tabs - List of tabs to check
- */
-export function requestStaleTabsShutdown(tabs: TabInfo[]): void {
-	const now = Date.now();
-	for (const tab of tabs) {
-		if (now - tab.createdAt >= ONE_DAY_MS) {
-			requestTabShutdown(tab.tabId, 'stale');
-		}
-	}
-}
-
-/**
- * Get the current tab's info.
- */
 export function getCurrentTabInfo(): TabInfo | null {
 	return currentTabInfo;
 }
 
-/**
- * Check if a tab is considered stale (older than 1 day).
- */
-export function isTabStale(tabInfo: TabInfo): boolean {
-	return Date.now() - tabInfo.createdAt >= ONE_DAY_MS;
-}
-
-/**
- * Mark the current tab as being in dependent mode.
- * This means it's using another tab's worker and shouldn't claim main status.
- */
-export function setDependentMode(isDependentMode: boolean): void {
-	if (currentTabInfo) {
-		currentTabInfo.isDependentMode = isDependentMode;
+export async function markMainTabReady(): Promise<boolean> {
+	if (!isCurrentMainTab()) {
+		return false;
 	}
+	if (readyLockRelease) {
+		setCurrentMainTabStatus('connected');
+		broadcastMainTabStatus('connected');
+		return true;
+	}
+	const acquiredReadyLock = await acquireReadyLock();
+	if (acquiredReadyLock) {
+		setCurrentMainTabStatus('connected');
+		broadcastMainTabStatus('connected');
+	}
+	return acquiredReadyLock;
 }
 
-/**
- * Set the callback for handling backup requests from other tabs.
- * This is separate from initTabCoordinator because the backup function
- * may not be available at initialization time.
- */
+export async function refreshMainTabStatus(): Promise<MainTabStatus> {
+	const status = await queryMainTabStatus();
+	setCurrentMainTabStatus(status);
+	return status;
+}
+
 export function setBackupRequestCallback(
 	callback: (() => Promise<boolean>) | null
 ): void {
 	backupRequestCallback = callback;
 }
 
-/**
- * Request to take over as the main tab from another tab.
- * Sends a takeover-request and waits for acknowledgment.
- *
- * @param siteSlug - The site to take over
- * @param timeoutMs - How long to wait for acknowledgment (default 2000ms)
- * @returns Promise that resolves to true if takeover was acknowledged, false otherwise
- */
-export async function requestTakeover(
-	siteSlug: string,
-	timeoutMs = 2000
-): Promise<boolean> {
-	if (!channel || !currentTabInfo) {
-		return false;
-	}
-
-	const tabId = currentTabInfo.tabId;
-	const currentChannel = channel;
-
-	return new Promise((resolve) => {
-		let resolved = false;
-
-		const ackHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
-			const message = event.data;
-			if (
-				message.type === 'takeover-acknowledged' &&
-				message.siteSlug === siteSlug &&
-				message.targetTabId === tabId
-			) {
-				resolved = true;
-				currentChannel.removeEventListener('message', ackHandler);
-				resolve(true);
-			}
-		};
-
-		currentChannel.addEventListener('message', ackHandler);
-
-		const requestMessage: TakeoverRequestMessage = {
-			type: 'takeover-request',
-			requestingTabId: tabId,
-			siteSlug,
-		};
-		currentChannel.postMessage(requestMessage);
-
-		setTimeout(() => {
-			if (!resolved) {
-				currentChannel.removeEventListener('message', ackHandler);
-				resolve(false);
-			}
-		}, timeoutMs);
-	});
+export function setInstallBlueprintRequestCallback(
+	callback:
+		| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
+		| null
+): void {
+	installBlueprintRequestCallback = callback;
 }
 
-/**
- * Request a backup from the main tab (for dependent tabs).
- * Sends a backup-request and waits for completion.
- *
- * @param siteSlug - The site to backup
- * @param timeoutMs - How long to wait for completion (default 30000ms)
- * @returns Promise that resolves to true if backup succeeded, false otherwise
- */
 export async function requestRemoteBackup(
 	siteSlug: string,
 	timeoutMs = 30000
@@ -392,45 +250,172 @@ export async function requestRemoteBackup(
 				message.targetTabId === tabId
 			) {
 				resolved = true;
-				currentChannel.removeEventListener('message', completedHandler);
+				cleanup();
 				resolve(message.success);
 			}
 		};
 
+		function cleanup() {
+			currentChannel.removeEventListener('message', completedHandler);
+			clearTimeout(timeoutId);
+		}
+
 		currentChannel.addEventListener('message', completedHandler);
-
-		const requestMessage: BackupRequestMessage = {
-			type: 'backup-request',
-			requestingTabId: tabId,
-			siteSlug,
-		};
-		currentChannel.postMessage(requestMessage);
-
-		setTimeout(() => {
+		const timeoutId = setTimeout(() => {
 			if (!resolved) {
-				currentChannel.removeEventListener('message', completedHandler);
+				resolved = true;
+				cleanup();
 				resolve(false);
 			}
 		}, timeoutMs);
+		currentChannel.postMessage({
+			type: 'backup-request',
+			requestingTabId: tabId,
+			siteSlug,
+		} satisfies BackupRequestMessage);
 	});
 }
 
-/**
- * Broadcast that a site is being reset/deleted.
- * This notifies other tabs to reload since the site data is being deleted.
- *
- * @param siteSlug - The site being reset
- */
-export function broadcastSiteReset(siteSlug: string): void {
-	if (!channel) {
-		return;
+export async function requestRemoteBlueprintInstall(
+	siteSlug: string,
+	blueprintUrl: string,
+	timeoutMs = INSTALL_BLUEPRINT_TIMEOUT_MS
+): Promise<InstallBlueprintCommandResult> {
+	if (!channel || !currentTabInfo) {
+		return {
+			status: 'error',
+			error: getMainTabUnavailableMessage('missing'),
+		};
 	}
 
-	const message: SiteResetMessage = {
+	const tabId = currentTabInfo.tabId;
+	const requestId = createRequestId();
+	const currentChannel = channel;
+
+	return new Promise((resolve) => {
+		let resolved = false;
+
+		const resultHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
+			const message = event.data;
+			if (
+				message.type === 'install-blueprint-result' &&
+				message.siteSlug === siteSlug &&
+				message.targetTabId === tabId &&
+				message.requestId === requestId
+			) {
+				resolved = true;
+				cleanup();
+				resolve(message.result);
+			}
+		};
+
+		function cleanup() {
+			currentChannel.removeEventListener('message', resultHandler);
+			clearTimeout(timeoutId);
+		}
+
+		currentChannel.addEventListener('message', resultHandler);
+		const timeoutId = setTimeout(() => {
+			if (!resolved) {
+				resolved = true;
+				cleanup();
+				resolve({
+					status: 'error',
+					error: getInstallBlueprintTimeoutMessage(timeoutMs),
+				});
+			}
+		}, timeoutMs);
+		currentChannel.postMessage({
+			type: 'install-blueprint-request',
+			requestId,
+			requestingTabId: tabId,
+			siteSlug,
+			blueprintUrl,
+		} satisfies InstallBlueprintRequestMessage);
+	});
+}
+
+export async function requestMainTabFocus(
+	siteSlug: string,
+	timeoutMs = 2000
+): Promise<boolean> {
+	if (!channel || !currentTabInfo) {
+		return false;
+	}
+
+	const tabId = currentTabInfo.tabId;
+	const currentChannel = channel;
+
+	return new Promise((resolve) => {
+		let resolved = false;
+
+		const ackHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
+			const message = event.data;
+			if (
+				message.type === 'main-tab-focus-acknowledged' &&
+				message.siteSlug === siteSlug &&
+				message.targetTabId === tabId
+			) {
+				resolved = true;
+				cleanup();
+				resolve(true);
+			}
+		};
+
+		function cleanup() {
+			currentChannel.removeEventListener('message', ackHandler);
+			clearTimeout(timeoutId);
+		}
+
+		currentChannel.addEventListener('message', ackHandler);
+		const timeoutId = setTimeout(() => {
+			if (!resolved) {
+				resolved = true;
+				cleanup();
+				resolve(false);
+			}
+		}, timeoutMs);
+		currentChannel.postMessage({
+			type: 'main-tab-focus-request',
+			requestingTabId: tabId,
+			siteSlug,
+		} satisfies MainTabFocusRequestMessage);
+	});
+}
+
+export function broadcastSiteReset(siteSlug: string): void {
+	if (currentTabInfo?.siteSlug === siteSlug) {
+		releaseHeldLocks();
+	}
+	channel?.postMessage({
 		type: 'site-reset',
 		siteSlug,
-	};
-	channel.postMessage(message);
+	} satisfies SiteResetMessage);
+}
+
+export function getMainTabUnavailableMessage(status: MainTabStatus): string {
+	if (status === 'booting') {
+		return 'The active WordPress tab is still reconnecting. Try again in a moment.';
+	}
+	return 'The active WordPress tab was closed or disconnected. Reload this tab or open a new tab to reconnect.';
+}
+
+function getInstallBlueprintTimeoutMessage(timeoutMs: number): string {
+	const timeoutSeconds = Math.round(timeoutMs / 1000);
+	return (
+		`Timed out after ${timeoutSeconds} seconds waiting for the main tab ` +
+		'to install the app. Focus the active WordPress tab and try again. ' +
+		'If it was closed, reload this tab or open a new tab to reconnect.'
+	);
+}
+
+function setupBroadcastChannel(): void {
+	try {
+		channel = new BroadcastChannel(CHANNEL_NAME);
+		channel.onmessage = handleMessage;
+	} catch {
+		channel = null;
+	}
 }
 
 function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
@@ -441,70 +426,400 @@ function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
 	const message = event.data;
 
 	switch (message.type) {
-		case 'ping':
-			if (message.siteSlug === currentTabInfo.siteSlug) {
-				const pongMessage: PongMessage = {
-					type: 'pong',
-					tabInfo: currentTabInfo,
-				};
-				channel.postMessage(pongMessage);
-			}
-			break;
-
-		case 'shutdown-request':
-			if (message.targetTabId === currentTabInfo.tabId) {
-				const reason =
-					message.reason === 'stale'
-						? 'This tab has been open for over a day and a newer tab was opened.'
-						: 'A newer tab has taken over this session.';
-				shutdownCallback?.(reason);
-			}
-			break;
-
-		case 'takeover-request':
-			if (
-				message.siteSlug === currentTabInfo.siteSlug &&
-				!currentTabInfo.isDependentMode
-			) {
-				takeoverCallback?.();
-				const ackMessage: TakeoverAcknowledgedMessage = {
-					type: 'takeover-acknowledged',
-					previousMainTabId: currentTabInfo.tabId,
-					targetTabId: message.requestingTabId,
-					siteSlug: message.siteSlug,
-				};
-				channel.postMessage(ackMessage);
-			}
-			break;
-
-		case 'takeover-acknowledged':
-			break;
-
 		case 'backup-request':
 			if (
 				message.siteSlug === currentTabInfo.siteSlug &&
-				!currentTabInfo.isDependentMode &&
+				isCurrentMainTab() &&
 				backupRequestCallback
 			) {
 				backupRequestCallback().then((success) => {
-					const completedMessage: BackupCompletedMessage = {
+					channel?.postMessage({
 						type: 'backup-completed',
 						targetTabId: message.requestingTabId,
 						siteSlug: message.siteSlug,
 						success,
-					};
-					channel?.postMessage(completedMessage);
+					} satisfies BackupCompletedMessage);
 				});
 			}
 			break;
 
-		case 'backup-completed':
+		case 'main-tab-focus-request':
+			if (
+				message.siteSlug === currentTabInfo.siteSlug &&
+				isCurrentMainTab()
+			) {
+				focusAndHighlightCurrentTab();
+				channel.postMessage({
+					type: 'main-tab-focus-acknowledged',
+					targetTabId: message.requestingTabId,
+					siteSlug: message.siteSlug,
+				} satisfies MainTabFocusAcknowledgedMessage);
+			}
+			break;
+
+		case 'main-tab-status':
+			if (
+				message.siteSlug === currentTabInfo.siteSlug &&
+				message.tabId !== currentTabInfo.tabId &&
+				currentTabInfo.isDependentMode
+			) {
+				if (message.status === 'missing') {
+					void refreshMainTabStatus();
+				} else {
+					setCurrentMainTabStatus(message.status);
+				}
+			}
+			break;
+
+		case 'install-blueprint-request':
+			if (
+				message.siteSlug === currentTabInfo.siteSlug &&
+				isCurrentMainTab() &&
+				installBlueprintRequestCallback
+			) {
+				installBlueprintRequestCallback(message.blueprintUrl)
+					.catch(
+						(error): InstallBlueprintCommandResult => ({
+							status: 'error',
+							error: getErrorMessage(error),
+						})
+					)
+					.then((result) => {
+						channel?.postMessage({
+							type: 'install-blueprint-result',
+							requestId: message.requestId,
+							targetTabId: message.requestingTabId,
+							siteSlug: message.siteSlug,
+							result,
+						} satisfies InstallBlueprintResultMessage);
+					});
+			}
 			break;
 
 		case 'site-reset':
 			if (message.siteSlug === currentTabInfo.siteSlug) {
-				siteResetCallback?.();
+				currentOptions.onSiteReset?.();
 			}
 			break;
+
+		case 'backup-completed':
+		case 'main-tab-focus-acknowledged':
+		case 'install-blueprint-result':
+			break;
 	}
+}
+
+function broadcastMainTabStatus(status: MainTabStatus): void {
+	if (!channel || !currentTabInfo) {
+		return;
+	}
+	channel.postMessage({
+		type: 'main-tab-status',
+		tabId: currentTabInfo.tabId,
+		siteSlug: currentTabInfo.siteSlug,
+		status,
+	} satisfies MainTabStatusMessage);
+}
+
+async function acquireMainLock(): Promise<boolean> {
+	if (mainLockRelease) {
+		return true;
+	}
+	return await acquireHeldLock(MAIN_LOCK_NAME, {
+		setRelease: (release) => {
+			mainLockRelease = release;
+		},
+		setRequest: (request) => {
+			mainLockRequest = request;
+		},
+	});
+}
+
+async function acquireReadyLock(): Promise<boolean> {
+	if (readyLockRelease) {
+		return true;
+	}
+	return await acquireHeldLock(READY_LOCK_NAME, {
+		setRelease: (release) => {
+			readyLockRelease = release;
+		},
+		setRequest: (request) => {
+			readyLockRequest = request;
+		},
+	});
+}
+
+async function acquireHeldLock(
+	name: string,
+	handlers: {
+		setRelease: (release: (() => void) | null) => void;
+		setRequest: (request: Promise<unknown> | null) => void;
+	}
+): Promise<boolean> {
+	const locks = getLockManager();
+	if (!locks) {
+		return false;
+	}
+
+	let resolveRelease!: () => void;
+	const releasePromise = new Promise<void>((resolve) => {
+		resolveRelease = resolve;
+	});
+
+	let settled = false;
+	const acquired = new Promise<boolean>((resolve) => {
+		const resolveOnce = (value: boolean) => {
+			if (!settled) {
+				settled = true;
+				resolve(value);
+			}
+		};
+
+		const request = locks
+			.request(
+				name,
+				{ mode: 'exclusive', ifAvailable: true },
+				async (lock) => {
+					if (!lock) {
+						resolveOnce(false);
+						return;
+					}
+
+					handlers.setRelease(resolveRelease);
+					resolveOnce(true);
+					await releasePromise;
+				}
+			)
+			.catch(() => {
+				handlers.setRelease(null);
+				resolveOnce(false);
+			});
+
+		handlers.setRequest(request);
+	});
+
+	return acquired;
+}
+
+function releaseHeldLocks(): void {
+	const releasePromises = [readyLockRequest, mainLockRequest].filter(
+		(request): request is Promise<unknown> => !!request
+	);
+
+	if (readyLockRelease) {
+		readyLockRelease();
+	}
+	if (mainLockRelease) {
+		mainLockRelease();
+	}
+
+	readyLockRelease = null;
+	mainLockRelease = null;
+	readyLockRequest = null;
+	mainLockRequest = null;
+
+	pendingLockRelease = Promise.allSettled(releasePromises).then(
+		() => undefined
+	);
+}
+
+async function queryMainTabStatus(): Promise<MainTabStatus> {
+	const locks = getLockManager();
+	if (!locks?.query) {
+		return 'missing';
+	}
+
+	try {
+		const snapshot = await locks.query();
+		const heldLockNames = new Set(
+			(snapshot.held || [])
+				.map((lock) => lock.name)
+				.filter((name): name is string => typeof name === 'string')
+		);
+
+		if (heldLockNames.has(READY_LOCK_NAME)) {
+			return 'connected';
+		}
+		if (heldLockNames.has(MAIN_LOCK_NAME)) {
+			return 'booting';
+		}
+		return 'missing';
+	} catch {
+		return 'missing';
+	}
+}
+
+function getLockManager(): LockManagerLike | null {
+	if (typeof navigator === 'undefined') {
+		return null;
+	}
+	return (navigator as Navigator & { locks?: LockManagerLike }).locks || null;
+}
+
+function setCurrentMainTabStatus(status: MainTabStatus): void {
+	if (!currentTabInfo || currentTabInfo.mainTabStatus === status) {
+		return;
+	}
+	currentTabInfo.mainTabStatus = status;
+	currentOptions.onMainTabStatusChange?.(status);
+}
+
+function startMainTabStatusWatcher(): void {
+	stopMainTabStatusWatcher();
+	void refreshMainTabStatus();
+	mainTabStatusPollInterval = setInterval(() => {
+		void refreshMainTabStatus();
+	}, MAIN_TAB_STATUS_POLL_INTERVAL_MS);
+
+	if (
+		typeof document !== 'undefined' &&
+		'addEventListener' in document &&
+		'visibilityState' in document
+	) {
+		visibilityChangeHandler = () => {
+			if (document.visibilityState === 'visible') {
+				void refreshMainTabStatus();
+			}
+		};
+		document.addEventListener('visibilitychange', visibilityChangeHandler);
+	}
+}
+
+function stopMainTabStatusWatcher(): void {
+	if (mainTabStatusPollInterval) {
+		clearInterval(mainTabStatusPollInterval);
+		mainTabStatusPollInterval = null;
+	}
+	if (
+		visibilityChangeHandler &&
+		typeof document !== 'undefined' &&
+		'removeEventListener' in document
+	) {
+		document.removeEventListener(
+			'visibilitychange',
+			visibilityChangeHandler
+		);
+	}
+	visibilityChangeHandler = null;
+}
+
+function isCurrentMainTab(): boolean {
+	return (
+		!!currentTabInfo && !currentTabInfo.isDependentMode && !!mainLockRelease
+	);
+}
+
+function getBrowserTabId(): string {
+	const navigationType = getNavigationType();
+	if (navigationType === 'reload') {
+		const existingTabId = getStoredTabId();
+		if (existingTabId) {
+			return existingTabId;
+		}
+	}
+
+	const tabId = createTabId();
+	storeTabId(tabId);
+	return tabId;
+}
+
+function getNavigationType(): string | undefined {
+	if (typeof performance === 'undefined') {
+		return;
+	}
+	const navigationEntries = performance.getEntriesByType?.('navigation');
+	const navigation = navigationEntries?.[0];
+	if (!navigation || !('type' in navigation)) {
+		return;
+	}
+	return String(navigation.type);
+}
+
+function getStoredTabId(): string | null {
+	try {
+		return sessionStorage.getItem(TAB_ID_STORAGE_KEY);
+	} catch {
+		return null;
+	}
+}
+
+function storeTabId(tabId: string): void {
+	try {
+		sessionStorage.setItem(TAB_ID_STORAGE_KEY, tabId);
+	} catch {
+		// sessionStorage can be unavailable in restricted browser contexts.
+	}
+}
+
+function createTabId(): string {
+	if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+		return crypto.randomUUID();
+	}
+	return `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createRequestId(): string {
+	return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function focusAndHighlightCurrentTab(): void {
+	if (typeof window !== 'undefined') {
+		window.focus();
+	}
+	if (typeof document === 'undefined') {
+		return;
+	}
+
+	clearTitleFlash();
+
+	titleFlashOriginalTitle = document.title;
+	let isHighlighted = false;
+	titleFlashInterval = setInterval(() => {
+		if (titleFlashOriginalTitle === null) {
+			return;
+		}
+		if (!isTitleFlashVariant(document.title, titleFlashOriginalTitle)) {
+			titleFlashOriginalTitle = document.title;
+			isHighlighted = false;
+		}
+		isHighlighted = !isHighlighted;
+		document.title = isHighlighted
+			? getHighlightedTitle(titleFlashOriginalTitle)
+			: titleFlashOriginalTitle || '';
+	}, 700);
+	titleFlashTimeout = setTimeout(clearTitleFlash, 8000);
+}
+
+function clearTitleFlash(): void {
+	const originalTitle = titleFlashOriginalTitle;
+	if (titleFlashInterval) {
+		clearInterval(titleFlashInterval);
+		titleFlashInterval = null;
+	}
+	if (titleFlashTimeout) {
+		clearTimeout(titleFlashTimeout);
+		titleFlashTimeout = null;
+	}
+	if (
+		originalTitle !== null &&
+		typeof document !== 'undefined' &&
+		isTitleFlashVariant(document.title, originalTitle)
+	) {
+		document.title = originalTitle;
+	}
+	titleFlashOriginalTitle = null;
+}
+
+function isTitleFlashVariant(title: string, originalTitle: string): boolean {
+	return (
+		title === originalTitle || title === getHighlightedTitle(originalTitle)
+	);
+}
+
+function getHighlightedTitle(title: string): string {
+	return `* ${title}`;
 }

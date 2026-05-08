@@ -128,14 +128,18 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 -   **Spinning a development environment**: A new developer in the team could download the Blueprint, run a hypothetical `wp up` command, and get a fresh developer environments—loaded with everything they need. The entire CI/CD process can reuse the same Blueprint.
  -->
 
-:::info **વધુ સંસાધનો**
+<div class="callout callout-info">
+
+**વધુ સંસાધનો**
+
 બ્લુપ્રિન્ટ્સની (અનંત) શક્યતાઓ વિશે વધુ જાણવા માટે આ લિંક્સની મુલાકાત લો:
 
 - [વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો પરિચય](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 - [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લોક](https://wordpress.org/plugins/interactive-code-block/) નો ઉપયોગ કરીને તમારી વેબસાઇટમાં પૂર્વ-રૂપરેખાંકિત વર્ડપ્રેસ સાઇટ એમ્બેડ કરો.
 - [બ્લુપ્રિન્ટ્સ ઉદાહરણો](/blueprints/examples)
 - [બ્લુપ્રિન્ટ્સ સાથે બનેલા ડેમો અને એપ્લિકેશન્સ](/resources#apps-built-with-wordpress-playground)
-    :::
+
+</div>
 
 <!--
 :::info **More Resources**

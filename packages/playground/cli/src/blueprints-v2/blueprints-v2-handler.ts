@@ -13,6 +13,7 @@ import {
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
+import { legacyPHPExtensionsObjectToExtensionsArray } from '../php-extensions';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.
@@ -82,10 +83,7 @@ export class BlueprintsV2Handler {
 			siteUrl: this.siteUrl,
 			processId: worker.processId,
 			trace: this.args.verbosity === 'debug',
-			withIntl: this.args.intl,
-			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
-			withXdebug: !!this.args.xdebug,
+			extensions: legacyPHPExtensionsObjectToExtensionsArray(this.args),
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],

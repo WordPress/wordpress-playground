@@ -520,7 +520,26 @@ class ASN1Encoder {
 	}
 
 	static integer(number: Uint8Array): Uint8Array {
-		// Ensure number is positive and first bit is 0
+		// DER requires INTEGER values to be encoded in the minimum number
+		// of octets (X.690 §8.3.2): a leading 0x00 byte is only allowed
+		// when the next byte's high bit is set (to signal a positive
+		// number). Random serial numbers occasionally start with 0x00
+		// followed by a byte < 0x80, which OpenSSL rejects with
+		// "c2i_ibuf:illegal padding" — strip those redundant zeros.
+		let start = 0;
+		while (
+			start < number.length - 1 &&
+			number[start] === 0x00 &&
+			number[start + 1] < 0x80
+		) {
+			start++;
+		}
+		if (start > 0) {
+			number = number.subarray(start);
+		}
+		// Conversely, if the high bit of the first byte is set, prepend
+		// 0x00 so the value isn't interpreted as a negative two's
+		// complement integer.
 		if (number[0] > 0x7f) {
 			const extendedNumber = new Uint8Array(number.length + 1);
 			extendedNumber[0] = 0x00;

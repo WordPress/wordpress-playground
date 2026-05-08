@@ -16,11 +16,11 @@ The WordPress Playground is an innovative tool that allows theme developers to b
 This guide will show you how to use WordPress Playground to improve your theme development workflow, create live demos to showcase your theme, and simplify the theme review process.
 -->
 
-:::info
+<div class="callout callout-info">
 
 WordPress Playground を使って製品を [ビルド](/about/build)、[テスト](/about/test)、[ローンチ](/about/launch) する方法については、[Playground について](/about) セクションでご確認ください。
 
-:::
+</div>
 
 <!--
 :::info
@@ -92,9 +92,11 @@ A theme stored in a GitHub repository can also be loaded in a Playground instanc
 With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.
 -->
 
-:::info
+<div class="callout callout-info">
+
 ここ数ヶ月、[GitHubプロキシ](https://playground.wordpress.net/proxy)はGitHubリポジトリからテーマを読み込むための非常に便利なツールでした。特定のブランチ、特定のディレクトリ、特定のコミット、または特定のPRからテーマを読み込むことができました。しかし、Playgroundの最近の改善により、この機能は不要になりました。GitHubプロキシはまもなく廃止されるため、ブループリントを`git:directory`リソースに更新してください。
-:::
+
+</div>
 
 <!--
 :::info
@@ -185,11 +187,11 @@ Some useful tools and resources provided by the Playground project to work with 
 Through properties and [`steps`](/blueprints/steps) in the blueprint, you can configure the initial setup of your theme in the Playground instance.
 -->
 
-:::info
+<div class="callout callout-info">
 
 Playground でテーマのデモを効果的に提供するには、テーマの特徴を強調するデフォルトのコンテンツを Playground に読み込むのがおすすめです。詳しくは[デモ用コンテンツの提供](/guides/providing-content-for-your-demo)ガイドをご覧ください。
 
-:::
+</div>
 
 <!--
 :::info

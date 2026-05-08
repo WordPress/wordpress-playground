@@ -151,10 +151,10 @@ export function deriveSiteNameFromSlug(slug: string) {
  */
 export function updateSiteMetadata({
 	slug,
-	changes,
+	metadata,
 }: {
 	slug: string;
-	changes: Partial<SiteMetadata>;
+	metadata: Partial<SiteMetadata>;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -167,7 +167,7 @@ export function updateSiteMetadata({
 				changes: {
 					metadata: {
 						...storedSite.metadata,
-						...changes,
+						...metadata,
 					},
 				},
 			})
@@ -527,20 +527,14 @@ export interface SiteMetadata {
 	originalBlueprintSource: BlueprintSource;
 
 	/**
-	 * The last URL the user visited in this site.
-	 * Used to restore the user's position when returning to a personal site.
-	 */
-	lastUrl?: string;
-
-	/**
 	 * History of backups for this site.
 	 */
 	backupHistory?: Array<{ filename: string; timestamp: number }>;
 
 	/**
-	 * Auto-backup interval setting.
-	 * - 'none': No auto-backup (default)
-	 * - 'daily': Backup every day
+	 * Auto-backup interval setting. Defaults to 'daily' when unset.
+	 * - 'none': No auto-backup
+	 * - 'daily': Backup every day (default)
 	 * - 'every-2-days': Backup every 2 days
 	 * - 'weekly': Backup every week
 	 * - 'ignore': Never show backup reminders

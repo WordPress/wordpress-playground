@@ -95,11 +95,13 @@ For example, the following code embeds a Playground with a preinstalled Gutenber
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
 ```
 
-:::info CORS ポリシー
+<div class="callout callout-info">
+
+**CORS ポリシー**
 
 サイトの ZIP パッケージなどの URL からファイルをインポートするには、`Access-Control-Allow-Origin` ヘッダーを設定した状態で提供する必要があります。参考資料として、[クロスオリジンリソース共有（CORS）](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers)をご覧ください。
 
-:::
+</div>
 
 <!--
 :::info CORS policy

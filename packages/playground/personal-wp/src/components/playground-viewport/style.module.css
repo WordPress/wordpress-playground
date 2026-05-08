@@ -3,7 +3,9 @@
 }
 
 .full-size {
-	position: relative;
+	position: absolute;
+	top: 0;
+	left: 0;
 	width: 100%;
 	height: 100%;
 	border: 0;
@@ -12,84 +14,145 @@
 	background: #fff;
 }
 
-.loading-viewport {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
+/* Seamless mode wrapper */
+.seamless-wrapper {
+	position: relative;
 	width: 100%;
 	height: 100%;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
+	/* Fallback if parent height chain breaks (e.g. mobile) */
+	min-height: 100dvh;
 	background: #fff;
 }
 
-.loading-caption {
-	font-weight: 400;
-	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: 1.1rem;
-	color: #000;
-	margin: 0 0 4px 0;
-}
-
-.progress-wrapper {
-	position: relative;
-	width: 512px;
-	max-width: 60vw;
-	height: 4px;
-	margin: 4px auto;
-	border-radius: 10px;
-	background: #e0e0e0;
-}
-
-@media (prefers-color-scheme: dark) {
-	.loading-viewport {
-		background: #1e1e1e;
-	}
-
-	.loading-caption {
-		color: #fff;
-	}
-
-	.progress-wrapper {
-		background: #1e1e1e;
-	}
-}
-
-.progress-bar {
+/* Sidebar latch — tab on the bottom-left edge */
+.sidebar-latch {
 	position: absolute;
-	top: 0;
-	left: 0;
 	bottom: 0;
-	right: 100%;
-	width: 0;
-	background: #3858e9;
-	border-radius: 2px;
-	animation: indefinite-loading 2s linear infinite;
+	left: 0;
+	z-index: 20;
 }
 
-@keyframes indefinite-loading {
-	0% {
-		left: 0%;
-		right: 100%;
-		width: 0%;
+.sidebar-latch-hidden {
+	display: none;
+}
+
+.sidebar-latch-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 32px;
+	padding: 0;
+	border: none;
+	border-radius: 0 8px 0 0;
+	background: var(--site-manager-background-color, #1e1e1e);
+	color: #fff;
+	cursor: pointer;
+	transition: transform 0.15s ease;
+	/* Layered drop-shadows give the button a crisp outline
+	   (first shadow, tight and opaque) and a softer halo
+	   (second shadow) so it reads against any WordPress
+	   page color, including pure white. */
+	filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9))
+		drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+}
+
+.sidebar-latch-button:hover {
+	transform: translateY(-1px);
+}
+
+.sidebar-latch-button svg {
+	stroke: #fff;
+}
+
+/* Blueprint install banner */
+.install-banner {
+	position: absolute;
+	top: 16px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 30;
+	padding: 10px 24px;
+	background: #1e1e1e;
+	color: #fff;
+	border-radius: 24px;
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 0.9rem;
+	font-weight: 500;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+	white-space: nowrap;
+	animation: install-banner-in 0.2s ease;
+}
+
+@keyframes install-banner-in {
+	from {
+		opacity: 0;
+		transform: translateX(-50%) translateY(-8px);
 	}
-	10% {
-		left: 0%;
-		right: 75%;
-		width: 25%;
+	to {
+		opacity: 1;
+		transform: translateX(-50%) translateY(0);
 	}
-	90% {
-		right: 0%;
-		left: 75%;
-		width: 25%;
+}
+
+.main-tab-notice {
+	position: absolute;
+	top: 16px;
+	left: 50%;
+	z-index: 35;
+	display: flex;
+	max-width: min(720px, calc(100% - 32px));
+	transform: translateX(-50%);
+	align-items: center;
+	gap: 16px;
+	padding: 12px 14px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+	color: #1e1e1e;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.main-tab-notice-text {
+	min-width: 0;
+}
+
+.main-tab-notice-actions {
+	display: flex;
+	flex: none;
+	gap: 8px;
+}
+
+.main-tab-notice-actions button {
+	padding: 6px 10px;
+	border: 1px solid #3858e9;
+	border-radius: 4px;
+	background: #3858e9;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.main-tab-notice-actions button + button {
+	border-color: #dcdcde;
+	background: #fff;
+	color: #1e1e1e;
+}
+
+@media (max-width: 640px) {
+	.main-tab-notice {
+		align-items: stretch;
+		flex-direction: column;
 	}
-	100% {
-		left: 100%;
-		right: 0%;
-		width: 0%;
+
+	.main-tab-notice-actions {
+		flex-wrap: wrap;
 	}
 }

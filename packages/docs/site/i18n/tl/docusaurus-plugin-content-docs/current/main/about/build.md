@@ -36,11 +36,11 @@ Sa Google Chrome, maaari mong i-synchronize ang iyong Playground instance sa isa
 - Isang walang laman na directory – para i-save ang Playground at simulang mag-sync
 - Isang umiiral na directory – para i-load ito dito at simulang mag-sync
 
-:::info
+<div class="callout callout-info">
 
 Ang tampok na ito ay available lamang sa Google Chrome sa ngayon. Hindi pa ito gumagana sa ibang browser.
 
-:::
+</div>
 
 Tungkol sa mga pagbabagong ginawa sa magkabilang panig ng koneksyon:
 

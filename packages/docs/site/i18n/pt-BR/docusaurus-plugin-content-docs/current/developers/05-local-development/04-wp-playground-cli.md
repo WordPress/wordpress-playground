@@ -154,9 +154,11 @@ The `--reset` flag works only with `start`. For `server`, manually delete the pe
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 A flag `--reset` funciona apenas com `start`. Para `server`, exclua manualmente o diretório do site persistido em `~/.wordpress-playground/sites/<path-hash>/`.
-:::
+
+</div>
 
 <!--
 ### Choosing a WordPress and PHP Version
@@ -253,9 +255,11 @@ On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve 
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 No Windows, o formato de caminho `/host/path:/vfs/path` pode causar problemas. Para resolver, use as flags `--mount-dir` e `--mount-dir-before-install`. Essas flags permitem especificar os caminhos do host e do sistema de arquivos virtual em um formato alternativo: `"/host/path"` `"/vfs/path"`.
-:::
+
+</div>
 
 <!--
 ### Understanding Data Persistence and SQLite Location in `server` mode

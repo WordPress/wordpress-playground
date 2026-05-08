@@ -12,12 +12,15 @@ JSON is merely a wrapper around the functions. Whether you use the JSON steps or
 
 You can use Blueprints both with the web and the node.js versions of WordPress Playground.
 
-:::info Blueprints version 2
+<div class="callout callout-info">
+
+**Blueprints version 2**
 
 The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup.
 
 The proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) is discussed on a separate [GitHub repository](https://github.com/WordPress/blueprints-library/), and you’re more than welcome to join (there or on the [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) and help shape the next generation of Playground.
-:::
+
+</div>
 
 ## Differences between JSON and Function APIs
 

@@ -11,7 +11,7 @@ description_long: Uma referência técnica para "Referências de Recursos". Saib
 
 "Referências de Recursos" permitem que você use arquivos externos em Blueprints
 
-:::info
+<div class="callout callout-info">
 
 <!-- Blueprints steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
 
@@ -20,7 +20,8 @@ That location can be defined as [a `URL` resource](#urlreference) of the `.zip` 
 Etapas de Blueprints como [`installPlugin`](/blueprints/steps#InstallPluginStep) ou [`installTheme`](/blueprints/steps#InstallThemeStep) exigem um local do plugin ou tema a ser instalado.
 
 Esse local pode ser definido como um recurso [URL](#urlreference) do arquivo `.zip` contendo o tema ou plugin. Também pode ser definido como um recurso [`wordpress.org/plugins`](#corepluginreference) ou [`wordpress.org/themes`](#corethemereference) para aqueles plugins/temas publicados nos diretórios oficiais do WordPress.
-:::
+
+</div>
 
 <!-- The following resource references are available: -->
 

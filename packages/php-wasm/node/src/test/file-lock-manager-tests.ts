@@ -1,5 +1,5 @@
 import { describe, beforeEach, afterEach, it, expect } from 'vitest';
-import { writeFileSync, unlinkSync } from 'fs';
+import { existsSync, writeFileSync, unlinkSync } from 'fs';
 import { fork, type ChildProcess } from 'child_process';
 import {
 	Worker as NodeWorkerThread,
@@ -36,7 +36,8 @@ export function declareFileLockManagerTests({
 	return describe.skipIf(shouldSkip)(name, () => {
 		let remoteProcessApi1: RemoteAPI<TestWorkerAPI>;
 		let remoteProcessApi2: RemoteAPI<TestWorkerAPI>;
-		let cleanupProcesses: () => Promise<void>;
+		let cleanupProcesses: () => Promise<void> = async () => undefined;
+		let cleanupProcessCallbacks: Array<() => Promise<void>> = [];
 		let process1TestFile1Fd: number;
 		let process1TestFile2Fd: number;
 		let process2TestFile1Fd: number;
@@ -72,6 +73,7 @@ export function declareFileLockManagerTests({
 				execArgv: EXEC_ARGV,
 				stdio: 'inherit',
 			});
+			cleanupProcessCallbacks.push(() => killLockingProcess(child));
 			const api = await consumeAPI<TestWorkerAPI>(
 				child as unknown as Parameters<typeof consumeAPI>[0]
 			);
@@ -85,6 +87,7 @@ export function declareFileLockManagerTests({
 			const worker = new NodeWorkerThread(testWorkerUrl, {
 				execArgv: EXEC_ARGV,
 			});
+			cleanupProcessCallbacks.push(() => terminateWorkerThread(worker));
 
 			// Expose the shared in-memory manager via a sync API
 			// so the worker can use it as the wasm lock manager
@@ -120,47 +123,49 @@ export function declareFileLockManagerTests({
 			childProcess: ChildProcess
 		): Promise<void> =>
 			new Promise((resolve) => {
-				childProcess.on('exit', resolve);
+				if (
+					childProcess.exitCode !== null ||
+					childProcess.signalCode !== null
+				) {
+					resolve();
+					return;
+				}
+				childProcess.once('exit', () => resolve());
 				childProcess.kill();
 			});
 
 		const terminateWorkerThread = (
 			worker: NodeWorkerThread
 		): Promise<void> =>
-			new Promise((resolve) => {
-				worker.on('exit', () => resolve());
-				worker.terminate();
+			worker.terminate().then(() => {
+				return undefined;
 			});
 
 		beforeEach(async () => {
+			cleanupProcessCallbacks = [];
+			cleanupProcesses = async () => {
+				const callbacks = cleanupProcessCallbacks.splice(0);
+				await Promise.all(callbacks.map((cleanup) => cleanup()));
+			};
+
 			writeFileSync(TEST_FILE1_URL, `test file 1 for ${import.meta.url}`);
 			writeFileSync(TEST_FILE2_URL, `test file 2 for ${import.meta.url}`);
 
 			if (workerType === 'workerThread') {
 				const sharedInMemoryManager = new FileLockManagerInMemory();
-				const [worker1, api1] = await createLockingWorkerThread(
+				const [, api1] = await createLockingWorkerThread(
 					sharedInMemoryManager
 				);
-				const [worker2, api2] = await createLockingWorkerThread(
+				const [, api2] = await createLockingWorkerThread(
 					sharedInMemoryManager
 				);
 				remoteProcessApi1 = api1;
 				remoteProcessApi2 = api2;
-				cleanupProcesses = () =>
-					Promise.all([
-						terminateWorkerThread(worker1),
-						terminateWorkerThread(worker2),
-					]).then(() => {});
 			} else {
-				const [cp1, api1] = await createLockingProcess();
-				const [cp2, api2] = await createLockingProcess();
+				const [, api1] = await createLockingProcess();
+				const [, api2] = await createLockingProcess();
 				remoteProcessApi1 = api1;
 				remoteProcessApi2 = api2;
-				cleanupProcesses = () =>
-					Promise.all([
-						killLockingProcess(cp1),
-						killLockingProcess(cp2),
-					]).then(() => {});
 			}
 
 			// TODO: Is the below true? I wrote something like this a while ago but remember removing it.
@@ -186,7 +191,7 @@ export function declareFileLockManagerTests({
 				TEST_FILE2_URL.href,
 				'r+'
 			);
-		});
+		}, 30_000);
 
 		afterEach(async () => {
 			await Promise.all([
@@ -195,8 +200,12 @@ export function declareFileLockManagerTests({
 			]);
 			await cleanupProcesses();
 
-			unlinkSync(TEST_FILE1_URL);
-			unlinkSync(TEST_FILE2_URL);
+			if (existsSync(TEST_FILE1_URL)) {
+				unlinkSync(TEST_FILE1_URL);
+			}
+			if (existsSync(TEST_FILE2_URL)) {
+				unlinkSync(TEST_FILE2_URL);
+			}
 		});
 
 		describe('lockWholeFile', () => {

@@ -1,18 +1,37 @@
 import type {
-	SupportedPHPVersion,
+	AllPHPVersion,
 	EmscriptenOptions,
 	PHPLoaderModule,
+	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { loadPHPRuntime } from '@php-wasm/universal';
+import {
+	createLegacyPhpIniPreRunStep,
+	isLegacyPHPVersion,
+	loadPHPRuntime,
+} from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
-import { withIntl } from './extensions/intl/with-intl';
+import {
+	withPHPExtensions,
+	type PHPWebExtension,
+} from './extensions/load-extensions';
+import { jspi } from 'wasm-feature-detect';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
+	/**
+	 * PHP extensions to install before the runtime starts.
+	 *
+	 * Use built-in names such as `intl`, or pass an external JSPI extension
+	 * source such as a manifest.
+	 */
+	extensions?: PHPWebExtension[];
+	/**
+	 * @deprecated Use `extensions: ['intl']` instead.
+	 */
 	withIntl?: boolean;
 }
 
@@ -47,7 +66,7 @@ interface PHPWorkerGlobalScope extends WorkerGlobalScope {
 }
 
 export async function loadWebRuntime(
-	phpVersion: SupportedPHPVersion,
+	phpVersion: AllPHPVersion,
 	loaderOptions: LoaderOptions = {}
 ) {
 	/*
@@ -63,9 +82,12 @@ export async function loadWebRuntime(
 		) => setTimeout(fn, 0);
 	}
 
+	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
+
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
 		...fakeWebsocket(),
 		...(loaderOptions.emscriptenOptions || {}),
+		phpWasmAsyncMode,
 	};
 
 	if (loaderOptions.tcpOverFetch) {
@@ -75,8 +97,41 @@ export async function loadWebRuntime(
 		);
 	}
 
-	if (loaderOptions.withIntl) {
-		emscriptenOptions = withIntl(phpVersion, emscriptenOptions);
+	const isLegacy = isLegacyPHPVersion(phpVersion);
+	const requestedExtensions = [...(loaderOptions.extensions ?? [])];
+	if (
+		loaderOptions.withIntl &&
+		!hasBuiltInExtension(requestedExtensions, 'intl')
+	) {
+		requestedExtensions.push('intl');
+	}
+
+	// For legacy PHP: pre-create php.ini via a preRun step. See
+	// createLegacyPhpIniPreRunStep for why this must run before the
+	// PHP SAPI starts.
+	if (isLegacy) {
+		const resolvedOptions = await emscriptenOptions;
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+		const existingPreRun: Function[] = resolvedOptions['preRun'] || [];
+		emscriptenOptions = {
+			...resolvedOptions,
+			['preRun']: [...existingPreRun, createLegacyPhpIniPreRunStep()],
+		};
+	}
+
+	if (isLegacy && requestedExtensions.length) {
+		throw new Error(
+			`Extensions are not available for legacy PHP ${phpVersion}.`
+		);
+	}
+
+	if (!isLegacy) {
+		emscriptenOptions = withPHPExtensions(
+			phpVersion as SupportedPHPVersion,
+			phpWasmAsyncMode,
+			await emscriptenOptions,
+			requestedExtensions
+		);
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([
@@ -87,4 +142,24 @@ export async function loadWebRuntime(
 	loaderOptions.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 
 	return await loadPHPRuntime(phpLoaderModule, options);
+}
+
+/**
+ * Checks whether a built-in web extension has already been requested.
+ *
+ * This keeps deprecated `withIntl` calls backwards compatible without adding a
+ * duplicate `intl` install when callers also pass `extensions: ['intl']`.
+ * External extension sources are ignored because their names are resolved later
+ * from bytes, URLs, or manifests.
+ */
+function hasBuiltInExtension(
+	extensions: PHPWebExtension[],
+	name: string
+): boolean {
+	return extensions.some((extension) => {
+		if (typeof extension === 'string') {
+			return extension === name;
+		}
+		return !('source' in extension) && extension.name === name;
+	});
 }

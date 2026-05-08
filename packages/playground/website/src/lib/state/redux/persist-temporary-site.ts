@@ -32,7 +32,6 @@ export function persistTemporarySite(
 		skipRenameModal?: boolean;
 	} = {}
 ) {
-	// @TODO: Handle errors
 	return async (
 		dispatch: typeof store.dispatch,
 		getState: () => PlaygroundReduxState
@@ -135,21 +134,15 @@ export function persistTemporarySite(
 		} else if (storageType === 'local-fs') {
 			let dirHandle = options.localFsHandle;
 			if (!dirHandle) {
-				try {
-					// Request permission to access the directory.
-					// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
-					dirHandle = await (window as any).showDirectoryPicker({
-						// By specifying an ID, the browser can remember different directories
-						// for different IDs.If the same ID is used for another picker, the
-						// picker opens in the same directory.
-						id: 'playground-directory',
-						mode: 'readwrite',
-					});
-				} catch (e) {
-					// No directory selected but log the error just in case.
-					logger.error(e);
-					return;
-				}
+				// Request permission to access the directory.
+				// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
+				dirHandle = await (window as any).showDirectoryPicker({
+					// By specifying an ID, the browser can remember different directories
+					// for different IDs.If the same ID is used for another picker, the
+					// picker opens in the same directory.
+					id: 'playground-directory',
+					mode: 'readwrite',
+				});
 			}
 			await saveDirectoryHandle(siteSlug, dirHandle!);
 

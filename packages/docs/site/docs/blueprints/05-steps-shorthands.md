@@ -122,9 +122,11 @@ Or
 
 The `shorthand` syntax and the `step` syntax correspond to each other. Every `step` specified with the `shorthand` syntax is added to the top of the `steps` array in arbitrary order.
 
-:::info **Which should you choose?**
+<div class="callout callout-info">
 
--   Use `shorthands` when **brevity** is your main concern.
--   Use explicit `steps` when you need more control over the **execution order**.
+**Which should you choose?**
 
-:::
+- Use `shorthands` when **brevity** is your main concern.
+- Use explicit `steps` when you need more control over the **execution order**.
+
+</div>

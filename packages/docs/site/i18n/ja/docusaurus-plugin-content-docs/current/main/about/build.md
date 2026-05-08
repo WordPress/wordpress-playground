@@ -86,11 +86,11 @@ With Google Chrome you can synchronize your Playground instance with a local dir
 -   An existing directory – to load it here and start syncing
 -->
 
-:::info
+<div class="callout callout-info">
 
 この機能は現在 Google Chrome でのみご利用いただけます。他のブラウザではご利用いただけません。
 
-:::
+</div>
 
 <!--
 :::info

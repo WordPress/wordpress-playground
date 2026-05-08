@@ -803,9 +803,12 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "createFunctionApi",\
 "createModule",\
 "ctype_fallback",\
+"Curl_client_write",\
 "Curl_conncache_foreach",\
 "curl_easy_perform",\
 "Curl_http_connect",\
+"Curl_httpchunk_read",\
+"curl_write",\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
@@ -1082,8 +1085,13 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "get_http_body",\
 "get_line",\
 "getFileMode",\
+"gzip_unencode_write",\
 "hasHotJournal",\
 "https_connecting",\
+"inflate",\
+"inflate_fast",\
+"inflate_stream",\
+"inflate_table",\
 "iter_wrapper_free",\
 "iter_wrapper_get_gc",\
 "lex_scan",\
@@ -1617,6 +1625,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "unixShmSystemLock",\
 "unixShmUnmap",\
 "unixSync",\
+"unencode_write",\
 "unixTempFileDir",\
 "unixUnlock",\
 "unlockBtreeIfUnused",\
@@ -2167,7 +2176,106 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 
 # List global and exports symbols
 COPY ./compile/php/exported-functions.list /root/exported-functions.list
+COPY ./compile/php/zend-side-module-exports.c /root/zend-side-module-exports.c
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
+
+RUN set -eux; \
+	if [ "$WITH_JSPI" != "yes" ]; then \
+		exit 0; \
+	fi; \
+	PHP_VERSION_MAJOR="${PHP_VERSION%%.*}"; \
+	PHP_VERSION_REST="${PHP_VERSION#*.}"; \
+	PHP_VERSION_MINOR="${PHP_VERSION_REST%%.*}"; \
+	{ \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_ce_exception'; \
+		fi; \
+		echo 'zend_ce_traversable'; \
+		echo 'zend_ce_iterator'; \
+		echo 'zend_ce_aggregate'; \
+		echo 'zend_ce_arrayaccess'; \
+		if [ "$PHP_VERSION_MAJOR" -gt 7 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 7 ] && [ "$PHP_VERSION_MINOR" -ge 2 ]; }; then \
+			echo 'zend_ce_countable'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_ce_throwable'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -lt 9 ]; then \
+			echo 'zend_ce_serializable'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -ge 8 ]; then \
+			echo 'zend_ce_stringable'; \
+			echo 'zend_ce_unhandled_match_error'; \
+			echo 'zend_ce_division_by_zero_error'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 8 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 8 ] && [ "$PHP_VERSION_MINOR" -ge 1 ]; }; then \
+			echo 'zend_ce_unit_enum'; \
+			echo 'zend_ce_backed_enum'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 7 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 7 ] && [ "$PHP_VERSION_MINOR" -ge 3 ]; }; then \
+			echo 'zend_string_init_interned'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_empty_string'; \
+			echo 'zend_one_char_string'; \
+		fi; \
+		echo 'std_object_handlers'; \
+		echo 'executor_globals'; \
+		echo 'compiler_globals'; \
+		echo 'sapi_globals'; \
+		echo 'file_globals'; \
+		echo 'sapi_module'; \
+		echo 'zend_compile_string'; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_get_executed_scope'; \
+		fi; \
+		echo 'zend_execute'; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zval_ptr_dtor'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 8 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 8 ] && [ "$PHP_VERSION_MINOR" -ge 1 ]; }; then \
+			echo 'zend_destroy_static_vars'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -lt 7 ]; then \
+			echo '_zval_ptr_dtor'; \
+		fi; \
+		echo 'destroy_op_array'; \
+		echo '_efree'; \
+		echo '_zend_bailout'; \
+		echo 'getentropy'; \
+		echo 'posix_memalign'; \
+		echo 'pthread_cond_signal'; \
+		echo 'pthread_cond_wait'; \
+		echo 'pthread_condattr_destroy'; \
+		echo 'pthread_condattr_init'; \
+		echo 'pthread_condattr_setclock'; \
+		echo 'pthread_mutex_trylock'; \
+		echo 'pthread_mutexattr_destroy'; \
+		echo 'pthread_mutexattr_init'; \
+		echo 'pthread_mutexattr_settype'; \
+		echo 'sched_yield'; \
+		echo 'writev'; \
+		if [ "$PHP_VERSION_MAJOR" -ge 8 ]; then \
+			echo 'zend_array_count'; \
+			echo 'zend_declare_property'; \
+			echo 'zend_do_implement_interface'; \
+			echo 'zend_hash_get_current_key_zval_ex'; \
+			echo 'zend_is_callable'; \
+			echo 'zend_is_iterable'; \
+			echo 'zend_lookup_class_ex'; \
+			echo 'zend_objects_new'; \
+			echo 'zend_register_internal_interface'; \
+			echo 'zend_std_get_properties'; \
+			echo 'zend_std_has_property'; \
+			echo 'zend_std_read_property'; \
+			echo 'zend_std_write_property'; \
+			echo 'zend_throw_exception_object'; \
+		fi; \
+	} >> /root/.WASM_ABI_EXPORTS
 
 # WORKAROUND: Asyncify builds do not currently include __c_longjmp,
 # but we require it for JSPI builds. Including the symbol in our
@@ -2232,10 +2340,12 @@ ARG STACK_SIZE
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
+	ZEND_SIDE_MODULE_EXPORT_SOURCE=""; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
+		ZEND_SIDE_MODULE_EXPORT_SOURCE="/root/zend-side-module-exports.c"; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports,UTF8ToString,lengthBytesUTF8,stringToUTF8 $(cat /root/.emcc-php-asyncify-flags) "; \
 		echo '' > /root/php_wasm_asyncify.h; \
@@ -2293,6 +2403,7 @@ RUN set -euxo pipefail; \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
+		$ZEND_SIDE_MODULE_EXPORT_SOURCE \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \

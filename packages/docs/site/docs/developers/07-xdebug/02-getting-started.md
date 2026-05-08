@@ -27,17 +27,21 @@ npx @wp-playground/cli@latest server --xdebug
 
 This starts WordPress on `http://127.0.0.1:9400` with Xdebug enabled. Now you can connect a debugger.
 
-:::info
+<div class="callout callout-info">
+
 Only one project can be debugged at a time.
-:::
+
+</div>
 
 ## Starting with IDE integration
 
 Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, add the `--experimental-unsafe-ide-integration=phpstorm` flag.
 
-:::info
+<div class="callout callout-info">
+
 This flag is marked as `unsafe` because it edits the IDE config files to set Xdebug path mappings and web server details. **CAUTION:** If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
-:::
+
+</div>
 
 To debug in VS Code, you'll need the following prerequisites:
 
@@ -95,14 +99,14 @@ Booting WordPress...
 WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 
 Chrome connected! Initializing Xdebug receiver...
 XDebug receiver running on port 9003
 Running a PHP script with Xdebug enabled...
 ```
 
-By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance.
+By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance.
 
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 

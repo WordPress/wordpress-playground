@@ -1,6 +1,3 @@
-// Blueprints require WordPress Playground's Node polyfills.
-import '@php-wasm/node-polyfills';
-
 export type {
 	BlueprintV1,
 	BlueprintV1Declaration,
@@ -74,6 +71,7 @@ export {
 	resolveRemoteBlueprint,
 	BlueprintFetchError,
 } from './lib/resolve-remote-blueprint';
+export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
 

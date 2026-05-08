@@ -74,9 +74,11 @@ This [WordPress Playground block](https://wordpress.org/plugins/interactive-code
 With this block you have a straightforward and effective way to create live WordPress environments that can be embedded within your blog posts.
 -->
 
-:::info
+<div class="callout callout-info">
+
 WordPress プレイグラウンド ブロックに関する問題や質問がある場合は、[playground-tools](https://github.com/WordPress/playground-tools) リポジトリで GitHub の問題を開いてください。
-:::
+
+</div>
 
 <!--
 :::info

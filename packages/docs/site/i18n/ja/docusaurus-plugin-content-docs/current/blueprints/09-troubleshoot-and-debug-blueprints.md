@@ -157,9 +157,11 @@ You can `error_log` your own error messages through [`runPHP` step](/blueprints/
 
 ![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
-:::info
+<div class="callout callout-info">
+
 [「zip としてダウンロード」オプション](/web-instance#playground-options-menu) を使用して Playground インスタンスを `zip` としてダウンロードすると、Playground インスタンスからのすべてのログを含む `debug.log` ファイルもダウンロードされます。
-:::
+
+</div>
 
 <!--
 :::info

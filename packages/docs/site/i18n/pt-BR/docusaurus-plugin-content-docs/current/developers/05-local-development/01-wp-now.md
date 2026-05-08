@@ -24,9 +24,9 @@ O pacote NPM @wp-now/wp-now está descontinuado e não receberá atualizações 
 <!-- -   **Quick Setup**: Set up a local WordPress environment in seconds. -->
 <!-- -   **Customizable**: Allows for configuration to suit specific development needs. -->
 
--   **Interface de Linha de Comando**: Fácil de usar para desenvolvedores confortáveis com CLI.
--   **Configuração Rápida**: Configure um ambiente WordPress local em segundos.
--   **Personalizável**: Permite configuração para atender às necessidades específicas de desenvolvimento.
+- **Interface de Linha de Comando**: Fácil de usar para desenvolvedores confortáveis com CLI.
+- **Configuração Rápida**: Configure um ambiente WordPress local em segundos.
+- **Personalizável**: Permite configuração para atender às necessidades específicas de desenvolvimento.
 
 <!-- [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required. -->
 
@@ -34,13 +34,15 @@ O pacote NPM @wp-now/wp-now está descontinuado e não receberá atualizações 
 
 <!-- :::info **Documentation** -->
 
-:::info **Documentação**
+<div class="callout callout-info">
+
+**Documentação**
 
 <!-- `wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md). -->
 
 `wp-now` é mantido em um repositório GitHub diferente, [Playground Tools](https://github.com/WordPress/playground-tools/). Você pode encontrar a documentação mais recente no [arquivo README dedicado](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
-:::
+</div>
 
 <!-- ## Launch wp-now in a plugin or theme directory -->
 

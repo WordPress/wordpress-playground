@@ -89,11 +89,11 @@ This feature is only available for Google Chrome for now. It won't work with oth
 :::
 -->
 
-:::info
+<div class="callout callout-info">
 
 Este recurso está disponível apenas para o Google Chrome por enquanto. Não funcionará com outros navegadores ainda.
 
-:::
+</div>
 
 <!--
 Regarding changes done on both sides of the connection:

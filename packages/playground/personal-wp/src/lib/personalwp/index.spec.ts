@@ -66,14 +66,14 @@ describe('resolveUrlParamsForExistingSite', () => {
 		expect((themeStep as any)?.themeData?.slug).toBe('flavor');
 	});
 
-	it('sets landingPage from ?url= param via applyQueryOverrides', async () => {
+	it('ignores legacy ?url= params when applying query overrides', async () => {
 		const url = new URL(
 			'https://playground.wordpress.net/?plugin=woocommerce&url=/wp-admin/plugins.php'
 		);
 		const result = await resolveUrlParamsForExistingSite(url);
 
 		expect(result).not.toBeNull();
-		expect(result?.landingPage).toBe('/wp-admin/plugins.php');
+		expect(result?.landingPage).toBeUndefined();
 	});
 
 	it('returns null for ?gutenberg-pr= (not supported for existing sites)', async () => {

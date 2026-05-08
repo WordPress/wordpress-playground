@@ -17,10 +17,10 @@ A Blueprint bundle is a collection of files that includes:
 
 Blueprint bundles can be distributed in various formats:
 
--   A ZIP file with a top-level `blueprint.json` file and additional resources
--   A directory inside a git repository where `blueprint.json` resides alongside other resources
--   A local directory on your computer
--   An inline JavaScript object with the relevant files inlined
+- A ZIP file with a top-level `blueprint.json` file and additional resources
+- A directory inside a git repository where `blueprint.json` resides alongside other resources
+- A local directory on your computer
+- An inline JavaScript object with the relevant files inlined
 
 ## Using Blueprint Bundles
 
@@ -38,9 +38,9 @@ The ZIP file should contain a `blueprint.json` file at the root level, along wit
 
 The Playground CLI supports Blueprint bundles through the `--blueprint=` option. You can provide:
 
--   A path to a local directory containing a Blueprint bundle
--   A path to a local ZIP file containing a Blueprint bundle
--   A URL to a remote Blueprint bundle (http:// or https://)
+- A path to a local directory containing a Blueprint bundle
+- A path to a local ZIP file containing a Blueprint bundle
+- A URL to a remote Blueprint bundle (http:// or https://)
 
 For example:
 
@@ -119,10 +119,10 @@ Here's an example of a `blueprint.json` file that references bundled resources:
 
 In this example, the Blueprint references several bundled resources:
 
--   A text file at `/bundled-text-file.txt`
--   A theme ZIP file at `/theme.zip`
--   A plugin ZIP file at `/plugin.zip`
--   A WXR content file at `/content/sample-content.wxr`
+- A text file at `/bundled-text-file.txt`
+- A theme ZIP file at `/theme.zip`
+- A plugin ZIP file at `/plugin.zip`
+- A WXR content file at `/content/sample-content.wxr`
 
 ### Creating a ZIP Bundle
 
@@ -140,11 +140,40 @@ cd my-blueprint-bundle
 zip -r ../my-blueprint-bundle.zip .
 ```
 
+## ZIP File Structure Flexibility
+
+Blueprint bundles support `blueprint.json` at two locations within a ZIP file:
+
+1. **Root level** (standard): `blueprint.json` sits directly at the ZIP root
+2. **One directory deep**: `blueprint.json` sits inside a single top-level directory
+
+This means ZIP files created with macOS's right-click "Compress" feature (which wraps contents in a folder) work automatically. The `__MACOSX` metadata directory is ignored during detection.
+
+**Example: Both of these ZIP structures work:**
+
+```
+# Structure A (root level)
+my-bundle.zip/
+├── blueprint.json
+├── theme.zip
+└── plugin.zip
+
+# Structure B (one directory deep — macOS-style)
+my-bundle.zip/
+├── my-bundle/
+│   ├── blueprint.json
+│   ├── theme.zip
+│   └── plugin.zip
+└── __MACOSX/         ← ignored
+```
+
+If multiple top-level directories contain a `blueprint.json`, Playground returns an error to avoid ambiguity.
+
 ## Troubleshooting
 
 If you encounter issues with Blueprint bundles:
 
-1. Ensure your `blueprint.json` file is at the root level of your ZIP file
+1. Ensure your `blueprint.json` file is at the root level of your ZIP file or inside a single top-level directory
 2. Check that all paths in your bundled resource references are correct
 3. Verify that your ZIP file is properly formatted
 4. When using the CLI, check if you need the `--blueprint-may-read-adjacent-files` flag

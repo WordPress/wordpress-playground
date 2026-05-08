@@ -44,6 +44,7 @@ const sidebars = {
 						id: 'main/guides/index',
 					},
 					items: [
+						'main/guides/php-code-snippets',
 						'main/guides/agent-skill-wp-playground',
 						'main/guides/wordpress-native-ios-app',
 						'main/guides/for-plugin-developers',
@@ -181,6 +182,9 @@ const sidebars = {
 								'developers/apis/javascript-api/blueprint-json-in-api-client',
 								'developers/apis/javascript-api/blueprint-functions-in-api-client',
 								'developers/apis/javascript-api/mount-data',
+								'developers/apis/javascript-api/php-extensions',
+								'developers/apis/javascript-api/build-php-extensions',
+								'developers/apis/javascript-api/php-extension-dependencies',
 							],
 						},
 					],

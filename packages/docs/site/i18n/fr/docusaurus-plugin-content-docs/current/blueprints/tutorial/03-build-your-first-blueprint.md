@@ -561,8 +561,10 @@ Et voilà. Félicitations, vous avez créé votre premier blueprint ! 🥳
 
 <!-- And that's it. Congratulations on creating your first Blueprint! 🥳 -->
 
-:::info
+<div class="callout callout-info">
+
 Traduction par [@quentinsauvaire](https://profiles.wordpress.org/quentinsauvaire/) et relecture par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
 
 Dernière mise à jour le 9 mars 2026
-:::
+
+</div>

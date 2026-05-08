@@ -3,7 +3,7 @@ name: Publish GitHub Release
 on:
     workflow_dispatch:
     workflow_run:
-        workflows: [Release NPM packages]
+        workflows: [Update CHANGELOG.md]
         types:
             - completed
 
@@ -12,13 +12,16 @@ permissions:
 
 jobs:
     create-release:
-        # Only create a release after a successful npm publish on trunk,
-        # or when triggered manually.
+        # Only run on the playground repo. Create a release after a successful
+        # npm publish on trunk, or when triggered manually.
         if: >
-            github.event_name == 'workflow_dispatch' ||
+            github.repository == 'WordPress/wordpress-playground' &&
             (
-                github.event.workflow_run.conclusion == 'success' &&
-                github.event.workflow_run.head_branch == 'trunk'
+                github.event_name == 'workflow_dispatch' ||
+                (
+                    github.event.workflow_run.conclusion == 'success' &&
+                    github.event.workflow_run.head_branch == 'trunk'
+                )
             )
 
         runs-on: ubuntu-latest
@@ -26,7 +29,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+                  ref: ${{ github.event.workflow_run.head_branch || github.ref }}
 
             - name: Read version from lerna.json
               id: version

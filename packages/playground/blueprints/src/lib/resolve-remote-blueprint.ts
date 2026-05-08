@@ -18,6 +18,11 @@ export class BlueprintFetchError extends Error {
 	}
 }
 
+export interface ResolveRemoteBlueprintOptions {
+	fetch?: typeof fetch;
+	corsProxy?: string;
+}
+
 /**
  * Resolves a remote blueprint from a URL.
  *
@@ -25,11 +30,13 @@ export class BlueprintFetchError extends Error {
  * @returns A promise that resolves to the resolved blueprint.
  */
 export async function resolveRemoteBlueprint(
-	url: string
+	url: string,
+	options: ResolveRemoteBlueprintOptions = {}
 ): Promise<BlueprintBundle> {
 	let blueprintBytes: ArrayBuffer;
 	try {
-		const response = await fetch(url, {
+		const fetchBlueprint = options.fetch || fetch;
+		const response = await fetchBlueprint(url, {
 			credentials: 'omit',
 		});
 		if (!response.ok) {
@@ -56,6 +63,7 @@ export async function resolveRemoteBlueprint(
 			}),
 			new FetchFilesystem({
 				baseUrl: url,
+				corsProxy: options.corsProxy,
 			}),
 		]);
 	} catch (error) {
@@ -82,7 +90,11 @@ export async function resolveRemoteBlueprint(
 function findBlueprintJsonPath(entryPaths: string[]): string {
 	const normalized = entryPaths.map((p) => normalizePath(p));
 
-	if (normalized.some((p) => basename(p) === 'blueprint.json' && dirname(p) === '')) {
+	if (
+		normalized.some(
+			(p) => basename(p) === 'blueprint.json' && dirname(p) === ''
+		)
+	) {
 		return 'blueprint.json';
 	}
 

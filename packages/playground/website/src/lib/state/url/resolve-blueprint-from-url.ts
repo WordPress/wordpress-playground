@@ -14,6 +14,9 @@ import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
+import { decodeBlueprintHash } from './decode-blueprint-hash';
+
+export { decodeBlueprintHash };
 
 export type BlueprintSource =
 	| {
@@ -66,7 +69,7 @@ export async function resolveBlueprintFromURL(
 	defaultBlueprint?: string
 ): Promise<ResolvedBlueprint> {
 	const query = url.searchParams;
-	const fragment = decodeURI(url.hash || '#').substring(1);
+	const fragment = decodeBlueprintHash(url.hash || '#');
 
 	/**
 	 * If the URL has no parameters or fragment, and a default blueprint is provided,
@@ -226,6 +229,13 @@ function applyQueryOverridesToDeclaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
 ): BlueprintV1Declaration {
+	// PHP-only blueprints opt out of WordPress entirely. Skip the WP-bound
+	// query overrides — adding `login`, `enableMultisite`, etc. would
+	// trip the compile-time guard that rejects WP-only features when
+	// `preferredVersions.wp: false` is set.
+	if (blueprint.preferredVersions?.wp === false) {
+		return blueprint;
+	}
 	/**
 	 * Allow overriding PHP and WordPress versions defined in a Blueprint
 	 * via query params.

@@ -1,6 +1,25 @@
 import type { PHP } from './php';
 
 /**
+ * Reads the major PHP version from an instance's Emscripten runtime and
+ * returns true for anything older than PHP 7. Used to decide whether the
+ * PROXYFS mmap patch should apply — see {@link proxyFileSystem} for the
+ * legacy-PHP rationale. Falls back to `false` when the runtime hasn't
+ * populated phpVersion yet, matching the pre-refactor default behaviour.
+ */
+function isLegacyPhpInstance(phpInstance: PHP): boolean {
+	// We can't import __private__dont__use because Playground CLI is
+	// built as ESM and php-wasm-node is built as CJS — the imported
+	// symbols would differ in the production build. Use
+	// getOwnPropertySymbols()[0] like the rest of this file.
+	const __private__symbol = Object.getOwnPropertySymbols(phpInstance)[0];
+	// @ts-ignore
+	const runtime = phpInstance[__private__symbol];
+	const major: number | undefined = runtime?.phpVersion?.major;
+	return typeof major === 'number' && major < 7;
+}
+
+/**
  * Adds mmap support to PROXYFS for memory-mapping files across PHP instances.
  *
  * Without mmap, libraries like ICU fail when accessing data files through PROXYFS.
@@ -136,8 +155,20 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
  * For example, mounting /wordpress from the parent instance into a child worker allows
  * both to access the same WordPress installation without copying the entire directory.
  *
- * The function automatically patches PROXYFS with mmap support before mounting, ensuring
- * libraries like ICU can memory-map data files through the proxied filesystem.
+ * The function automatically patches PROXYFS with mmap support before mounting on
+ * PHP 7+, so libraries like ICU can memory-map data files through the proxied
+ * filesystem.
+ *
+ * Legacy PHP (< 7) skips the mmap patch. PHP 5.x's zend_compile_file
+ * calls mmap() via zend_stream_fixup and trusts fstat() for the buffer
+ * size. When a file is pre-populated in MEMFS before PROXYFS is mounted
+ * over that path (e.g. php.ini written by preRun), fstat() can return
+ * the stale MEMFS size instead of the PROXYFS size, causing the parser
+ * to read past the real EOF and report spurious syntax errors. Without
+ * the mmap patch, Emscripten returns ENOSYS from mmap() and PHP falls
+ * back to a read-based path that handles size mismatches gracefully.
+ * PHP 7+ removed the mmap path from zend_stream_fixup entirely, so the
+ * patch is both safe and needed there (for ICU/intl).
  *
  * Mounts are registered via php.mount() so they survive runtime rotation.
  * When the replica's WASM module is hot-swapped, hotSwapPHPRuntime()
@@ -152,6 +183,7 @@ export async function proxyFileSystem(
 	replica: PHP,
 	paths: string[]
 ) {
+	const replicaIsLegacy = isLegacyPhpInstance(replica);
 	// We can't just import the symbol from the library because
 	// Playground CLI is built as ESM and php-wasm-node is built as
 	// CJS and the imported symbols will differ in the production build.
@@ -164,7 +196,9 @@ export async function proxyFileSystem(
 		// after runtime rotation in hotSwapPHPRuntime().
 		replica.mkdir(path);
 		await replica.mount(path, (php: PHP) => {
-			ensureProxyFSHasMmapSupport(php);
+			if (!replicaIsLegacy) {
+				ensureProxyFSHasMmapSupport(php);
+			}
 			const replicaSymbol = Object.getOwnPropertySymbols(php)[0];
 			// @ts-ignore
 			php[replicaSymbol].FS.mount(

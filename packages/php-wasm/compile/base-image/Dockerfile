@@ -11,6 +11,7 @@ WORKDIR /root
 RUN mkdir lib
 
 RUN set -euxo pipefail;\
+    export DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC; \
     apt-get update; \
     apt-get --no-install-recommends -y install \
     build-essential \
@@ -52,9 +53,11 @@ RUN set -euxo pipefail;\
 # https://github.com/emscripten-core/emscripten/commit/4d16f757adcc801fb3f990ccb6100b747c815650
 #
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install 4.0.19 && \
-    /root/emsdk/emsdk activate 4.0.19
+RUN bash -euxo pipefail <<'EOF'
+    git clone https://github.com/emscripten-core/emsdk.git
+    EMSDK_NOTTY=1 EMSDK_USE_CURL=1 ./emsdk/emsdk install --notty 4.0.19
+    EMSDK_NOTTY=1 /root/emsdk/emsdk activate --notty 4.0.19
+EOF
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 

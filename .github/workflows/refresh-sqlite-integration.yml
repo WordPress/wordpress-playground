@@ -2,14 +2,14 @@ name: 'Refresh SQLite plugin'
 
 on:
     workflow_dispatch:
-    # Every 20 minutes
     schedule:
-        - cron: '0 9 * * *'
+        - cron: '0 10 * * *'
 
 jobs:
     build_and_deploy:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             github.ref == 'refs/heads/trunk' && (
                 github.actor == 'adamziel' ||
                 github.actor == 'dmsnell' ||

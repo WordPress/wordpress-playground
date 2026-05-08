@@ -19,11 +19,10 @@ import {
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
-	setSiteManagerSection,
+	setSiteSlugToDelete,
 	setSiteSlugToRename,
 } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
-import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
@@ -85,8 +84,6 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
-	const sitesAPI = useSitesAPI();
-
 	// Load the last active tab for this site
 	const [initialTabName] = useState(() => {
 		const lastTab = getSiteLastTab(site.slug);
@@ -103,16 +100,10 @@ export function SiteInfoPanel({
 
 	const isTemporary = site.metadata.storage === 'none';
 
-	const removeSiteAndCloseMenu = async (onClose: () => void) => {
-		// TODO: Replace with HTML-based dialog
-		const proceed = window.confirm(
-			`Are you sure you want to delete the site '${site.metadata.name}'?`
-		);
-		if (proceed) {
-			await sitesAPI.delete(site.slug);
-			dispatch(setSiteManagerSection('sidebar'));
-			onClose();
-		}
+	const removeSiteAndCloseMenu = (onClose: () => void) => {
+		dispatch(setSiteSlugToDelete(site.slug));
+		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
+		onClose();
 	};
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)

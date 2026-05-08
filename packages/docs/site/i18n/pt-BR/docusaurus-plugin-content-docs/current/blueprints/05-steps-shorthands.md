@@ -143,9 +143,11 @@ The `shorthand` syntax and the `step` syntax correspond to each other. Every `st
 
 A sintaxe `abreviada` e a sintaxe `step` correspondem uma à outra. Cada `etapa` especificada com a sintaxe `abreviada` é adicionada ao topo do array de `etapas` em ordem arbitrária.
 
-:::info **Qual você deve escolher?**
+<div class="callout callout-info">
+
+**Qual você deve escolher?**
 
 - Use `abreviações` quando a **brevidade** for sua principal preocupação.
 - Use `etapas` explícitas quando precisar de mais controle sobre a **ordem de execução**.
 
-:::
+</div>

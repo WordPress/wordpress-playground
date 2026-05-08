@@ -3,15 +3,14 @@ import {
 	initTabCoordinator,
 	destroyTabCoordinator,
 	getCurrentTabInfo,
-	isTabStale,
-	setDependentMode,
-	checkForExistingTabs,
-	requestStaleTabsShutdown,
-	requestTakeover,
+	markMainTabReady,
+	refreshMainTabStatus,
 	requestRemoteBackup,
+	requestRemoteBlueprintInstall,
+	requestMainTabFocus,
 	broadcastSiteReset,
 	setBackupRequestCallback,
-	type TabInfo,
+	setInstallBlueprintRequestCallback,
 } from './tab-coordinator';
 
 type MessageHandler = (event: MessageEvent) => void;
@@ -38,9 +37,7 @@ class MockBroadcastChannel {
 				instance.name === this.name &&
 				!instance.closed
 			) {
-				if (instance.onmessage) {
-					instance.onmessage(event);
-				}
+				instance.onmessage?.(event);
 				const listeners = instance.listeners.get('message') || [];
 				for (const listener of listeners) {
 					listener(event);
@@ -58,11 +55,10 @@ class MockBroadcastChannel {
 
 	removeEventListener(type: string, handler: MessageHandler): void {
 		const handlers = this.listeners.get(type);
-		if (handlers) {
-			const index = handlers.indexOf(handler);
-			if (index !== -1) {
-				handlers.splice(index, 1);
-			}
+		if (!handlers) return;
+		const index = handlers.indexOf(handler);
+		if (index !== -1) {
+			handlers.splice(index, 1);
 		}
 	}
 
@@ -79,600 +75,425 @@ class MockBroadcastChannel {
 	}
 }
 
+class MockLockManager {
+	private held = new Set<string>();
+
+	async request<T>(
+		name: string,
+		options: { ifAvailable?: boolean },
+		callback: (lock: unknown | null) => T | Promise<T>
+	): Promise<T> {
+		if (options.ifAvailable && this.held.has(name)) {
+			return await callback(null);
+		}
+
+		this.held.add(name);
+		try {
+			return await callback({ name });
+		} finally {
+			this.held.delete(name);
+		}
+	}
+
+	async query(): Promise<{ held: Array<{ name: string }> }> {
+		return {
+			held: [...this.held].map((name) => ({ name })),
+		};
+	}
+
+	hold(name: string): () => void {
+		this.held.add(name);
+		return () => {
+			this.held.delete(name);
+		};
+	}
+
+	isHeld(name: string): boolean {
+		return this.held.has(name);
+	}
+}
+
+const MAIN_LOCK_NAME = 'personal-wp:main';
+const READY_LOCK_NAME = 'personal-wp:ready';
+const sessionStorageMap = new Map<string, string>();
+let uuidCounter = 0;
+let locks: MockLockManager;
+let focusWindow: ReturnType<typeof vi.fn>;
+
+function setNavigationType(type: string) {
+	vi.stubGlobal('performance', {
+		getEntriesByType: () => [{ type }],
+	});
+}
+
+async function flushLockReleases() {
+	await Promise.resolve();
+	await Promise.resolve();
+	await Promise.resolve();
+}
+
 describe('tab-coordinator', () => {
 	beforeEach(() => {
+		sessionStorageMap.clear();
 		MockBroadcastChannel.reset();
+		uuidCounter = 0;
+		locks = new MockLockManager();
+
 		vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
 		vi.stubGlobal('crypto', {
-			randomUUID: () =>
-				`test-uuid-${Math.random().toString(36).slice(2)}`,
+			randomUUID: () => `tab-${++uuidCounter}`,
 		});
+		vi.stubGlobal('navigator', {
+			locks,
+		});
+		vi.stubGlobal('sessionStorage', {
+			getItem: (key: string) => sessionStorageMap.get(key) || null,
+			setItem: (key: string, value: string) => {
+				sessionStorageMap.set(key, value);
+			},
+			removeItem: (key: string) => {
+				sessionStorageMap.delete(key);
+			},
+		});
+		focusWindow = vi.fn();
+		vi.stubGlobal('window', {
+			focus: focusWindow,
+		});
+		setNavigationType('navigate');
 		destroyTabCoordinator();
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		destroyTabCoordinator();
+		await flushLockReleases();
 		MockBroadcastChannel.reset();
+		vi.useRealTimers();
+		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 	});
 
-	describe('isTabStale', () => {
-		it('returns false for tabs created just now', () => {
-			const tabInfo: TabInfo = {
-				tabId: 'test-tab',
-				createdAt: Date.now(),
-				siteSlug: 'test-site',
-			};
-			expect(isTabStale(tabInfo)).toBe(false);
+	it('claims the main lock and starts in booting status', async () => {
+		const tabInfo = await initTabCoordinator('my-site');
+
+		expect(tabInfo.isDependentMode).toBe(false);
+		expect(tabInfo.mainTabStatus).toBe('booting');
+		expect(locks.isHeld(MAIN_LOCK_NAME)).toBe(true);
+		expect(locks.isHeld(READY_LOCK_NAME)).toBe(false);
+	});
+
+	it('holds the ready lock after the main runtime is ready', async () => {
+		const tabInfo = await initTabCoordinator('my-site');
+
+		await expect(markMainTabReady()).resolves.toBe(true);
+
+		expect(tabInfo.mainTabStatus).toBe('connected');
+		expect(locks.isHeld(MAIN_LOCK_NAME)).toBe(true);
+		expect(locks.isHeld(READY_LOCK_NAME)).toBe(true);
+	});
+
+	it('boots as dependent when a main tab already exists', async () => {
+		locks.hold(MAIN_LOCK_NAME);
+
+		const dependentTab = await initTabCoordinator('my-site');
+
+		expect(dependentTab.isDependentMode).toBe(true);
+		expect(dependentTab.mainTabStatus).toBe('booting');
+	});
+
+	it('reports connected when main and ready locks are held', async () => {
+		locks.hold(MAIN_LOCK_NAME);
+		locks.hold(READY_LOCK_NAME);
+
+		const dependentTab = await initTabCoordinator('my-site');
+
+		expect(dependentTab.isDependentMode).toBe(true);
+		expect(dependentTab.mainTabStatus).toBe('connected');
+	});
+
+	it('reports missing when Web Locks are unavailable', async () => {
+		vi.stubGlobal('navigator', {});
+
+		const tabInfo = await initTabCoordinator('my-site');
+
+		expect(tabInfo.isDependentMode).toBe(true);
+		expect(tabInfo.mainTabStatus).toBe('missing');
+	});
+
+	it('does not auto-promote a dependent tab when the main lock disappears', async () => {
+		const releaseMain = locks.hold(MAIN_LOCK_NAME);
+		const statuses: string[] = [];
+		const dependentTab = await initTabCoordinator('my-site', {
+			onMainTabStatusChange: (status) => statuses.push(status),
 		});
 
-		it('returns false for tabs created 23 hours ago', () => {
-			const twentyThreeHoursAgo = Date.now() - 23 * 60 * 60 * 1000;
-			const tabInfo: TabInfo = {
-				tabId: 'test-tab',
-				createdAt: twentyThreeHoursAgo,
-				siteSlug: 'test-site',
-			};
-			expect(isTabStale(tabInfo)).toBe(false);
+		releaseMain();
+		await refreshMainTabStatus();
+
+		expect(dependentTab.isDependentMode).toBe(true);
+		expect(getCurrentTabInfo()?.isDependentMode).toBe(true);
+		expect(locks.isHeld(MAIN_LOCK_NAME)).toBe(false);
+		expect(statuses).toContain('missing');
+	});
+
+	it('keeps the same tab id across a reload', async () => {
+		const mainTab = await initTabCoordinator('my-site');
+		destroyTabCoordinator();
+		await flushLockReleases();
+
+		setNavigationType('reload');
+		const reloadedTab = await initTabCoordinator('my-site');
+
+		expect(reloadedTab.tabId).toBe(mainTab.tabId);
+		expect(reloadedTab.isDependentMode).toBe(false);
+	});
+
+	it('creates a new tab id for non-reload navigation', async () => {
+		const mainTab = await initTabCoordinator('my-site');
+		destroyTabCoordinator();
+		await flushLockReleases();
+
+		const newTab = await initTabCoordinator('other-site');
+
+		expect(newTab.tabId).not.toBe(mainTab.tabId);
+	});
+
+	it('handles backup requests in the main tab', async () => {
+		const backupCallback = vi.fn().mockResolvedValue(true);
+		await initTabCoordinator('my-site');
+		setBackupRequestCallback(backupCallback);
+
+		const responses: unknown[] = [];
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			responses.push(event.data);
+		};
+
+		otherChannel.postMessage({
+			type: 'backup-request',
+			requestingTabId: 'dependent-tab',
+			siteSlug: 'my-site',
 		});
 
-		it('returns true for tabs created exactly 24 hours ago', () => {
-			const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-			const tabInfo: TabInfo = {
-				tabId: 'test-tab',
-				createdAt: oneDayAgo,
-				siteSlug: 'test-site',
-			};
-			expect(isTabStale(tabInfo)).toBe(true);
-		});
-
-		it('returns true for tabs created more than 24 hours ago', () => {
-			const twoDaysAgo = Date.now() - 48 * 60 * 60 * 1000;
-			const tabInfo: TabInfo = {
-				tabId: 'test-tab',
-				createdAt: twoDaysAgo,
-				siteSlug: 'test-site',
-			};
-			expect(isTabStale(tabInfo)).toBe(true);
+		await vi.waitFor(() => expect(backupCallback).toHaveBeenCalled());
+		await vi.waitFor(() => expect(responses).toHaveLength(1));
+		expect(responses[0]).toEqual({
+			type: 'backup-completed',
+			targetTabId: 'dependent-tab',
+			siteSlug: 'my-site',
+			success: true,
 		});
 	});
 
-	describe('initTabCoordinator', () => {
-		it('creates tab info with correct site slug', () => {
-			const tabInfo = initTabCoordinator('my-site');
-			expect(tabInfo.siteSlug).toBe('my-site');
-		});
-
-		it('creates tab info with current timestamp', () => {
-			const before = Date.now();
-			const tabInfo = initTabCoordinator('my-site');
-			const after = Date.now();
-			expect(tabInfo.createdAt).toBeGreaterThanOrEqual(before);
-			expect(tabInfo.createdAt).toBeLessThanOrEqual(after);
-		});
-
-		it('creates tab info with unique tab ID', () => {
-			const tabInfo = initTabCoordinator('my-site');
-			expect(tabInfo.tabId).toBeTruthy();
-			expect(typeof tabInfo.tabId).toBe('string');
-		});
-
-		it('returns same tab info when called twice with same site', () => {
-			const tabInfo1 = initTabCoordinator('my-site');
-			const tabInfo2 = initTabCoordinator('my-site');
-			expect(tabInfo1).toBe(tabInfo2);
-		});
-
-		it('creates new tab info when switching sites', () => {
-			const tabInfo1 = initTabCoordinator('site-a');
-			destroyTabCoordinator();
-			const tabInfo2 = initTabCoordinator('site-b');
-			expect(tabInfo1.tabId).not.toBe(tabInfo2.tabId);
-			expect(tabInfo2.siteSlug).toBe('site-b');
-		});
-	});
-
-	describe('getCurrentTabInfo', () => {
-		it('returns null before initialization', () => {
-			expect(getCurrentTabInfo()).toBeNull();
-		});
-
-		it('returns tab info after initialization', () => {
-			initTabCoordinator('my-site');
-			const tabInfo = getCurrentTabInfo();
-			expect(tabInfo).not.toBeNull();
-			expect(tabInfo!.siteSlug).toBe('my-site');
-		});
-
-		it('returns null after destroy', () => {
-			initTabCoordinator('my-site');
-			destroyTabCoordinator();
-			expect(getCurrentTabInfo()).toBeNull();
-		});
-	});
-
-	describe('setDependentMode', () => {
-		it('sets isDependentMode on current tab info', () => {
-			initTabCoordinator('my-site');
-			setDependentMode(true);
-			expect(getCurrentTabInfo()!.isDependentMode).toBe(true);
-		});
-
-		it('can toggle dependent mode off', () => {
-			initTabCoordinator('my-site');
-			setDependentMode(true);
-			setDependentMode(false);
-			expect(getCurrentTabInfo()!.isDependentMode).toBe(false);
-		});
-
-		it('does nothing if not initialized', () => {
-			expect(() => setDependentMode(true)).not.toThrow();
-		});
-	});
-
-	describe('checkForExistingTabs', () => {
-		it('returns empty when no other tabs exist', async () => {
-			initTabCoordinator('my-site');
-			const result = await checkForExistingTabs('my-site');
-			expect(result.existingTabs).toHaveLength(0);
-			expect(result.hasFreshTab).toBe(false);
-			expect(result.hasStaleTab).toBe(false);
-		});
-
-		it('returns empty when not initialized', async () => {
-			const result = await checkForExistingTabs('my-site');
-			expect(result.existingTabs).toHaveLength(0);
-		});
-
-		it('detects fresh tabs from other instances', async () => {
-			initTabCoordinator('my-site');
-
-			destroyTabCoordinator();
-			initTabCoordinator('my-site');
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'ping') {
-					otherChannel.postMessage({
-						type: 'pong',
-						tabInfo: {
-							tabId: 'other-tab',
-							createdAt: Date.now(),
-							siteSlug: 'my-site',
-						},
-					});
-				}
-			};
-
-			const result = await checkForExistingTabs('my-site');
-			expect(result.existingTabs).toHaveLength(1);
-			expect(result.hasFreshTab).toBe(true);
-			expect(result.hasStaleTab).toBe(false);
-
-			otherChannel.close();
-		});
-
-		it('detects stale tabs', async () => {
-			initTabCoordinator('my-site');
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			const twoDaysAgo = Date.now() - 48 * 60 * 60 * 1000;
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'ping') {
-					otherChannel.postMessage({
-						type: 'pong',
-						tabInfo: {
-							tabId: 'stale-tab',
-							createdAt: twoDaysAgo,
-							siteSlug: 'my-site',
-						},
-					});
-				}
-			};
-
-			const result = await checkForExistingTabs('my-site');
-			expect(result.existingTabs).toHaveLength(1);
-			expect(result.hasFreshTab).toBe(false);
-			expect(result.hasStaleTab).toBe(true);
-
-			otherChannel.close();
-		});
-
-		it('ignores tabs for different sites', async () => {
-			initTabCoordinator('my-site');
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'ping') {
-					otherChannel.postMessage({
-						type: 'pong',
-						tabInfo: {
-							tabId: 'other-tab',
-							createdAt: Date.now(),
-							siteSlug: 'different-site',
-						},
-					});
-				}
-			};
-
-			const result = await checkForExistingTabs('my-site');
-			expect(result.existingTabs).toHaveLength(0);
-
-			otherChannel.close();
-		});
-
-		it('ignores dependent mode tabs when checking for fresh tabs', async () => {
-			initTabCoordinator('my-site');
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'ping') {
-					otherChannel.postMessage({
-						type: 'pong',
-						tabInfo: {
-							tabId: 'dependent-tab',
-							createdAt: Date.now(),
-							siteSlug: 'my-site',
-							isDependentMode: true,
-						},
-					});
-				}
-			};
-
-			const result = await checkForExistingTabs('my-site');
-			expect(result.existingTabs).toHaveLength(1);
-			expect(result.hasFreshTab).toBe(false);
-
-			otherChannel.close();
-		});
-	});
-
-	describe('requestStaleTabsShutdown', () => {
-		it('requests shutdown only for stale tabs', () => {
-			initTabCoordinator('my-site');
-
-			const shutdownRequests: string[] = [];
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'shutdown-request') {
-					shutdownRequests.push(event.data.targetTabId);
-				}
-			};
-
-			const now = Date.now();
-			const tabs: TabInfo[] = [
-				{ tabId: 'fresh-tab', createdAt: now, siteSlug: 'my-site' },
-				{
-					tabId: 'stale-tab',
-					createdAt: now - 25 * 60 * 60 * 1000,
+	it('requestRemoteBackup resolves when the main tab responds', async () => {
+		const tabInfo = await initTabCoordinator('my-site');
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			if (event.data.type === 'backup-request') {
+				otherChannel.postMessage({
+					type: 'backup-completed',
+					targetTabId: tabInfo.tabId,
 					siteSlug: 'my-site',
-				},
-			];
+					success: true,
+				});
+			}
+		};
 
-			requestStaleTabsShutdown(tabs);
+		await expect(requestRemoteBackup('my-site', 100)).resolves.toBe(true);
+	});
 
-			expect(shutdownRequests).toHaveLength(1);
-			expect(shutdownRequests[0]).toBe('stale-tab');
+	it('handles install-blueprint requests in the main tab', async () => {
+		const installCallback = vi.fn().mockResolvedValue({
+			status: 'success',
+		});
+		await initTabCoordinator('my-site');
+		setInstallBlueprintRequestCallback(installCallback);
 
-			otherChannel.close();
+		const responses: unknown[] = [];
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			responses.push(event.data);
+		};
+
+		otherChannel.postMessage({
+			type: 'install-blueprint-request',
+			requestId: 'request-1',
+			requestingTabId: 'dependent-tab',
+			siteSlug: 'my-site',
+			blueprintUrl: 'https://example.com/blueprint.json',
+		});
+
+		await vi.waitFor(() =>
+			expect(installCallback).toHaveBeenCalledWith(
+				'https://example.com/blueprint.json'
+			)
+		);
+		await vi.waitFor(() => expect(responses).toHaveLength(1));
+		expect(responses[0]).toEqual({
+			type: 'install-blueprint-result',
+			requestId: 'request-1',
+			targetTabId: 'dependent-tab',
+			siteSlug: 'my-site',
+			result: {
+				status: 'success',
+			},
 		});
 	});
 
-	describe('message handling', () => {
-		it('responds to ping with pong for same site', () => {
-			initTabCoordinator('my-site');
-			const tabInfo = getCurrentTabInfo()!;
+	it('requestRemoteBlueprintInstall resolves when the main tab responds', async () => {
+		const tabInfo = await initTabCoordinator('my-site');
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			if (event.data.type === 'install-blueprint-request') {
+				otherChannel.postMessage({
+					type: 'install-blueprint-result',
+					requestId: event.data.requestId,
+					targetTabId: tabInfo.tabId,
+					siteSlug: 'my-site',
+					result: {
+						status: 'success',
+					},
+				});
+			}
+		};
 
-			const responses: unknown[] = [];
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				responses.push(event.data);
-			};
-
-			otherChannel.postMessage({
-				type: 'ping',
-				tabId: 'other-tab',
-				siteSlug: 'my-site',
-			});
-
-			expect(responses).toHaveLength(1);
-			expect(responses[0]).toEqual({
-				type: 'pong',
-				tabInfo,
-			});
-
-			otherChannel.close();
-		});
-
-		it('does not respond to ping for different site', () => {
-			initTabCoordinator('my-site');
-
-			const responses: unknown[] = [];
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				responses.push(event.data);
-			};
-
-			otherChannel.postMessage({
-				type: 'ping',
-				tabId: 'other-tab',
-				siteSlug: 'different-site',
-			});
-
-			expect(responses).toHaveLength(0);
-
-			otherChannel.close();
-		});
-
-		it('calls shutdown callback when shutdown requested', () => {
-			const shutdownCallback = vi.fn();
-			const tabInfo = initTabCoordinator('my-site', shutdownCallback);
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.postMessage({
-				type: 'shutdown-request',
-				targetTabId: tabInfo.tabId,
-				reason: 'stale',
-			});
-
-			expect(shutdownCallback).toHaveBeenCalledWith(
-				'This tab has been open for over a day and a newer tab was opened.'
-			);
-
-			otherChannel.close();
-		});
-
-		it('calls takeover callback and sends acknowledgment', () => {
-			const takeoverCallback = vi.fn();
-			const tabInfo = initTabCoordinator(
+		await expect(
+			requestRemoteBlueprintInstall(
 				'my-site',
-				undefined,
-				takeoverCallback
-			);
-
-			const responses: unknown[] = [];
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				responses.push(event.data);
-			};
-
-			otherChannel.postMessage({
-				type: 'takeover-request',
-				requestingTabId: 'new-tab',
-				siteSlug: 'my-site',
-			});
-
-			expect(takeoverCallback).toHaveBeenCalled();
-			expect(responses).toHaveLength(1);
-			expect(responses[0]).toEqual({
-				type: 'takeover-acknowledged',
-				previousMainTabId: tabInfo.tabId,
-				targetTabId: 'new-tab',
-				siteSlug: 'my-site',
-			});
-
-			otherChannel.close();
-		});
-
-		it('does not respond to takeover request in dependent mode', () => {
-			const takeoverCallback = vi.fn();
-			initTabCoordinator('my-site', undefined, takeoverCallback);
-			setDependentMode(true);
-
-			const responses: unknown[] = [];
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				responses.push(event.data);
-			};
-
-			otherChannel.postMessage({
-				type: 'takeover-request',
-				requestingTabId: 'new-tab',
-				siteSlug: 'my-site',
-			});
-
-			expect(takeoverCallback).not.toHaveBeenCalled();
-			expect(responses).toHaveLength(0);
-
-			otherChannel.close();
-		});
-
-		it('calls site reset callback when site-reset received', () => {
-			const siteResetCallback = vi.fn();
-			initTabCoordinator(
-				'my-site',
-				undefined,
-				undefined,
-				undefined,
-				siteResetCallback
-			);
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.postMessage({
-				type: 'site-reset',
-				siteSlug: 'my-site',
-			});
-
-			expect(siteResetCallback).toHaveBeenCalled();
-
-			otherChannel.close();
+				'https://example.com/blueprint.json',
+				100
+			)
+		).resolves.toEqual({
+			status: 'success',
 		});
 	});
 
-	describe('requestTakeover', () => {
-		it('returns false when not initialized', async () => {
-			const result = await requestTakeover('my-site');
-			expect(result).toBe(false);
+	it('returns recovery guidance when remote blueprint install times out', async () => {
+		vi.useFakeTimers();
+		await initTabCoordinator('my-site');
+
+		const installResult = requestRemoteBlueprintInstall(
+			'my-site',
+			'https://example.com/blueprint.json',
+			5000
+		);
+		await vi.advanceTimersByTimeAsync(5000);
+
+		await expect(installResult).resolves.toEqual({
+			status: 'error',
+			error: expect.stringContaining(
+				'Timed out after 5 seconds waiting for the main tab'
+			),
 		});
-
-		it('resolves to true when acknowledged', async () => {
-			const tabInfo = initTabCoordinator('my-site');
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'takeover-request') {
-					otherChannel.postMessage({
-						type: 'takeover-acknowledged',
-						previousMainTabId: 'old-main',
-						targetTabId: tabInfo.tabId,
-						siteSlug: 'my-site',
-					});
-				}
-			};
-
-			const result = await requestTakeover('my-site', 100);
-			expect(result).toBe(true);
-
-			otherChannel.close();
-		});
-
-		it('resolves to false on timeout', async () => {
-			initTabCoordinator('my-site');
-
-			const result = await requestTakeover('my-site', 50);
-			expect(result).toBe(false);
+		await expect(installResult).resolves.toEqual({
+			status: 'error',
+			error: expect.stringContaining(
+				'reload this tab or open a new tab to reconnect'
+			),
 		});
 	});
 
-	describe('requestRemoteBackup', () => {
-		it('returns false when not initialized', async () => {
-			const result = await requestRemoteBackup('my-site');
-			expect(result).toBe(false);
+	it('focuses and highlights the main tab on request', async () => {
+		vi.useFakeTimers();
+		const documentStub = { title: 'My WordPress' };
+		vi.stubGlobal('document', documentStub);
+		await initTabCoordinator('my-site');
+
+		const responses: unknown[] = [];
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			responses.push(event.data);
+		};
+
+		otherChannel.postMessage({
+			type: 'main-tab-focus-request',
+			requestingTabId: 'dependent-tab',
+			siteSlug: 'my-site',
 		});
 
-		it('resolves to true when backup succeeds', async () => {
-			const tabInfo = initTabCoordinator('my-site');
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'backup-request') {
-					otherChannel.postMessage({
-						type: 'backup-completed',
-						targetTabId: tabInfo.tabId,
-						siteSlug: 'my-site',
-						success: true,
-					});
-				}
-			};
-
-			const result = await requestRemoteBackup('my-site', 100);
-			expect(result).toBe(true);
-
-			otherChannel.close();
-		});
-
-		it('resolves to false when backup fails', async () => {
-			const tabInfo = initTabCoordinator('my-site');
-
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				if (event.data.type === 'backup-request') {
-					otherChannel.postMessage({
-						type: 'backup-completed',
-						targetTabId: tabInfo.tabId,
-						siteSlug: 'my-site',
-						success: false,
-					});
-				}
-			};
-
-			const result = await requestRemoteBackup('my-site', 100);
-			expect(result).toBe(false);
-
-			otherChannel.close();
-		});
-
-		it('handles backup request and calls callback', async () => {
-			const backupCallback = vi.fn().mockResolvedValue(true);
-			initTabCoordinator('my-site');
-			setBackupRequestCallback(backupCallback);
-
-			const responses: unknown[] = [];
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				responses.push(event.data);
-			};
-
-			otherChannel.postMessage({
-				type: 'backup-request',
-				requestingTabId: 'requester-tab',
+		expect(focusWindow).toHaveBeenCalled();
+		expect(responses).toEqual([
+			{
+				type: 'main-tab-focus-acknowledged',
+				targetTabId: 'dependent-tab',
 				siteSlug: 'my-site',
-			});
+			},
+		]);
 
-			await vi.waitFor(() => {
-				expect(backupCallback).toHaveBeenCalled();
-			});
-
-			await vi.waitFor(() => {
-				expect(responses).toHaveLength(1);
-			});
-
-			expect(responses[0]).toEqual({
-				type: 'backup-completed',
-				targetTabId: 'requester-tab',
-				siteSlug: 'my-site',
-				success: true,
-			});
-
-			otherChannel.close();
-		});
+		vi.advanceTimersByTime(700);
+		expect(documentStub.title).toBe('* My WordPress');
+		vi.advanceTimersByTime(8000);
+		expect(documentStub.title).toBe('My WordPress');
 	});
 
-	describe('broadcastSiteReset', () => {
-		it('broadcasts site-reset message', () => {
-			initTabCoordinator('my-site');
+	it('does not clobber title changes while flashing the main tab', async () => {
+		vi.useFakeTimers();
+		const documentStub = { title: 'My WordPress' };
+		vi.stubGlobal('document', documentStub);
+		await initTabCoordinator('my-site');
 
-			const messages: unknown[] = [];
-			const otherChannel = new MockBroadcastChannel(
-				'playground-tab-coordinator'
-			);
-			otherChannel.onmessage = (event: MessageEvent) => {
-				messages.push(event.data);
-			};
-
-			broadcastSiteReset('my-site');
-
-			expect(messages).toHaveLength(1);
-			expect(messages[0]).toEqual({
-				type: 'site-reset',
-				siteSlug: 'my-site',
-			});
-
-			otherChannel.close();
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.postMessage({
+			type: 'main-tab-focus-request',
+			requestingTabId: 'dependent-tab',
+			siteSlug: 'my-site',
 		});
 
-		it('does nothing when not initialized', () => {
-			expect(() => broadcastSiteReset('my-site')).not.toThrow();
+		vi.advanceTimersByTime(700);
+		expect(documentStub.title).toBe('* My WordPress');
+
+		documentStub.title = 'Updated WordPress';
+		vi.advanceTimersByTime(8000);
+
+		expect(documentStub.title).toBe('Updated WordPress');
+	});
+
+	it('requestMainTabFocus resolves when acknowledged', async () => {
+		const tabInfo = await initTabCoordinator('my-site');
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			if (event.data.type === 'main-tab-focus-request') {
+				otherChannel.postMessage({
+					type: 'main-tab-focus-acknowledged',
+					targetTabId: tabInfo.tabId,
+					siteSlug: 'my-site',
+				});
+			}
+		};
+
+		await expect(requestMainTabFocus('my-site', 100)).resolves.toBe(true);
+	});
+
+	it('broadcasts site reset and releases held locks', async () => {
+		const resetCallback = vi.fn();
+		await initTabCoordinator('my-site', { onSiteReset: resetCallback });
+		await markMainTabReady();
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+
+		broadcastSiteReset('my-site');
+		await flushLockReleases();
+		otherChannel.postMessage({
+			type: 'site-reset',
+			siteSlug: 'my-site',
 		});
+
+		expect(locks.isHeld(MAIN_LOCK_NAME)).toBe(false);
+		expect(locks.isHeld(READY_LOCK_NAME)).toBe(false);
+		expect(resetCallback).toHaveBeenCalled();
 	});
 });
