@@ -137,7 +137,12 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  # The shipped kernel.wasm is wasm64 (memory64) and the
+                  # host bundle creates `WebAssembly.Memory({ ..., address:
+                  # "i64" })` to match. Node 22's V8 rejects that descriptor;
+                  # the worker-thread init throws and the kernel host hangs
+                  # on the "ready" message. Node 24's V8 13+ accepts it.
+                  node-version: 24
             # The wasm-posix-kernel/host bundle is consumed at runtime by the
             # --experimental-posix-kernel tests via dynamic import. Its bundle
             # leaves `fflate` and `fzstd` as external imports (declared in
