@@ -22,9 +22,11 @@ For a detailed guide on the contribution workflow (forking, creating PRs, etc.),
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Para una guía detallada sobre el flujo de trabajo de contribución (hacer fork, crear PRs, etc.), consulta nuestra [guía de contribución a la documentación](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 
 <!--
 ## How Translations Work
@@ -44,9 +46,11 @@ To learn more about how Docusaurus manages translations, see the [Internationali
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Para aprender más sobre cómo Docusaurus gestiona las traducciones, consulta la [sección de Internacionalización](https://docusaurus.io/docs/i18n/introduction) de la documentación oficial de Docusaurus.
-:::
+
+</div>
 
 <!--
 ### Configuration
@@ -318,9 +322,11 @@ We highly recommend submitting pull requests with a small number of translated p
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Recomendamos encarecidamente enviar pull requests con un número pequeño de páginas traducidas. Este enfoque simplifica el proceso de revisión y permite una integración más gradual y manejable de tu trabajo.
-:::
+
+</div>
 
 <!--
 ### Translation Tracking Template

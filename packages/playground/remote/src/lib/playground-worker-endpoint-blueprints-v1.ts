@@ -13,9 +13,7 @@ import {
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import { isLegacyPHPVersion } from '@php-wasm/universal';
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
-import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 import type { PHP } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
@@ -40,9 +38,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
-		withIntl = false,
+		extensions = [],
 		withNetworking = true,
-		shouldInstallWordPress = true,
+		shouldInstallWordPress,
+		shouldBootWordPress = true,
 		wordpressInstallMode = 'install-from-existing-files-if-needed',
 		corsProxyUrl,
 		pathAliases,
@@ -60,6 +59,14 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
+			const installWordPress =
+				shouldInstallWordPress ?? shouldBootWordPress;
+			if (installWordPress && !shouldBootWordPress) {
+				throw new Error(
+					'Conflicting options: WordPress installation was requested, ' +
+						'but WordPress boot was disabled. Pick one.'
+				);
+			}
 			const siteUrl = this.computeSiteUrl(scope);
 
 			const requestHandler = await this.createRequestHandler({
@@ -67,7 +74,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				sapiName,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
-				withIntl,
+				extensions,
 				withNetworking,
 				phpVersion: phpVersion!,
 				pathAliases,
@@ -84,7 +91,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			const wpDetails = getWordPressModuleDetails(wpVersion);
 			let wordPressRequest: Promise<Response> | null = null;
-			if (shouldInstallWordPress) {
+			if (installWordPress) {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
 						.monitorFetch(
@@ -155,13 +162,25 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
+			// PHP-only mode: the caller asked us to skip WordPress boot entirely.
+			// Apply mounts and stop, so the caller gets a usable PHP runtime.
+			if (!shouldBootWordPress) {
+				const primaryPhp = await requestHandler.getPrimaryPhp();
+				for (const mount of mounts) {
+					await endpoint.mountOpfsIntoPhp(primaryPhp, mount);
+				}
+				this.__internal_setRequestHandler(requestHandler);
+				setApiReady();
+				return;
+			}
+
 			// Select the right SQLite version:
-			// - PHP 5.2: pre-patched v2.2.22 (closures replaced, PHP 5.2
+			// - PHP 5.2: pre-patched v3.0.0-rc.3 (closures replaced, PHP 5.2
 			//   polyfills added)
 			// - Everything else: whatever the caller requested
 			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 			const effectiveSqliteVersion = isLegacyPhp
-				? 'v2.2.22-php52'
+				? 'v3.0.0-rc.3-php52'
 				: sqliteDriverVersion!;
 			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
 				effectiveSqliteVersion
@@ -176,7 +195,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			await bootWordPress(requestHandler, {
 				siteUrl,
 				phpVersion,
-				constants: shouldInstallWordPress
+				constants: installWordPress
 					? {
 							// Disable WP_DEBUG for legacy PHP (< 7) because
 							// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
@@ -219,18 +238,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
 						for (const mount of mounts) {
-							const handle = await directoryHandleFromMountDevice(
-								mount.device
-							);
-							const unmount = await php.mount(
-								mount.mountpoint,
-								createDirectoryHandleMountHandler(handle, {
-									initialSync: {
-										direction: mount.initialSyncDirection,
-									},
-								})
-							);
-							endpoint.unmounts[mount.mountpoint] = unmount;
+							await endpoint.mountOpfsIntoPhp(php, mount);
 						}
 					},
 				},
@@ -249,6 +257,25 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 	}
 }
 
+const workerGlobal = self as unknown as {
+	__playgroundWorkerEndpointBlueprintsV1?: boolean;
+};
+const alreadyExposedComlinkEndpoint =
+	workerGlobal.__playgroundWorkerEndpointBlueprintsV1;
+if (alreadyExposedComlinkEndpoint) {
+	/*
+	 * This worker entrypoint owns exactly one Comlink endpoint. Seeing this
+	 * guard means the same module was evaluated twice in the same worker
+	 * global, most likely because a generated chunk imported the worker
+	 * entrypoint to reuse one of its exports. Keep shared imports in
+	 * side-effect-free modules so loading PHP chunks cannot re-run worker
+	 * startup code.
+	 */
+	throw new Error(
+		'The Blueprints v1 Playground worker tried to expose its Comlink endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
+	);
+}
+workerGlobal.__playgroundWorkerEndpointBlueprintsV1 = true;
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
 );

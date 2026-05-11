@@ -80,6 +80,13 @@ var require_core_data = __commonJS({
   }
 });
 
+// package-external:@wordpress/notices
+var require_notices = __commonJS({
+  "package-external:@wordpress/notices"(exports, module) {
+    module.exports = window.wp.notices;
+  }
+});
+
 // package-external:@wordpress/url
 var require_url = __commonJS({
   "package-external:@wordpress/url"(exports, module) {
@@ -660,12 +667,12 @@ var page_default = Page;
 
 // routes/connectors-home/stage.tsx
 var import_components4 = __toESM(require_components());
-var import_data3 = __toESM(require_data());
+var import_data4 = __toESM(require_data());
 var import_element7 = __toESM(require_element());
 var import_i18n4 = __toESM(require_i18n());
 var import_core_data3 = __toESM(require_core_data());
 import {
-  privateApis as connectorsPrivateApis
+  privateApis as connectorsPrivateApis2
 } from "@wordpress/connectors";
 
 // routes/connectors-home/style.scss
@@ -679,30 +686,39 @@ if (typeof document !== "undefined" && !document.head.querySelector("style[data-
 // routes/connectors-home/ai-plugin-callout.tsx
 var import_components3 = __toESM(require_components());
 var import_core_data2 = __toESM(require_core_data());
-var import_data2 = __toESM(require_data());
+var import_data3 = __toESM(require_data());
 var import_element6 = __toESM(require_element());
 var import_i18n3 = __toESM(require_i18n());
+var import_notices2 = __toESM(require_notices());
 var import_url = __toESM(require_url());
-import { speak as speak2 } from "@wordpress/a11y";
 
 // routes/connectors-home/default-connectors.tsx
 var import_components2 = __toESM(require_components());
 var import_element5 = __toESM(require_element());
+var import_data2 = __toESM(require_data());
 var import_i18n2 = __toESM(require_i18n());
 import {
   __experimentalRegisterConnector as registerConnector,
   __experimentalConnectorItem as ConnectorItem,
-  __experimentalDefaultConnectorSettings as DefaultConnectorSettings
+  __experimentalDefaultConnectorSettings as DefaultConnectorSettings,
+  privateApis as connectorsPrivateApis
 } from "@wordpress/connectors";
+
+// routes/lock-unlock.ts
+var import_private_apis = __toESM(require_private_apis());
+var { lock, unlock } = (0, import_private_apis.__dangerousOptInToUnstableAPIsOnlyForCoreModules)(
+  "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.",
+  "@wordpress/routes"
+);
 
 // routes/connectors-home/use-connector-plugin.ts
 var import_core_data = __toESM(require_core_data());
 var import_data = __toESM(require_data());
 var import_element4 = __toESM(require_element());
 var import_i18n = __toESM(require_i18n());
-import { speak } from "@wordpress/a11y";
+var import_notices = __toESM(require_notices());
 function useConnectorPlugin({
-  pluginSlug,
+  file: pluginFileFromServer,
   settingName,
   connectorName,
   isInstalled,
@@ -714,21 +730,23 @@ function useConnectorPlugin({
   const [isBusy, setIsBusy] = (0, import_element4.useState)(false);
   const [connectedState, setConnectedState] = (0, import_element4.useState)(initialIsConnected);
   const [pluginStatusOverride, setPluginStatusOverride] = (0, import_element4.useState)(null);
+  const pluginBasename = pluginFileFromServer?.replace(/\.php$/, "");
+  const pluginSlug = pluginBasename?.includes("/") ? pluginBasename.split("/")[0] : pluginBasename;
   const {
     derivedPluginStatus,
     canManagePlugins,
     currentApiKey,
     canInstallPlugins
   } = (0, import_data.useSelect)(
-    (select) => {
-      const store2 = select(import_core_data.store);
+    (select2) => {
+      const store2 = select2(import_core_data.store);
       const siteSettings = store2.getEntityRecord("root", "site");
       const apiKey = siteSettings?.[settingName] ?? "";
       const canCreate = !!store2.canUser("create", {
         kind: "root",
         name: "plugin"
       });
-      if (!pluginSlug) {
+      if (!pluginFileFromServer) {
         const hasLoaded = store2.hasFinishedResolution(
           "getEntityRecord",
           ["root", "site"]
@@ -740,15 +758,14 @@ function useConnectorPlugin({
           canInstallPlugins: canCreate
         };
       }
-      const pluginId = `${pluginSlug}/plugin`;
       const plugin = store2.getEntityRecord(
         "root",
         "plugin",
-        pluginId
+        pluginBasename
       );
       const hasFinished = store2.hasFinishedResolution(
         "getEntityRecord",
-        ["root", "plugin", pluginId]
+        ["root", "plugin", pluginBasename]
       );
       if (!hasFinished) {
         return {
@@ -759,8 +776,9 @@ function useConnectorPlugin({
         };
       }
       if (plugin) {
+        const isPluginActive = plugin.status === "active" || plugin.status === "network-active";
         return {
-          derivedPluginStatus: plugin.status === "active" ? "active" : "inactive",
+          derivedPluginStatus: isPluginActive ? "active" : "inactive",
           canManagePlugins: true,
           currentApiKey: apiKey,
           canInstallPlugins: canCreate
@@ -779,7 +797,7 @@ function useConnectorPlugin({
         canInstallPlugins: canCreate
       };
     },
-    [pluginSlug, settingName, isInstalled, isActivated]
+    [pluginBasename, settingName, isInstalled, isActivated]
   );
   const pluginStatus = pluginStatusOverride ?? derivedPluginStatus;
   const canActivatePlugins = canManagePlugins;
@@ -787,6 +805,7 @@ function useConnectorPlugin({
   // update connected state (mirrors what the server would report on page load).
   pluginStatusOverride === "active" && !!currentApiKey;
   const { saveEntityRecord, invalidateResolution } = (0, import_data.useDispatch)(import_core_data.store);
+  const { createSuccessNotice, createErrorNotice } = (0, import_data.useDispatch)(import_notices.store);
   const installPlugin = async () => {
     if (!pluginSlug) {
       return;
@@ -802,28 +821,35 @@ function useConnectorPlugin({
       setPluginStatusOverride("active");
       invalidateResolution("getEntityRecord", ["root", "site"]);
       setIsExpanded(true);
-      speak(
+      createSuccessNotice(
         (0, import_i18n.sprintf)(
           /* translators: %s: Name of the connector (e.g. "OpenAI"). */
           (0, import_i18n.__)("Plugin for %s installed and activated successfully."),
           connectorName
-        )
+        ),
+        {
+          id: "connector-plugin-install-success",
+          type: "snackbar"
+        }
       );
     } catch {
-      speak(
+      createErrorNotice(
         (0, import_i18n.sprintf)(
           /* translators: %s: Name of the connector (e.g. "OpenAI"). */
           (0, import_i18n.__)("Failed to install plugin for %s."),
           connectorName
         ),
-        "assertive"
+        {
+          id: "connector-plugin-install-error",
+          type: "snackbar"
+        }
       );
     } finally {
       setIsBusy(false);
     }
   };
   const activatePlugin = async () => {
-    if (!pluginSlug) {
+    if (!pluginFileFromServer) {
       return;
     }
     setIsBusy(true);
@@ -831,27 +857,37 @@ function useConnectorPlugin({
       await saveEntityRecord(
         "root",
         "plugin",
-        { plugin: `${pluginSlug}/plugin`, status: "active" },
+        {
+          plugin: pluginBasename,
+          status: "active"
+        },
         { throwOnError: true }
       );
       setPluginStatusOverride("active");
       invalidateResolution("getEntityRecord", ["root", "site"]);
       setIsExpanded(true);
-      speak(
+      createSuccessNotice(
         (0, import_i18n.sprintf)(
           /* translators: %s: Name of the connector (e.g. "OpenAI"). */
           (0, import_i18n.__)("Plugin for %s activated successfully."),
           connectorName
-        )
+        ),
+        {
+          id: "connector-plugin-activate-success",
+          type: "snackbar"
+        }
       );
     } catch {
-      speak(
+      createErrorNotice(
         (0, import_i18n.sprintf)(
           /* translators: %s: Name of the connector (e.g. "OpenAI"). */
           (0, import_i18n.__)("Failed to activate plugin for %s."),
           connectorName
         ),
-        "assertive"
+        {
+          id: "connector-plugin-activate-error",
+          type: "snackbar"
+        }
       );
     } finally {
       setIsBusy(false);
@@ -910,12 +946,16 @@ function useConnectorPlugin({
         );
       }
       setConnectedState(true);
-      speak(
+      createSuccessNotice(
         (0, import_i18n.sprintf)(
           /* translators: %s: Name of the connector (e.g. "OpenAI"). */
           (0, import_i18n.__)("%s connected successfully."),
           connectorName
-        )
+        ),
+        {
+          id: "connector-connect-success",
+          type: "snackbar"
+        }
       );
     } catch (error) {
       console.error("Failed to save API key:", error);
@@ -931,22 +971,29 @@ function useConnectorPlugin({
         { throwOnError: true }
       );
       setConnectedState(false);
-      speak(
+      createSuccessNotice(
         (0, import_i18n.sprintf)(
           /* translators: %s: Name of the connector (e.g. "OpenAI"). */
           (0, import_i18n.__)("%s disconnected."),
           connectorName
-        )
+        ),
+        {
+          id: "connector-disconnect-success",
+          type: "snackbar"
+        }
       );
     } catch (error) {
       console.error("Failed to remove API key:", error);
-      speak(
+      createErrorNotice(
         (0, import_i18n.sprintf)(
           /* translators: %s: Name of the connector (e.g. "OpenAI"). */
           (0, import_i18n.__)("Failed to disconnect %s."),
           connectorName
         ),
-        "assertive"
+        {
+          id: "connector-disconnect-error",
+          type: "snackbar"
+        }
       );
       throw error;
     }
@@ -1030,6 +1077,27 @@ var DefaultConnectorLogo = () => /* @__PURE__ */ React.createElement(
     }
   )
 );
+var AkismetLogo = () => /* @__PURE__ */ React.createElement(
+  "svg",
+  {
+    width: "40",
+    height: "40",
+    viewBox: "0 0 44 44",
+    fill: "none",
+    xmlns: "http://www.w3.org/2000/svg",
+    "aria-hidden": "true"
+  },
+  /* @__PURE__ */ React.createElement("rect", { width: "44", height: "44", fill: "#357B49", rx: "6" }),
+  /* @__PURE__ */ React.createElement(
+    "path",
+    {
+      fill: "#fff",
+      fillRule: "evenodd",
+      d: "m29.746 28.31-6.392-16.797c-.152-.397-.305-.672-.789-.675-.673 0-1.408.611-1.746 1.316l-7.378 16.154c-.072.16-.143.311-.214.454-.5.995-1.045 1.546-2.357 1.626a.399.399 0 0 0-.16.033l-.01.004a.399.399 0 0 0-.23.392v.01c0 .054.01.106.03.155l.004.01a.416.416 0 0 0 .394.252h6.212a.417.417 0 0 0 .307-.12.416.416 0 0 0 .124-.305.398.398 0 0 0-.105-.302.399.399 0 0 0-.294-.127c-.757 0-2.197-.062-2.197-1.164.02-.318.103-.63.245-.916l1.399-3.152c.52-1.163 1.654-1.163 2.572-1.163h5.843c.023 0 .044 0 .062.003.13.014.16.081.214.242l1.534 4.07a2.857 2.857 0 0 1 .216 1.04c0 .054-.003.104-.01.153-.09.726-.831.887-1.49.887a.4.4 0 0 0-.294.127l-.007.008-.007.008a.401.401 0 0 0-.092.286v.01c0 .054.01.106.03.155l.005.01a.42.42 0 0 0 .395.252h7.011a.413.413 0 0 0 .279-.13.412.412 0 0 0 .11-.297.387.387 0 0 0-.09-.294.388.388 0 0 0-.277-.135c-1.448-.122-2.295-.643-2.847-2.08Zm-11.985-5.844 2.847-6.304c.361-.728.659-1.486.889-2.265 0-.06.03-.092.06-.092s.061.032.061.091c.02.122.045.247.073.374.197.888.584 1.878.914 2.723l.176.453 1.684 4.529a.927.927 0 0 1 .092.4.473.473 0 0 1-.009.094c-.041.202-.228.272-.602.272h-6.063c-.122 0-.184-.03-.184-.092a.36.36 0 0 1 .062-.183Zm17.107-.721c0 .786-.446 1.231-1.25 1.231-.806 0-1.125-.409-1.125-1.034 0-.786.465-1.231 1.25-1.231.785 0 1.125.427 1.125 1.034ZM9.629 23.002c.803 0 1.25-.447 1.25-1.231 0-.607-.343-1.036-1.128-1.036-.785 0-1.25.447-1.25 1.231 0 .625.325 1.036 1.128 1.036Z",
+      clipRule: "evenodd"
+    }
+  )
+);
 var GeminiLogo = () => /* @__PURE__ */ React.createElement(
   "svg",
   {
@@ -1108,6 +1176,7 @@ var GeminiLogo = () => /* @__PURE__ */ React.createElement(
 );
 
 // routes/connectors-home/default-connectors.tsx
+var { store: connectorsStore } = unlock(connectorsPrivateApis);
 function getConnectorData() {
   try {
     const parsed = JSON.parse(
@@ -1123,7 +1192,8 @@ function getConnectorData() {
 var CONNECTOR_LOGOS = {
   google: GeminiLogo,
   openai: OpenAILogo,
-  anthropic: ClaudeLogo
+  anthropic: ClaudeLogo,
+  akismet: AkismetLogo
 };
 function getConnectorLogo(connectorId, logoUrl) {
   if (logoUrl) {
@@ -1161,7 +1231,8 @@ function ApiKeyConnector({
   const auth = authentication?.method === "api_key" ? authentication : void 0;
   const settingName = auth?.settingName ?? "";
   const helpUrl = auth?.credentialsUrl ?? void 0;
-  const pluginSlug = plugin?.slug;
+  const pluginFile = plugin?.file?.replace(/\.php$/, "");
+  const pluginSlug = pluginFile?.includes("/") ? pluginFile.split("/")[0] : pluginFile;
   let helpLabel;
   try {
     if (helpUrl) {
@@ -1184,7 +1255,7 @@ function ApiKeyConnector({
     saveApiKey,
     removeApiKey
   } = useConnectorPlugin({
-    pluginSlug,
+    file: plugin?.file,
     settingName,
     connectorName: name,
     isInstalled: plugin?.isInstalled,
@@ -1196,19 +1267,6 @@ function ApiKeyConnector({
   const showUnavailableBadge = pluginStatus === "not-installed" && canInstallPlugins === false || pluginStatus === "inactive" && canActivatePlugins === false;
   const showActionButton = !showUnavailableBadge;
   const actionButtonRef = (0, import_element5.useRef)(null);
-  const pendingFocusRef = (0, import_element5.useRef)(false);
-  (0, import_element5.useEffect)(() => {
-    if (pendingFocusRef.current && !isBusy) {
-      pendingFocusRef.current = false;
-      actionButtonRef.current?.focus();
-    }
-  }, [isBusy, isExpanded, isConnected]);
-  const handleActionClick = () => {
-    if (pluginStatus === "not-installed" || pluginStatus === "inactive") {
-      pendingFocusRef.current = true;
-    }
-    handleButtonClick();
-  };
   return /* @__PURE__ */ React.createElement(
     ConnectorItem,
     {
@@ -1222,9 +1280,10 @@ function ApiKeyConnector({
           ref: actionButtonRef,
           variant: isExpanded || isConnected ? "tertiary" : "secondary",
           size: "compact",
-          onClick: handleActionClick,
+          onClick: handleButtonClick,
           disabled: pluginStatus === "checking" || isBusy,
-          isBusy
+          isBusy,
+          accessibleWhenDisabled: true
         },
         getButtonLabel()
       ))
@@ -1239,17 +1298,13 @@ function ApiKeyConnector({
         readOnly: isConnected || isExternallyConfigured,
         keySource,
         onRemove: isExternallyConfigured ? void 0 : async () => {
-          pendingFocusRef.current = true;
-          try {
-            await removeApiKey();
-          } catch {
-            pendingFocusRef.current = false;
-          }
+          await removeApiKey();
+          actionButtonRef.current?.focus();
         },
         onSave: async (apiKey) => {
           await saveApiKey(apiKey);
-          pendingFocusRef.current = true;
           setIsExpanded(false);
+          actionButtonRef.current?.focus();
         }
       }
     )
@@ -1259,16 +1314,23 @@ function registerDefaultConnectors() {
   const connectors = getConnectorData();
   const sanitize = (s) => s.replace(/[^a-z0-9-_]/gi, "-");
   for (const [connectorId, data] of Object.entries(connectors)) {
+    if (connectorId === "akismet" && !data.plugin?.isInstalled) {
+      continue;
+    }
     const { authentication } = data;
     const connectorName = sanitize(connectorId);
     const args = {
       name: data.name,
       description: data.description,
+      type: data.type,
       logo: getConnectorLogo(connectorId, data.logoUrl),
       authentication,
       plugin: data.plugin
     };
-    if (data.type === "ai_provider" && authentication.method === "api_key") {
+    const existing = unlock((0, import_data2.select)(connectorsStore)).getConnector(
+      connectorName
+    );
+    if (authentication.method === "api_key" && !existing?.render) {
       args.render = ApiKeyConnector;
     }
     registerConnector(connectorName, args);
@@ -1318,6 +1380,7 @@ function WpLogoDecoration() {
 
 // routes/connectors-home/ai-plugin-callout.tsx
 var AI_PLUGIN_SLUG = "ai";
+var AI_PLUGIN_PAGE_SLUG = "ai-wp-admin";
 var AI_PLUGIN_ID = "ai/ai";
 var AI_PLUGIN_URL = "https://wordpress.org/plugins/ai/";
 var connectorDataValues = Object.values(getConnectorData());
@@ -1349,8 +1412,8 @@ function AiPluginCallout() {
     canInstallPlugins,
     canManagePlugins,
     hasConnectedProvider
-  } = (0, import_data2.useSelect)((select) => {
-    const store2 = select(import_core_data2.store);
+  } = (0, import_data3.useSelect)((select2) => {
+    const store2 = select2(import_core_data2.store);
     const canCreate = !!store2.canUser("create", {
       kind: "root",
       name: "plugin"
@@ -1392,7 +1455,8 @@ function AiPluginCallout() {
       hasConnectedProvider: hasConnected
     };
   }, []);
-  const { saveEntityRecord } = (0, import_data2.useDispatch)(import_core_data2.store);
+  const { saveEntityRecord } = (0, import_data3.useDispatch)(import_core_data2.store);
+  const { createSuccessNotice, createErrorNotice } = (0, import_data3.useDispatch)(import_notices2.store);
   const installPlugin = async () => {
     setIsBusy(true);
     try {
@@ -1403,9 +1467,18 @@ function AiPluginCallout() {
         { throwOnError: true }
       );
       setJustActivated(true);
-      speak2((0, import_i18n3.__)("AI plugin installed and activated successfully."));
+      createSuccessNotice(
+        (0, import_i18n3.__)("AI plugin installed and activated successfully."),
+        {
+          id: "ai-plugin-install-success",
+          type: "snackbar"
+        }
+      );
     } catch {
-      speak2((0, import_i18n3.__)("Failed to install the AI plugin."), "assertive");
+      createErrorNotice((0, import_i18n3.__)("Failed to install the AI plugin."), {
+        id: "ai-plugin-install-error",
+        type: "snackbar"
+      });
     } finally {
       setIsBusy(false);
     }
@@ -1420,9 +1493,15 @@ function AiPluginCallout() {
         { throwOnError: true }
       );
       setJustActivated(true);
-      speak2((0, import_i18n3.__)("AI plugin activated successfully."));
+      createSuccessNotice((0, import_i18n3.__)("AI plugin activated successfully."), {
+        id: "ai-plugin-activate-success",
+        type: "snackbar"
+      });
     } catch {
-      speak2((0, import_i18n3.__)("Failed to activate the AI plugin."), "assertive");
+      createErrorNotice((0, import_i18n3.__)("Failed to activate the AI plugin."), {
+        id: "ai-plugin-activate-error",
+        type: "snackbar"
+      });
     } finally {
       setIsBusy(false);
     }
@@ -1453,11 +1532,11 @@ function AiPluginCallout() {
     }
     if (isActiveNoProvider) {
       return (0, import_i18n3.__)(
-        "The <strong>AI plugin</strong> is installed. Connect a provider below to generate featured images, alt text, titles, excerpts, and more. <a>Learn more</a>"
+        "The <strong>AI plugin</strong> is installed. Connect an AI provider below to generate featured images, alt text, titles, excerpts, and more. <a>Learn more</a>"
       );
     }
     return (0, import_i18n3.__)(
-      "The <strong>AI plugin</strong> can use your connectors to generate featured images, alt text, titles, excerpts and more. <a>Learn more</a>"
+      "The <strong>AI plugin</strong> can use your AI connectors to generate featured images, alt text, titles, excerpts and more. <a>Learn more</a>"
     );
   };
   const getPrimaryButtonProps = () => {
@@ -1496,28 +1575,21 @@ function AiPluginCallout() {
       variant: "secondary",
       size: "compact",
       href: (0, import_url.addQueryArgs)("options-general.php", {
-        page: AI_PLUGIN_SLUG
+        page: AI_PLUGIN_PAGE_SLUG
       })
     },
     (0, import_i18n3.__)("Control features in the AI plugin")
   )), /* @__PURE__ */ React.createElement(WpLogoDecoration, null));
 }
 
-// routes/lock-unlock.ts
-var import_private_apis = __toESM(require_private_apis());
-var { lock, unlock } = (0, import_private_apis.__dangerousOptInToUnstableAPIsOnlyForCoreModules)(
-  "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.",
-  "@wordpress/routes"
-);
-
 // routes/connectors-home/stage.tsx
-var { store } = unlock(connectorsPrivateApis);
+var { store } = unlock(connectorsPrivateApis2);
 registerDefaultConnectors();
 function ConnectorsPage() {
-  const { connectors, canInstallPlugins } = (0, import_data3.useSelect)(
-    (select) => ({
-      connectors: unlock(select(store)).getConnectors(),
-      canInstallPlugins: select(import_core_data3.store).canUser("create", {
+  const { connectors, canInstallPlugins } = (0, import_data4.useSelect)(
+    (select2) => ({
+      connectors: unlock(select2(store)).getConnectors(),
+      canInstallPlugins: select2(import_core_data3.store).canUser("create", {
         kind: "root",
         name: "plugin"
       })
@@ -1553,23 +1625,26 @@ function ConnectorsPage() {
           "Connectors appear here when you install plugins that use external services. Each plugin registers the API keys it needs, and you manage them all in one place."
         ))),
         /* @__PURE__ */ React.createElement(import_components4.Button, { variant: "secondary", href: "plugin-install.php" }, (0, import_i18n4.__)("Learn more"))
-      ) : /* @__PURE__ */ React.createElement(import_components4.__experimentalVStack, { spacing: 3 }, /* @__PURE__ */ React.createElement(AiPluginCallout, null), connectors.map((connector) => {
-        if (connector.render) {
-          return /* @__PURE__ */ React.createElement(
-            connector.render,
-            {
-              key: connector.slug,
-              slug: connector.slug,
-              name: connector.name,
-              description: connector.description,
-              logo: connector.logo,
-              authentication: connector.authentication,
-              plugin: connector.plugin
-            }
-          );
+      ) : /* @__PURE__ */ React.createElement(import_components4.__experimentalVStack, { spacing: 3 }, /* @__PURE__ */ React.createElement(AiPluginCallout, null), /* @__PURE__ */ React.createElement(import_components4.__experimentalVStack, { spacing: 3, role: "list" }, connectors.map(
+        (connector) => {
+          if (connector.render) {
+            return /* @__PURE__ */ React.createElement(
+              connector.render,
+              {
+                key: connector.slug,
+                slug: connector.slug,
+                name: connector.name,
+                description: connector.description,
+                type: connector.type,
+                logo: connector.logo,
+                authentication: connector.authentication,
+                plugin: connector.plugin
+              }
+            );
+          }
+          return null;
         }
-        return null;
-      })),
+      ))),
       canInstallPlugins && /* @__PURE__ */ React.createElement("p", null, (0, import_element7.createInterpolateElement)(
         (0, import_i18n4.__)(
           "If the connector you need is not listed, <a>search the plugin directory</a> to see if a connector is available."

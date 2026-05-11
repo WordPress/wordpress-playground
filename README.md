@@ -12,11 +12,11 @@ WordPress Playground exists to make WordPress instantly accessible for users, le
 
 Playground aims to facilitate:
 
--   Learning WordPress Through Exploration
--   Learning WordPress Development Through Writing Code
--   Instant access to the WordPress ecosystem
+- Learning WordPress Through Exploration
+- Learning WordPress Development Through Writing Code
+- Instant access to the WordPress ecosystem
 
-Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525).
+Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525). You can also explore the community-maintained [Awesome WordPress Playground](https://github.com/akirk/awesome-wordpress-playground) list for more resources, tools, and examples.
 
 ## Getting started
 
@@ -87,8 +87,8 @@ WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are 
 
 These tools include:
 
--   [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
--   [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
+- [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
+- [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
 
 ## Cloning WordPress Playground repo
 
@@ -183,12 +183,12 @@ WordPress Playground is an open-source project and welcomes all contributors fro
 
 Here are a few quickstart guides to get you started:
 
--   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
--   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
--   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
--   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
--   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
--   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
+- Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
+- Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
+- Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
+- Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
+- Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
+- Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
 
 ## WordCamp Contributor Day
 

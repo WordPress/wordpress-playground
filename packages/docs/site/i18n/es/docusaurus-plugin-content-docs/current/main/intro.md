@@ -19,11 +19,13 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 :::
 -->
 
-:::info **¿Buscas el sitio web oficial de Playground?**
+<div class="callout callout-info">
+
+**¿Buscas el sitio web oficial de Playground?**
 
 El sitio web de WordPress Playground se trasladó a [wordpress.org/playground/](https://wordpress.org/playground/). El sitio en el que te encuentras ahora alberga la documentación.
 
-:::
+</div>
 
 <!--
 👋 Hi! Welcome to WordPress Playground documentation.

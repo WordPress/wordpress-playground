@@ -6,11 +6,13 @@ id: introduction
 
 # Dokumentasyon ng WordPress Playground
 
-:::info **Naghahanap ng opisyal na Playground na website?**
+<div class="callout callout-info">
+
+**Naghahanap ng opisyal na Playground na website?**
 
 Ang WordPress Playground na website ay inilipat sa [wordpress.org/playground/](https://wordpress.org/playground/). Ang site na ito ay nagho-host ng dokumentasyon.
 
-:::
+</div>
 
 👋 Kamusta! Maligayang pagdating sa dokumentasyon ng WordPress Playground.
 

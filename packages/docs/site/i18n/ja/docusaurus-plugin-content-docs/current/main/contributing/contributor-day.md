@@ -128,11 +128,11 @@ npm install
 npm run dev
 ```
 
-:::info
+<div class="callout callout-info">
 
 上記の手順が不明な場合は、公式の[Gutenberg プロジェクト貢献者ガイド](https://developer.wordpress.org/block-editor/contributors/)をご覧ください。この場合、`wp-env` が `@wp-playground/cli` に置き換えられることに注意してください。
 
-:::
+</div>
 
 <!--
 :::info
@@ -234,9 +234,9 @@ You can translate supported WordPress Plugins by loading the plugin you want to 
 Have a question or an idea for a new feature? Found a bug? Something’s not working as expected? We’re here to help:
 -->
 
--   コントリビューター デイ 中は、**Playground テーブル** でご連絡ください。
--   [WordPress Playground GitHub リポジトリ](https://github.com/WordPress/wordpress-playground/issues/new) で Issue を開いてください。VS Code 拡張機能、NPM パッケージ、またはプラグインに関する問題の場合は、[Playground Tools リポジトリ](https://github.com/WordPress/playground-tools/issues/new) で Issue を開いてください。
--   [**#playground** Slack チャンネル](https://wordpress.slack.com/archives/C04EWKGDJ0K) でフィードバックを共有してください。
+- コントリビューター デイ 中は、**Playground テーブル** でご連絡ください。
+- [WordPress Playground GitHub リポジトリ](https://github.com/WordPress/wordpress-playground/issues/new) で Issue を開いてください。VS Code 拡張機能、NPM パッケージ、またはプラグインに関する問題の場合は、[Playground Tools リポジトリ](https://github.com/WordPress/playground-tools/issues/new) で Issue を開いてください。
+- [**#playground** Slack チャンネル](https://wordpress.slack.com/archives/C04EWKGDJ0K) でフィードバックを共有してください。
 
 <!--
 -   During Contributor Day, you can reach us at the **Playground table**.

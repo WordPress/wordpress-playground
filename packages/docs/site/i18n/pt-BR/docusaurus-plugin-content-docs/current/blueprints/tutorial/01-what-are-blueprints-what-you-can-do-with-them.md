@@ -145,7 +145,10 @@ Blueprints são uma ferramenta inestimável para construir sites WordPress via P
 Visit these links to learn more about the (endless) possibilities of Blueprints:
 -->
 
-:::info **Mais Recursos**
+<div class="callout callout-info">
+
+**Mais Recursos**
+
 Visite estes links para aprender mais sobre as (incontáveis) possibilidades dos Blueprints:
 
 <!--
@@ -172,4 +175,4 @@ Visite estes links para aprender mais sobre as (incontáveis) possibilidades dos
 
 - [Demonstrações e aplicativos construídos com Blueprints](/resources#apps-built-with-wordpress-playground)
 
-:::
+</div>

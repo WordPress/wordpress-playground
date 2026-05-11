@@ -57,8 +57,20 @@
 							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
 						},
 						"wp": {
-							"type": "string",
-							"description": "The preferred WordPress version to use. If not specified, the latest supported version will be used"
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "string",
+									"const": "latest"
+								},
+								{
+									"type": "boolean",
+									"const": false
+								}
+							],
+							"description": "The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time."
 						}
 					},
 					"required": ["php", "wp"],

@@ -104,16 +104,16 @@ The Blueprint above installs the _Akismet_ and _Gutenberg_ plugins and the _Twen
 Blueprints are an invaluable tool for building WordPress sites via Playground
  -->
 
--   **柔軟性**: 開発者はビルドプロセスを細かく調整できます。
--   **一貫性**: すべての新規サイトが同じ構成で開始されることを保証します。
--   **軽量**: 保存と転送が容易な小さなテキストファイルです。
--   **透明性**: ブループリントには、WordPress サイトのスナップショットを作成するために必要なすべてのコマンドが含まれています。これを読むことで、サイトがどのように構築されているかを理解できます。
--   **生産性**: 新しい WordPress サイトを手動でセットアップする時間のかかるプロセスを削減します。新しいプロジェクトごとにテーマやプラグインをインストールして設定する代わりに、ブループリントを適用してすべてを 1 つのプロセスで設定します。
--   **最新の依存関係**: WordPress、特定のプラグイン、またはテーマの最新バージョンを取得します。スナップショットは常に最新の機能とセキュリティ修正を反映した最新の状態になります。
--   **コラボレーション**: `JSON` ファイルは GitHub などのツールで簡単に確認できます。ブループリントをチームや WordPress コミュニティと共有できます。適切に構成された設定を他のユーザーが使用できるようにします。
--   **実験と学習**: WordPress を初めて使用する方や、さまざまな設定を試してみたい方にとって、ブループリントは、ライブサイトを「壊す」ことなく、新しい設定を安全かつ簡単に試す方法を提供します。
--   **WordPress.org との統合**: WordPress プラグインディレクトリで [プラグインのデモ](https://developer.wordpress.org/plugins/wordpress-org/previews-and-blueprints/) を提供するか、[Theme Trac チケット](https://meta.trac.wordpress.org/ticket/7382) でプレビューを提供します。
--   **開発環境の構築**: チームに新しく参加した開発者は、ブループリントをダウンロードし、仮想的な `wp up` コマンドを実行するだけで、必要なものがすべて揃った最新の開発環境を入手できます。CI/CD プロセス全体で同じブループリントを再利用できます。
+- **柔軟性**: 開発者はビルドプロセスを細かく調整できます。
+- **一貫性**: すべての新規サイトが同じ構成で開始されることを保証します。
+- **軽量**: 保存と転送が容易な小さなテキストファイルです。
+- **透明性**: ブループリントには、WordPress サイトのスナップショットを作成するために必要なすべてのコマンドが含まれています。これを読むことで、サイトがどのように構築されているかを理解できます。
+- **生産性**: 新しい WordPress サイトを手動でセットアップする時間のかかるプロセスを削減します。新しいプロジェクトごとにテーマやプラグインをインストールして設定する代わりに、ブループリントを適用してすべてを 1 つのプロセスで設定します。
+- **最新の依存関係**: WordPress、特定のプラグイン、またはテーマの最新バージョンを取得します。スナップショットは常に最新の機能とセキュリティ修正を反映した最新の状態になります。
+- **コラボレーション**: `JSON` ファイルは GitHub などのツールで簡単に確認できます。ブループリントをチームや WordPress コミュニティと共有できます。適切に構成された設定を他のユーザーが使用できるようにします。
+- **実験と学習**: WordPress を初めて使用する方や、さまざまな設定を試してみたい方にとって、ブループリントは、ライブサイトを「壊す」ことなく、新しい設定を安全かつ簡単に試す方法を提供します。
+- **WordPress.org との統合**: WordPress プラグインディレクトリで [プラグインのデモ](https://developer.wordpress.org/plugins/wordpress-org/previews-and-blueprints/) を提供するか、[Theme Trac チケット](https://meta.trac.wordpress.org/ticket/7382) でプレビューを提供します。
+- **開発環境の構築**: チームに新しく参加した開発者は、ブループリントをダウンロードし、仮想的な `wp up` コマンドを実行するだけで、必要なものがすべて揃った最新の開発環境を入手できます。CI/CD プロセス全体で同じブループリントを再利用できます。
 
 <!--
 -   **Flexibility**: developers can make granular adjustments to the build process.
@@ -128,14 +128,18 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 -   **Spinning a development environment**: A new developer in the team could download the Blueprint, run a hypothetical `wp up` command, and get a fresh developer environments—loaded with everything they need. The entire CI/CD process can reuse the same Blueprint.
  -->
 
-:::info **その他のリソース**
+<div class="callout callout-info">
+
+**その他のリソース**
+
 ブループリントの（無限の）可能性について詳しくは、以下のリンクをご覧ください。
 
--   [WordPress Playground 入門](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
--   [WordPress Playground ブロック](https://wordpress.org/plugins/interactive-code-block/) を使用して、事前設定された WordPress サイトをウェブサイトに埋め込みます。
--   [ブループリントの例](/blueprints/examples)
--   [ブループリントで構築されたデモとアプリ](/resources#apps-built-with-wordpress-playground)
-    :::
+- [WordPress Playground 入門](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
+- [WordPress Playground ブロック](https://wordpress.org/plugins/interactive-code-block/) を使用して、事前設定された WordPress サイトをウェブサイトに埋め込みます。
+- [ブループリントの例](/blueprints/examples)
+- [ブループリントで構築されたデモとアプリ](/resources#apps-built-with-wordpress-playground)
+
+</div>
 
 <!--
 :::info **More Resources**

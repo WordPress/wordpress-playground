@@ -77,13 +77,13 @@ would not suffer fools gladly.`;
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+const phpLoaderOptions: PHPLoaderOptions[] = [{}, { extensions: ['xdebug'] }];
 
 phpLoaderOptions.forEach((options) => {
 	// Tests are skipped when Xdebug is enabled because Xdebug alters PHP's
 	// output format and process behavior, which breaks exact text assertions.
 	// These tests cover core features that only need to run once without Xdebug.
-	const skip = !!options.withXdebug;
+	const skip = options.extensions?.includes('xdebug') ?? false;
 
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;

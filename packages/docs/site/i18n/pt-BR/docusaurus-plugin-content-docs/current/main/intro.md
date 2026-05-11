@@ -19,11 +19,13 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 :::
 -->
 
-:::info **Está procurando a versão web do WordPress Playground?**
+<div class="callout callout-info">
+
+**Está procurando a versão web do WordPress Playground?**
 
 A página oficial do WordPress Playground está disponível em [wordpress.org/playground/](https://wordpress.org/playground/). Esta página abriga a documentação do WordPress Playground.
 
-:::
+</div>
 
 <!--
 👋 Hi! Welcome to WordPress Playground documentation.
@@ -136,8 +138,8 @@ Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretame
 - [Links e recursos](/resources)
 - Escolha a API adequada para a sua aplicação:
     - [API de Consulta](/developers/apis/query-api) permite realizar operações básicas usando apenas parâmetros de consulta.
-	- [API de Blueprints](/blueprints) oferece um alto grau de controle com um único arquivo JSON.
-	- [API JavaScript](/developers/apis/javascript-api) oferece controle total por meio de um cliente JavaScript a partir de um pacote npm.
+    - [API de Blueprints](/blueprints) oferece um alto grau de controle com um único arquivo JSON.
+    - [API JavaScript](/developers/apis/javascript-api) oferece controle total por meio de um cliente JavaScript a partir de um pacote npm.
 - Aprofunde-se na [arquitetura](/developers/architecture) e aprenda como o WP Playground funciona internamente.
 
 <!--

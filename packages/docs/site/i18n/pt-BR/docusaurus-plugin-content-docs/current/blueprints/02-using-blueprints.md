@@ -13,14 +13,14 @@ Você pode usar Blueprints de uma das seguintes maneiras:
 <!-- -   By passing them as a URL fragment to the Playground. -->
 
 - Passando-os como um fragmento de URL para o Playground.
-  <!-- -   By loading them from a URL using the `blueprint-url` parameter. -->
+    <!-- -   By loading them from a URL using the `blueprint-url` parameter. -->
 - Carregando-os de uma URL usando o parâmetro `blueprint-url`.
-  <!-- -   By using Blueprint bundles (ZIP files or directories). -->
+    <!-- -   By using Blueprint bundles (ZIP files or directories). -->
 - Usando pacotes de Blueprint (arquivos ZIP ou diretórios).
-  <!-- -   By using the JavaScript API. -->
+    <!-- -   By using the JavaScript API. -->
 - Usando a API JavaScript.
 
-## Fragmento de URL
+## Fragmento de URL {#url-fragment}
 
 <!-- The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`. -->
 
@@ -64,6 +64,8 @@ const blueprintJson = `{
 	}
 }`;
 const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"8.3","wp":"6.5"}}
+const encodedBlueprint = encodeURIComponent(minifiedBlueprintJson);
+const playgroundUrl = `https://playground.wordpress.net/#${encodedBlueprint}`;
 ```
 
 :::
@@ -81,11 +83,26 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 	}
 }} />
 
-### Blueprints codificados em Base64
+### Fragmentos de Blueprint codificados
 
-<!-- Some tools, including GitHub, might not format the Blueprint correctly when pasted into the URL. In such cases, encode your Blueprint in Base64 and append it to the URL. For example, that's the above Blueprint in Base64 format: -->
+<!-- When you create Playground links from JavaScript or automation tools, encode the minified JSON once with `encodeURIComponent()` and append it after `#`: -->
 
-Algumas ferramentas, incluindo GitHub, podem não formatar o Blueprint corretamente quando colado na URL. Nesses casos, codifique seu Blueprint em Base64 e anexe-o à URL. Por exemplo, este é o Blueprint acima em formato Base64: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
+Ao criar links do Playground a partir de JavaScript ou ferramentas de automação, codifique o JSON minificado uma vez com `encodeURIComponent()` e adicione-o depois de `#`:
+
+```js
+const blueprint = {
+	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
+	preferredVersions: {
+		php: '8.3',
+		wp: '6.5',
+	},
+};
+const playgroundUrl = `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(blueprint))}`;
+```
+
+<!-- Playground also supports Base64-encoded Blueprints. Base64 is useful when a platform modifies JSON fragments or when you want a compact, copyable link. For example, that's the above Blueprint in Base64 format: -->
+
+O Playground também oferece suporte a Blueprints codificados em Base64. Base64 é útil quando uma plataforma modifica fragmentos JSON ou quando você quer um link compacto e fácil de copiar. Por exemplo, este é o Blueprint acima em formato Base64: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
 
 <!-- To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19 -->
 
@@ -166,7 +183,7 @@ Ao usar um pacote de Blueprint, você pode referenciar recursos empacotados usan
 
 Para mais informações sobre pacotes de Blueprint, consulte a documentação de [Pacotes de Blueprint](/blueprints/bundles).
 
-## API JavaScript
+## API JavaScript {#javascript-api}
 
 <!-- You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen: -->
 

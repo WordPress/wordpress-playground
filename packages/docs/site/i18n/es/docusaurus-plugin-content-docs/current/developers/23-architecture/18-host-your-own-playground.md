@@ -246,9 +246,13 @@ Como alternativa a Apache, aquí hay un ejemplo de usar NGINX para servir el Pla
 <!-- The example may be outdated. Please check [the source file](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) for the latest version. -->
 <!-- ::: -->
 
-:::info Consulta el archivo fuente
+<div class="callout callout-info">
+
+**Consulta el archivo fuente**
+
 El ejemplo puede estar desactualizado. Por favor revisa [el archivo fuente](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) para la última versión.
-:::
+
+</div>
 
 <!-- The combined Apache `.htaccess` file looks like this. -->
 

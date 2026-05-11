@@ -1,6 +1,6 @@
 import dependencyFilename from './5_2_17/php_5_2.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 9427349;
+export const dependenciesTotalSize = 9428070;
 const phpVersionString = '5.2.17';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7873,7 +7873,13 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	}
 	__asyncjs__js_module_onMessage.sig = 'iii';
-	var _calloc,
+	var _compile_string,
+		__efree,
+		__zval_ptr_dtor,
+		_destroy_op_array,
+		__zend_bailout,
+		_execute,
+		_calloc,
 		_malloc,
 		___errno_location,
 		_wasm_sleep,
@@ -7929,6 +7935,16 @@ export function init(RuntimeName, PHPLoader) {
 		wasmTable,
 		wasmMemory;
 	function assignWasmExports(wasmExports) {
+		_compile_string = Module['_compile_string'] =
+			wasmExports['compile_string'];
+		__efree = Module['__efree'] = wasmExports['_efree'];
+		__zval_ptr_dtor = Module['__zval_ptr_dtor'] =
+			wasmExports['_zval_ptr_dtor'];
+		_destroy_op_array = Module['_destroy_op_array'] =
+			wasmExports['destroy_op_array'];
+		__zend_bailout = Module['__zend_bailout'] =
+			wasmExports['_zend_bailout'];
+		_execute = Module['_execute'] = wasmExports['execute'];
 		_calloc = wasmExports['calloc'];
 		_malloc =
 			PHPLoader['malloc'] =
@@ -8022,7 +8038,18 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var ___heap_base = 5123904;
+	var _file_globals = (Module['_file_globals'] = 4026816);
+	var _sapi_module = (Module['_sapi_module'] = 4032012);
+	var _sapi_globals = (Module['_sapi_globals'] = 4032152);
+	var _compiler_globals = (Module['_compiler_globals'] = 4025696);
+	var _executor_globals = (Module['_executor_globals'] = 4026040);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 4020136);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 4020140);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 4020144);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 4020148);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 4020152);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 3648076);
+	var ___heap_base = 5123888;
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncjs__js_module_onMessage,

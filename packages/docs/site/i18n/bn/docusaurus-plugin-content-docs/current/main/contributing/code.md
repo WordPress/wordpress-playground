@@ -24,11 +24,13 @@ This guide includes links to the main repository, but all the steps and options 
 :::
 -->
 
-:::info প্লেগ্রাউন্ড টুলসে কন্ট্রিবিউট করুন
+<div class="callout callout-info">
+
+**প্লেগ্রাউন্ড টুলসে কন্ট্রিবিউট করুন**
 
 এই গাইডে মেইন রিপোজিটরির লিঙ্ক রয়েছে, তবে সমস্ত স্টেপস এবং অপশন উভয়ের জন্য প্রযোজ্য। আপনি যদি প্লাগইন বা [লোকাল ডেভেলপমেন্ট](/developers/local-development/) টুলসে ইন্টারেস্টেড হন—সেখান থেকে শুরু করুন।
 
-:::
+</div>
 
 <!--
 Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
@@ -140,11 +142,13 @@ We handle code formatting and linting automatically. Relax, type away, and let t
 :::
 -->
 
-:::info ফরম্যাটিং
+<div class="callout callout-info">
+
+**ফরম্যাটিং**
 
 আমরা কোড ফরম্যাটিং এবং লিন্টিং অটোমেটিক্যালি হ্যান্ডেল করি। রিল্যাক্স করুন, টাইপ করুন এবং মেশিনগুলোকে কাজ করতে দিন।
 
-:::
+</div>
 
 <!--
 ### Running a local Multisite

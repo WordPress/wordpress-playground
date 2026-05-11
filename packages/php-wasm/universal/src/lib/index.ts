@@ -96,6 +96,21 @@ export type {
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
+export {
+	withResolvedPHPExtensions,
+	installPHPExtensionFilesSync,
+	PHP_EXTENSIONS_DIR,
+	resolvePHPExtension,
+} from './load-extension';
+export type {
+	InstallPHPExtensionFilesOptions,
+	PHPExtensionIniDirective,
+	ResolvedInstallOptions,
+	ResolvedPHPExtension,
+	PHPExtensionManifest,
+	PHPExtensionManifestExtraFiles,
+	PHPExtensionSource,
+} from './load-extension';
 
 export {
 	DEFAULT_BASE_URL,

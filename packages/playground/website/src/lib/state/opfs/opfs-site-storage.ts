@@ -15,7 +15,7 @@ import {
 	type PHPConstants,
 	getBlueprintDeclaration,
 } from '@wp-playground/blueprints';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { loadPersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
 
@@ -210,7 +210,7 @@ function storedFormatToMetadata(data: string) {
 				 * The preferred PHP version to use.
 				 * If not specified, the latest supported version will be used
 				 */
-				php: SupportedPHPVersion | 'latest';
+				php: AllPHPVersion | 'latest';
 				/**
 				 * The preferred WordPress version to use.
 				 * If not specified, the latest supported version will be used
@@ -234,7 +234,7 @@ function storedFormatToMetadata(data: string) {
 
 		metadata.runtimeConfiguration = {
 			phpVersion:
-				(legacyConfig.preferredVersions?.php as SupportedPHPVersion) ??
+				(legacyConfig.preferredVersions?.php as AllPHPVersion) ??
 				RecommendedPHPVersion,
 			wpVersion: legacyConfig.preferredVersions?.wp ?? 'latest',
 			intl: legacyConfig.features?.intl ?? false,

@@ -10,6 +10,11 @@
 #define ZEND_FE_END {NULL, NULL, NULL}
 #endif
 
+/* TSRMLS macros were removed in PHP 7; provide empty fallbacks */
+#ifndef TSRMLS_CC
+#define TSRMLS_CC
+#endif
+
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif

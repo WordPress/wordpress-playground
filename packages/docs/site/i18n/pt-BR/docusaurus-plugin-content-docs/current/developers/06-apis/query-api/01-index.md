@@ -78,7 +78,9 @@ Por exemplo, o código a seguir incorpora um Playground com o plugin Gutenberg p
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
 ```
 
-:::info Política de CORS
+<div class="callout callout-info">
+
+**Política de CORS**
 
 <!--
 To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
@@ -86,7 +88,7 @@ To import files from a URL, such as a site zip package, they must be served with
 
 Para importar arquivos de uma URL, como um pacote zip de site, eles devem ser servidos com o cabeçalho `Access-Control-Allow-Origin` configurado. Para referência, veja: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 
-:::
+</div>
 
 <!--
 ## GitHub Export Options

@@ -79,9 +79,11 @@ For any issues or questions about the WordPress Playground Block, please open a 
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Para quaisquer problemas ou perguntas sobre o Bloco WordPress Playground, por favor, abra uma issue no GitHub no repositório [playground-tools](https://github.com/WordPress/playground-tools).
-:::
+
+</div>
 
 <!--
 ## Put a native app running WordPress in the App Store.

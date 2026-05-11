@@ -5,6 +5,9 @@ test('should open and close the Site Tools panel', async ({ website }) => {
 
 	await website.ensureSiteToolsIsOpen();
 	await expect(
+		website.page.getByRole('heading', { name: 'Site Tools' })
+	).toBeVisible();
+	await expect(
 		website.page.getByRole('button', { name: /Close Site Tools/ })
 	).toBeVisible();
 
@@ -14,30 +17,27 @@ test('should open and close the Site Tools panel', async ({ website }) => {
 	).toBeVisible();
 });
 
-test('should open the menu overlay', async ({ website }) => {
+test('should show app, backup, and troubleshooting tools', async ({
+	website,
+}) => {
 	await website.goto('./');
 
-	await website.openMenuOverlay();
+	await website.ensureSiteToolsIsOpen();
 
 	await expect(website.page.getByText('Install Apps')).toBeVisible();
 	await expect(
 		website.page.getByRole('heading', { name: 'Backup' })
 	).toBeVisible();
 	await expect(
-		website.page.getByRole('heading', { name: 'Start over' })
-	).toBeVisible();
-	await expect(
-		website.page.getByRole('heading', { name: 'Recovery' })
+		website.page.getByRole('heading', { name: 'Troubleshooting' })
 	).toBeVisible();
 
-	await website.page
-		.getByRole('button', { name: 'you can reset this WordPress' })
-		.click();
+	await website.page.getByRole('button', { name: 'start over' }).click();
 	await expect(
 		website.page.getByRole('button', { name: 'Delete everything' })
 	).toBeVisible();
 	await website.page
-		.getByRole('button', { name: 'you can troubleshoot' })
+		.getByRole('button', { name: 'enter recovery mode' })
 		.click();
 	await expect(
 		website.page.getByRole('link', {
@@ -46,13 +46,17 @@ test('should open the menu overlay', async ({ website }) => {
 	).toBeVisible();
 });
 
-test('should close the menu overlay with Escape', async ({ website }) => {
+test('should close the Site Tools panel with its close button', async ({
+	website,
+}) => {
 	await website.goto('./');
 
-	await website.openMenuOverlay();
+	await website.ensureSiteToolsIsOpen();
 	await expect(website.page.getByText('Install Apps')).toBeVisible();
 
-	await website.page.keyboard.press('Escape');
+	await website.page
+		.getByRole('button', { name: /Close Site Tools/ })
+		.click();
 	await expect(website.page.getByText('Install Apps')).not.toBeVisible();
 });
 
@@ -61,16 +65,20 @@ test('should display the page title as "My WordPress"', async ({ website }) => {
 	await expect(website.page).toHaveTitle('My WordPress');
 });
 
-test('should navigate within WordPress when address bar URL changes', async ({
+test('should navigate within WordPress from Site Tools shortcuts', async ({
 	website,
 	wordpress,
 }) => {
 	await website.goto('./');
 
-	const addressBar = website.addressBar();
-	await addressBar.click();
-	await addressBar.fill('/wp-admin/edit.php');
-	await addressBar.press('Enter');
+	await website.ensureSiteToolsIsOpen();
+	await website.page.getByRole('button', { name: 'WP Admin' }).click();
+	await expect(website.page).toHaveURL(/\/wp-admin\/$/);
+	await expect(
+		wordpress.getByRole('heading', { name: 'Dashboard', level: 1 })
+	).toBeVisible();
 
-	await expect(wordpress.locator('h1.wp-heading-inline')).toHaveText('Posts');
+	await website.page.getByRole('button', { name: 'Homepage' }).click();
+	await expect(website.page).toHaveURL(/\/$/);
+	await expect(wordpress.locator('p.wp-block-site-title')).toBeVisible();
 });

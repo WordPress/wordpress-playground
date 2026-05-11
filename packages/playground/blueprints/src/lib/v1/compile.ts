@@ -207,6 +207,10 @@ function compileBlueprintJson(
 
 	blueprint.steps = [...(blueprint.steps || []), ...(additionalSteps || [])];
 
+	if (blueprint.preferredVersions?.wp === false) {
+		assertNoWordPressFeatures(blueprint);
+	}
+
 	for (const step of blueprint.steps!) {
 		if (!step || typeof step !== 'object') {
 			continue;
@@ -260,9 +264,7 @@ function compileBlueprintJson(
 							resource: 'zip',
 							inner: {
 								resource: 'git:directory',
-								url: value
-									.replace(/\.git\/?$/, '')
-									.replace(/\/$/, ''),
+								url: value.trim().replace(/\/+$/, ''),
 								ref: 'HEAD',
 							},
 						} as FileReference;
@@ -793,16 +795,68 @@ export async function runBlueprintV1Steps(
 	await compiledBlueprint.run(playground);
 }
 
+/**
+ * Steps that require WordPress to be installed. When
+ * `preferredVersions.wp: false` is set on the Blueprint, these steps are
+ * rejected at compile time.
+ */
+const WORDPRESS_ONLY_STEPS = new Set([
+	'installPlugin',
+	'installTheme',
+	'activatePlugin',
+	'activateTheme',
+	'login',
+	'setSiteOptions',
+	'updateUserMeta',
+	'importWxr',
+	'importFile',
+	'importWordPressFiles',
+	'enableMultisite',
+	'wp-cli',
+	'resetData',
+]);
+
+function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
+	const offenders: string[] = [];
+	if (blueprint.plugins?.length) offenders.push('plugins');
+	if (blueprint.siteOptions) offenders.push('siteOptions');
+	if (blueprint.login) offenders.push('login');
+	if (blueprint.extraLibraries?.includes('wp-cli')) {
+		offenders.push("extraLibraries includes 'wp-cli'");
+	}
+	const badSteps = (blueprint.steps || [])
+		.filter(
+			(s): s is StepDefinition =>
+				!!s && typeof s === 'object' && 'step' in s
+		)
+		.map((s) => s.step)
+		.filter((name) => WORDPRESS_ONLY_STEPS.has(name as string));
+	if (badSteps.length) {
+		offenders.push(`steps: ${[...new Set(badSteps)].join(', ')}`);
+	}
+	if (offenders.length) {
+		throw new InvalidBlueprintError(
+			`Blueprint has \`preferredVersions.wp: false\` but uses ` +
+				`WordPress-only features: ${offenders.join('; ')}. Remove ` +
+				`these or drop \`preferredVersions.wp: false\`.`,
+			[]
+		);
+	}
+}
+
 function isGitRepoUrl(url: string): boolean {
-	if (/^https:\/\/.+\.git\/?$/.test(url)) {
+	const normalizedUrl = url.trim().replace(/\/+$/, '');
+	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
 		return true;
 	}
 	// GitHub: exactly /owner/repo
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(url)) {
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
 		return true;
 	}
 	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*\/?$/.test(url)) {
+	if (
+		/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)
+	) {
 		return true;
 	}
 	return false;

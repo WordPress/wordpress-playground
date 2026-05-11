@@ -17,9 +17,11 @@ This guide assumes familiarity with WordPress plugin or theme development. For a
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Este guia pressupõe familiaridade com desenvolvimento de plugins ou temas WordPress. Para uma introdução ao uso do Playground no seu fluxo de desenvolvimento, consulte [WordPress Playground para Desenvolvedores de Plugins](/guides/for-plugin-developers). Para detalhes de configuração do Blueprint, consulte [Introdução aos Blueprints](/blueprints/getting-started).
-:::
+
+</div>
 
 <!--
 ## Prerequisites
@@ -76,23 +78,23 @@ Create a `playwright.config.ts` file in your project root:
 Crie um arquivo `playwright.config.ts` na raiz do seu projeto:
 
 ```typescript
-import { defineConfig } from "@playwright/test";
+import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: "./tests/e2e",
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 1,
-  reporter: "html",
-  timeout: 120_000,
-  expect: {
-    timeout: 30_000,
-  },
-  use: {
-    screenshot: "only-on-failure",
-    trace: "on-first-retry",
-  },
+	testDir: './tests/e2e',
+	fullyParallel: false,
+	forbidOnly: !!process.env.CI,
+	retries: process.env.CI ? 2 : 0,
+	workers: 1,
+	reporter: 'html',
+	timeout: 120_000,
+	expect: {
+		timeout: 30_000,
+	},
+	use: {
+		screenshot: 'only-on-failure',
+		trace: 'on-first-retry',
+	},
 });
 ```
 
@@ -118,7 +120,7 @@ Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note tha
 Por padrão, o Playground usará a porta `9400`. Se você quiser selecionar uma porta diferente, passe `port: [NOVO_NÚMERO_DE_PORTA]` nas opções do `runCLI` para selecionar uma porta diferente:
 
 ```typescript
-const cli = await runCLI({ command: "server", port: 9500, blueprint });
+const cli = await runCLI({ command: 'server', port: 9500, blueprint });
 ```
 
 Em seguida, adicione `baseURL: "http://localhost:9500"` na seção `use` acima. Observe que `testMatch` tem como padrão `**/*.spec.ts` — personalize se seus arquivos de teste usarem um padrão de nomenclatura diferente.
@@ -145,30 +147,30 @@ Create `tests/e2e/plugin.spec.ts`:
 Crie `tests/e2e/plugin.spec.ts`:
 
 ```typescript
-import { test, expect } from "@playwright/test";
-import { runCLI } from "@wp-playground/cli";
+import { test, expect } from '@playwright/test';
+import { runCLI } from '@wp-playground/cli';
 
 let cli: Awaited<ReturnType<typeof runCLI>>;
 
 test.beforeAll(async () => {
-  cli = await runCLI({
-    command: "server",
-    blueprint: {
-      preferredVersions: { php: "8.3", wp: "latest" },
-      login: true,
-    },
-  });
+	cli = await runCLI({
+		command: 'server',
+		blueprint: {
+			preferredVersions: { php: '8.3', wp: 'latest' },
+			login: true,
+		},
+	});
 });
 
 test.afterAll(async () => {
-  await cli?.server?.close();
+	await cli?.server?.close();
 });
 
-test("WordPress dashboard loads", async ({ page }) => {
-  await page.goto(`${cli.serverUrl}/wp-admin/`);
-  // WordPress core admin elements lack ARIA roles — CSS selectors are acceptable here
-  await expect(page.locator("#wpbody-content")).toBeVisible();
-  await expect(page).toHaveTitle(/Dashboard/);
+test('WordPress dashboard loads', async ({ page }) => {
+	await page.goto(`${cli.serverUrl}/wp-admin/`);
+	// WordPress core admin elements lack ARIA roles — CSS selectors are acceptable here
+	await expect(page.locator('#wpbody-content')).toBeVisible();
+	await expect(page).toHaveTitle(/Dashboard/);
 });
 ```
 
@@ -251,13 +253,13 @@ await page.locator("#submit").click();
 
 ```typescript
 // ✅ Preferido: localizador semântico (funciona porque o WP renderiza um <button> real)
-await page.getByRole("button", { name: "Save Changes" }).click();
+await page.getByRole('button', { name: 'Save Changes' }).click();
 
 // ⚠️ Aceitável: ID de teste que você adicionou à marcação do seu plugin
-await page.getByTestId("save-settings").click();
+await page.getByTestId('save-settings').click();
 
 // ❌ Evite: seletor CSS frágil vinculado à marcação do WordPress
-await page.locator("#submit").click();
+await page.locator('#submit').click();
 ```
 
 <!--
@@ -302,10 +304,10 @@ Asserções web-first repetem automaticamente até a condição ser atendida ou 
 
 ```typescript
 // ✅ Asserção web-first (repete automaticamente até visível ou timeout)
-await expect(page.getByText("Configurações salvas")).toBeVisible();
+await expect(page.getByText('Configurações salvas')).toBeVisible();
 
 // ❌ Verificação manual (sem retry — instável se o elemento aparecer com atraso)
-expect(await page.getByText("Configurações salvas").isVisible()).toBe(true);
+expect(await page.getByText('Configurações salvas').isVisible()).toBe(true);
 ```
 
 ### Asserções suaves
@@ -313,9 +315,9 @@ expect(await page.getByText("Configurações salvas").isVisible()).toBe(true);
 Use `expect.soft()` para verificar várias coisas em uma página sem parar no primeiro erro. Todas as falhas aparecem no relatório de teste:
 
 ```typescript
-await expect.soft(page.getByLabel("API Key")).toHaveValue("test-key-123");
-await expect.soft(page.getByText("Settings saved")).toBeVisible();
-await expect.soft(page.getByRole("heading", { level: 1 })).toContainText("Settings");
+await expect.soft(page.getByLabel('API Key')).toHaveValue('test-key-123');
+await expect.soft(page.getByText('Settings saved')).toBeVisible();
+await expect.soft(page.getByRole('heading', { level: 1 })).toContainText('Settings');
 ```
 
 <!--
@@ -334,20 +336,20 @@ A função `runCLI` inicia um servidor Playground local e retorna um objeto com 
 
 ```typescript
 const cli = await runCLI({
-  command: "server",
-  blueprint: {
-    preferredVersions: { php: "8.3", wp: "latest" },
-    login: true,
-    steps: [
-      {
-        step: "installPlugin",
-        pluginData: {
-          resource: "wordpress.org/plugins",
-          slug: "woocommerce",
-        },
-      },
-    ],
-  },
+	command: 'server',
+	blueprint: {
+		preferredVersions: { php: '8.3', wp: 'latest' },
+		login: true,
+		steps: [
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'woocommerce',
+				},
+			},
+		],
+	},
 });
 ```
 
@@ -362,14 +364,14 @@ const cli = await runCLI({
 **Servidor compartilhado (`beforeAll`/`afterAll`)** — uma instância Playground serve todos os testes em um bloco describe. Mais rápido, mas os testes podem afetar uns aos outros:
 
 ```typescript
-test.describe("Plugin settings", () => {
-  test.beforeAll(async () => {
-    cli = await runCLI({ command: "server", blueprint });
-  });
-  test.afterAll(async () => {
-    await cli?.server?.close();
-  });
-  // Tests share the same WordPress instance
+test.describe('Plugin settings', () => {
+	test.beforeAll(async () => {
+		cli = await runCLI({ command: 'server', blueprint });
+	});
+	test.afterAll(async () => {
+		await cli?.server?.close();
+	});
+	// Tests share the same WordPress instance
 });
 ```
 
@@ -381,10 +383,10 @@ test.describe("Plugin settings", () => {
 
 ```typescript
 test.beforeEach(async () => {
-  cli = await runCLI({ command: "server", blueprint });
+	cli = await runCLI({ command: 'server', blueprint });
 });
 test.afterEach(async () => {
-  await cli?.server?.close();
+	await cli?.server?.close();
 });
 ```
 
@@ -410,17 +412,17 @@ Blueprints definem o estado do WordPress que cada cenário de teste precisa. Aqu
 
 ```typescript
 const blueprint = {
-  preferredVersions: { php: "8.3", wp: "latest" },
-  login: true,
-  steps: [
-    {
-      step: "installPlugin",
-      pluginData: {
-        resource: "wordpress.org/plugins",
-        slug: "contact-form-7",
-      },
-    },
-  ],
+	preferredVersions: { php: '8.3', wp: 'latest' },
+	login: true,
+	steps: [
+		{
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'wordpress.org/plugins',
+				slug: 'contact-form-7',
+			},
+		},
+	],
 };
 ```
 
@@ -436,20 +438,20 @@ Monte o diretório do seu plugin local na instância do Playground:
 
 ```typescript
 const cli = await runCLI({
-  command: "server",
-  mount: {
-    "./": "/wordpress/wp-content/plugins/my-plugin",
-  },
-  blueprint: {
-    preferredVersions: { php: "8.3", wp: "latest" },
-    login: true,
-    steps: [
-      {
-        step: "activatePlugin",
-        pluginPath: "my-plugin/my-plugin.php",
-      },
-    ],
-  },
+	command: 'server',
+	mount: {
+		'./': '/wordpress/wp-content/plugins/my-plugin',
+	},
+	blueprint: {
+		preferredVersions: { php: '8.3', wp: 'latest' },
+		login: true,
+		steps: [
+			{
+				step: 'activatePlugin',
+				pluginPath: 'my-plugin/my-plugin.php',
+			},
+		],
+	},
 });
 ```
 
@@ -465,18 +467,18 @@ Isso mapeia seu diretório atual para o caminho do plugin dentro do WordPress e,
 
 ```typescript
 const blueprint = {
-  login: true,
-  steps: [
-    {
-      step: "setSiteOptions",
-      options: {
-        blogname: "Test Site",
-        permalink_structure: "/%postname%/",
-      },
-    },
-    {
-      step: "runPHP",
-      code: `<?php
+	login: true,
+	steps: [
+		{
+			step: 'setSiteOptions',
+			options: {
+				blogname: 'Test Site',
+				permalink_structure: '/%postname%/',
+			},
+		},
+		{
+			step: 'runPHP',
+			code: `<?php
         require '/wordpress/wp-load.php';
         wp_insert_post([
           'post_title' => 'Test Post',
@@ -484,8 +486,8 @@ const blueprint = {
           'post_status' => 'publish',
         ]);
       `,
-    },
-  ],
+		},
+	],
 };
 ```
 
@@ -510,14 +512,14 @@ Navigate to admin pages and interact with the WordPress UI:
 Navegue até as páginas do admin e interaja com a interface do WordPress:
 
 ```typescript
-test("plugin settings page saves options", async ({ page }) => {
-  await page.goto(`${cli.serverUrl}/wp-admin/options-general.php?page=my-plugin`);
+test('plugin settings page saves options', async ({ page }) => {
+	await page.goto(`${cli.serverUrl}/wp-admin/options-general.php?page=my-plugin`);
 
-  await page.getByLabel("API Key").fill("test-key-123");
-  await page.getByRole("button", { name: "Save Changes" }).click();
+	await page.getByLabel('API Key').fill('test-key-123');
+	await page.getByRole('button', { name: 'Save Changes' }).click();
 
-  await expect(page.getByText("Settings saved")).toBeVisible();
-  await expect(page.getByLabel("API Key")).toHaveValue("test-key-123");
+	await expect(page.getByText('Settings saved')).toBeVisible();
+	await expect(page.getByLabel('API Key')).toHaveValue('test-key-123');
 });
 ```
 
@@ -540,13 +542,13 @@ await page.getByRole("link", { name: "My Plugin" }).first().click();
 
 ```typescript
 // Dispensar avisos do admin do WordPress (o WP adiciona aria-label aos botões de dispensar)
-await page.getByRole("button", { name: "Dismiss this notice" }).first().click();
+await page.getByRole('button', { name: 'Dismiss this notice' }).first().click();
 
 // Aguardar o carregamento da barra admin — sem função ARIA disponível, use locator
-await page.locator("#wpadminbar").waitFor();
+await page.locator('#wpadminbar').waitFor();
 
 // Navegar pelo menu admin
-await page.getByRole("link", { name: "My Plugin" }).first().click();
+await page.getByRole('link', { name: 'My Plugin' }).first().click();
 ```
 
 <!--
@@ -556,24 +558,22 @@ await page.getByRole("link", { name: "My Plugin" }).first().click();
 ### Testando o front-end
 
 ```typescript
-test("plugin shortcode renders on front end", async ({ page }) => {
-  // Navigate to a page with the shortcode
-  await page.goto(`${cli.serverUrl}/?p=2`);
+test('plugin shortcode renders on front end', async ({ page }) => {
+	// Navigate to a page with the shortcode
+	await page.goto(`${cli.serverUrl}/?p=2`);
 
-  // Recommend: add data-testid="my-plugin-widget" to your plugin markup
-  await expect(page.getByTestId("my-plugin-widget")).toBeVisible();
-  await expect(page.getByTestId("my-plugin-widget")).toContainText(
-    "Expected content"
-  );
-  // Or use CSS if you don't control the markup:
-  // await expect(page.locator(".my-plugin-widget")).toBeVisible();
+	// Recommend: add data-testid="my-plugin-widget" to your plugin markup
+	await expect(page.getByTestId('my-plugin-widget')).toBeVisible();
+	await expect(page.getByTestId('my-plugin-widget')).toContainText('Expected content');
+	// Or use CSS if you don't control the markup:
+	// await expect(page.locator(".my-plugin-widget")).toBeVisible();
 });
 
-test("theme displays post correctly", async ({ page }) => {
-  await page.goto(`${cli.serverUrl}/test-post/`);
+test('theme displays post correctly', async ({ page }) => {
+	await page.goto(`${cli.serverUrl}/test-post/`);
 
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Test Post");
-  await expect(page.getByText("Hello World", { exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Test Post');
+	await expect(page.getByText('Hello World', { exact: true })).toBeVisible();
 });
 ```
 
@@ -589,35 +589,33 @@ O Page Object Model (POM) encapsula as interações da página em classes reutil
 
 ```typescript
 // tests/e2e/pages/plugin-settings.ts
-import { type Page, type Locator, expect } from "@playwright/test";
+import { type Page, type Locator, expect } from '@playwright/test';
 
 export class PluginSettingsPage {
-  readonly page: Page;
-  readonly apiKeyInput: Locator;
-  readonly saveButton: Locator;
-  readonly successNotice: Locator;
+	readonly page: Page;
+	readonly apiKeyInput: Locator;
+	readonly saveButton: Locator;
+	readonly successNotice: Locator;
 
-  constructor(page: Page) {
-    this.page = page;
-    this.apiKeyInput = page.getByLabel("API Key");
-    this.saveButton = page.getByRole("button", { name: "Save Changes" });
-    this.successNotice = page.getByText("Settings saved");
-  }
+	constructor(page: Page) {
+		this.page = page;
+		this.apiKeyInput = page.getByLabel('API Key');
+		this.saveButton = page.getByRole('button', { name: 'Save Changes' });
+		this.successNotice = page.getByText('Settings saved');
+	}
 
-  async goto(baseUrl: string) {
-    await this.page.goto(
-      `${baseUrl}/wp-admin/options-general.php?page=my-plugin`
-    );
-  }
+	async goto(baseUrl: string) {
+		await this.page.goto(`${baseUrl}/wp-admin/options-general.php?page=my-plugin`);
+	}
 
-  async setApiKey(key: string) {
-    await this.apiKeyInput.fill(key);
-    await this.saveButton.click();
-  }
+	async setApiKey(key: string) {
+		await this.apiKeyInput.fill(key);
+		await this.saveButton.click();
+	}
 
-  async expectSaved() {
-    await expect(this.successNotice).toBeVisible();
-  }
+	async expectSaved() {
+		await expect(this.successNotice).toBeVisible();
+	}
 }
 ```
 
@@ -628,13 +626,13 @@ Use the POM in tests:
 Use o POM nos testes:
 
 ```typescript
-import { PluginSettingsPage } from "./pages/plugin-settings";
+import { PluginSettingsPage } from './pages/plugin-settings';
 
-test("save plugin settings", async ({ page }) => {
-  const settings = new PluginSettingsPage(page);
-  await settings.goto(cli.serverUrl);
-  await settings.setApiKey("test-key-123");
-  await settings.expectSaved();
+test('save plugin settings', async ({ page }) => {
+	const settings = new PluginSettingsPage(page);
+	await settings.goto(cli.serverUrl);
+	await settings.setApiKey('test-key-123');
+	await settings.expectSaved();
 });
 ```
 
@@ -654,49 +652,47 @@ Testes parametrizados cobrem múltiplas combinações de versões sem duplicar c
 
 ```typescript
 const versionMatrix = [
-  { php: "8.1", wp: "6.5" },
-  { php: "8.2", wp: "6.7" },
-  { php: "8.3", wp: "latest" },
+	{ php: '8.1', wp: '6.5' },
+	{ php: '8.2', wp: '6.7' },
+	{ php: '8.3', wp: 'latest' },
 ];
 
 for (const { php, wp } of versionMatrix) {
-  test.describe(`PHP ${php} + WP ${wp}`, () => {
-    let versionCli: Awaited<ReturnType<typeof runCLI>>;
+	test.describe(`PHP ${php} + WP ${wp}`, () => {
+		let versionCli: Awaited<ReturnType<typeof runCLI>>;
 
-    test.beforeAll(async () => {
-      versionCli = await runCLI({
-        command: "server",
-        blueprint: {
-          preferredVersions: { php, wp },
-          login: true,
-          steps: [
-            {
-              step: "activatePlugin",
-              pluginPath: "my-plugin/my-plugin.php",
-            },
-          ],
-        },
-      });
-    });
+		test.beforeAll(async () => {
+			versionCli = await runCLI({
+				command: 'server',
+				blueprint: {
+					preferredVersions: { php, wp },
+					login: true,
+					steps: [
+						{
+							step: 'activatePlugin',
+							pluginPath: 'my-plugin/my-plugin.php',
+						},
+					],
+				},
+			});
+		});
 
-    test("admin page loads without errors", async ({ page }) => {
-      await page.goto(
-        `${versionCli.serverUrl}/wp-admin/options-general.php?page=my-plugin`
-      );
-      // WordPress core elements use CSS selectors — no ARIA roles available
-      await expect(page.locator(".error")).not.toBeVisible();
-      await expect(page.locator("#wpbody-content")).toBeVisible();
-    });
+		test('admin page loads without errors', async ({ page }) => {
+			await page.goto(`${versionCli.serverUrl}/wp-admin/options-general.php?page=my-plugin`);
+			// WordPress core elements use CSS selectors — no ARIA roles available
+			await expect(page.locator('.error')).not.toBeVisible();
+			await expect(page.locator('#wpbody-content')).toBeVisible();
+		});
 
-    test("front-end output renders", async ({ page }) => {
-      await page.goto(versionCli.serverUrl);
-      await expect(page.getByTestId("my-plugin-widget")).toBeVisible();
-    });
+		test('front-end output renders', async ({ page }) => {
+			await page.goto(versionCli.serverUrl);
+			await expect(page.getByTestId('my-plugin-widget')).toBeVisible();
+		});
 
-    test.afterAll(async () => {
-      await versionCli?.server?.close();
-    });
-  });
+		test.afterAll(async () => {
+			await versionCli?.server?.close();
+		});
+	});
 }
 ```
 
@@ -722,46 +718,46 @@ Crie `.github/workflows/e2e-tests.yml`:
 name: E2E Tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    e2e:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('package-lock.json') }}
+            - name: Cache Playwright browsers
+              uses: actions/cache@v4
+              id: playwright-cache
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-${{ hashFiles('package-lock.json') }}
 
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
+            - name: Install Playwright browsers
+              if: steps.playwright-cache.outputs.cache-hit != 'true'
+              run: npx playwright install chromium --with-deps
 
-      - name: Run E2E tests
-        run: npx playwright test
+            - name: Run E2E tests
+              run: npx playwright test
 
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
+            - name: Upload test report
+              uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report
+                  path: playwright-report/
+                  retention-days: 30
 ```
 
 <!--
@@ -791,9 +787,11 @@ For manual PR testing alongside automated E2E tests, see [Adding PR Preview Butt
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Para testes manuais de PR junto com testes E2E automatizados, consulte [Adicionando botões de preview de PR com GitHub Actions](/guides/github-action-pr-preview).
-:::
+
+</div>
 
 <!--
 ## Troubleshooting

@@ -71,6 +71,7 @@ export {
 	resolveRemoteBlueprint,
 	BlueprintFetchError,
 } from './lib/resolve-remote-blueprint';
+export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
 

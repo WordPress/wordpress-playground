@@ -22,9 +22,11 @@ For a detailed guide on the contribution workflow (forking, creating PRs, etc.),
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Per una guida dettagliata sul workflow di contribuzione (fork, creazione di PR, ecc.), per favore vedi la nostra [guida ai contributi alla documentazione](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 
 <!--
 ## How Translations Work
@@ -44,9 +46,11 @@ To learn more about how Docusaurus manages translations, see the [Internationali
 :::
 -->
 
-:::info
+<div class="callout callout-info">
+
 Per saperne di più su come Docusaurus gestisce le traduzioni, vedi la [sezione Internazionalizzazione](https://docusaurus.io/docs/i18n/introduction) della documentazione ufficiale di Docusaurus.
-:::
+
+</div>
 
 <!--
 ### Configuration
@@ -302,9 +306,11 @@ Follow these steps to translate a page:
 - Describe the pages that you translated
 - Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 
-:::info
+<div class="callout callout-info">
+
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
-:::
+
+</div>
 -->
 
 ## Workflow di traduzione
@@ -327,9 +333,11 @@ Segui questi passaggi per tradurre una pagina:
 - Descrivi le pagine che hai tradotto
 - Richiedi una revisione su `#playground` o `#polyglots` su `wordpress.slack.com`
 
-:::info
+<div class="callout callout-info">
+
 Raccomandiamo fortemente di inviare pull request con un piccolo numero di pagine tradotte. Questo approccio semplifica il processo di revisione e permette un'integrazione più graduale e gestibile del tuo lavoro.
-:::
+
+</div>
 
 <!--
 ### Translation Tracking Template

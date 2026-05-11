@@ -1510,14 +1510,19 @@ export class PHP implements Disposable {
 		const mountObject = {
 			mountHandler,
 			unmount: async () => {
-				await unmountCallback();
-				delete this.#mounts[virtualFSPath];
+				try {
+					await unmountCallback();
+				} finally {
+					// JS mount tracking is authoritative. Even if the
+					// underlying filesystem unmount fails, forget this entry
+					// so later runtime swaps and remounts cannot reuse a stale
+					// mount handler.
+					delete this.#mounts[virtualFSPath];
+				}
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
-		return () => {
-			mountObject.unmount();
-		};
+		return () => mountObject.unmount();
 	}
 
 	/**

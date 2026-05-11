@@ -35,6 +35,11 @@ export interface MountOptions {
 		direction?: 'opfs-to-memfs' | 'memfs-to-opfs';
 		onProgress?: SyncProgressCallback;
 	};
+	onMount?: (mount: DirectoryHandleMount) => void;
+}
+export interface DirectoryHandleMount {
+	flush(): Promise<void>;
+	unmount(): Promise<void>;
 }
 export type SyncProgress = {
 	/** The number of files that have been synced. */
@@ -43,6 +48,12 @@ export type SyncProgress = {
 	total: number;
 };
 export type SyncProgressCallback = (progress: SyncProgress) => void;
+
+interface JournalFSEventsToOpfsOptions {
+	maxFlushPasses?: number;
+}
+
+const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
 
 export function createDirectoryHandleMountHandler(
 	handle: FileSystemDirectoryHandle,
@@ -71,8 +82,9 @@ export function createDirectoryHandleMountHandler(
 				options.initialSync.onProgress
 			);
 		}
-		const unbindJournal = journalFSEventsToOpfs(php, handle, vfsMountPoint);
-		return unbindJournal;
+		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+		options.onMount?.(mount);
+		return mount.unmount;
 	};
 }
 
@@ -268,15 +280,60 @@ async function overwriteOpfsFile(
 export function journalFSEventsToOpfs(
 	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
-	memfsRoot: string
-) {
+	memfsRoot: string,
+	options: JournalFSEventsToOpfsOptions = {}
+): DirectoryHandleMount {
 	const journal: FilesystemOperation[] = [];
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
 	});
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
+	let flushPromise: Promise<void> | undefined;
+
+	function flush() {
+		if (flushPromise === undefined) {
+			flushPromise = flushJournal().finally(() => {
+				flushPromise = undefined;
+			});
+		}
+		return flushPromise;
+	}
+
+	async function unmount() {
+		try {
+			await flush();
+		} finally {
+			unbindJournal();
+			php.removeEventListener('request.end', flushInBackground);
+			php.removeEventListener('filesystem.write', flushInBackground);
+		}
+	}
+
+	function flushInBackground() {
+		void flush().catch((error) => {
+			logger.error(error);
+		});
+	}
 
 	async function flushJournal() {
+		const maxFlushPasses =
+			options.maxFlushPasses ?? DEFAULT_MAX_OPFS_FLUSH_PASSES;
+		for (let pass = 0; journal.length > 0; pass++) {
+			if (pass >= maxFlushPasses) {
+				const remainingEntries = journal.length;
+				const remainingPhrase =
+					remainingEntries === 1
+						? `${remainingEntries} journal entry remains`
+						: `${remainingEntries} journal entries remain`;
+				throw new Error(
+					`OPFS flush for "${memfsRoot}" did not settle after ${maxFlushPasses} journal batches; ${remainingPhrase}. This can happen when filesystem writes are continuously enqueued while flushing.`
+				);
+			}
+			await flushJournalOnce();
+		}
+	}
+
+	async function flushJournalOnce() {
 		if (journal.length === 0) {
 			return;
 		}
@@ -306,12 +363,12 @@ export function journalFSEventsToOpfs(
 			release();
 		}
 	}
-	php.addEventListener('request.end', flushJournal);
-	php.addEventListener('filesystem.write', flushJournal);
-	return function () {
-		unbindJournal();
-		php.removeEventListener('request.end', flushJournal);
-		php.removeEventListener('filesystem.write', flushJournal);
+
+	php.addEventListener('request.end', flushInBackground);
+	php.addEventListener('filesystem.write', flushInBackground);
+	return {
+		flush,
+		unmount,
 	};
 }
 
