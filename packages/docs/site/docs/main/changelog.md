@@ -12,6 +12,22 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.30] (2026-05-11)
+
+### Bug Fixes
+
+- Fix PHP-WASM node rebuild Docker context. ([#3608](https://github.com/WordPress/wordpress-playground/pull/3608))
+
+### Various
+
+- Serve index fallback on my.wordpress.net. ([#3611](https://github.com/WordPress/wordpress-playground/pull/3611))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @chubes4
+
 ## [v3.1.29] (2026-05-07)
 
 ### Blueprints

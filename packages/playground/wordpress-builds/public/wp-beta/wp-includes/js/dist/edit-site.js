@@ -41674,9 +41674,12 @@ If there's a particular need for this, please submit a feature request at https:
         __experimentalFeatures,
         ...restStoredSettings
       } = storedSettings;
+      const nonGlobalStyles = (styles ?? []).filter(
+        (style) => !style.isGlobalStyles
+      );
       return {
         ...restStoredSettings,
-        styles: globalStyles,
+        styles: [...nonGlobalStyles, ...globalStyles],
         __experimentalFeatures: globalSettings,
         [globalStylesDataKey]: mergedConfig.styles ?? {},
         __experimentalBlockPatterns: blockPatterns,
@@ -42486,7 +42489,7 @@ If there's a particular need for this, please submit a feature request at https:
           PatternsActions,
           {
             categoryId,
-            postType: postType2
+            type: postType2
           }
         ),
         children: /* @__PURE__ */ (0, import_jsx_runtime273.jsx)(
@@ -47035,10 +47038,22 @@ If there's a particular need for this, please submit a feature request at https:
         ) : /* @__PURE__ */ (0, import_jsx_runtime299.jsx)(SidebarNavigationScreenUnsupported, {});
       },
       preview({ siteData }) {
-        return isClassicThemeWithStyleBookSupport(siteData) ? /* @__PURE__ */ (0, import_jsx_runtime299.jsx)(StyleBookPreview2, { isStatic: true }) : void 0;
+        return isClassicThemeWithStyleBookSupport(siteData) ? /* @__PURE__ */ (0, import_jsx_runtime299.jsx)(
+          StyleBookPreview2,
+          {
+            isStatic: true,
+            settings: siteData.editorSettings
+          }
+        ) : void 0;
       },
       mobile({ siteData }) {
-        return isClassicThemeWithStyleBookSupport(siteData) ? /* @__PURE__ */ (0, import_jsx_runtime299.jsx)(StyleBookPreview2, { isStatic: true }) : void 0;
+        return isClassicThemeWithStyleBookSupport(siteData) ? /* @__PURE__ */ (0, import_jsx_runtime299.jsx)(
+          StyleBookPreview2,
+          {
+            isStatic: true,
+            settings: siteData.editorSettings
+          }
+        ) : void 0;
       }
     }
   };

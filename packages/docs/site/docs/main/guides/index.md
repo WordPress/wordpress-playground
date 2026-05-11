@@ -45,6 +45,10 @@ Automate WordPress Playground workflows with Claude Code. Learn how to install t
 
 Learn how to use the `runCLI` function to control WordPress Playground programmatically from JavaScript/TypeScript for automation, end-to-end testing, and CI/CD pipelines.
 
+## [Running PHPUnit with the Playground CLI](/guides/phpunit-testing)
+
+Run PHPUnit tests for WordPress plugins and themes using the Playground CLI — no database required, clean environment on every run.
+
 ## [E2E Testing with Playwright and WordPress Playground](/guides/e2e-testing-with-playwright)
 
 Set up automated end-to-end tests for your WordPress plugins and themes using Playwright and the WordPress Playground CLI.

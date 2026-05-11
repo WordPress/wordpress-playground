@@ -53,6 +53,7 @@ const sidebars = {
 						'main/guides/github-action-pr-preview',
 						'main/guides/playground-for-everyone',
 						'main/guides/programmatic-playground-cli',
+						'main/guides/phpunit-testing',
 						'main/guides/e2e-testing-with-playwright',
 					],
 				},
