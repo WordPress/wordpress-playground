@@ -2221,6 +2221,57 @@ describe('other run-cli behaviors', () => {
 			}
 		});
 	});
+
+	describe('cleanup on error', () => {
+		test('closes the bound server when onBind throws (missing blueprint)', async () => {
+			// Reserve a free port and release it so runCLI can bind to
+			// the same number. Using a hard-coded port would race with
+			// other tests that pick from the same range.
+			const probe = http.createServer();
+			await new Promise<void>((resolve) =>
+				probe.listen(0, () => resolve())
+			);
+			const port = (probe.address() as { port: number }).port;
+			await new Promise<void>((resolve) => probe.close(() => resolve()));
+
+			const missingBlueprint = path.join(
+				tmpdir(),
+				`missing-blueprint-${Date.now()}-${Math.random()}.json`
+			);
+
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						`--port=${port}`,
+						`--blueprint=${missingBlueprint}`,
+						'--wordpress-install-mode=do-not-attempt-installing',
+						'--skip-sqlite-setup',
+						'--verbosity=quiet',
+					])
+				).rejects.toThrow();
+			} finally {
+				consoleSpy.mockRestore();
+			}
+
+			// If the bound server were left listening, binding to the
+			// same port would fail with EADDRINUSE.
+			const verifyServer = http.createServer();
+			try {
+				await new Promise<void>((resolve, reject) => {
+					verifyServer.once('error', reject);
+					verifyServer.listen(port, () => resolve());
+				});
+			} finally {
+				await new Promise<void>((resolve) =>
+					verifyServer.close(() => resolve())
+				);
+			}
+		});
+	});
 });
 
 describe('resolveWorkerCount', () => {

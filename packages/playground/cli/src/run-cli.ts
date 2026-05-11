@@ -1815,8 +1815,6 @@ export async function runCLI(
 
 			return response;
 		},
-	}).catch((error) => {
-		throw error;
 	});
 
 	if (
