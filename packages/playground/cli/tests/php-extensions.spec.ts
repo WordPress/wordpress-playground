@@ -48,27 +48,23 @@ describe('CLI PHP extensions', () => {
 		await writeFile(
 			configPath,
 			JSON.stringify({
-				name: 'wp_mysql_parser',
+				name: 'sqlite_markdown',
 				source: {
 					format: 'url',
-					url: './dist/wp_mysql_parser-php8.4-jspi.so',
+					url: './dist/sqlite_markdown-php8.4-jspi.so',
 				},
-				iniEntries: {
-					'wp_mysql_parser.mode': 'parser',
-				},
+				loadWithIniDirective: false,
 			})
 		);
 
 		try {
 			expect(readPHPExtensionConfig(configPath)).toEqual({
-				name: 'wp_mysql_parser',
+				name: 'sqlite_markdown',
 				source: {
 					format: 'url',
-					url: './dist/wp_mysql_parser-php8.4-jspi.so',
+					url: './dist/sqlite_markdown-php8.4-jspi.so',
 				},
-				iniEntries: {
-					'wp_mysql_parser.mode': 'parser',
-				},
+				loadWithIniDirective: false,
 			});
 			expect(
 				cliExtensionArgsToExtensionsArray({

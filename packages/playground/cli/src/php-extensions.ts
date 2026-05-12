@@ -76,6 +76,16 @@ export function readPHPExtensionConfig(
 			`Invalid PHP extension config: ${configPath}. Expected an object with a source field.`
 		);
 	}
+	if (
+		'loadWithIniDirective' in config &&
+		config['loadWithIniDirective'] !== false &&
+		config['loadWithIniDirective'] !== 'extension' &&
+		config['loadWithIniDirective'] !== 'zend_extension'
+	) {
+		throw new Error(
+			`Invalid PHP extension config: ${configPath}. loadWithIniDirective must be "extension", "zend_extension", or false.`
+		);
+	}
 
 	const source = config['source'];
 	if (source['format'] === 'so') {

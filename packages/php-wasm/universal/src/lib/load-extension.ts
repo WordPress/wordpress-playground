@@ -103,6 +103,7 @@ const MAX_EXTENSION_SIDECAR_FILE_REQUESTS = 5;
  * regular PHP extensions and `zend_extension` for Zend extensions like Xdebug.
  */
 export type PHPExtensionIniDirective = 'extension' | 'zend_extension';
+export type PHPExtensionLoadDirective = PHPExtensionIniDirective | false;
 
 /**
  * Extension artifact manifest. Lets callers publish a matrix of `.so` files
@@ -187,7 +188,7 @@ export interface ResolvedInstallOptions {
 	 * extensions need `extension=...`; Zend extensions like Xdebug need
 	 * `zend_extension=...`.
 	 */
-	loadWithIniDirective?: PHPExtensionIniDirective;
+	loadWithIniDirective?: PHPExtensionLoadDirective;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
 	/**
@@ -222,13 +223,13 @@ export interface ResolvedPHPExtension {
 	/** Compiled extension bytes to write at `soPath`. */
 	soBytes: Uint8Array;
 	/** Absolute VFS path the generated per-extension ini file is staged at. */
-	iniPath: string;
+	iniPath?: string;
 	/**
 	 * Contents of the generated per-extension ini file. The first line is the
 	 * `extension=` or `zend_extension=` directive; remaining lines are the
 	 * caller-supplied `iniEntries`.
 	 */
-	iniContent: string;
+	iniContent?: string;
 	/** Sidecar files staged alongside the extension. Optional. */
 	extraFiles?: ResolvedExtraFiles;
 	/** Environment variables added before PHP startup. */
@@ -264,7 +265,7 @@ export interface InstallPHPExtensionFilesOptions {
 	 * extensions need `extension=...`; Zend extensions like Xdebug need
 	 * `zend_extension=...`.
 	 */
-	loadWithIniDirective?: PHPExtensionIniDirective;
+	loadWithIniDirective?: PHPExtensionLoadDirective;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
 	/** Sidecar files to write into the PHP VFS before the extension is loaded. */
@@ -409,19 +410,18 @@ export async function resolvePHPExtension(
 
 	const directive = options.loadWithIniDirective ?? 'extension';
 	const soPath = joinPaths(extensionDir, `${name}.so`);
-	const iniPath = joinPaths(extensionDir, `${name}.ini`);
-	const iniContent = [
-		`${directive}=${soPath}`,
-		...Object.entries(options.iniEntries ?? {}).map(
-			([key, value]) => `${key}=${value}`
-		),
-	].join('\n');
+	const iniFile = createPHPExtensionIniFile({
+		directive,
+		extensionDir,
+		name,
+		soPath,
+		iniEntries: options.iniEntries,
+	});
 
 	return {
 		soPath,
 		soBytes,
-		iniPath,
-		iniContent,
+		...iniFile,
 		extraFiles: {
 			files,
 			directories,
@@ -448,6 +448,9 @@ export function withResolvedPHPExtensions(
 	const env = { ...options.ENV };
 	for (const extension of extensions) {
 		Object.assign(env, extension.env);
+		if (!extension.iniPath) {
+			continue;
+		}
 		const paths = env['PHP_INI_SCAN_DIR']?.split(':') ?? [];
 		if (!paths.includes(extension.extensionDir)) {
 			paths.push(extension.extensionDir);
@@ -482,16 +485,17 @@ export function installPHPExtensionFilesSync(
 		const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
 		const directive = options.loadWithIniDirective ?? 'extension';
 		const soPath = joinPaths(extensionDir, `${options.name}.so`);
+		const iniFile = createPHPExtensionIniFile({
+			directive,
+			extensionDir,
+			name: options.name,
+			soPath,
+			iniEntries: options.iniEntries,
+		});
 		ext = {
 			soPath,
 			soBytes: toUint8Array(options.soBytes),
-			iniPath: joinPaths(extensionDir, `${options.name}.ini`),
-			iniContent: [
-				`${directive}=${soPath}`,
-				...Object.entries(options.iniEntries ?? {}).map(
-					([key, value]) => `${key}=${value}`
-				),
-			].join('\n'),
+			...iniFile,
 			extraFiles: options.extraFiles,
 			env: options.env,
 			extensionDir,
@@ -499,7 +503,9 @@ export function installPHPExtensionFilesSync(
 	}
 	mkdirIfMissing(fs, ext.extensionDir);
 	fs.writeFile(ext.soPath, ext.soBytes);
-	fs.writeFile(ext.iniPath, ext.iniContent);
+	if (ext.iniPath && ext.iniContent !== undefined) {
+		fs.writeFile(ext.iniPath, ext.iniContent);
+	}
 	if (ext.extraFiles) {
 		const { directories = [], files } = ext.extraFiles;
 		for (const directory of directories) {
@@ -511,6 +517,30 @@ export function installPHPExtensionFilesSync(
 		}
 	}
 	return ext;
+}
+
+function createPHPExtensionIniFile(options: {
+	directive: PHPExtensionLoadDirective;
+	extensionDir: string;
+	name: string;
+	soPath: string;
+	iniEntries?: Record<string, string>;
+}): Pick<ResolvedPHPExtension, 'iniPath' | 'iniContent'> {
+	if (options.directive === false) {
+		return {};
+	}
+
+	const lines = [
+		`${options.directive}=${options.soPath}`,
+		...Object.entries(options.iniEntries ?? {}).map(
+			([key, value]) => `${key}=${value}`
+		),
+	];
+
+	return {
+		iniPath: joinPaths(options.extensionDir, `${options.name}.ini`),
+		iniContent: lines.join('\n'),
+	};
 }
 
 function mkdirIfMissing(fs: Emscripten.RootFS, path: string): void {

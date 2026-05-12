@@ -139,6 +139,21 @@ Use `--php-extension-config` when the extension needs more runtime settings:
 npx @wp-playground/cli@latest server --php-extension-config=./spx.json
 ```
 
+Set `loadWithIniDirective` to `false` when the artifact is a loadable Wasm
+side module that should be staged before PHP starts but should not be registered
+with `extension=` or `zend_extension=` in php.ini:
+
+```json
+{
+	"name": "sqlite_markdown",
+	"source": {
+		"format": "manifest",
+		"manifestUrl": "./dist/sqlite-markdown/manifest.json"
+	},
+	"loadWithIniDirective": false
+}
+```
+
 ## Need some help with the CLI?
 
 With the Playground CLI, you can use the `--help` to get some support about the available commands.
