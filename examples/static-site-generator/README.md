@@ -28,13 +28,13 @@ npx @wp-playground/cli@latest server \
 
 ## What The Plugin Exports
 
-- Public home, post, page, custom post type, taxonomy, and author archive URLs.
-- Same-site links discovered while exporting, up to the configured page limit.
+- Public home, post, page, custom post type, taxonomy, and author archive URLs, including archive pagination.
+- Same-site page links discovered in exported HTML, up to the configured page limit.
 - `wp-content/uploads`.
 - The active parent and child theme.
 - Active plugin asset files, excluding PHP and common development-only folders.
 - WordPress core frontend asset directories used by block themes and scripts.
 
-Same-site absolute URLs are rewritten to relative URLs by default, so the output can be hosted from a folder, GitHub Pages, or a CDN path.
+Same-site URLs in links, media attributes, `srcset` values, inline styles, CSS files, JSON, and JavaScript are rewritten to relative URLs by default, so the output can be hosted from a folder, GitHub Pages, or a CDN path.
 
 The static ZIP is the published site. To keep editing the source site later, also export or save the full Playground site from Playground's site manager.

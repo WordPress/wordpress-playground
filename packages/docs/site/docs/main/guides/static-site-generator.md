@@ -23,7 +23,7 @@ The Blueprint installs the example plugin from this repository using a [`git:dir
 3. Choose the URL mode and asset options.
 4. Click `Download Static Site ZIP`.
 
-The ZIP includes HTML files for public pages and the frontend assets needed by the active theme, uploads, and active plugins. Same-site URLs are rewritten to relative paths by default, which makes the export easier to host from a subdirectory.
+The ZIP includes HTML files for public pages, archive pagination, discovered same-site page links, and the frontend assets needed by the active theme, uploads, and active plugins. Same-site URLs in HTML attributes, `srcset`, inline styles, CSS, JSON, and JavaScript are rewritten to relative paths by default, which makes the export easier to host from a subdirectory.
 
 ## Keep the editable source site
 
