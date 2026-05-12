@@ -473,6 +473,7 @@ foreach (
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',
 		'nested%2Fsegment/index.html',
+		'%2E%2E/secret/index.html',
 		'wp-content/uploads/bg.jpg',
 		'wp-content/uploads/photo.jpg',
 		'wp-content/uploads/photo-2x.jpg',
@@ -493,6 +494,7 @@ $html = implode(
 		'<a class="encoded-space" href="/collision%20page/">Encoded space</a>',
 		'<a class="literal-plus" href="/collision+page/">Literal plus</a>',
 		'<a class="encoded-slash" href="/nested%2Fsegment/">Encoded slash</a>',
+		'<a class="encoded-parent" href="/%2e%2e/secret/">Encoded parent</a>',
 		'<a class="non-pretty" href="/?p=42#comments">Query</a>',
 		'<a class="query" href="/static-page/?view=grid#items">Query page</a>',
 		'<a class="archive" href="/blog/page/2/#posts">Archive</a>',
@@ -556,6 +558,12 @@ ssgwp_assert_contains(
 	'href="nested%2Fsegment/index.html"',
 	$result['content'],
 	'rewrite_html keeps encoded slashes inside one generated path segment.'
+);
+
+ssgwp_assert_contains(
+	'href="%2E%2E/secret/index.html"',
+	$result['content'],
+	'rewrite_html keeps encoded parent segments literal.'
 );
 
 ssgwp_assert_contains(
@@ -663,6 +671,7 @@ foreach (
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',
 		'nested%2Fsegment/index.html',
+		'%2E%2E/secret/index.html',
 		'index-' . $query_hash . '.html#comments',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo-2x.jpg',
