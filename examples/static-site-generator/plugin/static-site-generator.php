@@ -22,6 +22,7 @@ define( 'SSGWP_PLUGIN_FILE', __FILE__ );
 define( 'SSGWP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SSGWP_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
+require_once SSGWP_PLUGIN_DIR . 'includes/class-path-utils.php';
 require_once SSGWP_PLUGIN_DIR . 'includes/class-url-collector.php';
 require_once SSGWP_PLUGIN_DIR . 'includes/class-url-rewriter.php';
 require_once SSGWP_PLUGIN_DIR . 'includes/class-static-exporter.php';

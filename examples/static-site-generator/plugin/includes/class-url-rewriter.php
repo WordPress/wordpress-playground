@@ -167,42 +167,42 @@ final class SSGWP_URL_Rewriter {
 			),
 		);
 
-		foreach ( $attributes_by_tag as $tag_name => $attributes ) {
-			$processor    = new WP_HTML_Tag_Processor( $html );
-			$changed      = false;
-			$placeholders = array();
+		$processor    = new WP_HTML_Tag_Processor( $html );
+		$changed      = false;
+		$placeholders = array();
 
-			while ( $processor->next_tag( $tag_name ) ) {
-				foreach ( $attributes as $attribute => $kind ) {
-					$value = $processor->get_attribute( $attribute );
+		while ( $processor->next_tag() ) {
+			$tag_name = $processor->get_tag();
 
-					if ( ! is_string( $value ) || '' === $value ) {
-						continue;
-					}
-
-					if ( 'link' === $kind ) {
-						$kind = $this->link_attribute_kind( $processor );
-					}
-
-					if ( 'srcset' === $kind ) {
-						$rewritten = $this->rewrite_srcset( $value, $base_url, $target_path );
-					} else {
-						$rewritten = $this->rewrite_url_value( $value, $base_url, $target_path, $kind );
-					}
-
-					if ( $rewritten !== $value ) {
-						$processor->set_attribute( $attribute, $this->prepare_html_attribute_value( $rewritten, $placeholders ) );
-						$changed = true;
-					}
-				}
+			if ( ! isset( $attributes_by_tag[ $tag_name ] ) ) {
+				continue;
 			}
 
-			if ( $changed ) {
-				$html = strtr( $processor->get_updated_html(), $placeholders );
+			foreach ( $attributes_by_tag[ $tag_name ] as $attribute => $kind ) {
+				$value = $processor->get_attribute( $attribute );
+
+				if ( ! is_string( $value ) || '' === $value ) {
+					continue;
+				}
+
+				if ( 'link' === $kind ) {
+					$kind = $this->link_attribute_kind( $processor );
+				}
+
+				if ( 'srcset' === $kind ) {
+					$rewritten = $this->rewrite_srcset( $value, $base_url, $target_path );
+				} else {
+					$rewritten = $this->rewrite_url_value( $value, $base_url, $target_path, $kind );
+				}
+
+				if ( $rewritten !== $value ) {
+					$processor->set_attribute( $attribute, $this->prepare_html_attribute_value( $rewritten, $placeholders ) );
+					$changed = true;
+				}
 			}
 		}
 
-		return $html;
+		return $changed ? strtr( $processor->get_updated_html(), $placeholders ) : $html;
 	}
 
 	/**
@@ -594,18 +594,20 @@ final class SSGWP_URL_Rewriter {
 	 * @return string
 	 */
 	private function url_path_to_static_web_path( $path, $query = '' ) {
-		$path = $this->map_wordpress_asset_path( $path );
+		$path = SSGWP_Path_Utils::map_wordpress_asset_url_path( $path );
 		$path = trim( rawurldecode( $path ), '/' );
 
 		if ( '' === $path ) {
 			$file_path = 'index.html';
 			$web_path  = '';
 		} elseif ( $this->path_has_exported_extension( $path ) ) {
-			$file_path = $this->sanitize_relative_path( $path );
-			$web_path  = $file_path;
+			$sanitized_path = SSGWP_Path_Utils::sanitize_relative_path( $path );
+			$file_path      = $sanitized_path;
+			$web_path       = $file_path;
 		} else {
-			$file_path = trailingslashit( $this->sanitize_relative_path( $path ) ) . 'index.html';
-			$web_path  = trailingslashit( $this->sanitize_relative_path( $path ) );
+			$sanitized_path = SSGWP_Path_Utils::sanitize_relative_path( $path );
+			$file_path      = trailingslashit( $sanitized_path ) . 'index.html';
+			$web_path       = trailingslashit( $sanitized_path );
 		}
 
 		if ( '' === $query || $this->path_has_exported_extension( $path ) ) {
@@ -613,49 +615,6 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return preg_replace( '#(?:/index)?\.html$#', '-' . substr( md5( $query ), 0, 8 ) . '.html', $file_path );
-	}
-
-	/**
-	 * Map WordPress asset URL paths to the export directory layout.
-	 *
-	 * @param string $path URL path.
-	 * @return string Static path.
-	 */
-	private function map_wordpress_asset_path( $path ) {
-		$path     = '/' . trim( rawurldecode( $path ), '/' );
-		$mappings = array(
-			array(
-				'url'    => content_url( '/' ),
-				'static' => 'wp-content/',
-			),
-			array(
-				'url'    => includes_url( '/' ),
-				'static' => 'wp-includes/',
-			),
-		);
-
-		usort(
-			$mappings,
-			static function ( $a, $b ) {
-				$a_path = (string) wp_parse_url( $a['url'], PHP_URL_PATH );
-				$b_path = (string) wp_parse_url( $b['url'], PHP_URL_PATH );
-
-				return strlen( $b_path ) <=> strlen( $a_path );
-			}
-		);
-
-		foreach ( $mappings as $mapping ) {
-			$base_path = '/' . trim( rawurldecode( (string) wp_parse_url( $mapping['url'], PHP_URL_PATH ) ), '/' );
-			$base_path = '/' === $base_path ? '/' : trailingslashit( $base_path );
-
-			if ( '/' === $base_path || 0 !== strpos( trailingslashit( $path ), $base_path ) ) {
-				continue;
-			}
-
-			return trailingslashit( $mapping['static'] ) . ltrim( substr( $path, strlen( $base_path ) ), '/' );
-		}
-
-		return $path;
 	}
 
 	/**
@@ -763,31 +722,5 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return str_repeat( '../', count( array_filter( explode( '/', $relative_dir ) ) ) );
-	}
-
-	/**
-	 * Sanitize a relative file path.
-	 *
-	 * @param string $path Relative path.
-	 * @return string
-	 */
-	private function sanitize_relative_path( $path ) {
-		$path     = wp_normalize_path( $path );
-		$segments = array();
-
-		foreach ( explode( '/', $path ) as $segment ) {
-			if ( '' === $segment || '.' === $segment || '..' === $segment ) {
-				continue;
-			}
-
-			$segment = preg_replace( '/[^A-Za-z0-9._~-]+/', '-', rawurldecode( $segment ) );
-			$segment = trim( $segment, ". \t\n\r\0\x0B" );
-
-			if ( '' !== $segment ) {
-				$segments[] = $segment;
-			}
-		}
-
-		return implode( '/', $segments );
 	}
 }

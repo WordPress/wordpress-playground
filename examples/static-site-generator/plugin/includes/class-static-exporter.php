@@ -35,6 +35,13 @@ final class SSGWP_Static_Exporter {
 	private $linked_assets_copied = array();
 
 	/**
+	 * Current export root directory.
+	 *
+	 * @var string
+	 */
+	private $current_output_dir = '';
+
+	/**
 	 * Export a site to a ZIP file.
 	 *
 	 * @param string $output_file Absolute path to the zip file.
@@ -100,16 +107,28 @@ final class SSGWP_Static_Exporter {
 			throw new Exception( 'Could not create the static export directory.' );
 		}
 
+		$output_dir = realpath( $output_dir );
+
+		if ( false === $output_dir ) {
+			throw new Exception( 'Could not resolve the static export directory.' );
+		}
+
+		$output_dir               = wp_normalize_path( $output_dir );
+		$this->current_output_dir = $output_dir;
+
 		$collector         = new SSGWP_URL_Collector();
 		$rewriter          = new SSGWP_URL_Rewriter( $collector, $args['url_mode'] );
 		$queue             = $collector->collect();
+		$queue_index       = 0;
 		$seen              = array();
 		$exported          = array();
 		$linked_asset_urls = array();
 		$max_pages         = max( 1, (int) $args['max_pages'] );
 
-		while ( ! empty( $queue ) && count( $exported ) < $max_pages ) {
-			$url = array_shift( $queue );
+		while ( isset( $queue[ $queue_index ] ) && count( $exported ) < $max_pages ) {
+			$url = $queue[ $queue_index ];
+			++$queue_index;
+
 			$url = $collector->normalize_url( $url );
 
 			if ( null === $url || isset( $seen[ $url ] ) ) {
@@ -144,7 +163,7 @@ final class SSGWP_Static_Exporter {
 			}
 		}
 
-		if ( count( $exported ) >= $max_pages && ! empty( $queue ) ) {
+		if ( count( $exported ) >= $max_pages && $queue_index < count( $queue ) ) {
 			$this->warnings[] = sprintf( 'Stopped after reaching the max page limit of %d.', $max_pages );
 		}
 
@@ -421,7 +440,7 @@ final class SSGWP_Static_Exporter {
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
 		$path = trim( $path, '/' );
 
-		if ( '' === $path || false !== strpos( $path, '../' ) ) {
+		if ( '' === $path || SSGWP_Path_Utils::has_parent_segment( $path ) ) {
 			return 0;
 		}
 
@@ -516,7 +535,7 @@ final class SSGWP_Static_Exporter {
 			$file       = preg_replace( '#(?:/index)?\.html$#', '-' . $query_hash . '.html', $file );
 		}
 
-		return $this->sanitize_relative_path( $file );
+		return SSGWP_Path_Utils::sanitize_relative_path( $file );
 	}
 
 	/**
@@ -600,9 +619,9 @@ final class SSGWP_Static_Exporter {
 			return null;
 		}
 
-		$path = trim( $this->map_asset_url_path_to_static_path( $parts['path'] ), '/' );
+		$path = trim( SSGWP_Path_Utils::map_wordpress_asset_url_path( $parts['path'] ), '/' );
 
-		if ( '' === $path || false !== strpos( $path, '..' ) ) {
+		if ( '' === $path || SSGWP_Path_Utils::has_parent_segment( $path ) ) {
 			return null;
 		}
 
@@ -610,50 +629,7 @@ final class SSGWP_Static_Exporter {
 			return null;
 		}
 
-		return $this->sanitize_relative_path( $path );
-	}
-
-	/**
-	 * Map a WordPress asset URL path to the export directory layout.
-	 *
-	 * @param string $path URL path.
-	 * @return string Static path.
-	 */
-	private function map_asset_url_path_to_static_path( $path ) {
-		$path     = '/' . trim( rawurldecode( $path ), '/' );
-		$mappings = array(
-			array(
-				'url'    => content_url( '/' ),
-				'static' => 'wp-content/',
-			),
-			array(
-				'url'    => includes_url( '/' ),
-				'static' => 'wp-includes/',
-			),
-		);
-
-		usort(
-			$mappings,
-			static function ( $a, $b ) {
-				$a_path = (string) wp_parse_url( $a['url'], PHP_URL_PATH );
-				$b_path = (string) wp_parse_url( $b['url'], PHP_URL_PATH );
-
-				return strlen( $b_path ) <=> strlen( $a_path );
-			}
-		);
-
-		foreach ( $mappings as $mapping ) {
-			$base_path = '/' . trim( rawurldecode( (string) wp_parse_url( $mapping['url'], PHP_URL_PATH ) ), '/' );
-			$base_path = '/' === $base_path ? '/' : trailingslashit( $base_path );
-
-			if ( '/' === $base_path || 0 !== strpos( trailingslashit( $path ), $base_path ) ) {
-				continue;
-			}
-
-			return trailingslashit( $mapping['static'] ) . ltrim( substr( $path, strlen( $base_path ) ), '/' );
-		}
-
-		return $path;
+		return SSGWP_Path_Utils::sanitize_relative_path( $path );
 	}
 
 	/**
@@ -708,13 +684,22 @@ final class SSGWP_Static_Exporter {
 			}
 
 			$relative = '/' === $base_path ? ltrim( $url_path, '/' ) : ltrim( substr( $url_path, strlen( $base_path ) ), '/' );
-			$source   = wp_normalize_path( trailingslashit( $mapping['dir'] ) . $relative );
 
-			if ( false !== strpos( $source, '../' ) ) {
+			if ( SSGWP_Path_Utils::has_parent_segment( $relative ) ) {
 				continue;
 			}
 
-			if ( is_file( $source ) ) {
+			$base_dir = realpath( $mapping['dir'] );
+			$source   = realpath( trailingslashit( $mapping['dir'] ) . $relative );
+
+			if ( false === $base_dir || false === $source ) {
+				continue;
+			}
+
+			$base_dir = wp_normalize_path( $base_dir );
+			$source   = wp_normalize_path( $source );
+
+			if ( is_file( $source ) && SSGWP_Path_Utils::is_path_inside_directory( $source, $base_dir ) ) {
 				return $source;
 			}
 		}
@@ -865,7 +850,7 @@ final class SSGWP_Static_Exporter {
 	public function filter_copied_path( SplFileInfo $file ) {
 		$name = $file->getFilename();
 
-		if ( in_array( $name, array( '.git', '.svn', 'node_modules', 'vendor', 'tests', '__tests__', 'static-site-generator' ), true ) ) {
+		if ( in_array( $name, array( '.git', '.svn', 'node_modules', 'vendor', 'tests', '__tests__' ), true ) ) {
 			return false;
 		}
 
@@ -921,12 +906,18 @@ final class SSGWP_Static_Exporter {
 	private function write_file( $path, $contents, $increment = true ) {
 		$path = wp_normalize_path( $path );
 
-		if ( false !== strpos( $path, '../' ) ) {
+		if ( SSGWP_Path_Utils::has_parent_segment( $path ) || ! $this->is_inside_export_root( $path ) ) {
 			throw new Exception( 'Refusing to write outside of the export directory.' );
 		}
 
 		if ( ! wp_mkdir_p( dirname( $path ) ) ) {
 			throw new Exception( 'Could not create a directory while writing the static export.' );
+		}
+
+		$directory = realpath( dirname( $path ) );
+
+		if ( false === $directory || ! $this->is_inside_export_root( $directory ) ) {
+			throw new Exception( 'Refusing to write outside of the export directory.' );
 		}
 
 		if ( false === file_put_contents( $path, $contents ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
@@ -939,29 +930,17 @@ final class SSGWP_Static_Exporter {
 	}
 
 	/**
-	 * Sanitize a relative file path.
+	 * Determine whether a path is inside the current export root.
 	 *
-	 * @param string $path Relative path.
-	 * @return string
+	 * @param string $path Path.
+	 * @return bool
 	 */
-	private function sanitize_relative_path( $path ) {
-		$path     = wp_normalize_path( $path );
-		$segments = array();
-
-		foreach ( explode( '/', $path ) as $segment ) {
-			if ( '' === $segment || '.' === $segment || '..' === $segment ) {
-				continue;
-			}
-
-			$segment = preg_replace( '/[^A-Za-z0-9._~-]+/', '-', rawurldecode( $segment ) );
-			$segment = trim( $segment, ". \t\n\r\0\x0B" );
-
-			if ( '' !== $segment ) {
-				$segments[] = $segment;
-			}
+	private function is_inside_export_root( $path ) {
+		if ( '' === $this->current_output_dir ) {
+			return true;
 		}
 
-		return implode( '/', $segments );
+		return SSGWP_Path_Utils::is_path_inside_directory( $path, $this->current_output_dir );
 	}
 
 	/**

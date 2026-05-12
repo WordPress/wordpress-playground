@@ -54,22 +54,30 @@ final class SSGWP_URL_Collector {
 				$this->add_paginated_urls( $urls, $archive, $this->count_published_posts( $post_type ), $per_page );
 			}
 
-			$query = new WP_Query(
-				array(
-					'post_type'              => $post_type,
-					'post_status'            => 'publish',
-					'posts_per_page'         => -1,
-					'fields'                 => 'ids',
-					'no_found_rows'          => true,
-					'update_post_meta_cache' => false,
-					'update_post_term_cache' => false,
-				)
-			);
+			$page     = 1;
+			$per_page = $this->get_post_query_batch_size();
 
-			foreach ( $query->posts as $post_id ) {
-				$this->add_url( $urls, get_permalink( $post_id ) );
-				$this->add_multipage_post_urls( $urls, $post_id );
-			}
+			do {
+				$query = new WP_Query(
+					array(
+						'post_type'              => $post_type,
+						'post_status'            => 'publish',
+						'posts_per_page'         => $per_page,
+						'paged'                  => $page,
+						'fields'                 => 'ids',
+						'no_found_rows'          => true,
+						'update_post_meta_cache' => false,
+						'update_post_term_cache' => false,
+					)
+				);
+
+				foreach ( $query->posts as $post_id ) {
+					$this->add_url( $urls, get_permalink( $post_id ) );
+					$this->add_multipage_post_urls( $urls, $post_id );
+				}
+
+				++$page;
+			} while ( count( $query->posts ) === $per_page );
 		}
 	}
 
@@ -239,6 +247,15 @@ final class SSGWP_URL_Collector {
 	 */
 	private function get_posts_per_page() {
 		return max( 1, (int) get_option( 'posts_per_page', 10 ) );
+	}
+
+	/**
+	 * Return the number of posts to load in each discovery query.
+	 *
+	 * @return int
+	 */
+	private function get_post_query_batch_size() {
+		return 100;
 	}
 
 	/**
