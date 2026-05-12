@@ -173,6 +173,12 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_same(
+	'%2E%2E/secret/index.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://example.test/%2e%2e/secret/' ),
+	'url_to_file_path keeps encoded parent segments literal.'
+);
+
+ssgwp_assert_same(
 	'nested/segment/index.html',
 	$url_to_file_path_method->invoke( $exporter, 'https://example.test/nested/segment/' ),
 	'url_to_file_path maps decoded slashes to nested exported directories.'
