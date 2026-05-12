@@ -304,6 +304,8 @@ final class SSGWP_Static_Exporter {
 			$GLOBALS['wp_query']     = new WP_Query();
 			$GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 
+			$this->reset_frontend_asset_state();
+
 			ob_start();
 			wp();
 
@@ -402,6 +404,8 @@ final class SSGWP_Static_Exporter {
 			$GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 			$GLOBALS['post']         = $post;
 
+			$this->reset_frontend_asset_state();
+
 			ob_start();
 			require ABSPATH . WPINC . '/template-loader.php';
 			$html = ob_get_clean();
@@ -422,6 +426,25 @@ final class SSGWP_Static_Exporter {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * Reset frontend script and style registries for an internal render.
+	 *
+	 * Blueprint and CLI exports run inside an existing WordPress request. Reusing
+	 * that request's registries can make wp_head() think frontend styles already
+	 * printed, producing static HTML without loadable CSS.
+	 */
+	private function reset_frontend_asset_state() {
+		if ( function_exists( 'wp_scripts' ) ) {
+			$GLOBALS['wp_scripts'] = null;
+			wp_scripts();
+		}
+
+		if ( function_exists( 'wp_styles' ) ) {
+			$GLOBALS['wp_styles'] = null;
+			wp_styles();
+		}
 	}
 
 	/**
@@ -470,6 +493,8 @@ final class SSGWP_Static_Exporter {
 			'multipage',
 			'more',
 			'numpages',
+			'wp_scripts',
+			'wp_styles',
 		);
 
 		$globals = array();

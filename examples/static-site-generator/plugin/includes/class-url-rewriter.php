@@ -370,7 +370,7 @@ final class SSGWP_URL_Rewriter {
 	 * @return string Value safe to pass to set_attribute().
 	 */
 	private function prepare_html_attribute_value( $value, array &$placeholders ) {
-		if ( 'relative' !== $this->url_mode || preg_match( '#^(?:[a-z][a-z0-9+.-]*:|/|#|\?)#i', $value ) ) {
+		if ( 'relative' !== $this->url_mode || preg_match( '~^(?:[a-z][a-z0-9+.-]*:|/|#|\?)~i', $value ) ) {
 			return $value;
 		}
 

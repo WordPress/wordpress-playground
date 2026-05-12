@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [Unreleased]
+
+### Examples
+
+- Add an experimental static site generator example plugin and Playground
+  Blueprints that export WordPress content to a static ZIP from the webapp or
+  local Playground CLI. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Fix Playground static exports so internal frontend rendering emits WordPress
+  CSS again, and harden relative stylesheet URL rewriting.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+
+### Documentation
+
+- Add a guide for trying the static site generator from Playground and from a
+  local checkout. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+
 ## [v3.1.30] (2026-05-11) 
 
 ### Bug Fixes
