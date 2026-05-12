@@ -42,6 +42,20 @@ final class SSGWP_Static_Exporter {
 	private $current_output_dir = '';
 
 	/**
+	 * Progress callback for long-running exports.
+	 *
+	 * @var callable|null
+	 */
+	private $progress_callback = null;
+
+	/**
+	 * Progress events emitted during the current export.
+	 *
+	 * @var array<int,array<string,mixed>>
+	 */
+	private $progress = array();
+
+	/**
 	 * Export a site to a ZIP file.
 	 *
 	 * @param string $output_file Absolute path to the zip file.
@@ -65,7 +79,10 @@ final class SSGWP_Static_Exporter {
 
 		try {
 			$result = $this->export_to_directory( $work_dir, $args );
+			$this->report_progress( 'zip', 'Creating static export ZIP.', array( 'output_file' => $output_file ) );
 			$this->zip_directory( $work_dir, $output_file );
+			$this->report_progress( 'zip_complete', 'Static export ZIP created.', array( 'output_file' => $output_file ) );
+			$result['progress'] = $this->progress;
 		} finally {
 			$this->delete_directory( $work_dir );
 		}
@@ -85,6 +102,7 @@ final class SSGWP_Static_Exporter {
 		$this->warnings             = array();
 		$this->files_exported       = 0;
 		$this->linked_assets_copied = array();
+		$this->progress             = array();
 
 		$args = wp_parse_args(
 			$args,
@@ -98,9 +116,11 @@ final class SSGWP_Static_Exporter {
 				'crawl_links'      => true,
 				'include_manifest' => true,
 				'fetch_mode'       => 'auto',
+				'progress_callback' => null,
 			)
 		);
 
+		$this->progress_callback = is_callable( $args['progress_callback'] ) ? $args['progress_callback'] : null;
 		$output_dir = wp_normalize_path( $output_dir );
 
 		if ( ! wp_mkdir_p( $output_dir ) ) {
@@ -125,6 +145,15 @@ final class SSGWP_Static_Exporter {
 		$linked_asset_urls = array();
 		$max_pages         = max( 1, (int) $args['max_pages'] );
 
+		$this->report_progress(
+			'discovered',
+			sprintf( 'Discovered %d initial URLs for export.', count( $queue ) ),
+			array(
+				'queue_total' => count( $queue ),
+				'max_pages'   => $max_pages,
+			)
+		);
+
 		while ( isset( $queue[ $queue_index ] ) && count( $exported ) < $max_pages ) {
 			$url = $queue[ $queue_index ];
 			++$queue_index;
@@ -137,18 +166,47 @@ final class SSGWP_Static_Exporter {
 
 			$seen[ $url ] = true;
 
+			$this->report_progress(
+				'render_page',
+				sprintf( 'Rendering %s.', $url ),
+				array(
+					'url'            => $url,
+					'queue_position' => $queue_index,
+					'queue_total'    => count( $queue ),
+				)
+			);
+
 			$response = $this->fetch_url( $url, $args );
 
 			if ( is_wp_error( $response ) ) {
 				$this->warnings[] = sprintf( 'Could not export %1$s: %2$s', $url, $response->get_error_message() );
+				$this->report_progress(
+					'page_failed',
+					sprintf( 'Could not export %s.', $url ),
+					array(
+						'url'   => $url,
+						'error' => $response->get_error_message(),
+					)
+				);
 				continue;
 			}
 
 			$target_path = $this->url_to_file_path( $url );
+			$response    = $this->inject_missing_core_block_styles( $response );
 			$rewritten   = $rewriter->rewrite_html( $response, $url, $target_path );
 
 			$this->write_file( trailingslashit( $output_dir ) . $target_path, $rewritten['content'] );
 			$exported[] = $url;
+			$this->report_progress(
+				'page_exported',
+				sprintf( 'Exported %s.', $url ),
+				array(
+					'url'            => $url,
+					'target_path'    => $target_path,
+					'pages_exported' => count( $exported ),
+					'queue_total'    => count( $queue ),
+				)
+			);
 
 			foreach ( $rewritten['assets'] as $asset_url ) {
 				$linked_asset_urls[ $asset_url ] = $asset_url;
@@ -171,9 +229,20 @@ final class SSGWP_Static_Exporter {
 			throw new Exception( 'No pages were exported. ' . implode( ' ', $this->warnings ) );
 		}
 
+		$this->report_progress( 'copy_assets', 'Copying frontend assets.', array( 'output_dir' => $output_dir ) );
 		$this->copy_assets( $output_dir, $args );
+		$this->report_progress( 'copy_linked_assets', 'Copying linked same-site assets.', array( 'asset_count' => count( $linked_asset_urls ) ) );
 		$this->copy_linked_assets( array_values( $linked_asset_urls ), $output_dir );
+		$this->report_progress( 'rewrite_assets', 'Rewriting URLs in copied text assets.', array( 'output_dir' => $output_dir ) );
 		$this->rewrite_copied_text_assets( $output_dir, $rewriter );
+		$this->report_progress(
+			'complete',
+			sprintf( 'Exported %1$d pages and %2$d files.', count( $exported ), $this->files_exported ),
+			array(
+				'pages_exported' => count( $exported ),
+				'files_exported' => $this->files_exported,
+			)
+		);
 
 		$result = array(
 			'generated_at'    => gmdate( 'c' ),
@@ -185,6 +254,7 @@ final class SSGWP_Static_Exporter {
 			'wordpress'       => get_bloginfo( 'version' ),
 			'plugin_version'  => SSGWP_VERSION,
 			'url_mode'        => $args['url_mode'],
+			'progress'        => $this->progress,
 			'playground_note' => 'This static export can be hosted anywhere. Keep a WordPress Playground site export separately if you want to restore the editable source site later.',
 		);
 
@@ -196,6 +266,136 @@ final class SSGWP_Static_Exporter {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Emit a progress event.
+	 *
+	 * @param string $stage   Short stage identifier.
+	 * @param string $message Human-readable progress message.
+	 * @param array  $context Additional structured context.
+	 */
+	private function report_progress( $stage, $message, array $context = array() ) {
+		$event = array(
+			'time'           => gmdate( 'c' ),
+			'stage'          => $stage,
+			'message'        => $message,
+			'pages_exported' => isset( $context['pages_exported'] ) ? (int) $context['pages_exported'] : 0,
+			'files_exported' => $this->files_exported,
+			'context'        => $context,
+		);
+
+		$this->progress[] = $event;
+
+		if ( null !== $this->progress_callback ) {
+			call_user_func( $this->progress_callback, $event );
+		}
+	}
+
+	/**
+	 * Add missing core block stylesheet links for rendered block classes.
+	 *
+	 * Internal rendering can produce block markup without separate core block
+	 * stylesheet links. Static exports need those links because copied core block
+	 * CSS files are otherwise present in the ZIP but never loaded by the page.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return string HTML with missing core block stylesheet links.
+	 */
+	private function inject_missing_core_block_styles( $html ) {
+		$html = (string) $html;
+		$markup = preg_replace( '#<(style|script)\b[^>]*>.*?</\1>#is', '', $html );
+
+		if ( ! is_string( $markup ) || false === strpos( $markup, 'wp-block-' ) ) {
+			return $html;
+		}
+
+		if ( ! preg_match_all( '/\bwp-block-([a-z0-9-]+)\b/i', $markup, $matches ) ) {
+			return $html;
+		}
+
+		$links = array();
+		$block_names = array_unique( array_map( 'strtolower', $matches[1] ) );
+
+		foreach ( $block_names as $block_name ) {
+			if ( $this->has_core_block_style_link( $html, $block_name ) ) {
+				continue;
+			}
+
+			$stylesheet = $this->core_block_stylesheet_path( $block_name );
+
+			if ( null === $stylesheet ) {
+				continue;
+			}
+
+			$href    = includes_url( 'blocks/' . $block_name . '/' . basename( $stylesheet ) );
+			$href    = add_query_arg( 'ver', get_bloginfo( 'version' ), $href );
+			$links[] = sprintf(
+				'<link rel="stylesheet" id="%1$s" href="%2$s" media="all" />',
+				esc_attr( 'wp-block-' . $block_name . '-css' ),
+				esc_url( $href )
+			);
+		}
+
+		if ( empty( $links ) ) {
+			return $html;
+		}
+
+		$injected = implode( "\n", $links ) . "\n";
+
+		if ( false !== stripos( $html, '</head>' ) ) {
+			return preg_replace( '/<\/head>/i', $injected . '</head>', $html, 1 );
+		}
+
+		return $injected . $html;
+	}
+
+	/**
+	 * Determine whether a core block stylesheet is already present.
+	 *
+	 * @param string $html       Rendered HTML.
+	 * @param string $block_name Core block name without the core/ prefix.
+	 * @return bool Whether the stylesheet is already linked or inlined.
+	 */
+	private function has_core_block_style_link( $html, $block_name ) {
+		$style_ids = array(
+			'wp-block-' . $block_name . '-css',
+			'wp-block-' . $block_name . '-inline-css',
+		);
+
+		foreach ( $style_ids as $style_id ) {
+			if ( preg_match( '/\sid=(["\'])' . preg_quote( $style_id, '/' ) . '\1/i', $html ) ) {
+				return true;
+			}
+		}
+
+		return false !== stripos( $html, '/wp-includes/blocks/' . $block_name . '/style' );
+	}
+
+	/**
+	 * Return the best available core block stylesheet path.
+	 *
+	 * @param string $block_name Core block name without the core/ prefix.
+	 * @return string|null Stylesheet path, or null when none exists.
+	 */
+	private function core_block_stylesheet_path( $block_name ) {
+		$block_name = strtolower( $block_name );
+
+		if ( ! preg_match( '/^[a-z0-9-]+$/', $block_name ) ) {
+			return null;
+		}
+
+		$base = trailingslashit( ABSPATH ) . WPINC . '/blocks/' . $block_name . '/';
+
+		foreach ( array( 'style.min.css', 'style.css' ) as $file ) {
+			$path = $base . $file;
+
+			if ( is_readable( $path ) && is_file( $path ) ) {
+				return wp_normalize_path( $path );
+			}
+		}
+
+		return null;
 	}
 
 	/**

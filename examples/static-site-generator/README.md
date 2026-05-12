@@ -34,7 +34,15 @@ npx @wp-playground/cli@latest server \
 - The active parent and child theme.
 - Active plugin asset files, excluding PHP and common development-only folders.
 - WordPress core frontend asset directories used by block themes and scripts.
+- Missing core block stylesheets detected from rendered markup, such as the
+  Navigation block stylesheet when WordPress renders the block without a link
+  tag.
 
 Same-site URLs in links, media attributes, `srcset` values, inline styles, CSS files, JSON, and JavaScript are rewritten to relative URLs by default, so the output can be hosted from a folder, GitHub Pages, or a CDN path.
+
+The WP-CLI command prints stage and page progress while exporting. The
+programmatic `ssgwp_export_static_site()` API also accepts a
+`progress_callback` option that receives structured progress events and writes
+those events into `static-export.json`.
 
 The static ZIP is the published site. To keep editing the source site later, also export or save the full Playground site from Playground's site manager.

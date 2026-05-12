@@ -14,6 +14,9 @@ format.
 - Fix Playground static exports so internal frontend rendering emits WordPress
   CSS again, and harden relative stylesheet URL rewriting.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Load detected core block styles, including Navigation block CSS, in static
+  exports and add structured export progress reporting for long-running runs.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

@@ -194,6 +194,7 @@ final class SSGWP_Plugin {
 			'copy_core_assets' => ! isset( $assoc_args['skip-core-assets'] ),
 			'crawl_links'      => ! isset( $assoc_args['no-crawl'] ),
 			'fetch_mode'       => isset( $assoc_args['fetch-mode'] ) ? sanitize_key( $assoc_args['fetch-mode'] ) : 'auto',
+			'progress_callback' => array( __CLASS__, 'wp_cli_report_progress' ),
 		);
 
 		$exporter = new SSGWP_Static_Exporter();
@@ -212,6 +213,31 @@ final class SSGWP_Plugin {
 			foreach ( $result['warnings'] as $warning ) {
 				WP_CLI::warning( $warning );
 			}
+		}
+	}
+
+	/**
+	 * Report export progress in WP-CLI.
+	 *
+	 * @param array $event Progress event.
+	 */
+	public static function wp_cli_report_progress( array $event ) {
+		$stage = isset( $event['stage'] ) ? (string) $event['stage'] : '';
+
+		if ( 'render_page' === $stage ) {
+			$context = isset( $event['context'] ) && is_array( $event['context'] ) ? $event['context'] : array();
+			$current = isset( $context['queue_position'] ) ? (int) $context['queue_position'] : (int) $event['pages_exported'];
+			$total = isset( $context['queue_total'] ) ? (int) $context['queue_total'] : 0;
+			$url = isset( $context['url'] ) ? (string) $context['url'] : '';
+
+			if ( $total > 0 && '' !== $url ) {
+				WP_CLI::log( sprintf( '[%1$d/%2$d] %3$s', $current, $total, $url ) );
+				return;
+			}
+		}
+
+		if ( isset( $event['message'] ) && '' !== $event['message'] ) {
+			WP_CLI::log( (string) $event['message'] );
 		}
 	}
 }
