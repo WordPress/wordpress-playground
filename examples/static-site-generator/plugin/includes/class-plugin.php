@@ -19,6 +19,7 @@ final class SSGWP_Plugin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_admin_page' ) );
 		add_action( 'admin_post_ssgwp_export', array( __CLASS__, 'handle_export_download' ) );
+		add_action( 'wp_ajax_ssgwp_export_progress', array( __CLASS__, 'handle_progress_request' ) );
 		add_filter( 'show_admin_bar', array( __CLASS__, 'hide_admin_bar_during_export' ), 999 );
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
@@ -60,13 +61,18 @@ final class SSGWP_Plugin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to export this site.', 'playground-static-site-generator' ) );
 		}
+
+		$job_id         = self::create_export_job_id();
+		$progress_nonce = wp_create_nonce( 'ssgwp_export_progress_' . $job_id );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Static Site Generator', 'playground-static-site-generator' ); ?></h1>
 			<p><?php esc_html_e( 'Export public WordPress pages and frontend assets as a static zip that can be hosted anywhere.', 'playground-static-site-generator' ); ?></p>
 
-			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" id="ssgwp-export-form" target="ssgwp-export-download-frame">
 				<input type="hidden" name="action" value="ssgwp_export" />
+				<input type="hidden" name="export_job_id" id="ssgwp_export_job_id" value="<?php echo esc_attr( $job_id ); ?>" />
+				<input type="hidden" name="progress_nonce" id="ssgwp_progress_nonce" value="<?php echo esc_attr( $progress_nonce ); ?>" />
 				<?php wp_nonce_field( 'ssgwp_export' ); ?>
 
 				<table class="form-table" role="presentation">
@@ -103,6 +109,89 @@ final class SSGWP_Plugin {
 
 				<?php submit_button( __( 'Download Static Site ZIP', 'playground-static-site-generator' ) ); ?>
 			</form>
+			<iframe name="ssgwp-export-download-frame" title="<?php esc_attr_e( 'Static export download', 'playground-static-site-generator' ); ?>" hidden></iframe>
+			<div
+				id="ssgwp-export-progress"
+				class="notice notice-info"
+				aria-live="polite"
+				hidden
+				data-started="<?php esc_attr_e( 'Export started. Preparing pages for download...', 'playground-static-site-generator' ); ?>"
+				data-waiting="<?php esc_attr_e( 'Waiting for export progress...', 'playground-static-site-generator' ); ?>"
+				data-failed="<?php esc_attr_e( 'Could not read export progress. The download may still be running.', 'playground-static-site-generator' ); ?>"
+			>
+				<p id="ssgwp-export-progress-message"></p>
+			</div>
+			<script>
+				(function() {
+					var form = document.getElementById( 'ssgwp-export-form' );
+					var panel = document.getElementById( 'ssgwp-export-progress' );
+					var message = document.getElementById( 'ssgwp-export-progress-message' );
+					var jobId = document.getElementById( 'ssgwp_export_job_id' );
+					var nonce = document.getElementById( 'ssgwp_progress_nonce' );
+					var timer = null;
+
+					if ( ! form || ! panel || ! message || ! jobId || ! nonce ) {
+						return;
+					}
+
+					function setMessage( text ) {
+						message.textContent = text || panel.getAttribute( 'data-waiting' );
+					}
+
+					function stopPolling() {
+						if ( timer ) {
+							window.clearInterval( timer );
+							timer = null;
+						}
+					}
+
+					function pollProgress() {
+						if ( ! window.fetch || ! window.ajaxurl ) {
+							setMessage( panel.getAttribute( 'data-failed' ) );
+							stopPolling();
+							return;
+						}
+
+						var url = window.ajaxurl + '?action=ssgwp_export_progress'
+							+ '&job_id=' + window.encodeURIComponent( jobId.value )
+							+ '&nonce=' + window.encodeURIComponent( nonce.value )
+							+ '&_=' + Date.now();
+
+						window.fetch( url, { credentials: 'same-origin' } )
+							.then( function( response ) {
+								return response.json();
+							} )
+							.then( function( response ) {
+								var data = response && response.success ? response.data : null;
+
+								if ( ! data ) {
+									setMessage( panel.getAttribute( 'data-failed' ) );
+									return;
+								}
+
+								setMessage( data.message );
+
+								if (
+									'failed' === data.stage ||
+									'zip_complete' === data.stage
+								) {
+									stopPolling();
+								}
+							} )
+							.catch( function() {
+								setMessage( panel.getAttribute( 'data-failed' ) );
+							} );
+					}
+
+					form.addEventListener( 'submit', function() {
+						panel.hidden = false;
+						setMessage( panel.getAttribute( 'data-started' ) );
+						stopPolling();
+						pollProgress();
+						timer = window.setInterval( pollProgress, 1000 );
+					} );
+				}());
+			</script>
 		</div>
 		<?php
 	}
@@ -117,7 +206,9 @@ final class SSGWP_Plugin {
 
 		check_admin_referer( 'ssgwp_export' );
 
-		$args        = self::request_to_export_args( wp_unslash( $_POST ) );
+		$request     = wp_unslash( $_POST );
+		$args        = self::request_to_export_args( $request );
+		$job_id      = isset( $request['export_job_id'] ) ? self::sanitize_export_job_id( $request['export_job_id'] ) : '';
 		$upload_dir  = wp_get_upload_dir();
 		$temp_parent = trailingslashit( $upload_dir['basedir'] ) . 'static-site-generator';
 
@@ -128,8 +219,29 @@ final class SSGWP_Plugin {
 		$output_file = trailingslashit( $temp_parent ) . 'static-site-' . gmdate( 'Ymd-His' ) . '.zip';
 
 		try {
+			if ( '' !== $job_id ) {
+				self::store_progress_event(
+					$job_id,
+					array(
+						'stage'   => 'started',
+						'message' => __( 'Export started. Preparing pages for download...', 'playground-static-site-generator' ),
+					)
+				);
+				$args['progress_callback'] = self::create_progress_callback( $job_id );
+			}
+
 			ssgwp_export_static_site( $output_file, $args );
 		} catch ( Exception $exception ) {
+			if ( '' !== $job_id ) {
+				self::store_progress_event(
+					$job_id,
+					array(
+						'stage'   => 'failed',
+						'message' => $exception->getMessage(),
+					)
+				);
+			}
+
 			wp_die( esc_html( $exception->getMessage() ) );
 		}
 
@@ -153,6 +265,40 @@ final class SSGWP_Plugin {
 	}
 
 	/**
+	 * Return export progress for the current admin user.
+	 */
+	public static function handle_progress_request() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'You do not have permission to export this site.', 'playground-static-site-generator' ) ),
+				403
+			);
+		}
+
+		$job_id = isset( $_GET['job_id'] ) ? self::sanitize_export_job_id( wp_unslash( $_GET['job_id'] ) ) : '';
+
+		if ( '' === $job_id || ! check_ajax_referer( 'ssgwp_export_progress_' . $job_id, 'nonce', false ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Invalid export progress request.', 'playground-static-site-generator' ) ),
+				403
+			);
+		}
+
+		$event = get_transient( self::progress_transient_key( $job_id ) );
+
+		if ( ! is_array( $event ) ) {
+			$event = self::normalize_progress_event(
+				array(
+					'stage'   => 'waiting',
+					'message' => __( 'Waiting for export progress...', 'playground-static-site-generator' ),
+				)
+			);
+		}
+
+		wp_send_json_success( $event );
+	}
+
+	/**
 	 * Convert an admin request to exporter args.
 	 *
 	 * @param array $request Request data.
@@ -169,6 +315,91 @@ final class SSGWP_Plugin {
 			'crawl_links'      => ! empty( $request['crawl_links'] ),
 			'fetch_mode'       => 'internal',
 		);
+	}
+
+	/**
+	 * Create an opaque progress job id for an admin export request.
+	 *
+	 * @return string Job id.
+	 */
+	private static function create_export_job_id() {
+		if ( function_exists( 'wp_generate_uuid4' ) ) {
+			return wp_generate_uuid4();
+		}
+
+		return str_replace( '.', '-', uniqid( 'ssgwp-', true ) );
+	}
+
+	/**
+	 * Create a progress callback that stores the latest export event.
+	 *
+	 * @param string $job_id Export job id.
+	 * @return callable Progress callback.
+	 */
+	private static function create_progress_callback( $job_id ) {
+		return static function ( array $event ) use ( $job_id ) {
+			self::store_progress_event( $job_id, $event );
+		};
+	}
+
+	/**
+	 * Store the latest export progress event for admin polling.
+	 *
+	 * @param string $job_id Export job id.
+	 * @param array  $event  Progress event.
+	 */
+	private static function store_progress_event( $job_id, array $event ) {
+		$job_id = self::sanitize_export_job_id( $job_id );
+
+		if ( '' === $job_id ) {
+			return;
+		}
+
+		$event = self::normalize_progress_event( $event );
+		set_transient( self::progress_transient_key( $job_id ), $event, HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * Normalize progress event data before sending it to the browser.
+	 *
+	 * @param array $event Progress event.
+	 * @return array Normalized event.
+	 */
+	private static function normalize_progress_event( array $event ) {
+		return array(
+			'stage'          => isset( $event['stage'] ) ? sanitize_key( $event['stage'] ) : '',
+			'message'        => isset( $event['message'] ) ? sanitize_text_field( $event['message'] ) : '',
+			'pages_exported' => isset( $event['pages_exported'] ) ? (int) $event['pages_exported'] : 0,
+			'files_exported' => isset( $event['files_exported'] ) ? (int) $event['files_exported'] : 0,
+			'context'        => isset( $event['context'] ) && is_array( $event['context'] ) ? $event['context'] : array(),
+		);
+	}
+
+	/**
+	 * Build the transient key used to store export progress.
+	 *
+	 * @param string $job_id Export job id.
+	 * @return string Transient key.
+	 */
+	private static function progress_transient_key( $job_id ) {
+		return 'ssgwp_export_' . get_current_user_id() . '_' . md5( $job_id );
+	}
+
+	/**
+	 * Sanitize an export job id.
+	 *
+	 * @param string $job_id Export job id.
+	 * @return string Sanitized job id.
+	 */
+	private static function sanitize_export_job_id( $job_id ) {
+		$job_id = strtolower( sanitize_text_field( (string) $job_id ) );
+		$job_id = preg_replace( '/[^a-z0-9_-]/', '', $job_id );
+
+		if ( ! is_string( $job_id ) ) {
+			return '';
+		}
+
+		return substr( $job_id, 0, 64 );
 	}
 
 	/**

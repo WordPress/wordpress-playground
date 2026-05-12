@@ -32,6 +32,9 @@ format.
 - Require matching schemes when classifying static export URLs as same-site, so
   cross-scheme links are left untouched.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Show static export progress in the Playground admin screen while the ZIP
+  download is being prepared.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

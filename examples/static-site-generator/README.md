@@ -51,8 +51,9 @@ WordPress 6.8 and PHP 8.3 by default; set `SSGWP_SMOKE_WP_VERSION` or
 
 Same-site URLs in links, media attributes, `srcset` values, inline styles, CSS files, JSON, and JavaScript are rewritten to relative URLs by default, so the output can be hosted from a folder, GitHub Pages, or a CDN path.
 
-The WP-CLI command prints stage and page progress while exporting. The
-programmatic `ssgwp_export_static_site()` API also accepts a
+The Playground admin screen shows export progress while the ZIP is being
+prepared. The WP-CLI command prints stage and page progress while exporting.
+The programmatic `ssgwp_export_static_site()` API also accepts a
 `progress_callback` option that receives structured progress events and writes
 those events into `static-export.json`.
 

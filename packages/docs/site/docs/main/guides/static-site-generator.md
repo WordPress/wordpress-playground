@@ -25,7 +25,7 @@ The Blueprint installs the example plugin from this repository using a [`git:dir
 
 The ZIP includes HTML files for public pages, archive pagination, discovered same-site page links, and the frontend assets needed by the active theme, uploads, active plugins, and rendered core blocks such as Navigation. Same-site URLs in HTML attributes, `srcset`, inline styles, CSS, JSON, and JavaScript are rewritten to relative paths by default, which makes the export easier to host from a subdirectory.
 
-For longer exports, the WP-CLI command prints stage and page progress. The programmatic API accepts a `progress_callback` option and writes the progress events into `static-export.json`.
+For longer exports, the Playground admin screen shows the current export stage while the ZIP is being prepared. The WP-CLI command prints stage and page progress, and the programmatic API accepts a `progress_callback` option and writes the progress events into `static-export.json`.
 
 ## Keep the editable source site
 
