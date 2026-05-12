@@ -52,6 +52,40 @@ final class SSGWP_Path_Utils {
 	}
 
 	/**
+	 * Resolve a child path and ensure it stays within the provided directory.
+	 *
+	 * @param string $directory Directory path.
+	 * @param string $relative  Relative child path.
+	 * @return string|null
+	 */
+	public static function resolve_child_file_path( $directory, $relative ) {
+		if ( self::has_parent_segment( $relative ) ) {
+			return null;
+		}
+
+		$directory = realpath( $directory );
+
+		if ( false === $directory ) {
+			return null;
+		}
+
+		$path = realpath( trailingslashit( $directory ) . $relative );
+
+		if ( false === $path ) {
+			return null;
+		}
+
+		$directory = wp_normalize_path( $directory );
+		$path      = wp_normalize_path( $path );
+
+		if ( ! is_file( $path ) || ! self::is_path_inside_directory( $path, $directory ) ) {
+			return null;
+		}
+
+		return $path;
+	}
+
+	/**
 	 * Map WordPress asset URL paths to the export directory layout.
 	 *
 	 * @param string $path URL path.

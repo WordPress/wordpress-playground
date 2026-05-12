@@ -684,22 +684,9 @@ final class SSGWP_Static_Exporter {
 			}
 
 			$relative = '/' === $base_path ? ltrim( $url_path, '/' ) : ltrim( substr( $url_path, strlen( $base_path ) ), '/' );
+			$source   = SSGWP_Path_Utils::resolve_child_file_path( $mapping['dir'], $relative );
 
-			if ( SSGWP_Path_Utils::has_parent_segment( $relative ) ) {
-				continue;
-			}
-
-			$base_dir = realpath( $mapping['dir'] );
-			$source   = realpath( trailingslashit( $mapping['dir'] ) . $relative );
-
-			if ( false === $base_dir || false === $source ) {
-				continue;
-			}
-
-			$base_dir = wp_normalize_path( $base_dir );
-			$source   = wp_normalize_path( $source );
-
-			if ( is_file( $source ) && SSGWP_Path_Utils::is_path_inside_directory( $source, $base_dir ) ) {
+			if ( null !== $source ) {
 				return $source;
 			}
 		}

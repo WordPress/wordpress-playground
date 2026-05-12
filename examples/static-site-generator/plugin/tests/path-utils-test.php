@@ -119,6 +119,31 @@ ssgwp_assert_false(
 	'has_parent_segment allows harmless dot substrings.'
 );
 
+$fixture_dir = ssgwp_make_fixture_dir();
+mkdir( $fixture_dir . '/assets' );
+file_put_contents(
+	$fixture_dir . '/assets/style.css',
+	'body{}'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+ssgwp_assert_same(
+	wp_normalize_path( $fixture_dir . '/assets/style.css' ),
+	SSGWP_Path_Utils::resolve_child_file_path( $fixture_dir, 'assets/style.css' ),
+	'resolve_child_file_path accepts readable child files.'
+);
+
+ssgwp_assert_same(
+	null,
+	SSGWP_Path_Utils::resolve_child_file_path( $fixture_dir, 'assets/../secret.css' ),
+	'resolve_child_file_path rejects explicit parent segments.'
+);
+
+ssgwp_assert_same(
+	null,
+	SSGWP_Path_Utils::resolve_child_file_path( $fixture_dir, 'assets/%2e%2e/secret.css' ),
+	'resolve_child_file_path rejects encoded parent segments.'
+);
+
 ssgwp_assert_same(
 	'wp-content/themes/theme/style.css',
 	SSGWP_Path_Utils::map_wordpress_asset_url_path( '/wp-content/themes/theme/style.css' ),
@@ -187,6 +212,21 @@ function ssgwp_assert_false( $actual, $message ) {
 	}
 
 	ssgwp_fail( $message );
+}
+
+/**
+ * Create a temporary fixture directory.
+ *
+ * @return string
+ */
+function ssgwp_make_fixture_dir() {
+	$directory = sys_get_temp_dir() . '/ssgwp-path-utils-' . getmypid() . '-' . mt_rand();
+
+	if ( ! mkdir( $directory ) ) {
+		ssgwp_fail( 'Could not create fixture directory.' );
+	}
+
+	return wp_normalize_path( $directory );
 }
 
 /**
