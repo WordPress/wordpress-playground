@@ -93,9 +93,49 @@ ssgwp_assert_same(
 	'store_progress_event keeps progress available long enough for browser polling.'
 );
 
+$store_method->invoke(
+	null,
+	'job-1',
+	array(
+		'stage'   => 'zip_complete',
+		'message' => 'Previous export finished.',
+	),
+	'run-previous'
+);
+$store_method->invoke(
+	null,
+	'job-1',
+	array(
+		'stage'   => 'started',
+		'message' => 'New export started.',
+	),
+	'run-current'
+);
+
+$previous_run_key = $progress_key_method->invoke( null, 'job-1', 'run-previous' );
+$current_run_key  = $progress_key_method->invoke( null, 'job-1', 'run-current' );
+
+ssgwp_assert_not_same(
+	$previous_run_key,
+	$current_run_key,
+	'progress_transient_key isolates repeated exports with different run ids.'
+);
+
+ssgwp_assert_same(
+	'zip_complete',
+	$ssgwp_transients[ $previous_run_key ]['value']['stage'],
+	'store_progress_event keeps previous run progress isolated.'
+);
+
+ssgwp_assert_same(
+	'started',
+	$ssgwp_transients[ $current_run_key ]['value']['stage'],
+	'store_progress_event stores current run progress separately.'
+);
+
 $callback_method = new ReflectionMethod( 'SSGWP_Plugin', 'create_progress_callback' );
 $callback_method->setAccessible( true );
-$callback = $callback_method->invoke( null, 'job-2' );
+$callback = $callback_method->invoke( null, 'job-2', 'run-2' );
 $callback(
 	array(
 		'stage'   => 'zip_complete',
@@ -103,7 +143,7 @@ $callback(
 	)
 );
 
-$callback_key = $progress_key_method->invoke( null, 'job-2' );
+$callback_key = $progress_key_method->invoke( null, 'job-2', 'run-2' );
 
 ssgwp_assert_same(
 	'zip_complete',
@@ -124,6 +164,21 @@ function ssgwp_assert_same( $expected, $actual, $message ) {
 	}
 
 	ssgwp_fail( $message . ' Expected ' . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . '.' );
+}
+
+/**
+ * Assert two values are not identical.
+ *
+ * @param mixed  $unexpected Unexpected value.
+ * @param mixed  $actual     Actual value.
+ * @param string $message    Failure message.
+ */
+function ssgwp_assert_not_same( $unexpected, $actual, $message ) {
+	if ( $unexpected !== $actual ) {
+		return;
+	}
+
+	ssgwp_fail( $message . ' Did not expect ' . var_export( $actual, true ) . '.' );
 }
 
 /**

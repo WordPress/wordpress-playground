@@ -72,6 +72,7 @@ final class SSGWP_Plugin {
 			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" id="ssgwp-export-form" target="ssgwp-export-download-frame">
 				<input type="hidden" name="action" value="ssgwp_export" />
 				<input type="hidden" name="export_job_id" id="ssgwp_export_job_id" value="<?php echo esc_attr( $job_id ); ?>" />
+				<input type="hidden" name="export_run_id" id="ssgwp_export_run_id" value="" />
 				<input type="hidden" name="progress_nonce" id="ssgwp_progress_nonce" value="<?php echo esc_attr( $progress_nonce ); ?>" />
 				<?php wp_nonce_field( 'ssgwp_export' ); ?>
 
@@ -127,10 +128,11 @@ final class SSGWP_Plugin {
 					var panel = document.getElementById( 'ssgwp-export-progress' );
 					var message = document.getElementById( 'ssgwp-export-progress-message' );
 					var jobId = document.getElementById( 'ssgwp_export_job_id' );
+					var runId = document.getElementById( 'ssgwp_export_run_id' );
 					var nonce = document.getElementById( 'ssgwp_progress_nonce' );
 					var timer = null;
 
-					if ( ! form || ! panel || ! message || ! jobId || ! nonce ) {
+					if ( ! form || ! panel || ! message || ! jobId || ! runId || ! nonce ) {
 						return;
 					}
 
@@ -145,6 +147,18 @@ final class SSGWP_Plugin {
 						}
 					}
 
+					function createRunId() {
+						var randomPart = Math.random().toString( 36 ).slice( 2 );
+
+						if ( window.crypto && window.crypto.getRandomValues ) {
+							var values = new Uint32Array( 2 );
+							window.crypto.getRandomValues( values );
+							randomPart = values[0].toString( 36 ) + values[1].toString( 36 );
+						}
+
+						return 'run-' + Date.now().toString( 36 ) + '-' + randomPart;
+					}
+
 					function pollProgress() {
 						if ( ! window.fetch || ! window.ajaxurl ) {
 							setMessage( panel.getAttribute( 'data-failed' ) );
@@ -154,6 +168,7 @@ final class SSGWP_Plugin {
 
 						var url = window.ajaxurl + '?action=ssgwp_export_progress'
 							+ '&job_id=' + window.encodeURIComponent( jobId.value )
+							+ '&run_id=' + window.encodeURIComponent( runId.value )
 							+ '&nonce=' + window.encodeURIComponent( nonce.value )
 							+ '&_=' + Date.now();
 
@@ -184,6 +199,7 @@ final class SSGWP_Plugin {
 					}
 
 					form.addEventListener( 'submit', function() {
+						runId.value = createRunId();
 						panel.hidden = false;
 						setMessage( panel.getAttribute( 'data-started' ) );
 						stopPolling();
@@ -209,6 +225,7 @@ final class SSGWP_Plugin {
 		$request     = wp_unslash( $_POST );
 		$args        = self::request_to_export_args( $request );
 		$job_id      = isset( $request['export_job_id'] ) ? self::sanitize_export_job_id( $request['export_job_id'] ) : '';
+		$run_id      = isset( $request['export_run_id'] ) ? self::sanitize_export_run_id( $request['export_run_id'] ) : '';
 		$upload_dir  = wp_get_upload_dir();
 		$temp_parent = trailingslashit( $upload_dir['basedir'] ) . 'static-site-generator';
 
@@ -225,9 +242,10 @@ final class SSGWP_Plugin {
 					array(
 						'stage'   => 'started',
 						'message' => __( 'Export started. Preparing pages for download...', 'playground-static-site-generator' ),
-					)
+					),
+					$run_id
 				);
-				$args['progress_callback'] = self::create_progress_callback( $job_id );
+				$args['progress_callback'] = self::create_progress_callback( $job_id, $run_id );
 			}
 
 			ssgwp_export_static_site( $output_file, $args );
@@ -238,7 +256,8 @@ final class SSGWP_Plugin {
 					array(
 						'stage'   => 'failed',
 						'message' => $exception->getMessage(),
-					)
+					),
+					$run_id
 				);
 			}
 
@@ -276,6 +295,7 @@ final class SSGWP_Plugin {
 		}
 
 		$job_id = isset( $_GET['job_id'] ) ? self::sanitize_export_job_id( wp_unslash( $_GET['job_id'] ) ) : '';
+		$run_id = isset( $_GET['run_id'] ) ? self::sanitize_export_run_id( wp_unslash( $_GET['run_id'] ) ) : '';
 
 		if ( '' === $job_id || ! check_ajax_referer( 'ssgwp_export_progress_' . $job_id, 'nonce', false ) ) {
 			wp_send_json_error(
@@ -284,7 +304,7 @@ final class SSGWP_Plugin {
 			);
 		}
 
-		$event = get_transient( self::progress_transient_key( $job_id ) );
+		$event = get_transient( self::progress_transient_key( $job_id, $run_id ) );
 
 		if ( ! is_array( $event ) ) {
 			$event = self::normalize_progress_event(
@@ -334,11 +354,12 @@ final class SSGWP_Plugin {
 	 * Create a progress callback that stores the latest export event.
 	 *
 	 * @param string $job_id Export job id.
+	 * @param string $run_id Export run id.
 	 * @return callable Progress callback.
 	 */
-	private static function create_progress_callback( $job_id ) {
-		return static function ( array $event ) use ( $job_id ) {
-			self::store_progress_event( $job_id, $event );
+	private static function create_progress_callback( $job_id, $run_id = '' ) {
+		return static function ( array $event ) use ( $job_id, $run_id ) {
+			self::store_progress_event( $job_id, $event, $run_id );
 		};
 	}
 
@@ -347,16 +368,18 @@ final class SSGWP_Plugin {
 	 *
 	 * @param string $job_id Export job id.
 	 * @param array  $event  Progress event.
+	 * @param string $run_id Export run id.
 	 */
-	private static function store_progress_event( $job_id, array $event ) {
+	private static function store_progress_event( $job_id, array $event, $run_id = '' ) {
 		$job_id = self::sanitize_export_job_id( $job_id );
+		$run_id = self::sanitize_export_run_id( $run_id );
 
 		if ( '' === $job_id ) {
 			return;
 		}
 
 		$event = self::normalize_progress_event( $event );
-		set_transient( self::progress_transient_key( $job_id ), $event, HOUR_IN_SECONDS );
+		set_transient( self::progress_transient_key( $job_id, $run_id ), $event, HOUR_IN_SECONDS );
 	}
 
 	/**
@@ -367,6 +390,7 @@ final class SSGWP_Plugin {
 	 */
 	private static function normalize_progress_event( array $event ) {
 		return array(
+			'time'           => isset( $event['time'] ) ? sanitize_text_field( $event['time'] ) : gmdate( 'c' ),
 			'stage'          => isset( $event['stage'] ) ? sanitize_key( $event['stage'] ) : '',
 			'message'        => isset( $event['message'] ) ? sanitize_text_field( $event['message'] ) : '',
 			'pages_exported' => isset( $event['pages_exported'] ) ? (int) $event['pages_exported'] : 0,
@@ -379,10 +403,21 @@ final class SSGWP_Plugin {
 	 * Build the transient key used to store export progress.
 	 *
 	 * @param string $job_id Export job id.
+	 * @param string $run_id Export run id.
 	 * @return string Transient key.
 	 */
-	private static function progress_transient_key( $job_id ) {
-		return 'ssgwp_export_' . get_current_user_id() . '_' . md5( $job_id );
+	private static function progress_transient_key( $job_id, $run_id = '' ) {
+		return 'ssgwp_export_' . get_current_user_id() . '_' . md5( $job_id . ':' . $run_id );
+	}
+
+	/**
+	 * Sanitize an export run id.
+	 *
+	 * @param string $run_id Run id.
+	 * @return string Sanitized run id.
+	 */
+	private static function sanitize_export_run_id( $run_id ) {
+		return self::sanitize_export_job_id( $run_id );
 	}
 
 	/**
