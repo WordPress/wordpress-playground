@@ -26,6 +26,17 @@ npx @wp-playground/cli@latest server \
 	--blueprint=./examples/static-site-generator/blueprint-local.json
 ```
 
+To run a non-interactive Playground export smoke from the repository root:
+
+```bash
+node examples/static-site-generator/playground-export-smoke.mjs
+```
+
+The smoke mounts the local plugin into Playground, exports a fixture site, and
+verifies that generated page, asset, and referenced CSS targets exist. It uses
+WordPress 6.8 and PHP 8.3 by default; set `SSGWP_SMOKE_WP_VERSION` or
+`SSGWP_SMOKE_PHP_VERSION` to test another runtime.
+
 ## What The Plugin Exports
 
 - Public home, post, page, custom post type, taxonomy, and author archive URLs, including archive pagination.

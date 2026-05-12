@@ -477,6 +477,7 @@ foreach (
 		'wp-content/uploads/bg.jpg',
 		'wp-content/uploads/photo.jpg',
 		'wp-content/uploads/photo-2x.jpg',
+		'wp-includes/fonts/dashicons.eot',
 	)
 	as $fixture_file
 ) {
@@ -501,6 +502,8 @@ $html = implode(
 		'<a class="admin" href="/wp-admin/admin.php">Admin</a>',
 		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
 		'<a class="feed" href="/feed/">Feed</a>',
+		'<link rel="alternate" type="application/rss+xml" href="/feed/">',
+		'<link rel="alternate" type="application/rss+xml" href="/comments/feed/">',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
 		'<a class="mail" href="mailto:test@example.test">Mail</a>',
 		'<a class="tel" href="tel:+15551234567">Tel</a>',
@@ -660,6 +663,24 @@ ssgwp_assert_contains(
 	'rewrite_text_asset rewrites CSS same-site asset URLs.'
 );
 
+$rewritten_css = $rewriter->rewrite_text_asset(
+	'@font-face{src:url("../fonts/dashicons.eot?ver=1")}',
+	'wp-includes/css/dashicons.css'
+);
+
+ssgwp_assert_contains(
+	'../../wp-includes/fonts/dashicons.eot?ver=1',
+	$rewritten_css,
+	'rewrite_text_asset resolves relative CSS URLs from the copied asset path.'
+);
+
+ssgwp_assert_static_target_exists(
+	$export_root,
+	'wp-includes/css/dashicons.css',
+	'../../wp-includes/fonts/dashicons.eot?ver=1',
+	'rewritten relative CSS URL target exists.'
+);
+
 foreach (
 	array(
 		'static-page/index.html',
@@ -710,6 +731,8 @@ foreach (
 		'href="/wp-admin/admin.php"',
 		'href="/wp-json/wp/v2/posts"',
 		'href="/feed/"',
+		'type="application/rss+xml" href="/feed/"',
+		'type="application/rss+xml" href="/comments/feed/"',
 		'href="https://external.test/static-page/"',
 		'href="mailto:test@example.test"',
 		'href="tel:+15551234567"',

@@ -87,7 +87,7 @@ final class SSGWP_URL_Rewriter {
 	public function rewrite_text_asset( $content, $relative_path ) {
 		$extension = strtolower( pathinfo( $relative_path, PATHINFO_EXTENSION ) );
 		$content   = (string) $content;
-		$base_url  = home_url( '/' );
+		$base_url  = $this->asset_base_url_for_path( $relative_path );
 
 		if ( 'css' === $extension ) {
 			$content = $this->rewrite_css_urls( $content, $base_url, $relative_path );
@@ -98,6 +98,16 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return $this->rewrite_same_site_text_urls( $content, $relative_path );
+	}
+
+	/**
+	 * Get the public source URL for a copied text asset.
+	 *
+	 * @param string $relative_path Relative static file path.
+	 * @return string Asset URL.
+	 */
+	private function asset_base_url_for_path( $relative_path ) {
+		return home_url( '/' . ltrim( wp_normalize_path( $relative_path ), '/' ) );
 	}
 
 	/**
@@ -467,8 +477,13 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		$absolute = $this->collector->resolve_relative_url( $value, $base_url );
+		$absolute = $this->normalize_absolute_url_path( $absolute );
 
 		if ( ! $this->is_same_site_url( $absolute ) ) {
+			return $value;
+		}
+
+		if ( $this->is_non_exportable_same_site_url( $absolute ) ) {
 			return $value;
 		}
 
@@ -498,6 +513,48 @@ final class SSGWP_URL_Rewriter {
 	}
 
 	/**
+	 * Normalize dot segments in an absolute URL path.
+	 *
+	 * @param string $url URL.
+	 * @return string URL with normalized path segments.
+	 */
+	private function normalize_absolute_url_path( $url ) {
+		$parts = wp_parse_url( $url );
+
+		if ( empty( $parts['host'] ) || ! isset( $parts['path'] ) ) {
+			return $url;
+		}
+
+		$segments = array();
+
+		foreach ( explode( '/', $parts['path'] ) as $segment ) {
+			if ( '' === $segment || '.' === $segment ) {
+				continue;
+			}
+
+			if ( '..' === $segment ) {
+				array_pop( $segments );
+				continue;
+			}
+
+			$segments[] = $segment;
+		}
+
+		$path = '/' . implode( '/', $segments );
+
+		if ( '/' !== $path && '/' === substr( $parts['path'], -1 ) ) {
+			$path = trailingslashit( $path );
+		}
+
+		$scheme   = isset( $parts['scheme'] ) ? $parts['scheme'] . '://' : '';
+		$port     = isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '';
+		$query    = isset( $parts['query'] ) ? '?' . $parts['query'] : '';
+		$fragment = isset( $parts['fragment'] ) ? '#' . $parts['fragment'] : '';
+
+		return $scheme . $parts['host'] . $port . $path . $query . $fragment;
+	}
+
+	/**
 	 * Check whether a URL should not be rewritten.
 	 *
 	 * @param string $url URL.
@@ -509,6 +566,22 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return (bool) preg_match( '#^(?:about|blob|data|file|geo|javascript|mailto|sms|tel|urn|webcal|whatsapp):#i', $url );
+	}
+
+	/**
+	 * Check whether a same-site URL belongs to a dynamic WordPress endpoint.
+	 *
+	 * @param string $url URL.
+	 * @return bool
+	 */
+	private function is_non_exportable_same_site_url( $url ) {
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+
+		if ( preg_match( '#/(wp-admin|wp-comments-post\.php|wp-cron\.php|wp-login\.php|wp-json|xmlrpc\.php)(/|$)#', $path ) ) {
+			return true;
+		}
+
+		return (bool) preg_match( '#/(feed|comments)(/|$)#', $path );
 	}
 
 	/**

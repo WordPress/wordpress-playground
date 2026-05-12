@@ -23,6 +23,9 @@ format.
 - Preserve encoded static export URL path segments so distinct URLs such as
   `%20`, `+`, and `%2F` variants write and rewrite to distinct generated files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Add a Playground CLI export smoke test and keep static exports from rewriting
+  feed/API endpoints or copied CSS relative asset URLs to missing files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
