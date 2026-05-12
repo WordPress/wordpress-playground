@@ -563,7 +563,7 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function url_to_static_url( $url, $target_path, $kind = 'asset' ) {
 		$parts    = wp_parse_url( $url );
-		$path     = isset( $parts['path'] ) ? rawurldecode( $parts['path'] ) : '/';
+		$path     = isset( $parts['path'] ) ? $parts['path'] : '/';
 		$query    = isset( $parts['query'] ) ? $parts['query'] : '';
 		$fragment = isset( $parts['fragment'] ) ? $parts['fragment'] : '';
 		$web_path = 'page' === $kind
@@ -628,7 +628,10 @@ final class SSGWP_URL_Rewriter {
 	 * @return bool
 	 */
 	private function path_has_exported_extension( $path ) {
-		return (bool) preg_match( '#\.[a-z0-9]{1,12}$#i', $path );
+		$segments = explode( '/', (string) $path );
+		$basename = rawurldecode( end( $segments ) );
+
+		return (bool) preg_match( '#\.[a-z0-9]{1,12}$#i', $basename );
 	}
 
 	/**

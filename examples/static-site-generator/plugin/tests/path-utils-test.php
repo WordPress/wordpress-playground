@@ -112,9 +112,39 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_same(
-	'encoded-page/index.html',
+	'encoded%20page/index.html',
 	SSGWP_Path_Utils::url_to_export_file_path( '/encoded%20page/' ),
-	'url_to_export_file_path sanitizes encoded page paths.'
+	'url_to_export_file_path preserves encoded page path segments.'
+);
+
+ssgwp_assert_same(
+	'collision%20page/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/collision%20page/' ),
+	'url_to_export_file_path keeps encoded spaces distinct.'
+);
+
+ssgwp_assert_same(
+	'collision%2Bpage/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/collision+page/' ),
+	'url_to_export_file_path keeps literal plus signs distinct.'
+);
+
+ssgwp_assert_same(
+	'nested%2Fpage/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/nested%2Fpage/' ),
+	'url_to_export_file_path keeps encoded slashes inside one segment.'
+);
+
+ssgwp_assert_same(
+	'%2E%2E/secret/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/%2e%2e/secret/' ),
+	'url_to_export_file_path keeps encoded parent segments literal.'
+);
+
+ssgwp_assert_true(
+	SSGWP_Path_Utils::url_to_export_file_path( '/collision%20page/' )
+		!== SSGWP_Path_Utils::url_to_export_file_path( '/collision+page/' ),
+	'url_to_export_file_path avoids normalization collisions for encoded segments.'
 );
 
 ssgwp_assert_true(

@@ -47,11 +47,11 @@ final class SSGWP_Path_Utils {
 	 * @return string Relative export file path.
 	 */
 	public static function url_to_export_file_path( $path, $query = '' ) {
-		$path = trim( rawurldecode( (string) $path ), '/' );
+		$path = self::sanitize_url_path( $path );
 
 		if ( '' === $path ) {
 			$file = 'index.html';
-		} elseif ( preg_match( '#\.[a-z0-9]{1,12}$#i', $path ) ) {
+		} elseif ( self::url_path_has_exported_extension( $path ) ) {
 			$file = $path;
 		} else {
 			$file = trailingslashit( $path ) . 'index.html';
@@ -62,7 +62,52 @@ final class SSGWP_Path_Utils {
 			$file       = preg_replace( '#(?:/index)?\.html$#', '-' . $query_hash . '.html', $file );
 		}
 
-		return self::sanitize_relative_path( $file );
+		return $file;
+	}
+
+	/**
+	 * Sanitize a URL path while preserving distinct encoded segments.
+	 *
+	 * @param string $path URL path.
+	 * @return string Relative export path without leading or trailing slashes.
+	 */
+	public static function sanitize_url_path( $path ) {
+		$segments = array();
+
+		foreach ( explode( '/', wp_normalize_path( (string) $path ) ) as $segment ) {
+			if ( '' === $segment ) {
+				continue;
+			}
+
+			$decoded = rawurldecode( $segment );
+
+			if ( '' === $decoded ) {
+				continue;
+			}
+
+			if ( '.' === $decoded ) {
+				$segments[] = '%2E';
+			} elseif ( '..' === $decoded ) {
+				$segments[] = '%2E%2E';
+			} else {
+				$segments[] = rawurlencode( $decoded );
+			}
+		}
+
+		return implode( '/', $segments );
+	}
+
+	/**
+	 * Determine whether a sanitized URL path should export as a file.
+	 *
+	 * @param string $path Sanitized URL path.
+	 * @return bool
+	 */
+	private static function url_path_has_exported_extension( $path ) {
+		$segments = explode( '/', (string) $path );
+		$basename = rawurldecode( end( $segments ) );
+
+		return (bool) preg_match( '#\.[a-z0-9]{1,12}$#i', $basename );
 	}
 
 	/**

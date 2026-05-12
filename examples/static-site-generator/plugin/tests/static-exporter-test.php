@@ -45,6 +45,19 @@ if ( ! function_exists( 'trailingslashit' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	/**
+	 * Parse a URL for tests.
+	 *
+	 * @param string $url       URL.
+	 * @param int    $component URL component.
+	 * @return mixed
+	 */
+	function wp_parse_url( $url, $component = -1 ) {
+		return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
+	}
+}
+
 if ( ! function_exists( 'includes_url' ) ) {
 	/**
 	 * Return an includes URL for tests.
@@ -136,6 +149,48 @@ ssgwp_assert_not_contains(
 	'wp-block-audio-css',
 	$html,
 	'inject_missing_core_block_styles ignores block classes inside style tags.'
+);
+
+$url_to_file_path_method = new ReflectionMethod( $exporter, 'url_to_file_path' );
+$url_to_file_path_method->setAccessible( true );
+
+ssgwp_assert_same(
+	'collision%20page/index.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://example.test/collision%20page/' ),
+	'url_to_file_path keeps encoded spaces distinct from other sanitized paths.'
+);
+
+ssgwp_assert_same(
+	'collision%2Bpage/index.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://example.test/collision+page/' ),
+	'url_to_file_path keeps literal plus signs distinct from encoded spaces.'
+);
+
+ssgwp_assert_same(
+	'nested%2Fsegment/index.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://example.test/nested%2Fsegment/' ),
+	'url_to_file_path keeps encoded slashes inside one exported path segment.'
+);
+
+ssgwp_assert_same(
+	'nested/segment/index.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://example.test/nested/segment/' ),
+	'url_to_file_path maps decoded slashes to nested exported directories.'
+);
+
+ssgwp_assert_same(
+	true,
+	$url_to_file_path_method->invoke( $exporter, 'https://example.test/nested%2Fsegment/' )
+		!== $url_to_file_path_method->invoke( $exporter, 'https://example.test/nested/segment/' ),
+	'url_to_file_path avoids encoded-slash normalization collisions.'
+);
+
+$view_hash = substr( md5( 'view=grid' ), 0, 8 );
+
+ssgwp_assert_same(
+	'collision%20page-' . $view_hash . '.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://example.test/collision%20page/?view=grid' ),
+	'url_to_file_path keeps encoded paths distinct when adding query hashes.'
 );
 
 $html_with_link = $method->invoke(

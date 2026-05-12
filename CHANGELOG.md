@@ -20,6 +20,9 @@ format.
 - Rewrite static export page URLs to generated HTML files so internal links,
   fragments, query variants, and JSON/JavaScript URL strings resolve to copied
   targets. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve encoded static export URL path segments so distinct URLs such as
+  `%20`, `+`, and `%2F` variants write and rewrite to distinct generated files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

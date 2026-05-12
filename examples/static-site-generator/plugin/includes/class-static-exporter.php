@@ -744,7 +744,7 @@ final class SSGWP_Static_Exporter {
 	 */
 	private function url_to_file_path( $url ) {
 		$parts = wp_parse_url( $url );
-		$path  = isset( $parts['path'] ) ? rawurldecode( $parts['path'] ) : '/';
+		$path  = isset( $parts['path'] ) ? $parts['path'] : '/';
 		$query = isset( $parts['query'] ) ? $parts['query'] : '';
 
 		return SSGWP_Path_Utils::url_to_export_file_path( $path, $query );
