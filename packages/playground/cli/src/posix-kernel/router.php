@@ -77,6 +77,19 @@ if ($uri !== '/' && is_file($file)) {
 	}
 }
 
+// DirectoryIndex: a request like /wp-admin/ maps to a directory on
+// disk, not a file. Without this branch the request falls through to
+// the WP front-end index.php and the user sees the homepage instead
+// of the admin dashboard.
+if (is_dir($file)) {
+	$dirIndex = rtrim($file, '/') . '/index.php';
+	if (is_file($dirIndex)) {
+		chdir(dirname($dirIndex));
+		include $dirIndex;
+		exit;
+	}
+}
+
 chdir($docRoot);
 
 include $docRoot . '/index.php';
