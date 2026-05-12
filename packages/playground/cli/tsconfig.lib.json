@@ -12,5 +12,10 @@
 		"../blueprints/src/lib/v2/run-blueprint-v2.ts",
 		"../blueprints/src/lib/v2/blueprint-v2-declaration.ts"
 	],
-	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+	"exclude": [
+		"jest.config.ts",
+		"src/**/*.spec.ts",
+		"src/**/*.test.ts",
+		"src/edit-markdown/vendor/**"
+	]
 }

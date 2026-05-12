@@ -35,6 +35,7 @@ import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mounts';
+import { expandEditMarkdownCommandArgs } from './edit-markdown/configure';
 import {
 	parseDefineStringArguments,
 	parseDefineBoolArguments,
@@ -540,6 +541,18 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			.command('php', 'Run a PHP script', (yargsInstance: Argv) =>
 				yargsInstance.options({ ...sharedOptions })
 			)
+			.command(
+				'edit-markdown <dir>',
+				'Open a directory of Markdown files in the block editor',
+				(yargsInstance: Argv) =>
+					yargsInstance
+						.positional('dir', {
+							describe: 'Directory tree of .md files to mount.',
+							type: 'string',
+							demandOption: true,
+						})
+						.options(startCommandOptions)
+			)
 			.demandCommand(1, 'Please specify a command')
 			.strictCommands()
 			.conflicts(
@@ -697,6 +710,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				'server',
 				'build-snapshot',
 				'php',
+				'edit-markdown',
 			].includes(command)
 		) {
 			yargsObject.showHelp();
@@ -735,7 +749,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			}
 		}
 
-		const cliArgs = {
+		let cliArgs = {
 			...args,
 			define,
 			command,
@@ -748,6 +762,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				...((args['mount-dir-before-install'] as Mount[]) || []),
 			],
 		} as RunCLIArgs;
+
+		if (command === 'edit-markdown') {
+			cliArgs = expandEditMarkdownCommandArgs(
+				cliArgs as RunCLIArgs & { reset?: boolean }
+			);
+		}
 
 		const cliServer = await runCLI(cliArgs);
 		if (cliServer === undefined) {
@@ -884,7 +904,13 @@ export interface RunCLIArgs {
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
+	command:
+		| 'start'
+		| 'server'
+		| 'run-blueprint'
+		| 'build-snapshot'
+		| 'php'
+		| 'edit-markdown';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
@@ -1808,6 +1834,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	if (server && args.command === 'start' && !args.skipBrowser) {
 		openInBrowser(server.serverUrl);
+	}
+	if (server && args.command === 'edit-markdown' && !args.skipBrowser) {
+		openInBrowser(
+			new URL(
+				'/wp-admin/edit.php?post_type=page',
+				server.serverUrl
+			).toString()
+		);
 	}
 	return server;
 }

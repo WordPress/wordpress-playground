@@ -9,6 +9,7 @@ __pycache__
 packages/playground/wordpress-builds/src/wordpress
 packages/playground/wordpress-builds/public
 packages/php-wasm/node/src/test/__test*
+packages/playground/cli/src/edit-markdown/vendor/php-toolkit
 *.timestamp-1678999213403.mjs
 .local
 .vscode

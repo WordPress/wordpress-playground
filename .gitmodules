@@ -1,3 +1,6 @@
 [submodule "isomorphic-git"]
     path="isomorphic-git"
     url=https://github.com/adamziel/isomorphic-git.git
+[submodule "packages/playground/cli/src/edit-markdown/vendor/php-toolkit"]
+	path = packages/playground/cli/src/edit-markdown/vendor/php-toolkit
+	url = https://github.com/WordPress/php-toolkit.git

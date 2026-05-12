@@ -154,6 +154,26 @@ with `extension=` or `zend_extension=` in php.ini:
 }
 ```
 
+### Editing Markdown Directories
+
+The `edit-markdown` command opens a directory of Markdown files in wp-admin and
+writes block editor saves back to disk:
+
+```bash
+npx @wp-playground/cli@latest edit-markdown ./content
+```
+
+It loads the bundled `sqlite_markdown` PHP.wasm extension, mounts the Markdown
+directory at `/markdown-root`, and installs a small mu-plugin that maps
+`wp_posts` and `wp_postmeta` to writable SQLite virtual tables.
+
+When running from a Playground source checkout, build the extension artifacts
+first:
+
+```bash
+npx nx run php-wasm-compile-sqlite-markdown-extension:build
+```
+
 ## Need some help with the CLI?
 
 With the Playground CLI, you can use the `--help` to get some support about the available commands.

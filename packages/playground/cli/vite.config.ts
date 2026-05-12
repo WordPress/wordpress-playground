@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { copyFileSync } from 'fs';
+import { copyFileSync, cpSync, existsSync } from 'fs';
 import { createRequire } from 'module';
 import { dirname, join } from 'path';
 import { pathToFileURL } from 'url';
@@ -161,6 +161,35 @@ const plugins = [
 				),
 				join(outputDir, 'sqlite-database-integration.zip')
 			);
+		},
+	},
+	{
+		name: 'copy-edit-markdown-assets-to-output',
+
+		writeBundle(options) {
+			const outputDir = options.dir;
+			if (!outputDir) return;
+
+			const assetRoots = [
+				'sqlite-markdown-extension',
+				join('vendor', 'php-toolkit'),
+			];
+			for (const assetRoot of assetRoots) {
+				const sourcePath = join(
+					__dirname,
+					'src',
+					'edit-markdown',
+					assetRoot
+				);
+				if (!existsSync(sourcePath)) {
+					continue;
+				}
+				cpSync(
+					sourcePath,
+					join(outputDir, 'edit-markdown', assetRoot),
+					{ recursive: true }
+				);
+			}
 		},
 	},
 	...viteGlobalExtensions,
