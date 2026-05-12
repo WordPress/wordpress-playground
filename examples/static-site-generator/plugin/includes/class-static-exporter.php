@@ -465,6 +465,16 @@ final class SSGWP_Static_Exporter {
 			return new WP_Error( 'ssgwp_not_same_site', 'Only same-site URLs can be rendered internally.' );
 		}
 
+		$url_scheme  = isset( $parts['scheme'] ) ? strtolower( $parts['scheme'] ) : '';
+		$home_scheme = isset( $home_parts['scheme'] ) ? strtolower( $home_parts['scheme'] ) : '';
+
+		if ( $url_scheme !== $home_scheme ) {
+			return new WP_Error(
+				'ssgwp_not_same_site_scheme',
+				'Only same-scheme URLs can be rendered internally.'
+			);
+		}
+
 		if ( $this->effective_url_port( $home_parts ) !== $this->effective_url_port( $parts ) ) {
 			return new WP_Error(
 				'ssgwp_not_same_site_port',

@@ -309,6 +309,13 @@ final class SSGWP_URL_Collector {
 			return null;
 		}
 
+		$url_scheme  = isset( $url_parts['scheme'] ) ? strtolower( $url_parts['scheme'] ) : '';
+		$home_scheme = isset( $home_parts['scheme'] ) ? strtolower( $home_parts['scheme'] ) : '';
+
+		if ( $url_scheme !== $home_scheme ) {
+			return null;
+		}
+
 		if ( $this->effective_url_port( $home_parts ) !== $this->effective_url_port( $url_parts ) ) {
 			return null;
 		}
@@ -336,9 +343,10 @@ final class SSGWP_URL_Collector {
 		}
 
 		$scheme = isset( $home_parts['scheme'] ) ? $home_parts['scheme'] : 'http';
+		$host   = strtolower( $url_parts['host'] );
 		$port   = $this->canonical_port_suffix( $url_parts, $home_parts );
 
-		return $scheme . '://' . $url_parts['host'] . $port . $path
+		return $scheme . '://' . $host . $port . $path
 			. ( '' !== $query ? '?' . $query : '' );
 	}
 

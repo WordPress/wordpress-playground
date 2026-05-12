@@ -82,6 +82,18 @@ if ( ! function_exists( 'get_bloginfo' ) ) {
 	}
 }
 
+if ( ! function_exists( 'home_url' ) ) {
+	/**
+	 * Return a test home URL.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	function home_url( $path = '' ) {
+		return 'https://example.test/' . ltrim( $path, '/' );
+	}
+}
+
 if ( ! function_exists( 'add_query_arg' ) ) {
 	/**
 	 * Add a query argument to a URL for tests.
@@ -122,6 +134,56 @@ if ( ! function_exists( 'esc_attr' ) ) {
 	}
 }
 
+if ( ! class_exists( 'WP_Error' ) ) {
+	/**
+	 * Minimal WP_Error test double.
+	 */
+	class WP_Error {
+		/**
+		 * Error code.
+		 *
+		 * @var string
+		 */
+		private $code;
+
+		/**
+		 * Error message.
+		 *
+		 * @var string
+		 */
+		private $message;
+
+		/**
+		 * Constructor.
+		 *
+		 * @param string $code    Error code.
+		 * @param string $message Error message.
+		 */
+		public function __construct( $code, $message ) {
+			$this->code    = $code;
+			$this->message = $message;
+		}
+
+		/**
+		 * Get the error code.
+		 *
+		 * @return string
+		 */
+		public function get_error_code() {
+			return $this->code;
+		}
+
+		/**
+		 * Get the error message.
+		 *
+		 * @return string
+		 */
+		public function get_error_message() {
+			return $this->message;
+		}
+	}
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-path-utils.php';
 require_once dirname( __DIR__ ) . '/includes/class-static-exporter.php';
 
@@ -146,6 +208,17 @@ ssgwp_assert_same(
 		)
 	),
 	'effective_url_port preserves explicit custom ports.'
+);
+
+$render_method = new ReflectionMethod( $exporter, 'render_url_in_process' );
+$render_method->setAccessible( true );
+
+$render_error = $render_method->invoke( $exporter, 'http://example.test:443/static-page/' );
+
+ssgwp_assert_same(
+	'ssgwp_not_same_site_scheme',
+	$render_error->get_error_code(),
+	'render_url_in_process rejects a different scheme before rendering.'
 );
 
 $method = new ReflectionMethod( $exporter, 'inject_missing_core_block_styles' );

@@ -29,6 +29,9 @@ format.
 - Tighten static export same-site URL checks so links on a different explicit
   port are not crawled or rewritten as local pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Require matching schemes when classifying static export URLs as same-site, so
+  cross-scheme links are left untouched.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

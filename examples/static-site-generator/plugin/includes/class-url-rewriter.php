@@ -602,6 +602,13 @@ final class SSGWP_URL_Rewriter {
 			return false;
 		}
 
+		$url_scheme  = isset( $url_parts['scheme'] ) ? strtolower( $url_parts['scheme'] ) : '';
+		$home_scheme = isset( $home_parts['scheme'] ) ? strtolower( $home_parts['scheme'] ) : '';
+
+		if ( $url_scheme !== $home_scheme ) {
+			return false;
+		}
+
 		if ( $this->effective_url_port( $home_parts ) !== $this->effective_url_port( $url_parts ) ) {
 			return false;
 		}
