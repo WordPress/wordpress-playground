@@ -40,6 +40,32 @@ final class SSGWP_Path_Utils {
 	}
 
 	/**
+	 * Convert a WordPress URL path and query string to an exported file path.
+	 *
+	 * @param string $path  URL path.
+	 * @param string $query URL query string.
+	 * @return string Relative export file path.
+	 */
+	public static function url_to_export_file_path( $path, $query = '' ) {
+		$path = trim( rawurldecode( (string) $path ), '/' );
+
+		if ( '' === $path ) {
+			$file = 'index.html';
+		} elseif ( preg_match( '#\.[a-z0-9]{1,12}$#i', $path ) ) {
+			$file = $path;
+		} else {
+			$file = trailingslashit( $path ) . 'index.html';
+		}
+
+		if ( '' !== (string) $query ) {
+			$query_hash = substr( md5( (string) $query ), 0, 8 );
+			$file       = preg_replace( '#(?:/index)?\.html$#', '-' . $query_hash . '.html', $file );
+		}
+
+		return self::sanitize_relative_path( $file );
+	}
+
+	/**
 	 * Determine whether a path contains a parent-directory segment.
 	 *
 	 * @param string $path Path.

@@ -224,6 +224,7 @@ if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
 				$attribute['value_offset'],
 				$attribute['value_length']
 			);
+			$delta     = strlen( $tag_html ) - $tag['length'];
 
 			$this->html = substr_replace(
 				$this->html,
@@ -231,6 +232,16 @@ if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
 				$tag['offset'],
 				$tag['length']
 			);
+			$this->tags[ $this->index ]['html']   = $tag_html;
+			$this->tags[ $this->index ]['length'] = strlen( $tag_html );
+
+			if ( 0 === $delta ) {
+				return;
+			}
+
+			for ( $index = $this->index + 1; $index < count( $this->tags ); $index++ ) {
+				$this->tags[ $index ]['offset'] += $delta;
+			}
 		}
 
 		/**
@@ -338,10 +349,52 @@ class SSGWP_URL_Collector {
 	 * Normalize a URL.
 	 *
 	 * @param string $url URL.
-	 * @return string
+	 * @return string|null
 	 */
 	public function normalize_url( $url ) {
-		return $url;
+		$url = strtok( (string) $url, '#' );
+
+		if ( false === $url || '' === $url ) {
+			return null;
+		}
+
+		$parts = wp_parse_url( $url );
+
+		if ( empty( $parts['host'] ) ) {
+			$url   = $this->resolve_relative_url( $url, home_url( '/' ) );
+			$parts = wp_parse_url( $url );
+		}
+
+		if ( empty( $parts['host'] ) || 'example.test' !== strtolower( $parts['host'] ) ) {
+			return null;
+		}
+
+		$path = isset( $parts['path'] ) ? $parts['path'] : '/';
+
+		if ( preg_match( '#/(wp-admin|wp-json|feed)(/|$)#', $path ) ) {
+			return null;
+		}
+
+		$query = '';
+
+		if ( isset( $parts['query'] ) ) {
+			parse_str( $parts['query'], $query_args );
+
+			foreach ( $query_args as $key => $value ) {
+				if ( is_array( $value ) ) {
+					return null;
+				}
+
+				if ( 'ssgwp_export' === $key ) {
+					unset( $query_args[ $key ] );
+				}
+			}
+
+			ksort( $query_args, SORT_STRING );
+			$query = http_build_query( $query_args, '', '&', PHP_QUERY_RFC3986 );
+		}
+
+		return 'https://' . $parts['host'] . $path . ( '' !== $query ? '?' . $query : '' );
 	}
 }
 
@@ -403,6 +456,242 @@ ssgwp_assert_same(
 	'prepare_html_attribute_value stores the original relative stylesheet URL.'
 );
 
+$export_root = ssgwp_make_fixture_dir();
+$query_hash  = substr( md5( 'p=42' ), 0, 8 );
+$view_hash   = substr( md5( 'view=grid' ), 0, 8 );
+
+foreach (
+	array(
+		'index.html',
+		'index-' . $query_hash . '.html',
+		'static-page/index.html',
+		'static-page-' . $view_hash . '.html',
+		'blog/page/2/index.html',
+		'nested/page/index.html',
+		'protocol-page/index.html',
+		'encoded-page/index.html',
+		'wp-content/uploads/bg.jpg',
+		'wp-content/uploads/photo.jpg',
+		'wp-content/uploads/photo-2x.jpg',
+	)
+	as $fixture_file
+) {
+	ssgwp_touch_export_file( $export_root, $fixture_file );
+}
+
+$html = implode(
+	'',
+	array(
+		'<a class="pretty" href="/static-page/">Pretty</a>',
+		'<a class="no-trailing" href="/static-page">No slash</a>',
+		'<a class="absolute" href="https://example.test/nested/page/#section">Absolute</a>',
+		'<a class="protocol" href="//example.test/protocol-page/">Protocol</a>',
+		'<a class="encoded" href="/encoded%20page/">Encoded</a>',
+		'<a class="non-pretty" href="/?p=42#comments">Query</a>',
+		'<a class="query" href="/static-page/?view=grid#items">Query page</a>',
+		'<a class="archive" href="/blog/page/2/#posts">Archive</a>',
+		'<a class="admin" href="/wp-admin/admin.php">Admin</a>',
+		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
+		'<a class="feed" href="/feed/">Feed</a>',
+		'<a class="external" href="https://external.test/static-page/">External</a>',
+		'<a class="mail" href="mailto:test@example.test">Mail</a>',
+		'<a class="tel" href="tel:+15551234567">Tel</a>',
+		'<a class="js" href="javascript:void(0)">JS</a>',
+		'<a class="data" href="data:text/plain,hello">Data</a>',
+		'<a class="blob" href="blob:https://example.test/id">Blob</a>',
+		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
+		'<img srcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
+		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
+		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
+		'<script type="application/json">{"url":"https:\/\/example.test\/nested\/page\/"}</script>',
+		'<script>const next = "https://example.test/static-page/";</script>',
+	)
+);
+
+$result = $rewriter->rewrite_html( $html, 'https://example.test/', 'index.html' );
+
+ssgwp_assert_contains(
+	'href="static-page/index.html"',
+	$result['content'],
+	'rewrite_html points pretty page links at generated index files.'
+);
+
+ssgwp_assert_contains(
+	'href="nested/page/index.html#section"',
+	$result['content'],
+	'rewrite_html preserves fragments after normalizing page URLs.'
+);
+
+ssgwp_assert_contains(
+	'href="protocol-page/index.html"',
+	$result['content'],
+	'rewrite_html rewrites protocol-relative same-site page URLs.'
+);
+
+ssgwp_assert_contains(
+	'href="encoded-page/index.html"',
+	$result['content'],
+	'rewrite_html rewrites encoded paths to sanitized generated files.'
+);
+
+ssgwp_assert_contains(
+	'href="index-' . $query_hash . '.html#comments"',
+	$result['content'],
+	'rewrite_html rewrites non-pretty query pages to their generated files.'
+);
+
+ssgwp_assert_contains(
+	'href="static-page-' . $view_hash . '.html#items"',
+	$result['content'],
+	'rewrite_html rewrites queried pretty URLs to their generated files.'
+);
+
+ssgwp_assert_contains(
+	'href="blog/page/2/index.html#posts"',
+	$result['content'],
+	'rewrite_html rewrites archive pagination URLs to generated files.'
+);
+
+ssgwp_assert_contains(
+	'src="wp-content/uploads/photo.jpg?size=large"',
+	$result['content'],
+	'rewrite_html keeps asset URLs as asset file paths with query strings.'
+);
+
+ssgwp_assert_contains(
+	'srcset="wp-content/uploads/photo.jpg 1x, wp-content/uploads/photo-2x.jpg 2x"',
+	$result['content'],
+	'rewrite_html rewrites srcset candidates to copied asset files.'
+);
+
+ssgwp_assert_contains(
+	'url("wp-content/uploads/bg.jpg?ver=1")',
+	$result['content'],
+	'rewrite_html rewrites inline CSS asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'style="background-image:url(wp-content/uploads/bg.jpg?inline=1)"',
+	$result['content'],
+	'rewrite_html rewrites inline style attribute URLs.'
+);
+
+ssgwp_assert_contains(
+	'nested\/page\/index.html',
+	$result['content'],
+	'rewrite_html rewrites JSON-escaped same-site page URLs.'
+);
+
+ssgwp_assert_contains(
+	'const next = "static-page/index.html";',
+	$result['content'],
+	'rewrite_html rewrites JavaScript same-site page strings.'
+);
+
+$rewritten_json = $rewriter->rewrite_text_asset(
+	'{"url":"https:\/\/example.test\/nested\/page\/",'
+		. '"asset":"https:\/\/example.test\/wp-content\/uploads\/photo.jpg?size=large"}',
+	'app/data.json'
+);
+
+ssgwp_assert_contains(
+	'..\/nested\/page\/index.html',
+	$rewritten_json,
+	'rewrite_text_asset rewrites JSON-escaped page URLs to generated files.'
+);
+
+ssgwp_assert_contains(
+	'..\/wp-content\/uploads\/photo.jpg?size=large',
+	$rewritten_json,
+	'rewrite_text_asset rewrites JSON-escaped asset URLs to copied files.'
+);
+
+$rewritten_js = $rewriter->rewrite_text_asset(
+	'const next = "https://example.test/static-page/";',
+	'app/app.js'
+);
+
+ssgwp_assert_contains(
+	'../static-page/index.html',
+	$rewritten_js,
+	'rewrite_text_asset rewrites JavaScript same-site page strings.'
+);
+
+$rewritten_css = $rewriter->rewrite_text_asset(
+	'.hero{background:url("https://example.test/wp-content/uploads/bg.jpg?ver=1")}',
+	'wp-content/themes/theme/app.css'
+);
+
+ssgwp_assert_contains(
+	'../../../wp-content/uploads/bg.jpg?ver=1',
+	$rewritten_css,
+	'rewrite_text_asset rewrites CSS same-site asset URLs.'
+);
+
+foreach (
+	array(
+		'static-page/index.html',
+		'static-page-' . $view_hash . '.html#items',
+		'blog/page/2/index.html#posts',
+		'nested/page/index.html#section',
+		'protocol-page/index.html',
+		'encoded-page/index.html',
+		'index-' . $query_hash . '.html#comments',
+		'wp-content/uploads/photo.jpg?size=large',
+		'wp-content/uploads/photo-2x.jpg',
+	)
+	as $static_url
+) {
+	ssgwp_assert_static_target_exists(
+		$export_root,
+		'index.html',
+		$static_url,
+		'rewritten URL target exists: ' . $static_url
+	);
+}
+
+$nested_result = $rewriter->rewrite_html(
+	'<a href="/static-page/">Nested</a>',
+	'https://example.test/nested/page/',
+	'nested/page/index.html'
+);
+
+ssgwp_assert_contains(
+	'href="../../static-page/index.html"',
+	$nested_result['content'],
+	'rewrite_html builds file-targeting relative URLs from nested pages.'
+);
+
+ssgwp_assert_static_target_exists(
+	$export_root,
+	'nested/page/index.html',
+	'../../static-page/index.html',
+	'nested page rewritten URL target exists.'
+);
+
+foreach (
+	array(
+		'href="/wp-admin/admin.php"',
+		'href="/wp-json/wp/v2/posts"',
+		'href="/feed/"',
+		'href="https://external.test/static-page/"',
+		'href="mailto:test@example.test"',
+		'href="tel:+15551234567"',
+		'href="javascript:void(0)"',
+		'href="data:text/plain,hello"',
+		'href="blob:https://example.test/id"',
+	)
+	as $unchanged
+) {
+	ssgwp_assert_contains(
+		$unchanged,
+		$result['content'],
+		'rewrite_html leaves unsupported or external URL unchanged: ' . $unchanged
+	);
+}
+
+ssgwp_delete_directory( $export_root );
+
 /**
  * Assert two values are identical.
  *
@@ -416,6 +705,128 @@ function ssgwp_assert_same( $expected, $actual, $message ) {
 	}
 
 	ssgwp_fail( $message . ' Expected ' . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . '.' );
+}
+
+/**
+ * Assert a string contains a substring.
+ *
+ * @param string $needle   Expected substring.
+ * @param string $haystack String to search.
+ * @param string $message  Failure message.
+ */
+function ssgwp_assert_contains( $needle, $haystack, $message ) {
+	if ( false !== strpos( $haystack, $needle ) ) {
+		return;
+	}
+
+	ssgwp_fail( $message . ' Missing ' . var_export( $needle, true ) . '.' );
+}
+
+/**
+ * Create a file in the export fixture.
+ *
+ * @param string $export_root Export fixture root.
+ * @param string $relative    Relative file path.
+ */
+function ssgwp_touch_export_file( $export_root, $relative ) {
+	$path = trailingslashit( $export_root ) . $relative;
+
+	if ( ! is_dir( dirname( $path ) ) && ! mkdir( dirname( $path ), 0777, true ) ) {
+		ssgwp_fail( 'Could not create fixture directory for ' . $relative . '.' );
+	}
+
+	file_put_contents( $path, '' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+}
+
+/**
+ * Assert a rewritten static URL points to an existing exported file.
+ *
+ * @param string $export_root Export fixture root.
+ * @param string $from_file   Referencing file.
+ * @param string $url         Rewritten URL.
+ * @param string $message     Failure message.
+ */
+function ssgwp_assert_static_target_exists( $export_root, $from_file, $url, $message ) {
+	$path = preg_replace( '/[?#].*$/', '', $url );
+
+	if ( preg_match( '#^[a-z][a-z0-9+.-]*:#i', $path ) || 0 === strpos( $path, '/' ) ) {
+		ssgwp_fail( $message . ' Expected a relative static URL, got ' . var_export( $url, true ) . '.' );
+	}
+
+	$target = ssgwp_normalize_fixture_path( dirname( $from_file ) . '/' . $path );
+	$target = trailingslashit( $export_root ) . $target;
+
+	if ( is_file( $target ) ) {
+		return;
+	}
+
+	ssgwp_fail( $message . ' Missing exported file ' . var_export( $target, true ) . '.' );
+}
+
+/**
+ * Normalize a relative fixture path.
+ *
+ * @param string $path Relative path.
+ * @return string
+ */
+function ssgwp_normalize_fixture_path( $path ) {
+	$segments = array();
+
+	foreach ( explode( '/', wp_normalize_path( $path ) ) as $segment ) {
+		if ( '' === $segment || '.' === $segment ) {
+			continue;
+		}
+
+		if ( '..' === $segment ) {
+			array_pop( $segments );
+			continue;
+		}
+
+		$segments[] = $segment;
+	}
+
+	return implode( '/', $segments );
+}
+
+/**
+ * Create a temporary fixture directory.
+ *
+ * @return string
+ */
+function ssgwp_make_fixture_dir() {
+	$directory = sys_get_temp_dir() . '/ssgwp-url-rewriter-' . getmypid() . '-' . mt_rand();
+
+	if ( ! mkdir( $directory ) ) {
+		ssgwp_fail( 'Could not create fixture directory.' );
+	}
+
+	return wp_normalize_path( $directory );
+}
+
+/**
+ * Delete a directory recursively.
+ *
+ * @param string $directory Directory.
+ */
+function ssgwp_delete_directory( $directory ) {
+	if ( ! is_dir( $directory ) ) {
+		return;
+	}
+
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $directory, FilesystemIterator::SKIP_DOTS ),
+		RecursiveIteratorIterator::CHILD_FIRST
+	);
+
+	foreach ( $iterator as $item ) {
+		if ( $item->isDir() ) {
+			rmdir( $item->getPathname() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+		} else {
+			unlink( $item->getPathname() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		}
+	}
+
+	rmdir( $directory ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 }
 
 /**

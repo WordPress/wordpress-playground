@@ -99,6 +99,24 @@ ssgwp_assert_same(
 	'sanitize_relative_path removes unsafe segments and characters.'
 );
 
+ssgwp_assert_same(
+	'static-page/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/static-page/' ),
+	'url_to_export_file_path maps pretty permalink paths to index.html files.'
+);
+
+ssgwp_assert_same(
+	'static-page-' . substr( md5( 'view=print' ), 0, 8 ) . '.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/static-page/', 'view=print' ),
+	'url_to_export_file_path maps page query variants to hashed HTML files.'
+);
+
+ssgwp_assert_same(
+	'encoded-page/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/encoded%20page/' ),
+	'url_to_export_file_path sanitizes encoded page paths.'
+);
+
 ssgwp_assert_true(
 	SSGWP_Path_Utils::has_parent_segment( '../secret.txt' ),
 	'has_parent_segment rejects leading parent segments.'

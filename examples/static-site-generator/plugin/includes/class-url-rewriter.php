@@ -486,14 +486,15 @@ final class SSGWP_URL_Rewriter {
 			}
 
 			$this->links[ $normalized ] = $normalized;
-			$static_url                 = $normalized;
+			$static_url                 = $this->restore_fragment( $normalized, $absolute );
 		} elseif ( 'page' === $kind ) {
 			$this->assets[ $absolute ] = $absolute;
+			$kind                      = 'asset';
 		} elseif ( 'asset' === $kind ) {
 			$this->assets[ $absolute ] = $absolute;
 		}
 
-		return $this->url_to_static_url( $static_url, $target_path );
+		return $this->url_to_static_url( $static_url, $target_path, $kind );
 	}
 
 	/**
@@ -557,14 +558,17 @@ final class SSGWP_URL_Rewriter {
 	 *
 	 * @param string $url         URL.
 	 * @param string $target_path Relative static file path of the referencing file.
+	 * @param string $kind        URL kind: page or asset.
 	 * @return string
 	 */
-	private function url_to_static_url( $url, $target_path ) {
+	private function url_to_static_url( $url, $target_path, $kind = 'asset' ) {
 		$parts    = wp_parse_url( $url );
 		$path     = isset( $parts['path'] ) ? rawurldecode( $parts['path'] ) : '/';
 		$query    = isset( $parts['query'] ) ? $parts['query'] : '';
 		$fragment = isset( $parts['fragment'] ) ? $parts['fragment'] : '';
-		$web_path = $this->url_path_to_static_web_path( $path, $query );
+		$web_path = 'page' === $kind
+			? SSGWP_Path_Utils::url_to_export_file_path( $path, $query )
+			: $this->url_path_to_static_web_path( $path, $query );
 		$has_ext  = $this->path_has_exported_extension( $path );
 
 		if ( 'absolute' === $this->url_mode ) {
@@ -575,7 +579,7 @@ final class SSGWP_URL_Rewriter {
 			$output = $this->make_relative_url( $target_path, $web_path );
 		}
 
-		if ( '' !== $query && $has_ext ) {
+		if ( 'page' !== $kind && '' !== $query && $has_ext ) {
 			$output .= '?' . $query;
 		}
 
@@ -607,7 +611,7 @@ final class SSGWP_URL_Rewriter {
 		} else {
 			$sanitized_path = SSGWP_Path_Utils::sanitize_relative_path( $path );
 			$file_path      = trailingslashit( $sanitized_path ) . 'index.html';
-			$web_path       = trailingslashit( $sanitized_path );
+			$web_path       = $file_path;
 		}
 
 		if ( '' === $query || $this->path_has_exported_extension( $path ) ) {
@@ -655,49 +659,73 @@ final class SSGWP_URL_Rewriter {
 	 * @return string
 	 */
 	private function rewrite_same_site_text_urls( $content, $target_path ) {
-		$bases = array_unique(
-			array_filter(
-				array(
-					home_url( '/' ),
-					site_url( '/' ),
-					content_url( '/' ),
-					includes_url( '/' ),
-				)
-			)
-		);
-
-		usort(
-			$bases,
-			static function ( $a, $b ) {
-				return strlen( $b ) <=> strlen( $a );
-			}
-		);
-
-		foreach ( $bases as $base ) {
-			$base       = trailingslashit( $base );
-			$static     = $this->url_to_static_url( $base, $target_path );
-			$escaped_in = str_replace( '/', '\\/', $base );
-			$escaped_to = str_replace( '/', '\\/', $static );
-
-			$content = str_replace( $base, $static, $content );
-			$content = str_replace( $escaped_in, $escaped_to, $content );
-
-			$base_without_slash = untrailingslashit( $base );
-
-			if ( $base_without_slash !== $base ) {
-				$pattern         = '#' . preg_quote( $base_without_slash, '#' ) . '(?=([\'"\s<)]|$))#';
-				$escaped_pattern = '#' . preg_quote( str_replace( '/', '\\/', $base_without_slash ), '#' ) . '(?=([\'"\s<)]|$))#';
-
-				$content = preg_replace( $pattern, $static, $content );
-				$content = preg_replace( $escaped_pattern, $escaped_to, $content );
-			}
-		}
+		$content = $this->rewrite_absolute_text_urls( $content, $target_path, false );
+		$content = $this->rewrite_absolute_text_urls( $content, $target_path, true );
 
 		$replacement_base = $this->replacement_base_for_path( dirname( $target_path ) );
 		$content          = preg_replace( '#(?<=[("=\'\s])/(wp-content|wp-includes)/#', $replacement_base . '$1/', $content );
 		$content          = preg_replace( '#(?<=[("=\'\s])\\\/(wp-content|wp-includes)\\\/#', str_replace( '/', '\\/', $replacement_base ) . '$1\\/', $content );
 
 		return $content;
+	}
+
+	/**
+	 * Rewrite absolute same-site URLs in text-like assets.
+	 *
+	 * @param string $content     File content.
+	 * @param string $target_path Relative static file path.
+	 * @param bool   $escaped     Whether slashes are JSON escaped.
+	 * @return string
+	 */
+	private function rewrite_absolute_text_urls( $content, $target_path, $escaped ) {
+		$home_parts = wp_parse_url( home_url( '/' ) );
+
+		if ( empty( $home_parts['host'] ) ) {
+			return $content;
+		}
+
+		$scheme_pattern = isset( $home_parts['scheme'] ) ? preg_quote( $home_parts['scheme'], '#' ) : 'https?';
+		$host_pattern   = preg_quote( $home_parts['host'], '#' );
+		$port_pattern   = isset( $home_parts['port'] ) ? ':' . (int) $home_parts['port'] : '(?::[0-9]+)?';
+
+		if ( $escaped ) {
+			$slash   = '\\\\/';
+			$pattern = '#(?<![A-Za-z0-9+.-]:)'
+				. $scheme_pattern . ':' . $slash . $slash . $host_pattern
+				. $port_pattern . '(?:' . $slash . '[^\\s\'"<>)]*)?#i';
+		} else {
+			$pattern = '#(?<![A-Za-z0-9+.-]:)'
+				. $scheme_pattern . '://' . $host_pattern . $port_pattern
+				. '(?:/[^\\s\'"<>)]*)?#i';
+		}
+
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $target_path, $escaped ) {
+				$url       = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+				$rewritten = $this->rewrite_url_value( $url, home_url( '/' ), $target_path, 'maybe' );
+
+				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Restore a fragment stripped during WordPress URL normalization.
+	 *
+	 * @param string $normalized Normalized URL.
+	 * @param string $source     Source URL before normalization.
+	 * @return string URL with the source fragment restored.
+	 */
+	private function restore_fragment( $normalized, $source ) {
+		$fragment = wp_parse_url( $source, PHP_URL_FRAGMENT );
+
+		if ( ! is_string( $fragment ) || '' === $fragment ) {
+			return $normalized;
+		}
+
+		return strtok( $normalized, '#' ) . '#' . $fragment;
 	}
 
 	/**

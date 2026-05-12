@@ -745,22 +745,9 @@ final class SSGWP_Static_Exporter {
 	private function url_to_file_path( $url ) {
 		$parts = wp_parse_url( $url );
 		$path  = isset( $parts['path'] ) ? rawurldecode( $parts['path'] ) : '/';
-		$path  = trim( $path, '/' );
+		$query = isset( $parts['query'] ) ? $parts['query'] : '';
 
-		if ( '' === $path ) {
-			$file = 'index.html';
-		} elseif ( preg_match( '#\.[a-z0-9]{1,12}$#i', $path ) ) {
-			$file = $path;
-		} else {
-			$file = trailingslashit( $path ) . 'index.html';
-		}
-
-		if ( ! empty( $parts['query'] ) ) {
-			$query_hash = substr( md5( $parts['query'] ), 0, 8 );
-			$file       = preg_replace( '#(?:/index)?\.html$#', '-' . $query_hash . '.html', $file );
-		}
-
-		return SSGWP_Path_Utils::sanitize_relative_path( $file );
+		return SSGWP_Path_Utils::url_to_export_file_path( $path, $query );
 	}
 
 	/**

@@ -17,6 +17,9 @@ format.
 - Load detected core block styles, including Navigation block CSS, in static
   exports and add structured export progress reporting for long-running runs.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite static export page URLs to generated HTML files so internal links,
+  fragments, query variants, and JSON/JavaScript URL strings resolve to copied
+  targets. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
