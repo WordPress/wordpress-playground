@@ -271,6 +271,11 @@ export class PHP implements Disposable {
 		);
 
 		if (!this.fileExists(PHP_INI_PATH)) {
+			const useInMemoryOpcache =
+				runtime.phpVersion.major > 8 ||
+				(runtime.phpVersion.major === 8 &&
+					runtime.phpVersion.minor >= 1);
+
 			const opcacheConfig = USE_OPCACHE
 				? [
 						// OPCache
@@ -283,7 +288,8 @@ export class PHP implements Disposable {
 						'opcache.max_wasted_percentage = 5',
 						'opcache.file_cache = ' + OPCACHE_FILE_FOLDER,
 						// Always enable the file cache.
-						'opcache.file_cache_only = 1',
+						'opcache.file_cache_only = ' +
+							(useInMemoryOpcache ? '0' : '1'),
 						'opcache.file_cache_consistency_checks = 1',
 					]
 				: [];
