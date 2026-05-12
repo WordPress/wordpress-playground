@@ -12,9 +12,9 @@ const schema11 = {
 				version: { type: 'string' },
 				mode: { type: 'string', const: 'php-extension' },
 				loadWithIniDirective: {
-					$ref: '#/definitions/PHPExtensionIniDirective',
+					$ref: '#/definitions/PHPExtensionLoadDirective',
 					description:
-						'The first directive of the generated startup `.ini` file. Defaults to `extension`; use `zend_extension` for Zend extensions like Xdebug.',
+						'The first directive of the generated startup `.ini` file. Defaults to `extension`; use `zend_extension` for Zend extensions like Xdebug. Use `false` to stage the `.so` without registering it in php.ini.',
 				},
 				iniEntries: {
 					type: 'object',
@@ -69,6 +69,12 @@ const schema11 = {
 			description:
 				'Extension artifact manifest. Lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact matching the current PHP version. External extension artifacts are JSPI-only.',
 		},
+		PHPExtensionLoadDirective: {
+			anyOf: [
+				{ $ref: '#/definitions/PHPExtensionIniDirective' },
+				{ type: 'boolean', const: false },
+			],
+		},
 		PHPExtensionIniDirective: {
 			type: 'string',
 			enum: ['extension', 'zend_extension'],
@@ -121,9 +127,9 @@ const schema12 = {
 		version: { type: 'string' },
 		mode: { type: 'string', const: 'php-extension' },
 		loadWithIniDirective: {
-			$ref: '#/definitions/PHPExtensionIniDirective',
+			$ref: '#/definitions/PHPExtensionLoadDirective',
 			description:
-				'The first directive of the generated startup `.ini` file. Defaults to `extension`; use `zend_extension` for Zend extensions like Xdebug.',
+				'The first directive of the generated startup `.ini` file. Defaults to `extension`; use `zend_extension` for Zend extensions like Xdebug. Use `false` to stage the `.so` without registering it in php.ini.',
 		},
 		iniEntries: {
 			type: 'object',
@@ -177,13 +183,7 @@ const schema12 = {
 	description:
 		'Extension artifact manifest. Lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact matching the current PHP version. External extension artifacts are JSPI-only.',
 };
-const schema13 = {
-	type: 'string',
-	enum: ['extension', 'zend_extension'],
-	description:
-		'The php.ini directive used to load the extension. Use `extension` for regular PHP extensions and `zend_extension` for Zend extensions like Xdebug.',
-};
-const schema14 = {
+const schema15 = {
 	type: 'object',
 	properties: {
 		vfsRoot: {
@@ -221,6 +221,123 @@ const schema14 = {
 	additionalProperties: false,
 };
 const func2 = Object.prototype.hasOwnProperty;
+const schema13 = {
+	anyOf: [
+		{ $ref: '#/definitions/PHPExtensionIniDirective' },
+		{ type: 'boolean', const: false },
+	],
+};
+const schema14 = {
+	type: 'string',
+	enum: ['extension', 'zend_extension'],
+	description:
+		'The php.ini directive used to load the extension. Use `extension` for regular PHP extensions and `zend_extension` for Zend extensions like Xdebug.',
+};
+function validate12(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	const _errs0 = errors;
+	let valid0 = false;
+	const _errs1 = errors;
+	if (typeof data !== 'string') {
+		const err0 = {
+			instancePath,
+			schemaPath: '#/definitions/PHPExtensionIniDirective/type',
+			keyword: 'type',
+			params: { type: 'string' },
+			message: 'must be string',
+		};
+		if (vErrors === null) {
+			vErrors = [err0];
+		} else {
+			vErrors.push(err0);
+		}
+		errors++;
+	}
+	if (!(data === 'extension' || data === 'zend_extension')) {
+		const err1 = {
+			instancePath,
+			schemaPath: '#/definitions/PHPExtensionIniDirective/enum',
+			keyword: 'enum',
+			params: { allowedValues: schema14.enum },
+			message: 'must be equal to one of the allowed values',
+		};
+		if (vErrors === null) {
+			vErrors = [err1];
+		} else {
+			vErrors.push(err1);
+		}
+		errors++;
+	}
+	var _valid0 = _errs1 === errors;
+	valid0 = valid0 || _valid0;
+	if (!valid0) {
+		const _errs4 = errors;
+		if (typeof data !== 'boolean') {
+			const err2 = {
+				instancePath,
+				schemaPath: '#/anyOf/1/type',
+				keyword: 'type',
+				params: { type: 'boolean' },
+				message: 'must be boolean',
+			};
+			if (vErrors === null) {
+				vErrors = [err2];
+			} else {
+				vErrors.push(err2);
+			}
+			errors++;
+		}
+		if (false !== data) {
+			const err3 = {
+				instancePath,
+				schemaPath: '#/anyOf/1/const',
+				keyword: 'const',
+				params: { allowedValue: false },
+				message: 'must be equal to constant',
+			};
+			if (vErrors === null) {
+				vErrors = [err3];
+			} else {
+				vErrors.push(err3);
+			}
+			errors++;
+		}
+		var _valid0 = _errs4 === errors;
+		valid0 = valid0 || _valid0;
+	}
+	if (!valid0) {
+		const err4 = {
+			instancePath,
+			schemaPath: '#/anyOf',
+			keyword: 'anyOf',
+			params: {},
+			message: 'must match a schema in anyOf',
+		};
+		if (vErrors === null) {
+			vErrors = [err4];
+		} else {
+			vErrors.push(err4);
+		}
+		errors++;
+		validate12.errors = vErrors;
+		return false;
+	} else {
+		errors = _errs0;
+		if (vErrors !== null) {
+			if (_errs0) {
+				vErrors.length = _errs0;
+			} else {
+				vErrors = null;
+			}
+		}
+	}
+	validate12.errors = vErrors;
+	return errors === 0;
+}
 function validate11(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
@@ -341,46 +458,25 @@ function validate11(
 							}
 							if (valid0) {
 								if (data.loadWithIniDirective !== undefined) {
-									let data3 = data.loadWithIniDirective;
 									const _errs8 = errors;
-									if (typeof data3 !== 'string') {
-										validate11.errors = [
-											{
-												instancePath:
-													instancePath +
-													'/loadWithIniDirective',
-												schemaPath:
-													'#/definitions/PHPExtensionIniDirective/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											},
-										];
-										return false;
-									}
 									if (
-										!(
-											data3 === 'extension' ||
-											data3 === 'zend_extension'
-										)
+										!validate12(data.loadWithIniDirective, {
+											instancePath:
+												instancePath +
+												'/loadWithIniDirective',
+											parentData: data,
+											parentDataProperty:
+												'loadWithIniDirective',
+											rootData,
+										})
 									) {
-										validate11.errors = [
-											{
-												instancePath:
-													instancePath +
-													'/loadWithIniDirective',
-												schemaPath:
-													'#/definitions/PHPExtensionIniDirective/enum',
-												keyword: 'enum',
-												params: {
-													allowedValues:
-														schema13.enum,
-												},
-												message:
-													'must be equal to one of the allowed values',
-											},
-										];
-										return false;
+										vErrors =
+											vErrors === null
+												? validate12.errors
+												: vErrors.concat(
+														validate12.errors
+													);
+										errors = vErrors.length;
 									}
 									var valid0 = _errs8 === errors;
 								} else {
@@ -389,15 +485,15 @@ function validate11(
 								if (valid0) {
 									if (data.iniEntries !== undefined) {
 										let data4 = data.iniEntries;
-										const _errs11 = errors;
-										if (errors === _errs11) {
+										const _errs9 = errors;
+										if (errors === _errs9) {
 											if (
 												data4 &&
 												typeof data4 == 'object' &&
 												!Array.isArray(data4)
 											) {
 												for (const key1 in data4) {
-													const _errs14 = errors;
+													const _errs12 = errors;
 													if (
 														typeof data4[key1] !==
 														'string'
@@ -428,9 +524,9 @@ function validate11(
 														];
 														return false;
 													}
-													var valid2 =
-														_errs14 === errors;
-													if (!valid2) {
+													var valid1 =
+														_errs12 === errors;
+													if (!valid1) {
 														break;
 													}
 												}
@@ -453,22 +549,22 @@ function validate11(
 												return false;
 											}
 										}
-										var valid0 = _errs11 === errors;
+										var valid0 = _errs9 === errors;
 									} else {
 										var valid0 = true;
 									}
 									if (valid0) {
 										if (data.env !== undefined) {
 											let data6 = data.env;
-											const _errs16 = errors;
-											if (errors === _errs16) {
+											const _errs14 = errors;
+											if (errors === _errs14) {
 												if (
 													data6 &&
 													typeof data6 == 'object' &&
 													!Array.isArray(data6)
 												) {
 													for (const key2 in data6) {
-														const _errs19 = errors;
+														const _errs17 = errors;
 														if (
 															typeof data6[
 																key2
@@ -502,9 +598,9 @@ function validate11(
 																];
 															return false;
 														}
-														var valid3 =
-															_errs19 === errors;
-														if (!valid3) {
+														var valid2 =
+															_errs17 === errors;
+														if (!valid2) {
 															break;
 														}
 													}
@@ -527,7 +623,7 @@ function validate11(
 													return false;
 												}
 											}
-											var valid0 = _errs16 === errors;
+											var valid0 = _errs14 === errors;
 										} else {
 											var valid0 = true;
 										}
@@ -535,7 +631,7 @@ function validate11(
 											if (
 												data.extensionDir !== undefined
 											) {
-												const _errs21 = errors;
+												const _errs19 = errors;
 												if (
 													typeof data.extensionDir !==
 													'string'
@@ -557,7 +653,7 @@ function validate11(
 													];
 													return false;
 												}
-												var valid0 = _errs21 === errors;
+												var valid0 = _errs19 === errors;
 											} else {
 												var valid0 = true;
 											}
@@ -566,12 +662,12 @@ function validate11(
 													data.artifacts !== undefined
 												) {
 													let data9 = data.artifacts;
-													const _errs23 = errors;
-													if (errors === _errs23) {
+													const _errs21 = errors;
+													if (errors === _errs21) {
 														if (
 															Array.isArray(data9)
 														) {
-															var valid4 = true;
+															var valid3 = true;
 															const len0 =
 																data9.length;
 															for (
@@ -581,11 +677,11 @@ function validate11(
 															) {
 																let data10 =
 																	data9[i0];
-																const _errs25 =
+																const _errs23 =
 																	errors;
 																if (
 																	errors ===
-																	_errs25
+																	_errs23
 																) {
 																	if (
 																		data10 &&
@@ -629,7 +725,7 @@ function validate11(
 																				];
 																			return false;
 																		} else {
-																			const _errs27 =
+																			const _errs25 =
 																				errors;
 																			for (const key3 in data10) {
 																				if (
@@ -666,14 +762,14 @@ function validate11(
 																				}
 																			}
 																			if (
-																				_errs27 ===
+																				_errs25 ===
 																				errors
 																			) {
 																				if (
 																					data10.phpVersion !==
 																					undefined
 																				) {
-																					const _errs28 =
+																					const _errs26 =
 																						errors;
 																					if (
 																						typeof data10.phpVersion !==
@@ -700,20 +796,20 @@ function validate11(
 																							];
 																						return false;
 																					}
-																					var valid5 =
-																						_errs28 ===
+																					var valid4 =
+																						_errs26 ===
 																						errors;
 																				} else {
-																					var valid5 = true;
+																					var valid4 = true;
 																				}
 																				if (
-																					valid5
+																					valid4
 																				) {
 																					if (
 																						data10.sourcePath !==
 																						undefined
 																					) {
-																						const _errs30 =
+																						const _errs28 =
 																							errors;
 																						if (
 																							typeof data10.sourcePath !==
@@ -740,14 +836,14 @@ function validate11(
 																								];
 																							return false;
 																						}
-																						var valid5 =
-																							_errs30 ===
+																						var valid4 =
+																							_errs28 ===
 																							errors;
 																					} else {
-																						var valid5 = true;
+																						var valid4 = true;
 																					}
 																					if (
-																						valid5
+																						valid4
 																					) {
 																						if (
 																							data10.extraFiles !==
@@ -755,13 +851,13 @@ function validate11(
 																						) {
 																							let data13 =
 																								data10.extraFiles;
-																							const _errs32 =
+																							const _errs30 =
 																								errors;
-																							const _errs33 =
+																							const _errs31 =
 																								errors;
 																							if (
 																								errors ===
-																								_errs33
+																								_errs31
 																							) {
 																								if (
 																									data13 &&
@@ -771,7 +867,7 @@ function validate11(
 																										data13
 																									)
 																								) {
-																									const _errs35 =
+																									const _errs33 =
 																										errors;
 																									for (const key4 in data13) {
 																										if (
@@ -807,14 +903,14 @@ function validate11(
 																										}
 																									}
 																									if (
-																										_errs35 ===
+																										_errs33 ===
 																										errors
 																									) {
 																										if (
 																											data13.vfsRoot !==
 																											undefined
 																										) {
-																											const _errs36 =
+																											const _errs34 =
 																												errors;
 																											if (
 																												typeof data13.vfsRoot !==
@@ -841,14 +937,14 @@ function validate11(
 																													];
 																												return false;
 																											}
-																											var valid7 =
-																												_errs36 ===
+																											var valid6 =
+																												_errs34 ===
 																												errors;
 																										} else {
-																											var valid7 = true;
+																											var valid6 = true;
 																										}
 																										if (
-																											valid7
+																											valid6
 																										) {
 																											if (
 																												data13.nodes !==
@@ -856,18 +952,18 @@ function validate11(
 																											) {
 																												let data15 =
 																													data13.nodes;
-																												const _errs38 =
+																												const _errs36 =
 																													errors;
 																												if (
 																													errors ===
-																													_errs38
+																													_errs36
 																												) {
 																													if (
 																														Array.isArray(
 																															data15
 																														)
 																													) {
-																														var valid8 = true;
+																														var valid7 = true;
 																														const len1 =
 																															data15.length;
 																														for (
@@ -880,11 +976,11 @@ function validate11(
 																																data15[
 																																	i1
 																																];
-																															const _errs40 =
+																															const _errs38 =
 																																errors;
 																															if (
 																																errors ===
-																																_errs40
+																																_errs38
 																															) {
 																																if (
 																																	data16 &&
@@ -926,7 +1022,7 @@ function validate11(
 																																			];
 																																		return false;
 																																	} else {
-																																		const _errs42 =
+																																		const _errs40 =
 																																			errors;
 																																		for (const key5 in data16) {
 																																			if (
@@ -965,14 +1061,14 @@ function validate11(
 																																			}
 																																		}
 																																		if (
-																																			_errs42 ===
+																																			_errs40 ===
 																																			errors
 																																		) {
 																																			if (
 																																				data16.vfsPath !==
 																																				undefined
 																																			) {
-																																				const _errs43 =
+																																				const _errs41 =
 																																					errors;
 																																				if (
 																																					typeof data16.vfsPath !==
@@ -1001,14 +1097,14 @@ function validate11(
 																																						];
 																																					return false;
 																																				}
-																																				var valid9 =
-																																					_errs43 ===
+																																				var valid8 =
+																																					_errs41 ===
 																																					errors;
 																																			} else {
-																																				var valid9 = true;
+																																				var valid8 = true;
 																																			}
 																																			if (
-																																				valid9
+																																				valid8
 																																			) {
 																																				if (
 																																					data16.type !==
@@ -1016,7 +1112,7 @@ function validate11(
 																																				) {
 																																					let data18 =
 																																						data16.type;
-																																					const _errs45 =
+																																					const _errs43 =
 																																						errors;
 																																					if (
 																																						typeof data18 !==
@@ -1069,7 +1165,7 @@ function validate11(
 																																										'enum',
 																																									params: {
 																																										allowedValues:
-																																											schema14
+																																											schema15
 																																												.properties
 																																												.nodes
 																																												.items
@@ -1083,20 +1179,20 @@ function validate11(
 																																							];
 																																						return false;
 																																					}
-																																					var valid9 =
-																																						_errs45 ===
+																																					var valid8 =
+																																						_errs43 ===
 																																						errors;
 																																				} else {
-																																					var valid9 = true;
+																																					var valid8 = true;
 																																				}
 																																				if (
-																																					valid9
+																																					valid8
 																																				) {
 																																					if (
 																																						data16.sourcePath !==
 																																						undefined
 																																					) {
-																																						const _errs47 =
+																																						const _errs45 =
 																																							errors;
 																																						if (
 																																							typeof data16.sourcePath !==
@@ -1125,11 +1221,11 @@ function validate11(
 																																								];
 																																							return false;
 																																						}
-																																						var valid9 =
-																																							_errs47 ===
+																																						var valid8 =
+																																							_errs45 ===
 																																							errors;
 																																					} else {
-																																						var valid9 = true;
+																																						var valid8 = true;
 																																					}
 																																				}
 																																			}
@@ -1159,11 +1255,11 @@ function validate11(
 																																	return false;
 																																}
 																															}
-																															var valid8 =
-																																_errs40 ===
+																															var valid7 =
+																																_errs38 ===
 																																errors;
 																															if (
-																																!valid8
+																																!valid7
 																															) {
 																																break;
 																															}
@@ -1191,11 +1287,11 @@ function validate11(
 																														return false;
 																													}
 																												}
-																												var valid7 =
-																													_errs38 ===
+																												var valid6 =
+																													_errs36 ===
 																													errors;
 																											} else {
-																												var valid7 = true;
+																												var valid6 = true;
 																											}
 																										}
 																									}
@@ -1222,11 +1318,11 @@ function validate11(
 																									return false;
 																								}
 																							}
-																							var valid5 =
-																								_errs32 ===
+																							var valid4 =
+																								_errs30 ===
 																								errors;
 																						} else {
-																							var valid5 = true;
+																							var valid4 = true;
 																						}
 																					}
 																				}
@@ -1254,10 +1350,10 @@ function validate11(
 																		return false;
 																	}
 																}
-																var valid4 =
-																	_errs25 ===
+																var valid3 =
+																	_errs23 ===
 																	errors;
-																if (!valid4) {
+																if (!valid3) {
 																	break;
 																}
 															}
@@ -1283,7 +1379,7 @@ function validate11(
 														}
 													}
 													var valid0 =
-														_errs23 === errors;
+														_errs21 === errors;
 												} else {
 													var valid0 = true;
 												}
@@ -1294,10 +1390,10 @@ function validate11(
 													) {
 														let data20 =
 															data.extraFiles;
-														const _errs49 = errors;
-														const _errs50 = errors;
+														const _errs47 = errors;
+														const _errs48 = errors;
 														if (
-															errors === _errs50
+															errors === _errs48
 														) {
 															if (
 																data20 &&
@@ -1307,7 +1403,7 @@ function validate11(
 																	data20
 																)
 															) {
-																const _errs52 =
+																const _errs50 =
 																	errors;
 																for (const key6 in data20) {
 																	if (
@@ -1341,14 +1437,14 @@ function validate11(
 																	}
 																}
 																if (
-																	_errs52 ===
+																	_errs50 ===
 																	errors
 																) {
 																	if (
 																		data20.vfsRoot !==
 																		undefined
 																	) {
-																		const _errs53 =
+																		const _errs51 =
 																			errors;
 																		if (
 																			typeof data20.vfsRoot !==
@@ -1373,14 +1469,14 @@ function validate11(
 																				];
 																			return false;
 																		}
-																		var valid11 =
-																			_errs53 ===
+																		var valid10 =
+																			_errs51 ===
 																			errors;
 																	} else {
-																		var valid11 = true;
+																		var valid10 = true;
 																	}
 																	if (
-																		valid11
+																		valid10
 																	) {
 																		if (
 																			data20.nodes !==
@@ -1388,18 +1484,18 @@ function validate11(
 																		) {
 																			let data22 =
 																				data20.nodes;
-																			const _errs55 =
+																			const _errs53 =
 																				errors;
 																			if (
 																				errors ===
-																				_errs55
+																				_errs53
 																			) {
 																				if (
 																					Array.isArray(
 																						data22
 																					)
 																				) {
-																					var valid12 = true;
+																					var valid11 = true;
 																					const len2 =
 																						data22.length;
 																					for (
@@ -1412,11 +1508,11 @@ function validate11(
 																							data22[
 																								i2
 																							];
-																						const _errs57 =
+																						const _errs55 =
 																							errors;
 																						if (
 																							errors ===
-																							_errs57
+																							_errs55
 																						) {
 																							if (
 																								data23 &&
@@ -1456,7 +1552,7 @@ function validate11(
 																										];
 																									return false;
 																								} else {
-																									const _errs59 =
+																									const _errs57 =
 																										errors;
 																									for (const key7 in data23) {
 																										if (
@@ -1493,14 +1589,14 @@ function validate11(
 																										}
 																									}
 																									if (
-																										_errs59 ===
+																										_errs57 ===
 																										errors
 																									) {
 																										if (
 																											data23.vfsPath !==
 																											undefined
 																										) {
-																											const _errs60 =
+																											const _errs58 =
 																												errors;
 																											if (
 																												typeof data23.vfsPath !==
@@ -1527,14 +1623,14 @@ function validate11(
 																													];
 																												return false;
 																											}
-																											var valid13 =
-																												_errs60 ===
+																											var valid12 =
+																												_errs58 ===
 																												errors;
 																										} else {
-																											var valid13 = true;
+																											var valid12 = true;
 																										}
 																										if (
-																											valid13
+																											valid12
 																										) {
 																											if (
 																												data23.type !==
@@ -1542,7 +1638,7 @@ function validate11(
 																											) {
 																												let data25 =
 																													data23.type;
-																												const _errs62 =
+																												const _errs60 =
 																													errors;
 																												if (
 																													typeof data25 !==
@@ -1591,7 +1687,7 @@ function validate11(
 																																	'enum',
 																																params: {
 																																	allowedValues:
-																																		schema14
+																																		schema15
 																																			.properties
 																																			.nodes
 																																			.items
@@ -1605,20 +1701,20 @@ function validate11(
 																														];
 																													return false;
 																												}
-																												var valid13 =
-																													_errs62 ===
+																												var valid12 =
+																													_errs60 ===
 																													errors;
 																											} else {
-																												var valid13 = true;
+																												var valid12 = true;
 																											}
 																											if (
-																												valid13
+																												valid12
 																											) {
 																												if (
 																													data23.sourcePath !==
 																													undefined
 																												) {
-																													const _errs64 =
+																													const _errs62 =
 																														errors;
 																													if (
 																														typeof data23.sourcePath !==
@@ -1645,11 +1741,11 @@ function validate11(
 																															];
 																														return false;
 																													}
-																													var valid13 =
-																														_errs64 ===
+																													var valid12 =
+																														_errs62 ===
 																														errors;
 																												} else {
-																													var valid13 = true;
+																													var valid12 = true;
 																												}
 																											}
 																										}
@@ -1677,11 +1773,11 @@ function validate11(
 																								return false;
 																							}
 																						}
-																						var valid12 =
-																							_errs57 ===
+																						var valid11 =
+																							_errs55 ===
 																							errors;
 																						if (
-																							!valid12
+																							!valid11
 																						) {
 																							break;
 																						}
@@ -1707,11 +1803,11 @@ function validate11(
 																					return false;
 																				}
 																			}
-																			var valid11 =
-																				_errs55 ===
+																			var valid10 =
+																				_errs53 ===
 																				errors;
 																		} else {
-																			var valid11 = true;
+																			var valid10 = true;
 																		}
 																	}
 																}
@@ -1737,7 +1833,7 @@ function validate11(
 															}
 														}
 														var valid0 =
-															_errs49 === errors;
+															_errs47 === errors;
 													} else {
 														var valid0 = true;
 													}

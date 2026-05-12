@@ -105,6 +105,7 @@ export {
 export type {
 	InstallPHPExtensionFilesOptions,
 	PHPExtensionIniDirective,
+	PHPExtensionLoadDirective,
 	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	PHPExtensionManifest,

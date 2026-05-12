@@ -35,6 +35,24 @@ describe('resolvePHPExtension', () => {
 		);
 	});
 
+	it('resolves a side module without registering it in php.ini', async () => {
+		const extension = await resolvePHPExtension({
+			source: {
+				format: 'so',
+				name: 'sqlite_markdown',
+				bytes: new Uint8Array([1, 2, 3]),
+			},
+			phpVersion: '8.4',
+			loadWithIniDirective: false,
+		});
+
+		expect(extension.soPath).toBe(
+			`${PHP_EXTENSIONS_DIR}/sqlite_markdown.so`
+		);
+		expect(extension.iniPath).toBeUndefined();
+		expect(extension.iniContent).toBeUndefined();
+	});
+
 	it('explains that direct URL sources require absolute URLs', async () => {
 		await expect(
 			resolvePHPExtension({
@@ -114,6 +132,32 @@ describe('resolvePHPExtension', () => {
 		expect(extension.env).toEqual({
 			SPX_DATA_DIR: '/internal/shared/spx/data',
 		});
+	});
+
+	it('resolves manifest sources without php.ini registration', async () => {
+		const extension = await resolvePHPExtension({
+			source: {
+				format: 'manifest',
+				manifest: {
+					name: 'sqlite_markdown',
+					loadWithIniDirective: false,
+					artifacts: [
+						{
+							phpVersion: '8.4',
+							sourcePath: 'sqlite_markdown.so',
+						},
+					],
+				},
+				baseUrl: 'https://example.com/extensions/',
+			},
+			phpVersion: '8.4',
+			fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+		});
+
+		expect(extension.soPath).toBe(
+			`${PHP_EXTENSIONS_DIR}/sqlite_markdown.so`
+		);
+		expect(extension.iniPath).toBeUndefined();
 	});
 
 	it('rejects manifests that do not match the generated schema validator', async () => {

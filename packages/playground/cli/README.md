@@ -138,6 +138,24 @@ Add runtime settings such as `iniEntries` and `env` directly to the manifest:
 }
 ```
 
+Set `loadWithIniDirective` to `false` when the artifact is a loadable Wasm
+side module that should be staged before PHP starts but should not be registered
+with `extension=` or `zend_extension=` in php.ini:
+
+```json
+{
+	"name": "sqlite_markdown",
+	"version": "0.1.0",
+	"loadWithIniDirective": false,
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "sqlite_markdown-php8.4-jspi.so"
+		}
+	]
+}
+```
+
 ## Need some help with the CLI?
 
 With the Playground CLI, you can use the `--help` to get some support about the available commands.

@@ -63,6 +63,9 @@ URL. Relative local paths are resolved from the current working directory.
 Relative artifact files in the manifest are resolved against the manifest
 location.
 
+Set `loadWithIniDirective: false` to stage a Wasm artifact without registering
+it in php.ini.
+
 External extensions are only supported when the Node.js runtime has JSPI
 available. Asyncify support is limited to the bundled extensions shipped with
 this package.
