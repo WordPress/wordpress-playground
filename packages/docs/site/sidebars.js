@@ -52,6 +52,7 @@ const sidebars = {
 						'main/guides/providing-content-for-your-demo',
 						'main/guides/github-action-pr-preview',
 						'main/guides/playground-for-everyone',
+						'main/guides/static-site-generator',
 						'main/guides/programmatic-playground-cli',
 						'main/guides/phpunit-testing',
 						'main/guides/e2e-testing-with-playwright',
