@@ -226,8 +226,7 @@ final class SSGWP_Plugin {
 		$args        = self::request_to_export_args( $request );
 		$job_id      = isset( $request['export_job_id'] ) ? self::sanitize_export_job_id( $request['export_job_id'] ) : '';
 		$run_id      = isset( $request['export_run_id'] ) ? self::sanitize_export_run_id( $request['export_run_id'] ) : '';
-		$upload_dir  = wp_get_upload_dir();
-		$temp_parent = trailingslashit( $upload_dir['basedir'] ) . 'static-site-generator';
+		$temp_parent = self::get_export_temp_directory();
 
 		if ( ! wp_mkdir_p( $temp_parent ) ) {
 			wp_die( esc_html__( 'Could not create a temporary export directory.', 'playground-static-site-generator' ) );
@@ -335,6 +334,18 @@ final class SSGWP_Plugin {
 			'crawl_links'      => ! empty( $request['crawl_links'] ),
 			'fetch_mode'       => 'internal',
 		);
+	}
+
+	/**
+	 * Return the admin ZIP scratch directory.
+	 *
+	 * Keeping transient ZIPs outside uploads prevents old failed downloads from
+	 * being copied into later static exports when upload assets are included.
+	 *
+	 * @return string Directory path.
+	 */
+	private static function get_export_temp_directory() {
+		return trailingslashit( get_temp_dir() ) . 'static-site-generator';
 	}
 
 	/**

@@ -18,6 +18,14 @@ function sanitize_text_field( $value ) {
 	return trim( strip_tags( (string) $value ) );
 }
 
+function trailingslashit( $value ) {
+	return rtrim( (string) $value, "/\\" ) . '/';
+}
+
+function get_temp_dir() {
+	return '/tmp/wp-playground-test/';
+}
+
 function get_current_user_id() {
 	return 42;
 }
@@ -37,6 +45,15 @@ require_once dirname( __DIR__ ) . '/includes/class-plugin.php';
 
 $sanitize_method = new ReflectionMethod( 'SSGWP_Plugin', 'sanitize_export_job_id' );
 $sanitize_method->setAccessible( true );
+
+$temp_dir_method = new ReflectionMethod( 'SSGWP_Plugin', 'get_export_temp_directory' );
+$temp_dir_method->setAccessible( true );
+
+ssgwp_assert_same(
+	'/tmp/wp-playground-test/static-site-generator',
+	$temp_dir_method->invoke( null ),
+	'get_export_temp_directory keeps admin ZIP scratch files outside uploads.'
+);
 
 ssgwp_assert_same(
 	'job_123-danger',

@@ -38,6 +38,9 @@ format.
 - Isolate Playground admin static export progress by download attempt so
   repeated exports do not reuse stale completion messages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Keep Playground admin static export ZIP scratch files outside uploads so
+  stale failed downloads cannot be copied into later exports.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
