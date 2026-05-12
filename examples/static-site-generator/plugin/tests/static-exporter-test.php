@@ -127,6 +127,27 @@ require_once dirname( __DIR__ ) . '/includes/class-static-exporter.php';
 
 $exporter = new SSGWP_Static_Exporter();
 
+$effective_port_method = new ReflectionMethod( $exporter, 'effective_url_port' );
+$effective_port_method->setAccessible( true );
+
+ssgwp_assert_same(
+	443,
+	$effective_port_method->invoke( $exporter, array( 'scheme' => 'https' ) ),
+	'effective_url_port returns the HTTPS default port.'
+);
+
+ssgwp_assert_same(
+	8443,
+	$effective_port_method->invoke(
+		$exporter,
+		array(
+			'scheme' => 'https',
+			'port'   => 8443,
+		)
+	),
+	'effective_url_port preserves explicit custom ports.'
+);
+
 $method = new ReflectionMethod( $exporter, 'inject_missing_core_block_styles' );
 $method->setAccessible( true );
 

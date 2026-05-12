@@ -505,6 +505,7 @@ $html = implode(
 		'<link rel="alternate" type="application/rss+xml" href="/feed/">',
 		'<link rel="alternate" type="application/rss+xml" href="/comments/feed/">',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
+		'<a class="external-port" href="https://example.test:8443/static-page/">External port</a>',
 		'<a class="mail" href="mailto:test@example.test">Mail</a>',
 		'<a class="tel" href="tel:+15551234567">Tel</a>',
 		'<a class="js" href="javascript:void(0)">JS</a>',
@@ -734,6 +735,7 @@ foreach (
 		'type="application/rss+xml" href="/feed/"',
 		'type="application/rss+xml" href="/comments/feed/"',
 		'href="https://external.test/static-page/"',
+		'href="https://example.test:8443/static-page/"',
 		'href="mailto:test@example.test"',
 		'href="tel:+15551234567"',
 		'href="javascript:void(0)"',
@@ -748,6 +750,18 @@ foreach (
 		'rewrite_html leaves unsupported or external URL unchanged: ' . $unchanged
 	);
 }
+
+ssgwp_assert_same(
+	true,
+	$rewriter->is_same_site_url( 'https://example.test:443/static-page/' ),
+	'is_same_site_url treats the explicit HTTPS default port as same-origin.'
+);
+
+ssgwp_assert_same(
+	false,
+	$rewriter->is_same_site_url( 'https://example.test:8443/static-page/' ),
+	'is_same_site_url rejects a different explicit port.'
+);
 
 ssgwp_delete_directory( $export_root );
 

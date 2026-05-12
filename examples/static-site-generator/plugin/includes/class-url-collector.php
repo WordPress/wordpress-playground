@@ -309,7 +309,7 @@ final class SSGWP_URL_Collector {
 			return null;
 		}
 
-		if ( isset( $home_parts['port'], $url_parts['port'] ) && (int) $home_parts['port'] !== (int) $url_parts['port'] ) {
+		if ( $this->effective_url_port( $home_parts ) !== $this->effective_url_port( $url_parts ) ) {
 			return null;
 		}
 
@@ -336,9 +336,65 @@ final class SSGWP_URL_Collector {
 		}
 
 		$scheme = isset( $home_parts['scheme'] ) ? $home_parts['scheme'] : 'http';
-		$port   = isset( $url_parts['port'] ) ? ':' . (int) $url_parts['port'] : ( isset( $home_parts['port'] ) ? ':' . (int) $home_parts['port'] : '' );
+		$port   = $this->canonical_port_suffix( $url_parts, $home_parts );
 
-		return $scheme . '://' . $url_parts['host'] . $port . $path . ( '' !== $query ? '?' . $query : '' );
+		return $scheme . '://' . $url_parts['host'] . $port . $path
+			. ( '' !== $query ? '?' . $query : '' );
+	}
+
+	/**
+	 * Return the effective port for a parsed URL.
+	 *
+	 * @param array $parts Parsed URL parts.
+	 * @return int|null Effective port, or null when the scheme has no default.
+	 */
+	private function effective_url_port( array $parts ) {
+		if ( isset( $parts['port'] ) ) {
+			return (int) $parts['port'];
+		}
+
+		if ( empty( $parts['scheme'] ) ) {
+			return null;
+		}
+
+		$scheme = strtolower( $parts['scheme'] );
+
+		if ( 'https' === $scheme ) {
+			return 443;
+		}
+
+		if ( 'http' === $scheme ) {
+			return 80;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Return the port suffix that should be preserved in a canonical URL.
+	 *
+	 * @param array $url_parts  Parsed URL parts.
+	 * @param array $home_parts Parsed home URL parts.
+	 * @return string Port suffix, or an empty string.
+	 */
+	private function canonical_port_suffix( array $url_parts, array $home_parts ) {
+		if ( isset( $home_parts['port'] ) ) {
+			return ':' . (int) $home_parts['port'];
+		}
+
+		if ( empty( $url_parts['port'] ) ) {
+			return '';
+		}
+
+		$scheme = isset( $url_parts['scheme'] ) ? $url_parts['scheme'] : '';
+
+		if ( '' === $scheme && isset( $home_parts['scheme'] ) ) {
+			$scheme = $home_parts['scheme'];
+		}
+
+		$default_port = $this->effective_url_port( array( 'scheme' => $scheme ) );
+
+		return (int) $url_parts['port'] === $default_port ? '' : ':' . (int) $url_parts['port'];
 	}
 
 	/**

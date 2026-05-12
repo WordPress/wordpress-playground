@@ -465,8 +465,11 @@ final class SSGWP_Static_Exporter {
 			return new WP_Error( 'ssgwp_not_same_site', 'Only same-site URLs can be rendered internally.' );
 		}
 
-		if ( isset( $home_parts['port'], $parts['port'] ) && (int) $home_parts['port'] !== (int) $parts['port'] ) {
-			return new WP_Error( 'ssgwp_not_same_site_port', 'Only same-port URLs can be rendered internally.' );
+		if ( $this->effective_url_port( $home_parts ) !== $this->effective_url_port( $parts ) ) {
+			return new WP_Error(
+				'ssgwp_not_same_site_port',
+				'Only same-port URLs can be rendered internally.'
+			);
 		}
 
 		if ( ! class_exists( 'WP' ) || ! class_exists( 'WP_Query' ) ) {
@@ -541,6 +544,34 @@ final class SSGWP_Static_Exporter {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * Return the effective port for a parsed URL.
+	 *
+	 * @param array $parts Parsed URL parts.
+	 * @return int|null Effective port, or null when the scheme has no default.
+	 */
+	private function effective_url_port( array $parts ) {
+		if ( isset( $parts['port'] ) ) {
+			return (int) $parts['port'];
+		}
+
+		if ( empty( $parts['scheme'] ) ) {
+			return null;
+		}
+
+		$scheme = strtolower( $parts['scheme'] );
+
+		if ( 'https' === $scheme ) {
+			return 443;
+		}
+
+		if ( 'http' === $scheme ) {
+			return 80;
+		}
+
+		return null;
 	}
 
 	/**

@@ -26,6 +26,9 @@ format.
 - Add a Playground CLI export smoke test and keep static exports from rewriting
   feed/API endpoints or copied CSS relative asset URLs to missing files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Tighten static export same-site URL checks so links on a different explicit
+  port are not crawled or rewritten as local pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
