@@ -43,7 +43,7 @@ describe('PHP OPcache', () => {
 		}
 	});
 
-	it('uses the in-memory cache for PHP 8.1 and newer', async () => {
+	it('uses the in-memory cache for PHP 8.1 through 8.4', async () => {
 		const php81 = new PHP(await loadNodeRuntime('8.1'));
 
 		try {
@@ -52,6 +52,18 @@ describe('PHP OPcache', () => {
 			);
 		} finally {
 			php81.exit();
+		}
+	});
+
+	it('keeps file-cache-only mode for PHP 8.5', async () => {
+		const php85 = new PHP(await loadNodeRuntime('8.5'));
+
+		try {
+			expect(php85.readFileAsText('/internal/shared/php.ini')).toContain(
+				'opcache.file_cache_only = 1'
+			);
+		} finally {
+			php85.exit();
 		}
 	});
 
