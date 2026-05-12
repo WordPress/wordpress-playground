@@ -25,6 +25,10 @@ Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress
 
 To provide a good demo of your theme or plugin via Playground, you may want to load it with default content that highlights the features of your product. Check this guide to learn how to do so.
 
+## [Export a static site from Playground](/guides/static-site-generator)
+
+Use Playground as the editing environment for a static WordPress site, then export public pages and frontend assets as a static ZIP.
+
 ## [WordPress Playground for Theme Developers](/guides/for-theme-developers)
 
 This guide will show you the essential settings to fully create a theme demo using WordPress Playground and how you can leverage it during the building stage.

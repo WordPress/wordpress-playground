@@ -1,0 +1,35 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Static Site Generator",
+		"description": "Install the static site generator example plugin and open its export screen.",
+		"author": "WordPress Playground",
+		"categories": [
+			"static-sites",
+			"publishing",
+			"tools"
+		]
+	},
+	"landingPage": "/wp-admin/tools.php?page=playground-static-site-generator",
+	"login": true,
+	"preferredVersions": {
+		"wp": "latest",
+		"php": "8.3"
+	},
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "git:directory",
+				"url": "https://github.com/WordPress/wordpress-playground",
+				"ref": "trunk",
+				"refType": "branch",
+				"path": "examples/static-site-generator/plugin"
+			},
+			"options": {
+				"activate": true,
+				"targetFolderName": "static-site-generator"
+			}
+		}
+	]
+}

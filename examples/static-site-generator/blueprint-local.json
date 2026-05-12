@@ -1,0 +1,15 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/tools.php?page=playground-static-site-generator",
+	"login": true,
+	"preferredVersions": {
+		"wp": "latest",
+		"php": "8.3"
+	},
+	"steps": [
+		{
+			"step": "activatePlugin",
+			"pluginPath": "static-site-generator/static-site-generator.php"
+		}
+	]
+}
