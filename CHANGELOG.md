@@ -198,6 +198,9 @@ format.
 - Rewrite schema.org `meta itemprop` page URLs such as `sameAs` during static
   exports so profile and related pages are crawled.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat schema.org `link itemprop="significantLinks"` URLs as crawlable static
+  export pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

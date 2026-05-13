@@ -765,6 +765,7 @@ final class SSGWP_URL_Rewriter {
 			'mainentityofpage',
 			'sameas',
 			'significantlink',
+			'significantlinks',
 			'url',
 		);
 		$itemprop_assets   = array(

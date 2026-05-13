@@ -945,6 +945,7 @@ foreach (
 			'long-description/index.html',
 			'meta-page/index.html',
 			'microdata-profile/index.html',
+			'microdata-significant/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -1023,6 +1024,7 @@ $html = implode(
 		'<link rel="author" href="/author/admin/">',
 		'<link rel="amphtml" href="/amp-page/">',
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
+		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
@@ -1236,6 +1238,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="significantLinks" href="microdata-significant/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org significantLinks itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="contentUrl" href="wp-content/uploads/social-video.mp4?link-schema=1">',
 	$result['content'],
 	'rewrite_html treats schema.org link itemprop media URLs as assets.'
@@ -1311,6 +1319,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-profile/', $result['links'], true ),
 	'rewrite_html records schema.org link itemprop page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/microdata-significant/', $result['links'], true ),
+	'rewrite_html records schema.org significantLinks itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2237,6 +2251,7 @@ foreach (
 		'publisher/index.html',
 		'related/index.html',
 		'microdata-profile/index.html',
+		'microdata-significant/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
 		'encoded%20page/index.html',
