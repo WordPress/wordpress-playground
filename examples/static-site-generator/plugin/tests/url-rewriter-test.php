@@ -950,6 +950,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
+		. '<meta itemprop="item" content="/schema-breadcrumb/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta property="article:author" content="/author/admin/">'
@@ -998,6 +999,12 @@ ssgwp_assert_contains(
 	'<meta itemprop="discussionUrl" content="schema-discussion/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org discussionUrl page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="item" content="schema-breadcrumb/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org item page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1102,6 +1109,7 @@ foreach (
 			'legacy-frame/index.html',
 			'long-description/index.html',
 			'meta-page/index.html',
+			'microdata-breadcrumb/index.html',
 			'microdata-item/index.html',
 			'microdata-profile/index.html',
 			'microdata-related/index.html',
@@ -1120,6 +1128,7 @@ foreach (
 		'author/admin/index.html',
 		'publisher/index.html',
 		'related/index.html',
+		'schema-breadcrumb/index.html',
 		'schema-related/index.html',
 		'schema-author/index.html',
 		'schema-publisher/index.html',
@@ -1204,6 +1213,7 @@ $html = implode(
 		'<link rel="amphtml" href="/amp-page/">',
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
 		'<link itemprop="relatedLink" href="/microdata-related/">',
+		'<link itemprop="item" href="/microdata-breadcrumb/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
 		'<link itemprop="author" href="/schema-author/">',
@@ -1250,6 +1260,7 @@ $html = implode(
 		'<meta itemprop="embedUrl" content="/video-player/">',
 		'<meta itemprop="sameAs" content="/schema-profile/">',
 		'<meta itemprop="discussionUrl" content="/schema-discussion/">',
+		'<meta itemprop="item" content="/schema-breadcrumb/">',
 		'<meta itemprop="relatedLink" content="/schema-related/">',
 		'<meta itemprop="significantLinks" content="/schema-significant/">',
 		'<meta itemprop="license" content="/schema-license/">',
@@ -1518,6 +1529,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="item" href="microdata-breadcrumb/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org itemprop item link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="significantLinks" href="microdata-significant/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org significantLinks itemprop link URLs as page links.'
@@ -1719,6 +1736,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-related/', $result['links'], true ),
 	'rewrite_html records schema.org relatedLink itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/microdata-breadcrumb/', $result['links'], true ),
+	'rewrite_html records schema.org itemprop item links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2145,6 +2168,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="item" content="schema-breadcrumb/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org item page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="relatedLink" content="schema-related/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org relatedLink page URLs in meta content attributes.'
@@ -2212,6 +2241,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
+		. '<meta itemprop="item" content="/schema-breadcrumb/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta itemprop="license" content="/schema-license/">'
@@ -2235,6 +2265,7 @@ ssgwp_assert_same(
 		'https://example.test/video-player/',
 		'https://example.test/schema-profile/',
 		'https://example.test/schema-discussion/',
+		'https://example.test/schema-breadcrumb/',
 		'https://example.test/schema-related/',
 		'https://example.test/schema-significant/',
 		'https://example.test/schema-license/',
@@ -2890,10 +2921,12 @@ foreach (
 		'related/index.html',
 		'microdata-item/index.html',
 		'microdata-profile/index.html',
+		'microdata-breadcrumb/index.html',
 		'microdata-related/index.html',
 		'microdata-significant/index.html',
 		'schema/local/index.html',
 		'schema/secondary/index.html',
+		'schema-breadcrumb/index.html',
 		'schema-related/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
