@@ -977,6 +977,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta name="twitter:image" content="/wp-content/uploads/social.jpg?ver=1">'
 		. '<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
+		. '<meta itemprop="citation" content="/citation-source/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="mentions" content="/schema-mentions/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
@@ -1025,6 +1026,12 @@ ssgwp_assert_contains(
 	'<meta itemprop="embedUrl" content="video-player/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org embedUrl page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="citation" content="citation-source/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org citation page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1337,8 +1344,10 @@ $html = implode(
 		'<link itemprop="publishingPrinciples" href="/publishing-principles/">',
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
 		'<link itemprop="author" href="/schema-author/">',
+		'<link itemprop="citation" href="/citation-source/">',
 		'<link itemprop="publisher" href="/schema-publisher/">',
 		'<link itemprop="contributor" href="/schema-contributor/">',
+		'<link itemprop="citation" href="/schema-citation/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<article itemscope itemid="/microdata-item/"'
 			. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>',
@@ -1382,6 +1391,7 @@ $html = implode(
 		'<meta name="msapplication-task" content="name=Docs;action-uri=/task-target/;icon-uri=/wp-content/uploads/tile.png?task=1">',
 		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
 		'<meta itemprop="embedUrl" content="/video-player/">',
+		'<meta itemprop="citation" content="/citation-source/">',
 		'<meta itemprop="sameAs" content="/schema-profile/">',
 		'<meta itemprop="mentions" content="/schema-mentions/">',
 		'<meta itemprop="discussionUrl" content="/schema-discussion/">',
@@ -1397,6 +1407,7 @@ $html = implode(
 		'<meta itemprop="publisher" content="/schema-publisher/">',
 		'<meta itemprop="reviewedBy" content="/schema-reviewer/">',
 		'<meta itemprop="subjectOf" content="/schema-subject/">',
+		'<meta itemprop="citation" content="/schema-citation/">',
 		'<meta itemprop="url sameAs" content="/schema-token-profile/">',
 		'<meta itemprop="image thumbnailUrl" content="/wp-content/uploads/social.jpg?schema-token=1">',
 		'<meta property="article:author" content="/author/admin/">',
@@ -1764,6 +1775,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="citation" href="citation-source/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org citation itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="publisher" href="schema-publisher/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org publisher itemprop link URLs as page links.'
@@ -1773,6 +1790,12 @@ ssgwp_assert_contains(
 	'<link itemprop="contributor" href="schema-contributor/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org contributor itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link itemprop="citation" href="schema-citation/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org citation itemprop link URLs as page links.'
 );
 
 ssgwp_assert_contains(
@@ -2472,6 +2495,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="citation" content="citation-source/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org citation page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="sameAs" content="schema-profile/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org sameAs page URLs in meta content attributes.'
@@ -2562,6 +2591,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="citation" content="schema-citation/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org citation page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="url sameAs" content="schema-token-profile/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org meta itemprop page URL tokens.'
@@ -2625,6 +2660,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="publisher" content="/schema-publisher/">'
 		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
 		. '<meta itemprop="subjectOf" content="/schema-subject/">'
+		. '<meta itemprop="citation" content="/schema-citation/">'
 		. '<meta itemprop="url sameAs" content="/schema-token-profile/">'
 		. '<meta itemprop="image thumbnailUrl" content="/wp-content/uploads/social.jpg?schema-token=1">'
 		. '<meta name="twitter:player" content="/video-player/">'
@@ -2659,6 +2695,7 @@ ssgwp_assert_same(
 		'https://example.test/schema-publisher/',
 		'https://example.test/schema-reviewer/',
 		'https://example.test/schema-subject/',
+		'https://example.test/schema-citation/',
 		'https://example.test/schema-token-profile/',
 		'https://example.test/start-page/',
 		'https://example.test/task-target/',

@@ -488,6 +488,14 @@ $schema_subject_id = wp_insert_post(array(
 	'post_content' => '<p>Schema subject export target.</p>',
 ));
 
+$schema_citation_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Citation',
+	'post_name' => 'schema-citation',
+	'post_content' => '<p>Schema citation export target.</p>',
+));
+
 $amp_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -551,6 +559,7 @@ $schema_about_url = get_permalink($schema_about_id);
 $schema_main_entity_url = get_permalink($schema_main_entity_id);
 $schema_mentions_url = get_permalink($schema_mentions_id);
 $schema_subject_url = get_permalink($schema_subject_id);
+$schema_citation_url = get_permalink($schema_citation_id);
 $amp_url = get_permalink($amp_id);
 $preloaded_document_url = get_permalink($preloaded_document_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
@@ -611,6 +620,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:see_also" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
+	. '<meta itemprop="citation" content="' . esc_url($citation_url) . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($schema_profile_url) . '">'
 	. '<meta itemprop="mentions" content="' . esc_url($schema_mentions_url) . '">'
 	. '<meta itemprop="license" content="' . esc_url($schema_license_url) . '">'
@@ -629,10 +639,12 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($schema_author_url) . '">'
+	. '<link itemprop="citation" href="' . esc_url($citation_url) . '">'
 	. '<meta itemprop="publisher" content="' . esc_url($schema_publisher_url) . '">'
 	. '<link itemprop="contributor" href="' . esc_url($schema_contributor_url) . '">'
 	. '<meta itemprop="reviewedBy" content="' . esc_url($schema_reviewer_url) . '">'
 	. '<meta itemprop="subjectOf" content="' . esc_url($schema_subject_url) . '">'
+	. '<link itemprop="citation" href="' . esc_url($schema_citation_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '" itemtype="'
 	. esc_url($microdata_type_url) . ' https://schema.org/Article '
@@ -708,7 +720,7 @@ wp_insert_post(array(
 $exporter = new SSGWP_Static_Exporter();
 $result = $exporter->export_to_directory('/exports/site', array(
 	'url_mode' => 'relative',
-	'max_pages' => 50,
+	'max_pages' => 60,
 	'copy_uploads' => true,
 	'copy_theme' => true,
 	'copy_plugins' => false,
@@ -786,6 +798,7 @@ $scoped_schema_about_url = get_permalink($schema_about_id);
 $scoped_schema_main_entity_url = get_permalink($schema_main_entity_id);
 $scoped_schema_mentions_url = get_permalink($schema_mentions_id);
 $scoped_schema_subject_url = get_permalink($schema_subject_id);
+$scoped_schema_citation_url = get_permalink($schema_citation_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_preloaded_document_url = get_permalink($preloaded_document_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
@@ -855,6 +868,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:see_also" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
+	. '<meta itemprop="citation" content="' . esc_url($scoped_citation_url) . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<meta itemprop="mentions" content="' . esc_url($scoped_schema_mentions_url) . '">'
 	. '<meta itemprop="license" content="' . esc_url($scoped_schema_license_url) . '">'
@@ -873,10 +887,12 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($scoped_microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($scoped_schema_author_url) . '">'
+	. '<link itemprop="citation" href="' . esc_url($scoped_citation_url) . '">'
 	. '<meta itemprop="publisher" content="' . esc_url($scoped_schema_publisher_url) . '">'
 	. '<link itemprop="contributor" href="' . esc_url($scoped_schema_contributor_url) . '">'
 	. '<meta itemprop="reviewedBy" content="' . esc_url($scoped_schema_reviewer_url) . '">'
 	. '<meta itemprop="subjectOf" content="' . esc_url($scoped_schema_subject_url) . '">'
+	. '<link itemprop="citation" href="' . esc_url($scoped_schema_citation_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '" itemtype="'
 	. esc_url($scoped_microdata_type_url) . ' https://schema.org/Article '
@@ -946,7 +962,7 @@ wp_update_post(array(
 
 $scoped_result = $exporter->export_to_directory('/exports/scoped-site', array(
 	'url_mode' => 'relative',
-	'max_pages' => 50,
+	'max_pages' => 60,
 	'copy_uploads' => true,
 	'copy_theme' => true,
 	'copy_plugins' => false,
@@ -1073,6 +1089,7 @@ async function verifyExport() {
 	assertFile('schema-main-entity/index.html');
 	assertFile('schema-mentions/index.html');
 	assertFile('schema-subject/index.html');
+	assertFile('schema-citation/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('preloaded-document/index.html');
 	assertFile('parent-page/index.html');
@@ -1144,6 +1161,7 @@ async function verifyExport() {
 		'../schema-main-entity/index.html',
 		'../schema-mentions/index.html',
 		'../schema-subject/index.html',
+		'../schema-citation/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
@@ -1282,6 +1300,16 @@ async function verifyExport() {
 	);
 	assertIncludes(
 		staticPage,
+		'<meta itemprop="citation" content="../citation-source/index.html">',
+		'static-page/index.html rewrites schema.org citation metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="citation" href="../citation-source/index.html">',
+		'static-page/index.html rewrites schema.org citation links'
+	);
+	assertIncludes(
+		staticPage,
 		'<link itemprop="item" href="../microdata-breadcrumb/index.html">',
 		'static-page/index.html rewrites schema.org breadcrumb item links'
 	);
@@ -1354,6 +1382,11 @@ async function verifyExport() {
 		staticPage,
 		'<meta itemprop="subjectOf" content="../schema-subject/index.html">',
 		'static-page/index.html rewrites schema.org subjectOf metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="citation" href="../schema-citation/index.html">',
+		'static-page/index.html rewrites schema.org citation links'
 	);
 	assertIncludes(
 		staticPage,
@@ -1661,6 +1694,7 @@ async function verifyScopedExport() {
 	assertFile('schema-main-entity/index.html');
 	assertFile('schema-mentions/index.html');
 	assertFile('schema-subject/index.html');
+	assertFile('schema-citation/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/uploads/ssgwp-smoke-captions.vtt');
@@ -1740,6 +1774,7 @@ async function verifyScopedExport() {
 		'../schema-main-entity/index.html',
 		'../schema-mentions/index.html',
 		'../schema-subject/index.html',
+		'../schema-citation/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
@@ -1881,6 +1916,16 @@ async function verifyScopedExport() {
 	);
 	assertIncludes(
 		staticPage,
+		'<meta itemprop="citation" content="../citation-source/index.html">',
+		'scoped static-page/index.html rewrites schema.org citation metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="citation" href="../citation-source/index.html">',
+		'scoped static-page/index.html rewrites schema.org citation links'
+	);
+	assertIncludes(
+		staticPage,
 		'<meta itemprop="item" content="../schema-breadcrumb/index.html">',
 		'scoped static-page/index.html rewrites schema.org breadcrumb item metadata'
 	);
@@ -1933,6 +1978,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'<meta itemprop="subjectOf" content="../schema-subject/index.html">',
 		'scoped static-page/index.html rewrites schema.org subjectOf metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="citation" href="../schema-citation/index.html">',
+		'scoped static-page/index.html rewrites schema.org citation links'
 	);
 	assertIncludes(
 		staticPage,
