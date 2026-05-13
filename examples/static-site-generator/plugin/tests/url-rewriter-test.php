@@ -660,6 +660,7 @@ foreach (
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
 		'sample-page/index.html',
+		'author/admin/index.html',
 		'embedded-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
@@ -712,6 +713,7 @@ $html = implode(
 		'<link rel="prefetch" href="/prefetched-page/">',
 		'<link rel="prerender" href="/prefetched-page/#ready">',
 		'<link rel="prefetch" as="image" href="/wp-content/uploads/photo.jpg?prefetch=1">',
+		'<link rel="author" href="/author/admin/">',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
 		'<a class="external-port" href="https://example.test:8443/static-page/">External port</a>',
 		'<a class="external-scheme" href="http://example.test:443/static-page/">External scheme</a>',
@@ -853,6 +855,12 @@ ssgwp_assert_contains(
 	'rewrite_html keeps image prefetch hints as copied assets.'
 );
 
+ssgwp_assert_contains(
+	'<link rel="author" href="author/admin/index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=author links as page links.'
+);
+
 ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/prefetched-page/', $result['links'], true ),
@@ -863,6 +871,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/photo.jpg?prefetch=1', $result['assets'], true ),
 	'rewrite_html records image prefetch hints as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/author/admin/', $result['links'], true ),
+	'rewrite_html records rel=author links as pages to crawl.'
 );
 
 ssgwp_assert_contains(
@@ -1168,6 +1182,7 @@ foreach (
 		'protocol-page/index.html',
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
+		'author/admin/index.html',
 		'embedded-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',

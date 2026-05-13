@@ -439,7 +439,11 @@ final class SSGWP_URL_Rewriter {
 		$rel  = strtolower( (string) $processor->get_attribute( 'rel' ) );
 		$as   = strtolower( (string) $processor->get_attribute( 'as' ) );
 		$type = strtolower( (string) $processor->get_attribute( 'type' ) );
-		$page_rel_pattern = '/\b(canonical|alternate|prev|next|shortlink|bookmark|home|index|start)\b/';
+		$page_rel_pattern = '/\b('
+			. 'alternate|appendix|archives|author|bookmark|canonical|chapter|contents|help|home|index|'
+			. 'license|next|prev|privacy-policy|search|section|shortlink|start|subsection|tag|'
+			. 'terms-of-service'
+			. ')\b/';
 		$asset_as_values  = array(
 			'audio',
 			'font',

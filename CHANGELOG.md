@@ -97,6 +97,9 @@ format.
 - Rewrite static export page and asset URLs embedded inside iframe `srcdoc`
   attributes.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat semantic static export link relations such as `rel="author"` as
+  crawlable page links instead of copied assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
