@@ -21,6 +21,7 @@ define( 'ABSPATH', $fixture_root . '/' );
 define( 'WPINC', 'wp-includes' );
 define( 'WP_CONTENT_DIR', $fixture_root . '/wp-content' );
 define( 'SSGWP_VERSION', '0.1.0' );
+define( 'MB_IN_BYTES', 1024 * 1024 );
 
 $ssgwp_test_home_url = 'https://example.test/';
 $ssgwp_test_site_url = 'https://example.test/';
@@ -241,6 +242,8 @@ if ( ! class_exists( 'WP_Error' ) ) {
 }
 
 require_once dirname( __DIR__ ) . '/includes/class-path-utils.php';
+require_once dirname( __DIR__ ) . '/includes/class-url-collector.php';
+require_once dirname( __DIR__ ) . '/includes/class-url-rewriter.php';
 require_once dirname( __DIR__ ) . '/includes/class-static-exporter.php';
 
 $exporter = new SSGWP_Static_Exporter();
@@ -543,6 +546,59 @@ ssgwp_assert_contains(
 	'Could not copy linked asset https://example.test/wp-content/uploads/.secret: the local file is not exportable.',
 	$warnings,
 	'copy_linked_asset warns when a discovered same-site asset is not exportable.'
+);
+
+$rewrite_assets_method = new ReflectionMethod( $exporter, 'rewrite_copied_text_assets' );
+$rewrite_assets_method->setAccessible( true );
+
+$copy_linked_assets_method = new ReflectionMethod( $exporter, 'copy_linked_assets' );
+$copy_linked_assets_method->setAccessible( true );
+
+wp_mkdir_p( $fixture_root . '/wp-content/plugins/transitive' );
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/transitive/style.css',
+	'@font-face{src:url("font.woff2")}'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/transitive/font.woff2',
+	'font'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test/wp-content/plugins/transitive/style.css',
+	$output_dir
+);
+
+$rewriter = new SSGWP_URL_Rewriter( new SSGWP_URL_Collector(), 'relative' );
+$discovered_text_assets = $rewrite_assets_method->invoke(
+	$exporter,
+	$output_dir,
+	$rewriter
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/transitive/font.woff2', $discovered_text_assets, true ),
+	'rewrite_copied_text_assets reports assets discovered inside copied CSS files.'
+);
+
+$copied_count = $copy_linked_assets_method->invoke(
+	$exporter,
+	$discovered_text_assets,
+	$output_dir
+);
+
+ssgwp_assert_same(
+	1,
+	$copied_count,
+	'copy_linked_assets copies dependencies discovered inside copied CSS files.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/plugins/transitive/font.woff2' ),
+	'copy_linked_assets writes dependencies discovered inside copied CSS files.'
 );
 
 ssgwp_delete_directory( $fixture_root );

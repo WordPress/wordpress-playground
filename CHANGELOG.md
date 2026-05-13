@@ -109,6 +109,9 @@ format.
 - Preserve WordPress wildcard asset patterns in static export text rewriting,
   including speculation rules such as `/wp-content/uploads/*`.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Copy same-site asset dependencies discovered while rewriting copied CSS
+  files, such as fonts referenced by a linked stylesheet.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

@@ -90,6 +90,22 @@ final class SSGWP_URL_Rewriter {
 	 * @return string
 	 */
 	public function rewrite_text_asset( $content, $relative_path ) {
+		$rewritten = $this->rewrite_text_asset_with_assets( $content, $relative_path );
+
+		return $rewritten['content'];
+	}
+
+	/**
+	 * Rewrite URLs in a copied text asset and report discovered asset URLs.
+	 *
+	 * @param string $content       File content.
+	 * @param string $relative_path Relative static file path.
+	 * @return array{content:string,links:string[],assets:string[]}
+	 */
+	public function rewrite_text_asset_with_assets( $content, $relative_path ) {
+		$this->links  = array();
+		$this->assets = array();
+
 		$extension = strtolower( pathinfo( $relative_path, PATHINFO_EXTENSION ) );
 		$content   = (string) $content;
 		$base_url  = $this->asset_base_url_for_path( $relative_path );
@@ -103,9 +119,15 @@ final class SSGWP_URL_Rewriter {
 			$content = $this->rewrite_css_in_style_attributes( $content, $base_url, $relative_path );
 		}
 
-		return $this->rewrite_same_site_text_urls_preserving_resource_hints(
+		$content = $this->rewrite_same_site_text_urls_preserving_resource_hints(
 			$content,
 			$relative_path
+		);
+
+		return array(
+			'content' => $content,
+			'links'   => array_values( $this->links ),
+			'assets'  => array_values( $this->assets ),
 		);
 	}
 

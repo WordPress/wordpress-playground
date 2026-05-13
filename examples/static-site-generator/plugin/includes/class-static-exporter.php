@@ -233,8 +233,7 @@ final class SSGWP_Static_Exporter {
 		$this->copy_assets( $output_dir, $args );
 		$this->report_progress( 'copy_linked_assets', 'Copying linked same-site assets.', array( 'asset_count' => count( $linked_asset_urls ) ) );
 		$this->copy_linked_assets( array_values( $linked_asset_urls ), $output_dir );
-		$this->report_progress( 'rewrite_assets', 'Rewriting URLs in copied text assets.', array( 'output_dir' => $output_dir ) );
-		$this->rewrite_copied_text_assets( $output_dir, $rewriter );
+		$this->rewrite_copied_text_assets_and_copy_dependencies( $output_dir, $rewriter );
 		$this->report_progress(
 			'complete',
 			sprintf( 'Exported %1$d pages and %2$d files.', count( $exported ), $this->files_exported ),
@@ -832,11 +831,18 @@ final class SSGWP_Static_Exporter {
 	 *
 	 * @param string[] $urls       Asset URLs.
 	 * @param string   $output_dir Output directory.
+	 * @return int Number of copied assets.
 	 */
 	private function copy_linked_assets( array $urls, $output_dir ) {
+		$copied = 0;
+
 		foreach ( $urls as $url ) {
-			$this->copy_linked_asset( $url, $output_dir );
+			if ( $this->copy_linked_asset( $url, $output_dir ) ) {
+				++$copied;
+			}
 		}
+
+		return $copied;
 	}
 
 	/**
@@ -844,39 +850,41 @@ final class SSGWP_Static_Exporter {
 	 *
 	 * @param string $url        Asset URL.
 	 * @param string $output_dir Output directory.
+	 * @return bool Whether a file was copied.
 	 */
 	private function copy_linked_asset( $url, $output_dir ) {
 		$target_path = $this->url_to_asset_path( $url );
 
 		if ( null === $target_path ) {
 			$this->warn_linked_asset_not_copied( $url, 'unsupported or unsafe target path' );
-			return;
+			return false;
 		}
 
 		if ( isset( $this->linked_assets_copied[ $target_path ] ) ) {
-			return;
+			return false;
 		}
 
 		$this->linked_assets_copied[ $target_path ] = true;
 		$target = trailingslashit( $output_dir ) . $target_path;
 
 		if ( file_exists( $target ) ) {
-			return;
+			return false;
 		}
 
 		$source = $this->map_url_to_local_file( $url );
 
 		if ( null === $source ) {
 			$this->warn_linked_asset_not_copied( $url, 'no matching local file was found' );
-			return;
+			return false;
 		}
 
 		if ( ! $this->is_exportable_asset_file( $source ) ) {
 			$this->warn_linked_asset_not_copied( $url, 'the local file is not exportable' );
-			return;
+			return false;
 		}
 
 		$this->write_file( $target, file_get_contents( $source ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		return true;
 	}
 
 	/**
@@ -1150,12 +1158,59 @@ final class SSGWP_Static_Exporter {
 	}
 
 	/**
-	 * Rewrite URLs inside copied text assets.
+	 * Rewrite copied text assets and copy assets they discover.
 	 *
 	 * @param string              $output_dir Output directory.
 	 * @param SSGWP_URL_Rewriter $rewriter   URL rewriter.
 	 */
+	private function rewrite_copied_text_assets_and_copy_dependencies( $output_dir, SSGWP_URL_Rewriter $rewriter ) {
+		$max_passes = 5;
+
+		for ( $pass = 1; $pass <= $max_passes; $pass++ ) {
+			$this->report_progress(
+				'rewrite_assets',
+				'Rewriting URLs in copied text assets.',
+				array(
+					'output_dir' => $output_dir,
+					'pass'       => $pass,
+				)
+			);
+
+			$asset_urls = $this->rewrite_copied_text_assets( $output_dir, $rewriter );
+
+			if ( empty( $asset_urls ) ) {
+				return;
+			}
+
+			$this->report_progress(
+				'copy_text_asset_dependencies',
+				'Copying assets discovered in copied CSS files.',
+				array(
+					'asset_count' => count( $asset_urls ),
+					'pass'        => $pass,
+				)
+			);
+
+			if ( 0 === $this->copy_linked_assets( $asset_urls, $output_dir ) ) {
+				return;
+			}
+		}
+
+		$this->warnings[] = sprintf(
+			'Stopped text asset dependency discovery after %d passes.',
+			$max_passes
+		);
+	}
+
+	/**
+	 * Rewrite URLs inside copied text assets.
+	 *
+	 * @param string              $output_dir Output directory.
+	 * @param SSGWP_URL_Rewriter $rewriter   URL rewriter.
+	 * @return string[] Asset URLs discovered while rewriting.
+	 */
 	private function rewrite_copied_text_assets( $output_dir, SSGWP_URL_Rewriter $rewriter ) {
+		$asset_urls = array();
 		$iterator = new RecursiveIteratorIterator(
 			new RecursiveDirectoryIterator( $output_dir, FilesystemIterator::SKIP_DOTS )
 		);
@@ -1178,9 +1233,18 @@ final class SSGWP_Static_Exporter {
 			$path     = wp_normalize_path( $file->getPathname() );
 			$relative = ltrim( str_replace( wp_normalize_path( $output_dir ), '', $path ), '/' );
 			$content  = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-			$content  = $rewriter->rewrite_text_asset( $content, $relative );
-			$this->write_file( $path, $content, false );
+			$rewritten = $rewriter->rewrite_text_asset_with_assets( $content, $relative );
+
+			if ( 'css' === $extension && isset( $this->linked_assets_copied[ $relative ] ) ) {
+				foreach ( $rewritten['assets'] as $asset_url ) {
+					$asset_urls[ $asset_url ] = $asset_url;
+				}
+			}
+
+			$this->write_file( $path, $rewritten['content'], false );
 		}
+
+		return array_values( $asset_urls );
 	}
 
 	/**
