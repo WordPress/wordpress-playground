@@ -1158,6 +1158,10 @@ final class SSGWP_Static_Exporter {
 			return false;
 		}
 
+		if ( $file->isLink() ) {
+			return false;
+		}
+
 		if ( $file->isFile() ) {
 			return $this->is_exportable_asset_file( $file->getPathname() );
 		}

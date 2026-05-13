@@ -655,12 +655,18 @@ file_put_contents( $fixture_root . '/theme/.env', 'SECRET=value' ); // phpcs:ign
 file_put_contents( $fixture_root . '/theme/style.css', 'body{color:red}' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents( $fixture_root . '/theme/style.css.map', '{}' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 
+$symlink_path    = $fixture_root . '/theme/link.css';
+$symlink_created = function_exists( 'symlink' )
+	&& @symlink( $fixture_root . '/theme/style.css', $symlink_path );
 $filter_phar = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/archive.phar' ) );
 $filter_phtml = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/template.phtml' ) );
 $filter_hidden = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/.env' ) );
 $filter_css = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/style.css' ) );
 $filter_map = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/style.css.map' ) );
 $filter_named_dir = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/static-site-generator' ) );
+$filter_symlink = $symlink_created
+	? $exporter->filter_copied_path( new SplFileInfo( $symlink_path ) )
+	: null;
 
 ssgwp_assert_same(
 	false,
@@ -691,6 +697,14 @@ ssgwp_assert_same(
 	$filter_map,
 	'filter_copied_path rejects source maps from bulk copied assets.'
 );
+
+if ( $symlink_created ) {
+	ssgwp_assert_same(
+		false,
+		$filter_symlink,
+		'filter_copied_path rejects symlinks from bulk copied assets.'
+	);
+}
 
 $is_exportable_asset_file_method = new ReflectionMethod( $exporter, 'is_exportable_asset_file' );
 $is_exportable_asset_file_method->setAccessible( true );
@@ -731,6 +745,14 @@ $copy_method->invoke(
 	$output_dir . '/wp-content/plugins/single-plugin.css'
 );
 
+if ( $symlink_created ) {
+	$copy_method->invoke(
+		$exporter,
+		$fixture_root . '/theme',
+		$output_dir . '/wp-content/themes/theme'
+	);
+}
+
 ssgwp_assert_same(
 	false,
 	file_exists( $output_dir . '/wp-content/plugins/single-plugin.php' ),
@@ -742,6 +764,14 @@ ssgwp_assert_same(
 	file_exists( $output_dir . '/wp-content/plugins/single-plugin.css' ),
 	'copy_path still copies single-file static assets.'
 );
+
+if ( $symlink_created ) {
+	ssgwp_assert_same(
+		false,
+		file_exists( $output_dir . '/wp-content/themes/theme/link.css' ),
+		'copy_path does not copy symlinked files from bulk asset directories.'
+	);
+}
 
 $copy_linked_asset_method = new ReflectionMethod( $exporter, 'copy_linked_asset' );
 $copy_linked_asset_method->setAccessible( true );
