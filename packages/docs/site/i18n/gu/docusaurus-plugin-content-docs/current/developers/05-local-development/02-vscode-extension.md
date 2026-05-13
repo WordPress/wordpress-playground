@@ -32,16 +32,18 @@ Key Features:
 
 **દસ્તાવેજીકરણ**
 
-VS કોડ એક્સટેન્શન એક અલગ GitHub રિપોઝીટરીમાં જાળવવામાં આવે છે, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/). તમે નવીનતમ દસ્તાવેજો [dedicated README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md) માં શોધી શકો છો.
+VS કોડ એક્સટેન્શન એક અલગ GitHub રિપોઝીટરીમાં જાળવવામાં આવે છે, <a href="https://github.com/WordPress/playground-tools/">પ્લેગ્રાઉન્ડ ટૂલ્સ</a>. તમે નવીનતમ દસ્તાવેજો <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md">dedicated README ફાઇલ</a> માં શોધી શકો છો.
 
 </div>
 
 <!--
-:::info **Documentation**
+<div class="callout callout-info">
 
-The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
+**Documentation**
 
-:::
+The VS Code extension is maintained in a different GitHub repository, <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a>. You can find the latest documentation in the <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md">dedicated README file</a>.
+
+</div>
 -->
 
 ## સ્થાપન અને ઉપયોગ:

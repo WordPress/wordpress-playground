@@ -12,7 +12,7 @@ Gamitin ang parehong workflow tulad ng pag-aambag sa alinmang ibang pahina ng do
 
 <div class="callout callout-info">
 
-Tingnan ang [Paano Ako Makakatulong?](/contributing/documentation#how-can-i-contribute) para matuto nang higit pa kung paano mag-ambag sa Playground Docs
+Tingnan ang <a href="/contributing/documentation#how-can-i-contribute">Paano Ako Makakatulong?</a> para matuto nang higit pa kung paano mag-ambag sa Playground Docs
 
 </div>
 
@@ -20,7 +20,7 @@ Tingnan ang [Paano Ako Makakatulong?](/contributing/documentation#how-can-i-cont
 
 <div class="callout callout-info">
 
-Tingnan ang [Internationalization section](https://docusaurus.io/docs/i18n/introduction) ng Docusaurus Docs para malaman ang tungkol sa pamamahala ng mga pagsasalin sa isang Docusaurus site (ang engine sa likod ng Playground Docs).
+Tingnan ang <a href="https://docusaurus.io/docs/i18n/introduction">Internationalization section</a> ng Docusaurus Docs para malaman ang tungkol sa pamamahala ng mga pagsasalin sa isang Docusaurus site (ang engine sa likod ng Playground Docs).
 
 </div>
 

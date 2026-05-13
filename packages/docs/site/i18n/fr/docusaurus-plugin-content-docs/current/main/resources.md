@@ -10,7 +10,7 @@ description: Une liste organisée de liens utiles vers des applications, des out
 # Links and Resources
 -->
 
-:::tip
+<div class="callout callout-tip">
 
 <!--
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
@@ -26,7 +26,8 @@ Un ensemble de redirections est en place pour faciliter l'accès à certains out
 <li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Visualiseur de PR Playground pour Gutenberg</li>
 <li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Service Proxy Playground <em>(voir <a href="/blueprints/steps/resources#urlreference">URLReference</a> pour plus d'information)</em></li>
 </ul>
-:::
+
+</div>
 
 <!--
 ## Frequently sought links

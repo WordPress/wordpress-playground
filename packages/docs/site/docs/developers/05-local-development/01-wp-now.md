@@ -4,9 +4,13 @@ slug: /developers/local-development/wp-now
 orphan: true
 ---
 
-:::caution Package deprecated
+<div class="callout callout-warning">
+
+**Package deprecated**
+
 The NPM package @wp-now/wp-now is deprecated and won't receive updates in the future. To use a command-line tool in your developer workflow, use the NPM package `@wp-playground/cli`.
-:::
+
+</div>
 
 # wp-now NPM package
 
@@ -24,7 +28,7 @@ Key Features:
 
 **Documentation**
 
-`wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
+`wp-now` is maintained in a different GitHub repository, <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a>. You can find the latest documentation in the <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md">dedicated README file</a>.
 
 </div>
 

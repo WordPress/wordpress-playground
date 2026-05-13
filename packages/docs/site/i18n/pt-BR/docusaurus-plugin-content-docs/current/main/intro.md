@@ -12,18 +12,20 @@ description: Boas-vindas à documentação do WordPress Playground! Esta página
 # Documentação do WordPress Playground
 
 <!--
-:::info **Looking for the official Playground website?**
+<div class="callout callout-info">
 
-WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
+**Looking for the official Playground website?**
 
-:::
+WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
+
+</div>
 -->
 
 <div class="callout callout-info">
 
 **Está procurando a versão web do WordPress Playground?**
 
-A página oficial do WordPress Playground está disponível em [wordpress.org/playground/](https://wordpress.org/playground/). Esta página abriga a documentação do WordPress Playground.
+A página oficial do WordPress Playground está disponível em <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. Esta página abriga a documentação do WordPress Playground.
 
 </div>
 
@@ -108,14 +110,18 @@ Seja você um desenvolvedor, um usuário sem conhecimentos técnicos ou alguém 
 - [WordCamp Contributor Day](/contributing/contributor-day)-
 
 <!--
-:::tip
-Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
-:::
+<div class="callout callout-tip">
+
+Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
+
+</div>
 -->
 
-:::tip
-O artigo [**Introdução para o WordPress Playground: rodando WordPress no navegador(ENG)**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) do [Blog para Desenvolvedores do WordPress](https://developer.wordpress.org/news) é uma ótima introdução ao WordPress Playground.
-:::
+<div class="callout callout-tip">
+
+O artigo <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introdução para o WordPress Playground: rodando WordPress no navegador(ENG)</strong></a> do <a href="https://developer.wordpress.org/news">Blog para Desenvolvedores do WordPress</a> é uma ótima introdução ao WordPress Playground.
+
+</div>
 
 <!--
 ## Take a deep dive
@@ -130,7 +136,10 @@ Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretame
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
 -   Review [links and resources](/resources)
--   Choose the right API for your app <APIList />
+-   Choose the right API for your app:
+    - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
+    - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
+    - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
 -   Dive into the [architecture](/developers/architecture) and learn how it all works
 -->
 

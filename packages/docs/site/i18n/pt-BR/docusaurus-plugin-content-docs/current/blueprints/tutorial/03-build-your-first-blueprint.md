@@ -46,9 +46,11 @@ Pode parecer que nada está acontecendo, mas este Blueprint já inicia um site W
 
 If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file: -->
 
-:::tip **Autocompletar**
+<div class="callout callout-tip">
 
-Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) para uma experiência de desenvolvimento Blueprint com autocompletar. Adicione a seguinte linha no topo do seu arquivo `blueprint.json`:
+**Autocompletar**
+
+Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> para uma experiência de desenvolvimento Blueprint com autocompletar. Adicione a seguinte linha no topo do seu arquivo `blueprint.json`:
 
 ```json
 {
@@ -58,7 +60,7 @@ Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o [Blueprint JSON Sch
 
 <!-- ::: -->
 
-:::
+</div>
 
 <!-- Here's what it looks like in VS Code: -->
 
@@ -181,13 +183,16 @@ The example uses the `wordpress.org/themes` resource, which requires a `slug` id
 
 In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`.
 
-:::note
-Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
-::: -->
+<div class="callout callout-info">
+
+Learn more about the supported resources in the <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
+
+</div>
+-->
 
 ### Recursos
 
-O `themeData` define um [recurso](/blueprints/steps/resources) e faz referência a um arquivo externo necessário para concluir a etapa. O Playground suporta diferentes tipos de recursos, incluindo
+O `themeData` define um <a href="/blueprints/steps/resources">recurso</a> e faz referência a um arquivo externo necessário para concluir a etapa. O Playground suporta diferentes tipos de recursos, incluindo
 
 - `url`,
 - `wordpress.org/themes`,
@@ -199,9 +204,11 @@ O exemplo usa o recurso `wordpress.org/themes`, que requer um `slug` idêntico a
 
 Neste caso, `https://wordpress.org/themes/<slug>/` se torna `https://wordpress.org/themes/adventurer/`.
 
-:::note
-Saiba mais sobre os recursos suportados em [Blueprint Resources API Reference](/blueprints/steps/resources/).
-:::
+<div class="callout callout-info">
+
+Saiba mais sobre os recursos suportados em <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
+
+</div>
 
 <!-- ## 4. Install the _Hello Dolly_ plugin
 

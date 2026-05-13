@@ -44,7 +44,7 @@ Or a theme:
 これは [クエリ API](/developers/apis/query-api/) と呼ばれ、詳細は [こちら](/developers/apis/query-api/) で確認できます。気に入った URL ができたら、iframe を使用して Web サイトに埋め込むことができます。
 
 <!--
-<ThisIsQueryApi /> Once you have a URL that you like, you can embed it in your website using an iframe:
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/). Once you have a URL that you like, you can embed it in your website using an iframe:
 -->
 
 ```html
@@ -53,14 +53,16 @@ Or a theme:
 
 <div class="callout callout-info">
 
-詳細については、[クエリ API](/developers/apis/query-api) セクションを確認してください。
+詳細については、<a href="/developers/apis/query-api">クエリ API</a> セクションを確認してください。
 
 </div>
 
 <!--
-:::info
-Check the [Query API](/developers/apis/query-api) section for more info.
-:::
+<div class="callout callout-info">
+
+Check the <a href="/developers/apis/query-api">Query API</a> section for more info.
+
+</div>
 -->
 
 ### ブループリント
@@ -127,16 +129,16 @@ wp_insert_post(array(
 
 <div class="callout callout-info">
 
-WordPress Playground ではブループリントが重要な役割を果たすため、専用のドキュメントハブが用意されています。JSON ブループリントの詳細については、[ブループリント ドキュメント ハブ](/blueprints) をご覧ください。
+WordPress Playground ではブループリントが重要な役割を果たすため、専用のドキュメントハブが用意されています。JSON ブループリントの詳細については、<a href="/blueprints">ブループリント ドキュメント ハブ</a> をご覧ください。
 
 </div>
 
 <!--
-:::info
+<div class="callout callout-info">
 
-Blueprints play a significant role in WordPress Playground, so they have their own dedicated documentation hub. Learn more about JSON Blueprints at the [Blueprints Docs Hub](/blueprints).
+Blueprints play a significant role in WordPress Playground, so they have their own dedicated documentation hub. Learn more about JSON Blueprints at the <a href="/blueprints">Blueprints Docs Hub</a>.
 
-:::
+</div>
 -->
 
 ### JavaScript API
@@ -168,14 +170,16 @@ The `@wp-playground/client` package provides a JavaScript API you can use to ful
 
 <div class="callout callout-info">
 
-詳細については、[JavaScript API](/developers/apis/javascript-api/) セクションをご覧ください。
+詳細については、<a href="/developers/apis/javascript-api/">JavaScript API</a> セクションをご覧ください。
 
 </div>
 
 <!--
-:::info
-Check the [JavaScript API](/developers/apis/javascript-api/) section for more info.
-:::
+<div class="callout callout-info">
+
+Check the <a href="/developers/apis/javascript-api/">JavaScript API</a> section for more info.
+
+</div>
 -->
 
 ## プレイグラウンド API の概念
@@ -250,13 +254,15 @@ JavaScript API を使用すると、最も多くの制御が可能になりま�
 The JavaScript API gives you the most control, but it is also the least convenient option as it requires loading the Playground Client library.
 -->
 
-:::caution Careful with the demo site
+<div class="callout callout-warning">
+
+**Careful with the demo site**
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
 
-:::
+</div>
 
 ### ブラウザ APIs
 

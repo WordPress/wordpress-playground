@@ -44,9 +44,11 @@ On pourrait penser que rien ne se passe, mais ce blueprint lance déjà un site 
 
 <!-- [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{}) -->
 
-:::tip **Auto-complétion**
+<div class="callout callout-tip">
 
-Si vous utilisez un IDE tel que VS Code ou PHPStorm, vous pouvez utiliser le [Schéma JSON Blueprint](https://playground.wordpress.net/blueprint-schema.json) pour activer l'auto-complétion pendant votre développement. Ajoutez la ligne qui suit au début de votre fichier `blueprint.json` :
+**Auto-complétion**
+
+Si vous utilisez un IDE tel que VS Code ou PHPStorm, vous pouvez utiliser le <a href="https://playground.wordpress.net/blueprint-schema.json">Schéma JSON Blueprint</a> pour activer l'auto-complétion pendant votre développement. Ajoutez la ligne qui suit au début de votre fichier `blueprint.json` :
 
 ```json
 {
@@ -54,7 +56,7 @@ Si vous utilisez un IDE tel que VS Code ou PHPStorm, vous pouvez utiliser le [Sc
 }
 ```
 
-:::
+</div>
 
 <!--
 **Autocomplete**
@@ -205,9 +207,11 @@ Dans ce cas, `https://wordpress.org/themes/<slug>/` devient `https://wordpress.o
 
 <!-- In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`. -->
 
-:::note
-Pour en savoir plus sur les ressources prises en charge, consultez le [Référenciel API des ressources blueprint](/blueprints/steps/resources/).
-:::
+<div class="callout callout-info">
+
+Pour en savoir plus sur les ressources prises en charge, consultez le <a href="/blueprints/steps/resources/">Référenciel API des ressources blueprint</a>.
+
+</div>
 
 <!--
 note
@@ -563,7 +567,7 @@ Et voilà. Félicitations, vous avez créé votre premier blueprint ! 🥳
 
 <div class="callout callout-info">
 
-Traduction par [@quentinsauvaire](https://profiles.wordpress.org/quentinsauvaire/) et relecture par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
+Traduction par <a href="https://profiles.wordpress.org/quentinsauvaire/">@quentinsauvaire</a> et relecture par <a href="https://profiles.wordpress.org/beryldlg/">@beryldlg</a>
 
 Dernière mise à jour le 9 mars 2026
 

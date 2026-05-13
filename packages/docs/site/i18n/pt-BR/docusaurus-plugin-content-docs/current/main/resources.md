@@ -11,7 +11,7 @@ description: Uma lista selecionada de links úteis para aplicativos, ferramentas
 # Links e Recursos
 
 <!--
-:::tip
+<div class="callout callout-tip">
 
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
 
@@ -23,10 +23,11 @@ There's a set of redirections in place to make it easier the access to some of t
 <li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
 <li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(see <a href="/blueprints/steps/resources#urlreference">URLReference</a> for more info)</em></li>
 </ul>
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
 
 Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algumas das ferramentas relacionadas ao Playground:
 
@@ -38,7 +39,8 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 <li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Visualizador de PR do Playground para Gutenberg</li>
 <li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Serviço Proxy do Playground <em>(veja <a href="/blueprints/steps/resources#urlreference">URLReference</a> para mais informações)</em></li>
 </ul>
-:::
+
+</div>
 
 <!--
 ## Frequently sought links

@@ -11,7 +11,7 @@ description: ওয়ার্ডপ্রেস প্লেগ্রাউন
 # লিংক এবং রিসোর্স
 
 <!--
-:::tip
+<div class="callout callout-tip">
 
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
 
@@ -23,10 +23,11 @@ There's a set of redirections in place to make it easier the access to some of t
 <li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
 <li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(see <a href="/blueprints/steps/resources#urlreference">URLReference</a> for more info)</em></li>
 </ul>
-:::
+
+</div>
 -->
 
-:::পরামর্শ
+<div class="callout callout-tip">
 
 প্লেগ্রাউন্ড সম্পর্কিত কিছু টুলে অ্যাক্সেস সহজ করার জন্য এখানে কিছু রিডাইরেকশন সেট করা আছে:
 
@@ -38,7 +39,8 @@ There's a set of redirections in place to make it easier the access to some of t
 <li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → গুটেনবার্গের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
 <li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → প্লেগ্রাউন্ড প্রক্সি সার্ভিস <em>(আরও তথ্যের জন্য <a href="/blueprints/steps/resources#urlreference">URLReference</a> দেখুন)</em></li>
 </ul>
-:::
+
+</div>
 
 <!--
 ## Frequently sought links

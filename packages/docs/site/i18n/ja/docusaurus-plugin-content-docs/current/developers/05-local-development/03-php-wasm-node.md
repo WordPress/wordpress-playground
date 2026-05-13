@@ -25,16 +25,18 @@ If you need low-level control over the underlying WebAssembly PHP build, take a 
 
 **API リファレンス**
 
-クラス、関数、インターフェース、および型エイリアスの[完全なリスト](/api/node)を参照してください。
+クラス、関数、インターフェース、および型エイリアスの<a href="/api/node">完全なリスト</a>を参照してください。
 
 </div>
 
 <!--
-:::info **API reference**
+<div class="callout callout-info">
 
-Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases.
+**API reference**
 
-:::
+Consult the <a href="/api/node">complete list</a> of Classes, Functions, Interfaces, and Type Aliases.
+
+</div>
 -->
 
 import PHPWASMNode from '@php-wasm/node/\README.md';

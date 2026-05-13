@@ -11,17 +11,23 @@ description: WordPress Playground डॉक्स में आपका स्�
 # WordPress Playground Docs
 -->
 
-:::info **क्या आप आधिकारिक Playground वेबसाइट ढूंढ रहे हैं?**
+<div class="callout callout-info">
+
+**क्या आप आधिकारिक Playground वेबसाइट ढूंढ रहे हैं?**
 
 <!--
-:::info **Looking for the official Playground website?**
-WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
-:::
+<div class="callout callout-info">
+
+**Looking for the official Playground website?**
+
+WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
+
+</div>
 -->
 
 WordPress Playground वेबसाइट अब [wordpress.org/playground/](https://wordpress.org/playground/) पर है। आप जिस साइट पर अभी हैं, वह दस्तावेज़ों के लिए है।
 
-:::
+</div>
 
 👋नमस्कार! WordPress Playground के दस्तावेज़ों में आपका हार्दिक स्वागत है।
 
@@ -100,14 +106,15 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 - [सीमाओं](/developers/limitations) के बारे में पढ़ें
 - [WordCamp Contributor Day](/contributing/contributor-day)
 
-:::tip
+<div class="callout callout-tip">
 
 <!--
-Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
+Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
 -->
 
-[**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) ब्लॉग पोस्ट को [WordPress Developer Blog](https://developer.wordpress.org/news) पर पढ़ें। यह WordPress Playground का बेहतरीन परिचय देता है।
-:::
+<a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> ब्लॉग पोस्ट को <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> पर पढ़ें। यह WordPress Playground का बेहतरीन परिचय देता है।
+
+</div>
 
 ## गहराई से समझें
 
@@ -118,18 +125,22 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 
 यदि आप डेवलपर या तकनीकी उपयोगकर्ता हैं, तो आप उपलब्ध APIs को सीधे देखना चाहेंगे:
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
 <!--
 - Read about [Playground APIs](/developers/apis/) and basic concepts
 - Review [links and resources](/resources)
-- Choose the right API for your app <APIList />
+- Choose the right API for your app:
+    - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
+    - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
+    - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
 - Dive into the [architecture](/developers/architecture) and learn how it all works
 -->
 
 - [Playground APIs](/developers/apis/) और बुनियादी अवधारणाओं के बारे में पढ़ें
 - [लिंक्स और संसाधन](/resources) देखें
-- अपने ऐप के लिए सही API चुनें <APIList />
+- अपने ऐप के लिए सही API चुनें:
+    - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
+    - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
+    - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
 - [आर्किटेक्चर](/developers/architecture) में गहराई से जाएं और समझें कि यह सब कैसे काम करता है
 
 ## जुड़ें और योगदान दें

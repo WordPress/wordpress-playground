@@ -52,11 +52,13 @@ This will ensure the SQLite plugin is installed correctly and configured within 
 
 You can use an in-browser [Blueprints editor](https://playground.wordpress.net/builder/builder.html) to build, validate, and preview your Blueprints in the browser.
 
-:::danger Caution
+<div class="callout callout-warning">
+
+**Caution**
 
 The editor is under development and the embedded Playground sometimes fails to load. To get around it, refresh the page. We're aware of that, and are working to improve the experience.
 
-:::
+</div>
 
 ## Check for the Filesystem and Database
 
@@ -64,9 +66,9 @@ Some blueprint steps (such as [`writeFile`](/blueprints/steps#WriteFileStep)) al
 
 To check the final internal filesystem structure and database (after the blueprint steps have been applied) we can leverage some WordPress plugins that provide a SQL manager and a file explorer such as [`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and [`WPide`](https://wordpress.org/plugins/wpide/) (you can see them in action from https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide)
 
-:::tip
+<div class="callout callout-tip">
 
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers > JavaScript API > Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see <a href="/developers/apis/javascript-api/#debugging-and-testing">Developers &gt; JavaScript API &gt; Debugging and testing</a>). Some examples:
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -75,9 +77,9 @@ true
 (3) ['hello.php', 'index.php', 'WordPress-Importer-master']
 ```
 
-Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
+Full list of methods we can use is available <a href="/api/client/interface/PlaygroundClient">here</a>
 
-:::
+</div>
 
 ## Check for errors in the browser console
 
@@ -85,11 +87,11 @@ If your Blueprint isn’t running as expected, open the browser developer tools 
 
 To open the developer tools in Chrome, Firefox, Safari\*, and Edge: press `Ctrl + Shift + I` on Windows/Linux or `Cmd + Option + I` on macOS.
 
-:::caution
+<div class="callout callout-warning">
 
 If you haven't yet, enable the Develop menu: go to **Safari > Settings... > Advanced** and check **Show features for web developers**.
 
-:::
+</div>
 
 The developer tools window allows you to inspect network requests, view console logs, debug JavaScript, and examine the DOM and CSS styles applied to your webpage. This is crucial for diagnosing and fixing issues with Blueprints.
 
@@ -99,9 +101,11 @@ You can `error_log` your own error messages through [`runPHP` step](/blueprints/
 
 ![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
-:::info
-When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
-:::
+<div class="callout callout-info">
+
+When you download your Playground instance as a `zip` through the <a href="/web-instance#playground-options-menu">"Download as zip" option</a> you'll also download the `debug.log` file containing all the logs from your Playground instance.
+
+</div>
 
 ## Ask for help
 

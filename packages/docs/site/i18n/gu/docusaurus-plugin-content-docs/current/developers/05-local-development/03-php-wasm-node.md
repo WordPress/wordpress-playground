@@ -25,16 +25,18 @@ If you need low-level control over the underlying WebAssembly PHP build, take a 
 
 **API સંદર્ભ**
 
-વર્ગો, કાર્યો, ઇન્ટરફેસ અને પ્રકાર ઉપનામોની [સંપૂર્ણ સૂચિ](/api/node) જુઓ.
+વર્ગો, કાર્યો, ઇન્ટરફેસ અને પ્રકાર ઉપનામોની <a href="/api/node">સંપૂર્ણ સૂચિ</a> જુઓ.
 
 </div>
 
 <!--
-:::info **API reference**
+<div class="callout callout-info">
 
-Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases.
+**API reference**
 
-:::
+Consult the <a href="/api/node">complete list</a> of Classes, Functions, Interfaces, and Type Aliases.
+
+</div>
 -->
 
 import PHPWASMNode from '@php-wasm/node/\README.md';

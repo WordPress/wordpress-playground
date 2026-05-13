@@ -74,14 +74,16 @@ With this block you have a straightforward and effective way to create live Word
 Com este bloco, você tem uma maneira direta e eficaz de criar ambientes WordPress ao vivo que podem ser incorporados em seus posts de blog.
 
 <!--
-:::info
-For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
-:::
+<div class="callout callout-info">
+
+For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the <a href="https://github.com/WordPress/playground-tools">playground-tools</a> repository.
+
+</div>
 -->
 
 <div class="callout callout-info">
 
-Para quaisquer problemas ou perguntas sobre o Bloco WordPress Playground, por favor, abra uma issue no GitHub no repositório [playground-tools](https://github.com/WordPress/playground-tools).
+Para quaisquer problemas ou perguntas sobre o Bloco WordPress Playground, por favor, abra uma issue no GitHub no repositório <a href="https://github.com/WordPress/playground-tools">playground-tools</a>.
 
 </div>
 

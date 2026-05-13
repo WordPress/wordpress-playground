@@ -25,9 +25,11 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{})
 
-:::tip **Autocomplete**
+<div class="callout callout-tip">
 
-If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
+**Autocomplete**
+
+If you use an IDE, like VS Code or PHPStorm, you can use the <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
 
 ```json
 {
@@ -35,7 +37,7 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 }
 ```
 
-:::
+</div>
 Here's what it looks like in VS Code:
 
 ![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
@@ -129,9 +131,11 @@ The example uses the `wordpress.org/themes` resource, which requires a `slug` id
 
 In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`.
 
-:::note
-Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
-:::
+<div class="callout callout-info">
+
+Learn more about the supported resources in the <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
+
+</div>
 
 ## 4. Install the _Hello Dolly_ plugin
 

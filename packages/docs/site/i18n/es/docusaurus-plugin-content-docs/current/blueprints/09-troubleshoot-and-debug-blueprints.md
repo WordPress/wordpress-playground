@@ -61,7 +61,7 @@ Si el mensaje dice que la entrada todavía contiene secuencias de escape `%XX` d
 ### WP-CLI: Error Establishing a Database Connection on Mounted Sites
 -->
 
-### WP-CLI: error al establecer una conexión con la base de datos en sitios montados {#wp-cli-error-establishing-a-database-connection-on-mounted-sites}
+### WP-CLI: error al establecer una conexión con la base de datos en sitios montados
 
 <!--
 When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files by default, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls.
@@ -125,7 +125,9 @@ You can use an in-browser [Blueprints editor](https://playground.wordpress.net/b
 
 Puedes usar un [editor de Blueprints](https://playground.wordpress.net/builder/builder.html) en el navegador para crear, validar y previsualizar tus Blueprints.
 
-:::danger Precaución
+<div class="callout callout-warning">
+
+**Precaución**
 
 <!--
 The editor is under development and the embedded Playground sometimes fails to load. To get around it, refresh the page. We're aware of that, and are working to improve the experience.
@@ -133,7 +135,7 @@ The editor is under development and the embedded Playground sometimes fails to l
 
 El editor está en desarrollo y el Playground incrustado a veces no carga. Para solucionarlo, actualiza la página. Somos conscientes de ello y estamos trabajando para mejorar la experiencia.
 
-:::
+</div>
 
 <!--
 ## Check for the Filesystem and Database
@@ -153,13 +155,13 @@ To check the final internal filesystem structure and database (after the bluepri
 
 Para revisar la estructura final del sistema de archivos interno y la base de datos (después de aplicar los pasos del Blueprint), podemos usar algunos plugins de WordPress que proporcionan un gestor SQL y un explorador de archivos, como [`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) y [`WPide`](https://wordpress.org/plugins/wpide/) (puedes verlos en acción desde https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide).
 
-:::tip
+<div class="callout callout-tip">
 
 <!--
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers > JavaScript API > Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see <a href="/developers/apis/javascript-api/#debugging-and-testing">Developers &gt; JavaScript API &gt; Debugging and testing</a>). Some examples:
 -->
 
-Hay varios métodos que podemos ejecutar desde la consola de cualquier instancia de WordPress Playground para inspeccionar sus partes internas. Están expuestos como parte del objeto `window.playground` (consulta [Desarrolladores > API de JavaScript > Depuración y pruebas](/developers/apis/javascript-api/#debugging-and-testing)). Algunos ejemplos:
+Hay varios métodos que podemos ejecutar desde la consola de cualquier instancia de WordPress Playground para inspeccionar sus partes internas. Están expuestos como parte del objeto `window.playground` (consulta <a href="/developers/apis/javascript-api/#debugging-and-testing">Desarrolladores &gt; API de JavaScript &gt; Depuración y pruebas</a>). Algunos ejemplos:
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -169,12 +171,12 @@ true
 ```
 
 <!--
-Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
+Full list of methods we can use is available <a href="/api/client/interface/PlaygroundClient">here</a>
 -->
 
-La lista completa de métodos que podemos usar está disponible [aquí](/api/client/interface/PlaygroundClient).
+La lista completa de métodos que podemos usar está disponible <a href="/api/client/interface/PlaygroundClient">aquí</a>.
 
-:::
+</div>
 
 <!--
 ## Check for errors in the browser console
@@ -194,7 +196,7 @@ To open the developer tools in Chrome, Firefox, Safari\*, and Edge: press `Ctrl 
 
 Para abrir las herramientas de desarrollo en Chrome, Firefox, Safari\* y Edge: pulsa `Ctrl + Shift + I` en Windows/Linux o `Cmd + Option + I` en macOS.
 
-:::caution
+<div class="callout callout-warning">
 
 <!--
 If you haven't yet, enable the Develop menu: go to **Safari > Settings... > Advanced** and check **Show features for web developers**.
@@ -202,7 +204,7 @@ If you haven't yet, enable the Develop menu: go to **Safari > Settings... > Adva
 
 Si aún no lo has hecho, activa el menú Desarrollo: ve a **Safari > Configuración... > Avanzado** y marca **Mostrar funciones para desarrolladores web**.
 
-:::
+</div>
 
 <!--
 The developer tools window allows you to inspect network requests, view console logs, debug JavaScript, and examine the DOM and CSS styles applied to your webpage. This is crucial for diagnosing and fixing issues with Blueprints.
@@ -228,15 +230,15 @@ Puedes registrar tus propios mensajes de error con `error_log` mediante el [paso
 
 ![Captura de errores de registro](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
-:::info
+<div class="callout callout-info">
 
 <!--
-When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
+When you download your Playground instance as a `zip` through the <a href="/web-instance#playground-options-menu">"Download as zip" option</a> you'll also download the `debug.log` file containing all the logs from your Playground instance.
 -->
 
-Cuando descargas tu instancia de Playground como un `zip` mediante la opción ["Download as zip"](/web-instance#playground-options-menu), también descargas el archivo `debug.log`, que contiene todos los registros de tu instancia de Playground.
+Cuando descargas tu instancia de Playground como un `zip` mediante la opción <a href="/web-instance#playground-options-menu">"Download as zip"</a>, también descargas el archivo `debug.log`, que contiene todos los registros de tu instancia de Playground.
 
-:::
+</div>
 
 <!--
 ## Ask for help

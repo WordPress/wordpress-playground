@@ -6,7 +6,7 @@ description: A curated list of helpful links to apps, tools, articles, and video
 
 # Links and Resources
 
-:::tip
+<div class="callout callout-tip">
 
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
 
@@ -18,7 +18,8 @@ There's a set of redirections in place to make it easier the access to some of t
 <li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
 <li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Legacy Playground Proxy Service <em>(for Git repositories, prefer <a href="/blueprints/steps/resources#gitdirectoryreference">git:directory</a>)</em></li>
 </ul>
-:::
+
+</div>
 
 ## Frequently sought links
 

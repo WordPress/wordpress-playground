@@ -3,10 +3,13 @@ title: wp-now
 slug: /developers/local-development/wp-now
 ---
 
-:::caution Pacote descontinuado
+<div class="callout callout-warning">
+
+**Pacote descontinuado**
 
 O pacote NPM @wp-now/wp-now está descontinuado e não receberá atualizações no futuro. Para usar uma ferramenta de linha de comando no seu fluxo de desenvolvimento, use o pacote NPM `@wp-playground/cli`.
-:::
+
+</div>
 
 <!-- # wp-now NPM package -->
 
@@ -38,9 +41,9 @@ O pacote NPM @wp-now/wp-now está descontinuado e não receberá atualizações 
 
 **Documentação**
 
-<!-- `wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md). -->
+<!-- `wp-now` is maintained in a different GitHub repository, <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a>. You can find the latest documentation in the <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md">dedicated README file</a>. -->
 
-`wp-now` é mantido em um repositório GitHub diferente, [Playground Tools](https://github.com/WordPress/playground-tools/). Você pode encontrar a documentação mais recente no [arquivo README dedicado](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
+`wp-now` é mantido em um repositório GitHub diferente, <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a>. Você pode encontrar a documentação mais recente no <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md">arquivo README dedicado</a>.
 
 </div>
 

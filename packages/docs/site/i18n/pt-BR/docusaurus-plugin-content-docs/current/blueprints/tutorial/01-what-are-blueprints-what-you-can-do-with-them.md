@@ -141,7 +141,10 @@ Blueprints são uma ferramenta inestimável para construir sites WordPress via P
 - **Criando um ambiente de desenvolvimento**: Um novo desenvolvedor na equipe pode baixar o Blueprint, executar um hipotético comando `wp up` e obter um novo ambiente de desenvolvimento—carregado com tudo o que precisa. Todo o processo de CI/CD pode reutilizar o mesmo Blueprint.
 
 <!--
-:::info **More Resources**
+<div class="callout callout-info">
+
+**More Resources**
+
 Visit these links to learn more about the (endless) possibilities of Blueprints:
 -->
 
@@ -152,27 +155,27 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 Visite estes links para aprender mais sobre as (incontáveis) possibilidades dos Blueprints:
 
 <!--
--   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
+-   <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">Introduction to WordPress Playground</a>
 -->
 
-- [Introdução ao WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
+- <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">Introdução ao WordPress Playground</a>
 
 <!--
--   Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
+-   Embed a pre-configured WordPress site in your website using the <a href="https://wordpress.org/plugins/interactive-code-block/">WordPress Playground Block</a>.
 -->
 
-- Incorpore um site WordPress pré-configurado em seu site usando o [Bloco do WordPress Playground](https://wordpress.org/plugins/interactive-code-block/).
+- Incorpore um site WordPress pré-configurado em seu site usando o <a href="https://wordpress.org/plugins/interactive-code-block/">Bloco do WordPress Playground</a>.
 
 <!--
--   [Blueprints examples](/blueprints/examples)
+-   <a href="/blueprints/examples">Blueprints examples</a>
 -->
 
-- [Exemplos de Blueprints](/blueprints/examples)
+- <a href="/blueprints/examples">Exemplos de Blueprints</a>
 
 <!--
--   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
+-   <a href="/resources#apps-built-with-wordpress-playground">Demos and apps built with Blueprints</a>
 -->
 
-- [Demonstrações e aplicativos construídos com Blueprints](/resources#apps-built-with-wordpress-playground)
+- <a href="/resources#apps-built-with-wordpress-playground">Demonstrações e aplicativos construídos com Blueprints</a>
 
 </div>

@@ -99,16 +99,18 @@ For example, the following code embeds a Playground with a preinstalled Gutenber
 
 **CORS ポリシー**
 
-サイトの ZIP パッケージなどの URL からファイルをインポートするには、`Access-Control-Allow-Origin` ヘッダーを設定した状態で提供する必要があります。参考資料として、[クロスオリジンリソース共有（CORS）](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers)をご覧ください。
+サイトの ZIP パッケージなどの URL からファイルをインポートするには、`Access-Control-Allow-Origin` ヘッダーを設定した状態で提供する必要があります。参考資料として、<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers">クロスオリジンリソース共有（CORS）</a>をご覧ください。
 
 </div>
 
 <!--
-:::info CORS policy
+<div class="callout callout-info">
 
-To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
+**CORS policy**
 
-:::
+To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers">Cross-Origin Resource Sharing (CORS)</a>.
+
+</div>
 -->
 
 ## GitHub エクスポート オプション

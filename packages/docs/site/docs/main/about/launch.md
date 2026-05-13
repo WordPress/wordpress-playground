@@ -32,7 +32,7 @@ With this block you have a straightforward and effective way to create live Word
 
 <div class="callout callout-info">
 
-For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
+For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the <a href="https://github.com/WordPress/playground-tools">playground-tools</a> repository.
 
 </div>
 

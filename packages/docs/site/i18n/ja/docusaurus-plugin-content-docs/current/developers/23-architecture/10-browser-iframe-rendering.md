@@ -67,18 +67,22 @@ Playgroundでは、クラッシュレポートが自動的に収集されるこ�
 
 レポートにはログ、説明、URL が含まれており、ユーザーは送信前にレポートを変更できます。
 
-[Logger API](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php) がそこから処理を行います。このシンプルな REST API はデータを検証し、**Making WordPress** [#playground-logs Slack チャンネル](https://wordpress.slack.com/archives/C06Q5DCKZ3L) に送信します。
+<a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php">Logger API</a> がそこから処理を行います。このシンプルな REST API はデータを検証し、**Making WordPress** <a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">#playground-logs Slack チャンネル</a> に送信します。
 
 </div>
 
 <!--
-:::info Crash reports
+<div class="callout callout-info">
+
+**Crash reports**
+
 Playground doesn't collect crash reports automatically. Instead, it prompts users to submit a crash report when an instance fails to run in the browser.
 
 The report includes a log, description, and a URL, and users can modify it before submitting it.
 
-The [Logger API](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php) handles it from there. This simple REST API validates the data and sends it to the **Making WordPress** [#playground-logs Slack channel](https://wordpress.slack.com/archives/C06Q5DCKZ3L).
-:::
+The <a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php">Logger API</a> handles it from there. This simple REST API validates the data and sends it to the **Making WordPress** <a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">#playground-logs Slack channel</a>.
+
+</div>
 -->
 
 ## iframe の注意事項

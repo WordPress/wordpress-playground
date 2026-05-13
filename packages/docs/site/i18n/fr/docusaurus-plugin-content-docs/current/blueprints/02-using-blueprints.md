@@ -37,7 +37,7 @@ Vous pouvez utiliser les Blueprints de l’une des façons suivantes :
 ## URL Fragment
 -->
 
-## Fragment d’URL {#url-fragment}
+## Fragment d’URL
 
 <!--
 The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`.
@@ -69,14 +69,14 @@ And then you would go to
 Vous iriez ensuite à
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}`.
 
-:::tip
+<div class="callout callout-tip">
 
 <!--
-In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
+In Javascript, you can get a compact version of any blueprint JSON with <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> and <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>
 Example:
 -->
 
-En JavaScript, vous pouvez obtenir une version compacte de n’importe quel JSON de Blueprint avec [`JSON.stringify`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) et [`JSON.parse`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse).
+En JavaScript, vous pouvez obtenir une version compacte de n’importe quel JSON de Blueprint avec <a href="https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> et <a href="https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>.
 Exemple :
 
 ```js
@@ -92,7 +92,7 @@ const encodedBlueprint = encodeURIComponent(minifiedBlueprintJson);
 const playgroundUrl = `https://playground.wordpress.net/#${encodedBlueprint}`;
 ```
 
-:::
+</div>
 
 <!--
 You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you:
@@ -144,15 +144,15 @@ To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vc
 
 Pour l’exécuter, allez sur https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 
-:::tip
+<div class="callout callout-tip">
 
 <!--
-In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
+In JavaScript, You can get any blueprint JSON in <a href="https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support">Base64 format</a> with global function `btoa()`.
 
 Example:
 -->
 
-En JavaScript, vous pouvez convertir n’importe quel JSON de Blueprint au [format Base64](https://developer.mozilla.org/fr/docs/Glossary/Base64#javascript_support) avec la fonction globale `btoa()`.
+En JavaScript, vous pouvez convertir n’importe quel JSON de Blueprint au <a href="https://developer.mozilla.org/fr/docs/Glossary/Base64#javascript_support">format Base64</a> avec la fonction globale `btoa()`.
 
 Exemple :
 
@@ -167,7 +167,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 ```
 
-:::
+</div>
 
 <!--
 ### Load Blueprint from a URL
@@ -245,7 +245,7 @@ Pour en savoir plus sur les paquets Blueprint, consultez la documentation [Paque
 ## JavaScript API
 -->
 
-## API JavaScript {#javascript-api}
+## API JavaScript
 
 <!--
 You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen:

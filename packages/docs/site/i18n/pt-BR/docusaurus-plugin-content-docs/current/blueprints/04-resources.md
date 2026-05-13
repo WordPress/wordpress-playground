@@ -13,13 +13,13 @@ description_long: Uma referência técnica para "Referências de Recursos". Saib
 
 <div class="callout callout-info">
 
-<!-- Blueprints steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
+<!-- Blueprints steps such as <a href="/blueprints/steps#InstallPluginStep"><code>installPlugin</code></a> or <a href="/blueprints/steps#InstallThemeStep"><code>installTheme</code></a> require a location of the plugin or theme to be installed.
 
-That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories. -->
+That location can be defined as <a href="#urlreference">a <code>URL</code> resource</a> of the `.zip` file containing the theme or plugin. It can also be defined as a <a href="#corepluginreference"><code>wordpress.org/plugins</code></a> or <a href="#corethemereference"><code>wordpress.org/themes</code></a> resource for those plugins/themes published in the official WordPress directories. -->
 
-Etapas de Blueprints como [`installPlugin`](/blueprints/steps#InstallPluginStep) ou [`installTheme`](/blueprints/steps#InstallThemeStep) exigem um local do plugin ou tema a ser instalado.
+Etapas de Blueprints como <a href="/blueprints/steps#InstallPluginStep"><code>installPlugin</code></a> ou <a href="/blueprints/steps#InstallThemeStep"><code>installTheme</code></a> exigem um local do plugin ou tema a ser instalado.
 
-Esse local pode ser definido como um recurso [URL](#urlreference) do arquivo `.zip` contendo o tema ou plugin. Também pode ser definido como um recurso [`wordpress.org/plugins`](#corepluginreference) ou [`wordpress.org/themes`](#corethemereference) para aqueles plugins/temas publicados nos diretórios oficiais do WordPress.
+Esse local pode ser definido como um recurso <a href="#urlreference">URL</a> do arquivo `.zip` contendo o tema ou plugin. Também pode ser definido como um recurso <a href="#corepluginreference"><code>wordpress.org/plugins</code></a> ou <a href="#corethemereference"><code>wordpress.org/themes</code></a> para aqueles plugins/temas publicados nos diretórios oficiais do WordPress.
 
 </div>
 
@@ -63,12 +63,13 @@ O tipo de recurso `url` funciona realmente em combinação com etapas de bluepri
 
 Com um `"resource": "url"` podemos definir o local de um `.zip` contendo o plugin/tema via uma URL que pode apontar diretamente para um repositório GitHub.
 
-:::tip
+<div class="callout callout-tip">
 
-<!-- The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others. -->
+<!-- The Playground project provides a <a href="https://playground.wordpress.net/proxy">GitHub Proxy</a> that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others. -->
 
-O projeto Playground fornece um [Proxy GitHub](https://playground.wordpress.net/proxy) que permite gerar um `.zip` a partir de um repositório (ou mesmo uma pasta dentro de um repo) contendo seu plugin ou tema. Essa ferramenta é muito útil para evitar problemas de CORS, entre outros.
-:::
+O projeto Playground fornece um <a href="https://playground.wordpress.net/proxy">Proxy GitHub</a> que permite gerar um `.zip` a partir de um repositório (ou mesmo uma pasta dentro de um repo) contendo seu plugin ou tema. Essa ferramenta é muito útil para evitar problemas de CORS, entre outros.
+
+</div>
 
 ### GitDirectoryReference
 

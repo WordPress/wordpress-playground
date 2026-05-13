@@ -191,10 +191,11 @@ Once you click on save, an instance will be stored with a generated name to be r
 - **গিটহাব থেকে ইম্পোর্ট করুন**: এই বিকল্পটি আপনাকে সরাসরি আপনার পাবলিক গিটহাব রিপোজিটরি থেকে প্লাগইন, থিম এবং wp-content ডিরেক্টরি ইম্পোর্ট করতে দেয়। এই ফিচারটি চালু করতে, ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের সাথে আপনার গিটহাব অ্যাকাউন্ট সংযুক্ত করুন।
 
 <!--
-:::caution
+<div class="callout callout-warning">
+
 -->
 
-:::সতর্কতা
+<div class="callout callout-warning">
 
 <!--
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
@@ -203,9 +204,11 @@ The site at https://playground.wordpress.net is there to support the community, 
 https://playground.wordpress.net সাইটটি কমিউনিটিকে সহায়তা করার জন্য আছে, কিন্তু ট্রাফিক উল্লেখযোগ্যভাবে বৃদ্ধি পেলে এটি কাজ চালিয়ে যাবে কিনা তার কোনো নিশ্চয়তা নেই।
 
 <!--
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
+
+</div>
 -->
 
 যদি আপনার নিশ্চিত প্রাপ্যতার প্রয়োজন হয়, তবে আপনার [নিজস্ব ওয়ার্ডপ্রেস প্লেগ্রাউন্ড হোস্ট](/developers/architecture/host-your-own-playground) করা উচিত।
-:::
+
+</div>

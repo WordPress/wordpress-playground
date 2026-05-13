@@ -13,6 +13,8 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 2. [How to load and run Blueprints](/blueprints/tutorial/how-to-load-run-blueprints)
 3. [Build your first Blueprint](/blueprints/tutorial/build-your-first-blueprint)
 
-:::tip
-If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
-:::
+<div class="callout callout-tip">
+
+If you encounter any issues while following this tutorial, refer to the <a href="/blueprints/troubleshoot-and-debug">Troubleshoot and debug Blueprints</a> section for tips and tools to help you solve them.
+
+</div>

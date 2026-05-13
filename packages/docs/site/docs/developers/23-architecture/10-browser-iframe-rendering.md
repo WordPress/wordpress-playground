@@ -30,7 +30,7 @@ Playground doesn't collect crash reports automatically. Instead, it prompts user
 
 The report includes a log, description, and a URL, and users can modify it before submitting it.
 
-The [Logger API](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php) handles it from there. This simple REST API validates the data and sends it to the **Making WordPress** [#playground-logs Slack channel](https://wordpress.slack.com/archives/C06Q5DCKZ3L).
+The <a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php">Logger API</a> handles it from there. This simple REST API validates the data and sends it to the **Making WordPress** <a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">#playground-logs Slack channel</a>.
 
 </div>
 

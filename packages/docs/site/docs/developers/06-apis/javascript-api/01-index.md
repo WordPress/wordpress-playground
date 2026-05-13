@@ -45,7 +45,7 @@ Here's the shortest example of how to use the JavaScript API in a HTML page:
 **/remote.html is a special URL**
 
 `/remote.html` is a special URL that loads the Playground
-API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](/developers/apis/javascript-api/-html-vs-remote-html).
+API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and <a href="/developers/apis/javascript-api/-html-vs-remote-html">on this page</a>.
 
 </div>
 

@@ -12,18 +12,22 @@ description: ওয়ার্ডপ্রেস প্লেগ্রাউন
 # ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ডকস
 
 <!--
-:::info **Looking for the official Playground website?**
+<div class="callout callout-info">
 
-WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
+**Looking for the official Playground website?**
 
-:::
+WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
+
+</div>
 -->
 
-:::তথ্য **অফিসিয়াল প্লেগ্রাউন্ড ওয়েবসাইট খুঁজছেন?**
+<div class="callout callout-info">
 
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েবসাইট [wordpress.org/playground/](https://wordpress.org/playground/) এ স্থানান্তরিত হয়েছে। আপনি এখন যে সাইটে আছেন সেটি ডকুমেন্টেশন হোস্ট করে।
+**অফিসিয়াল প্লেগ্রাউন্ড ওয়েবসাইট খুঁজছেন?**
 
-:::
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েবসাইট <a href="https://wordpress.org/playground/">wordpress.org/playground/</a> এ স্থানান্তরিত হয়েছে। আপনি এখন যে সাইটে আছেন সেটি ডকুমেন্টেশন হোস্ট করে।
+
+</div>
 
 <!--
 👋 Hi! Welcome to WordPress Playground documentation.
@@ -134,14 +138,18 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 - [ওয়ার্ডক্যাম্প কন্ট্রিবিউটর ডে](/contributing/contributor-day)
 
 <!--
-:::tip
-Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
-:::
+<div class="callout callout-tip">
+
+Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
+
+</div>
 -->
 
-:::পরামর্শ
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ড-এর একটি দুর্দান্ত ভূমিকার জন্য [ওয়ার্ডপ্রেস ডেভেলপার ব্লগে](https://developer.wordpress.org/news) [**প্লেগ্রাউন্ড পরিচিতি: ব্রাউজারে ওয়ার্ডপ্রেস চালানো**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) ব্লগ পোস্টটি পড়ুন
-:::
+<div class="callout callout-tip">
+
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ড-এর একটি দুর্দান্ত ভূমিকার জন্য <a href="https://developer.wordpress.org/news">ওয়ার্ডপ্রেস ডেভেলপার ব্লগে</a> <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>প্লেগ্রাউন্ড পরিচিতি: ব্রাউজারে ওয়ার্ডপ্রেস চালানো</strong></a> ব্লগ পোস্টটি পড়ুন
+
+</div>
 
 <!--
 ## Take a deep dive
@@ -158,7 +166,10 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
 -   Review [links and resources](/resources)
--   Choose the right API for your app <APIList />
+-   Choose the right API for your app:
+    - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
+    - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
+    - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
 -   Dive into the [architecture](/developers/architecture) and learn how it all works
 -->
 

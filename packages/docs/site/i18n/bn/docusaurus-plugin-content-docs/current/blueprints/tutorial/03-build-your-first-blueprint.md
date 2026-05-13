@@ -25,9 +25,11 @@ description: আপনার প্রথম ব্লুপ্রিন্ট �
 
 [<kbd> &nbsp; ব্লুপ্রিন্ট চালান &nbsp; </kbd>](https://playground.wordpress.net/#{})
 
-:::tip **অটোকমপ্লিট**
+<div class="callout callout-tip">
 
-আপনি যদি VS Code বা PHPStorm এর মতো একটি IDE ব্যবহার করেন, তাহলে আপনি অটোকমপ্লিট ব্লুপ্রিন্ট ডেভেলপমেন্ট অভিজ্ঞতার জন্য [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) ব্যবহার করতে পারেন। আপনার `blueprint.json` ফাইলের শীর্ষে নিম্নলিখিত লাইন যোগ করুন:
+**অটোকমপ্লিট**
+
+আপনি যদি VS Code বা PHPStorm এর মতো একটি IDE ব্যবহার করেন, তাহলে আপনি অটোকমপ্লিট ব্লুপ্রিন্ট ডেভেলপমেন্ট অভিজ্ঞতার জন্য <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> ব্যবহার করতে পারেন। আপনার `blueprint.json` ফাইলের শীর্ষে নিম্নলিখিত লাইন যোগ করুন:
 
 ```json
 {
@@ -35,7 +37,7 @@ description: আপনার প্রথম ব্লুপ্রিন্ট �
 }
 ```
 
-:::
+</div>
 VS Code-এ এটি দেখতে এরকম:
 
 ![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
@@ -119,19 +121,21 @@ Adventurer হল একটি ওপেন-সোর্স থিম [WordPress
 
 `themeData` একটি [রিসোর্স](/blueprints/steps/resources) সংজ্ঞায়িত করে এবং স্টেপটি সম্পূর্ণ করার জন্য প্রয়োজনীয় একটি বাহ্যিক ফাইল রেফারেন্স করে। Playground বিভিন্ন ধরনের রিসোর্স সমর্থন করে, যার মধ্যে রয়েছে
 
--   `url`,
--   `wordpress.org/themes`,
--   `wordpress.org/plugins`,
--   `vfs` (ভার্চুয়াল ফাইল সিস্টেম), অথবা
--   `literal`।
+- `url`,
+- `wordpress.org/themes`,
+- `wordpress.org/plugins`,
+- `vfs` (ভার্চুয়াল ফাইল সিস্টেম), অথবা
+- `literal`।
 
 উদাহরণটি `wordpress.org/themes` রিসোর্স ব্যবহার করে, যার জন্য WordPress থিম ডিরেক্টরিতে ব্যবহৃত একটি `slug` প্রয়োজন:
 
 এই ক্ষেত্রে, `https://wordpress.org/themes/<slug>/` হয়ে যায় `https://wordpress.org/themes/adventurer/`।
 
-:::note
-সমর্থিত রিসোর্স সম্পর্কে আরও জানুন [Blueprint Resources API Reference](/blueprints/steps/resources/) এ।
-:::
+<div class="callout callout-info">
+
+সমর্থিত রিসোর্স সম্পর্কে আরও জানুন <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a> এ।
+
+</div>
 
 ## 4. _Hello Dolly_ প্লাগইন ইনস্টল করুন
 

@@ -250,7 +250,7 @@ Como alternativa a Apache, aquí hay un ejemplo de usar NGINX para servir el Pla
 
 **Consulta el archivo fuente**
 
-El ejemplo puede estar desactualizado. Por favor revisa [el archivo fuente](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) para la última versión.
+El ejemplo puede estar desactualizado. Por favor revisa <a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess">el archivo fuente</a> para la última versión.
 
 </div>
 

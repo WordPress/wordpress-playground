@@ -82,11 +82,11 @@ Com o Google Chrome você pode sincronizar sua instância do Playground com um d
 - Um diretório existente – para carregá-lo aqui e começar a sincronizar
 
 <!--
-:::info
+<div class="callout callout-info">
 
 This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
 
-:::
+</div>
 -->
 
 <div class="callout callout-info">

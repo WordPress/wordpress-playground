@@ -10,7 +10,7 @@ Help make WordPress Playground accessible to a global audience by translating it
 
 <div class="callout callout-info">
 
-For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
+For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our <a href="/contributing/documentation#how-can-i-contribute">documentation contribution guide</a>
 
 </div>
 
@@ -20,7 +20,7 @@ Playground's documentation site is built with Docusaurus, which handles the inte
 
 <div class="callout callout-info">
 
-To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
+To learn more about how Docusaurus manages translations, see the <a href="https://docusaurus.io/docs/i18n/introduction">Internationalization section</a> of the official Docusaurus documentation.
 
 </div>
 

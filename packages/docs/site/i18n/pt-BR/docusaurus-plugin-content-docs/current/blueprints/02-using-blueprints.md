@@ -13,14 +13,14 @@ Você pode usar Blueprints de uma das seguintes maneiras:
 <!-- -   By passing them as a URL fragment to the Playground. -->
 
 - Passando-os como um fragmento de URL para o Playground.
-    <!-- -   By loading them from a URL using the `blueprint-url` parameter. -->
+      <!-- -   By loading them from a URL using the `blueprint-url` parameter. -->
 - Carregando-os de uma URL usando o parâmetro `blueprint-url`.
-    <!-- -   By using Blueprint bundles (ZIP files or directories). -->
+      <!-- -   By using Blueprint bundles (ZIP files or directories). -->
 - Usando pacotes de Blueprint (arquivos ZIP ou diretórios).
-    <!-- -   By using the JavaScript API. -->
+      <!-- -   By using the JavaScript API. -->
 - Usando a API JavaScript.
 
-## Fragmento de URL {#url-fragment}
+## Fragmento de URL
 
 <!-- The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`. -->
 
@@ -45,11 +45,11 @@ Por exemplo, para criar um Playground com versões específicas do WordPress e P
 E então você iria para
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}`.
 
-:::tip
+<div class="callout callout-tip">
 
-<!-- In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse) -->
+<!-- In Javascript, you can get a compact version of any blueprint JSON with <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> and <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a> -->
 
-Em Javascript, você pode obter uma versão compacta de qualquer Blueprint JSON com [`JSON.stringify`](https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) e [`JSON.parse`](https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
+Em Javascript, você pode obter uma versão compacta de qualquer Blueprint JSON com <a href="https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> e <a href="https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>
 
 <!-- Example: -->
 
@@ -68,7 +68,7 @@ const encodedBlueprint = encodeURIComponent(minifiedBlueprintJson);
 const playgroundUrl = `https://playground.wordpress.net/#${encodedBlueprint}`;
 ```
 
-:::
+</div>
 
 <!-- You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you: -->
 
@@ -108,11 +108,11 @@ O Playground também oferece suporte a Blueprints codificados em Base64. Base64 
 
 Para executá-lo, acesse https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 
-:::tip
+<div class="callout callout-tip">
 
-<!-- In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`. -->
+<!-- In JavaScript, You can get any blueprint JSON in <a href="https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support">Base64 format</a> with global function `btoa()`. -->
 
-Em JavaScript, você pode obter qualquer Blueprint JSON em [formato Base64](https://developer.mozilla.org/pt-BR/docs/Glossary/Base64#javascript_support) com a função global `btoa()`.
+Em JavaScript, você pode obter qualquer Blueprint JSON em <a href="https://developer.mozilla.org/pt-BR/docs/Glossary/Base64#javascript_support">formato Base64</a> com a função global `btoa()`.
 
 <!-- Example: -->
 
@@ -129,7 +129,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 ```
 
-:::
+</div>
 
 ### Carregar Blueprint de uma URL
 
@@ -183,7 +183,7 @@ Ao usar um pacote de Blueprint, você pode referenciar recursos empacotados usan
 
 Para mais informações sobre pacotes de Blueprint, consulte a documentação de [Pacotes de Blueprint](/blueprints/bundles).
 
-## API JavaScript {#javascript-api}
+## API JavaScript
 
 <!-- You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen: -->
 

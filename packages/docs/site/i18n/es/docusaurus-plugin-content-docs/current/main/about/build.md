@@ -84,11 +84,11 @@ Con Google Chrome puedes sincronizar tu instancia de Playground con un directori
 - Un directorio existente: para cargarlo aquí y comenzar a sincronizar
 
 <!--
-:::info
+<div class="callout callout-info">
 
 This feature is only available for Google Chrome for now. It won't work with other browsers yet.
 
-:::
+</div>
 -->
 
 <div class="callout callout-info">
