@@ -834,6 +834,7 @@ foreach (
 		'nested%2Fsegment/index.html',
 		'%2E%2E/secret/index.html',
 		'wp-content/uploads/bg.jpg',
+		'wp-content/uploads/captions.vtt',
 		'wp-content/uploads/photo.jpg',
 		'wp-content/uploads/photo-2x.jpg',
 		'wp-content/uploads/image-set.jpg',
@@ -928,6 +929,7 @@ $html = implode(
 		'<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">',
 		'<object data="/object-page/"></object>',
 		'<object data="/wp-content/uploads/social-video.mp4?object=1"></object>',
+		'<video><track kind="captions" src="/wp-content/uploads/captions.vtt?lang=en"></video>',
 		'<svg><filter><feImage href="/wp-content/uploads/filter.png?svg=1"'
 			. ' xlink:href="/wp-content/uploads/filter-2x.png?svg=2"></feImage></filter></svg>',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
@@ -1458,10 +1460,22 @@ ssgwp_assert_contains(
 	'rewrite_html keeps object data media URLs as copied assets.'
 );
 
+ssgwp_assert_contains(
+	'<track kind="captions" src="wp-content/uploads/captions.vtt?lang=en">',
+	$result['content'],
+	'rewrite_html rewrites video track captions as copied assets.'
+);
+
 ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?object=1', $result['assets'], true ),
 	'rewrite_html records object data media URLs as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/captions.vtt?lang=en', $result['assets'], true ),
+	'rewrite_html records video track captions as assets to copy.'
 );
 
 ssgwp_assert_contains(
@@ -1751,6 +1765,23 @@ ssgwp_assert_contains(
 	'rewrite_text_asset rewrites JavaScript protocol-relative page strings.'
 );
 
+$rewritten_player_json = $rewriter->rewrite_text_asset_with_assets(
+	'{"captions":"captions.vtt","thumbnail":"poster.webp"}',
+	'wp-content/plugins/player/config.json'
+);
+
+ssgwp_assert_contains(
+	'"captions":"../../../wp-content/plugins/player/captions.vtt"',
+	$rewritten_player_json['content'],
+	'rewrite_text_asset_with_assets rewrites relative WebVTT captions.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/player/captions.vtt', $rewritten_player_json['assets'], true ),
+	'rewrite_text_asset_with_assets records relative WebVTT captions to copy.'
+);
+
 $rewritten_css = $rewriter->rewrite_text_asset(
 	'.hero{background:url("https://example.test/wp-content/uploads/bg.jpg?ver=1")}',
 	'wp-content/themes/theme/app.css'
@@ -1844,6 +1875,7 @@ foreach (
 		'wp-content/uploads/social-video.mp4?embed=1',
 		'wp-content/uploads/social-video.mp4?lazy-embed=1',
 		'wp-content/uploads/social-video.mp4?stream=1',
+		'wp-content/uploads/captions.vtt?lang=en',
 		'wp-content/uploads/tile.png',
 		'wp-content/uploads/tile.png?small=1',
 		'wp-content/uploads/tile.png?wide=1',

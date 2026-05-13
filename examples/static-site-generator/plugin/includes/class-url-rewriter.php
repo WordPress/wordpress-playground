@@ -1808,7 +1808,7 @@ final class SSGWP_URL_Rewriter {
 	 * @return string Rewritten content.
 	 */
 	private function rewrite_relative_asset_text_urls( $content, $base_url, $target_path, $escaped ) {
-		$extensions = 'avif|bmp|css|gif|ico|jpe?g|js|json|mjs|mp3|mp4|ogg|otf|png|svg|ttf|webm|webp|woff2?';
+		$extensions = 'avif|bmp|css|gif|ico|jpe?g|js|json|mjs|mp3|mp4|ogg|otf|png|svg|ttf|vtt|webm|webp|woff2?';
 		$pattern    = $escaped
 			? '#(?<=["\'])(?![a-z][a-z0-9+.-]*:|\\\\/)(?:(?:\\.\\\\/|\\.\\.\\\\/|[A-Za-z0-9._~-]+\\\\/)(?:[^\\\\\s\'"<>)]|\\\\/)*|[A-Za-z0-9._~-]+)\\.(?:' . $extensions . ')(?:[?\\#](?:[^\\\\\s\'"<>)]|\\\\/)*)?(?=["\'])#i'
 			: '#(?<=["\'])(?![a-z][a-z0-9+.-]*:|/)(?:\\./|\\.\\./|[A-Za-z0-9._~-]+/)?[^\\s\'"<>)]*\\.(?:' . $extensions . ')(?:[?\\#][^\\s\'"<>)]*)?(?=["\'])#i';

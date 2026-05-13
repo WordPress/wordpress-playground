@@ -153,6 +153,9 @@ format.
 - Treat static export `data-href` attributes as page-or-asset references so
   deferred same-site links are crawled and copied.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Copy WebVTT caption files discovered while rewriting linked copied text
+  assets, such as player JSON sidecar files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
