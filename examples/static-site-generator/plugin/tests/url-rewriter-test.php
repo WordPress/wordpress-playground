@@ -500,6 +500,8 @@ foreach (
 		'wp-content/uploads/photo.jpg',
 		'wp-content/uploads/photo-2x.jpg',
 		'wp-content/uploads/social.jpg',
+		'wp-content/uploads/social-audio.mp3',
+		'wp-content/uploads/social-video.mp4',
 		'wp-includes/fonts/dashicons.eot',
 	)
 	as $fixture_file
@@ -538,6 +540,8 @@ $html = implode(
 		'<meta charset="UTF-8" />',
 		'<meta property="og:url" content="https://example.test/nested/page/#share">',
 		'<meta property="og:image" content="https://example.test/wp-content/uploads/social.jpg?ver=1">',
+		'<meta property="og:audio" content="https://example.test/wp-content/uploads/social-audio.mp3?ver=1">',
+		'<meta property="og:video" content="https://example.test/wp-content/uploads/social-video.mp4?ver=1">',
 		'<meta name="twitter:image" content="/wp-content/uploads/photo.jpg">',
 		'<link rel="preload" as="image" href="/wp-content/uploads/photo.jpg" imagesrcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">',
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
@@ -656,6 +660,18 @@ ssgwp_assert_contains(
 	'<meta property="og:image" content="wp-content/uploads/social.jpg?ver=1">',
 	$result['content'],
 	'rewrite_html rewrites Open Graph image URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="og:audio" content="wp-content/uploads/social-audio.mp3?ver=1">',
+	$result['content'],
+	'rewrite_html rewrites Open Graph audio URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="og:video" content="wp-content/uploads/social-video.mp4?ver=1">',
+	$result['content'],
+	'rewrite_html rewrites Open Graph video URLs in meta content attributes.'
 );
 
 ssgwp_assert_contains(
@@ -888,6 +904,8 @@ foreach (
 		'%2E%2E/secret/index.html',
 		'index-' . $query_hash . '.html#comments',
 		'wp-content/uploads/social.jpg?ver=1',
+		'wp-content/uploads/social-audio.mp3?ver=1',
+		'wp-content/uploads/social-video.mp4?ver=1',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo-2x.jpg',
 	)

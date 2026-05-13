@@ -68,6 +68,9 @@ format.
 - Keep scoped Playground static exports from rewriting root-level
   `/wp-content` and `/wp-includes` text paths that are outside the current
   deployment scope. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite Open Graph audio and video media URLs in static exports so social
+  previews point at copied static assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
