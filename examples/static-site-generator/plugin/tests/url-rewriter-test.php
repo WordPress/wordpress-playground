@@ -504,6 +504,59 @@ ssgwp_assert_contains(
 	'rewrite_html_attributes_with_patterns still rewrites semantic page link relations.'
 );
 
+$pattern_meta_refresh_method = new ReflectionMethod( $rewriter, 'rewrite_meta_refresh_with_patterns' );
+$pattern_meta_refresh_method->setAccessible( true );
+
+$pattern_meta_refresh_rewritten = $pattern_meta_refresh_method->invoke(
+	$rewriter,
+	'<meta http-equiv="refresh" content="0; url=/static-page/#section">'
+		. '<meta name="viewport" content="width=device-width">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta http-equiv="refresh" content="0; url=static-page/index.html#section">',
+	$pattern_meta_refresh_rewritten,
+	'rewrite_meta_refresh_with_patterns rewrites refresh URLs without the HTML API.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="viewport" content="width=device-width">',
+	$pattern_meta_refresh_rewritten,
+	'rewrite_meta_refresh_with_patterns leaves non-URL meta content unchanged.'
+);
+
+$pattern_meta_content_method = new ReflectionMethod( $rewriter, 'rewrite_meta_content_urls_with_patterns' );
+$pattern_meta_content_method->setAccessible( true );
+
+$pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
+	$rewriter,
+	'<meta property="og:url" content="/meta-page/#share">'
+		. '<meta name="twitter:image" content="/wp-content/uploads/social.jpg?ver=1">'
+		. '<meta name="description" content="Plain text">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta property="og:url" content="meta-page/index.html#share">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites page meta URLs without the HTML API.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="twitter:image" content="wp-content/uploads/social.jpg?ver=1">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites asset meta URLs without the HTML API.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="description" content="Plain text">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns leaves non-URL meta content unchanged.'
+);
+
 $export_root = ssgwp_make_fixture_dir();
 $query_hash  = substr( md5( 'p=42' ), 0, 8 );
 $view_hash   = substr( md5( 'view=grid' ), 0, 8 );

@@ -83,6 +83,9 @@ format.
 - Keep static export comment feed endpoints dynamic while still rewriting
   public pages whose slug is `comments`.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite meta refresh and social preview meta URLs in the static export regex
+  fallback used when WordPress' HTML API is unavailable.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

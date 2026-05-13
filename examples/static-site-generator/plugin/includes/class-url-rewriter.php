@@ -462,7 +462,7 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function rewrite_meta_refresh( $html, $base_url, $target_path ) {
 		if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
-			return $html;
+			return $this->rewrite_meta_refresh_with_patterns( $html, $base_url, $target_path );
 		}
 
 		$processor    = new WP_HTML_Tag_Processor( $html );
@@ -507,6 +507,73 @@ final class SSGWP_URL_Rewriter {
 	}
 
 	/**
+	 * Rewrite meta refresh URLs without the HTML API.
+	 *
+	 * @param string $html        HTML.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string
+	 */
+	private function rewrite_meta_refresh_with_patterns( $html, $base_url, $target_path ) {
+		return preg_replace_callback(
+			'/<meta\b[^>]*>/is',
+			function ( $matches ) use ( $base_url, $target_path ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+				$http_equiv = isset( $attributes['http-equiv'] )
+					? strtolower( $attributes['http-equiv']['value'] )
+					: '';
+
+				if (
+					'refresh' !== $http_equiv
+					|| empty( $attributes['content']['value'] )
+					|| false === stripos( $attributes['content']['value'], 'url=' )
+				) {
+					return $tag;
+				}
+
+				$rewritten = $this->rewrite_meta_refresh_content(
+					$attributes['content']['value'],
+					$base_url,
+					$target_path
+				);
+
+				if ( $rewritten === $attributes['content']['value'] ) {
+					return $tag;
+				}
+
+				return $this->replace_html_tag_attribute( $tag, $attributes['content'], $rewritten );
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Rewrite a meta refresh content value.
+	 *
+	 * @param string $content     Meta refresh content value.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string
+	 */
+	private function rewrite_meta_refresh_content( $content, $base_url, $target_path ) {
+		return preg_replace_callback(
+			'/(url\s*=\s*)([^;]+)/i',
+			function ( $matches ) use ( $base_url, $target_path ) {
+				$url   = trim( $matches[2], " \t\n\r\0\x0B'\"" );
+				$quote = '';
+
+				if ( preg_match( '/^\s*([\'"])/', $matches[2], $quote_match ) ) {
+					$quote = $quote_match[1];
+				}
+
+				return $matches[1] . $quote . $this->rewrite_url_value( $url, $base_url, $target_path, 'page' ) . $quote;
+			},
+			$content
+		);
+	}
+
+	/**
 	 * Rewrite URLs in social and structured-data meta content attributes.
 	 *
 	 * @param string $html        HTML.
@@ -516,7 +583,7 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function rewrite_meta_content_urls( $html, $base_url, $target_path ) {
 		if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
-			return $html;
+			return $this->rewrite_meta_content_urls_with_patterns( $html, $base_url, $target_path );
 		}
 
 		$processor    = new WP_HTML_Tag_Processor( $html );
@@ -551,15 +618,72 @@ final class SSGWP_URL_Rewriter {
 	}
 
 	/**
+	 * Rewrite social and structured-data meta URLs without the HTML API.
+	 *
+	 * @param string $html        HTML.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string
+	 */
+	private function rewrite_meta_content_urls_with_patterns( $html, $base_url, $target_path ) {
+		return preg_replace_callback(
+			'/<meta\b[^>]*>/is',
+			function ( $matches ) use ( $base_url, $target_path ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+				$kind       = $this->meta_attribute_url_kind(
+					isset( $attributes['property']['value'] ) ? $attributes['property']['value'] : '',
+					isset( $attributes['name']['value'] ) ? $attributes['name']['value'] : '',
+					isset( $attributes['itemprop']['value'] ) ? $attributes['itemprop']['value'] : ''
+				);
+
+				if ( null === $kind || empty( $attributes['content']['value'] ) ) {
+					return $tag;
+				}
+
+				$rewritten = $this->rewrite_url_value(
+					$attributes['content']['value'],
+					$base_url,
+					$target_path,
+					$kind
+				);
+
+				if ( $rewritten === $attributes['content']['value'] ) {
+					return $tag;
+				}
+
+				return $this->replace_html_tag_attribute( $tag, $attributes['content'], $rewritten );
+			},
+			$html
+		);
+	}
+
+	/**
 	 * Determine whether a meta content attribute contains a page or asset URL.
 	 *
 	 * @param WP_HTML_Tag_Processor $processor HTML processor.
 	 * @return string|null URL kind: page, asset, or null.
 	 */
 	private function meta_content_url_kind( $processor ) {
-		$property = strtolower( (string) $processor->get_attribute( 'property' ) );
-		$name     = strtolower( (string) $processor->get_attribute( 'name' ) );
-		$itemprop = strtolower( (string) $processor->get_attribute( 'itemprop' ) );
+		return $this->meta_attribute_url_kind(
+			(string) $processor->get_attribute( 'property' ),
+			(string) $processor->get_attribute( 'name' ),
+			(string) $processor->get_attribute( 'itemprop' )
+		);
+	}
+
+	/**
+	 * Determine whether meta attributes identify a page or asset URL.
+	 *
+	 * @param string $property Meta property attribute.
+	 * @param string $name     Meta name attribute.
+	 * @param string $itemprop Meta itemprop attribute.
+	 * @return string|null URL kind: page, asset, or null.
+	 */
+	private function meta_attribute_url_kind( $property, $name, $itemprop ) {
+		$property = strtolower( (string) $property );
+		$name     = strtolower( (string) $name );
+		$itemprop = strtolower( (string) $itemprop );
 
 		$page_keys = array(
 			'og:url',
@@ -597,6 +721,52 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Parse quoted attributes from an HTML tag.
+	 *
+	 * @param string $tag HTML tag.
+	 * @return array<string,array{value:string,offset:int,length:int}>
+	 */
+	private function parse_html_tag_attributes( $tag ) {
+		$attributes = array();
+
+		preg_match_all(
+			'/([a-zA-Z_:][a-zA-Z0-9:._-]*)\s*=\s*(["\'])(.*?)\2/s',
+			$tag,
+			$matches,
+			PREG_OFFSET_CAPTURE
+		);
+
+		foreach ( $matches[1] as $index => $name_match ) {
+			$key = strtolower( $name_match[0] );
+
+			$attributes[ $key ] = array(
+				'value'  => $matches[3][ $index ][0],
+				'offset' => $matches[3][ $index ][1],
+				'length' => strlen( $matches[3][ $index ][0] ),
+			);
+		}
+
+		return $attributes;
+	}
+
+	/**
+	 * Replace a quoted attribute value in a tag.
+	 *
+	 * @param string $tag       HTML tag.
+	 * @param array  $attribute Parsed attribute.
+	 * @param string $value     Replacement value.
+	 * @return string Updated tag.
+	 */
+	private function replace_html_tag_attribute( $tag, array $attribute, $value ) {
+		return substr_replace(
+			$tag,
+			esc_attr( $value ),
+			$attribute['offset'],
+			$attribute['length']
+		);
 	}
 
 	/**
