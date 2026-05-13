@@ -824,6 +824,7 @@ $html = implode(
 		'<meta property="og:video" content="https://example.test/wp-content/uploads/social-video.mp4?ver=1">',
 		'<meta name="twitter:image" content="/wp-content/uploads/photo.jpg">',
 		'<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">',
+		'<meta name="msapplication-config" content="/browserconfig.xml">',
 		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
 		'<meta itemprop="embedUrl" content="/video-player/">',
 		'<meta property="article:author" content="/author/admin/">',
@@ -1089,6 +1090,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta name="msapplication-config" content="browserconfig.xml">',
+	$result['content'],
+	'rewrite_html rewrites Windows browser config URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="contentUrl" content="wp-content/uploads/social-video.mp4?schema=1">',
 	$result['content'],
 	'rewrite_html rewrites schema.org contentUrl media URLs in meta content attributes.'
@@ -1137,7 +1144,8 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta property="og:see_also" content="/related/">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta name="twitter:player" content="/video-player/">'
-		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">',
+		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
+		. '<meta name="msapplication-config" content="/browserconfig.xml">',
 	'https://example.test/',
 	'index.html'
 );
@@ -1157,9 +1165,28 @@ ssgwp_assert_same(
 	array(
 		'https://example.test/wp-content/uploads/social.jpg',
 		'https://example.test/wp-content/uploads/tile.png',
+		'https://example.test/browserconfig.xml',
 	),
 	$meta_only_result['assets'],
 	'rewrite_html records meta image and tile URLs as assets to copy.'
+);
+
+$browser_config_none_result = $rewriter->rewrite_html(
+	'<meta name="msapplication-config" content="none">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta name="msapplication-config" content="none">',
+	$browser_config_none_result['content'],
+	'rewrite_html leaves disabled Windows browser config metadata unchanged.'
+);
+
+ssgwp_assert_same(
+	array(),
+	$browser_config_none_result['assets'],
+	'rewrite_html does not record disabled Windows browser config metadata as an asset.'
 );
 
 ssgwp_assert_contains(
@@ -1442,6 +1469,35 @@ ssgwp_assert_same(
 	array( 'https://example.test/wp-content/plugins/app/icons/filter.png' ),
 	$rewritten_copied_svg['assets'],
 	'rewrite_text_asset_with_assets records SVG filter image href assets to copy.'
+);
+
+$rewritten_copied_xml = $rewriter->rewrite_text_asset_with_assets(
+	'<browserconfig><msapplication><tile>'
+		. '<square70x70logo src="tile-small.png"/>'
+		. '<square150x150logo src="icons/tile-150.png"/>'
+		. '</tile></msapplication></browserconfig>',
+	'wp-content/plugins/app/browserconfig.xml'
+);
+
+ssgwp_assert_contains(
+	'src="../../../wp-content/plugins/app/tile-small.png"',
+	$rewritten_copied_xml['content'],
+	'rewrite_text_asset_with_assets rewrites XML sibling asset paths.'
+);
+
+ssgwp_assert_contains(
+	'src="../../../wp-content/plugins/app/icons/tile-150.png"',
+	$rewritten_copied_xml['content'],
+	'rewrite_text_asset_with_assets rewrites XML nested asset paths.'
+);
+
+ssgwp_assert_same(
+	array(
+		'https://example.test/wp-content/plugins/app/tile-small.png',
+		'https://example.test/wp-content/plugins/app/icons/tile-150.png',
+	),
+	$rewritten_copied_xml['assets'],
+	'rewrite_text_asset_with_assets records XML tile assets to copy.'
 );
 
 $rewritten_asset_text = $rewriter->rewrite_text_asset(

@@ -1225,7 +1225,7 @@ final class SSGWP_Static_Exporter {
 			if (
 				! in_array(
 					$extension,
-					array( 'css', 'js', 'json', 'svg', 'html', 'webmanifest' ),
+					array( 'css', 'js', 'json', 'svg', 'html', 'webmanifest', 'xml' ),
 					true
 				)
 			) {

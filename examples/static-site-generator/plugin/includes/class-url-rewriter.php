@@ -836,7 +836,7 @@ final class SSGWP_URL_Rewriter {
 	 * Determine whether a meta content attribute contains a page or asset URL.
 	 *
 	 * @param WP_HTML_Tag_Processor $processor HTML processor.
-	 * @return string|null URL kind: page, asset, or null.
+	 * @return string|null URL kind: page, asset, browserconfig, or null.
 	 */
 	private function meta_content_url_kind( $processor ) {
 		return $this->meta_attribute_url_kind(
@@ -852,7 +852,7 @@ final class SSGWP_URL_Rewriter {
 	 * @param string $property Meta property attribute.
 	 * @param string $name     Meta name attribute.
 	 * @param string $itemprop Meta itemprop attribute.
-	 * @return string|null URL kind: page, asset, or null.
+	 * @return string|null URL kind: page, asset, browserconfig, or null.
 	 */
 	private function meta_attribute_url_kind( $property, $name, $itemprop ) {
 		$property = strtolower( (string) $property );
@@ -869,6 +869,10 @@ final class SSGWP_URL_Rewriter {
 			'twitter:url',
 			'url',
 			'mainentityofpage',
+		);
+
+		$browser_config_keys = array(
+			'msapplication-config',
 		);
 
 		$asset_keys = array(
@@ -895,6 +899,10 @@ final class SSGWP_URL_Rewriter {
 		foreach ( array( $property, $name, $itemprop ) as $key ) {
 			if ( in_array( $key, $page_keys, true ) ) {
 				return 'page';
+			}
+
+			if ( in_array( $key, $browser_config_keys, true ) ) {
+				return 'browserconfig';
 			}
 
 			if ( in_array( $key, $asset_keys, true ) ) {
@@ -1069,7 +1077,7 @@ final class SSGWP_URL_Rewriter {
 	 * @param string $value       URL value.
 	 * @param string $base_url    Base URL.
 	 * @param string $target_path Relative static file path.
-	 * @param string $kind        URL kind: page, asset, maybe.
+	 * @param string $kind        URL kind: page, asset, maybe, browserconfig.
 	 * @return string
 	 */
 	private function rewrite_url_value( $value, $base_url, $target_path, $kind ) {
@@ -1077,6 +1085,14 @@ final class SSGWP_URL_Rewriter {
 
 		if ( '' === $value || $this->is_special_url( $value ) ) {
 			return $value;
+		}
+
+		if ( 'browserconfig' === $kind ) {
+			if ( 'none' === strtolower( $value ) ) {
+				return $value;
+			}
+
+			$kind = 'asset';
 		}
 
 		$absolute = $this->collector->resolve_relative_url( $value, $base_url );

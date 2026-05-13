@@ -114,9 +114,17 @@ file_put_contents(
 	$manifest_dir . '/filter.svg',
 	'<svg><filter><feImage href="icons/filter.png"></feImage></filter></svg>'
 );
+file_put_contents(
+	$manifest_dir . '/browserconfig.xml',
+	'<browserconfig><msapplication><tile>'
+		. '<square70x70logo src="icons/tile-small.png"/>'
+		. '</tile></msapplication></browserconfig>'
+);
 file_put_contents($manifest_dir . '/icons/filter.png', 'filter');
+file_put_contents($manifest_dir . '/icons/tile-small.png', 'tile-small');
 $manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
 $filter_svg_url = content_url('plugins/ssgwp-smoke-deps/filter.svg');
+$browserconfig_url = content_url('plugins/ssgwp-smoke-deps/browserconfig.xml');
 
 $child_id = wp_insert_post(array(
 	'post_type' => 'page',
@@ -159,6 +167,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:audio" content="' . esc_url($asset_url . '?audio=1') . '">'
 	. '<meta property="og:video" content="' . esc_url($asset_url . '?video=1') . '">'
 	. '<meta name="msapplication-TileImage" content="' . esc_url($asset_url . '?tile=1') . '">'
+	. '<meta name="msapplication-config" content="' . esc_url($browserconfig_url) . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($child_url) . '">'
 	. '<meta property="article:author" content="' . esc_url($child_url) . '">'
@@ -232,6 +241,7 @@ $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
 $scoped_filter_svg_url = content_url('plugins/ssgwp-smoke-deps/filter.svg');
+$scoped_browserconfig_url = content_url('plugins/ssgwp-smoke-deps/browserconfig.xml');
 $scoped_child_path = wp_parse_url($scoped_child_url, PHP_URL_PATH);
 $scoped_asset_path = wp_parse_url($scoped_asset_url, PHP_URL_PATH);
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
@@ -243,6 +253,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:audio:secure_url" content="' . esc_url($scoped_asset_url . '?audio=1') . '">'
 	. '<meta property="og:video:secure_url" content="' . esc_url($scoped_asset_url . '?video=1') . '">'
 	. '<meta name="msapplication-TileImage" content="' . esc_url($scoped_asset_url . '?tile=1') . '">'
+	. '<meta name="msapplication-config" content="' . esc_url($scoped_browserconfig_url) . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($scoped_asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta property="article:author" content="' . esc_url($scoped_child_url) . '">'
@@ -364,8 +375,10 @@ async function verifyExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icon-192.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/filter.svg');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/filter.png');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/tile-small.png');
 	assertFile('static-export.json');
 
 	const staticPage = readText('static-page/index.html');
@@ -388,6 +401,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
+		'../wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml',
 		'../wp-content/plugins/ssgwp-smoke-deps/filter.svg',
 	];
 
@@ -424,6 +438,10 @@ async function verifyExport() {
 		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 		'icons/icon.png'
 	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml',
+		'icons/tile-small.png'
+	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),
 		'../../../wp-content/plugins/ssgwp-smoke-deps/icons/filter.png',
@@ -447,8 +465,10 @@ async function verifyScopedExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icon-192.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/filter.svg');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/filter.png');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/tile-small.png');
 	assertFile('static-export.json');
 
 	const files = await listFiles(currentExportDir);
@@ -483,6 +503,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
+		'../wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml',
 		'../wp-content/plugins/ssgwp-smoke-deps/filter.svg',
 	];
 
@@ -542,6 +563,10 @@ async function verifyScopedExport() {
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 		'icons/icon.png'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml',
+		'icons/tile-small.png'
 	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),

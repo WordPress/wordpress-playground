@@ -573,6 +573,13 @@ file_put_contents(
 	'{"icons":[{"src":"webmanifest-icon.png"}]}'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/browserconfig.xml',
+	'<browserconfig><msapplication><tile>'
+		. '<square70x70logo src="tile-small.png"/>'
+		. '<square150x150logo src="icons/tile-150.png"/>'
+		. '</tile></msapplication></browserconfig>'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/icon-192.png',
 	'icon-192'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
@@ -581,8 +588,16 @@ file_put_contents(
 	'webmanifest-icon'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/tile-small.png',
+	'tile-small'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/icons/icon.png',
 	'icon'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/icons/tile-150.png',
+	'tile-150'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 
 $copy_linked_asset_method->invoke(
@@ -704,6 +719,54 @@ ssgwp_assert_same(
 	true,
 	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/webmanifest-icon.png' ),
 	'copy_linked_assets writes dependencies discovered inside copied web manifests.'
+);
+
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test/wp-content/plugins/manifest-deps/browserconfig.xml',
+	$output_dir
+);
+
+$discovered_text_assets = $rewrite_assets_method->invoke(
+	$exporter,
+	$output_dir,
+	$rewriter
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/manifest-deps/tile-small.png', $discovered_text_assets, true ),
+	'rewrite_copied_text_assets reports sibling assets discovered inside copied XML files.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/manifest-deps/icons/tile-150.png', $discovered_text_assets, true ),
+	'rewrite_copied_text_assets reports nested assets discovered inside copied XML files.'
+);
+
+$copied_count = $copy_linked_assets_method->invoke(
+	$exporter,
+	$discovered_text_assets,
+	$output_dir
+);
+
+ssgwp_assert_same(
+	2,
+	$copied_count,
+	'copy_linked_assets copies dependencies discovered inside copied XML files.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/tile-small.png' ),
+	'copy_linked_assets writes sibling dependencies discovered inside copied XML files.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/icons/tile-150.png' ),
+	'copy_linked_assets writes nested dependencies discovered inside copied XML files.'
 );
 
 ssgwp_delete_directory( $fixture_root );
