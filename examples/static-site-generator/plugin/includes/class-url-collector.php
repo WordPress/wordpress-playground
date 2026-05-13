@@ -16,16 +16,30 @@ final class SSGWP_URL_Collector {
 	/**
 	 * Collect public URLs.
 	 *
+	 * @param int $max_urls Maximum number of URLs to collect. Zero means unlimited.
 	 * @return string[]
 	 */
-	public function collect() {
-		$urls = array();
+	public function collect( $max_urls = 0 ) {
+		$urls     = array();
+		$max_urls = max( 0, (int) $max_urls );
 
-		$this->add_url( $urls, home_url( '/' ) );
-		$this->add_posts_index_pages( $urls );
-		$this->add_posts( $urls );
-		$this->add_terms( $urls );
-		$this->add_author_archives( $urls );
+		$this->add_url( $urls, home_url( '/' ), $max_urls );
+
+		if ( ! $this->has_reached_url_limit( $urls, $max_urls ) ) {
+			$this->add_posts_index_pages( $urls, $max_urls );
+		}
+
+		if ( ! $this->has_reached_url_limit( $urls, $max_urls ) ) {
+			$this->add_posts( $urls, $max_urls );
+		}
+
+		if ( ! $this->has_reached_url_limit( $urls, $max_urls ) ) {
+			$this->add_terms( $urls, $max_urls );
+		}
+
+		if ( ! $this->has_reached_url_limit( $urls, $max_urls ) ) {
+			$this->add_author_archives( $urls, $max_urls );
+		}
 
 		return array_values( $urls );
 	}
@@ -33,13 +47,17 @@ final class SSGWP_URL_Collector {
 	/**
 	 * Add published post URLs.
 	 *
-	 * @param array $urls URL set.
+	 * @param array $urls     URL set.
+	 * @param int   $max_urls Maximum number of URLs to collect.
 	 */
-	private function add_posts( array &$urls ) {
+	private function add_posts( array &$urls, $max_urls ) {
 		$post_types = get_post_types( array( 'public' => true ), 'objects' );
-		$per_page   = $this->get_posts_per_page();
 
 		foreach ( $post_types as $post_type => $post_type_object ) {
+			if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+				break;
+			}
+
 			if ( 'attachment' === $post_type ) {
 				continue;
 			}
@@ -50,14 +68,31 @@ final class SSGWP_URL_Collector {
 
 			if ( ! empty( $post_type_object->has_archive ) ) {
 				$archive = get_post_type_archive_link( $post_type );
-				$this->add_url( $urls, $archive );
-				$this->add_paginated_urls( $urls, $archive, $this->count_published_posts( $post_type ), $per_page );
+				$this->add_url( $urls, $archive, $max_urls );
+				$this->add_paginated_urls(
+					$urls,
+					$archive,
+					$this->count_published_posts( $post_type ),
+					$this->get_posts_per_page(),
+					$max_urls
+				);
 			}
 
-			$page     = 1;
-			$per_page = $this->get_post_query_batch_size();
+			$page = 1;
 
 			do {
+				$remaining = $this->remaining_url_slots( $urls, $max_urls );
+
+				if ( 0 === $remaining ) {
+					break;
+				}
+
+				$per_page = $this->get_post_query_batch_size();
+
+				if ( null !== $remaining ) {
+					$per_page = min( $per_page, $remaining );
+				}
+
 				$query = new WP_Query(
 					array(
 						'post_type'              => $post_type,
@@ -72,21 +107,31 @@ final class SSGWP_URL_Collector {
 				);
 
 				foreach ( $query->posts as $post_id ) {
-					$this->add_url( $urls, get_permalink( $post_id ) );
-					$this->add_multipage_post_urls( $urls, $post_id );
+					$this->add_url( $urls, get_permalink( $post_id ), $max_urls );
+
+					if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+						break;
+					}
+
+					$this->add_multipage_post_urls( $urls, $post_id, $max_urls );
+
+					if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+						break;
+					}
 				}
 
 				++$page;
-			} while ( count( $query->posts ) === $per_page );
+			} while ( count( $query->posts ) === $per_page && ! $this->has_reached_url_limit( $urls, $max_urls ) );
 		}
 	}
 
 	/**
 	 * Add the posts index and its pagination.
 	 *
-	 * @param array $urls URL set.
+	 * @param array $urls     URL set.
+	 * @param int   $max_urls Maximum number of URLs to collect.
 	 */
-	private function add_posts_index_pages( array &$urls ) {
+	private function add_posts_index_pages( array &$urls, $max_urls ) {
 		$post_count = $this->count_published_posts( 'post' );
 
 		if ( 0 === $post_count ) {
@@ -101,27 +146,39 @@ final class SSGWP_URL_Collector {
 
 		$base_url = $page_for_posts > 0 ? get_permalink( $page_for_posts ) : home_url( '/' );
 
-		$this->add_url( $urls, $base_url );
-		$this->add_paginated_urls( $urls, $base_url, $post_count, $this->get_posts_per_page() );
+		$this->add_url( $urls, $base_url, $max_urls );
+		$this->add_paginated_urls( $urls, $base_url, $post_count, $this->get_posts_per_page(), $max_urls );
 	}
 
 	/**
 	 * Add public taxonomy archives.
 	 *
-	 * @param array $urls URL set.
+	 * @param array $urls     URL set.
+	 * @param int   $max_urls Maximum number of URLs to collect.
 	 */
-	private function add_terms( array &$urls ) {
+	private function add_terms( array &$urls, $max_urls ) {
 		$taxonomies = get_taxonomies( array( 'public' => true ), 'names' );
 
 		if ( empty( $taxonomies ) ) {
 			return;
 		}
 
+		$term_args = array(
+			'taxonomy'   => $taxonomies,
+			'hide_empty' => true,
+		);
+		$remaining = $this->remaining_url_slots( $urls, $max_urls );
+
+		if ( 0 === $remaining ) {
+			return;
+		}
+
+		if ( null !== $remaining ) {
+			$term_args['number'] = $remaining;
+		}
+
 		$terms = get_terms(
-			array(
-				'taxonomy'   => $taxonomies,
-				'hide_empty' => true,
-			)
+			$term_args
 		);
 
 		if ( is_wp_error( $terms ) ) {
@@ -129,31 +186,55 @@ final class SSGWP_URL_Collector {
 		}
 
 		foreach ( $terms as $term ) {
+			if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+				break;
+			}
+
 			$term_link = get_term_link( $term );
 
-			$this->add_url( $urls, $term_link );
-			$this->add_paginated_urls( $urls, $term_link, (int) $term->count, $this->get_posts_per_page() );
+			$this->add_url( $urls, $term_link, $max_urls );
+			$this->add_paginated_urls( $urls, $term_link, (int) $term->count, $this->get_posts_per_page(), $max_urls );
 		}
 	}
 
 	/**
 	 * Add author archive URLs for users with published posts.
 	 *
-	 * @param array $urls URL set.
+	 * @param array $urls     URL set.
+	 * @param int   $max_urls Maximum number of URLs to collect.
 	 */
-	private function add_author_archives( array &$urls ) {
-		$users = get_users(
-			array(
-				'has_published_posts' => true,
-				'fields'              => 'ID',
-			)
+	private function add_author_archives( array &$urls, $max_urls ) {
+		$user_args = array(
+			'has_published_posts' => true,
+			'fields'              => 'ID',
 		);
+		$remaining = $this->remaining_url_slots( $urls, $max_urls );
+
+		if ( 0 === $remaining ) {
+			return;
+		}
+
+		if ( null !== $remaining ) {
+			$user_args['number'] = $remaining;
+		}
+
+		$users = get_users( $user_args );
 
 		foreach ( $users as $user_id ) {
+			if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+				break;
+			}
+
 			$author_url = get_author_posts_url( $user_id );
 
-			$this->add_url( $urls, $author_url );
-			$this->add_paginated_urls( $urls, $author_url, $this->count_user_published_posts( $user_id ), $this->get_posts_per_page() );
+			$this->add_url( $urls, $author_url, $max_urls );
+			$this->add_paginated_urls(
+				$urls,
+				$author_url,
+				$this->count_user_published_posts( $user_id ),
+				$this->get_posts_per_page(),
+				$max_urls
+			);
 		}
 	}
 
@@ -164,8 +245,9 @@ final class SSGWP_URL_Collector {
 	 * @param string|bool $base_url    Base archive URL.
 	 * @param int         $total_items Total items in the archive.
 	 * @param int         $per_page    Items per page.
+	 * @param int         $max_urls    Maximum number of URLs to collect.
 	 */
-	private function add_paginated_urls( array &$urls, $base_url, $total_items, $per_page ) {
+	private function add_paginated_urls( array &$urls, $base_url, $total_items, $per_page, $max_urls ) {
 		if ( empty( $base_url ) || is_wp_error( $base_url ) ) {
 			return;
 		}
@@ -174,17 +256,22 @@ final class SSGWP_URL_Collector {
 		$pages    = (int) ceil( max( 0, (int) $total_items ) / $per_page );
 
 		for ( $page = 2; $page <= $pages; $page++ ) {
-			$this->add_url( $urls, $this->get_paged_url( $base_url, $page ) );
+			if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+				break;
+			}
+
+			$this->add_url( $urls, $this->get_paged_url( $base_url, $page ), $max_urls );
 		}
 	}
 
 	/**
 	 * Add URLs for posts split with the nextpage tag.
 	 *
-	 * @param array $urls    URL set.
-	 * @param int   $post_id Post ID.
+	 * @param array $urls     URL set.
+	 * @param int   $post_id  Post ID.
+	 * @param int   $max_urls Maximum number of URLs to collect.
 	 */
-	private function add_multipage_post_urls( array &$urls, $post_id ) {
+	private function add_multipage_post_urls( array &$urls, $post_id, $max_urls ) {
 		$post = get_post( $post_id );
 
 		if ( ! $post || false === strpos( $post->post_content, '<!--nextpage-->' ) ) {
@@ -195,10 +282,14 @@ final class SSGWP_URL_Collector {
 		$permalink  = get_permalink( $post_id );
 
 		for ( $page = 2; $page <= $page_count; $page++ ) {
+			if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+				break;
+			}
+
 			if ( get_option( 'permalink_structure' ) ) {
-				$this->add_url( $urls, trailingslashit( $permalink ) . $page . '/' );
+				$this->add_url( $urls, trailingslashit( $permalink ) . $page . '/', $max_urls );
 			} else {
-				$this->add_url( $urls, add_query_arg( 'page', $page, $permalink ) );
+				$this->add_url( $urls, add_query_arg( 'page', $page, $permalink ), $max_urls );
 			}
 		}
 	}
@@ -261,10 +352,15 @@ final class SSGWP_URL_Collector {
 	/**
 	 * Add a normalized same-site URL to the URL set.
 	 *
-	 * @param array       $urls URL set.
-	 * @param string|bool $url  URL to add.
+	 * @param array       $urls     URL set.
+	 * @param string|bool $url      URL to add.
+	 * @param int         $max_urls Maximum number of URLs to collect.
 	 */
-	private function add_url( array &$urls, $url ) {
+	private function add_url( array &$urls, $url, $max_urls = 0 ) {
+		if ( $this->has_reached_url_limit( $urls, $max_urls ) ) {
+			return;
+		}
+
 		if ( empty( $url ) || is_wp_error( $url ) ) {
 			return;
 		}
@@ -276,6 +372,32 @@ final class SSGWP_URL_Collector {
 		}
 
 		$urls[ $url ] = $url;
+	}
+
+	/**
+	 * Determine whether the URL collection limit has been reached.
+	 *
+	 * @param array $urls     URL set.
+	 * @param int   $max_urls Maximum number of URLs to collect.
+	 * @return bool
+	 */
+	private function has_reached_url_limit( array $urls, $max_urls ) {
+		return $max_urls > 0 && count( $urls ) >= $max_urls;
+	}
+
+	/**
+	 * Return the remaining URL slots, or null when collection is unlimited.
+	 *
+	 * @param array $urls     URL set.
+	 * @param int   $max_urls Maximum number of URLs to collect.
+	 * @return int|null
+	 */
+	private function remaining_url_slots( array $urls, $max_urls ) {
+		if ( $max_urls <= 0 ) {
+			return null;
+		}
+
+		return max( 0, $max_urls - count( $urls ) );
 	}
 
 	/**

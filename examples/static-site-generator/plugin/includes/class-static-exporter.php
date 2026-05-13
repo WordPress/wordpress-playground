@@ -138,7 +138,7 @@ final class SSGWP_Static_Exporter {
 
 		$collector         = new SSGWP_URL_Collector();
 		$rewriter          = new SSGWP_URL_Rewriter( $collector, $args['url_mode'] );
-		$queue             = $collector->collect();
+		$queue             = $collector->collect( $max_pages );
 		$queue_index       = 0;
 		$seen              = array();
 		$exported          = array();

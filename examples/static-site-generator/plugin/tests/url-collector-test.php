@@ -8,6 +8,14 @@
 define( 'ABSPATH', __DIR__ );
 
 $ssgwp_test_home_url = 'https://example.test/';
+$ssgwp_test_options  = array(
+	'page_for_posts'      => 0,
+	'permalink_structure' => '/%postname%/',
+	'posts_per_page'      => 10,
+	'show_on_front'       => 'posts',
+);
+$ssgwp_test_posts    = array();
+$ssgwp_test_queries  = array();
 
 if ( ! function_exists( 'wp_normalize_path' ) ) {
 	/**
@@ -81,7 +89,49 @@ if ( ! function_exists( 'get_option' ) ) {
 	 * @return mixed
 	 */
 	function get_option( $option ) {
-		return 'permalink_structure' === $option ? '/%postname%/' : null;
+		global $ssgwp_test_options;
+
+		return isset( $ssgwp_test_options[ $option ] ) ? $ssgwp_test_options[ $option ] : null;
+	}
+}
+
+if ( ! function_exists( 'trailingslashit' ) ) {
+	/**
+	 * Append a trailing slash.
+	 *
+	 * @param string $value Value.
+	 * @return string
+	 */
+	function trailingslashit( $value ) {
+		return rtrim( (string) $value, '/' ) . '/';
+	}
+}
+
+if ( ! function_exists( 'absint' ) ) {
+	/**
+	 * Return a non-negative integer.
+	 *
+	 * @param mixed $value Value.
+	 * @return int
+	 */
+	function absint( $value ) {
+		return max( 0, (int) $value );
+	}
+}
+
+if ( ! function_exists( 'add_query_arg' ) ) {
+	/**
+	 * Add a query argument to a URL.
+	 *
+	 * @param string $key   Query key.
+	 * @param mixed  $value Query value.
+	 * @param string $url   URL.
+	 * @return string
+	 */
+	function add_query_arg( $key, $value, $url ) {
+		$separator = false === strpos( $url, '?' ) ? '?' : '&';
+
+		return $url . $separator . rawurlencode( $key ) . '=' . rawurlencode( (string) $value );
 	}
 }
 
@@ -106,6 +156,195 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 	 */
 	function is_wp_error( $value ) {
 		return false;
+	}
+}
+
+if ( ! function_exists( 'get_post_types' ) ) {
+	/**
+	 * Return public post types for collection tests.
+	 *
+	 * @return array
+	 */
+	function get_post_types() {
+		return array(
+			'post'       => (object) array(
+				'exclude_from_search' => false,
+				'has_archive'         => false,
+			),
+			'attachment' => (object) array(
+				'exclude_from_search' => false,
+				'has_archive'         => false,
+			),
+		);
+	}
+}
+
+if ( ! function_exists( 'get_post_type_archive_link' ) ) {
+	/**
+	 * Return a post type archive URL.
+	 *
+	 * @param string $post_type Post type.
+	 * @return string
+	 */
+	function get_post_type_archive_link( $post_type ) {
+		return home_url( $post_type . '/' );
+	}
+}
+
+if ( ! function_exists( 'wp_count_posts' ) ) {
+	/**
+	 * Count test posts.
+	 *
+	 * @param string $post_type Post type.
+	 * @return object
+	 */
+	function wp_count_posts( $post_type ) {
+		global $ssgwp_test_posts;
+
+		$count = 0;
+
+		foreach ( $ssgwp_test_posts as $post ) {
+			if ( $post_type === $post->post_type && 'publish' === $post->post_status ) {
+				++$count;
+			}
+		}
+
+		return (object) array( 'publish' => $count );
+	}
+}
+
+if ( ! function_exists( 'get_permalink' ) ) {
+	/**
+	 * Return a test permalink.
+	 *
+	 * @param int|object $post Post ID or object.
+	 * @return string
+	 */
+	function get_permalink( $post ) {
+		$post_id = is_object( $post ) ? $post->ID : (int) $post;
+
+		return home_url( 'post-' . $post_id . '/' );
+	}
+}
+
+if ( ! function_exists( 'get_post' ) ) {
+	/**
+	 * Return a test post.
+	 *
+	 * @param int|object $post Post ID or object.
+	 * @return object|null
+	 */
+	function get_post( $post ) {
+		global $ssgwp_test_posts;
+
+		$post_id = is_object( $post ) ? $post->ID : (int) $post;
+
+		return isset( $ssgwp_test_posts[ $post_id ] ) ? $ssgwp_test_posts[ $post_id ] : null;
+	}
+}
+
+if ( ! function_exists( 'get_taxonomies' ) ) {
+	/**
+	 * Return no taxonomies by default.
+	 *
+	 * @return array
+	 */
+	function get_taxonomies() {
+		return array();
+	}
+}
+
+if ( ! function_exists( 'get_terms' ) ) {
+	/**
+	 * Return no terms by default.
+	 *
+	 * @return array
+	 */
+	function get_terms() {
+		return array();
+	}
+}
+
+if ( ! function_exists( 'get_term_link' ) ) {
+	/**
+	 * Return a test term link.
+	 *
+	 * @param object $term Term object.
+	 * @return string
+	 */
+	function get_term_link( $term ) {
+		return home_url( 'term-' . $term->term_id . '/' );
+	}
+}
+
+if ( ! function_exists( 'get_users' ) ) {
+	/**
+	 * Return no users by default.
+	 *
+	 * @return array
+	 */
+	function get_users() {
+		return array();
+	}
+}
+
+if ( ! function_exists( 'get_author_posts_url' ) ) {
+	/**
+	 * Return a test author URL.
+	 *
+	 * @param int $user_id User ID.
+	 * @return string
+	 */
+	function get_author_posts_url( $user_id ) {
+		return home_url( 'author/user-' . (int) $user_id . '/' );
+	}
+}
+
+if ( ! function_exists( 'count_user_posts' ) ) {
+	/**
+	 * Return no author posts by default.
+	 *
+	 * @return int
+	 */
+	function count_user_posts() {
+		return 0;
+	}
+}
+
+if ( ! class_exists( 'WP_Query' ) ) {
+	/**
+	 * Minimal WP_Query test double.
+	 */
+	class WP_Query {
+		/**
+		 * Queried post IDs.
+		 *
+		 * @var int[]
+		 */
+		public $posts = array();
+
+		/**
+		 * Constructor.
+		 *
+		 * @param array $args Query arguments.
+		 */
+		public function __construct( array $args ) {
+			global $ssgwp_test_posts, $ssgwp_test_queries;
+
+			$ssgwp_test_queries[] = $args;
+			$post_type            = isset( $args['post_type'] ) ? $args['post_type'] : 'post';
+			$per_page             = isset( $args['posts_per_page'] ) ? (int) $args['posts_per_page'] : 10;
+			$page                 = isset( $args['paged'] ) ? max( 1, (int) $args['paged'] ) : 1;
+			$ids                  = array();
+
+			foreach ( $ssgwp_test_posts as $post ) {
+				if ( $post_type === $post->post_type && 'publish' === $post->post_status ) {
+					$ids[] = $post->ID;
+				}
+			}
+
+			$this->posts = array_slice( $ids, ( $page - 1 ) * $per_page, $per_page );
+		}
 	}
 }
 
@@ -188,6 +427,51 @@ ssgwp_assert_same(
 	null,
 	$collector->normalize_url( 'https://playground.wordpress.net/scope:other-site/static-page/' ),
 	'normalize_url rejects same-host URLs from a different Playground scope.'
+);
+
+$ssgwp_test_home_url = 'https://example.test/';
+$ssgwp_test_options  = array(
+	'page_for_posts'      => 0,
+	'permalink_structure' => '/%postname%/',
+	'posts_per_page'      => 10,
+	'show_on_front'       => 'page',
+);
+$ssgwp_test_posts    = array();
+$ssgwp_test_queries  = array();
+
+for ( $post_id = 1; $post_id <= 10; $post_id++ ) {
+	$ssgwp_test_posts[ $post_id ] = (object) array(
+		'ID'           => $post_id,
+		'post_content' => '',
+		'post_status'  => 'publish',
+		'post_type'    => 'post',
+	);
+}
+
+$limited_urls = $collector->collect( 5 );
+
+ssgwp_assert_same(
+	array(
+		'https://example.test/',
+		'https://example.test/post-1/',
+		'https://example.test/post-2/',
+		'https://example.test/post-3/',
+		'https://example.test/post-4/',
+	),
+	$limited_urls,
+	'collect respects the URL limit during initial post discovery.'
+);
+
+ssgwp_assert_same(
+	4,
+	$ssgwp_test_queries[0]['posts_per_page'],
+	'collect sizes the first post query to the remaining URL slots.'
+);
+
+ssgwp_assert_same(
+	1,
+	count( $ssgwp_test_queries ),
+	'collect stops querying posts after reaching the URL limit.'
 );
 
 /**

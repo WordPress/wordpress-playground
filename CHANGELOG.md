@@ -156,6 +156,9 @@ format.
 - Copy WebVTT caption files discovered while rewriting linked copied text
   assets, such as player JSON sidecar files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Bound initial static export URL discovery by the configured max page limit
+  so large sites do not enumerate more starting URLs than the export can render.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
