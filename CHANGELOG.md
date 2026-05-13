@@ -145,6 +145,8 @@ format.
 - Rewrite SVG `feImage` asset references discovered in exported pages and
   linked copied SVG files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat SVG anchor `xlink:href` URLs as crawlable static export pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite Windows browser config metadata and copied XML tile asset
   dependencies in static exports.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

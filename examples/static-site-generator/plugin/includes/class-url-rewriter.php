@@ -285,7 +285,10 @@ final class SSGWP_URL_Rewriter {
 			'data-url'         => 'maybe',
 		);
 		$attributes_by_tag      = array(
-			'A'          => array( 'href' => 'page' ),
+			'A'          => array(
+				'href'       => 'page',
+				'xlink:href' => 'page',
+			),
 			'AREA'       => array( 'href' => 'page' ),
 			'AUDIO'      => array( 'src' => 'asset' ),
 			'BASE'       => array( 'href' => 'base' ),
@@ -434,6 +437,12 @@ final class SSGWP_URL_Rewriter {
 			$placeholders
 		);
 		$html         = $this->rewrite_embedded_page_sources_with_patterns(
+			$html,
+			$base_url,
+			$target_path,
+			$placeholders
+		);
+		$html         = $this->rewrite_anchor_xlink_hrefs_with_patterns(
 			$html,
 			$base_url,
 			$target_path,
@@ -611,6 +620,53 @@ final class SSGWP_URL_Rewriter {
 				}
 
 				return $tag;
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Rewrite SVG anchor xlink hrefs as crawlable page URLs.
+	 *
+	 * @param string $html         HTML.
+	 * @param string $base_url     Base URL.
+	 * @param string $target_path  Relative static file path.
+	 * @param array  $placeholders Placeholder replacements.
+	 * @return string HTML with anchor xlink hrefs temporarily preserved.
+	 */
+	private function rewrite_anchor_xlink_hrefs_with_patterns(
+		$html,
+		$base_url,
+		$target_path,
+		array &$placeholders
+	) {
+		return preg_replace_callback(
+			'/<a\b[^>]*>/is',
+			function ( $matches ) use ( $base_url, $target_path, &$placeholders ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+
+				if ( empty( $attributes['xlink:href']['value'] ) ) {
+					return $tag;
+				}
+
+				$attribute = $attributes['xlink:href'];
+				$rewritten = $this->rewrite_url_value(
+					$attribute['value'],
+					$base_url,
+					$target_path,
+					'page'
+				);
+
+				if ( $rewritten === $attribute['value'] ) {
+					return $tag;
+				}
+
+				$placeholder                  = '#__SSGWP_ANCHOR_XLINK_HREF_'
+					. count( $placeholders ) . '__';
+				$placeholders[ $placeholder ] = $rewritten;
+
+				return $this->replace_html_tag_attribute( $tag, $attribute, $placeholder );
 			},
 			$html
 		);

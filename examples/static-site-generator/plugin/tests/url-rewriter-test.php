@@ -658,7 +658,8 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 		. '<iframe src="/framed-page/" data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>'
 		. '<embed src="/embed-page/">'
 		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
-		. '<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">',
+		. '<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">'
+		. '<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>',
 	'https://example.test/',
 	'index.html'
 );
@@ -739,6 +740,12 @@ ssgwp_assert_contains(
 	'<embed data-src="embed-page/index.html" data-lazy-src="wp-content/uploads/social-video.mp4?lazy-embed=1">',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns treats lazy embed sources as page-or-asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'<svg><a xlink:href="svg-linked-page/index.html"><text>SVG page link</text></a></svg>',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats SVG anchor xlink hrefs as page links.'
 );
 
 $pattern_srcdoc_method = new ReflectionMethod( $rewriter, 'rewrite_srcdoc_attributes_with_patterns' );
@@ -1046,6 +1053,7 @@ $html = implode(
 		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
+		'<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
 		'<a class="generic-data-url" data-url="/generic-page/">Generic data URL</a>',
@@ -1393,6 +1401,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?link-schema=1', $result['assets'], true ),
 	'rewrite_html records schema.org link itemprop media URLs as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/svg-linked-page/', $result['links'], true ),
+	'rewrite_html records SVG anchor xlink hrefs as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -1951,6 +1965,12 @@ ssgwp_assert_contains(
 	'xlink:href="wp-content/uploads/filter-2x.png?svg=2"',
 	$result['content'],
 	'rewrite_html rewrites SVG filter image xlink:href attributes.'
+);
+
+ssgwp_assert_contains(
+	'<svg><a xlink:href="svg-linked-page/index.html"><text>SVG page link</text></a></svg>',
+	$result['content'],
+	'rewrite_html treats SVG anchor xlink hrefs as crawlable page links.'
 );
 
 ssgwp_assert_same(

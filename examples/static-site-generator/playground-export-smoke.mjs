@@ -240,6 +240,14 @@ $microdata_related_id = wp_insert_post(array(
 	'post_content' => '<p>Microdata related link export target.</p>',
 ));
 
+$svg_link_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'SVG Link',
+	'post_name' => 'svg-link',
+	'post_content' => '<p>SVG anchor export target.</p>',
+));
+
 $schema_profile_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -273,6 +281,7 @@ $task_target_url = get_permalink($task_target_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
 $microdata_related_url = get_permalink($microdata_related_id);
+$svg_link_url = get_permalink($svg_link_id);
 $schema_profile_url = get_permalink($schema_profile_id);
 $amp_url = get_permalink($amp_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
@@ -319,6 +328,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
+	. '<svg><a xlink:href="' . esc_url($svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($manifest_url) . '">'
 	. '<link rel="preload" as="fetch" href="' . esc_url($player_config_url) . '">'
@@ -415,6 +425,7 @@ $scoped_task_target_url = get_permalink($task_target_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
 $scoped_microdata_related_url = get_permalink($microdata_related_id);
+$scoped_svg_link_url = get_permalink($svg_link_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
@@ -469,6 +480,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
+	. '<svg><a xlink:href="' . esc_url($scoped_svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($scoped_manifest_url) . '">'
 	. '<link rel="preload" as="fetch" href="' . esc_url($scoped_player_config_url) . '">'
@@ -603,6 +615,7 @@ async function verifyExport() {
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
+	assertFile('svg-link/index.html');
 	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('parent-page/index.html');
@@ -638,6 +651,7 @@ async function verifyExport() {
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
+		'../svg-link/index.html',
 		'../schema-profile/index.html',
 		'../amp-companion/index.html',
 		'relative-child/index.html',
@@ -708,6 +722,11 @@ async function verifyExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'xlink:href="../svg-link/index.html"',
+		'static-page/index.html rewrites SVG anchor xlink href page targets'
 	);
 	assertIncludes(
 		staticPage,
@@ -878,6 +897,7 @@ async function verifyScopedExport() {
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
+	assertFile('svg-link/index.html');
 	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('parent-page/child-page/index.html');
@@ -925,6 +945,7 @@ async function verifyScopedExport() {
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
+		'../svg-link/index.html',
 		'../schema-profile/index.html',
 		'../amp-companion/index.html',
 		'relative-child/index.html',
@@ -994,6 +1015,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'scoped static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'xlink:href="../svg-link/index.html"',
+		'scoped static-page/index.html rewrites SVG anchor xlink href page targets'
 	);
 	assertIncludes(
 		staticPage,
