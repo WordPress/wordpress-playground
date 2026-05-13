@@ -26,6 +26,7 @@ const tempRoot = mkdtempSync(path.join(tmpdir(), 'ssgwp-playground-smoke-'));
 const exportHostDir = path.join(tempRoot, 'exports');
 const blueprintPath = path.join(tempRoot, 'blueprint.json');
 const exportDir = path.join(exportHostDir, 'site');
+const scopedExportDir = path.join(exportHostDir, 'scoped-site');
 const wpVersion = process.env.SSGWP_SMOKE_WP_VERSION || '6.8';
 const phpVersion = process.env.SSGWP_SMOKE_PHP_VERSION || '8.3';
 const cliAttempts = Number.parseInt(
@@ -34,12 +35,14 @@ const cliAttempts = Number.parseInt(
 );
 
 let failed = false;
+let currentExportDir = exportDir;
 
 try {
 	mkdirSync(exportHostDir, { recursive: true });
 	writeFileSync(blueprintPath, JSON.stringify(createBlueprint(), null, '\t'));
 	runPlaygroundCli();
 	await verifyExport();
+	await verifyScopedExport();
 } catch (error) {
 	failed = true;
 	console.error(error instanceof Error ? error.message : error);
@@ -125,7 +128,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<script type="application/json">{"child":"' . esc_url($child_url) . '"}</script>';
 
-wp_insert_post(array(
+$static_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
 	'post_title' => 'Static Page',
@@ -152,6 +155,58 @@ if (!empty($result['warnings'])) {
 
 if ((int) $result['pages_exported'] < 4) {
 	throw new Exception('Expected at least four exported pages.');
+}
+
+$scoped_home = 'https://playground.wordpress.net/scope:sad-quiet-school';
+
+add_filter('home_url', function($url, $path) use ($scoped_home) {
+	return trailingslashit($scoped_home) . ltrim($path, '/');
+}, 10, 2);
+
+add_filter('site_url', function($url, $path) use ($scoped_home) {
+	return trailingslashit($scoped_home) . ltrim($path, '/');
+}, 10, 2);
+
+add_filter('content_url', function($url, $path) use ($scoped_home) {
+	return trailingslashit($scoped_home) . 'wp-content/' . ltrim($path, '/');
+}, 10, 2);
+
+add_filter('includes_url', function($url, $path) use ($scoped_home) {
+	return trailingslashit($scoped_home) . 'wp-includes/' . ltrim($path, '/');
+}, 10, 2);
+
+$scoped_child_url = get_permalink($child_id);
+$scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
+$scoped_static_content = '<p id="section">Static smoke page.</p>'
+	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
+	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
+	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
+	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
+	. '<script type="application/json">{"child":"' . esc_url($scoped_child_url) . '"}</script>';
+
+wp_update_post(array(
+	'ID' => $static_id,
+	'post_content' => $scoped_static_content,
+));
+
+$scoped_result = $exporter->export_to_directory('/exports/scoped-site', array(
+	'url_mode' => 'relative',
+	'max_pages' => 50,
+	'copy_uploads' => true,
+	'copy_theme' => true,
+	'copy_plugins' => false,
+	'copy_core_assets' => true,
+	'crawl_links' => true,
+	'fetch_mode' => 'internal',
+));
+
+if (!empty($scoped_result['warnings'])) {
+	error_log(implode("\\n", $scoped_result['warnings']));
+	throw new Exception('Scoped static export completed with warnings.');
+}
+
+if ((int) $scoped_result['pages_exported'] < 4) {
+	throw new Exception('Expected at least four scoped exported pages.');
 }
 `;
 }
@@ -217,6 +272,7 @@ function isRetryableCliFailure(result) {
 }
 
 async function verifyExport() {
+	currentExportDir = exportDir;
 	assertFile('index.html');
 	assertFile('static-page/index.html');
 	assertFile('parent-page/index.html');
@@ -240,8 +296,48 @@ async function verifyExport() {
 	await assertAllLocalResourceTargetsExist();
 }
 
+async function verifyScopedExport() {
+	currentExportDir = scopedExportDir;
+
+	assertFile('index.html');
+	assertFile('static-page/index.html');
+	assertFile('parent-page/child-page/index.html');
+	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
+	assertFile('static-export.json');
+
+	const files = await listFiles(currentExportDir);
+	const duplicatedScope = 'scope%3Asad-quiet-school/scope%3Asad-quiet-school';
+
+	for (const file of files) {
+		if (file.includes(duplicatedScope)) {
+			throw new Error(`Duplicated Playground scope in exported path: ${file}`);
+		}
+
+		if (file.startsWith('scope%3Asad-quiet-school/')) {
+			throw new Error(`Playground scope leaked into exported path: ${file}`);
+		}
+	}
+
+	const staticPage = readText('static-page/index.html');
+	const expectedTargets = [
+		'../parent-page/child-page/index.html',
+		'../static-page/index.html#section',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt',
+	];
+
+	for (const target of expectedTargets) {
+		assertIncludes(staticPage, target, `scoped static-page/index.html references ${target}`);
+		assertStaticTargetExists('static-page/index.html', target);
+	}
+
+	assertDoesNotInclude(staticPage, duplicatedScope);
+	assertDoesNotInclude(staticPage, 'href="/scope:sad-quiet-school/static-page/"');
+	assertDoesNotInclude(staticPage, 'href="scope%3Asad-quiet-school/');
+	await assertAllLocalResourceTargetsExist();
+}
+
 function assertFile(relativePath) {
-	const target = path.join(exportDir, relativePath);
+	const target = path.join(currentExportDir, relativePath);
 
 	if (!existsSync(target)) {
 		throw new Error(`Missing exported file: ${relativePath}`);
@@ -249,7 +345,7 @@ function assertFile(relativePath) {
 }
 
 function readText(relativePath) {
-	return readFileSync(path.join(exportDir, relativePath), 'utf8');
+	return readFileSync(path.join(currentExportDir, relativePath), 'utf8');
 }
 
 function assertIncludes(haystack, needle, message) {
@@ -293,7 +389,7 @@ async function listFiles(dir, prefix = '') {
 }
 
 async function assertAllLocalResourceTargetsExist() {
-	const files = await listFiles(exportDir);
+	const files = await listFiles(currentExportDir);
 	const htmlFiles = files.filter((file) => /\.html$/i.test(file));
 	const cssQueue = [];
 	const inspectedCss = new Set();
@@ -314,7 +410,7 @@ async function assertAllLocalResourceTargetsExist() {
 			}
 
 			if (target && /\.css$/i.test(target)) {
-				cssQueue.push(path.relative(exportDir, target));
+				cssQueue.push(path.relative(currentExportDir, target));
 			}
 		}
 	}
@@ -338,7 +434,7 @@ async function assertAllLocalResourceTargetsExist() {
 			}
 
 			if (target && /\.css$/i.test(target)) {
-				cssQueue.push(path.relative(exportDir, target));
+				cssQueue.push(path.relative(currentExportDir, target));
 			}
 		}
 	}
@@ -403,11 +499,11 @@ function resolveExportReference(fromFile, ref) {
 	}
 
 	const base = withoutQuery.startsWith('/')
-		? exportDir
-		: path.dirname(path.join(exportDir, fromFile));
+		? currentExportDir
+		: path.dirname(path.join(currentExportDir, fromFile));
 	const resolved = path.resolve(base, withoutQuery.replace(/^\/+/, ''));
 
-	if (!resolved.startsWith(path.resolve(exportDir) + path.sep)) {
+	if (!resolved.startsWith(path.resolve(currentExportDir) + path.sep)) {
 		throw new Error(`Reference escapes export root from ${fromFile}: ${ref}`);
 	}
 

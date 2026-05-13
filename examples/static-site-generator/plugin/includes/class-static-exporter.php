@@ -702,6 +702,7 @@ final class SSGWP_Static_Exporter {
 		}
 
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$path = SSGWP_Path_Utils::remove_deployment_base_path( $path );
 		$path = trim( $path, '/' );
 
 		if ( '' === $path || SSGWP_Path_Utils::has_parent_segment( $path ) ) {
@@ -872,7 +873,9 @@ final class SSGWP_Static_Exporter {
 			return null;
 		}
 
-		$path = trim( SSGWP_Path_Utils::map_wordpress_asset_url_path( $parts['path'] ), '/' );
+		$path = SSGWP_Path_Utils::map_wordpress_asset_url_path( $parts['path'] );
+		$path = SSGWP_Path_Utils::remove_deployment_base_path( $path );
+		$path = trim( $path, '/' );
 
 		if ( '' === $path || SSGWP_Path_Utils::has_parent_segment( $path ) ) {
 			return null;

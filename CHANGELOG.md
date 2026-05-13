@@ -41,6 +41,9 @@ format.
 - Keep Playground admin static export ZIP scratch files outside uploads so
   stale failed downloads cannot be copied into later exports.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Fix static export paths for scoped Playground deployments so the scope prefix
+  is not duplicated in generated pages, assets, or rewritten links.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

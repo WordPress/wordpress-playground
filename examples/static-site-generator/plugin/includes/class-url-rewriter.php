@@ -707,6 +707,7 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function url_path_to_static_web_path( $path, $query = '' ) {
 		$path = SSGWP_Path_Utils::map_wordpress_asset_url_path( $path );
+		$path = SSGWP_Path_Utils::remove_deployment_base_path( $path );
 		$path = trim( rawurldecode( $path ), '/' );
 
 		if ( '' === $path ) {

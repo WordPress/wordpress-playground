@@ -21,6 +21,9 @@ define( 'ABSPATH', $fixture_root . '/' );
 define( 'WPINC', 'wp-includes' );
 define( 'SSGWP_VERSION', '0.1.0' );
 
+$ssgwp_test_home_url = 'https://example.test/';
+$ssgwp_test_site_url = 'https://example.test/';
+
 if ( ! function_exists( 'wp_normalize_path' ) ) {
 	/**
 	 * Normalize paths for tests.
@@ -90,7 +93,23 @@ if ( ! function_exists( 'home_url' ) ) {
 	 * @return string
 	 */
 	function home_url( $path = '' ) {
-		return 'https://example.test/' . ltrim( $path, '/' );
+		global $ssgwp_test_home_url;
+
+		return rtrim( $ssgwp_test_home_url, '/' ) . '/' . ltrim( $path, '/' );
+	}
+}
+
+if ( ! function_exists( 'site_url' ) ) {
+	/**
+	 * Return a test site URL.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	function site_url( $path = '' ) {
+		global $ssgwp_test_site_url;
+
+		return rtrim( $ssgwp_test_site_url, '/' ) . '/' . ltrim( $path, '/' );
 	}
 }
 
@@ -292,6 +311,24 @@ ssgwp_assert_same(
 	$url_to_file_path_method->invoke( $exporter, 'https://example.test/collision%20page/?view=grid' ),
 	'url_to_file_path keeps encoded paths distinct when adding query hashes.'
 );
+
+$ssgwp_test_home_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
+$ssgwp_test_site_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
+
+ssgwp_assert_same(
+	'sample-page/index.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://playground.wordpress.net/scope:sad-quiet-school/sample-page/' ),
+	'url_to_file_path strips the Playground scope base from exported page paths.'
+);
+
+ssgwp_assert_same(
+	'scope%3Asad-quiet-school/sample-page/index.html',
+	$url_to_file_path_method->invoke( $exporter, 'https://playground.wordpress.net/scope:sad-quiet-school/scope:sad-quiet-school/sample-page/' ),
+	'url_to_file_path does not duplicate-strip a repeated Playground scope segment.'
+);
+
+$ssgwp_test_home_url = 'https://example.test/';
+$ssgwp_test_site_url = 'https://example.test/';
 
 $html_with_link = $method->invoke(
 	$exporter,

@@ -7,6 +7,11 @@
 
 define( 'ABSPATH', __DIR__ );
 
+$ssgwp_test_home_url     = 'https://example.test/';
+$ssgwp_test_site_url     = 'https://example.test/';
+$ssgwp_test_content_url  = 'https://example.test/wp-content';
+$ssgwp_test_includes_url = 'https://example.test/wp-includes';
+
 if ( ! function_exists( 'wp_normalize_path' ) ) {
 	/**
 	 * Normalize paths for tests.
@@ -64,7 +69,23 @@ if ( ! function_exists( 'content_url' ) ) {
 	 * @return string
 	 */
 	function content_url( $path = '' ) {
-		return ssgwp_test_url( 'https://example.test/wp-content', $path );
+		global $ssgwp_test_content_url;
+
+		return ssgwp_test_url( $ssgwp_test_content_url, $path );
+	}
+}
+
+if ( ! function_exists( 'home_url' ) ) {
+	/**
+	 * Return a home URL for tests.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	function home_url( $path = '' ) {
+		global $ssgwp_test_home_url;
+
+		return ssgwp_test_url( $ssgwp_test_home_url, $path );
 	}
 }
 
@@ -76,7 +97,23 @@ if ( ! function_exists( 'includes_url' ) ) {
 	 * @return string
 	 */
 	function includes_url( $path = '' ) {
-		return ssgwp_test_url( 'https://example.test/wp-includes', $path );
+		global $ssgwp_test_includes_url;
+
+		return ssgwp_test_url( $ssgwp_test_includes_url, $path );
+	}
+}
+
+if ( ! function_exists( 'site_url' ) ) {
+	/**
+	 * Return a site URL for tests.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	function site_url( $path = '' ) {
+		global $ssgwp_test_site_url;
+
+		return ssgwp_test_url( $ssgwp_test_site_url, $path );
 	}
 }
 
@@ -141,6 +178,30 @@ ssgwp_assert_same(
 	'url_to_export_file_path keeps encoded parent segments literal.'
 );
 
+$ssgwp_test_home_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
+$ssgwp_test_site_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
+
+ssgwp_assert_same(
+	'sample-page/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/scope:sad-quiet-school/sample-page/' ),
+	'url_to_export_file_path strips a Playground scope deployment base once.'
+);
+
+ssgwp_assert_same(
+	'sample-page/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/scope%3Asad-quiet-school/sample-page/' ),
+	'url_to_export_file_path strips an encoded Playground scope deployment base.'
+);
+
+ssgwp_assert_same(
+	'scope%3Asad-quiet-school/sample-page/index.html',
+	SSGWP_Path_Utils::url_to_export_file_path( '/scope:sad-quiet-school/scope:sad-quiet-school/sample-page/' ),
+	'url_to_export_file_path removes only one Playground scope deployment base.'
+);
+
+$ssgwp_test_home_url = 'https://example.test/';
+$ssgwp_test_site_url = 'https://example.test/';
+
 ssgwp_assert_true(
 	SSGWP_Path_Utils::url_to_export_file_path( '/collision%20page/' )
 		!== SSGWP_Path_Utils::url_to_export_file_path( '/collision+page/' ),
@@ -203,6 +264,24 @@ ssgwp_assert_same(
 	SSGWP_Path_Utils::map_wordpress_asset_url_path( '/wp-includes/js/script.js' ),
 	'map_wordpress_asset_url_path preserves wp-includes layout.'
 );
+
+$ssgwp_test_content_url  = 'https://playground.wordpress.net/scope:sad-quiet-school/wp-content';
+$ssgwp_test_includes_url = 'https://playground.wordpress.net/scope:sad-quiet-school/wp-includes';
+
+ssgwp_assert_same(
+	'wp-content/themes/theme/style.css',
+	SSGWP_Path_Utils::map_wordpress_asset_url_path( '/scope:sad-quiet-school/wp-content/themes/theme/style.css' ),
+	'map_wordpress_asset_url_path strips scoped wp-content deployment paths.'
+);
+
+ssgwp_assert_same(
+	'wp-includes/js/script.js',
+	SSGWP_Path_Utils::map_wordpress_asset_url_path( '/scope:sad-quiet-school/wp-includes/js/script.js' ),
+	'map_wordpress_asset_url_path strips scoped wp-includes deployment paths.'
+);
+
+$ssgwp_test_content_url  = 'https://example.test/wp-content';
+$ssgwp_test_includes_url = 'https://example.test/wp-includes';
 
 ssgwp_assert_true(
 	SSGWP_Path_Utils::is_path_inside_directory( '/tmp/export/file.css', '/tmp/export' ),

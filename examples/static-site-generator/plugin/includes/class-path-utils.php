@@ -47,6 +47,7 @@ final class SSGWP_Path_Utils {
 	 * @return string Relative export file path.
 	 */
 	public static function url_to_export_file_path( $path, $query = '' ) {
+		$path = self::remove_deployment_base_path( $path );
 		$path = self::sanitize_url_path( $path );
 
 		if ( '' === $path ) {
@@ -63,6 +64,30 @@ final class SSGWP_Path_Utils {
 		}
 
 		return $file;
+	}
+
+	/**
+	 * Remove the WordPress deployment base path from a URL path once.
+	 *
+	 * Playground scoped URLs include a runtime prefix such as /scope:example/.
+	 * Static exports should be rooted at the generated ZIP, not under that
+	 * deployment prefix.
+	 *
+	 * @param string $path URL path.
+	 * @return string URL path relative to the WordPress deployment base.
+	 */
+	public static function remove_deployment_base_path( $path ) {
+		$path = wp_normalize_path( (string) $path );
+
+		foreach ( self::get_deployment_base_paths() as $base_path ) {
+			$relative = self::remove_path_prefix( $path, $base_path );
+
+			if ( null !== $relative ) {
+				return $relative;
+			}
+		}
+
+		return $path;
 	}
 
 	/**
@@ -177,6 +202,86 @@ final class SSGWP_Path_Utils {
 		}
 
 		return $path;
+	}
+
+	/**
+	 * Return deployment base paths sorted by specificity.
+	 *
+	 * @return string[]
+	 */
+	private static function get_deployment_base_paths() {
+		$urls = array();
+
+		if ( function_exists( 'home_url' ) ) {
+			$urls[] = home_url( '/' );
+		}
+
+		if ( function_exists( 'site_url' ) ) {
+			$urls[] = site_url( '/' );
+		}
+
+		$paths = array();
+
+		foreach ( $urls as $url ) {
+			$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+			$path = '/' . trim( $path, '/' );
+
+			if ( '/' !== $path && ! isset( $paths[ $path ] ) ) {
+				$paths[ $path ] = $path;
+			}
+		}
+
+		usort(
+			$paths,
+			static function ( $a, $b ) {
+				return strlen( $b ) <=> strlen( $a );
+			}
+		);
+
+		return array_values( $paths );
+	}
+
+	/**
+	 * Remove a URL path prefix when it matches complete decoded path segments.
+	 *
+	 * @param string $path   URL path.
+	 * @param string $prefix URL path prefix.
+	 * @return string|null Relative URL path, or null when the prefix does not match.
+	 */
+	private static function remove_path_prefix( $path, $prefix ) {
+		$path_segments   = self::split_url_path_segments( $path );
+		$prefix_segments = self::split_url_path_segments( $prefix );
+
+		if ( empty( $prefix_segments ) || count( $path_segments ) < count( $prefix_segments ) ) {
+			return null;
+		}
+
+		foreach ( $prefix_segments as $index => $prefix_segment ) {
+			if ( rawurldecode( $path_segments[ $index ] ) !== rawurldecode( $prefix_segment ) ) {
+				return null;
+			}
+		}
+
+		$relative_segments = array_slice( $path_segments, count( $prefix_segments ) );
+
+		return empty( $relative_segments ) ? '/' : '/' . implode( '/', $relative_segments );
+	}
+
+	/**
+	 * Split a URL path into non-empty segments.
+	 *
+	 * @param string $path URL path.
+	 * @return string[]
+	 */
+	private static function split_url_path_segments( $path ) {
+		return array_values(
+			array_filter(
+				explode( '/', trim( wp_normalize_path( (string) $path ), '/' ) ),
+				static function ( $segment ) {
+					return '' !== $segment;
+				}
+			)
+		);
 	}
 
 	/**

@@ -7,6 +7,11 @@
 
 define( 'ABSPATH', __DIR__ );
 
+$ssgwp_test_home_url     = 'https://example.test';
+$ssgwp_test_site_url     = 'https://example.test';
+$ssgwp_test_content_url  = 'https://example.test/wp-content';
+$ssgwp_test_includes_url = 'https://example.test/wp-includes';
+
 if ( ! function_exists( 'wp_normalize_path' ) ) {
 	/**
 	 * Normalize paths for tests.
@@ -64,7 +69,9 @@ if ( ! function_exists( 'home_url' ) ) {
 	 * @return string
 	 */
 	function home_url( $path = '' ) {
-		return ssgwp_test_url( 'https://example.test', $path );
+		global $ssgwp_test_home_url;
+
+		return ssgwp_test_url( $ssgwp_test_home_url, $path );
 	}
 }
 
@@ -76,7 +83,9 @@ if ( ! function_exists( 'site_url' ) ) {
 	 * @return string
 	 */
 	function site_url( $path = '' ) {
-		return ssgwp_test_url( 'https://example.test', $path );
+		global $ssgwp_test_site_url;
+
+		return ssgwp_test_url( $ssgwp_test_site_url, $path );
 	}
 }
 
@@ -88,7 +97,9 @@ if ( ! function_exists( 'content_url' ) ) {
 	 * @return string
 	 */
 	function content_url( $path = '' ) {
-		return ssgwp_test_url( 'https://example.test/wp-content', $path );
+		global $ssgwp_test_content_url;
+
+		return ssgwp_test_url( $ssgwp_test_content_url, $path );
 	}
 }
 
@@ -100,7 +111,9 @@ if ( ! function_exists( 'includes_url' ) ) {
 	 * @return string
 	 */
 	function includes_url( $path = '' ) {
-		return ssgwp_test_url( 'https://example.test/wp-includes', $path );
+		global $ssgwp_test_includes_url;
+
+		return ssgwp_test_url( $ssgwp_test_includes_url, $path );
 	}
 }
 
@@ -365,7 +378,9 @@ class SSGWP_URL_Collector {
 			$parts = wp_parse_url( $url );
 		}
 
-		if ( empty( $parts['host'] ) || 'example.test' !== strtolower( $parts['host'] ) ) {
+		$home_parts = wp_parse_url( home_url( '/' ) );
+
+		if ( empty( $parts['host'] ) || empty( $home_parts['host'] ) || strtolower( $home_parts['host'] ) !== strtolower( $parts['host'] ) ) {
 			return null;
 		}
 
@@ -394,7 +409,9 @@ class SSGWP_URL_Collector {
 			$query = http_build_query( $query_args, '', '&', PHP_QUERY_RFC3986 );
 		}
 
-		return 'https://' . $parts['host'] . $path . ( '' !== $query ? '?' . $query : '' );
+		$scheme = isset( $home_parts['scheme'] ) ? $home_parts['scheme'] : 'https';
+
+		return $scheme . '://' . strtolower( $parts['host'] ) . $path . ( '' !== $query ? '?' . $query : '' );
 	}
 }
 
@@ -469,6 +486,7 @@ foreach (
 		'blog/page/2/index.html',
 		'nested/page/index.html',
 		'protocol-page/index.html',
+		'sample-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',
@@ -728,6 +746,49 @@ ssgwp_assert_static_target_exists(
 	'nested page rewritten URL target exists.'
 );
 
+$ssgwp_test_home_url     = 'https://playground.wordpress.net/scope:sad-quiet-school';
+$ssgwp_test_site_url     = 'https://playground.wordpress.net/scope:sad-quiet-school';
+$ssgwp_test_content_url  = 'https://playground.wordpress.net/scope:sad-quiet-school/wp-content';
+$ssgwp_test_includes_url = 'https://playground.wordpress.net/scope:sad-quiet-school/wp-includes';
+
+$scoped_result = $rewriter->rewrite_html(
+	'<a href="https://playground.wordpress.net/scope:sad-quiet-school/sample-page/">Sample</a>'
+		. '<a href="/scope:sad-quiet-school/sample-page/">Root</a>'
+		. '<img src="/scope:sad-quiet-school/wp-content/uploads/photo.jpg" alt="">',
+	'https://playground.wordpress.net/scope:sad-quiet-school/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'href="sample-page/index.html"',
+	$scoped_result['content'],
+	'rewrite_html strips the Playground scope base from same-site page links.'
+);
+
+ssgwp_assert_contains(
+	'src="wp-content/uploads/photo.jpg"',
+	$scoped_result['content'],
+	'rewrite_html strips the Playground scope base from same-site asset links.'
+);
+
+ssgwp_assert_not_contains(
+	'scope%3Asad-quiet-school/scope%3Asad-quiet-school',
+	$scoped_result['content'],
+	'rewrite_html avoids duplicated encoded Playground scope paths.'
+);
+
+ssgwp_assert_static_target_exists(
+	$export_root,
+	'index.html',
+	'sample-page/index.html',
+	'scoped page rewritten URL target exists.'
+);
+
+$ssgwp_test_home_url     = 'https://example.test';
+$ssgwp_test_site_url     = 'https://example.test';
+$ssgwp_test_content_url  = 'https://example.test/wp-content';
+$ssgwp_test_includes_url = 'https://example.test/wp-includes';
+
 foreach (
 	array(
 		'href="/wp-admin/admin.php"',
@@ -801,6 +862,21 @@ function ssgwp_assert_contains( $needle, $haystack, $message ) {
 	}
 
 	ssgwp_fail( $message . ' Missing ' . var_export( $needle, true ) . '.' );
+}
+
+/**
+ * Assert text does not contain a substring.
+ *
+ * @param string $needle  Expected absent substring.
+ * @param string $haystack Text to inspect.
+ * @param string $message Failure message.
+ */
+function ssgwp_assert_not_contains( $needle, $haystack, $message ) {
+	if ( false === strpos( $haystack, $needle ) ) {
+		return;
+	}
+
+	ssgwp_fail( $message . ' Unexpected ' . var_export( $needle, true ) . '.' );
 }
 
 /**
