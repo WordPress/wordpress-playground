@@ -247,6 +247,9 @@ format.
 - Rewrite legacy static export `background` attributes on table markup so old
   theme/content image references point at copied assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite document-relative URLs embedded in static export script text so
+  inline JSON/JavaScript page and asset references point at generated files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

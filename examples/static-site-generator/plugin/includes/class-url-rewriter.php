@@ -70,6 +70,7 @@ final class SSGWP_URL_Rewriter {
 		$html = $this->rewrite_meta_content_urls( $html, $page_url, $target_path );
 		$html = $this->rewrite_css_in_style_blocks( $html, $page_url, $target_path );
 		$html = $this->rewrite_css_in_style_attributes( $html, $page_url, $target_path );
+		$html = $this->rewrite_relative_script_text_urls( $html, $page_url, $target_path );
 		$html = $this->rewrite_same_site_text_urls_preserving_resource_hints(
 			$html,
 			$target_path
@@ -161,6 +162,72 @@ final class SSGWP_URL_Rewriter {
 		$content      = $this->rewrite_same_site_text_urls( $content, $target_path );
 
 		return strtr( $content, $placeholders );
+	}
+
+	/**
+	 * Rewrite document-relative URLs embedded inside script text.
+	 *
+	 * Attribute rewriting already handles relative URL attributes. This pass is
+	 * intentionally limited to quoted ./ and ../ script strings so generic prose
+	 * or already-rewritten HTML attributes are not treated as URLs.
+	 *
+	 * @param string $html        HTML content.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string Rewritten HTML content.
+	 */
+	private function rewrite_relative_script_text_urls( $html, $base_url, $target_path ) {
+		return preg_replace_callback(
+			'#(<script\b[^>]*>)(.*?)(</script>)#is',
+			function ( $matches ) use ( $base_url, $target_path ) {
+				$content = $this->rewrite_relative_text_urls(
+					$matches[2],
+					$base_url,
+					$target_path,
+					false
+				);
+				$content = $this->rewrite_relative_text_urls(
+					$content,
+					$base_url,
+					$target_path,
+					true
+				);
+
+				return $matches[1] . $content . $matches[3];
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Rewrite quoted ./ and ../ URLs in text content.
+	 *
+	 * @param string $content     Text content.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @param bool   $escaped     Whether slashes are JSON escaped.
+	 * @return string Rewritten text content.
+	 */
+	private function rewrite_relative_text_urls( $content, $base_url, $target_path, $escaped ) {
+		$pattern = $escaped
+			? '#(?<=["\'])(?:\\.\\\\/|\\.\\.\\\\/)(?:[^\\\\\s\'"<>)]|\\\\/)+(?=["\'])#'
+			: '#(?<=["\'])(?:\\./|\\.\\./)[^\\s\'"<>)]+(?=["\'])#';
+
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $base_url, $target_path, $escaped ) {
+				$url = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+
+				if ( preg_match( '/[*{}]/', $url ) ) {
+					return $matches[0];
+				}
+
+				$rewritten = $this->rewrite_url_value( $url, $base_url, $target_path, 'maybe' );
+
+				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
+			},
+			$content
+		);
 	}
 
 	/**

@@ -2763,7 +2763,10 @@ ssgwp_assert_static_target_exists(
 
 $relative_result = $rewriter->rewrite_html(
 	'<a href="relative-child/">Relative child</a>'
-		. '<img src="../wp-content/uploads/photo.jpg?relative=1" alt="">',
+		. '<img src="../wp-content/uploads/photo.jpg?relative=1" alt="">'
+		. '<script>const relativePage = "./relative-child/";'
+		. ' const relativeAsset = "../wp-content/uploads/photo.jpg?relative-script=1";'
+		. ' const escapedRelativePage = ".\/relative-child\/";</script>',
 	'https://example.test/static-page/',
 	'static-page/index.html'
 );
@@ -2780,6 +2783,24 @@ ssgwp_assert_contains(
 	'rewrite_html resolves parent-relative asset links from pretty permalink directories.'
 );
 
+ssgwp_assert_contains(
+	'const relativePage = "relative-child/index.html";',
+	$relative_result['content'],
+	'rewrite_html rewrites document-relative page URLs in script text.'
+);
+
+ssgwp_assert_contains(
+	'const relativeAsset = "../wp-content/uploads/photo.jpg?relative-script=1";',
+	$relative_result['content'],
+	'rewrite_html rewrites parent-relative asset URLs in script text.'
+);
+
+ssgwp_assert_contains(
+	'const escapedRelativePage = "relative-child\/index.html";',
+	$relative_result['content'],
+	'rewrite_html rewrites JSON-escaped document-relative script URLs.'
+);
+
 ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/static-page/relative-child/', $relative_result['links'], true ),
@@ -2790,6 +2811,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/photo.jpg?relative=1', $relative_result['assets'], true ),
 	'rewrite_html records parent-relative asset links from pretty permalink directories.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/photo.jpg?relative-script=1', $relative_result['assets'], true ),
+	'rewrite_html records parent-relative script asset links to copy.'
 );
 
 ssgwp_assert_static_target_exists(
