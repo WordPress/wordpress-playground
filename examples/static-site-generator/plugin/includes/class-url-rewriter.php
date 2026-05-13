@@ -1566,7 +1566,10 @@ final class SSGWP_URL_Rewriter {
 			$query_args = array();
 			parse_str( $query, $query_args );
 
-			if ( array_key_exists( 'rest_route', $query_args ) ) {
+			if (
+				array_key_exists( 'feed', $query_args )
+				|| array_key_exists( 'rest_route', $query_args )
+			) {
 				return true;
 			}
 		}

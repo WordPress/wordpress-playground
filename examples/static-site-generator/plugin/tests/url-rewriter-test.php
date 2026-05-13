@@ -877,7 +877,9 @@ $html = implode(
 		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
 		'<a class="rest-query" href="/?rest_route=/wp/v2/posts">REST query</a>',
 		'<a class="feed" href="/feed/">Feed</a>',
+		'<a class="feed-query" href="/?feed=rss2">Feed query</a>',
 		'<link rel="alternate" type="application/rss+xml" href="/feed/">',
+		'<link rel="alternate" type="application/rss+xml" href="/?feed=rss2">',
 		'<link rel="alternate" type="application/rss+xml" href="/comments/feed/">',
 		'<link rel="home" href="https://example.test/">',
 		'<link rel="preconnect" href="https://example.test">',
@@ -1111,6 +1113,12 @@ ssgwp_assert_same(
 	false,
 	in_array( 'https://example.test/?rest_route=/wp/v2/posts', $result['links'], true ),
 	'rewrite_html does not record query-based REST API URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	false,
+	in_array( 'https://example.test/?feed=rss2', $result['links'], true ),
+	'rewrite_html does not record query-based feed URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2019,7 +2027,9 @@ foreach (
 		'href="/wp-json/wp/v2/posts"',
 		'href="/?rest_route=/wp/v2/posts"',
 		'href="/feed/"',
+		'href="/?feed=rss2"',
 		'type="application/rss+xml" href="/feed/"',
+		'type="application/rss+xml" href="/?feed=rss2"',
 		'type="application/rss+xml" href="/comments/feed/"',
 		'href="https://external.test/static-page/"',
 		'href="https://example.test:8443/static-page/"',

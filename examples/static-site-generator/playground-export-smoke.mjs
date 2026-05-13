@@ -185,6 +185,7 @@ $embed_url = get_permalink($embed_id);
 $deferred_url = get_permalink($deferred_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $rest_route_url = '/?rest_route=/wp/v2/posts';
+$feed_query_url = '/?feed=rss2';
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<base href="' . esc_url(home_url('/')) . '">'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
@@ -193,6 +194,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="comments-link" href="' . esc_url($comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($rest_route_url) . '">REST</a></p>'
+	. '<p><a class="feed-query-link" href="' . esc_url($feed_query_url) . '">Feed query</a></p>'
 	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio" content="' . esc_url($asset_url . '?audio=1') . '">'
@@ -228,6 +230,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<script type="application/json">{"root":"\/parent-page\/child-page\/","rootAsset":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?root=1","plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?plain=1"}</script>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $protocol_child_url) . '"}</script>'
 	. '<script type="application/json">{"rest":"' . str_replace('/', '\/', esc_url($rest_route_url)) . '"}</script>'
+	. '<script type="application/json">{"feedQuery":"' . str_replace('/', '\/', esc_url($feed_query_url)) . '"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($child_url) . '"}</script>';
 
 $static_id = wp_insert_post(array(
@@ -283,6 +286,7 @@ $scoped_embed_url = get_permalink($embed_id);
 $scoped_deferred_url = get_permalink($deferred_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_rest_route_url = home_url('/?rest_route=/wp/v2/posts');
+$scoped_feed_query_url = home_url('/?feed=rss2');
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_captions_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-captions.vtt';
 $scoped_manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
@@ -299,6 +303,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="comments-link" href="' . esc_url($scoped_comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($scoped_rest_route_url) . '">REST</a></p>'
+	. '<p><a class="feed-query-link" href="' . esc_url($scoped_feed_query_url) . '">Feed query</a></p>'
 	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
 	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio:secure_url" content="' . esc_url($scoped_asset_url . '?audio=1') . '">'
@@ -337,6 +342,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($scoped_protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $scoped_protocol_child_url) . '"}</script>'
 	. '<script type="application/json">{"plainRootAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=1","plainRootAssetEscaped":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?outside=2"}</script>'
 	. '<script type="application/json">{"rest":"' . str_replace('/', '\/', esc_url($scoped_rest_route_url)) . '"}</script>'
+	. '<script type="application/json">{"feedQuery":"' . str_replace('/', '\/', esc_url($scoped_feed_query_url)) . '"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($scoped_child_url) . '"}</script>';
 
 wp_update_post(array(
@@ -563,6 +569,16 @@ async function verifyExport() {
 		'"rest":"/?rest_route=/wp/v2/posts"',
 		'static-page/index.html leaves query-based REST API JSON URLs untouched'
 	);
+	assertIncludes(
+		staticPage,
+		'href="/?feed=rss2"',
+		'static-page/index.html leaves query-based feed links untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"feedQuery":"/?feed=rss2"',
+		'static-page/index.html leaves query-based feed JSON URLs untouched'
+	);
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 		'icon-192.png'
@@ -748,6 +764,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'"rest":"https://playground.wordpress.net/scope:sad-quiet-school/?rest_route=/wp/v2/posts"',
 		'scoped static-page/index.html leaves query-based REST API JSON URLs untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'href="https://playground.wordpress.net/scope:sad-quiet-school/?feed=rss2"',
+		'scoped static-page/index.html leaves query-based feed links untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"feedQuery":"https://playground.wordpress.net/scope:sad-quiet-school/?feed=rss2"',
+		'scoped static-page/index.html leaves query-based feed JSON URLs untouched'
 	);
 	assertIncludes(
 		staticPage,
@@ -1000,7 +1026,7 @@ function resolveExportReference(fromFile, ref) {
 		return null;
 	}
 
-	if (/[?&]rest_route=/.test(ref)) {
+	if (/[?&](?:feed|rest_route)=/.test(ref)) {
 		return null;
 	}
 

@@ -586,18 +586,22 @@ final class SSGWP_URL_Collector {
 			return '';
 		}
 
+		foreach ( array( 'feed', 'rest_route' ) as $dynamic_key ) {
+			if ( array_key_exists( $dynamic_key, $query_args ) ) {
+				return null;
+			}
+		}
+
 		$blocked_keys = array(
 			'_wp_http_referer',
 			'_wpnonce',
 			'customize_autosaved',
 			'customize_changeset_uuid',
 			'doing_wp_cron',
-			'feed',
 			'preview',
 			'preview_id',
 			'preview_nonce',
 			'replytocom',
-			'rest_route',
 			'ssgwp_export',
 		);
 

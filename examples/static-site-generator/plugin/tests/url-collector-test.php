@@ -378,6 +378,18 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_same(
+	null,
+	$collector->normalize_url( 'https://example.test/?feed=rss2' ),
+	'normalize_url rejects query-based feed endpoints.'
+);
+
+ssgwp_assert_same(
+	null,
+	$collector->normalize_url( 'https://example.test/?rest_route=/wp/v2/posts' ),
+	'normalize_url rejects query-based REST API endpoints.'
+);
+
+ssgwp_assert_same(
 	'https://example.test/static-page/',
 	$collector->normalize_url( 'https://example.test:443/static-page/' ),
 	'normalize_url treats the explicit HTTPS default port as same-origin.'

@@ -165,6 +165,9 @@ format.
 - Preserve query-based WordPress REST API URLs such as `?rest_route=/...`
   during static export rewriting.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve query-based WordPress feed URLs such as `?feed=rss2` during static
+  export rewriting.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
