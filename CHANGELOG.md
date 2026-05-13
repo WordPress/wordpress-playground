@@ -89,6 +89,8 @@ format.
 - Rewrite unquoted URL attributes in the static export regex fallback,
   including resource hints and social meta tags.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite static export URLs inside unquoted inline `style` attributes.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

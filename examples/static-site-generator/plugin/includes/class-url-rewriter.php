@@ -833,9 +833,16 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function rewrite_css_in_style_attributes( $html, $base_url, $target_path ) {
 		return preg_replace_callback(
-			'/(\sstyle\s*=\s*)(["\'])(.*?)\2/is',
+			'/(\sstyle\s*=\s*)(?:(["\'])(.*?)\2|([^\s"\'<>`]+))/is',
 			function ( $matches ) use ( $base_url, $target_path ) {
-				return $matches[1] . $matches[2] . esc_attr( $this->rewrite_css_urls( html_entity_decode( $matches[3], ENT_QUOTES ), $base_url, $target_path ) ) . $matches[2];
+				$value     = html_entity_decode( $this->html_attribute_match_value( $matches ), ENT_QUOTES );
+				$rewritten = esc_attr( $this->rewrite_css_urls( $value, $base_url, $target_path ) );
+
+				if ( '' !== $matches[2] ) {
+					return $matches[1] . $matches[2] . $rewritten . $matches[2];
+				}
+
+				return $matches[1] . $rewritten;
 			},
 			$html
 		);

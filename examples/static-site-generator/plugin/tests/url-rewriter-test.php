@@ -697,6 +697,7 @@ $html = implode(
 		'<img srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
+		'<div style=background:url(/wp-content/uploads/bg.jpg?unquoted=1)></div>',
 		'<script type="application/json">{"url":"https:\/\/example.test\/nested\/page\/"}</script>',
 		'<script type="application/json">{"protocol":"//example.test/protocol-text/","protocolEscaped":"\/\/example.test\/protocol-escaped\/"}</script>',
 		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
@@ -881,6 +882,12 @@ ssgwp_assert_contains(
 	'style="background-image:url(wp-content/uploads/bg.jpg?inline=1)"',
 	$result['content'],
 	'rewrite_html rewrites inline style attribute URLs.'
+);
+
+ssgwp_assert_contains(
+	'style=background:url(wp-content/uploads/bg.jpg?unquoted=1)',
+	$result['content'],
+	'rewrite_html rewrites unquoted inline style attribute URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1081,6 +1088,7 @@ foreach (
 		'wp-content/uploads/social-video.mp4?ver=1',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo-2x.jpg',
+		'wp-content/uploads/bg.jpg?unquoted=1',
 	)
 	as $static_url
 ) {
