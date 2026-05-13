@@ -22,7 +22,7 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 
 <div class="callout callout-info">
 
-<a href="/about">প্লেগ্রাউন্ড সম্পর্কে</a> সেকশনে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যবহার করে কীভাবে আপনার প্রোডাক্টস <a href="/about/build">তৈরি</a>, <a href="/about/test">পরীক্ষা</a> এবং <a href="/about/launch">লঞ্চ</a> করবেন তা আবিষ্কার করুন।
+[প্লেগ্রাউন্ড সম্পর্কে](/about) সেকশনে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যবহার করে কীভাবে আপনার প্রোডাক্টস [তৈরি](/about/build), [পরীক্ষা](/about/test) এবং [লঞ্চ](/about/launch) করবেন তা আবিষ্কার করুন।
 
 </div>
 
@@ -109,10 +109,10 @@ With the `pluginData` property of the [`installPlugin` blueprint step](/blueprin
 <div class="callout callout-info">
 
 <!--
-For the past few months, the <a href="https://playground.wordpress.net/proxy">GitHub proxy</a> was an incredibly useful tool to load plugins from GitHub repositories, as it allows you to load a plugin from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
+For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load plugins from GitHub repositories, as it allows you to load a plugin from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
 -->
 
-গত কয়েক মাস ধরে, গিটহাব রিপোজিটরি থেকে প্লাগইন লোড করার জন্য <a href="https://playground.wordpress.net/proxy">গিটহাব প্রক্সি</a> একটি অত্যন্ত দরকারী টুল ছিল, কারণ এটি আপনাকে একটি নির্দিষ্ট ব্রাঞ্চ, ডিরেক্টরি, কমিট বা পিআর থেকে প্লাগইন লোড করার সুযোগ দিত। কিন্তু প্লেগ্রাউন্ডের সাম্প্রতিক উন্নতির ফলে, এই ফিচারটির আর প্রয়োজন নেই। গিটহাব প্রক্সি শীঘ্রই বন্ধ হয়ে যাবে, তাই দয়া করে আপনার ব্লুপ্রিন্টগুলোকে `git:directory` রিসোর্সে আপডেট করুন।
+গত কয়েক মাস ধরে, গিটহাব রিপোজিটরি থেকে প্লাগইন লোড করার জন্য [গিটহাব প্রক্সি](https://playground.wordpress.net/proxy) একটি অত্যন্ত দরকারী টুল ছিল, কারণ এটি আপনাকে একটি নির্দিষ্ট ব্রাঞ্চ, ডিরেক্টরি, কমিট বা পিআর থেকে প্লাগইন লোড করার সুযোগ দিত। কিন্তু প্লেগ্রাউন্ডের সাম্প্রতিক উন্নতির ফলে, এই ফিচারটির আর প্রয়োজন নেই। গিটহাব প্রক্সি শীঘ্রই বন্ধ হয়ে যাবে, তাই দয়া করে আপনার ব্লুপ্রিন্টগুলোকে `git:directory` রিসোর্সে আপডেট করুন।
 
 </div>
 
@@ -143,10 +143,10 @@ For example, the following `blueprint.json` installs a plugin from a GitHub repo
 <div class="callout callout-tip">
 
 <!--
-If your plugin is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See <a href="/guides/github-action-pr-preview">Adding PR Preview Buttons with GitHub Actions</a> for details.
+If your plugin is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
 -->
 
-আপনার প্লাগইন যদি গিটহাব-এ হোস্ট করা থাকে, তবে আপনি প্লেগ্রাউন্ড পিআর প্রিভিউ গিটহাব অ্যাকশন ব্যবহার করে আপনার পুল রিকোয়েস্টগুলোতে স্বয়ংক্রিয়ভাবে প্রিভিউ বাটন যোগ করতে পারেন। এটি রিভিউয়ারদের কোনো সেটআপ ছাড়াই আপনার পরিবর্তনগুলো তাৎক্ষণিকভাবে পরীক্ষা করার সুযোগ দেয়। বিস্তারিত জানার জন্য <a href="/guides/github-action-pr-preview">গিটহাব অ্যাকশন এর মাধ্যমে পিআর প্রিভিউ বাটন যোগ করা</a> দেখুন।
+আপনার প্লাগইন যদি গিটহাব-এ হোস্ট করা থাকে, তবে আপনি প্লেগ্রাউন্ড পিআর প্রিভিউ গিটহাব অ্যাকশন ব্যবহার করে আপনার পুল রিকোয়েস্টগুলোতে স্বয়ংক্রিয়ভাবে প্রিভিউ বাটন যোগ করতে পারেন। এটি রিভিউয়ারদের কোনো সেটআপ ছাড়াই আপনার পরিবর্তনগুলো তাৎক্ষণিকভাবে পরীক্ষা করার সুযোগ দেয়। বিস্তারিত জানার জন্য [গিটহাব অ্যাকশন এর মাধ্যমে পিআর প্রিভিউ বাটন যোগ করা](/guides/github-action-pr-preview) দেখুন।
 
 </div>
 
@@ -201,10 +201,10 @@ By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePl
 <div class="callout callout-info">
 
 <!--
-The <a href="https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}">Install plugin from a gist</a> example in the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> shows how to load a plugin from code in a gist
+The [Install plugin from a gist](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}) example in the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) shows how to load a plugin from code in a gist
 -->
 
-<a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">ব্লুপ্রিন্ট গ্যালারির</a> <a href="https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}">Install plugin from a gist</a> উদাহরণটি দেখায় কীভাবে একটি Gist-এর কোড থেকে প্লাগইন লোড করতে হয়।
+[ব্লুপ্রিন্ট গ্যালারির](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) [Install plugin from a gist](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}) উদাহরণটি দেখায় কীভাবে একটি Gist-এর কোড থেকে প্লাগইন লোড করতে হয়।
 
 </div>
 
@@ -232,9 +232,9 @@ Some useful tools and resources provided by the Playground project to work with 
 
 ব্লুপ্রিন্ট নিয়ে কাজ করার জন্য প্লেগ্রাউন্ড প্রজেক্ট কর্তৃক প্রদত্ত কিছু দরকারী টুল এবং রিসোর্স হলো:
 
-- বিভিন্ন ধরনের সেটআপ সহ ওয়ার্ডপ্রেস সাইট লঞ্চ করার বাস্তব উদাহরণ দেখতে <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">ব্লুপ্রিন্ট গ্যালারি</a> দেখুন।
-- <a href="https://akirk.github.io/playground-step-library/#">ওয়ার্ডপ্রেস প্লেগ্রাউন্ড স্টেপ লাইব্রেরি</a> টুলটি ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের জন্য ব্লুপ্রিন্ট তৈরি করতে ড্র্যাগ বা ক্লিকের মাধ্যমে একটি ভিজ্যুয়াল ইন্টারফেস প্রদান করে। আপনি নিজের ধাপও তৈরি করতে পারেন!
-- <a href="https://playground.wordpress.net/builder/builder.html">ব্লুপ্রিন্ট বিল্ডার</a> টুলটি আপনাকে আপনার ব্লুপ্রিন্ট অনলাইনে এডিট করতে এবং সরাসরি একটি প্লেগ্রাউন্ড ইনস্ট্যান্সে চালাতে দেয়।
+- বিভিন্ন ধরনের সেটআপ সহ ওয়ার্ডপ্রেস সাইট লঞ্চ করার বাস্তব উদাহরণ দেখতে [ব্লুপ্রিন্ট গ্যালারি](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) দেখুন।
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড স্টেপ লাইব্রেরি](https://akirk.github.io/playground-step-library/#) টুলটি ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের জন্য ব্লুপ্রিন্ট তৈরি করতে ড্র্যাগ বা ক্লিকের মাধ্যমে একটি ভিজ্যুয়াল ইন্টারফেস প্রদান করে। আপনি নিজের ধাপও তৈরি করতে পারেন!
+- [ব্লুপ্রিন্ট বিল্ডার](https://playground.wordpress.net/builder/builder.html) টুলটি আপনাকে আপনার ব্লুপ্রিন্ট অনলাইনে এডিট করতে এবং সরাসরি একটি প্লেগ্রাউন্ড ইনস্ট্যান্সে চালাতে দেয়।
 
 </div>
 
@@ -250,7 +250,7 @@ A great demo with WordPress Playground might require that you load default conte
 
 <div class="callout callout-info">
 
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের সাথে একটি চমৎকার ডেমোর জন্য আপনার প্লাগইন এবং থিমের ডিফল্ট কন্টেন্ট, যার মধ্যে ইমেজ এবং অন্যান্য অ্যাসেট অন্তর্ভুক্ত, লোড করার প্রয়োজন হতে পারে। এ সম্পর্কে আরও জানতে <a href="./providing-content-for-your-demo">আপনার ডেমোর জন্য কন্টেন্ট প্রদান</a> গাইডটি দেখুন।
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের সাথে একটি চমৎকার ডেমোর জন্য আপনার প্লাগইন এবং থিমের ডিফল্ট কন্টেন্ট, যার মধ্যে ইমেজ এবং অন্যান্য অ্যাসেট অন্তর্ভুক্ত, লোড করার প্রয়োজন হতে পারে। এ সম্পর্কে আরও জানতে [আপনার ডেমোর জন্য কন্টেন্ট প্রদান](./providing-content-for-your-demo) গাইডটি দেখুন।
 
 </div>
 
@@ -418,6 +418,6 @@ Check [About Playground > Build > Synchronize your playground instance with a lo
 
 <div class="callout callout-info">
 
-আরও তথ্যের জন্য <a href="/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests">প্লেগ্রাউন্ড সম্পর্কে &gt; তৈরি করুন &gt; আপনার লোকাল ফোল্ডারের সাথে প্লেগ্রাউন্ড ইনস্ট্যান্স সিনক্রোনাইজ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন</a> দেখুন।
+আরও তথ্যের জন্য [প্লেগ্রাউন্ড সম্পর্কে &gt; তৈরি করুন &gt; আপনার লোকাল ফোল্ডারের সাথে প্লেগ্রাউন্ড ইনস্ট্যান্স সিনক্রোনাইজ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) দেখুন।
 
 </div>

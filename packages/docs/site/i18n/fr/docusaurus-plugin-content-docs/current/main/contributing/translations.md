@@ -17,14 +17,14 @@ Aidez à rendre WordPress Playground accessible à un public plus large en tradu
 <!--
 <div class="callout callout-info">
 
-For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our <a href="/contributing/documentation#how-can-i-contribute">documentation contribution guide</a>
+For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Pour un guide détaillé sur le flux de travail de la contribution (fork, création de PR, etc.), veuillez consulter notre <a href="/contributing/documentation#how-can-i-contribute">guide de contribution à la documentation</a>
+Pour un guide détaillé sur le flux de travail de la contribution (fork, création de PR, etc.), veuillez consulter notre [guide de contribution à la documentation](/contributing/documentation#how-can-i-contribute)
 
 </div>
 
@@ -41,14 +41,14 @@ Le site de documentation de Playground est construit avec Docusaurus, qui gère 
 <!--
 <div class="callout callout-info">
 
-To learn more about how Docusaurus manages translations, see the <a href="https://docusaurus.io/docs/i18n/introduction">Internationalization section</a> of the official Docusaurus documentation.
+To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Pour en savoir plus sur la façon dont Docusaurus gère les traductions, consultez la <a href="https://docusaurus.io/docs/i18n/introduction">section Internationalisation</a> de la documentation officielle de Docusaurus.
+Pour en savoir plus sur la façon dont Docusaurus gère les traductions, consultez la [section Internationalisation](https://docusaurus.io/docs/i18n/introduction) de la documentation officielle de Docusaurus.
 
 </div>
 

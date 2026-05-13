@@ -158,10 +158,10 @@ Pour vérifier la structure finale du système de fichiers interne et de la base
 <div class="callout callout-tip">
 
 <!--
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see <a href="/developers/apis/javascript-api/#debugging-and-testing">Developers &gt; JavaScript API &gt; Debugging and testing</a>). Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers &gt; JavaScript API &gt; Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
 -->
 
-Plusieurs méthodes peuvent être lancées depuis la console de n’importe quelle instance WordPress Playground pour en inspecter les éléments internes. Elles sont exposées dans l’objet `window.playground` (voir <a href="/developers/apis/javascript-api/#debugging-and-testing">Développeurs &gt; API JavaScript &gt; Débogage et tests</a>). Quelques exemples :
+Plusieurs méthodes peuvent être lancées depuis la console de n’importe quelle instance WordPress Playground pour en inspecter les éléments internes. Elles sont exposées dans l’objet `window.playground` (voir [Développeurs &gt; API JavaScript &gt; Débogage et tests](/developers/apis/javascript-api/#debugging-and-testing)). Quelques exemples :
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -171,10 +171,10 @@ true
 ```
 
 <!--
-Full list of methods we can use is available <a href="/api/client/interface/PlaygroundClient">here</a>
+Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
 -->
 
-La liste complète des méthodes que nous pouvons utiliser est disponible <a href="/api/client/interface/PlaygroundClient">ici</a>.
+La liste complète des méthodes que nous pouvons utiliser est disponible [ici](/api/client/interface/PlaygroundClient).
 
 </div>
 
@@ -233,10 +233,10 @@ Vous pouvez journaliser vos propres messages d’erreur avec `error_log` via l�
 <div class="callout callout-info">
 
 <!--
-When you download your Playground instance as a `zip` through the <a href="/web-instance#playground-options-menu">"Download as zip" option</a> you'll also download the `debug.log` file containing all the logs from your Playground instance.
+When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
 -->
 
-Lorsque vous téléchargez votre instance Playground sous forme de `zip` avec l’option <a href="/web-instance#playground-options-menu">"Download as zip"</a>, vous téléchargez aussi le fichier `debug.log` qui contient tous les journaux de votre instance Playground.
+Lorsque vous téléchargez votre instance Playground sous forme de `zip` avec l’option ["Download as zip"](/web-instance#playground-options-menu), vous téléchargez aussi le fichier `debug.log` qui contient tous les journaux de votre instance Playground.
 
 </div>
 

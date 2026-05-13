@@ -19,12 +19,12 @@ There's a set of redirections in place to make it easier the access to some of t
 Playground સાથે સંબંધિત કેટલાક ટૂલ્સની ઍક્સેસને સરળ બનાવવા માટે રીડાયરેક્શન્સનો સેટ છે:
 
 <ul id="list-resources-redirections">
-<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Playground ઇન્સ્ટન્સ</li>
-<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Playground ડોક્સ</li>
-<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
-<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → WordPress માટે Playground PR viewer</li>
-<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Gutenberg માટે Playground PR viewer</li>
-<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(વધુ માહિતી માટે <a href="/blueprints/steps/resources#urlreference">URLReference</a> જુઓ)</em></li>
+<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Playground ઇન્સ્ટન્સ</li>
+<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Playground ડોક્સ</li>
+<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
+<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → WordPress માટે Playground PR viewer</li>
+<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Gutenberg માટે Playground PR viewer</li>
+<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(વધુ માહિતી માટે [URLReference](/blueprints/steps/resources#urlreference) જુઓ)</em></li>
 </ul>
 
 </div>

@@ -88,9 +88,9 @@ Para verificar a estrutura final do sistema de arquivos interno e do banco de da
 
 <div class="callout callout-tip">
 
-Há vários métodos que podemos lançar a partir do console de qualquer instância do WordPress Playground para inspecionar os internos dessa instância. Eles são expostos como parte do objeto `window.playground` (veja <a href="/developers/apis/javascript-api/#debugging-and-testing">Desenvolvedores &gt; API JavaScript &gt; Depuração e teste</a>). Alguns exemplos:
+Há vários métodos que podemos lançar a partir do console de qualquer instância do WordPress Playground para inspecionar os internos dessa instância. Eles são expostos como parte do objeto `window.playground` (veja [Desenvolvedores &gt; API JavaScript &gt; Depuração e teste](/developers/apis/javascript-api/#debugging-and-testing)). Alguns exemplos:
 
-A lista completa de métodos que podemos usar está disponível <a href="/api/client/interface/PlaygroundClient">aqui</a>
+A lista completa de métodos que podemos usar está disponível [aqui](/api/client/interface/PlaygroundClient)
 
 </div>
 
@@ -134,7 +134,7 @@ Você pode usar `error_log` para suas próprias mensagens de erro através da [e
 
 <div class="callout callout-info">
 
-Quando você baixa sua instância do Playground como um `zip` através da opção <a href="/web-instance#playground-options-menu">"Baixar como zip"</a>, você também baixa o arquivo `debug.log` contendo todos os logs de sua instância do Playground.
+Quando você baixa sua instância do Playground como um `zip` através da opção ["Baixar como zip"](/web-instance#playground-options-menu), você também baixa o arquivo `debug.log` contendo todos os logs de sua instância do Playground.
 
 </div>
 

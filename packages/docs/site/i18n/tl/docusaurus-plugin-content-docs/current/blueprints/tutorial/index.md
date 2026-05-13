@@ -15,6 +15,6 @@ Maligayang pagdating sa Blueprints crash course, kung saan matutunan mo ang laha
 
 <div class="callout callout-tip">
 
-Kung makaranas ka ng anumang problema habang sinusundan ang tutorial na ito, tingnan ang seksyong <a href="/blueprints/troubleshoot-and-debug">Pag-troubleshoot at pag-debug ng Blueprints</a> para sa mga tip at gamit na makakatulong sa pagresolba.
+Kung makaranas ka ng anumang problema habang sinusundan ang tutorial na ito, tingnan ang seksyong [Pag-troubleshoot at pag-debug ng Blueprints](/blueprints/troubleshoot-and-debug) para sa mga tip at gamit na makakatulong sa pagresolba.
 
 </div>

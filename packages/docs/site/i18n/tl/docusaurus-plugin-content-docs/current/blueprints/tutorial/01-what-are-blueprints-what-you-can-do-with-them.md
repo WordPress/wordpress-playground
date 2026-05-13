@@ -61,9 +61,9 @@ Ang mga Blueprint ay isang napakahalagang tool para sa pagbuo ng mga WordPress s
 
 Bisitahin ang mga link na ito para matuto pa tungkol sa (walang hanggang) mga posibilidad ng mga Blueprint:
 
-- <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">Introduction to WordPress Playground</a>
-- I-embed ang pre-configured na WordPress site sa iyong website gamit ang <a href="https://wordpress.org/plugins/interactive-code-block/">WordPress Playground Block</a>.
-- <a href="/blueprints/examples">Mga halimbawa ng Blueprint</a>
-- <a href="/resources#apps-built-with-wordpress-playground">Mga demo at app na ginawa gamit ang mga Blueprint</a>
+- [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
+- I-embed ang pre-configured na WordPress site sa iyong website gamit ang [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
+- [Mga halimbawa ng Blueprint](/blueprints/examples)
+- [Mga demo at app na ginawa gamit ang mga Blueprint](/resources#apps-built-with-wordpress-playground)
 
 </div>

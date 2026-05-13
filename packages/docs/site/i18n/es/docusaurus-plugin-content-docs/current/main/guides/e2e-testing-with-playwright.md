@@ -14,14 +14,14 @@ Las pruebas de extremo a extremo verifican que tu plugin o tema WordPress funcio
 <!--
 <div class="callout callout-info">
 
-This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see <a href="/guides/for-plugin-developers">WordPress Playground for Plugin Developers</a>. For Blueprint configuration details, see <a href="/blueprints/getting-started">Blueprints Getting Started</a>.
+This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see [WordPress Playground for Plugin Developers](/guides/for-plugin-developers). For Blueprint configuration details, see [Blueprints Getting Started](/blueprints/getting-started).
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Esta guía asume familiaridad con el desarrollo de plugins o temas WordPress. Para una introducción al uso de Playground en tu flujo de desarrollo, consulta <a href="/guides/for-plugin-developers">WordPress Playground para desarrolladores de plugins</a>. Para detalles de configuración de Blueprint, consulta <a href="/blueprints/getting-started">Introducción a Blueprints</a>.
+Esta guía asume familiaridad con el desarrollo de plugins o temas WordPress. Para una introducción al uso de Playground en tu flujo de desarrollo, consulta [WordPress Playground para desarrolladores de plugins](/guides/for-plugin-developers). Para detalles de configuración de Blueprint, consulta [Introducción a Blueprints](/blueprints/getting-started).
 
 </div>
 
@@ -502,14 +502,14 @@ const blueprint = {
 <!--
 <div class="callout callout-tip">
 
-Use the <a href="https://akirk.github.io/playground-step-library/">Playground Step Library</a> or <a href="https://pootleplayground.com/">Pootle Playground</a> to prototype your Blueprint configuration visually before adding it to your test code.
+Use the [Playground Step Library](https://akirk.github.io/playground-step-library/) or [Pootle Playground](https://pootleplayground.com/) to prototype your Blueprint configuration visually before adding it to your test code.
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-Usa la <a href="https://akirk.github.io/playground-step-library/">Playground Step Library</a> o <a href="https://pootleplayground.com/">Pootle Playground</a> para prototipar tu configuración de Blueprint visualmente antes de añadirla a tu código de prueba.
+Usa la [Playground Step Library](https://akirk.github.io/playground-step-library/) o [Pootle Playground](https://pootleplayground.com/) para prototipar tu configuración de Blueprint visualmente antes de añadirla a tu código de prueba.
 
 </div>
 
@@ -803,14 +803,14 @@ Crea tres jobs paralelos en la matriz de tu workflow, cada uno ejecutando un fra
 <!--
 <div class="callout callout-info">
 
-For manual PR testing alongside automated E2E tests, see <a href="/guides/github-action-pr-preview">Adding PR Preview Buttons with GitHub Actions</a>.
+For manual PR testing alongside automated E2E tests, see [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview).
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Para pruebas manuales de PR junto con pruebas E2E automatizadas, consulta <a href="/guides/github-action-pr-preview">Añadir botones de vista previa de PR con GitHub Actions</a>.
+Para pruebas manuales de PR junto con pruebas E2E automatizadas, consulta [Añadir botones de vista previa de PR con GitHub Actions](/guides/github-action-pr-preview).
 
 </div>
 

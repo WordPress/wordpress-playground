@@ -250,7 +250,7 @@ Como alternativa ao Apache, aqui está um exemplo de uso do NGINX para servir o 
 
 **Consulte o arquivo fonte**
 
-O exemplo pode estar desatualizado. Por favor verifique <a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess">o arquivo fonte</a> para a versão mais recente.
+O exemplo pode estar desatualizado. Por favor verifique [o arquivo fonte](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) para a versão mais recente.
 
 </div>
 

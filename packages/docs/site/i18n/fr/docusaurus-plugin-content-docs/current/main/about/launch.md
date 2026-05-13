@@ -54,7 +54,7 @@ Avec ce bloc, vous disposez d’un moyen simple et efficace pour créer des envi
 
 <div class="callout callout-info">
 
-Pour tout problème ou toute question à propos du bloc WordPress Playground, merci d’ouvrir un ticket GitHub dans le répertoire <a href="https://github.com/WordPress/playground-tools">playground-tools</a>.
+Pour tout problème ou toute question à propos du bloc WordPress Playground, merci d’ouvrir un ticket GitHub dans le répertoire [playground-tools](https://github.com/WordPress/playground-tools).
 
 </div>
 

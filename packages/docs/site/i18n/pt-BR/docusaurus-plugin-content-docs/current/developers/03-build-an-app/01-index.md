@@ -38,7 +38,7 @@ Cada visitante receberá sua própria instância privada do WordPress gratuitame
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>
 
@@ -150,7 +150,7 @@ No código acima, será instalado um plugin de um repositório localizado na `ur
 
 <div class="callout callout-tip">
 
-Você pode automatizar esse processo usando a <a href="/guides/github-action-pr-preview">Ação do GitHub para gerar links de pré-visualização</a>, o que ajudará a agilizar o processo.
+Você pode automatizar esse processo usando a [Ação do GitHub para gerar links de pré-visualização](/guides/github-action-pr-preview), o que ajudará a agilizar o processo.
 
 </div>
 

@@ -20,7 +20,7 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 
 **પ્લેગ્રાઉન્ડ ટૂલ્સમાં યોગદાન આપો**
 
-આ માર્ગદર્શિકામાં મુખ્ય ભંડારની લિંક્સ શામેલ છે, પરંતુ બધા પગલાં અને વિકલ્પો બંને માટે લાગુ પડે છે. જો તમને પ્લગઇન્સ અથવા <a href="/developers/local-development/">local development</a> ટૂલ્સમાં રસ હોય તો - ત્યાંથી શરૂઆત કરો.
+આ માર્ગદર્શિકામાં મુખ્ય ભંડારની લિંક્સ શામેલ છે, પરંતુ બધા પગલાં અને વિકલ્પો બંને માટે લાગુ પડે છે. જો તમને પ્લગઇન્સ અથવા [local development](/developers/local-development/) ટૂલ્સમાં રસ હોય તો - ત્યાંથી શરૂઆત કરો.
 
 </div>
 

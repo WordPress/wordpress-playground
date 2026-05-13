@@ -61,14 +61,14 @@ The following step-related topics are addressed on dedicated pages included in t
 <!--
 <div class="callout callout-tip">
 
-The <a href="https://akirk.github.io/playground-step-library/#">WordPress Playground Step Library</a> tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also <a href="https://github.com/akirk/playground-step-library/#contributing">create your own steps</a>!
+The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-<a href="https://akirk.github.io/playground-step-library/#">ওয়ার্ডপ্রেস প্লেগ্রাউন্ড স্টেপ লাইব্রেরি</a> টুলটি ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের জন্য একটি ব্লুপ্রিন্ট তৈরি করতে স্টেপগুলো ড্র্যাগ বা ক্লিক করার একটি ভিজ্যুয়াল ইন্টারফেস প্রদান করে। আপনি <a href="https://github.com/akirk/playground-step-library/#contributing">নিজের স্টেপও তৈরি করতে পারেন</a>!
+[ওয়ার্ডপ্রেস প্লেগ্রাউন্ড স্টেপ লাইব্রেরি](https://akirk.github.io/playground-step-library/#) টুলটি ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের জন্য একটি ব্লুপ্রিন্ট তৈরি করতে স্টেপগুলো ড্র্যাগ বা ক্লিক করার একটি ভিজ্যুয়াল ইন্টারফেস প্রদান করে। আপনি [নিজের স্টেপও তৈরি করতে পারেন](https://github.com/akirk/playground-step-library/#contributing)!
 
 </div>
 

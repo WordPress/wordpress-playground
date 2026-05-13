@@ -59,7 +59,7 @@ Key Features:
 
 **ドキュメント**
 
-`wp-now` は別の GitHub リポジトリ <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a> でメンテナンスされています。最新のドキュメントは <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md">専用の README ファイル</a> をご覧ください。
+`wp-now` は別の GitHub リポジトリ [Playground Tools](https://github.com/WordPress/playground-tools/) でメンテナンスされています。最新のドキュメントは [専用の README ファイル](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) をご覧ください。
 
 </div>
 
@@ -68,7 +68,7 @@ Key Features:
 
 **Documentation**
 
-`wp-now` is maintained in a different GitHub repository, <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a>. You can find the latest documentation in the <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md">dedicated README file</a>.
+`wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
 </div>
 -->

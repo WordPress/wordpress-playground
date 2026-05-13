@@ -20,7 +20,7 @@ description: WordPress Playground डॉक्स में आपका स्�
 
 **Looking for the official Playground website?**
 
-WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
+WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
 </div>
 -->
@@ -109,10 +109,10 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 <div class="callout callout-tip">
 
 <!--
-Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
+Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
 -->
 
-<a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> ब्लॉग पोस्ट को <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> पर पढ़ें। यह WordPress Playground का बेहतरीन परिचय देता है।
+[**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) ब्लॉग पोस्ट को [WordPress Developer Blog](https://developer.wordpress.org/news) पर पढ़ें। यह WordPress Playground का बेहतरीन परिचय देता है।
 
 </div>
 

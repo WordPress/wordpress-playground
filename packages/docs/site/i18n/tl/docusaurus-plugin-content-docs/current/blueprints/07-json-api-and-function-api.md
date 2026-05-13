@@ -18,7 +18,7 @@ Maaari mong gamitin ang mga Blueprint pareho sa web at node.js versions ng WordP
 
 Ang team ay nag-e-explore ng mga paraan para i-transition ang mga Blueprint mula sa TypeScript library patungong PHP library. Ito ay magpapahintulot sa mga tao na magpatakbo ng mga Blueprint sa anumang WordPress environments: Playground, hosted site, o local setup.
 
-Ang proposed <a href="https://github.com/WordPress/blueprints-library/issues/6">new specification</a> ay na-discuss sa isang hiwalay na <a href="https://github.com/WordPress/blueprints-library/">GitHub repository</a>, at welcome ka na sumali (doon o sa <a href="https://wordpress.slack.com/archives/C04EWKGDJ0K">#playground</a> Slack channel) at tumulong sa pag-shape ng next generation ng Playground.
+Ang proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) ay na-discuss sa isang hiwalay na [GitHub repository](https://github.com/WordPress/blueprints-library/), at welcome ka na sumali (doon o sa [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) at tumulong sa pag-shape ng next generation ng Playground.
 
 </div>
 
@@ -31,6 +31,6 @@ May dalawang pangunahing pagkakaiba sa pagitan ng JSON at Function APIs:
 
 <div class="callout callout-info">
 
-Tingnan ang <a href="https://github.com/WordPress/wordpress-playground/pull/215">Use the same structure for Blueprint JSON definitions and step handlers</a> issue sa <a href="https://github.com/WordPress/wordpress-playground">wordpress-playground</a> repo para sa mas detalyadong impormasyon tungkol sa topic na ito
+Tingnan ang [Use the same structure for Blueprint JSON definitions and step handlers](https://github.com/WordPress/wordpress-playground/pull/215) issue sa [wordpress-playground](https://github.com/WordPress/wordpress-playground) repo para sa mas detalyadong impormasyon tungkol sa topic na ito
 
 </div>

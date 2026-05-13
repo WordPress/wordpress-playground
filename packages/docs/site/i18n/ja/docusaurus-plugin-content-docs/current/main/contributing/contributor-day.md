@@ -130,14 +130,14 @@ npm run dev
 
 <div class="callout callout-info">
 
-上記の手順が不明な場合は、公式の<a href="https://developer.wordpress.org/block-editor/contributors/">Gutenberg プロジェクト貢献者ガイド</a>をご覧ください。この場合、`wp-env` が `@wp-playground/cli` に置き換えられることに注意してください。
+上記の手順が不明な場合は、公式の[Gutenberg プロジェクト貢献者ガイド](https://developer.wordpress.org/block-editor/contributors/)をご覧ください。この場合、`wp-env` が `@wp-playground/cli` に置き換えられることに注意してください。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-If you’re unsure about the steps listed above, visit the official <a href="https://developer.wordpress.org/block-editor/contributors/">Gutenberg Project Contributor Guide</a>. Note that in this case, `@wp-playground/cli` replaces `wp-env`.
+If you’re unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `@wp-playground/cli` replaces `wp-env`.
 
 </div>
 -->

@@ -29,7 +29,7 @@ description: আপনার প্রথম ব্লুপ্রিন্ট �
 
 **অটোকমপ্লিট**
 
-আপনি যদি VS Code বা PHPStorm এর মতো একটি IDE ব্যবহার করেন, তাহলে আপনি অটোকমপ্লিট ব্লুপ্রিন্ট ডেভেলপমেন্ট অভিজ্ঞতার জন্য <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> ব্যবহার করতে পারেন। আপনার `blueprint.json` ফাইলের শীর্ষে নিম্নলিখিত লাইন যোগ করুন:
+আপনি যদি VS Code বা PHPStorm এর মতো একটি IDE ব্যবহার করেন, তাহলে আপনি অটোকমপ্লিট ব্লুপ্রিন্ট ডেভেলপমেন্ট অভিজ্ঞতার জন্য [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) ব্যবহার করতে পারেন। আপনার `blueprint.json` ফাইলের শীর্ষে নিম্নলিখিত লাইন যোগ করুন:
 
 ```json
 {
@@ -133,7 +133,7 @@ Adventurer হল একটি ওপেন-সোর্স থিম [WordPress
 
 <div class="callout callout-info">
 
-সমর্থিত রিসোর্স সম্পর্কে আরও জানুন <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a> এ।
+সমর্থিত রিসোর্স সম্পর্কে আরও জানুন [Blueprint Resources API Reference](/blueprints/steps/resources/) এ।
 
 </div>
 

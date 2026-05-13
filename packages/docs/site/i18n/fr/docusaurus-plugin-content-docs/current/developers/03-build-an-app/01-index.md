@@ -38,7 +38,7 @@ Chaque visiteur obtiendra sa propre instance WordPress privée gratuitement. Vou
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>
 
@@ -304,7 +304,7 @@ Combinez cela avec un éditeur de code comme Monaco ou CodeMirror, et vous obtie
 
 <div class="callout callout-info">
 
-Traduction automatisée, relecture et corrections par <a href="https://profiles.wordpress.org/beryldlg/">@beryldlg</a>
+Traduction automatisée, relecture et corrections par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
 
 Dernière mise à jour le 21 janvier 2026
 

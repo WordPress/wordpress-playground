@@ -14,14 +14,14 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-<a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints ギャラリー</a> をチェックして、WordPress Playground を使用してさまざまな設定で WordPress サイトを起動する実際のコード例を確認してください。
+[Blueprints ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) をチェックして、WordPress Playground を使用してさまざまな設定で WordPress サイトを起動する実際のコード例を確認してください。
 
 </div>
 
 <!--
 <div class="callout callout-tip">
 
-Check the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
 
 </div>
 -->

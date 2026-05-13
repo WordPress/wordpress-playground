@@ -252,14 +252,14 @@ Você também pode usar o passo `wp-cli` em combinação com o passo `writeFile`
 <!--
 <div class="callout callout-tip">
 
-Check the <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"Use wp-cli to add a post with image"</a> example from the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> to see the full example showing the connection between the content and the featured image.
+Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to see the full example showing the connection between the content and the featured image.
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-Confira o exemplo <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"Usar wp-cli para adicionar um post com imagem"</a> da <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> para ver o exemplo completo mostrando a conexão entre o conteúdo e a imagem destacada.
+Confira o exemplo ["Usar wp-cli para adicionar um post com imagem"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) da [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para ver o exemplo completo mostrando a conexão entre o conteúdo e a imagem destacada.
 
 </div>
 

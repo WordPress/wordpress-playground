@@ -34,7 +34,7 @@ description: URL ফ্র্যাগমেন্ট, কোয়েরি প
 
 <div class="callout callout-tip">
 
-Javascript-এ, আপনি <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> এবং <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a> দিয়ে যেকোনো blueprint JSON এর একটি কমপ্যাক্ট সংস্করণ পেতে পারেন
+Javascript-এ, আপনি [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) এবং [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse) দিয়ে যেকোনো blueprint JSON এর একটি কমপ্যাক্ট সংস্করণ পেতে পারেন
 উদাহরণ:
 
 ```js
@@ -69,7 +69,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-JavaScript-এ, আপনি গ্লোবাল ফাংশন `btoa()` দিয়ে <a href="https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support">Base64 ফরম্যাটে</a> যেকোনো blueprint JSON পেতে পারেন।
+JavaScript-এ, আপনি গ্লোবাল ফাংশন `btoa()` দিয়ে [Base64 ফরম্যাটে](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) যেকোনো blueprint JSON পেতে পারেন।
 
 উদাহরণ:
 

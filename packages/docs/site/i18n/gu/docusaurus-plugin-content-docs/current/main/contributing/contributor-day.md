@@ -246,10 +246,10 @@ npm run dev
 
 <div class="callout callout-info">
 
-જો તમે ઉપર સૂચિબદ્ધ પગલાં વિશે અચોક્કસ હોવ, તો સત્તાવાર <a href="https://developer.wordpress.org/block-editor/contributors/">ગુટેનબર્ગ પ્રોજેક્ટ કન્ટ્રીબ્યુટર ગાઈડ</a> ની મુલાકાત લો. નોંધ કરો કે આ કિસ્સામાં, `@wp-playground/cli` `wp-env` ને બદલે છે.
+જો તમે ઉપર સૂચિબદ્ધ પગલાં વિશે અચોક્કસ હોવ, તો સત્તાવાર [ગુટેનબર્ગ પ્રોજેક્ટ કન્ટ્રીબ્યુટર ગાઈડ](https://developer.wordpress.org/block-editor/contributors/) ની મુલાકાત લો. નોંધ કરો કે આ કિસ્સામાં, `@wp-playground/cli` `wp-env` ને બદલે છે.
 
 <!--
-If you're uncertain about the steps listed above, visit the official <a href="https://developer.wordpress.org/block-editor/contributors/">Gutenberg Project Contributor Guide</a>. Note that in this case, `@wp-playground/cli` replaces `wp-env`.
+If you're uncertain about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `@wp-playground/cli` replaces `wp-env`.
 -->
 
 </div>

@@ -72,11 +72,11 @@ Vous iriez ensuite à
 <div class="callout callout-tip">
 
 <!--
-In Javascript, you can get a compact version of any blueprint JSON with <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> and <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>
+In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
 Example:
 -->
 
-En JavaScript, vous pouvez obtenir une version compacte de n’importe quel JSON de Blueprint avec <a href="https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> et <a href="https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>.
+En JavaScript, vous pouvez obtenir une version compacte de n’importe quel JSON de Blueprint avec [`JSON.stringify`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) et [`JSON.parse`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse).
 Exemple :
 
 ```js
@@ -147,12 +147,12 @@ Pour l’exécuter, allez sur https://playground.wordpress.net/#eyIkc2NoZW1hIjog
 <div class="callout callout-tip">
 
 <!--
-In JavaScript, You can get any blueprint JSON in <a href="https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support">Base64 format</a> with global function `btoa()`.
+In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
 
 Example:
 -->
 
-En JavaScript, vous pouvez convertir n’importe quel JSON de Blueprint au <a href="https://developer.mozilla.org/fr/docs/Glossary/Base64#javascript_support">format Base64</a> avec la fonction globale `btoa()`.
+En JavaScript, vous pouvez convertir n’importe quel JSON de Blueprint au [format Base64](https://developer.mozilla.org/fr/docs/Glossary/Base64#javascript_support) avec la fonction globale `btoa()`.
 
 Exemple :
 

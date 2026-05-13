@@ -50,7 +50,7 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 
 **Autocompletar**
 
-Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> para uma experiência de desenvolvimento Blueprint com autocompletar. Adicione a seguinte linha no topo do seu arquivo `blueprint.json`:
+Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) para uma experiência de desenvolvimento Blueprint com autocompletar. Adicione a seguinte linha no topo do seu arquivo `blueprint.json`:
 
 ```json
 {
@@ -185,14 +185,14 @@ In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.
 
 <div class="callout callout-info">
 
-Learn more about the supported resources in the <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
+Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
 
 </div>
 -->
 
 ### Recursos
 
-O `themeData` define um <a href="/blueprints/steps/resources">recurso</a> e faz referência a um arquivo externo necessário para concluir a etapa. O Playground suporta diferentes tipos de recursos, incluindo
+O `themeData` define um [recurso](/blueprints/steps/resources) e faz referência a um arquivo externo necessário para concluir a etapa. O Playground suporta diferentes tipos de recursos, incluindo
 
 - `url`,
 - `wordpress.org/themes`,
@@ -206,7 +206,7 @@ Neste caso, `https://wordpress.org/themes/<slug>/` se torna `https://wordpress.o
 
 <div class="callout callout-info">
 
-Saiba mais sobre os recursos suportados em <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
+Saiba mais sobre os recursos suportados em [Blueprint Resources API Reference](/blueprints/steps/resources/).
 
 </div>
 

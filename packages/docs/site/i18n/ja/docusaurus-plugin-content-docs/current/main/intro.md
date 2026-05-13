@@ -15,7 +15,7 @@ description: WordPress Playground ドキュメントへようこそ！このペ�
 
 **公式の Playground ウェブサイトをお探しですか？**
 
-WordPress Playground ウェブサイトは <a href="https://wordpress.org/playground/">wordpress.org/playground/</a> に移動しました。現在ご覧のサイトはドキュメントをホストしています。
+WordPress Playground ウェブサイトは [wordpress.org/playground/](https://wordpress.org/playground/) に移動しました。現在ご覧のサイトはドキュメントをホストしています。
 
 </div>
 
@@ -24,7 +24,7 @@ WordPress Playground ウェブサイトは <a href="https://wordpress.org/playgr
 
 **Looking for the official Playground website?**
 
-WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
+WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
 </div>
  -->
@@ -123,14 +123,14 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 
 <div class="callout callout-tip">
 
-<a href="https://developer.wordpress.org/news">WordPress 開発者ブログ</a> の <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Playground の紹介: ブラウザで WordPress を実行する</strong></a> のブログ記事は、WordPress Playground の素晴らしい入門です。ぜひお読みください。
+[WordPress 開発者ブログ](https://developer.wordpress.org/news) の [**Playground の紹介: ブラウザで WordPress を実行する**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) のブログ記事は、WordPress Playground の素晴らしい入門です。ぜひお読みください。
 
 </div>
 
 <!--
 <div class="callout callout-tip">
 
-Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
+Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
 
 </div>
  -->

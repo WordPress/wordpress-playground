@@ -12,7 +12,7 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 
 **Contribute to Playground Tools**
 
-This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or <a href="/developers/local-development/">local development</a> tools—start there.
+This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or [local development](/developers/local-development/) tools—start there.
 
 </div>
 

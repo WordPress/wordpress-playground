@@ -187,7 +187,7 @@ You can also use the [`wp-cli` step](/blueprints/steps#WPCliStep) in combination
 
 <div class="callout callout-tip">
 
-Check the <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"Use wp-cli to add a post with image"</a> example from the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> to see the full example showing the connection between the content and the featured image.
+Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to see the full example showing the connection between the content and the featured image.
 
 </div>
 

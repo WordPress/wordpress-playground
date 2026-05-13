@@ -30,14 +30,14 @@ By using the same workflow than contributing to any other docs page. You could f
 
 <div class="callout callout-info">
 
-Playground Docs への貢献方法の詳細については、<a href="/contributing/documentation#how-can-i-contribute">貢献するにはどうすればいいですか?</a> を参照してください。
+Playground Docs への貢献方法の詳細については、[貢献するにはどうすればいいですか?](/contributing/documentation#how-can-i-contribute) を参照してください。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-Check the <a href="/contributing/documentation#how-can-i-contribute">How can I contribute?</a> to learn more about how to contribute to Playground Docs
+Check the [How can I contribute?](/contributing/documentation#how-can-i-contribute) to learn more about how to contribute to Playground Docs
 
 </div>
 -->
@@ -50,14 +50,14 @@ Check the <a href="/contributing/documentation#how-can-i-contribute">How can I c
 
 <div class="callout callout-info">
 
-Docusaurus ウェブサイト (Playground Docs のエンジン) での翻訳管理の詳細については、Docusaurus Docs の <a href="https://docusaurus.io/docs/i18n/introduction">国際化セクション</a> を参照してください。
+Docusaurus ウェブサイト (Playground Docs のエンジン) での翻訳管理の詳細については、Docusaurus Docs の [国際化セクション](https://docusaurus.io/docs/i18n/introduction) を参照してください。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-Check the <a href="https://docusaurus.io/docs/i18n/introduction">Internationalization section</a> of Docusaurus Docs to learn more about translation management in a Docusaurus website (the engine behind Playground Docs).
+Check the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of Docusaurus Docs to learn more about translation management in a Docusaurus website (the engine behind Playground Docs).
 
 </div>
 -->

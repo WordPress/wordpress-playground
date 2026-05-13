@@ -38,7 +38,7 @@ Overall, WordPress Playground provides a risk-free environment for beginners to 
 
 <div class="callout callout-tip">
 
-Check the <a href="/guides">guides section</a> to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
+Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
 
 </div>
 

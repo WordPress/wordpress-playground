@@ -155,27 +155,27 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 Visite estes links para aprender mais sobre as (incontáveis) possibilidades dos Blueprints:
 
 <!--
--   <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">Introduction to WordPress Playground</a>
+-   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 -->
 
-- <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">Introdução ao WordPress Playground</a>
+- [Introdução ao WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 
 <!--
--   Embed a pre-configured WordPress site in your website using the <a href="https://wordpress.org/plugins/interactive-code-block/">WordPress Playground Block</a>.
+-   Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
 -->
 
-- Incorpore um site WordPress pré-configurado em seu site usando o <a href="https://wordpress.org/plugins/interactive-code-block/">Bloco do WordPress Playground</a>.
+- Incorpore um site WordPress pré-configurado em seu site usando o [Bloco do WordPress Playground](https://wordpress.org/plugins/interactive-code-block/).
 
 <!--
--   <a href="/blueprints/examples">Blueprints examples</a>
+-   [Blueprints examples](/blueprints/examples)
 -->
 
-- <a href="/blueprints/examples">Exemplos de Blueprints</a>
+- [Exemplos de Blueprints](/blueprints/examples)
 
 <!--
--   <a href="/resources#apps-built-with-wordpress-playground">Demos and apps built with Blueprints</a>
+-   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
 -->
 
-- <a href="/resources#apps-built-with-wordpress-playground">Demonstrações e aplicativos construídos com Blueprints</a>
+- [Demonstrações e aplicativos construídos com Blueprints](/resources#apps-built-with-wordpress-playground)
 
 </div>

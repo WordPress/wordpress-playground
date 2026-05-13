@@ -54,7 +54,7 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 **オートコンプリート**
 
-VS Code や PHPStorm などの IDE をご利用の場合は、<a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a>を使用して、自動補完機能を備えたブループリント開発環境を構築できます。`blueprint.json`ファイルの先頭に次の行を追加してください。
+VS Code や PHPStorm などの IDE をご利用の場合は、[Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json)を使用して、自動補完機能を備えたブループリント開発環境を構築できます。`blueprint.json`ファイルの先頭に次の行を追加してください。
 
 ```json
 {
@@ -69,7 +69,7 @@ VS Code や PHPStorm などの IDE をご利用の場合は、<a href="https://p
 
 **Autocomplete**
 
-If you use an IDE, like VS Code or PHPStorm, you can use the <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
+If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
 
 ```json
 {
@@ -293,14 +293,14 @@ In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.
 
 <div class="callout callout-info">
 
-サポートされているリソースの詳細については、<a href="/blueprints/steps/resources/">Blueprint リソース API リファレンス</a>を参照してください。
+サポートされているリソースの詳細については、[Blueprint リソース API リファレンス](/blueprints/steps/resources/)を参照してください。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-Learn more about the supported resources in the <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
+Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
 
 </div>
 -->

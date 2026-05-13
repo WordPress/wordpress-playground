@@ -215,14 +215,14 @@ npm run dev
 <!--
 <div class="callout callout-info">
 
-If you're unsure about the steps listed above, visit the official <a href="https://developer.wordpress.org/block-editor/contributors/">Gutenberg Project Contributor Guide</a>. Note that in this case, `@wp-playground/cli` replaces `wp-env`.
+If you're unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `@wp-playground/cli` replaces `wp-env`.
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Se você não tiver certeza sobre os passos listados acima, visite o <a href="https://developer.wordpress.org/block-editor/contributors/">Guia do Contribuidor do Projeto Gutenberg</a> oficial. Note que neste caso, `@wp-playground/cli` substitui `wp-env`.
+Se você não tiver certeza sobre os passos listados acima, visite o [Guia do Contribuidor do Projeto Gutenberg](https://developer.wordpress.org/block-editor/contributors/) oficial. Note que neste caso, `@wp-playground/cli` substitui `wp-env`.
 
 </div>
 

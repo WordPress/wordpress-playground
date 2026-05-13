@@ -55,14 +55,14 @@ The following step-related topics are addressed on dedicated pages included in t
 
 <div class="callout callout-tip">
 
-<a href="https://akirk.github.io/playground-step-library/#">WordPress Playground ステップライブラリ</a> ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。<a href="https://github.com/akirk/playground-step-library/#contributing">独自のステップを作成</a> することも可能です!
+[WordPress Playground ステップライブラリ](https://akirk.github.io/playground-step-library/#) ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。[独自のステップを作成](https://github.com/akirk/playground-step-library/#contributing) することも可能です!
 
 </div>
 
 <!--
 <div class="callout callout-tip">
 
-The <a href="https://akirk.github.io/playground-step-library/#">WordPress Playground Step Library</a> tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also <a href="https://github.com/akirk/playground-step-library/#contributing">create your own steps</a>!
+The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!
 
 </div>
 -->

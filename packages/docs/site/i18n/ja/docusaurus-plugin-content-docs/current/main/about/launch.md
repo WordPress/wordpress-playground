@@ -76,14 +76,14 @@ With this block you have a straightforward and effective way to create live Word
 
 <div class="callout callout-info">
 
-WordPress プレイグラウンド ブロックに関する問題や質問がある場合は、<a href="https://github.com/WordPress/playground-tools">playground-tools</a> リポジトリで GitHub の問題を開いてください。
+WordPress プレイグラウンド ブロックに関する問題や質問がある場合は、[playground-tools](https://github.com/WordPress/playground-tools) リポジトリで GitHub の問題を開いてください。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the <a href="https://github.com/WordPress/playground-tools">playground-tools</a> repository.
+For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
 
 </div>
 -->

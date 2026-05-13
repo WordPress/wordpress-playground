@@ -21,7 +21,7 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 
 **Contribute to Playground Tools**
 
-This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or <a href="/developers/local-development/">local development</a> tools—start there.
+This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or [local development](/developers/local-development/) tools—start there.
 
 </div>
 -->
@@ -30,7 +30,7 @@ This guide includes links to the main repository, but all the steps and options 
 
 **প্লেগ্রাউন্ড টুলসে কন্ট্রিবিউট করুন**
 
-এই গাইডে মেইন রিপোজিটরির লিঙ্ক রয়েছে, তবে সমস্ত স্টেপস এবং অপশন উভয়ের জন্য প্রযোজ্য। আপনি যদি প্লাগইন বা <a href="/developers/local-development/">লোকাল ডেভেলপমেন্ট</a> টুলসে ইন্টারেস্টেড হন—সেখান থেকে শুরু করুন।
+এই গাইডে মেইন রিপোজিটরির লিঙ্ক রয়েছে, তবে সমস্ত স্টেপস এবং অপশন উভয়ের জন্য প্রযোজ্য। আপনি যদি প্লাগইন বা [লোকাল ডেভেলপমেন্ট](/developers/local-development/) টুলসে ইন্টারেস্টেড হন—সেখান থেকে শুরু করুন।
 
 </div>
 

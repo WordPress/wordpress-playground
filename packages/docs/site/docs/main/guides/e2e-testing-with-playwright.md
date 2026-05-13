@@ -9,7 +9,7 @@ End-to-end testing verifies that your WordPress plugin or theme works correctly 
 
 <div class="callout callout-info">
 
-This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see <a href="/guides/for-plugin-developers">WordPress Playground for Plugin Developers</a>. For Blueprint configuration details, see <a href="/blueprints/getting-started">Blueprints Getting Started</a>.
+This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see [WordPress Playground for Plugin Developers](/guides/for-plugin-developers). For Blueprint configuration details, see [Blueprints Getting Started](/blueprints/getting-started).
 
 </div>
 
@@ -316,7 +316,7 @@ const blueprint = {
 
 <div class="callout callout-tip">
 
-Use the <a href="https://akirk.github.io/playground-step-library/">Playground Step Library</a> or <a href="https://pootleplayground.com/">Pootle Playground</a> to prototype your Blueprint configuration visually before adding it to your test code.
+Use the [Playground Step Library](https://akirk.github.io/playground-step-library/) or [Pootle Playground](https://pootleplayground.com/) to prototype your Blueprint configuration visually before adding it to your test code.
 
 </div>
 
@@ -546,7 +546,7 @@ Create three parallel jobs in your workflow matrix, each running a different sha
 
 <div class="callout callout-info">
 
-For manual PR testing alongside automated E2E tests, see <a href="/guides/github-action-pr-preview">Adding PR Preview Buttons with GitHub Actions</a>.
+For manual PR testing alongside automated E2E tests, see [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview).
 
 </div>
 

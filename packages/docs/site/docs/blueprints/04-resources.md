@@ -9,9 +9,9 @@ description: A technical reference for "Resource References." Learn how to use e
 
 <div class="callout callout-info">
 
-Blueprints steps such as <a href="/blueprints/steps#InstallPluginStep"><code>installPlugin</code></a> or <a href="/blueprints/steps#InstallThemeStep"><code>installTheme</code></a> require a location of the plugin or theme to be installed.
+Blueprints steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
 
-That location can be defined as <a href="#urlreference">a <code>URL</code> resource</a> of the `.zip` file containing the theme or plugin. It can also be defined as a <a href="#corepluginreference"><code>wordpress.org/plugins</code></a> or <a href="#corethemereference"><code>wordpress.org/themes</code></a> resource for those plugins/themes published in the official WordPress directories.
+That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories.
 
 </div>
 

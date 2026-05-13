@@ -204,7 +204,7 @@ The site at https://playground.wordpress.net is there to support the community, 
 https://playground.wordpress.net সাইটটি কমিউনিটিকে সহায়তা করার জন্য আছে, কিন্তু ট্রাফিক উল্লেখযোগ্যভাবে বৃদ্ধি পেলে এটি কাজ চালিয়ে যাবে কিনা তার কোনো নিশ্চয়তা নেই।
 
 <!--
-If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>
 -->

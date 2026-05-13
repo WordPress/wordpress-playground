@@ -47,8 +47,8 @@ Ce guide vous présentera les réglages de base pour présenter votre extension 
 
 <div class="callout callout-info">
 
-Traduction par <a href="https://profiles.wordpress.org/jabbari01/">@jabbari01</a>
-et relecture par <a href="https://profiles.wordpress.org/jdy68/">@jdy68</a>
+Traduction par [@jabbari01](https://profiles.wordpress.org/jabbari01/)
+et relecture par [@jdy68](https://profiles.wordpress.org/jdy68/)
 
 Dernière mise à jour le 8 octobre 2025
 

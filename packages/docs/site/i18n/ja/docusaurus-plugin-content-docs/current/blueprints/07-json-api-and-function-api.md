@@ -33,7 +33,7 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 チームは、Blueprints を TypeScript ライブラリから PHP ライブラリに移行する方法を検討しています。これにより、Playground、ホストされたサイト、ローカル環境など、あらゆる WordPress 環境で Blueprints を実行できるようになります。
 
-提案されている <a href="https://github.com/WordPress/blueprints-library/issues/6">新しい仕様</a> については、別の <a href="https://github.com/WordPress/blueprints-library/">GitHub リポジトリ</a> で議論されています。ぜひご参加ください（GitHub リポジトリまたは <a href="https://wordpress.slack.com/archives/C04EWKGDJ0K">#playground</a> Slack チャンネルで）。次世代の Playground の策定にご協力ください。
+提案されている [新しい仕様](https://github.com/WordPress/blueprints-library/issues/6) については、別の [GitHub リポジトリ](https://github.com/WordPress/blueprints-library/) で議論されています。ぜひご参加ください（GitHub リポジトリまたは [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack チャンネルで）。次世代の Playground の策定にご協力ください。
 
 </div>
 
@@ -44,7 +44,7 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup.
 
-The proposed <a href="https://github.com/WordPress/blueprints-library/issues/6">new specification</a> is discussed on a separate <a href="https://github.com/WordPress/blueprints-library/">GitHub repository</a>, and you’re more than welcome to join (there or on the <a href="https://wordpress.slack.com/archives/C04EWKGDJ0K">#playground</a> Slack channel) and help shape the next generation of Playground.
+The proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) is discussed on a separate [GitHub repository](https://github.com/WordPress/blueprints-library/), and you’re more than welcome to join (there or on the [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) and help shape the next generation of Playground.
 
 </div>
 -->
@@ -71,14 +71,14 @@ There are two main differences between the JSON and Function APIs:
 
 <div class="callout callout-info">
 
-このトピックの詳細については、<a href="https://github.com/WordPress/wordpress-playground">wordpress-playground</a> リポジトリの <a href="https://github.com/WordPress/wordpress-playground/pull/215">Blueprint JSON 定義とステップ ハンドラーに同じ構造を使用する</a> の問題を確認してください。
+このトピックの詳細については、[wordpress-playground](https://github.com/WordPress/wordpress-playground) リポジトリの [Blueprint JSON 定義とステップ ハンドラーに同じ構造を使用する](https://github.com/WordPress/wordpress-playground/pull/215) の問題を確認してください。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-Check the <a href="https://github.com/WordPress/wordpress-playground/pull/215">Use the same structure for Blueprint JSON definitions and step handlers</a> issue at <a href="https://github.com/WordPress/wordpress-playground">wordpress-playground</a> repo for more detailed info about this topic
+Check the [Use the same structure for Blueprint JSON definitions and step handlers](https://github.com/WordPress/wordpress-playground/pull/215) issue at [wordpress-playground](https://github.com/WordPress/wordpress-playground) repo for more detailed info about this topic
 
 </div>
 -->

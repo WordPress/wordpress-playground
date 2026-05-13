@@ -16,7 +16,7 @@ description: ওয়ার্ডপ্রেস প্লেগ্রাউন
 
 **Looking for the official Playground website?**
 
-WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
+WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
 </div>
 -->
@@ -25,7 +25,7 @@ WordPress Playground website moved to <a href="https://wordpress.org/playground/
 
 **অফিসিয়াল প্লেগ্রাউন্ড ওয়েবসাইট খুঁজছেন?**
 
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েবসাইট <a href="https://wordpress.org/playground/">wordpress.org/playground/</a> এ স্থানান্তরিত হয়েছে। আপনি এখন যে সাইটে আছেন সেটি ডকুমেন্টেশন হোস্ট করে।
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েবসাইট [wordpress.org/playground/](https://wordpress.org/playground/) এ স্থানান্তরিত হয়েছে। আপনি এখন যে সাইটে আছেন সেটি ডকুমেন্টেশন হোস্ট করে।
 
 </div>
 
@@ -140,14 +140,14 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 <!--
 <div class="callout callout-tip">
 
-Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
+Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ড-এর একটি দুর্দান্ত ভূমিকার জন্য <a href="https://developer.wordpress.org/news">ওয়ার্ডপ্রেস ডেভেলপার ব্লগে</a> <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>প্লেগ্রাউন্ড পরিচিতি: ব্রাউজারে ওয়ার্ডপ্রেস চালানো</strong></a> ব্লগ পোস্টটি পড়ুন
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ড-এর একটি দুর্দান্ত ভূমিকার জন্য [ওয়ার্ডপ্রেস ডেভেলপার ব্লগে](https://developer.wordpress.org/news) [**প্লেগ্রাউন্ড পরিচিতি: ব্রাউজারে ওয়ার্ডপ্রেস চালানো**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) ব্লগ পোস্টটি পড়ুন
 
 </div>
 

@@ -175,6 +175,6 @@ Maaari mo ring gamitin ang `wp-cli` step kasama ang `writeFile` step upang lumik
 
 <div class="callout callout-tip">
 
-Tingnan ang halimbawa na <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"Use wp-cli to add a post with image"</a> mula sa <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> upang makita ang buong halimbawa na nagpapakita ng ugnayan sa pagitan ng content at featured image.
+Tingnan ang halimbawa na ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) mula sa [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) upang makita ang buong halimbawa na nagpapakita ng ugnayan sa pagitan ng content at featured image.
 
 </div>

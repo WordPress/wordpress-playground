@@ -30,13 +30,13 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 <!--
 <div class="callout callout-tip">
 
-If you encounter any issues while following this tutorial, refer to the <a href="/blueprints/troubleshoot-and-debug">Troubleshoot and debug Blueprints</a> section for tips and tools to help you solve them.
+If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-এই টিউটোরিয়াল অনুসরণ করার সময় আপনি যদি কোনো সমস্যার সম্মুখীন হন, তাহলে সেগুলি সমাধান করতে সাহায্য করার জন্য পরামর্শ এবং টুলের জন্য <a href="/blueprints/troubleshoot-and-debug">ব্লুপ্রিন্ট ট্রাবলশুট এবং ডিবাগ করা</a> বিভাগটি দেখুন।
+এই টিউটোরিয়াল অনুসরণ করার সময় আপনি যদি কোনো সমস্যার সম্মুখীন হন, তাহলে সেগুলি সমাধান করতে সাহায্য করার জন্য পরামর্শ এবং টুলের জন্য [ব্লুপ্রিন্ট ট্রাবলশুট এবং ডিবাগ করা](/blueprints/troubleshoot-and-debug) বিভাগটি দেখুন।
 
 </div>

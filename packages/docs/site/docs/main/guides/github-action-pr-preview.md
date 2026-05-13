@@ -95,7 +95,7 @@ on:
 
 `pull_request_target` runs in the context of the base repository and can access repository secrets and a write-capable `GITHUB_TOKEN`. Do **not** use it to check out PR code, run files from the PR, install PR dependencies, load a blueprint from the PR branch, or pass PR values into shell commands. Keep permissions as narrow as possible, typically `contents: read` and `pull-requests: write` for this action.
 
-If you need Composer, npm, tests, or any other step that runs PR code, put that work in a separate `pull_request` workflow and use <a href="https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run"><code>workflow_run</code></a> to publish the preview after the build completes.
+If you need Composer, npm, tests, or any other step that runs PR code, put that work in a separate `pull_request` workflow and use [`workflow_run`](https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run) to publish the preview after the build completes.
 
 </div>
 

@@ -19,14 +19,14 @@ Help make WordPress Playground accessible to a global audience by translating it
 <!--
 <div class="callout callout-info">
 
-For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our <a href="/contributing/documentation#how-can-i-contribute">documentation contribution guide</a>
+For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-কন্ট্রিবিউশন ওয়ার্কফ্লো (ফর্কিং, PR তৈরি ইত্যাদি) সম্পর্কে বিস্তারিত গাইডের জন্য, অনুগ্রহ করে আমাদের <a href="/contributing/documentation#how-can-i-contribute">ডকুমেন্টেশন কন্ট্রিবিউশন গাইড</a> দেখুন
+কন্ট্রিবিউশন ওয়ার্কফ্লো (ফর্কিং, PR তৈরি ইত্যাদি) সম্পর্কে বিস্তারিত গাইডের জন্য, অনুগ্রহ করে আমাদের [ডকুমেন্টেশন কন্ট্রিবিউশন গাইড](/contributing/documentation#how-can-i-contribute) দেখুন
 
 </div>
 
@@ -45,14 +45,14 @@ Playground's documentation site is built with Docusaurus, which handles the inte
 <!--
 <div class="callout callout-info">
 
-To learn more about how Docusaurus manages translations, see the <a href="https://docusaurus.io/docs/i18n/introduction">Internationalization section</a> of the official Docusaurus documentation.
+To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Docusaurus কীভাবে অনুবাদ ম্যানেজ করে সে সম্পর্কে আরো জানতে, অফিসিয়াল Docusaurus ডকুমেন্টেশনের <a href="https://docusaurus.io/docs/i18n/introduction">ইন্টারন্যাশনালাইজেশন সেকশন</a> দেখুন।
+Docusaurus কীভাবে অনুবাদ ম্যানেজ করে সে সম্পর্কে আরো জানতে, অফিসিয়াল Docusaurus ডকুমেন্টেশনের [ইন্টারন্যাশনালাইজেশন সেকশন](https://docusaurus.io/docs/i18n/introduction) দেখুন।
 
 </div>
 

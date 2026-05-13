@@ -64,7 +64,7 @@ And then you would go to
 
 <div class="callout callout-tip">
 
-JavaScript では、<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> と <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a> を使用して、ブループリントの JSON をコンパクトに圧縮できます。
+JavaScript では、[`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) と [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse) を使用して、ブループリントの JSON をコンパクトに圧縮できます。
 例:
 
 ```js
@@ -83,7 +83,7 @@ const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"pr
 <!--
 <div class="callout callout-tip">
 
-In Javascript, you can get a compact version of any blueprint JSON with <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> and <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>
+In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
 Example:
 
 ```js
@@ -135,7 +135,7 @@ To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vc
 
 <div class="callout callout-tip">
 
-JavaScript では、グローバル関数 `btoa()` を使用して、任意のブループリント JSON を <a href="https://developer.mozilla.org/ja/docs/Glossary/Base64#javascript_%E3%81%AE%E5%AF%BE%E5%BF%9C">Base64 形式</a> で取得できます。
+JavaScript では、グローバル関数 `btoa()` を使用して、任意のブループリント JSON を [Base64 形式](https://developer.mozilla.org/ja/docs/Glossary/Base64#javascript_%E3%81%AE%E5%AF%BE%E5%BF%9C) で取得できます。
 
 例:
 
@@ -155,7 +155,7 @@ const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi
 <!--
 <div class="callout callout-tip">
 
-In JavaScript, You can get any blueprint JSON in <a href="https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support">Base64 format</a> with global function `btoa()`.
+In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
 
 Example:
 

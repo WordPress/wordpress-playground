@@ -29,7 +29,7 @@ Mukhang walang nangyayari, pero ang Blueprint na ito ay gumagawa na ng WordPress
 
 **Autocomplete**
 
-Kung gumagamit ka ng IDE, tulad ng VS Code o PHPStorm, maaari mong gamitin ang <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> para sa autocompleted na Blueprint development experience. Magdagdag ng sumusunod na line sa itaas ng iyong `blueprint.json` file:
+Kung gumagamit ka ng IDE, tulad ng VS Code o PHPStorm, maaari mong gamitin ang [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) para sa autocompleted na Blueprint development experience. Magdagdag ng sumusunod na line sa itaas ng iyong `blueprint.json` file:
 
 ```json
 {
@@ -133,7 +133,7 @@ Sa kasong ito, `https://wordpress.org/themes/<slug>/` ay nagiging `https://wordp
 
 <div class="callout callout-info">
 
-Matuto pa tungkol sa mga supported na resources sa <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
+Matuto pa tungkol sa mga supported na resources sa [Blueprint Resources API Reference](/blueprints/steps/resources/).
 
 </div>
 

@@ -34,7 +34,7 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 ટીમ બ્લુપ્રિન્ટ્સને ટાઇપસ્ક્રિપ્ટ(TypeScript) લાઇબ્રેરીમાંથી PHP લાઇબ્રેરીમાં કેવી રીતે રૂપાંતરિત કરવું તે શોધી રહી છે. આનાથી લોકો કોઈપણ વર્ડપ્રેસ વાતાવરણમાં બ્લુપ્રિન્ટ્સ ચલાવી શકશે: પ્લેગ્રાઉન્ડ, હોસ્ટ કરેલી સાઇટ અથવા સ્થાનિક સેટઅપ.
 
-પ્રસ્તાવિત <a href="https://github.com/WordPress/blueprints-library/issues/6">નવું સ્પષ્ટીકરણ</a> અલગથી ચર્ચા કરવામાં આવી છે <a href="https://github.com/WordPress/blueprints-library/">ગિટહબ ભંડાર</a> , અને તમારું જોડાવા માટે ખૂબ સ્વાગત છે (ત્યાં અથવા [#playground] પર(https://wordpress.slack.com/archives/C04EWKGDJ0K) સ્લેક ચેનલ) અને પ્લેગ્રાઉન્ડની આગામી પેઢીને આકાર આપવામાં મદદ કરે છે.
+પ્રસ્તાવિત [નવું સ્પષ્ટીકરણ](https://github.com/WordPress/blueprints-library/issues/6) અલગથી ચર્ચા કરવામાં આવી છે [ગિટહબ ભંડાર](https://github.com/WordPress/blueprints-library/) , અને તમારું જોડાવા માટે ખૂબ સ્વાગત છે (ત્યાં અથવા [#playground] પર(https://wordpress.slack.com/archives/C04EWKGDJ0K) સ્લેક ચેનલ) અને પ્લેગ્રાઉન્ડની આગામી પેઢીને આકાર આપવામાં મદદ કરે છે.
 
 </div>
 
@@ -45,7 +45,7 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup.
 
-The proposed <a href="https://github.com/WordPress/blueprints-library/issues/6">new specification</a> is discussed on a separate <a href="https://github.com/WordPress/blueprints-library/">GitHub repository</a>, and you’re more than welcome to join (there or on the <a href="https://wordpress.slack.com/archives/C04EWKGDJ0K">#playground</a> Slack channel) and help shape the next generation of Playground.
+The proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) is discussed on a separate [GitHub repository](https://github.com/WordPress/blueprints-library/), and you’re more than welcome to join (there or on the [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) and help shape the next generation of Playground.
 
 </div>
 -->
@@ -72,14 +72,14 @@ There are two main differences between the JSON and Function APIs:
 
 <div class="callout callout-info">
 
-આ વિષય વિશે વધુ વિગતવાર માહિતી માટે <a href="https://github.com/WordPress/wordpress-playground">વર્ડપ્રેસ-પ્લેગ્રાઉન્ડ</a> રેપો પર <a href="https://github.com/WordPress/wordpress-playground/pull/215">બ્લુપ્રિન્ટ JSON વ્યાખ્યાઓ અને સ્ટેપ હેન્ડલર્સ માટે સમાન માળખું વાપરો</a> સમસ્યા તપાસો.
+આ વિષય વિશે વધુ વિગતવાર માહિતી માટે [વર્ડપ્રેસ-પ્લેગ્રાઉન્ડ](https://github.com/WordPress/wordpress-playground) રેપો પર [બ્લુપ્રિન્ટ JSON વ્યાખ્યાઓ અને સ્ટેપ હેન્ડલર્સ માટે સમાન માળખું વાપરો](https://github.com/WordPress/wordpress-playground/pull/215) સમસ્યા તપાસો.
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-Check the <a href="https://github.com/WordPress/wordpress-playground/pull/215">Use the same structure for Blueprint JSON definitions and step handlers</a> issue at <a href="https://github.com/WordPress/wordpress-playground">wordpress-playground</a> repo for more detailed info about this topic
+Check the [Use the same structure for Blueprint JSON definitions and step handlers](https://github.com/WordPress/wordpress-playground/pull/215) issue at [wordpress-playground](https://github.com/WordPress/wordpress-playground) repo for more detailed info about this topic
 
 </div>
 -->

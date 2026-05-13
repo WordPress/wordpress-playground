@@ -31,7 +31,7 @@ Sa block na ito ay mayroon kang diretso at epektibong paraan upang lumikha ng li
 
 <div class="callout callout-info">
 
-Para sa anumang isyu o katanungan tungkol sa WordPress Playground Block, mangyaring magbukas ng GitHub issue sa repositoryang <a href="https://github.com/WordPress/playground-tools">playground-tools</a>.
+Para sa anumang isyu o katanungan tungkol sa WordPress Playground Block, mangyaring magbukas ng GitHub issue sa repositoryang [playground-tools](https://github.com/WordPress/playground-tools).
 
 </div>
 

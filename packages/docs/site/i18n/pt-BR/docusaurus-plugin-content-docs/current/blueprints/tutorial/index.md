@@ -22,13 +22,13 @@ Bem-vindo a um curso intensivo sobre Blueprints, onde você encontrará tudo que
 <!--
 <div class="callout callout-tip">
 
-If you encounter any issues while following this tutorial, refer to the <a href="/blueprints/troubleshoot-and-debug">Troubleshoot and debug Blueprints</a> section for tips and tools to help you solve them.
+If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-Se você encontrar algum problema enquanto segue este tutorial, consulte a seção <a href="/blueprints/troubleshoot-and-debug">Solução de problemas e depuração de Blueprints</a> para dicas e ferramentas que podem ajudá-lo a resolvê-los.
+Se você encontrar algum problema enquanto segue este tutorial, consulte a seção [Solução de problemas e depuração de Blueprints](/blueprints/troubleshoot-and-debug) para dicas e ferramentas que podem ajudá-lo a resolvê-los.
 
 </div>

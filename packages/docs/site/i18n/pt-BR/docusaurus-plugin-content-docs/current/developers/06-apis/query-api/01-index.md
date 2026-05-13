@@ -83,10 +83,10 @@ Por exemplo, o código a seguir incorpora um Playground com o plugin Gutenberg p
 **Política de CORS**
 
 <!--
-To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers">Cross-Origin Resource Sharing (CORS)</a>.
+To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 -->
 
-Para importar arquivos de uma URL, como um pacote zip de site, eles devem ser servidos com o cabeçalho `Access-Control-Allow-Origin` configurado. Para referência, veja: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers">Cross-Origin Resource Sharing (CORS)</a>.
+Para importar arquivos de uma URL, como um pacote zip de site, eles devem ser servidos com o cabeçalho `Access-Control-Allow-Origin` configurado. Para referência, veja: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 
 </div>
 

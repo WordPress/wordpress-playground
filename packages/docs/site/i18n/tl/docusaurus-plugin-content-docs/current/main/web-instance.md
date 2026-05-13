@@ -177,7 +177,7 @@ Ang Launch Panel ay naglilista rin ng higit sa 40 blueprints mula sa Blueprint G
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>
 -->
@@ -186,6 +186,6 @@ If you need certain availability, you should <a href="/developers/architecture/h
 
 Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad, ngunit walang garantiya na ito ay patuloy na gagana kung ang traffic ay lumaki nang malaki.
 
-Kung kailangan mo ng tiyak na availability, dapat mong <a href="/developers/architecture/host-your-own-playground">i-host ang sarili mong WordPress Playground</a>.
+Kung kailangan mo ng tiyak na availability, dapat mong [i-host ang sarili mong WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>

@@ -48,7 +48,7 @@ Cada visitante obtendrá su propia instancia privada de WordPress de forma gratu
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>
 
@@ -182,7 +182,7 @@ En el código anterior, se instalará un complemento desde un repositorio ubicad
 
 <div class="callout callout-tip">
 
-Puedes automatizar este proceso usando la <a href="/guides/github-action-pr-preview">Acción de GitHub para generar enlaces de vista previa</a>, lo que te ayudará a agilizarlo.
+Puedes automatizar este proceso usando la [Acción de GitHub para generar enlaces de vista previa](/guides/github-action-pr-preview), lo que te ayudará a agilizarlo.
 
 </div>
 

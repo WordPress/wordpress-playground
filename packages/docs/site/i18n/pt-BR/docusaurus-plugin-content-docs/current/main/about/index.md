@@ -94,14 +94,14 @@ No geral, o WordPress Playground oferece um ambiente livre de riscos para inicia
 <!--
 <div class="callout callout-tip">
 
-Check the <a href="/guides">guides section</a> to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
+Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-Confira a <a href="/guides">seção de guias</a> para aprender mais sobre como aproveitar o WordPress Playground para testar seus temas e plugins e criar conteúdo dinamicamente.
+Confira a [seção de guias](/guides) para aprender mais sobre como aproveitar o WordPress Playground para testar seus temas e plugins e criar conteúdo dinamicamente.
 
 </div>
 

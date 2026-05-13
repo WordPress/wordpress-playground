@@ -41,7 +41,7 @@ The [WordPress Playground Step Library](https://akirk.github.io/playground-step-
 
 <div class="callout callout-tip">
 
-A <a href="https://akirk.github.io/playground-step-library/#">Biblioteca de Etapas do WordPress Playground</a> fornece uma interface visual para arrastar ou clicar nas etapas para criar um blueprint para o WordPress Playground. Você também pode <a href="https://github.com/akirk/playground-step-library/#contributing">criar suas próprias etapas</a>!
+A [Biblioteca de Etapas do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nas etapas para criar um blueprint para o WordPress Playground. Você também pode [criar suas próprias etapas](https://github.com/akirk/playground-step-library/#contributing)!
 
 </div>
 

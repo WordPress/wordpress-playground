@@ -79,7 +79,7 @@ To check the final internal filesystem structure and database (after the bluepri
 
 <div class="callout callout-tip">
 
-WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは `window.playground` オブジェクトの一部として公開されています（<a href="/developers/apis/javascript-api/#debugging-and-testing">開発者 &gt; JavaScript API &gt; デバッグとテスト</a> を参照）。いくつか例を挙げます。
+WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは `window.playground` オブジェクトの一部として公開されています（[開発者 &gt; JavaScript API &gt; デバッグとテスト](/developers/apis/javascript-api/#debugging-and-testing) を参照）。いくつか例を挙げます。
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -88,14 +88,14 @@ true
 (3) ['hello.php', 'index.php', 'WordPress-Importer-master']
 ```
 
-使用できるメソッドの完全なリストは<a href="/api/client/interface/PlaygroundClient">こちら</a>で確認できます。
+使用できるメソッドの完全なリストは[こちら](/api/client/interface/PlaygroundClient)で確認できます。
 
 </div>
 
 <!--
 <div class="callout callout-tip">
 
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see <a href="/developers/apis/javascript-api/#debugging-and-testing">Developers &gt; JavaScript API &gt; Debugging and testing</a>). Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers &gt; JavaScript API &gt; Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -104,7 +104,7 @@ true
 (3) ['hello.php', 'index.php', 'WordPress-Importer-master']
 ```
 
-Full list of methods we can use is available <a href="/api/client/interface/PlaygroundClient">here</a>
+Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
 
 </div>
 -->
@@ -163,14 +163,14 @@ You can `error_log` your own error messages through [`runPHP` step](/blueprints/
 
 <div class="callout callout-info">
 
-<a href="/web-instance#playground-options-menu">「zip としてダウンロード」オプション</a> を使用して Playground インスタンスを `zip` としてダウンロードすると、Playground インスタンスからのすべてのログを含む `debug.log` ファイルもダウンロードされます。
+[「zip としてダウンロード」オプション](/web-instance#playground-options-menu) を使用して Playground インスタンスを `zip` としてダウンロードすると、Playground インスタンスからのすべてのログを含む `debug.log` ファイルもダウンロードされます。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-When you download your Playground instance as a `zip` through the <a href="/web-instance#playground-options-menu">"Download as zip" option</a> you'll also download the `debug.log` file containing all the logs from your Playground instance.
+When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
 
 </div>
 -->

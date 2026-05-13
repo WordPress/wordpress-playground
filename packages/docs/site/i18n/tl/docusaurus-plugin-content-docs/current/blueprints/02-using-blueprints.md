@@ -34,7 +34,7 @@ At pagkatapos ay pupunta ka sa
 
 <div class="callout callout-tip">
 
-Sa Javascript, maaari kang makakuha ng compact version ng anumang blueprint JSON gamit ang <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> at <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>
+Sa Javascript, maaari kang makakuha ng compact version ng anumang blueprint JSON gamit ang [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) at [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
 Halimbawa:
 
 ```js
@@ -69,7 +69,7 @@ Para patakbuhin ito, pumunta sa https://playground.wordpress.net/#eyIkc2NoZW1hIj
 
 <div class="callout callout-tip">
 
-Sa JavaScript, Maaari kang makakuha ng anumang blueprint JSON sa <a href="https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support">Base64 format</a> gamit ang global function na `btoa()`.
+Sa JavaScript, Maaari kang makakuha ng anumang blueprint JSON sa [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) gamit ang global function na `btoa()`.
 
 Halimbawa:
 

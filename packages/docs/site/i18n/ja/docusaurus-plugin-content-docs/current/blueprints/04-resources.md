@@ -16,18 +16,18 @@ slug: /blueprints/steps/resources
 
 <div class="callout callout-info">
 
-<a href="/blueprints/steps#InstallPluginStep"><code>installPlugin</code></a> や <a href="/blueprints/steps#InstallThemeStep"><code>installTheme</code></a> などのブループリントステップでは、インストールするプラグインまたはテーマの場所を指定する必要があります。
+[`installPlugin`](/blueprints/steps#InstallPluginStep) や [`installTheme`](/blueprints/steps#InstallThemeStep) などのブループリントステップでは、インストールするプラグインまたはテーマの場所を指定する必要があります。
 
-その場所は、テーマまたはプラグインを含む `.zip` ファイルの <a href="#urlreference"><code>URL</code> リソース</a> として定義できます。また、公式 WordPress ディレクトリに公開されているプラグイン/テーマの場合は、<a href="#corepluginreference"><code>wordpress.org/plugins</code></a> または <a href="#corethemereference"><code>wordpress.org/themes</code></a> リソースとして定義することもできます。
+その場所は、テーマまたはプラグインを含む `.zip` ファイルの [`URL` リソース](#urlreference) として定義できます。また、公式 WordPress ディレクトリに公開されているプラグイン/テーマの場合は、[`wordpress.org/plugins`](#corepluginreference) または [`wordpress.org/themes`](#corethemereference) リソースとして定義することもできます。
 
 </div>
 
 <!--
 <div class="callout callout-info">
 
-Blueprints steps such as <a href="/blueprints/steps#InstallPluginStep"><code>installPlugin</code></a> or <a href="/blueprints/steps#InstallThemeStep"><code>installTheme</code></a> require a location of the plugin or theme to be installed.
+Blueprints steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
 
-That location can be defined as <a href="#urlreference">a <code>URL</code> resource</a> of the `.zip` file containing the theme or plugin. It can also be defined as a <a href="#corepluginreference"><code>wordpress.org/plugins</code></a> or <a href="#corethemereference"><code>wordpress.org/themes</code></a> resource for those plugins/themes published in the official WordPress directories.
+That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories.
 
 </div>
 -->
@@ -92,14 +92,14 @@ With a `"resource": "url"` we can define the location of a `.zip` containing the
 
 <div class="callout callout-tip">
 
-Playground プロジェクトは<a href="https://playground.wordpress.net/proxy">GitHub Proxy</a>を提供しています。これを使用すると、プラグインやテーマを含むリポジトリ（またはリポジトリ内のフォルダ）から `.zip` ファイルを生成できます。このツールは、CORS の問題などを回避するのに非常に便利です。
+Playground プロジェクトは[GitHub Proxy](https://playground.wordpress.net/proxy)を提供しています。これを使用すると、プラグインやテーマを含むリポジトリ（またはリポジトリ内のフォルダ）から `.zip` ファイルを生成できます。このツールは、CORS の問題などを回避するのに非常に便利です。
 
 </div>
 
 <!--
 <div class="callout callout-tip">
 
-The Playground project provides a <a href="https://playground.wordpress.net/proxy">GitHub Proxy</a> that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others.
+The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others.
 
 </div>
 -->

@@ -16,7 +16,7 @@ description: Bienvenido a la documentación de WordPress Playground. Esta págin
 
 **Looking for the official Playground website?**
 
-WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
+WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
 </div>
 -->
@@ -25,7 +25,7 @@ WordPress Playground website moved to <a href="https://wordpress.org/playground/
 
 **¿Buscas el sitio web oficial de Playground?**
 
-El sitio web de WordPress Playground se trasladó a <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. El sitio en el que te encuentras ahora alberga la documentación.
+El sitio web de WordPress Playground se trasladó a [wordpress.org/playground/](https://wordpress.org/playground/). El sitio en el que te encuentras ahora alberga la documentación.
 
 </div>
 
@@ -124,14 +124,14 @@ Ya seas desarrollador, usuario no técnico o contribuidor, estas documentaciones
 <!--
 <div class="callout callout-tip">
 
-Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
+Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-Lee la publicación del blog <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introducción a Playground: ejecutando WordPress en el navegador</strong></a> en el <a href="https://developer.wordpress.org/news">Blog de Desarrolladores de WordPress</a> para una excelente introducción a WordPress Playground
+Lee la publicación del blog [**Introducción a Playground: ejecutando WordPress en el navegador**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) en el [Blog de Desarrolladores de WordPress](https://developer.wordpress.org/news) para una excelente introducción a WordPress Playground
 
 </div>
 

@@ -10,7 +10,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-Tingnan ang <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> upang tuklasin ang mga totoong halimbawa ng code ng paggamit ng WordPress Playground para maglunsad ng isang WordPress site na may iba't ibang setup.
+Tingnan ang [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) upang tuklasin ang mga totoong halimbawa ng code ng paggamit ng WordPress Playground para maglunsad ng isang WordPress site na may iba't ibang setup.
 
 </div>
 

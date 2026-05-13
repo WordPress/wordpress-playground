@@ -12,7 +12,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-Check the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
 
 </div>
 -->
@@ -21,7 +21,7 @@ Check the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md
 
 <div class="callout callout-tip">
 
-Confira a <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> para explorar exemplos de código do mundo real usando WordPress Playground para iniciar um site WordPress com uma variedade de configurações.
+Confira a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código do mundo real usando WordPress Playground para iniciar um site WordPress com uma variedade de configurações.
 
 </div>
 

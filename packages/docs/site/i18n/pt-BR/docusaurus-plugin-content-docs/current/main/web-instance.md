@@ -177,7 +177,7 @@ O Painel de Lançamento também lista mais de 40 blueprints da Galeria de Bluepr
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>
 -->
@@ -186,6 +186,6 @@ If you need certain availability, you should <a href="/developers/architecture/h
 
 O site em https://playground.wordpress.net está lá para apoiar a comunidade, mas não há garantias de que continuará funcionando se o tráfego crescer significativamente.
 
-Se você precisa de certa disponibilidade, deve <a href="/developers/architecture/host-your-own-playground">hospedar seu próprio WordPress Playground</a>.
+Se você precisa de certa disponibilidade, deve [hospedar seu próprio WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>

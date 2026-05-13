@@ -16,9 +16,9 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-Consulta la <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galería de Blueprints</a> para explorar ejemplos de código del mundo real usando WordPress Playground para lanzar un sitio WordPress con una variedad de configuraciones.
+Consulta la [Galería de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar ejemplos de código del mundo real usando WordPress Playground para lanzar un sitio WordPress con una variedad de configuraciones.
 
-<!-- Check the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
+<!-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
 
 </div>
 
@@ -396,13 +396,13 @@ Este bundle de Blueprint sería un archivo zip que contiene los siguientes archi
 <!-- This Blueprint bundle would be zip file containing the following files: -->
 
 - `/blueprint.json` - La declaración del blueprint descrita anteriormente
-    <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
+      <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
 - `/my-theme.zip` - Un paquete de tema
-    <!-- - `/my-theme.zip` - A theme package -->
+      <!-- - `/my-theme.zip` - A theme package -->
 - `/my-plugin.zip` - Un paquete de plugin
-    <!-- - `/my-plugin.zip` - A plugin package -->
+      <!-- - `/my-plugin.zip` - A plugin package -->
 - `/assets/custom-page.html` - Un archivo HTML personalizado
-    <!-- - `/assets/custom-page.html` - A custom HTML file -->
+      <!-- - `/assets/custom-page.html` - A custom HTML file -->
 
 Puedes usar este bundle de Blueprint:
 

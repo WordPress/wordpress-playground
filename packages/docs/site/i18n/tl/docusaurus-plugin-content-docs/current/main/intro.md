@@ -10,7 +10,7 @@ id: introduction
 
 **Naghahanap ng opisyal na Playground na website?**
 
-Ang WordPress Playground na website ay inilipat sa <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. Ang site na ito ay nagho-host ng dokumentasyon.
+Ang WordPress Playground na website ay inilipat sa [wordpress.org/playground/](https://wordpress.org/playground/). Ang site na ito ay nagho-host ng dokumentasyon.
 
 </div>
 
@@ -48,7 +48,7 @@ Kung ikaw ay developer, non-technical na user, o kontribyutor, gagabay sa iyo an
 
 <div class="callout callout-tip">
 
-Basahin ang <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> sa <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> para sa mahusay na panimula sa WordPress Playground.
+Basahin ang [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) sa [WordPress Developer Blog](https://developer.wordpress.org/news) para sa mahusay na panimula sa WordPress Playground.
 
 </div>
 
@@ -73,6 +73,6 @@ Ang WordPress Playground ay open-source at malugod na tinatanggap ang lahat ng k
 
 <div class="callout callout-tip">
 
-Tingnan ang aming <a href="https://make.wordpress.org/handbook/community-code-of-conduct/">Code of Conduct</a> upang matiyak ang magiliw na kapaligiran para sa lahat.
+Tingnan ang aming [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/) upang matiyak ang magiliw na kapaligiran para sa lahat.
 
 </div>
