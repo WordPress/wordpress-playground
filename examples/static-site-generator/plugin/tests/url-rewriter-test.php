@@ -487,7 +487,9 @@ foreach (
 		'blog/page/2/index.html',
 		'meta-page/index.html',
 		'nested/page/index.html',
+		'protocol-escaped/index.html',
 		'protocol-page/index.html',
+		'protocol-text/index.html',
 		'sample-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
@@ -543,6 +545,7 @@ $html = implode(
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<script type="application/json">{"url":"https:\/\/example.test\/nested\/page\/"}</script>',
+		'<script type="application/json">{"protocol":"//example.test/protocol-text/","protocolEscaped":"\/\/example.test\/protocol-escaped\/"}</script>',
 		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
 		'<script type="application/json">{"plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/photo.jpg?plain=1"}</script>',
 		'<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"\/*","not":{"href_matches":["\/wp-admin\/*"]}}}]}</script>',
@@ -692,6 +695,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'"protocol":"protocol-text/index.html"',
+	$result['content'],
+	'rewrite_html rewrites protocol-relative same-site page URLs in JSON text.'
+);
+
+ssgwp_assert_contains(
+	'"protocolEscaped":"protocol-escaped\/index.html"',
+	$result['content'],
+	'rewrite_html rewrites JSON-escaped protocol-relative same-site page URLs.'
+);
+
+ssgwp_assert_contains(
 	'"root":"nested\/page\/index.html"',
 	$result['content'],
 	'rewrite_html rewrites JSON-escaped root-relative page URLs.'
@@ -742,6 +757,7 @@ ssgwp_assert_contains(
 $rewritten_json = $rewriter->rewrite_text_asset(
 	'{"url":"https:\/\/example.test\/nested\/page\/",'
 		. '"asset":"https:\/\/example.test\/wp-content\/uploads\/photo.jpg?size=large",'
+		. '"protocol":"\/\/example.test\/protocol-escaped\/",'
 		. '"root":"\/static-page\/",'
 		. '"root_asset":"\/wp-content\/uploads\/photo.jpg?root=1"}',
 	'app/data.json'
@@ -760,6 +776,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'..\/protocol-escaped\/index.html',
+	$rewritten_json,
+	'rewrite_text_asset rewrites JSON-escaped protocol-relative page URLs.'
+);
+
+ssgwp_assert_contains(
 	'..\/static-page\/index.html',
 	$rewritten_json,
 	'rewrite_text_asset rewrites JSON-escaped root-relative page URLs.'
@@ -772,7 +794,9 @@ ssgwp_assert_contains(
 );
 
 $rewritten_js = $rewriter->rewrite_text_asset(
-	'const next = "https://example.test/static-page/"; const root = "/nested/page/";',
+	'const next = "https://example.test/static-page/";'
+		. ' const protocol = "//example.test/protocol-text/";'
+		. ' const root = "/nested/page/";',
 	'app/app.js'
 );
 
@@ -786,6 +810,12 @@ ssgwp_assert_contains(
 	'../nested/page/index.html',
 	$rewritten_js,
 	'rewrite_text_asset rewrites JavaScript root-relative page strings.'
+);
+
+ssgwp_assert_contains(
+	'../protocol-text/index.html',
+	$rewritten_js,
+	'rewrite_text_asset rewrites JavaScript protocol-relative page strings.'
 );
 
 $rewritten_css = $rewriter->rewrite_text_asset(
@@ -824,7 +854,9 @@ foreach (
 		'blog/page/2/index.html#posts',
 		'nested/page/index.html#section',
 		'nested/page/index.html#share',
+		'protocol-escaped/index.html',
 		'protocol-page/index.html',
+		'protocol-text/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',

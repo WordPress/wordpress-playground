@@ -903,6 +903,8 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_same_site_text_urls( $content, $target_path ) {
 		$content = $this->rewrite_absolute_text_urls( $content, $target_path, false );
 		$content = $this->rewrite_absolute_text_urls( $content, $target_path, true );
+		$content = $this->rewrite_protocol_relative_text_urls( $content, $target_path, false );
+		$content = $this->rewrite_protocol_relative_text_urls( $content, $target_path, true );
 		$content = $this->rewrite_root_relative_text_urls( $content, $target_path, false );
 		$content = $this->rewrite_root_relative_text_urls( $content, $target_path, true );
 
@@ -940,6 +942,45 @@ final class SSGWP_URL_Rewriter {
 		} else {
 			$pattern = '#(?<![A-Za-z0-9+.-]:)'
 				. $scheme_pattern . '://' . $host_pattern . $port_pattern
+				. '(?:/[^\\s\'"<>)]*)?#i';
+		}
+
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $target_path, $escaped ) {
+				$url       = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+				$rewritten = $this->rewrite_url_value( $url, home_url( '/' ), $target_path, 'maybe' );
+
+				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Rewrite protocol-relative same-site URLs embedded in text or JSON.
+	 *
+	 * @param string $content     File content.
+	 * @param string $target_path Relative static file path.
+	 * @param bool   $escaped     Whether slashes are JSON escaped.
+	 * @return string
+	 */
+	private function rewrite_protocol_relative_text_urls( $content, $target_path, $escaped ) {
+		$home_parts = wp_parse_url( home_url( '/' ) );
+
+		if ( empty( $home_parts['host'] ) ) {
+			return $content;
+		}
+
+		$host_pattern = preg_quote( $home_parts['host'], '#' );
+		$port_pattern = isset( $home_parts['port'] ) ? ':' . (int) $home_parts['port'] : '(?::[0-9]+)?';
+
+		if ( $escaped ) {
+			$slash   = '\\\\/';
+			$pattern = '#(?<![A-Za-z0-9+.-]:)' . $slash . $slash . $host_pattern
+				. $port_pattern . '(?:' . $slash . '[^\\s\'"<>)]*)?#i';
+		} else {
+			$pattern = '#(?<![A-Za-z0-9+.-]:)//' . $host_pattern . $port_pattern
 				. '(?:/[^\\s\'"<>)]*)?#i';
 		}
 

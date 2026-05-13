@@ -59,6 +59,9 @@ format.
 - Rewrite responsive image preload `imagesrcset` attributes in static exports
   so preloaded image candidates point at copied asset files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite protocol-relative same-site URLs found in static export JSON and
+  JavaScript text so serialized frontend configuration points at generated
+  files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
