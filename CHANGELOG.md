@@ -124,6 +124,9 @@ format.
 - Treat schema.org collection metadata such as `hasPart` and `isPartOf` as
   crawlable static export page references.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat schema.org source and editorial policy metadata as crawlable static
+  export page references.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite common lazy-loading `data-*` asset attributes in static exports,
   including background URLs and background `srcset` values on non-image tags.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

@@ -953,8 +953,10 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="item" content="/schema-breadcrumb/">'
 		. '<meta itemprop="hasPart" content="/schema-part/">'
 		. '<meta itemprop="isPartOf" content="/schema-collection/">'
+		. '<meta itemprop="isBasedOnUrl" content="/schema-source/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
+		. '<meta itemprop="publishingPrinciples" content="/publishing-principles/">'
 		. '<meta property="article:author" content="/author/admin/">'
 		. '<meta property="article:publisher" content="/publisher/">'
 		. '<meta property="og:see_also" content="/related/">'
@@ -1022,9 +1024,21 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="isBasedOnUrl" content="schema-source/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org isBasedOnUrl page URLs.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="significantLinks" content="schema-significant/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org significantLinks page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="publishingPrinciples" content="publishing-principles/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org publishingPrinciples page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1234,7 +1248,9 @@ $html = implode(
 		'<link itemprop="item" href="/microdata-breadcrumb/">',
 		'<link itemprop="hasPart" href="/schema-part/">',
 		'<link itemprop="isPartOf" href="/schema-collection/">',
+		'<link itemprop="isBasedOnUrl" href="/schema-source/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
+		'<link itemprop="publishingPrinciples" href="/publishing-principles/">',
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
 		'<link itemprop="author" href="/schema-author/">',
 		'<link itemprop="publisher" href="/schema-publisher/">',
@@ -1283,9 +1299,11 @@ $html = implode(
 		'<meta itemprop="item" content="/schema-breadcrumb/">',
 		'<meta itemprop="hasPart" content="/schema-part/">',
 		'<meta itemprop="isPartOf" content="/schema-collection/">',
+		'<meta itemprop="isBasedOnUrl" content="/schema-source/">',
 		'<meta itemprop="relatedLink" content="/schema-related/">',
 		'<meta itemprop="significantLinks" content="/schema-significant/">',
 		'<meta itemprop="license" content="/schema-license/">',
+		'<meta itemprop="publishingPrinciples" content="/publishing-principles/">',
 		'<meta itemprop="author" content="/schema-author/">',
 		'<meta itemprop="publisher" content="/schema-publisher/">',
 		'<meta property="article:author" content="/author/admin/">',
@@ -1569,9 +1587,21 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="isBasedOnUrl" href="schema-source/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org isBasedOnUrl itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="significantLinks" href="microdata-significant/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org significantLinks itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link itemprop="publishingPrinciples" href="publishing-principles/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org publishingPrinciples itemprop link URLs as page links.'
 );
 
 ssgwp_assert_contains(
@@ -1792,8 +1822,20 @@ ssgwp_assert_same(
 
 ssgwp_assert_same(
 	true,
+	in_array( 'https://example.test/schema-source/', $result['links'], true ),
+	'rewrite_html records schema.org isBasedOnUrl itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
 	in_array( 'https://example.test/microdata-significant/', $result['links'], true ),
 	'rewrite_html records schema.org significantLinks itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/publishing-principles/', $result['links'], true ),
+	'rewrite_html records schema.org publishingPrinciples itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2232,6 +2274,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="isBasedOnUrl" content="schema-source/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org isBasedOnUrl page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="relatedLink" content="schema-related/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org relatedLink page URLs in meta content attributes.'
@@ -2247,6 +2295,12 @@ ssgwp_assert_contains(
 	'<meta itemprop="license" content="schema-license/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org license page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="publishingPrinciples" content="publishing-principles/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org publishingPrinciples page URLs in meta content attributes.'
 );
 
 ssgwp_assert_contains(
@@ -2302,9 +2356,11 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="item" content="/schema-breadcrumb/">'
 		. '<meta itemprop="hasPart" content="/schema-part/">'
 		. '<meta itemprop="isPartOf" content="/schema-collection/">'
+		. '<meta itemprop="isBasedOnUrl" content="/schema-source/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta itemprop="license" content="/schema-license/">'
+		. '<meta itemprop="publishingPrinciples" content="/publishing-principles/">'
 		. '<meta itemprop="author" content="/schema-author/">'
 		. '<meta itemprop="publisher" content="/schema-publisher/">'
 		. '<meta name="twitter:player" content="/video-player/">'
@@ -2328,9 +2384,11 @@ ssgwp_assert_same(
 		'https://example.test/schema-breadcrumb/',
 		'https://example.test/schema-part/',
 		'https://example.test/schema-collection/',
+		'https://example.test/schema-source/',
 		'https://example.test/schema-related/',
 		'https://example.test/schema-significant/',
 		'https://example.test/schema-license/',
+		'https://example.test/publishing-principles/',
 		'https://example.test/schema-author/',
 		'https://example.test/schema-publisher/',
 		'https://example.test/start-page/',
