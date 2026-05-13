@@ -156,7 +156,7 @@ final class SSGWP_URL_Rewriter {
 				return preg_replace_callback(
 					'/(\shref\s*=\s*)(["\'])(.*?)\2/is',
 					function ( $href_match ) use ( &$placeholders ) {
-						$placeholder = '__SSGWP_PRESERVED_RESOURCE_HINT_'
+						$placeholder = '#__SSGWP_PRESERVED_RESOURCE_HINT_'
 							. count( $placeholders ) . '__';
 						$placeholders[ $placeholder ] = $href_match[3];
 
@@ -291,6 +291,9 @@ final class SSGWP_URL_Rewriter {
 	 * @return string
 	 */
 	private function rewrite_html_attributes_with_patterns( $html, $base_url, $target_path ) {
+		$placeholders = array();
+		$html         = $this->preserve_resource_hint_link_urls( $html, $placeholders );
+
 		$attribute_kinds = array(
 			'href'             => 'maybe',
 			'src'              => 'asset',
@@ -328,7 +331,7 @@ final class SSGWP_URL_Rewriter {
 			);
 		}
 
-		return $html;
+		return strtr( $html, $placeholders );
 	}
 
 	/**

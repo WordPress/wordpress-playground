@@ -474,6 +474,36 @@ ssgwp_assert_same(
 	'prepare_html_attribute_value stores the original relative stylesheet URL.'
 );
 
+$pattern_method = new ReflectionMethod( $rewriter, 'rewrite_html_attributes_with_patterns' );
+$pattern_method->setAccessible( true );
+
+$pattern_rewritten = $pattern_method->invoke(
+	$rewriter,
+	'<link rel="preconnect" href="https://example.test">'
+		. '<link rel="dns-prefetch" href="//example.test">'
+		. '<link rel="home" href="https://example.test/">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<link rel="preconnect" href="https://example.test">',
+	$pattern_rewritten,
+	'rewrite_html_attributes_with_patterns preserves same-origin preconnect resource hints.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="dns-prefetch" href="//example.test">',
+	$pattern_rewritten,
+	'rewrite_html_attributes_with_patterns preserves same-origin DNS prefetch resource hints.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="home" href="index.html">',
+	$pattern_rewritten,
+	'rewrite_html_attributes_with_patterns still rewrites semantic page link relations.'
+);
+
 $export_root = ssgwp_make_fixture_dir();
 $query_hash  = substr( md5( 'p=42' ), 0, 8 );
 $view_hash   = substr( md5( 'view=grid' ), 0, 8 );
