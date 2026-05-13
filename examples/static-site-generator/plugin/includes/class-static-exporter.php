@@ -1222,7 +1222,13 @@ final class SSGWP_Static_Exporter {
 
 			$extension = strtolower( pathinfo( $file->getFilename(), PATHINFO_EXTENSION ) );
 
-			if ( ! in_array( $extension, array( 'css', 'js', 'json', 'svg', 'html' ), true ) ) {
+			if (
+				! in_array(
+					$extension,
+					array( 'css', 'js', 'json', 'svg', 'html', 'webmanifest' ),
+					true
+				)
+			) {
 				continue;
 			}
 

@@ -569,8 +569,16 @@ file_put_contents(
 	'{"icons":[{"src":"icon-192.png"},{"src":"icons/icon.png"}]}'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/site.webmanifest',
+	'{"icons":[{"src":"webmanifest-icon.png"}]}'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/icon-192.png',
 	'icon-192'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/webmanifest-icon.png',
+	'webmanifest-icon'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/icons/icon.png',
@@ -660,6 +668,42 @@ ssgwp_assert_same(
 	true,
 	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/icons/icon.png' ),
 	'copy_linked_assets writes dependencies discovered inside copied manifests.'
+);
+
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test/wp-content/plugins/manifest-deps/site.webmanifest',
+	$output_dir
+);
+
+$discovered_text_assets = $rewrite_assets_method->invoke(
+	$exporter,
+	$output_dir,
+	$rewriter
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/manifest-deps/webmanifest-icon.png', $discovered_text_assets, true ),
+	'rewrite_copied_text_assets reports assets discovered inside copied web manifests.'
+);
+
+$copied_count = $copy_linked_assets_method->invoke(
+	$exporter,
+	$discovered_text_assets,
+	$output_dir
+);
+
+ssgwp_assert_same(
+	1,
+	$copied_count,
+	'copy_linked_assets copies dependencies discovered inside copied web manifests.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/webmanifest-icon.png' ),
+	'copy_linked_assets writes dependencies discovered inside copied web manifests.'
 );
 
 ssgwp_delete_directory( $fixture_root );

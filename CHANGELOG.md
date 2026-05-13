@@ -124,6 +124,9 @@ format.
 - Copy dependencies discovered inside linked copied text assets, including
   icons referenced by web manifests.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite linked `.webmanifest` files and copy their referenced local assets
+  during static exports.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
