@@ -853,6 +853,11 @@ final class SSGWP_Static_Exporter {
 	 * @return bool Whether a file was copied.
 	 */
 	private function copy_linked_asset( $url, $output_dir ) {
+		if ( ! $this->is_same_site_asset_url( $url ) ) {
+			$this->warn_linked_asset_not_copied( $url, 'not a same-site asset URL' );
+			return false;
+		}
+
 		$target_path = $this->url_to_asset_path( $url );
 
 		if ( null === $target_path ) {
@@ -885,6 +890,44 @@ final class SSGWP_Static_Exporter {
 
 		$this->write_file( $target, file_get_contents( $source ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		return true;
+	}
+
+	/**
+	 * Determine whether a linked asset URL belongs to the current WordPress site.
+	 *
+	 * @param string $url Asset URL.
+	 * @return bool Whether the asset URL belongs to this export.
+	 */
+	private function is_same_site_asset_url( $url ) {
+		$url_parts  = wp_parse_url( $url );
+		$home_parts = wp_parse_url( home_url( '/' ) );
+
+		if ( empty( $url_parts['host'] ) || empty( $home_parts['host'] ) ) {
+			return false;
+		}
+
+		if ( strtolower( $url_parts['host'] ) !== strtolower( $home_parts['host'] ) ) {
+			return false;
+		}
+
+		$url_scheme  = isset( $url_parts['scheme'] ) ? strtolower( $url_parts['scheme'] ) : '';
+		$home_scheme = isset( $home_parts['scheme'] ) ? strtolower( $home_parts['scheme'] ) : '';
+
+		if ( $url_scheme !== $home_scheme ) {
+			return false;
+		}
+
+		if ( $this->effective_url_port( $home_parts ) !== $this->effective_url_port( $url_parts ) ) {
+			return false;
+		}
+
+		if ( ! SSGWP_Path_Utils::has_deployment_base_path() ) {
+			return true;
+		}
+
+		$path = isset( $url_parts['path'] ) ? $url_parts['path'] : '/';
+
+		return SSGWP_Path_Utils::is_url_path_under_deployment_base( $path );
 	}
 
 	/**

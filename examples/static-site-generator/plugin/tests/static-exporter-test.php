@@ -802,6 +802,21 @@ $copy_linked_asset_method->invoke(
 	'https://example.test/wp-content/uploads/.secret',
 	$output_dir
 );
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://cdn.example.test/wp-content/uploads/copied.txt',
+	$output_dir
+);
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'http://example.test/wp-content/uploads/copied.txt',
+	$output_dir
+);
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test:8443/wp-content/uploads/copied.txt',
+	$output_dir
+);
 
 if ( $linked_asset_symlink_created ) {
 	$copy_linked_asset_method->invoke(
@@ -810,6 +825,18 @@ if ( $linked_asset_symlink_created ) {
 		$output_dir
 	);
 }
+
+$ssgwp_test_home_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
+$ssgwp_test_site_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
+
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://playground.wordpress.net/scope:other-site/wp-content/uploads/copied.txt',
+	$output_dir
+);
+
+$ssgwp_test_home_url = 'https://example.test/';
+$ssgwp_test_site_url = 'https://example.test/';
 
 ssgwp_assert_same(
 	true,
@@ -829,6 +856,30 @@ ssgwp_assert_contains(
 	'Could not copy linked asset https://example.test/wp-content/uploads/.secret: the local file is not exportable.',
 	$warnings,
 	'copy_linked_asset warns when a discovered same-site asset is not exportable.'
+);
+
+ssgwp_assert_contains(
+	'Could not copy linked asset https://cdn.example.test/wp-content/uploads/copied.txt: not a same-site asset URL.',
+	$warnings,
+	'copy_linked_asset warns instead of copying local files for external asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'Could not copy linked asset http://example.test/wp-content/uploads/copied.txt: not a same-site asset URL.',
+	$warnings,
+	'copy_linked_asset warns instead of copying local files for cross-scheme asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'Could not copy linked asset https://example.test:8443/wp-content/uploads/copied.txt: not a same-site asset URL.',
+	$warnings,
+	'copy_linked_asset warns instead of copying local files for cross-port asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'Could not copy linked asset https://playground.wordpress.net/scope:other-site/wp-content/uploads/copied.txt: not a same-site asset URL.',
+	$warnings,
+	'copy_linked_asset warns instead of copying local files for another Playground scope.'
 );
 
 if ( $linked_asset_symlink_created ) {
