@@ -563,6 +563,15 @@ file_put_contents(
 	$fixture_root . '/wp-content/plugins/transitive/font.woff2',
 	'font'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+wp_mkdir_p( $fixture_root . '/wp-content/plugins/manifest-deps/icons' );
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/manifest.json',
+	'{"icons":[{"src":"icons/icon.png"}]}'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/icons/icon.png',
+	'icon'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 
 $copy_linked_asset_method->invoke(
 	$exporter,
@@ -599,6 +608,42 @@ ssgwp_assert_same(
 	true,
 	file_exists( $output_dir . '/wp-content/plugins/transitive/font.woff2' ),
 	'copy_linked_assets writes dependencies discovered inside copied CSS files.'
+);
+
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test/wp-content/plugins/manifest-deps/manifest.json',
+	$output_dir
+);
+
+$discovered_text_assets = $rewrite_assets_method->invoke(
+	$exporter,
+	$output_dir,
+	$rewriter
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/manifest-deps/icons/icon.png', $discovered_text_assets, true ),
+	'rewrite_copied_text_assets reports assets discovered inside copied manifests.'
+);
+
+$copied_count = $copy_linked_assets_method->invoke(
+	$exporter,
+	$discovered_text_assets,
+	$output_dir
+);
+
+ssgwp_assert_same(
+	1,
+	$copied_count,
+	'copy_linked_assets copies dependencies discovered inside copied manifests.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/icons/icon.png' ),
+	'copy_linked_assets writes dependencies discovered inside copied manifests.'
 );
 
 ssgwp_delete_directory( $fixture_root );

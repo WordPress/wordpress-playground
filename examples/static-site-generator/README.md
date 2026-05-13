@@ -49,7 +49,11 @@ WordPress 6.8 and PHP 8.3 by default; set `SSGWP_SMOKE_WP_VERSION` or
   Navigation block stylesheet when WordPress renders the block without a link
   tag.
 
-Same-site URLs in links, media attributes, `srcset` values, inline styles, CSS files, JSON, and JavaScript are rewritten to relative URLs by default, so the output can be hosted from a folder, GitHub Pages, or a CDN path.
+Same-site URLs in links, media attributes, `srcset` values, inline styles, CSS
+files, JSON, and JavaScript are rewritten to relative URLs by default, so the
+output can be hosted from a folder, GitHub Pages, or a CDN path. Linked copied
+text assets can also pull in their own same-site dependencies, such as icons
+referenced by a web manifest.
 
 The Playground admin screen shows export progress while the ZIP is being
 prepared. The WP-CLI command prints stage and page progress while exporting.

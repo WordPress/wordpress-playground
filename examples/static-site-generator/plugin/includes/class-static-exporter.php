@@ -1184,7 +1184,7 @@ final class SSGWP_Static_Exporter {
 
 			$this->report_progress(
 				'copy_text_asset_dependencies',
-				'Copying assets discovered in copied CSS files.',
+				'Copying assets discovered in copied text assets.',
 				array(
 					'asset_count' => count( $asset_urls ),
 					'pass'        => $pass,
@@ -1235,7 +1235,7 @@ final class SSGWP_Static_Exporter {
 			$content  = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 			$rewritten = $rewriter->rewrite_text_asset_with_assets( $content, $relative );
 
-			if ( 'css' === $extension && isset( $this->linked_assets_copied[ $relative ] ) ) {
+			if ( isset( $this->linked_assets_copied[ $relative ] ) ) {
 				foreach ( $rewritten['assets'] as $asset_url ) {
 					$asset_urls[ $asset_url ] = $asset_url;
 				}

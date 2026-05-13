@@ -99,6 +99,15 @@ $asset_path = trailingslashit($upload_dir['basedir']) . 'ssgwp-smoke-asset.txt';
 $asset_url = trailingslashit($upload_dir['baseurl']) . 'ssgwp-smoke-asset.txt';
 file_put_contents($asset_path, 'static export smoke asset');
 
+$manifest_dir = trailingslashit(WP_PLUGIN_DIR) . 'ssgwp-smoke-deps';
+wp_mkdir_p($manifest_dir . '/icons');
+file_put_contents(
+	$manifest_dir . '/manifest.json',
+	wp_json_encode(array('icons' => array(array('src' => 'icons/icon.png'))))
+);
+file_put_contents($manifest_dir . '/icons/icon.png', 'icon');
+$manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
+
 $child_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -147,6 +156,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:see_also" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
+	. '<link rel="manifest" href="' . esc_url($manifest_url) . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
@@ -207,6 +217,7 @@ $scoped_child_url = get_permalink($child_id);
 $scoped_comments_url = get_permalink($comments_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
+$scoped_manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
 $scoped_child_path = wp_parse_url($scoped_child_url, PHP_URL_PATH);
 $scoped_asset_path = wp_parse_url($scoped_asset_url, PHP_URL_PATH);
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
@@ -225,6 +236,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:see_also" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
+	. '<link rel="manifest" href="' . esc_url($scoped_manifest_url) . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($scoped_asset_url) . '" imagesrcset="' . esc_url($scoped_asset_url) . ' 1x, ' . esc_url($scoped_asset_url . '?preload=2x') . ' 2x">'
 	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
@@ -332,6 +344,8 @@ async function verifyExport() {
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
 	assertFile('static-export.json');
 
 	const staticPage = readText('static-page/index.html');
@@ -352,6 +366,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
+		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 	];
 
 	for (const target of expectedTargets) {
@@ -369,6 +384,10 @@ async function verifyExport() {
 	assertDoesNotInclude(staticPage, '"plainRoot":"/static-page/"');
 	assertDoesNotInclude(staticPage, '"protocolChild":"//');
 	assertDoesNotInclude(staticPage, '"protocolEscaped":"\\/\\/');
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
+		'icons/icon.png'
+	);
 	await assertAllLocalResourceTargetsExist();
 }
 
@@ -380,6 +399,8 @@ async function verifyScopedExport() {
 	assertFile('comments/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
 	assertFile('static-export.json');
 
 	const files = await listFiles(currentExportDir);
@@ -412,6 +433,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
+		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 	];
 
 	for (const target of expectedTargets) {
@@ -452,6 +474,10 @@ async function verifyScopedExport() {
 		staticPage,
 		'https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt',
 		'scoped static-page/index.html leaves another scope asset link untouched'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
+		'icons/icon.png'
 	);
 	await assertAllLocalResourceTargetsExist();
 }

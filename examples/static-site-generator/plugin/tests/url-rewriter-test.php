@@ -1302,6 +1302,51 @@ ssgwp_assert_contains(
 	'rewrite_text_asset rewrites JSON-escaped root-relative asset URLs.'
 );
 
+$rewritten_manifest = $rewriter->rewrite_text_asset_with_assets(
+	'{"icons":[{"src":"icons/icon.png"},{"src":".\/icons\/maskable.svg?purpose=any"},{"src":"..\/shared\/logo.webp"}]}',
+	'wp-content/plugins/app/manifest.json'
+);
+
+ssgwp_assert_contains(
+	'"src":"../../../wp-content/plugins/app/icons/icon.png"',
+	$rewritten_manifest['content'],
+	'rewrite_text_asset_with_assets rewrites same-directory manifest icon paths.'
+);
+
+ssgwp_assert_contains(
+	'"src":"..\/..\/..\/wp-content\/plugins\/app\/icons\/maskable.svg?purpose=any"',
+	$rewritten_manifest['content'],
+	'rewrite_text_asset_with_assets normalizes escaped manifest icon paths.'
+);
+
+ssgwp_assert_same(
+	array(
+		'https://example.test/wp-content/plugins/app/icons/icon.png',
+		'https://example.test/wp-content/plugins/app/icons/maskable.svg?purpose=any',
+		'https://example.test/wp-content/plugins/shared/logo.webp',
+	),
+	$rewritten_manifest['assets'],
+	'rewrite_text_asset_with_assets records relative manifest icon assets to copy.'
+);
+
+$rewritten_copied_html = $rewriter->rewrite_text_asset_with_assets(
+	'<meta http-equiv="refresh" content="0; url=/static-page/">'
+		. '<meta property="og:image" content="/wp-content/uploads/social.jpg">',
+	'wp-content/plugins/app/landing.html'
+);
+
+ssgwp_assert_contains(
+	'content="0; url=../../../static-page/index.html"',
+	$rewritten_copied_html['content'],
+	'rewrite_text_asset_with_assets rewrites meta refresh URLs in copied HTML assets.'
+);
+
+ssgwp_assert_contains(
+	'content="../../../wp-content/uploads/social.jpg"',
+	$rewritten_copied_html['content'],
+	'rewrite_text_asset_with_assets rewrites social meta URLs in copied HTML assets.'
+);
+
 $rewritten_asset_text = $rewriter->rewrite_text_asset(
 	'asset=/wp-content/uploads/photo.jpg?text=1 escaped=\/wp-content\/uploads\/photo.jpg?text=2',
 	'app/app.js'

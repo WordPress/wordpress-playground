@@ -115,10 +115,14 @@ final class SSGWP_URL_Rewriter {
 		} elseif ( in_array( $extension, array( 'html', 'svg' ), true ) ) {
 			$content = $this->rewrite_html_attributes( $content, $base_url, $relative_path );
 			$content = $this->rewrite_srcdoc_attributes( $content, $base_url, $relative_path );
+			$content = $this->rewrite_meta_refresh( $content, $base_url, $relative_path );
+			$content = $this->rewrite_meta_content_urls( $content, $base_url, $relative_path );
 			$content = $this->rewrite_css_in_style_blocks( $content, $base_url, $relative_path );
 			$content = $this->rewrite_css_in_style_attributes( $content, $base_url, $relative_path );
 		}
 
+		$content = $this->rewrite_relative_asset_text_urls( $content, $base_url, $relative_path, false );
+		$content = $this->rewrite_relative_asset_text_urls( $content, $base_url, $relative_path, true );
 		$content = $this->rewrite_same_site_text_urls_preserving_resource_hints(
 			$content,
 			$relative_path
@@ -1414,6 +1418,41 @@ final class SSGWP_URL_Rewriter {
 		$content = $this->rewrite_root_asset_text_urls( $content, $target_path, true );
 
 		return $content;
+	}
+
+	/**
+	 * Rewrite relative asset URLs embedded in copied text assets.
+	 *
+	 * This covers text files such as web manifests where icon paths are quoted
+	 * relative to the manifest file instead of root-relative or absolute.
+	 *
+	 * @param string $content     File content.
+	 * @param string $base_url    Source URL of the copied asset.
+	 * @param string $target_path Relative static file path.
+	 * @param bool   $escaped     Whether slashes are JSON escaped.
+	 * @return string Rewritten content.
+	 */
+	private function rewrite_relative_asset_text_urls( $content, $base_url, $target_path, $escaped ) {
+		$extensions = 'avif|bmp|css|gif|ico|jpe?g|js|json|mjs|mp3|mp4|ogg|otf|png|svg|ttf|webm|webp|woff2?';
+		$pattern    = $escaped
+			? '#(?<=["\'])(?:\\.\\\\/|\\.\\.\\\\/|[A-Za-z0-9._~-]+\\\\/)(?:[^\\\\\s\'"<>)]|\\\\/)*\\.(?:' . $extensions . ')(?:[?\\#](?:[^\\\\\s\'"<>)]|\\\\/)*)?(?=["\'])#i'
+			: '#(?<=["\'])(?:\\./|\\.\\./|[A-Za-z0-9._~-]+/)[^\\s\'"<>)]*\\.(?:' . $extensions . ')(?:[?\\#][^\\s\'"<>)]*)?(?=["\'])#i';
+
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $base_url, $target_path, $escaped ) {
+				$url = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+
+				if ( preg_match( '/[*{}]/', $url ) ) {
+					return $matches[0];
+				}
+
+				$rewritten = $this->rewrite_url_value( $url, $base_url, $target_path, 'asset' );
+
+				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
+			},
+			$content
+		);
 	}
 
 	/**
