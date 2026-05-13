@@ -191,6 +191,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
 	. '<p><a class="deferred-link" data-href="' . esc_url($deferred_url) . '">Deferred</a></p>'
 	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
+	. '<p><a class="generic-data-url" data-url="' . esc_url($child_url) . '">Generic data URL</a></p>'
+	. '<p><button data-link="' . esc_url($asset_url . '?data-link=1') . '">Generic data asset</button></p>'
 	. '<p><a class="comments-link" href="' . esc_url($comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($rest_route_url) . '">REST</a></p>'
@@ -300,6 +302,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
 	. '<p><a class="deferred-link" data-href="' . esc_url($scoped_deferred_url) . '">Deferred</a></p>'
 	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
+	. '<p><a class="generic-data-url" data-url="' . esc_url($scoped_child_url) . '">Generic data URL</a></p>'
+	. '<p><button data-link="' . esc_url($scoped_asset_url . '?data-link=1') . '">Generic data asset</button></p>'
 	. '<p><a class="comments-link" href="' . esc_url($scoped_comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($scoped_rest_route_url) . '">REST</a></p>'
@@ -467,6 +471,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
@@ -513,6 +518,16 @@ async function verifyExport() {
 		staticPage,
 		'data-href="../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1"',
 		'static-page/index.html rewrites deferred asset data-href attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-url="../parent-page/child-page/index.html"',
+		'static-page/index.html rewrites generic data-url page attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
+		'static-page/index.html rewrites generic data-link asset attributes'
 	);
 	assertIncludes(
 		staticPage,
@@ -660,6 +675,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
@@ -705,6 +721,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'data-href="../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1"',
 		'scoped static-page/index.html rewrites deferred asset data-href attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-url="../parent-page/child-page/index.html"',
+		'scoped static-page/index.html rewrites generic data-url page attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
+		'scoped static-page/index.html rewrites generic data-link asset attributes'
 	);
 	assertIncludes(
 		staticPage,
@@ -935,7 +961,7 @@ async function assertAllLocalResourceTargetsExist() {
 function extractAttributeRefs(text) {
 	return [
 		...text.matchAll(
-			/\s(?:href|src|data-href|data-src|data-lazy-src|data|poster)=["']([^"']+)["']/gi
+			/\s(?:href|src|data-href|data-link|data-src|data-lazy-src|data-url|data|poster)=["']([^"']+)["']/gi
 		),
 	].map((match) => match[1]);
 }

@@ -213,12 +213,14 @@ final class SSGWP_URL_Rewriter {
 			'data-href'        => 'maybe',
 			'data-lazy-src'    => 'asset',
 			'data-lazy-srcset' => 'srcset',
+			'data-link'        => 'maybe',
 			'data-original'    => 'asset',
 			'data-poster'      => 'asset',
 			'data-src'         => 'asset',
 			'data-srcset'      => 'srcset',
 			'data-thumb'       => 'asset',
 			'data-thumbnail'   => 'asset',
+			'data-url'         => 'maybe',
 		);
 		$attributes_by_tag      = array(
 			'A'          => array( 'href' => 'page' ),
@@ -382,9 +384,11 @@ final class SSGWP_URL_Rewriter {
 			'data-full-url'    => 'asset',
 			'data-href'        => 'maybe',
 			'data-original'    => 'asset',
+			'data-link'        => 'maybe',
 			'data-poster'      => 'asset',
 			'data-thumb'       => 'asset',
 			'data-thumbnail'   => 'asset',
+			'data-url'         => 'maybe',
 			'imagesrcset'      => 'srcset',
 			'xlink:href'       => 'asset',
 		);

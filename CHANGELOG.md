@@ -168,6 +168,9 @@ format.
 - Preserve query-based WordPress feed URLs such as `?feed=rss2` during static
   export rewriting.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat generic static export `data-url` and `data-link` attributes as
+  page-or-asset references so deferred frontend URLs are crawled or copied.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

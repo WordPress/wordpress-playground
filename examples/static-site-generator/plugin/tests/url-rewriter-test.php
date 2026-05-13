@@ -566,6 +566,7 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 		. '<span data-src="/wp-content/uploads/photo.jpg?lazy=2"></span></div>'
 		. '<a data-href="/deferred-page/">Deferred</a>'
 		. '<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Asset</button>'
+		. '<div data-url="/generic-page/" data-link="/wp-content/uploads/photo.jpg?data-link=1"></div>'
 		. '<iframe src="/framed-page/" data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>'
 		. '<embed src="/embed-page/">'
 		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
@@ -602,6 +603,18 @@ ssgwp_assert_contains(
 	'data-href="wp-content/uploads/photo.jpg?deferred=1"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns treats data-href media URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'data-url="generic-page/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats data-url page URLs as links.'
+);
+
+ssgwp_assert_contains(
+	'data-link="wp-content/uploads/photo.jpg?data-link=1"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats data-link media URLs as assets.'
 );
 
 ssgwp_assert_contains(
@@ -809,11 +822,12 @@ foreach (
 		'index-' . $query_hash . '.html',
 		'static-page/index.html',
 		'static-page-' . $view_hash . '.html',
-		'blog/page/2/index.html',
-		'comments/index.html',
-		'embed-page/index.html',
-		'framed-page/index.html',
-		'meta-page/index.html',
+			'blog/page/2/index.html',
+			'comments/index.html',
+			'embed-page/index.html',
+			'framed-page/index.html',
+			'generic-page/index.html',
+			'meta-page/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -890,6 +904,8 @@ $html = implode(
 		'<link rel="author" href="/author/admin/">',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
+		'<a class="generic-data-url" data-url="/generic-page/">Generic data URL</a>',
+		'<button data-link="/wp-content/uploads/photo.jpg?data-link=1">Generic data asset</button>',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
 		'<a class="external-port" href="https://example.test:8443/static-page/">External port</a>',
 		'<a class="external-scheme" href="http://example.test:443/static-page/">External scheme</a>',
@@ -1085,6 +1101,18 @@ ssgwp_assert_contains(
 	'rewrite_html treats data-href media URLs as assets.'
 );
 
+ssgwp_assert_contains(
+	'data-url="generic-page/index.html"',
+	$result['content'],
+	'rewrite_html treats data-url page URLs as links.'
+);
+
+ssgwp_assert_contains(
+	'data-link="wp-content/uploads/photo.jpg?data-link=1"',
+	$result['content'],
+	'rewrite_html treats data-link media URLs as assets.'
+);
+
 ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/prefetched-page/', $result['links'], true ),
@@ -1110,6 +1138,12 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/generic-page/', $result['links'], true ),
+	'rewrite_html records data-url page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
 	false,
 	in_array( 'https://example.test/?rest_route=/wp/v2/posts', $result['links'], true ),
 	'rewrite_html does not record query-based REST API URLs as links to crawl.'
@@ -1125,6 +1159,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/photo.jpg?deferred=1', $result['assets'], true ),
 	'rewrite_html records data-href media URLs as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/photo.jpg?data-link=1', $result['assets'], true ),
+	'rewrite_html records data-link media URLs as assets to copy.'
 );
 
 ssgwp_assert_contains(
@@ -1892,13 +1932,14 @@ foreach (
 		'wp-content/uploads/social-video.mp4?lazy-embed=1',
 		'wp-content/uploads/social-video.mp4?stream=1',
 		'wp-content/uploads/captions.vtt?lang=en',
-		'wp-content/uploads/tile.png',
-		'wp-content/uploads/tile.png?small=1',
-		'wp-content/uploads/tile.png?wide=1',
-		'wp-content/uploads/photo.jpg?size=large',
-		'wp-content/uploads/photo.jpg?prefetch=1',
-		'wp-content/uploads/photo.jpg?deferred=1',
-		'wp-content/uploads/photo.jpg?lazy=3',
+			'wp-content/uploads/tile.png',
+			'wp-content/uploads/tile.png?small=1',
+			'wp-content/uploads/tile.png?wide=1',
+			'wp-content/uploads/photo.jpg?size=large',
+			'wp-content/uploads/photo.jpg?prefetch=1',
+			'wp-content/uploads/photo.jpg?deferred=1',
+			'wp-content/uploads/photo.jpg?data-link=1',
+			'wp-content/uploads/photo.jpg?lazy=3',
 		'wp-content/uploads/photo.jpg?lazy=4',
 		'wp-content/uploads/photo.jpg?frame=1',
 		'wp-content/uploads/photo-2x.jpg',
