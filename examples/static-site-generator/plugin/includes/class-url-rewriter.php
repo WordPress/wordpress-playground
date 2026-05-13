@@ -852,6 +852,7 @@ final class SSGWP_URL_Rewriter {
 		$itemprop = strtolower( (string) $itemprop );
 
 		$page_keys = array(
+			'embedurl',
 			'og:url',
 			'twitter:url',
 			'url',
@@ -859,8 +860,10 @@ final class SSGWP_URL_Rewriter {
 		);
 
 		$asset_keys = array(
+			'contenturl',
 			'image',
 			'logo',
+			'msapplication-tileimage',
 			'og:audio',
 			'og:audio:secure_url',
 			'og:audio:url',
@@ -874,6 +877,7 @@ final class SSGWP_URL_Rewriter {
 			'thumbnailurl',
 			'twitter:image',
 			'twitter:image:src',
+			'twitter:player:stream',
 		);
 
 		foreach ( array( $property, $name, $itemprop ) as $key ) {

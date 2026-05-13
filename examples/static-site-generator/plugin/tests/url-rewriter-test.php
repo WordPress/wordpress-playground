@@ -625,6 +625,9 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 	$rewriter,
 	'<meta property="og:url" content="/meta-page/#share">'
 		. '<meta name="twitter:image" content="/wp-content/uploads/social.jpg?ver=1">'
+		. '<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">'
+		. '<meta itemprop="embedUrl" content="/video-player/">'
+		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="description" content="Plain text">',
 	'https://example.test/',
 	'index.html'
@@ -640,6 +643,24 @@ ssgwp_assert_contains(
 	'<meta name="twitter:image" content="wp-content/uploads/social.jpg?ver=1">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites asset meta URLs without the HTML API.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="contentUrl" content="wp-content/uploads/social-video.mp4?schema=1">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org contentUrl media URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="embedUrl" content="video-player/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org embedUrl page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="msapplication-TileImage" content="wp-content/uploads/tile.png">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites tile image meta URLs.'
 );
 
 ssgwp_assert_contains(
@@ -689,6 +710,7 @@ foreach (
 		'sample-page/index.html',
 		'author/admin/index.html',
 		'embedded-page/index.html',
+		'video-player/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',
@@ -700,6 +722,7 @@ foreach (
 		'wp-content/uploads/social.jpg',
 		'wp-content/uploads/social-audio.mp3',
 		'wp-content/uploads/social-video.mp4',
+		'wp-content/uploads/tile.png',
 		'wp-includes/fonts/dashicons.eot',
 	)
 	as $fixture_file
@@ -755,6 +778,10 @@ $html = implode(
 		'<meta property="og:audio" content="https://example.test/wp-content/uploads/social-audio.mp3?ver=1">',
 		'<meta property="og:video" content="https://example.test/wp-content/uploads/social-video.mp4?ver=1">',
 		'<meta name="twitter:image" content="/wp-content/uploads/photo.jpg">',
+		'<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">',
+		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
+		'<meta itemprop="embedUrl" content="/video-player/">',
+		'<meta name="twitter:player:stream" content="/wp-content/uploads/social-video.mp4?stream=1">',
 		'<link rel="preload" as="image" href="/wp-content/uploads/photo.jpg" imagesrcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">',
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
 		'<img srcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
@@ -1002,23 +1029,55 @@ ssgwp_assert_contains(
 	'rewrite_html rewrites Twitter image URLs in meta content attributes.'
 );
 
+ssgwp_assert_contains(
+	'<meta name="msapplication-TileImage" content="wp-content/uploads/tile.png">',
+	$result['content'],
+	'rewrite_html rewrites Windows tile image URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="contentUrl" content="wp-content/uploads/social-video.mp4?schema=1">',
+	$result['content'],
+	'rewrite_html rewrites schema.org contentUrl media URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="embedUrl" content="video-player/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org embedUrl page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="twitter:player:stream" content="wp-content/uploads/social-video.mp4?stream=1">',
+	$result['content'],
+	'rewrite_html rewrites Twitter player stream URLs in meta content attributes.'
+);
+
 $meta_only_result = $rewriter->rewrite_html(
 	'<meta property="og:url" content="/meta-page/">'
-		. '<meta property="og:image" content="/wp-content/uploads/social.jpg">',
+		. '<meta property="og:image" content="/wp-content/uploads/social.jpg">'
+		. '<meta itemprop="embedUrl" content="/video-player/">'
+		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">',
 	'https://example.test/',
 	'index.html'
 );
 
 ssgwp_assert_same(
-	array( 'https://example.test/meta-page/' ),
+	array(
+		'https://example.test/meta-page/',
+		'https://example.test/video-player/',
+	),
 	$meta_only_result['links'],
-	'rewrite_html records meta page URLs as links to crawl.'
+	'rewrite_html records meta page and structured-data embed URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
-	array( 'https://example.test/wp-content/uploads/social.jpg' ),
+	array(
+		'https://example.test/wp-content/uploads/social.jpg',
+		'https://example.test/wp-content/uploads/tile.png',
+	),
 	$meta_only_result['assets'],
-	'rewrite_html records meta image URLs as assets to copy.'
+	'rewrite_html records meta image and tile URLs as assets to copy.'
 );
 
 ssgwp_assert_contains(
@@ -1265,6 +1324,7 @@ foreach (
 		'prefetched-page/index.html',
 		'author/admin/index.html',
 		'embedded-page/index.html',
+		'video-player/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',
@@ -1274,6 +1334,9 @@ foreach (
 		'wp-content/uploads/social.jpg?ver=1',
 		'wp-content/uploads/social-audio.mp3?ver=1',
 		'wp-content/uploads/social-video.mp4?ver=1',
+		'wp-content/uploads/social-video.mp4?schema=1',
+		'wp-content/uploads/social-video.mp4?stream=1',
+		'wp-content/uploads/tile.png',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo.jpg?prefetch=1',
 		'wp-content/uploads/photo.jpg?lazy=3',

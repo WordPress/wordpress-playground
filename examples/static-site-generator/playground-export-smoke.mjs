@@ -139,6 +139,10 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio" content="' . esc_url($asset_url . '?audio=1') . '">'
 	. '<meta property="og:video" content="' . esc_url($asset_url . '?video=1') . '">'
+	. '<meta name="msapplication-TileImage" content="' . esc_url($asset_url . '?tile=1') . '">'
+	. '<meta itemprop="contentUrl" content="' . esc_url($asset_url . '?schema=1') . '">'
+	. '<meta itemprop="embedUrl" content="' . esc_url($child_url) . '">'
+	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
@@ -209,6 +213,10 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio:secure_url" content="' . esc_url($scoped_asset_url . '?audio=1') . '">'
 	. '<meta property="og:video:secure_url" content="' . esc_url($scoped_asset_url . '?video=1') . '">'
+	. '<meta name="msapplication-TileImage" content="' . esc_url($scoped_asset_url . '?tile=1') . '">'
+	. '<meta itemprop="contentUrl" content="' . esc_url($scoped_asset_url . '?schema=1') . '">'
+	. '<meta itemprop="embedUrl" content="' . esc_url($scoped_child_url) . '">'
+	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($scoped_asset_url) . '" imagesrcset="' . esc_url($scoped_asset_url) . ' 1x, ' . esc_url($scoped_asset_url . '?preload=2x') . ' 2x">'
 	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
@@ -327,6 +335,9 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
@@ -384,6 +395,9 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',

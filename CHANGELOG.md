@@ -112,6 +112,9 @@ format.
 - Copy same-site asset dependencies discovered while rewriting copied CSS
   files, such as fonts referenced by a linked stylesheet.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite additional static export metadata URLs, including schema.org media
+  fields, embed page fields, Windows tile images, and Twitter player streams.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
