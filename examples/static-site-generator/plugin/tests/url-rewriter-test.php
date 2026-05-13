@@ -964,6 +964,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="isBasedOnUrl" content="/schema-source/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
+		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
 		. '<meta itemprop="publishingPrinciples" content="/publishing-principles/">'
 		. '<meta property="article:author" content="/author/admin/">'
 		. '<meta property="article:publisher" content="/publisher/">'
@@ -1041,6 +1042,12 @@ ssgwp_assert_contains(
 	'<meta itemprop="significantLinks" content="schema-significant/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org significantLinks page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="reviewedBy" content="schema-reviewer/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org reviewedBy page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1154,6 +1161,8 @@ foreach (
 			'schema/secondary/index.html',
 			'schema-collection/index.html',
 			'schema-part/index.html',
+			'schema-contributor/index.html',
+			'schema-reviewer/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -1169,6 +1178,8 @@ foreach (
 		'schema-breadcrumb/index.html',
 		'schema-collection/index.html',
 		'schema-part/index.html',
+		'schema-contributor/index.html',
+		'schema-reviewer/index.html',
 		'schema-related/index.html',
 		'schema-author/index.html',
 		'schema-publisher/index.html',
@@ -1266,6 +1277,7 @@ $html = implode(
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
 		'<link itemprop="author" href="/schema-author/">',
 		'<link itemprop="publisher" href="/schema-publisher/">',
+		'<link itemprop="contributor" href="/schema-contributor/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<article itemscope itemid="/microdata-item/"'
 			. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>',
@@ -1320,6 +1332,7 @@ $html = implode(
 		'<meta itemprop="publishingPrinciples" content="/publishing-principles/">',
 		'<meta itemprop="author" content="/schema-author/">',
 		'<meta itemprop="publisher" content="/schema-publisher/">',
+		'<meta itemprop="reviewedBy" content="/schema-reviewer/">',
 		'<meta property="article:author" content="/author/admin/">',
 		'<meta property="article:publisher" content="/publisher/">',
 		'<meta property="og:see_also" content="/related/">',
@@ -1661,6 +1674,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="contributor" href="schema-contributor/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org contributor itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="contentUrl" href="wp-content/uploads/social-video.mp4?link-schema=1">',
 	$result['content'],
 	'rewrite_html treats schema.org link itemprop media URLs as assets.'
@@ -1913,6 +1932,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/schema-publisher/', $result['links'], true ),
 	'rewrite_html records schema.org publisher itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema-contributor/', $result['links'], true ),
+	'rewrite_html records schema.org contributor itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2387,6 +2412,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="reviewedBy" content="schema-reviewer/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org reviewedBy page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta property="article:author" content="author/admin/index.html">',
 	$result['content'],
 	'rewrite_html rewrites article author page URLs in meta content attributes.'
@@ -2434,6 +2465,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="publishingPrinciples" content="/publishing-principles/">'
 		. '<meta itemprop="author" content="/schema-author/">'
 		. '<meta itemprop="publisher" content="/schema-publisher/">'
+		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
@@ -2462,6 +2494,7 @@ ssgwp_assert_same(
 		'https://example.test/publishing-principles/',
 		'https://example.test/schema-author/',
 		'https://example.test/schema-publisher/',
+		'https://example.test/schema-reviewer/',
 		'https://example.test/start-page/',
 		'https://example.test/task-target/',
 	),

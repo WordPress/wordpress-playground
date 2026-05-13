@@ -125,6 +125,9 @@ format.
 - Treat schema.org author and publisher metadata URLs in static exports as
   crawlable page references so identity pages are generated.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat additional schema.org identity metadata URLs such as `contributor` and
+  `reviewedBy` as crawlable static export page references.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Treat schema.org breadcrumb `item` metadata URLs in static exports as
   crawlable page references so breadcrumb pages are generated.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
