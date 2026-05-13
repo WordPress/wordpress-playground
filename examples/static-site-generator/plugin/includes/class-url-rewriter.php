@@ -227,7 +227,11 @@ final class SSGWP_URL_Rewriter {
 			'BODY'       => array( 'background' => 'asset' ),
 			'BUTTON'     => array( 'formaction' => 'page' ),
 			'DEL'        => array( 'cite' => 'page' ),
-			'EMBED'      => array( 'src' => 'asset' ),
+			'EMBED'      => array(
+				'data-lazy-src' => 'maybe',
+				'data-src'      => 'maybe',
+				'src'           => 'maybe',
+			),
 			'FEIMAGE'    => array(
 				'href'       => 'asset',
 				'xlink:href' => 'asset',
@@ -342,7 +346,7 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_html_attributes_with_patterns( $html, $base_url, $target_path ) {
 		$placeholders = array();
 		$html         = $this->preserve_resource_hint_link_urls( $html, $placeholders );
-		$html         = $this->rewrite_lazy_embedded_page_sources_with_patterns(
+		$html         = $this->rewrite_embedded_page_sources_with_patterns(
 			$html,
 			$base_url,
 			$target_path,
@@ -404,26 +408,34 @@ final class SSGWP_URL_Rewriter {
 	}
 
 	/**
-	 * Rewrite lazy iframe/object source attributes as page-or-asset URLs.
+	 * Rewrite iframe, embed, and object sources as page-or-asset URLs.
 	 *
 	 * @param string $html         HTML.
 	 * @param string $base_url     Base URL.
 	 * @param string $target_path  Relative static file path.
 	 * @param array  $placeholders Placeholder replacements.
-	 * @return string HTML with embed lazy sources temporarily preserved.
+	 * @return string HTML with embed sources temporarily preserved.
 	 */
-	private function rewrite_lazy_embedded_page_sources_with_patterns(
+	private function rewrite_embedded_page_sources_with_patterns(
 		$html,
 		$base_url,
 		$target_path,
 		array &$placeholders
 	) {
 		return preg_replace_callback(
-			'/<(iframe|object)\b[^>]*>/is',
+			'/<(iframe|embed|object)\b[^>]*>/is',
 			function ( $matches ) use ( $base_url, $target_path, &$placeholders ) {
-				$tag = $matches[0];
+				$tag             = $matches[0];
+				$tag_name        = strtolower( $matches[1] );
+				$attribute_names = array( 'data-src', 'data-lazy-src' );
 
-				foreach ( array( 'data-src', 'data-lazy-src' ) as $attribute_name ) {
+				if ( 'object' === $tag_name ) {
+					array_unshift( $attribute_names, 'data' );
+				} else {
+					array_unshift( $attribute_names, 'src' );
+				}
+
+				foreach ( $attribute_names as $attribute_name ) {
 					$attributes = $this->parse_html_tag_attributes( $tag );
 
 					if ( empty( $attributes[ $attribute_name ]['value'] ) ) {

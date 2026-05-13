@@ -150,6 +150,14 @@ $comments_id = wp_insert_post(array(
 	'post_content' => '<p>Comments page export target.</p>',
 ));
 
+$embed_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Embed Only',
+	'post_name' => 'embed-only',
+	'post_content' => '<p>Embed-only export target.</p>',
+));
+
 wp_update_post(array(
 	'ID' => $child_id,
 	'post_parent' => $parent_id,
@@ -157,6 +165,7 @@ wp_update_post(array(
 
 $child_url = get_permalink($child_id);
 $comments_url = get_permalink($comments_id);
+$embed_url = get_permalink($embed_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
@@ -184,7 +193,11 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<object data="' . esc_url($child_url) . '"></object>'
 	. '<object data="' . esc_url($asset_url . '?object=1') . '"></object>'
+	. '<iframe src="' . esc_url($embed_url) . '"></iframe>'
 	. '<iframe data-src="' . esc_url($child_url) . '" data-lazy-src="' . esc_url($asset_url . '?lazy-frame=1') . '"></iframe>'
+	. '<embed src="' . esc_url($embed_url) . '">'
+	. '<embed src="' . esc_url($asset_url . '?embed=1') . '">'
+	. '<embed data-src="' . esc_url($embed_url) . '" data-lazy-src="' . esc_url($asset_url . '?lazy-embed=1') . '">'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<style>.responsive{background-image:image-set("' . esc_url($asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($child_url) . '">Srcdoc child</a><img src="' . esc_url($asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
@@ -217,8 +230,8 @@ if (!empty($result['warnings'])) {
 	throw new Exception('Static export completed with warnings.');
 }
 
-if ((int) $result['pages_exported'] < 4) {
-	throw new Exception('Expected at least four exported pages.');
+if ((int) $result['pages_exported'] < 5) {
+	throw new Exception('Expected at least five exported pages.');
 }
 
 $scoped_home = 'https://playground.wordpress.net/scope:sad-quiet-school';
@@ -241,6 +254,7 @@ add_filter('includes_url', function($url, $path) use ($scoped_home) {
 
 $scoped_child_url = get_permalink($child_id);
 $scoped_comments_url = get_permalink($comments_id);
+$scoped_embed_url = get_permalink($embed_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
@@ -276,7 +290,11 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
 	. '<object data="' . esc_url($scoped_child_url) . '"></object>'
 	. '<object data="' . esc_url($scoped_asset_url . '?object=1') . '"></object>'
+	. '<iframe src="' . esc_url($scoped_embed_url) . '"></iframe>'
 	. '<iframe data-src="' . esc_url($scoped_child_url) . '" data-lazy-src="' . esc_url($scoped_asset_url . '?lazy-frame=1') . '"></iframe>'
+	. '<embed src="' . esc_url($scoped_embed_url) . '">'
+	. '<embed src="' . esc_url($scoped_asset_url . '?embed=1') . '">'
+	. '<embed data-src="' . esc_url($scoped_embed_url) . '" data-lazy-src="' . esc_url($scoped_asset_url . '?lazy-embed=1') . '">'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
 	. '<style>.responsive{background-image:image-set("' . esc_url($scoped_asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($scoped_child_url) . '">Srcdoc child</a><img src="' . esc_url($scoped_asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
@@ -306,8 +324,8 @@ if (!empty($scoped_result['warnings'])) {
 	throw new Exception('Scoped static export completed with warnings.');
 }
 
-if ((int) $scoped_result['pages_exported'] < 4) {
-	throw new Exception('Expected at least four scoped exported pages.');
+if ((int) $scoped_result['pages_exported'] < 5) {
+	throw new Exception('Expected at least five scoped exported pages.');
 }
 `;
 }
@@ -377,6 +395,7 @@ async function verifyExport() {
 	assertFile('index.html');
 	assertFile('static-page/index.html');
 	assertFile('comments/index.html');
+	assertFile('embed-only/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
@@ -395,6 +414,7 @@ async function verifyExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
 		'../comments/index.html',
+		'../embed-only/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
@@ -408,6 +428,8 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-embed=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
@@ -431,6 +453,26 @@ async function verifyExport() {
 		staticPage,
 		'data="../parent-page/child-page/index.html"',
 		'static-page/index.html rewrites object page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<iframe src="../embed-only/index.html"></iframe>',
+		'static-page/index.html rewrites iframe src page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<embed src="../embed-only/index.html">',
+		'static-page/index.html rewrites embed page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<embed src="../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1">',
+		'static-page/index.html rewrites embed media sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<embed data-src="../embed-only/index.html" data-lazy-src="../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-embed=1">',
+		'static-page/index.html rewrites lazy embed sources'
 	);
 	assertIncludes(
 		staticPage,
@@ -482,6 +524,7 @@ async function verifyScopedExport() {
 	assertFile('index.html');
 	assertFile('static-page/index.html');
 	assertFile('comments/index.html');
+	assertFile('embed-only/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
@@ -512,6 +555,7 @@ async function verifyScopedExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
 		'../comments/index.html',
+		'../embed-only/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
@@ -524,6 +568,8 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-embed=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
@@ -547,6 +593,26 @@ async function verifyScopedExport() {
 		staticPage,
 		'data="../parent-page/child-page/index.html"',
 		'scoped static-page/index.html rewrites object page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<iframe src="../embed-only/index.html"></iframe>',
+		'scoped static-page/index.html rewrites iframe src page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<embed src="../embed-only/index.html">',
+		'scoped static-page/index.html rewrites embed page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<embed src="../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1">',
+		'scoped static-page/index.html rewrites embed media sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<embed data-src="../embed-only/index.html" data-lazy-src="../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-embed=1">',
+		'scoped static-page/index.html rewrites lazy embed sources'
 	);
 	assertIncludes(
 		staticPage,

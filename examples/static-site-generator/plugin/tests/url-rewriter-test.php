@@ -550,7 +550,10 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 	'<div data-bg="/wp-content/uploads/bg.jpg?lazy=1"'
 		. ' data-bgset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">'
 		. '<span data-src="/wp-content/uploads/photo.jpg?lazy=2"></span></div>'
-		. '<iframe data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>',
+		. '<iframe src="/framed-page/" data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>'
+		. '<embed src="/embed-page/">'
+		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
+		. '<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">',
 	'https://example.test/',
 	'index.html'
 );
@@ -580,9 +583,33 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<iframe src="framed-page/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats iframe src page URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'data-lazy-src="wp-content/uploads/photo.jpg?frame=1"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns keeps lazy iframe media sources as assets.'
+);
+
+ssgwp_assert_contains(
+	'<embed src="embed-page/index.html">',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats embed src page URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<embed src="wp-content/uploads/social-video.mp4?embed=1">',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns keeps embed src media URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'<embed data-src="embed-page/index.html" data-lazy-src="wp-content/uploads/social-video.mp4?lazy-embed=1">',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats lazy embed sources as page-or-asset URLs.'
 );
 
 $pattern_srcdoc_method = new ReflectionMethod( $rewriter, 'rewrite_srcdoc_attributes_with_patterns' );
@@ -756,6 +783,8 @@ foreach (
 		'static-page-' . $view_hash . '.html',
 		'blog/page/2/index.html',
 		'comments/index.html',
+		'embed-page/index.html',
+		'framed-page/index.html',
 		'meta-page/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
@@ -860,7 +889,11 @@ $html = implode(
 		'<span data-src="/wp-content/uploads/photo.jpg?lazy=3"'
 			. ' data-original="/wp-content/uploads/photo.jpg?lazy=4"'
 			. ' data-poster="/wp-content/uploads/bg.jpg?lazy=5"></span>',
+		'<iframe src="/framed-page/"></iframe>',
 		'<iframe data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>',
+		'<embed src="/embed-page/">',
+		'<embed src="/wp-content/uploads/social-video.mp4?embed=1">',
+		'<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">',
 		'<object data="/object-page/"></object>',
 		'<object data="/wp-content/uploads/social-video.mp4?object=1"></object>',
 		'<svg><filter><feImage href="/wp-content/uploads/filter.png?svg=1"'
@@ -1081,6 +1114,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<iframe src="framed-page/index.html"></iframe>',
+	$result['content'],
+	'rewrite_html treats iframe src page URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'data-lazy-src="wp-content/uploads/photo.jpg?frame=1"',
 	$result['content'],
 	'rewrite_html keeps lazy iframe media sources as assets.'
@@ -1096,6 +1135,48 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/photo.jpg?frame=1', $result['assets'], true ),
 	'rewrite_html records lazy iframe media sources as assets to copy.'
+);
+
+ssgwp_assert_contains(
+	'<embed src="embed-page/index.html">',
+	$result['content'],
+	'rewrite_html treats embed src page URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<embed src="wp-content/uploads/social-video.mp4?embed=1">',
+	$result['content'],
+	'rewrite_html keeps embed src media URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'<embed data-src="embed-page/index.html" data-lazy-src="wp-content/uploads/social-video.mp4?lazy-embed=1">',
+	$result['content'],
+	'rewrite_html treats lazy embed sources as page-or-asset URLs.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/framed-page/', $result['links'], true ),
+	'rewrite_html records iframe src page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/embed-page/', $result['links'], true ),
+	'rewrite_html records embed src page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?embed=1', $result['assets'], true ),
+	'rewrite_html records embed src media URLs as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?lazy-embed=1', $result['assets'], true ),
+	'rewrite_html records lazy embed media URLs as assets to copy.'
 );
 
 ssgwp_assert_contains(
@@ -1679,7 +1760,9 @@ foreach (
 		'protocol-page/index.html',
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
+		'framed-page/index.html',
 		'lazy-frame/index.html',
+		'embed-page/index.html',
 		'author/admin/index.html',
 		'publisher/index.html',
 		'related/index.html',
@@ -1695,6 +1778,8 @@ foreach (
 		'wp-content/uploads/social-audio.mp3?ver=1',
 		'wp-content/uploads/social-video.mp4?ver=1',
 		'wp-content/uploads/social-video.mp4?schema=1',
+		'wp-content/uploads/social-video.mp4?embed=1',
+		'wp-content/uploads/social-video.mp4?lazy-embed=1',
 		'wp-content/uploads/social-video.mp4?stream=1',
 		'wp-content/uploads/tile.png',
 		'wp-content/uploads/tile.png?small=1',

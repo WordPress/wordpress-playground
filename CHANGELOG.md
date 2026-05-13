@@ -106,6 +106,9 @@ format.
 - Treat lazy iframe and object `data-src` URLs as page-or-asset references so
   deferred embeds are crawled when they point at static pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat iframe and embed `src` URLs as page-or-asset references so embedded
+  same-site pages are crawled instead of being copied as missing assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Warn when a same-site asset discovered during static export cannot be copied,
   so broken local references are visible in the export result.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
