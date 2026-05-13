@@ -383,6 +383,28 @@ ssgwp_assert_same(
 	'report_progress preserves structured context.'
 );
 
+$filter_phar = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/archive.phar' ) );
+$filter_phtml = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/template.phtml' ) );
+$filter_css = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/style.css' ) );
+
+ssgwp_assert_same(
+	false,
+	$filter_phar,
+	'filter_copied_path rejects PHAR files from copied theme and plugin assets.'
+);
+
+ssgwp_assert_same(
+	false,
+	$filter_phtml,
+	'filter_copied_path rejects PHTML files from copied theme and plugin assets.'
+);
+
+ssgwp_assert_same(
+	true,
+	$filter_css,
+	'filter_copied_path keeps regular static assets.'
+);
+
 ssgwp_delete_directory( $fixture_root );
 
 /**

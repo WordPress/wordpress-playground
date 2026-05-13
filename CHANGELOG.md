@@ -50,6 +50,9 @@ format.
 - Rewrite common social preview meta URLs in static exports so Open Graph and
   Twitter page/image tags point at generated pages and copied assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Exclude additional executable PHP-like files from copied static export theme
+  and plugin asset directories.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

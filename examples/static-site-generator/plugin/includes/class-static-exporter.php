@@ -1105,7 +1105,7 @@ final class SSGWP_Static_Exporter {
 			return false;
 		}
 
-		if ( preg_match( '/\.(map|pot|po|mo|php|sqlite|sql|log)$/i', $name ) ) {
+		if ( preg_match( '/\.(map|pot|po|mo|phar|php|phtml|sqlite|sql|log)$/i', $name ) ) {
 			return false;
 		}
 
