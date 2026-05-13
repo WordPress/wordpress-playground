@@ -924,11 +924,15 @@ ssgwp_assert_contains(
 $export_root = ssgwp_make_fixture_dir();
 $query_hash  = substr( md5( 'p=42' ), 0, 8 );
 $view_hash   = substr( md5( 'view=grid' ), 0, 8 );
+$text_query_hash         = substr( md5( 'p=84' ), 0, 8 );
+$escaped_text_query_hash = substr( md5( 'p=85' ), 0, 8 );
 
 foreach (
 	array(
 		'index.html',
 		'index-' . $query_hash . '.html',
+		'index-' . $text_query_hash . '.html',
+		'index-' . $escaped_text_query_hash . '.html',
 		'static-page/index.html',
 		'static-page/relative-child/index.html',
 		'static-page-' . $view_hash . '.html',
@@ -1095,6 +1099,11 @@ $html = implode(
 		'<iframe srcdoc="' . $srcdoc . '"></iframe>',
 		'<script type="application/json">{"url":"https:\/\/example.test\/nested\/page\/"}</script>',
 		'<script type="application/json">{"protocol":"//example.test/protocol-text/","protocolEscaped":"\/\/example.test\/protocol-escaped\/"}</script>',
+		'<script type="application/json">{"queryOnly":"https://example.test?p=84#text",'
+			. '"escapedQueryOnly":"https:\/\/example.test?p=85#text"}</script>',
+		'<script>const lookalike = "https://example.test.evil/static-page/";'
+			. ' const escapedLookalike = "https:\/\/example.test.evil\/static-page\/";'
+			. ' const protocolLookalike = "//example.test.evil/static-page/";</script>',
 		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
 		'<script type="application/json">{"plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/photo.jpg?plain=1"}</script>',
 		'<script type="application/json">{"rest":"https:\/\/example.test\/?rest_route=\/wp\/v2\/posts"}</script>',
@@ -1890,6 +1899,36 @@ ssgwp_assert_contains(
 	'"protocolEscaped":"protocol-escaped\/index.html"',
 	$result['content'],
 	'rewrite_html rewrites JSON-escaped protocol-relative same-site page URLs.'
+);
+
+ssgwp_assert_contains(
+	'"queryOnly":"index-' . $text_query_hash . '.html#text"',
+	$result['content'],
+	'rewrite_html rewrites absolute same-site text URLs with query-only paths.'
+);
+
+ssgwp_assert_contains(
+	'"escapedQueryOnly":"index-' . $escaped_text_query_hash . '.html#text"',
+	$result['content'],
+	'rewrite_html rewrites JSON-escaped same-site text URLs with query-only paths.'
+);
+
+ssgwp_assert_contains(
+	'"https://example.test.evil/static-page/"',
+	$result['content'],
+	'rewrite_html leaves absolute lookalike host text URLs unchanged.'
+);
+
+ssgwp_assert_contains(
+	'"https:\/\/example.test.evil\/static-page\/"',
+	$result['content'],
+	'rewrite_html leaves JSON-escaped lookalike host text URLs unchanged.'
+);
+
+ssgwp_assert_contains(
+	'"//example.test.evil/static-page/"',
+	$result['content'],
+	'rewrite_html leaves protocol-relative lookalike host text URLs unchanged.'
 );
 
 ssgwp_assert_contains(

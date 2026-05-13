@@ -2176,11 +2176,12 @@ final class SSGWP_URL_Rewriter {
 			$slash   = '\\\\/';
 			$pattern = '#(?<![A-Za-z0-9+.-]:)'
 				. $scheme_pattern . ':' . $slash . $slash . $host_pattern
-				. $port_pattern . '(?:' . $slash . '[^\\s\'"<>)]*)?#i';
+				. $port_pattern . '(?![A-Za-z0-9.:-])'
+				. '(?:(?:' . $slash . '|[?\\#])[^\\s\'"<>)]*)?#i';
 		} else {
 			$pattern = '#(?<![A-Za-z0-9+.-]:)'
 				. $scheme_pattern . '://' . $host_pattern . $port_pattern
-				. '(?:/[^\\s\'"<>)]*)?#i';
+				. '(?![A-Za-z0-9.:-])(?:[/?\\#][^\\s\'"<>)]*)?#i';
 		}
 
 		return preg_replace_callback(
@@ -2216,10 +2217,11 @@ final class SSGWP_URL_Rewriter {
 		if ( $escaped ) {
 			$slash   = '\\\\/';
 			$pattern = '#(?<![A-Za-z0-9+.-]:)' . $slash . $slash . $host_pattern
-				. $port_pattern . '(?:' . $slash . '[^\\s\'"<>)]*)?#i';
+				. $port_pattern . '(?![A-Za-z0-9.:-])'
+				. '(?:(?:' . $slash . '|[?\\#])[^\\s\'"<>)]*)?#i';
 		} else {
 			$pattern = '#(?<![A-Za-z0-9+.-]:)//' . $host_pattern . $port_pattern
-				. '(?:/[^\\s\'"<>)]*)?#i';
+				. '(?![A-Za-z0-9.:-])(?:[/?\\#][^\\s\'"<>)]*)?#i';
 		}
 
 		return preg_replace_callback(
