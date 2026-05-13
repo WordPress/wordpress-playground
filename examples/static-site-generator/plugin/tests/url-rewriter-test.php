@@ -957,6 +957,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
+		. '<meta itemprop="mentions" content="/schema-mentions/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
 		. '<meta itemprop="item" content="/schema-breadcrumb/">'
 		. '<meta itemprop="hasPart" content="/schema-part/">'
@@ -965,6 +966,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
+		. '<meta itemprop="subjectOf" content="/schema-subject/">'
 		. '<meta itemprop="publishingPrinciples" content="/publishing-principles/">'
 		. '<meta property="article:author" content="/author/admin/">'
 		. '<meta property="article:publisher" content="/publisher/">'
@@ -1009,6 +1011,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="mentions" content="schema-mentions/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org mentions page URLs.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="discussionUrl" content="schema-discussion/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org discussionUrl page URLs.'
@@ -1048,6 +1056,12 @@ ssgwp_assert_contains(
 	'<meta itemprop="reviewedBy" content="schema-reviewer/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org reviewedBy page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="subjectOf" content="schema-subject/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org subjectOf page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1159,10 +1173,14 @@ foreach (
 			'microdata-significant/index.html',
 			'schema/local/index.html',
 			'schema/secondary/index.html',
+			'schema-about/index.html',
 			'schema-collection/index.html',
+			'schema-main-entity/index.html',
+			'schema-mentions/index.html',
 			'schema-part/index.html',
 			'schema-contributor/index.html',
 			'schema-reviewer/index.html',
+			'schema-subject/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -1267,11 +1285,13 @@ $html = implode(
 		'<link rel="profile" href="/profile-page/">',
 		'<link rel="amphtml" href="/amp-page/">',
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
+		'<link itemprop="about" href="/schema-about/">',
 		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="item" href="/microdata-breadcrumb/">',
 		'<link itemprop="hasPart" href="/schema-part/">',
 		'<link itemprop="isPartOf" href="/schema-collection/">',
 		'<link itemprop="isBasedOnUrl" href="/schema-source/">',
+		'<link itemprop="mainEntity" href="/schema-main-entity/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="publishingPrinciples" href="/publishing-principles/">',
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
@@ -1321,6 +1341,7 @@ $html = implode(
 		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
 		'<meta itemprop="embedUrl" content="/video-player/">',
 		'<meta itemprop="sameAs" content="/schema-profile/">',
+		'<meta itemprop="mentions" content="/schema-mentions/">',
 		'<meta itemprop="discussionUrl" content="/schema-discussion/">',
 		'<meta itemprop="item" content="/schema-breadcrumb/">',
 		'<meta itemprop="hasPart" content="/schema-part/">',
@@ -1333,6 +1354,7 @@ $html = implode(
 		'<meta itemprop="author" content="/schema-author/">',
 		'<meta itemprop="publisher" content="/schema-publisher/">',
 		'<meta itemprop="reviewedBy" content="/schema-reviewer/">',
+		'<meta itemprop="subjectOf" content="/schema-subject/">',
 		'<meta property="article:author" content="/author/admin/">',
 		'<meta property="article:publisher" content="/publisher/">',
 		'<meta property="og:see_also" content="/related/">',
@@ -1614,6 +1636,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="about" href="schema-about/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org about itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="relatedLink" href="microdata-related/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org relatedLink itemprop link URLs as page links.'
@@ -1641,6 +1669,12 @@ ssgwp_assert_contains(
 	'<link itemprop="isBasedOnUrl" href="schema-source/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org isBasedOnUrl itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link itemprop="mainEntity" href="schema-main-entity/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org mainEntity itemprop link URLs as page links.'
 );
 
 ssgwp_assert_contains(
@@ -1876,6 +1910,12 @@ ssgwp_assert_same(
 
 ssgwp_assert_same(
 	true,
+	in_array( 'https://example.test/schema-about/', $result['links'], true ),
+	'rewrite_html records schema.org about itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
 	in_array( 'https://example.test/microdata-related/', $result['links'], true ),
 	'rewrite_html records schema.org relatedLink itemprop links as links to crawl.'
 );
@@ -1902,6 +1942,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/schema-source/', $result['links'], true ),
 	'rewrite_html records schema.org isBasedOnUrl itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema-main-entity/', $result['links'], true ),
+	'rewrite_html records schema.org mainEntity itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2346,6 +2392,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="mentions" content="schema-mentions/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org mentions page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="discussionUrl" content="schema-discussion/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org discussionUrl page URLs in meta content attributes.'
@@ -2418,6 +2470,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="subjectOf" content="schema-subject/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org subjectOf page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta property="article:author" content="author/admin/index.html">',
 	$result['content'],
 	'rewrite_html rewrites article author page URLs in meta content attributes.'
@@ -2454,6 +2512,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta property="og:see_also" content="/related/">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
+		. '<meta itemprop="mentions" content="/schema-mentions/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
 		. '<meta itemprop="item" content="/schema-breadcrumb/">'
 		. '<meta itemprop="hasPart" content="/schema-part/">'
@@ -2466,6 +2525,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="author" content="/schema-author/">'
 		. '<meta itemprop="publisher" content="/schema-publisher/">'
 		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
+		. '<meta itemprop="subjectOf" content="/schema-subject/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
@@ -2483,6 +2543,7 @@ ssgwp_assert_same(
 		'https://example.test/related/',
 		'https://example.test/video-player/',
 		'https://example.test/schema-profile/',
+		'https://example.test/schema-mentions/',
 		'https://example.test/schema-discussion/',
 		'https://example.test/schema-breadcrumb/',
 		'https://example.test/schema-part/',
@@ -2495,6 +2556,7 @@ ssgwp_assert_same(
 		'https://example.test/schema-author/',
 		'https://example.test/schema-publisher/',
 		'https://example.test/schema-reviewer/',
+		'https://example.test/schema-subject/',
 		'https://example.test/start-page/',
 		'https://example.test/task-target/',
 	),
@@ -3150,10 +3212,14 @@ foreach (
 		'microdata-significant/index.html',
 		'schema/local/index.html',
 		'schema/secondary/index.html',
+		'schema-about/index.html',
 		'schema-breadcrumb/index.html',
 		'schema-collection/index.html',
+		'schema-main-entity/index.html',
+		'schema-mentions/index.html',
 		'schema-part/index.html',
 		'schema-related/index.html',
+		'schema-subject/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
 		'encoded%20page/index.html',

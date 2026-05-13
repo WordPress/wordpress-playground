@@ -947,6 +947,7 @@ final class SSGWP_URL_Rewriter {
 		);
 		$itemprop          = strtolower( (string) $processor->get_attribute( 'itemprop' ) );
 		$itemprop_pages    = array(
+			'about',
 			'acquirelicensepage',
 			'actionablefeedbackpolicy',
 			'author',
@@ -964,8 +965,10 @@ final class SSGWP_URL_Rewriter {
 			'item',
 			'ispartof',
 			'license',
+			'mainentity',
 			'mainentityofpage',
 			'masthead',
+			'mentions',
 			'missioncoverageprioritiespolicy',
 			'nobylinespolicy',
 			'ownershipfundinginfo',
@@ -977,6 +980,7 @@ final class SSGWP_URL_Rewriter {
 			'significantlink',
 			'significantlinks',
 			'sponsor',
+			'subjectof',
 			'unnamedsourcespolicy',
 			'url',
 			'verificationfactcheckingpolicy',
@@ -1436,6 +1440,7 @@ final class SSGWP_URL_Rewriter {
 		$itemprop = strtolower( (string) $itemprop );
 
 		$page_keys = array(
+			'about',
 			'acquirelicensepage',
 			'actionablefeedbackpolicy',
 			'article:author',
@@ -1455,8 +1460,10 @@ final class SSGWP_URL_Rewriter {
 			'item',
 			'ispartof',
 			'license',
+			'mainentity',
 			'mainentityofpage',
 			'masthead',
+			'mentions',
 			'missioncoverageprioritiespolicy',
 			'msapplication-starturl',
 			'nobylinespolicy',
@@ -1471,6 +1478,7 @@ final class SSGWP_URL_Rewriter {
 			'significantlink',
 			'significantlinks',
 			'sponsor',
+			'subjectof',
 			'twitter:player',
 			'unnamedsourcespolicy',
 			'twitter:url',

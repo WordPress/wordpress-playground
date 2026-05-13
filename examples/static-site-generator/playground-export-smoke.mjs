@@ -456,6 +456,38 @@ $schema_reviewer_id = wp_insert_post(array(
 	'post_content' => '<p>Schema reviewer export target.</p>',
 ));
 
+$schema_about_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema About',
+	'post_name' => 'schema-about',
+	'post_content' => '<p>Schema about export target.</p>',
+));
+
+$schema_main_entity_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Main Entity',
+	'post_name' => 'schema-main-entity',
+	'post_content' => '<p>Schema main entity export target.</p>',
+));
+
+$schema_mentions_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Mentions',
+	'post_name' => 'schema-mentions',
+	'post_content' => '<p>Schema mentions export target.</p>',
+));
+
+$schema_subject_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Subject',
+	'post_name' => 'schema-subject',
+	'post_content' => '<p>Schema subject export target.</p>',
+));
+
 $amp_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -515,6 +547,10 @@ $schema_author_url = get_permalink($schema_author_id);
 $schema_publisher_url = get_permalink($schema_publisher_id);
 $schema_contributor_url = get_permalink($schema_contributor_id);
 $schema_reviewer_url = get_permalink($schema_reviewer_id);
+$schema_about_url = get_permalink($schema_about_id);
+$schema_main_entity_url = get_permalink($schema_main_entity_id);
+$schema_mentions_url = get_permalink($schema_mentions_id);
+$schema_subject_url = get_permalink($schema_subject_id);
 $amp_url = get_permalink($amp_id);
 $preloaded_document_url = get_permalink($preloaded_document_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
@@ -569,21 +605,25 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($schema_profile_url) . '">'
+	. '<meta itemprop="mentions" content="' . esc_url($schema_mentions_url) . '">'
 	. '<meta itemprop="license" content="' . esc_url($schema_license_url) . '">'
 	. '<meta itemprop="item" content="' . esc_url($schema_breadcrumb_url) . '">'
 	. '<meta itemprop="isPartOf" content="' . esc_url($schema_collection_url) . '">'
 	. '<meta itemprop="isBasedOnUrl" content="' . esc_url($schema_source_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($microdata_profile_url) . '">'
+	. '<link itemprop="about" href="' . esc_url($schema_about_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="item" href="' . esc_url($microdata_breadcrumb_url) . '">'
 	. '<link itemprop="hasPart" href="' . esc_url($schema_part_url) . '">'
 	. '<link itemprop="publishingPrinciples" href="' . esc_url($schema_policy_url) . '">'
+	. '<link itemprop="mainEntity" href="' . esc_url($schema_main_entity_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($schema_author_url) . '">'
 	. '<meta itemprop="publisher" content="' . esc_url($schema_publisher_url) . '">'
 	. '<link itemprop="contributor" href="' . esc_url($schema_contributor_url) . '">'
 	. '<meta itemprop="reviewedBy" content="' . esc_url($schema_reviewer_url) . '">'
+	. '<meta itemprop="subjectOf" content="' . esc_url($schema_subject_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '" itemtype="'
 	. esc_url($microdata_type_url) . ' https://schema.org/Article '
@@ -732,6 +772,10 @@ $scoped_schema_author_url = get_permalink($schema_author_id);
 $scoped_schema_publisher_url = get_permalink($schema_publisher_id);
 $scoped_schema_contributor_url = get_permalink($schema_contributor_id);
 $scoped_schema_reviewer_url = get_permalink($schema_reviewer_id);
+$scoped_schema_about_url = get_permalink($schema_about_id);
+$scoped_schema_main_entity_url = get_permalink($schema_main_entity_id);
+$scoped_schema_mentions_url = get_permalink($schema_mentions_id);
+$scoped_schema_subject_url = get_permalink($schema_subject_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_preloaded_document_url = get_permalink($preloaded_document_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
@@ -795,21 +839,25 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($scoped_schema_profile_url) . '">'
+	. '<meta itemprop="mentions" content="' . esc_url($scoped_schema_mentions_url) . '">'
 	. '<meta itemprop="license" content="' . esc_url($scoped_schema_license_url) . '">'
 	. '<meta itemprop="item" content="' . esc_url($scoped_schema_breadcrumb_url) . '">'
 	. '<meta itemprop="isPartOf" content="' . esc_url($scoped_schema_collection_url) . '">'
 	. '<meta itemprop="isBasedOnUrl" content="' . esc_url($scoped_schema_source_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($scoped_microdata_profile_url) . '">'
+	. '<link itemprop="about" href="' . esc_url($scoped_schema_about_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="item" href="' . esc_url($scoped_microdata_breadcrumb_url) . '">'
 	. '<link itemprop="hasPart" href="' . esc_url($scoped_schema_part_url) . '">'
 	. '<link itemprop="publishingPrinciples" href="' . esc_url($scoped_schema_policy_url) . '">'
+	. '<link itemprop="mainEntity" href="' . esc_url($scoped_schema_main_entity_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($scoped_microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($scoped_schema_author_url) . '">'
 	. '<meta itemprop="publisher" content="' . esc_url($scoped_schema_publisher_url) . '">'
 	. '<link itemprop="contributor" href="' . esc_url($scoped_schema_contributor_url) . '">'
 	. '<meta itemprop="reviewedBy" content="' . esc_url($scoped_schema_reviewer_url) . '">'
+	. '<meta itemprop="subjectOf" content="' . esc_url($scoped_schema_subject_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '" itemtype="'
 	. esc_url($scoped_microdata_type_url) . ' https://schema.org/Article '
@@ -1001,6 +1049,10 @@ async function verifyExport() {
 	assertFile('schema-publisher/index.html');
 	assertFile('schema-contributor/index.html');
 	assertFile('schema-reviewer/index.html');
+	assertFile('schema-about/index.html');
+	assertFile('schema-main-entity/index.html');
+	assertFile('schema-mentions/index.html');
+	assertFile('schema-subject/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('preloaded-document/index.html');
 	assertFile('parent-page/index.html');
@@ -1065,6 +1117,10 @@ async function verifyExport() {
 		'../schema-publisher/index.html',
 		'../schema-contributor/index.html',
 		'../schema-reviewer/index.html',
+		'../schema-about/index.html',
+		'../schema-main-entity/index.html',
+		'../schema-mentions/index.html',
+		'../schema-subject/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
@@ -1239,6 +1295,26 @@ async function verifyExport() {
 		staticPage,
 		'<meta itemprop="reviewedBy" content="../schema-reviewer/index.html">',
 		'static-page/index.html rewrites schema.org reviewedBy metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="about" href="../schema-about/index.html">',
+		'static-page/index.html rewrites schema.org about links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="mainEntity" href="../schema-main-entity/index.html">',
+		'static-page/index.html rewrites schema.org mainEntity links'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="mentions" content="../schema-mentions/index.html">',
+		'static-page/index.html rewrites schema.org mentions metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="subjectOf" content="../schema-subject/index.html">',
+		'static-page/index.html rewrites schema.org subjectOf metadata'
 	);
 	assertIncludes(
 		staticPage,
@@ -1532,6 +1608,10 @@ async function verifyScopedExport() {
 	assertFile('preloaded-document/index.html');
 	assertFile('schema-contributor/index.html');
 	assertFile('schema-reviewer/index.html');
+	assertFile('schema-about/index.html');
+	assertFile('schema-main-entity/index.html');
+	assertFile('schema-mentions/index.html');
+	assertFile('schema-subject/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/uploads/ssgwp-smoke-captions.vtt');
@@ -1604,6 +1684,10 @@ async function verifyScopedExport() {
 		'../publishing-principles/index.html',
 		'../schema-contributor/index.html',
 		'../schema-reviewer/index.html',
+		'../schema-about/index.html',
+		'../schema-main-entity/index.html',
+		'../schema-mentions/index.html',
+		'../schema-subject/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
@@ -1772,6 +1856,26 @@ async function verifyScopedExport() {
 		staticPage,
 		'<meta itemprop="reviewedBy" content="../schema-reviewer/index.html">',
 		'scoped static-page/index.html rewrites schema.org reviewedBy metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="about" href="../schema-about/index.html">',
+		'scoped static-page/index.html rewrites schema.org about links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="mainEntity" href="../schema-main-entity/index.html">',
+		'scoped static-page/index.html rewrites schema.org mainEntity links'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="mentions" content="../schema-mentions/index.html">',
+		'scoped static-page/index.html rewrites schema.org mentions metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="subjectOf" content="../schema-subject/index.html">',
+		'scoped static-page/index.html rewrites schema.org subjectOf metadata'
 	);
 	assertIncludes(
 		staticPage,
