@@ -178,6 +178,8 @@ format.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Keep symlinked files out of bulk copied static export asset directories.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Keep symlinked files out of explicitly linked static export asset copies.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Bound initial static export URL discovery by the configured max page limit
   so large sites do not enumerate more starting URLs than the export can render.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

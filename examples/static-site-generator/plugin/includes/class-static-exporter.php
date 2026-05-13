@@ -878,7 +878,7 @@ final class SSGWP_Static_Exporter {
 			return false;
 		}
 
-		if ( ! $this->is_exportable_asset_file( $source, $this->is_source_map_asset_url( $url ) ) ) {
+		if ( ! $this->is_exportable_asset_file( $source, $this->is_source_map_asset_url( $url ), true ) ) {
 			$this->warn_linked_asset_not_copied( $url, 'the local file is not exportable' );
 			return false;
 		}
@@ -993,7 +993,7 @@ final class SSGWP_Static_Exporter {
 			}
 
 			$relative = '/' === $base_path ? ltrim( $url_path, '/' ) : ltrim( substr( $url_path, strlen( $base_path ) ), '/' );
-			$source   = SSGWP_Path_Utils::resolve_child_file_path( $mapping['dir'], $relative );
+			$source   = SSGWP_Path_Utils::resolve_child_file_path_preserving_requested_path( $mapping['dir'], $relative );
 
 			if ( null !== $source ) {
 				return $source;
@@ -1006,13 +1006,19 @@ final class SSGWP_Static_Exporter {
 	/**
 	 * Determine whether a local file should be copied as a static asset.
 	 *
-	 * @param string $path File path.
+	 * @param string $path                    File path.
+	 * @param bool   $allow_source_map        Whether source maps are allowed.
+	 * @param bool   $reject_symlink_segments Whether to reject symlink segments.
 	 * @return bool
 	 */
-	private function is_exportable_asset_file( $path, $allow_source_map = false ) {
+	private function is_exportable_asset_file( $path, $allow_source_map = false, $reject_symlink_segments = false ) {
 		$name = basename( $path );
 
 		if ( '' === $name || '.' === $name[0] ) {
+			return false;
+		}
+
+		if ( $reject_symlink_segments && SSGWP_Path_Utils::path_has_symlink_segment( $path ) ) {
 			return false;
 		}
 

@@ -266,6 +266,34 @@ ssgwp_assert_same(
 	'resolve_child_file_path accepts readable child files.'
 );
 
+ssgwp_assert_false(
+	SSGWP_Path_Utils::path_has_symlink_segment( $fixture_dir . '/assets/style.css' ),
+	'path_has_symlink_segment ignores normal child files.'
+);
+
+$symlink_path    = $fixture_dir . '/assets/style-link.css';
+$symlink_created = function_exists( 'symlink' )
+	&& @symlink( $fixture_dir . '/assets/style.css', $symlink_path );
+
+if ( $symlink_created ) {
+	ssgwp_assert_same(
+		wp_normalize_path( $fixture_dir . '/assets/style.css' ),
+		SSGWP_Path_Utils::resolve_child_file_path( $fixture_dir, 'assets/style-link.css' ),
+		'resolve_child_file_path resolves symlinked child files to real paths.'
+	);
+
+	ssgwp_assert_same(
+		wp_normalize_path( $symlink_path ),
+		SSGWP_Path_Utils::resolve_child_file_path_preserving_requested_path( $fixture_dir, 'assets/style-link.css' ),
+		'resolve_child_file_path_preserving_requested_path keeps requested symlink paths.'
+	);
+
+	ssgwp_assert_true(
+		SSGWP_Path_Utils::path_has_symlink_segment( $symlink_path ),
+		'path_has_symlink_segment detects symlinked files.'
+	);
+}
+
 ssgwp_assert_same(
 	null,
 	SSGWP_Path_Utils::resolve_child_file_path( $fixture_dir, 'assets/../secret.css' ),

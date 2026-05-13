@@ -212,6 +212,84 @@ final class SSGWP_Path_Utils {
 	}
 
 	/**
+	 * Resolve a child path but return the requested path before symlink resolution.
+	 *
+	 * @param string $directory Directory path.
+	 * @param string $relative  Relative child path.
+	 * @return string|null
+	 */
+	public static function resolve_child_file_path_preserving_requested_path( $directory, $relative ) {
+		$relative = wp_normalize_path( (string) $relative );
+
+		if (
+			'' === $relative ||
+			0 === strpos( $relative, '/' ) ||
+			preg_match( '#^[A-Za-z]:/#', $relative ) ||
+			self::has_parent_segment( $relative )
+		) {
+			return null;
+		}
+
+		$directory = realpath( $directory );
+
+		if ( false === $directory ) {
+			return null;
+		}
+
+		$requested_path = wp_normalize_path( trailingslashit( $directory ) . $relative );
+		$real_path      = realpath( $requested_path );
+
+		if ( false === $real_path ) {
+			return null;
+		}
+
+		$directory = wp_normalize_path( $directory );
+		$real_path = wp_normalize_path( $real_path );
+
+		if ( ! is_file( $real_path ) || ! self::is_path_inside_directory( $real_path, $directory ) ) {
+			return null;
+		}
+
+		return $requested_path;
+	}
+
+	/**
+	 * Determine whether any segment in a path is a symbolic link.
+	 *
+	 * @param string $path Path.
+	 * @return bool Whether the path traverses a symbolic link.
+	 */
+	public static function path_has_symlink_segment( $path ) {
+		$path     = wp_normalize_path( (string) $path );
+		$segments = array_values(
+			array_filter(
+				explode( '/', trim( $path, '/' ) ),
+				static function ( $segment ) {
+					return '' !== $segment;
+				}
+			)
+		);
+
+		$current = 0 === strpos( $path, '/' ) ? '/' : '';
+
+		foreach ( $segments as $segment ) {
+			if ( '' === $current ) {
+				$current = $segment;
+			} elseif ( '/' === $current ) {
+				$current = '/' . $segment;
+			} else {
+				$current .= '/' . $segment;
+			}
+
+			if ( is_link( $current ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Map WordPress asset URL paths to the export directory layout.
 	 *
 	 * @param string $path URL path.

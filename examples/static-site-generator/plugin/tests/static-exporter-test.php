@@ -783,6 +783,9 @@ $warnings_property->setValue( $exporter, array() );
 wp_mkdir_p( $fixture_root . '/wp-content/uploads' );
 file_put_contents( $fixture_root . '/wp-content/uploads/copied.txt', 'copied' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents( $fixture_root . '/wp-content/uploads/.secret', 'secret' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+$linked_asset_symlink_path    = $fixture_root . '/wp-content/uploads/linked-symlink.txt';
+$linked_asset_symlink_created = function_exists( 'symlink' )
+	&& @symlink( $fixture_root . '/wp-content/uploads/copied.txt', $linked_asset_symlink_path );
 
 $copy_linked_asset_method->invoke(
 	$exporter,
@@ -799,6 +802,14 @@ $copy_linked_asset_method->invoke(
 	'https://example.test/wp-content/uploads/.secret',
 	$output_dir
 );
+
+if ( $linked_asset_symlink_created ) {
+	$copy_linked_asset_method->invoke(
+		$exporter,
+		'https://example.test/wp-content/uploads/linked-symlink.txt',
+		$output_dir
+	);
+}
 
 ssgwp_assert_same(
 	true,
@@ -819,6 +830,20 @@ ssgwp_assert_contains(
 	$warnings,
 	'copy_linked_asset warns when a discovered same-site asset is not exportable.'
 );
+
+if ( $linked_asset_symlink_created ) {
+	ssgwp_assert_same(
+		false,
+		file_exists( $output_dir . '/wp-content/uploads/linked-symlink.txt' ),
+		'copy_linked_asset rejects symlinked same-site files discovered in HTML.'
+	);
+
+	ssgwp_assert_contains(
+		'Could not copy linked asset https://example.test/wp-content/uploads/linked-symlink.txt: the local file is not exportable.',
+		$warnings,
+		'copy_linked_asset warns when a discovered same-site asset is a symlink.'
+	);
+}
 
 $rewrite_assets_method = new ReflectionMethod( $exporter, 'rewrite_copied_text_assets' );
 $rewrite_assets_method->setAccessible( true );
