@@ -274,6 +274,10 @@ final class SSGWP_URL_Rewriter {
 				'xlink:href' => 'asset',
 			),
 			'FORM'       => array( 'action' => 'page' ),
+			'FRAME'      => array(
+				'longdesc' => 'page',
+				'src'      => 'page',
+			),
 			'HTML'       => array(
 				'background' => 'asset',
 				'manifest'   => 'asset',
@@ -281,12 +285,14 @@ final class SSGWP_URL_Rewriter {
 			'IFRAME'     => array(
 				'data-lazy-src' => 'maybe',
 				'data-src'      => 'maybe',
+				'longdesc'      => 'page',
 				'src'           => 'maybe',
 			),
 			'IMG'        => array(
-				'poster' => 'asset',
-				'src'    => 'asset',
-				'srcset' => 'srcset',
+				'longdesc' => 'page',
+				'poster'   => 'asset',
+				'src'      => 'asset',
+				'srcset'   => 'srcset',
 			),
 			'IMAGE'      => array(
 				'href'       => 'asset',
@@ -420,6 +426,7 @@ final class SSGWP_URL_Rewriter {
 			'formaction'       => 'page',
 			'data'             => 'maybe',
 			'cite'             => 'page',
+			'longdesc'         => 'page',
 			'manifest'         => 'asset',
 			'background'       => 'asset',
 			'data-src'         => 'asset',
@@ -516,7 +523,7 @@ final class SSGWP_URL_Rewriter {
 	}
 
 	/**
-	 * Rewrite iframe, embed, and object sources as page-or-asset URLs.
+	 * Rewrite frame, iframe, embed, and object sources as page-or-asset URLs.
 	 *
 	 * @param string $html         HTML.
 	 * @param string $base_url     Base URL.
@@ -531,7 +538,7 @@ final class SSGWP_URL_Rewriter {
 		array &$placeholders
 	) {
 		return preg_replace_callback(
-			'/<(iframe|embed|object)\b[^>]*>/is',
+			'/<(frame|iframe|embed|object)\b[^>]*>/is',
 			function ( $matches ) use ( $base_url, $target_path, &$placeholders ) {
 				$tag             = $matches[0];
 				$tag_name        = strtolower( $matches[1] );
@@ -539,6 +546,8 @@ final class SSGWP_URL_Rewriter {
 
 				if ( 'object' === $tag_name ) {
 					array_unshift( $attribute_names, 'data' );
+				} elseif ( 'frame' === $tag_name ) {
+					$attribute_names = array( 'src' );
 				} else {
 					array_unshift( $attribute_names, 'src' );
 				}

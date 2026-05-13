@@ -180,6 +180,9 @@ format.
 - Rewrite URL-bearing static export `param` values inside media objects so
   legacy embeds point at generated pages or copied assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite legacy frame and image/iframe long-description URLs in static
+  exports so those page references are crawled and point at generated files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

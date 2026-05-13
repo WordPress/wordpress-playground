@@ -571,6 +571,8 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 		. '<base href=https://example.test/>'
 		. '<a href=/static-page/>Static</a>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
+		. '<img src=/wp-content/uploads/photo.jpg?longdesc=1 longdesc=/long-description/ alt="">'
+		. '<frame src=/legacy-frame/ longdesc=/frame-description/>'
 		. '<object data=/object-page/></object>'
 		. '<object data=/wp-content/uploads/social-video.mp4?pattern=1></object>'
 		. '<param name=movie value=/wp-content/uploads/social-video.mp4?param=1>',
@@ -600,6 +602,24 @@ ssgwp_assert_contains(
 	'<img src=wp-content/uploads/photo.jpg?pattern=1 alt="">',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites unquoted asset links.'
+);
+
+ssgwp_assert_contains(
+	'<img src=wp-content/uploads/photo.jpg?longdesc=1 longdesc=long-description/index.html alt="">',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted long description page links.'
+);
+
+ssgwp_assert_contains(
+	'src=legacy-frame/index.html',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns treats unquoted frame sources as page links.'
+);
+
+ssgwp_assert_contains(
+	'longdesc=frame-description/index.html',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted frame long description links.'
 );
 
 ssgwp_assert_contains(
@@ -892,6 +912,9 @@ foreach (
 			'form-input/index.html',
 			'form-target/index.html',
 			'generic-page/index.html',
+			'frame-description/index.html',
+			'legacy-frame/index.html',
+			'long-description/index.html',
 			'meta-page/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
@@ -1002,6 +1025,7 @@ $html = implode(
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
 		'<img srcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
 		'<img srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
+		'<img class="longdesc" src="/wp-content/uploads/photo.jpg?longdesc=1" longdesc="/long-description/" alt="">',
 		'<div data-bg="/wp-content/uploads/bg.jpg?lazy=1"'
 			. ' data-background="/wp-content/uploads/bg.jpg?lazy=2"'
 			. ' data-bgset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x"></div>',
@@ -1009,6 +1033,8 @@ $html = implode(
 			. ' data-original="/wp-content/uploads/photo.jpg?lazy=4"'
 			. ' data-poster="/wp-content/uploads/bg.jpg?lazy=5"></span>',
 		'<iframe src="/framed-page/"></iframe>',
+		'<iframe src="/framed-page/" longdesc="/frame-description/"></iframe>',
+		'<frame src="/legacy-frame/" longdesc="/frame-description/">',
 		'<iframe data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>',
 		'<embed src="/embed-page/">',
 		'<embed src="/wp-content/uploads/social-video.mp4?embed=1">',
@@ -1295,6 +1321,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<img class="longdesc" src="wp-content/uploads/photo.jpg?longdesc=1" longdesc="long-description/index.html" alt="">',
+	$result['content'],
+	'rewrite_html rewrites image long description page URLs.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/long-description/', $result['links'], true ),
+	'rewrite_html records image long description page URLs as links to crawl.'
+);
+
+ssgwp_assert_contains(
 	'data-bg="wp-content/uploads/bg.jpg?lazy=1"',
 	$result['content'],
 	'rewrite_html rewrites lazy background asset attributes on non-image tags.'
@@ -1343,6 +1381,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<iframe src="framed-page/index.html" longdesc="frame-description/index.html"></iframe>',
+	$result['content'],
+	'rewrite_html rewrites iframe long description page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<frame src="legacy-frame/index.html" longdesc="frame-description/index.html">',
+	$result['content'],
+	'rewrite_html treats legacy frame src and longdesc URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'data-lazy-src="wp-content/uploads/photo.jpg?frame=1"',
 	$result['content'],
 	'rewrite_html keeps lazy iframe media sources as assets.'
@@ -1382,6 +1432,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/framed-page/', $result['links'], true ),
 	'rewrite_html records iframe src page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/frame-description/', $result['links'], true ),
+	'rewrite_html records frame long description URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/legacy-frame/', $result['links'], true ),
+	'rewrite_html records legacy frame src URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2045,7 +2107,10 @@ foreach (
 		'prefetched-page/index.html',
 		'deferred-page/index.html',
 		'framed-page/index.html',
+		'frame-description/index.html',
+		'legacy-frame/index.html',
 		'lazy-frame/index.html',
+		'long-description/index.html',
 		'embed-page/index.html',
 		'author/admin/index.html',
 		'publisher/index.html',
@@ -2072,6 +2137,7 @@ foreach (
 			'wp-content/uploads/tile.png?wide=1',
 			'wp-content/uploads/photo.jpg?size=large',
 			'wp-content/uploads/photo.jpg?prefetch=1',
+			'wp-content/uploads/photo.jpg?longdesc=1',
 			'wp-content/uploads/photo.jpg?deferred=1',
 			'wp-content/uploads/photo.jpg?data-link=1',
 			'wp-content/uploads/photo.jpg?lazy=3',

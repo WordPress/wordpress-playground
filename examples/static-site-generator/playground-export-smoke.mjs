@@ -250,12 +250,15 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
 	. '<video><track kind="captions" src="' . esc_url($captions_url . '?track=1') . '"></video>'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
+	. '<p><img class="longdesc-link" src="' . esc_url($asset_url . '?longdesc=1') . '" longdesc="' . esc_url($child_url) . '" alt=""></p>'
 	. '<p><img class="svg-filter" src="' . esc_url($filter_svg_url) . '" alt=""></p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<object data="' . esc_url($child_url) . '"></object>'
 	. '<object data="' . esc_url($asset_url . '?object=1') . '"></object>'
 	. '<object class="param-links"><param name="movie" value="' . esc_url($asset_url . '?param=1') . '"><param name="url" value="' . esc_url($child_url) . '"></object>'
 	. '<iframe src="' . esc_url($embed_url) . '"></iframe>'
+	. '<iframe class="longdesc-frame" src="' . esc_url($embed_url) . '" longdesc="' . esc_url($child_url) . '"></iframe>'
+	. '<frame src="' . esc_url($embed_url) . '" longdesc="' . esc_url($child_url) . '">'
 	. '<iframe data-src="' . esc_url($child_url) . '" data-lazy-src="' . esc_url($asset_url . '?lazy-frame=1') . '"></iframe>'
 	. '<embed src="' . esc_url($embed_url) . '">'
 	. '<embed src="' . esc_url($asset_url . '?embed=1') . '">'
@@ -381,6 +384,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
 	. '<video><track kind="captions" src="' . esc_url($scoped_captions_url . '?track=1') . '"></video>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
+	. '<p><img class="longdesc-link" src="' . esc_url($scoped_asset_url . '?longdesc=1') . '" longdesc="' . esc_url($scoped_child_url) . '" alt=""></p>'
 	. '<p><img class="svg-filter" src="' . esc_url($scoped_filter_svg_url) . '" alt=""></p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($scoped_asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
@@ -388,6 +392,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<object data="' . esc_url($scoped_asset_url . '?object=1') . '"></object>'
 	. '<object class="param-links"><param name="movie" value="' . esc_url($scoped_asset_url . '?param=1') . '"><param name="url" value="' . esc_url($scoped_child_url) . '"></object>'
 	. '<iframe src="' . esc_url($scoped_embed_url) . '"></iframe>'
+	. '<iframe class="longdesc-frame" src="' . esc_url($scoped_embed_url) . '" longdesc="' . esc_url($scoped_child_url) . '"></iframe>'
+	. '<frame src="' . esc_url($scoped_embed_url) . '" longdesc="' . esc_url($scoped_child_url) . '">'
 	. '<iframe data-src="' . esc_url($scoped_child_url) . '" data-lazy-src="' . esc_url($scoped_asset_url . '?lazy-frame=1') . '"></iframe>'
 	. '<embed src="' . esc_url($scoped_embed_url) . '">'
 	. '<embed src="' . esc_url($scoped_asset_url . '?embed=1') . '">'
@@ -541,6 +547,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?longdesc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
@@ -616,6 +623,21 @@ async function verifyExport() {
 		staticPage,
 		'<iframe src="../embed-only/index.html"></iframe>',
 		'static-page/index.html rewrites iframe src page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<iframe class="longdesc-frame" src="../embed-only/index.html" longdesc="../parent-page/child-page/index.html"></iframe>',
+		'static-page/index.html rewrites iframe longdesc page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<frame src="../embed-only/index.html" longdesc="../parent-page/child-page/index.html">',
+		'static-page/index.html rewrites legacy frame page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'class="longdesc-link" src="../wp-content/uploads/ssgwp-smoke-asset.txt?longdesc=1" longdesc="../parent-page/child-page/index.html"',
+		'static-page/index.html rewrites image longdesc page sources'
 	);
 	assertIncludes(
 		staticPage,
@@ -779,6 +801,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?longdesc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
@@ -854,6 +877,21 @@ async function verifyScopedExport() {
 		staticPage,
 		'<iframe src="../embed-only/index.html"></iframe>',
 		'scoped static-page/index.html rewrites iframe src page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<iframe class="longdesc-frame" src="../embed-only/index.html" longdesc="../parent-page/child-page/index.html"></iframe>',
+		'scoped static-page/index.html rewrites iframe longdesc page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<frame src="../embed-only/index.html" longdesc="../parent-page/child-page/index.html">',
+		'scoped static-page/index.html rewrites legacy frame page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'class="longdesc-link" src="../wp-content/uploads/ssgwp-smoke-asset.txt?longdesc=1" longdesc="../parent-page/child-page/index.html"',
+		'scoped static-page/index.html rewrites image longdesc page sources'
 	);
 	assertIncludes(
 		staticPage,
@@ -1084,7 +1122,7 @@ async function assertAllLocalResourceTargetsExist() {
 function extractAttributeRefs(text) {
 	return [
 		...text.matchAll(
-			/\s(?:href|src|data-href|data-link|data-src|data-lazy-src|data-url|data|poster)=["']([^"']+)["']/gi
+			/\s(?:href|src|longdesc|data-href|data-link|data-src|data-lazy-src|data-url|data|poster)=["']([^"']+)["']/gi
 		),
 	].map((match) => match[1]);
 }
