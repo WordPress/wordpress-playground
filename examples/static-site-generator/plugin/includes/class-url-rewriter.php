@@ -373,6 +373,7 @@ final class SSGWP_URL_Rewriter {
 			'BASE'       => array( 'href' => 'base' ),
 			'BLOCKQUOTE' => array( 'cite' => 'page' ),
 			'BUTTON'     => array( 'formaction' => 'page' ),
+			'CITE'       => array( 'cite' => 'page' ),
 			'DEL'        => array( 'cite' => 'page' ),
 			'EMBED'      => array(
 				'data-lazy-src' => 'maybe',

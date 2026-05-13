@@ -572,6 +572,7 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 		. '<a href=/static-page/>Static</a>'
 		. '<link rel=preload as=document href=/preloaded-page/>'
 		. '<blockquote cite=/citation-source>Citation</blockquote>'
+		. '<cite cite=/citation-source#inline>Inline citation</cite>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
 		. '<img src=/wp-content/uploads/photo.jpg?longdesc=1 longdesc=/long-description/ alt="">'
 		. '<table background=/wp-content/uploads/table-bg.jpg?pattern=1><tr>'
@@ -613,6 +614,12 @@ ssgwp_assert_contains(
 	'<blockquote cite=citation-source/index.html>Citation</blockquote>',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites unquoted citation links.'
+);
+
+ssgwp_assert_contains(
+	'<cite cite=citation-source/index.html#inline>Inline citation</cite>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted cite element citation links.'
 );
 
 ssgwp_assert_contains(
@@ -1271,6 +1278,7 @@ $html = implode(
 		'<area href="/static-page/" ping="/map-ping/">',
 		'<blockquote cite="/citation-source/">Citation</blockquote>',
 		'<q cite="/citation-source/#quote">Quote</q>',
+		'<cite cite="/citation-source/#inline">Inline citation</cite>',
 		'<base href="https://example.test/">',
 		'<table background="/wp-content/uploads/table-bg.jpg?table=1"><tr>'
 			. '<td background="/wp-content/uploads/cell-bg.jpg?cell=1">Legacy</td>'
@@ -1532,6 +1540,12 @@ ssgwp_assert_contains(
 	'<q cite="citation-source/index.html#quote">',
 	$result['content'],
 	'rewrite_html rewrites quote cite page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<cite cite="citation-source/index.html#inline">',
+	$result['content'],
+	'rewrite_html rewrites cite element citation page URLs.'
 );
 
 ssgwp_assert_contains(

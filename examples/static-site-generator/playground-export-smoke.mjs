@@ -572,6 +572,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="ping-link" href="' . esc_url($child_url) . '" ping="/click-ping/ /wp-json/ping">Ping</a></p>'
 	. '<blockquote cite="' . esc_url($citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($citation_url . '#quote') . '">Quoted source.</q></p>'
+	. '<p><cite cite="' . esc_url($citation_url . '#inline') . '">Inline citation</cite></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<table background="' . esc_url($asset_url . '?table-bg=1') . '"><tr>'
@@ -812,6 +813,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="ping-link" href="' . esc_url($scoped_child_url) . '" ping="/click-ping/ /wp-json/ping">Ping</a></p>'
 	. '<blockquote cite="' . esc_url($scoped_citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($scoped_citation_url . '#quote') . '">Quoted source.</q></p>'
+	. '<p><cite cite="' . esc_url($scoped_citation_url . '#inline') . '">Inline citation</cite></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<table background="' . esc_url($scoped_asset_url . '?table-bg=1') . '"><tr>'
@@ -1094,6 +1096,7 @@ async function verifyExport() {
 		'../comments/index.html',
 		'../citation-source/index.html',
 		'../citation-source/index.html#quote',
+		'../citation-source/index.html#inline',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../form-button/index.html',
@@ -1684,6 +1687,7 @@ async function verifyScopedExport() {
 		'../comments/index.html',
 		'../citation-source/index.html',
 		'../citation-source/index.html#quote',
+		'../citation-source/index.html#inline',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../form-button/index.html',
