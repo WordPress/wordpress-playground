@@ -190,6 +190,72 @@ add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
 
 /**
+ * Adds the Personal WP Site Tools latch inside wp-admin.
+ */
+function playground_personal_wp_should_render_site_tools_admin_bar_node() {
+	if ( empty( $_SERVER['REQUEST_URI'] ) ) {
+		return false;
+	}
+	$path = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
+	if ( ! is_string( $path ) ) {
+		return false;
+	}
+	return (
+		$path === '/scope:default/wp-admin' ||
+		strpos( $path, '/scope:default/wp-admin/' ) === 0
+	);
+}
+
+function playground_personal_wp_add_site_tools_admin_bar_node( $wp_admin_bar ) {
+	if ( ! playground_personal_wp_should_render_site_tools_admin_bar_node() ) {
+		return;
+	}
+
+	$wp_admin_bar->add_node(
+		array(
+			'id'    => 'playground-personal-wp-site-tools',
+			'title' => 'Open Site Tools',
+			'href'  => '#',
+		)
+	);
+}
+add_action( 'admin_bar_menu', 'playground_personal_wp_add_site_tools_admin_bar_node' );
+
+function playground_personal_wp_render_site_tools_admin_bar_script() {
+	if ( ! playground_personal_wp_should_render_site_tools_admin_bar_node() ) {
+		return;
+	}
+	?>
+	<script>
+		(function () {
+			function openSiteTools(event) {
+				event.preventDefault();
+				window.parent.postMessage(
+					{
+						type: 'relay',
+						relayType: 'personal-wp-open-site-tools'
+					},
+					'*'
+				);
+			}
+
+			var item = document.querySelector(
+				'#wp-admin-bar-playground-personal-wp-site-tools > .ab-item'
+			);
+			if (!item || window.parent === window) {
+				return;
+			}
+			item.addEventListener('click', openSiteTools);
+		})();
+	</script>
+	<?php
+}
+add_action(
+	'admin_footer',
+	'playground_personal_wp_render_site_tools_admin_bar_script'
+);
+
+/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.

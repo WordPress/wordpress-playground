@@ -19,14 +19,32 @@ test('should apply a blueprint passed via URL hash', async ({ website }) => {
 	await expect(website.page).toHaveURL(/sample-page/);
 });
 
-test('should display the seamless viewport and Site Tools latch', async ({
+test('should display the wp-admin Site Tools admin bar item', async ({
 	website,
+	wordpress,
 }) => {
-	await website.goto('./');
+	await website.goto('./wp-admin/');
 	await expect(
 		website.page.locator('.playground-viewport:visible')
 	).toBeVisible();
 	await expect(
-		website.page.getByRole('button', { name: /Open Site Tools/ })
+		website.page.getByRole('button', { name: 'Open Site Tools' })
+	).toBeHidden();
+	await expect(
+		wordpress.getByRole('link', { name: 'Open Site Tools' })
+	).toBeVisible();
+});
+
+test('should open Site Tools from the wp-admin admin bar item', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./wp-admin/');
+	await website.ensureSiteToolsIsClosed();
+
+	await wordpress.getByRole('link', { name: 'Open Site Tools' }).click();
+
+	await expect(
+		website.page.getByRole('button', { name: 'Close Site Tools' })
 	).toBeVisible();
 });

@@ -93,6 +93,21 @@ Response:
 Blueprint URLs must be `https:`, `data:`, or local `http:` URLs. Dependent tabs
 cannot install blueprints and will return an error result.
 
+#### Open Site Tools
+
+Use `personal-wp-open-site-tools` to ask Personal Playground to open the Site
+Tools panel.
+
+```js
+window.parent.postMessage(
+	{
+		type: 'relay',
+		relayType: 'personal-wp-open-site-tools',
+	},
+	'*'
+);
+```
+
 ### Offline Support
 
 Works as a Progressive Web App (PWA) for offline use. Install it on your device for a native app-like experience.

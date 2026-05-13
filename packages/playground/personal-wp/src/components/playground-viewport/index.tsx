@@ -61,6 +61,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		clientInfo?.mainTabStatus ??
 		(isDependentMode ? 'missing' : 'connected');
 	const hasLocalRuntimeClient = !isDependentMode && !!playground;
+	const showViewportLatch = !siteManagerIsOpen && !isWpAdminUrl(url);
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
@@ -230,6 +231,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			);
 			if (installBlueprintMessage) {
 				void installBlueprintFromRelay(event, installBlueprintMessage);
+				return;
+			}
+
+			if (isOpenSiteToolsMessage(relayValidation.data)) {
+				dispatch(setSiteManagerOpen(true));
 			}
 		}
 		window.addEventListener('message', handleMessage);
@@ -239,6 +245,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	}, [
 		applyBlueprint,
 		applyBlueprintInMainTab,
+		dispatch,
 		hasLocalRuntimeClient,
 		isDependentMode,
 		siteSlug,
@@ -331,7 +338,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 			<div
 				className={classNames(css.sidebarLatch, {
-					[css.sidebarLatchHidden]: siteManagerIsOpen,
+					[css.sidebarLatchHidden]: !showViewportLatch,
 				})}
 			>
 				<Button
@@ -415,6 +422,10 @@ function confirmBlueprintInstall(blueprintUrl: string): boolean {
 	);
 }
 
+function isWpAdminUrl(url: string | undefined): boolean {
+	return !!url && /^\/?wp-admin(\/|$|\?)/.test(url);
+}
+
 type RelayMessageData = {
 	type: 'relay';
 	relayType?: unknown;
@@ -427,6 +438,11 @@ type InstallBlueprintMessageData = {
 	relayType: 'install-blueprint';
 	blueprintUrl: string;
 	requestId?: string;
+};
+
+type OpenSiteToolsMessageData = {
+	type: 'relay';
+	relayType: 'personal-wp-open-site-tools';
 };
 
 type ApplyBlueprintOptions = {
@@ -492,6 +508,12 @@ function getInstallBlueprintMessageData(
 		blueprintUrl: data.blueprintUrl,
 		requestId: getRequestId(data),
 	};
+}
+
+function isOpenSiteToolsMessage(
+	data: RelayMessageData
+): data is OpenSiteToolsMessageData {
+	return data.relayType === 'personal-wp-open-site-tools';
 }
 
 function getRequestId(data: RelayMessageData): string | undefined {
