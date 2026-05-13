@@ -360,6 +360,7 @@ final class SSGWP_URL_Rewriter {
 			'itemid'           => 'page',
 			'itemtype'         => 'semantic-page-list',
 			'resource'         => 'semantic-page',
+			'vocab'            => 'semantic-page',
 		);
 		$attributes_by_tag      = array(
 			'A'          => array(
@@ -573,6 +574,7 @@ final class SSGWP_URL_Rewriter {
 			'itemid'           => 'page',
 			'itemtype'         => 'semantic-page-list',
 			'resource'         => 'semantic-page',
+			'vocab'            => 'semantic-page',
 			'xlink:href'       => 'asset',
 		);
 

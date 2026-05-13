@@ -296,6 +296,14 @@ $rdfa_resource_id = wp_insert_post(array(
 	'post_content' => '<p>RDFa resource export target.</p>',
 ));
 
+$rdfa_vocab_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'RDFa Vocab',
+	'post_name' => 'rdfa-vocab',
+	'post_content' => '<p>RDFa vocab export target.</p>',
+));
+
 $svg_link_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -359,6 +367,7 @@ $microdata_type_url = get_permalink($microdata_type_id);
 $microdata_secondary_type_url = get_permalink($microdata_secondary_type_id);
 $rdfa_about_url = get_permalink($rdfa_about_id);
 $rdfa_resource_url = get_permalink($rdfa_resource_id);
+$rdfa_vocab_url = get_permalink($rdfa_vocab_id);
 $svg_link_url = get_permalink($svg_link_id);
 $image_metadata_url = get_permalink($image_metadata_id);
 $schema_profile_url = get_permalink($schema_profile_id);
@@ -424,6 +433,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. esc_url($microdata_type_url) . ' https://schema.org/Article '
 	. esc_url($microdata_secondary_type_url) . '">Microdata item</article>'
 	. '<article about="' . esc_url($rdfa_about_url) . '" resource="' . esc_url($rdfa_resource_url) . '">RDFa item</article>'
+	. '<section vocab="' . esc_url($rdfa_vocab_url) . '" typeof="schema:Thing">RDFa vocab</section>'
+	. '<span vocab="https://schema.org/">External RDFa vocab</span>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
@@ -538,6 +549,7 @@ $scoped_microdata_type_url = get_permalink($microdata_type_id);
 $scoped_microdata_secondary_type_url = get_permalink($microdata_secondary_type_id);
 $scoped_rdfa_about_url = get_permalink($rdfa_about_id);
 $scoped_rdfa_resource_url = get_permalink($rdfa_resource_id);
+$scoped_rdfa_vocab_url = get_permalink($rdfa_vocab_id);
 $scoped_svg_link_url = get_permalink($svg_link_id);
 $scoped_image_metadata_url = get_permalink($image_metadata_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
@@ -612,6 +624,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. esc_url($scoped_microdata_type_url) . ' https://schema.org/Article '
 	. esc_url($scoped_microdata_secondary_type_url) . '">Microdata item</article>'
 	. '<article about="' . esc_url($scoped_rdfa_about_url) . '" resource="' . esc_url($scoped_rdfa_resource_url) . '">RDFa item</article>'
+	. '<section vocab="' . esc_url($scoped_rdfa_vocab_url) . '" typeof="schema:Thing">RDFa vocab</section>'
+	. '<span vocab="https://schema.org/">External RDFa vocab</span>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($scoped_svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
@@ -769,6 +783,7 @@ async function verifyExport() {
 	assertFile('microdata-secondary-type/index.html');
 	assertFile('rdfa-about/index.html');
 	assertFile('rdfa-resource/index.html');
+	assertFile('rdfa-vocab/index.html');
 	assertFile('svg-link/index.html');
 	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
@@ -816,6 +831,7 @@ async function verifyExport() {
 		'../microdata-secondary-type/index.html',
 		'../rdfa-about/index.html',
 		'../rdfa-resource/index.html',
+		'../rdfa-vocab/index.html',
 		'../svg-link/index.html',
 		'../image-metadata/index.html',
 		'../schema-profile/index.html',
@@ -933,6 +949,16 @@ async function verifyExport() {
 		staticPage,
 		'about="../rdfa-about/index.html" resource="../rdfa-resource/index.html"',
 		'static-page/index.html rewrites RDFa page identifiers'
+	);
+	assertIncludes(
+		staticPage,
+		'vocab="../rdfa-vocab/index.html"',
+		'static-page/index.html rewrites same-site RDFa vocab URLs'
+	);
+	assertIncludes(
+		staticPage,
+		'vocab="https://schema.org/"',
+		'static-page/index.html preserves external RDFa vocab URLs'
 	);
 	assertIncludes(
 		staticPage,
@@ -1171,6 +1197,7 @@ async function verifyScopedExport() {
 	assertFile('microdata-secondary-type/index.html');
 	assertFile('rdfa-about/index.html');
 	assertFile('rdfa-resource/index.html');
+	assertFile('rdfa-vocab/index.html');
 	assertFile('svg-link/index.html');
 	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
@@ -1230,6 +1257,7 @@ async function verifyScopedExport() {
 		'../microdata-secondary-type/index.html',
 		'../rdfa-about/index.html',
 		'../rdfa-resource/index.html',
+		'../rdfa-vocab/index.html',
 		'../svg-link/index.html',
 		'../image-metadata/index.html',
 		'../schema-profile/index.html',
@@ -1346,6 +1374,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'about="../rdfa-about/index.html" resource="../rdfa-resource/index.html"',
 		'scoped static-page/index.html rewrites RDFa page identifiers'
+	);
+	assertIncludes(
+		staticPage,
+		'vocab="../rdfa-vocab/index.html"',
+		'scoped static-page/index.html rewrites same-site RDFa vocab URLs'
+	);
+	assertIncludes(
+		staticPage,
+		'vocab="https://schema.org/"',
+		'scoped static-page/index.html preserves external RDFa vocab URLs'
 	);
 	assertIncludes(
 		staticPage,

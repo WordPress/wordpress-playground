@@ -1205,6 +1205,8 @@ $html = implode(
 		'<article itemscope itemid="/microdata-item/"'
 			. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>',
 		'<article about="/rdfa-about/" resource="https://example.test/rdfa-resource/">RDFa</article>',
+		'<section vocab="/rdfa-vocab/" typeof="schema:Thing">RDFa vocab</section>',
+		'<span vocab="https://schema.org/">RDFa external vocab</span>',
 		'<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>',
 		'<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
@@ -1524,6 +1526,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'vocab="rdfa-vocab/index.html"',
+	$result['content'],
+	'rewrite_html treats same-site RDFa vocab URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'vocab="https://schema.org/"',
+	$result['content'],
+	'rewrite_html leaves external RDFa vocab URLs unchanged.'
+);
+
+ssgwp_assert_contains(
 	'about="[schema:Thing]" resource="_:local"',
 	$result['content'],
 	'rewrite_html preserves RDFa CURIE and blank-node values.'
@@ -1695,6 +1709,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/rdfa-resource/', $result['links'], true ),
 	'rewrite_html records RDFa resource URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/rdfa-vocab/', $result['links'], true ),
+	'rewrite_html records RDFa vocab URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
