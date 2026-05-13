@@ -339,6 +339,9 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><q cite="' . esc_url($citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
+	. '<table background="' . esc_url($asset_url . '?table-bg=1') . '"><tr>'
+	. '<td background="' . esc_url($asset_url . '?cell-bg=1') . '">Legacy background</td>'
+	. '</tr></table>'
 	. '<form class="form-links" action="' . esc_url($form_target_url) . '">'
 	. '<button formaction="' . esc_url($form_button_url) . '">Button</button>'
 	. '<input type="submit" formaction="' . esc_url($form_input_url) . '">'
@@ -507,6 +510,9 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><q cite="' . esc_url($scoped_citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
+	. '<table background="' . esc_url($scoped_asset_url . '?table-bg=1') . '"><tr>'
+	. '<td background="' . esc_url($scoped_asset_url . '?cell-bg=1') . '">Legacy background</td>'
+	. '</tr></table>'
 	. '<form class="form-links" action="' . esc_url($scoped_form_target_url) . '">'
 	. '<button formaction="' . esc_url($scoped_form_button_url) . '">Button</button>'
 	. '<input type="submit" formaction="' . esc_url($scoped_form_input_url) . '">'
@@ -752,6 +758,8 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?table-bg=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?cell-bg=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?longdesc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
@@ -1099,6 +1107,8 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?table-bg=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?cell-bg=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?longdesc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',

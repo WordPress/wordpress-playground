@@ -574,6 +574,9 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 		. '<blockquote cite=/citation-source>Citation</blockquote>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
 		. '<img src=/wp-content/uploads/photo.jpg?longdesc=1 longdesc=/long-description/ alt="">'
+		. '<table background=/wp-content/uploads/table-bg.jpg?pattern=1><tr>'
+		. '<td background=/wp-content/uploads/cell-bg.jpg?pattern=1>Legacy</td>'
+		. '</tr></table>'
 		. '<frame src=/legacy-frame/ longdesc=/frame-description/>'
 		. '<object data=/object-page/></object>'
 		. '<object data=/wp-content/uploads/social-video.mp4?pattern=1></object>'
@@ -622,6 +625,18 @@ ssgwp_assert_contains(
 	'<img src=wp-content/uploads/photo.jpg?longdesc=1 longdesc=long-description/index.html alt="">',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites unquoted long description page links.'
+);
+
+ssgwp_assert_contains(
+	'<table background=wp-content/uploads/table-bg.jpg?pattern=1><tr>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted legacy table background assets.'
+);
+
+ssgwp_assert_contains(
+	'<td background=wp-content/uploads/cell-bg.jpg?pattern=1>Legacy</td>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted legacy table cell background assets.'
 );
 
 ssgwp_assert_contains(
@@ -1093,6 +1108,8 @@ foreach (
 		'wp-content/uploads/social.jpg',
 		'wp-content/uploads/social-audio.mp3',
 		'wp-content/uploads/social-video.mp4',
+		'wp-content/uploads/table-bg.jpg',
+		'wp-content/uploads/cell-bg.jpg',
 		'wp-content/uploads/tile.png',
 		'wp-includes/fonts/dashicons.eot',
 	)
@@ -1129,6 +1146,9 @@ $html = implode(
 		'<blockquote cite="/citation-source/">Citation</blockquote>',
 		'<q cite="/citation-source/#quote">Quote</q>',
 		'<base href="https://example.test/">',
+		'<table background="/wp-content/uploads/table-bg.jpg?table=1"><tr>'
+			. '<td background="/wp-content/uploads/cell-bg.jpg?cell=1">Legacy</td>'
+			. '</tr></table>',
 		'<a class="admin" href="/wp-admin/admin.php">Admin</a>',
 		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
 		'<a class="rest-query" href="/?rest_route=/wp/v2/posts">REST query</a>',
@@ -1355,6 +1375,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<table background="wp-content/uploads/table-bg.jpg?table=1"><tr>',
+	$result['content'],
+	'rewrite_html rewrites legacy table background asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'<td background="wp-content/uploads/cell-bg.jpg?cell=1">Legacy</td>',
+	$result['content'],
+	'rewrite_html rewrites legacy table cell background asset URLs.'
+);
+
+ssgwp_assert_contains(
 	'<link rel="home" href="index.html">',
 	$result['content'],
 	'rewrite_html treats same-site rel=home links as page links.'
@@ -1514,6 +1546,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/photo.jpg?prefetch=1', $result['assets'], true ),
 	'rewrite_html records image prefetch hints as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/table-bg.jpg?table=1', $result['assets'], true ),
+	'rewrite_html records legacy table background assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/cell-bg.jpg?cell=1', $result['assets'], true ),
+	'rewrite_html records legacy table cell background assets to copy.'
 );
 
 ssgwp_assert_same(

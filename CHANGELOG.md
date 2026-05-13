@@ -244,6 +244,9 @@ format.
 - Preserve quoted static export meta refresh URL suffixes while rewriting the
   refresh target.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite legacy static export `background` attributes on table markup so old
+  theme/content image references point at copied assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

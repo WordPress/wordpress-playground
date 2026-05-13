@@ -269,6 +269,7 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		$global_attribute_kinds = array(
+			'background'       => 'asset',
 			'data-bg'          => 'asset',
 			'data-background'  => 'asset',
 			'data-bgset'       => 'srcset',
@@ -298,7 +299,6 @@ final class SSGWP_URL_Rewriter {
 			'AUDIO'      => array( 'src' => 'asset' ),
 			'BASE'       => array( 'href' => 'base' ),
 			'BLOCKQUOTE' => array( 'cite' => 'page' ),
-			'BODY'       => array( 'background' => 'asset' ),
 			'BUTTON'     => array( 'formaction' => 'page' ),
 			'DEL'        => array( 'cite' => 'page' ),
 			'EMBED'      => array(
@@ -316,8 +316,7 @@ final class SSGWP_URL_Rewriter {
 				'src'      => 'page',
 			),
 			'HTML'       => array(
-				'background' => 'asset',
-				'manifest'   => 'asset',
+				'manifest' => 'asset',
 			),
 			'IFRAME'     => array(
 				'data-lazy-src' => 'maybe',
