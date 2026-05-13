@@ -103,8 +103,12 @@ $manifest_dir = trailingslashit(WP_PLUGIN_DIR) . 'ssgwp-smoke-deps';
 wp_mkdir_p($manifest_dir . '/icons');
 file_put_contents(
 	$manifest_dir . '/manifest.json',
-	wp_json_encode(array('icons' => array(array('src' => 'icons/icon.png'))))
+	wp_json_encode(array('icons' => array(
+		array('src' => 'icon-192.png'),
+		array('src' => 'icons/icon.png'),
+	)))
 );
+file_put_contents($manifest_dir . '/icon-192.png', 'icon-192');
 file_put_contents($manifest_dir . '/icons/icon.png', 'icon');
 $manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
 
@@ -345,6 +349,7 @@ async function verifyExport() {
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/icon-192.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
 	assertFile('static-export.json');
 
@@ -386,6 +391,10 @@ async function verifyExport() {
 	assertDoesNotInclude(staticPage, '"protocolEscaped":"\\/\\/');
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
+		'icon-192.png'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 		'icons/icon.png'
 	);
 	await assertAllLocalResourceTargetsExist();
@@ -400,6 +409,7 @@ async function verifyScopedExport() {
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/icon-192.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
 	assertFile('static-export.json');
 
@@ -474,6 +484,10 @@ async function verifyScopedExport() {
 		staticPage,
 		'https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt',
 		'scoped static-page/index.html leaves another scope asset link untouched'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
+		'icon-192.png'
 	);
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',

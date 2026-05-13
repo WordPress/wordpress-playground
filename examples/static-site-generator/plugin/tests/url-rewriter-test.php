@@ -1303,14 +1303,26 @@ ssgwp_assert_contains(
 );
 
 $rewritten_manifest = $rewriter->rewrite_text_asset_with_assets(
-	'{"icons":[{"src":"icons/icon.png"},{"src":".\/icons\/maskable.svg?purpose=any"},{"src":"..\/shared\/logo.webp"}]}',
+	'{"icons":[{"src":"icon-192.png"},{"src":".hidden.png"},{"src":"icons/icon.png"},{"src":".\/icons\/maskable.svg?purpose=any"},{"src":"..\/shared\/logo.webp"}]}',
 	'wp-content/plugins/app/manifest.json'
+);
+
+ssgwp_assert_contains(
+	'"src":"../../../wp-content/plugins/app/icon-192.png"',
+	$rewritten_manifest['content'],
+	'rewrite_text_asset_with_assets rewrites sibling manifest icon paths.'
 );
 
 ssgwp_assert_contains(
 	'"src":"../../../wp-content/plugins/app/icons/icon.png"',
 	$rewritten_manifest['content'],
 	'rewrite_text_asset_with_assets rewrites same-directory manifest icon paths.'
+);
+
+ssgwp_assert_contains(
+	'"src":".hidden.png"',
+	$rewritten_manifest['content'],
+	'rewrite_text_asset_with_assets leaves hidden sibling asset paths unchanged.'
 );
 
 ssgwp_assert_contains(
@@ -1321,6 +1333,7 @@ ssgwp_assert_contains(
 
 ssgwp_assert_same(
 	array(
+		'https://example.test/wp-content/plugins/app/icon-192.png',
 		'https://example.test/wp-content/plugins/app/icons/icon.png',
 		'https://example.test/wp-content/plugins/app/icons/maskable.svg?purpose=any',
 		'https://example.test/wp-content/plugins/shared/logo.webp',

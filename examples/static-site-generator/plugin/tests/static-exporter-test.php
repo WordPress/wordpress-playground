@@ -566,7 +566,11 @@ file_put_contents(
 wp_mkdir_p( $fixture_root . '/wp-content/plugins/manifest-deps/icons' );
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/manifest.json',
-	'{"icons":[{"src":"icons/icon.png"}]}'
+	'{"icons":[{"src":"icon-192.png"},{"src":"icons/icon.png"}]}'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/icon-192.png',
+	'icon-192'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/icons/icon.png',
@@ -624,6 +628,12 @@ $discovered_text_assets = $rewrite_assets_method->invoke(
 
 ssgwp_assert_same(
 	true,
+	in_array( 'https://example.test/wp-content/plugins/manifest-deps/icon-192.png', $discovered_text_assets, true ),
+	'rewrite_copied_text_assets reports sibling assets discovered inside copied manifests.'
+);
+
+ssgwp_assert_same(
+	true,
 	in_array( 'https://example.test/wp-content/plugins/manifest-deps/icons/icon.png', $discovered_text_assets, true ),
 	'rewrite_copied_text_assets reports assets discovered inside copied manifests.'
 );
@@ -635,9 +645,15 @@ $copied_count = $copy_linked_assets_method->invoke(
 );
 
 ssgwp_assert_same(
-	1,
+	2,
 	$copied_count,
 	'copy_linked_assets copies dependencies discovered inside copied manifests.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/icon-192.png' ),
+	'copy_linked_assets writes sibling dependencies discovered inside copied manifests.'
 );
 
 ssgwp_assert_same(

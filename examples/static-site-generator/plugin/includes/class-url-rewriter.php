@@ -1435,13 +1435,27 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_relative_asset_text_urls( $content, $base_url, $target_path, $escaped ) {
 		$extensions = 'avif|bmp|css|gif|ico|jpe?g|js|json|mjs|mp3|mp4|ogg|otf|png|svg|ttf|webm|webp|woff2?';
 		$pattern    = $escaped
-			? '#(?<=["\'])(?:\\.\\\\/|\\.\\.\\\\/|[A-Za-z0-9._~-]+\\\\/)(?:[^\\\\\s\'"<>)]|\\\\/)*\\.(?:' . $extensions . ')(?:[?\\#](?:[^\\\\\s\'"<>)]|\\\\/)*)?(?=["\'])#i'
-			: '#(?<=["\'])(?:\\./|\\.\\./|[A-Za-z0-9._~-]+/)[^\\s\'"<>)]*\\.(?:' . $extensions . ')(?:[?\\#][^\\s\'"<>)]*)?(?=["\'])#i';
+			? '#(?<=["\'])(?![a-z][a-z0-9+.-]*:|\\\\/)(?:(?:\\.\\\\/|\\.\\.\\\\/|[A-Za-z0-9._~-]+\\\\/)(?:[^\\\\\s\'"<>)]|\\\\/)*|[A-Za-z0-9._~-]+)\\.(?:' . $extensions . ')(?:[?\\#](?:[^\\\\\s\'"<>)]|\\\\/)*)?(?=["\'])#i'
+			: '#(?<=["\'])(?![a-z][a-z0-9+.-]*:|/)(?:\\./|\\.\\./|[A-Za-z0-9._~-]+/)?[^\\s\'"<>)]*\\.(?:' . $extensions . ')(?:[?\\#][^\\s\'"<>)]*)?(?=["\'])#i';
 
 		return preg_replace_callback(
 			$pattern,
 			function ( $matches ) use ( $base_url, $target_path, $escaped ) {
 				$url = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+
+				if ( ! $escaped && false !== strpos( $url, '\\/' ) ) {
+					return $matches[0];
+				}
+
+				if ( preg_match( '#^(?:[a-z][a-z0-9+.-]*:|/)#i', $url ) ) {
+					return $matches[0];
+				}
+
+				$basename = basename( (string) wp_parse_url( $url, PHP_URL_PATH ) );
+
+				if ( '' === $basename || '.' === $basename[0] ) {
+					return $matches[0];
+				}
 
 				if ( preg_match( '/[*{}]/', $url ) ) {
 					return $matches[0];
