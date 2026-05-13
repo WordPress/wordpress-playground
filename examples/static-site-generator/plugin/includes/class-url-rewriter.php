@@ -885,6 +885,7 @@ final class SSGWP_URL_Rewriter {
 		$srcdoc = $this->rewrite_meta_content_urls( $srcdoc, $base_url, $target_path );
 		$srcdoc = $this->rewrite_css_in_style_blocks( $srcdoc, $base_url, $target_path );
 		$srcdoc = $this->rewrite_css_in_style_attributes( $srcdoc, $base_url, $target_path );
+		$srcdoc = $this->rewrite_relative_script_text_urls( $srcdoc, $base_url, $target_path );
 
 		return $this->rewrite_same_site_text_urls_preserving_resource_hints(
 			$srcdoc,

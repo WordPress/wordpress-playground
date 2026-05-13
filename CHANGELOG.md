@@ -250,6 +250,9 @@ format.
 - Rewrite document-relative URLs embedded in static export script text so
   inline JSON/JavaScript page and asset references point at generated files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite document-relative script URLs inside static export iframe `srcdoc`
+  content so embedded page and asset references point at generated files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

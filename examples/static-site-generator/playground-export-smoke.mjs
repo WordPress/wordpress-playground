@@ -399,7 +399,13 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<embed data-src="' . esc_url($embed_url) . '" data-lazy-src="' . esc_url($asset_url . '?lazy-embed=1') . '">'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<style>.responsive{background-image:image-set("' . esc_url($asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
-	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($child_url) . '">Srcdoc child</a><img src="' . esc_url($asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
+	. '<iframe srcdoc="' . esc_attr(
+		'<a href="' . esc_url($child_url) . '">Srcdoc child</a>'
+		. '<img src="' . esc_url($asset_url . '?srcdoc=1') . '" alt="">'
+		. '<script type="application/json">{"srcdocPage":"./relative-child/",'
+			. '"srcdocEscaped":".\\/relative-child\\/",'
+			. '"srcdocAsset":"../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc-script=1"}</script>'
+	) . '"></iframe>'
 	. '<script type="application/json">{"root":"\/parent-page\/child-page\/","rootAsset":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?root=1","plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?plain=1"}</script>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $protocol_child_url) . '"}</script>'
 	. '<script type="application/json">{"relativePage":"./relative-child/","relativeEscaped":".\\/relative-child\\/","relativeAsset":"../wp-content/uploads/ssgwp-smoke-asset.txt?relative-script=1"}</script>'
@@ -573,7 +579,13 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<embed data-src="' . esc_url($scoped_embed_url) . '" data-lazy-src="' . esc_url($scoped_asset_url . '?lazy-embed=1') . '">'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
 	. '<style>.responsive{background-image:image-set("' . esc_url($scoped_asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
-	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($scoped_child_url) . '">Srcdoc child</a><img src="' . esc_url($scoped_asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
+	. '<iframe srcdoc="' . esc_attr(
+		'<a href="' . esc_url($scoped_child_url) . '">Srcdoc child</a>'
+		. '<img src="' . esc_url($scoped_asset_url . '?srcdoc=1') . '" alt="">'
+		. '<script type="application/json">{"srcdocPage":"./relative-child/",'
+			. '"srcdocEscaped":".\\/relative-child\\/",'
+			. '"srcdocAsset":"../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc-script=1"}</script>'
+	) . '"></iframe>'
 	. '<script type="application/json">{"root":"' . str_replace('/', '\/', $scoped_child_path) . '","rootAsset":"' . str_replace('/', '\/', $scoped_asset_path) . '?root=1"}</script>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($scoped_protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $scoped_protocol_child_url) . '"}</script>'
 	. '<script type="application/json">{"relativePage":"./relative-child/","relativeEscaped":".\\/relative-child\\/","relativeAsset":"../wp-content/uploads/ssgwp-smoke-asset.txt?relative-script=1"}</script>'
@@ -772,6 +784,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?param=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc-script=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/uploads/ssgwp-smoke-captions.vtt?track=1',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
@@ -941,6 +954,22 @@ async function verifyExport() {
 		staticPage,
 		'"relativeAsset":"../wp-content/uploads/ssgwp-smoke-asset.txt?relative-script=1"',
 		'static-page/index.html rewrites parent-relative script asset URLs'
+	);
+	assertDoesNotInclude(staticPage, '&quot;srcdocPage&quot;:&quot;./relative-child/&quot;');
+	assertIncludes(
+		staticPage,
+		'&quot;srcdocPage&quot;:&quot;relative-child/index.html&quot;',
+		'static-page/index.html rewrites srcdoc script page URLs'
+	);
+	assertIncludes(
+		staticPage,
+		'&quot;srcdocEscaped&quot;:&quot;relative-child/index.html&quot;',
+		'static-page/index.html rewrites escaped srcdoc script page URLs'
+	);
+	assertIncludes(
+		staticPage,
+		'&quot;srcdocAsset&quot;:&quot;../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc-script=1&quot;',
+		'static-page/index.html rewrites srcdoc script asset URLs'
 	);
 	assertIncludes(
 		staticPage,
@@ -1138,6 +1167,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?param=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc-script=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/uploads/ssgwp-smoke-captions.vtt?track=1',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
@@ -1311,6 +1341,22 @@ async function verifyScopedExport() {
 		staticPage,
 		'"relativeAsset":"../wp-content/uploads/ssgwp-smoke-asset.txt?relative-script=1"',
 		'scoped static-page/index.html rewrites parent-relative script asset URLs'
+	);
+	assertDoesNotInclude(staticPage, '&quot;srcdocPage&quot;:&quot;./relative-child/&quot;');
+	assertIncludes(
+		staticPage,
+		'&quot;srcdocPage&quot;:&quot;relative-child/index.html&quot;',
+		'scoped static-page/index.html rewrites srcdoc script page URLs'
+	);
+	assertIncludes(
+		staticPage,
+		'&quot;srcdocEscaped&quot;:&quot;relative-child/index.html&quot;',
+		'scoped static-page/index.html rewrites escaped srcdoc script page URLs'
+	);
+	assertIncludes(
+		staticPage,
+		'&quot;srcdocAsset&quot;:&quot;../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc-script=1&quot;',
+		'scoped static-page/index.html rewrites srcdoc script asset URLs'
 	);
 	assertIncludes(
 		staticPage,

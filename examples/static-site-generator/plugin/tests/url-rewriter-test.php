@@ -2766,7 +2766,12 @@ $relative_result = $rewriter->rewrite_html(
 		. '<img src="../wp-content/uploads/photo.jpg?relative=1" alt="">'
 		. '<script>const relativePage = "./relative-child/";'
 		. ' const relativeAsset = "../wp-content/uploads/photo.jpg?relative-script=1";'
-		. ' const escapedRelativePage = ".\/relative-child\/";</script>',
+		. ' const escapedRelativePage = ".\/relative-child\/";</script>'
+		. '<iframe srcdoc="' . esc_attr(
+			'<script type="application/json">{"srcdocPage":"./relative-child/",'
+				. '"srcdocEscaped":".\/relative-child\/",'
+				. '"srcdocAsset":"../wp-content/uploads/photo.jpg?srcdoc-script=1"}</script>'
+		) . '"></iframe>',
 	'https://example.test/static-page/',
 	'static-page/index.html'
 );
@@ -2801,6 +2806,24 @@ ssgwp_assert_contains(
 	'rewrite_html rewrites JSON-escaped document-relative script URLs.'
 );
 
+ssgwp_assert_contains(
+	'&quot;srcdocPage&quot;:&quot;relative-child/index.html&quot;',
+	$relative_result['content'],
+	'rewrite_html rewrites document-relative script page URLs inside srcdoc.'
+);
+
+ssgwp_assert_contains(
+	'&quot;srcdocEscaped&quot;:&quot;relative-child\/index.html&quot;',
+	$relative_result['content'],
+	'rewrite_html rewrites escaped document-relative script URLs inside srcdoc.'
+);
+
+ssgwp_assert_contains(
+	'&quot;srcdocAsset&quot;:&quot;../wp-content/uploads/photo.jpg?srcdoc-script=1&quot;',
+	$relative_result['content'],
+	'rewrite_html rewrites parent-relative script asset URLs inside srcdoc.'
+);
+
 ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/static-page/relative-child/', $relative_result['links'], true ),
@@ -2817,6 +2840,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/photo.jpg?relative-script=1', $relative_result['assets'], true ),
 	'rewrite_html records parent-relative script asset links to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/photo.jpg?srcdoc-script=1', $relative_result['assets'], true ),
+	'rewrite_html records parent-relative srcdoc script asset links to copy.'
 );
 
 ssgwp_assert_static_target_exists(
