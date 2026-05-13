@@ -168,6 +168,7 @@ $comments_url = get_permalink($comments_id);
 $embed_url = get_permalink($embed_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $static_content = '<p id="section">Static smoke page.</p>'
+	. '<base href="' . esc_url(home_url('/')) . '">'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
 	. '<p><a class="comments-link" href="' . esc_url($comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
@@ -263,6 +264,7 @@ $scoped_browserconfig_url = content_url('plugins/ssgwp-smoke-deps/browserconfig.
 $scoped_child_path = wp_parse_url($scoped_child_url, PHP_URL_PATH);
 $scoped_asset_path = wp_parse_url($scoped_asset_url, PHP_URL_PATH);
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
+	. '<base href="' . esc_url(home_url('/')) . '">'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
 	. '<p><a class="comments-link" href="' . esc_url($scoped_comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
@@ -451,6 +453,11 @@ async function verifyExport() {
 	);
 	assertIncludes(
 		staticPage,
+		'<base href="./">',
+		'static-page/index.html anchors same-site base hrefs to the static document'
+	);
+	assertIncludes(
+		staticPage,
 		'data="../parent-page/child-page/index.html"',
 		'static-page/index.html rewrites object page sources'
 	);
@@ -588,6 +595,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'imagesrcset="../wp-content/uploads/ssgwp-smoke-asset.txt 1x, ../wp-content/uploads/ssgwp-smoke-asset.txt?preload=2x 2x"',
 		'scoped static-page/index.html rewrites responsive image preload srcset'
+	);
+	assertIncludes(
+		staticPage,
+		'<base href="./">',
+		'scoped static-page/index.html anchors same-site base hrefs to the static document'
 	);
 	assertIncludes(
 		staticPage,

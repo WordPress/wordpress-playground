@@ -481,6 +481,7 @@ $pattern_rewritten = $pattern_method->invoke(
 	$rewriter,
 	'<link rel="preconnect" href="https://example.test">'
 		. '<link rel="dns-prefetch" href="//example.test">'
+		. '<base href="https://example.test/">'
 		. '<link rel="home" href="https://example.test/">',
 	'https://example.test/',
 	'index.html'
@@ -499,6 +500,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<base href="./">',
+	$pattern_rewritten,
+	'rewrite_html_attributes_with_patterns anchors same-site base hrefs to the static document.'
+);
+
+ssgwp_assert_contains(
 	'<link rel="home" href="index.html">',
 	$pattern_rewritten,
 	'rewrite_html_attributes_with_patterns still rewrites semantic page link relations.'
@@ -507,6 +514,7 @@ ssgwp_assert_contains(
 $pattern_unquoted_rewritten = $pattern_method->invoke(
 	$rewriter,
 	'<link rel=preconnect href=https://example.test>'
+		. '<base href=https://example.test/>'
 		. '<a href=/static-page/>Static</a>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
 		. '<object data=/object-page/></object>'
@@ -519,6 +527,12 @@ ssgwp_assert_contains(
 	'<link rel=preconnect href=https://example.test>',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns preserves unquoted resource hints.'
+);
+
+ssgwp_assert_contains(
+	'<base href=./>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted same-site base hrefs.'
 );
 
 ssgwp_assert_contains(
@@ -842,6 +856,7 @@ $html = implode(
 		'<a class="query" href="/static-page/?view=grid#items">Query page</a>',
 		'<a class="archive" href="/blog/page/2/#posts">Archive</a>',
 		'<a class="comments-page" href="/comments/">Comments page</a>',
+		'<base href="https://example.test/">',
 		'<a class="admin" href="/wp-admin/admin.php">Admin</a>',
 		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
 		'<a class="feed" href="/feed/">Feed</a>',
@@ -985,6 +1000,12 @@ ssgwp_assert_contains(
 	'href="comments/index.html"',
 	$result['content'],
 	'rewrite_html rewrites a public page whose slug is comments.'
+);
+
+ssgwp_assert_contains(
+	'<base href="./">',
+	$result['content'],
+	'rewrite_html anchors same-site base hrefs to the static document directory.'
 );
 
 ssgwp_assert_contains(
@@ -1808,9 +1829,15 @@ foreach (
 }
 
 $nested_result = $rewriter->rewrite_html(
-	'<a href="/static-page/">Nested</a>',
+	'<base href="https://example.test/nested/page/"><a href="/static-page/">Nested</a>',
 	'https://example.test/nested/page/',
 	'nested/page/index.html'
+);
+
+ssgwp_assert_contains(
+	'<base href="./">',
+	$nested_result['content'],
+	'rewrite_html keeps nested page base hrefs relative to the generated document.'
 );
 
 ssgwp_assert_contains(
@@ -1834,6 +1861,7 @@ $ssgwp_test_includes_url = 'https://playground.wordpress.net/scope:sad-quiet-sch
 $scoped_result = $rewriter->rewrite_html(
 	'<a href="https://playground.wordpress.net/scope:sad-quiet-school/sample-page/">Sample</a>'
 		. '<a href="/scope:sad-quiet-school/sample-page/">Root</a>'
+		. '<base href="https://playground.wordpress.net/scope:sad-quiet-school/">'
 		. '<a href="https://playground.wordpress.net/scope:other-site/sample-page/">Other</a>'
 		. '<img src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/photo.jpg" alt="">'
 		. '<img src="/scope:sad-quiet-school/wp-content/uploads/photo.jpg" alt="">'
@@ -1852,6 +1880,12 @@ ssgwp_assert_contains(
 	'src="wp-content/uploads/photo.jpg"',
 	$scoped_result['content'],
 	'rewrite_html strips the Playground scope base from same-site asset links.'
+);
+
+ssgwp_assert_contains(
+	'<base href="./">',
+	$scoped_result['content'],
+	'rewrite_html anchors scoped same-site base hrefs to the static document directory.'
 );
 
 ssgwp_assert_contains(

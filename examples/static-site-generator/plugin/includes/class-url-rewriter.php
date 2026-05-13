@@ -223,6 +223,7 @@ final class SSGWP_URL_Rewriter {
 			'A'          => array( 'href' => 'page' ),
 			'AREA'       => array( 'href' => 'page' ),
 			'AUDIO'      => array( 'src' => 'asset' ),
+			'BASE'       => array( 'href' => 'base' ),
 			'BLOCKQUOTE' => array( 'cite' => 'page' ),
 			'BODY'       => array( 'background' => 'asset' ),
 			'BUTTON'     => array( 'formaction' => 'page' ),
@@ -346,6 +347,12 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_html_attributes_with_patterns( $html, $base_url, $target_path ) {
 		$placeholders = array();
 		$html         = $this->preserve_resource_hint_link_urls( $html, $placeholders );
+		$html         = $this->rewrite_base_href_with_patterns(
+			$html,
+			$base_url,
+			$target_path,
+			$placeholders
+		);
 		$html         = $this->rewrite_embedded_page_sources_with_patterns(
 			$html,
 			$base_url,
@@ -405,6 +412,53 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return strtr( $html, $placeholders );
+	}
+
+	/**
+	 * Rewrite same-site base hrefs before the generic href fallback pass.
+	 *
+	 * @param string $html         HTML.
+	 * @param string $base_url     Base URL.
+	 * @param string $target_path  Relative static file path.
+	 * @param array  $placeholders Placeholder replacements.
+	 * @return string HTML with same-site base hrefs temporarily preserved.
+	 */
+	private function rewrite_base_href_with_patterns(
+		$html,
+		$base_url,
+		$target_path,
+		array &$placeholders
+	) {
+		return preg_replace_callback(
+			'/<base\b[^>]*>/is',
+			function ( $matches ) use ( $base_url, $target_path, &$placeholders ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+
+				if ( empty( $attributes['href']['value'] ) ) {
+					return $tag;
+				}
+
+				$attribute = $attributes['href'];
+				$rewritten = $this->rewrite_url_value(
+					$attribute['value'],
+					$base_url,
+					$target_path,
+					'base'
+				);
+
+				if ( $rewritten === $attribute['value'] ) {
+					return $tag;
+				}
+
+				$placeholder                  = '#__SSGWP_BASE_HREF_'
+					. count( $placeholders ) . '__';
+				$placeholders[ $placeholder ] = $rewritten;
+
+				return $this->replace_html_tag_attribute( $tag, $attribute, $placeholder );
+			},
+			$html
+		);
 	}
 
 	/**
@@ -1351,7 +1405,7 @@ final class SSGWP_URL_Rewriter {
 	 * @param string $value       URL value.
 	 * @param string $base_url    Base URL.
 	 * @param string $target_path Relative static file path.
-	 * @param string $kind        URL kind: page, asset, maybe, browserconfig.
+	 * @param string $kind        URL kind: page, asset, maybe, base, browserconfig.
 	 * @return string
 	 */
 	private function rewrite_url_value( $value, $base_url, $target_path, $kind ) {
@@ -1386,6 +1440,10 @@ final class SSGWP_URL_Rewriter {
 			return $value;
 		}
 
+		if ( 'base' === $kind ) {
+			return $this->static_document_base_for_path( $target_path );
+		}
+
 		if ( 'maybe' === $kind ) {
 			$kind = $is_page_like ? 'page' : 'asset';
 		}
@@ -1409,6 +1467,27 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return $this->url_to_static_url( $static_url, $target_path, $kind );
+	}
+
+	/**
+	 * Return a base href that keeps relative URLs anchored to the exported file.
+	 *
+	 * @param string $target_path Relative static file path.
+	 * @return string Static document base href.
+	 */
+	private function static_document_base_for_path( $target_path ) {
+		$target_dir = dirname( wp_normalize_path( $target_path ) );
+		$target_dir = '.' === $target_dir ? '' : trim( $target_dir, '/' );
+
+		if ( 'absolute' === $this->url_mode ) {
+			return trailingslashit( home_url( '/' . $target_dir ) );
+		}
+
+		if ( 'root' === $this->url_mode ) {
+			return '' === $target_dir ? '/' : '/' . trailingslashit( $target_dir );
+		}
+
+		return './';
 	}
 
 	/**
