@@ -155,6 +155,7 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_same_site_text_urls_preserving_resource_hints( $content, $target_path ) {
 		$placeholders = array();
 		$content      = $this->preserve_resource_hint_link_urls( $content, $placeholders );
+		$content      = $this->preserve_non_url_param_values( $content, $placeholders );
 		$content      = $this->rewrite_same_site_text_urls( $content, $target_path );
 
 		return strtr( $content, $placeholders );
@@ -187,6 +188,38 @@ final class SSGWP_URL_Rewriter {
 				$placeholders[ $placeholder ] = $attributes['href']['value'];
 
 				return $this->replace_html_tag_attribute( $tag, $attributes['href'], $placeholder );
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Preserve param control values that are not known URL-bearing values.
+	 *
+	 * @param string $html         HTML content.
+	 * @param array  $placeholders Placeholder replacements.
+	 * @return string HTML with placeholders.
+	 */
+	private function preserve_non_url_param_values( $html, array &$placeholders ) {
+		return preg_replace_callback(
+			'/<param\b[^>]*>/i',
+			function ( $matches ) use ( &$placeholders ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+
+				if ( empty( $attributes['name']['value'] ) || empty( $attributes['value']['value'] ) ) {
+					return $tag;
+				}
+
+				if ( null !== $this->param_attribute_kind( $attributes['name']['value'] ) ) {
+					return $tag;
+				}
+
+				$placeholder = '#__SSGWP_PRESERVED_PARAM_VALUE_'
+					. count( $placeholders ) . '__';
+				$placeholders[ $placeholder ] = $attributes['value']['value'];
+
+				return $this->replace_html_tag_attribute( $tag, $attributes['value'], $placeholder );
 			},
 			$html
 		);
@@ -273,6 +306,7 @@ final class SSGWP_URL_Rewriter {
 				'data-lazy-src' => 'maybe',
 				'data-src'      => 'maybe',
 			),
+			'PARAM'      => array( 'value' => 'param' ),
 			'Q'          => array( 'cite' => 'page' ),
 			'SCRIPT'     => array( 'src' => 'asset' ),
 			'SOURCE'     => array(
@@ -323,6 +357,14 @@ final class SSGWP_URL_Rewriter {
 					}
 				}
 
+				if ( 'param' === $kind ) {
+					$kind = $this->param_attribute_kind( (string) $processor->get_attribute( 'name' ) );
+
+					if ( null === $kind ) {
+						continue;
+					}
+				}
+
 				if ( 'srcset' === $kind ) {
 					$rewritten = $this->rewrite_srcset( $value, $base_url, $target_path );
 				} else {
@@ -357,6 +399,12 @@ final class SSGWP_URL_Rewriter {
 			$placeholders
 		);
 		$html         = $this->rewrite_embedded_page_sources_with_patterns(
+			$html,
+			$base_url,
+			$target_path,
+			$placeholders
+		);
+		$html         = $this->rewrite_param_values_with_patterns(
 			$html,
 			$base_url,
 			$target_path,
@@ -531,6 +579,59 @@ final class SSGWP_URL_Rewriter {
 	}
 
 	/**
+	 * Rewrite known URL-bearing param values without the HTML API.
+	 *
+	 * @param string $html         HTML.
+	 * @param string $base_url     Base URL.
+	 * @param string $target_path  Relative static file path.
+	 * @param array  $placeholders Placeholder replacements.
+	 * @return string HTML with param values temporarily preserved.
+	 */
+	private function rewrite_param_values_with_patterns(
+		$html,
+		$base_url,
+		$target_path,
+		array &$placeholders
+	) {
+		return preg_replace_callback(
+			'/<param\b[^>]*>/is',
+			function ( $matches ) use ( $base_url, $target_path, &$placeholders ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+
+				if ( empty( $attributes['name']['value'] ) || empty( $attributes['value']['value'] ) ) {
+					return $tag;
+				}
+
+				$kind = $this->param_attribute_kind( $attributes['name']['value'] );
+
+				if ( null === $kind ) {
+					return $tag;
+				}
+
+				$attribute = $attributes['value'];
+				$rewritten = $this->rewrite_url_value(
+					$attribute['value'],
+					$base_url,
+					$target_path,
+					$kind
+				);
+
+				if ( $rewritten === $attribute['value'] ) {
+					return $tag;
+				}
+
+				$placeholder                  = '#__SSGWP_PARAM_VALUE_'
+					. count( $placeholders ) . '__';
+				$placeholders[ $placeholder ] = $rewritten;
+
+				return $this->replace_html_tag_attribute( $tag, $attribute, $placeholder );
+			},
+			$html
+		);
+	}
+
+	/**
 	 * Rewrite URLs inside iframe srcdoc documents.
 	 *
 	 * @param string $html        HTML.
@@ -672,6 +773,36 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return 'asset';
+	}
+
+	/**
+	 * Determine how to treat a param value attribute.
+	 *
+	 * @param string $name Param name attribute.
+	 * @return string|null URL kind, or null when the value should not be rewritten.
+	 */
+	private function param_attribute_kind( $name ) {
+		$name = strtolower( trim( (string) $name ) );
+
+		if (
+			in_array(
+				$name,
+				array(
+					'data',
+					'href',
+					'movie',
+					'poster',
+					'src',
+					'thumbnail',
+					'url',
+				),
+				true
+			)
+		) {
+			return 'maybe';
+		}
+
+		return null;
 	}
 
 	/**

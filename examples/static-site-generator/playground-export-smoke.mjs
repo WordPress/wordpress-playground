@@ -254,6 +254,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<object data="' . esc_url($child_url) . '"></object>'
 	. '<object data="' . esc_url($asset_url . '?object=1') . '"></object>'
+	. '<object class="param-links"><param name="movie" value="' . esc_url($asset_url . '?param=1') . '"><param name="url" value="' . esc_url($child_url) . '"></object>'
 	. '<iframe src="' . esc_url($embed_url) . '"></iframe>'
 	. '<iframe data-src="' . esc_url($child_url) . '" data-lazy-src="' . esc_url($asset_url . '?lazy-frame=1') . '"></iframe>'
 	. '<embed src="' . esc_url($embed_url) . '">'
@@ -385,6 +386,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
 	. '<object data="' . esc_url($scoped_child_url) . '"></object>'
 	. '<object data="' . esc_url($scoped_asset_url . '?object=1') . '"></object>'
+	. '<object class="param-links"><param name="movie" value="' . esc_url($scoped_asset_url . '?param=1') . '"><param name="url" value="' . esc_url($scoped_child_url) . '"></object>'
 	. '<iframe src="' . esc_url($scoped_embed_url) . '"></iframe>'
 	. '<iframe data-src="' . esc_url($scoped_child_url) . '" data-lazy-src="' . esc_url($scoped_asset_url . '?lazy-frame=1') . '"></iframe>'
 	. '<embed src="' . esc_url($scoped_embed_url) . '">'
@@ -544,6 +546,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-embed=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?param=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
@@ -633,6 +636,16 @@ async function verifyExport() {
 		staticPage,
 		'data="../wp-content/uploads/ssgwp-smoke-asset.txt?object=1"',
 		'static-page/index.html rewrites object media sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<param name="movie" value="../wp-content/uploads/ssgwp-smoke-asset.txt?param=1">',
+		'static-page/index.html rewrites media object param values'
+	);
+	assertIncludes(
+		staticPage,
+		'<param name="url" value="../parent-page/child-page/index.html">',
+		'static-page/index.html rewrites page object param values'
 	);
 	assertIncludes(
 		staticPage,
@@ -771,6 +784,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-embed=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?param=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
@@ -860,6 +874,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'data="../wp-content/uploads/ssgwp-smoke-asset.txt?object=1"',
 		'scoped static-page/index.html rewrites object media sources'
+	);
+	assertIncludes(
+		staticPage,
+		'<param name="movie" value="../wp-content/uploads/ssgwp-smoke-asset.txt?param=1">',
+		'scoped static-page/index.html rewrites media object param values'
+	);
+	assertIncludes(
+		staticPage,
+		'<param name="url" value="../parent-page/child-page/index.html">',
+		'scoped static-page/index.html rewrites page object param values'
 	);
 	assertIncludes(
 		staticPage,

@@ -177,6 +177,9 @@ format.
 - Tighten relative static export URLs so rewritten links point directly between
   generated files, including document-relative links from pretty permalink
   pages. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite URL-bearing static export `param` values inside media objects so
+  legacy embeds point at generated pages or copied assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

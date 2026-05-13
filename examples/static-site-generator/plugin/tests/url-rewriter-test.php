@@ -572,7 +572,8 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 		. '<a href=/static-page/>Static</a>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
 		. '<object data=/object-page/></object>'
-		. '<object data=/wp-content/uploads/social-video.mp4?pattern=1></object>',
+		. '<object data=/wp-content/uploads/social-video.mp4?pattern=1></object>'
+		. '<param name=movie value=/wp-content/uploads/social-video.mp4?param=1>',
 	'https://example.test/',
 	'index.html'
 );
@@ -611,6 +612,12 @@ ssgwp_assert_contains(
 	'<object data=wp-content/uploads/social-video.mp4?pattern=1></object>',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns treats unquoted object media as assets.'
+);
+
+ssgwp_assert_contains(
+	'<param name=movie value=wp-content/uploads/social-video.mp4?param=1>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites URL-bearing param values.'
 );
 
 $pattern_lazy_rewritten = $pattern_method->invoke(
@@ -1008,6 +1015,9 @@ $html = implode(
 		'<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">',
 		'<object data="/object-page/"></object>',
 		'<object data="/wp-content/uploads/social-video.mp4?object=1"></object>',
+		'<object><param name="movie" value="/wp-content/uploads/social-video.mp4?param=1">'
+			. '<param name="url" value="/nested/page/">'
+			. '<param name="quality" value="/static-page/"></object>',
 		'<video><track kind="captions" src="/wp-content/uploads/captions.vtt?lang=en"></video>',
 		'<svg><filter><feImage href="/wp-content/uploads/filter.png?svg=1"'
 			. ' xlink:href="/wp-content/uploads/filter-2x.png?svg=2"></feImage></filter></svg>',
@@ -1628,6 +1638,36 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_contains(
+	'<param name="movie" value="wp-content/uploads/social-video.mp4?param=1">',
+	$result['content'],
+	'rewrite_html rewrites known URL-bearing param asset values.'
+);
+
+ssgwp_assert_contains(
+	'<param name="url" value="nested/page/index.html">',
+	$result['content'],
+	'rewrite_html rewrites known URL-bearing param page values.'
+);
+
+ssgwp_assert_contains(
+	'<param name="quality" value="/static-page/">',
+	$result['content'],
+	'rewrite_html leaves non-URL param control values unchanged.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/nested/page/', $result['links'], true ),
+	'rewrite_html records URL-bearing param page values as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?param=1', $result['assets'], true ),
+	'rewrite_html records URL-bearing param asset values as assets to copy.'
+);
+
+ssgwp_assert_contains(
 	'href="wp-content/uploads/filter.png?svg=1"',
 	$result['content'],
 	'rewrite_html rewrites SVG filter image href attributes.'
@@ -2024,6 +2064,7 @@ foreach (
 		'wp-content/uploads/social-video.mp4?schema=1',
 		'wp-content/uploads/social-video.mp4?embed=1',
 		'wp-content/uploads/social-video.mp4?lazy-embed=1',
+		'wp-content/uploads/social-video.mp4?param=1',
 		'wp-content/uploads/social-video.mp4?stream=1',
 		'wp-content/uploads/captions.vtt?lang=en',
 			'wp-content/uploads/tile.png',
