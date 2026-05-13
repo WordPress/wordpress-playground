@@ -26,6 +26,9 @@ test('should show app, backup, and troubleshooting tools', async ({
 
 	await expect(website.page.getByText('Install Apps')).toBeVisible();
 	await expect(
+		website.page.getByRole('link', { name: /App Launcher/ })
+	).toHaveAttribute('href', /blueprint-url=data%3Aapplication%2Fjson/);
+	await expect(
 		website.page.getByRole('heading', { name: 'Backup' })
 	).toBeVisible();
 	await expect(
