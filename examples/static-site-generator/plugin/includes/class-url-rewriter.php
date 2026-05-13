@@ -1290,6 +1290,7 @@ final class SSGWP_URL_Rewriter {
 			'discussionurl',
 			'embedurl',
 			'mainentityofpage',
+			'msapplication-starturl',
 			'og:see_also',
 			'og:url',
 			'relatedlink',

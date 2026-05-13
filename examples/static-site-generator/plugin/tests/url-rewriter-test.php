@@ -854,6 +854,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta property="og:see_also" content="/related/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
+		. '<meta name="msapplication-starturl" content="/start-page/">'
 		. '<meta name="msapplication-task" content="name=Docs;action-uri=/task-target/;icon-uri=/wp-content/uploads/tile.png?task=1">'
 		. '<meta name="description" content="Plain text">',
 	'https://example.test/',
@@ -930,6 +931,12 @@ ssgwp_assert_contains(
 	'<meta name="msapplication-TileImage" content="wp-content/uploads/tile.png">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites tile image meta URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="msapplication-starturl" content="start-page/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites Windows pinned-site start URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1110,6 +1117,7 @@ $html = implode(
 		'<meta name="msapplication-square70x70logo" content="/wp-content/uploads/tile.png?small=1">',
 		'<meta name="msapplication-wide310x150logo" content="/wp-content/uploads/tile.png?wide=1">',
 		'<meta name="msapplication-config" content="/browserconfig.xml">',
+		'<meta name="msapplication-starturl" content="/start-page/">',
 		'<meta name="msapplication-task" content="name=Docs;action-uri=/task-target/;icon-uri=/wp-content/uploads/tile.png?task=1">',
 		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
 		'<meta itemprop="embedUrl" content="/video-player/">',
@@ -1781,6 +1789,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta name="msapplication-starturl" content="start-page/index.html">',
+	$result['content'],
+	'rewrite_html rewrites Windows pinned-site start URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta name="msapplication-task" content="name=Docs;action-uri=task-target/index.html;icon-uri=wp-content/uploads/tile.png?task=1">',
 	$result['content'],
 	'rewrite_html rewrites Windows pinned-site task URLs in meta content attributes.'
@@ -1866,6 +1880,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
 		. '<meta name="msapplication-config" content="/browserconfig.xml">'
+		. '<meta name="msapplication-starturl" content="/start-page/">'
 		. '<meta name="msapplication-task" content="name=Docs;action-uri=/task-target/;icon-uri=/wp-content/uploads/tile.png?task=1">',
 	'https://example.test/',
 	'index.html'
@@ -1881,6 +1896,7 @@ ssgwp_assert_same(
 		'https://example.test/schema-discussion/',
 		'https://example.test/schema-related/',
 		'https://example.test/schema-significant/',
+		'https://example.test/start-page/',
 		'https://example.test/task-target/',
 	),
 	$meta_only_result['links'],

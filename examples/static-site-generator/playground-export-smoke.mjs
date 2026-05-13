@@ -216,6 +216,14 @@ $task_target_id = wp_insert_post(array(
 	'post_content' => '<p>Pinned-site task export target.</p>',
 ));
 
+$start_url_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Start URL',
+	'post_name' => 'start-url',
+	'post_content' => '<p>Pinned-site start URL export target.</p>',
+));
+
 $microdata_profile_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -286,6 +294,7 @@ $form_target_url = get_permalink($form_target_id);
 $form_button_url = get_permalink($form_button_id);
 $form_input_url = get_permalink($form_input_id);
 $task_target_url = get_permalink($task_target_id);
+$start_url = get_permalink($start_url_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
 $microdata_related_url = get_permalink($microdata_related_id);
@@ -328,6 +337,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="msapplication-square70x70logo" content="' . esc_url($asset_url . '?tile-small=1') . '">'
 	. '<meta name="msapplication-wide310x150logo" content="' . esc_url($asset_url . '?tile-wide=1') . '">'
 	. '<meta name="msapplication-config" content="' . esc_url($browserconfig_url) . '">'
+	. '<meta name="msapplication-starturl" content="' . esc_url($start_url) . '">'
 	. '<meta name="msapplication-task" content="name=Docs;action-uri=' . esc_url($task_target_url) . ';icon-uri=' . esc_url($asset_url . '?task=1') . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($child_url) . '">'
@@ -435,6 +445,7 @@ $scoped_form_target_url = get_permalink($form_target_id);
 $scoped_form_button_url = get_permalink($form_button_id);
 $scoped_form_input_url = get_permalink($form_input_id);
 $scoped_task_target_url = get_permalink($task_target_id);
+$scoped_start_url = get_permalink($start_url_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
 $scoped_microdata_related_url = get_permalink($microdata_related_id);
@@ -485,6 +496,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="msapplication-square70x70logo" content="' . esc_url($scoped_asset_url . '?tile-small=1') . '">'
 	. '<meta name="msapplication-wide310x150logo" content="' . esc_url($scoped_asset_url . '?tile-wide=1') . '">'
 	. '<meta name="msapplication-config" content="' . esc_url($scoped_browserconfig_url) . '">'
+	. '<meta name="msapplication-starturl" content="' . esc_url($scoped_start_url) . '">'
 	. '<meta name="msapplication-task" content="name=Docs;action-uri=' . esc_url($scoped_task_target_url) . ';icon-uri=' . esc_url($scoped_asset_url . '?task=1') . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($scoped_asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($scoped_child_url) . '">'
@@ -630,6 +642,7 @@ async function verifyExport() {
 	assertFile('form-input/index.html');
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
+	assertFile('start-url/index.html');
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
@@ -667,6 +680,7 @@ async function verifyExport() {
 		'../form-input/index.html',
 		'../form-target/index.html',
 		'../task-target/index.html',
+		'../start-url/index.html',
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
@@ -927,6 +941,7 @@ async function verifyScopedExport() {
 	assertFile('form-input/index.html');
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
+	assertFile('start-url/index.html');
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
@@ -976,6 +991,7 @@ async function verifyScopedExport() {
 		'../form-input/index.html',
 		'../form-target/index.html',
 		'../task-target/index.html',
+		'../start-url/index.html',
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
