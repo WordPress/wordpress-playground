@@ -923,6 +923,7 @@ foreach (
 			'legacy-frame/index.html',
 			'long-description/index.html',
 			'meta-page/index.html',
+			'microdata-profile/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -998,6 +999,8 @@ $html = implode(
 		'<link rel="prerender" href="/prefetched-page/#ready">',
 		'<link rel="prefetch" as="image" href="/wp-content/uploads/photo.jpg?prefetch=1">',
 		'<link rel="author" href="/author/admin/">',
+		'<link itemprop="url sameAs" href="/microdata-profile/">',
+		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
 		'<a class="generic-data-url" data-url="/generic-page/">Generic data URL</a>',
@@ -1195,6 +1198,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="url sameAs" href="microdata-profile/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org link itemprop page URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link itemprop="contentUrl" href="wp-content/uploads/social-video.mp4?link-schema=1">',
+	$result['content'],
+	'rewrite_html treats schema.org link itemprop media URLs as assets.'
+);
+
+ssgwp_assert_contains(
 	'data-href="deferred-page/index.html"',
 	$result['content'],
 	'rewrite_html treats data-href page URLs as links.'
@@ -1252,6 +1267,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/author/admin/', $result['links'], true ),
 	'rewrite_html records rel=author links as pages to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/microdata-profile/', $result['links'], true ),
+	'rewrite_html records schema.org link itemprop page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?link-schema=1', $result['assets'], true ),
+	'rewrite_html records schema.org link itemprop media URLs as assets to copy.'
 );
 
 ssgwp_assert_same(
@@ -2146,6 +2173,7 @@ foreach (
 		'author/admin/index.html',
 		'publisher/index.html',
 		'related/index.html',
+		'microdata-profile/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
 		'encoded%20page/index.html',
@@ -2160,6 +2188,7 @@ foreach (
 		'wp-content/uploads/social-video.mp4?schema=1',
 		'wp-content/uploads/social-video.mp4?embed=1',
 		'wp-content/uploads/social-video.mp4?lazy-embed=1',
+		'wp-content/uploads/social-video.mp4?link-schema=1',
 		'wp-content/uploads/social-video.mp4?param=1',
 		'wp-content/uploads/social-video.mp4?stream=1',
 		'wp-content/uploads/captions.vtt?lang=en',

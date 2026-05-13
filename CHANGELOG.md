@@ -127,6 +127,9 @@ format.
 - Rewrite article/profile social metadata page URLs in static exports,
   including Open Graph related links and Twitter player pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat schema.org `link itemprop` URLs as static export page or asset
+  references so microdata profile pages are crawled.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Copy dependencies discovered inside linked copied text assets, including
   icons referenced by web manifests.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

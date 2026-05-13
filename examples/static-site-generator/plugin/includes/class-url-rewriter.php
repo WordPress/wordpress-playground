@@ -758,6 +758,22 @@ final class SSGWP_URL_Rewriter {
 			'video',
 			'worker',
 		);
+		$itemprop          = strtolower( (string) $processor->get_attribute( 'itemprop' ) );
+		$itemprop_pages    = array(
+			'discussionurl',
+			'embedurl',
+			'mainentityofpage',
+			'sameas',
+			'significantlink',
+			'url',
+		);
+		$itemprop_assets   = array(
+			'contenturl',
+			'image',
+			'logo',
+			'thumbnail',
+			'thumbnailurl',
+		);
 
 		if ( preg_match( '/\b(dns-prefetch|preconnect)\b/', $rel ) ) {
 			return null;
@@ -774,6 +790,14 @@ final class SSGWP_URL_Rewriter {
 			return 'maybe';
 		}
 
+		if ( $this->contains_token( $itemprop, $itemprop_pages ) ) {
+			return 'page';
+		}
+
+		if ( $this->contains_token( $itemprop, $itemprop_assets ) ) {
+			return 'asset';
+		}
+
 		if (
 			preg_match( $page_rel_pattern, $rel )
 			&& ! preg_match( '#/(css|javascript|json|xml|rss|atom)#', $type )
@@ -782,6 +806,23 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return 'asset';
+	}
+
+	/**
+	 * Check whether a space-separated token list contains one of the given tokens.
+	 *
+	 * @param string   $value  Token list.
+	 * @param string[] $tokens Tokens to find.
+	 * @return bool Whether the value contains one of the tokens.
+	 */
+	private function contains_token( $value, array $tokens ) {
+		foreach ( preg_split( '/\s+/', trim( (string) $value ) ) as $token ) {
+			if ( in_array( $token, $tokens, true ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
