@@ -255,6 +255,9 @@ format.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Treat microdata `itemid` attributes as crawlable static export page URLs.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat RDFa `about` and `resource` page identifiers as crawlable static
+  export pages while preserving CURIE and blank-node values.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

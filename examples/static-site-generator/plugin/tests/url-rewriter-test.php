@@ -686,7 +686,9 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
 		. '<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">'
 		. '<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>'
-		. '<article itemscope itemid="/microdata-item/">Microdata item</article>',
+		. '<article itemscope itemid="/microdata-item/">Microdata item</article>'
+		. '<article about="/rdfa-about/" resource="https://example.test/rdfa-resource/">RDFa</article>'
+		. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>',
 	'https://example.test/',
 	'index.html'
 );
@@ -803,6 +805,18 @@ ssgwp_assert_contains(
 	'itemid="microdata-item/index.html"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites microdata itemid page URLs.'
+);
+
+ssgwp_assert_contains(
+	'about="rdfa-about/index.html" resource="rdfa-resource/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites RDFa page identifiers.'
+);
+
+ssgwp_assert_contains(
+	'about="[schema:Thing]" resource="_:local"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns preserves RDFa CURIE values.'
 );
 
 $pattern_srcdoc_method = new ReflectionMethod( $rewriter, 'rewrite_srcdoc_attributes_with_patterns' );
@@ -1180,6 +1194,8 @@ $html = implode(
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<article itemscope itemid="/microdata-item/">Microdata item</article>',
+		'<article about="/rdfa-about/" resource="https://example.test/rdfa-resource/">RDFa</article>',
+		'<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>',
 		'<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
@@ -1486,6 +1502,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'about="rdfa-about/index.html" resource="rdfa-resource/index.html"',
+	$result['content'],
+	'rewrite_html treats RDFa about/resource URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'about="[schema:Thing]" resource="_:local"',
+	$result['content'],
+	'rewrite_html preserves RDFa CURIE and blank-node values.'
+);
+
+ssgwp_assert_contains(
 	'data-href="deferred-page/index.html"',
 	$result['content'],
 	'rewrite_html treats data-href page URLs as links.'
@@ -1627,6 +1655,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-item/', $result['links'], true ),
 	'rewrite_html records microdata itemid URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/rdfa-about/', $result['links'], true ),
+	'rewrite_html records RDFa about URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/rdfa-resource/', $result['links'], true ),
+	'rewrite_html records RDFa resource URLs as links to crawl.'
 );
 
 ssgwp_assert_same(

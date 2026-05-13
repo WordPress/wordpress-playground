@@ -356,7 +356,9 @@ final class SSGWP_URL_Rewriter {
 			'data-thumb'       => 'asset',
 			'data-thumbnail'   => 'asset',
 			'data-url'         => 'maybe',
+			'about'            => 'semantic-page',
 			'itemid'           => 'page',
+			'resource'         => 'semantic-page',
 		);
 		$attributes_by_tag      = array(
 			'A'          => array(
@@ -559,7 +561,9 @@ final class SSGWP_URL_Rewriter {
 			'data-thumbnail'   => 'asset',
 			'data-url'         => 'maybe',
 			'imagesrcset'      => 'srcset',
+			'about'            => 'semantic-page',
 			'itemid'           => 'page',
+			'resource'         => 'semantic-page',
 			'xlink:href'       => 'asset',
 		);
 
@@ -1838,7 +1842,8 @@ final class SSGWP_URL_Rewriter {
 	 * @param string $value       URL value.
 	 * @param string $base_url    Base URL.
 	 * @param string $target_path Relative static file path.
-	 * @param string $kind        URL kind: page, asset, maybe, base, browserconfig.
+	 * @param string $kind        URL kind: page, asset, maybe, base,
+	 *                            browserconfig, semantic-page.
 	 * @return string
 	 */
 	private function rewrite_url_value( $value, $base_url, $target_path, $kind ) {
@@ -1850,6 +1855,14 @@ final class SSGWP_URL_Rewriter {
 
 		if ( $this->is_wildcard_url_pattern( $value ) ) {
 			return $value;
+		}
+
+		if ( 'semantic-page' === $kind ) {
+			if ( ! $this->is_semantic_page_url_value( $value ) ) {
+				return $value;
+			}
+
+			$kind = 'page';
 		}
 
 		if ( 'browserconfig' === $kind ) {
@@ -1991,6 +2004,19 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function is_wildcard_url_pattern( $url ) {
 		return (bool) preg_match( '/[*{}]/', (string) $url );
+	}
+
+	/**
+	 * Check whether an RDFa identifier value is concrete enough to rewrite.
+	 *
+	 * @param string $url RDFa about/resource value.
+	 * @return bool Whether the value looks like a URL reference.
+	 */
+	private function is_semantic_page_url_value( $url ) {
+		return (bool) preg_match(
+			'#^(?:[a-z][a-z0-9+.-]*:|//|/|\./|\../|\?)#i',
+			trim( (string) $url )
+		);
 	}
 
 	/**
