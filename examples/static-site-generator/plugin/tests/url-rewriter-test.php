@@ -531,6 +531,30 @@ ssgwp_assert_contains(
 	'rewrite_html_attributes_with_patterns rewrites unquoted asset links.'
 );
 
+$pattern_srcdoc_method = new ReflectionMethod( $rewriter, 'rewrite_srcdoc_attributes_with_patterns' );
+$pattern_srcdoc_method->setAccessible( true );
+
+$pattern_srcdoc_rewritten = $pattern_srcdoc_method->invoke(
+	$rewriter,
+	'<iframe srcdoc="'
+		. esc_attr( '<a href="/embedded-page/">Embedded</a><img src="/wp-content/uploads/photo.jpg?srcdoc=1">' )
+		. '"></iframe>',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'href=&quot;embedded-page/index.html&quot;',
+	$pattern_srcdoc_rewritten,
+	'rewrite_srcdoc_attributes_with_patterns rewrites page links inside srcdoc.'
+);
+
+ssgwp_assert_contains(
+	'src=&quot;wp-content/uploads/photo.jpg?srcdoc=1&quot;',
+	$pattern_srcdoc_rewritten,
+	'rewrite_srcdoc_attributes_with_patterns rewrites asset URLs inside srcdoc.'
+);
+
 $pattern_meta_refresh_method = new ReflectionMethod( $rewriter, 'rewrite_meta_refresh_with_patterns' );
 $pattern_meta_refresh_method->setAccessible( true );
 
@@ -636,6 +660,7 @@ foreach (
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
 		'sample-page/index.html',
+		'embedded-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',
@@ -653,6 +678,12 @@ foreach (
 ) {
 	ssgwp_touch_export_file( $export_root, $fixture_file );
 }
+
+$srcdoc = esc_attr(
+	'<a class="embedded" href="/embedded-page/">Embedded</a>'
+		. '<img src="/wp-content/uploads/photo.jpg?srcdoc=1" alt="">'
+		. '<style>.embed{background:url("/wp-content/uploads/bg.jpg?srcdoc=1")}</style>'
+);
 
 $html = implode(
 	'',
@@ -702,6 +733,7 @@ $html = implode(
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<div style=background:url(/wp-content/uploads/bg.jpg?unquoted=1)></div>',
+		'<iframe srcdoc="' . $srcdoc . '"></iframe>',
 		'<script type="application/json">{"url":"https:\/\/example.test\/nested\/page\/"}</script>',
 		'<script type="application/json">{"protocol":"//example.test/protocol-text/","protocolEscaped":"\/\/example.test\/protocol-escaped\/"}</script>',
 		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
@@ -925,6 +957,30 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'href=&quot;embedded-page/index.html&quot;',
+	$result['content'],
+	'rewrite_html rewrites page links inside iframe srcdoc attributes.'
+);
+
+ssgwp_assert_contains(
+	'src=&quot;wp-content/uploads/photo.jpg?srcdoc=1&quot;',
+	$result['content'],
+	'rewrite_html rewrites asset URLs inside iframe srcdoc attributes.'
+);
+
+ssgwp_assert_contains(
+	'url(&quot;wp-content/uploads/bg.jpg?srcdoc=1&quot;)',
+	$result['content'],
+	'rewrite_html rewrites CSS URLs inside iframe srcdoc attributes.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/embedded-page/', $result['links'], true ),
+	'rewrite_html records iframe srcdoc page links as links to crawl.'
+);
+
+ssgwp_assert_contains(
 	'nested\/page\/index.html',
 	$result['content'],
 	'rewrite_html rewrites JSON-escaped same-site page URLs.'
@@ -1112,6 +1168,7 @@ foreach (
 		'protocol-page/index.html',
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
+		'embedded-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',

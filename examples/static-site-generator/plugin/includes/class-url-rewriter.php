@@ -65,6 +65,7 @@ final class SSGWP_URL_Rewriter {
 		$this->assets = array();
 
 		$html = $this->rewrite_html_attributes( (string) $html, $page_url, $target_path );
+		$html = $this->rewrite_srcdoc_attributes( $html, $page_url, $target_path );
 		$html = $this->rewrite_meta_refresh( $html, $page_url, $target_path );
 		$html = $this->rewrite_meta_content_urls( $html, $page_url, $target_path );
 		$html = $this->rewrite_css_in_style_blocks( $html, $page_url, $target_path );
@@ -97,6 +98,7 @@ final class SSGWP_URL_Rewriter {
 			$content = $this->rewrite_css_urls( $content, $base_url, $relative_path );
 		} elseif ( in_array( $extension, array( 'html', 'svg' ), true ) ) {
 			$content = $this->rewrite_html_attributes( $content, $base_url, $relative_path );
+			$content = $this->rewrite_srcdoc_attributes( $content, $base_url, $relative_path );
 			$content = $this->rewrite_css_in_style_blocks( $content, $base_url, $relative_path );
 			$content = $this->rewrite_css_in_style_attributes( $content, $base_url, $relative_path );
 		}
@@ -333,6 +335,98 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return strtr( $html, $placeholders );
+	}
+
+	/**
+	 * Rewrite URLs inside iframe srcdoc documents.
+	 *
+	 * @param string $html        HTML.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string HTML with rewritten srcdoc attributes.
+	 */
+	private function rewrite_srcdoc_attributes( $html, $base_url, $target_path ) {
+		if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
+			return $this->rewrite_srcdoc_attributes_with_patterns( $html, $base_url, $target_path );
+		}
+
+		$processor = new WP_HTML_Tag_Processor( $html );
+		$changed   = false;
+
+		while ( $processor->next_tag( 'IFRAME' ) ) {
+			$srcdoc = $processor->get_attribute( 'srcdoc' );
+
+			if ( ! is_string( $srcdoc ) || '' === $srcdoc ) {
+				continue;
+			}
+
+			$rewritten = $this->rewrite_srcdoc_html( $srcdoc, $base_url, $target_path );
+
+			if ( $rewritten !== $srcdoc ) {
+				$processor->set_attribute( 'srcdoc', $rewritten );
+				$changed = true;
+			}
+		}
+
+		return $changed ? $processor->get_updated_html() : $html;
+	}
+
+	/**
+	 * Rewrite URLs inside iframe srcdoc attributes without the HTML API.
+	 *
+	 * @param string $html        HTML.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string HTML with rewritten srcdoc attributes.
+	 */
+	private function rewrite_srcdoc_attributes_with_patterns( $html, $base_url, $target_path ) {
+		return preg_replace_callback(
+			'/<iframe\b[^>]*>/is',
+			function ( $matches ) use ( $base_url, $target_path ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+
+				if ( empty( $attributes['srcdoc']['value'] ) ) {
+					return $tag;
+				}
+
+				$rewritten = $this->rewrite_srcdoc_html(
+					$attributes['srcdoc']['value'],
+					$base_url,
+					$target_path
+				);
+
+				if ( $rewritten === $attributes['srcdoc']['value'] ) {
+					return $tag;
+				}
+
+				return $this->replace_html_tag_attribute( $tag, $attributes['srcdoc'], $rewritten );
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Rewrite a srcdoc HTML fragment.
+	 *
+	 * @param string $srcdoc      srcdoc HTML.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string Rewritten srcdoc HTML.
+	 */
+	private function rewrite_srcdoc_html( $srcdoc, $base_url, $target_path ) {
+		$srcdoc = html_entity_decode( (string) $srcdoc, ENT_QUOTES );
+		$srcdoc = $this->rewrite_html_attributes( $srcdoc, $base_url, $target_path );
+		$srcdoc = $this->rewrite_srcdoc_attributes( $srcdoc, $base_url, $target_path );
+		$srcdoc = $this->rewrite_meta_refresh( $srcdoc, $base_url, $target_path );
+		$srcdoc = $this->rewrite_meta_content_urls( $srcdoc, $base_url, $target_path );
+		$srcdoc = $this->rewrite_css_in_style_blocks( $srcdoc, $base_url, $target_path );
+		$srcdoc = $this->rewrite_css_in_style_attributes( $srcdoc, $base_url, $target_path );
+
+		return $this->rewrite_same_site_text_urls_preserving_resource_hints(
+			$srcdoc,
+			$target_path
+		);
 	}
 
 	/**

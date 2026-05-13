@@ -94,6 +94,9 @@ format.
 - Treat static export `prefetch` and `prerender` page hints as crawlable page
   links while keeping asset prefetch hints as copied assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite static export page and asset URLs embedded inside iframe `srcdoc`
+  attributes.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
