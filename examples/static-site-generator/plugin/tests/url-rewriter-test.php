@@ -826,6 +826,9 @@ foreach (
 			'comments/index.html',
 			'embed-page/index.html',
 			'framed-page/index.html',
+			'form-button/index.html',
+			'form-input/index.html',
+			'form-target/index.html',
 			'generic-page/index.html',
 			'meta-page/index.html',
 		'nested/page/index.html',
@@ -906,6 +909,8 @@ $html = implode(
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
 		'<a class="generic-data-url" data-url="/generic-page/">Generic data URL</a>',
 		'<button data-link="/wp-content/uploads/photo.jpg?data-link=1">Generic data asset</button>',
+		'<form action="/form-target/"><button formaction="/form-button/">Submit</button>'
+			. '<input type="submit" formaction="/form-input/"></form>',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
 		'<a class="external-port" href="https://example.test:8443/static-page/">External port</a>',
 		'<a class="external-scheme" href="http://example.test:443/static-page/">External scheme</a>',
@@ -1113,6 +1118,24 @@ ssgwp_assert_contains(
 	'rewrite_html treats data-link media URLs as assets.'
 );
 
+ssgwp_assert_contains(
+	'<form action="form-target/index.html">',
+	$result['content'],
+	'rewrite_html rewrites form action page targets.'
+);
+
+ssgwp_assert_contains(
+	'<button formaction="form-button/index.html">',
+	$result['content'],
+	'rewrite_html rewrites button formaction page targets.'
+);
+
+ssgwp_assert_contains(
+	'<input type="submit" formaction="form-input/index.html">',
+	$result['content'],
+	'rewrite_html rewrites input formaction page targets.'
+);
+
 ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/prefetched-page/', $result['links'], true ),
@@ -1142,6 +1165,21 @@ ssgwp_assert_same(
 	in_array( 'https://example.test/generic-page/', $result['links'], true ),
 	'rewrite_html records data-url page URLs as links to crawl.'
 );
+
+foreach (
+	array(
+		'https://example.test/form-target/',
+		'https://example.test/form-button/',
+		'https://example.test/form-input/',
+	)
+	as $form_link
+) {
+	ssgwp_assert_same(
+		true,
+		in_array( $form_link, $result['links'], true ),
+		'rewrite_html records form navigation URLs as links to crawl: ' . $form_link
+	);
+}
 
 ssgwp_assert_same(
 	false,

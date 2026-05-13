@@ -174,6 +174,30 @@ $deferred_id = wp_insert_post(array(
 	'post_content' => '<p>Deferred data-href export target.</p>',
 ));
 
+$form_target_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Form Target',
+	'post_name' => 'form-target',
+	'post_content' => '<p>Form action export target.</p>',
+));
+
+$form_button_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Form Button',
+	'post_name' => 'form-button',
+	'post_content' => '<p>Button formaction export target.</p>',
+));
+
+$form_input_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Form Input',
+	'post_name' => 'form-input',
+	'post_content' => '<p>Input formaction export target.</p>',
+));
+
 wp_update_post(array(
 	'ID' => $child_id,
 	'post_parent' => $parent_id,
@@ -183,6 +207,9 @@ $child_url = get_permalink($child_id);
 $comments_url = get_permalink($comments_id);
 $embed_url = get_permalink($embed_id);
 $deferred_url = get_permalink($deferred_id);
+$form_target_url = get_permalink($form_target_id);
+$form_button_url = get_permalink($form_button_id);
+$form_input_url = get_permalink($form_input_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $rest_route_url = '/?rest_route=/wp/v2/posts';
 $feed_query_url = '/?feed=rss2';
@@ -193,6 +220,10 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<form class="form-links" action="' . esc_url($form_target_url) . '">'
+	. '<button formaction="' . esc_url($form_button_url) . '">Button</button>'
+	. '<input type="submit" formaction="' . esc_url($form_input_url) . '">'
+	. '</form>'
 	. '<p><a class="comments-link" href="' . esc_url($comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($rest_route_url) . '">REST</a></p>'
@@ -286,6 +317,9 @@ $scoped_child_url = get_permalink($child_id);
 $scoped_comments_url = get_permalink($comments_id);
 $scoped_embed_url = get_permalink($embed_id);
 $scoped_deferred_url = get_permalink($deferred_id);
+$scoped_form_target_url = get_permalink($form_target_id);
+$scoped_form_button_url = get_permalink($form_button_id);
+$scoped_form_input_url = get_permalink($form_input_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_rest_route_url = home_url('/?rest_route=/wp/v2/posts');
 $scoped_feed_query_url = home_url('/?feed=rss2');
@@ -304,6 +338,10 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($scoped_child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($scoped_asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<form class="form-links" action="' . esc_url($scoped_form_target_url) . '">'
+	. '<button formaction="' . esc_url($scoped_form_button_url) . '">Button</button>'
+	. '<input type="submit" formaction="' . esc_url($scoped_form_input_url) . '">'
+	. '</form>'
 	. '<p><a class="comments-link" href="' . esc_url($scoped_comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($scoped_rest_route_url) . '">REST</a></p>'
@@ -443,6 +481,9 @@ async function verifyExport() {
 	assertFile('comments/index.html');
 	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
+	assertFile('form-button/index.html');
+	assertFile('form-input/index.html');
+	assertFile('form-target/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
@@ -466,6 +507,9 @@ async function verifyExport() {
 		'../comments/index.html',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
+		'../form-button/index.html',
+		'../form-input/index.html',
+		'../form-target/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
@@ -528,6 +572,21 @@ async function verifyExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'<form class="form-links" action="../form-target/index.html">',
+		'static-page/index.html rewrites form action page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'<button formaction="../form-button/index.html">',
+		'static-page/index.html rewrites button formaction page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'<input type="submit" formaction="../form-input/index.html">',
+		'static-page/index.html rewrites input formaction page targets'
 	);
 	assertIncludes(
 		staticPage,
@@ -635,6 +694,9 @@ async function verifyScopedExport() {
 	assertFile('comments/index.html');
 	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
+	assertFile('form-button/index.html');
+	assertFile('form-input/index.html');
+	assertFile('form-target/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/uploads/ssgwp-smoke-captions.vtt');
@@ -670,6 +732,9 @@ async function verifyScopedExport() {
 		'../comments/index.html',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
+		'../form-button/index.html',
+		'../form-input/index.html',
+		'../form-target/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
@@ -731,6 +796,21 @@ async function verifyScopedExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'scoped static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'<form class="form-links" action="../form-target/index.html">',
+		'scoped static-page/index.html rewrites form action page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'<button formaction="../form-button/index.html">',
+		'scoped static-page/index.html rewrites button formaction page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'<input type="submit" formaction="../form-input/index.html">',
+		'scoped static-page/index.html rewrites input formaction page targets'
 	);
 	assertIncludes(
 		staticPage,

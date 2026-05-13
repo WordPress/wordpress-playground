@@ -171,6 +171,9 @@ format.
 - Treat generic static export `data-url` and `data-link` attributes as
   page-or-asset references so deferred frontend URLs are crawled or copied.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Cover static export form navigation URLs so form `action` and `formaction`
+  page targets are crawled and verified in Playground smoke tests.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
