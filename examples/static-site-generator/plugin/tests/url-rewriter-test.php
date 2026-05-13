@@ -1197,6 +1197,7 @@ $html = implode(
 		'<link rel="preload" type="text/html" href="/typed-preload/">',
 		'<link rel="prefetch" as="image" href="/wp-content/uploads/photo.jpg?prefetch=1">',
 		'<link rel="author" href="/author/admin/">',
+		'<link rel="me" href="/identity/">',
 		'<link rel="profile" href="/profile-page/">',
 		'<link rel="amphtml" href="/amp-page/">',
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
@@ -1479,6 +1480,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link rel="me" href="identity/index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=me links as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link rel="profile" href="profile-page/index.html">',
 	$result['content'],
 	'rewrite_html treats same-site rel=profile links as page links.'
@@ -1644,6 +1651,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/author/admin/', $result['links'], true ),
 	'rewrite_html records rel=author links as pages to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/identity/', $result['links'], true ),
+	'rewrite_html records rel=me links as pages to crawl.'
 );
 
 ssgwp_assert_same(

@@ -929,7 +929,7 @@ final class SSGWP_URL_Rewriter {
 		$type = strtolower( (string) $processor->get_attribute( 'type' ) );
 		$page_rel_pattern = '/\b('
 			. 'alternate|amphtml|appendix|archives|author|bookmark|canonical|chapter|contents|help|home|index|'
-			. 'license|next|prev|privacy-policy|profile|search|section|shortlink|start|subsection|tag|'
+			. 'license|me|next|prev|privacy-policy|profile|search|section|shortlink|start|subsection|tag|'
 			. 'terms-of-service'
 			. ')\b/';
 		$asset_as_values  = array(

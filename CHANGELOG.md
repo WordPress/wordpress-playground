@@ -109,6 +109,9 @@ format.
 - Treat static export `rel="profile"` links as crawlable page references so
   profile documents are generated instead of copied as assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat static export `rel="me"` identity links as crawlable page references
+  so same-site identity/profile documents are generated.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite common lazy-loading `data-*` asset attributes in static exports,
   including background URLs and background `srcset` values on non-image tags.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
