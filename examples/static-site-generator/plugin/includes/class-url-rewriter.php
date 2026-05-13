@@ -179,7 +179,21 @@ final class SSGWP_URL_Rewriter {
 			return $this->rewrite_html_attributes_with_patterns( $html, $base_url, $target_path );
 		}
 
-		$attributes_by_tag = array(
+		$global_attribute_kinds = array(
+			'data-bg'          => 'asset',
+			'data-background'  => 'asset',
+			'data-bgset'       => 'srcset',
+			'data-full-url'    => 'asset',
+			'data-lazy-src'    => 'asset',
+			'data-lazy-srcset' => 'srcset',
+			'data-original'    => 'asset',
+			'data-poster'      => 'asset',
+			'data-src'         => 'asset',
+			'data-srcset'      => 'srcset',
+			'data-thumb'       => 'asset',
+			'data-thumbnail'   => 'asset',
+		);
+		$attributes_by_tag      = array(
 			'A'          => array( 'href' => 'page' ),
 			'AREA'       => array( 'href' => 'page' ),
 			'AUDIO'      => array( 'src' => 'asset' ),
@@ -195,14 +209,9 @@ final class SSGWP_URL_Rewriter {
 			),
 			'IFRAME'     => array( 'src' => 'maybe' ),
 			'IMG'        => array(
-				'data-bg'          => 'asset',
-				'data-lazy-src'    => 'asset',
-				'data-lazy-srcset' => 'srcset',
-				'data-src'         => 'asset',
-				'data-srcset'      => 'srcset',
-				'poster'           => 'asset',
-				'src'              => 'asset',
-				'srcset'           => 'srcset',
+				'poster' => 'asset',
+				'src'    => 'asset',
+				'srcset' => 'srcset',
 			),
 			'IMAGE'      => array(
 				'href'       => 'asset',
@@ -243,11 +252,17 @@ final class SSGWP_URL_Rewriter {
 		while ( $processor->next_tag() ) {
 			$tag_name = $processor->get_tag();
 
-			if ( ! isset( $attributes_by_tag[ $tag_name ] ) ) {
+			$attributes = $global_attribute_kinds;
+
+			if ( isset( $attributes_by_tag[ $tag_name ] ) ) {
+				$attributes = array_merge( $attributes, $attributes_by_tag[ $tag_name ] );
+			}
+
+			if ( empty( $attributes ) ) {
 				continue;
 			}
 
-			foreach ( $attributes_by_tag[ $tag_name ] as $attribute => $kind ) {
+			foreach ( $attributes as $attribute => $kind ) {
 				$value = $processor->get_attribute( $attribute );
 
 				if ( ! is_string( $value ) || '' === $value ) {
@@ -306,6 +321,13 @@ final class SSGWP_URL_Rewriter {
 			'data-lazy-src'    => 'asset',
 			'data-lazy-srcset' => 'srcset',
 			'data-bg'          => 'asset',
+			'data-background'  => 'asset',
+			'data-bgset'       => 'srcset',
+			'data-full-url'    => 'asset',
+			'data-original'    => 'asset',
+			'data-poster'      => 'asset',
+			'data-thumb'       => 'asset',
+			'data-thumbnail'   => 'asset',
 			'imagesrcset'      => 'srcset',
 			'xlink:href'       => 'asset',
 		);

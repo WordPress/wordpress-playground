@@ -531,6 +531,33 @@ ssgwp_assert_contains(
 	'rewrite_html_attributes_with_patterns rewrites unquoted asset links.'
 );
 
+$pattern_lazy_rewritten = $pattern_method->invoke(
+	$rewriter,
+	'<div data-bg="/wp-content/uploads/bg.jpg?lazy=1"'
+		. ' data-bgset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">'
+		. '<span data-src="/wp-content/uploads/photo.jpg?lazy=2"></span></div>',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'data-bg="wp-content/uploads/bg.jpg?lazy=1"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites lazy background asset attributes.'
+);
+
+ssgwp_assert_contains(
+	'data-bgset="wp-content/uploads/photo.jpg 1x, wp-content/uploads/photo-2x.jpg 2x"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites lazy background srcset attributes.'
+);
+
+ssgwp_assert_contains(
+	'data-src="wp-content/uploads/photo.jpg?lazy=2"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites lazy source attributes on any tag.'
+);
+
 $pattern_srcdoc_method = new ReflectionMethod( $rewriter, 'rewrite_srcdoc_attributes_with_patterns' );
 $pattern_srcdoc_method->setAccessible( true );
 
@@ -732,6 +759,12 @@ $html = implode(
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
 		'<img srcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
 		'<img srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
+		'<div data-bg="/wp-content/uploads/bg.jpg?lazy=1"'
+			. ' data-background="/wp-content/uploads/bg.jpg?lazy=2"'
+			. ' data-bgset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x"></div>',
+		'<span data-src="/wp-content/uploads/photo.jpg?lazy=3"'
+			. ' data-original="/wp-content/uploads/photo.jpg?lazy=4"'
+			. ' data-poster="/wp-content/uploads/bg.jpg?lazy=5"></span>',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<div style=background:url(/wp-content/uploads/bg.jpg?unquoted=1)></div>',
@@ -901,6 +934,42 @@ ssgwp_assert_contains(
 	'imagesrcset="wp-content/uploads/photo.jpg 1x, wp-content/uploads/photo-2x.jpg 2x"',
 	$result['content'],
 	'rewrite_html rewrites responsive image preload srcset candidates.'
+);
+
+ssgwp_assert_contains(
+	'data-bg="wp-content/uploads/bg.jpg?lazy=1"',
+	$result['content'],
+	'rewrite_html rewrites lazy background asset attributes on non-image tags.'
+);
+
+ssgwp_assert_contains(
+	'data-background="wp-content/uploads/bg.jpg?lazy=2"',
+	$result['content'],
+	'rewrite_html rewrites lazy data-background asset attributes.'
+);
+
+ssgwp_assert_contains(
+	'data-bgset="wp-content/uploads/photo.jpg 1x, wp-content/uploads/photo-2x.jpg 2x"',
+	$result['content'],
+	'rewrite_html rewrites lazy background srcset attributes.'
+);
+
+ssgwp_assert_contains(
+	'data-src="wp-content/uploads/photo.jpg?lazy=3"',
+	$result['content'],
+	'rewrite_html rewrites lazy data-src attributes on non-image tags.'
+);
+
+ssgwp_assert_contains(
+	'data-original="wp-content/uploads/photo.jpg?lazy=4"',
+	$result['content'],
+	'rewrite_html rewrites lazy data-original attributes.'
+);
+
+ssgwp_assert_contains(
+	'data-poster="wp-content/uploads/bg.jpg?lazy=5"',
+	$result['content'],
+	'rewrite_html rewrites lazy data-poster attributes.'
 );
 
 ssgwp_assert_contains(
@@ -1195,7 +1264,12 @@ foreach (
 		'wp-content/uploads/social-video.mp4?ver=1',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo.jpg?prefetch=1',
+		'wp-content/uploads/photo.jpg?lazy=3',
+		'wp-content/uploads/photo.jpg?lazy=4',
 		'wp-content/uploads/photo-2x.jpg',
+		'wp-content/uploads/bg.jpg?lazy=1',
+		'wp-content/uploads/bg.jpg?lazy=2',
+		'wp-content/uploads/bg.jpg?lazy=5',
 		'wp-content/uploads/bg.jpg?unquoted=1',
 	)
 	as $static_url
