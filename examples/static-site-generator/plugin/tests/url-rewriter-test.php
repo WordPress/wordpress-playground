@@ -634,6 +634,7 @@ foreach (
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
 		'protocol-text/index.html',
+		'prefetched-page/index.html',
 		'sample-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
@@ -677,6 +678,9 @@ $html = implode(
 		'<link rel="home" href="https://example.test/">',
 		'<link rel="preconnect" href="https://example.test">',
 		'<link rel="dns-prefetch" href="//example.test">',
+		'<link rel="prefetch" href="/prefetched-page/">',
+		'<link rel="prerender" href="/prefetched-page/#ready">',
+		'<link rel="prefetch" as="image" href="/wp-content/uploads/photo.jpg?prefetch=1">',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
 		'<a class="external-port" href="https://example.test:8443/static-page/">External port</a>',
 		'<a class="external-scheme" href="http://example.test:443/static-page/">External scheme</a>',
@@ -797,6 +801,36 @@ ssgwp_assert_contains(
 	'<link rel="dns-prefetch" href="//example.test">',
 	$result['content'],
 	'rewrite_html leaves same-origin DNS prefetch resource hints unchanged.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="prefetch" href="prefetched-page/index.html">',
+	$result['content'],
+	'rewrite_html rewrites page prefetch hints as crawlable pages.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="prerender" href="prefetched-page/index.html#ready">',
+	$result['content'],
+	'rewrite_html rewrites page prerender hints as crawlable pages.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="prefetch" as="image" href="wp-content/uploads/photo.jpg?prefetch=1">',
+	$result['content'],
+	'rewrite_html keeps image prefetch hints as copied assets.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/prefetched-page/', $result['links'], true ),
+	'rewrite_html records page prefetch hints as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/photo.jpg?prefetch=1', $result['assets'], true ),
+	'rewrite_html records image prefetch hints as assets to copy.'
 );
 
 ssgwp_assert_contains(
@@ -1077,6 +1111,7 @@ foreach (
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
 		'protocol-text/index.html',
+		'prefetched-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
 		'collision%2Bpage/index.html',
@@ -1087,6 +1122,7 @@ foreach (
 		'wp-content/uploads/social-audio.mp3?ver=1',
 		'wp-content/uploads/social-video.mp4?ver=1',
 		'wp-content/uploads/photo.jpg?size=large',
+		'wp-content/uploads/photo.jpg?prefetch=1',
 		'wp-content/uploads/photo-2x.jpg',
 		'wp-content/uploads/bg.jpg?unquoted=1',
 	)

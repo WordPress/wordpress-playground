@@ -343,11 +343,34 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function link_attribute_kind( $processor ) {
 		$rel  = strtolower( (string) $processor->get_attribute( 'rel' ) );
+		$as   = strtolower( (string) $processor->get_attribute( 'as' ) );
 		$type = strtolower( (string) $processor->get_attribute( 'type' ) );
 		$page_rel_pattern = '/\b(canonical|alternate|prev|next|shortlink|bookmark|home|index|start)\b/';
+		$asset_as_values  = array(
+			'audio',
+			'font',
+			'image',
+			'manifest',
+			'script',
+			'style',
+			'track',
+			'video',
+			'worker',
+		);
 
 		if ( preg_match( '/\b(dns-prefetch|preconnect)\b/', $rel ) ) {
 			return null;
+		}
+
+		if ( preg_match( '/\b(prefetch|prerender)\b/', $rel ) ) {
+			if (
+				in_array( $as, $asset_as_values, true )
+				|| preg_match( '#/(css|javascript|json|xml|rss|atom)#', $type )
+			) {
+				return 'asset';
+			}
+
+			return 'maybe';
 		}
 
 		if (

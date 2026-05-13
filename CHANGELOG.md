@@ -91,6 +91,9 @@ format.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite static export URLs inside unquoted inline `style` attributes.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat static export `prefetch` and `prerender` page hints as crawlable page
+  links while keeping asset prefetch hints as copied assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
