@@ -232,6 +232,38 @@ $start_url_id = wp_insert_post(array(
 	'post_content' => '<p>Pinned-site start URL export target.</p>',
 ));
 
+$link_rel_about_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Link Relation About',
+	'post_name' => 'link-rel-about',
+	'post_content' => '<p>About link relation export target.</p>',
+));
+
+$link_rel_copyright_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Link Relation Copyright',
+	'post_name' => 'link-rel-copyright',
+	'post_content' => '<p>Copyright link relation export target.</p>',
+));
+
+$link_rel_glossary_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Link Relation Glossary',
+	'post_name' => 'link-rel-glossary',
+	'post_content' => '<p>Glossary link relation export target.</p>',
+));
+
+$link_rel_payment_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Link Relation Payment',
+	'post_name' => 'link-rel-payment',
+	'post_content' => '<p>Payment link relation export target.</p>',
+));
+
 $microdata_profile_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -439,6 +471,10 @@ $form_button_url = get_permalink($form_button_id);
 $form_input_url = get_permalink($form_input_id);
 $task_target_url = get_permalink($task_target_id);
 $start_url = get_permalink($start_url_id);
+$link_rel_about_url = get_permalink($link_rel_about_id);
+$link_rel_copyright_url = get_permalink($link_rel_copyright_id);
+$link_rel_glossary_url = get_permalink($link_rel_glossary_id);
+$link_rel_payment_url = get_permalink($link_rel_payment_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
 $microdata_license_url = get_permalink($microdata_license_id);
@@ -537,6 +573,10 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<span vocab="https://schema.org/">External RDFa vocab</span>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($svg_link_url) . '"><text>SVG link</text></a></svg>'
+	. '<link rel="about" href="' . esc_url($link_rel_about_url) . '">'
+	. '<link rel="copyright" href="' . esc_url($link_rel_copyright_url) . '">'
+	. '<link rel="glossary" href="' . esc_url($link_rel_glossary_url) . '">'
+	. '<link rel="payment" href="' . esc_url($link_rel_payment_url) . '">'
 	. '<link rel="me" href="' . esc_url($schema_profile_url) . '">'
 	. '<link rel="profile" href="' . esc_url($schema_profile_url) . '">'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
@@ -643,6 +683,10 @@ $scoped_form_button_url = get_permalink($form_button_id);
 $scoped_form_input_url = get_permalink($form_input_id);
 $scoped_task_target_url = get_permalink($task_target_id);
 $scoped_start_url = get_permalink($start_url_id);
+$scoped_link_rel_about_url = get_permalink($link_rel_about_id);
+$scoped_link_rel_copyright_url = get_permalink($link_rel_copyright_id);
+$scoped_link_rel_glossary_url = get_permalink($link_rel_glossary_id);
+$scoped_link_rel_payment_url = get_permalink($link_rel_payment_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
 $scoped_microdata_license_url = get_permalink($microdata_license_id);
@@ -750,6 +794,10 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<span vocab="https://schema.org/">External RDFa vocab</span>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($scoped_svg_link_url) . '"><text>SVG link</text></a></svg>'
+	. '<link rel="about" href="' . esc_url($scoped_link_rel_about_url) . '">'
+	. '<link rel="copyright" href="' . esc_url($scoped_link_rel_copyright_url) . '">'
+	. '<link rel="glossary" href="' . esc_url($scoped_link_rel_glossary_url) . '">'
+	. '<link rel="payment" href="' . esc_url($scoped_link_rel_payment_url) . '">'
 	. '<link rel="me" href="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<link rel="profile" href="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
@@ -899,6 +947,10 @@ async function verifyExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('start-url/index.html');
+	assertFile('link-rel-about/index.html');
+	assertFile('link-rel-copyright/index.html');
+	assertFile('link-rel-glossary/index.html');
+	assertFile('link-rel-payment/index.html');
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-breadcrumb/index.html');
@@ -957,6 +1009,10 @@ async function verifyExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../start-url/index.html',
+		'../link-rel-about/index.html',
+		'../link-rel-copyright/index.html',
+		'../link-rel-glossary/index.html',
+		'../link-rel-payment/index.html',
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-breadcrumb/index.html',
@@ -1148,6 +1204,26 @@ async function verifyExport() {
 		staticPage,
 		'about="[schema:Thing]" resource="_:local"',
 		'static-page/index.html preserves RDFa CURIE values'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="about" href="../link-rel-about/index.html">',
+		'static-page/index.html rewrites rel=about document links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="copyright" href="../link-rel-copyright/index.html">',
+		'static-page/index.html rewrites rel=copyright document links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="glossary" href="../link-rel-glossary/index.html">',
+		'static-page/index.html rewrites rel=glossary document links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="payment" href="../link-rel-payment/index.html">',
+		'static-page/index.html rewrites rel=payment document links'
 	);
 	assertIncludes(
 		staticPage,
@@ -1383,6 +1459,10 @@ async function verifyScopedExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('start-url/index.html');
+	assertFile('link-rel-about/index.html');
+	assertFile('link-rel-copyright/index.html');
+	assertFile('link-rel-glossary/index.html');
+	assertFile('link-rel-payment/index.html');
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-breadcrumb/index.html');
@@ -1451,6 +1531,10 @@ async function verifyScopedExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../start-url/index.html',
+		'../link-rel-about/index.html',
+		'../link-rel-copyright/index.html',
+		'../link-rel-glossary/index.html',
+		'../link-rel-payment/index.html',
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-breadcrumb/index.html',
@@ -1629,6 +1713,26 @@ async function verifyScopedExport() {
 		staticPage,
 		'<link itemprop="publishingPrinciples" href="../publishing-principles/index.html">',
 		'scoped static-page/index.html rewrites schema.org publishingPrinciples links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="about" href="../link-rel-about/index.html">',
+		'scoped static-page/index.html rewrites rel=about document links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="copyright" href="../link-rel-copyright/index.html">',
+		'scoped static-page/index.html rewrites rel=copyright document links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="glossary" href="../link-rel-glossary/index.html">',
+		'scoped static-page/index.html rewrites rel=glossary document links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="payment" href="../link-rel-payment/index.html">',
+		'scoped static-page/index.html rewrites rel=payment document links'
 	);
 	assertIncludes(
 		staticPage,

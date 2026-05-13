@@ -1232,6 +1232,10 @@ $html = implode(
 		'<link rel="alternate" type="application/rss+xml" href="/?feed=rss2">',
 		'<link rel="alternate" type="application/rss+xml" href="/comments/feed/">',
 		'<link rel="home" href="https://example.test/">',
+		'<link rel="about" href="/about-export/">',
+		'<link rel="copyright" href="/copyright-export/">',
+		'<link rel="glossary" href="/glossary-export/">',
+		'<link rel="payment" href="/payment-export/">',
 		'<link rel="preconnect" href="https://example.test">',
 		'<link rel="dns-prefetch" href="//example.test">',
 		'<link rel="prefetch" href="/prefetched-page/">',
@@ -1488,6 +1492,30 @@ ssgwp_assert_contains(
 	'<link rel="home" href="index.html">',
 	$result['content'],
 	'rewrite_html treats same-site rel=home links as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="about" href="about-export/index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=about links as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="copyright" href="copyright-export/index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=copyright links as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="glossary" href="glossary-export/index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=glossary links as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="payment" href="payment-export/index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=payment links as page links.'
 );
 
 ssgwp_assert_contains(
@@ -1753,6 +1781,21 @@ ssgwp_assert_same(
 	in_array( 'https://example.test/wp-content/uploads/cell-bg.jpg?cell=1', $result['assets'], true ),
 	'rewrite_html records legacy table cell background assets to copy.'
 );
+
+foreach (
+	array(
+		'about'     => 'https://example.test/about-export/',
+		'copyright' => 'https://example.test/copyright-export/',
+		'glossary'  => 'https://example.test/glossary-export/',
+		'payment'   => 'https://example.test/payment-export/',
+	) as $rel => $link
+) {
+	ssgwp_assert_same(
+		true,
+		in_array( $link, $result['links'], true ),
+		'rewrite_html records rel=' . $rel . ' links as pages to crawl.'
+	);
+}
 
 ssgwp_assert_same(
 	true,

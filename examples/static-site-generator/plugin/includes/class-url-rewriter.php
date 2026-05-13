@@ -928,9 +928,9 @@ final class SSGWP_URL_Rewriter {
 		$as   = strtolower( (string) $processor->get_attribute( 'as' ) );
 		$type = strtolower( (string) $processor->get_attribute( 'type' ) );
 		$page_rel_pattern = '/\b('
-			. 'alternate|amphtml|appendix|archives|author|bookmark|canonical|chapter|contents|help|home|index|'
-			. 'license|me|next|prev|privacy-policy|profile|search|section|shortlink|start|subsection|tag|'
-			. 'terms-of-service'
+			. 'about|alternate|amphtml|appendix|archives|author|bookmark|canonical|chapter|contents|copyright|'
+			. 'glossary|help|home|index|license|me|next|payment|prev|privacy-policy|profile|search|section|'
+			. 'shortlink|start|subsection|tag|terms-of-service|up'
 			. ')\b/';
 		$asset_as_values  = array(
 			'audio',
