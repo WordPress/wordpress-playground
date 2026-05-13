@@ -136,6 +136,7 @@ final class SSGWP_Static_Exporter {
 		$output_dir               = wp_normalize_path( $output_dir );
 		$this->current_output_dir = $output_dir;
 
+		$max_pages         = max( 1, (int) $args['max_pages'] );
 		$collector         = new SSGWP_URL_Collector();
 		$rewriter          = new SSGWP_URL_Rewriter( $collector, $args['url_mode'] );
 		$queue             = $collector->collect( $max_pages );
@@ -143,7 +144,6 @@ final class SSGWP_Static_Exporter {
 		$seen              = array();
 		$exported          = array();
 		$linked_asset_urls = array();
-		$max_pages         = max( 1, (int) $args['max_pages'] );
 
 		$this->report_progress(
 			'discovered',

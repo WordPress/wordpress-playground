@@ -167,6 +167,175 @@ if ( ! function_exists( 'add_query_arg' ) ) {
 	}
 }
 
+if ( ! function_exists( 'remove_query_arg' ) ) {
+	/**
+	 * Remove query arguments from a URL for tests.
+	 *
+	 * @param string|string[] $keys Query key or keys.
+	 * @param string          $url  URL.
+	 * @return string URL without the query keys.
+	 */
+	function remove_query_arg( $keys, $url ) {
+		$parts = wp_parse_url( $url );
+
+		if ( empty( $parts['query'] ) ) {
+			return $url;
+		}
+
+		parse_str( $parts['query'], $query_args );
+
+		foreach ( (array) $keys as $key ) {
+			unset( $query_args[ $key ] );
+		}
+
+		$query = http_build_query( $query_args, '', '&', PHP_QUERY_RFC3986 );
+		$base  = ( isset( $parts['scheme'] ) ? $parts['scheme'] . '://' : '' )
+			. ( isset( $parts['host'] ) ? $parts['host'] : '' )
+			. ( isset( $parts['path'] ) ? $parts['path'] : '' );
+
+		return $base . ( '' !== $query ? '?' . $query : '' );
+	}
+}
+
+if ( ! function_exists( 'wp_parse_args' ) ) {
+	/**
+	 * Merge user arguments with defaults for tests.
+	 *
+	 * @param array $args     User arguments.
+	 * @param array $defaults Default arguments.
+	 * @return array Merged arguments.
+	 */
+	function wp_parse_args( $args, $defaults = array() ) {
+		return array_merge( $defaults, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wp_parse_str' ) ) {
+	/**
+	 * Parse a query string for tests.
+	 *
+	 * @param string $string Query string.
+	 * @param array  $array  Parsed output.
+	 */
+	function wp_parse_str( $string, &$array ) {
+		parse_str( $string, $array );
+	}
+}
+
+if ( ! function_exists( 'is_wp_error' ) ) {
+	/**
+	 * Check whether a value is a WP_Error for tests.
+	 *
+	 * @param mixed $value Value.
+	 * @return bool Whether the value is a WP_Error.
+	 */
+	function is_wp_error( $value ) {
+		return $value instanceof WP_Error;
+	}
+}
+
+if ( ! function_exists( 'get_option' ) ) {
+	/**
+	 * Return simple option values for tests.
+	 *
+	 * @param string $name    Option name.
+	 * @param mixed  $default Default value.
+	 * @return mixed Option value.
+	 */
+	function get_option( $name, $default = false ) {
+		if ( 'permalink_structure' === $name ) {
+			return '/%postname%/';
+		}
+
+		if ( 'posts_per_page' === $name ) {
+			return 10;
+		}
+
+		return $default;
+	}
+}
+
+if ( ! function_exists( 'get_post' ) ) {
+	/**
+	 * Return no post in static exporter tests.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return null No post.
+	 */
+	function get_post( $post_id ) {
+		return null;
+	}
+}
+
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	/**
+	 * Return a successful HTML response for tests.
+	 *
+	 * @param string $url  URL.
+	 * @param array  $args Request args.
+	 * @return array Response.
+	 */
+	function wp_remote_get( $url, $args = array() ) {
+		return array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array( 'content-type' => 'text/html; charset=UTF-8' ),
+			'body'     => '<html><head><title>Export</title></head><body>Exported</body></html>',
+		);
+	}
+}
+
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+	/**
+	 * Retrieve a response status code for tests.
+	 *
+	 * @param array $response Response.
+	 * @return int Status code.
+	 */
+	function wp_remote_retrieve_response_code( $response ) {
+		return isset( $response['response']['code'] ) ? (int) $response['response']['code'] : 0;
+	}
+}
+
+if ( ! function_exists( 'wp_remote_retrieve_header' ) ) {
+	/**
+	 * Retrieve a response header for tests.
+	 *
+	 * @param array  $response Response.
+	 * @param string $name     Header name.
+	 * @return string Header value.
+	 */
+	function wp_remote_retrieve_header( $response, $name ) {
+		$key = strtolower( $name );
+
+		return isset( $response['headers'][ $key ] ) ? $response['headers'][ $key ] : '';
+	}
+}
+
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	/**
+	 * Retrieve a response body for tests.
+	 *
+	 * @param array $response Response.
+	 * @return string Body.
+	 */
+	function wp_remote_retrieve_body( $response ) {
+		return isset( $response['body'] ) ? $response['body'] : '';
+	}
+}
+
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	/**
+	 * Encode JSON for tests.
+	 *
+	 * @param mixed $data    Data.
+	 * @param int   $options JSON options.
+	 * @return string JSON.
+	 */
+	function wp_json_encode( $data, $options = 0 ) {
+		return json_encode( $data, $options );
+	}
+}
+
 if ( ! function_exists( 'esc_url' ) ) {
 	/**
 	 * Escape a URL for tests.
@@ -421,6 +590,62 @@ ssgwp_assert_same(
 	3,
 	$events[0]['context']['queue_total'],
 	'report_progress preserves structured context.'
+);
+
+$bounded_output_dir = $fixture_root . '/bounded-export';
+$bounded_events     = array();
+
+set_error_handler(
+	static function ( $severity, $message ) {
+		ssgwp_fail( 'export_to_directory emitted a warning: ' . $message );
+	}
+);
+
+$bounded_result = $exporter->export_to_directory(
+	$bounded_output_dir,
+	array(
+		'max_pages'         => 1,
+		'copy_uploads'      => false,
+		'copy_theme'        => false,
+		'copy_plugins'      => false,
+		'copy_core_assets'  => false,
+		'include_manifest'  => false,
+		'progress_callback' => static function ( $event ) use ( &$bounded_events ) {
+			$bounded_events[] = $event;
+		},
+	)
+);
+
+restore_error_handler();
+
+ssgwp_assert_same(
+	array( 'https://example.test/' ),
+	$bounded_result['exported_urls'],
+	'export_to_directory exports the bounded initial queue without warnings.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $bounded_output_dir . '/index.html' ),
+	'export_to_directory writes the bounded home page export.'
+);
+
+ssgwp_assert_same(
+	'discovered',
+	$bounded_events[0]['stage'],
+	'export_to_directory reports initial URL discovery before rendering.'
+);
+
+ssgwp_assert_same(
+	1,
+	$bounded_events[0]['context']['max_pages'],
+	'export_to_directory passes max_pages into initial URL discovery.'
+);
+
+ssgwp_assert_same(
+	1,
+	$bounded_events[0]['context']['queue_total'],
+	'export_to_directory bounds the initial URL queue by max_pages.'
 );
 
 wp_mkdir_p( $fixture_root . '/theme/static-site-generator' );

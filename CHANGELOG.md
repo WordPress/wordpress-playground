@@ -159,6 +159,9 @@ format.
 - Bound initial static export URL discovery by the configured max page limit
   so large sites do not enumerate more starting URLs than the export can render.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Fix static export startup so the configured max page limit is initialized
+  before initial URL discovery runs.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
