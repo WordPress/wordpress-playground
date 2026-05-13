@@ -216,6 +216,14 @@ $microdata_profile_id = wp_insert_post(array(
 	'post_content' => '<p>Microdata link export target.</p>',
 ));
 
+$schema_profile_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Profile',
+	'post_name' => 'schema-profile',
+	'post_content' => '<p>Schema meta export target.</p>',
+));
+
 $amp_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -238,6 +246,7 @@ $form_button_url = get_permalink($form_button_id);
 $form_input_url = get_permalink($form_input_id);
 $task_target_url = get_permalink($task_target_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
+$schema_profile_url = get_permalink($schema_profile_id);
 $amp_url = get_permalink($amp_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $rest_route_url = '/?rest_route=/wp/v2/posts';
@@ -275,6 +284,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:see_also" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
+	. '<meta itemprop="sameAs" content="' . esc_url($schema_profile_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($microdata_profile_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
@@ -370,6 +380,7 @@ $scoped_form_button_url = get_permalink($form_button_id);
 $scoped_form_input_url = get_permalink($form_input_id);
 $scoped_task_target_url = get_permalink($task_target_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
+$scoped_schema_profile_url = get_permalink($schema_profile_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_rest_route_url = home_url('/?rest_route=/wp/v2/posts');
@@ -415,6 +426,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:see_also" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
+	. '<meta itemprop="sameAs" content="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($scoped_microdata_profile_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
@@ -548,6 +560,7 @@ async function verifyExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('microdata-profile/index.html');
+	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
@@ -578,6 +591,7 @@ async function verifyExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../microdata-profile/index.html',
+		'../schema-profile/index.html',
 		'../amp-companion/index.html',
 		'relative-child/index.html',
 		'index.html#section',
@@ -809,6 +823,7 @@ async function verifyScopedExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('microdata-profile/index.html');
+	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
@@ -851,6 +866,7 @@ async function verifyScopedExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../microdata-profile/index.html',
+		'../schema-profile/index.html',
 		'../amp-companion/index.html',
 		'relative-child/index.html',
 		'index.html#section',

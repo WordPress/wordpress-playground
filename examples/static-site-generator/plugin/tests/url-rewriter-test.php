@@ -803,6 +803,9 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta name="twitter:image" content="/wp-content/uploads/social.jpg?ver=1">'
 		. '<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
+		. '<meta itemprop="sameAs" content="/schema-profile/">'
+		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
+		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta property="article:author" content="/author/admin/">'
 		. '<meta property="article:publisher" content="/publisher/">'
 		. '<meta property="og:see_also" content="/related/">'
@@ -836,6 +839,24 @@ ssgwp_assert_contains(
 	'<meta itemprop="embedUrl" content="video-player/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org embedUrl page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="sameAs" content="schema-profile/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org sameAs page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="discussionUrl" content="schema-discussion/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org discussionUrl page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="significantLinks" content="schema-significant/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org significantLinks page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1030,6 +1051,9 @@ $html = implode(
 		'<meta name="msapplication-task" content="name=Docs;action-uri=/task-target/;icon-uri=/wp-content/uploads/tile.png?task=1">',
 		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
 		'<meta itemprop="embedUrl" content="/video-player/">',
+		'<meta itemprop="sameAs" content="/schema-profile/">',
+		'<meta itemprop="discussionUrl" content="/schema-discussion/">',
+		'<meta itemprop="significantLinks" content="/schema-significant/">',
 		'<meta property="article:author" content="/author/admin/">',
 		'<meta property="article:publisher" content="/publisher/">',
 		'<meta property="og:see_also" content="/related/">',
@@ -1587,6 +1611,24 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="sameAs" content="schema-profile/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org sameAs page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="discussionUrl" content="schema-discussion/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org discussionUrl page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="significantLinks" content="schema-significant/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org significantLinks page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta property="article:author" content="author/admin/index.html">',
 	$result['content'],
 	'rewrite_html rewrites article author page URLs in meta content attributes.'
@@ -1622,6 +1664,9 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta property="article:publisher" content="/publisher/">'
 		. '<meta property="og:see_also" content="/related/">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
+		. '<meta itemprop="sameAs" content="/schema-profile/">'
+		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
+		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
@@ -1637,10 +1682,13 @@ ssgwp_assert_same(
 		'https://example.test/publisher/',
 		'https://example.test/related/',
 		'https://example.test/video-player/',
+		'https://example.test/schema-profile/',
+		'https://example.test/schema-discussion/',
+		'https://example.test/schema-significant/',
 		'https://example.test/task-target/',
 	),
 	$meta_only_result['links'],
-	'rewrite_html records meta page, social, and structured-data embed URLs as links to crawl.'
+	'rewrite_html records meta page, social, and structured-data page URLs as links to crawl.'
 );
 
 ssgwp_assert_same(

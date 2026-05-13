@@ -1192,9 +1192,13 @@ final class SSGWP_URL_Rewriter {
 		$page_keys = array(
 			'article:author',
 			'article:publisher',
+			'discussionurl',
 			'embedurl',
 			'og:see_also',
 			'og:url',
+			'sameas',
+			'significantlink',
+			'significantlinks',
 			'twitter:player',
 			'twitter:url',
 			'url',

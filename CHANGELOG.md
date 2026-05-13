@@ -195,6 +195,9 @@ format.
 - Copy WebAssembly sidecar files discovered while rewriting linked copied text
   assets, such as JSON player configs.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite schema.org `meta itemprop` page URLs such as `sameAs` during static
+  exports so profile and related pages are crawled.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
