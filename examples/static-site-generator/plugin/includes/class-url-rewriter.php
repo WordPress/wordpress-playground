@@ -1145,16 +1145,34 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function rewrite_meta_refresh_content( $content, $base_url, $target_path ) {
 		return preg_replace_callback(
-			'/(url\s*=\s*)(.+)$/i',
+			'/(url\s*=\s*)(.*)$/i',
 			function ( $matches ) use ( $base_url, $target_path ) {
-				$url   = trim( $matches[2], " \t\n\r\0\x0B'\"" );
-				$quote = '';
+				$raw_url = $matches[2];
 
-				if ( preg_match( '/^\s*([\'"])/', $matches[2], $quote_match ) ) {
-					$quote = $quote_match[1];
+				if ( preg_match( '/^(\s*)([\'"])(.*?)\2(.*)$/s', $raw_url, $quoted_match ) ) {
+					$leading = $quoted_match[1];
+					$quote   = $quoted_match[2];
+					$url     = trim( $quoted_match[3] );
+					$suffix  = $quoted_match[4];
+
+					return $matches[1] . $leading . $quote
+						. $this->rewrite_url_value( $url, $base_url, $target_path, 'page' )
+						. $quote . $suffix;
 				}
 
-				return $matches[1] . $quote . $this->rewrite_url_value( $url, $base_url, $target_path, 'page' ) . $quote;
+				if ( ! preg_match( '/^(\s*)(.*?)(\s*)$/s', $raw_url, $unquoted_match ) ) {
+					return $matches[0];
+				}
+
+				$url = trim( $unquoted_match[2] );
+
+				if ( '' === $url ) {
+					return $matches[0];
+				}
+
+				return $matches[1] . $unquoted_match[1]
+					. $this->rewrite_url_value( $url, $base_url, $target_path, 'page' )
+					. $unquoted_match[3];
 			},
 			$content
 		);

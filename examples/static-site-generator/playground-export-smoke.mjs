@@ -347,7 +347,9 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($rest_route_url) . '">REST</a></p>'
 	. '<p><a class="feed-query-link" href="' . esc_url($feed_query_url) . '">Feed query</a></p>'
-	. '<meta http-equiv="refresh" content="0; url=' . esc_url('/static-page/?' . $semicolon_refresh_query . '#section') . '">'
+	. '<meta http-equiv="refresh" content="0; url=\\''
+	. esc_url('/static-page/?' . $semicolon_refresh_query . '#section')
+	. '\\'; foo=bar">'
 	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio" content="' . esc_url($asset_url . '?audio=1') . '">'
@@ -513,7 +515,9 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($scoped_rest_route_url) . '">REST</a></p>'
 	. '<p><a class="feed-query-link" href="' . esc_url($scoped_feed_query_url) . '">Feed query</a></p>'
-	. '<meta http-equiv="refresh" content="0; url=' . esc_url(home_url('/static-page/?' . $scoped_semicolon_refresh_query . '#section')) . '">'
+	. '<meta http-equiv="refresh" content="0; url=\\''
+	. esc_url(home_url('/static-page/?' . $scoped_semicolon_refresh_query . '#section'))
+	. '\\'; foo=bar">'
 	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
 	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio:secure_url" content="' . esc_url($scoped_asset_url . '?audio=1') . '">'
@@ -783,8 +787,8 @@ async function verifyExport() {
 	);
 	assertIncludes(
 		staticPage,
-		`content="0; url=${semicolonRefreshTarget}"`,
-		'static-page/index.html rewrites meta refresh URLs with semicolon query strings'
+		`content="0; url=&#039;${semicolonRefreshTarget}&#039;; foo=bar"`,
+		'static-page/index.html rewrites quoted meta refresh URLs with suffixes'
 	);
 	assertIncludes(
 		staticPage,
@@ -1130,8 +1134,8 @@ async function verifyScopedExport() {
 	);
 	assertIncludes(
 		staticPage,
-		`content="0; url=${semicolonRefreshTarget}"`,
-		'scoped static-page/index.html rewrites meta refresh URLs with semicolon query strings'
+		`content="0; url=&#039;${semicolonRefreshTarget}&#039;; foo=bar"`,
+		'scoped static-page/index.html rewrites quoted meta refresh URLs with suffixes'
 	);
 	assertIncludes(
 		staticPage,

@@ -241,6 +241,9 @@ format.
 - Preserve semicolons inside static export meta refresh URL query strings when
   rewriting refresh targets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve quoted static export meta refresh URL suffixes while rewriting the
+  refresh target.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

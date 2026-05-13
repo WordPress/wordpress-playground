@@ -869,6 +869,33 @@ ssgwp_assert_contains(
 	'rewrite_meta_refresh_with_patterns keeps semicolons inside URL query strings.'
 );
 
+$quoted_meta_refresh_suffix = $rewriter->rewrite_html(
+	'<meta http-equiv="refresh" content="0; url=\'/static-page/?jump=one;two#section\'; foo=bar">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta http-equiv="refresh" content="0; url=&#039;static-page-'
+		. $semicolon_query_hash . '.html#section&#039;; foo=bar">',
+	$quoted_meta_refresh_suffix['content'],
+	'rewrite_html keeps quoted meta refresh suffixes outside the rewritten URL.'
+);
+
+$pattern_meta_refresh_quoted_suffix = $pattern_meta_refresh_method->invoke(
+	$rewriter,
+	'<meta http-equiv="refresh" content="0; url=\'/static-page/?jump=one;two#section\'; foo=bar">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta http-equiv="refresh" content="0; url=&#039;static-page-'
+		. $semicolon_query_hash . '.html#section&#039;; foo=bar">',
+	$pattern_meta_refresh_quoted_suffix,
+	'rewrite_meta_refresh_with_patterns keeps quoted suffixes outside the URL.'
+);
+
 $pattern_meta_content_method = new ReflectionMethod( $rewriter, 'rewrite_meta_content_urls_with_patterns' );
 $pattern_meta_content_method->setAccessible( true );
 
