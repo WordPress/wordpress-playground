@@ -743,7 +743,7 @@ final class SSGWP_URL_Rewriter {
 		$as   = strtolower( (string) $processor->get_attribute( 'as' ) );
 		$type = strtolower( (string) $processor->get_attribute( 'type' ) );
 		$page_rel_pattern = '/\b('
-			. 'alternate|appendix|archives|author|bookmark|canonical|chapter|contents|help|home|index|'
+			. 'alternate|amphtml|appendix|archives|author|bookmark|canonical|chapter|contents|help|home|index|'
 			. 'license|next|prev|privacy-policy|search|section|shortlink|start|subsection|tag|'
 			. 'terms-of-service'
 			. ')\b/';

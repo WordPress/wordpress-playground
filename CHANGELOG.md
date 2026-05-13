@@ -130,6 +130,9 @@ format.
 - Treat schema.org `link itemprop` URLs as static export page or asset
   references so microdata profile pages are crawled.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat static export `rel="amphtml"` links as crawlable page URLs so AMP
+  companion pages are generated.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Copy dependencies discovered inside linked copied text assets, including
   icons referenced by web manifests.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

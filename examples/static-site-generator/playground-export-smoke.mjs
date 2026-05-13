@@ -216,6 +216,14 @@ $microdata_profile_id = wp_insert_post(array(
 	'post_content' => '<p>Microdata link export target.</p>',
 ));
 
+$amp_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'AMP Companion',
+	'post_name' => 'amp-companion',
+	'post_content' => '<p>AMP companion export target.</p>',
+));
+
 wp_update_post(array(
 	'ID' => $child_id,
 	'post_parent' => $parent_id,
@@ -230,6 +238,7 @@ $form_button_url = get_permalink($form_button_id);
 $form_input_url = get_permalink($form_input_id);
 $task_target_url = get_permalink($task_target_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
+$amp_url = get_permalink($amp_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $rest_route_url = '/?rest_route=/wp/v2/posts';
 $feed_query_url = '/?feed=rss2';
@@ -268,6 +277,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($microdata_profile_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
+	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($manifest_url) . '">'
 	. '<link rel="preload" as="fetch" href="' . esc_url($player_config_url) . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
@@ -360,6 +370,7 @@ $scoped_form_button_url = get_permalink($form_button_id);
 $scoped_form_input_url = get_permalink($form_input_id);
 $scoped_task_target_url = get_permalink($task_target_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
+$scoped_amp_url = get_permalink($amp_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_rest_route_url = home_url('/?rest_route=/wp/v2/posts');
 $scoped_feed_query_url = home_url('/?feed=rss2');
@@ -406,6 +417,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($scoped_microdata_profile_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
+	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($scoped_manifest_url) . '">'
 	. '<link rel="preload" as="fetch" href="' . esc_url($scoped_player_config_url) . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($scoped_asset_url) . '" imagesrcset="' . esc_url($scoped_asset_url) . ' 1x, ' . esc_url($scoped_asset_url . '?preload=2x') . ' 2x">'
@@ -536,6 +548,7 @@ async function verifyExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('microdata-profile/index.html');
+	assertFile('amp-companion/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
@@ -565,6 +578,7 @@ async function verifyExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../microdata-profile/index.html',
+		'../amp-companion/index.html',
 		'relative-child/index.html',
 		'index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
@@ -795,6 +809,7 @@ async function verifyScopedExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('microdata-profile/index.html');
+	assertFile('amp-companion/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/uploads/ssgwp-smoke-captions.vtt');
@@ -836,6 +851,7 @@ async function verifyScopedExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../microdata-profile/index.html',
+		'../amp-companion/index.html',
 		'relative-child/index.html',
 		'index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',

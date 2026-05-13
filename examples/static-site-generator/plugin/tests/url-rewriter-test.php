@@ -937,6 +937,7 @@ foreach (
 		'publisher/index.html',
 		'related/index.html',
 		'task-target/index.html',
+		'amp-page/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
 		'encoded%20page/index.html',
@@ -999,6 +1000,7 @@ $html = implode(
 		'<link rel="prerender" href="/prefetched-page/#ready">',
 		'<link rel="prefetch" as="image" href="/wp-content/uploads/photo.jpg?prefetch=1">',
 		'<link rel="author" href="/author/admin/">',
+		'<link rel="amphtml" href="/amp-page/">',
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
@@ -1198,6 +1200,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link rel="amphtml" href="amp-page/index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=amphtml links as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="url sameAs" href="microdata-profile/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org link itemprop page URLs as page links.'
@@ -1267,6 +1275,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/author/admin/', $result['links'], true ),
 	'rewrite_html records rel=author links as pages to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/amp-page/', $result['links'], true ),
+	'rewrite_html records rel=amphtml links as pages to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2171,6 +2185,7 @@ foreach (
 		'long-description/index.html',
 		'embed-page/index.html',
 		'author/admin/index.html',
+		'amp-page/index.html',
 		'publisher/index.html',
 		'related/index.html',
 		'microdata-profile/index.html',
