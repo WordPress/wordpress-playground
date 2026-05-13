@@ -176,6 +176,14 @@ $deferred_id = wp_insert_post(array(
 	'post_content' => '<p>Deferred data-href export target.</p>',
 ));
 
+$citation_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Citation Source',
+	'post_name' => 'citation-source',
+	'post_content' => '<p>Citation URL export target.</p>',
+));
+
 $form_target_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -249,6 +257,7 @@ $child_url = get_permalink($child_id);
 $comments_url = get_permalink($comments_id);
 $embed_url = get_permalink($embed_id);
 $deferred_url = get_permalink($deferred_id);
+$citation_url = get_permalink($citation_id);
 $form_target_url = get_permalink($form_target_id);
 $form_button_url = get_permalink($form_button_id);
 $form_input_url = get_permalink($form_input_id);
@@ -267,6 +276,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<blockquote cite="' . esc_url($citation_url) . '"><p>Cited source.</p></blockquote>'
+	. '<p><q cite="' . esc_url($citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<form class="form-links" action="' . esc_url($form_target_url) . '">'
@@ -385,6 +396,7 @@ $scoped_child_url = get_permalink($child_id);
 $scoped_comments_url = get_permalink($comments_id);
 $scoped_embed_url = get_permalink($embed_id);
 $scoped_deferred_url = get_permalink($deferred_id);
+$scoped_citation_url = get_permalink($citation_id);
 $scoped_form_target_url = get_permalink($form_target_id);
 $scoped_form_button_url = get_permalink($form_button_id);
 $scoped_form_input_url = get_permalink($form_input_id);
@@ -411,6 +423,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($scoped_child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($scoped_asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<blockquote cite="' . esc_url($scoped_citation_url) . '"><p>Cited source.</p></blockquote>'
+	. '<p><q cite="' . esc_url($scoped_citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<form class="form-links" action="' . esc_url($scoped_form_target_url) . '">'
@@ -565,6 +579,7 @@ async function verifyExport() {
 	assertFile('static-page/index.html');
 	assertFile('static-page/relative-child/index.html');
 	assertFile('comments/index.html');
+	assertFile('citation-source/index.html');
 	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
 	assertFile('form-button/index.html');
@@ -597,6 +612,8 @@ async function verifyExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
 		'../comments/index.html',
+		'../citation-source/index.html',
+		'../citation-source/index.html#quote',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../form-button/index.html',
@@ -830,6 +847,7 @@ async function verifyScopedExport() {
 	assertFile('static-page/index.html');
 	assertFile('static-page/relative-child/index.html');
 	assertFile('comments/index.html');
+	assertFile('citation-source/index.html');
 	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
 	assertFile('form-button/index.html');
@@ -874,6 +892,8 @@ async function verifyScopedExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
 		'../comments/index.html',
+		'../citation-source/index.html',
+		'../citation-source/index.html#quote',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../form-button/index.html',
@@ -1230,7 +1250,7 @@ async function assertAllLocalResourceTargetsExist() {
 function extractAttributeRefs(text) {
 	return [
 		...text.matchAll(
-			/\s(?:href|src|longdesc|data-href|data-link|data-src|data-lazy-src|data-url|data|poster)=["']([^"']+)["']/gi
+			/\s(?:href|src|cite|longdesc|data-href|data-link|data-src|data-lazy-src|data-url|data|poster)=["']([^"']+)["']/gi
 		),
 	].map((match) => match[1]);
 }

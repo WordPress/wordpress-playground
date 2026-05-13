@@ -204,6 +204,9 @@ format.
 - Tighten static export text URL rewriting so lookalike external hosts are not
   partially rewritten and query-only same-site URLs still point at generated
   files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Cover static export citation URLs so `cite` attributes are verified as
+  crawlable page references in normal and scoped Playground exports.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

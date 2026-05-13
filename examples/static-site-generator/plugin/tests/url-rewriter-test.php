@@ -570,6 +570,7 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 	'<link rel=preconnect href=https://example.test>'
 		. '<base href=https://example.test/>'
 		. '<a href=/static-page/>Static</a>'
+		. '<blockquote cite=/citation-source>Citation</blockquote>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
 		. '<img src=/wp-content/uploads/photo.jpg?longdesc=1 longdesc=/long-description/ alt="">'
 		. '<frame src=/legacy-frame/ longdesc=/frame-description/>'
@@ -596,6 +597,12 @@ ssgwp_assert_contains(
 	'<a href=static-page/index.html>Static</a>',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites unquoted page links.'
+);
+
+ssgwp_assert_contains(
+	'<blockquote cite=citation-source/index.html>Citation</blockquote>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted citation links.'
 );
 
 ssgwp_assert_contains(
@@ -938,6 +945,7 @@ foreach (
 		'static-page-' . $view_hash . '.html',
 			'blog/page/2/index.html',
 			'comments/index.html',
+			'citation-source/index.html',
 			'embed-page/index.html',
 			'framed-page/index.html',
 			'form-button/index.html',
@@ -1010,6 +1018,8 @@ $html = implode(
 		'<a class="query" href="/static-page/?view=grid#items">Query page</a>',
 		'<a class="archive" href="/blog/page/2/#posts">Archive</a>',
 		'<a class="comments-page" href="/comments/">Comments page</a>',
+		'<blockquote cite="/citation-source/">Citation</blockquote>',
+		'<q cite="/citation-source/#quote">Quote</q>',
 		'<base href="https://example.test/">',
 		'<a class="admin" href="/wp-admin/admin.php">Admin</a>',
 		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
@@ -1187,6 +1197,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<blockquote cite="citation-source/index.html">',
+	$result['content'],
+	'rewrite_html rewrites blockquote cite page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<q cite="citation-source/index.html#quote">',
+	$result['content'],
+	'rewrite_html rewrites quote cite page URLs.'
+);
+
+ssgwp_assert_contains(
 	'<base href="./">',
 	$result['content'],
 	'rewrite_html anchors same-site base hrefs to the static document directory.'
@@ -1352,6 +1374,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/generic-page/', $result['links'], true ),
 	'rewrite_html records data-url page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/citation-source/', $result['links'], true ),
+	'rewrite_html records citation URLs as links to crawl.'
 );
 
 foreach (
@@ -2272,6 +2300,8 @@ foreach (
 		'static-page-' . $view_hash . '.html#items',
 		'blog/page/2/index.html#posts',
 		'comments/index.html',
+		'citation-source/index.html',
+		'citation-source/index.html#quote',
 		'nested/page/index.html#section',
 		'nested/page/index.html#share',
 		'protocol-escaped/index.html',
