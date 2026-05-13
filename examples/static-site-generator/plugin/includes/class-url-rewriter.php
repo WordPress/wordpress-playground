@@ -356,6 +356,7 @@ final class SSGWP_URL_Rewriter {
 			'data-thumb'       => 'asset',
 			'data-thumbnail'   => 'asset',
 			'data-url'         => 'maybe',
+			'itemid'           => 'page',
 		);
 		$attributes_by_tag      = array(
 			'A'          => array(
@@ -558,6 +559,7 @@ final class SSGWP_URL_Rewriter {
 			'data-thumbnail'   => 'asset',
 			'data-url'         => 'maybe',
 			'imagesrcset'      => 'srcset',
+			'itemid'           => 'page',
 			'xlink:href'       => 'asset',
 		);
 

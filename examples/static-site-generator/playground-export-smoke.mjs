@@ -256,6 +256,14 @@ $microdata_related_id = wp_insert_post(array(
 	'post_content' => '<p>Microdata related link export target.</p>',
 ));
 
+$microdata_item_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Microdata Item',
+	'post_name' => 'microdata-item',
+	'post_content' => '<p>Microdata itemid export target.</p>',
+));
+
 $svg_link_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -314,6 +322,7 @@ $start_url = get_permalink($start_url_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
 $microdata_related_url = get_permalink($microdata_related_id);
+$microdata_item_url = get_permalink($microdata_item_id);
 $svg_link_url = get_permalink($svg_link_id);
 $image_metadata_url = get_permalink($image_metadata_id);
 $schema_profile_url = get_permalink($schema_profile_id);
@@ -375,6 +384,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
+	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '">Microdata item</article>'
 	. '<svg><a xlink:href="' . esc_url($svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($manifest_url) . '">'
@@ -483,6 +493,7 @@ $scoped_start_url = get_permalink($start_url_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
 $scoped_microdata_related_url = get_permalink($microdata_related_id);
+$scoped_microdata_item_url = get_permalink($microdata_item_id);
 $scoped_svg_link_url = get_permalink($svg_link_id);
 $scoped_image_metadata_url = get_permalink($image_metadata_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
@@ -553,6 +564,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
+	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '">Microdata item</article>'
 	. '<svg><a xlink:href="' . esc_url($scoped_svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($scoped_manifest_url) . '">'
@@ -704,6 +716,7 @@ async function verifyExport() {
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
+	assertFile('microdata-item/index.html');
 	assertFile('svg-link/index.html');
 	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
@@ -746,6 +759,7 @@ async function verifyExport() {
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
+		'../microdata-item/index.html',
 		'../svg-link/index.html',
 		'../image-metadata/index.html',
 		'../schema-profile/index.html',
@@ -848,6 +862,11 @@ async function verifyExport() {
 		staticPage,
 		'xlink:href="../svg-link/index.html"',
 		'static-page/index.html rewrites SVG anchor xlink href page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'itemid="../microdata-item/index.html"',
+		'static-page/index.html rewrites microdata itemid page targets'
 	);
 	assertIncludes(
 		staticPage,
@@ -1076,6 +1095,7 @@ async function verifyScopedExport() {
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
+	assertFile('microdata-item/index.html');
 	assertFile('svg-link/index.html');
 	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
@@ -1130,6 +1150,7 @@ async function verifyScopedExport() {
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
+		'../microdata-item/index.html',
 		'../svg-link/index.html',
 		'../image-metadata/index.html',
 		'../schema-profile/index.html',
@@ -1231,6 +1252,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'xlink:href="../svg-link/index.html"',
 		'scoped static-page/index.html rewrites SVG anchor xlink href page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'itemid="../microdata-item/index.html"',
+		'scoped static-page/index.html rewrites microdata itemid page targets'
 	);
 	assertIncludes(
 		staticPage,

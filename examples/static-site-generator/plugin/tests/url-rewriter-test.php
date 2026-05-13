@@ -685,7 +685,8 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 		. '<embed src="/embed-page/">'
 		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
 		. '<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">'
-		. '<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>',
+		. '<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>'
+		. '<article itemscope itemid="/microdata-item/">Microdata item</article>',
 	'https://example.test/',
 	'index.html'
 );
@@ -796,6 +797,12 @@ ssgwp_assert_contains(
 	'<svg><a xlink:href="svg-linked-page/index.html"><text>SVG page link</text></a></svg>',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns treats SVG anchor xlink hrefs as page links.'
+);
+
+ssgwp_assert_contains(
+	'itemid="microdata-item/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites microdata itemid page URLs.'
 );
 
 $pattern_srcdoc_method = new ReflectionMethod( $rewriter, 'rewrite_srcdoc_attributes_with_patterns' );
@@ -1074,6 +1081,7 @@ foreach (
 			'legacy-frame/index.html',
 			'long-description/index.html',
 			'meta-page/index.html',
+			'microdata-item/index.html',
 			'microdata-profile/index.html',
 			'microdata-related/index.html',
 			'microdata-significant/index.html',
@@ -1171,6 +1179,7 @@ $html = implode(
 		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
+		'<article itemscope itemid="/microdata-item/">Microdata item</article>',
 		'<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
@@ -1471,6 +1480,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'itemid="microdata-item/index.html"',
+	$result['content'],
+	'rewrite_html treats microdata itemid URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'data-href="deferred-page/index.html"',
 	$result['content'],
 	'rewrite_html treats data-href page URLs as links.'
@@ -1606,6 +1621,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?link-schema=1', $result['assets'], true ),
 	'rewrite_html records schema.org link itemprop media URLs as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/microdata-item/', $result['links'], true ),
+	'rewrite_html records microdata itemid URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2685,6 +2706,7 @@ foreach (
 		'amp-page/index.html',
 		'publisher/index.html',
 		'related/index.html',
+		'microdata-item/index.html',
 		'microdata-profile/index.html',
 		'microdata-related/index.html',
 		'microdata-significant/index.html',
