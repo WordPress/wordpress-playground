@@ -158,6 +158,14 @@ $embed_id = wp_insert_post(array(
 	'post_content' => '<p>Embed-only export target.</p>',
 ));
 
+$deferred_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Deferred Link',
+	'post_name' => 'deferred-link',
+	'post_content' => '<p>Deferred data-href export target.</p>',
+));
+
 wp_update_post(array(
 	'ID' => $child_id,
 	'post_parent' => $parent_id,
@@ -166,10 +174,13 @@ wp_update_post(array(
 $child_url = get_permalink($child_id);
 $comments_url = get_permalink($comments_id);
 $embed_url = get_permalink($embed_id);
+$deferred_url = get_permalink($deferred_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<base href="' . esc_url(home_url('/')) . '">'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
+	. '<p><a class="deferred-link" data-href="' . esc_url($deferred_url) . '">Deferred</a></p>'
+	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="comments-link" href="' . esc_url($comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
@@ -256,6 +267,7 @@ add_filter('includes_url', function($url, $path) use ($scoped_home) {
 $scoped_child_url = get_permalink($child_id);
 $scoped_comments_url = get_permalink($comments_id);
 $scoped_embed_url = get_permalink($embed_id);
+$scoped_deferred_url = get_permalink($deferred_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
@@ -266,6 +278,8 @@ $scoped_asset_path = wp_parse_url($scoped_asset_url, PHP_URL_PATH);
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<base href="' . esc_url(home_url('/')) . '">'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
+	. '<p><a class="deferred-link" data-href="' . esc_url($scoped_deferred_url) . '">Deferred</a></p>'
+	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="comments-link" href="' . esc_url($scoped_comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
@@ -397,6 +411,7 @@ async function verifyExport() {
 	assertFile('index.html');
 	assertFile('static-page/index.html');
 	assertFile('comments/index.html');
+	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
@@ -416,11 +431,13 @@ async function verifyExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
 		'../comments/index.html',
+		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
@@ -455,6 +472,16 @@ async function verifyExport() {
 		staticPage,
 		'<base href="./">',
 		'static-page/index.html anchors same-site base hrefs to the static document'
+	);
+	assertIncludes(
+		staticPage,
+		'data-href="../deferred-link/index.html"',
+		'static-page/index.html rewrites deferred page data-href attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-href="../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1"',
+		'static-page/index.html rewrites deferred asset data-href attributes'
 	);
 	assertIncludes(
 		staticPage,
@@ -531,6 +558,7 @@ async function verifyScopedExport() {
 	assertFile('index.html');
 	assertFile('static-page/index.html');
 	assertFile('comments/index.html');
+	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
@@ -562,11 +590,13 @@ async function verifyScopedExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
 		'../comments/index.html',
+		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
@@ -600,6 +630,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'<base href="./">',
 		'scoped static-page/index.html anchors same-site base hrefs to the static document'
+	);
+	assertIncludes(
+		staticPage,
+		'data-href="../deferred-link/index.html"',
+		'scoped static-page/index.html rewrites deferred page data-href attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-href="../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1"',
+		'scoped static-page/index.html rewrites deferred asset data-href attributes'
 	);
 	assertIncludes(
 		staticPage,
@@ -801,7 +841,7 @@ async function assertAllLocalResourceTargetsExist() {
 function extractAttributeRefs(text) {
 	return [
 		...text.matchAll(
-			/\s(?:href|src|data-src|data-lazy-src|data|poster)=["']([^"']+)["']/gi
+			/\s(?:href|src|data-href|data-src|data-lazy-src|data|poster)=["']([^"']+)["']/gi
 		),
 	].map((match) => match[1]);
 }

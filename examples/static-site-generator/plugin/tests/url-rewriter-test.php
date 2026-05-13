@@ -564,6 +564,8 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 	'<div data-bg="/wp-content/uploads/bg.jpg?lazy=1"'
 		. ' data-bgset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">'
 		. '<span data-src="/wp-content/uploads/photo.jpg?lazy=2"></span></div>'
+		. '<a data-href="/deferred-page/">Deferred</a>'
+		. '<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Asset</button>'
 		. '<iframe src="/framed-page/" data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>'
 		. '<embed src="/embed-page/">'
 		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
@@ -588,6 +590,18 @@ ssgwp_assert_contains(
 	'data-src="wp-content/uploads/photo.jpg?lazy=2"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites lazy source attributes on any tag.'
+);
+
+ssgwp_assert_contains(
+	'data-href="deferred-page/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats data-href page URLs as links.'
+);
+
+ssgwp_assert_contains(
+	'data-href="wp-content/uploads/photo.jpg?deferred=1"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats data-href media URLs as assets.'
 );
 
 ssgwp_assert_contains(
@@ -805,6 +819,7 @@ foreach (
 		'protocol-page/index.html',
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
+		'deferred-page/index.html',
 		'sample-page/index.html',
 		'lazy-frame/index.html',
 		'object-page/index.html',
@@ -869,6 +884,8 @@ $html = implode(
 		'<link rel="prerender" href="/prefetched-page/#ready">',
 		'<link rel="prefetch" as="image" href="/wp-content/uploads/photo.jpg?prefetch=1">',
 		'<link rel="author" href="/author/admin/">',
+		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
+		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
 		'<a class="external-port" href="https://example.test:8443/static-page/">External port</a>',
 		'<a class="external-scheme" href="http://example.test:443/static-page/">External scheme</a>',
@@ -1050,6 +1067,18 @@ ssgwp_assert_contains(
 	'rewrite_html treats same-site rel=author links as page links.'
 );
 
+ssgwp_assert_contains(
+	'data-href="deferred-page/index.html"',
+	$result['content'],
+	'rewrite_html treats data-href page URLs as links.'
+);
+
+ssgwp_assert_contains(
+	'data-href="wp-content/uploads/photo.jpg?deferred=1"',
+	$result['content'],
+	'rewrite_html treats data-href media URLs as assets.'
+);
+
 ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/prefetched-page/', $result['links'], true ),
@@ -1066,6 +1095,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/author/admin/', $result['links'], true ),
 	'rewrite_html records rel=author links as pages to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/deferred-page/', $result['links'], true ),
+	'rewrite_html records data-href page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/photo.jpg?deferred=1', $result['assets'], true ),
+	'rewrite_html records data-href media URLs as assets to copy.'
 );
 
 ssgwp_assert_contains(
@@ -1781,6 +1822,7 @@ foreach (
 		'protocol-page/index.html',
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
+		'deferred-page/index.html',
 		'framed-page/index.html',
 		'lazy-frame/index.html',
 		'embed-page/index.html',
@@ -1807,6 +1849,7 @@ foreach (
 		'wp-content/uploads/tile.png?wide=1',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo.jpg?prefetch=1',
+		'wp-content/uploads/photo.jpg?deferred=1',
 		'wp-content/uploads/photo.jpg?lazy=3',
 		'wp-content/uploads/photo.jpg?lazy=4',
 		'wp-content/uploads/photo.jpg?frame=1',

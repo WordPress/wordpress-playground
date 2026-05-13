@@ -150,6 +150,9 @@ format.
 - Anchor same-site static export `<base href>` tags to the generated document
   directory so relative rewritten links do not resolve against the live site.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat static export `data-href` attributes as page-or-asset references so
+  deferred same-site links are crawled and copied.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
