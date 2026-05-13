@@ -162,6 +162,9 @@ format.
 - Fix static export startup so the configured max page limit is initialized
   before initial URL discovery runs.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve query-based WordPress REST API URLs such as `?rest_route=/...`
+  during static export rewriting.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

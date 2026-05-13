@@ -875,6 +875,7 @@ $html = implode(
 		'<base href="https://example.test/">',
 		'<a class="admin" href="/wp-admin/admin.php">Admin</a>',
 		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
+		'<a class="rest-query" href="/?rest_route=/wp/v2/posts">REST query</a>',
 		'<a class="feed" href="/feed/">Feed</a>',
 		'<link rel="alternate" type="application/rss+xml" href="/feed/">',
 		'<link rel="alternate" type="application/rss+xml" href="/comments/feed/">',
@@ -942,6 +943,7 @@ $html = implode(
 		'<script type="application/json">{"protocol":"//example.test/protocol-text/","protocolEscaped":"\/\/example.test\/protocol-escaped\/"}</script>',
 		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
 		'<script type="application/json">{"plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/photo.jpg?plain=1"}</script>',
+		'<script type="application/json">{"rest":"https:\/\/example.test\/?rest_route=\/wp\/v2\/posts"}</script>',
 		'<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"\/*","not":{"href_matches":["\/wp-admin\/*","\/wp-content\/uploads\/*","/wp-content/themes/*"]}}}]}</script>',
 		'<script>const next = "https://example.test/static-page/";</script>',
 	)
@@ -1103,6 +1105,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/deferred-page/', $result['links'], true ),
 	'rewrite_html records data-href page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	false,
+	in_array( 'https://example.test/?rest_route=/wp/v2/posts', $result['links'], true ),
+	'rewrite_html does not record query-based REST API URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2009,6 +2017,7 @@ foreach (
 	array(
 		'href="/wp-admin/admin.php"',
 		'href="/wp-json/wp/v2/posts"',
+		'href="/?rest_route=/wp/v2/posts"',
 		'href="/feed/"',
 		'type="application/rss+xml" href="/feed/"',
 		'type="application/rss+xml" href="/comments/feed/"',
@@ -2020,6 +2029,7 @@ foreach (
 		'href="javascript:void(0)"',
 		'href="data:text/plain,hello"',
 		'href="blob:https://example.test/id"',
+		'"rest":"https:\/\/example.test\/?rest_route=\/wp\/v2\/posts"',
 	)
 	as $unchanged
 ) {

@@ -1555,10 +1555,20 @@ final class SSGWP_URL_Rewriter {
 	 * @return bool
 	 */
 	private function is_non_exportable_same_site_url( $url ) {
-		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$path  = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$query = wp_parse_url( $url, PHP_URL_QUERY );
 
 		if ( preg_match( '#/(wp-admin|wp-comments-post\.php|wp-cron\.php|wp-login\.php|wp-json|xmlrpc\.php)(/|$)#', $path ) ) {
 			return true;
+		}
+
+		if ( is_string( $query ) && '' !== $query ) {
+			$query_args = array();
+			parse_str( $query, $query_args );
+
+			if ( array_key_exists( 'rest_route', $query_args ) ) {
+				return true;
+			}
 		}
 
 		return (bool) preg_match( '#/(?:comments/)?(?:feed|rdf|rss|rss2|atom)(/|$)#', $path );
