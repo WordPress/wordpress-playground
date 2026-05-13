@@ -1121,6 +1121,8 @@ foreach (
 		'publisher/index.html',
 		'related/index.html',
 		'schema-related/index.html',
+		'schema-author/index.html',
+		'schema-publisher/index.html',
 		'task-target/index.html',
 		'amp-page/index.html',
 		'embedded-page/index.html',
@@ -1204,6 +1206,8 @@ $html = implode(
 		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
+		'<link itemprop="author" href="/schema-author/">',
+		'<link itemprop="publisher" href="/schema-publisher/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<article itemscope itemid="/microdata-item/"'
 			. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>',
@@ -1249,6 +1253,8 @@ $html = implode(
 		'<meta itemprop="relatedLink" content="/schema-related/">',
 		'<meta itemprop="significantLinks" content="/schema-significant/">',
 		'<meta itemprop="license" content="/schema-license/">',
+		'<meta itemprop="author" content="/schema-author/">',
+		'<meta itemprop="publisher" content="/schema-publisher/">',
 		'<meta property="article:author" content="/author/admin/">',
 		'<meta property="article:publisher" content="/publisher/">',
 		'<meta property="og:see_also" content="/related/">',
@@ -1524,6 +1530,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="author" href="schema-author/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org author itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link itemprop="publisher" href="schema-publisher/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org publisher itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="contentUrl" href="wp-content/uploads/social-video.mp4?link-schema=1">',
 	$result['content'],
 	'rewrite_html treats schema.org link itemprop media URLs as assets.'
@@ -1713,6 +1731,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-license/', $result['links'], true ),
 	'rewrite_html records schema.org acquireLicensePage itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema-author/', $result['links'], true ),
+	'rewrite_html records schema.org author itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema-publisher/', $result['links'], true ),
+	'rewrite_html records schema.org publisher itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2133,6 +2163,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="author" content="schema-author/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org author page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="publisher" content="schema-publisher/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org publisher page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta property="article:author" content="author/admin/index.html">',
 	$result['content'],
 	'rewrite_html rewrites article author page URLs in meta content attributes.'
@@ -2173,6 +2215,8 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta itemprop="license" content="/schema-license/">'
+		. '<meta itemprop="author" content="/schema-author/">'
+		. '<meta itemprop="publisher" content="/schema-publisher/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
@@ -2194,6 +2238,8 @@ ssgwp_assert_same(
 		'https://example.test/schema-related/',
 		'https://example.test/schema-significant/',
 		'https://example.test/schema-license/',
+		'https://example.test/schema-author/',
+		'https://example.test/schema-publisher/',
 		'https://example.test/start-page/',
 		'https://example.test/task-target/',
 	),

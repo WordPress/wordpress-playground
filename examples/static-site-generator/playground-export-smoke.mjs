@@ -344,6 +344,22 @@ $schema_license_id = wp_insert_post(array(
 	'post_content' => '<p>Schema license export target.</p>',
 ));
 
+$schema_author_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Author',
+	'post_name' => 'schema-author',
+	'post_content' => '<p>Schema author export target.</p>',
+));
+
+$schema_publisher_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Publisher',
+	'post_name' => 'schema-publisher',
+	'post_content' => '<p>Schema publisher export target.</p>',
+));
+
 $amp_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -389,6 +405,8 @@ $svg_link_url = get_permalink($svg_link_id);
 $image_metadata_url = get_permalink($image_metadata_id);
 $schema_profile_url = get_permalink($schema_profile_id);
 $schema_license_url = get_permalink($schema_license_id);
+$schema_author_url = get_permalink($schema_author_id);
+$schema_publisher_url = get_permalink($schema_publisher_id);
 $amp_url = get_permalink($amp_id);
 $preloaded_document_url = get_permalink($preloaded_document_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
@@ -448,6 +466,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($microdata_license_url) . '">'
+	. '<link itemprop="author" href="' . esc_url($schema_author_url) . '">'
+	. '<meta itemprop="publisher" content="' . esc_url($schema_publisher_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '" itemtype="'
 	. esc_url($microdata_type_url) . ' https://schema.org/Article '
@@ -577,6 +597,8 @@ $scoped_svg_link_url = get_permalink($svg_link_id);
 $scoped_image_metadata_url = get_permalink($image_metadata_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
 $scoped_schema_license_url = get_permalink($schema_license_id);
+$scoped_schema_author_url = get_permalink($schema_author_id);
+$scoped_schema_publisher_url = get_permalink($schema_publisher_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_preloaded_document_url = get_permalink($preloaded_document_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
@@ -645,6 +667,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($scoped_microdata_license_url) . '">'
+	. '<link itemprop="author" href="' . esc_url($scoped_schema_author_url) . '">'
+	. '<meta itemprop="publisher" content="' . esc_url($scoped_schema_publisher_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '" itemtype="'
 	. esc_url($scoped_microdata_type_url) . ' https://schema.org/Article '
@@ -817,6 +841,8 @@ async function verifyExport() {
 	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
 	assertFile('schema-license/index.html');
+	assertFile('schema-author/index.html');
+	assertFile('schema-publisher/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('preloaded-document/index.html');
 	assertFile('parent-page/index.html');
@@ -867,6 +893,8 @@ async function verifyExport() {
 		'../image-metadata/index.html',
 		'../schema-profile/index.html',
 		'../schema-license/index.html',
+		'../schema-author/index.html',
+		'../schema-publisher/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
@@ -991,6 +1019,16 @@ async function verifyExport() {
 		staticPage,
 		'vocab="https://schema.org/"',
 		'static-page/index.html preserves external RDFa vocab URLs'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="author" href="../schema-author/index.html">',
+		'static-page/index.html rewrites schema.org author links'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="publisher" content="../schema-publisher/index.html">',
+		'static-page/index.html rewrites schema.org publisher metadata'
 	);
 	assertIncludes(
 		staticPage,

@@ -946,10 +946,12 @@ final class SSGWP_URL_Rewriter {
 		$itemprop          = strtolower( (string) $processor->get_attribute( 'itemprop' ) );
 		$itemprop_pages    = array(
 			'acquirelicensepage',
+			'author',
 			'discussionurl',
 			'embedurl',
 			'license',
 			'mainentityofpage',
+			'publisher',
 			'relatedlink',
 			'sameas',
 			'significantlink',
@@ -1414,6 +1416,7 @@ final class SSGWP_URL_Rewriter {
 			'acquirelicensepage',
 			'article:author',
 			'article:publisher',
+			'author',
 			'discussionurl',
 			'embedurl',
 			'license',
@@ -1421,6 +1424,7 @@ final class SSGWP_URL_Rewriter {
 			'msapplication-starturl',
 			'og:see_also',
 			'og:url',
+			'publisher',
 			'relatedlink',
 			'sameas',
 			'significantlink',
