@@ -573,6 +573,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<blockquote cite="' . esc_url($citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><cite cite="' . esc_url($citation_url . '#inline') . '">Inline citation</cite></p>'
+	. '<p><del cite="' . esc_url($citation_url . '#deleted') . '">Deleted citation</del></p>'
+	. '<p><ins cite="' . esc_url($citation_url . '#inserted') . '">Inserted citation</ins></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<table background="' . esc_url($asset_url . '?table-bg=1') . '"><tr>'
@@ -814,6 +816,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<blockquote cite="' . esc_url($scoped_citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($scoped_citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><cite cite="' . esc_url($scoped_citation_url . '#inline') . '">Inline citation</cite></p>'
+	. '<p><del cite="' . esc_url($scoped_citation_url . '#deleted') . '">Deleted citation</del></p>'
+	. '<p><ins cite="' . esc_url($scoped_citation_url . '#inserted') . '">Inserted citation</ins></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
 	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<table background="' . esc_url($scoped_asset_url . '?table-bg=1') . '"><tr>'
@@ -1097,6 +1101,8 @@ async function verifyExport() {
 		'../citation-source/index.html',
 		'../citation-source/index.html#quote',
 		'../citation-source/index.html#inline',
+		'../citation-source/index.html#deleted',
+		'../citation-source/index.html#inserted',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../form-button/index.html',
@@ -1688,6 +1694,8 @@ async function verifyScopedExport() {
 		'../citation-source/index.html',
 		'../citation-source/index.html#quote',
 		'../citation-source/index.html#inline',
+		'../citation-source/index.html#deleted',
+		'../citation-source/index.html#inserted',
 		'../deferred-link/index.html',
 		'../embed-only/index.html',
 		'../form-button/index.html',

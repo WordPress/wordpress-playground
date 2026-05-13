@@ -573,6 +573,8 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 		. '<link rel=preload as=document href=/preloaded-page/>'
 		. '<blockquote cite=/citation-source>Citation</blockquote>'
 		. '<cite cite=/citation-source#inline>Inline citation</cite>'
+		. '<del cite=/citation-source#deleted>Deleted citation</del>'
+		. '<ins cite=/citation-source#inserted>Inserted citation</ins>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
 		. '<img src=/wp-content/uploads/photo.jpg?longdesc=1 longdesc=/long-description/ alt="">'
 		. '<table background=/wp-content/uploads/table-bg.jpg?pattern=1><tr>'
@@ -620,6 +622,18 @@ ssgwp_assert_contains(
 	'<cite cite=citation-source/index.html#inline>Inline citation</cite>',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites unquoted cite element citation links.'
+);
+
+ssgwp_assert_contains(
+	'<del cite=citation-source/index.html#deleted>Deleted citation</del>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted deleted-content citation links.'
+);
+
+ssgwp_assert_contains(
+	'<ins cite=citation-source/index.html#inserted>Inserted citation</ins>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted inserted-content citation links.'
 );
 
 ssgwp_assert_contains(
@@ -1279,6 +1293,8 @@ $html = implode(
 		'<blockquote cite="/citation-source/">Citation</blockquote>',
 		'<q cite="/citation-source/#quote">Quote</q>',
 		'<cite cite="/citation-source/#inline">Inline citation</cite>',
+		'<del cite="/citation-source/#deleted">Deleted citation</del>',
+		'<ins cite="/citation-source/#inserted">Inserted citation</ins>',
 		'<base href="https://example.test/">',
 		'<table background="/wp-content/uploads/table-bg.jpg?table=1"><tr>'
 			. '<td background="/wp-content/uploads/cell-bg.jpg?cell=1">Legacy</td>'
@@ -1546,6 +1562,18 @@ ssgwp_assert_contains(
 	'<cite cite="citation-source/index.html#inline">',
 	$result['content'],
 	'rewrite_html rewrites cite element citation page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<del cite="citation-source/index.html#deleted">',
+	$result['content'],
+	'rewrite_html rewrites deleted-content citation page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<ins cite="citation-source/index.html#inserted">',
+	$result['content'],
+	'rewrite_html rewrites inserted-content citation page URLs.'
 );
 
 ssgwp_assert_contains(
