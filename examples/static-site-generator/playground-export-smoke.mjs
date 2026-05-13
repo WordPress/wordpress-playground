@@ -142,6 +142,10 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="msapplication-TileImage" content="' . esc_url($asset_url . '?tile=1') . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($child_url) . '">'
+	. '<meta property="article:author" content="' . esc_url($child_url) . '">'
+	. '<meta property="article:publisher" content="' . esc_url(get_permalink($parent_id)) . '">'
+	. '<meta property="og:see_also" content="' . esc_url($child_url) . '">'
+	. '<meta name="twitter:player" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
@@ -216,6 +220,10 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="msapplication-TileImage" content="' . esc_url($scoped_asset_url . '?tile=1') . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($scoped_asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($scoped_child_url) . '">'
+	. '<meta property="article:author" content="' . esc_url($scoped_child_url) . '">'
+	. '<meta property="article:publisher" content="' . esc_url(get_permalink($parent_id)) . '">'
+	. '<meta property="og:see_also" content="' . esc_url($scoped_child_url) . '">'
+	. '<meta name="twitter:player" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($scoped_asset_url) . '" imagesrcset="' . esc_url($scoped_asset_url) . ' 1x, ' . esc_url($scoped_asset_url . '?preload=2x') . ' 2x">'
 	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
@@ -330,6 +338,7 @@ async function verifyExport() {
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
+		'../parent-page/index.html',
 		'../comments/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
@@ -390,6 +399,7 @@ async function verifyScopedExport() {
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
+		'../parent-page/index.html',
 		'../comments/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',

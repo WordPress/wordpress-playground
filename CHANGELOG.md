@@ -115,6 +115,9 @@ format.
 - Rewrite additional static export metadata URLs, including schema.org media
   fields, embed page fields, Windows tile images, and Twitter player streams.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite article/profile social metadata page URLs in static exports,
+  including Open Graph related links and Twitter player pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

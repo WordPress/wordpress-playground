@@ -627,6 +627,10 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta name="twitter:image" content="/wp-content/uploads/social.jpg?ver=1">'
 		. '<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
+		. '<meta property="article:author" content="/author/admin/">'
+		. '<meta property="article:publisher" content="/publisher/">'
+		. '<meta property="og:see_also" content="/related/">'
+		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="description" content="Plain text">',
 	'https://example.test/',
@@ -655,6 +659,30 @@ ssgwp_assert_contains(
 	'<meta itemprop="embedUrl" content="video-player/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org embedUrl page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="article:author" content="author/admin/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites article author page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="article:publisher" content="publisher/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites article publisher page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="og:see_also" content="related/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites Open Graph related page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="twitter:player" content="video-player/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites Twitter player page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -709,6 +737,8 @@ foreach (
 		'prefetched-page/index.html',
 		'sample-page/index.html',
 		'author/admin/index.html',
+		'publisher/index.html',
+		'related/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
 		'encoded%20page/index.html',
@@ -781,6 +811,10 @@ $html = implode(
 		'<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">',
 		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
 		'<meta itemprop="embedUrl" content="/video-player/">',
+		'<meta property="article:author" content="/author/admin/">',
+		'<meta property="article:publisher" content="/publisher/">',
+		'<meta property="og:see_also" content="/related/">',
+		'<meta name="twitter:player" content="/video-player/">',
 		'<meta name="twitter:player:stream" content="/wp-content/uploads/social-video.mp4?stream=1">',
 		'<link rel="preload" as="image" href="/wp-content/uploads/photo.jpg" imagesrcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">',
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
@@ -1048,6 +1082,30 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta property="article:author" content="author/admin/index.html">',
+	$result['content'],
+	'rewrite_html rewrites article author page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="article:publisher" content="publisher/index.html">',
+	$result['content'],
+	'rewrite_html rewrites article publisher page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="og:see_also" content="related/index.html">',
+	$result['content'],
+	'rewrite_html rewrites Open Graph related page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="twitter:player" content="video-player/index.html">',
+	$result['content'],
+	'rewrite_html rewrites Twitter player page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta name="twitter:player:stream" content="wp-content/uploads/social-video.mp4?stream=1">',
 	$result['content'],
 	'rewrite_html rewrites Twitter player stream URLs in meta content attributes.'
@@ -1056,7 +1114,10 @@ ssgwp_assert_contains(
 $meta_only_result = $rewriter->rewrite_html(
 	'<meta property="og:url" content="/meta-page/">'
 		. '<meta property="og:image" content="/wp-content/uploads/social.jpg">'
+		. '<meta property="article:publisher" content="/publisher/">'
+		. '<meta property="og:see_also" content="/related/">'
 		. '<meta itemprop="embedUrl" content="/video-player/">'
+		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">',
 	'https://example.test/',
 	'index.html'
@@ -1065,10 +1126,12 @@ $meta_only_result = $rewriter->rewrite_html(
 ssgwp_assert_same(
 	array(
 		'https://example.test/meta-page/',
+		'https://example.test/publisher/',
+		'https://example.test/related/',
 		'https://example.test/video-player/',
 	),
 	$meta_only_result['links'],
-	'rewrite_html records meta page and structured-data embed URLs as links to crawl.'
+	'rewrite_html records meta page, social, and structured-data embed URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -1323,6 +1386,8 @@ foreach (
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
 		'author/admin/index.html',
+		'publisher/index.html',
+		'related/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
 		'encoded%20page/index.html',

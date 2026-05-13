@@ -852,8 +852,12 @@ final class SSGWP_URL_Rewriter {
 		$itemprop = strtolower( (string) $itemprop );
 
 		$page_keys = array(
+			'article:author',
+			'article:publisher',
 			'embedurl',
+			'og:see_also',
 			'og:url',
+			'twitter:player',
 			'twitter:url',
 			'url',
 			'mainentityofpage',
