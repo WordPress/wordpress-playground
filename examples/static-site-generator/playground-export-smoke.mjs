@@ -6,6 +6,7 @@
  * can run from sparse checkouts without installing the whole monorepo.
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
 	existsSync,
 	mkdirSync,
@@ -321,6 +322,7 @@ $preloaded_document_url = get_permalink($preloaded_document_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $rest_route_url = '/?rest_route=/wp/v2/posts';
 $feed_query_url = '/?feed=rss2';
+$semicolon_refresh_query = 'jump=one;two';
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<base href="' . esc_url(home_url('/')) . '">'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
@@ -345,6 +347,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($rest_route_url) . '">REST</a></p>'
 	. '<p><a class="feed-query-link" href="' . esc_url($feed_query_url) . '">Feed query</a></p>'
+	. '<meta http-equiv="refresh" content="0; url=' . esc_url('/static-page/?' . $semicolon_refresh_query . '#section') . '">'
 	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio" content="' . esc_url($asset_url . '?audio=1') . '">'
@@ -476,6 +479,7 @@ $scoped_preloaded_document_url = get_permalink($preloaded_document_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_rest_route_url = home_url('/?rest_route=/wp/v2/posts');
 $scoped_feed_query_url = home_url('/?feed=rss2');
+$scoped_semicolon_refresh_query = 'jump=one;two';
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_captions_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-captions.vtt';
 $scoped_manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
@@ -509,6 +513,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($scoped_rest_route_url) . '">REST</a></p>'
 	. '<p><a class="feed-query-link" href="' . esc_url($scoped_feed_query_url) . '">Feed query</a></p>'
+	. '<meta http-equiv="refresh" content="0; url=' . esc_url(home_url('/static-page/?' . $scoped_semicolon_refresh_query . '#section')) . '">'
 	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
 	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio:secure_url" content="' . esc_url($scoped_asset_url . '?audio=1') . '">'
@@ -661,6 +666,7 @@ async function verifyExport() {
 	currentExportDir = exportDir;
 	assertFile('index.html');
 	assertFile('static-page/index.html');
+	assertFile(`static-page-${shortHash('jump=one%3Btwo')}.html`);
 	assertFile('static-page/relative-child/index.html');
 	assertFile('comments/index.html');
 	assertFile('citation-source/index.html');
@@ -698,6 +704,7 @@ async function verifyExport() {
 	assertFile('static-export.json');
 
 	const staticPage = readText('static-page/index.html');
+	const semicolonRefreshTarget = `../static-page-${shortHash('jump=one%3Btwo')}.html#section`;
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
@@ -722,6 +729,7 @@ async function verifyExport() {
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
 		'index.html#section',
+		semicolonRefreshTarget,
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
@@ -772,6 +780,11 @@ async function verifyExport() {
 		staticPage,
 		'<base href="./">',
 		'static-page/index.html anchors same-site base hrefs to the static document'
+	);
+	assertIncludes(
+		staticPage,
+		`content="0; url=${semicolonRefreshTarget}"`,
+		'static-page/index.html rewrites meta refresh URLs with semicolon query strings'
 	);
 	assertIncludes(
 		staticPage,
@@ -989,6 +1002,7 @@ async function verifyScopedExport() {
 
 	assertFile('index.html');
 	assertFile('static-page/index.html');
+	assertFile(`static-page-${shortHash('jump=one%3Btwo')}.html`);
 	assertFile('static-page/relative-child/index.html');
 	assertFile('comments/index.html');
 	assertFile('citation-source/index.html');
@@ -1038,6 +1052,7 @@ async function verifyScopedExport() {
 	}
 
 	const staticPage = readText('static-page/index.html');
+	const semicolonRefreshTarget = `../static-page-${shortHash('jump=one%3Btwo')}.html#section`;
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
@@ -1062,6 +1077,7 @@ async function verifyScopedExport() {
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
 		'index.html#section',
+		semicolonRefreshTarget,
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
@@ -1111,6 +1127,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'<base href="./">',
 		'scoped static-page/index.html anchors same-site base hrefs to the static document'
+	);
+	assertIncludes(
+		staticPage,
+		`content="0; url=${semicolonRefreshTarget}"`,
+		'scoped static-page/index.html rewrites meta refresh URLs with semicolon query strings'
 	);
 	assertIncludes(
 		staticPage,
@@ -1534,6 +1555,10 @@ function splitSrcsetCandidates(srcset) {
 	return candidates;
 }
 
+function shortHash(value) {
+	return createHash('md5').update(value).digest('hex').slice(0, 8);
+}
+
 function extractCssUrlRefs(text) {
 	return [
 		...text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi),
@@ -1582,8 +1607,9 @@ function resolveExportReference(fromFile, ref) {
 		? currentExportDir
 		: path.dirname(path.join(currentExportDir, fromFile));
 	const resolved = path.resolve(base, withoutQuery.replace(/^\/+/, ''));
+	const exportRoot = path.resolve(currentExportDir);
 
-	if (!resolved.startsWith(path.resolve(currentExportDir) + path.sep)) {
+	if (resolved !== exportRoot && !resolved.startsWith(exportRoot + path.sep)) {
 		throw new Error(`Reference escapes export root from ${fromFile}: ${ref}`);
 	}
 

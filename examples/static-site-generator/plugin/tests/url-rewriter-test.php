@@ -843,6 +843,32 @@ ssgwp_assert_contains(
 	'rewrite_meta_refresh_with_patterns rewrites unquoted refresh URLs.'
 );
 
+$semicolon_query_hash = substr( md5( 'jump=one%3Btwo' ), 0, 8 );
+$meta_refresh_semicolon = $rewriter->rewrite_html(
+	'<meta http-equiv="refresh" content="0; url=/static-page/?jump=one;two#section">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta http-equiv="refresh" content="0; url=static-page-' . $semicolon_query_hash . '.html#section">',
+	$meta_refresh_semicolon['content'],
+	'rewrite_html keeps semicolons inside meta refresh URL query strings.'
+);
+
+$pattern_meta_refresh_semicolon = $pattern_meta_refresh_method->invoke(
+	$rewriter,
+	'<meta http-equiv="refresh" content="0; url=/static-page/?jump=one;two#section">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta http-equiv="refresh" content="0; url=static-page-' . $semicolon_query_hash . '.html#section">',
+	$pattern_meta_refresh_semicolon,
+	'rewrite_meta_refresh_with_patterns keeps semicolons inside URL query strings.'
+);
+
 $pattern_meta_content_method = new ReflectionMethod( $rewriter, 'rewrite_meta_content_urls_with_patterns' );
 $pattern_meta_content_method->setAccessible( true );
 

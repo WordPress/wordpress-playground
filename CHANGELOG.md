@@ -238,6 +238,9 @@ format.
 - Rewrite Windows pinned-site start URLs during static export so exported
   metadata points at generated pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve semicolons inside static export meta refresh URL query strings when
+  rewriting refresh targets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
