@@ -167,6 +167,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:audio" content="' . esc_url($asset_url . '?audio=1') . '">'
 	. '<meta property="og:video" content="' . esc_url($asset_url . '?video=1') . '">'
 	. '<meta name="msapplication-TileImage" content="' . esc_url($asset_url . '?tile=1') . '">'
+	. '<meta name="msapplication-square70x70logo" content="' . esc_url($asset_url . '?tile-small=1') . '">'
+	. '<meta name="msapplication-wide310x150logo" content="' . esc_url($asset_url . '?tile-wide=1') . '">'
 	. '<meta name="msapplication-config" content="' . esc_url($browserconfig_url) . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($child_url) . '">'
@@ -254,6 +256,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:audio:secure_url" content="' . esc_url($scoped_asset_url . '?audio=1') . '">'
 	. '<meta property="og:video:secure_url" content="' . esc_url($scoped_asset_url . '?video=1') . '">'
 	. '<meta name="msapplication-TileImage" content="' . esc_url($scoped_asset_url . '?tile=1') . '">'
+	. '<meta name="msapplication-square70x70logo" content="' . esc_url($scoped_asset_url . '?tile-small=1') . '">'
+	. '<meta name="msapplication-wide310x150logo" content="' . esc_url($scoped_asset_url . '?tile-wide=1') . '">'
 	. '<meta name="msapplication-config" content="' . esc_url($scoped_browserconfig_url) . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($scoped_asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($scoped_child_url) . '">'
@@ -394,6 +398,8 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
@@ -498,6 +504,8 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',

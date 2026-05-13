@@ -139,6 +139,8 @@ format.
 - Rewrite quoted CSS `image-set()` asset URLs in exported pages and copied
   stylesheets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite additional Windows tile meta image URLs in static exports.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

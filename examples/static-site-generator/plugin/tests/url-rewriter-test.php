@@ -826,6 +826,8 @@ $html = implode(
 		'<meta property="og:video" content="https://example.test/wp-content/uploads/social-video.mp4?ver=1">',
 		'<meta name="twitter:image" content="/wp-content/uploads/photo.jpg">',
 		'<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">',
+		'<meta name="msapplication-square70x70logo" content="/wp-content/uploads/tile.png?small=1">',
+		'<meta name="msapplication-wide310x150logo" content="/wp-content/uploads/tile.png?wide=1">',
 		'<meta name="msapplication-config" content="/browserconfig.xml">',
 		'<meta itemprop="contentUrl" content="/wp-content/uploads/social-video.mp4?schema=1">',
 		'<meta itemprop="embedUrl" content="/video-player/">',
@@ -1094,6 +1096,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta name="msapplication-square70x70logo" content="wp-content/uploads/tile.png?small=1">',
+	$result['content'],
+	'rewrite_html rewrites small Windows tile image URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="msapplication-wide310x150logo" content="wp-content/uploads/tile.png?wide=1">',
+	$result['content'],
+	'rewrite_html rewrites wide Windows tile image URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta name="msapplication-config" content="browserconfig.xml">',
 	$result['content'],
 	'rewrite_html rewrites Windows browser config URLs in meta content attributes.'
@@ -1149,6 +1163,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
+		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
 		. '<meta name="msapplication-config" content="/browserconfig.xml">',
 	'https://example.test/',
 	'index.html'
@@ -1169,6 +1184,7 @@ ssgwp_assert_same(
 	array(
 		'https://example.test/wp-content/uploads/social.jpg',
 		'https://example.test/wp-content/uploads/tile.png',
+		'https://example.test/wp-content/uploads/tile.png?square=1',
 		'https://example.test/browserconfig.xml',
 	),
 	$meta_only_result['assets'],
@@ -1641,6 +1657,8 @@ foreach (
 		'wp-content/uploads/social-video.mp4?schema=1',
 		'wp-content/uploads/social-video.mp4?stream=1',
 		'wp-content/uploads/tile.png',
+		'wp-content/uploads/tile.png?small=1',
+		'wp-content/uploads/tile.png?wide=1',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo.jpg?prefetch=1',
 		'wp-content/uploads/photo.jpg?lazy=3',
