@@ -106,6 +106,9 @@ format.
 - Treat semantic static export link relations such as `rel="author"` as
   crawlable page links instead of copied assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat static export `rel="profile"` links as crawlable page references so
+  profile documents are generated instead of copied as assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite common lazy-loading `data-*` asset attributes in static exports,
   including background URLs and background `srcset` values on non-image tags.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

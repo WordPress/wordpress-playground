@@ -437,6 +437,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<span vocab="https://schema.org/">External RDFa vocab</span>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($svg_link_url) . '"><text>SVG link</text></a></svg>'
+	. '<link rel="profile" href="' . esc_url($schema_profile_url) . '">'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($manifest_url) . '">'
 	. '<link rel="stylesheet" href="' . esc_url($sourcemap_css_url) . '">'
@@ -628,6 +629,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<span vocab="https://schema.org/">External RDFa vocab</span>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($scoped_svg_link_url) . '"><text>SVG link</text></a></svg>'
+	. '<link rel="profile" href="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($scoped_manifest_url) . '">'
 	. '<link rel="stylesheet" href="' . esc_url($scoped_sourcemap_css_url) . '">'
@@ -964,6 +966,11 @@ async function verifyExport() {
 		staticPage,
 		'about="[schema:Thing]" resource="_:local"',
 		'static-page/index.html preserves RDFa CURIE values'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="profile" href="../schema-profile/index.html">',
+		'static-page/index.html rewrites profile link relations'
 	);
 	assertIncludes(
 		staticPage,
@@ -1389,6 +1396,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'about="[schema:Thing]" resource="_:local"',
 		'scoped static-page/index.html preserves RDFa CURIE values'
+	);
+	assertIncludes(
+		staticPage,
+		'<link rel="profile" href="../schema-profile/index.html">',
+		'scoped static-page/index.html rewrites profile link relations'
 	);
 	assertIncludes(
 		staticPage,
