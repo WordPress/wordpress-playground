@@ -686,7 +686,8 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
 		. '<embed data-src="/embed-page/" data-lazy-src="/wp-content/uploads/social-video.mp4?lazy-embed=1">'
 		. '<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>'
-		. '<article itemscope itemid="/microdata-item/">Microdata item</article>'
+		. '<article itemscope itemid="/microdata-item/"'
+		. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>'
 		. '<article about="/rdfa-about/" resource="https://example.test/rdfa-resource/">RDFa</article>'
 		. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>',
 	'https://example.test/',
@@ -805,6 +806,12 @@ ssgwp_assert_contains(
 	'itemid="microdata-item/index.html"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites microdata itemid page URLs.'
+);
+
+ssgwp_assert_contains(
+	'itemtype="schema/local/index.html https://schema.org/Article schema/secondary/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites same-site microdata itemtype URL tokens.'
 );
 
 ssgwp_assert_contains(
@@ -1099,6 +1106,8 @@ foreach (
 			'microdata-profile/index.html',
 			'microdata-related/index.html',
 			'microdata-significant/index.html',
+			'schema/local/index.html',
+			'schema/secondary/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -1193,7 +1202,8 @@ $html = implode(
 		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
-		'<article itemscope itemid="/microdata-item/">Microdata item</article>',
+		'<article itemscope itemid="/microdata-item/"'
+			. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>',
 		'<article about="/rdfa-about/" resource="https://example.test/rdfa-resource/">RDFa</article>',
 		'<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>',
 		'<svg><a xlink:href="/svg-linked-page/"><text>SVG page link</text></a></svg>',
@@ -1502,6 +1512,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'itemtype="schema/local/index.html https://schema.org/Article schema/secondary/index.html"',
+	$result['content'],
+	'rewrite_html rewrites same-site microdata itemtype URL tokens.'
+);
+
+ssgwp_assert_contains(
 	'about="rdfa-about/index.html" resource="rdfa-resource/index.html"',
 	$result['content'],
 	'rewrite_html treats RDFa about/resource URLs as page links.'
@@ -1655,6 +1671,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-item/', $result['links'], true ),
 	'rewrite_html records microdata itemid URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema/local', $result['links'], true ),
+	'rewrite_html records same-site microdata itemtype root-relative URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema/secondary/', $result['links'], true ),
+	'rewrite_html records same-site microdata itemtype absolute URLs as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2750,6 +2778,8 @@ foreach (
 		'microdata-profile/index.html',
 		'microdata-related/index.html',
 		'microdata-significant/index.html',
+		'schema/local/index.html',
+		'schema/secondary/index.html',
 		'schema-related/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',

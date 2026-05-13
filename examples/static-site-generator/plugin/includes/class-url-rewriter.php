@@ -358,6 +358,7 @@ final class SSGWP_URL_Rewriter {
 			'data-url'         => 'maybe',
 			'about'            => 'semantic-page',
 			'itemid'           => 'page',
+			'itemtype'         => 'semantic-page-list',
 			'resource'         => 'semantic-page',
 		);
 		$attributes_by_tag      = array(
@@ -479,6 +480,13 @@ final class SSGWP_URL_Rewriter {
 
 				if ( 'srcset' === $kind ) {
 					$rewritten = $this->rewrite_srcset( $value, $base_url, $target_path );
+				} elseif ( 'semantic-page-list' === $kind ) {
+					$rewritten = $this->rewrite_url_list_value(
+						$value,
+						$base_url,
+						$target_path,
+						'semantic-page'
+					);
 				} else {
 					$rewritten = $this->rewrite_url_value( $value, $base_url, $target_path, $kind );
 				}
@@ -563,6 +571,7 @@ final class SSGWP_URL_Rewriter {
 			'imagesrcset'      => 'srcset',
 			'about'            => 'semantic-page',
 			'itemid'           => 'page',
+			'itemtype'         => 'semantic-page-list',
 			'resource'         => 'semantic-page',
 			'xlink:href'       => 'asset',
 		);
@@ -577,6 +586,13 @@ final class SSGWP_URL_Rewriter {
 
 					if ( 'srcset' === $kind ) {
 						$rewritten = $this->rewrite_srcset( $value, $base_url, $target_path );
+					} elseif ( 'semantic-page-list' === $kind ) {
+						$rewritten = $this->rewrite_url_list_value(
+							$value,
+							$base_url,
+							$target_path,
+							'semantic-page'
+						);
 					} else {
 						$rewritten = $this->rewrite_url_value( $value, $base_url, $target_path, $kind );
 					}
@@ -1030,6 +1046,25 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Rewrite a whitespace-separated list of URL values.
+	 *
+	 * @param string $value       URL list value.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @param string $kind        URL kind for each list item.
+	 * @return string
+	 */
+	private function rewrite_url_list_value( $value, $base_url, $target_path, $kind ) {
+		return preg_replace_callback(
+			'/\S+/',
+			function ( $matches ) use ( $base_url, $target_path, $kind ) {
+				return $this->rewrite_url_value( $matches[0], $base_url, $target_path, $kind );
+			},
+			(string) $value
+		);
 	}
 
 	/**

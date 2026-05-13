@@ -264,6 +264,22 @@ $microdata_item_id = wp_insert_post(array(
 	'post_content' => '<p>Microdata itemid export target.</p>',
 ));
 
+$microdata_type_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Microdata Type',
+	'post_name' => 'microdata-type',
+	'post_content' => '<p>Microdata itemtype export target.</p>',
+));
+
+$microdata_secondary_type_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Microdata Secondary Type',
+	'post_name' => 'microdata-secondary-type',
+	'post_content' => '<p>Microdata secondary itemtype export target.</p>',
+));
+
 $rdfa_about_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -339,6 +355,8 @@ $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
 $microdata_related_url = get_permalink($microdata_related_id);
 $microdata_item_url = get_permalink($microdata_item_id);
+$microdata_type_url = get_permalink($microdata_type_id);
+$microdata_secondary_type_url = get_permalink($microdata_secondary_type_id);
 $rdfa_about_url = get_permalink($rdfa_about_id);
 $rdfa_resource_url = get_permalink($rdfa_resource_id);
 $svg_link_url = get_permalink($svg_link_id);
@@ -402,7 +420,9 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
-	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '">Microdata item</article>'
+	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '" itemtype="'
+	. esc_url($microdata_type_url) . ' https://schema.org/Article '
+	. esc_url($microdata_secondary_type_url) . '">Microdata item</article>'
 	. '<article about="' . esc_url($rdfa_about_url) . '" resource="' . esc_url($rdfa_resource_url) . '">RDFa item</article>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($svg_link_url) . '"><text>SVG link</text></a></svg>'
@@ -514,6 +534,8 @@ $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
 $scoped_microdata_related_url = get_permalink($microdata_related_id);
 $scoped_microdata_item_url = get_permalink($microdata_item_id);
+$scoped_microdata_type_url = get_permalink($microdata_type_id);
+$scoped_microdata_secondary_type_url = get_permalink($microdata_secondary_type_id);
 $scoped_rdfa_about_url = get_permalink($rdfa_about_id);
 $scoped_rdfa_resource_url = get_permalink($rdfa_resource_id);
 $scoped_svg_link_url = get_permalink($svg_link_id);
@@ -586,7 +608,9 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
-	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '">Microdata item</article>'
+	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '" itemtype="'
+	. esc_url($scoped_microdata_type_url) . ' https://schema.org/Article '
+	. esc_url($scoped_microdata_secondary_type_url) . '">Microdata item</article>'
 	. '<article about="' . esc_url($scoped_rdfa_about_url) . '" resource="' . esc_url($scoped_rdfa_resource_url) . '">RDFa item</article>'
 	. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>'
 	. '<svg><a xlink:href="' . esc_url($scoped_svg_link_url) . '"><text>SVG link</text></a></svg>'
@@ -741,6 +765,8 @@ async function verifyExport() {
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
 	assertFile('microdata-item/index.html');
+	assertFile('microdata-type/index.html');
+	assertFile('microdata-secondary-type/index.html');
 	assertFile('rdfa-about/index.html');
 	assertFile('rdfa-resource/index.html');
 	assertFile('svg-link/index.html');
@@ -786,6 +812,8 @@ async function verifyExport() {
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
 		'../microdata-item/index.html',
+		'../microdata-type/index.html',
+		'../microdata-secondary-type/index.html',
 		'../rdfa-about/index.html',
 		'../rdfa-resource/index.html',
 		'../svg-link/index.html',
@@ -895,6 +923,11 @@ async function verifyExport() {
 		staticPage,
 		'itemid="../microdata-item/index.html"',
 		'static-page/index.html rewrites microdata itemid page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'itemtype="../microdata-type/index.html https://schema.org/Article ../microdata-secondary-type/index.html"',
+		'static-page/index.html rewrites same-site microdata itemtype URL tokens'
 	);
 	assertIncludes(
 		staticPage,
@@ -1134,6 +1167,8 @@ async function verifyScopedExport() {
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
 	assertFile('microdata-item/index.html');
+	assertFile('microdata-type/index.html');
+	assertFile('microdata-secondary-type/index.html');
 	assertFile('rdfa-about/index.html');
 	assertFile('rdfa-resource/index.html');
 	assertFile('svg-link/index.html');
@@ -1191,6 +1226,8 @@ async function verifyScopedExport() {
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
 		'../microdata-item/index.html',
+		'../microdata-type/index.html',
+		'../microdata-secondary-type/index.html',
 		'../rdfa-about/index.html',
 		'../rdfa-resource/index.html',
 		'../svg-link/index.html',
@@ -1299,6 +1336,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'itemid="../microdata-item/index.html"',
 		'scoped static-page/index.html rewrites microdata itemid page targets'
+	);
+	assertIncludes(
+		staticPage,
+		'itemtype="../microdata-type/index.html https://schema.org/Article ../microdata-secondary-type/index.html"',
+		'scoped static-page/index.html rewrites same-site microdata itemtype URL tokens'
 	);
 	assertIncludes(
 		staticPage,

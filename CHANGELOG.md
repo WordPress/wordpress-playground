@@ -258,6 +258,9 @@ format.
 - Treat RDFa `about` and `resource` page identifiers as crawlable static
   export pages while preserving CURIE and blank-node values.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat microdata `itemtype` URL tokens as crawlable static export pages while
+  preserving external schema URLs.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
