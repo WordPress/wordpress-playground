@@ -147,6 +147,9 @@ format.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite additional Windows tile meta image URLs in static exports.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite Windows pinned-site task metadata in static exports, including the
+  task page and icon URLs.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Anchor same-site static export `<base href>` tags to the generated document
   directory so relative rewritten links do not resolve against the live site.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

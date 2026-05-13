@@ -1058,7 +1058,9 @@ final class SSGWP_URL_Rewriter {
 				continue;
 			}
 
-			$rewritten = $this->rewrite_url_value( $content, $base_url, $target_path, $kind );
+			$rewritten = 'msapplication-task' === $kind
+				? $this->rewrite_msapplication_task_content( $content, $base_url, $target_path )
+				: $this->rewrite_url_value( $content, $base_url, $target_path, $kind );
 
 			if ( $rewritten !== $content ) {
 				$processor->set_attribute(
@@ -1096,12 +1098,18 @@ final class SSGWP_URL_Rewriter {
 					return $tag;
 				}
 
-				$rewritten = $this->rewrite_url_value(
-					$attributes['content']['value'],
-					$base_url,
-					$target_path,
-					$kind
-				);
+				$rewritten = 'msapplication-task' === $kind
+					? $this->rewrite_msapplication_task_content(
+						$attributes['content']['value'],
+						$base_url,
+						$target_path
+					)
+					: $this->rewrite_url_value(
+						$attributes['content']['value'],
+						$base_url,
+						$target_path,
+						$kind
+					);
 
 				if ( $rewritten === $attributes['content']['value'] ) {
 					return $tag;
@@ -1117,7 +1125,7 @@ final class SSGWP_URL_Rewriter {
 	 * Determine whether a meta content attribute contains a page or asset URL.
 	 *
 	 * @param WP_HTML_Tag_Processor $processor HTML processor.
-	 * @return string|null URL kind: page, asset, browserconfig, or null.
+	 * @return string|null URL kind, or null when the meta content is not a URL.
 	 */
 	private function meta_content_url_kind( $processor ) {
 		return $this->meta_attribute_url_kind(
@@ -1133,7 +1141,7 @@ final class SSGWP_URL_Rewriter {
 	 * @param string $property Meta property attribute.
 	 * @param string $name     Meta name attribute.
 	 * @param string $itemprop Meta itemprop attribute.
-	 * @return string|null URL kind: page, asset, browserconfig, or null.
+	 * @return string|null URL kind, or null when the meta content is not a URL.
 	 */
 	private function meta_attribute_url_kind( $property, $name, $itemprop ) {
 		$property = strtolower( (string) $property );
@@ -1154,6 +1162,10 @@ final class SSGWP_URL_Rewriter {
 
 		$browser_config_keys = array(
 			'msapplication-config',
+		);
+
+		$msapplication_task_keys = array(
+			'msapplication-task',
 		);
 
 		$asset_keys = array(
@@ -1190,12 +1202,62 @@ final class SSGWP_URL_Rewriter {
 				return 'browserconfig';
 			}
 
+			if ( in_array( $key, $msapplication_task_keys, true ) ) {
+				return 'msapplication-task';
+			}
+
 			if ( in_array( $key, $asset_keys, true ) ) {
 				return 'asset';
 			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * Rewrite Windows pinned-site task action and icon URLs.
+	 *
+	 * @param string $content     Meta content value.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string Rewritten meta content value.
+	 */
+	private function rewrite_msapplication_task_content( $content, $base_url, $target_path ) {
+		return preg_replace_callback(
+			'/(^|;)(\s*(action-uri|icon-uri)\s*=\s*)([^;]*)/i',
+			function ( $matches ) use ( $base_url, $target_path ) {
+				$kind      = 'action-uri' === strtolower( $matches[3] ) ? 'page' : 'asset';
+				$raw_value = $matches[4];
+				$leading   = '';
+				$trailing  = '';
+				$quote     = '';
+				$value     = $raw_value;
+
+				if ( preg_match( '/^(\s*)(.*?)(\s*)$/s', $value, $space_match ) ) {
+					$leading  = $space_match[1];
+					$value    = $space_match[2];
+					$trailing = $space_match[3];
+				}
+
+				if (
+					strlen( $value ) >= 2
+					&& ( '"' === $value[0] || "'" === $value[0] )
+					&& substr( $value, -1 ) === $value[0]
+				) {
+					$quote = $value[0];
+					$value = substr( $value, 1, -1 );
+				}
+
+				if ( '' === $value ) {
+					return $matches[0];
+				}
+
+				return $matches[1] . $matches[2] . $leading . $quote
+					. $this->rewrite_url_value( $value, $base_url, $target_path, $kind )
+					. $quote . $trailing;
+			},
+			(string) $content
+		);
 	}
 
 	/**

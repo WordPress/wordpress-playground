@@ -200,6 +200,14 @@ $form_input_id = wp_insert_post(array(
 	'post_content' => '<p>Input formaction export target.</p>',
 ));
 
+$task_target_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Task Target',
+	'post_name' => 'task-target',
+	'post_content' => '<p>Pinned-site task export target.</p>',
+));
+
 wp_update_post(array(
 	'ID' => $child_id,
 	'post_parent' => $parent_id,
@@ -212,6 +220,7 @@ $deferred_url = get_permalink($deferred_id);
 $form_target_url = get_permalink($form_target_id);
 $form_button_url = get_permalink($form_button_id);
 $form_input_url = get_permalink($form_input_id);
+$task_target_url = get_permalink($task_target_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $rest_route_url = '/?rest_route=/wp/v2/posts';
 $feed_query_url = '/?feed=rss2';
@@ -240,6 +249,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="msapplication-square70x70logo" content="' . esc_url($asset_url . '?tile-small=1') . '">'
 	. '<meta name="msapplication-wide310x150logo" content="' . esc_url($asset_url . '?tile-wide=1') . '">'
 	. '<meta name="msapplication-config" content="' . esc_url($browserconfig_url) . '">'
+	. '<meta name="msapplication-task" content="name=Docs;action-uri=' . esc_url($task_target_url) . ';icon-uri=' . esc_url($asset_url . '?task=1') . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($child_url) . '">'
 	. '<meta property="article:author" content="' . esc_url($child_url) . '">'
@@ -337,6 +347,7 @@ $scoped_deferred_url = get_permalink($deferred_id);
 $scoped_form_target_url = get_permalink($form_target_id);
 $scoped_form_button_url = get_permalink($form_button_id);
 $scoped_form_input_url = get_permalink($form_input_id);
+$scoped_task_target_url = get_permalink($task_target_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_rest_route_url = home_url('/?rest_route=/wp/v2/posts');
 $scoped_feed_query_url = home_url('/?feed=rss2');
@@ -373,6 +384,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="msapplication-square70x70logo" content="' . esc_url($scoped_asset_url . '?tile-small=1') . '">'
 	. '<meta name="msapplication-wide310x150logo" content="' . esc_url($scoped_asset_url . '?tile-wide=1') . '">'
 	. '<meta name="msapplication-config" content="' . esc_url($scoped_browserconfig_url) . '">'
+	. '<meta name="msapplication-task" content="name=Docs;action-uri=' . esc_url($scoped_task_target_url) . ';icon-uri=' . esc_url($scoped_asset_url . '?task=1') . '">'
 	. '<meta itemprop="contentUrl" content="' . esc_url($scoped_asset_url . '?schema=1') . '">'
 	. '<meta itemprop="embedUrl" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta property="article:author" content="' . esc_url($scoped_child_url) . '">'
@@ -508,6 +520,7 @@ async function verifyExport() {
 	assertFile('form-button/index.html');
 	assertFile('form-input/index.html');
 	assertFile('form-target/index.html');
+	assertFile('task-target/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
@@ -535,6 +548,7 @@ async function verifyExport() {
 		'../form-button/index.html',
 		'../form-input/index.html',
 		'../form-target/index.html',
+		'../task-target/index.html',
 		'relative-child/index.html',
 		'index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
@@ -545,6 +559,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?task=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
@@ -761,6 +776,7 @@ async function verifyScopedExport() {
 	assertFile('form-button/index.html');
 	assertFile('form-input/index.html');
 	assertFile('form-target/index.html');
+	assertFile('task-target/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/uploads/ssgwp-smoke-captions.vtt');
@@ -800,6 +816,7 @@ async function verifyScopedExport() {
 		'../form-button/index.html',
 		'../form-input/index.html',
 		'../form-target/index.html',
+		'../task-target/index.html',
 		'relative-child/index.html',
 		'index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
@@ -810,6 +827,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?task=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
