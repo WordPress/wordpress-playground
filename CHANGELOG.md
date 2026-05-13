@@ -74,6 +74,9 @@ format.
 - Keep copied static export asset directories from including hidden files or
   single-file PHP plugins.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve same-origin `preconnect` and `dns-prefetch` resource hints in static
+  exports while still rewriting semantic page links such as `rel="home"`.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

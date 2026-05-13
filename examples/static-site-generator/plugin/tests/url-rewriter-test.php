@@ -529,6 +529,9 @@ $html = implode(
 		'<a class="feed" href="/feed/">Feed</a>',
 		'<link rel="alternate" type="application/rss+xml" href="/feed/">',
 		'<link rel="alternate" type="application/rss+xml" href="/comments/feed/">',
+		'<link rel="home" href="https://example.test/">',
+		'<link rel="preconnect" href="https://example.test">',
+		'<link rel="dns-prefetch" href="//example.test">',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
 		'<a class="external-port" href="https://example.test:8443/static-page/">External port</a>',
 		'<a class="external-scheme" href="http://example.test:443/static-page/">External scheme</a>',
@@ -624,6 +627,24 @@ ssgwp_assert_contains(
 	'href="blog/page/2/index.html#posts"',
 	$result['content'],
 	'rewrite_html rewrites archive pagination URLs to generated files.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="home" href="index.html">',
+	$result['content'],
+	'rewrite_html treats same-site rel=home links as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="preconnect" href="https://example.test">',
+	$result['content'],
+	'rewrite_html leaves same-origin preconnect resource hints unchanged.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="dns-prefetch" href="//example.test">',
+	$result['content'],
+	'rewrite_html leaves same-origin DNS prefetch resource hints unchanged.'
 );
 
 ssgwp_assert_contains(

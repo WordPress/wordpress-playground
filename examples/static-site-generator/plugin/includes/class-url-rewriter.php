@@ -69,7 +69,10 @@ final class SSGWP_URL_Rewriter {
 		$html = $this->rewrite_meta_content_urls( $html, $page_url, $target_path );
 		$html = $this->rewrite_css_in_style_blocks( $html, $page_url, $target_path );
 		$html = $this->rewrite_css_in_style_attributes( $html, $page_url, $target_path );
-		$html = $this->rewrite_same_site_text_urls( $html, $target_path );
+		$html = $this->rewrite_same_site_text_urls_preserving_resource_hints(
+			$html,
+			$target_path
+		);
 
 		return array(
 			'content' => $html,
@@ -98,7 +101,10 @@ final class SSGWP_URL_Rewriter {
 			$content = $this->rewrite_css_in_style_attributes( $content, $base_url, $relative_path );
 		}
 
-		return $this->rewrite_same_site_text_urls( $content, $relative_path );
+		return $this->rewrite_same_site_text_urls_preserving_resource_hints(
+			$content,
+			$relative_path
+		);
 	}
 
 	/**
@@ -109,6 +115,59 @@ final class SSGWP_URL_Rewriter {
 	 */
 	private function asset_base_url_for_path( $relative_path ) {
 		return home_url( '/' . ltrim( wp_normalize_path( $relative_path ), '/' ) );
+	}
+
+	/**
+	 * Rewrite text URLs while preserving origin-only resource hints.
+	 *
+	 * @param string $content     File content.
+	 * @param string $target_path Relative static file path.
+	 * @return string Rewritten content.
+	 */
+	private function rewrite_same_site_text_urls_preserving_resource_hints( $content, $target_path ) {
+		$placeholders = array();
+		$content      = $this->preserve_resource_hint_link_urls( $content, $placeholders );
+		$content      = $this->rewrite_same_site_text_urls( $content, $target_path );
+
+		return strtr( $content, $placeholders );
+	}
+
+	/**
+	 * Replace preconnect and DNS prefetch href values with temporary placeholders.
+	 *
+	 * @param string $html         HTML content.
+	 * @param array  $placeholders Placeholder replacements.
+	 * @return string HTML with placeholders.
+	 */
+	private function preserve_resource_hint_link_urls( $html, array &$placeholders ) {
+		return preg_replace_callback(
+			'/<link\b[^>]*>/i',
+			function ( $matches ) use ( &$placeholders ) {
+				$tag = $matches[0];
+
+				if ( ! preg_match( '/\srel\s*=\s*(["\'])(.*?)\1/is', $tag, $rel_match ) ) {
+					return $tag;
+				}
+
+				if ( ! preg_match( '/\b(dns-prefetch|preconnect)\b/i', $rel_match[2] ) ) {
+					return $tag;
+				}
+
+				return preg_replace_callback(
+					'/(\shref\s*=\s*)(["\'])(.*?)\2/is',
+					function ( $href_match ) use ( &$placeholders ) {
+						$placeholder = '__SSGWP_PRESERVED_RESOURCE_HINT_'
+							. count( $placeholders ) . '__';
+						$placeholders[ $placeholder ] = $href_match[3];
+
+						return $href_match[1] . $href_match[2] . $placeholder . $href_match[2];
+					},
+					$tag,
+					1
+				);
+			},
+			$html
+		);
 	}
 
 	/**
@@ -201,6 +260,10 @@ final class SSGWP_URL_Rewriter {
 
 				if ( 'link' === $kind ) {
 					$kind = $this->link_attribute_kind( $processor );
+
+					if ( null === $kind ) {
+						continue;
+					}
 				}
 
 				if ( 'srcset' === $kind ) {
@@ -272,13 +335,21 @@ final class SSGWP_URL_Rewriter {
 	 * Determine how to treat a link element href.
 	 *
 	 * @param WP_HTML_Tag_Processor $processor HTML processor.
-	 * @return string URL kind.
+	 * @return string|null URL kind, or null when the link should not be rewritten.
 	 */
 	private function link_attribute_kind( $processor ) {
 		$rel  = strtolower( (string) $processor->get_attribute( 'rel' ) );
 		$type = strtolower( (string) $processor->get_attribute( 'type' ) );
+		$page_rel_pattern = '/\b(canonical|alternate|prev|next|shortlink|bookmark|home|index|start)\b/';
 
-		if ( preg_match( '/\b(canonical|alternate|prev|next|shortlink|bookmark)\b/', $rel ) && ! preg_match( '#/(css|javascript|json|xml|rss|atom)#', $type ) ) {
+		if ( preg_match( '/\b(dns-prefetch|preconnect)\b/', $rel ) ) {
+			return null;
+		}
+
+		if (
+			preg_match( $page_rel_pattern, $rel )
+			&& ! preg_match( '#/(css|javascript|json|xml|rss|atom)#', $type )
+		) {
 			return 'page';
 		}
 
