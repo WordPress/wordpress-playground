@@ -143,28 +143,22 @@ final class SSGWP_URL_Rewriter {
 		return preg_replace_callback(
 			'/<link\b[^>]*>/i',
 			function ( $matches ) use ( &$placeholders ) {
-				$tag = $matches[0];
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
 
-				if ( ! preg_match( '/\srel\s*=\s*(["\'])(.*?)\1/is', $tag, $rel_match ) ) {
+				if ( empty( $attributes['rel']['value'] ) || empty( $attributes['href']['value'] ) ) {
 					return $tag;
 				}
 
-				if ( ! preg_match( '/\b(dns-prefetch|preconnect)\b/i', $rel_match[2] ) ) {
+				if ( ! preg_match( '/\b(dns-prefetch|preconnect)\b/i', $attributes['rel']['value'] ) ) {
 					return $tag;
 				}
 
-				return preg_replace_callback(
-					'/(\shref\s*=\s*)(["\'])(.*?)\2/is',
-					function ( $href_match ) use ( &$placeholders ) {
-						$placeholder = '#__SSGWP_PRESERVED_RESOURCE_HINT_'
-							. count( $placeholders ) . '__';
-						$placeholders[ $placeholder ] = $href_match[3];
+				$placeholder = '#__SSGWP_PRESERVED_RESOURCE_HINT_'
+					. count( $placeholders ) . '__';
+				$placeholders[ $placeholder ] = $attributes['href']['value'];
 
-						return $href_match[1] . $href_match[2] . $placeholder . $href_match[2];
-					},
-					$tag,
-					1
-				);
+				return $this->replace_html_tag_attribute( $tag, $attributes['href'], $placeholder );
 			},
 			$html
 		);
@@ -315,17 +309,24 @@ final class SSGWP_URL_Rewriter {
 		);
 
 		foreach ( $attribute_kinds as $attribute => $kind ) {
-			$pattern = '/(\s' . preg_quote( $attribute, '/' ) . '\s*=\s*)(["\'])(.*?)\2/is';
+			$pattern = '/(\s' . preg_quote( $attribute, '/' )
+				. '\s*=\s*)(?:(["\'])(.*?)\2|([^\s"\'<>`]+))/is';
 			$html    = preg_replace_callback(
 				$pattern,
 				function ( $matches ) use ( $base_url, $target_path, $kind ) {
+					$value = $this->html_attribute_match_value( $matches );
+
 					if ( 'srcset' === $kind ) {
-						$rewritten = $this->rewrite_srcset( $matches[3], $base_url, $target_path );
+						$rewritten = $this->rewrite_srcset( $value, $base_url, $target_path );
 					} else {
-						$rewritten = $this->rewrite_url_value( $matches[3], $base_url, $target_path, $kind );
+						$rewritten = $this->rewrite_url_value( $value, $base_url, $target_path, $kind );
 					}
 
-					return $matches[1] . $matches[2] . esc_attr( $rewritten ) . $matches[2];
+					if ( '' !== $matches[2] ) {
+						return $matches[1] . $matches[2] . esc_attr( $rewritten ) . $matches[2];
+					}
+
+					return $matches[1] . esc_attr( $rewritten );
 				},
 				$html
 			);
@@ -733,19 +734,22 @@ final class SSGWP_URL_Rewriter {
 		$attributes = array();
 
 		preg_match_all(
-			'/([a-zA-Z_:][a-zA-Z0-9:._-]*)\s*=\s*(["\'])(.*?)\2/s',
+			'/([a-zA-Z_:][a-zA-Z0-9:._-]*)\s*=\s*(?:(["\'])(.*?)\2|([^\s"\'<>`]+))/s',
 			$tag,
 			$matches,
 			PREG_OFFSET_CAPTURE
 		);
 
 		foreach ( $matches[1] as $index => $name_match ) {
-			$key = strtolower( $name_match[0] );
+			$key         = strtolower( $name_match[0] );
+			$value_match = '' !== $matches[2][ $index ][0]
+				? $matches[3][ $index ]
+				: $matches[4][ $index ];
 
 			$attributes[ $key ] = array(
-				'value'  => $matches[3][ $index ][0],
-				'offset' => $matches[3][ $index ][1],
-				'length' => strlen( $matches[3][ $index ][0] ),
+				'value'  => $value_match[0],
+				'offset' => $value_match[1],
+				'length' => strlen( $value_match[0] ),
 			);
 		}
 
@@ -753,7 +757,17 @@ final class SSGWP_URL_Rewriter {
 	}
 
 	/**
-	 * Replace a quoted attribute value in a tag.
+	 * Return the value captured by a quoted-or-unquoted HTML attribute regex.
+	 *
+	 * @param array $matches Regex matches.
+	 * @return string Attribute value.
+	 */
+	private function html_attribute_match_value( array $matches ) {
+		return '' !== $matches[2] ? $matches[3] : $matches[4];
+	}
+
+	/**
+	 * Replace a quoted or unquoted attribute value in a tag.
 	 *
 	 * @param string $tag       HTML tag.
 	 * @param array  $attribute Parsed attribute.

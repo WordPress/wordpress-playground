@@ -86,6 +86,9 @@ format.
 - Rewrite meta refresh and social preview meta URLs in the static export regex
   fallback used when WordPress' HTML API is unavailable.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite unquoted URL attributes in the static export regex fallback,
+  including resource hints and social meta tags.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

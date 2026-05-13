@@ -504,6 +504,33 @@ ssgwp_assert_contains(
 	'rewrite_html_attributes_with_patterns still rewrites semantic page link relations.'
 );
 
+$pattern_unquoted_rewritten = $pattern_method->invoke(
+	$rewriter,
+	'<link rel=preconnect href=https://example.test>'
+		. '<a href=/static-page/>Static</a>'
+		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<link rel=preconnect href=https://example.test>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns preserves unquoted resource hints.'
+);
+
+ssgwp_assert_contains(
+	'<a href=static-page/index.html>Static</a>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted page links.'
+);
+
+ssgwp_assert_contains(
+	'<img src=wp-content/uploads/photo.jpg?pattern=1 alt="">',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted asset links.'
+);
+
 $pattern_meta_refresh_method = new ReflectionMethod( $rewriter, 'rewrite_meta_refresh_with_patterns' );
 $pattern_meta_refresh_method->setAccessible( true );
 
@@ -525,6 +552,19 @@ ssgwp_assert_contains(
 	'<meta name="viewport" content="width=device-width">',
 	$pattern_meta_refresh_rewritten,
 	'rewrite_meta_refresh_with_patterns leaves non-URL meta content unchanged.'
+);
+
+$pattern_meta_refresh_unquoted = $pattern_meta_refresh_method->invoke(
+	$rewriter,
+	'<meta http-equiv=refresh content=0;url=/static-page/>',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta http-equiv=refresh content=0;url=static-page/index.html>',
+	$pattern_meta_refresh_unquoted,
+	'rewrite_meta_refresh_with_patterns rewrites unquoted refresh URLs.'
 );
 
 $pattern_meta_content_method = new ReflectionMethod( $rewriter, 'rewrite_meta_content_urls_with_patterns' );
@@ -555,6 +595,26 @@ ssgwp_assert_contains(
 	'<meta name="description" content="Plain text">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns leaves non-URL meta content unchanged.'
+);
+
+$pattern_meta_content_unquoted = $pattern_meta_content_method->invoke(
+	$rewriter,
+	'<meta property=og:url content=/meta-page/>'
+		. '<meta name=twitter:image content=/wp-content/uploads/social.jpg>',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_contains(
+	'<meta property=og:url content=meta-page/index.html>',
+	$pattern_meta_content_unquoted,
+	'rewrite_meta_content_urls_with_patterns rewrites unquoted page meta URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta name=twitter:image content=wp-content/uploads/social.jpg>',
+	$pattern_meta_content_unquoted,
+	'rewrite_meta_content_urls_with_patterns rewrites unquoted asset meta URLs.'
 );
 
 $export_root = ssgwp_make_fixture_dir();
