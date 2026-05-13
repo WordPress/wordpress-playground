@@ -874,6 +874,14 @@ final class SSGWP_URL_Rewriter {
 			return null;
 		}
 
+		if ( preg_match( '/\bpreload\b/', $rel ) ) {
+			if ( 'document' === $as || preg_match( '#/(html|xhtml\+xml)#', $type ) ) {
+				return 'page';
+			}
+
+			return 'asset';
+		}
+
 		if ( preg_match( '/\b(prefetch|prerender)\b/', $rel ) ) {
 			if (
 				in_array( $as, $asset_as_values, true )

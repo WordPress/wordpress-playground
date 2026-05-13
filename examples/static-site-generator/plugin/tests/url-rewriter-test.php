@@ -570,6 +570,7 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 	'<link rel=preconnect href=https://example.test>'
 		. '<base href=https://example.test/>'
 		. '<a href=/static-page/>Static</a>'
+		. '<link rel=preload as=document href=/preloaded-page/>'
 		. '<blockquote cite=/citation-source>Citation</blockquote>'
 		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
 		. '<img src=/wp-content/uploads/photo.jpg?longdesc=1 longdesc=/long-description/ alt="">'
@@ -597,6 +598,12 @@ ssgwp_assert_contains(
 	'<a href=static-page/index.html>Static</a>',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites unquoted page links.'
+);
+
+ssgwp_assert_contains(
+	'<link rel=preload as=document href=preloaded-page/index.html>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites unquoted document preload links.'
 );
 
 ssgwp_assert_contains(
@@ -1082,6 +1089,8 @@ $html = implode(
 		'<link rel="dns-prefetch" href="//example.test">',
 		'<link rel="prefetch" href="/prefetched-page/">',
 		'<link rel="prerender" href="/prefetched-page/#ready">',
+		'<link rel="preload" as="document" href="/preloaded-page/">',
+		'<link rel="preload" type="text/html" href="/typed-preload/">',
 		'<link rel="prefetch" as="image" href="/wp-content/uploads/photo.jpg?prefetch=1">',
 		'<link rel="author" href="/author/admin/">',
 		'<link rel="amphtml" href="/amp-page/">',
@@ -1323,6 +1332,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link rel="preload" as="document" href="preloaded-page/index.html">',
+	$result['content'],
+	'rewrite_html rewrites document preload hints as crawlable pages.'
+);
+
+ssgwp_assert_contains(
+	'<link rel="preload" type="text/html" href="typed-preload/index.html">',
+	$result['content'],
+	'rewrite_html rewrites HTML preload hints as crawlable pages.'
+);
+
+ssgwp_assert_contains(
 	'<link rel="prefetch" as="image" href="wp-content/uploads/photo.jpg?prefetch=1">',
 	$result['content'],
 	'rewrite_html keeps image prefetch hints as copied assets.'
@@ -1452,6 +1473,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/amp-page/', $result['links'], true ),
 	'rewrite_html records rel=amphtml links as pages to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/preloaded-page/', $result['links'], true ),
+	'rewrite_html records document preload hints as pages to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/typed-preload/', $result['links'], true ),
+	'rewrite_html records HTML preload hints as pages to crawl.'
 );
 
 ssgwp_assert_same(

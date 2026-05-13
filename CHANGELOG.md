@@ -59,6 +59,9 @@ format.
 - Preserve absolute and protocol-relative wildcard or templated static export
   URL patterns instead of rewriting them as generated files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat document preload hints in static exports as crawlable page links so
+  preloaded HTML pages are generated instead of copied as missing assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite responsive image preload `imagesrcset` attributes in static exports
   so preloaded image candidates point at copied asset files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
