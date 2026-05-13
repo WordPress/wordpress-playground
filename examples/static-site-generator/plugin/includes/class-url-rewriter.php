@@ -1408,6 +1408,11 @@ final class SSGWP_URL_Rewriter {
 			$pattern,
 			function ( $matches ) use ( $target_path, $escaped ) {
 				$url       = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+
+				if ( preg_match( '/[*{}]/', $url ) ) {
+					return $matches[0];
+				}
+
 				$rewritten = $this->rewrite_url_value( $url, home_url( '/' ), $target_path, 'asset' );
 
 				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;

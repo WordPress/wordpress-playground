@@ -773,7 +773,7 @@ $html = implode(
 		'<script type="application/json">{"protocol":"//example.test/protocol-text/","protocolEscaped":"\/\/example.test\/protocol-escaped\/"}</script>',
 		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
 		'<script type="application/json">{"plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/photo.jpg?plain=1"}</script>',
-		'<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"\/*","not":{"href_matches":["\/wp-admin\/*"]}}}]}</script>',
+		'<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"\/*","not":{"href_matches":["\/wp-admin\/*","\/wp-content\/uploads\/*","/wp-content/themes/*"]}}}]}</script>',
 		'<script>const next = "https://example.test/static-page/";</script>',
 	)
 );
@@ -1118,9 +1118,21 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
-	'"href_matches":["\/wp-admin\/*"]',
+	'"\/wp-admin\/*"',
 	$result['content'],
 	'rewrite_html does not rewrite escaped wildcard URL patterns.'
+);
+
+ssgwp_assert_contains(
+	'"\/wp-content\/uploads\/*"',
+	$result['content'],
+	'rewrite_html does not rewrite escaped wildcard WordPress asset patterns.'
+);
+
+ssgwp_assert_contains(
+	'"/wp-content/themes/*"',
+	$result['content'],
+	'rewrite_html does not rewrite plain wildcard WordPress asset patterns.'
 );
 
 ssgwp_assert_contains(

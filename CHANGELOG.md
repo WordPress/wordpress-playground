@@ -103,6 +103,12 @@ format.
 - Rewrite common lazy-loading `data-*` asset attributes in static exports,
   including background URLs and background `srcset` values on non-image tags.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Warn when a same-site asset discovered during static export cannot be copied,
+  so broken local references are visible in the export result.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve WordPress wildcard asset patterns in static export text rewriting,
+  including speculation rules such as `/wp-content/uploads/*`.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

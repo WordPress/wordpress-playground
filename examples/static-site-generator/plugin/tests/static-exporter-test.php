@@ -19,6 +19,7 @@ file_put_contents(
 
 define( 'ABSPATH', $fixture_root . '/' );
 define( 'WPINC', 'wp-includes' );
+define( 'WP_CONTENT_DIR', $fixture_root . '/wp-content' );
 define( 'SSGWP_VERSION', '0.1.0' );
 
 $ssgwp_test_home_url = 'https://example.test/';
@@ -134,6 +135,18 @@ if ( ! function_exists( 'site_url' ) ) {
 		global $ssgwp_test_site_url;
 
 		return rtrim( $ssgwp_test_site_url, '/' ) . '/' . ltrim( $path, '/' );
+	}
+}
+
+if ( ! function_exists( 'content_url' ) ) {
+	/**
+	 * Return a test content URL.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	function content_url( $path = '' ) {
+		return 'https://example.test/wp-content/' . ltrim( $path, '/' );
 	}
 }
 
@@ -483,6 +496,53 @@ ssgwp_assert_same(
 	true,
 	file_exists( $output_dir . '/wp-content/plugins/single-plugin.css' ),
 	'copy_path still copies single-file static assets.'
+);
+
+$copy_linked_asset_method = new ReflectionMethod( $exporter, 'copy_linked_asset' );
+$copy_linked_asset_method->setAccessible( true );
+
+$warnings_property = new ReflectionProperty( $exporter, 'warnings' );
+$warnings_property->setAccessible( true );
+$warnings_property->setValue( $exporter, array() );
+
+wp_mkdir_p( $fixture_root . '/wp-content/uploads' );
+file_put_contents( $fixture_root . '/wp-content/uploads/copied.txt', 'copied' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents( $fixture_root . '/wp-content/uploads/.secret', 'secret' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test/wp-content/uploads/copied.txt',
+	$output_dir
+);
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test/wp-content/uploads/missing.txt',
+	$output_dir
+);
+$copy_linked_asset_method->invoke(
+	$exporter,
+	'https://example.test/wp-content/uploads/.secret',
+	$output_dir
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/uploads/copied.txt' ),
+	'copy_linked_asset copies same-site files that were discovered in HTML.'
+);
+
+$warnings = implode( "\n", $warnings_property->getValue( $exporter ) );
+
+ssgwp_assert_contains(
+	'Could not copy linked asset https://example.test/wp-content/uploads/missing.txt: no matching local file was found.',
+	$warnings,
+	'copy_linked_asset warns when a discovered same-site asset is missing.'
+);
+
+ssgwp_assert_contains(
+	'Could not copy linked asset https://example.test/wp-content/uploads/.secret: the local file is not exportable.',
+	$warnings,
+	'copy_linked_asset warns when a discovered same-site asset is not exportable.'
 );
 
 ssgwp_delete_directory( $fixture_root );

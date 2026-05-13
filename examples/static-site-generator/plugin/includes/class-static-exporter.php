@@ -848,7 +848,12 @@ final class SSGWP_Static_Exporter {
 	private function copy_linked_asset( $url, $output_dir ) {
 		$target_path = $this->url_to_asset_path( $url );
 
-		if ( null === $target_path || isset( $this->linked_assets_copied[ $target_path ] ) ) {
+		if ( null === $target_path ) {
+			$this->warn_linked_asset_not_copied( $url, 'unsupported or unsafe target path' );
+			return;
+		}
+
+		if ( isset( $this->linked_assets_copied[ $target_path ] ) ) {
 			return;
 		}
 
@@ -861,11 +866,31 @@ final class SSGWP_Static_Exporter {
 
 		$source = $this->map_url_to_local_file( $url );
 
-		if ( null === $source || ! $this->is_exportable_asset_file( $source ) ) {
+		if ( null === $source ) {
+			$this->warn_linked_asset_not_copied( $url, 'no matching local file was found' );
+			return;
+		}
+
+		if ( ! $this->is_exportable_asset_file( $source ) ) {
+			$this->warn_linked_asset_not_copied( $url, 'the local file is not exportable' );
 			return;
 		}
 
 		$this->write_file( $target, file_get_contents( $source ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	}
+
+	/**
+	 * Record a warning for a referenced same-site asset that could not be copied.
+	 *
+	 * @param string $url    Asset URL.
+	 * @param string $reason Short failure reason.
+	 */
+	private function warn_linked_asset_not_copied( $url, $reason ) {
+		$this->warnings[] = sprintf(
+			'Could not copy linked asset %1$s: %2$s.',
+			$url,
+			$reason
+		);
 	}
 
 	/**
