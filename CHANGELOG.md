@@ -207,6 +207,9 @@ format.
 - Cover static export citation URLs so `cite` attributes are verified as
   crawlable page references in normal and scoped Playground exports.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve static export `ping` attributes so click-tracking endpoints remain
+  dynamic instead of being crawled as generated pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

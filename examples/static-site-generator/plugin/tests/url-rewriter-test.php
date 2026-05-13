@@ -1018,6 +1018,8 @@ $html = implode(
 		'<a class="query" href="/static-page/?view=grid#items">Query page</a>',
 		'<a class="archive" href="/blog/page/2/#posts">Archive</a>',
 		'<a class="comments-page" href="/comments/">Comments page</a>',
+		'<a class="ping-link" href="/static-page/" ping="/click-ping/ https://example.test/absolute-ping/">Ping</a>',
+		'<area href="/static-page/" ping="/map-ping/">',
 		'<blockquote cite="/citation-source/">Citation</blockquote>',
 		'<q cite="/citation-source/#quote">Quote</q>',
 		'<base href="https://example.test/">',
@@ -1194,6 +1196,18 @@ ssgwp_assert_contains(
 	'href="comments/index.html"',
 	$result['content'],
 	'rewrite_html rewrites a public page whose slug is comments.'
+);
+
+ssgwp_assert_contains(
+	'ping="/click-ping/ https://example.test/absolute-ping/"',
+	$result['content'],
+	'rewrite_html leaves link ping URLs dynamic.'
+);
+
+ssgwp_assert_contains(
+	'ping="/map-ping/"',
+	$result['content'],
+	'rewrite_html leaves area ping URLs dynamic.'
 );
 
 ssgwp_assert_contains(
@@ -1381,6 +1395,21 @@ ssgwp_assert_same(
 	in_array( 'https://example.test/citation-source/', $result['links'], true ),
 	'rewrite_html records citation URLs as links to crawl.'
 );
+
+foreach (
+	array(
+		'https://example.test/click-ping/',
+		'https://example.test/absolute-ping/',
+		'https://example.test/map-ping/',
+	)
+	as $ping_link
+) {
+	ssgwp_assert_same(
+		false,
+		in_array( $ping_link, $result['links'], true ),
+		'rewrite_html does not record ping URLs as links to crawl: ' . $ping_link
+	);
+}
 
 foreach (
 	array(

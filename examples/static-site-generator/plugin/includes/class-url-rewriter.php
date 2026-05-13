@@ -155,6 +155,7 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_same_site_text_urls_preserving_resource_hints( $content, $target_path ) {
 		$placeholders = array();
 		$content      = $this->preserve_resource_hint_link_urls( $content, $placeholders );
+		$content      = $this->preserve_ping_attribute_urls( $content, $placeholders );
 		$content      = $this->preserve_non_url_param_values( $content, $placeholders );
 		$content      = $this->rewrite_same_site_text_urls( $content, $target_path );
 
@@ -188,6 +189,34 @@ final class SSGWP_URL_Rewriter {
 				$placeholders[ $placeholder ] = $attributes['href']['value'];
 
 				return $this->replace_html_tag_attribute( $tag, $attributes['href'], $placeholder );
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Preserve ping attributes so click-tracking endpoints stay dynamic.
+	 *
+	 * @param string $html         HTML content.
+	 * @param array  $placeholders Placeholder replacements.
+	 * @return string HTML with placeholders.
+	 */
+	private function preserve_ping_attribute_urls( $html, array &$placeholders ) {
+		return preg_replace_callback(
+			'/<(a|area)\b[^>]*>/i',
+			function ( $matches ) use ( &$placeholders ) {
+				$tag        = $matches[0];
+				$attributes = $this->parse_html_tag_attributes( $tag );
+
+				if ( empty( $attributes['ping']['value'] ) ) {
+					return $tag;
+				}
+
+				$placeholder = '#__SSGWP_PRESERVED_PING_'
+					. count( $placeholders ) . '__';
+				$placeholders[ $placeholder ] = $attributes['ping']['value'];
+
+				return $this->replace_html_tag_attribute( $tag, $attributes['ping'], $placeholder );
 			},
 			$html
 		);

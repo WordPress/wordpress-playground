@@ -276,6 +276,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<p><a class="ping-link" href="' . esc_url($child_url) . '" ping="/click-ping/ /wp-json/ping">Ping</a></p>'
 	. '<blockquote cite="' . esc_url($citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
@@ -423,6 +424,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($scoped_child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($scoped_asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<p><a class="ping-link" href="' . esc_url($scoped_child_url) . '" ping="/click-ping/ /wp-json/ping">Ping</a></p>'
 	. '<blockquote cite="' . esc_url($scoped_citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($scoped_citation_url . '#quote') . '">Quoted source.</q></p>'
 	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
@@ -692,6 +694,11 @@ async function verifyExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'class="ping-link" href="../parent-page/child-page/index.html" ping="/click-ping/ /wp-json/ping"',
+		'static-page/index.html leaves ping URLs dynamic'
 	);
 	assertIncludes(
 		staticPage,
@@ -971,6 +978,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'scoped static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'class="ping-link" href="../parent-page/child-page/index.html" ping="/click-ping/ /wp-json/ping"',
+		'scoped static-page/index.html leaves ping URLs dynamic'
 	);
 	assertIncludes(
 		staticPage,
