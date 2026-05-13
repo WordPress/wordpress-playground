@@ -164,6 +164,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
+	. '<object data="' . esc_url($child_url) . '"></object>'
+	. '<object data="' . esc_url($asset_url . '?object=1') . '"></object>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($child_url) . '">Srcdoc child</a><img src="' . esc_url($asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
 	. '<script type="application/json">{"root":"\/parent-page\/child-page\/","rootAsset":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?root=1","plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?plain=1"}</script>'
@@ -246,6 +248,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($scoped_asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
+	. '<object data="' . esc_url($scoped_child_url) . '"></object>'
+	. '<object data="' . esc_url($scoped_asset_url . '?object=1') . '"></object>'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($scoped_child_url) . '">Srcdoc child</a><img src="' . esc_url($scoped_asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
 	. '<script type="application/json">{"root":"' . str_replace('/', '\/', $scoped_child_path) . '","rootAsset":"' . str_replace('/', '\/', $scoped_asset_path) . '?root=1"}</script>'
@@ -369,6 +373,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
@@ -383,6 +388,16 @@ async function verifyExport() {
 		staticPage,
 		'imagesrcset="../wp-content/uploads/ssgwp-smoke-asset.txt 1x, ../wp-content/uploads/ssgwp-smoke-asset.txt?preload=2x 2x"',
 		'static-page/index.html rewrites responsive image preload srcset'
+	);
+	assertIncludes(
+		staticPage,
+		'data="../parent-page/child-page/index.html"',
+		'static-page/index.html rewrites object page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'data="../wp-content/uploads/ssgwp-smoke-asset.txt?object=1"',
+		'static-page/index.html rewrites object media sources'
 	);
 	assertDoesNotInclude(staticPage, 'href="/static-page/"');
 	assertDoesNotInclude(staticPage, '"root":"\\/parent-page\\/child-page\\/"');
@@ -441,6 +456,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
@@ -455,6 +471,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'imagesrcset="../wp-content/uploads/ssgwp-smoke-asset.txt 1x, ../wp-content/uploads/ssgwp-smoke-asset.txt?preload=2x 2x"',
 		'scoped static-page/index.html rewrites responsive image preload srcset'
+	);
+	assertIncludes(
+		staticPage,
+		'data="../parent-page/child-page/index.html"',
+		'scoped static-page/index.html rewrites object page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'data="../wp-content/uploads/ssgwp-smoke-asset.txt?object=1"',
+		'scoped static-page/index.html rewrites object media sources'
 	);
 	assertDoesNotInclude(staticPage, duplicatedScope);
 	assertDoesNotInclude(staticPage, 'href="/scope:sad-quiet-school/static-page/"');

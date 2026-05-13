@@ -508,7 +508,9 @@ $pattern_unquoted_rewritten = $pattern_method->invoke(
 	$rewriter,
 	'<link rel=preconnect href=https://example.test>'
 		. '<a href=/static-page/>Static</a>'
-		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">',
+		. '<img src=/wp-content/uploads/photo.jpg?pattern=1 alt="">'
+		. '<object data=/object-page/></object>'
+		. '<object data=/wp-content/uploads/social-video.mp4?pattern=1></object>',
 	'https://example.test/',
 	'index.html'
 );
@@ -529,6 +531,18 @@ ssgwp_assert_contains(
 	'<img src=wp-content/uploads/photo.jpg?pattern=1 alt="">',
 	$pattern_unquoted_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites unquoted asset links.'
+);
+
+ssgwp_assert_contains(
+	'<object data=object-page/index.html></object>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns treats unquoted object pages as page links.'
+);
+
+ssgwp_assert_contains(
+	'<object data=wp-content/uploads/social-video.mp4?pattern=1></object>',
+	$pattern_unquoted_rewritten,
+	'rewrite_html_attributes_with_patterns treats unquoted object media as assets.'
 );
 
 $pattern_lazy_rewritten = $pattern_method->invoke(
@@ -736,6 +750,7 @@ foreach (
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
 		'sample-page/index.html',
+		'object-page/index.html',
 		'author/admin/index.html',
 		'publisher/index.html',
 		'related/index.html',
@@ -826,6 +841,8 @@ $html = implode(
 		'<span data-src="/wp-content/uploads/photo.jpg?lazy=3"'
 			. ' data-original="/wp-content/uploads/photo.jpg?lazy=4"'
 			. ' data-poster="/wp-content/uploads/bg.jpg?lazy=5"></span>',
+		'<object data="/object-page/"></object>',
+		'<object data="/wp-content/uploads/social-video.mp4?object=1"></object>',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<div style=background:url(/wp-content/uploads/bg.jpg?unquoted=1)></div>',
@@ -1183,6 +1200,30 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/embedded-page/', $result['links'], true ),
 	'rewrite_html records iframe srcdoc page links as links to crawl.'
+);
+
+ssgwp_assert_contains(
+	'data="object-page/index.html"',
+	$result['content'],
+	'rewrite_html rewrites object data page URLs to generated files.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/object-page/', $result['links'], true ),
+	'rewrite_html records object data page URLs as links to crawl.'
+);
+
+ssgwp_assert_contains(
+	'data="wp-content/uploads/social-video.mp4?object=1"',
+	$result['content'],
+	'rewrite_html keeps object data media URLs as copied assets.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?object=1', $result['assets'], true ),
+	'rewrite_html records object data media URLs as assets to copy.'
 );
 
 ssgwp_assert_contains(

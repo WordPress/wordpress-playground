@@ -127,6 +127,9 @@ format.
 - Rewrite linked `.webmanifest` files and copy their referenced local assets
   during static exports.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat page-like `object[data]` URLs as crawlable static export pages while
+  keeping media object sources as copied assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

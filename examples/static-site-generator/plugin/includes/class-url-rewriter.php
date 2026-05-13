@@ -252,7 +252,7 @@ final class SSGWP_URL_Rewriter {
 				'href'        => 'link',
 				'imagesrcset' => 'srcset',
 			),
-			'OBJECT'     => array( 'data' => 'asset' ),
+			'OBJECT'     => array( 'data' => 'maybe' ),
 			'Q'          => array( 'cite' => 'page' ),
 			'SCRIPT'     => array( 'src' => 'asset' ),
 			'SOURCE'     => array(
@@ -338,7 +338,7 @@ final class SSGWP_URL_Rewriter {
 			'poster'           => 'asset',
 			'action'           => 'page',
 			'formaction'       => 'page',
-			'data'             => 'asset',
+			'data'             => 'maybe',
 			'cite'             => 'page',
 			'manifest'         => 'asset',
 			'background'       => 'asset',
