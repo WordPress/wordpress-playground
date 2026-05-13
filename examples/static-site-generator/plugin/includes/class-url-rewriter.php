@@ -237,7 +237,11 @@ final class SSGWP_URL_Rewriter {
 				'background' => 'asset',
 				'manifest'   => 'asset',
 			),
-			'IFRAME'     => array( 'src' => 'maybe' ),
+			'IFRAME'     => array(
+				'data-lazy-src' => 'maybe',
+				'data-src'      => 'maybe',
+				'src'           => 'maybe',
+			),
 			'IMG'        => array(
 				'poster' => 'asset',
 				'src'    => 'asset',
@@ -256,7 +260,11 @@ final class SSGWP_URL_Rewriter {
 				'href'        => 'link',
 				'imagesrcset' => 'srcset',
 			),
-			'OBJECT'     => array( 'data' => 'maybe' ),
+			'OBJECT'     => array(
+				'data'          => 'maybe',
+				'data-lazy-src' => 'maybe',
+				'data-src'      => 'maybe',
+			),
 			'Q'          => array( 'cite' => 'page' ),
 			'SCRIPT'     => array( 'src' => 'asset' ),
 			'SOURCE'     => array(
@@ -334,6 +342,12 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_html_attributes_with_patterns( $html, $base_url, $target_path ) {
 		$placeholders = array();
 		$html         = $this->preserve_resource_hint_link_urls( $html, $placeholders );
+		$html         = $this->rewrite_lazy_embedded_page_sources_with_patterns(
+			$html,
+			$base_url,
+			$target_path,
+			$placeholders
+		);
 
 		$attribute_kinds = array(
 			'href'             => 'maybe',
@@ -387,6 +401,61 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return strtr( $html, $placeholders );
+	}
+
+	/**
+	 * Rewrite lazy iframe/object source attributes as page-or-asset URLs.
+	 *
+	 * @param string $html         HTML.
+	 * @param string $base_url     Base URL.
+	 * @param string $target_path  Relative static file path.
+	 * @param array  $placeholders Placeholder replacements.
+	 * @return string HTML with embed lazy sources temporarily preserved.
+	 */
+	private function rewrite_lazy_embedded_page_sources_with_patterns(
+		$html,
+		$base_url,
+		$target_path,
+		array &$placeholders
+	) {
+		return preg_replace_callback(
+			'/<(iframe|object)\b[^>]*>/is',
+			function ( $matches ) use ( $base_url, $target_path, &$placeholders ) {
+				$tag = $matches[0];
+
+				foreach ( array( 'data-src', 'data-lazy-src' ) as $attribute_name ) {
+					$attributes = $this->parse_html_tag_attributes( $tag );
+
+					if ( empty( $attributes[ $attribute_name ]['value'] ) ) {
+						continue;
+					}
+
+					$attribute = $attributes[ $attribute_name ];
+					$rewritten = $this->rewrite_url_value(
+						$attribute['value'],
+						$base_url,
+						$target_path,
+						'maybe'
+					);
+
+					if ( $rewritten === $attribute['value'] ) {
+						continue;
+					}
+
+					$placeholder                  = '#__SSGWP_EMBEDDED_PAGE_SOURCE_'
+						. count( $placeholders ) . '__';
+					$placeholders[ $placeholder ] = $rewritten;
+					$tag                          = $this->replace_html_tag_attribute(
+						$tag,
+						$attribute,
+						$placeholder
+					);
+				}
+
+				return $tag;
+			},
+			$html
+		);
 	}
 
 	/**

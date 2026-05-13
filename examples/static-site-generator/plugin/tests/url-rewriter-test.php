@@ -549,7 +549,8 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 	$rewriter,
 	'<div data-bg="/wp-content/uploads/bg.jpg?lazy=1"'
 		. ' data-bgset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">'
-		. '<span data-src="/wp-content/uploads/photo.jpg?lazy=2"></span></div>',
+		. '<span data-src="/wp-content/uploads/photo.jpg?lazy=2"></span></div>'
+		. '<iframe data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>',
 	'https://example.test/',
 	'index.html'
 );
@@ -570,6 +571,18 @@ ssgwp_assert_contains(
 	'data-src="wp-content/uploads/photo.jpg?lazy=2"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites lazy source attributes on any tag.'
+);
+
+ssgwp_assert_contains(
+	'data-src="lazy-frame/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats lazy iframe page sources as page links.'
+);
+
+ssgwp_assert_contains(
+	'data-lazy-src="wp-content/uploads/photo.jpg?frame=1"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns keeps lazy iframe media sources as assets.'
 );
 
 $pattern_srcdoc_method = new ReflectionMethod( $rewriter, 'rewrite_srcdoc_attributes_with_patterns' );
@@ -750,6 +763,7 @@ foreach (
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
 		'sample-page/index.html',
+		'lazy-frame/index.html',
 		'object-page/index.html',
 		'author/admin/index.html',
 		'publisher/index.html',
@@ -846,6 +860,7 @@ $html = implode(
 		'<span data-src="/wp-content/uploads/photo.jpg?lazy=3"'
 			. ' data-original="/wp-content/uploads/photo.jpg?lazy=4"'
 			. ' data-poster="/wp-content/uploads/bg.jpg?lazy=5"></span>',
+		'<iframe data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>',
 		'<object data="/object-page/"></object>',
 		'<object data="/wp-content/uploads/social-video.mp4?object=1"></object>',
 		'<svg><filter><feImage href="/wp-content/uploads/filter.png?svg=1"'
@@ -1057,6 +1072,30 @@ ssgwp_assert_contains(
 	'data-poster="wp-content/uploads/bg.jpg?lazy=5"',
 	$result['content'],
 	'rewrite_html rewrites lazy data-poster attributes.'
+);
+
+ssgwp_assert_contains(
+	'data-src="lazy-frame/index.html"',
+	$result['content'],
+	'rewrite_html treats lazy iframe page sources as page links.'
+);
+
+ssgwp_assert_contains(
+	'data-lazy-src="wp-content/uploads/photo.jpg?frame=1"',
+	$result['content'],
+	'rewrite_html keeps lazy iframe media sources as assets.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/lazy-frame/', $result['links'], true ),
+	'rewrite_html records lazy iframe page sources as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/photo.jpg?frame=1', $result['assets'], true ),
+	'rewrite_html records lazy iframe media sources as assets to copy.'
 );
 
 ssgwp_assert_contains(
@@ -1640,6 +1679,7 @@ foreach (
 		'protocol-page/index.html',
 		'protocol-text/index.html',
 		'prefetched-page/index.html',
+		'lazy-frame/index.html',
 		'author/admin/index.html',
 		'publisher/index.html',
 		'related/index.html',
@@ -1663,6 +1703,7 @@ foreach (
 		'wp-content/uploads/photo.jpg?prefetch=1',
 		'wp-content/uploads/photo.jpg?lazy=3',
 		'wp-content/uploads/photo.jpg?lazy=4',
+		'wp-content/uploads/photo.jpg?frame=1',
 		'wp-content/uploads/photo-2x.jpg',
 		'wp-content/uploads/image-set.jpg?density=1',
 		'wp-content/uploads/image-set-2x.jpg?density=2',

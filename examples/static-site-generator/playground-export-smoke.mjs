@@ -184,6 +184,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<object data="' . esc_url($child_url) . '"></object>'
 	. '<object data="' . esc_url($asset_url . '?object=1') . '"></object>'
+	. '<iframe data-src="' . esc_url($child_url) . '" data-lazy-src="' . esc_url($asset_url . '?lazy-frame=1') . '"></iframe>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<style>.responsive{background-image:image-set("' . esc_url($asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($child_url) . '">Srcdoc child</a><img src="' . esc_url($asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
@@ -275,6 +276,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
 	. '<object data="' . esc_url($scoped_child_url) . '"></object>'
 	. '<object data="' . esc_url($scoped_asset_url . '?object=1') . '"></object>'
+	. '<iframe data-src="' . esc_url($scoped_child_url) . '" data-lazy-src="' . esc_url($scoped_asset_url . '?lazy-frame=1') . '"></iframe>'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
 	. '<style>.responsive{background-image:image-set("' . esc_url($scoped_asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($scoped_child_url) . '">Srcdoc child</a><img src="' . esc_url($scoped_asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
@@ -407,6 +409,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
@@ -433,6 +436,16 @@ async function verifyExport() {
 		staticPage,
 		'data="../wp-content/uploads/ssgwp-smoke-asset.txt?object=1"',
 		'static-page/index.html rewrites object media sources'
+	);
+	assertIncludes(
+		staticPage,
+		'data-src="../parent-page/child-page/index.html"',
+		'static-page/index.html rewrites lazy iframe page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'data-lazy-src="../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1"',
+		'static-page/index.html rewrites lazy iframe media sources'
 	);
 	assertDoesNotInclude(staticPage, 'href="/static-page/"');
 	assertDoesNotInclude(staticPage, '"root":"\\/parent-page\\/child-page\\/"');
@@ -512,6 +525,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
@@ -538,6 +552,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'data="../wp-content/uploads/ssgwp-smoke-asset.txt?object=1"',
 		'scoped static-page/index.html rewrites object media sources'
+	);
+	assertIncludes(
+		staticPage,
+		'data-src="../parent-page/child-page/index.html"',
+		'scoped static-page/index.html rewrites lazy iframe page sources'
+	);
+	assertIncludes(
+		staticPage,
+		'data-lazy-src="../wp-content/uploads/ssgwp-smoke-asset.txt?lazy-frame=1"',
+		'scoped static-page/index.html rewrites lazy iframe media sources'
 	);
 	assertDoesNotInclude(staticPage, duplicatedScope);
 	assertDoesNotInclude(staticPage, 'href="/scope:sad-quiet-school/static-page/"');
@@ -697,9 +721,11 @@ async function assertAllLocalResourceTargetsExist() {
 }
 
 function extractAttributeRefs(text) {
-	return [...text.matchAll(/\s(?:href|src)=["']([^"']+)["']/gi)].map(
-		(match) => match[1]
-	);
+	return [
+		...text.matchAll(
+			/\s(?:href|src|data-src|data-lazy-src|data|poster)=["']([^"']+)["']/gi
+		),
+	].map((match) => match[1]);
 }
 
 function extractSrcsetRefs(text) {

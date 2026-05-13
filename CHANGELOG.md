@@ -103,6 +103,9 @@ format.
 - Rewrite common lazy-loading `data-*` asset attributes in static exports,
   including background URLs and background `srcset` values on non-image tags.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat lazy iframe and object `data-src` URLs as page-or-asset references so
+  deferred embeds are crawled when they point at static pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Warn when a same-site asset discovered during static export cannot be copied,
   so broken local references are visible in the export result.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
