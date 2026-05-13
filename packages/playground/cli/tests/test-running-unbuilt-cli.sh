@@ -2,7 +2,12 @@
 
 set -euo pipefail
 
-if node -e 'if (parseInt(process.versions.node) < 24) { process.exit(0); }'; then
+if node -e 'process.exit(parseInt(process.versions.node, 10) < 24 ? 0 : 1)'; then
+	if [ ! -s ~/.nvm/nvm.sh ]; then
+		echo 'Node.js 24 is required to test the unbuilt JSPI CLI, and nvm is not available.'
+		exit 1
+	fi
+
 	source ~/.nvm/nvm.sh
 	nvm install 24
 	npm ci
@@ -14,19 +19,25 @@ function test_playground_cli() {
 
 	# Run Playground CLI with a timeout.
 	echo "Running Playground CLI with Nx target: $TARGET $@"
-	timeout -s TERM 30s npx nx "$TARGET" playground-cli server --php=8.3 $@ 2>&1 > playground-cli-test-output &
+	OUTPUT_FILE="playground-cli-test-output-$TARGET"
+	timeout -s TERM 30s npx nx "$TARGET" playground-cli server --php=8.3 $@ > "$OUTPUT_FILE" 2>&1 &
 	PID=$!
 	CLI_STARTUP_STRING='WordPress is running on http://127.0.0.1:9400'
 
+	function cleanup_playground_cli() {
+		trap - RETURN
+		kill "$PID" > /dev/null 2>&1 || true
+		wait "$PID" > /dev/null 2>&1 || true
+	}
+
+	trap cleanup_playground_cli RETURN
+
 	# Sleep until Playground CLI starts or the process times out.
-	while ps -p "$PID" > /dev/null && ! grep -q "$CLI_STARTUP_STRING" playground-cli-test-output; do
+	while ps -p "$PID" > /dev/null && ! grep -q "$CLI_STARTUP_STRING" "$OUTPUT_FILE"; do
 		sleep 1
 	done
 
-	# Kill Playground CLI if it is still running.
-	trap 'kill "$PID" 2>&1 > /dev/null || true' RETURN
-
-	if grep -q "$CLI_STARTUP_STRING" playground-cli-test-output; then
+	if grep -q "$CLI_STARTUP_STRING" "$OUTPUT_FILE"; then
 		echo "Playground CLI started successfully"
 		echo "Checking WordPress home page..."
 
@@ -40,7 +51,7 @@ function test_playground_cli() {
 			return 0
 		fi
 	else
-		cat playground-cli-test-output
+		cat "$OUTPUT_FILE"
 		echo
 		echo Playground CLI failed to start
 		return 1
