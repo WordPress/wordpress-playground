@@ -158,7 +158,10 @@ final class SSGWP_URL_Rewriter {
 				'src'        => 'asset',
 			),
 			'INS'        => array( 'cite' => 'page' ),
-			'LINK'       => array( 'href' => 'link' ),
+			'LINK'       => array(
+				'href'        => 'link',
+				'imagesrcset' => 'srcset',
+			),
 			'OBJECT'     => array( 'data' => 'asset' ),
 			'Q'          => array( 'cite' => 'page' ),
 			'SCRIPT'     => array( 'src' => 'asset' ),
@@ -241,6 +244,7 @@ final class SSGWP_URL_Rewriter {
 			'data-lazy-src'    => 'asset',
 			'data-lazy-srcset' => 'srcset',
 			'data-bg'          => 'asset',
+			'imagesrcset'      => 'srcset',
 			'xlink:href'       => 'asset',
 		);
 

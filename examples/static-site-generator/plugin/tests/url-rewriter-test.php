@@ -245,8 +245,9 @@ if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
 				$tag['offset'],
 				$tag['length']
 			);
-			$this->tags[ $this->index ]['html']   = $tag_html;
-			$this->tags[ $this->index ]['length'] = strlen( $tag_html );
+			$this->tags[ $this->index ]['html']       = $tag_html;
+			$this->tags[ $this->index ]['length']     = strlen( $tag_html );
+			$this->tags[ $this->index ]['attributes'] = $this->parse_attributes( $tag_html );
 
 			if ( 0 === $delta ) {
 				return;
@@ -536,6 +537,7 @@ $html = implode(
 		'<meta property="og:url" content="https://example.test/nested/page/#share">',
 		'<meta property="og:image" content="https://example.test/wp-content/uploads/social.jpg?ver=1">',
 		'<meta name="twitter:image" content="/wp-content/uploads/photo.jpg">',
+		'<link rel="preload" as="image" href="/wp-content/uploads/photo.jpg" imagesrcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">',
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
 		'<img srcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
@@ -626,6 +628,12 @@ ssgwp_assert_contains(
 	'srcset="wp-content/uploads/photo.jpg 1x, wp-content/uploads/photo-2x.jpg 2x"',
 	$result['content'],
 	'rewrite_html rewrites srcset candidates to copied asset files.'
+);
+
+ssgwp_assert_contains(
+	'imagesrcset="wp-content/uploads/photo.jpg 1x, wp-content/uploads/photo-2x.jpg 2x"',
+	$result['content'],
+	'rewrite_html rewrites responsive image preload srcset candidates.'
 );
 
 ssgwp_assert_contains(

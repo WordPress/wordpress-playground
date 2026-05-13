@@ -126,6 +126,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
+	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<script type="application/json">{"root":"\/parent-page\/child-page\/","rootAsset":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?root=1","plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?plain=1"}</script>'
@@ -187,6 +188,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
 	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
+	. '<link rel="preload" as="image" href="' . esc_url($scoped_asset_url) . '" imagesrcset="' . esc_url($scoped_asset_url) . ' 1x, ' . esc_url($scoped_asset_url . '?preload=2x') . ' 2x">'
 	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
@@ -306,6 +308,11 @@ async function verifyExport() {
 		assertStaticTargetExists('static-page/index.html', target);
 	}
 
+	assertIncludes(
+		staticPage,
+		'imagesrcset="../wp-content/uploads/ssgwp-smoke-asset.txt 1x, ../wp-content/uploads/ssgwp-smoke-asset.txt?preload=2x 2x"',
+		'static-page/index.html rewrites responsive image preload srcset'
+	);
 	assertDoesNotInclude(staticPage, 'href="/static-page/"');
 	assertDoesNotInclude(staticPage, '"root":"\\/parent-page\\/child-page\\/"');
 	assertDoesNotInclude(staticPage, '"plainRoot":"/static-page/"');
@@ -349,6 +356,11 @@ async function verifyScopedExport() {
 		assertStaticTargetExists('static-page/index.html', target);
 	}
 
+	assertIncludes(
+		staticPage,
+		'imagesrcset="../wp-content/uploads/ssgwp-smoke-asset.txt 1x, ../wp-content/uploads/ssgwp-smoke-asset.txt?preload=2x 2x"',
+		'scoped static-page/index.html rewrites responsive image preload srcset'
+	);
 	assertDoesNotInclude(staticPage, duplicatedScope);
 	assertDoesNotInclude(staticPage, 'href="/scope:sad-quiet-school/static-page/"');
 	assertDoesNotInclude(staticPage, 'href="scope%3Asad-quiet-school/');
