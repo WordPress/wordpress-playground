@@ -130,6 +130,9 @@ format.
 - Treat page-like `object[data]` URLs as crawlable static export pages while
   keeping media object sources as copied assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite SVG `feImage` asset references discovered in exported pages and
+  linked copied SVG files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

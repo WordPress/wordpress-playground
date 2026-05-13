@@ -843,6 +843,8 @@ $html = implode(
 			. ' data-poster="/wp-content/uploads/bg.jpg?lazy=5"></span>',
 		'<object data="/object-page/"></object>',
 		'<object data="/wp-content/uploads/social-video.mp4?object=1"></object>',
+		'<svg><filter><feImage href="/wp-content/uploads/filter.png?svg=1"'
+			. ' xlink:href="/wp-content/uploads/filter-2x.png?svg=2"></feImage></filter></svg>',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<div style=background:url(/wp-content/uploads/bg.jpg?unquoted=1)></div>',
@@ -1227,6 +1229,30 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_contains(
+	'href="wp-content/uploads/filter.png?svg=1"',
+	$result['content'],
+	'rewrite_html rewrites SVG filter image href attributes.'
+);
+
+ssgwp_assert_contains(
+	'xlink:href="wp-content/uploads/filter-2x.png?svg=2"',
+	$result['content'],
+	'rewrite_html rewrites SVG filter image xlink:href attributes.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/filter.png?svg=1', $result['assets'], true ),
+	'rewrite_html records SVG filter image href assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/filter-2x.png?svg=2', $result['assets'], true ),
+	'rewrite_html records SVG filter image xlink:href assets to copy.'
+);
+
+ssgwp_assert_contains(
 	'nested\/page\/index.html',
 	$result['content'],
 	'rewrite_html rewrites JSON-escaped same-site page URLs.'
@@ -1399,6 +1425,23 @@ ssgwp_assert_contains(
 	'content="../../../wp-content/uploads/social.jpg"',
 	$rewritten_copied_html['content'],
 	'rewrite_text_asset_with_assets rewrites social meta URLs in copied HTML assets.'
+);
+
+$rewritten_copied_svg = $rewriter->rewrite_text_asset_with_assets(
+	'<svg><filter><feImage href="icons/filter.png"></feImage></filter></svg>',
+	'wp-content/plugins/app/filter.svg'
+);
+
+ssgwp_assert_contains(
+	'href="../../../wp-content/plugins/app/icons/filter.png"',
+	$rewritten_copied_svg['content'],
+	'rewrite_text_asset_with_assets rewrites SVG filter image href attributes.'
+);
+
+ssgwp_assert_same(
+	array( 'https://example.test/wp-content/plugins/app/icons/filter.png' ),
+	$rewritten_copied_svg['assets'],
+	'rewrite_text_asset_with_assets records SVG filter image href assets to copy.'
 );
 
 $rewritten_asset_text = $rewriter->rewrite_text_asset(

@@ -228,6 +228,10 @@ final class SSGWP_URL_Rewriter {
 			'BUTTON'     => array( 'formaction' => 'page' ),
 			'DEL'        => array( 'cite' => 'page' ),
 			'EMBED'      => array( 'src' => 'asset' ),
+			'FEIMAGE'    => array(
+				'href'       => 'asset',
+				'xlink:href' => 'asset',
+			),
 			'FORM'       => array( 'action' => 'page' ),
 			'HTML'       => array(
 				'background' => 'asset',
