@@ -129,6 +129,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
+	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<script type="application/json">{"root":"\/parent-page\/child-page\/","rootAsset":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?root=1","plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?plain=1"}</script>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $protocol_child_url) . '"}</script>'
@@ -194,6 +195,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link rel="preload" as="image" href="' . esc_url($scoped_asset_url) . '" imagesrcset="' . esc_url($scoped_asset_url) . ' 1x, ' . esc_url($scoped_asset_url . '?preload=2x') . ' 2x">'
 	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
+	. '<p><img class="mixed-srcset" srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, ' . esc_url($scoped_asset_url . '?mixed=2x') . ' 2x" alt=""></p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
 	. '<script type="application/json">{"root":"' . str_replace('/', '\/', $scoped_child_path) . '","rootAsset":"' . str_replace('/', '\/', $scoped_asset_path) . '?root=1"}</script>'
@@ -305,6 +307,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 	];
 
@@ -355,6 +358,7 @@ async function verifyScopedExport() {
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 	];
 
@@ -514,7 +518,7 @@ function extractSrcsetRefs(text) {
 	const refs = [];
 
 	for (const match of text.matchAll(/\ssrcset=["']([^"']+)["']/gi)) {
-		for (const candidate of match[1].split(',')) {
+		for (const candidate of splitSrcsetCandidates(match[1])) {
 			const [url] = candidate.trim().split(/\s+/);
 
 			if (url) {
@@ -524,6 +528,47 @@ function extractSrcsetRefs(text) {
 	}
 
 	return refs;
+}
+
+function splitSrcsetCandidates(srcset) {
+	const candidates = [];
+	let candidate = '';
+	let urlStarted = false;
+	let urlFinished = false;
+	let dataUrlPrefix = false;
+
+	for (let index = 0; index < srcset.length; index++) {
+		const char = srcset[index];
+
+		if (!urlStarted && !/\s/.test(char)) {
+			urlStarted = true;
+			dataUrlPrefix = srcset.slice(index, index + 5).toLowerCase() === 'data:';
+		}
+
+		if (urlStarted && !urlFinished && /\s/.test(char)) {
+			urlFinished = true;
+		}
+
+		if (
+			char === ',' &&
+			(!dataUrlPrefix || urlFinished || /\s/.test(srcset[index + 1] || ''))
+		) {
+			candidates.push(candidate.trim());
+			candidate = '';
+			urlStarted = false;
+			urlFinished = false;
+			dataUrlPrefix = false;
+			continue;
+		}
+
+		candidate += char;
+	}
+
+	if (candidate.trim()) {
+		candidates.push(candidate.trim());
+	}
+
+	return candidates;
 }
 
 function extractCssUrlRefs(text) {

@@ -542,6 +542,7 @@ $html = implode(
 		'<link rel="preload" as="image" href="/wp-content/uploads/photo.jpg" imagesrcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x">',
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
 		'<img srcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
+		'<img srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<script type="application/json">{"url":"https:\/\/example.test\/nested\/page\/"}</script>',
@@ -631,6 +632,12 @@ ssgwp_assert_contains(
 	'srcset="wp-content/uploads/photo.jpg 1x, wp-content/uploads/photo-2x.jpg 2x"',
 	$result['content'],
 	'rewrite_html rewrites srcset candidates to copied asset files.'
+);
+
+ssgwp_assert_contains(
+	'srcset="data:image/gif;base64,R0lGODlhAQABAAAAACw= 1x, wp-content/uploads/photo-2x.jpg 2x"',
+	$result['content'],
+	'rewrite_html rewrites mixed data and same-site srcset candidates.'
 );
 
 ssgwp_assert_contains(

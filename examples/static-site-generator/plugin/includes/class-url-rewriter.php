@@ -294,11 +294,7 @@ final class SSGWP_URL_Rewriter {
 	 * @return string
 	 */
 	private function rewrite_srcset( $srcset, $base_url, $target_path ) {
-		if ( false !== stripos( $srcset, 'data:' ) ) {
-			return $srcset;
-		}
-
-		$candidates = preg_split( '/\s*,\s*/', trim( $srcset ) );
+		$candidates = $this->split_srcset_candidates( $srcset );
 		$output     = array();
 
 		foreach ( $candidates as $candidate ) {
@@ -317,6 +313,69 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return implode( ', ', $output );
+	}
+
+	/**
+	 * Split a srcset into candidates without splitting inside data URLs.
+	 *
+	 * @param string $srcset Srcset attribute value.
+	 * @return string[] Srcset candidates.
+	 */
+	private function split_srcset_candidates( $srcset ) {
+		$candidates      = array();
+		$candidate       = '';
+		$length          = strlen( (string) $srcset );
+		$url_started     = false;
+		$url_finished    = false;
+		$data_url_prefix = false;
+
+		for ( $index = 0; $index < $length; $index++ ) {
+			$char = $srcset[ $index ];
+
+			if ( ! $url_started && ! ctype_space( $char ) ) {
+				$url_started     = true;
+				$data_url_prefix = 0 === stripos( substr( $srcset, $index, 5 ), 'data:' );
+			}
+
+			if ( $url_started && ! $url_finished && ctype_space( $char ) ) {
+				$url_finished = true;
+			}
+
+			if (
+				',' === $char
+				&& (
+					! $data_url_prefix
+					|| $url_finished
+					|| $this->is_srcset_separator_after_data_url( $srcset, $index )
+				)
+			) {
+				$candidates[] = trim( $candidate );
+				$candidate       = '';
+				$url_started     = false;
+				$url_finished    = false;
+				$data_url_prefix = false;
+				continue;
+			}
+
+			$candidate .= $char;
+		}
+
+		if ( '' !== trim( $candidate ) ) {
+			$candidates[] = trim( $candidate );
+		}
+
+		return $candidates;
+	}
+
+	/**
+	 * Determine whether a comma after a data URL starts the next candidate.
+	 *
+	 * @param string $srcset Srcset attribute value.
+	 * @param int    $index  Current comma index.
+	 * @return bool Whether the comma separates srcset candidates.
+	 */
+	private function is_srcset_separator_after_data_url( $srcset, $index ) {
+		return isset( $srcset[ $index + 1 ] ) && ctype_space( $srcset[ $index + 1 ] );
 	}
 
 	/**
