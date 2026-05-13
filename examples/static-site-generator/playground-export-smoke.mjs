@@ -579,6 +579,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link rel="payment" href="' . esc_url($link_rel_payment_url) . '">'
 	. '<link rel="me" href="' . esc_url($schema_profile_url) . '">'
 	. '<link rel="profile" href="' . esc_url($schema_profile_url) . '">'
+	. '<head profile="' . esc_url($schema_profile_url) . '"></head>'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($manifest_url) . '">'
 	. '<link rel="stylesheet" href="' . esc_url($sourcemap_css_url) . '">'
@@ -800,6 +801,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link rel="payment" href="' . esc_url($scoped_link_rel_payment_url) . '">'
 	. '<link rel="me" href="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<link rel="profile" href="' . esc_url($scoped_schema_profile_url) . '">'
+	. '<head profile="' . esc_url($scoped_schema_profile_url) . '"></head>'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($scoped_manifest_url) . '">'
 	. '<link rel="stylesheet" href="' . esc_url($scoped_sourcemap_css_url) . '">'
@@ -1234,6 +1236,11 @@ async function verifyExport() {
 		staticPage,
 		'<link rel="profile" href="../schema-profile/index.html">',
 		'static-page/index.html rewrites profile link relations'
+	);
+	assertIncludes(
+		staticPage,
+		'profile="../schema-profile/index.html"',
+		'static-page/index.html rewrites metadata profile attributes'
 	);
 	assertIncludes(
 		staticPage,
@@ -1743,6 +1750,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'<link rel="profile" href="../schema-profile/index.html">',
 		'scoped static-page/index.html rewrites profile link relations'
+	);
+	assertIncludes(
+		staticPage,
+		'profile="../schema-profile/index.html"',
+		'scoped static-page/index.html rewrites metadata profile attributes'
 	);
 	assertIncludes(
 		staticPage,

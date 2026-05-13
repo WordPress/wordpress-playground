@@ -113,6 +113,9 @@ format.
 - Treat static export `rel="profile"` links as crawlable page references so
   profile documents are generated instead of copied as assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat legacy static export metadata `profile` attributes as crawlable page
+  references.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Treat static export `rel="me"` identity links as crawlable page references
   so same-site identity/profile documents are generated.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

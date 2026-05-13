@@ -689,6 +689,8 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 		. '<article itemscope itemid="/microdata-item/"'
 		. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>'
 		. '<article about="/rdfa-about/" resource="https://example.test/rdfa-resource/">RDFa</article>'
+		. '<head profile="/metadata-profile/ https://example.test/metadata-secondary-profile/">'
+		. '</head>'
 		. '<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>',
 	'https://example.test/',
 	'index.html'
@@ -818,6 +820,12 @@ ssgwp_assert_contains(
 	'about="rdfa-about/index.html" resource="rdfa-resource/index.html"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns rewrites RDFa page identifiers.'
+);
+
+ssgwp_assert_contains(
+	'profile="metadata-profile/index.html metadata-secondary-profile/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites metadata profile URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1262,6 +1270,8 @@ $html = implode(
 		'<article itemscope itemid="/microdata-item/"'
 			. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>',
 		'<article about="/rdfa-about/" resource="https://example.test/rdfa-resource/">RDFa</article>',
+		'<head profile="/metadata-profile/ https://example.test/metadata-secondary-profile/">'
+			. '</head>',
 		'<section vocab="/rdfa-vocab/" typeof="schema:Thing">RDFa vocab</section>',
 		'<span vocab="https://schema.org/">RDFa external vocab</span>',
 		'<span about="[schema:Thing]" resource="_:local">RDFa CURIE</span>',
@@ -1675,6 +1685,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'profile="metadata-profile/index.html metadata-secondary-profile/index.html"',
+	$result['content'],
+	'rewrite_html treats metadata profile URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'vocab="rdfa-vocab/index.html"',
 	$result['content'],
 	'rewrite_html treats same-site RDFa vocab URLs as page links.'
@@ -1933,6 +1949,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/rdfa-resource/', $result['links'], true ),
 	'rewrite_html records RDFa resource URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/metadata-profile/', $result['links'], true ),
+	'rewrite_html records metadata profile URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/metadata-secondary-profile/', $result['links'], true ),
+	'rewrite_html records metadata profile URL lists as links to crawl.'
 );
 
 ssgwp_assert_same(

@@ -359,6 +359,7 @@ final class SSGWP_URL_Rewriter {
 			'about'            => 'semantic-page',
 			'itemid'           => 'page',
 			'itemtype'         => 'semantic-page-list',
+			'profile'          => 'semantic-page-list',
 			'resource'         => 'semantic-page',
 			'vocab'            => 'semantic-page',
 		);
@@ -573,6 +574,7 @@ final class SSGWP_URL_Rewriter {
 			'about'            => 'semantic-page',
 			'itemid'           => 'page',
 			'itemtype'         => 'semantic-page-list',
+			'profile'          => 'semantic-page-list',
 			'resource'         => 'semantic-page',
 			'vocab'            => 'semantic-page',
 			'xlink:href'       => 'asset',
@@ -1918,7 +1920,8 @@ final class SSGWP_URL_Rewriter {
 	 * @param string $base_url    Base URL.
 	 * @param string $target_path Relative static file path.
 	 * @param string $kind        URL kind: page, asset, maybe, base,
-	 *                            browserconfig, semantic-page.
+	 *                            browserconfig, semantic-page,
+	 *                            semantic-page-list.
 	 * @return string
 	 */
 	private function rewrite_url_value( $value, $base_url, $target_path, $kind ) {
