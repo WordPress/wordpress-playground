@@ -907,12 +907,40 @@ final class SSGWP_URL_Rewriter {
 		$content = $this->rewrite_protocol_relative_text_urls( $content, $target_path, true );
 		$content = $this->rewrite_root_relative_text_urls( $content, $target_path, false );
 		$content = $this->rewrite_root_relative_text_urls( $content, $target_path, true );
-
-		$replacement_base = $this->replacement_base_for_path( dirname( $target_path ) );
-		$content          = preg_replace( '#(?<=[("=\'\s])/(wp-content|wp-includes)/#', $replacement_base . '$1/', $content );
-		$content          = preg_replace( '#(?<=[("=\'\s])\\\/(wp-content|wp-includes)\\\/#', str_replace( '/', '\\/', $replacement_base ) . '$1\\/', $content );
+		$content = $this->rewrite_root_asset_text_urls( $content, $target_path, false );
+		$content = $this->rewrite_root_asset_text_urls( $content, $target_path, true );
 
 		return $content;
+	}
+
+	/**
+	 * Rewrite unstructured root-relative WordPress asset paths in text.
+	 *
+	 * This catches legacy strings such as CSS snippets that are not quoted like
+	 * JSON values. The URL still passes through the normal exportability checks
+	 * so scoped Playground exports do not claim root-level paths from another
+	 * deployment.
+	 *
+	 * @param string $content     File content.
+	 * @param string $target_path Relative static file path.
+	 * @param bool   $escaped     Whether slashes are JSON escaped.
+	 * @return string
+	 */
+	private function rewrite_root_asset_text_urls( $content, $target_path, $escaped ) {
+		$pattern = $escaped
+			? '#(?<=[("=\'\s])\\\\/(?:wp-content|wp-includes)\\\\/(?:[^\\\\\s\'"<>)]|\\\\/)*#i'
+			: '#(?<=[("=\'\s])/(?:wp-content|wp-includes)/[^\s\'"<>)]*#i';
+
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $target_path, $escaped ) {
+				$url       = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+				$rewritten = $this->rewrite_url_value( $url, home_url( '/' ), $target_path, 'asset' );
+
+				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
+			},
+			$content
+		);
 	}
 
 	/**

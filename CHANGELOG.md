@@ -62,6 +62,9 @@ format.
 - Rewrite protocol-relative same-site URLs found in static export JSON and
   JavaScript text so serialized frontend configuration points at generated
   files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Keep scoped Playground static exports from rewriting root-level
+  `/wp-content` and `/wp-includes` text paths that are outside the current
+  deployment scope. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

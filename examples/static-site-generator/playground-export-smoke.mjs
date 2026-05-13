@@ -198,6 +198,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
 	. '<script type="application/json">{"root":"' . str_replace('/', '\/', $scoped_child_path) . '","rootAsset":"' . str_replace('/', '\/', $scoped_asset_path) . '?root=1"}</script>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($scoped_protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $scoped_protocol_child_url) . '"}</script>'
+	. '<script type="application/json">{"plainRootAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=1","plainRootAssetEscaped":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?outside=2"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($scoped_child_url) . '"}</script>';
 
 wp_update_post(array(
@@ -376,6 +377,16 @@ async function verifyScopedExport() {
 	);
 	assertDoesNotInclude(staticPage, '"protocolChild":"//');
 	assertDoesNotInclude(staticPage, '"protocolEscaped":"\\/\\/');
+	assertIncludes(
+		staticPage,
+		'"plainRootAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=1"',
+		'scoped static-page/index.html leaves root-level plain asset JSON outside the scope'
+	);
+	assertIncludes(
+		staticPage,
+		'"plainRootAssetEscaped":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=2"',
+		'scoped static-page/index.html leaves root-level asset JSON outside the scope'
+	);
 	assertIncludes(
 		staticPage,
 		'https://playground.wordpress.net/scope:other-site/static-page/',

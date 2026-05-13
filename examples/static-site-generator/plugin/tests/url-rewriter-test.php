@@ -793,6 +793,23 @@ ssgwp_assert_contains(
 	'rewrite_text_asset rewrites JSON-escaped root-relative asset URLs.'
 );
 
+$rewritten_asset_text = $rewriter->rewrite_text_asset(
+	'asset=/wp-content/uploads/photo.jpg?text=1 escaped=\/wp-content\/uploads\/photo.jpg?text=2',
+	'app/app.js'
+);
+
+ssgwp_assert_contains(
+	'asset=../wp-content/uploads/photo.jpg?text=1',
+	$rewritten_asset_text,
+	'rewrite_text_asset rewrites unstructured root-relative WordPress asset paths.'
+);
+
+ssgwp_assert_contains(
+	'escaped=..\/wp-content\/uploads\/photo.jpg?text=2',
+	$rewritten_asset_text,
+	'rewrite_text_asset rewrites unstructured escaped root-relative WordPress asset paths.'
+);
+
 $rewritten_js = $rewriter->rewrite_text_asset(
 	'const next = "https://example.test/static-page/";'
 		. ' const protocol = "//example.test/protocol-text/";'
@@ -906,7 +923,8 @@ $scoped_result = $rewriter->rewrite_html(
 		. '<a href="/scope:sad-quiet-school/sample-page/">Root</a>'
 		. '<a href="https://playground.wordpress.net/scope:other-site/sample-page/">Other</a>'
 		. '<img src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/photo.jpg" alt="">'
-		. '<img src="/scope:sad-quiet-school/wp-content/uploads/photo.jpg" alt="">',
+		. '<img src="/scope:sad-quiet-school/wp-content/uploads/photo.jpg" alt="">'
+		. '<script type="application/json">{"plainRootAsset":"/wp-content/uploads/photo.jpg","plainRootAssetEscaped":"\/wp-content\/uploads\/photo.jpg"}</script>',
 	'https://playground.wordpress.net/scope:sad-quiet-school/',
 	'index.html'
 );
@@ -921,6 +939,18 @@ ssgwp_assert_contains(
 	'src="wp-content/uploads/photo.jpg"',
 	$scoped_result['content'],
 	'rewrite_html strips the Playground scope base from same-site asset links.'
+);
+
+ssgwp_assert_contains(
+	'"plainRootAsset":"/wp-content/uploads/photo.jpg"',
+	$scoped_result['content'],
+	'rewrite_html leaves root-level WordPress asset paths outside the Playground scope unchanged.'
+);
+
+ssgwp_assert_contains(
+	'"plainRootAssetEscaped":"\/wp-content\/uploads\/photo.jpg"',
+	$scoped_result['content'],
+	'rewrite_html leaves escaped root-level WordPress asset paths outside the Playground scope unchanged.'
 );
 
 ssgwp_assert_contains(
