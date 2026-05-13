@@ -71,6 +71,9 @@ format.
 - Rewrite Open Graph audio and video media URLs in static exports so social
   previews point at copied static assets.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Keep copied static export asset directories from including hidden files or
+  single-file PHP plugins.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

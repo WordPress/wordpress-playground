@@ -1067,6 +1067,10 @@ final class SSGWP_Static_Exporter {
 		$target = wp_normalize_path( $target );
 
 		if ( is_file( $source ) ) {
+			if ( ! $this->filter_copied_path( new SplFileInfo( $source ) ) ) {
+				return;
+			}
+
 			$this->write_file( $target, file_get_contents( $source ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 			return;
 		}
@@ -1101,7 +1105,15 @@ final class SSGWP_Static_Exporter {
 	public function filter_copied_path( SplFileInfo $file ) {
 		$name = $file->getFilename();
 
-		if ( in_array( $name, array( '.git', '.svn', 'node_modules', 'vendor', 'tests', '__tests__' ), true ) ) {
+		if ( '' === $name || '.' === $name[0] ) {
+			return false;
+		}
+
+		if ( $file->isFile() ) {
+			return $this->is_exportable_asset_file( $file->getPathname() );
+		}
+
+		if ( in_array( $name, array( 'node_modules', 'vendor', 'tests', '__tests__' ), true ) ) {
 			return false;
 		}
 
