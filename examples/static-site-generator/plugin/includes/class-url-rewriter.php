@@ -815,7 +815,7 @@ final class SSGWP_URL_Rewriter {
 			return true;
 		}
 
-		return (bool) preg_match( '#/(feed|comments)(/|$)#', $path );
+		return (bool) preg_match( '#/(?:comments/)?(?:feed|rdf|rss|rss2|atom)(/|$)#', $path );
 	}
 
 	/**

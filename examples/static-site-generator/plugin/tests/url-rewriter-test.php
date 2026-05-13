@@ -485,6 +485,7 @@ foreach (
 		'static-page/index.html',
 		'static-page-' . $view_hash . '.html',
 		'blog/page/2/index.html',
+		'comments/index.html',
 		'meta-page/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
@@ -524,6 +525,7 @@ $html = implode(
 		'<a class="non-pretty" href="/?p=42#comments">Query</a>',
 		'<a class="query" href="/static-page/?view=grid#items">Query page</a>',
 		'<a class="archive" href="/blog/page/2/#posts">Archive</a>',
+		'<a class="comments-page" href="/comments/">Comments page</a>',
 		'<a class="admin" href="/wp-admin/admin.php">Admin</a>',
 		'<a class="api" href="/wp-json/wp/v2/posts">API</a>',
 		'<a class="feed" href="/feed/">Feed</a>',
@@ -627,6 +629,12 @@ ssgwp_assert_contains(
 	'href="blog/page/2/index.html#posts"',
 	$result['content'],
 	'rewrite_html rewrites archive pagination URLs to generated files.'
+);
+
+ssgwp_assert_contains(
+	'href="comments/index.html"',
+	$result['content'],
+	'rewrite_html rewrites a public page whose slug is comments.'
 );
 
 ssgwp_assert_contains(
@@ -913,6 +921,7 @@ foreach (
 		'static-page/index.html',
 		'static-page-' . $view_hash . '.html#items',
 		'blog/page/2/index.html#posts',
+		'comments/index.html',
 		'nested/page/index.html#section',
 		'nested/page/index.html#share',
 		'protocol-escaped/index.html',

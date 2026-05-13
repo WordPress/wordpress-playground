@@ -342,7 +342,7 @@ final class SSGWP_URL_Collector {
 			return null;
 		}
 
-		if ( preg_match( '#/(feed|comments)(/|$)#', $path ) ) {
+		if ( preg_match( '#/(?:comments/)?(?:feed|rdf|rss|rss2|atom)(/|$)#', $path ) ) {
 			return null;
 		}
 

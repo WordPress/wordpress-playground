@@ -77,6 +77,9 @@ format.
 - Preserve same-origin `preconnect` and `dns-prefetch` resource hints in static
   exports while still rewriting semantic page links such as `rel="home"`.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Keep static export comment feed endpoints dynamic while still rewriting
+  public pages whose slug is `comments`.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

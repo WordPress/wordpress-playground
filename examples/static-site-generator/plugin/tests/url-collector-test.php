@@ -127,6 +127,18 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_same(
+	'https://example.test/comments/',
+	$collector->normalize_url( 'https://example.test/comments/' ),
+	'normalize_url keeps a public page whose slug is comments.'
+);
+
+ssgwp_assert_same(
+	null,
+	$collector->normalize_url( 'https://example.test/comments/feed/' ),
+	'normalize_url rejects the comments feed endpoint.'
+);
+
+ssgwp_assert_same(
 	'https://example.test/static-page/',
 	$collector->normalize_url( 'https://example.test:443/static-page/' ),
 	'normalize_url treats the explicit HTTPS default port as same-origin.'

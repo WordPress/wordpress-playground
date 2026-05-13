@@ -115,15 +115,25 @@ $parent_id = wp_insert_post(array(
 	'post_content' => '<p>Parent export target.</p>',
 ));
 
+$comments_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Comments',
+	'post_name' => 'comments',
+	'post_content' => '<p>Comments page export target.</p>',
+));
+
 wp_update_post(array(
 	'ID' => $child_id,
 	'post_parent' => $parent_id,
 ));
 
 $child_url = get_permalink($child_id);
+$comments_url = get_permalink($comments_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
+	. '<p><a class="comments-link" href="' . esc_url($comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
@@ -185,12 +195,14 @@ add_filter('includes_url', function($url, $path) use ($scoped_home) {
 }, 10, 2);
 
 $scoped_child_url = get_permalink($child_id);
+$scoped_comments_url = get_permalink($comments_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_child_path = wp_parse_url($scoped_child_url, PHP_URL_PATH);
 $scoped_asset_path = wp_parse_url($scoped_asset_url, PHP_URL_PATH);
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
+	. '<p><a class="comments-link" href="' . esc_url($scoped_comments_url) . '">Comments</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
 	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
@@ -298,6 +310,7 @@ async function verifyExport() {
 	currentExportDir = exportDir;
 	assertFile('index.html');
 	assertFile('static-page/index.html');
+	assertFile('comments/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
@@ -307,6 +320,7 @@ async function verifyExport() {
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
+		'../comments/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
@@ -340,6 +354,7 @@ async function verifyScopedExport() {
 
 	assertFile('index.html');
 	assertFile('static-page/index.html');
+	assertFile('comments/index.html');
 	assertFile('parent-page/child-page/index.html');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('static-export.json');
@@ -361,6 +376,7 @@ async function verifyScopedExport() {
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
+		'../comments/index.html',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
