@@ -68,6 +68,9 @@ format.
 - Rewrite same-site image candidates in mixed `srcset` values without breaking
   inline `data:` candidates.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite tokenized schema.org `meta itemprop` URL values in static exports so
+  page and asset metadata with multiple itemprop names points at generated
+  files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite protocol-relative same-site URLs found in static export JSON and
   JavaScript text so serialized frontend configuration points at generated
   files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

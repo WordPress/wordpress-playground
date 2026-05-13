@@ -1519,7 +1519,7 @@ final class SSGWP_URL_Rewriter {
 			'twitter:player:stream',
 		);
 
-		foreach ( array( $property, $name, $itemprop ) as $key ) {
+		foreach ( array( $property, $name ) as $key ) {
 			if ( in_array( $key, $page_keys, true ) ) {
 				return 'page';
 			}
@@ -1535,6 +1535,22 @@ final class SSGWP_URL_Rewriter {
 			if ( in_array( $key, $asset_keys, true ) ) {
 				return 'asset';
 			}
+		}
+
+		if ( in_array( $itemprop, $browser_config_keys, true ) ) {
+			return 'browserconfig';
+		}
+
+		if ( in_array( $itemprop, $msapplication_task_keys, true ) ) {
+			return 'msapplication-task';
+		}
+
+		if ( $this->contains_token( $itemprop, $page_keys ) ) {
+			return 'page';
+		}
+
+		if ( $this->contains_token( $itemprop, $asset_keys ) ) {
+			return 'asset';
 		}
 
 		return null;

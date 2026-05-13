@@ -967,6 +967,8 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
 		. '<meta itemprop="subjectOf" content="/schema-subject/">'
+		. '<meta itemprop="url sameAs" content="/schema-token-profile/">'
+		. '<meta itemprop="image thumbnailUrl" content="/wp-content/uploads/social.jpg?schema-token=1">'
 		. '<meta itemprop="publishingPrinciples" content="/publishing-principles/">'
 		. '<meta property="article:author" content="/author/admin/">'
 		. '<meta property="article:publisher" content="/publisher/">'
@@ -1062,6 +1064,18 @@ ssgwp_assert_contains(
 	'<meta itemprop="subjectOf" content="schema-subject/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org subjectOf page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="url sameAs" content="schema-token-profile/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org meta itemprop page URL tokens.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="image thumbnailUrl" content="wp-content/uploads/social.jpg?schema-token=1">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org meta itemprop asset URL tokens.'
 );
 
 ssgwp_assert_contains(
@@ -1181,6 +1195,7 @@ foreach (
 			'schema-contributor/index.html',
 			'schema-reviewer/index.html',
 			'schema-subject/index.html',
+			'schema-token-profile/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -1355,6 +1370,8 @@ $html = implode(
 		'<meta itemprop="publisher" content="/schema-publisher/">',
 		'<meta itemprop="reviewedBy" content="/schema-reviewer/">',
 		'<meta itemprop="subjectOf" content="/schema-subject/">',
+		'<meta itemprop="url sameAs" content="/schema-token-profile/">',
+		'<meta itemprop="image thumbnailUrl" content="/wp-content/uploads/social.jpg?schema-token=1">',
 		'<meta property="article:author" content="/author/admin/">',
 		'<meta property="article:publisher" content="/publisher/">',
 		'<meta property="og:see_also" content="/related/">',
@@ -1988,8 +2005,20 @@ ssgwp_assert_same(
 
 ssgwp_assert_same(
 	true,
+	in_array( 'https://example.test/schema-token-profile/', $result['links'], true ),
+	'rewrite_html records schema.org meta itemprop token lists as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
 	in_array( 'https://example.test/wp-content/uploads/social-video.mp4?link-schema=1', $result['assets'], true ),
 	'rewrite_html records schema.org link itemprop media URLs as assets to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/social.jpg?schema-token=1', $result['assets'], true ),
+	'rewrite_html records schema.org meta itemprop asset token lists as assets to copy.'
 );
 
 ssgwp_assert_same(
@@ -2476,6 +2505,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="url sameAs" content="schema-token-profile/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org meta itemprop page URL tokens.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="image thumbnailUrl" content="wp-content/uploads/social.jpg?schema-token=1">',
+	$result['content'],
+	'rewrite_html rewrites schema.org meta itemprop asset URL tokens.'
+);
+
+ssgwp_assert_contains(
 	'<meta property="article:author" content="author/admin/index.html">',
 	$result['content'],
 	'rewrite_html rewrites article author page URLs in meta content attributes.'
@@ -2526,6 +2567,8 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="publisher" content="/schema-publisher/">'
 		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
 		. '<meta itemprop="subjectOf" content="/schema-subject/">'
+		. '<meta itemprop="url sameAs" content="/schema-token-profile/">'
+		. '<meta itemprop="image thumbnailUrl" content="/wp-content/uploads/social.jpg?schema-token=1">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
@@ -2557,6 +2600,7 @@ ssgwp_assert_same(
 		'https://example.test/schema-publisher/',
 		'https://example.test/schema-reviewer/',
 		'https://example.test/schema-subject/',
+		'https://example.test/schema-token-profile/',
 		'https://example.test/start-page/',
 		'https://example.test/task-target/',
 	),
@@ -2567,6 +2611,7 @@ ssgwp_assert_same(
 ssgwp_assert_same(
 	array(
 		'https://example.test/wp-content/uploads/social.jpg',
+		'https://example.test/wp-content/uploads/social.jpg?schema-token=1',
 		'https://example.test/wp-content/uploads/tile.png',
 		'https://example.test/wp-content/uploads/tile.png?square=1',
 		'https://example.test/browserconfig.xml',

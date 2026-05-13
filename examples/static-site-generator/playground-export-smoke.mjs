@@ -610,6 +610,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta itemprop="item" content="' . esc_url($schema_breadcrumb_url) . '">'
 	. '<meta itemprop="isPartOf" content="' . esc_url($schema_collection_url) . '">'
 	. '<meta itemprop="isBasedOnUrl" content="' . esc_url($schema_source_url) . '">'
+	. '<meta itemprop="url sameAs" content="' . esc_url($schema_profile_url) . '">'
+	. '<meta itemprop="image thumbnailUrl" content="' . esc_url($asset_url . '?schema-token=1') . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($microdata_profile_url) . '">'
 	. '<link itemprop="about" href="' . esc_url($schema_about_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
@@ -844,6 +846,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta itemprop="item" content="' . esc_url($scoped_schema_breadcrumb_url) . '">'
 	. '<meta itemprop="isPartOf" content="' . esc_url($scoped_schema_collection_url) . '">'
 	. '<meta itemprop="isBasedOnUrl" content="' . esc_url($scoped_schema_source_url) . '">'
+	. '<meta itemprop="url sameAs" content="' . esc_url($scoped_schema_profile_url) . '">'
+	. '<meta itemprop="image thumbnailUrl" content="' . esc_url($scoped_asset_url . '?schema-token=1') . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($scoped_microdata_profile_url) . '">'
 	. '<link itemprop="about" href="' . esc_url($scoped_schema_about_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
@@ -1139,6 +1143,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?task=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema-token=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema-link=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
@@ -1260,6 +1265,16 @@ async function verifyExport() {
 		staticPage,
 		'<meta itemprop="item" content="../schema-breadcrumb/index.html">',
 		'static-page/index.html rewrites schema.org breadcrumb item metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="url sameAs" content="../schema-profile/index.html">',
+		'static-page/index.html rewrites schema.org meta itemprop page token lists'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="image thumbnailUrl" content="../wp-content/uploads/ssgwp-smoke-asset.txt?schema-token=1">',
+		'static-page/index.html rewrites schema.org meta itemprop asset token lists'
 	);
 	assertIncludes(
 		staticPage,
