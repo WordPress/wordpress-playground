@@ -248,6 +248,14 @@ $microdata_significant_id = wp_insert_post(array(
 	'post_content' => '<p>Microdata significant link export target.</p>',
 ));
 
+$microdata_license_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Microdata License',
+	'post_name' => 'microdata-license',
+	'post_content' => '<p>Microdata license page export target.</p>',
+));
+
 $microdata_related_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -328,6 +336,14 @@ $schema_profile_id = wp_insert_post(array(
 	'post_content' => '<p>Schema meta export target.</p>',
 ));
 
+$schema_license_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema License',
+	'post_name' => 'schema-license',
+	'post_content' => '<p>Schema license export target.</p>',
+));
+
 $amp_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -361,6 +377,7 @@ $task_target_url = get_permalink($task_target_id);
 $start_url = get_permalink($start_url_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
+$microdata_license_url = get_permalink($microdata_license_id);
 $microdata_related_url = get_permalink($microdata_related_id);
 $microdata_item_url = get_permalink($microdata_item_id);
 $microdata_type_url = get_permalink($microdata_type_id);
@@ -371,6 +388,7 @@ $rdfa_vocab_url = get_permalink($rdfa_vocab_id);
 $svg_link_url = get_permalink($svg_link_id);
 $image_metadata_url = get_permalink($image_metadata_id);
 $schema_profile_url = get_permalink($schema_profile_id);
+$schema_license_url = get_permalink($schema_license_id);
 $amp_url = get_permalink($amp_id);
 $preloaded_document_url = get_permalink($preloaded_document_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
@@ -425,9 +443,11 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player" content="' . esc_url($child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($schema_profile_url) . '">'
+	. '<meta itemprop="license" content="' . esc_url($schema_license_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($microdata_profile_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
+	. '<link itemprop="acquireLicensePage" href="' . esc_url($microdata_license_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '" itemtype="'
 	. esc_url($microdata_type_url) . ' https://schema.org/Article '
@@ -545,6 +565,7 @@ $scoped_task_target_url = get_permalink($task_target_id);
 $scoped_start_url = get_permalink($start_url_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
+$scoped_microdata_license_url = get_permalink($microdata_license_id);
 $scoped_microdata_related_url = get_permalink($microdata_related_id);
 $scoped_microdata_item_url = get_permalink($microdata_item_id);
 $scoped_microdata_type_url = get_permalink($microdata_type_id);
@@ -555,6 +576,7 @@ $scoped_rdfa_vocab_url = get_permalink($rdfa_vocab_id);
 $scoped_svg_link_url = get_permalink($svg_link_id);
 $scoped_image_metadata_url = get_permalink($image_metadata_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
+$scoped_schema_license_url = get_permalink($schema_license_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_preloaded_document_url = get_permalink($preloaded_document_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
@@ -618,9 +640,11 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($scoped_schema_profile_url) . '">'
+	. '<meta itemprop="license" content="' . esc_url($scoped_schema_license_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($scoped_microdata_profile_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
+	. '<link itemprop="acquireLicensePage" href="' . esc_url($scoped_microdata_license_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '" itemtype="'
 	. esc_url($scoped_microdata_type_url) . ' https://schema.org/Article '
@@ -782,6 +806,7 @@ async function verifyExport() {
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
+	assertFile('microdata-license/index.html');
 	assertFile('microdata-item/index.html');
 	assertFile('microdata-type/index.html');
 	assertFile('microdata-secondary-type/index.html');
@@ -791,6 +816,7 @@ async function verifyExport() {
 	assertFile('svg-link/index.html');
 	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
+	assertFile('schema-license/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('preloaded-document/index.html');
 	assertFile('parent-page/index.html');
@@ -830,6 +856,7 @@ async function verifyExport() {
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
+		'../microdata-license/index.html',
 		'../microdata-item/index.html',
 		'../microdata-type/index.html',
 		'../microdata-secondary-type/index.html',
@@ -839,6 +866,7 @@ async function verifyExport() {
 		'../svg-link/index.html',
 		'../image-metadata/index.html',
 		'../schema-profile/index.html',
+		'../schema-license/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
@@ -1206,6 +1234,7 @@ async function verifyScopedExport() {
 	assertFile('microdata-profile/index.html');
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
+	assertFile('microdata-license/index.html');
 	assertFile('microdata-item/index.html');
 	assertFile('microdata-type/index.html');
 	assertFile('microdata-secondary-type/index.html');
@@ -1215,6 +1244,7 @@ async function verifyScopedExport() {
 	assertFile('svg-link/index.html');
 	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
+	assertFile('schema-license/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('preloaded-document/index.html');
 	assertFile('parent-page/child-page/index.html');
@@ -1266,6 +1296,7 @@ async function verifyScopedExport() {
 		'../microdata-profile/index.html',
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
+		'../microdata-license/index.html',
 		'../microdata-item/index.html',
 		'../microdata-type/index.html',
 		'../microdata-secondary-type/index.html',
@@ -1275,6 +1306,7 @@ async function verifyScopedExport() {
 		'../svg-link/index.html',
 		'../image-metadata/index.html',
 		'../schema-profile/index.html',
+		'../schema-license/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',

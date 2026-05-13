@@ -1203,6 +1203,7 @@ $html = implode(
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
 		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
+		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<article itemscope itemid="/microdata-item/"'
 			. ' itemtype="/schema/local https://schema.org/Article https://example.test/schema/secondary/">Microdata item</article>',
@@ -1247,6 +1248,7 @@ $html = implode(
 		'<meta itemprop="discussionUrl" content="/schema-discussion/">',
 		'<meta itemprop="relatedLink" content="/schema-related/">',
 		'<meta itemprop="significantLinks" content="/schema-significant/">',
+		'<meta itemprop="license" content="/schema-license/">',
 		'<meta property="article:author" content="/author/admin/">',
 		'<meta property="article:publisher" content="/publisher/">',
 		'<meta property="og:see_also" content="/related/">',
@@ -1516,6 +1518,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="acquireLicensePage" href="microdata-license/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org acquireLicensePage itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="contentUrl" href="wp-content/uploads/social-video.mp4?link-schema=1">',
 	$result['content'],
 	'rewrite_html treats schema.org link itemprop media URLs as assets.'
@@ -1699,6 +1707,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-significant/', $result['links'], true ),
 	'rewrite_html records schema.org significantLinks itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/microdata-license/', $result['links'], true ),
+	'rewrite_html records schema.org acquireLicensePage itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2113,6 +2127,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="license" content="schema-license/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org license page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta property="article:author" content="author/admin/index.html">',
 	$result['content'],
 	'rewrite_html rewrites article author page URLs in meta content attributes.'
@@ -2152,6 +2172,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
+		. '<meta itemprop="license" content="/schema-license/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
 		. '<meta name="msapplication-square310x310logo" content="/wp-content/uploads/tile.png?square=1">'
@@ -2172,6 +2193,7 @@ ssgwp_assert_same(
 		'https://example.test/schema-discussion/',
 		'https://example.test/schema-related/',
 		'https://example.test/schema-significant/',
+		'https://example.test/schema-license/',
 		'https://example.test/start-page/',
 		'https://example.test/task-target/',
 	),

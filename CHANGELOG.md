@@ -112,6 +112,9 @@ format.
 - Treat static export `rel="me"` identity links as crawlable page references
   so same-site identity/profile documents are generated.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat schema.org license metadata URLs in static exports as crawlable page
+  references so license pages are generated.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite common lazy-loading `data-*` asset attributes in static exports,
   including background URLs and background `srcset` values on non-image tags.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
