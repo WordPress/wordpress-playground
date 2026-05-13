@@ -26,6 +26,7 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         permissions:
             contents: write # Required to clone the repo, create the GitHub release, and push the tag.
 

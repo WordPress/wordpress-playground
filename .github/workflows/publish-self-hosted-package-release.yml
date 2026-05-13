@@ -37,6 +37,9 @@ jobs:
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        # This workflow is current disabled. This timeout is set to a high value in anticipation of the workflow
+        # being re-enabled and needing to run through the full deployment process.
+        timeout-minutes: 60
         permissions:
             contents: write # Required to clone the repo, push version bump commits, and create tags.
         environment:

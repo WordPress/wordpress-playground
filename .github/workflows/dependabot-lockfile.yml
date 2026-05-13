@@ -12,6 +12,7 @@ jobs:
     fix-lock:
         if: github.actor == 'dependabot[bot]'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         permissions:
             contents: write # Required to push the updated lockfile commit back to the branch.
         steps:

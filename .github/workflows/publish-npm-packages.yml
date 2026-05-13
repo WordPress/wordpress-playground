@@ -40,6 +40,9 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        # Timeout is set to an hour as Lerna sequentially publishes a large number of packages
+        # and the workflow regularly takes more than 30 minutes to complete.
+        timeout-minutes: 60
         permissions:
             id-token: write # Required for OIDC-based npm trusted publishing.
             contents: write # Required to push the version bump commit and tags.

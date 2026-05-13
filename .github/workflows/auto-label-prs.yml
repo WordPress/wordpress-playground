@@ -38,6 +38,7 @@ jobs:
     paths:
         if: github.repository == 'WordPress/wordpress-playground'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         permissions:
             contents: read       # Required for actions/labeler to read the configuration file.
             pull-requests: write # Required to apply labels to pull requests.
@@ -53,6 +54,7 @@ jobs:
     package-and-type:
         if: github.repository == 'WordPress/wordpress-playground'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         permissions:
             pull-requests: write # Required to apply labels to pull requests.
         steps:

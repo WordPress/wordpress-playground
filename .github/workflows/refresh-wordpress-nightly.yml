@@ -27,6 +27,7 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        timeout-minutes: 60
         permissions:
             contents: write # Required to clone the repo and push the refreshed WordPress nightly commit.
         environment:

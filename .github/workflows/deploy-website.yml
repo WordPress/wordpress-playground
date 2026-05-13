@@ -33,6 +33,7 @@ jobs:
                 github.actor == 'ashfame'
             )
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         permissions: {}
         environment:
             name: playground-wordpress-net-wp-cloud
@@ -63,6 +64,7 @@ jobs:
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         permissions:
             contents: read # Required to clone the repo.
         environment:

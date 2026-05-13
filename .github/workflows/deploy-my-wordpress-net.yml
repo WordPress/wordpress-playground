@@ -33,6 +33,7 @@ jobs:
                 github.actor == 'ashfame'
             )
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         permissions: {}
         environment:
             name: my-wordpress-net-wp-cloud
@@ -62,6 +63,7 @@ jobs:
         if: needs.check_preconditions.outputs.meets_deploy_preconditions == 'true'
 
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         permissions:
             contents: read # Required to clone the repo.
         environment:
