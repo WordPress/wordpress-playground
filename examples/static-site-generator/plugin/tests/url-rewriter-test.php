@@ -532,6 +532,7 @@ $html = implode(
 		'<a class="js" href="javascript:void(0)">JS</a>',
 		'<a class="data" href="data:text/plain,hello">Data</a>',
 		'<a class="blob" href="blob:https://example.test/id">Blob</a>',
+		'<meta charset="UTF-8" />',
 		'<meta property="og:url" content="https://example.test/nested/page/#share">',
 		'<meta property="og:image" content="https://example.test/wp-content/uploads/social.jpg?ver=1">',
 		'<meta name="twitter:image" content="/wp-content/uploads/photo.jpg">',
@@ -540,6 +541,9 @@ $html = implode(
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<script type="application/json">{"url":"https:\/\/example.test\/nested\/page\/"}</script>',
+		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
+		'<script type="application/json">{"plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/photo.jpg?plain=1"}</script>',
+		'<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"\/*","not":{"href_matches":["\/wp-admin\/*"]}}}]}</script>',
 		'<script>const next = "https://example.test/static-page/";</script>',
 	)
 );
@@ -680,6 +684,48 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'"root":"nested\/page\/index.html"',
+	$result['content'],
+	'rewrite_html rewrites JSON-escaped root-relative page URLs.'
+);
+
+ssgwp_assert_contains(
+	'"rootAsset":"wp-content\/uploads\/photo.jpg?json=1"',
+	$result['content'],
+	'rewrite_html rewrites JSON-escaped root-relative asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'"plainRoot":"static-page/index.html"',
+	$result['content'],
+	'rewrite_html rewrites plain root-relative page URLs in JSON text.'
+);
+
+ssgwp_assert_contains(
+	'"plainAsset":"wp-content/uploads/photo.jpg?plain=1"',
+	$result['content'],
+	'rewrite_html rewrites plain root-relative asset URLs in JSON text.'
+);
+
+ssgwp_assert_contains(
+	'<meta charset="UTF-8" />',
+	$result['content'],
+	'rewrite_html does not rewrite self-closing tag slashes as URLs.'
+);
+
+ssgwp_assert_contains(
+	'"href_matches":"\/*"',
+	$result['content'],
+	'rewrite_html does not rewrite wildcard speculation-rule URL patterns.'
+);
+
+ssgwp_assert_contains(
+	'"href_matches":["\/wp-admin\/*"]',
+	$result['content'],
+	'rewrite_html does not rewrite escaped wildcard URL patterns.'
+);
+
+ssgwp_assert_contains(
 	'const next = "static-page/index.html";',
 	$result['content'],
 	'rewrite_html rewrites JavaScript same-site page strings.'
@@ -687,7 +733,9 @@ ssgwp_assert_contains(
 
 $rewritten_json = $rewriter->rewrite_text_asset(
 	'{"url":"https:\/\/example.test\/nested\/page\/",'
-		. '"asset":"https:\/\/example.test\/wp-content\/uploads\/photo.jpg?size=large"}',
+		. '"asset":"https:\/\/example.test\/wp-content\/uploads\/photo.jpg?size=large",'
+		. '"root":"\/static-page\/",'
+		. '"root_asset":"\/wp-content\/uploads\/photo.jpg?root=1"}',
 	'app/data.json'
 );
 
@@ -703,8 +751,20 @@ ssgwp_assert_contains(
 	'rewrite_text_asset rewrites JSON-escaped asset URLs to copied files.'
 );
 
+ssgwp_assert_contains(
+	'..\/static-page\/index.html',
+	$rewritten_json,
+	'rewrite_text_asset rewrites JSON-escaped root-relative page URLs.'
+);
+
+ssgwp_assert_contains(
+	'..\/wp-content\/uploads\/photo.jpg?root=1',
+	$rewritten_json,
+	'rewrite_text_asset rewrites JSON-escaped root-relative asset URLs.'
+);
+
 $rewritten_js = $rewriter->rewrite_text_asset(
-	'const next = "https://example.test/static-page/";',
+	'const next = "https://example.test/static-page/"; const root = "/nested/page/";',
 	'app/app.js'
 );
 
@@ -712,6 +772,12 @@ ssgwp_assert_contains(
 	'../static-page/index.html',
 	$rewritten_js,
 	'rewrite_text_asset rewrites JavaScript same-site page strings.'
+);
+
+ssgwp_assert_contains(
+	'../nested/page/index.html',
+	$rewritten_js,
+	'rewrite_text_asset rewrites JavaScript root-relative page strings.'
 );
 
 $rewritten_css = $rewriter->rewrite_text_asset(

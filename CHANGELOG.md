@@ -53,6 +53,9 @@ format.
 - Exclude additional executable PHP-like files from copied static export theme
   and plugin asset directories.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite quoted root-relative URLs in static export JSON and JavaScript text
+  while leaving wildcard URL patterns untouched.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

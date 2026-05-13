@@ -128,6 +128,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
+	. '<script type="application/json">{"root":"\/parent-page\/child-page\/","rootAsset":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?root=1","plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?plain=1"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($child_url) . '"}</script>';
 
 $static_id = wp_insert_post(array(
@@ -179,6 +180,8 @@ add_filter('includes_url', function($url, $path) use ($scoped_home) {
 
 $scoped_child_url = get_permalink($child_id);
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
+$scoped_child_path = wp_parse_url($scoped_child_url, PHP_URL_PATH);
+$scoped_asset_path = wp_parse_url($scoped_asset_url, PHP_URL_PATH);
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
@@ -188,6 +191,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
+	. '<script type="application/json">{"root":"' . str_replace('/', '\/', $scoped_child_path) . '","rootAsset":"' . str_replace('/', '\/', $scoped_asset_path) . '?root=1"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($scoped_child_url) . '"}</script>';
 
 wp_update_post(array(
@@ -292,6 +296,8 @@ async function verifyExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 	];
 
@@ -301,6 +307,8 @@ async function verifyExport() {
 	}
 
 	assertDoesNotInclude(staticPage, 'href="/static-page/"');
+	assertDoesNotInclude(staticPage, '"root":"\\/parent-page\\/child-page\\/"');
+	assertDoesNotInclude(staticPage, '"plainRoot":"/static-page/"');
 	await assertAllLocalResourceTargetsExist();
 }
 
@@ -332,6 +340,7 @@ async function verifyScopedExport() {
 		'../parent-page/child-page/index.html#meta',
 		'../static-page/index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 	];
 
@@ -343,6 +352,10 @@ async function verifyScopedExport() {
 	assertDoesNotInclude(staticPage, duplicatedScope);
 	assertDoesNotInclude(staticPage, 'href="/scope:sad-quiet-school/static-page/"');
 	assertDoesNotInclude(staticPage, 'href="scope%3Asad-quiet-school/');
+	assertDoesNotInclude(
+		staticPage,
+		'"root":"\\/scope:sad-quiet-school\\/parent-page\\/child-page\\/"'
+	);
 	assertIncludes(
 		staticPage,
 		'https://playground.wordpress.net/scope:other-site/static-page/',

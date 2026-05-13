@@ -899,6 +899,8 @@ final class SSGWP_URL_Rewriter {
 	private function rewrite_same_site_text_urls( $content, $target_path ) {
 		$content = $this->rewrite_absolute_text_urls( $content, $target_path, false );
 		$content = $this->rewrite_absolute_text_urls( $content, $target_path, true );
+		$content = $this->rewrite_root_relative_text_urls( $content, $target_path, false );
+		$content = $this->rewrite_root_relative_text_urls( $content, $target_path, true );
 
 		$replacement_base = $this->replacement_base_for_path( dirname( $target_path ) );
 		$content          = preg_replace( '#(?<=[("=\'\s])/(wp-content|wp-includes)/#', $replacement_base . '$1/', $content );
@@ -941,6 +943,36 @@ final class SSGWP_URL_Rewriter {
 			$pattern,
 			function ( $matches ) use ( $target_path, $escaped ) {
 				$url       = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+				$rewritten = $this->rewrite_url_value( $url, home_url( '/' ), $target_path, 'maybe' );
+
+				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Rewrite root-relative same-site URLs embedded in text or JSON.
+	 *
+	 * @param string $content     File content.
+	 * @param string $target_path Relative static file path.
+	 * @param bool   $escaped     Whether slashes are JSON escaped.
+	 * @return string
+	 */
+	private function rewrite_root_relative_text_urls( $content, $target_path, $escaped ) {
+		$pattern = $escaped
+			? '#(?<=["\'])(?:\\\\/)(?!\\\\/)(?=[A-Za-z0-9._~%:@-])(?:[^\\\\\s\'"<>)]|\\\\/)*#'
+			: '#(?<=["\'])/(?!/)(?=[A-Za-z0-9._~%:@-])[^\s\'"<>)]*#';
+
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $target_path, $escaped ) {
+				$url       = $escaped ? str_replace( '\\/', '/', $matches[0] ) : $matches[0];
+
+				if ( preg_match( '/[*{}]/', $url ) ) {
+					return $matches[0];
+				}
+
 				$rewritten = $this->rewrite_url_value( $url, home_url( '/' ), $target_path, 'maybe' );
 
 				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
