@@ -343,20 +343,41 @@ class SSGWP_URL_Collector {
 	 * @return string
 	 */
 	public function resolve_relative_url( $url, $base_url ) {
-		if ( 0 === strpos( $url, '//' ) ) {
-			return 'https:' . $url;
-		}
-
 		if ( preg_match( '#^[a-z][a-z0-9+.-]*:#i', $url ) ) {
 			return $url;
 		}
 
-		if ( isset( $url[0] ) && '/' === $url[0] ) {
-			$parts = wp_parse_url( $base_url );
-			return $parts['scheme'] . '://' . $parts['host'] . $url;
+		if ( 0 === strpos( $url, '//' ) ) {
+			$scheme = wp_parse_url( $base_url, PHP_URL_SCHEME );
+			return $scheme . ':' . $url;
 		}
 
-		return trailingslashit( dirname( $base_url ) ) . $url;
+		$base_parts = wp_parse_url( $base_url );
+		$scheme     = isset( $base_parts['scheme'] ) ? $base_parts['scheme'] : 'http';
+		$host       = isset( $base_parts['host'] ) ? $base_parts['host'] : '';
+		$port       = isset( $base_parts['port'] ) ? ':' . (int) $base_parts['port'] : '';
+		$url_parts  = wp_parse_url( $url );
+
+		if ( false === $url_parts ) {
+			return $url;
+		}
+
+		$relative_path = isset( $url_parts['path'] ) ? $url_parts['path'] : '';
+		$query         = isset( $url_parts['query'] ) ? '?' . $url_parts['query'] : '';
+		$fragment      = isset( $url_parts['fragment'] ) ? '#' . $url_parts['fragment'] : '';
+
+		if ( 0 === strpos( $relative_path, '/' ) ) {
+			return $scheme . '://' . $host . $port . $this->collapse_path( $relative_path ) . $query . $fragment;
+		}
+
+		$base_path = isset( $base_parts['path'] ) ? $base_parts['path'] : '/';
+		$base_dir  = '/' === substr( $base_path, -1 ) ? $base_path : trailingslashit( dirname( $base_path ) );
+
+		if ( '' === $relative_path ) {
+			return $scheme . '://' . $host . $port . $base_path . $query . $fragment;
+		}
+
+		return $scheme . '://' . $host . $port . $this->collapse_path( $base_dir . $relative_path ) . $query . $fragment;
 	}
 
 	/**
@@ -413,6 +434,39 @@ class SSGWP_URL_Collector {
 		$scheme = isset( $home_parts['scheme'] ) ? $home_parts['scheme'] : 'https';
 
 		return $scheme . '://' . strtolower( $parts['host'] ) . $path . ( '' !== $query ? '?' . $query : '' );
+	}
+
+	/**
+	 * Collapse dot segments in a URL path.
+	 *
+	 * @param string $path URL path.
+	 * @return string
+	 */
+	private function collapse_path( $path ) {
+		$had_trailing_slash = '/' === substr( $path, -1 );
+		$segments           = explode( '/', $path );
+		$output             = array();
+
+		foreach ( $segments as $segment ) {
+			if ( '' === $segment || '.' === $segment ) {
+				continue;
+			}
+
+			if ( '..' === $segment ) {
+				array_pop( $output );
+				continue;
+			}
+
+			$output[] = $segment;
+		}
+
+		$collapsed = '/' . implode( '/', $output );
+
+		if ( $had_trailing_slash && '/' !== $collapsed ) {
+			$collapsed = trailingslashit( $collapsed );
+		}
+
+		return $collapsed;
 	}
 }
 
@@ -821,6 +875,7 @@ foreach (
 		'index.html',
 		'index-' . $query_hash . '.html',
 		'static-page/index.html',
+		'static-page/relative-child/index.html',
 		'static-page-' . $view_hash . '.html',
 			'blog/page/2/index.html',
 			'comments/index.html',
@@ -1719,13 +1774,13 @@ $rewritten_manifest = $rewriter->rewrite_text_asset_with_assets(
 );
 
 ssgwp_assert_contains(
-	'"src":"../../../wp-content/plugins/app/icon-192.png"',
+	'"src":"icon-192.png"',
 	$rewritten_manifest['content'],
 	'rewrite_text_asset_with_assets rewrites sibling manifest icon paths.'
 );
 
 ssgwp_assert_contains(
-	'"src":"../../../wp-content/plugins/app/icons/icon.png"',
+	'"src":"icons/icon.png"',
 	$rewritten_manifest['content'],
 	'rewrite_text_asset_with_assets rewrites same-directory manifest icon paths.'
 );
@@ -1737,7 +1792,7 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
-	'"src":"..\/..\/..\/wp-content\/plugins\/app\/icons\/maskable.svg?purpose=any"',
+	'"src":"icons\/maskable.svg?purpose=any"',
 	$rewritten_manifest['content'],
 	'rewrite_text_asset_with_assets normalizes escaped manifest icon paths.'
 );
@@ -1766,7 +1821,7 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
-	'content="../../../wp-content/uploads/social.jpg"',
+	'content="../../uploads/social.jpg"',
 	$rewritten_copied_html['content'],
 	'rewrite_text_asset_with_assets rewrites social meta URLs in copied HTML assets.'
 );
@@ -1777,7 +1832,7 @@ $rewritten_copied_svg = $rewriter->rewrite_text_asset_with_assets(
 );
 
 ssgwp_assert_contains(
-	'href="../../../wp-content/plugins/app/icons/filter.png"',
+	'href="icons/filter.png"',
 	$rewritten_copied_svg['content'],
 	'rewrite_text_asset_with_assets rewrites SVG filter image href attributes.'
 );
@@ -1797,13 +1852,13 @@ $rewritten_copied_xml = $rewriter->rewrite_text_asset_with_assets(
 );
 
 ssgwp_assert_contains(
-	'src="../../../wp-content/plugins/app/tile-small.png"',
+	'src="tile-small.png"',
 	$rewritten_copied_xml['content'],
 	'rewrite_text_asset_with_assets rewrites XML sibling asset paths.'
 );
 
 ssgwp_assert_contains(
-	'src="../../../wp-content/plugins/app/icons/tile-150.png"',
+	'src="icons/tile-150.png"',
 	$rewritten_copied_xml['content'],
 	'rewrite_text_asset_with_assets rewrites XML nested asset paths.'
 );
@@ -1865,7 +1920,7 @@ $rewritten_player_json = $rewriter->rewrite_text_asset_with_assets(
 );
 
 ssgwp_assert_contains(
-	'"captions":"../../../wp-content/plugins/player/captions.vtt"',
+	'"captions":"captions.vtt"',
 	$rewritten_player_json['content'],
 	'rewrite_text_asset_with_assets rewrites relative WebVTT captions.'
 );
@@ -1882,7 +1937,7 @@ $rewritten_css = $rewriter->rewrite_text_asset(
 );
 
 ssgwp_assert_contains(
-	'../../../wp-content/uploads/bg.jpg?ver=1',
+	'../../uploads/bg.jpg?ver=1',
 	$rewritten_css,
 	'rewrite_text_asset rewrites CSS same-site asset URLs.'
 );
@@ -1893,7 +1948,7 @@ $rewritten_css = $rewriter->rewrite_text_asset(
 );
 
 ssgwp_assert_contains(
-	'../../wp-includes/fonts/dashicons.eot?ver=1',
+	'../fonts/dashicons.eot?ver=1',
 	$rewritten_css,
 	'rewrite_text_asset resolves relative CSS URLs from the copied asset path.'
 );
@@ -1906,14 +1961,14 @@ $rewritten_image_set_css = $rewriter->rewrite_text_asset_with_assets(
 );
 
 ssgwp_assert_contains(
-	'image-set("../../../../wp-content/plugins/app/styles/images/hero.png" 1x, '
-		. '"../../../../wp-content/uploads/photo-2x.jpg?image-set=2" 2x, type("image/png"))',
+	'image-set("images/hero.png" 1x, '
+		. '"../../../uploads/photo-2x.jpg?image-set=2" 2x, type("image/png"))',
 	$rewritten_image_set_css['content'],
 	'rewrite_text_asset_with_assets rewrites quoted CSS image-set URLs.'
 );
 
 ssgwp_assert_contains(
-	'-webkit-image-set("../../../../wp-content/plugins/app/shared/hero.webp" 1x)',
+	'-webkit-image-set("../shared/hero.webp" 1x)',
 	$rewritten_image_set_css['content'],
 	'rewrite_text_asset_with_assets rewrites prefixed image-set URLs.'
 );
@@ -1931,13 +1986,14 @@ ssgwp_assert_same(
 ssgwp_assert_static_target_exists(
 	$export_root,
 	'wp-includes/css/dashicons.css',
-	'../../wp-includes/fonts/dashicons.eot?ver=1',
+	'../fonts/dashicons.eot?ver=1',
 	'rewritten relative CSS URL target exists.'
 );
 
 foreach (
 	array(
 		'static-page/index.html',
+		'static-page/relative-child/index.html',
 		'static-page-' . $view_hash . '.html#items',
 		'blog/page/2/index.html#posts',
 		'comments/index.html',
@@ -2021,6 +2077,51 @@ ssgwp_assert_static_target_exists(
 	'nested/page/index.html',
 	'../../static-page/index.html',
 	'nested page rewritten URL target exists.'
+);
+
+$relative_result = $rewriter->rewrite_html(
+	'<a href="relative-child/">Relative child</a>'
+		. '<img src="../wp-content/uploads/photo.jpg?relative=1" alt="">',
+	'https://example.test/static-page/',
+	'static-page/index.html'
+);
+
+ssgwp_assert_contains(
+	'href="relative-child/index.html"',
+	$relative_result['content'],
+	'rewrite_html resolves page-relative links from pretty permalink directories.'
+);
+
+ssgwp_assert_contains(
+	'src="../wp-content/uploads/photo.jpg?relative=1"',
+	$relative_result['content'],
+	'rewrite_html resolves parent-relative asset links from pretty permalink directories.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/static-page/relative-child/', $relative_result['links'], true ),
+	'rewrite_html records page-relative links from pretty permalink directories.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/uploads/photo.jpg?relative=1', $relative_result['assets'], true ),
+	'rewrite_html records parent-relative asset links from pretty permalink directories.'
+);
+
+ssgwp_assert_static_target_exists(
+	$export_root,
+	'static-page/index.html',
+	'relative-child/index.html',
+	'page-relative rewritten URL target exists.'
+);
+
+ssgwp_assert_static_target_exists(
+	$export_root,
+	'static-page/index.html',
+	'../wp-content/uploads/photo.jpg?relative=1',
+	'parent-relative asset URL target exists.'
 );
 
 $ssgwp_test_home_url     = 'https://playground.wordpress.net/scope:sad-quiet-school';

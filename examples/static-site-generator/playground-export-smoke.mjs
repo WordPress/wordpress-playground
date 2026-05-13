@@ -220,6 +220,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
+	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<form class="form-links" action="' . esc_url($form_target_url) . '">'
 	. '<button formaction="' . esc_url($form_button_url) . '">Button</button>'
 	. '<input type="submit" formaction="' . esc_url($form_input_url) . '">'
@@ -272,6 +274,15 @@ $static_id = wp_insert_post(array(
 	'post_title' => 'Static Page',
 	'post_name' => 'static-page',
 	'post_content' => $static_content,
+));
+
+wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Relative Child',
+	'post_name' => 'relative-child',
+	'post_parent' => $static_id,
+	'post_content' => '<p>Document-relative export target.</p>',
 ));
 
 $exporter = new SSGWP_Static_Exporter();
@@ -338,6 +349,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($scoped_child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($scoped_asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<p><a class="relative-child-link" href="relative-child/">Relative child</a></p>'
+	. '<p><img class="relative-parent-asset" src="../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1" alt=""></p>'
 	. '<form class="form-links" action="' . esc_url($scoped_form_target_url) . '">'
 	. '<button formaction="' . esc_url($scoped_form_button_url) . '">Button</button>'
 	. '<input type="submit" formaction="' . esc_url($scoped_form_input_url) . '">'
@@ -478,6 +491,7 @@ async function verifyExport() {
 	currentExportDir = exportDir;
 	assertFile('index.html');
 	assertFile('static-page/index.html');
+	assertFile('static-page/relative-child/index.html');
 	assertFile('comments/index.html');
 	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
@@ -510,7 +524,8 @@ async function verifyExport() {
 		'../form-button/index.html',
 		'../form-input/index.html',
 		'../form-target/index.html',
-		'../static-page/index.html#section',
+		'relative-child/index.html',
+		'index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
@@ -523,6 +538,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
@@ -667,21 +683,21 @@ async function verifyExport() {
 	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/player.json'),
-		'../../../wp-content/plugins/ssgwp-smoke-deps/captions.vtt',
+		'captions.vtt',
 		'copied JSON player configs rewrite WebVTT caption references'
 	);
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/player.json',
-		'../../../wp-content/plugins/ssgwp-smoke-deps/captions.vtt'
+		'captions.vtt'
 	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),
-		'../../../wp-content/plugins/ssgwp-smoke-deps/icons/filter.png',
+		'icons/filter.png',
 		'copied SVG assets rewrite filter image references'
 	);
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/filter.svg',
-		'../../../wp-content/plugins/ssgwp-smoke-deps/icons/filter.png'
+		'icons/filter.png'
 	);
 	await assertAllLocalResourceTargetsExist();
 }
@@ -691,6 +707,7 @@ async function verifyScopedExport() {
 
 	assertFile('index.html');
 	assertFile('static-page/index.html');
+	assertFile('static-page/relative-child/index.html');
 	assertFile('comments/index.html');
 	assertFile('deferred-link/index.html');
 	assertFile('embed-only/index.html');
@@ -735,7 +752,8 @@ async function verifyScopedExport() {
 		'../form-button/index.html',
 		'../form-input/index.html',
 		'../form-target/index.html',
-		'../static-page/index.html#section',
+		'relative-child/index.html',
+		'index.html#section',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?audio=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
@@ -747,6 +765,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?schema=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?relative=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?embed=1',
@@ -915,21 +934,21 @@ async function verifyScopedExport() {
 	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/player.json'),
-		'../../../wp-content/plugins/ssgwp-smoke-deps/captions.vtt',
+		'captions.vtt',
 		'scoped copied JSON player configs rewrite WebVTT caption references'
 	);
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/player.json',
-		'../../../wp-content/plugins/ssgwp-smoke-deps/captions.vtt'
+		'captions.vtt'
 	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),
-		'../../../wp-content/plugins/ssgwp-smoke-deps/icons/filter.png',
+		'icons/filter.png',
 		'scoped copied SVG assets rewrite filter image references'
 	);
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/filter.svg',
-		'../../../wp-content/plugins/ssgwp-smoke-deps/icons/filter.png'
+		'icons/filter.png'
 	);
 	await assertAllLocalResourceTargetsExist();
 }

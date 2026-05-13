@@ -1782,14 +1782,23 @@ final class SSGWP_URL_Rewriter {
 	private function make_relative_url( $from_file, $to_path ) {
 		$from_dir = dirname( wp_normalize_path( $from_file ) );
 		$from_dir = '.' === $from_dir ? '' : trim( $from_dir, '/' );
-		$depth    = '' === $from_dir ? 0 : count( array_filter( explode( '/', $from_dir ) ) );
-		$prefix   = str_repeat( '../', $depth );
+		$from     = '' === $from_dir ? array() : array_values( array_filter( explode( '/', $from_dir ) ) );
+		$to       = array_values( array_filter( explode( '/', trim( wp_normalize_path( $to_path ), '/' ) ) ) );
+		$shared   = 0;
+		$limit    = min( count( $from ), count( $to ) );
 
-		if ( '' === $to_path ) {
+		while ( $shared < $limit && $from[ $shared ] === $to[ $shared ] ) {
+			++$shared;
+		}
+
+		$prefix = str_repeat( '../', count( $from ) - $shared );
+		$suffix = implode( '/', array_slice( $to, $shared ) );
+
+		if ( '' === $suffix ) {
 			return '' === $prefix ? './' : $prefix;
 		}
 
-		return $prefix . ltrim( $to_path, '/' );
+		return $prefix . $suffix;
 	}
 
 	/**

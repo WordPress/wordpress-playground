@@ -174,6 +174,9 @@ format.
 - Cover static export form navigation URLs so form `action` and `formaction`
   page targets are crawled and verified in Playground smoke tests.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Tighten relative static export URLs so rewritten links point directly between
+  generated files, including document-relative links from pretty permalink
+  pages. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
