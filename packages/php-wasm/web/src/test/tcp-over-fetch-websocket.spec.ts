@@ -787,6 +787,29 @@ describe('RawBytesFetch', () => {
 		expect(decodedRequestBody).toEqual(encodedBodyBytes);
 	});
 
+	it('parseHttpRequest should not build a body stream for HEAD requests', async () => {
+		// The Fetch spec forbids GET and HEAD from carrying a request body, so
+		// `new Request(url, { method: 'HEAD', body: stream })` throws
+		// `TypeError: Failed to construct 'Request': Request with GET/HEAD
+		// method cannot have body.` Curl with CURLOPT_NOBODY emits HEAD over
+		// tcpOverFetch as part of size-prechecks and redirect follow-ups, so
+		// we must mirror the GET case and leave outboundBodyStream undefined.
+		const requestBytes = `HEAD /probe HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const { request } = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.method).toEqual('HEAD');
+		expect(request.url).toEqual('http://example.com/probe');
+		expect(request.body).toBeNull();
+	});
+
 	it('parseHttpRequest should handle a path and query string', async () => {
 		const requestBytes = `GET /core/version-check/1.7/?channel=beta HTTP/1.1\r\nHost: playground.internal\r\n\r\n`;
 		const { request } = await RawBytesFetch.parseHttpRequest(

@@ -640,7 +640,13 @@ export class RawBytesFetch {
 			headersEndIndex + 4 /* Skip \r\n\r\n */
 		);
 		let outboundBodyStream: ReadableStream<Uint8Array> | undefined;
-		if (parsedHeaders.method !== 'GET') {
+		// GET and HEAD are forbidden by the Fetch spec from carrying a request
+		// body. Building a ReadableStream for HEAD and then passing it to
+		// `new Request(url, { method: 'HEAD', body: stream })` raises
+		// `TypeError: Failed to construct 'Request': Request with GET/HEAD
+		// method cannot have body.` which surfaces as an uncaught promise
+		// rejection here and corrupts the cURL call that emitted the HEAD.
+		if (parsedHeaders.method !== 'GET' && parsedHeaders.method !== 'HEAD') {
 			const requestBytesReader = requestBytesStream.getReader();
 			let seenBytes = bodyBytes.length;
 			let last5Bytes = bodyBytes.slice(-6);
