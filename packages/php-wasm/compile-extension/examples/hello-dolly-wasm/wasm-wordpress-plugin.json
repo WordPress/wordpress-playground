@@ -1,0 +1,26 @@
+{
+	"slug": "hello-dolly-wasm",
+	"name": "Hello Dolly WASM",
+	"description": "Displays a random Hello Dolly-style greeting in wp-admin, with the greeting provider implemented as a PHP.wasm extension.",
+	"version": "0.1.0",
+	"extension": {
+		"name": "hello_dolly_wasm",
+		"source": {
+			"format": "manifest",
+			"manifestUrl": "./dist/manifest.json"
+		}
+	},
+	"bootstrap": "./bootstrap.php",
+	"hooks": [
+		{
+			"type": "action",
+			"hook": "admin_notices",
+			"callback": "hello_dolly_wasm_render"
+		},
+		{
+			"type": "action",
+			"hook": "admin_head",
+			"callback": "hello_dolly_wasm_css"
+		}
+	]
+}

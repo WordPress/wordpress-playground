@@ -169,6 +169,102 @@ const php = new PHP(
 Use `loadWithIniDirective: 'zend_extension'` for Zend extensions such as
 Xdebug. Use `extraFiles` and `env` for sidecar files needed by the extension.
 
+## Building WordPress plugins backed by WASM
+
+For WordPress plugins, keep the native code and WordPress integration in two
+layers:
+
+- Compile the native layer as a PHP.wasm extension. It should register PHP
+  functions or classes from C, C++, Rust, or another Emscripten-compatible
+  source.
+- Load a small PHP bootstrap as an mu-plugin. The bootstrap calls WordPress
+  APIs such as `add_action()` and `add_filter()` and points those hooks at the
+  PHP functions/classes exposed by the WASM extension.
+
+Start with this directory layout:
+
+```text
+hello-wasm/
+|-- bootstrap.php
+|-- extension/
+|   |-- config.m4
+|   `-- hello_wasm.c
+`-- wasm-wordpress-plugin.json
+```
+
+The native extension exposes regular PHP callables:
+
+```c
+#include "php.h"
+
+PHP_FUNCTION(hello_wasm_render_text)
+{
+	RETURN_STRING("Hello from WASM");
+}
+```
+
+The bootstrap file contains the WordPress-facing code:
+
+```php
+<?php
+function hello_wasm_admin_notice() {
+	printf(
+		'<div class="notice notice-info"><p>%s</p></div>',
+		esc_html( hello_wasm_render_text() )
+	);
+}
+```
+
+Build the extension:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./extension \
+	--name hello_wasm \
+	--php-versions 8.4 \
+	--out ./dist
+```
+
+Then create a Playground CLI descriptor that wires both layers:
+
+```json
+{
+	"slug": "hello-wasm",
+	"name": "Hello WASM",
+	"extension": {
+		"name": "hello_wasm",
+		"source": {
+			"format": "manifest",
+			"manifestUrl": "./dist/hello-wasm/manifest.json"
+		}
+	},
+	"hooks": [
+		{
+			"type": "filter",
+			"hook": "the_content",
+			"callback": "hello_wasm_render_content"
+		}
+	]
+}
+```
+
+Load it with:
+
+```bash
+npx @wp-playground/cli@latest server \
+	--php=8.4 \
+	--wasm-wordpress-plugin=./hello-wasm.json
+```
+
+Use a `bootstrap` file in the descriptor when the plugin needs PHP wrappers,
+capability checks, or object-oriented hook callbacks. Local manifest and
+bootstrap paths resolve relative to the descriptor file.
+
+See `examples/hello-dolly-wasm` for a complete Hello Dolly-style plugin. It
+builds a `hello_dolly_wasm` PHP.wasm extension, installs `bootstrap.php` as an
+mu-plugin, and registers `admin_notices` / `admin_head` hooks through the
+descriptor.
+
 ## Dependencies
 
 The helper can only link WebAssembly objects built with the same Emscripten

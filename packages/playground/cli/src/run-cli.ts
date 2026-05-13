@@ -36,6 +36,7 @@ import {
 	parseMountWithDelimiterArguments,
 } from './mounts';
 import { expandEditMarkdownCommandArgs } from './edit-markdown/configure';
+import { expandWasmWordPressPluginArgs } from './wasm-wordpress-plugins';
 import {
 	parseDefineStringArguments,
 	parseDefineBoolArguments,
@@ -44,7 +45,7 @@ import {
 import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import type { XdebugOptions } from '@php-wasm/node';
+import type { RuntimePHPExtensionSource, XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
 	AllPHPVersions,
@@ -310,6 +311,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			'php-extension-config': {
 				describe:
 					'Load a JSON PHP.wasm extension config before PHP starts. Use this for direct .so URLs or extension-specific ini/env settings. Can be used multiple times.',
+				type: 'array',
+				string: true,
+				nargs: 1,
+			},
+			'wasm-wordpress-plugin': {
+				describe:
+					'Load a WASM-backed WordPress plugin descriptor. The descriptor loads a PHP.wasm extension and installs an mu-plugin bootstrap that registers WordPress hooks. Can be used multiple times.',
 				type: 'array',
 				string: true,
 				nargs: 1,
@@ -768,6 +776,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				cliArgs as RunCLIArgs & { reset?: boolean }
 			);
 		}
+		cliArgs = expandWasmWordPressPluginArgs(cliArgs);
 
 		const cliServer = await runCLI(cliArgs);
 		if (cliServer === undefined) {
@@ -940,6 +949,9 @@ export interface RunCLIArgs {
 	xdebug?: boolean | XdebugOptions;
 	phpExtension?: string[];
 	phpExtensionConfig?: string[];
+	wasmWordPressPlugin?: string[];
+	'wasm-wordpress-plugin'?: string[];
+	runtimePHPExtensions?: RuntimePHPExtensionSource[];
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
@@ -1040,6 +1052,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	const cliOutput = new CLIOutput({
 		verbosity: args.verbosity || 'normal',
 	});
+
+	args = expandWasmWordPressPluginArgs(args);
 
 	if (args.command === 'start') {
 		args = expandStartCommandArgs(args, cliOutput);

@@ -102,6 +102,7 @@ The `server` command supports the following optional arguments:
 - `--internal-cookie-store`: Enables Playground's internal cookie handling. When active, Playground uses an HttpCookieStore to manage and persist cookies across requests. If disabled, cookies are handled externally, like by a browser in Node.js.
 - `--php-extension=<manifest>`: Load a custom PHP.wasm extension manifest before PHP starts. Accepts local paths, `file:` URLs, and `http(s):` URLs. Can be used multiple times.
 - `--php-extension-config=<path>`: Load a JSON extension config before PHP starts. Use this for direct `.so` URLs or extension-specific `iniEntries` and `env` settings. Can be used multiple times.
+- `--wasm-wordpress-plugin=<path>`: Load a WASM-backed WordPress plugin descriptor. The descriptor loads a PHP.wasm extension and installs an mu-plugin bootstrap that registers WordPress hooks. Can be used multiple times.
 
 ### Loading Custom PHP.wasm Extensions
 
@@ -153,6 +154,97 @@ with `extension=` or `zend_extension=` in php.ini:
 	"loadWithIniDirective": false
 }
 ```
+
+### Loading WASM-backed WordPress Plugins
+
+A WASM-backed WordPress plugin is a PHP.wasm extension plus a small PHP
+bootstrap. The extension is loaded before PHP starts. The bootstrap is installed
+as an mu-plugin after WordPress is available, so it can call WordPress APIs such
+as `add_action()` and `add_filter()`.
+
+Create a project with this shape:
+
+```text
+hello-wasm/
+|-- bootstrap.php
+|-- extension/
+|   |-- config.m4
+|   `-- hello_wasm.c
+`-- wasm-wordpress-plugin.json
+```
+
+Build the native layer with `@php-wasm/compile-extension`:
+
+```bash
+cd hello-wasm
+npx @php-wasm/compile-extension \
+	--source ./extension \
+	--name hello_wasm \
+	--php-versions 8.4 \
+	--out ./dist
+```
+
+The C extension should expose ordinary PHP functions or classes:
+
+```c
+PHP_FUNCTION(hello_wasm_render_text)
+{
+	RETURN_STRING("Hello from WASM");
+}
+```
+
+The PHP bootstrap can wrap those functions and use WordPress APIs:
+
+```php
+<?php
+function hello_wasm_admin_notice() {
+	printf(
+		'<div class="notice notice-info"><p>%s</p></div>',
+		esc_html( hello_wasm_render_text() )
+	);
+}
+```
+
+Finally, create a descriptor:
+
+```json
+{
+	"slug": "hello-wasm",
+	"name": "Hello WASM",
+	"extension": {
+		"name": "hello_wasm",
+		"source": {
+			"format": "manifest",
+			"manifestUrl": "./dist/hello-wasm/manifest.json"
+		}
+	},
+	"bootstrap": "./bootstrap.php",
+	"hooks": [
+		{
+			"type": "filter",
+			"hook": "the_content",
+			"callback": "hello_wasm_render_content",
+			"priority": 10,
+			"acceptedArgs": 1
+		}
+	]
+}
+```
+
+Then run:
+
+```bash
+npx @wp-playground/cli@latest server \
+	--php=8.4 \
+	--wasm-wordpress-plugin=./hello-wasm.json
+```
+
+`bootstrap` paths and local extension manifest paths are resolved relative to
+the descriptor file. `callback` must name a PHP callable provided by the WASM
+extension or by the bootstrap file.
+
+A complete Hello Dolly-style example lives in
+`packages/php-wasm/compile-extension/examples/hello-dolly-wasm`.
 
 ### Editing Markdown Directories
 

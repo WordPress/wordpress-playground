@@ -23,6 +23,7 @@ export function cliExtensionArgsToExtensionsArray(args: {
 	redis?: boolean;
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
+	runtimePHPExtensions?: RuntimePHPExtensionSource[];
 	phpExtension?: string[];
 	'php-extension'?: string[];
 	phpExtensionConfig?: string[];
@@ -56,6 +57,7 @@ export function cliExtensionArgsToExtensionsArray(args: {
 	for (const configPath of getArrayOption(args, 'phpExtensionConfig')) {
 		extensions.push(readPHPExtensionConfig(configPath));
 	}
+	extensions.push(...(args.runtimePHPExtensions ?? []));
 	return extensions;
 }
 
