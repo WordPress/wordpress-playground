@@ -232,6 +232,14 @@ $microdata_significant_id = wp_insert_post(array(
 	'post_content' => '<p>Microdata significant link export target.</p>',
 ));
 
+$microdata_related_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Microdata Related Link',
+	'post_name' => 'microdata-related',
+	'post_content' => '<p>Microdata related link export target.</p>',
+));
+
 $schema_profile_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -264,6 +272,7 @@ $form_input_url = get_permalink($form_input_id);
 $task_target_url = get_permalink($task_target_id);
 $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
+$microdata_related_url = get_permalink($microdata_related_id);
 $schema_profile_url = get_permalink($schema_profile_id);
 $amp_url = get_permalink($amp_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
@@ -307,6 +316,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player:stream" content="' . esc_url($asset_url . '?stream=1') . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($schema_profile_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($microdata_profile_url) . '">'
+	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
@@ -404,6 +414,7 @@ $scoped_form_input_url = get_permalink($form_input_id);
 $scoped_task_target_url = get_permalink($task_target_id);
 $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
+$scoped_microdata_related_url = get_permalink($microdata_related_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
@@ -455,6 +466,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta name="twitter:player:stream" content="' . esc_url($scoped_asset_url . '?stream=1') . '">'
 	. '<meta itemprop="sameAs" content="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($scoped_microdata_profile_url) . '">'
+	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
@@ -589,6 +601,7 @@ async function verifyExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('microdata-profile/index.html');
+	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
 	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
@@ -623,6 +636,7 @@ async function verifyExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../microdata-profile/index.html',
+		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
 		'../schema-profile/index.html',
 		'../amp-companion/index.html',
@@ -862,6 +876,7 @@ async function verifyScopedExport() {
 	assertFile('form-target/index.html');
 	assertFile('task-target/index.html');
 	assertFile('microdata-profile/index.html');
+	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
 	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
@@ -908,6 +923,7 @@ async function verifyScopedExport() {
 		'../form-target/index.html',
 		'../task-target/index.html',
 		'../microdata-profile/index.html',
+		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
 		'../schema-profile/index.html',
 		'../amp-companion/index.html',

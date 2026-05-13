@@ -812,6 +812,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
+		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta property="article:author" content="/author/admin/">'
 		. '<meta property="article:publisher" content="/publisher/">'
@@ -957,6 +958,7 @@ foreach (
 			'long-description/index.html',
 			'meta-page/index.html',
 			'microdata-profile/index.html',
+			'microdata-related/index.html',
 			'microdata-significant/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
@@ -970,6 +972,7 @@ foreach (
 		'author/admin/index.html',
 		'publisher/index.html',
 		'related/index.html',
+		'schema-related/index.html',
 		'task-target/index.html',
 		'amp-page/index.html',
 		'embedded-page/index.html',
@@ -1040,6 +1043,7 @@ $html = implode(
 		'<link rel="author" href="/author/admin/">',
 		'<link rel="amphtml" href="/amp-page/">',
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
+		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="contentUrl" href="/wp-content/uploads/social-video.mp4?link-schema=1">',
 		'<a class="deferred" data-href="/deferred-page/">Deferred</a>',
@@ -1071,6 +1075,7 @@ $html = implode(
 		'<meta itemprop="embedUrl" content="/video-player/">',
 		'<meta itemprop="sameAs" content="/schema-profile/">',
 		'<meta itemprop="discussionUrl" content="/schema-discussion/">',
+		'<meta itemprop="relatedLink" content="/schema-related/">',
 		'<meta itemprop="significantLinks" content="/schema-significant/">',
 		'<meta property="article:author" content="/author/admin/">',
 		'<meta property="article:publisher" content="/publisher/">',
@@ -1283,6 +1288,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="relatedLink" href="microdata-related/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org relatedLink itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="significantLinks" href="microdata-significant/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org significantLinks itemprop link URLs as page links.'
@@ -1364,6 +1375,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-profile/', $result['links'], true ),
 	'rewrite_html records schema.org link itemprop page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/microdata-related/', $result['links'], true ),
+	'rewrite_html records schema.org relatedLink itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -1703,6 +1720,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="relatedLink" content="schema-related/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org relatedLink page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="significantLinks" content="schema-significant/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org significantLinks page URLs in meta content attributes.'
@@ -1746,6 +1769,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="embedUrl" content="/video-player/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
+		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta name="twitter:player" content="/video-player/">'
 		. '<meta name="msapplication-TileImage" content="/wp-content/uploads/tile.png">'
@@ -1764,6 +1788,7 @@ ssgwp_assert_same(
 		'https://example.test/video-player/',
 		'https://example.test/schema-profile/',
 		'https://example.test/schema-discussion/',
+		'https://example.test/schema-related/',
 		'https://example.test/schema-significant/',
 		'https://example.test/task-target/',
 	),
@@ -2349,7 +2374,9 @@ foreach (
 		'publisher/index.html',
 		'related/index.html',
 		'microdata-profile/index.html',
+		'microdata-related/index.html',
 		'microdata-significant/index.html',
+		'schema-related/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
 		'encoded%20page/index.html',

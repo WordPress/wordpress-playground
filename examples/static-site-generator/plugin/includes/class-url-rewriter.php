@@ -792,6 +792,7 @@ final class SSGWP_URL_Rewriter {
 			'discussionurl',
 			'embedurl',
 			'mainentityofpage',
+			'relatedlink',
 			'sameas',
 			'significantlink',
 			'significantlinks',
@@ -1224,15 +1225,16 @@ final class SSGWP_URL_Rewriter {
 			'article:publisher',
 			'discussionurl',
 			'embedurl',
+			'mainentityofpage',
 			'og:see_also',
 			'og:url',
+			'relatedlink',
 			'sameas',
 			'significantlink',
 			'significantlinks',
 			'twitter:player',
 			'twitter:url',
 			'url',
-			'mainentityofpage',
 		);
 
 		$browser_config_keys = array(

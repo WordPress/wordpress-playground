@@ -201,6 +201,9 @@ format.
 - Treat schema.org `link itemprop="significantLinks"` URLs as crawlable static
   export pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat schema.org `relatedLink` itemprop URLs as crawlable static export
+  pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Tighten static export text URL rewriting so lookalike external hosts are not
   partially rewritten and query-only same-site URLs still point at generated
   files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
