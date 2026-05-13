@@ -390,6 +390,12 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_same(
+	null,
+	$collector->normalize_url( 'https://example.test/?oembed=true&url=https%3A%2F%2Fexample.test%2Fstatic-page%2F' ),
+	'normalize_url rejects query-based oEmbed endpoints.'
+);
+
+ssgwp_assert_same(
 	'https://example.test/static-page/',
 	$collector->normalize_url( 'https://example.test:443/static-page/' ),
 	'normalize_url treats the explicit HTTPS default port as same-origin.'

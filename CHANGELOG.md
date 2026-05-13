@@ -71,6 +71,9 @@ format.
 - Rewrite tokenized schema.org `meta itemprop` URL values in static exports so
   page and asset metadata with multiple itemprop names points at generated
   files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve query-based oEmbed discovery URLs in static exports so WordPress
+  embed endpoints remain dynamic instead of being rewritten to static files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite protocol-relative same-site URLs found in static export JSON and
   JavaScript text so serialized frontend configuration points at generated
   files. ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

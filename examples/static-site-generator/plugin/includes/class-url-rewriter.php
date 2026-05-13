@@ -2153,6 +2153,7 @@ final class SSGWP_URL_Rewriter {
 
 			if (
 				array_key_exists( 'feed', $query_args )
+				|| array_key_exists( 'oembed', $query_args )
 				|| array_key_exists( 'rest_route', $query_args )
 			) {
 				return true;

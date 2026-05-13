@@ -586,7 +586,7 @@ final class SSGWP_URL_Collector {
 			return '';
 		}
 
-		foreach ( array( 'feed', 'rest_route' ) as $dynamic_key ) {
+		foreach ( array( 'feed', 'oembed', 'rest_route' ) as $dynamic_key ) {
 			if ( array_key_exists( $dynamic_key, $query_args ) ) {
 				return null;
 			}

@@ -556,6 +556,7 @@ $preloaded_document_url = get_permalink($preloaded_document_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
 $rest_route_url = '/?rest_route=/wp/v2/posts';
 $feed_query_url = '/?feed=rss2';
+$oembed_query_url = '/?oembed=true&url=' . rawurlencode($child_url);
 $semicolon_refresh_query = 'jump=one;two';
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<base href="' . esc_url(home_url('/')) . '">'
@@ -584,6 +585,8 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($rest_route_url) . '">REST</a></p>'
 	. '<p><a class="feed-query-link" href="' . esc_url($feed_query_url) . '">Feed query</a></p>'
+	. '<p><a class="oembed-query-link" href="' . esc_url($oembed_query_url) . '">oEmbed query</a></p>'
+	. '<link rel="alternate" type="application/json+oembed" href="' . esc_url($oembed_query_url) . '">'
 	. '<meta http-equiv="refresh" content="0; url=\\''
 	. esc_url('/static-page/?' . $semicolon_refresh_query . '#section')
 	. '\\'; foo=bar">'
@@ -677,6 +680,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<script type="application/json">{"relativePage":"./relative-child/","relativeEscaped":".\\/relative-child\\/","relativeAsset":"../wp-content/uploads/ssgwp-smoke-asset.txt?relative-script=1"}</script>'
 	. '<script type="application/json">{"rest":"' . str_replace('/', '\/', esc_url($rest_route_url)) . '"}</script>'
 	. '<script type="application/json">{"feedQuery":"' . str_replace('/', '\/', esc_url($feed_query_url)) . '"}</script>'
+	. '<script type="application/json">{"oembedQuery":"' . str_replace('/', '\/', esc_url($oembed_query_url)) . '"}</script>'
 	. '<script type="application/json">{"absoluteWildcard":"https:\/\/example.test\/wp-content\/uploads\/*","protocolWildcard":"\/\/example.test\/wp-content\/uploads\/*","absoluteTemplate":"https:\/\/example.test\/static-page\/{id}\/"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($child_url) . '"}</script>';
 
@@ -783,6 +787,7 @@ $scoped_preloaded_document_url = get_permalink($preloaded_document_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
 $scoped_rest_route_url = home_url('/?rest_route=/wp/v2/posts');
 $scoped_feed_query_url = home_url('/?feed=rss2');
+$scoped_oembed_query_url = home_url('/?oembed=true&url=' . rawurlencode($scoped_child_url));
 $scoped_semicolon_refresh_query = 'jump=one;two';
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_captions_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-captions.vtt';
@@ -820,6 +825,8 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
 	. '<p><a class="rest-route-link" href="' . esc_url($scoped_rest_route_url) . '">REST</a></p>'
 	. '<p><a class="feed-query-link" href="' . esc_url($scoped_feed_query_url) . '">Feed query</a></p>'
+	. '<p><a class="oembed-query-link" href="' . esc_url($scoped_oembed_query_url) . '">oEmbed query</a></p>'
+	. '<link rel="alternate" type="application/json+oembed" href="' . esc_url($scoped_oembed_query_url) . '">'
 	. '<meta http-equiv="refresh" content="0; url=\\''
 	. esc_url(home_url('/static-page/?' . $scoped_semicolon_refresh_query . '#section'))
 	. '\\'; foo=bar">'
@@ -916,6 +923,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<script type="application/json">{"plainRootAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=1","plainRootAssetEscaped":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?outside=2"}</script>'
 	. '<script type="application/json">{"rest":"' . str_replace('/', '\/', esc_url($scoped_rest_route_url)) . '"}</script>'
 	. '<script type="application/json">{"feedQuery":"' . str_replace('/', '\/', esc_url($scoped_feed_query_url)) . '"}</script>'
+	. '<script type="application/json">{"oembedQuery":"' . str_replace('/', '\/', esc_url($scoped_oembed_query_url)) . '"}</script>'
 	. '<script type="application/json">{"absoluteWildcard":"'
 	. str_replace('/', '\/', $scoped_home . '/wp-content/uploads/*')
 	. '","protocolWildcard":"\/\/playground.wordpress.net\/scope:sad-quiet-school\/wp-content\/uploads\/*","absoluteTemplate":"'
@@ -1515,6 +1523,16 @@ async function verifyExport() {
 	);
 	assertIncludes(
 		staticPage,
+		'class="oembed-query-link" href="/?oembed=true',
+		'static-page/index.html leaves query-based oEmbed links untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"oembedQuery":"/?oembed=true',
+		'static-page/index.html leaves query-based oEmbed JSON URLs untouched'
+	);
+	assertIncludes(
+		staticPage,
 		'"absoluteWildcard":"https://example.test/wp-content/uploads/*"',
 		'static-page/index.html leaves absolute wildcard asset patterns untouched'
 	);
@@ -2075,6 +2093,16 @@ async function verifyScopedExport() {
 	);
 	assertIncludes(
 		staticPage,
+		'class="oembed-query-link" href="https://playground.wordpress.net/scope:sad-quiet-school/?oembed=true',
+		'scoped static-page/index.html leaves query-based oEmbed links untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"oembedQuery":"https://playground.wordpress.net/scope:sad-quiet-school/?oembed=true',
+		'scoped static-page/index.html leaves query-based oEmbed JSON URLs untouched'
+	);
+	assertIncludes(
+		staticPage,
 		'"plainRootAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=1"',
 		'scoped static-page/index.html leaves root-level plain asset JSON outside the scope'
 	);
@@ -2379,7 +2407,7 @@ function resolveExportReference(fromFile, ref) {
 		return null;
 	}
 
-	if (/[?&](?:feed|rest_route)=/.test(ref)) {
+	if (/[?&](?:feed|oembed|rest_route)=/.test(ref)) {
 		return null;
 	}
 
