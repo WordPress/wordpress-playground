@@ -1443,6 +1443,7 @@ final class SSGWP_URL_Rewriter {
 		$page_keys = array(
 			'about',
 			'acquirelicensepage',
+			'al:web:url',
 			'actionablefeedbackpolicy',
 			'article:author',
 			'article:publisher',

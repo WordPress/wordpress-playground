@@ -77,6 +77,9 @@ format.
 - Rewrite citation URLs on static export inserted and deleted content elements
   so edit provenance references point at generated static pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite App Links web fallback metadata URLs in static exports so social app
+  previews point at generated static pages.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Preserve query-based oEmbed discovery URLs in static exports so WordPress
   embed endpoints remain dynamic instead of being rewritten to static files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

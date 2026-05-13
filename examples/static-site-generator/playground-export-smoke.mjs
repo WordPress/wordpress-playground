@@ -594,6 +594,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. esc_url('/static-page/?' . $semicolon_refresh_query . '#section')
 	. '\\'; foo=bar">'
 	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
+	. '<meta property="al:web:url" content="' . esc_url($child_url) . '">'
 	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio" content="' . esc_url($asset_url . '?audio=1') . '">'
 	. '<meta property="og:video" content="' . esc_url($asset_url . '?video=1') . '">'
@@ -837,6 +838,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. esc_url(home_url('/static-page/?' . $scoped_semicolon_refresh_query . '#section'))
 	. '\\'; foo=bar">'
 	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
+	. '<meta property="al:web:url" content="' . esc_url($scoped_child_url) . '">'
 	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
 	. '<meta property="og:audio:secure_url" content="' . esc_url($scoped_asset_url . '?audio=1') . '">'
 	. '<meta property="og:video:secure_url" content="' . esc_url($scoped_asset_url . '?video=1') . '">'
@@ -1207,6 +1209,11 @@ async function verifyExport() {
 		staticPage,
 		`content="0; url=&#039;${semicolonRefreshTarget}&#039;; foo=bar"`,
 		'static-page/index.html rewrites quoted meta refresh URLs with suffixes'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta property="al:web:url" content="../parent-page/child-page/index.html">',
+		'static-page/index.html rewrites App Links web fallback URLs'
 	);
 	assertIncludes(
 		staticPage,
@@ -1811,6 +1818,11 @@ async function verifyScopedExport() {
 		staticPage,
 		'data-url="../parent-page/child-page/index.html"',
 		'scoped static-page/index.html rewrites generic data-url page attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta property="al:web:url" content="../parent-page/child-page/index.html">',
+		'scoped static-page/index.html rewrites App Links web fallback URLs'
 	);
 	assertIncludes(
 		staticPage,

@@ -1369,6 +1369,7 @@ $html = implode(
 		'<a class="blob" href="blob:https://example.test/id">Blob</a>',
 		'<meta charset="UTF-8" />',
 		'<meta property="og:url" content="https://example.test/nested/page/#share">',
+		'<meta property="al:web:url" content="/app-link-web/">',
 		'<meta property="og:image" content="https://example.test/wp-content/uploads/social.jpg?ver=1">',
 		'<meta property="og:audio" content="https://example.test/wp-content/uploads/social-audio.mp3?ver=1">',
 		'<meta property="og:video" content="https://example.test/wp-content/uploads/social-video.mp4?ver=1">',
@@ -2393,6 +2394,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta property="al:web:url" content="app-link-web/index.html">',
+	$result['content'],
+	'rewrite_html rewrites App Links web fallback URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta property="og:image" content="wp-content/uploads/social.jpg?ver=1">',
 	$result['content'],
 	'rewrite_html rewrites Open Graph image URLs in meta content attributes.'
@@ -2598,6 +2605,7 @@ ssgwp_assert_contains(
 
 $meta_only_result = $rewriter->rewrite_html(
 	'<meta property="og:url" content="/meta-page/">'
+		. '<meta property="al:web:url" content="/app-link-web/">'
 		. '<meta property="og:image" content="/wp-content/uploads/social.jpg">'
 		. '<meta property="article:publisher" content="/publisher/">'
 		. '<meta property="og:see_also" content="/related/">'
@@ -2632,6 +2640,7 @@ $meta_only_result = $rewriter->rewrite_html(
 ssgwp_assert_same(
 	array(
 		'https://example.test/meta-page/',
+		'https://example.test/app-link-web/',
 		'https://example.test/publisher/',
 		'https://example.test/related/',
 		'https://example.test/video-player/',
