@@ -215,6 +215,9 @@ format.
 - Preserve static export `ping` attributes so click-tracking endpoints remain
   dynamic instead of being crawled as generated pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite common WordPress image metadata data attributes during static export,
+  including attachment permalinks and generated image file URLs.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

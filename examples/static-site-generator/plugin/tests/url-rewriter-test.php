@@ -655,6 +655,10 @@ $pattern_lazy_rewritten = $pattern_method->invoke(
 		. '<a data-href="/deferred-page/">Deferred</a>'
 		. '<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Asset</button>'
 		. '<div data-url="/generic-page/" data-link="/wp-content/uploads/photo.jpg?data-link=1"></div>'
+		. '<img data-permalink="/attachment-page/"'
+		. ' data-orig-file="/wp-content/uploads/original.jpg?orig=1"'
+		. ' data-medium-file="/wp-content/uploads/medium.jpg?medium=1"'
+		. ' data-large-file="/wp-content/uploads/large.jpg?large=1" alt="">'
 		. '<iframe src="/framed-page/" data-src="/lazy-frame/" data-lazy-src="/wp-content/uploads/photo.jpg?frame=1"></iframe>'
 		. '<embed src="/embed-page/">'
 		. '<embed src="/wp-content/uploads/social-video.mp4?embed=1">'
@@ -704,6 +708,30 @@ ssgwp_assert_contains(
 	'data-link="wp-content/uploads/photo.jpg?data-link=1"',
 	$pattern_lazy_rewritten,
 	'rewrite_html_attributes_with_patterns treats data-link media URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'data-permalink="attachment-page/index.html"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns treats WordPress image data-permalink as a page link.'
+);
+
+ssgwp_assert_contains(
+	'data-orig-file="wp-content/uploads/original.jpg?orig=1"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites WordPress original image metadata URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'data-medium-file="wp-content/uploads/medium.jpg?medium=1"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites WordPress medium image metadata URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'data-large-file="wp-content/uploads/large.jpg?large=1"',
+	$pattern_lazy_rewritten,
+	'rewrite_html_attributes_with_patterns rewrites WordPress large image metadata URLs as assets.'
 );
 
 ssgwp_assert_contains(
@@ -1058,6 +1086,10 @@ $html = implode(
 		'<button data-href="/wp-content/uploads/photo.jpg?deferred=1">Deferred asset</button>',
 		'<a class="generic-data-url" data-url="/generic-page/">Generic data URL</a>',
 		'<button data-link="/wp-content/uploads/photo.jpg?data-link=1">Generic data asset</button>',
+		'<img class="wp-image-metadata" data-permalink="/attachment-page/"'
+			. ' data-orig-file="/wp-content/uploads/original.jpg?orig=1"'
+			. ' data-medium-file="/wp-content/uploads/medium.jpg?medium=1"'
+			. ' data-large-file="/wp-content/uploads/large.jpg?large=1" alt="">',
 		'<form action="/form-target/"><button formaction="/form-button/">Submit</button>'
 			. '<input type="submit" formaction="/form-input/"></form>',
 		'<a class="external" href="https://external.test/static-page/">External</a>',
@@ -1338,6 +1370,30 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'data-permalink="attachment-page/index.html"',
+	$result['content'],
+	'rewrite_html treats WordPress image data-permalink values as page links.'
+);
+
+ssgwp_assert_contains(
+	'data-orig-file="wp-content/uploads/original.jpg?orig=1"',
+	$result['content'],
+	'rewrite_html rewrites WordPress original image metadata URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'data-medium-file="wp-content/uploads/medium.jpg?medium=1"',
+	$result['content'],
+	'rewrite_html rewrites WordPress medium image metadata URLs as assets.'
+);
+
+ssgwp_assert_contains(
+	'data-large-file="wp-content/uploads/large.jpg?large=1"',
+	$result['content'],
+	'rewrite_html rewrites WordPress large image metadata URLs as assets.'
+);
+
+ssgwp_assert_contains(
 	'<form action="form-target/index.html">',
 	$result['content'],
 	'rewrite_html rewrites form action page targets.'
@@ -1423,6 +1479,12 @@ ssgwp_assert_same(
 
 ssgwp_assert_same(
 	true,
+	in_array( 'https://example.test/attachment-page/', $result['links'], true ),
+	'rewrite_html records WordPress image data-permalink values as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
 	in_array( 'https://example.test/citation-source/', $result['links'], true ),
 	'rewrite_html records citation URLs as links to crawl.'
 );
@@ -1480,6 +1542,21 @@ ssgwp_assert_same(
 	in_array( 'https://example.test/wp-content/uploads/photo.jpg?data-link=1', $result['assets'], true ),
 	'rewrite_html records data-link media URLs as assets to copy.'
 );
+
+foreach (
+	array(
+		'https://example.test/wp-content/uploads/original.jpg?orig=1',
+		'https://example.test/wp-content/uploads/medium.jpg?medium=1',
+		'https://example.test/wp-content/uploads/large.jpg?large=1',
+	)
+	as $metadata_asset
+) {
+	ssgwp_assert_same(
+		true,
+		in_array( $metadata_asset, $result['assets'], true ),
+		'rewrite_html records WordPress image metadata URLs as assets to copy: ' . $metadata_asset
+	);
+}
 
 ssgwp_assert_contains(
 	'src="wp-content/uploads/photo.jpg?size=large"',

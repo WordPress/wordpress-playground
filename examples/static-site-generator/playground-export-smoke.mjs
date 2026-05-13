@@ -248,6 +248,14 @@ $svg_link_id = wp_insert_post(array(
 	'post_content' => '<p>SVG anchor export target.</p>',
 ));
 
+$image_metadata_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Image Metadata',
+	'post_name' => 'image-metadata',
+	'post_content' => '<p>WordPress image metadata export target.</p>',
+));
+
 $schema_profile_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -282,6 +290,7 @@ $microdata_profile_url = get_permalink($microdata_profile_id);
 $microdata_significant_url = get_permalink($microdata_significant_id);
 $microdata_related_url = get_permalink($microdata_related_id);
 $svg_link_url = get_permalink($svg_link_id);
+$image_metadata_url = get_permalink($image_metadata_id);
 $schema_profile_url = get_permalink($schema_profile_id);
 $amp_url = get_permalink($amp_id);
 $protocol_child_url = preg_replace('/^https?:/', '', $child_url);
@@ -294,6 +303,10 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<p><img class="wp-image-metadata" data-permalink="' . esc_url($image_metadata_url) . '"'
+	. ' data-orig-file="' . esc_url($asset_url . '?orig=1') . '"'
+	. ' data-medium-file="' . esc_url($asset_url . '?medium=1') . '"'
+	. ' data-large-file="' . esc_url($asset_url . '?large=1') . '" alt=""></p>'
 	. '<p><a class="ping-link" href="' . esc_url($child_url) . '" ping="/click-ping/ /wp-json/ping">Ping</a></p>'
 	. '<blockquote cite="' . esc_url($citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($citation_url . '#quote') . '">Quoted source.</q></p>'
@@ -426,6 +439,7 @@ $scoped_microdata_profile_url = get_permalink($microdata_profile_id);
 $scoped_microdata_significant_url = get_permalink($microdata_significant_id);
 $scoped_microdata_related_url = get_permalink($microdata_related_id);
 $scoped_svg_link_url = get_permalink($svg_link_id);
+$scoped_image_metadata_url = get_permalink($image_metadata_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
 $scoped_amp_url = get_permalink($amp_id);
 $scoped_protocol_child_url = preg_replace('/^https?:/', '', $scoped_child_url);
@@ -446,6 +460,10 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
 	. '<p><a class="generic-data-url" data-url="' . esc_url($scoped_child_url) . '">Generic data URL</a></p>'
 	. '<p><button data-link="' . esc_url($scoped_asset_url . '?data-link=1') . '">Generic data asset</button></p>'
+	. '<p><img class="wp-image-metadata" data-permalink="' . esc_url($scoped_image_metadata_url) . '"'
+	. ' data-orig-file="' . esc_url($scoped_asset_url . '?orig=1') . '"'
+	. ' data-medium-file="' . esc_url($scoped_asset_url . '?medium=1') . '"'
+	. ' data-large-file="' . esc_url($scoped_asset_url . '?large=1') . '" alt=""></p>'
 	. '<p><a class="ping-link" href="' . esc_url($scoped_child_url) . '" ping="/click-ping/ /wp-json/ping">Ping</a></p>'
 	. '<blockquote cite="' . esc_url($scoped_citation_url) . '"><p>Cited source.</p></blockquote>'
 	. '<p><q cite="' . esc_url($scoped_citation_url . '#quote') . '">Quoted source.</q></p>'
@@ -616,6 +634,7 @@ async function verifyExport() {
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
 	assertFile('svg-link/index.html');
+	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('parent-page/index.html');
@@ -652,6 +671,7 @@ async function verifyExport() {
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
 		'../svg-link/index.html',
+		'../image-metadata/index.html',
 		'../schema-profile/index.html',
 		'../amp-companion/index.html',
 		'relative-child/index.html',
@@ -661,6 +681,9 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?orig=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?medium=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?large=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
@@ -722,6 +745,16 @@ async function verifyExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-permalink="../image-metadata/index.html"',
+		'static-page/index.html rewrites WordPress image metadata permalink attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-orig-file="../wp-content/uploads/ssgwp-smoke-asset.txt?orig=1"',
+		'static-page/index.html rewrites WordPress original image metadata asset attributes'
 	);
 	assertIncludes(
 		staticPage,
@@ -898,6 +931,7 @@ async function verifyScopedExport() {
 	assertFile('microdata-related/index.html');
 	assertFile('microdata-significant/index.html');
 	assertFile('svg-link/index.html');
+	assertFile('image-metadata/index.html');
 	assertFile('schema-profile/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('parent-page/child-page/index.html');
@@ -946,6 +980,7 @@ async function verifyScopedExport() {
 		'../microdata-related/index.html',
 		'../microdata-significant/index.html',
 		'../svg-link/index.html',
+		'../image-metadata/index.html',
 		'../schema-profile/index.html',
 		'../amp-companion/index.html',
 		'relative-child/index.html',
@@ -955,6 +990,9 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?video=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?deferred=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?orig=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?medium=1',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?large=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-small=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?tile-wide=1',
@@ -1015,6 +1053,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'data-link="../wp-content/uploads/ssgwp-smoke-asset.txt?data-link=1"',
 		'scoped static-page/index.html rewrites generic data-link asset attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-permalink="../image-metadata/index.html"',
+		'scoped static-page/index.html rewrites WordPress image metadata permalink attributes'
+	);
+	assertIncludes(
+		staticPage,
+		'data-orig-file="../wp-content/uploads/ssgwp-smoke-asset.txt?orig=1"',
+		'scoped static-page/index.html rewrites WordPress original image metadata asset attributes'
 	);
 	assertIncludes(
 		staticPage,
@@ -1302,11 +1350,29 @@ async function assertAllLocalResourceTargetsExist() {
 }
 
 function extractAttributeRefs(text) {
-	return [
-		...text.matchAll(
-			/\s(?:href|src|cite|longdesc|data-href|data-link|data-src|data-lazy-src|data-url|data|poster)=["']([^"']+)["']/gi
-		),
-	].map((match) => match[1]);
+	const attributes = [
+		'href',
+		'src',
+		'cite',
+		'longdesc',
+		'data-href',
+		'data-link',
+		'data-src',
+		'data-lazy-src',
+		'data-url',
+		'data-permalink',
+		'data-orig-file',
+		'data-medium-file',
+		'data-large-file',
+		'data',
+		'poster',
+	];
+	const pattern = new RegExp(
+		`\\s(?:${attributes.join('|')})=["']([^"']+)["']`,
+		'gi'
+	);
+
+	return [...text.matchAll(pattern)].map((match) => match[1]);
 }
 
 function extractSrcsetRefs(text) {
