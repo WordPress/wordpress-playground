@@ -44,6 +44,9 @@ format.
 - Fix static export paths for scoped Playground deployments so the scope prefix
   is not duplicated in generated pages, assets, or rewritten links.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Keep scoped Playground static exports from crawling or rewriting same-host
+  URLs that belong to a different deployment scope.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

@@ -487,13 +487,19 @@ final class SSGWP_URL_Rewriter {
 			return $value;
 		}
 
+		$is_page_like = $this->is_page_like_url( $absolute );
+
+		if ( ! $this->is_exportable_same_site_path( $absolute, $kind, $is_page_like ) ) {
+			return $value;
+		}
+
 		if ( 'maybe' === $kind ) {
-			$kind = $this->is_page_like_url( $absolute ) ? 'page' : 'asset';
+			$kind = $is_page_like ? 'page' : 'asset';
 		}
 
 		$static_url = $absolute;
 
-		if ( 'page' === $kind && $this->is_page_like_url( $absolute ) ) {
+		if ( 'page' === $kind && $is_page_like ) {
 			$normalized = $this->collector->normalize_url( $absolute );
 
 			if ( null === $normalized ) {
@@ -614,6 +620,38 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Check whether a same-site URL path belongs to this export.
+	 *
+	 * @param string $url          URL.
+	 * @param string $kind         URL kind: page, asset, maybe.
+	 * @param bool   $is_page_like Whether the URL path looks like an HTML page.
+	 * @return bool Whether the URL can be rewritten as part of this export.
+	 */
+	private function is_exportable_same_site_path( $url, $kind, $is_page_like ) {
+		if ( ! SSGWP_Path_Utils::has_deployment_base_path() ) {
+			return true;
+		}
+
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+
+		if ( SSGWP_Path_Utils::is_url_path_under_deployment_base( $path ) ) {
+			return true;
+		}
+
+		if ( 'page' === $kind || ( 'maybe' === $kind && $is_page_like ) ) {
+			return false;
+		}
+
+		return SSGWP_Path_Utils::is_url_path_under_url_bases(
+			$path,
+			array(
+				content_url( '/' ),
+				includes_url( '/' ),
+			)
+		);
 	}
 
 	/**

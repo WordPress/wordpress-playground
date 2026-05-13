@@ -322,6 +322,10 @@ final class SSGWP_URL_Collector {
 
 		$path = isset( $url_parts['path'] ) ? $url_parts['path'] : '/';
 
+		if ( ! SSGWP_Path_Utils::is_url_path_under_deployment_base( $path ) ) {
+			return null;
+		}
+
 		$query = isset( $url_parts['query'] ) ? $this->normalize_query( $url_parts['query'] ) : '';
 
 		if ( null === $query ) {

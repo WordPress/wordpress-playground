@@ -199,8 +199,33 @@ ssgwp_assert_same(
 	'url_to_export_file_path removes only one Playground scope deployment base.'
 );
 
+ssgwp_assert_true(
+	SSGWP_Path_Utils::has_deployment_base_path(),
+	'has_deployment_base_path detects scoped Playground deployments.'
+);
+
+ssgwp_assert_true(
+	SSGWP_Path_Utils::is_url_path_under_deployment_base( '/scope:sad-quiet-school/sample-page/' ),
+	'is_url_path_under_deployment_base accepts paths inside the current scope.'
+);
+
+ssgwp_assert_true(
+	SSGWP_Path_Utils::is_url_path_under_deployment_base( '/scope%3Asad-quiet-school/sample-page/' ),
+	'is_url_path_under_deployment_base accepts encoded current scope paths.'
+);
+
+ssgwp_assert_false(
+	SSGWP_Path_Utils::is_url_path_under_deployment_base( '/scope:other-site/sample-page/' ),
+	'is_url_path_under_deployment_base rejects paths from a different scope.'
+);
+
 $ssgwp_test_home_url = 'https://example.test/';
 $ssgwp_test_site_url = 'https://example.test/';
+
+ssgwp_assert_false(
+	SSGWP_Path_Utils::has_deployment_base_path(),
+	'has_deployment_base_path ignores root deployments.'
+);
 
 ssgwp_assert_true(
 	SSGWP_Path_Utils::url_to_export_file_path( '/collision%20page/' )

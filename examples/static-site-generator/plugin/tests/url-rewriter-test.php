@@ -754,6 +754,8 @@ $ssgwp_test_includes_url = 'https://playground.wordpress.net/scope:sad-quiet-sch
 $scoped_result = $rewriter->rewrite_html(
 	'<a href="https://playground.wordpress.net/scope:sad-quiet-school/sample-page/">Sample</a>'
 		. '<a href="/scope:sad-quiet-school/sample-page/">Root</a>'
+		. '<a href="https://playground.wordpress.net/scope:other-site/sample-page/">Other</a>'
+		. '<img src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/photo.jpg" alt="">'
 		. '<img src="/scope:sad-quiet-school/wp-content/uploads/photo.jpg" alt="">',
 	'https://playground.wordpress.net/scope:sad-quiet-school/',
 	'index.html'
@@ -769,6 +771,18 @@ ssgwp_assert_contains(
 	'src="wp-content/uploads/photo.jpg"',
 	$scoped_result['content'],
 	'rewrite_html strips the Playground scope base from same-site asset links.'
+);
+
+ssgwp_assert_contains(
+	'href="https://playground.wordpress.net/scope:other-site/sample-page/"',
+	$scoped_result['content'],
+	'rewrite_html leaves same-host page links from another Playground scope unchanged.'
+);
+
+ssgwp_assert_contains(
+	'src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/photo.jpg"',
+	$scoped_result['content'],
+	'rewrite_html leaves same-host asset links from another Playground scope unchanged.'
 );
 
 ssgwp_assert_not_contains(

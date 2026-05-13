@@ -316,6 +316,12 @@ $ssgwp_test_home_url = 'https://playground.wordpress.net/scope:sad-quiet-school/
 $ssgwp_test_site_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
 
 ssgwp_assert_same(
+	'ssgwp_not_deployment_base',
+	$render_method->invoke( $exporter, 'https://playground.wordpress.net/scope:other-site/static-page/' )->get_error_code(),
+	'render_url_in_process rejects same-host URLs from a different Playground scope.'
+);
+
+ssgwp_assert_same(
 	'sample-page/index.html',
 	$url_to_file_path_method->invoke( $exporter, 'https://playground.wordpress.net/scope:sad-quiet-school/sample-page/' ),
 	'url_to_file_path strips the Playground scope base from exported page paths.'

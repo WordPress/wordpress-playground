@@ -180,7 +180,9 @@ $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
+	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
+	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
 	. '<script type="application/json">{"child":"' . esc_url($scoped_child_url) . '"}</script>';
 
@@ -333,6 +335,16 @@ async function verifyScopedExport() {
 	assertDoesNotInclude(staticPage, duplicatedScope);
 	assertDoesNotInclude(staticPage, 'href="/scope:sad-quiet-school/static-page/"');
 	assertDoesNotInclude(staticPage, 'href="scope%3Asad-quiet-school/');
+	assertIncludes(
+		staticPage,
+		'https://playground.wordpress.net/scope:other-site/static-page/',
+		'scoped static-page/index.html leaves another scope page link untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt',
+		'scoped static-page/index.html leaves another scope asset link untouched'
+	);
 	await assertAllLocalResourceTargetsExist();
 }
 

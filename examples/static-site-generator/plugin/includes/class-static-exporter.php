@@ -482,6 +482,15 @@ final class SSGWP_Static_Exporter {
 			);
 		}
 
+		$path = isset( $parts['path'] ) ? $parts['path'] : '/';
+
+		if ( ! SSGWP_Path_Utils::is_url_path_under_deployment_base( $path ) ) {
+			return new WP_Error(
+				'ssgwp_not_deployment_base',
+				'Only URLs under the current deployment base can be rendered internally.'
+			);
+		}
+
 		if ( ! class_exists( 'WP' ) || ! class_exists( 'WP_Query' ) ) {
 			return new WP_Error( 'ssgwp_missing_wp', 'WordPress request classes are not available.' );
 		}
@@ -490,7 +499,6 @@ final class SSGWP_Static_Exporter {
 			define( 'WP_USE_THEMES', true );
 		}
 
-		$path        = isset( $parts['path'] ) ? $parts['path'] : '/';
 		$query       = isset( $parts['query'] ) ? $parts['query'] : '';
 		$request_uri = $path . ( '' !== $query ? '?' . $query : '' );
 

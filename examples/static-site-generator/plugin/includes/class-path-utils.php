@@ -91,6 +91,36 @@ final class SSGWP_Path_Utils {
 	}
 
 	/**
+	 * Determine whether the current WordPress deployment uses a non-root base.
+	 *
+	 * @return bool Whether home_url() or site_url() has a path prefix.
+	 */
+	public static function has_deployment_base_path() {
+		return ! empty( self::get_deployment_base_paths() );
+	}
+
+	/**
+	 * Determine whether a URL path is under the current deployment base.
+	 *
+	 * @param string $path URL path.
+	 * @return bool Whether the URL path belongs to this deployment base.
+	 */
+	public static function is_url_path_under_deployment_base( $path ) {
+		return self::is_url_path_under_base_paths( $path, self::get_deployment_base_paths() );
+	}
+
+	/**
+	 * Determine whether a URL path is under any URL base.
+	 *
+	 * @param string   $path URL path.
+	 * @param string[] $urls Base URLs.
+	 * @return bool Whether the URL path belongs to one of the URL bases.
+	 */
+	public static function is_url_path_under_url_bases( $path, array $urls ) {
+		return self::is_url_path_under_base_paths( $path, self::get_url_base_paths( $urls ) );
+	}
+
+	/**
 	 * Sanitize a URL path while preserving distinct encoded segments.
 	 *
 	 * @param string $path URL path.
@@ -239,6 +269,55 @@ final class SSGWP_Path_Utils {
 		);
 
 		return array_values( $paths );
+	}
+
+	/**
+	 * Return non-root URL paths sorted by specificity.
+	 *
+	 * @param string[] $urls URLs.
+	 * @return string[]
+	 */
+	private static function get_url_base_paths( array $urls ) {
+		$paths = array();
+
+		foreach ( $urls as $url ) {
+			$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+			$path = '/' . trim( $path, '/' );
+
+			if ( '/' !== $path && ! isset( $paths[ $path ] ) ) {
+				$paths[ $path ] = $path;
+			}
+		}
+
+		usort(
+			$paths,
+			static function ( $a, $b ) {
+				return strlen( $b ) <=> strlen( $a );
+			}
+		);
+
+		return array_values( $paths );
+	}
+
+	/**
+	 * Determine whether a URL path is under any base path.
+	 *
+	 * @param string   $path       URL path.
+	 * @param string[] $base_paths Base URL paths.
+	 * @return bool Whether the URL path belongs under one of the base paths.
+	 */
+	private static function is_url_path_under_base_paths( $path, array $base_paths ) {
+		if ( empty( $base_paths ) ) {
+			return true;
+		}
+
+		foreach ( $base_paths as $base_path ) {
+			if ( null !== self::remove_path_prefix( $path, $base_path ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

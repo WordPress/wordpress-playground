@@ -9,6 +9,18 @@ define( 'ABSPATH', __DIR__ );
 
 $ssgwp_test_home_url = 'https://example.test/';
 
+if ( ! function_exists( 'wp_normalize_path' ) ) {
+	/**
+	 * Normalize paths for tests.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	function wp_normalize_path( $path ) {
+		return str_replace( '\\', '/', (string) $path );
+	}
+}
+
 if ( ! function_exists( 'home_url' ) ) {
 	/**
 	 * Return the test home URL.
@@ -97,6 +109,7 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 	}
 }
 
+require_once dirname( __DIR__ ) . '/includes/class-path-utils.php';
 require_once dirname( __DIR__ ) . '/includes/class-url-collector.php';
 
 $collector = new SSGWP_URL_Collector();
@@ -149,6 +162,20 @@ ssgwp_assert_same(
 	null,
 	$collector->normalize_url( 'https://example.test:9400/static-page/' ),
 	'normalize_url rejects a different scheme on the same custom port.'
+);
+
+$ssgwp_test_home_url = 'https://playground.wordpress.net/scope:sad-quiet-school/';
+
+ssgwp_assert_same(
+	'https://playground.wordpress.net/scope:sad-quiet-school/static-page/',
+	$collector->normalize_url( 'https://playground.wordpress.net/scope:sad-quiet-school/static-page/' ),
+	'normalize_url accepts URLs under the current Playground scope.'
+);
+
+ssgwp_assert_same(
+	null,
+	$collector->normalize_url( 'https://playground.wordpress.net/scope:other-site/static-page/' ),
+	'normalize_url rejects same-host URLs from a different Playground scope.'
 );
 
 /**
