@@ -2017,7 +2017,8 @@ ssgwp_assert_contains(
 );
 
 $rewritten_player_json = $rewriter->rewrite_text_asset_with_assets(
-	'{"captions":"captions.vtt","thumbnail":"poster.webp"}',
+	'{"captions":"captions.vtt","runtime":"runtime.wasm",'
+		. '"worker":"nested\/worker.wasm","thumbnail":"poster.webp"}',
 	'wp-content/plugins/player/config.json'
 );
 
@@ -2031,6 +2032,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/wp-content/plugins/player/captions.vtt', $rewritten_player_json['assets'], true ),
 	'rewrite_text_asset_with_assets records relative WebVTT captions to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/player/runtime.wasm', $rewritten_player_json['assets'], true ),
+	'rewrite_text_asset_with_assets records relative WebAssembly modules to copy.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/player/nested/worker.wasm', $rewritten_player_json['assets'], true ),
+	'rewrite_text_asset_with_assets records escaped relative WebAssembly modules to copy.'
 );
 
 $rewritten_css = $rewriter->rewrite_text_asset(

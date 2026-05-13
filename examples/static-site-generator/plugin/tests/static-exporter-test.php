@@ -789,6 +789,7 @@ file_put_contents(
 	'font'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 wp_mkdir_p( $fixture_root . '/wp-content/plugins/manifest-deps/icons' );
+wp_mkdir_p( $fixture_root . '/wp-content/plugins/manifest-deps/runtime' );
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/manifest.json',
 	'{"icons":[{"src":"icon-192.png"},{"src":"icons/icon.png"}]}'
@@ -799,7 +800,7 @@ file_put_contents(
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/player.json',
-	'{"captions":"captions.vtt"}'
+	'{"captions":"captions.vtt","runtime":"runtime/module.wasm"}'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/browserconfig.xml',
@@ -823,6 +824,10 @@ file_put_contents(
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/captions.vtt',
 	'WEBVTT'
+); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents(
+	$fixture_root . '/wp-content/plugins/manifest-deps/runtime/module.wasm',
+	'wasm'
 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents(
 	$fixture_root . '/wp-content/plugins/manifest-deps/icons/icon.png',
@@ -1020,6 +1025,12 @@ ssgwp_assert_same(
 	'rewrite_copied_text_assets reports WebVTT captions discovered inside copied JSON files.'
 );
 
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/wp-content/plugins/manifest-deps/runtime/module.wasm', $discovered_text_assets, true ),
+	'rewrite_copied_text_assets reports WebAssembly modules discovered inside copied JSON files.'
+);
+
 $copied_count = $copy_linked_assets_method->invoke(
 	$exporter,
 	$discovered_text_assets,
@@ -1027,15 +1038,21 @@ $copied_count = $copy_linked_assets_method->invoke(
 );
 
 ssgwp_assert_same(
-	1,
+	2,
 	$copied_count,
-	'copy_linked_assets copies WebVTT captions discovered inside copied JSON files.'
+	'copy_linked_assets copies media dependencies discovered inside copied JSON files.'
 );
 
 ssgwp_assert_same(
 	true,
 	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/captions.vtt' ),
 	'copy_linked_assets writes WebVTT captions discovered inside copied JSON files.'
+);
+
+ssgwp_assert_same(
+	true,
+	file_exists( $output_dir . '/wp-content/plugins/manifest-deps/runtime/module.wasm' ),
+	'copy_linked_assets writes WebAssembly modules discovered inside copied JSON files.'
 );
 
 ssgwp_delete_directory( $fixture_root );

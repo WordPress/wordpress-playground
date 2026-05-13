@@ -183,6 +183,9 @@ format.
 - Rewrite legacy frame and image/iframe long-description URLs in static
   exports so those page references are crawled and point at generated files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Copy WebAssembly sidecar files discovered while rewriting linked copied text
+  assets, such as JSON player configs.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

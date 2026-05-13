@@ -125,8 +125,10 @@ file_put_contents(
 );
 file_put_contents($manifest_dir . '/player.json', wp_json_encode(array(
 	'captions' => 'captions.vtt',
+	'runtime' => 'runtime.wasm',
 )));
 file_put_contents($manifest_dir . '/captions.vtt', "WEBVTT\\n\\n00:00.000 --> 00:01.000\\nPlugin");
+file_put_contents($manifest_dir . '/runtime.wasm', 'wasm');
 file_put_contents($manifest_dir . '/icons/filter.png', 'filter');
 file_put_contents($manifest_dir . '/icons/tile-small.png', 'tile-small');
 $manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
@@ -516,6 +518,7 @@ async function verifyExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/player.json');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/captions.vtt');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/runtime.wasm');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/filter.svg');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/filter.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/tile-small.png');
@@ -726,6 +729,15 @@ async function verifyExport() {
 		'captions.vtt'
 	);
 	assertIncludes(
+		readText('wp-content/plugins/ssgwp-smoke-deps/player.json'),
+		'runtime.wasm',
+		'copied JSON player configs rewrite WebAssembly module references'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/player.json',
+		'runtime.wasm'
+	);
+	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),
 		'icons/filter.png',
 		'copied SVG assets rewrite filter image references'
@@ -758,6 +770,7 @@ async function verifyScopedExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/player.json');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/captions.vtt');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/runtime.wasm');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/filter.svg');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/filter.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/tile-small.png');
@@ -1002,6 +1015,15 @@ async function verifyScopedExport() {
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/player.json',
 		'captions.vtt'
+	);
+	assertIncludes(
+		readText('wp-content/plugins/ssgwp-smoke-deps/player.json'),
+		'runtime.wasm',
+		'scoped copied JSON player configs rewrite WebAssembly module references'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/player.json',
+		'runtime.wasm'
 	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),
