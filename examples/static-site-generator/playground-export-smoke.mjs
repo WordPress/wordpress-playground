@@ -378,6 +378,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $protocol_child_url) . '"}</script>'
 	. '<script type="application/json">{"rest":"' . str_replace('/', '\/', esc_url($rest_route_url)) . '"}</script>'
 	. '<script type="application/json">{"feedQuery":"' . str_replace('/', '\/', esc_url($feed_query_url)) . '"}</script>'
+	. '<script type="application/json">{"absoluteWildcard":"https:\/\/example.test\/wp-content\/uploads\/*","protocolWildcard":"\/\/example.test\/wp-content\/uploads\/*","absoluteTemplate":"https:\/\/example.test\/static-page\/{id}\/"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($child_url) . '"}</script>';
 
 $static_id = wp_insert_post(array(
@@ -540,6 +541,11 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<script type="application/json">{"plainRootAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=1","plainRootAssetEscaped":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?outside=2"}</script>'
 	. '<script type="application/json">{"rest":"' . str_replace('/', '\/', esc_url($scoped_rest_route_url)) . '"}</script>'
 	. '<script type="application/json">{"feedQuery":"' . str_replace('/', '\/', esc_url($scoped_feed_query_url)) . '"}</script>'
+	. '<script type="application/json">{"absoluteWildcard":"'
+	. str_replace('/', '\/', $scoped_home . '/wp-content/uploads/*')
+	. '","protocolWildcard":"\/\/playground.wordpress.net\/scope:sad-quiet-school\/wp-content\/uploads\/*","absoluteTemplate":"'
+	. str_replace('/', '\/', $scoped_home . '/static-page/{id}/')
+	. '"}</script>'
 	. '<script type="application/json">{"child":"' . esc_url($scoped_child_url) . '"}</script>';
 
 wp_update_post(array(
@@ -885,6 +891,21 @@ async function verifyExport() {
 		'"feedQuery":"/?feed=rss2"',
 		'static-page/index.html leaves query-based feed JSON URLs untouched'
 	);
+	assertIncludes(
+		staticPage,
+		'"absoluteWildcard":"https://example.test/wp-content/uploads/*"',
+		'static-page/index.html leaves absolute wildcard asset patterns untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"protocolWildcard":"//example.test/wp-content/uploads/*"',
+		'static-page/index.html leaves protocol-relative wildcard asset patterns untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"absoluteTemplate":"https://example.test/static-page/{id}/"',
+		'static-page/index.html leaves absolute templated page patterns untouched'
+	);
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 		'icon-192.png'
@@ -1208,6 +1229,21 @@ async function verifyScopedExport() {
 		staticPage,
 		'"plainRootAssetEscaped":"/wp-content/uploads/ssgwp-smoke-asset.txt?outside=2"',
 		'scoped static-page/index.html leaves root-level asset JSON outside the scope'
+	);
+	assertIncludes(
+		staticPage,
+		'"absoluteWildcard":"https://playground.wordpress.net/scope:sad-quiet-school/wp-content/uploads/*"',
+		'scoped static-page/index.html leaves absolute wildcard asset patterns untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"protocolWildcard":"//playground.wordpress.net/scope:sad-quiet-school/wp-content/uploads/*"',
+		'scoped static-page/index.html leaves protocol-relative wildcard asset patterns untouched'
+	);
+	assertIncludes(
+		staticPage,
+		'"absoluteTemplate":"https://playground.wordpress.net/scope:sad-quiet-school/static-page/{id}/"',
+		'scoped static-page/index.html leaves absolute templated page patterns untouched'
 	);
 	assertIncludes(
 		staticPage,

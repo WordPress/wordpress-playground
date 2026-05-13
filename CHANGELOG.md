@@ -56,6 +56,9 @@ format.
 - Rewrite quoted root-relative URLs in static export JSON and JavaScript text
   while leaving wildcard URL patterns untouched.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Preserve absolute and protocol-relative wildcard or templated static export
+  URL patterns instead of rewriting them as generated files.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite responsive image preload `imagesrcset` attributes in static exports
   so preloaded image candidates point at copied asset files.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

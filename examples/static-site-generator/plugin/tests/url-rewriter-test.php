@@ -1063,6 +1063,7 @@ $html = implode(
 		'<a class="query" href="/static-page/?view=grid#items">Query page</a>',
 		'<a class="archive" href="/blog/page/2/#posts">Archive</a>',
 		'<a class="comments-page" href="/comments/">Comments page</a>',
+		'<a class="templated" href="/static-page/{id}/">Templated</a>',
 		'<a class="ping-link" href="/static-page/" ping="/click-ping/ https://example.test/absolute-ping/">Ping</a>',
 		'<area href="/static-page/" ping="/map-ping/">',
 		'<blockquote cite="/citation-source/">Citation</blockquote>',
@@ -1172,6 +1173,10 @@ $html = implode(
 		'<script type="application/json">{"root":"\/nested\/page\/","rootAsset":"\/wp-content\/uploads\/photo.jpg?json=1"}</script>',
 		'<script type="application/json">{"plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/photo.jpg?plain=1"}</script>',
 		'<script type="application/json">{"rest":"https:\/\/example.test\/?rest_route=\/wp\/v2\/posts"}</script>',
+		'<script>const absoluteWildcard = "https://example.test/wp-content/uploads/*";'
+			. ' const escapedAbsoluteWildcard = "https:\/\/example.test\/wp-content\/uploads\/*";'
+			. ' const protocolWildcard = "//example.test/wp-content/uploads/*";'
+			. ' const absoluteTemplate = "https://example.test/static-page/{id}/";</script>',
 		'<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"\/*","not":{"href_matches":["\/wp-admin\/*","\/wp-content\/uploads\/*","/wp-content/themes/*"]}}}]}</script>',
 		'<script>const next = "https://example.test/static-page/";</script>',
 	)
@@ -1249,6 +1254,12 @@ ssgwp_assert_contains(
 	'href="comments/index.html"',
 	$result['content'],
 	'rewrite_html rewrites a public page whose slug is comments.'
+);
+
+ssgwp_assert_contains(
+	'href="/static-page/{id}/"',
+	$result['content'],
+	'rewrite_html leaves templated page attributes unchanged.'
 );
 
 ssgwp_assert_contains(
@@ -2178,6 +2189,30 @@ ssgwp_assert_contains(
 	'"/wp-content/themes/*"',
 	$result['content'],
 	'rewrite_html does not rewrite plain wildcard WordPress asset patterns.'
+);
+
+ssgwp_assert_contains(
+	'"https://example.test/wp-content/uploads/*"',
+	$result['content'],
+	'rewrite_html does not rewrite absolute wildcard WordPress asset patterns.'
+);
+
+ssgwp_assert_contains(
+	'"https:\/\/example.test\/wp-content\/uploads\/*"',
+	$result['content'],
+	'rewrite_html does not rewrite escaped absolute wildcard asset patterns.'
+);
+
+ssgwp_assert_contains(
+	'"//example.test/wp-content/uploads/*"',
+	$result['content'],
+	'rewrite_html does not rewrite protocol-relative wildcard asset patterns.'
+);
+
+ssgwp_assert_contains(
+	'"https://example.test/static-page/{id}/"',
+	$result['content'],
+	'rewrite_html does not rewrite absolute templated page patterns.'
 );
 
 ssgwp_assert_contains(

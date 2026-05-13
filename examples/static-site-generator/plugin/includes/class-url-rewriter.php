@@ -1765,6 +1765,10 @@ final class SSGWP_URL_Rewriter {
 			return $value;
 		}
 
+		if ( $this->is_wildcard_url_pattern( $value ) ) {
+			return $value;
+		}
+
 		if ( 'browserconfig' === $kind ) {
 			if ( 'none' === strtolower( $value ) ) {
 				return $value;
@@ -1894,6 +1898,16 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return (bool) preg_match( '#^(?:about|blob|data|file|geo|javascript|mailto|sms|tel|urn|webcal|whatsapp):#i', $url );
+	}
+
+	/**
+	 * Check whether a URL value is a pattern, not a concrete URL to export.
+	 *
+	 * @param string $url URL or URL-like pattern.
+	 * @return bool Whether the value contains wildcard/template syntax.
+	 */
+	private function is_wildcard_url_pattern( $url ) {
+		return (bool) preg_match( '/[*{}]/', (string) $url );
 	}
 
 	/**
