@@ -878,7 +878,7 @@ final class SSGWP_Static_Exporter {
 			return false;
 		}
 
-		if ( ! $this->is_exportable_asset_file( $source ) ) {
+		if ( ! $this->is_exportable_asset_file( $source, $this->is_source_map_asset_url( $url ) ) ) {
 			$this->warn_linked_asset_not_copied( $url, 'the local file is not exportable' );
 			return false;
 		}
@@ -899,6 +899,18 @@ final class SSGWP_Static_Exporter {
 			$url,
 			$reason
 		);
+	}
+
+	/**
+	 * Determine whether an asset URL points to a source map.
+	 *
+	 * @param string $url Asset URL.
+	 * @return bool Whether the URL points to a source map file.
+	 */
+	private function is_source_map_asset_url( $url ) {
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+
+		return (bool) preg_match( '/\.map$/i', $path );
 	}
 
 	/**
@@ -997,14 +1009,18 @@ final class SSGWP_Static_Exporter {
 	 * @param string $path File path.
 	 * @return bool
 	 */
-	private function is_exportable_asset_file( $path ) {
+	private function is_exportable_asset_file( $path, $allow_source_map = false ) {
 		$name = basename( $path );
 
 		if ( '' === $name || '.' === $name[0] ) {
 			return false;
 		}
 
-		if ( preg_match( '/\.(map|pot|po|mo|php|phar|phtml|sqlite|sql|log)$/i', $name ) ) {
+		if ( ! $allow_source_map && preg_match( '/\.map$/i', $name ) ) {
+			return false;
+		}
+
+		if ( preg_match( '/\.(pot|po|mo|php|phar|phtml|sqlite|sql|log)$/i', $name ) ) {
 			return false;
 		}
 

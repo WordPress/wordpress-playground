@@ -123,6 +123,7 @@ final class SSGWP_URL_Rewriter {
 
 		$content = $this->rewrite_relative_asset_text_urls( $content, $base_url, $relative_path, false );
 		$content = $this->rewrite_relative_asset_text_urls( $content, $base_url, $relative_path, true );
+		$content = $this->rewrite_source_mapping_url_text_urls( $content, $base_url, $relative_path );
 		$content = $this->rewrite_same_site_text_urls_preserving_resource_hints(
 			$content,
 			$relative_path
@@ -2200,7 +2201,7 @@ final class SSGWP_URL_Rewriter {
 	 * @return string Rewritten content.
 	 */
 	private function rewrite_relative_asset_text_urls( $content, $base_url, $target_path, $escaped ) {
-		$extensions = 'avif|bmp|css|gif|ico|jpe?g|js|json|mjs|mp3|mp4|ogg|otf|png|svg|ttf|vtt|wasm|webm|webp|woff2?';
+		$extensions = 'avif|bmp|css|gif|ico|jpe?g|js|json|map|mjs|mp3|mp4|ogg|otf|png|svg|ttf|vtt|wasm|webm|webp|woff2?';
 		$pattern    = $escaped
 			? '#(?<=["\'])(?![a-z][a-z0-9+.-]*:|\\\\/)(?:(?:\\.\\\\/|\\.\\.\\\\/|[A-Za-z0-9._~-]+\\\\/)(?:[^\\\\\s\'"<>)]|\\\\/)*|[A-Za-z0-9._~-]+)\\.(?:' . $extensions . ')(?:[?\\#](?:[^\\\\\s\'"<>)]|\\\\/)*)?(?=["\'])#i'
 			: '#(?<=["\'])(?![a-z][a-z0-9+.-]*:|/)(?:\\./|\\.\\./|[A-Za-z0-9._~-]+/)?[^\\s\'"<>)]*\\.(?:' . $extensions . ')(?:[?\\#][^\\s\'"<>)]*)?(?=["\'])#i';
@@ -2231,6 +2232,32 @@ final class SSGWP_URL_Rewriter {
 				$rewritten = $this->rewrite_url_value( $url, $base_url, $target_path, 'asset' );
 
 				return $escaped ? str_replace( '/', '\\/', $rewritten ) : $rewritten;
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Rewrite sourceMappingURL comments in copied CSS and JavaScript assets.
+	 *
+	 * @param string $content     File content.
+	 * @param string $base_url    Source URL of the copied asset.
+	 * @param string $target_path Relative static file path.
+	 * @return string Rewritten content.
+	 */
+	private function rewrite_source_mapping_url_text_urls( $content, $base_url, $target_path ) {
+		return preg_replace_callback(
+			'/(sourceMappingURL\s*=\s*)(["\']?)([^\s"\'*]+)\2/i',
+			function ( $matches ) use ( $base_url, $target_path ) {
+				$url = html_entity_decode( trim( $matches[3] ), ENT_QUOTES );
+
+				if ( '' === $url || preg_match( '/[*{}]/', $url ) ) {
+					return $matches[0];
+				}
+
+				return $matches[1] . $matches[2]
+					. $this->rewrite_url_value( $url, $base_url, $target_path, 'asset' )
+					. $matches[2];
 			},
 			$content
 		);

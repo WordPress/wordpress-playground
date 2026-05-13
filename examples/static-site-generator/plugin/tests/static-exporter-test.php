@@ -653,11 +653,13 @@ file_put_contents( $fixture_root . '/theme/archive.phar', 'phar' ); // phpcs:ign
 file_put_contents( $fixture_root . '/theme/template.phtml', '<?php' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents( $fixture_root . '/theme/.env', 'SECRET=value' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 file_put_contents( $fixture_root . '/theme/style.css', 'body{color:red}' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+file_put_contents( $fixture_root . '/theme/style.css.map', '{}' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 
 $filter_phar = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/archive.phar' ) );
 $filter_phtml = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/template.phtml' ) );
 $filter_hidden = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/.env' ) );
 $filter_css = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/style.css' ) );
+$filter_map = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/style.css.map' ) );
 $filter_named_dir = $exporter->filter_copied_path( new SplFileInfo( $fixture_root . '/theme/static-site-generator' ) );
 
 ssgwp_assert_same(
@@ -682,6 +684,21 @@ ssgwp_assert_same(
 	true,
 	$filter_css,
 	'filter_copied_path keeps regular static assets.'
+);
+
+ssgwp_assert_same(
+	false,
+	$filter_map,
+	'filter_copied_path rejects source maps from bulk copied assets.'
+);
+
+$is_exportable_asset_file_method = new ReflectionMethod( $exporter, 'is_exportable_asset_file' );
+$is_exportable_asset_file_method->setAccessible( true );
+
+ssgwp_assert_same(
+	true,
+	$is_exportable_asset_file_method->invoke( $exporter, $fixture_root . '/theme/style.css.map', true ),
+	'is_exportable_asset_file allows explicitly linked source maps.'
 );
 
 ssgwp_assert_same(

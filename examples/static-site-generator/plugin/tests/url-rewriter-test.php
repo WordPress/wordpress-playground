@@ -2469,6 +2469,40 @@ ssgwp_assert_same(
 	'rewrite_text_asset_with_assets records escaped relative WebAssembly modules to copy.'
 );
 
+$rewritten_sourcemap_css = $rewriter->rewrite_text_asset_with_assets(
+	'.app{color:red}/*# sourceMappingURL=/wp-content/plugins/app/maps/app.css.map */',
+	'wp-content/plugins/app/styles/app.css'
+);
+
+ssgwp_assert_contains(
+	'sourceMappingURL=../maps/app.css.map',
+	$rewritten_sourcemap_css['content'],
+	'rewrite_text_asset_with_assets rewrites CSS source map references.'
+);
+
+ssgwp_assert_same(
+	array( 'https://example.test/wp-content/plugins/app/maps/app.css.map' ),
+	$rewritten_sourcemap_css['assets'],
+	'rewrite_text_asset_with_assets records CSS source maps to copy.'
+);
+
+$rewritten_sourcemap_js = $rewriter->rewrite_text_asset_with_assets(
+	'console.log("app");' . "\n" . '//# sourceMappingURL=app.js.map',
+	'wp-content/plugins/app/app.js'
+);
+
+ssgwp_assert_contains(
+	'sourceMappingURL=app.js.map',
+	$rewritten_sourcemap_js['content'],
+	'rewrite_text_asset_with_assets preserves sibling JavaScript source map paths.'
+);
+
+ssgwp_assert_same(
+	array( 'https://example.test/wp-content/plugins/app/app.js.map' ),
+	$rewritten_sourcemap_js['assets'],
+	'rewrite_text_asset_with_assets records JavaScript source maps to copy.'
+);
+
 $rewritten_css = $rewriter->rewrite_text_asset(
 	'.hero{background:url("https://example.test/wp-content/uploads/bg.jpg?ver=1")}',
 	'wp-content/themes/theme/app.css'

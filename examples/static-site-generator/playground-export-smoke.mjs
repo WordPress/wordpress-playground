@@ -104,6 +104,7 @@ file_put_contents($captions_path, "WEBVTT\\n\\n00:00.000 --> 00:01.000\\nCaption
 
 $manifest_dir = trailingslashit(WP_PLUGIN_DIR) . 'ssgwp-smoke-deps';
 wp_mkdir_p($manifest_dir . '/icons');
+wp_mkdir_p($manifest_dir . '/maps');
 file_put_contents(
 	$manifest_dir . '/manifest.json',
 	wp_json_encode(array('icons' => array(
@@ -127,11 +128,17 @@ file_put_contents($manifest_dir . '/player.json', wp_json_encode(array(
 	'captions' => 'captions.vtt',
 	'runtime' => 'runtime.wasm',
 )));
+file_put_contents(
+	$manifest_dir . '/app.css',
+	'.smoke{color:#123456}' . "\\n" . '/*# sourceMappingURL=maps/app.css.map */'
+);
+file_put_contents($manifest_dir . '/maps/app.css.map', '{"version":3,"sources":["app.scss"],"mappings":""}');
 file_put_contents($manifest_dir . '/captions.vtt', "WEBVTT\\n\\n00:00.000 --> 00:01.000\\nPlugin");
 file_put_contents($manifest_dir . '/runtime.wasm', 'wasm');
 file_put_contents($manifest_dir . '/icons/filter.png', 'filter');
 file_put_contents($manifest_dir . '/icons/tile-small.png', 'tile-small');
 $manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
+$sourcemap_css_url = content_url('plugins/ssgwp-smoke-deps/app.css');
 $filter_svg_url = content_url('plugins/ssgwp-smoke-deps/filter.svg');
 $browserconfig_url = content_url('plugins/ssgwp-smoke-deps/browserconfig.xml');
 $player_config_url = content_url('plugins/ssgwp-smoke-deps/player.json');
@@ -363,6 +370,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<svg><a xlink:href="' . esc_url($svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($manifest_url) . '">'
+	. '<link rel="stylesheet" href="' . esc_url($sourcemap_css_url) . '">'
 	. '<link rel="preload" as="document" href="' . esc_url($preloaded_document_url) . '">'
 	. '<link rel="preload" as="fetch" href="' . esc_url($player_config_url) . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($asset_url) . '" imagesrcset="' . esc_url($asset_url) . ' 1x, ' . esc_url($asset_url . '?preload=2x') . ' 2x">'
@@ -471,6 +479,7 @@ $scoped_feed_query_url = home_url('/?feed=rss2');
 $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset.txt';
 $scoped_captions_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-captions.vtt';
 $scoped_manifest_url = content_url('plugins/ssgwp-smoke-deps/manifest.json');
+$scoped_sourcemap_css_url = content_url('plugins/ssgwp-smoke-deps/app.css');
 $scoped_filter_svg_url = content_url('plugins/ssgwp-smoke-deps/filter.svg');
 $scoped_browserconfig_url = content_url('plugins/ssgwp-smoke-deps/browserconfig.xml');
 $scoped_player_config_url = content_url('plugins/ssgwp-smoke-deps/player.json');
@@ -525,6 +534,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<svg><a xlink:href="' . esc_url($scoped_svg_link_url) . '"><text>SVG link</text></a></svg>'
 	. '<link rel="amphtml" href="' . esc_url($scoped_amp_url) . '">'
 	. '<link rel="manifest" href="' . esc_url($scoped_manifest_url) . '">'
+	. '<link rel="stylesheet" href="' . esc_url($scoped_sourcemap_css_url) . '">'
 	. '<link rel="preload" as="document" href="' . esc_url($scoped_preloaded_document_url) . '">'
 	. '<link rel="preload" as="fetch" href="' . esc_url($scoped_player_config_url) . '">'
 	. '<link rel="preload" as="image" href="' . esc_url($scoped_asset_url) . '" imagesrcset="' . esc_url($scoped_asset_url) . ' 1x, ' . esc_url($scoped_asset_url . '?preload=2x') . ' 2x">'
@@ -678,6 +688,8 @@ async function verifyExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/player.json');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/app.css');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/maps/app.css.map');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/captions.vtt');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/runtime.wasm');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/filter.svg');
@@ -742,6 +754,7 @@ async function verifyExport() {
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 		'../wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml',
 		'../wp-content/plugins/ssgwp-smoke-deps/player.json',
+		'../wp-content/plugins/ssgwp-smoke-deps/app.css',
 		'../wp-content/plugins/ssgwp-smoke-deps/filter.svg',
 	];
 
@@ -951,6 +964,15 @@ async function verifyExport() {
 		'runtime.wasm'
 	);
 	assertIncludes(
+		readText('wp-content/plugins/ssgwp-smoke-deps/app.css'),
+		'sourceMappingURL=maps/app.css.map',
+		'copied CSS assets preserve source map references'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/app.css',
+		'maps/app.css.map'
+	);
+	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),
 		'icons/filter.png',
 		'copied SVG assets rewrite filter image references'
@@ -993,6 +1015,8 @@ async function verifyScopedExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/icon.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/player.json');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/app.css');
+	assertFile('wp-content/plugins/ssgwp-smoke-deps/maps/app.css.map');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/captions.vtt');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/runtime.wasm');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/filter.svg');
@@ -1069,6 +1093,7 @@ async function verifyScopedExport() {
 		'../wp-content/plugins/ssgwp-smoke-deps/manifest.json',
 		'../wp-content/plugins/ssgwp-smoke-deps/browserconfig.xml',
 		'../wp-content/plugins/ssgwp-smoke-deps/player.json',
+		'../wp-content/plugins/ssgwp-smoke-deps/app.css',
 		'../wp-content/plugins/ssgwp-smoke-deps/filter.svg',
 	];
 
@@ -1300,6 +1325,15 @@ async function verifyScopedExport() {
 	assertStaticTargetExists(
 		'wp-content/plugins/ssgwp-smoke-deps/player.json',
 		'runtime.wasm'
+	);
+	assertIncludes(
+		readText('wp-content/plugins/ssgwp-smoke-deps/app.css'),
+		'sourceMappingURL=maps/app.css.map',
+		'copied scoped CSS assets preserve source map references'
+	);
+	assertStaticTargetExists(
+		'wp-content/plugins/ssgwp-smoke-deps/app.css',
+		'maps/app.css.map'
 	);
 	assertIncludes(
 		readText('wp-content/plugins/ssgwp-smoke-deps/filter.svg'),
