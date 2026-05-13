@@ -360,6 +360,22 @@ $schema_breadcrumb_id = wp_insert_post(array(
 	'post_content' => '<p>Schema breadcrumb item export target.</p>',
 ));
 
+$schema_collection_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Collection',
+	'post_name' => 'schema-collection',
+	'post_content' => '<p>Schema collection export target.</p>',
+));
+
+$schema_part_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Part',
+	'post_name' => 'schema-part',
+	'post_content' => '<p>Schema part export target.</p>',
+));
+
 $schema_author_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -423,6 +439,8 @@ $image_metadata_url = get_permalink($image_metadata_id);
 $schema_profile_url = get_permalink($schema_profile_id);
 $schema_license_url = get_permalink($schema_license_id);
 $schema_breadcrumb_url = get_permalink($schema_breadcrumb_id);
+$schema_collection_url = get_permalink($schema_collection_id);
+$schema_part_url = get_permalink($schema_part_id);
 $schema_author_url = get_permalink($schema_author_id);
 $schema_publisher_url = get_permalink($schema_publisher_id);
 $amp_url = get_permalink($amp_id);
@@ -481,9 +499,11 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta itemprop="sameAs" content="' . esc_url($schema_profile_url) . '">'
 	. '<meta itemprop="license" content="' . esc_url($schema_license_url) . '">'
 	. '<meta itemprop="item" content="' . esc_url($schema_breadcrumb_url) . '">'
+	. '<meta itemprop="isPartOf" content="' . esc_url($schema_collection_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($microdata_profile_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($microdata_related_url) . '">'
 	. '<link itemprop="item" href="' . esc_url($microdata_breadcrumb_url) . '">'
+	. '<link itemprop="hasPart" href="' . esc_url($schema_part_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($schema_author_url) . '">'
@@ -619,6 +639,8 @@ $scoped_image_metadata_url = get_permalink($image_metadata_id);
 $scoped_schema_profile_url = get_permalink($schema_profile_id);
 $scoped_schema_license_url = get_permalink($schema_license_id);
 $scoped_schema_breadcrumb_url = get_permalink($schema_breadcrumb_id);
+$scoped_schema_collection_url = get_permalink($schema_collection_id);
+$scoped_schema_part_url = get_permalink($schema_part_id);
 $scoped_schema_author_url = get_permalink($schema_author_id);
 $scoped_schema_publisher_url = get_permalink($schema_publisher_id);
 $scoped_amp_url = get_permalink($amp_id);
@@ -686,9 +708,11 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<meta itemprop="sameAs" content="' . esc_url($scoped_schema_profile_url) . '">'
 	. '<meta itemprop="license" content="' . esc_url($scoped_schema_license_url) . '">'
 	. '<meta itemprop="item" content="' . esc_url($scoped_schema_breadcrumb_url) . '">'
+	. '<meta itemprop="isPartOf" content="' . esc_url($scoped_schema_collection_url) . '">'
 	. '<link itemprop="url sameAs" href="' . esc_url($scoped_microdata_profile_url) . '">'
 	. '<link itemprop="relatedLink" href="' . esc_url($scoped_microdata_related_url) . '">'
 	. '<link itemprop="item" href="' . esc_url($scoped_microdata_breadcrumb_url) . '">'
+	. '<link itemprop="hasPart" href="' . esc_url($scoped_schema_part_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($scoped_microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($scoped_schema_author_url) . '">'
@@ -867,6 +891,8 @@ async function verifyExport() {
 	assertFile('schema-profile/index.html');
 	assertFile('schema-license/index.html');
 	assertFile('schema-breadcrumb/index.html');
+	assertFile('schema-collection/index.html');
+	assertFile('schema-part/index.html');
 	assertFile('schema-author/index.html');
 	assertFile('schema-publisher/index.html');
 	assertFile('amp-companion/index.html');
@@ -921,6 +947,8 @@ async function verifyExport() {
 		'../schema-profile/index.html',
 		'../schema-license/index.html',
 		'../schema-breadcrumb/index.html',
+		'../schema-collection/index.html',
+		'../schema-part/index.html',
 		'../schema-author/index.html',
 		'../schema-publisher/index.html',
 		'../amp-companion/index.html',
@@ -1062,6 +1090,16 @@ async function verifyExport() {
 		staticPage,
 		'<meta itemprop="item" content="../schema-breadcrumb/index.html">',
 		'static-page/index.html rewrites schema.org breadcrumb item metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="isPartOf" content="../schema-collection/index.html">',
+		'static-page/index.html rewrites schema.org isPartOf metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="hasPart" href="../schema-part/index.html">',
+		'static-page/index.html rewrites schema.org hasPart links'
 	);
 	assertIncludes(
 		staticPage,
@@ -1323,6 +1361,8 @@ async function verifyScopedExport() {
 	assertFile('schema-profile/index.html');
 	assertFile('schema-license/index.html');
 	assertFile('schema-breadcrumb/index.html');
+	assertFile('schema-collection/index.html');
+	assertFile('schema-part/index.html');
 	assertFile('amp-companion/index.html');
 	assertFile('preloaded-document/index.html');
 	assertFile('parent-page/child-page/index.html');
@@ -1387,6 +1427,8 @@ async function verifyScopedExport() {
 		'../schema-profile/index.html',
 		'../schema-license/index.html',
 		'../schema-breadcrumb/index.html',
+		'../schema-collection/index.html',
+		'../schema-part/index.html',
 		'../amp-companion/index.html',
 		'../preloaded-document/index.html',
 		'relative-child/index.html',
@@ -1525,6 +1567,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'<meta itemprop="item" content="../schema-breadcrumb/index.html">',
 		'scoped static-page/index.html rewrites schema.org breadcrumb item metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="isPartOf" content="../schema-collection/index.html">',
+		'scoped static-page/index.html rewrites schema.org isPartOf metadata'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="hasPart" href="../schema-part/index.html">',
+		'scoped static-page/index.html rewrites schema.org hasPart links'
 	);
 	assertIncludes(
 		staticPage,

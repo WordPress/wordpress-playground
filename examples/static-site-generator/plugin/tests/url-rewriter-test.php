@@ -951,6 +951,8 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
 		. '<meta itemprop="item" content="/schema-breadcrumb/">'
+		. '<meta itemprop="hasPart" content="/schema-part/">'
+		. '<meta itemprop="isPartOf" content="/schema-collection/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta property="article:author" content="/author/admin/">'
@@ -1005,6 +1007,18 @@ ssgwp_assert_contains(
 	'<meta itemprop="item" content="schema-breadcrumb/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org item page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="hasPart" content="schema-part/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org hasPart page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="isPartOf" content="schema-collection/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org isPartOf page URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1116,6 +1130,8 @@ foreach (
 			'microdata-significant/index.html',
 			'schema/local/index.html',
 			'schema/secondary/index.html',
+			'schema-collection/index.html',
+			'schema-part/index.html',
 		'nested/page/index.html',
 		'protocol-escaped/index.html',
 		'protocol-page/index.html',
@@ -1129,6 +1145,8 @@ foreach (
 		'publisher/index.html',
 		'related/index.html',
 		'schema-breadcrumb/index.html',
+		'schema-collection/index.html',
+		'schema-part/index.html',
 		'schema-related/index.html',
 		'schema-author/index.html',
 		'schema-publisher/index.html',
@@ -1214,6 +1232,8 @@ $html = implode(
 		'<link itemprop="url sameAs" href="/microdata-profile/">',
 		'<link itemprop="relatedLink" href="/microdata-related/">',
 		'<link itemprop="item" href="/microdata-breadcrumb/">',
+		'<link itemprop="hasPart" href="/schema-part/">',
+		'<link itemprop="isPartOf" href="/schema-collection/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
 		'<link itemprop="author" href="/schema-author/">',
@@ -1261,6 +1281,8 @@ $html = implode(
 		'<meta itemprop="sameAs" content="/schema-profile/">',
 		'<meta itemprop="discussionUrl" content="/schema-discussion/">',
 		'<meta itemprop="item" content="/schema-breadcrumb/">',
+		'<meta itemprop="hasPart" content="/schema-part/">',
+		'<meta itemprop="isPartOf" content="/schema-collection/">',
 		'<meta itemprop="relatedLink" content="/schema-related/">',
 		'<meta itemprop="significantLinks" content="/schema-significant/">',
 		'<meta itemprop="license" content="/schema-license/">',
@@ -1535,6 +1557,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="hasPart" href="schema-part/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org hasPart itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
+	'<link itemprop="isPartOf" href="schema-collection/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org isPartOf itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="significantLinks" href="microdata-significant/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org significantLinks itemprop link URLs as page links.'
@@ -1742,6 +1776,18 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/microdata-breadcrumb/', $result['links'], true ),
 	'rewrite_html records schema.org itemprop item links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema-part/', $result['links'], true ),
+	'rewrite_html records schema.org hasPart itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema-collection/', $result['links'], true ),
+	'rewrite_html records schema.org isPartOf itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2174,6 +2220,18 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="hasPart" content="schema-part/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org hasPart page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="isPartOf" content="schema-collection/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org isPartOf page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="relatedLink" content="schema-related/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org relatedLink page URLs in meta content attributes.'
@@ -2242,6 +2300,8 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
 		. '<meta itemprop="item" content="/schema-breadcrumb/">'
+		. '<meta itemprop="hasPart" content="/schema-part/">'
+		. '<meta itemprop="isPartOf" content="/schema-collection/">'
 		. '<meta itemprop="relatedLink" content="/schema-related/">'
 		. '<meta itemprop="significantLinks" content="/schema-significant/">'
 		. '<meta itemprop="license" content="/schema-license/">'
@@ -2266,6 +2326,8 @@ ssgwp_assert_same(
 		'https://example.test/schema-profile/',
 		'https://example.test/schema-discussion/',
 		'https://example.test/schema-breadcrumb/',
+		'https://example.test/schema-part/',
+		'https://example.test/schema-collection/',
 		'https://example.test/schema-related/',
 		'https://example.test/schema-significant/',
 		'https://example.test/schema-license/',
@@ -2927,6 +2989,8 @@ foreach (
 		'schema/local/index.html',
 		'schema/secondary/index.html',
 		'schema-breadcrumb/index.html',
+		'schema-collection/index.html',
+		'schema-part/index.html',
 		'schema-related/index.html',
 		'embedded-page/index.html',
 		'video-player/index.html',
