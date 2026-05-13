@@ -47,6 +47,9 @@ format.
 - Keep scoped Playground static exports from crawling or rewriting same-host
   URLs that belong to a different deployment scope.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite common social preview meta URLs in static exports so Open Graph and
+  Twitter page/image tags point at generated pages and copied assets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 

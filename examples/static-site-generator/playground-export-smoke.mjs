@@ -124,6 +124,8 @@ $child_url = get_permalink($child_id);
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
 	. '<p><a class="self-link" href="/static-page/#section">Self</a></p>'
+	. '<meta property="og:url" content="' . esc_url($child_url . '#meta') . '">'
+	. '<meta property="og:image" content="' . esc_url($asset_url . '?meta=1') . '">'
 	. '<p><img class="asset-link" src="' . esc_url($asset_url) . '" alt=""></p>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
 	. '<script type="application/json">{"child":"' . esc_url($child_url) . '"}</script>';
@@ -180,6 +182,8 @@ $scoped_asset_url = trailingslashit(content_url('uploads')) . 'ssgwp-smoke-asset
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
 	. '<p><a class="self-link" href="' . esc_url(home_url('/static-page/#section')) . '">Self</a></p>'
+	. '<meta property="og:url" content="' . esc_url($scoped_child_url . '#meta') . '">'
+	. '<meta name="twitter:image" content="' . esc_url($scoped_asset_url . '?meta=1') . '">'
 	. '<p><a class="other-scope-link" href="https://playground.wordpress.net/scope:other-site/static-page/">Other scope</a></p>'
 	. '<p><img class="asset-link" src="' . esc_url($scoped_asset_url) . '" alt=""></p>'
 	. '<p><img class="other-scope-asset" src="https://playground.wordpress.net/scope:other-site/wp-content/uploads/asset.txt" alt=""></p>'
@@ -285,7 +289,9 @@ async function verifyExport() {
 	const staticPage = readText('static-page/index.html');
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
+		'../parent-page/child-page/index.html#meta',
 		'../static-page/index.html#section',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 	];
 
@@ -323,7 +329,9 @@ async function verifyScopedExport() {
 	const staticPage = readText('static-page/index.html');
 	const expectedTargets = [
 		'../parent-page/child-page/index.html',
+		'../parent-page/child-page/index.html#meta',
 		'../static-page/index.html#section',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?meta=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
 	];
 

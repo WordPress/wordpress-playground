@@ -484,6 +484,7 @@ foreach (
 		'static-page/index.html',
 		'static-page-' . $view_hash . '.html',
 		'blog/page/2/index.html',
+		'meta-page/index.html',
 		'nested/page/index.html',
 		'protocol-page/index.html',
 		'sample-page/index.html',
@@ -495,6 +496,7 @@ foreach (
 		'wp-content/uploads/bg.jpg',
 		'wp-content/uploads/photo.jpg',
 		'wp-content/uploads/photo-2x.jpg',
+		'wp-content/uploads/social.jpg',
 		'wp-includes/fonts/dashicons.eot',
 	)
 	as $fixture_file
@@ -530,6 +532,9 @@ $html = implode(
 		'<a class="js" href="javascript:void(0)">JS</a>',
 		'<a class="data" href="data:text/plain,hello">Data</a>',
 		'<a class="blob" href="blob:https://example.test/id">Blob</a>',
+		'<meta property="og:url" content="https://example.test/nested/page/#share">',
+		'<meta property="og:image" content="https://example.test/wp-content/uploads/social.jpg?ver=1">',
+		'<meta name="twitter:image" content="/wp-content/uploads/photo.jpg">',
 		'<img src="/wp-content/uploads/photo.jpg?size=large" alt="">',
 		'<img srcset="/wp-content/uploads/photo.jpg 1x, /wp-content/uploads/photo-2x.jpg 2x" alt="">',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
@@ -620,6 +625,43 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta property="og:url" content="nested/page/index.html#share">',
+	$result['content'],
+	'rewrite_html rewrites Open Graph page URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta property="og:image" content="wp-content/uploads/social.jpg?ver=1">',
+	$result['content'],
+	'rewrite_html rewrites Open Graph image URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
+	'<meta name="twitter:image" content="wp-content/uploads/photo.jpg">',
+	$result['content'],
+	'rewrite_html rewrites Twitter image URLs in meta content attributes.'
+);
+
+$meta_only_result = $rewriter->rewrite_html(
+	'<meta property="og:url" content="/meta-page/">'
+		. '<meta property="og:image" content="/wp-content/uploads/social.jpg">',
+	'https://example.test/',
+	'index.html'
+);
+
+ssgwp_assert_same(
+	array( 'https://example.test/meta-page/' ),
+	$meta_only_result['links'],
+	'rewrite_html records meta page URLs as links to crawl.'
+);
+
+ssgwp_assert_same(
+	array( 'https://example.test/wp-content/uploads/social.jpg' ),
+	$meta_only_result['assets'],
+	'rewrite_html records meta image URLs as assets to copy.'
+);
+
+ssgwp_assert_contains(
 	'url("wp-content/uploads/bg.jpg?ver=1")',
 	$result['content'],
 	'rewrite_html rewrites inline CSS asset URLs.'
@@ -707,6 +749,7 @@ foreach (
 		'static-page-' . $view_hash . '.html#items',
 		'blog/page/2/index.html#posts',
 		'nested/page/index.html#section',
+		'nested/page/index.html#share',
 		'protocol-page/index.html',
 		'encoded%20page/index.html',
 		'collision%20page/index.html',
@@ -714,6 +757,7 @@ foreach (
 		'nested%2Fsegment/index.html',
 		'%2E%2E/secret/index.html',
 		'index-' . $query_hash . '.html#comments',
+		'wp-content/uploads/social.jpg?ver=1',
 		'wp-content/uploads/photo.jpg?size=large',
 		'wp-content/uploads/photo-2x.jpg',
 	)

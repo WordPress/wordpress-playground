@@ -66,6 +66,7 @@ final class SSGWP_URL_Rewriter {
 
 		$html = $this->rewrite_html_attributes( (string) $html, $page_url, $target_path );
 		$html = $this->rewrite_meta_refresh( $html, $page_url, $target_path );
+		$html = $this->rewrite_meta_content_urls( $html, $page_url, $target_path );
 		$html = $this->rewrite_css_in_style_blocks( $html, $page_url, $target_path );
 		$html = $this->rewrite_css_in_style_attributes( $html, $page_url, $target_path );
 		$html = $this->rewrite_same_site_text_urls( $html, $target_path );
@@ -366,6 +367,93 @@ final class SSGWP_URL_Rewriter {
 		}
 
 		return $changed ? strtr( $processor->get_updated_html(), $placeholders ) : $html;
+	}
+
+	/**
+	 * Rewrite URLs in social and structured-data meta content attributes.
+	 *
+	 * @param string $html        HTML.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string
+	 */
+	private function rewrite_meta_content_urls( $html, $base_url, $target_path ) {
+		if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
+			return $html;
+		}
+
+		$processor    = new WP_HTML_Tag_Processor( $html );
+		$changed      = false;
+		$placeholders = array();
+
+		while ( $processor->next_tag( 'META' ) ) {
+			$kind = $this->meta_content_url_kind( $processor );
+
+			if ( null === $kind ) {
+				continue;
+			}
+
+			$content = $processor->get_attribute( 'content' );
+
+			if ( ! is_string( $content ) || '' === $content ) {
+				continue;
+			}
+
+			$rewritten = $this->rewrite_url_value( $content, $base_url, $target_path, $kind );
+
+			if ( $rewritten !== $content ) {
+				$processor->set_attribute(
+					'content',
+					$this->prepare_html_attribute_value( $rewritten, $placeholders )
+				);
+				$changed = true;
+			}
+		}
+
+		return $changed ? strtr( $processor->get_updated_html(), $placeholders ) : $html;
+	}
+
+	/**
+	 * Determine whether a meta content attribute contains a page or asset URL.
+	 *
+	 * @param WP_HTML_Tag_Processor $processor HTML processor.
+	 * @return string|null URL kind: page, asset, or null.
+	 */
+	private function meta_content_url_kind( $processor ) {
+		$property = strtolower( (string) $processor->get_attribute( 'property' ) );
+		$name     = strtolower( (string) $processor->get_attribute( 'name' ) );
+		$itemprop = strtolower( (string) $processor->get_attribute( 'itemprop' ) );
+
+		$page_keys = array(
+			'og:url',
+			'twitter:url',
+			'url',
+			'mainentityofpage',
+		);
+
+		$asset_keys = array(
+			'image',
+			'logo',
+			'og:image',
+			'og:image:secure_url',
+			'og:image:url',
+			'thumbnail',
+			'thumbnailurl',
+			'twitter:image',
+			'twitter:image:src',
+		);
+
+		foreach ( array( $property, $name, $itemprop ) as $key ) {
+			if ( in_array( $key, $page_keys, true ) ) {
+				return 'page';
+			}
+
+			if ( in_array( $key, $asset_keys, true ) ) {
+				return 'asset';
+			}
+		}
+
+		return null;
 	}
 
 	/**
