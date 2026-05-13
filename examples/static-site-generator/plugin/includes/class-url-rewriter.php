@@ -1061,6 +1061,7 @@ final class SSGWP_URL_Rewriter {
 			},
 			$css
 		);
+		$css = $this->rewrite_css_image_set_string_urls( $css, $base_url, $target_path );
 
 		return preg_replace_callback(
 			'/@import\s+([\'"])(.*?)\1/i',
@@ -1069,6 +1070,194 @@ final class SSGWP_URL_Rewriter {
 			},
 			$css
 		);
+	}
+
+	/**
+	 * Rewrite quoted image candidates inside CSS image-set() functions.
+	 *
+	 * @param string $css         CSS.
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string CSS with rewritten image-set string URLs.
+	 */
+	private function rewrite_css_image_set_string_urls( $css, $base_url, $target_path ) {
+		$output = '';
+		$offset = 0;
+
+		while (
+			preg_match(
+				'/(?:-webkit-)?image-set\s*\(/i',
+				$css,
+				$match,
+				PREG_OFFSET_CAPTURE,
+				$offset
+			)
+		) {
+			$start      = $match[0][1];
+			$open_index = $start + strlen( $match[0][0] ) - 1;
+			$end_index  = $this->find_matching_css_parenthesis( $css, $open_index );
+
+			if ( null === $end_index ) {
+				break;
+			}
+
+			$output .= substr( $css, $offset, $open_index + 1 - $offset );
+			$output .= $this->rewrite_css_image_set_inner_string_urls(
+				substr( $css, $open_index + 1, $end_index - $open_index - 1 ),
+				$base_url,
+				$target_path
+			);
+			$output .= ')';
+			$offset  = $end_index + 1;
+		}
+
+		return $output . substr( $css, $offset );
+	}
+
+	/**
+	 * Find the matching closing parenthesis for a CSS function.
+	 *
+	 * @param string $css        CSS.
+	 * @param int    $open_index Opening parenthesis offset.
+	 * @return int|null Closing parenthesis offset, or null.
+	 */
+	private function find_matching_css_parenthesis( $css, $open_index ) {
+		$depth  = 1;
+		$quote  = '';
+		$length = strlen( $css );
+
+		for ( $index = $open_index + 1; $index < $length; $index++ ) {
+			$char = $css[ $index ];
+
+			if ( '' !== $quote ) {
+				if ( '\\' === $char ) {
+					++$index;
+					continue;
+				}
+
+				if ( $char === $quote ) {
+					$quote = '';
+				}
+
+				continue;
+			}
+
+			if ( '"' === $char || "'" === $char ) {
+				$quote = $char;
+				continue;
+			}
+
+			if ( '(' === $char ) {
+				++$depth;
+				continue;
+			}
+
+			if ( ')' === $char ) {
+				--$depth;
+
+				if ( 0 === $depth ) {
+					return $index;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Rewrite quoted URL strings inside a CSS image-set() body.
+	 *
+	 * @param string $inner       CSS inside image-set(...).
+	 * @param string $base_url    Base URL.
+	 * @param string $target_path Relative static file path.
+	 * @return string Rewritten image-set body.
+	 */
+	private function rewrite_css_image_set_inner_string_urls( $inner, $base_url, $target_path ) {
+		$output = '';
+		$offset = 0;
+		$length = strlen( $inner );
+
+		while ( $offset < $length ) {
+			$quote_index = strcspn( $inner, '"\'', $offset );
+
+			if ( $offset + $quote_index >= $length ) {
+				break;
+			}
+
+			$quote_index += $offset;
+			$quote        = $inner[ $quote_index ];
+			$end_index    = $quote_index + 1;
+
+			while ( $end_index < $length ) {
+				if ( '\\' === $inner[ $end_index ] ) {
+					$end_index += 2;
+					continue;
+				}
+
+				if ( $quote === $inner[ $end_index ] ) {
+					break;
+				}
+
+				++$end_index;
+			}
+
+			if ( $end_index >= $length ) {
+				break;
+			}
+
+			$value  = substr( $inner, $quote_index + 1, $end_index - $quote_index - 1 );
+			$output .= substr( $inner, $offset, $quote_index - $offset ) . $quote;
+
+			if (
+				$this->is_css_image_set_url_string( $value )
+				&& ! $this->is_nested_css_function_string( $inner, $quote_index )
+			) {
+				$output .= $this->rewrite_url_value( $value, $base_url, $target_path, 'asset' );
+			} else {
+				$output .= $value;
+			}
+
+			$output .= $quote;
+			$offset  = $end_index + 1;
+		}
+
+		return $output . substr( $inner, $offset );
+	}
+
+	/**
+	 * Determine whether a quoted image-set() string should be treated as a URL.
+	 *
+	 * @param string $value Quoted string value.
+	 * @return bool Whether the value looks like an image URL.
+	 */
+	private function is_css_image_set_url_string( $value ) {
+		$value = trim( $value );
+
+		if ( '' === $value || $this->is_special_url( $value ) || preg_match( '/[*{}]/', $value ) ) {
+			return false;
+		}
+
+		if ( preg_match( '#^(?:[a-z][a-z0-9+.-]*:|//|/|\./|\../)#i', $value ) ) {
+			return true;
+		}
+
+		$path     = (string) wp_parse_url( $value, PHP_URL_PATH );
+		$basename = basename( $path );
+
+		return (bool) preg_match( '/\.(avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i', $basename );
+	}
+
+	/**
+	 * Check whether a quoted string belongs to another CSS function.
+	 *
+	 * @param string $inner       CSS inside image-set(...).
+	 * @param int    $quote_index Opening quote offset.
+	 * @return bool Whether the string is inside url() or type().
+	 */
+	private function is_nested_css_function_string( $inner, $quote_index ) {
+		$prefix = rtrim( substr( $inner, 0, $quote_index ) );
+
+		return (bool) preg_match( '/(?:url|type)\s*\($/i', $prefix );
 	}
 
 	/**

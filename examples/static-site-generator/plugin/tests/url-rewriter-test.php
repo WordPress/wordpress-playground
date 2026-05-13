@@ -764,6 +764,8 @@ foreach (
 		'wp-content/uploads/bg.jpg',
 		'wp-content/uploads/photo.jpg',
 		'wp-content/uploads/photo-2x.jpg',
+		'wp-content/uploads/image-set.jpg',
+		'wp-content/uploads/image-set-2x.jpg',
 		'wp-content/uploads/social.jpg',
 		'wp-content/uploads/social-audio.mp3',
 		'wp-content/uploads/social-video.mp4',
@@ -847,6 +849,8 @@ $html = implode(
 		'<svg><filter><feImage href="/wp-content/uploads/filter.png?svg=1"'
 			. ' xlink:href="/wp-content/uploads/filter-2x.png?svg=2"></feImage></filter></svg>',
 		'<style>.hero{background:url("/wp-content/uploads/bg.jpg?ver=1")}</style>',
+		'<style>.responsive{background-image:image-set("/wp-content/uploads/image-set.jpg?density=1" 1x,'
+			. ' "/wp-content/uploads/image-set-2x.jpg?density=2" 2x, type("image/jpeg"))}</style>',
 		'<div style="background-image:url(/wp-content/uploads/bg.jpg?inline=1)"></div>',
 		'<div style=background:url(/wp-content/uploads/bg.jpg?unquoted=1)></div>',
 		'<iframe srcdoc="' . $srcdoc . '"></iframe>',
@@ -1193,6 +1197,13 @@ ssgwp_assert_contains(
 	'url("wp-content/uploads/bg.jpg?ver=1")',
 	$result['content'],
 	'rewrite_html rewrites inline CSS asset URLs.'
+);
+
+ssgwp_assert_contains(
+	'image-set("wp-content/uploads/image-set.jpg?density=1" 1x,'
+		. ' "wp-content/uploads/image-set-2x.jpg?density=2" 2x, type("image/jpeg"))',
+	$result['content'],
+	'rewrite_html rewrites quoted CSS image-set asset URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1564,6 +1575,36 @@ ssgwp_assert_contains(
 	'rewrite_text_asset resolves relative CSS URLs from the copied asset path.'
 );
 
+$rewritten_image_set_css = $rewriter->rewrite_text_asset_with_assets(
+	'.hero{background-image:image-set("images/hero.png" 1x, '
+		. '"/wp-content/uploads/photo-2x.jpg?image-set=2" 2x, type("image/png"))}'
+		. '.wide{background-image:-webkit-image-set("../shared/hero.webp" 1x)}',
+	'wp-content/plugins/app/styles/app.css'
+);
+
+ssgwp_assert_contains(
+	'image-set("../../../../wp-content/plugins/app/styles/images/hero.png" 1x, '
+		. '"../../../../wp-content/uploads/photo-2x.jpg?image-set=2" 2x, type("image/png"))',
+	$rewritten_image_set_css['content'],
+	'rewrite_text_asset_with_assets rewrites quoted CSS image-set URLs.'
+);
+
+ssgwp_assert_contains(
+	'-webkit-image-set("../../../../wp-content/plugins/app/shared/hero.webp" 1x)',
+	$rewritten_image_set_css['content'],
+	'rewrite_text_asset_with_assets rewrites prefixed image-set URLs.'
+);
+
+ssgwp_assert_same(
+	array(
+		'https://example.test/wp-content/plugins/app/styles/images/hero.png',
+		'https://example.test/wp-content/uploads/photo-2x.jpg?image-set=2',
+		'https://example.test/wp-content/plugins/app/shared/hero.webp',
+	),
+	$rewritten_image_set_css['assets'],
+	'rewrite_text_asset_with_assets records CSS image-set assets to copy.'
+);
+
 ssgwp_assert_static_target_exists(
 	$export_root,
 	'wp-includes/css/dashicons.css',
@@ -1605,6 +1646,8 @@ foreach (
 		'wp-content/uploads/photo.jpg?lazy=3',
 		'wp-content/uploads/photo.jpg?lazy=4',
 		'wp-content/uploads/photo-2x.jpg',
+		'wp-content/uploads/image-set.jpg?density=1',
+		'wp-content/uploads/image-set-2x.jpg?density=2',
 		'wp-content/uploads/bg.jpg?lazy=1',
 		'wp-content/uploads/bg.jpg?lazy=2',
 		'wp-content/uploads/bg.jpg?lazy=5',

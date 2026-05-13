@@ -183,6 +183,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<object data="' . esc_url($child_url) . '"></object>'
 	. '<object data="' . esc_url($asset_url . '?object=1') . '"></object>'
 	. '<style>.hero{background-image:url("' . esc_url($asset_url) . '")}</style>'
+	. '<style>.responsive{background-image:image-set("' . esc_url($asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($child_url) . '">Srcdoc child</a><img src="' . esc_url($asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
 	. '<script type="application/json">{"root":"\/parent-page\/child-page\/","rootAsset":"\/wp-content\/uploads\/ssgwp-smoke-asset.txt?root=1","plainRoot":"/static-page/","plainAsset":"/wp-content/uploads/ssgwp-smoke-asset.txt?plain=1"}</script>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $protocol_child_url) . '"}</script>'
@@ -271,6 +272,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<object data="' . esc_url($scoped_child_url) . '"></object>'
 	. '<object data="' . esc_url($scoped_asset_url . '?object=1') . '"></object>'
 	. '<style>.hero{background-image:url("' . esc_url($scoped_asset_url) . '")}</style>'
+	. '<style>.responsive{background-image:image-set("' . esc_url($scoped_asset_url . '?image-set=1') . '" 1x, type("text/plain"))}</style>'
 	. '<iframe srcdoc="' . esc_attr('<a href="' . esc_url($scoped_child_url) . '">Srcdoc child</a><img src="' . esc_url($scoped_asset_url . '?srcdoc=1') . '" alt="">') . '"></iframe>'
 	. '<script type="application/json">{"root":"' . str_replace('/', '\/', $scoped_child_path) . '","rootAsset":"' . str_replace('/', '\/', $scoped_asset_path) . '?root=1"}</script>'
 	. '<script type="application/json">{"protocolChild":"' . esc_url($scoped_protocol_child_url) . '","protocolEscaped":"' . str_replace('/', '\/', $scoped_protocol_child_url) . '"}</script>'
@@ -397,6 +399,7 @@ async function verifyExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?plain=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
@@ -499,6 +502,7 @@ async function verifyScopedExport() {
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?stream=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?root=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?mixed=2x',
+		'../wp-content/uploads/ssgwp-smoke-asset.txt?image-set=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?object=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt?srcdoc=1',
 		'../wp-content/uploads/ssgwp-smoke-asset.txt',
@@ -748,7 +752,11 @@ function splitSrcsetCandidates(srcset) {
 }
 
 function extractCssUrlRefs(text) {
-	return [...text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)].map(
+	return [
+		...text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi),
+		...text.matchAll(/image-set\(\s*["']([^"']+)["']/gi),
+		...text.matchAll(/-webkit-image-set\(\s*["']([^"']+)["']/gi),
+	].map(
 		(match) => match[1]
 	);
 }

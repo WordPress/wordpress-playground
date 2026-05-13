@@ -136,6 +136,9 @@ format.
 - Rewrite Windows browser config metadata and copied XML tile asset
   dependencies in static exports.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Rewrite quoted CSS `image-set()` asset URLs in exported pages and copied
+  stylesheets.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 
 ### Documentation
 
