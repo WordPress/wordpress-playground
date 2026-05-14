@@ -107,7 +107,9 @@ function blueprintToDataUrl(blueprint: string): string {
 function InstallAppsSection() {
 	return (
 		<div className={css.aboutSection}>
-			<h4 className={css.aboutSectionTitle}>Apps</h4>
+			<h4 className={css.aboutSectionTitle}>
+				Installing apps has moved here:
+			</h4>
 			<div className={css.appsList}>
 				<div className={css.appRow}>
 					<a

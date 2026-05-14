@@ -25,7 +25,9 @@ test('should show app, backup, and troubleshooting tools', async ({
 	await website.ensureSiteToolsIsOpen();
 
 	await expect(
-		website.page.getByRole('heading', { name: 'Apps' })
+		website.page.getByRole('heading', {
+			name: 'Installing apps has moved here:',
+		})
 	).toBeVisible();
 	await expect(
 		website.page.getByRole('link', { name: /App Launcher/ })
