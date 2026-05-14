@@ -119,14 +119,18 @@ The manifest selects the `.so` artifact matching the active PHP version and can
 stage sidecar files before PHP starts. External extensions are JSPI-only, so use
 Node.js 23 or newer.
 
-Use `--php-extension-config` when the extension needs more runtime settings:
+Add runtime settings such as `iniEntries` and `env` directly to the manifest:
 
 ```json
 {
-	"source": {
-		"format": "manifest",
-		"manifestUrl": "./dist/spx/manifest.json"
-	},
+	"name": "spx",
+	"version": "0.1.0",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "spx-php8.4-jspi.so"
+		}
+	],
 	"iniEntries": {
 		"spx.http_enabled": "1"
 	},
@@ -136,10 +140,6 @@ Use `--php-extension-config` when the extension needs more runtime settings:
 }
 ```
 
-```bash
-npx @wp-playground/cli@latest server --php-extension-config=./spx.json
-```
-
 Set `loadWithIniDirective` to `false` when the artifact is a loadable Wasm
 side module that should be staged before PHP starts but should not be registered
 with `extension=` or `zend_extension=` in php.ini:
@@ -147,12 +147,33 @@ with `extension=` or `zend_extension=` in php.ini:
 ```json
 {
 	"name": "sqlite_markdown",
+	"version": "0.1.0",
+	"loadWithIniDirective": false,
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "sqlite_markdown-php8.4-jspi.so"
+		}
+	]
+}
+```
+
+Use `--php-extension-config` when the runtime settings should live outside the
+manifest, or when loading a direct `.so` URL:
+
+```json
+{
+	"name": "sqlite_markdown",
 	"source": {
-		"format": "manifest",
-		"manifestUrl": "./dist/sqlite-markdown/manifest.json"
+		"format": "url",
+		"url": "./dist/sqlite_markdown-php8.4-jspi.so"
 	},
 	"loadWithIniDirective": false
 }
+```
+
+```bash
+npx @wp-playground/cli@latest server --php-extension-config=./spx.json
 ```
 
 ### Loading WASM-backed WordPress Plugins
@@ -221,11 +242,9 @@ Finally, create a descriptor:
 	"bootstrap": "./bootstrap.php",
 	"hooks": [
 		{
-			"type": "filter",
-			"hook": "the_content",
-			"callback": "hello_wasm_render_content",
-			"priority": 10,
-			"acceptedArgs": 1
+			"type": "action",
+			"hook": "admin_notices",
+			"callback": "hello_wasm_admin_notice"
 		}
 	]
 }

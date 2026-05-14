@@ -11,6 +11,7 @@ wp-admin/images/wpspin_light.gif
 wp-admin/images/media-button-other.gif
 wp-admin/images/align-none-2x.png
 wp-admin/images/w-logo-blue.png
+wp-admin/images/about-header-get-involved.webp
 wp-admin/images/browser.png
 wp-admin/images/date-button-2x.gif
 wp-admin/images/menu-vs.png
@@ -26,6 +27,7 @@ wp-admin/images/icons32-vs-2x.png
 wp-admin/images/bubble_bg-2x.gif
 wp-admin/images/icons32-2x.png
 wp-admin/images/align-left-2x.png
+wp-admin/images/about-header-default-rtl.webp
 wp-admin/images/post-formats-vs.png
 wp-admin/images/xit.gif
 wp-admin/images/align-center-2x.png
@@ -43,14 +45,18 @@ wp-admin/images/icons32-vs.png
 wp-admin/images/post-formats32-vs.png
 wp-admin/images/mask.png
 wp-admin/images/media-button-music.gif
+wp-admin/images/about-header-get-involved-rtl.webp
 wp-admin/images/about-release-logo.svg
 wp-admin/images/menu-vs-2x.png
 wp-admin/images/media-button-image.gif
 wp-admin/images/stars.png
+wp-admin/images/about-header-credits.webp
 wp-admin/images/privacy.svg
 wp-admin/images/align-right-2x.png
 wp-admin/images/media-button.png
+wp-admin/images/about-header-freedoms-rtl.webp
 wp-admin/images/list-2x.png
+wp-admin/images/about-header-privacy.webp
 wp-admin/images/post-formats.png
 wp-admin/images/resize-rtl.gif
 wp-admin/images/resize-rtl-2x.gif
@@ -62,6 +68,7 @@ wp-admin/images/freedom-2.svg
 wp-admin/images/contribute-no-code.svg
 wp-admin/images/freedom-1.svg
 wp-admin/images/dashboard-background.svg
+wp-admin/images/about-header-freedoms.webp
 wp-admin/images/menu-2x.png
 wp-admin/images/contribute-code.svg
 wp-admin/images/resize-2x.gif
@@ -73,11 +80,14 @@ wp-admin/images/comment-grey-bubble.png
 wp-admin/images/wpspin_light-2x.gif
 wp-admin/images/media-button-2x.png
 wp-admin/images/align-none.png
+wp-admin/images/about-header-privacy-rtl.webp
 wp-admin/images/menu.png
+wp-admin/images/about-header-default.webp
 wp-admin/images/list.png
 wp-admin/images/spinner-2x.gif
 wp-admin/images/date-button.gif
 wp-admin/images/browser-rtl.png
+wp-admin/images/about-header-credits-rtl.webp
 wp-admin/images/sort.gif
 wp-admin/js/revisions.js
 wp-admin/js/media.min.js

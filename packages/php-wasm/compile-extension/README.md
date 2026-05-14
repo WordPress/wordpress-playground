@@ -44,6 +44,27 @@ npx @php-wasm/compile-extension \
 Empty directories are recorded as `type: "directory"` nodes so the loader
 creates them before PHP starts.
 
+If an extension needs startup settings, add them to the manifest:
+
+```json
+{
+	"name": "spx",
+	"version": "0.1.0",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "spx-php8.4-jspi.so"
+		}
+	],
+	"iniEntries": {
+		"spx.http_enabled": "1"
+	},
+	"env": {
+		"SPX_DATA_DIR": "/internal/shared/spx/data"
+	}
+}
+```
+
 The supported `--php-versions` are `7.4` and `8.0` through `8.5`.
 
 Docker is required. The CLI lazily fetches the small PHP.wasm Docker asset set
@@ -60,14 +81,14 @@ The package only needs Docker and Node. It does not require a checkout of
 
 - uses: actions/setup-node@v4
   with:
-    node-version: '24'
+      node-version: '24'
 
 - run: |
-    npx --yes @php-wasm/compile-extension \
-      --source ./my-extension \
-      --name my_extension \
-      --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
-      --out ./dist/my-extension
+      npx --yes @php-wasm/compile-extension \
+        --source ./my-extension \
+        --name my_extension \
+        --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+        --out ./dist/my-extension
 ```
 
 In a matrix workflow, set `strategy.max-parallel: 1` on the WASM job —

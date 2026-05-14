@@ -98,12 +98,49 @@ describe('resolvePHPExtension', () => {
 		expect(extension.soBytes).toEqual(artifactBytes);
 	});
 
+	it('applies manifest-declared runtime settings', async () => {
+		const extension = await resolvePHPExtension({
+			source: {
+				format: 'manifest',
+				manifest: {
+					name: 'spx',
+					artifacts: [
+						{
+							phpVersion: '8.4',
+							sourcePath: 'spx.so',
+						},
+					],
+					extensionDir: '/internal/shared/extensions',
+					iniEntries: {
+						'spx.http_enabled': '1',
+					},
+					env: {
+						SPX_DATA_DIR: '/internal/shared/spx/data',
+					},
+				},
+				baseUrl: 'https://example.com/extensions/',
+			},
+			phpVersion: '8.4',
+			fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+		});
+
+		expect(extension.soPath).toBe('/internal/shared/extensions/spx.so');
+		expect(extension.iniContent).toBe(
+			'extension=/internal/shared/extensions/spx.so\n' +
+				'spx.http_enabled=1'
+		);
+		expect(extension.env).toEqual({
+			SPX_DATA_DIR: '/internal/shared/spx/data',
+		});
+	});
+
 	it('resolves manifest sources without php.ini registration', async () => {
 		const extension = await resolvePHPExtension({
 			source: {
 				format: 'manifest',
 				manifest: {
 					name: 'sqlite_markdown',
+					loadWithIniDirective: false,
 					artifacts: [
 						{
 							phpVersion: '8.4',
@@ -114,7 +151,6 @@ describe('resolvePHPExtension', () => {
 				baseUrl: 'https://example.com/extensions/',
 			},
 			phpVersion: '8.4',
-			loadWithIniDirective: false,
 			fetch: async () => new Response(new Uint8Array([1, 2, 3])),
 		});
 

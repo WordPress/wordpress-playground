@@ -5,8 +5,8 @@ import type { Page } from '@playwright/test';
  * E2E tests for the <php-snippet> web component embed.
  * Verifies that:
  *   - the demo page renders three snippets,
- *   - clicking Run on the first shows a real progress bar with a caption
- *     and percent that advance toward 100,
+ *   - clicking Run on the first shows real button progress that advances
+ *     toward 100,
  *   - the first snippet executes and shows PHP output,
  *   - subsequent snippets reuse the same Playground runtime (much faster
  *     than the first boot) and produce their own output.
@@ -49,6 +49,21 @@ test.describe('php-code-snippet embed', () => {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
 			await expect(snippet.locator('.run')).toBeVisible();
+			await expect(snippet.locator('.powered-by')).toContainText(
+				'PHP Code Snippet powered by WordPress Playground'
+			);
+			await expect(
+				snippet.locator('.powered-by a').nth(0)
+			).toHaveAttribute(
+				'href',
+				'https://playground.wordpress.net/php-code-snippet-demo.html'
+			);
+			await expect(
+				snippet.locator('.powered-by a').nth(1)
+			).toHaveAttribute('href', 'https://wordpress.org/playground/');
+			await expect(snippet.locator('.run-shortcut')).toContainText(
+				/Ctrl\+Enter|Cmd\+Enter/
+			);
 		}
 	});
 
@@ -69,29 +84,77 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(0);
 	});
 
-	test('first Run boots the runtime and shows progress + output', async ({
+	test('wp=none progress copy says runtime instead of WordPress', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const phpOnly = page.locator('php-snippet[name="just-php.php"]');
+		const withWordPress = page.locator('php-snippet[name="hello.php"]');
+
+		await expect(phpOnly).toBeVisible();
+		await expect(withWordPress).toBeVisible();
+		await expect
+			.poll(() =>
+				phpOnly.evaluate((snippet: any) =>
+					snippet._getRunProgressLabel('Preparing WordPress')
+				)
+			)
+			.toBe('Preparing runtime');
+		await expect
+			.poll(() =>
+				withWordPress.evaluate((snippet: any) =>
+					snippet._getRunProgressLabel('Preparing WordPress')
+				)
+			)
+			.toBe('Preparing WordPress');
+	});
+
+	test('Run button width stays stable across progress labels', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const runButton = editable.locator('.run');
+		const idleBox = await runButton.boundingBox();
+		expect(idleBox).not.toBeNull();
+
+		await editable.evaluate((snippet: any) => {
+			const runButton = snippet.shadowRoot.querySelector('.run');
+			runButton.setAttribute('aria-busy', 'true');
+			snippet._setRunButtonProgress('Preparing runtime', 100);
+		});
+
+		const progressBox = await runButton.boundingBox();
+		expect(progressBox).not.toBeNull();
+		expect(Math.round(progressBox!.width)).toBe(Math.round(idleBox!.width));
+	});
+
+	test('first Run boots the runtime and shows button progress + output', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
 		const first = page.locator('php-snippet').nth(0);
+		const runButton = first.locator('.run');
+		const runSpinner = first.locator('.run-spinner');
+		const runPercent = first.locator('.run-percent');
 
-		await expect(first.locator('.progress')).toBeHidden();
-		await first.locator('.run').click();
+		await expect(first.locator('.progress')).toHaveCount(0);
+		await runButton.click();
 
-		// Progress bar appears with caption + percent text.
-		await expect(first.locator('.progress')).toBeVisible();
-		await expect(first.locator('.caption')).not.toHaveText('');
-		await expect(first.locator('.percent')).toContainText(/%$/);
+		await expect(runButton).toHaveAttribute('aria-busy', /true/);
+		await expect(runSpinner).toBeVisible();
+		await expect(runPercent).toContainText(/%$/);
 
 		// The percent advances past 0 (real progress, not just "0%" forever).
 		await expect
 			.poll(
 				async () =>
 					Number(
-						(
-							(await first.locator('.percent').textContent()) ||
-							'0%'
-						).replace('%', '')
+						((await runPercent.textContent()) || '0%').replace(
+							'%',
+							''
+						)
 					),
 				{ timeout: 120_000, intervals: [500] }
 			)
@@ -105,8 +168,7 @@ test.describe('php-code-snippet embed', () => {
 			'Hello from PHP'
 		);
 
-		// Progress hides once the run finishes.
-		await expect(first.locator('.progress')).toBeHidden();
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
 	});
 
 	test('subsequent snippets reuse the shared runtime', async ({ page }) => {
@@ -201,7 +263,8 @@ test.describe('php-code-snippet embed', () => {
 
 		// Replace the snippet contents with something we can uniquely identify
 		// in the output panel.
-		await textarea.click();
+		await editable.locator('.editor').click();
+		await expect(textarea).toBeFocused();
 		await textarea.evaluate((el: HTMLTextAreaElement) => {
 			el.value = '<?php echo "edited:" . (40 + 2);';
 			el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -213,6 +276,265 @@ test.describe('php-code-snippet embed', () => {
 		await expect(editable.locator('.output-body')).toContainText(
 			'edited:42'
 		);
+	});
+
+	test('Run button queues clicks while a snippet is running', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.click();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/);
+		await expect(runButton).toBeEnabled();
+		await runButton.click();
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:2'
+		);
+		await expect(runButton).toBeEnabled();
+	});
+
+	test('Run button starts from pointer activation even if click is canceled', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				this._setRunButtonProgress('Running', 42);
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.scrollIntoViewIfNeeded();
+		const idleBox = await runButton.boundingBox();
+		expect(idleBox).not.toBeNull();
+
+		await page.mouse.move(
+			idleBox!.x + idleBox!.width / 2,
+			idleBox!.y + idleBox!.height / 2
+		);
+		await page.mouse.down();
+		await page.mouse.move(idleBox!.x - 20, idleBox!.y - 20);
+		await page.mouse.up();
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:1'
+		);
+		await expect(runButton).toBeEnabled();
+	});
+
+	test('Run button works while the code editor textarea is focused', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function (code: string) {
+				this._testRunCount += 1;
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}; hasTyped:${code.includes('typed-marker')}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const editor = editable.locator('.editor');
+		await editor.scrollIntoViewIfNeeded();
+		const editorBox = await editor.boundingBox();
+		expect(editorBox).not.toBeNull();
+		const textarea = editable.locator('textarea.ta');
+		const thirdLineEnd = await textarea.evaluate(
+			(el: HTMLTextAreaElement) => {
+				const lines = el.value.split('\n');
+				return {
+					lineEnd:
+						lines[0].length +
+						1 +
+						lines[1].length +
+						1 +
+						lines[2].length,
+					lineTop:
+						parseFloat(getComputedStyle(el).paddingTop) +
+						parseFloat(getComputedStyle(el).lineHeight) * 2,
+				};
+			}
+		);
+		await page.mouse.click(
+			editorBox!.x + editorBox!.width - 24,
+			editorBox!.y + thirdLineEnd.lineTop + 4
+		);
+
+		await expect(textarea).toBeFocused();
+		await expect
+			.poll(() =>
+				textarea.evaluate(
+					(el: HTMLTextAreaElement) => el.selectionStart
+				)
+			)
+			.toBe(thirdLineEnd.lineEnd);
+		await page.keyboard.type(' // typed-marker');
+
+		const runButton = editable.locator('.run');
+		const runBox = await runButton.boundingBox();
+		expect(runBox).not.toBeNull();
+		await page.mouse.click(
+			runBox!.x + runBox!.width / 2,
+			runBox!.y + runBox!.height / 2
+		);
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:1; hasTyped:true'
+		);
+		await expect(textarea).toBeFocused({ timeout: 1000 });
+	});
+
+	test('Run button handles repeated mouse clicks after completion', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.scrollIntoViewIfNeeded();
+		const box = await runButton.boundingBox();
+		expect(box).not.toBeNull();
+
+		for (let expected = 1; expected <= 5; expected++) {
+			await page.mouse.click(
+				box!.x + box!.width / 2,
+				box!.y + box!.height / 2
+			);
+			await expect(editable.locator('.output-body')).toContainText(
+				`run-count:${expected}`
+			);
+			await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
+		}
+	});
+
+	test('Ctrl+Enter and Cmd+Enter run the focused snippet', async ({
+		page,
+		browserName,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const textarea = editable.locator('textarea.ta');
+		await expect(textarea).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._runOnce = async function (code: string) {
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = code.includes('cmd')
+					? 'cmd-enter-marker'
+					: 'ctrl-enter-marker';
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		await textarea.click();
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php echo "ctrl";';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+		await page.keyboard.press('Control+Enter');
+		await expect(editable.locator('.output-body')).toContainText(
+			'ctrl-enter-marker'
+		);
+
+		// WebKit on Linux does not reliably synthesize Meta shortcuts in CI.
+		if (browserName !== 'webkit') {
+			await textarea.evaluate((el: HTMLTextAreaElement) => {
+				el.value = '<?php echo "cmd";';
+				el.dispatchEvent(new Event('input', { bubbles: true }));
+			});
+			await page.keyboard.press('Meta+Enter');
+			await expect(editable.locator('.output-body')).toContainText(
+				'cmd-enter-marker'
+			);
+		}
+	});
+
+	test('output refresh keeps the light result styling', async ({ page }) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._runOnce = async function () {
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = 'light-output-marker';
+				outputWrap.classList.add('visible');
+				this._flashOutput(outputBody);
+			};
+		});
+
+		await editable.locator('.run').click();
+		await expect(editable.locator('.output-body')).toContainText(
+			'light-output-marker'
+		);
+
+		const colors = await editable.evaluate((snippet: any) => {
+			const output = snippet.shadowRoot.querySelector('.output');
+			const outputBody = snippet.shadowRoot.querySelector('.output-body');
+			const outputStyles = getComputedStyle(output);
+			const bodyStyles = getComputedStyle(outputBody);
+			return {
+				outputBackground: outputStyles.backgroundColor,
+				bodyBackground: bodyStyles.backgroundColor,
+				bodyColor: bodyStyles.color,
+			};
+		});
+
+		expect(colors.outputBackground).toBe('rgb(255, 255, 255)');
+		expect(colors.bodyBackground).not.toBe('rgb(13, 17, 23)');
+		expect(colors.bodyColor).toBe('rgb(36, 41, 47)');
 	});
 
 	test('wp="none" + blueprint installs a PHP toolkit usable from the snippet', async ({
@@ -228,13 +550,14 @@ test.describe('php-code-snippet embed', () => {
 			element.setAttribute('playground-origin', window.location.origin);
 		});
 		// The snippet ships with an expected-output script that pre-fills the
-		// output panel. Wait for the real run to execute by watching the
-		// progress bar appear and then disappear.
-		await snippet.locator('.run').click();
-		await expect(snippet.locator('.progress')).toBeVisible({
+		// output panel. Wait for the real run to execute by watching the run
+		// button enter and exit its busy state.
+		const runButton = snippet.locator('.run');
+		await runButton.click();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/, {
 			timeout: 30_000,
 		});
-		await expect(snippet.locator('.progress')).toBeHidden({
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/, {
 			timeout: 240_000,
 		});
 
@@ -261,6 +584,7 @@ test.describe('php-code-snippet embed', () => {
 		const runSpinner = editable.locator('.run-spinner');
 		const runLabel = editable.locator('.run-label');
 		const runPercent = editable.locator('.run-percent');
+		const runShortcut = editable.locator('.run-shortcut');
 
 		await editable.evaluate((snippet: any) => {
 			snippet._runOnce = async function (code: string) {
@@ -283,12 +607,13 @@ test.describe('php-code-snippet embed', () => {
 		});
 
 		await runButton.click();
-		await expect(runButton).toBeDisabled();
+		await expect(runButton).toBeEnabled();
 		await expect(runButton).toHaveAttribute('aria-busy', /true/, {
 			timeout: 30_000,
 		});
 		await expect(runSpinner).toBeVisible();
 		await expect(runPercent).toBeVisible();
+		await expect(runShortcut).toBeHidden();
 		await expect(runLabel).toHaveText('Running');
 		await expect(runPercent).toHaveText('42%');
 		await expect(outputBody).toContainText('slow-run-marker', {
@@ -300,6 +625,7 @@ test.describe('php-code-snippet embed', () => {
 		});
 		await expect(runSpinner).toBeHidden();
 		await expect(runLabel).toHaveText('Run');
+		await expect(runShortcut).toBeVisible();
 
 		await textarea.evaluate((el: HTMLTextAreaElement) => {
 			el.value = '<?php echo "second-run-marker";';
@@ -318,21 +644,22 @@ test.describe('php-code-snippet embed', () => {
 		await page.goto(DEMO_URL);
 		const snippet = page.locator('php-snippet[name="precomputed.php"]');
 
-		await expect(snippet.locator('.progress')).toBeHidden();
+		await expect(snippet.locator('.progress')).toHaveCount(0);
 		await expect(snippet.locator('.output')).toBeVisible();
 		await expect(snippet.locator('.output-body')).toContainText(
 			'2 + 2 = 4'
 		);
 
-		await snippet.locator('.run').click();
-		await expect(snippet.locator('.progress')).toBeVisible();
+		const runButton = snippet.locator('.run');
+		await runButton.click();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/);
 		await expect(snippet.locator('.output')).toBeVisible({
 			timeout: 240_000,
 		});
 		await expect(snippet.locator('.output-body')).toContainText(
 			'WordPress is awesome.'
 		);
-		await expect(snippet.locator('.progress')).toBeHidden();
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
 		await expect(
 			page.locator('iframe[title="PHP Snippet runtime"]')
 		).toHaveCount(1);

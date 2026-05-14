@@ -1,21 +1,7 @@
-import {
-	Button,
-	Flex,
-	FlexItem,
-	Icon,
-	Spinner,
-	TabPanel,
-} from '@wordpress/components';
+import { Button, Flex, FlexItem, Icon, TabPanel } from '@wordpress/components';
 import { chevronLeft, close, trash, external, upload } from '@wordpress/icons';
 import classNames from 'classnames';
-import {
-	lazy,
-	Suspense,
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-} from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { importWordPressFiles } from '@wp-playground/client';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
@@ -35,8 +21,6 @@ import {
 import { SiteLogs } from '../../log-modal';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { useBackup } from '../../../lib/hooks/use-backup';
-import { useCustomApps } from '../../../lib/hooks/use-custom-apps';
-import useFetch from '../../../lib/hooks/use-fetch';
 import { WordPressIcon } from '@wp-playground/components';
 import {
 	getBlueprintUrl,
@@ -48,7 +32,6 @@ import { broadcastSiteReset } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
-import { isAllowedBlueprintUrl } from '../../../lib/blueprint-url';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -81,19 +64,36 @@ function setSiteLastTab(siteSlug: string, tabName: string): void {
 	}
 }
 
-// ── Install Apps ──────────────────────────────────────────────
+// -- Install Apps ------------------------------------------------------------
 
-type AppEntry = {
-	title: string;
-	description: string;
-	author: string;
-	categories: string[];
+const APP_LAUNCHER_BLUEPRINT = {
+	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
+	meta: {
+		title: 'App Launcher',
+		description: 'Install more apps with this app launcher',
+		author: 'Alex Kirk',
+	},
+	login: true,
+	landingPage: '/my-apps/',
+	steps: [
+		{
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'git:directory',
+				url: 'https://github.com/akirk/my-apps',
+				ref: 'main',
+				refType: 'branch',
+			},
+			options: {
+				targetFolderName: 'my-apps',
+			},
+		},
+	],
 };
 
-const APPS_INDEX_URL =
-	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json';
-const APPS_BASE_URL =
-	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
+const APP_LAUNCHER_BLUEPRINT_URL = blueprintToDataUrl(
+	JSON.stringify(APP_LAUNCHER_BLUEPRINT)
+);
 
 function getAppBlueprintUrl(blueprintUrl: string): string {
 	const url = getAppBaseUrl();
@@ -105,196 +105,32 @@ function blueprintToDataUrl(blueprint: string): string {
 	return `data:application/json;base64,${encodeStringAsBase64(blueprint)}`;
 }
 
-function looksLikeBlueprint(text: string): boolean {
-	const trimmed = text.trim();
-	if (isAllowedBlueprintUrl(trimmed)) {
-		return true;
-	}
-	if (trimmed.startsWith('{')) {
-		try {
-			JSON.parse(trimmed);
-			return true;
-		} catch {
-			return false;
-		}
-	}
-	return false;
-}
-
-function isPasteFromAppSection(
-	section: HTMLDivElement | null,
-	target: EventTarget | null
-): boolean {
-	return target instanceof Node && !!section?.contains(target);
-}
-
-function isEditablePasteTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof Element)) {
-		return false;
-	}
-	return (
-		(target instanceof HTMLElement && target.isContentEditable) ||
-		target.matches('input, textarea, select') ||
-		target.closest('[contenteditable="true"]') !== null
-	);
-}
-
 function InstallAppsSection() {
-	const { customApps, addApp, removeApp } = useCustomApps();
-	const sectionRef = useRef<HTMLDivElement>(null);
-
-	const handlePaste = useCallback(
-		(e: ClipboardEvent) => {
-			if (
-				!isPasteFromAppSection(sectionRef.current, e.target) ||
-				isEditablePasteTarget(e.target)
-			) {
-				return;
-			}
-			const text = e.clipboardData?.getData('text');
-			if (!text) return;
-			const trimmed = text.trim();
-			if (!looksLikeBlueprint(trimmed)) return;
-			e.preventDefault();
-
-			let title = 'Custom app';
-			let description = '';
-			let author = '';
-			let blueprintUrl: string;
-
-			if (isAllowedBlueprintUrl(trimmed)) {
-				blueprintUrl = trimmed;
-				const filename =
-					new URL(trimmed).pathname.split('/').pop() || '';
-				if (filename) {
-					title = filename
-						.replace(/\.json$/, '')
-						.replace(/[-_]/g, ' ');
-				}
-			} else {
-				try {
-					const blueprint = JSON.parse(trimmed);
-					if (blueprint.meta?.title) title = blueprint.meta.title;
-					if (blueprint.meta?.description)
-						description = blueprint.meta.description;
-					if (blueprint.meta?.author) author = blueprint.meta.author;
-				} catch {
-					return;
-				}
-				blueprintUrl = blueprintToDataUrl(trimmed);
-			}
-
-			addApp({
-				title,
-				description: description || 'Custom app',
-				author: author || undefined,
-				blueprintUrl,
-			});
-		},
-		[addApp]
-	);
-
-	useEffect(() => {
-		document.addEventListener('paste', handlePaste);
-		return () => document.removeEventListener('paste', handlePaste);
-	}, [handlePaste]);
-
-	const {
-		data: appsData,
-		isLoading,
-		isError,
-	} = useFetch<Record<string, AppEntry>>(APPS_INDEX_URL);
-
-	const remoteApps = appsData
-		? Object.entries(appsData).map(([path, entry]) => ({
-				...entry,
-				path,
-				blueprintUrl: `${APPS_BASE_URL}${path}`,
-				isCustom: false as const,
-			}))
-		: [];
-
-	const customAppsByTitle = new Map(
-		customApps.map((app) => [app.title.toLowerCase(), app])
-	);
-
-	const allApps = [
-		...remoteApps.map((app) => {
-			const customOverride = customAppsByTitle.get(
-				app.title.toLowerCase()
-			);
-			if (customOverride) {
-				customAppsByTitle.delete(app.title.toLowerCase());
-				return {
-					...customOverride,
-					path: customOverride.id,
-					isCustom: true as const,
-				};
-			}
-			return app;
-		}),
-		...[...customAppsByTitle.values()].map((app) => ({
-			...app,
-			path: app.id,
-			isCustom: true as const,
-		})),
-	];
-
 	return (
-		<div className={css.aboutSection} ref={sectionRef}>
-			<h4 className={css.aboutSectionTitle}>Install Apps</h4>
-			<p className={css.aboutSectionHint}>
-				Paste a blueprint URL or JSON to add a custom app.
-			</p>
-			{isLoading ? (
-				<div className={css.appsLoading}>
-					<Spinner />
+		<div className={css.aboutSection}>
+			<h4 className={css.aboutSectionTitle}>
+				Installing apps has moved here:
+			</h4>
+			<div className={css.appsList}>
+				<div className={css.appRow}>
+					<a
+						className={css.appLink}
+						href={getAppBlueprintUrl(APP_LAUNCHER_BLUEPRINT_URL)}
+					>
+						<span className={css.appIcon}>
+							<WordPressIcon />
+						</span>
+						<span className={css.appContent}>
+							<span className={css.appTitle}>
+								{APP_LAUNCHER_BLUEPRINT.meta.title}
+							</span>
+							<span className={css.appDescription}>
+								{APP_LAUNCHER_BLUEPRINT.meta.description}
+							</span>
+						</span>
+					</a>
 				</div>
-			) : isError && customApps.length === 0 ? (
-				<p className={css.aboutNote}>
-					Unable to load apps. Check your connection.
-				</p>
-			) : (
-				<div className={css.appsList}>
-					{allApps.map((app) => (
-						<div key={app.path} className={css.appRow}>
-							<a
-								className={css.appLink}
-								href={getAppBlueprintUrl(app.blueprintUrl)}
-							>
-								<span className={css.appIcon}>
-									<WordPressIcon />
-								</span>
-								<span className={css.appContent}>
-									<span className={css.appTitle}>
-										{app.title}
-									</span>
-									<span className={css.appDescription}>
-										{app.description}
-										{app.author && (
-											<span className={css.appAuthor}>
-												{' '}
-												by {app.author}
-											</span>
-										)}
-									</span>
-								</span>
-							</a>
-							{app.isCustom && (
-								<button
-									className={css.appRemoveButton}
-									onClick={() => removeApp(app.path)}
-									aria-label={`Remove app ${app.title}`}
-									title="Remove app"
-									type="button"
-								>
-									<Icon icon={trash} size={16} />
-								</button>
-							)}
-						</div>
-					))}
-				</div>
-			)}
+			</div>
 		</div>
 	);
 }
