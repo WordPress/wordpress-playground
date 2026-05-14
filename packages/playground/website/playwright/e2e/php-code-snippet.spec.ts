@@ -84,6 +84,52 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(0);
 	});
 
+	test('wp=none progress copy says runtime instead of WordPress', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const phpOnly = page.locator('php-snippet[name="just-php.php"]');
+		const withWordPress = page.locator('php-snippet[name="hello.php"]');
+
+		await expect(phpOnly).toBeVisible();
+		await expect(withWordPress).toBeVisible();
+		await expect
+			.poll(() =>
+				phpOnly.evaluate((snippet: any) =>
+					snippet._getRunProgressLabel('Preparing WordPress')
+				)
+			)
+			.toBe('Preparing runtime');
+		await expect
+			.poll(() =>
+				withWordPress.evaluate((snippet: any) =>
+					snippet._getRunProgressLabel('Preparing WordPress')
+				)
+			)
+			.toBe('Preparing WordPress');
+	});
+
+	test('Run button width stays stable across progress labels', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const runButton = editable.locator('.run');
+		const idleBox = await runButton.boundingBox();
+		expect(idleBox).not.toBeNull();
+
+		await editable.evaluate((snippet: any) => {
+			const runButton = snippet.shadowRoot.querySelector('.run');
+			runButton.setAttribute('aria-busy', 'true');
+			snippet._setRunButtonProgress('Preparing runtime', 100);
+		});
+
+		const progressBox = await runButton.boundingBox();
+		expect(progressBox).not.toBeNull();
+		expect(Math.round(progressBox!.width)).toBe(Math.round(idleBox!.width));
+	});
+
 	test('first Run boots the runtime and shows button progress + output', async ({
 		page,
 	}) => {
@@ -217,7 +263,8 @@ test.describe('php-code-snippet embed', () => {
 
 		// Replace the snippet contents with something we can uniquely identify
 		// in the output panel.
-		await textarea.click();
+		await editable.locator('.editor').click();
+		await expect(textarea).toBeFocused();
 		await textarea.evaluate((el: HTMLTextAreaElement) => {
 			el.value = '<?php echo "edited:" . (40 + 2);';
 			el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -300,6 +347,75 @@ test.describe('php-code-snippet embed', () => {
 			'run-count:1'
 		);
 		await expect(runButton).toBeEnabled();
+	});
+
+	test('Run button works while the code editor textarea is focused', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function (code: string) {
+				this._testRunCount += 1;
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}; hasTyped:${code.includes('typed-marker')}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const editor = editable.locator('.editor');
+		await editor.scrollIntoViewIfNeeded();
+		const editorBox = await editor.boundingBox();
+		expect(editorBox).not.toBeNull();
+		const textarea = editable.locator('textarea.ta');
+		const thirdLineEnd = await textarea.evaluate(
+			(el: HTMLTextAreaElement) => {
+				const lines = el.value.split('\n');
+				return {
+					lineEnd:
+						lines[0].length +
+						1 +
+						lines[1].length +
+						1 +
+						lines[2].length,
+					lineTop:
+						parseFloat(getComputedStyle(el).paddingTop) +
+						parseFloat(getComputedStyle(el).lineHeight) * 2,
+				};
+			}
+		);
+		await page.mouse.click(
+			editorBox!.x + editorBox!.width - 24,
+			editorBox!.y + thirdLineEnd.lineTop + 4
+		);
+
+		await expect(textarea).toBeFocused();
+		await expect
+			.poll(() =>
+				textarea.evaluate(
+					(el: HTMLTextAreaElement) => el.selectionStart
+				)
+			)
+			.toBe(thirdLineEnd.lineEnd);
+		await page.keyboard.type(' // typed-marker');
+
+		const runButton = editable.locator('.run');
+		const runBox = await runButton.boundingBox();
+		expect(runBox).not.toBeNull();
+		await page.mouse.click(
+			runBox!.x + runBox!.width / 2,
+			runBox!.y + runBox!.height / 2
+		);
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:1; hasTyped:true'
+		);
+		await expect(textarea).toBeFocused({ timeout: 1000 });
 	});
 
 	test('Run button handles repeated mouse clicks after completion', async ({

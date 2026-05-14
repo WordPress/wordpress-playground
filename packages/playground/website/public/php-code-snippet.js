@@ -234,7 +234,7 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 	iframe.title = 'PHP Snippet runtime';
 	iframe.setAttribute('aria-hidden', 'true');
 	iframe.style.cssText =
-		'position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;';
+		'position:absolute;width:1px;height:1px;border:0;opacity:0;left:-9999px;';
 	iframe.src = `${origin}/remote.html`;
 	document.body.appendChild(iframe);
 	// wp="none" maps to the Blueprint's declarative
@@ -554,6 +554,7 @@ const TEMPLATE_CSS = `
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 	font-size: 13px;
 	color: #57606a;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -571,20 +572,29 @@ const TEMPLATE_CSS = `
 	font-weight: 500;
 	cursor: pointer;
 	flex-shrink: 0;
-	min-width: 86px;
+	width: 210px;
+	max-width: 100%;
 	justify-content: center;
 }
 .run:hover { background: #1d4ed8; }
 .run[aria-busy="true"] { background: #93c5fd; cursor: progress; }
 .run[aria-busy="true"]:hover { background: #93c5fd; }
 .run-icon { font-size: 10px; }
+.run-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 .run-shortcut {
 	font-size: 11px;
 	font-weight: 400;
 	opacity: 0.82;
+	flex-shrink: 0;
 }
 .run-spinner {
 	display: none;
+	flex-shrink: 0;
 	width: 12px;
 	height: 12px;
 	border: 2px solid rgba(255, 255, 255, 0.45);
@@ -594,6 +604,7 @@ const TEMPLATE_CSS = `
 }
 .run-percent {
 	display: none;
+	flex-shrink: 0;
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
 }
@@ -640,7 +651,6 @@ pre {
 }
 .editor pre {
 	color: #24292f;
-	pointer-events: none;
 	overflow: hidden;
 	min-height: 1.5em;
 }
@@ -731,7 +741,9 @@ class PhpSnippet extends HTMLElement {
 		this._pendingRun = false;
 		this._isRunning = false;
 		this._rerunRequested = false;
-		this._pointerActivatedRun = false;
+		this._skipNextPointerClick = false;
+		this._lastFocusedEditor = null;
+		this._restoreEditorFocusAfterRun = false;
 		this.shadowRoot.addEventListener('pointerdown', (event) => {
 			const target = event.target;
 			const runButton =
@@ -739,23 +751,33 @@ class PhpSnippet extends HTMLElement {
 			if (!runButton || event.button !== 0) {
 				return;
 			}
-			this._pointerActivatedRun = true;
+			const activeElement =
+				this._lastFocusedEditor || this.shadowRoot.activeElement;
+			event.preventDefault();
+			this._skipNextPointerClick = true;
 			this._run();
-		});
-		this.shadowRoot.addEventListener('pointerup', () => {
-			setTimeout(() => {
-				this._pointerActivatedRun = false;
-			}, 0);
-		});
-		this.shadowRoot.addEventListener('pointercancel', () => {
-			this._pointerActivatedRun = false;
+			if (
+				activeElement instanceof Element &&
+				activeElement.matches('textarea.ta')
+			) {
+				this._restoreEditorFocusAfterRun = true;
+				const restoreEditorFocus = () => this._restoreEditorFocus();
+				document.addEventListener('pointerup', restoreEditorFocus, {
+					once: true,
+				});
+				document.addEventListener('pointercancel', restoreEditorFocus, {
+					once: true,
+				});
+			}
 		});
 		this.shadowRoot.addEventListener('click', (event) => {
 			const target = event.target;
 			if (target instanceof Element && target.closest('.run')) {
-				if (this._pointerActivatedRun && event.detail !== 0) {
-					this._pointerActivatedRun = false;
-					return;
+				if (this._skipNextPointerClick) {
+					this._skipNextPointerClick = false;
+					if (event.detail !== 0) {
+						return;
+					}
 				}
 				this._run();
 			}
@@ -884,6 +906,9 @@ class PhpSnippet extends HTMLElement {
 			this._code = textarea.value;
 			hl.innerHTML = highlightPhp(this._code);
 		};
+		textarea.addEventListener('focus', () => {
+			this._lastFocusedEditor = textarea;
+		});
 		textarea.addEventListener('input', sync);
 		textarea.addEventListener('keydown', (e) => {
 			if (e.key === 'Tab') {
@@ -925,6 +950,10 @@ class PhpSnippet extends HTMLElement {
 			this._isRunning = false;
 			currentBtn.removeAttribute('aria-busy');
 			this._setRunButtonProgress('Run', 0);
+			if (this._restoreEditorFocusAfterRun) {
+				this._restoreEditorFocusAfterRun = false;
+				this._restoreEditorFocus();
+			}
 		}
 	}
 
@@ -947,7 +976,10 @@ class PhpSnippet extends HTMLElement {
 				},
 				({ progress: pct, caption: cap }) => {
 					const rounded = Math.round(pct);
-					this._setRunButtonProgress(cap || 'Loading', rounded);
+					this._setRunButtonProgress(
+						this._getRunProgressLabel(cap || 'Loading'),
+						rounded
+					);
 				}
 			);
 			this._setRunButtonProgress('Running', 100);
@@ -978,6 +1010,28 @@ class PhpSnippet extends HTMLElement {
 		if (runPercent) {
 			runPercent.textContent = Math.round(pct) + '%';
 		}
+	}
+
+	_getRunProgressLabel(label) {
+		if (
+			(this.getAttribute('wp') || DEFAULT_WP) === 'none' &&
+			label === 'Preparing WordPress'
+		) {
+			return 'Preparing runtime';
+		}
+		return label;
+	}
+
+	_restoreEditorFocus() {
+		const editor = this._lastFocusedEditor;
+		if (!(editor instanceof Element) || !editor.isConnected) {
+			return;
+		}
+		requestAnimationFrame(() => {
+			if (editor.isConnected) {
+				editor.focus({ preventScroll: true });
+			}
+		});
 	}
 
 	/*
