@@ -28,6 +28,8 @@ const exportHostDir = path.join(tempRoot, 'exports');
 const blueprintPath = path.join(tempRoot, 'blueprint.json');
 const exportDir = path.join(exportHostDir, 'site');
 const scopedExportDir = path.join(exportHostDir, 'scoped-site');
+const cliZipPath = path.join(exportHostDir, 'cli-site.zip');
+const cliExportDir = path.join(tempRoot, 'cli-site');
 const wpVersion = process.env.SSGWP_SMOKE_WP_VERSION || '6.8';
 const phpVersion = process.env.SSGWP_SMOKE_PHP_VERSION || '8.3';
 const cliAttempts = Number.parseInt(
@@ -44,6 +46,7 @@ try {
 	runPlaygroundCli();
 	await verifyExport();
 	await verifyScopedExport();
+	verifyCliExport();
 } catch (error) {
 	failed = true;
 	console.error(error instanceof Error ? error.message : error);
@@ -59,6 +62,7 @@ try {
 function createBlueprint() {
 	return {
 		$schema: 'https://playground.wordpress.net/blueprint-schema.json',
+		extraLibraries: ['wp-cli'],
 		preferredVersions: {
 			wp: wpVersion,
 			php: phpVersion,
@@ -71,6 +75,11 @@ function createBlueprint() {
 			{
 				step: 'runPHP',
 				code: createSmokePhp(),
+			},
+			{
+				step: 'wp-cli',
+				command:
+					'wp static-site export --output=/exports/cli-site.zip --fetch-mode=internal --max-pages=90',
 			},
 		],
 	};
@@ -94,6 +103,89 @@ global $wp_rewrite;
 $wp_rewrite->set_permalink_structure('/%postname%/');
 $wp_rewrite->flush_rules();
 kses_remove_filters();
+
+$theme_dir = trailingslashit(get_theme_root()) . 'ssgwp-smoke-theme';
+wp_mkdir_p($theme_dir);
+file_put_contents(
+	$theme_dir . '/style.css',
+	"/*\\nTheme Name: SSGWP Smoke Theme\\n*/\\nbody{font-family:sans-serif}.smoke-theme-marker{color:#123456}"
+);
+file_put_contents(
+	$theme_dir . '/theme-marker.css',
+	'.smoke-theme-marker{border-bottom:3px solid #123456}'
+);
+file_put_contents(
+	$theme_dir . '/functions.php',
+	"<?php\\nadd_theme_support('title-tag');\\n"
+);
+file_put_contents(
+	$theme_dir . '/header.php',
+<<<'SSGWP_THEME'
+<!doctype html>
+<html <?php language_attributes(); ?>>
+<head>
+	<meta charset="<?php bloginfo( 'charset' ); ?>">
+	<link rel="stylesheet" href="<?php echo esc_url( get_stylesheet_directory_uri() . '/theme-marker.css' ); ?>">
+	<?php wp_head(); ?>
+</head>
+<body <?php body_class( 'smoke-theme-marker' ); ?>>
+SSGWP_THEME
+);
+file_put_contents(
+	$theme_dir . '/footer.php',
+<<<'SSGWP_THEME'
+	<?php wp_footer(); ?>
+</body>
+</html>
+SSGWP_THEME
+);
+file_put_contents(
+	$theme_dir . '/index.php',
+<<<'SSGWP_THEME'
+<?php get_header(); ?>
+<main data-smoke-template="home">
+	<h1>Smoke Theme Home</h1>
+	<p>Custom smoke theme homepage marker.</p>
+	<?php if ( have_posts() ) : ?>
+		<ul>
+			<?php while ( have_posts() ) : the_post(); ?>
+				<li><a class="archive-link" href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
+			<?php endwhile; ?>
+		</ul>
+	<?php endif; ?>
+</main>
+<?php get_footer(); ?>
+SSGWP_THEME
+);
+file_put_contents(
+	$theme_dir . '/single.php',
+<<<'SSGWP_THEME'
+<?php get_header(); ?>
+<?php while ( have_posts() ) : the_post(); ?>
+<main data-smoke-template="single">
+	<h1><?php the_title(); ?></h1>
+	<p>Smoke Theme Single</p>
+	<?php the_content(); ?>
+</main>
+<?php endwhile; ?>
+<?php get_footer(); ?>
+SSGWP_THEME
+);
+file_put_contents(
+	$theme_dir . '/page.php',
+<<<'SSGWP_THEME'
+<?php get_header(); ?>
+<?php while ( have_posts() ) : the_post(); ?>
+<main data-smoke-template="page">
+	<h1><?php the_title(); ?></h1>
+	<p>Smoke Theme Page</p>
+	<?php the_content(); ?>
+</main>
+<?php endwhile; ?>
+<?php get_footer(); ?>
+SSGWP_THEME
+);
+switch_theme('ssgwp-smoke-theme');
 
 $upload_dir = wp_upload_dir();
 $asset_path = trailingslashit($upload_dir['basedir']) . 'ssgwp-smoke-asset.txt';
@@ -143,6 +235,30 @@ $sourcemap_css_url = content_url('plugins/ssgwp-smoke-deps/app.css');
 $filter_svg_url = content_url('plugins/ssgwp-smoke-deps/filter.svg');
 $browserconfig_url = content_url('plugins/ssgwp-smoke-deps/browserconfig.xml');
 $player_config_url = content_url('plugins/ssgwp-smoke-deps/player.json');
+
+$first_post_id = wp_insert_post(array(
+	'post_type' => 'post',
+	'post_status' => 'publish',
+	'post_title' => 'First Smoke Post',
+	'post_name' => 'first-smoke-post',
+	'post_content' => '<p>First smoke post unique body.</p>',
+));
+
+$second_post_id = wp_insert_post(array(
+	'post_type' => 'post',
+	'post_status' => 'publish',
+	'post_title' => 'Second Smoke Post',
+	'post_name' => 'second-smoke-post',
+	'post_content' => '<p>Second smoke post unique body.</p>',
+));
+
+$about_page_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'About Export',
+	'post_name' => 'about-export',
+	'post_content' => '<p>About export page unique body.</p>',
+));
 
 $child_id = wp_insert_post(array(
 	'post_type' => 'page',
@@ -534,6 +650,9 @@ wp_update_post(array(
 ));
 
 $child_url = get_permalink($child_id);
+$first_post_url = get_permalink($first_post_id);
+$second_post_url = get_permalink($second_post_id);
+$about_page_url = get_permalink($about_page_id);
 $comments_url = get_permalink($comments_id);
 $embed_url = get_permalink($embed_id);
 $deferred_url = get_permalink($deferred_id);
@@ -587,6 +706,9 @@ $oembed_query_url = '/?oembed=true&url=' . rawurlencode($child_url);
 $semicolon_refresh_query = 'jump=one;two';
 $static_content = '<p id="section">Static smoke page.</p>'
 	. '<base href="' . esc_url(home_url('/')) . '">'
+	. '<p><a class="first-post-link" href="' . esc_url($first_post_url) . '">First post</a></p>'
+	. '<p><a class="second-post-link" href="' . esc_url($second_post_url) . '">Second post</a></p>'
+	. '<p><a class="about-page-link" href="' . esc_url($about_page_url) . '">About export</a></p>'
 	. '<p><a class="child-link" href="' . esc_url($child_url) . '">Child</a></p>'
 	. '<p><a class="deferred-link" data-href="' . esc_url($deferred_url) . '">Deferred</a></p>'
 	. '<p><button data-href="' . esc_url($asset_url . '?deferred=1') . '">Deferred asset</button></p>'
@@ -740,7 +862,7 @@ wp_insert_post(array(
 $exporter = new SSGWP_Static_Exporter();
 $result = $exporter->export_to_directory('/exports/site', array(
 	'url_mode' => 'relative',
-	'max_pages' => 60,
+	'max_pages' => 90,
 	'copy_uploads' => true,
 	'copy_theme' => true,
 	'copy_plugins' => false,
@@ -777,6 +899,9 @@ add_filter('includes_url', function($url, $path) use ($scoped_home) {
 }, 10, 2);
 
 $scoped_child_url = get_permalink($child_id);
+$scoped_first_post_url = get_permalink($first_post_id);
+$scoped_second_post_url = get_permalink($second_post_id);
+$scoped_about_page_url = get_permalink($about_page_id);
 $scoped_comments_url = get_permalink($comments_id);
 $scoped_embed_url = get_permalink($embed_id);
 $scoped_deferred_url = get_permalink($deferred_id);
@@ -839,6 +964,9 @@ $scoped_child_path = wp_parse_url($scoped_child_url, PHP_URL_PATH);
 $scoped_asset_path = wp_parse_url($scoped_asset_url, PHP_URL_PATH);
 $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<base href="' . esc_url(home_url('/')) . '">'
+	. '<p><a class="first-post-link" href="' . esc_url($scoped_first_post_url) . '">First post</a></p>'
+	. '<p><a class="second-post-link" href="' . esc_url($scoped_second_post_url) . '">Second post</a></p>'
+	. '<p><a class="about-page-link" href="' . esc_url($scoped_about_page_url) . '">About export</a></p>'
 	. '<p><a class="child-link" href="' . esc_url($scoped_child_url) . '">Child</a></p>'
 	. '<p><a class="deferred-link" data-href="' . esc_url($scoped_deferred_url) . '">Deferred</a></p>'
 	. '<p><button data-href="' . esc_url($scoped_asset_url . '?deferred=1') . '">Deferred asset</button></p>'
@@ -986,7 +1114,7 @@ wp_update_post(array(
 
 $scoped_result = $exporter->export_to_directory('/exports/scoped-site', array(
 	'url_mode' => 'relative',
-	'max_pages' => 60,
+	'max_pages' => 90,
 	'copy_uploads' => true,
 	'copy_theme' => true,
 	'copy_plugins' => false,
@@ -1071,6 +1199,9 @@ function isRetryableCliFailure(result) {
 async function verifyExport() {
 	currentExportDir = exportDir;
 	assertFile('index.html');
+	assertFile('first-smoke-post/index.html');
+	assertFile('second-smoke-post/index.html');
+	assertFile('about-export/index.html');
 	assertFile('static-page/index.html');
 	assertFile(`static-page-${shortHash('jump=one%3Btwo')}.html`);
 	assertFile('static-page/relative-child/index.html');
@@ -1122,6 +1253,7 @@ async function verifyExport() {
 	assertFile('preloaded-document/index.html');
 	assertFile('parent-page/index.html');
 	assertFile('parent-page/child-page/index.html');
+	assertFile('wp-content/themes/ssgwp-smoke-theme/theme-marker.css');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/uploads/ssgwp-smoke-captions.vtt');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
@@ -1137,10 +1269,14 @@ async function verifyExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/filter.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/tile-small.png');
 	assertFile('static-export.json');
+	assertDistinctSmokeContent();
 
 	const staticPage = readText('static-page/index.html');
 	const semicolonRefreshTarget = `../static-page-${shortHash('jump=one%3Btwo')}.html#section`;
 	const expectedTargets = [
+		'../first-smoke-post/index.html',
+		'../second-smoke-post/index.html',
+		'../about-export/index.html',
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
@@ -1690,6 +1826,9 @@ async function verifyScopedExport() {
 	currentExportDir = scopedExportDir;
 
 	assertFile('index.html');
+	assertFile('first-smoke-post/index.html');
+	assertFile('second-smoke-post/index.html');
+	assertFile('about-export/index.html');
 	assertFile('static-page/index.html');
 	assertFile(`static-page-${shortHash('jump=one%3Btwo')}.html`);
 	assertFile('static-page/relative-child/index.html');
@@ -1738,6 +1877,7 @@ async function verifyScopedExport() {
 	assertFile('schema-subject/index.html');
 	assertFile('schema-citation/index.html');
 	assertFile('parent-page/child-page/index.html');
+	assertFile('wp-content/themes/ssgwp-smoke-theme/theme-marker.css');
 	assertFile('wp-content/uploads/ssgwp-smoke-asset.txt');
 	assertFile('wp-content/uploads/ssgwp-smoke-captions.vtt');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/manifest.json');
@@ -1753,6 +1893,7 @@ async function verifyScopedExport() {
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/filter.png');
 	assertFile('wp-content/plugins/ssgwp-smoke-deps/icons/tile-small.png');
 	assertFile('static-export.json');
+	assertDistinctSmokeContent();
 
 	const files = await listFiles(currentExportDir);
 	const duplicatedScope = 'scope%3Asad-quiet-school/scope%3Asad-quiet-school';
@@ -1770,6 +1911,9 @@ async function verifyScopedExport() {
 	const staticPage = readText('static-page/index.html');
 	const semicolonRefreshTarget = `../static-page-${shortHash('jump=one%3Btwo')}.html#section`;
 	const expectedTargets = [
+		'../first-smoke-post/index.html',
+		'../second-smoke-post/index.html',
+		'../about-export/index.html',
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
 		'../parent-page/index.html',
@@ -2315,11 +2459,134 @@ async function verifyScopedExport() {
 	await assertAllLocalResourceTargetsExist();
 }
 
+function verifyCliExport() {
+	assertFileExists(cliZipPath, 'Missing WP-CLI static export ZIP.');
+	mkdirSync(cliExportDir, { recursive: true });
+
+	const result = spawnSync(
+		'php',
+		[
+			'-r',
+			[
+				'$zip = new ZipArchive();',
+				'$status = $zip->open(getenv("SSGWP_ZIP"));',
+				'if (true !== $status) { fwrite(STDERR, "Could not open ZIP: " . $status . "\\n"); exit(1); }',
+				'if (!$zip->extractTo(getenv("SSGWP_ZIP_OUT"))) { fwrite(STDERR, "Could not extract ZIP\\n"); exit(1); }',
+				'$zip->close();',
+			].join(' '),
+		],
+		{
+			encoding: 'utf8',
+			env: {
+				...process.env,
+				SSGWP_ZIP: cliZipPath,
+				SSGWP_ZIP_OUT: cliExportDir,
+			},
+			stdio: 'pipe',
+		}
+	);
+
+	if (result.status !== 0) {
+		throw new Error(
+			[
+				'Could not inspect WP-CLI static export ZIP.',
+				`Exit status: ${result.status === null ? 'unknown' : result.status}`,
+				`Signal: ${result.signal || 'none'}`,
+				`STDOUT:\n${result.stdout || ''}`,
+				`STDERR:\n${result.stderr || ''}`,
+			].join('\n')
+		);
+	}
+
+	currentExportDir = cliExportDir;
+	assertFile('static-export.json');
+	assertDistinctSmokeContent();
+}
+
+function assertDistinctSmokeContent() {
+	const home = readText('index.html');
+	const firstPost = readText('first-smoke-post/index.html');
+	const secondPost = readText('second-smoke-post/index.html');
+	const aboutPage = readText('about-export/index.html');
+	const staticPage = readText('static-page/index.html');
+
+	assertIncludes(
+		home,
+		'data-smoke-template="home"',
+		'homepage uses the custom smoke theme index template'
+	);
+	assertIncludes(
+		home,
+		'Custom smoke theme homepage marker.',
+		'homepage contains the custom theme homepage marker'
+	);
+	assertIncludes(
+		firstPost,
+		'data-smoke-template="single"',
+		'first post uses the custom smoke theme single template'
+	);
+	assertIncludes(
+		firstPost,
+		'First smoke post unique body.',
+		'first post exports its own content'
+	);
+	assertDoesNotInclude(
+		firstPost,
+		'Custom smoke theme homepage marker.',
+		'first post is not the homepage HTML'
+	);
+	assertIncludes(
+		secondPost,
+		'data-smoke-template="single"',
+		'second post uses the custom smoke theme single template'
+	);
+	assertIncludes(
+		secondPost,
+		'Second smoke post unique body.',
+		'second post exports its own content'
+	);
+	assertDoesNotInclude(
+		secondPost,
+		'Custom smoke theme homepage marker.',
+		'second post is not the homepage HTML'
+	);
+	assertIncludes(
+		aboutPage,
+		'data-smoke-template="page"',
+		'custom page uses the custom smoke theme page template'
+	);
+	assertIncludes(
+		aboutPage,
+		'About export page unique body.',
+		'custom page exports its own content'
+	);
+	assertDoesNotInclude(
+		aboutPage,
+		'Custom smoke theme homepage marker.',
+		'custom page is not the homepage HTML'
+	);
+	assertIncludes(
+		staticPage,
+		'Static smoke page.',
+		'linked static page exports its own content'
+	);
+	assertStaticTargetExists(
+		'index.html',
+		'wp-content/themes/ssgwp-smoke-theme/theme-marker.css'
+	);
+}
+
 function assertFile(relativePath) {
 	const target = path.join(currentExportDir, relativePath);
 
 	if (!existsSync(target)) {
 		throw new Error(`Missing exported file: ${relativePath}`);
+	}
+}
+
+function assertFileExists(target, message) {
+	if (!existsSync(target)) {
+		throw new Error(message);
 	}
 }
 
@@ -2333,9 +2600,10 @@ function assertIncludes(haystack, needle, message) {
 	}
 }
 
-function assertDoesNotInclude(haystack, needle) {
+function assertDoesNotInclude(haystack, needle, message) {
 	if (haystack.includes(needle)) {
-		throw new Error(`Unexpected exported reference ${JSON.stringify(needle)}.`);
+		const prefix = message || 'Unexpected exported reference';
+		throw new Error(`${prefix}. Unexpected ${JSON.stringify(needle)}.`);
 	}
 }
 

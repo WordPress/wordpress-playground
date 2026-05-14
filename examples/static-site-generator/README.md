@@ -35,9 +35,30 @@ node examples/static-site-generator/playground-export-smoke.mjs
 ```
 
 The smoke mounts the local plugin into Playground, exports a fixture site, and
-verifies that generated page, asset, and referenced CSS targets exist. It uses
-WordPress 6.8 and PHP 8.3 by default; set `SSGWP_SMOKE_WP_VERSION` or
+verifies that generated page, post, asset, and referenced CSS targets exist.
+It installs a custom smoke theme and checks that exported posts and pages
+contain their own rendered content instead of the homepage. It uses WordPress
+6.8 and PHP 8.3 by default; set `SSGWP_SMOKE_WP_VERSION` or
 `SSGWP_SMOKE_PHP_VERSION` to test another runtime.
+
+To run an export from the Playground CLI without opening the admin screen,
+mount the plugin and a host output directory, then run the CLI export
+Blueprint:
+
+```bash
+mkdir -p ./static-site-output
+npx @wp-playground/cli@latest run-blueprint \
+	--mount=./examples/static-site-generator/plugin:/wordpress/wp-content/plugins/static-site-generator \
+	--mount=./static-site-output:/exports \
+	--blueprint=./examples/static-site-generator/blueprint-cli-export.json
+```
+
+The generated ZIP is written to `./static-site-output/static-site.zip`.
+On a regular WP-CLI-enabled WordPress site, the plugin exposes the same command:
+
+```bash
+wp static-site export --output=./static-site.zip --fetch-mode=internal
+```
 
 ## What The Plugin Exports
 

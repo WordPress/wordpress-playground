@@ -61,3 +61,21 @@ npx @wp-playground/cli@latest server \
 ```
 
 The local Blueprint activates the mounted plugin and opens the same admin export screen.
+
+To run the export from the Playground CLI without opening the admin screen,
+mount the plugin and an output directory, then run the CLI export Blueprint:
+
+```bash
+mkdir -p ./static-site-output
+npx @wp-playground/cli@latest run-blueprint \
+	--mount=./examples/static-site-generator/plugin:/wordpress/wp-content/plugins/static-site-generator \
+	--mount=./static-site-output:/exports \
+	--blueprint=./examples/static-site-generator/blueprint-cli-export.json
+```
+
+The generated ZIP is written to `./static-site-output/static-site.zip`.
+On a regular WP-CLI-enabled WordPress site, the plugin exposes the same command:
+
+```bash
+wp static-site export --output=./static-site.zip --fetch-mode=internal
+```
