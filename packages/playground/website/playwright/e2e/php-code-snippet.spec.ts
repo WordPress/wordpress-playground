@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 /**
  * E2E tests for the <php-snippet> web component embed.
  * Verifies that:
- *   - the demo page renders three snippets,
+ *   - the fixture page renders snippets,
  *   - clicking Run on the first shows real button progress that advances
  *     toward 100,
  *   - the first snippet executes and shows PHP output,
@@ -12,7 +12,9 @@ import type { Page } from '@playwright/test';
  *     than the first boot) and produce their own output.
  */
 
-const DEMO_URL = './php-code-snippet-demo.html';
+const DEMO_URL = './php-code-snippet-e2e.html';
+const DOCS_URL =
+	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
 const CLIENT_INDEX_SOURCE = `${process.cwd()}/packages/playground/client/src/index.ts`;
 const TOOLKIT_AUTOLOAD_SOURCE = `${process.cwd()}/packages/playground/website/public/php-toolkit-autoload.txt`;
 const pageErrors = new WeakMap<Page, string[]>();
@@ -42,6 +44,7 @@ test.describe('php-code-snippet embed', () => {
 			'greet-alice.php',
 			'greet-bob.php',
 			'scratch.php',
+			'reference.php',
 			'precomputed.php',
 			'just-php.php',
 			'quickstart.php',
@@ -54,10 +57,7 @@ test.describe('php-code-snippet embed', () => {
 			);
 			await expect(
 				snippet.locator('.powered-by a').nth(0)
-			).toHaveAttribute(
-				'href',
-				'https://playground.wordpress.net/php-code-snippet-demo.html'
-			);
+			).toHaveAttribute('href', DOCS_URL);
 			await expect(
 				snippet.locator('.powered-by a').nth(1)
 			).toHaveAttribute('href', 'https://wordpress.org/playground/');
@@ -65,6 +65,43 @@ test.describe('php-code-snippet embed', () => {
 				/Ctrl\+Enter|Cmd\+Enter/
 			);
 		}
+	});
+
+	test('runnable snippets are editable by default unless readonly', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const defaultEditable = page.locator('php-snippet[name="hello.php"]');
+		const readOnly = page.locator('php-snippet[name="reference.php"]');
+
+		await expect(defaultEditable).toBeVisible();
+		await expect(defaultEditable.locator('textarea.ta')).toBeVisible();
+		await expect(defaultEditable.locator('.editor')).toBeVisible();
+
+		await expect(readOnly).toBeVisible();
+		await expect(readOnly.locator('.run')).toBeVisible();
+		await expect(readOnly.locator('textarea.ta')).toHaveCount(0);
+		await expect(readOnly.locator('pre code')).toContainText(
+			'Reference only'
+		);
+
+		await page.evaluate(() => {
+			const snippet = document.createElement('php-snippet');
+			snippet.setAttribute('name', 'editable-false.php');
+			snippet.setAttribute('editable', 'false');
+			const script = document.createElement('script');
+			script.type = 'application/x-php';
+			script.textContent = '<?php echo "Locked";';
+			snippet.append(script);
+			document.body.append(snippet);
+		});
+
+		const editableFalse = page.locator(
+			'php-snippet[name="editable-false.php"]'
+		);
+		await expect(editableFalse.locator('.run')).toBeVisible();
+		await expect(editableFalse.locator('textarea.ta')).toHaveCount(0);
+		await expect(editableFalse.locator('pre code')).toContainText('Locked');
 	});
 
 	test('runnable=false renders a read-only snippet without Run', async ({

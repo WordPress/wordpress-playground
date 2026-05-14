@@ -31,9 +31,10 @@
  *   runnable="false"      hide the Run button and render the snippet as a
  *                         read-only, syntax-highlighted code block. Useful for
  *                         illustrative examples that aren't meant to execute.
- *   editable              make the snippet editable; visitors type into a
- *                         transparent textarea overlaid on the highlighted
- *                         code, and Run executes whatever they typed
+ *   readonly              render runnable snippets as read-only code blocks.
+ *                         Snippets are editable by default, and Run executes
+ *                         whatever the reader typed. editable="false" is also
+ *                         accepted as a compatibility alias.
  *   blueprint="toolkit"  CSS-selector-or-id of a JSON Blueprint container
  *                         on the page (a <script type="application/json"> is
  *                         recommended; <template> works too). Snippets that
@@ -47,7 +48,8 @@
 const DEFAULT_ORIGIN = 'https://playground.wordpress.net';
 const DEFAULT_PHP = '8.4';
 const DEFAULT_WP = 'latest';
-const DEMO_URL = 'https://playground.wordpress.net/php-code-snippet-demo.html';
+const DOCS_URL =
+	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
 const PLAYGROUND_URL = 'https://wordpress.org/playground/';
 
 /**
@@ -847,7 +849,10 @@ class PhpSnippet extends HTMLElement {
 	_render() {
 		const name = this.getAttribute('name') || 'snippet.php';
 		const runnable = this.getAttribute('runnable') !== 'false';
-		const editable = runnable && this.hasAttribute('editable');
+		const editable =
+			runnable &&
+			!this.hasAttribute('readonly') &&
+			this.getAttribute('editable') !== 'false';
 		const runShortcut = getRunShortcutLabel();
 		const style = document.createElement('style');
 		style.textContent = TEMPLATE_CSS;
@@ -880,7 +885,7 @@ class PhpSnippet extends HTMLElement {
 					<pre class="output-body"></pre>
 				</div>
 				<div class="powered-by">
-					<a href="${DEMO_URL}" target="_blank" rel="noopener noreferrer">PHP Code Snippet</a>
+					<a href="${DOCS_URL}" target="_blank" rel="noopener noreferrer">PHP Code Snippet</a>
 					powered by
 					<a href="${PLAYGROUND_URL}" target="_blank" rel="noopener noreferrer">WordPress Playground</a>
 				</div>
