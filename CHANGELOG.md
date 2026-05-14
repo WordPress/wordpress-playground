@@ -80,6 +80,9 @@ format.
 - Treat schema.org citation metadata and links in static exports as crawlable
   page references so cited source pages are generated.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Treat schema.org `mainEntityOfPage` metadata and links in static exports as
+  crawlable page references so canonical entity pages are generated.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Rewrite App Links web fallback metadata URLs in static exports so social app
   previews point at generated static pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))

@@ -472,6 +472,22 @@ $schema_main_entity_id = wp_insert_post(array(
 	'post_content' => '<p>Schema main entity export target.</p>',
 ));
 
+$schema_main_entity_page_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Main Entity Page',
+	'post_name' => 'schema-main-entity-page',
+	'post_content' => '<p>Schema main entity page export target.</p>',
+));
+
+$schema_main_entity_link_page_id = wp_insert_post(array(
+	'post_type' => 'page',
+	'post_status' => 'publish',
+	'post_title' => 'Schema Main Entity Link Page',
+	'post_name' => 'schema-main-entity-link-page',
+	'post_content' => '<p>Schema main entity link page export target.</p>',
+));
+
 $schema_mentions_id = wp_insert_post(array(
 	'post_type' => 'page',
 	'post_status' => 'publish',
@@ -557,6 +573,8 @@ $schema_contributor_url = get_permalink($schema_contributor_id);
 $schema_reviewer_url = get_permalink($schema_reviewer_id);
 $schema_about_url = get_permalink($schema_about_id);
 $schema_main_entity_url = get_permalink($schema_main_entity_id);
+$schema_main_entity_page_url = get_permalink($schema_main_entity_page_id);
+$schema_main_entity_link_page_url = get_permalink($schema_main_entity_link_page_id);
 $schema_mentions_url = get_permalink($schema_mentions_id);
 $schema_subject_url = get_permalink($schema_subject_id);
 $schema_citation_url = get_permalink($schema_citation_id);
@@ -636,6 +654,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="hasPart" href="' . esc_url($schema_part_url) . '">'
 	. '<link itemprop="publishingPrinciples" href="' . esc_url($schema_policy_url) . '">'
 	. '<link itemprop="mainEntity" href="' . esc_url($schema_main_entity_url) . '">'
+	. '<link itemprop="mainEntityOfPage" href="' . esc_url($schema_main_entity_link_page_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($schema_author_url) . '">'
@@ -644,6 +663,7 @@ $static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="contributor" href="' . esc_url($schema_contributor_url) . '">'
 	. '<meta itemprop="reviewedBy" content="' . esc_url($schema_reviewer_url) . '">'
 	. '<meta itemprop="subjectOf" content="' . esc_url($schema_subject_url) . '">'
+	. '<meta itemprop="mainEntityOfPage" content="' . esc_url($schema_main_entity_page_url) . '">'
 	. '<link itemprop="citation" href="' . esc_url($schema_citation_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($microdata_item_url) . '" itemtype="'
@@ -796,6 +816,8 @@ $scoped_schema_contributor_url = get_permalink($schema_contributor_id);
 $scoped_schema_reviewer_url = get_permalink($schema_reviewer_id);
 $scoped_schema_about_url = get_permalink($schema_about_id);
 $scoped_schema_main_entity_url = get_permalink($schema_main_entity_id);
+$scoped_schema_main_entity_page_url = get_permalink($schema_main_entity_page_id);
+$scoped_schema_main_entity_link_page_url = get_permalink($schema_main_entity_link_page_id);
 $scoped_schema_mentions_url = get_permalink($schema_mentions_id);
 $scoped_schema_subject_url = get_permalink($schema_subject_id);
 $scoped_schema_citation_url = get_permalink($schema_citation_id);
@@ -884,6 +906,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="hasPart" href="' . esc_url($scoped_schema_part_url) . '">'
 	. '<link itemprop="publishingPrinciples" href="' . esc_url($scoped_schema_policy_url) . '">'
 	. '<link itemprop="mainEntity" href="' . esc_url($scoped_schema_main_entity_url) . '">'
+	. '<link itemprop="mainEntityOfPage" href="' . esc_url($scoped_schema_main_entity_link_page_url) . '">'
 	. '<link itemprop="significantLinks" href="' . esc_url($scoped_microdata_significant_url) . '">'
 	. '<link itemprop="acquireLicensePage" href="' . esc_url($scoped_microdata_license_url) . '">'
 	. '<link itemprop="author" href="' . esc_url($scoped_schema_author_url) . '">'
@@ -892,6 +915,7 @@ $scoped_static_content = '<p id="section">Static smoke page.</p>'
 	. '<link itemprop="contributor" href="' . esc_url($scoped_schema_contributor_url) . '">'
 	. '<meta itemprop="reviewedBy" content="' . esc_url($scoped_schema_reviewer_url) . '">'
 	. '<meta itemprop="subjectOf" content="' . esc_url($scoped_schema_subject_url) . '">'
+	. '<meta itemprop="mainEntityOfPage" content="' . esc_url($scoped_schema_main_entity_page_url) . '">'
 	. '<link itemprop="citation" href="' . esc_url($scoped_schema_citation_url) . '">'
 	. '<link itemprop="contentUrl" href="' . esc_url($scoped_asset_url . '?schema-link=1') . '">'
 	. '<article itemscope itemid="' . esc_url($scoped_microdata_item_url) . '" itemtype="'
@@ -1087,6 +1111,8 @@ async function verifyExport() {
 	assertFile('schema-reviewer/index.html');
 	assertFile('schema-about/index.html');
 	assertFile('schema-main-entity/index.html');
+	assertFile('schema-main-entity-page/index.html');
+	assertFile('schema-main-entity-link-page/index.html');
 	assertFile('schema-mentions/index.html');
 	assertFile('schema-subject/index.html');
 	assertFile('schema-citation/index.html');
@@ -1159,6 +1185,8 @@ async function verifyExport() {
 		'../schema-reviewer/index.html',
 		'../schema-about/index.html',
 		'../schema-main-entity/index.html',
+		'../schema-main-entity-page/index.html',
+		'../schema-main-entity-link-page/index.html',
 		'../schema-mentions/index.html',
 		'../schema-subject/index.html',
 		'../schema-citation/index.html',
@@ -1372,6 +1400,16 @@ async function verifyExport() {
 		staticPage,
 		'<link itemprop="mainEntity" href="../schema-main-entity/index.html">',
 		'static-page/index.html rewrites schema.org mainEntity links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="mainEntityOfPage" href="../schema-main-entity-link-page/index.html">',
+		'static-page/index.html rewrites schema.org mainEntityOfPage links'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="mainEntityOfPage" content="../schema-main-entity-page/index.html">',
+		'static-page/index.html rewrites schema.org mainEntityOfPage metadata'
 	);
 	assertIncludes(
 		staticPage,
@@ -1692,6 +1730,8 @@ async function verifyScopedExport() {
 	assertFile('schema-reviewer/index.html');
 	assertFile('schema-about/index.html');
 	assertFile('schema-main-entity/index.html');
+	assertFile('schema-main-entity-page/index.html');
+	assertFile('schema-main-entity-link-page/index.html');
 	assertFile('schema-mentions/index.html');
 	assertFile('schema-subject/index.html');
 	assertFile('schema-citation/index.html');
@@ -1772,6 +1812,8 @@ async function verifyScopedExport() {
 		'../schema-reviewer/index.html',
 		'../schema-about/index.html',
 		'../schema-main-entity/index.html',
+		'../schema-main-entity-page/index.html',
+		'../schema-main-entity-link-page/index.html',
 		'../schema-mentions/index.html',
 		'../schema-subject/index.html',
 		'../schema-citation/index.html',
@@ -1968,6 +2010,16 @@ async function verifyScopedExport() {
 		staticPage,
 		'<link itemprop="mainEntity" href="../schema-main-entity/index.html">',
 		'scoped static-page/index.html rewrites schema.org mainEntity links'
+	);
+	assertIncludes(
+		staticPage,
+		'<link itemprop="mainEntityOfPage" href="../schema-main-entity-link-page/index.html">',
+		'scoped static-page/index.html rewrites schema.org mainEntityOfPage links'
+	);
+	assertIncludes(
+		staticPage,
+		'<meta itemprop="mainEntityOfPage" content="../schema-main-entity-page/index.html">',
+		'scoped static-page/index.html rewrites schema.org mainEntityOfPage metadata'
 	);
 	assertIncludes(
 		staticPage,

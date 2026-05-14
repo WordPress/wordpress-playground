@@ -980,6 +980,7 @@ $pattern_meta_content_rewritten = $pattern_meta_content_method->invoke(
 		. '<meta itemprop="citation" content="/citation-source/">'
 		. '<meta itemprop="sameAs" content="/schema-profile/">'
 		. '<meta itemprop="mentions" content="/schema-mentions/">'
+		. '<meta itemprop="mainEntityOfPage" content="/schema-main-entity-page/">'
 		. '<meta itemprop="discussionUrl" content="/schema-discussion/">'
 		. '<meta itemprop="item" content="/schema-breadcrumb/">'
 		. '<meta itemprop="hasPart" content="/schema-part/">'
@@ -1044,6 +1045,12 @@ ssgwp_assert_contains(
 	'<meta itemprop="mentions" content="schema-mentions/index.html">',
 	$pattern_meta_content_rewritten,
 	'rewrite_meta_content_urls_with_patterns rewrites schema.org mentions page URLs.'
+);
+
+ssgwp_assert_contains(
+	'<meta itemprop="mainEntityOfPage" content="schema-main-entity-page/index.html">',
+	$pattern_meta_content_rewritten,
+	'rewrite_meta_content_urls_with_patterns rewrites schema.org mainEntityOfPage URLs.'
 );
 
 ssgwp_assert_contains(
@@ -1340,6 +1347,7 @@ $html = implode(
 		'<link itemprop="isPartOf" href="/schema-collection/">',
 		'<link itemprop="isBasedOnUrl" href="/schema-source/">',
 		'<link itemprop="mainEntity" href="/schema-main-entity/">',
+		'<link itemprop="mainEntityOfPage" href="/schema-main-entity-link-page/">',
 		'<link itemprop="significantLinks" href="/microdata-significant/">',
 		'<link itemprop="publishingPrinciples" href="/publishing-principles/">',
 		'<link itemprop="acquireLicensePage" href="/microdata-license/">',
@@ -1407,6 +1415,7 @@ $html = implode(
 		'<meta itemprop="publisher" content="/schema-publisher/">',
 		'<meta itemprop="reviewedBy" content="/schema-reviewer/">',
 		'<meta itemprop="subjectOf" content="/schema-subject/">',
+		'<meta itemprop="mainEntityOfPage" content="/schema-main-entity-page/">',
 		'<meta itemprop="citation" content="/schema-citation/">',
 		'<meta itemprop="url sameAs" content="/schema-token-profile/">',
 		'<meta itemprop="image thumbnailUrl" content="/wp-content/uploads/social.jpg?schema-token=1">',
@@ -1751,6 +1760,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<link itemprop="mainEntityOfPage" href="schema-main-entity-link-page/index.html">',
+	$result['content'],
+	'rewrite_html treats schema.org mainEntityOfPage itemprop link URLs as page links.'
+);
+
+ssgwp_assert_contains(
 	'<link itemprop="significantLinks" href="microdata-significant/index.html">',
 	$result['content'],
 	'rewrite_html treats schema.org significantLinks itemprop link URLs as page links.'
@@ -2033,6 +2048,12 @@ ssgwp_assert_same(
 	true,
 	in_array( 'https://example.test/schema-main-entity/', $result['links'], true ),
 	'rewrite_html records schema.org mainEntity itemprop links as links to crawl.'
+);
+
+ssgwp_assert_same(
+	true,
+	in_array( 'https://example.test/schema-main-entity-link-page/', $result['links'], true ),
+	'rewrite_html records schema.org mainEntityOfPage itemprop links as links to crawl.'
 );
 
 ssgwp_assert_same(
@@ -2591,6 +2612,12 @@ ssgwp_assert_contains(
 );
 
 ssgwp_assert_contains(
+	'<meta itemprop="mainEntityOfPage" content="schema-main-entity-page/index.html">',
+	$result['content'],
+	'rewrite_html rewrites schema.org mainEntityOfPage URLs in meta content attributes.'
+);
+
+ssgwp_assert_contains(
 	'<meta itemprop="citation" content="schema-citation/index.html">',
 	$result['content'],
 	'rewrite_html rewrites schema.org citation page URLs in meta content attributes.'
@@ -2660,6 +2687,7 @@ $meta_only_result = $rewriter->rewrite_html(
 		. '<meta itemprop="publisher" content="/schema-publisher/">'
 		. '<meta itemprop="reviewedBy" content="/schema-reviewer/">'
 		. '<meta itemprop="subjectOf" content="/schema-subject/">'
+		. '<meta itemprop="mainEntityOfPage" content="/schema-main-entity-page/">'
 		. '<meta itemprop="citation" content="/schema-citation/">'
 		. '<meta itemprop="url sameAs" content="/schema-token-profile/">'
 		. '<meta itemprop="image thumbnailUrl" content="/wp-content/uploads/social.jpg?schema-token=1">'
@@ -2695,6 +2723,7 @@ ssgwp_assert_same(
 		'https://example.test/schema-publisher/',
 		'https://example.test/schema-reviewer/',
 		'https://example.test/schema-subject/',
+		'https://example.test/schema-main-entity-page/',
 		'https://example.test/schema-citation/',
 		'https://example.test/schema-token-profile/',
 		'https://example.test/start-page/',
