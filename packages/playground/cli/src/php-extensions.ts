@@ -1,16 +1,11 @@
-import { readFileSync } from 'node:fs';
-import type {
-	PHPExtension,
-	RuntimePHPExtensionSource,
-	XdebugOptions,
-} from '@php-wasm/node';
+import type { PHPExtension, XdebugOptions } from '@php-wasm/node';
 
 /**
  * Converts Playground CLI extension options into the runtime `extensions`
  * array.
  *
  * The CLI receives built-in extensions as individual options (`intl`, `redis`,
- * `memcached`, and `xdebug`) and external extensions as manifest/config paths.
+ * `memcached`, and `xdebug`) and external extensions as manifest paths.
  * The PHP runtime expects one array that can contain built-in names and
  * external extension sources side by side.
  *
@@ -24,7 +19,6 @@ export function cliExtensionArgsToExtensionsArray(args: {
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
 	phpExtension?: string[];
-	phpExtensionConfig?: string[];
 }): PHPExtension[] {
 	const extensions: PHPExtension[] = [];
 	if (args.intl) {
@@ -51,61 +45,5 @@ export function cliExtensionArgsToExtensionsArray(args: {
 			},
 		});
 	}
-	for (const configPath of args.phpExtensionConfig || []) {
-		extensions.push(readPHPExtensionConfig(configPath));
-	}
 	return extensions;
-}
-
-export function readPHPExtensionConfig(
-	configPath: string
-): RuntimePHPExtensionSource {
-	let config: unknown;
-	try {
-		config = JSON.parse(readFileSync(configPath, 'utf8'));
-	} catch (error) {
-		throw new Error(`Could not read PHP extension config: ${configPath}`, {
-			cause: error,
-		});
-	}
-
-	if (!isRecord(config) || !isRecord(config['source'])) {
-		throw new Error(
-			`Invalid PHP extension config: ${configPath}. Expected an object with a source field.`
-		);
-	}
-
-	const source = config['source'];
-	if (source['format'] === 'so') {
-		throw new Error(
-			`Invalid PHP extension config: ${configPath}. The CLI cannot load direct bytes; use a manifest or URL source.`
-		);
-	}
-	if (source['format'] === 'url') {
-		if (typeof source['url'] !== 'string') {
-			throw new Error(
-				`Invalid PHP extension config: ${configPath}. A URL source requires a string url.`
-			);
-		}
-		return config as RuntimePHPExtensionSource;
-	}
-	if (source['format'] === 'manifest') {
-		if (
-			typeof source['manifestUrl'] !== 'string' &&
-			!isRecord(source['manifest'])
-		) {
-			throw new Error(
-				`Invalid PHP extension config: ${configPath}. A manifest source requires manifestUrl or manifest.`
-			);
-		}
-		return config as RuntimePHPExtensionSource;
-	}
-
-	throw new Error(
-		`Invalid PHP extension config: ${configPath}. Unknown source format.`
-	);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

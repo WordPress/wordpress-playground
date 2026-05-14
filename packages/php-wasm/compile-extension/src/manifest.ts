@@ -35,6 +35,20 @@ export interface ExtensionArtifact {
 export interface ExtensionManifest {
 	name: string;
 	version: string;
+	/**
+	 * The first directive of the generated startup `.ini` file. Defaults to
+	 * `extension`; use `zend_extension` for Zend extensions like Xdebug.
+	 */
+	loadWithIniDirective?: 'extension' | 'zend_extension';
+	/** Additional `key=value` lines for the generated startup `.ini` file. */
+	iniEntries?: Record<string, string>;
+	/** Environment variables added before the extension is loaded. */
+	env?: Record<string, string>;
+	/**
+	 * VFS directory where PHP.wasm writes the extension `.so` file and its
+	 * per-extension ini file.
+	 */
+	extensionDir?: string;
 	artifacts: ExtensionArtifact[];
 	/** URL-backed files shared by every artifact in this manifest. */
 	extraFiles?: ExtensionManifestExtraFiles;

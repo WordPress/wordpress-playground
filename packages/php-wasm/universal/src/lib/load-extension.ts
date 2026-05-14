@@ -113,6 +113,20 @@ export interface PHPExtensionManifest {
 	name: string;
 	version?: string;
 	mode?: 'php-extension';
+	/**
+	 * The first directive of the generated startup `.ini` file. Defaults to
+	 * `extension`; use `zend_extension` for Zend extensions like Xdebug.
+	 */
+	loadWithIniDirective?: PHPExtensionIniDirective;
+	/** Additional `key=value` lines for the generated startup `.ini` file. */
+	iniEntries?: Record<string, string>;
+	/** Environment variables added before the extension is loaded. */
+	env?: Record<string, string>;
+	/**
+	 * VFS directory where PHP.wasm writes the extension `.so` file and its
+	 * per-extension ini file. Defaults to `PHP_EXTENSIONS_DIR`.
+	 */
+	extensionDir?: string;
 	artifacts: Array<{
 		/** PHP major/minor version, e.g. `8.4`. */
 		phpVersion: string;
@@ -300,6 +314,10 @@ export async function resolvePHPExtension(
 	let soBytes: Uint8Array;
 	const files: Record<string, Uint8Array | string> = {};
 	const directories: string[] = [];
+	let manifestLoadWithIniDirective: PHPExtensionIniDirective | undefined;
+	let manifestIniEntries: Record<string, string> | undefined;
+	let manifestEnv: Record<string, string> | undefined;
+	let manifestExtensionDir: string | undefined;
 
 	if (source.format === 'so') {
 		if (!name) {
@@ -369,6 +387,10 @@ export async function resolvePHPExtension(
 			);
 		}
 		name ??= manifest.name;
+		manifestLoadWithIniDirective = manifest.loadWithIniDirective;
+		manifestIniEntries = manifest.iniEntries;
+		manifestEnv = manifest.env;
+		manifestExtensionDir = manifest.extensionDir;
 
 		const queue = new Semaphore({
 			concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
@@ -400,22 +422,31 @@ export async function resolvePHPExtension(
 	}
 
 	const extensionDir = normalizePath(
-		options.extensionDir ?? PHP_EXTENSIONS_DIR
+		options.extensionDir ?? manifestExtensionDir ?? PHP_EXTENSIONS_DIR
 	);
 	if (options.extraFiles) {
 		Object.assign(files, options.extraFiles.files);
 		directories.push(...(options.extraFiles.directories ?? []));
 	}
 
-	const directive = options.loadWithIniDirective ?? 'extension';
+	const directive =
+		options.loadWithIniDirective ??
+		manifestLoadWithIniDirective ??
+		'extension';
+	const iniEntries = {
+		...manifestIniEntries,
+		...options.iniEntries,
+	};
 	const soPath = joinPaths(extensionDir, `${name}.so`);
 	const iniPath = joinPaths(extensionDir, `${name}.ini`);
 	const iniContent = [
 		`${directive}=${soPath}`,
-		...Object.entries(options.iniEntries ?? {}).map(
-			([key, value]) => `${key}=${value}`
-		),
+		...Object.entries(iniEntries).map(([key, value]) => `${key}=${value}`),
 	].join('\n');
+	const env = {
+		...manifestEnv,
+		...options.env,
+	};
 
 	return {
 		soPath,
@@ -426,7 +457,7 @@ export async function resolvePHPExtension(
 			files,
 			directories,
 		},
-		env: options.env,
+		env: Object.keys(env).length ? env : undefined,
 		extensionDir,
 	};
 }

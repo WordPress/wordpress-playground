@@ -101,7 +101,6 @@ The `server` command supports the following optional arguments:
 - `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
 - `--internal-cookie-store`: Enables Playground's internal cookie handling. When active, Playground uses an HttpCookieStore to manage and persist cookies across requests. If disabled, cookies are handled externally, like by a browser in Node.js.
 - `--php-extension=<manifest>`: Load a custom PHP.wasm extension manifest before PHP starts. Accepts local paths, `file:` URLs, and `http(s):` URLs. Can be used multiple times.
-- `--php-extension-config=<path>`: Load a JSON extension config before PHP starts. Use this for direct `.so` URLs or extension-specific `iniEntries` and `env` settings. Can be used multiple times.
 
 ### Loading Custom PHP.wasm Extensions
 
@@ -118,14 +117,18 @@ The manifest selects the `.so` artifact matching the active PHP version and can
 stage sidecar files before PHP starts. External extensions are JSPI-only, so use
 Node.js 23 or newer.
 
-Use `--php-extension-config` when the extension needs more runtime settings:
+Add runtime settings such as `iniEntries` and `env` directly to the manifest:
 
 ```json
 {
-	"source": {
-		"format": "manifest",
-		"manifestUrl": "./dist/spx/manifest.json"
-	},
+	"name": "spx",
+	"version": "0.1.0",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "spx-php8.4-jspi.so"
+		}
+	],
 	"iniEntries": {
 		"spx.http_enabled": "1"
 	},
@@ -133,10 +136,6 @@ Use `--php-extension-config` when the extension needs more runtime settings:
 		"SPX_DATA_DIR": "/internal/shared/spx/data"
 	}
 }
-```
-
-```bash
-npx @wp-playground/cli@latest server --php-extension-config=./spx.json
 ```
 
 ## Need some help with the CLI?
