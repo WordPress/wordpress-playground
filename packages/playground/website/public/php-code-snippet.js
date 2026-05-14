@@ -48,6 +48,7 @@ const DEFAULT_ORIGIN = 'https://playground.wordpress.net';
 const DEFAULT_PHP = '8.4';
 const DEFAULT_WP = 'latest';
 const DEMO_URL = 'https://playground.wordpress.net/php-code-snippet-demo.html';
+const PLAYGROUND_URL = 'https://wordpress.org/playground/';
 
 /**
  * Minimal duck-typed port of @php-wasm/progress's ProgressTracker.
@@ -574,9 +575,14 @@ const TEMPLATE_CSS = `
 	justify-content: center;
 }
 .run:hover { background: #1d4ed8; }
-.run:disabled { background: #93c5fd; cursor: progress; }
-.run:disabled:hover { background: #93c5fd; }
+.run[aria-busy="true"] { background: #93c5fd; cursor: progress; }
+.run[aria-busy="true"]:hover { background: #93c5fd; }
 .run-icon { font-size: 10px; }
+.run-shortcut {
+	font-size: 11px;
+	font-weight: 400;
+	opacity: 0.82;
+}
 .run-spinner {
 	display: none;
 	width: 12px;
@@ -592,55 +598,11 @@ const TEMPLATE_CSS = `
 	font-variant-numeric: tabular-nums;
 }
 .run[aria-busy="true"] .run-icon { display: none; }
+.run[aria-busy="true"] .run-shortcut { display: none; }
 .run[aria-busy="true"] .run-spinner,
 .run[aria-busy="true"] .run-percent { display: inline-block; }
 @keyframes php-snippet-spin {
 	to { transform: rotate(360deg); }
-}
-.progress {
-	display: none;
-	align-items: center;
-	gap: 10px;
-	padding: 8px 14px;
-	background: #f0f4ff;
-	border-bottom: 1px solid #d0d7de;
-	font-size: 13px;
-	color: #444c56;
-}
-.progress.visible { display: flex; }
-.bar {
-	flex: 1;
-	height: 4px;
-	background: #d0d7de;
-	border-radius: 2px;
-	overflow: hidden;
-	position: relative;
-}
-.fill {
-	position: absolute;
-	left: 0;
-	top: 0;
-	bottom: 0;
-	background: #2563eb;
-	border-radius: 2px;
-	width: 0;
-	transition: width 0.2s linear;
-}
-.caption {
-	flex-shrink: 0;
-	font-variant-numeric: tabular-nums;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-.percent {
-	flex-shrink: 0;
-	font-variant-numeric: tabular-nums;
-	color: #57606a;
-	font-size: 12px;
-	min-width: 36px;
-	text-align: right;
 }
 pre {
 	margin: 0;
@@ -698,8 +660,8 @@ pre {
 .output {
 	display: none;
 	border-top: 1px solid #e1e4e8;
-	background: #0d1117;
-	color: #e6edf3;
+	background: #ffffff;
+	color: #24292f;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 	font-size: 13px;
 	line-height: 1.5;
@@ -707,12 +669,12 @@ pre {
 .output.visible { display: block; }
 .output-label {
 	padding: 6px 14px;
-	background: #161b22;
-	color: #7d8590;
+	background: #f6f8fa;
+	color: #57606a;
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
-	border-bottom: 1px solid #30363d;
+	border-bottom: 1px solid #d0d7de;
 }
 .output-body {
 	padding: 14px;
@@ -749,8 +711,8 @@ pre {
 	animation: php-snippet-flash 700ms ease-out;
 }
 @keyframes php-snippet-flash {
-	0%   { background-color: rgba(56, 139, 253, 0.35); }
-	100% { background-color: transparent; }
+	0%   { background-color: #dbeafe; }
+	100% { background-color: #ffffff; }
 }
 @media (prefers-reduced-motion: reduce) {
 	.output-body.flash {
@@ -768,6 +730,7 @@ class PhpSnippet extends HTMLElement {
 		this._ready = Promise.resolve();
 		this._pendingRun = false;
 		this._isRunning = false;
+		this._rerunRequested = false;
 		this.shadowRoot.addEventListener('click', (event) => {
 			const target = event.target;
 			if (target instanceof Element && target.closest('.run')) {
@@ -840,6 +803,7 @@ class PhpSnippet extends HTMLElement {
 		const name = this.getAttribute('name') || 'snippet.php';
 		const runnable = this.getAttribute('runnable') !== 'false';
 		const editable = runnable && this.hasAttribute('editable');
+		const runShortcut = getRunShortcutLabel();
 		const style = document.createElement('style');
 		style.textContent = TEMPLATE_CSS;
 		const codeArea = editable
@@ -859,15 +823,11 @@ class PhpSnippet extends HTMLElement {
 								<span class="run-icon" aria-hidden="true">▶</span>
 								<span class="run-spinner" aria-hidden="true"></span>
 								<span class="run-label">Run</span>
+								<span class="run-shortcut">${runShortcut}</span>
 								<span class="run-percent" aria-hidden="true">0%</span>
 							</button>`
 							: ''
 					}
-				</div>
-				<div class="progress" role="status" aria-live="polite" aria-atomic="true">
-					<span class="caption">Loading…</span>
-					<div class="bar"><div class="fill"></div></div>
-					<span class="percent">0%</span>
 				</div>
 				${codeArea}
 				<div class="output">
@@ -875,14 +835,16 @@ class PhpSnippet extends HTMLElement {
 					<pre class="output-body"></pre>
 				</div>
 				<div class="powered-by">
-					<a href="${DEMO_URL}" target="_blank" rel="noopener noreferrer">PHP Code Snippet powered by WordPress Playground</a>
+					<a href="${DEMO_URL}" target="_blank" rel="noopener noreferrer">PHP Code Snippet</a>
+					powered by
+					<a href="${PLAYGROUND_URL}" target="_blank" rel="noopener noreferrer">WordPress Playground</a>
 				</div>
 			</div>
 		`;
 		this.shadowRoot.replaceChildren(style, tpl.content);
 		const runBtn = this.shadowRoot.querySelector('.run');
 		if (runBtn) {
-			runBtn.setAttribute('title', 'Run (Ctrl+Enter or Cmd+Enter)');
+			runBtn.setAttribute('title', `Run (${runShortcut})`);
 			runBtn.setAttribute(
 				'aria-keyshortcuts',
 				'Control+Enter Meta+Enter'
@@ -921,38 +883,32 @@ class PhpSnippet extends HTMLElement {
 			this._pendingRun = true;
 			return;
 		}
-		if (btn.disabled || this._isRunning) {
+		if (this._isRunning) {
+			this._rerunRequested = true;
+			this._setRunButtonProgress('Queued', 100);
 			return;
 		}
 
 		this._isRunning = true;
-		btn.disabled = true;
 		btn.setAttribute('aria-busy', 'true');
-		this._setRunButtonProgress('Loading', 0);
 		try {
 			await this._ready;
-			await this._runOnce(this._code);
+			do {
+				this._rerunRequested = false;
+				await this._runOnce(this._code);
+			} while (this._rerunRequested);
 		} finally {
 			const currentBtn = this.shadowRoot.querySelector('.run') || btn;
 			this._isRunning = false;
-			currentBtn.disabled = false;
 			currentBtn.removeAttribute('aria-busy');
 			this._setRunButtonProgress('Run', 0);
 		}
 	}
 
 	async _runOnce(code) {
-		const progress = this.shadowRoot.querySelector('.progress');
-		const caption = this.shadowRoot.querySelector('.caption');
-		const fill = this.shadowRoot.querySelector('.fill');
-		const percent = this.shadowRoot.querySelector('.percent');
 		const outputWrap = this.shadowRoot.querySelector('.output');
 		const outputBody = this.shadowRoot.querySelector('.output-body');
 		outputBody.classList.remove('error');
-		caption.textContent = 'Loading runtime…';
-		fill.style.width = '0%';
-		percent.textContent = '0%';
-		progress.classList.add('visible');
 		try {
 			const { blueprint, key: blueprintKey } =
 				resolveSetupBlueprint(this);
@@ -967,19 +923,10 @@ class PhpSnippet extends HTMLElement {
 					blueprintKey,
 				},
 				({ progress: pct, caption: cap }) => {
-					progress.classList.add('visible');
 					const rounded = Math.round(pct);
-					fill.style.width = rounded + '%';
-					percent.textContent = rounded + '%';
 					this._setRunButtonProgress(cap || 'Loading', rounded);
-					if (cap) {
-						caption.textContent = cap;
-					}
 				}
 			);
-			caption.textContent = 'Running…';
-			fill.style.width = '100%';
-			percent.textContent = '100%';
 			this._setRunButtonProgress('Running', 100);
 			const response = await client.run({ code });
 			outputBody.textContent = response.text || '(no output)';
@@ -996,8 +943,6 @@ class PhpSnippet extends HTMLElement {
 			);
 			outputWrap.classList.add('visible');
 			this._flashOutput(outputBody);
-		} finally {
-			progress.classList.remove('visible');
 		}
 	}
 
@@ -1033,6 +978,14 @@ class PhpSnippet extends HTMLElement {
 
 function isRunShortcut(event) {
 	return event.key === 'Enter' && (event.metaKey || event.ctrlKey);
+}
+
+function getRunShortcutLabel() {
+	const platform =
+		navigator.userAgentData && navigator.userAgentData.platform
+			? navigator.userAgentData.platform
+			: navigator.platform || '';
+	return /mac|iphone|ipad|ipod/i.test(platform) ? 'Cmd+Enter' : 'Ctrl+Enter';
 }
 
 customElements.define('php-snippet', PhpSnippet);
