@@ -299,6 +299,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			'php-extension': {
+				describe:
+					'Load a custom PHP.wasm extension manifest before PHP starts. Can be a local path, file: URL, or http(s) URL. Can be used multiple times.',
+				type: 'array',
+				string: true,
+				nargs: 1,
+			},
 			'experimental-unsafe-ide-integration': {
 				describe:
 					'Enable experimental IDE development tools. This option edits IDE config files ' +
@@ -422,6 +429,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			'php-extension': sharedOptions['php-extension'],
 			'experimental-unsafe-ide-integration':
 				sharedOptions['experimental-unsafe-ide-integration'],
 			'skip-browser': {
@@ -896,6 +904,7 @@ export interface RunCLIArgs {
 	redis?: boolean;
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
+	phpExtension?: string[];
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;

@@ -1444,9 +1444,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "sqlite_handle_closer",\
 "sqlite_handle_doer",\
 "sqlite_handle_preparer",\
+"sqlite3_auto_extension",\
 "sqlite3_autovacuum_pages",\
 "sqlite3_backup_step",\
 "sqlite3_bind_pointer",\
+"sqlite3_cancel_auto_extension",\
 "sqlite3_exec",\
 "sqlite3_finalize",\
 "sqlite3_free",\
