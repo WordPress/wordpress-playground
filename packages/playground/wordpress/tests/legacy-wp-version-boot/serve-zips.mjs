@@ -31,10 +31,7 @@ const server = createServer(async (request, response) => {
 	}
 
 	const requestUrl = new URL(request.url ?? '/', 'http://localhost');
-	const proxiedUrl = getProxiedUrl(requestUrl);
-	const filename = basename(
-		proxiedUrl ? proxiedUrl.pathname : requestUrl.pathname
-	);
+	const filename = getRequestedFilename(requestUrl);
 	if (!/^wordpress-[A-Za-z0-9.-]+\.zip$/.test(filename)) {
 		response.writeHead(404);
 		response.end('Not found');
@@ -57,31 +54,32 @@ const server = createServer(async (request, response) => {
 		return;
 	}
 
-	response.writeHead(200, {
-		'Content-Length': stats.size,
-		'Content-Type': 'application/zip',
-	});
+	response.statusCode = 200;
+	response.setHeader('Content-Length', stats.size);
+	response.setHeader('Content-Type', 'application/zip');
 	if (request.method === 'HEAD') {
 		response.end();
 		return;
 	}
-	createReadStream(filePath).pipe(response);
+	const fileStream = createReadStream(filePath);
+	fileStream.on('error', (error) => {
+		if (response.headersSent) {
+			response.destroy(error);
+			return;
+		}
+		response.statusCode = 500;
+		response.removeHeader('Content-Length');
+		response.setHeader('Content-Type', 'text/plain');
+		response.end('Failed to read file');
+	});
+	response.on('error', () => {
+		fileStream.destroy();
+	});
+	fileStream.pipe(response);
 });
 
-function getProxiedUrl(requestUrl) {
-	const pathTarget = decodeURIComponent(requestUrl.pathname.slice(1));
-	if (isHttpUrl(pathTarget)) {
-		return new URL(`${pathTarget}${requestUrl.search}`);
-	}
-	const searchTarget = requestUrl.search.slice(1);
-	if (isHttpUrl(searchTarget)) {
-		return new URL(searchTarget);
-	}
-	return null;
-}
-
-function isHttpUrl(url) {
-	return url.startsWith('https://') || url.startsWith('http://');
+function getRequestedFilename(requestUrl) {
+	return basename(requestUrl.pathname.slice(1) || requestUrl.pathname);
 }
 
 server.listen(port, '127.0.0.1', () => {

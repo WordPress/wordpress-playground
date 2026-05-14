@@ -244,15 +244,16 @@ function getPluginActivationStatus(body) {
 }
 
 function getPluginActivationTimeoutStatus(
-	frameBeforeActivation,
+	beforeUrl,
 	latestFrame,
 	consoleErrors,
-	consoleStartIndex
+	consoleStartIndex,
+	timeoutSeconds = PLUGIN_ACTIVATION_TIMEOUT_S
 ) {
 	const recentErrors = consoleErrors.slice(consoleStartIndex).slice(-3);
 	const detail = [
-		`timed out after ${PLUGIN_ACTIVATION_TIMEOUT_S}s`,
-		`before URL: ${frameBeforeActivation.url}`,
+		`timed out after ${timeoutSeconds}s`,
+		`before URL: ${beforeUrl}`,
 		latestFrame ? `latest URL: ${latestFrame.frame.url()}` : null,
 		recentErrors.length
 			? `recent console errors: ${recentErrors.join(' | ')}`
@@ -743,7 +744,7 @@ for (const { wp, php } of MATRIX) {
 							!isPluginActivationTerminalBody(finalFrame.body)
 						) {
 							pluginStatus = getPluginActivationTimeoutStatus(
-								{ url: prevFrameUrl },
+								prevFrameUrl,
 								finalFrame,
 								consoleErrors,
 								consoleStartIndex
