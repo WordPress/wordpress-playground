@@ -631,6 +631,12 @@ ssgwp_assert_same(
 );
 
 ssgwp_assert_same(
+	false,
+	file_exists( $bounded_output_dir . '/static-export.json' ),
+	'export_to_directory skips static-export.json when manifest output is disabled.'
+);
+
+ssgwp_assert_same(
 	'discovered',
 	$bounded_events[0]['stage'],
 	'export_to_directory reports initial URL discovery before rendering.'
@@ -646,6 +652,130 @@ ssgwp_assert_same(
 	1,
 	$bounded_events[0]['context']['queue_total'],
 	'export_to_directory bounds the initial URL queue by max_pages.'
+);
+
+$manifest_output_dir = $fixture_root . '/manifest-export';
+$manifest_result     = $exporter->export_to_directory(
+	$manifest_output_dir,
+	array(
+		'max_pages'         => 1,
+		'copy_uploads'      => false,
+		'copy_theme'        => false,
+		'copy_plugins'      => false,
+		'copy_core_assets'  => false,
+		'progress_callback' => null,
+	)
+);
+$manifest_path       = $manifest_output_dir . '/static-export.json';
+
+ssgwp_assert_same(
+	true,
+	file_exists( $manifest_path ),
+	'export_to_directory writes static-export.json by default.'
+);
+
+$manifest_data = json_decode( file_get_contents( $manifest_path ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+ssgwp_assert_same(
+	true,
+	is_array( $manifest_data ),
+	'static-export.json contains valid JSON.'
+);
+
+ssgwp_assert_same(
+	array(
+		'generated_at',
+		'home_url',
+		'pages_exported',
+		'files_exported',
+		'exported_urls',
+		'warnings',
+		'wordpress',
+		'plugin_version',
+		'url_mode',
+		'progress',
+		'playground_note',
+	),
+	array_keys( $manifest_data ),
+	'static-export.json keeps the expected manifest fields.'
+);
+
+ssgwp_assert_same(
+	$manifest_result['generated_at'],
+	$manifest_data['generated_at'],
+	'static-export.json records the generation timestamp.'
+);
+
+ssgwp_assert_same(
+	'https://example.test/',
+	$manifest_data['home_url'],
+	'static-export.json records the home URL.'
+);
+
+ssgwp_assert_same(
+	$manifest_result['exported_urls'],
+	$manifest_data['exported_urls'],
+	'static-export.json records exported URLs.'
+);
+
+ssgwp_assert_same(
+	1,
+	$manifest_data['pages_exported'],
+	'static-export.json records the exported page count.'
+);
+
+ssgwp_assert_same(
+	'0.1.0',
+	$manifest_data['plugin_version'],
+	'static-export.json records the plugin version.'
+);
+
+ssgwp_assert_same(
+	'6.9.4',
+	$manifest_data['wordpress'],
+	'static-export.json records the WordPress version.'
+);
+
+ssgwp_assert_same(
+	$manifest_result['files_exported'],
+	$manifest_data['files_exported'],
+	'static-export.json records the exported file count.'
+);
+
+ssgwp_assert_same(
+	$manifest_result['warnings'],
+	$manifest_data['warnings'],
+	'static-export.json records export warnings.'
+);
+
+ssgwp_assert_same(
+	'relative',
+	$manifest_data['url_mode'],
+	'static-export.json records the URL mode.'
+);
+
+ssgwp_assert_same(
+	true,
+	! empty( $manifest_data['progress'] ),
+	'static-export.json records progress events.'
+);
+
+ssgwp_assert_same(
+	$manifest_result['progress'],
+	$manifest_data['progress'],
+	'static-export.json records the same progress events returned to callers.'
+);
+
+ssgwp_assert_same(
+	'complete',
+	$manifest_data['progress'][ count( $manifest_data['progress'] ) - 1 ]['stage'],
+	'static-export.json records the completion progress event.'
+);
+
+ssgwp_assert_contains(
+	'WordPress Playground',
+	$manifest_data['playground_note'],
+	'static-export.json explains that the editable Playground site should be kept separately.'
 );
 
 wp_mkdir_p( $fixture_root . '/theme/static-site-generator' );
