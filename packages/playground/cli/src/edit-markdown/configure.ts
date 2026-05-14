@@ -10,6 +10,8 @@ import muPluginSource from './edit-markdown-mu-plugin.php?raw';
 const MU_PLUGIN_VFS_PATH = '/wordpress/wp-content/mu-plugins/edit-markdown.php';
 const MARKDOWN_ROOT_VFS_PATH = '/markdown-root';
 const PHP_TOOLKIT_VFS_PATH = '/internal/shared/php-toolkit';
+const EDIT_MARKDOWN_MODULE_DIR =
+	typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
 const PHP_TOOLKIT_HOST_PATH = resolveEditMarkdownAssetPath(
 	'vendor',
 	'php-toolkit'
@@ -21,9 +23,14 @@ const SQLITE_MARKDOWN_MANIFEST_PATH = resolveEditMarkdownAssetPath(
 
 function resolveEditMarkdownAssetPath(...segments: string[]): string {
 	const candidates = [
-		path.resolve(__dirname, ...segments),
-		path.resolve(__dirname, 'edit-markdown', ...segments),
-		path.resolve(__dirname, 'src', 'edit-markdown', ...segments),
+		path.resolve(EDIT_MARKDOWN_MODULE_DIR, ...segments),
+		path.resolve(EDIT_MARKDOWN_MODULE_DIR, 'edit-markdown', ...segments),
+		path.resolve(
+			EDIT_MARKDOWN_MODULE_DIR,
+			'src',
+			'edit-markdown',
+			...segments
+		),
 	];
 	return (
 		candidates.find((candidate) => fs.existsSync(candidate)) ??

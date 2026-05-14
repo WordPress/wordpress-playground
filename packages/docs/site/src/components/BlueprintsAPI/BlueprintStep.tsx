@@ -19,14 +19,17 @@ export default function BlueprintStep({ name }) {
 				>
 					​
 				</a>
-				<a
-					href={`#${stepApi.stepId}`}
-					className="hash-link"
-					aria-label={`Direct link to ${stepApi.stepId}`}
-					title={`Direct link to ${stepApi.stepId}`}
-				>
-					​
-				</a>
+				{stepApi.stepId && stepApi.stepId !== name ? (
+					<a
+						id={stepApi.stepId}
+						href={`#${stepApi.stepId}`}
+						className="hash-link"
+						aria-label={`Direct link to ${stepApi.stepId}`}
+						title={`Direct link to ${stepApi.stepId}`}
+					>
+						​
+					</a>
+				) : null}
 			</h2>
 			<BlueprintStepDescription name={name} />
 

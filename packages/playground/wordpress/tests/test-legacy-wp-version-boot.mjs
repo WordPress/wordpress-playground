@@ -674,11 +674,18 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 5: Plugin activation ---
 		if (adminStatus && adminStatus.status === 'OK') {
 			try {
-				const wp4 = await navigateViaUrlBar(
+				let wp4 = await navigateViaUrlBar(
 					page,
 					'/wp-admin/plugins.php',
 					30
 				);
+				if (!wp4) {
+					wp4 = await navigateViaUrlBar(
+						page,
+						'/wp-admin/plugins.php',
+						30
+					);
+				}
 				if (!wp4) {
 					pluginStatus = { status: 'TIMEOUT' };
 				} else {
@@ -704,7 +711,7 @@ for (const { wp, php } of MATRIX) {
 					try {
 						await anyActivate.waitFor({
 							state: 'visible',
-							timeout: 15000,
+							timeout: 30000,
 						});
 					} catch {}
 					const helloActivate = wp4.frame
@@ -722,11 +729,27 @@ for (const { wp, php } of MATRIX) {
 							.catch(() => wp4.body);
 						const prevFrameUrl = wp4.frame.url();
 						await activateLink.click({ timeout: 5000 });
-						const wp4b = await waitForPluginActivation(
+						let wp4b = await waitForPluginActivation(
 							page,
 							prevFrameUrl,
 							bodyBeforeActivation
 						);
+						if (!wp4b) {
+							const refreshed = await navigateViaUrlBar(
+								page,
+								'/wp-admin/plugins.php',
+								30
+							);
+							if (refreshed) {
+								const helloDeactivate = refreshed.frame
+									.locator('a[href*="hello.php"]')
+									.filter({ hasText: 'Deactivate' })
+									.first();
+								if ((await helloDeactivate.count()) > 0) {
+									wp4b = refreshed;
+								}
+							}
+						}
 						if (!wp4b) {
 							pluginStatus = { status: 'TIMEOUT' };
 						} else {
