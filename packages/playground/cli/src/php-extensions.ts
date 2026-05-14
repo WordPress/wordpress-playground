@@ -24,9 +24,7 @@ export function cliExtensionArgsToExtensionsArray(args: {
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
 	phpExtension?: string[];
-	'php-extension'?: string[];
 	phpExtensionConfig?: string[];
-	'php-extension-config'?: string[];
 }): PHPExtension[] {
 	const extensions: PHPExtension[] = [];
 	if (args.intl) {
@@ -45,7 +43,7 @@ export function cliExtensionArgsToExtensionsArray(args: {
 				: 'xdebug'
 		);
 	}
-	for (const manifestUrl of getArrayOption(args, 'phpExtension')) {
+	for (const manifestUrl of args.phpExtension || []) {
 		extensions.push({
 			source: {
 				format: 'manifest',
@@ -53,7 +51,7 @@ export function cliExtensionArgsToExtensionsArray(args: {
 			},
 		});
 	}
-	for (const configPath of getArrayOption(args, 'phpExtensionConfig')) {
+	for (const configPath of args.phpExtensionConfig || []) {
 		extensions.push(readPHPExtensionConfig(configPath));
 	}
 	return extensions;
@@ -106,26 +104,6 @@ export function readPHPExtensionConfig(
 	throw new Error(
 		`Invalid PHP extension config: ${configPath}. Unknown source format.`
 	);
-}
-
-function getArrayOption(
-	args: {
-		phpExtension?: string[];
-		'php-extension'?: string[];
-		phpExtensionConfig?: string[];
-		'php-extension-config'?: string[];
-	},
-	camelCaseKey: 'phpExtension' | 'phpExtensionConfig'
-): string[] {
-	const dashCaseKey =
-		camelCaseKey === 'phpExtension'
-			? 'php-extension'
-			: 'php-extension-config';
-	const value = args[camelCaseKey] ?? args[dashCaseKey];
-	if (value === undefined) {
-		return [];
-	}
-	return Array.isArray(value) ? value : [value];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
