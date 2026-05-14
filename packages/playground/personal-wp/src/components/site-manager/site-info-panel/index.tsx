@@ -74,6 +74,7 @@ const APP_LAUNCHER_BLUEPRINT = {
 		author: 'Alex Kirk',
 	},
 	login: true,
+	landingPage: '/my-apps/',
 	steps: [
 		{
 			step: 'installPlugin',
