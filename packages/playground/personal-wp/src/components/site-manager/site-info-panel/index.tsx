@@ -107,10 +107,7 @@ function blueprintToDataUrl(blueprint: string): string {
 function InstallAppsSection() {
 	return (
 		<div className={css.aboutSection}>
-			<h4 className={css.aboutSectionTitle}>Install Apps</h4>
-			<p className={css.aboutSectionHint}>
-				Install the App Launcher to add apps to this WordPress site.
-			</p>
+			<h4 className={css.aboutSectionTitle}>Apps</h4>
 			<div className={css.appsList}>
 				<div className={css.appRow}>
 					<a
@@ -123,7 +120,8 @@ function InstallAppsSection() {
 						<span className={css.appContent}>
 							<span className={css.appTitle}>App Launcher</span>
 							<span className={css.appDescription}>
-								Install more apps with this app launcher
+								Browse and install apps from your WordPress
+								dashboard
 							</span>
 						</span>
 					</a>

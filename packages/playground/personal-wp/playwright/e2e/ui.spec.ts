@@ -24,7 +24,9 @@ test('should show app, backup, and troubleshooting tools', async ({
 
 	await website.ensureSiteToolsIsOpen();
 
-	await expect(website.page.getByText('Install Apps')).toBeVisible();
+	await expect(
+		website.page.getByRole('heading', { name: 'Apps' })
+	).toBeVisible();
 	await expect(
 		website.page.getByRole('link', { name: /App Launcher/ })
 	).toHaveAttribute('href', /blueprint-url=data%3Aapplication%2Fjson/);
@@ -55,12 +57,16 @@ test('should close the Site Tools panel with its close button', async ({
 	await website.goto('./');
 
 	await website.ensureSiteToolsIsOpen();
-	await expect(website.page.getByText('Install Apps')).toBeVisible();
+	await expect(
+		website.page.getByRole('link', { name: /App Launcher/ })
+	).toBeVisible();
 
 	await website.page
 		.getByRole('button', { name: /Close Site Tools/ })
 		.click();
-	await expect(website.page.getByText('Install Apps')).not.toBeVisible();
+	await expect(
+		website.page.getByRole('link', { name: /App Launcher/ })
+	).not.toBeVisible();
 });
 
 test('should display the page title as "My WordPress"', async ({ website }) => {
