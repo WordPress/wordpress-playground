@@ -517,7 +517,7 @@ jobs:
               run: |
                   node packages/playground/wordpress/tests/serve-legacy-wp-zips.mjs /tmp/legacy-wordpress-zips 5410 > /tmp/legacy-wordpress-zips.log 2>&1 &
                   timeout=30; elapsed=0
-                  until curl -s -o /dev/null http://127.0.0.1:5410/wordpress-6.2.zip 2>/dev/null; do
+                  until curl -s -o /dev/null "http://127.0.0.1:5410/https://wordpress.org/wordpress-6.2.zip" 2>/dev/null; do
                     sleep 1
                     elapsed=$((elapsed + 1))
                     if [ $elapsed -ge $timeout ]; then
@@ -527,6 +527,8 @@ jobs:
                     fi
                   done
             - name: Start dev server
+              env:
+                  CORS_PROXY_URL: http://127.0.0.1:5410/
               run: |
                   npm run dev > /tmp/playground-dev.log 2>&1 &
                   timeout=120; elapsed=0
@@ -540,8 +542,6 @@ jobs:
                     fi
                   done
             - name: Test legacy WordPress version boot
-              env:
-                  LEGACY_WP_ZIP_BASE_URL: http://127.0.0.1:5410/
               run: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
 
     # Redis extension tests - verifies the php-redis extension loads

@@ -1,6 +1,6 @@
 /**
  * Tests that legacy and mid-modern WordPress versions boot
- * successfully through Playground's WordPress ZIP download path:
+ * successfully through Playground's wordpress.org download path:
  *
  *   - WP 1.0 – 4.9 on PHP 5.2 (legacy SQLite driver)
  *   - WP 5.0 – 6.2 on PHP 7.4 (modern SQLite driver)
@@ -24,17 +24,11 @@
  * Usage: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
  */
 import { chromium } from 'playwright';
-import {
-	WP_VERSIONS,
-	getWordPressDownloadFilename,
-} from './legacy-wp-versions.mjs';
+import { WP_VERSIONS } from './legacy-wp-versions.mjs';
 
 const PORT = 5400;
 const TIMEOUT_S = 120;
 const PLUGIN_ACTIVATION_TIMEOUT_S = 60;
-const LEGACY_WP_ZIP_BASE_URL = normalizeDirectoryUrl(
-	process.env.LEGACY_WP_ZIP_BASE_URL || ''
-);
 const results = [];
 
 /**
@@ -233,24 +227,6 @@ async function waitForPluginActivation(
 	return null;
 }
 
-async function recheckPluginActivation(page, frame) {
-	const currentFrame = await getCurrentWPFrameBody(page);
-	if (currentFrame && isPluginActivationTerminalBody(currentFrame.body)) {
-		return currentFrame;
-	}
-
-	const reloadedFrame = await reloadScopedFrame(
-		frame,
-		`/wp-admin/plugins.php?playground-plugin-check=${Date.now()}`,
-		30
-	);
-	if (reloadedFrame && isPluginActivationTerminalBody(reloadedFrame.body)) {
-		return reloadedFrame;
-	}
-
-	return reloadedFrame || currentFrame;
-}
-
 function getPluginActivationStatus(body) {
 	const error = findPHPError(body);
 	const ok = isPluginActivationComplete(body);
@@ -263,7 +239,7 @@ function getPluginActivationStatus(body) {
 	}
 	return {
 		status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
-		detail: body.slice(0, 120).replace(/\n/g, ' '),
+		detail: summarizeBody(body),
 	};
 }
 
@@ -304,43 +280,8 @@ function isPluginActivationComplete(body) {
 	return body.includes('Plugin activated') || body.includes('Deactivate');
 }
 
-async function getCurrentWPFrameBody(page) {
-	for (const frame of page.frames()) {
-		try {
-			if (!frame.url().includes('scope:')) continue;
-			const body = await frame.locator('body').innerText({
-				timeout: 2000,
-			});
-			return { body, frame };
-		} catch {}
-	}
-	return null;
-}
-
-async function reloadScopedFrame(frame, path, timeoutSeconds) {
-	const url = getScopedUrl(frame.url(), path);
-	if (!url) return null;
-	try {
-		await frame.goto(url, {
-			timeout: timeoutSeconds * 1000,
-			waitUntil: 'domcontentloaded',
-		});
-	} catch {}
-	return waitForWPFrame(frame.page(), timeoutSeconds, {
-		contentPredicate: (body) =>
-			body.includes('Plugins') || isPluginActivationTerminalBody(body),
-	});
-}
-
-function getScopedUrl(frameUrl, path) {
-	const url = new URL(frameUrl);
-	const match = url.pathname.match(/^(\/scope:[^/]+)(?:\/.*)?$/);
-	if (!match) return null;
-	const [pathname, search = ''] = path.split('?');
-	url.pathname = `${match[1]}${pathname}`;
-	url.search = search ? `?${search}` : '';
-	url.hash = '';
-	return url.href;
+function summarizeBody(body) {
+	return body.slice(0, 120).replace(/\n/g, ' ');
 }
 
 /**
@@ -421,27 +362,13 @@ function shouldRetryFrontPageBoot(consoleErrors) {
 	);
 }
 
-function getWordPressVersionQuery(wp) {
-	if (!LEGACY_WP_ZIP_BASE_URL) {
-		return wp;
-	}
-	return new URL(getWordPressDownloadFilename(wp), LEGACY_WP_ZIP_BASE_URL)
-		.href;
-}
-
-function normalizeDirectoryUrl(url) {
-	if (!url) return '';
-	return url.endsWith('/') ? url : `${url}/`;
-}
-
 const browser = await chromium.launch({ headless: true });
 
 for (const { wp, php } of MATRIX) {
 	const label = `WP ${wp} (PHP ${php})`;
 	process.stdout.write(`${label}... `);
 
-	const wpVersionQuery = encodeURIComponent(getWordPressVersionQuery(wp));
-	const url = `http://127.0.0.1:${PORT}/website-server/?php=${php}&wp=${wpVersionQuery}`;
+	const url = `http://127.0.0.1:${PORT}/website-server/?php=${php}&wp=${wp}`;
 
 	// Isolate every version in a fresh browser context so that OPFS
 	// (where Playground persists site state), IndexedDB, localStorage
@@ -798,15 +725,27 @@ for (const { wp, php } of MATRIX) {
 							prevFrameUrl,
 							bodyBeforeActivation
 						);
-						const finalFrame =
-							wp4b ||
-							(await recheckPluginActivation(page, wp4.frame));
+						let finalFrame = wp4b;
+						if (!finalFrame) {
+							finalFrame = await navigateViaUrlBar(
+								page,
+								`/wp-admin/plugins.php?playground-plugin-check=${Date.now()}`,
+								30
+							);
+						}
 						if (
-							!wp4b &&
-							(!finalFrame ||
-								!isPluginActivationTerminalBody(
-									finalFrame.body
-								))
+							finalFrame &&
+							!isPluginActivationTerminalBody(finalFrame.body)
+						) {
+							const settled = await waitForWPFrame(page, 30, {
+								contentPredicate:
+									isPluginActivationTerminalBody,
+							});
+							finalFrame = settled || finalFrame;
+						}
+						if (
+							!finalFrame ||
+							!isPluginActivationTerminalBody(finalFrame.body)
 						) {
 							pluginStatus = getPluginActivationTimeoutStatus(
 								{ url: prevFrameUrl },

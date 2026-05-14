@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { basename, join } from 'node:path';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 const directory = process.argv[2];
@@ -30,12 +31,13 @@ const server = createServer(async (request, response) => {
 		return;
 	}
 
+	const requestUrl = new URL(request.url ?? '/', 'http://localhost');
+	const proxiedUrl = getProxiedUrl(requestUrl);
 	const filename = basename(
-		new URL(request.url ?? '/', 'http://localhost').pathname
+		proxiedUrl ? new URL(proxiedUrl).pathname : requestUrl.pathname
 	);
 	if (!/^wordpress-[A-Za-z0-9.-]+\.zip$/.test(filename)) {
-		response.writeHead(404);
-		response.end('Not found');
+		await proxyRequest(request, response, proxiedUrl);
 		return;
 	}
 
@@ -65,6 +67,57 @@ const server = createServer(async (request, response) => {
 	}
 	createReadStream(filePath).pipe(response);
 });
+
+function getProxiedUrl(requestUrl) {
+	const pathTarget = decodeURIComponent(requestUrl.pathname.slice(1));
+	if (isHttpUrl(pathTarget)) {
+		return `${pathTarget}${requestUrl.search}`;
+	}
+	const searchTarget = requestUrl.search.slice(1);
+	if (isHttpUrl(searchTarget)) {
+		return searchTarget;
+	}
+	return null;
+}
+
+function isHttpUrl(url) {
+	return url.startsWith('https://') || url.startsWith('http://');
+}
+
+async function proxyRequest(request, response, proxiedUrl) {
+	if (!proxiedUrl) {
+		response.writeHead(404);
+		response.end('Not found');
+		return;
+	}
+	let upstream;
+	try {
+		upstream = await fetch(proxiedUrl, {
+			method: request.method,
+			headers: {
+				'User-Agent': 'WordPress Playground CI legacy boot test',
+			},
+		});
+	} catch (error) {
+		response.writeHead(502);
+		response.end(`Failed to proxy ${proxiedUrl}: ${error.message}`);
+		return;
+	}
+
+	const headers = {};
+	for (const header of ['content-length', 'content-type']) {
+		const value = upstream.headers.get(header);
+		if (value) {
+			headers[header] = value;
+		}
+	}
+	response.writeHead(upstream.status, headers);
+	if (request.method === 'HEAD' || !upstream.body) {
+		response.end();
+		return;
+	}
+	Readable.fromWeb(upstream.body).pipe(response);
+}
 
 server.listen(port, '127.0.0.1', () => {
 	const script = fileURLToPath(import.meta.url);
