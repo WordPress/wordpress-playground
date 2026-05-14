@@ -26,7 +26,7 @@
  * The balance is delicate: a patch may have been quietly covering
  * more WP versions than it advertises, so tightening a needle or
  * changing the replacement can break one you didn't know about.
- * The boot-smoke suite in `tests/test-legacy-wp-version-boot.mjs`
+ * The boot-smoke suite in `tests/legacy-wp-version-boot/test.mjs`
  * exercises every supported legacy WP version end-to-end; run it
  * before landing changes here.
  */

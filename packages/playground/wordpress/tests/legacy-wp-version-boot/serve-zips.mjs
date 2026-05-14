@@ -3,14 +3,13 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { basename, join } from 'node:path';
-import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 const directory = process.argv[2];
 const port = Number(process.argv[3] || 5410);
 
 if (!directory || !Number.isInteger(port) || port <= 0) {
-	console.error('Usage: serve-legacy-wp-zips.mjs <directory> [port]');
+	console.error('Usage: serve-zips.mjs <directory> [port]');
 	process.exit(1);
 }
 
@@ -34,10 +33,11 @@ const server = createServer(async (request, response) => {
 	const requestUrl = new URL(request.url ?? '/', 'http://localhost');
 	const proxiedUrl = getProxiedUrl(requestUrl);
 	const filename = basename(
-		proxiedUrl ? new URL(proxiedUrl).pathname : requestUrl.pathname
+		proxiedUrl ? proxiedUrl.pathname : requestUrl.pathname
 	);
 	if (!/^wordpress-[A-Za-z0-9.-]+\.zip$/.test(filename)) {
-		await proxyRequest(request, response, proxiedUrl);
+		response.writeHead(404);
+		response.end('Not found');
 		return;
 	}
 
@@ -71,52 +71,17 @@ const server = createServer(async (request, response) => {
 function getProxiedUrl(requestUrl) {
 	const pathTarget = decodeURIComponent(requestUrl.pathname.slice(1));
 	if (isHttpUrl(pathTarget)) {
-		return `${pathTarget}${requestUrl.search}`;
+		return new URL(`${pathTarget}${requestUrl.search}`);
 	}
 	const searchTarget = requestUrl.search.slice(1);
 	if (isHttpUrl(searchTarget)) {
-		return searchTarget;
+		return new URL(searchTarget);
 	}
 	return null;
 }
 
 function isHttpUrl(url) {
 	return url.startsWith('https://') || url.startsWith('http://');
-}
-
-async function proxyRequest(request, response, proxiedUrl) {
-	if (!proxiedUrl) {
-		response.writeHead(404);
-		response.end('Not found');
-		return;
-	}
-	let upstream;
-	try {
-		upstream = await fetch(proxiedUrl, {
-			method: request.method,
-			headers: {
-				'User-Agent': 'WordPress Playground CI legacy boot test',
-			},
-		});
-	} catch (error) {
-		response.writeHead(502);
-		response.end(`Failed to proxy ${proxiedUrl}: ${error.message}`);
-		return;
-	}
-
-	const headers = {};
-	for (const header of ['content-length', 'content-type']) {
-		const value = upstream.headers.get(header);
-		if (value) {
-			headers[header] = value;
-		}
-	}
-	response.writeHead(upstream.status, headers);
-	if (request.method === 'HEAD' || !upstream.body) {
-		response.end();
-		return;
-	}
-	Readable.fromWeb(upstream.body).pipe(response);
 }
 
 server.listen(port, '127.0.0.1', () => {

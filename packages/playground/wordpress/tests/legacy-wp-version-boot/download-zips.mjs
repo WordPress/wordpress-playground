@@ -2,20 +2,20 @@
 import { mkdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import {
-	WP_VERSIONS,
+	getLegacyWordPressVersionMatrix,
 	getWordPressDownloadFilename,
 	getWordPressDownloadUrl,
-} from './legacy-wp-versions.mjs';
+} from './matrix.mjs';
 
 const outputDir = process.argv[2];
 if (!outputDir) {
-	console.error('Usage: download-legacy-wp-zips.mjs <output-dir>');
+	console.error('Usage: download-zips.mjs <output-dir>');
 	process.exit(1);
 }
 
 await mkdir(outputDir, { recursive: true });
 
-for (const { wp } of WP_VERSIONS) {
+for (const { wp } of getLegacyWordPressVersionMatrix()) {
 	const filename = getWordPressDownloadFilename(wp);
 	const targetPath = join(outputDir, filename);
 	if (await isCachedZip(targetPath)) {

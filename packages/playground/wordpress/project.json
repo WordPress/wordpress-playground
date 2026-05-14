@@ -75,7 +75,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs"
+					"node packages/playground/wordpress/tests/legacy-wp-version-boot/test.mjs"
 				]
 			}
 		},

@@ -52,6 +52,18 @@ export const WP_VERSIONS = [
 	{ wp: '1.0', php: '5.2' },
 ];
 
+export function getLegacyWordPressVersionMatrix(wpOnly = process.env.WP_ONLY) {
+	if (!wpOnly) {
+		return WP_VERSIONS;
+	}
+	const requestedVersions = new Set(wpOnly.split(',').map((s) => s.trim()));
+	const matrix = WP_VERSIONS.filter(({ wp }) => requestedVersions.has(wp));
+	if (matrix.length === 0) {
+		throw new Error(`WP_ONLY did not match any tested versions: ${wpOnly}`);
+	}
+	return matrix;
+}
+
 export function getWordPressDownloadUrl(version) {
 	return `https://wordpress.org/${getWordPressDownloadFilename(version)}`;
 }

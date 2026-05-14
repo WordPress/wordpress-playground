@@ -21,10 +21,10 @@
  * Requires the dev server to be running on port 5400
  * (started by the CI job or manually via `npm run dev`).
  *
- * Usage: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
+ * Usage: node packages/playground/wordpress/tests/legacy-wp-version-boot/test.mjs
  */
 import { chromium } from 'playwright';
-import { WP_VERSIONS } from './legacy-wp-versions.mjs';
+import { getLegacyWordPressVersionMatrix } from './matrix.mjs';
 
 const PORT = 5400;
 const TIMEOUT_S = 120;
@@ -322,12 +322,7 @@ function hasAdminIndicator(body) {
 const NEW_POST_URL_VERSIONS = new Set(['1.0', '1.2', '1.5', '2.0']);
 
 // Optional filter for local runs: WP_ONLY=6.2,6.1,5.9 to test a subset.
-const WP_ONLY = process.env.WP_ONLY
-	? new Set(process.env.WP_ONLY.split(',').map((s) => s.trim()))
-	: null;
-const MATRIX = WP_ONLY
-	? WP_VERSIONS.filter(({ wp }) => WP_ONLY.has(wp))
-	: WP_VERSIONS;
+const MATRIX = getLegacyWordPressVersionMatrix();
 
 /**
  * Captures browser console errors so timeout failures can report context.
