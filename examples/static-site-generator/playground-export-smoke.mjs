@@ -1048,9 +1048,11 @@ function runPlaygroundCli() {
 			[
 				'Playground CLI smoke export failed.',
 				`Command: ${cliBin} ${args.join(' ')}`,
-				`Exit status: ${result ? result.status : 'unknown'}`,
-				`STDOUT:\n${result ? result.stdout : ''}`,
-				`STDERR:\n${result ? result.stderr : ''}`,
+				`Exit status: ${result && result.status !== null ? result.status : 'unknown'}`,
+				`Signal: ${result && result.signal ? result.signal : 'none'}`,
+				`Spawn error: ${result && result.error ? result.error.message : 'none'}`,
+				`STDOUT:\n${result && result.stdout ? result.stdout : ''}`,
+				`STDERR:\n${result && result.stderr ? result.stderr : ''}`,
 			].join('\n')
 		);
 	}
