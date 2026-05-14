@@ -38,8 +38,9 @@ export interface ExtensionManifest {
 	/**
 	 * The first directive of the generated startup `.ini` file. Defaults to
 	 * `extension`; use `zend_extension` for Zend extensions like Xdebug.
+	 * Use `false` to stage the `.so` without registering it in php.ini.
 	 */
-	loadWithIniDirective?: 'extension' | 'zend_extension';
+	loadWithIniDirective?: 'extension' | 'zend_extension' | false;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
 	/** Environment variables added before the extension is loaded. */
