@@ -731,9 +731,32 @@ class PhpSnippet extends HTMLElement {
 		this._pendingRun = false;
 		this._isRunning = false;
 		this._rerunRequested = false;
+		this._pointerActivatedRun = false;
+		this.shadowRoot.addEventListener('pointerdown', (event) => {
+			const target = event.target;
+			const runButton =
+				target instanceof Element ? target.closest('.run') : null;
+			if (!runButton || event.button !== 0) {
+				return;
+			}
+			this._pointerActivatedRun = true;
+			this._run();
+		});
+		this.shadowRoot.addEventListener('pointerup', () => {
+			setTimeout(() => {
+				this._pointerActivatedRun = false;
+			}, 0);
+		});
+		this.shadowRoot.addEventListener('pointercancel', () => {
+			this._pointerActivatedRun = false;
+		});
 		this.shadowRoot.addEventListener('click', (event) => {
 			const target = event.target;
 			if (target instanceof Element && target.closest('.run')) {
+				if (this._pointerActivatedRun && event.detail !== 0) {
+					this._pointerActivatedRun = false;
+					return;
+				}
 				this._run();
 			}
 		});

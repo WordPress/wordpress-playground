@@ -263,6 +263,81 @@ test.describe('php-code-snippet embed', () => {
 		await expect(runButton).toBeEnabled();
 	});
 
+	test('Run button starts from pointer activation even if click is canceled', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				this._setRunButtonProgress('Running', 42);
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.scrollIntoViewIfNeeded();
+		const idleBox = await runButton.boundingBox();
+		expect(idleBox).not.toBeNull();
+
+		await page.mouse.move(
+			idleBox!.x + idleBox!.width / 2,
+			idleBox!.y + idleBox!.height / 2
+		);
+		await page.mouse.down();
+		await page.mouse.move(idleBox!.x - 20, idleBox!.y - 20);
+		await page.mouse.up();
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:1'
+		);
+		await expect(runButton).toBeEnabled();
+	});
+
+	test('Run button handles repeated mouse clicks after completion', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.scrollIntoViewIfNeeded();
+		const box = await runButton.boundingBox();
+		expect(box).not.toBeNull();
+
+		for (let expected = 1; expected <= 5; expected++) {
+			await page.mouse.click(
+				box!.x + box!.width / 2,
+				box!.y + box!.height / 2
+			);
+			await expect(editable.locator('.output-body')).toContainText(
+				`run-count:${expected}`
+			);
+			await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
+		}
+	});
+
 	test('Ctrl+Enter and Cmd+Enter run the focused snippet', async ({
 		page,
 		browserName,
