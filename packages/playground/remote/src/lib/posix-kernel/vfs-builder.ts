@@ -29,14 +29,13 @@ import { decodeZip } from '@php-wasm/stream-compression';
 import { dirname, joinPaths } from '@php-wasm/util';
 import { MemoryFileSystem } from './host-bridge';
 
-// eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	writeVfsFile,
 	writeVfsBinary,
 	ensureDir,
 	ensureDirRecursive,
 	symlink,
-} from '../../../../../../wasm-posix-kernel/host/src/vfs/image-helpers';
+} from '@wasm-posix-kernel/host/src/vfs/image-helpers';
 
 // `?url` imports resolved by `resolveKernelBinariesPlugin` in
 // `vite.posix-kernel.config.ts`. The plugin walks

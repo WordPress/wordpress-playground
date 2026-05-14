@@ -111,9 +111,9 @@ export async function bootKernelWordPress(
 		kernelOwnedFs: true,
 		maxWorkers: 8,
 		maxMemoryPages: 4096,
-		onStdout: (data) => routeChunk(data, 'stdout'),
-		onStderr: (data) => routeChunk(data, 'stderr'),
-		onListenTcp: (_pid, _fd, port) => {
+		onStdout: (data: Uint8Array) => routeChunk(data, 'stdout'),
+		onStderr: (data: Uint8Array) => routeChunk(data, 'stderr'),
+		onListenTcp: (_pid: number, _fd: number, port: number) => {
 			logger.debug(`[posix-kernel] service listening on :${port}`);
 		},
 	});
@@ -143,9 +143,9 @@ export async function bootKernelWordPress(
 	kernel.sendBridgePort(bridge.detachHostPort(), KERNEL_HTTP_PORT);
 
 	exit.then(
-		(status) =>
+		(status: number) =>
 			logger.debug(`[posix-kernel] dinit exited with status ${status}`),
-		(error) => logger.error('[posix-kernel] dinit failed:', error)
+		(error: unknown) => logger.error('[posix-kernel] dinit failed:', error)
 	);
 
 	const sendRequest = createRequestSender(bridge);

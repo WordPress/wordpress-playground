@@ -18,16 +18,12 @@
  * by `resolveKernelBinariesPlugin` in `remote/vite.posix-kernel.config.ts`.
  */
 
-// eslint-disable-next-line @nx/enforce-module-boundaries
-export { BrowserKernel } from '../../../../../../wasm-posix-kernel/examples/browser/lib/browser-kernel';
+export { BrowserKernel } from '@wasm-posix-kernel/examples/browser/lib/browser-kernel';
 
-// eslint-disable-next-line @nx/enforce-module-boundaries
-export { HttpBridgeHost } from '../../../../../../wasm-posix-kernel/examples/browser/lib/http-bridge';
-// eslint-disable-next-line @nx/enforce-module-boundaries
+export { HttpBridgeHost } from '@wasm-posix-kernel/examples/browser/lib/http-bridge';
 export type {
 	HttpRequest,
 	HttpResponse,
-} from '../../../../../../wasm-posix-kernel/examples/browser/lib/http-bridge';
+} from '@wasm-posix-kernel/examples/browser/lib/http-bridge';
 
-// eslint-disable-next-line @nx/enforce-module-boundaries
-export { MemoryFileSystem } from '../../../../../../wasm-posix-kernel/host/src/vfs/memory-fs';
+export { MemoryFileSystem } from '@wasm-posix-kernel/host/src/vfs/memory-fs';

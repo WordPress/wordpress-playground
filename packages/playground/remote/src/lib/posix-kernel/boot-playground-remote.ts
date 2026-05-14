@@ -34,9 +34,7 @@ import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
-// @ts-ignore
 import serviceWorkerPath from '../../../service-worker.ts?worker&url';
-// @ts-ignore
 import kernelWorkerUrl from './playground-worker-endpoint.ts?worker&url';
 
 import type { KernelPlaygroundWorkerEndpoint } from './playground-worker-endpoint';
@@ -233,8 +231,7 @@ export async function bootPlaygroundRemote() {
 					}
 
 					const args = event.data.args || [];
-					const method = event.data
-						.method as keyof KernelPlaygroundWorkerEndpoint;
+					const method = event.data.method as string;
 
 					if (method === 'request') {
 						const streamedResponse = await (
@@ -253,10 +250,9 @@ export async function bootPlaygroundRemote() {
 							[bodyPort]
 						);
 					} else {
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-						const result = await (
-							kernelWorkerApi[method] as Function
-						)(...args);
+						const result = await (kernelWorkerApi as any)[method](
+							...args
+						);
 						event.source!.postMessage(
 							responseTo(event.data.requestId, result)
 						);

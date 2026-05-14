@@ -176,6 +176,19 @@ export default defineConfig(() => {
 		publicDir: new URL('../wordpress-builds/public', import.meta.url)
 			.pathname,
 
+		// Runtime side of the `@wasm-posix-kernel/*` alias whose TS
+		// counterpart lives in `src/lib/posix-kernel/wasm-posix-kernel.d.ts`.
+		// The shim keeps the submodule out of our strict typecheck; this
+		// alias resolves the same specifiers to the actual files.
+		resolve: {
+			alias: [
+				{
+					find: /^@wasm-posix-kernel\/(.*)$/,
+					replacement: resolve(resolveKernelDir(), '$1'),
+				},
+			],
+		},
+
 		css: {
 			modules: {
 				localsConvention: 'camelCaseOnly',

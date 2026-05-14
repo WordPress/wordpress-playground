@@ -58,11 +58,8 @@ import type { HttpRequest, HttpResponse } from './host-bridge';
 
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
-/* @ts-ignore */
 import kernelWasmUrl from '@kernel-wasm?url';
-/* @ts-ignore */
 import coreutilsUrl from '@kernel-binary/programs/wasm32/coreutils.wasm?url';
-/* @ts-ignore */
 import phpWasmUrl from '@kernel-binary/programs/wasm32/php/php.wasm?url';
 
 import { wordPressSiteUrl } from '../config';
