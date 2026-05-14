@@ -49,6 +49,13 @@ test.describe('php-code-snippet embed', () => {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
 			await expect(snippet.locator('.run')).toBeVisible();
+			await expect(snippet.locator('.powered-by')).toContainText(
+				'PHP Code Snippet powered by WordPress Playground'
+			);
+			await expect(snippet.locator('.powered-by a')).toHaveAttribute(
+				'href',
+				'https://playground.wordpress.net/php-code-snippet-demo.html'
+			);
 		}
 	});
 
@@ -213,6 +220,78 @@ test.describe('php-code-snippet embed', () => {
 		await expect(editable.locator('.output-body')).toContainText(
 			'edited:42'
 		);
+	});
+
+	test('Run button invokes the snippet on the first click', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		await editable.locator('.run').click();
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:1'
+		);
+		await expect(editable.locator('.run')).toBeEnabled();
+	});
+
+	test('Ctrl+Enter and Cmd+Enter run the focused snippet', async ({
+		page,
+		browserName,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const textarea = editable.locator('textarea.ta');
+		await expect(textarea).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._runOnce = async function (code: string) {
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = code.includes('cmd')
+					? 'cmd-enter-marker'
+					: 'ctrl-enter-marker';
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		await textarea.click();
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php echo "ctrl";';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+		await page.keyboard.press('Control+Enter');
+		await expect(editable.locator('.output-body')).toContainText(
+			'ctrl-enter-marker'
+		);
+
+		// WebKit on Linux does not reliably synthesize Meta shortcuts in CI.
+		if (browserName !== 'webkit') {
+			await textarea.evaluate((el: HTMLTextAreaElement) => {
+				el.value = '<?php echo "cmd";';
+				el.dispatchEvent(new Event('input', { bubbles: true }));
+			});
+			await page.keyboard.press('Meta+Enter');
+			await expect(editable.locator('.output-body')).toContainText(
+				'cmd-enter-marker'
+			);
+		}
 	});
 
 	test('wp="none" + blueprint installs a PHP toolkit usable from the snippet', async ({

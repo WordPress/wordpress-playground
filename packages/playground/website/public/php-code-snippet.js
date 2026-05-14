@@ -47,6 +47,7 @@
 const DEFAULT_ORIGIN = 'https://playground.wordpress.net';
 const DEFAULT_PHP = '8.4';
 const DEFAULT_WP = 'latest';
+const DEMO_URL = 'https://playground.wordpress.net/php-code-snippet-demo.html';
 
 /**
  * Minimal duck-typed port of @php-wasm/progress's ProgressTracker.
@@ -722,6 +723,21 @@ pre {
 	overflow-y: auto;
 }
 .output-body.error { color: #ff8182; }
+.powered-by {
+	padding: 8px 14px;
+	background: #f6f8fa;
+	border-top: 1px solid #e1e4e8;
+	color: #57606a;
+	font-size: 12px;
+	text-align: right;
+}
+.powered-by a {
+	color: #0969da;
+	text-decoration: none;
+}
+.powered-by a:hover {
+	text-decoration: underline;
+}
 /*
  * Brief blue wash that fades to transparent every time the output is
  * refreshed. Re-running an idempotent snippet produces the same text, so
@@ -749,15 +765,34 @@ class PhpSnippet extends HTMLElement {
 		this.attachShadow({ mode: 'open' });
 		this._code = '';
 		this._expectedOutput = null;
+		this._ready = Promise.resolve();
+		this._pendingRun = false;
+		this._isRunning = false;
+		this.shadowRoot.addEventListener('click', (event) => {
+			const target = event.target;
+			if (target instanceof Element && target.closest('.run')) {
+				this._run();
+			}
+		});
+		this.shadowRoot.addEventListener('keydown', (event) => {
+			if (isRunShortcut(event)) {
+				event.preventDefault();
+				this._run();
+			}
+		});
 	}
 
 	connectedCallback() {
 		this._expectedOutput = this._readExpectedOutput();
-		this._readCode().then((code) => {
+		this._ready = this._readCode().then((code) => {
 			this._code = code.trim();
 			this._render();
 			if (this._expectedOutput !== null) {
 				this._showExpectedOutput();
+			}
+			if (this._pendingRun) {
+				this._pendingRun = false;
+				queueMicrotask(() => this._run());
 			}
 		});
 	}
@@ -839,12 +874,19 @@ class PhpSnippet extends HTMLElement {
 					<div class="output-label">Output</div>
 					<pre class="output-body"></pre>
 				</div>
+				<div class="powered-by">
+					<a href="${DEMO_URL}" target="_blank" rel="noopener noreferrer">PHP Code Snippet powered by WordPress Playground</a>
+				</div>
 			</div>
 		`;
 		this.shadowRoot.replaceChildren(style, tpl.content);
 		const runBtn = this.shadowRoot.querySelector('.run');
 		if (runBtn) {
-			runBtn.addEventListener('click', () => this._run());
+			runBtn.setAttribute('title', 'Run (Ctrl+Enter or Cmd+Enter)');
+			runBtn.setAttribute(
+				'aria-keyshortcuts',
+				'Control+Enter Meta+Enter'
+			);
 		}
 		if (editable) this._wireEditor();
 	}
@@ -875,18 +917,26 @@ class PhpSnippet extends HTMLElement {
 
 	async _run() {
 		const btn = this.shadowRoot.querySelector('.run');
-		if (btn.disabled) {
+		if (!btn) {
+			this._pendingRun = true;
+			return;
+		}
+		if (btn.disabled || this._isRunning) {
 			return;
 		}
 
+		this._isRunning = true;
 		btn.disabled = true;
 		btn.setAttribute('aria-busy', 'true');
 		this._setRunButtonProgress('Loading', 0);
 		try {
+			await this._ready;
 			await this._runOnce(this._code);
 		} finally {
-			btn.disabled = false;
-			btn.removeAttribute('aria-busy');
+			const currentBtn = this.shadowRoot.querySelector('.run') || btn;
+			this._isRunning = false;
+			currentBtn.disabled = false;
+			currentBtn.removeAttribute('aria-busy');
 			this._setRunButtonProgress('Run', 0);
 		}
 	}
@@ -979,6 +1029,10 @@ class PhpSnippet extends HTMLElement {
 		};
 		outputBody.addEventListener('animationend', clear);
 	}
+}
+
+function isRunShortcut(event) {
+	return event.key === 'Enter' && (event.metaKey || event.ctrlKey);
 }
 
 customElements.define('php-snippet', PhpSnippet);
