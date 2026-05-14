@@ -498,6 +498,12 @@ final class SSGWP_Static_Exporter {
 			define( 'WP_USE_THEMES', true );
 		}
 
+		$single_post_render = $this->render_single_post_url_in_process( $url );
+
+		if ( ! is_wp_error( $single_post_render ) ) {
+			return $single_post_render;
+		}
+
 		$query       = isset( $parts['query'] ) ? $parts['query'] : '';
 		$request_uri = $path . ( '' !== $query ? '?' . $query : '' );
 

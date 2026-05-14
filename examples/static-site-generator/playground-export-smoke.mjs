@@ -100,7 +100,7 @@ foreach ($posts as $post) {
 }
 
 global $wp_rewrite;
-$wp_rewrite->set_permalink_structure('/%postname%/');
+$wp_rewrite->set_permalink_structure('/%year%/%monthnum%/%day%/%postname%/');
 $wp_rewrite->flush_rules();
 kses_remove_filters();
 
@@ -241,6 +241,8 @@ $first_post_id = wp_insert_post(array(
 	'post_status' => 'publish',
 	'post_title' => 'First Smoke Post',
 	'post_name' => 'first-smoke-post',
+	'post_date' => '2026-03-11 10:00:00',
+	'post_date_gmt' => '2026-03-11 10:00:00',
 	'post_content' => '<p>First smoke post unique body.</p>',
 ));
 
@@ -249,6 +251,8 @@ $second_post_id = wp_insert_post(array(
 	'post_status' => 'publish',
 	'post_title' => 'Second Smoke Post',
 	'post_name' => 'second-smoke-post',
+	'post_date' => '2026-03-12 10:00:00',
+	'post_date_gmt' => '2026-03-12 10:00:00',
 	'post_content' => '<p>Second smoke post unique body.</p>',
 ));
 
@@ -1199,8 +1203,8 @@ function isRetryableCliFailure(result) {
 async function verifyExport() {
 	currentExportDir = exportDir;
 	assertFile('index.html');
-	assertFile('first-smoke-post/index.html');
-	assertFile('second-smoke-post/index.html');
+	assertFile('2026/03/11/first-smoke-post/index.html');
+	assertFile('2026/03/12/second-smoke-post/index.html');
 	assertFile('about-export/index.html');
 	assertFile('static-page/index.html');
 	assertFile(`static-page-${shortHash('jump=one%3Btwo')}.html`);
@@ -1274,8 +1278,8 @@ async function verifyExport() {
 	const staticPage = readText('static-page/index.html');
 	const semicolonRefreshTarget = `../static-page-${shortHash('jump=one%3Btwo')}.html#section`;
 	const expectedTargets = [
-		'../first-smoke-post/index.html',
-		'../second-smoke-post/index.html',
+		'../2026/03/11/first-smoke-post/index.html',
+		'../2026/03/12/second-smoke-post/index.html',
 		'../about-export/index.html',
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
@@ -1826,8 +1830,8 @@ async function verifyScopedExport() {
 	currentExportDir = scopedExportDir;
 
 	assertFile('index.html');
-	assertFile('first-smoke-post/index.html');
-	assertFile('second-smoke-post/index.html');
+	assertFile('2026/03/11/first-smoke-post/index.html');
+	assertFile('2026/03/12/second-smoke-post/index.html');
 	assertFile('about-export/index.html');
 	assertFile('static-page/index.html');
 	assertFile(`static-page-${shortHash('jump=one%3Btwo')}.html`);
@@ -1911,8 +1915,8 @@ async function verifyScopedExport() {
 	const staticPage = readText('static-page/index.html');
 	const semicolonRefreshTarget = `../static-page-${shortHash('jump=one%3Btwo')}.html#section`;
 	const expectedTargets = [
-		'../first-smoke-post/index.html',
-		'../second-smoke-post/index.html',
+		'../2026/03/11/first-smoke-post/index.html',
+		'../2026/03/12/second-smoke-post/index.html',
 		'../about-export/index.html',
 		'../parent-page/child-page/index.html',
 		'../parent-page/child-page/index.html#meta',
@@ -2505,8 +2509,8 @@ function verifyCliExport() {
 
 function assertDistinctSmokeContent() {
 	const home = readText('index.html');
-	const firstPost = readText('first-smoke-post/index.html');
-	const secondPost = readText('second-smoke-post/index.html');
+	const firstPost = readText('2026/03/11/first-smoke-post/index.html');
+	const secondPost = readText('2026/03/12/second-smoke-post/index.html');
 	const aboutPage = readText('about-export/index.html');
 	const staticPage = readText('static-page/index.html');
 

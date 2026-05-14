@@ -32,6 +32,10 @@ format.
 - Verify Playground static exports against a custom-theme fixture with
   distinct post and page content, and document the CLI export Blueprint.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
+- Render static export single post and page URLs directly when internal
+  rendering resolves them, so dated post permalink exports do not fall back to
+  homepage HTML.
+  ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Tighten static export same-site URL checks so links on a different explicit
   port are not crawled or rewritten as local pages.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
