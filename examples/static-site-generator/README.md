@@ -1,6 +1,7 @@
 # Static Site Generator Example
 
-This example explores the static publishing workflow proposed in [wordpress-playground#707](https://github.com/WordPress/wordpress-playground/issues/707):
+This example explores the static publishing workflow proposed in
+[wordpress-playground#707](https://github.com/WordPress/wordpress-playground/issues/707):
 
 1. Build or edit a site in WordPress Playground.
 2. Export public pages and frontend assets as static files.
@@ -14,7 +15,8 @@ After this example is merged, open:
 https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/trunk/examples/static-site-generator/blueprint.json
 ```
 
-The Blueprint installs this example plugin from the repository with a `git:directory` resource and opens `Tools -> Static Site Generator`.
+The Blueprint installs this example plugin from the repository with a
+`git:directory` resource and opens `Tools -> Static Site Generator`.
 
 ## Local Playground CLI
 
@@ -59,6 +61,10 @@ The Playground admin screen shows export progress while the ZIP is being
 prepared. The WP-CLI command prints stage and page progress while exporting.
 The programmatic `ssgwp_export_static_site()` API also accepts a
 `progress_callback` option that receives structured progress events and writes
-those events into `static-export.json`.
+those events into `static-export.json`. The export manifest also records the
+home URL, exported URLs, page and file counts, URL mode, warnings, plugin and
+WordPress versions, and a note that the editable Playground site should be
+saved separately from the static ZIP.
 
-The static ZIP is the published site. To keep editing the source site later, also export or save the full Playground site from Playground's site manager.
+The static ZIP is the published site. To keep editing the source site later,
+also export or save the full Playground site from Playground's site manager.

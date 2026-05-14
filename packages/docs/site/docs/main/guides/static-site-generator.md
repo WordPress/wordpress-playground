@@ -4,7 +4,10 @@ slug: /guides/static-site-generator
 description: Export a WordPress Playground site as static HTML, CSS, JavaScript, images, and fonts.
 ---
 
-WordPress Playground can be used as the editing environment for a static WordPress site. You create or update the site in Playground, export the public frontend as static files, and publish the static export to GitHub Pages, a CDN, or any static host.
+WordPress Playground can be used as the editing environment for a static
+WordPress site. You create or update the site in Playground, export the public
+frontend as static files, and publish the static export to GitHub Pages, a CDN,
+or any static host.
 
 The static site generator example plugin provides an experimental export flow for this model.
 
@@ -14,7 +17,9 @@ Use this Blueprint URL to open a Playground instance with the exporter installed
 
 [Open Static Site Generator](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/trunk/examples/static-site-generator/blueprint.json)
 
-The Blueprint installs the example plugin from this repository using a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference), logs you in, and opens `Tools -> Static Site Generator`.
+The Blueprint installs the example plugin from this repository using a
+[`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference),
+logs you in, and opens `Tools -> Static Site Generator`.
 
 ## Export a static ZIP
 
@@ -31,11 +36,19 @@ rewritten to relative paths by default, which makes the export easier to host
 from a subdirectory. Linked copied text assets can also pull in their own
 same-site dependencies, such as icons referenced by a web manifest.
 
-For longer exports, the Playground admin screen shows the current export stage while the ZIP is being prepared. The WP-CLI command prints stage and page progress, and the programmatic API accepts a `progress_callback` option and writes the progress events into `static-export.json`.
+For longer exports, the Playground admin screen shows the current export stage
+while the ZIP is being prepared. The WP-CLI command prints stage and page
+progress, and the programmatic API accepts a `progress_callback` option. Each
+export also writes `static-export.json` with the home URL, exported URLs, page
+and file counts, URL mode, warnings, progress events, plugin and WordPress
+versions, and a note that the editable Playground site should be saved
+separately from the static ZIP.
 
 ## Keep the editable source site
 
-The static ZIP is only the published output. To keep editing the source site later, save or export the full Playground site from the Playground site manager as well.
+The static ZIP is only the published output. To keep editing the source site
+later, save or export the full Playground site from the Playground site manager
+as well.
 
 ## Run locally
 
