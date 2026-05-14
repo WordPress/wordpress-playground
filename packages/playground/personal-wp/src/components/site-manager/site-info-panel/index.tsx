@@ -121,10 +121,11 @@ function InstallAppsSection() {
 							<WordPressIcon />
 						</span>
 						<span className={css.appContent}>
-							<span className={css.appTitle}>App Launcher</span>
+							<span className={css.appTitle}>
+								{APP_LAUNCHER_BLUEPRINT.meta.title}
+							</span>
 							<span className={css.appDescription}>
-								Browse and install apps from your WordPress
-								dashboard
+								{APP_LAUNCHER_BLUEPRINT.meta.description}
 							</span>
 						</span>
 					</a>
