@@ -5,6 +5,8 @@ ___wrap_select
 _emscripten_sleep
 _exit
 _malloc
+_sqlite3_auto_extension
+_sqlite3_cancel_auto_extension
 _php_wasm_init
 _wasm_add_ENV_entry
 _wasm_add_SERVER_entry
