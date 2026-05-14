@@ -23,10 +23,7 @@ import { SiteLogs } from '../../log-modal';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { useBackup } from '../../../lib/hooks/use-backup';
 import { WordPressIcon } from '@wp-playground/components';
-import {
-	getBlueprintUrl,
-	healthCheckRecoveryBlueprint,
-} from '../../../lib/health-check-recovery';
+import { getHealthCheckRecoveryUrl } from '../../../lib/health-check-recovery';
 import { getRelativeDate } from '../../../lib/utils/get-relative-date';
 import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
 import {
@@ -636,7 +633,7 @@ function RecoverySection() {
 			</p>
 			{showRecovery && (
 				<a
-					href={getBlueprintUrl(healthCheckRecoveryBlueprint)}
+					href={getHealthCheckRecoveryUrl()}
 					className={css.recoveryLink}
 				>
 					Install Health Check &amp; Troubleshoot
