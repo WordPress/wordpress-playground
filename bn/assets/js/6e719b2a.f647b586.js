@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkdocusaurus_classic_typescript=globalThis.webpackChunkdocusaurus_classic_typescript||[]).push([[1650],{2521(s){s.exports=JSON.parse('{"name":"docusaurus-plugin-typedoc-api","id":"default"}')}}]);

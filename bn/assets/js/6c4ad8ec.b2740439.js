@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkdocusaurus_classic_typescript=globalThis.webpackChunkdocusaurus_classic_typescript||[]).push([[8863],{782(s){s.exports=JSON.parse('{"banner":"","breadcrumbs":true,"gitRefName":"master","minimal":false,"pluginId":"default","scopes":[]}')}}]);
