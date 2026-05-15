@@ -25,12 +25,7 @@
 				"outputPath": "dist/packages/playground/cli",
 				"buildTarget": "playground-cli:build:bundle:production"
 			},
-			"dependsOn": [
-				{
-					"projects": "php-wasm-compile-sqlite-markdown-extension",
-					"target": "build"
-				}
-			]
+			"dependsOn": ["download-edit-markdown-runtime"]
 		},
 		"build:bundle": {
 			"executor": "@nx/vite:build",
@@ -39,12 +34,7 @@
 				"main": "dist/packages/playground/cli/src/cli.js",
 				"outputPath": "dist/packages/playground/cli"
 			},
-			"dependsOn": [
-				{
-					"projects": "php-wasm-compile-sqlite-markdown-extension",
-					"target": "build"
-				}
-			],
+			"dependsOn": ["download-edit-markdown-runtime"],
 			"defaultConfiguration": "production",
 			"configurations": {
 				"development": {
@@ -53,6 +43,14 @@
 				"production": {
 					"minify": true
 				}
+			}
+		},
+		"download-edit-markdown-runtime": {
+			"executor": "nx:run-commands",
+			"cache": false,
+			"outputs": ["{projectRoot}/src/edit-markdown/wp-markdown-editor"],
+			"options": {
+				"command": "bash packages/playground/cli/bin/download-edit-markdown-runtime.sh"
 			}
 		},
 		"dev": {

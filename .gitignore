@@ -72,6 +72,10 @@ php.js.bak
 # we do not want to commit it to the repository.
 packages/php-wasm/cli/src/ca-bundle.crt
 
+# Downloaded from adamziel/wp-extensions by playground-cli's build.
+packages/playground/cli/src/edit-markdown/wp-markdown-editor/
+packages/playground/cli/src/edit-markdown/.tmp/
+
 # PHPUnit
 .phpunit.result.cache
 

@@ -1,35 +1,37 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 import type { RunCLIArgs } from '../run-cli';
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// Vite / esbuild `?raw` suffix inlines the file's contents as a string.
-// @ts-expect-error `?raw` import is handled by the bundler.
-import muPluginSource from './edit-markdown-mu-plugin.php?raw';
 
-const MU_PLUGIN_VFS_PATH = '/wordpress/wp-content/mu-plugins/edit-markdown.php';
 const MARKDOWN_ROOT_VFS_PATH = '/markdown-root';
-const PHP_TOOLKIT_VFS_PATH = '/internal/shared/php-toolkit';
+const MARKDOWN_EDITOR_MU_PLUGINS_VFS_PATH = '/wordpress/wp-content/mu-plugins';
+const MARKDOWN_EDITOR_RELEASE_PHP_VERSION: NonNullable<RunCLIArgs['php']> =
+	'8.4';
 const EDIT_MARKDOWN_MODULE_DIR =
 	typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
-const PHP_TOOLKIT_HOST_PATH = resolveEditMarkdownAssetPath(
-	'vendor',
-	'php-toolkit'
+const MARKDOWN_EDITOR_RUNTIME_HOST_PATH = resolveMarkdownEditorRuntimePath();
+const MARKDOWN_EDITOR_MU_PLUGIN_PATH = resolveMarkdownEditorRuntimeAssetPath(
+	'edit-markdown-mu-plugin.php'
 );
-const SQLITE_MARKDOWN_MANIFEST_PATH = resolveEditMarkdownAssetPath(
+const SQLITE_MARKDOWN_MANIFEST_PATH = resolveMarkdownEditorRuntimeAssetPath(
 	'sqlite-markdown-extension',
+	'dist',
 	'manifest.json'
 );
 
-function resolveEditMarkdownAssetPath(...segments: string[]): string {
+function resolveMarkdownEditorRuntimePath(): string {
 	const candidates = [
-		path.resolve(EDIT_MARKDOWN_MODULE_DIR, ...segments),
-		path.resolve(EDIT_MARKDOWN_MODULE_DIR, 'edit-markdown', ...segments),
+		path.resolve(
+			EDIT_MARKDOWN_MODULE_DIR,
+			'wp-markdown-editor',
+			'markdown-editor'
+		),
+		path.resolve(EDIT_MARKDOWN_MODULE_DIR, 'edit-markdown'),
 		path.resolve(
 			EDIT_MARKDOWN_MODULE_DIR,
 			'src',
 			'edit-markdown',
-			...segments
+			'wp-markdown-editor',
+			'markdown-editor'
 		),
 	];
 	return (
@@ -38,44 +40,20 @@ function resolveEditMarkdownAssetPath(...segments: string[]): string {
 	);
 }
 
-/**
- * The php-toolkit submodule needs its composer dependencies installed the
- * first time this command runs. The classmap is fully local (vendor-patched/
- * directories are checked in), so `composer install --no-dev` is offline and
- * fast. We only do this if `vendor/autoload.php` is missing.
- */
-function ensurePhpToolkitAutoload(): void {
-	const autoload = path.join(PHP_TOOLKIT_HOST_PATH, 'vendor', 'autoload.php');
-	if (fs.existsSync(autoload)) {
-		return;
-	}
-	if (!fs.existsSync(path.join(PHP_TOOLKIT_HOST_PATH, 'composer.json'))) {
-		throw new Error(
-			`edit-markdown: php-toolkit submodule is missing at ${PHP_TOOLKIT_HOST_PATH}. ` +
-				`Run \`git submodule update --init --recursive\` from the repo root.`
-		);
-	}
-	try {
-		execSync('composer install --no-dev --prefer-dist --no-interaction', {
-			cwd: PHP_TOOLKIT_HOST_PATH,
-			stdio: 'inherit',
-		});
-	} catch (e) {
-		throw new Error(
-			`edit-markdown: failed to bootstrap php-toolkit via composer. ` +
-				`Install composer (https://getcomposer.org) or run it manually in ` +
-				`${PHP_TOOLKIT_HOST_PATH}.`
-		);
-	}
+function resolveMarkdownEditorRuntimeAssetPath(...segments: string[]): string {
+	return path.resolve(MARKDOWN_EDITOR_RUNTIME_HOST_PATH, ...segments);
 }
 
-function ensureSqliteMarkdownExtensionManifest(): void {
-	if (fs.existsSync(SQLITE_MARKDOWN_MANIFEST_PATH)) {
+function ensureMarkdownEditorRuntime(): void {
+	if (
+		fs.existsSync(SQLITE_MARKDOWN_MANIFEST_PATH) &&
+		fs.existsSync(MARKDOWN_EDITOR_MU_PLUGIN_PATH)
+	) {
 		return;
 	}
 	throw new Error(
-		`edit-markdown: sqlite-markdown extension manifest is missing at ${SQLITE_MARKDOWN_MANIFEST_PATH}. ` +
-			'Run `npx nx run php-wasm-compile-sqlite-markdown-extension:build` from the repo root.'
+		`edit-markdown: Markdown Editor runtime is missing at ${MARKDOWN_EDITOR_RUNTIME_HOST_PATH}. ` +
+			'Run `npx nx run playground-cli:download-edit-markdown-runtime` from the repo root.'
 	);
 }
 
@@ -94,9 +72,7 @@ function ensureSqliteMarkdownExtensionManifest(): void {
  *     markdown_posts / markdown_postmeta virtual tables before WordPress
  *     opens its SQLite database connection.
  *   - mount of the host markdown directory at {@see MARKDOWN_ROOT_VFS_PATH}.
- *   - mount of the bundled wp-php-toolkit/markdown vendor tree.
- *   - writeFile step that drops the mu-plugin into wp-content/mu-plugins,
- *     so plugins_loaded can swap wp_posts / wp_postmeta to virtual tables.
+ *   - mount of the released Markdown Editor runtime as wp-content/mu-plugins.
  */
 export function expandEditMarkdownCommandArgs(
 	args: RunCLIArgs & { reset?: boolean }
@@ -112,38 +88,43 @@ export function expandEditMarkdownCommandArgs(
 		);
 	}
 
-	ensurePhpToolkitAutoload();
-	ensureSqliteMarkdownExtensionManifest();
+	if (
+		args.php !== undefined &&
+		args.php !== MARKDOWN_EDITOR_RELEASE_PHP_VERSION
+	) {
+		throw new Error(
+			`edit-markdown currently requires PHP ${MARKDOWN_EDITOR_RELEASE_PHP_VERSION}. ` +
+				'The wp-extensions Markdown Editor release only ships that sqlite_markdown build.'
+		);
+	}
+
+	ensureMarkdownEditorRuntime();
 
 	const mounts = [
 		...(args.mount || []),
 		{ hostPath: resolved, vfsPath: MARKDOWN_ROOT_VFS_PATH },
-		{ hostPath: PHP_TOOLKIT_HOST_PATH, vfsPath: PHP_TOOLKIT_VFS_PATH },
-	];
-
-	const extraSteps = [
-		...((args as any)['additional-blueprint-steps'] || []),
 		{
-			step: 'writeFile',
-			path: MU_PLUGIN_VFS_PATH,
-			data: muPluginSource,
+			hostPath: MARKDOWN_EDITOR_RUNTIME_HOST_PATH,
+			vfsPath: MARKDOWN_EDITOR_MU_PLUGINS_VFS_PATH,
 		},
 	];
 
 	return {
 		...args,
 		login: true,
+		php: args.php ?? MARKDOWN_EDITOR_RELEASE_PHP_VERSION,
 		phpExtension: [
 			...(((args as any).phpExtension as string[] | undefined) || []),
 			SQLITE_MARKDOWN_MANIFEST_PATH,
 		],
 		mount: mounts,
-		'additional-blueprint-steps': extraSteps,
 	};
 }
 
 export {
 	MARKDOWN_ROOT_VFS_PATH,
-	MU_PLUGIN_VFS_PATH,
+	MARKDOWN_EDITOR_MU_PLUGINS_VFS_PATH,
+	MARKDOWN_EDITOR_RELEASE_PHP_VERSION,
+	MARKDOWN_EDITOR_RUNTIME_HOST_PATH,
 	SQLITE_MARKDOWN_MANIFEST_PATH,
 };

@@ -8,7 +8,7 @@ packages/playground/wordpress-builds/src/wordpress
 packages/playground/wordpress-builds/public
 packages/playground/sync/src/test/wp-*
 packages/php-wasm/node/src/test/__test*
-packages/playground/cli/src/edit-markdown/vendor/php-toolkit
+packages/playground/cli/src/edit-markdown/wp-markdown-editor
 *.timestamp-1678999213403.mjs
 .local
 .vscode

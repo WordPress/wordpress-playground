@@ -274,15 +274,18 @@ writes block editor saves back to disk:
 npx @wp-playground/cli@latest edit-markdown ./content
 ```
 
-It loads the bundled `sqlite_markdown` PHP.wasm extension, mounts the Markdown
-directory at `/markdown-root`, and installs a small mu-plugin that maps
-`wp_posts` and `wp_postmeta` to writable SQLite virtual tables.
+It loads the Markdown Editor runtime published by
+[`adamziel/wp-extensions`](https://github.com/adamziel/wp-extensions), mounts
+the Markdown directory at `/markdown-root`, and installs the released
+mu-plugin that maps `wp_posts` and `wp_postmeta` to writable SQLite virtual
+tables. The current release ships its `sqlite_markdown` extension for PHP 8.4,
+so `edit-markdown` defaults to PHP 8.4 and rejects other PHP versions.
 
-When running from a Playground source checkout, build the extension artifacts
+When running from a Playground source checkout, download the runtime artifacts
 first:
 
 ```bash
-npx nx run php-wasm-compile-sqlite-markdown-extension:build
+npx nx run playground-cli:download-edit-markdown-runtime
 ```
 
 ## Need some help with the CLI?

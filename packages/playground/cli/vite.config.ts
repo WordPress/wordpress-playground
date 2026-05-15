@@ -170,26 +170,19 @@ const plugins = [
 			const outputDir = options.dir;
 			if (!outputDir) return;
 
-			const assetRoots = [
-				'sqlite-markdown-extension',
-				join('vendor', 'php-toolkit'),
-			];
-			for (const assetRoot of assetRoots) {
-				const sourcePath = join(
-					__dirname,
-					'src',
-					'edit-markdown',
-					assetRoot
-				);
-				if (!existsSync(sourcePath)) {
-					continue;
-				}
-				cpSync(
-					sourcePath,
-					join(outputDir, 'edit-markdown', assetRoot),
-					{ recursive: true }
-				);
+			const runtimePath = join(
+				__dirname,
+				'src',
+				'edit-markdown',
+				'wp-markdown-editor',
+				'markdown-editor'
+			);
+			if (!existsSync(runtimePath)) {
+				return;
 			}
+			cpSync(runtimePath, join(outputDir, 'edit-markdown'), {
+				recursive: true,
+			});
 		},
 	},
 	...viteGlobalExtensions,
