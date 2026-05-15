@@ -514,19 +514,24 @@ export async function isWordPressInstalled(php: PHP) {
 			ob_start();
 			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
 			if (!file_exists($wp_load)) {
-				echo '-1';
+				echo '<<PG-RESULT:-1:END>>';
 				exit;
 			}
 			require $wp_load;
 			ob_clean();
-			echo is_blog_installed() ? '1' : '0';
+			echo '<<PG-RESULT:' . ( is_blog_installed() ? '1' : '0' ) . ':END>>';
 			ob_end_flush();
 		`,
 		env: {
 			DOCUMENT_ROOT: php.documentRoot,
 		},
 	});
-	return result.text === '1';
+	// Use a sentinel-wrapped check rather than strict equality so that any
+	// output produced after ob_end_flush() (e.g. by PHP shutdown handlers,
+	// register_shutdown_function callbacks, wp_cron loopback writes from
+	// plugins like Action Scheduler, or transport debug noise from
+	// wp_remote_post fallbacks) doesn't corrupt the result.
+	return result.text.includes('<<PG-RESULT:1:END>>');
 }
 
 /**
@@ -624,17 +629,18 @@ async function isDatabaseConnectionValid(php: PHP) {
 			ob_start();
 			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
 			if (!file_exists($wp_load)) {
-				echo '-1';
+				echo '<<PG-RESULT:-1:END>>';
 				exit;
 			}
 			require $wp_load;
 			ob_clean();
-			echo $wpdb->check_connection( false ) ? '1' : '0';
+			echo '<<PG-RESULT:' . ( $wpdb->check_connection( false ) ? '1' : '0' ) . ':END>>';
 			ob_end_flush();
 		`,
 		env: {
 			DOCUMENT_ROOT: php.documentRoot,
 		},
 	});
-	return result.text === '1';
+	// Sentinel-wrapped check — see the comment in isWordPressInstalled() for why.
+	return result.text.includes('<<PG-RESULT:1:END>>');
 }
