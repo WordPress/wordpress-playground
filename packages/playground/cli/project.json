@@ -24,7 +24,13 @@
 				"tsConfig": "packages/playground/cli/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/cli",
 				"buildTarget": "playground-cli:build:bundle:production"
-			}
+			},
+			"dependsOn": [
+				{
+					"projects": "php-wasm-compile-sqlite-markdown-extension",
+					"target": "build"
+				}
+			]
 		},
 		"build:bundle": {
 			"executor": "@nx/vite:build",
@@ -33,6 +39,12 @@
 				"main": "dist/packages/playground/cli/src/cli.js",
 				"outputPath": "dist/packages/playground/cli"
 			},
+			"dependsOn": [
+				{
+					"projects": "php-wasm-compile-sqlite-markdown-extension",
+					"target": "build"
+				}
+			],
 			"defaultConfiguration": "production",
 			"configurations": {
 				"development": {

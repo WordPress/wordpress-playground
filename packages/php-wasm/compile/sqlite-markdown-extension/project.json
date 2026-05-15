@@ -6,10 +6,16 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts packages/php-wasm/compile-extension/src/cli.ts --source packages/php-wasm/compile/sqlite-markdown-extension/src --name sqlite_markdown --php-versions 7.4,8.0,8.1,8.2,8.3,8.4,8.5 --out packages/playground/cli/src/edit-markdown/sqlite-markdown-extension"
+					"node dist/packages/php-wasm/compile-extension/cli.js --source packages/php-wasm/compile/sqlite-markdown-extension/src --name sqlite_markdown --php-versions 7.4,8.0,8.1,8.2,8.3,8.4,8.5 --out packages/playground/cli/src/edit-markdown/sqlite-markdown-extension"
 				],
 				"parallel": false
-			}
+			},
+			"dependsOn": [
+				{
+					"projects": "php-wasm-compile-extension",
+					"target": "build"
+				}
+			]
 		}
 	},
 	"tags": []
