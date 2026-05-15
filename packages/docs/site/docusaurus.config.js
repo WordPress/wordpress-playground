@@ -25,6 +25,7 @@ const config = {
 	projectName: 'wordpress-playground', // Usually your repo name.
 
 	onBrokenLinks: 'throw',
+	onBrokenAnchors: 'warn',
 
 	markdown: {
 		hooks: {

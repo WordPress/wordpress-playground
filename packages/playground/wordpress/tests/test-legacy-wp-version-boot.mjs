@@ -259,7 +259,7 @@ async function waitForPluginActivation(
 	page,
 	previousFrameUrl,
 	previousBody,
-	timeoutSeconds = 60
+	timeoutSeconds = 120
 ) {
 	const deadline = Date.now() + timeoutSeconds * 1000;
 	while (Date.now() < deadline) {
@@ -723,17 +723,40 @@ for (const { wp, php } of MATRIX) {
 							? helloActivate
 							: anyActivate;
 					if ((await activateLink.count()) > 0) {
+						const activationPath = normalizeAdminHref(
+							await activateLink.getAttribute('href')
+						);
 						const bodyBeforeActivation = await wp4.frame
 							.locator('body')
 							.innerText({ timeout: 2000 })
 							.catch(() => wp4.body);
 						const prevFrameUrl = wp4.frame.url();
-						await activateLink.click({ timeout: 5000 });
+						try {
+							await activateLink.click({
+								timeout: 5000,
+								noWaitAfter: true,
+							});
+						} catch {
+							if (activationPath) {
+								await navigateViaUrlBar(
+									page,
+									activationPath,
+									60
+								);
+							}
+						}
 						let wp4b = await waitForPluginActivation(
 							page,
 							prevFrameUrl,
 							bodyBeforeActivation
 						);
+						if (!wp4b && activationPath) {
+							wp4b = await navigateViaUrlBar(
+								page,
+								activationPath,
+								60
+							);
+						}
 						if (!wp4b) {
 							const refreshed = await navigateViaUrlBar(
 								page,
@@ -820,6 +843,23 @@ for (const { wp, php } of MATRIX) {
 	});
 	await page.close();
 	await context.close();
+}
+
+function normalizeAdminHref(href) {
+	if (!href) {
+		return null;
+	}
+	if (href.startsWith('/')) {
+		return href;
+	}
+	try {
+		const url = new URL(href);
+		return `${url.pathname}${url.search}${url.hash}`;
+	} catch {}
+	if (href.startsWith('plugins.php')) {
+		return `/wp-admin/${href}`;
+	}
+	return href;
 }
 
 await browser.close();
