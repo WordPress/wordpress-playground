@@ -19,6 +19,7 @@ final class SSGWP_Plugin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_admin_page' ) );
 		add_action( 'admin_post_ssgwp_export', array( __CLASS__, 'handle_export_download' ) );
+		add_action( 'admin_post_ssgwp_download_export', array( __CLASS__, 'handle_existing_export_download' ) );
 		add_action( 'wp_ajax_ssgwp_export_progress', array( __CLASS__, 'handle_progress_request' ) );
 		add_filter( 'show_admin_bar', array( __CLASS__, 'hide_admin_bar_during_export' ), 999 );
 
@@ -62,8 +63,16 @@ final class SSGWP_Plugin {
 			wp_die( esc_html__( 'You do not have permission to export this site.', 'playground-static-site-generator' ) );
 		}
 
-		$job_id         = self::create_export_job_id();
-		$progress_nonce = wp_create_nonce( 'ssgwp_export_progress_' . $job_id );
+		$job_id            = self::create_export_job_id();
+		$progress_nonce    = wp_create_nonce( 'ssgwp_export_progress_' . $job_id );
+		$latest_export     = self::get_latest_export_progress();
+		$active_job_id     = isset( $latest_export['job_id'] ) ? $latest_export['job_id'] : '';
+		$active_run_id     = isset( $latest_export['run_id'] ) ? $latest_export['run_id'] : '';
+		$active_nonce      = '' !== $active_job_id ? wp_create_nonce( 'ssgwp_export_progress_' . $active_job_id ) : '';
+		$initial_progress  = isset( $latest_export['state'] )
+			? self::prepare_progress_response( $latest_export['state'], $active_job_id, $active_run_id )
+			: null;
+		$initial_is_active = is_array( $initial_progress ) && empty( $initial_progress['is_terminal'] );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Static Site Generator', 'playground-static-site-generator' ); ?></h1>
@@ -108,31 +117,110 @@ final class SSGWP_Plugin {
 					</tr>
 				</table>
 
-				<?php submit_button( __( 'Download Static Site ZIP', 'playground-static-site-generator' ) ); ?>
+				<?php
+				submit_button(
+					__( 'Download Static Site ZIP', 'playground-static-site-generator' ),
+					'primary',
+					'submit',
+					true,
+					array( 'id' => 'ssgwp-export-submit' )
+				);
+				?>
 			</form>
 			<iframe name="ssgwp-export-download-frame" title="<?php esc_attr_e( 'Static export download', 'playground-static-site-generator' ); ?>" hidden></iframe>
+			<style>
+				#ssgwp-export-progress-meter {
+					background: #dcdcde;
+					border-radius: 999px;
+					height: 12px;
+					margin: 8px 0;
+					overflow: hidden;
+					width: 100%;
+				}
+				#ssgwp-export-progress-bar {
+					background: #2271b1;
+					height: 100%;
+					transition: width 160ms linear;
+					width: 0;
+				}
+				#ssgwp-export-progress-log {
+					margin-left: 1.5em;
+					max-height: 14em;
+					overflow: auto;
+				}
+				#ssgwp-export-progress-log li {
+					margin-bottom: 4px;
+				}
+			</style>
 			<div
 				id="ssgwp-export-progress"
 				class="notice notice-info"
 				aria-live="polite"
-				hidden
+				<?php echo is_array( $initial_progress ) ? '' : 'hidden'; ?>
+				data-active-job-id="<?php echo esc_attr( $active_job_id ); ?>"
+				data-active-run-id="<?php echo esc_attr( $active_run_id ); ?>"
+				data-active-nonce="<?php echo esc_attr( $active_nonce ); ?>"
+				data-active="<?php echo $initial_is_active ? '1' : '0'; ?>"
 				data-started="<?php esc_attr_e( 'Export started. Preparing pages for download...', 'playground-static-site-generator' ); ?>"
 				data-waiting="<?php esc_attr_e( 'Waiting for export progress...', 'playground-static-site-generator' ); ?>"
 				data-failed="<?php esc_attr_e( 'Could not read export progress. The download may still be running.', 'playground-static-site-generator' ); ?>"
 			>
-				<p id="ssgwp-export-progress-message"></p>
+				<p><strong id="ssgwp-export-progress-message"></strong> <span id="ssgwp-export-progress-percent">0%</span></p>
+				<div
+					id="ssgwp-export-progress-meter"
+					role="progressbar"
+					aria-valuemin="0"
+					aria-valuemax="100"
+					aria-valuenow="0"
+				>
+					<div id="ssgwp-export-progress-bar"></div>
+				</div>
+				<p>
+					<a id="ssgwp-export-download-link" href="#" hidden>
+						<?php esc_html_e( 'Download the completed static ZIP', 'playground-static-site-generator' ); ?>
+					</a>
+				</p>
+				<details>
+					<summary><?php esc_html_e( 'Export log', 'playground-static-site-generator' ); ?></summary>
+					<ol id="ssgwp-export-progress-log"></ol>
+				</details>
 			</div>
 			<script>
 				(function() {
 					var form = document.getElementById( 'ssgwp-export-form' );
 					var panel = document.getElementById( 'ssgwp-export-progress' );
 					var message = document.getElementById( 'ssgwp-export-progress-message' );
+					var percent = document.getElementById( 'ssgwp-export-progress-percent' );
+					var meter = document.getElementById( 'ssgwp-export-progress-meter' );
+					var bar = document.getElementById( 'ssgwp-export-progress-bar' );
+					var log = document.getElementById( 'ssgwp-export-progress-log' );
+					var downloadLink = document.getElementById( 'ssgwp-export-download-link' );
 					var jobId = document.getElementById( 'ssgwp_export_job_id' );
 					var runId = document.getElementById( 'ssgwp_export_run_id' );
 					var nonce = document.getElementById( 'ssgwp_progress_nonce' );
+					var submitButton = document.getElementById( 'ssgwp-export-submit' );
 					var timer = null;
+					var activeJobId = panel ? panel.getAttribute( 'data-active-job-id' ) : '';
+					var activeRunId = panel ? panel.getAttribute( 'data-active-run-id' ) : '';
+					var activeNonce = panel ? panel.getAttribute( 'data-active-nonce' ) : '';
+					var initialProgress = <?php echo wp_json_encode(
+						$initial_progress,
+						JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+					); ?>;
 
-					if ( ! form || ! panel || ! message || ! jobId || ! runId || ! nonce ) {
+					if (
+						! form ||
+						! panel ||
+						! message ||
+						! percent ||
+						! meter ||
+						! bar ||
+						! log ||
+						! downloadLink ||
+						! jobId ||
+						! runId ||
+						! nonce
+					) {
 						return;
 					}
 
@@ -140,10 +228,93 @@ final class SSGWP_Plugin {
 						message.textContent = text || panel.getAttribute( 'data-waiting' );
 					}
 
+					function setPercent( value ) {
+						var next = Math.max( 0, Math.min( 100, parseInt( value, 10 ) || 0 ) );
+
+						percent.textContent = next + '%';
+						meter.setAttribute( 'aria-valuenow', String( next ) );
+						bar.style.width = next + '%';
+					}
+
+					function setRunning( running ) {
+						if ( submitButton ) {
+							submitButton.disabled = !! running;
+						}
+					}
+
 					function stopPolling() {
 						if ( timer ) {
 							window.clearInterval( timer );
 							timer = null;
+						}
+					}
+
+					function isTerminal( data ) {
+						return !! (
+							data &&
+							(
+								data.is_terminal ||
+								'failed' === data.stage ||
+								'zip_complete' === data.stage ||
+								'download_ready' === data.stage
+							)
+						);
+					}
+
+					function renderLog( entries ) {
+						log.textContent = '';
+
+						if ( ! entries || ! entries.length ) {
+							return;
+						}
+
+						entries.forEach( function( entry ) {
+							var item = document.createElement( 'li' );
+							var itemPercent = parseInt( entry.percent, 10 );
+							var text = entry.message || '';
+
+							if ( ! isNaN( itemPercent ) ) {
+								text = itemPercent + '% - ' + text;
+							}
+
+							item.textContent = text;
+							log.appendChild( item );
+						} );
+					}
+
+					function renderProgress( data ) {
+						if ( ! data ) {
+							return;
+						}
+
+						panel.hidden = false;
+						panel.classList.toggle( 'notice-error', 'failed' === data.stage );
+						panel.classList.toggle(
+							'notice-success',
+							'zip_complete' === data.stage || 'download_ready' === data.stage
+						);
+						panel.classList.toggle(
+							'notice-info',
+							'failed' !== data.stage &&
+								'zip_complete' !== data.stage &&
+								'download_ready' !== data.stage
+						);
+						setMessage( data.message );
+						setPercent( data.percent );
+						renderLog( data.log );
+
+						if ( data.download_url ) {
+							downloadLink.href = data.download_url;
+							downloadLink.hidden = false;
+						} else {
+							downloadLink.hidden = true;
+						}
+
+						if ( isTerminal( data ) ) {
+							stopPolling();
+							setRunning( false );
+						} else {
+							setRunning( true );
 						}
 					}
 
@@ -160,16 +331,16 @@ final class SSGWP_Plugin {
 					}
 
 					function pollProgress() {
-						if ( ! window.fetch || ! window.ajaxurl ) {
+						if ( ! window.fetch || ! window.ajaxurl || ! activeJobId || ! activeNonce ) {
 							setMessage( panel.getAttribute( 'data-failed' ) );
 							stopPolling();
 							return;
 						}
 
 						var url = window.ajaxurl + '?action=ssgwp_export_progress'
-							+ '&job_id=' + window.encodeURIComponent( jobId.value )
-							+ '&run_id=' + window.encodeURIComponent( runId.value )
-							+ '&nonce=' + window.encodeURIComponent( nonce.value )
+							+ '&job_id=' + window.encodeURIComponent( activeJobId )
+							+ '&run_id=' + window.encodeURIComponent( activeRunId )
+							+ '&nonce=' + window.encodeURIComponent( activeNonce )
 							+ '&_=' + Date.now();
 
 						window.fetch( url, { credentials: 'same-origin' } )
@@ -184,14 +355,7 @@ final class SSGWP_Plugin {
 									return;
 								}
 
-								setMessage( data.message );
-
-								if (
-									'failed' === data.stage ||
-									'zip_complete' === data.stage
-								) {
-									stopPolling();
-								}
+								renderProgress( data );
 							} )
 							.catch( function() {
 								setMessage( panel.getAttribute( 'data-failed' ) );
@@ -200,12 +364,31 @@ final class SSGWP_Plugin {
 
 					form.addEventListener( 'submit', function() {
 						runId.value = createRunId();
+						activeJobId = jobId.value;
+						activeRunId = runId.value;
+						activeNonce = nonce.value;
 						panel.hidden = false;
-						setMessage( panel.getAttribute( 'data-started' ) );
+						downloadLink.hidden = true;
+						renderProgress( {
+							stage: 'started',
+							message: panel.getAttribute( 'data-started' ),
+							percent: 1,
+							log: [],
+							is_terminal: false
+						} );
 						stopPolling();
 						pollProgress();
 						timer = window.setInterval( pollProgress, 1000 );
 					} );
+
+					if ( initialProgress ) {
+						renderProgress( initialProgress );
+					}
+
+					if ( '1' === panel.getAttribute( 'data-active' ) ) {
+						pollProgress();
+						timer = window.setInterval( pollProgress, 1000 );
+					}
 				}());
 			</script>
 		</div>
@@ -220,6 +403,7 @@ final class SSGWP_Plugin {
 			wp_die( esc_html__( 'You do not have permission to export this site.', 'playground-static-site-generator' ) );
 		}
 
+		ignore_user_abort( true );
 		check_admin_referer( 'ssgwp_export' );
 
 		$request     = wp_unslash( $_POST );
@@ -232,6 +416,7 @@ final class SSGWP_Plugin {
 			wp_die( esc_html__( 'Could not create a temporary export directory.', 'playground-static-site-generator' ) );
 		}
 
+		self::cleanup_old_exports( $temp_parent );
 		$output_file = trailingslashit( $temp_parent ) . 'static-site-' . gmdate( 'Ymd-His' ) . '.zip';
 
 		try {
@@ -248,6 +433,18 @@ final class SSGWP_Plugin {
 			}
 
 			ssgwp_export_static_site( $output_file, $args );
+
+			if ( '' !== $job_id ) {
+				self::store_progress_event(
+					$job_id,
+					array(
+						'stage'   => 'download_ready',
+						'message' => __( 'Static export ZIP is ready to download.', 'playground-static-site-generator' ),
+						'context' => array( 'output_file' => $output_file ),
+					),
+					$run_id
+				);
+			}
 		} catch ( Exception $exception ) {
 			if ( '' !== $job_id ) {
 				self::store_progress_event(
@@ -278,7 +475,46 @@ final class SSGWP_Plugin {
 		header( 'Cache-Control: must-revalidate, post-check=0, pre-check=0' );
 
 		readfile( $output_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
-		unlink( $output_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+
+		if ( '' === $job_id ) {
+			unlink( $output_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		}
+		exit;
+	}
+
+	/**
+	 * Download the latest completed export for a user after an admin reload.
+	 */
+	public static function handle_existing_export_download() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to export this site.', 'playground-static-site-generator' ) );
+		}
+
+		$job_id = isset( $_GET['job_id'] ) ? self::sanitize_export_job_id( wp_unslash( $_GET['job_id'] ) ) : '';
+		$run_id = isset( $_GET['run_id'] ) ? self::sanitize_export_run_id( wp_unslash( $_GET['run_id'] ) ) : '';
+
+		if ( '' === $job_id || ! check_admin_referer( 'ssgwp_download_export_' . $job_id . '_' . $run_id, 'nonce' ) ) {
+			wp_die( esc_html__( 'Invalid export download request.', 'playground-static-site-generator' ) );
+		}
+
+		$state = self::get_progress_state( $job_id, $run_id );
+		$output_file = self::get_download_file_from_progress_state( $state );
+
+		if ( '' === $output_file || ! is_readable( $output_file ) ) {
+			wp_die( esc_html__( 'The completed static export is no longer available.', 'playground-static-site-generator' ) );
+		}
+
+		while ( ob_get_level() ) {
+			ob_end_clean();
+		}
+
+		header( 'Content-Type: application/zip' );
+		header( 'Content-Disposition: attachment; filename="static-site.zip"' );
+		header( 'Content-Length: ' . filesize( $output_file ) );
+		header( 'Pragma: public' );
+		header( 'Cache-Control: must-revalidate, post-check=0, pre-check=0' );
+
+		readfile( $output_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 		exit;
 	}
 
@@ -303,7 +539,7 @@ final class SSGWP_Plugin {
 			);
 		}
 
-		$event = get_transient( self::progress_transient_key( $job_id, $run_id ) );
+		$event = self::get_progress_state( $job_id, $run_id );
 
 		if ( ! is_array( $event ) ) {
 			$event = self::normalize_progress_event(
@@ -314,7 +550,123 @@ final class SSGWP_Plugin {
 			);
 		}
 
-		wp_send_json_success( $event );
+		wp_send_json_success( self::prepare_progress_response( $event, $job_id, $run_id ) );
+	}
+
+	/**
+	 * Return the latest export progress state remembered for this user.
+	 *
+	 * @return array<string,mixed>|null Export metadata and progress state.
+	 */
+	private static function get_latest_export_progress() {
+		$latest = get_user_meta( get_current_user_id(), self::latest_export_meta_key(), true );
+
+		if ( ! is_array( $latest ) ) {
+			return null;
+		}
+
+		$job_id = isset( $latest['job_id'] ) ? self::sanitize_export_job_id( $latest['job_id'] ) : '';
+		$run_id = isset( $latest['run_id'] ) ? self::sanitize_export_run_id( $latest['run_id'] ) : '';
+
+		if ( '' === $job_id ) {
+			return null;
+		}
+
+		$state = self::get_progress_state( $job_id, $run_id );
+
+		if ( ! is_array( $state ) ) {
+			return null;
+		}
+
+		return array(
+			'job_id' => $job_id,
+			'run_id' => $run_id,
+			'state'  => $state,
+		);
+	}
+
+	/**
+	 * Prepare progress state for JSON responses and initial page hydration.
+	 *
+	 * @param array  $state  Progress state.
+	 * @param string $job_id Export job id.
+	 * @param string $run_id Export run id.
+	 * @return array Progress response.
+	 */
+	private static function prepare_progress_response( array $state, $job_id, $run_id ) {
+		$state = self::normalize_progress_state( $state );
+		$download_file = self::get_download_file_from_progress_state( $state );
+
+		if ( '' !== $download_file && is_readable( $download_file ) ) {
+			$state['download_url'] = self::build_export_download_url( $job_id, $run_id );
+		}
+
+		return $state;
+	}
+
+	/**
+	 * Get a stored progress state.
+	 *
+	 * @param string $job_id Export job id.
+	 * @param string $run_id Export run id.
+	 * @return array<string,mixed>|false Stored state, or false when missing.
+	 */
+	private static function get_progress_state( $job_id, $run_id = '' ) {
+		return get_transient( self::progress_transient_key( $job_id, $run_id ) );
+	}
+
+	/**
+	 * Build a nonce-protected URL for downloading a completed export.
+	 *
+	 * @param string $job_id Export job id.
+	 * @param string $run_id Export run id.
+	 * @return string Download URL.
+	 */
+	private static function build_export_download_url( $job_id, $run_id ) {
+		$url = add_query_arg(
+			array(
+				'action' => 'ssgwp_download_export',
+				'job_id' => $job_id,
+				'run_id' => $run_id,
+			),
+			admin_url( 'admin-post.php' )
+		);
+
+		return wp_nonce_url( $url, 'ssgwp_download_export_' . $job_id . '_' . $run_id, 'nonce' );
+	}
+
+	/**
+	 * Return a safe completed export file path from progress state.
+	 *
+	 * @param array|false $state Progress state.
+	 * @return string Export file path, or empty string when unavailable.
+	 */
+	private static function get_download_file_from_progress_state( $state ) {
+		if ( ! is_array( $state ) || empty( $state['context']['output_file'] ) ) {
+			return '';
+		}
+
+		$output_file = wp_normalize_path( $state['context']['output_file'] );
+		$temp_parent = wp_normalize_path( self::get_export_temp_directory() );
+		$real_output = realpath( $output_file );
+		$real_parent = realpath( $temp_parent );
+
+		if ( false === $real_output || false === $real_parent ) {
+			return '';
+		}
+
+		$real_output = wp_normalize_path( $real_output );
+		$temp_parent = trailingslashit( wp_normalize_path( $real_parent ) );
+
+		if ( 0 !== strpos( $real_output, $temp_parent ) ) {
+			return '';
+		}
+
+		if ( 'zip' !== strtolower( pathinfo( $real_output, PATHINFO_EXTENSION ) ) ) {
+			return '';
+		}
+
+		return $real_output;
 	}
 
 	/**
@@ -346,6 +698,31 @@ final class SSGWP_Plugin {
 	 */
 	private static function get_export_temp_directory() {
 		return trailingslashit( get_temp_dir() ) . 'static-site-generator';
+	}
+
+	/**
+	 * Remove old retained ZIP downloads from previous admin exports.
+	 *
+	 * @param string $temp_parent Export temp directory.
+	 */
+	private static function cleanup_old_exports( $temp_parent ) {
+		$files = glob( trailingslashit( $temp_parent ) . 'static-site-*.zip' );
+
+		if ( ! is_array( $files ) ) {
+			return;
+		}
+
+		foreach ( $files as $file ) {
+			if ( ! is_file( $file ) ) {
+				continue;
+			}
+
+			$mtime = filemtime( $file );
+
+			if ( false !== $mtime && $mtime < time() - HOUR_IN_SECONDS ) {
+				unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+			}
+		}
 	}
 
 	/**
@@ -390,7 +767,18 @@ final class SSGWP_Plugin {
 		}
 
 		$event = self::normalize_progress_event( $event );
-		set_transient( self::progress_transient_key( $job_id, $run_id ), $event, HOUR_IN_SECONDS );
+		$state = self::normalize_progress_state( get_transient( self::progress_transient_key( $job_id, $run_id ) ) );
+		$state = self::apply_progress_event_to_state( $state, $event );
+
+		set_transient( self::progress_transient_key( $job_id, $run_id ), $state, HOUR_IN_SECONDS );
+		update_user_meta(
+			get_current_user_id(),
+			self::latest_export_meta_key(),
+			array(
+				'job_id' => $job_id,
+				'run_id' => $run_id,
+			)
+		);
 	}
 
 	/**
@@ -406,8 +794,246 @@ final class SSGWP_Plugin {
 			'message'        => isset( $event['message'] ) ? sanitize_text_field( $event['message'] ) : '',
 			'pages_exported' => isset( $event['pages_exported'] ) ? (int) $event['pages_exported'] : 0,
 			'files_exported' => isset( $event['files_exported'] ) ? (int) $event['files_exported'] : 0,
-			'context'        => isset( $event['context'] ) && is_array( $event['context'] ) ? $event['context'] : array(),
+			'context'        => isset( $event['context'] ) && is_array( $event['context'] )
+				? self::sanitize_progress_context( $event['context'] )
+				: array(),
 		);
+	}
+
+	/**
+	 * Normalize the stored progress state shape.
+	 *
+	 * @param mixed $state Stored state.
+	 * @return array Normalized state.
+	 */
+	private static function normalize_progress_state( $state ) {
+		if ( ! is_array( $state ) ) {
+			$state = array();
+		}
+
+		$context = isset( $state['context'] ) && is_array( $state['context'] )
+			? self::sanitize_progress_context( $state['context'] )
+			: array();
+		$log     = isset( $state['log'] ) && is_array( $state['log'] ) ? $state['log'] : array();
+
+		return array(
+			'time'           => isset( $state['time'] ) ? sanitize_text_field( $state['time'] ) : gmdate( 'c' ),
+			'stage'          => isset( $state['stage'] ) ? sanitize_key( $state['stage'] ) : 'waiting',
+			'message'        => isset( $state['message'] ) ? sanitize_text_field( $state['message'] ) : '',
+			'pages_exported' => isset( $state['pages_exported'] ) ? (int) $state['pages_exported'] : 0,
+			'files_exported' => isset( $state['files_exported'] ) ? (int) $state['files_exported'] : 0,
+			'context'        => $context,
+			'percent'        => isset( $state['percent'] ) ? max( 0, min( 100, (int) $state['percent'] ) ) : 0,
+			'log'            => self::normalize_progress_log( $log ),
+			'is_terminal'    => ! empty( $state['is_terminal'] ),
+		);
+	}
+
+	/**
+	 * Apply one exporter event to the browser-facing progress state.
+	 *
+	 * @param array $state Previous state.
+	 * @param array $event New event.
+	 * @return array Updated state.
+	 */
+	private static function apply_progress_event_to_state( array $state, array $event ) {
+		$percent = self::calculate_progress_percent( $event, $state );
+		$state   = array_merge(
+			$state,
+			array(
+				'time'           => $event['time'],
+				'stage'          => $event['stage'],
+				'message'        => $event['message'],
+				'pages_exported' => $event['pages_exported'],
+				'files_exported' => $event['files_exported'],
+				'context'        => $event['context'],
+				'percent'        => $percent,
+				'is_terminal'    => self::is_terminal_progress_stage( $event['stage'] ),
+			)
+		);
+
+		if ( self::should_log_progress_event( $event ) ) {
+			$state['log'][] = array(
+				'time'    => $event['time'],
+				'stage'   => $event['stage'],
+				'message' => $event['message'],
+				'percent' => $percent,
+			);
+			$state['log'] = array_slice( $state['log'], -100 );
+		}
+
+		return self::normalize_progress_state( $state );
+	}
+
+	/**
+	 * Estimate a monotonic export completion percentage from exporter events.
+	 *
+	 * @param array $event Current event.
+	 * @param array $state Previous state.
+	 * @return int Completion percentage.
+	 */
+	private static function calculate_progress_percent( array $event, array $state ) {
+		$stage    = isset( $event['stage'] ) ? $event['stage'] : '';
+		$context  = isset( $event['context'] ) && is_array( $event['context'] ) ? $event['context'] : array();
+		$previous = isset( $state['percent'] ) ? (int) $state['percent'] : 0;
+		$percent  = $previous;
+
+		if ( in_array( $stage, array( 'render_page', 'page_exported', 'page_failed' ), true ) ) {
+			$total = isset( $context['queue_total'] ) ? max( 1, (int) $context['queue_total'] ) : 1;
+
+			if ( 'render_page' === $stage ) {
+				$done = isset( $context['queue_position'] )
+					? max( 0, (int) $context['queue_position'] - 1 )
+					: (int) $event['pages_exported'];
+			} else {
+				$done = (int) $event['pages_exported'];
+			}
+
+			$percent = 5 + (int) floor( min( 1, $done / $total ) * 70 );
+		} else {
+			switch ( $stage ) {
+				case 'waiting':
+					$percent = 0;
+					break;
+				case 'started':
+					$percent = 1;
+					break;
+				case 'discovered':
+					$percent = 5;
+					break;
+				case 'copy_assets':
+					$percent = 78;
+					break;
+				case 'copy_linked_assets':
+					$percent = 82;
+					break;
+				case 'rewrite_assets':
+					$pass    = isset( $context['pass'] ) ? max( 1, (int) $context['pass'] ) : 1;
+					$percent = min( 94, 86 + $pass );
+					break;
+				case 'copy_text_asset_dependencies':
+					$pass    = isset( $context['pass'] ) ? max( 1, (int) $context['pass'] ) : 1;
+					$percent = min( 95, 89 + $pass );
+					break;
+				case 'complete':
+					$percent = 96;
+					break;
+				case 'zip':
+					$percent = 98;
+					break;
+				case 'zip_complete':
+				case 'download_ready':
+					$percent = 100;
+					break;
+				case 'failed':
+					$percent = $previous;
+					break;
+			}
+		}
+
+		return max( $previous, max( 0, min( 100, (int) $percent ) ) );
+	}
+
+	/**
+	 * Determine whether a progress event should appear in the completed log.
+	 *
+	 * @param array $event Progress event.
+	 * @return bool Whether to log the event.
+	 */
+	private static function should_log_progress_event( array $event ) {
+		return in_array(
+			$event['stage'],
+			array(
+				'started',
+				'discovered',
+				'page_exported',
+				'page_failed',
+				'copy_assets',
+				'copy_linked_assets',
+				'rewrite_assets',
+				'copy_text_asset_dependencies',
+				'complete',
+				'zip',
+				'zip_complete',
+				'download_ready',
+				'failed',
+			),
+			true
+		);
+	}
+
+	/**
+	 * Determine whether a progress stage means polling can stop.
+	 *
+	 * @param string $stage Progress stage.
+	 * @return bool Whether the stage is terminal.
+	 */
+	private static function is_terminal_progress_stage( $stage ) {
+		return in_array( $stage, array( 'failed', 'zip_complete', 'download_ready' ), true );
+	}
+
+	/**
+	 * Sanitize structured progress context recursively.
+	 *
+	 * @param array $context Progress context.
+	 * @return array Sanitized context.
+	 */
+	private static function sanitize_progress_context( array $context ) {
+		$sanitized = array();
+
+		foreach ( $context as $key => $value ) {
+			$key = sanitize_key( $key );
+
+			if ( '' === $key ) {
+				continue;
+			}
+
+			if ( is_array( $value ) ) {
+				$sanitized[ $key ] = self::sanitize_progress_context( $value );
+			} elseif ( is_bool( $value ) ) {
+				$sanitized[ $key ] = $value;
+			} elseif ( is_int( $value ) || is_float( $value ) ) {
+				$sanitized[ $key ] = $value;
+			} else {
+				$sanitized[ $key ] = sanitize_text_field( (string) $value );
+			}
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Sanitize stored progress log entries.
+	 *
+	 * @param array $log Progress log.
+	 * @return array Sanitized log.
+	 */
+	private static function normalize_progress_log( array $log ) {
+		$normalized = array();
+
+		foreach ( $log as $entry ) {
+			if ( ! is_array( $entry ) ) {
+				continue;
+			}
+
+			$normalized[] = array(
+				'time'    => isset( $entry['time'] ) ? sanitize_text_field( $entry['time'] ) : '',
+				'stage'   => isset( $entry['stage'] ) ? sanitize_key( $entry['stage'] ) : '',
+				'message' => isset( $entry['message'] ) ? sanitize_text_field( $entry['message'] ) : '',
+				'percent' => isset( $entry['percent'] ) ? max( 0, min( 100, (int) $entry['percent'] ) ) : 0,
+			);
+		}
+
+		return array_slice( $normalized, -100 );
+	}
+
+	/**
+	 * Build the user meta key for the latest export pointer.
+	 *
+	 * @return string User meta key.
+	 */
+	private static function latest_export_meta_key() {
+		return 'ssgwp_latest_export';
 	}
 
 	/**

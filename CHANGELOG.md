@@ -42,8 +42,9 @@ format.
 - Require matching schemes when classifying static export URLs as same-site, so
   cross-scheme links are left untouched.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
-- Show static export progress in the Playground admin screen while the ZIP
-  download is being prepared.
+- Show an interactive static export progress bar with the current action,
+  percent complete, a completed-action log, and reload recovery in the
+  Playground admin screen while the ZIP download is being prepared.
   ([#3619](https://github.com/WordPress/wordpress-playground/pull/3619))
 - Isolate Playground admin static export progress by download attempt so
   repeated exports do not reuse stale completion messages.
