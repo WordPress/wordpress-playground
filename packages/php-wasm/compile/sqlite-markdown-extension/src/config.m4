@@ -6,11 +6,6 @@ PHP_ARG_ENABLE(
 )
 
 if test "$PHP_SQLITE_MARKDOWN" != "no"; then
-	PHP_NEW_EXTENSION(
-		[sqlite_markdown],
-		[sqlite_markdown_php.c],
-		[$ext_shared],
-		[],
-		[-I$ext_srcdir/vendor/sqlite]
-	)
+	PHP_ADD_INCLUDE($srcdir/vendor/sqlite)
+	PHP_NEW_EXTENSION([sqlite_markdown], [sqlite_markdown_php.c], [$ext_shared])
 fi
