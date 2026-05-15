@@ -40,6 +40,7 @@ import {
 	findDownloadErrorInCauseChain,
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -158,11 +159,17 @@ export function bootSiteClient(
 
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
+			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
+				site.originalUrlParams?.searchParams?.['php-extension'],
+				document.location.href
+			);
+
 			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				extensions: phpExtensions,
 				experimentalBlueprintsV2Runner:
 					!isWordPressInstalled &&
 					new URLSearchParams(window.location.search).get(

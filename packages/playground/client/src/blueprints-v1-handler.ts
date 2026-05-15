@@ -10,6 +10,7 @@ import {
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
+import type { PHPWebExtension } from '@php-wasm/web';
 
 export class BlueprintsV1Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -54,6 +55,10 @@ export class BlueprintsV1Handler {
 
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
+		const extensions: PHPWebExtension[] = runtimeConfiguration.intl
+			? ['intl']
+			: [];
+		extensions.push(...(this.options.extensions || []));
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		// Blueprint's `preferredVersions.wp: false` is the declarative way to
 		// opt out of WordPress. Bundles carry their declaration inside a JSON
@@ -90,7 +95,7 @@ export class BlueprintsV1Handler {
 			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
-			extensions: runtimeConfiguration.intl ? ['intl'] : [],
+			extensions,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,

@@ -106,6 +106,47 @@ describe('BlueprintsV1Handler', () => {
 		);
 	});
 
+	it('passes query API PHP extension requests to the runtime', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: true,
+			networking: true,
+		});
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {},
+			extensions: [
+				{
+					source: {
+						format: 'manifest',
+						manifestUrl:
+							'https://cdn.example.com/spx/manifest.json',
+					},
+				},
+			],
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				extensions: [
+					'intl',
+					{
+						source: {
+							format: 'manifest',
+							manifestUrl:
+								'https://cdn.example.com/spx/manifest.json',
+						},
+					},
+				],
+			})
+		);
+	});
+
 	it('does not install WordPress when boot is explicitly disabled', async () => {
 		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
