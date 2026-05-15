@@ -22,6 +22,10 @@ export default defineConfig({
 
 	webServer: {
 		command: 'npx nx run php-wasm-web:dev',
+		env: {
+			...process.env,
+			JSPI: 'true',
+		},
 		port: 5173,
 		reuseExistingServer: !process.env['CI'],
 	},

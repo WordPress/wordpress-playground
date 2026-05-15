@@ -339,6 +339,75 @@ SupportedPHPVersions.forEach((phpVersion) => {
 	});
 });
 
+test.describe('External PHP side modules', () => {
+	const sqliteParserManifestUrl =
+		'https://wordpress.github.io/sqlite-database-integration/' +
+		'wp_mysql_parser-wasm-extension/' +
+		'b31fc53ea599d1a2211b75f4a3486b39e63ce01f/manifest.json';
+
+	test.beforeEach(async ({ page }) => {
+		page.on('console', (log) => console.log(log.text()));
+
+		await page.goto('/');
+
+		await page.addScriptTag({
+			type: 'module',
+			url: '/src/test/playwright/browser-globals.ts',
+		});
+	});
+
+	test('loads the published SQLite wp_mysql_parser extension', async ({
+		page,
+	}) => {
+		const result = await page.evaluate(async (manifestUrl) => {
+			const php = new window.PHP(
+				await window.loadWebRuntime('8.3', {
+					extensions: [
+						{
+							source: {
+								format: 'manifest',
+								manifestUrl,
+							},
+						},
+					],
+				})
+			);
+
+			const response = await php.runStream({
+				code: `<?php
+					$lexer = new WP_MySQL_Native_Lexer(
+						'SELECT option_name FROM wp_options WHERE option_id = 1',
+						'8.0.0',
+						0
+					);
+					$tokens = 0;
+					while ($lexer->next_token()) {
+						++$tokens;
+					}
+					echo json_encode([
+						'loaded' => extension_loaded('wp_mysql_parser'),
+						'classes' => class_exists('WP_MySQL_Native_Lexer', false)
+							&& class_exists('WP_MySQL_Native_Parser', false),
+						'tokens' => $tokens,
+						'ini' => php_ini_scanned_files(),
+					]);
+				`,
+			});
+
+			php.exit();
+
+			return JSON.parse(await response.stdoutText);
+		}, sqliteParserManifestUrl);
+
+		test.expect(result).toEqual({
+			loaded: true,
+			classes: true,
+			tokens: 9,
+			ini: '/internal/shared/extensions/wp_mysql_parser.ini\n',
+		});
+	});
+});
+
 function intlExtensionCheckCode() {
 	return `<?php
 		echo extension_loaded('intl') && class_exists('Collator') ? 'loaded' : 'missing';

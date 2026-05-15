@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { PHP_EXTENSIONS_DIR, resolvePHPExtension } from './load-extension';
+import {
+	PHP_EXTENSIONS_DIR,
+	resolvePHPExtension,
+	withResolvedPHPExtensions,
+} from './load-extension';
 
 describe('resolvePHPExtension', () => {
 	it('resolves a regular extension for startup', async () => {
@@ -313,5 +317,70 @@ describe('resolvePHPExtension', () => {
 		expect(completedSidecarFetches).toBe(12);
 		expect(artifactStartedBeforeManifestCompleted).toBe(true);
 		expect(maxActiveSidecarFetches).toBe(5);
+	});
+});
+
+describe('withResolvedPHPExtensions', () => {
+	it('installs extension files before PHP startup', () => {
+		const calls: string[] = [];
+		const options = withResolvedPHPExtensions(
+			{
+				preRun: [() => calls.push('existing preRun')],
+				onRuntimeInitialized: () => calls.push('runtime initialized'),
+			},
+			[
+				{
+					soPath: `${PHP_EXTENSIONS_DIR}/example.so`,
+					soBytes: new Uint8Array([1, 2, 3]),
+					iniPath: `${PHP_EXTENSIONS_DIR}/example.ini`,
+					iniContent: `extension=${PHP_EXTENSIONS_DIR}/example.so`,
+					extraFiles: {
+						directories: [`${PHP_EXTENSIONS_DIR}/data/cache`],
+						files: {
+							[`${PHP_EXTENSIONS_DIR}/data/config.json`]:
+								'{"enabled":true}',
+						},
+					},
+					extensionDir: PHP_EXTENSIONS_DIR,
+				},
+			]
+		);
+		const writtenFiles: Record<string, string | Uint8Array> = {};
+		const createdDirectories: string[] = [];
+		const FS = {
+			lookupPath: () => {
+				throw new Error('missing');
+			},
+			mkdirTree: (path: string) => {
+				createdDirectories.push(path);
+			},
+			writeFile: (path: string, contents: string | Uint8Array) => {
+				writtenFiles[path] = contents;
+				calls.push(`write ${path}`);
+			},
+		};
+
+		const preRun = options['preRun'] as Array<(runtime: unknown) => void>;
+		expect(preRun).toHaveLength(2);
+		preRun.forEach((callback) => callback({ FS }));
+		options.onRuntimeInitialized?.({ FS } as any);
+
+		expect(calls).toEqual([
+			'existing preRun',
+			`write ${PHP_EXTENSIONS_DIR}/example.so`,
+			`write ${PHP_EXTENSIONS_DIR}/example.ini`,
+			`write ${PHP_EXTENSIONS_DIR}/data/config.json`,
+			'runtime initialized',
+		]);
+		expect(createdDirectories).toEqual([
+			PHP_EXTENSIONS_DIR,
+			`${PHP_EXTENSIONS_DIR}/data/cache`,
+			`${PHP_EXTENSIONS_DIR}/data`,
+		]);
+		expect(writtenFiles).toEqual({
+			[`${PHP_EXTENSIONS_DIR}/example.so`]: new Uint8Array([1, 2, 3]),
+			[`${PHP_EXTENSIONS_DIR}/example.ini`]: `extension=${PHP_EXTENSIONS_DIR}/example.so`,
+			[`${PHP_EXTENSIONS_DIR}/data/config.json`]: '{"enabled":true}',
+		});
 	});
 });

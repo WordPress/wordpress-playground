@@ -174,6 +174,9 @@ export function init(RuntimeName, PHPLoader) {
 	}
 	function getWasmImports() {
 		Asyncify.instrumentWasmImports(wasmImports);
+		wasmImports['__c_longjmp'] ??= new WebAssembly.Tag({
+			parameters: ['i32'],
+		});
 		var imports = {
 			env: wasmImports,
 			wasi_snapshot_preview1: wasmImports,

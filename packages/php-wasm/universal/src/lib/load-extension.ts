@@ -467,8 +467,8 @@ export async function resolvePHPExtension(
 
 /**
  * Adds resolved extensions to Emscripten options. The returned options install
- * extension files during `onRuntimeInitialized` and update `PHP_INI_SCAN_DIR`
- * before PHP startup.
+ * extension files during `preRun` and update `PHP_INI_SCAN_DIR` before PHP
+ * startup.
  */
 export function withResolvedPHPExtensions(
 	options: EmscriptenOptions,
@@ -491,15 +491,18 @@ export function withResolvedPHPExtensions(
 			env['PHP_INI_SCAN_DIR'] = paths.join(':');
 		}
 	}
+	const preRun = options['preRun'] ?? [];
 	return {
 		...options,
 		ENV: env,
-		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
-			options.onRuntimeInitialized?.(phpRuntime);
-			for (const extension of extensions) {
-				installPHPExtensionFilesSync(phpRuntime.FS, extension);
-			}
-		},
+		['preRun']: [
+			...preRun,
+			(phpRuntime: PHPRuntime) => {
+				for (const extension of extensions) {
+					installPHPExtensionFilesSync(phpRuntime.FS, extension);
+				}
+			},
+		],
 	};
 }
 

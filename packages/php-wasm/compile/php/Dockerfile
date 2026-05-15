@@ -2279,12 +2279,34 @@ RUN set -eux; \
 		fi; \
 	} >> /root/.WASM_ABI_EXPORTS
 
-# WORKAROUND: Asyncify builds do not currently include __c_longjmp,
-# but we require it for JSPI builds. Including the symbol in our
-# main exported-functions.list will cause Asyncify build errors,
-# so we dynamically add it here instead.
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
+# WORKAROUND: JSPI side modules may import wasm longjmp symbols. Asyncify
+# builds do not provide those symbols, so including them in the shared
+# exported-functions.list would break Asyncify builds. Add them only for JSPI.
+RUN if [ "$WITH_JSPI" = "yes" ]; then \
+		echo '___wasm_setjmp' >> /root/.JS_ABI_EXPORTS; \
+		echo '___wasm_setjmp_test' >> /root/.JS_ABI_EXPORTS; \
+		echo '___wasm_longjmp' >> /root/.JS_ABI_EXPORTS; \
 		echo '___c_longjmp' >> /root/.JS_ABI_EXPORTS; \
+	fi;
+
+RUN if [ "$(echo "$PHP_VERSION" | cut -d. -f1)" -ge 8 ] && [ "$WITH_JSPI" = "yes" ]; then \
+		{ \
+			echo '_clock_gettime'; \
+			echo '_getcwd'; \
+			echo '_pthread_cond_destroy'; \
+			echo '_pthread_cond_init'; \
+			echo '_pthread_cond_timedwait'; \
+			echo '_pthread_mutex_destroy'; \
+			echo '_pthread_mutex_init'; \
+			echo '_pthread_mutex_lock'; \
+			echo '_pthread_mutex_unlock'; \
+			echo '_strerror_r'; \
+			echo '_write'; \
+			echo '_zend_hash_get_current_data_ex'; \
+			echo '_zend_hash_get_current_key_type_ex'; \
+			echo '_zend_hash_move_forward_ex'; \
+			echo '_zend_is_true'; \
+		} >> /root/.JS_ABI_EXPORTS; \
 	fi;
 
 COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
@@ -2498,6 +2520,12 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=[^;]*;/ENVIRONMENT_IS_$1=RuntimeName==="$1";/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+	# Provide the JSPI longjmp tag for web side modules.
+		# Existing web JSPI binaries do not export __c_longjmp, so the dynamic
+		# linker would otherwise synthesize a JS function stub for a tag import.
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ] && [ "$WITH_JSPI" = "yes" ]; then \
+			/root/replace.sh $'s/Asyncify\\.instrumentWasmImports\\(wasmImports\\);/Asyncify.instrumentWasmImports(wasmImports);\\n\\t\\twasmImports["__c_longjmp"] ??= new WebAssembly.Tag({\\n\\t\\t\\tparameters: ["i32"],\\n\\t\\t});/g' /root/output/php.js; \
+		fi; \
 	# Expose required functions to the module.
 		# Emscripten 4.0.10 removed the runtime exposure of `_malloc` and `_free`,
 		# so we rebind them from `wasmExports` and attach them to PHPLoader.
