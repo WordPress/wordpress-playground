@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 import {
 	fetchBlueprint,
+	getBlueprintInstallPreview,
+	getBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstall,
 } from './blueprint-install';
@@ -126,6 +128,46 @@ describe('prepareBlueprintForRemoteInstall', () => {
 			landingPage: '/wp-admin/',
 			steps: [],
 		});
+	});
+
+	it('builds a blueprint preview for the install dialog', async () => {
+		const blueprint = {
+			meta: {
+				title: 'Friends',
+				description: 'A private social app for WordPress.',
+				author: 'wordpress',
+			},
+			landingPage: '/wp-admin/admin.php?page=friends',
+			steps: [
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'url',
+						url: 'https://example.com/friends.zip',
+					},
+				},
+			],
+		};
+		stubFetchBlueprint(blueprint);
+
+		const preview = await getBlueprintInstallPreview(
+			'https://example.com/blueprint.json'
+		);
+
+		expect(preview).toEqual({
+			title: 'Friends',
+			description: 'A private social app for WordPress.',
+			author: 'wordpress',
+			json: JSON.stringify(blueprint, null, 2),
+		});
+	});
+
+	it('describes data URL app requests as coming from this page', () => {
+		expect(
+			getBlueprintInstallSource(
+				'data:application/json;base64,eyJzdGVwcyI6W119'
+			)
+		).toEqual({ label: 'this page' });
 	});
 });
 

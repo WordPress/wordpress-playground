@@ -13,6 +13,13 @@ export type RemoteBlueprintInstall = {
 	landingPage?: string;
 };
 
+export type BlueprintInstallPreview = {
+	title: string;
+	description?: string;
+	author?: string;
+	json: string;
+};
+
 export async function prepareBlueprintForRemoteInstall(
 	blueprintUrl: string,
 	corsProxyUrl?: string
@@ -53,6 +60,31 @@ export async function fetchBlueprint(
 		corsProxyUrl
 	);
 	return await getBlueprintDeclaration(blueprint);
+}
+
+export async function getBlueprintInstallPreview(
+	blueprintUrl: string,
+	corsProxyUrl?: string
+): Promise<BlueprintInstallPreview> {
+	const blueprint = await fetchBlueprint(blueprintUrl, corsProxyUrl);
+	return {
+		title: blueprint.meta?.title || 'Untitled app',
+		description: blueprint.meta?.description || blueprint.description,
+		author: blueprint.meta?.author,
+		json: JSON.stringify(blueprint, null, 2),
+	};
+}
+
+export function getBlueprintInstallSource(blueprintUrl: string): {
+	label: string;
+} {
+	const url = new URL(blueprintUrl);
+	if (url.protocol === 'data:') {
+		return { label: 'this page' };
+	}
+	return {
+		label: url.host,
+	};
 }
 
 function getBlueprintLandingPage(
