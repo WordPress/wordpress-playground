@@ -1,7 +1,7 @@
-import dependencyFilename from './8_2_30/php_8_2.wasm';
+import dependencyFilename from './8_2_31/php_8_2.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20466896;
-const phpVersionString = '8.2.30';
+export const dependenciesTotalSize = 20469270;
+const phpVersionString = '8.2.31';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};
@@ -8055,6 +8055,7 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_call_function,
 		_zend_call_known_function,
 		_zend_call_known_instance_method_with_2_params,
+		_zend_lookup_class_ex,
 		_destroy_op_array,
 		_zend_destroy_static_vars,
 		__is_numeric_string_ex,
@@ -8064,6 +8065,7 @@ export function init(RuntimeName, PHPLoader) {
 		__try_convert_to_string,
 		_zval_get_double_func,
 		_zval_get_string_func,
+		_zend_is_true,
 		_numeric_compare_function,
 		_compare_function,
 		_instanceof_function_slow,
@@ -8103,18 +8105,23 @@ export function init(RuntimeName, PHPLoader) {
 		_add_next_index_stringl,
 		_zend_register_internal_class_ex,
 		_zend_class_implements,
+		_zend_register_internal_interface,
+		_zend_is_callable,
 		_zend_fcall_info_init,
 		_zend_declare_typed_property,
 		_zend_try_assign_typed_ref_long,
 		_zend_try_assign_typed_ref_arr,
+		_zend_declare_property,
 		_zend_declare_class_constant_ex,
 		_zend_update_property,
 		_zend_replace_error_handling,
 		_zend_restore_error_handling,
+		_zend_is_iterable,
 		_zend_hash_str_find,
 		__zend_hash_init,
 		__zend_new_array_0,
 		__zend_new_array,
+		_zend_array_count,
 		_zend_hash_update,
 		_zend_hash_str_update,
 		_zend_hash_next_index_insert,
@@ -8123,6 +8130,10 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_array_destroy,
 		_zend_hash_copy,
 		_zend_hash_index_find,
+		_zend_hash_move_forward_ex,
+		_zend_hash_get_current_key_zval_ex,
+		_zend_hash_get_current_key_type_ex,
+		_zend_hash_get_current_data_ex,
 		_zend_hash_sort_ex,
 		_zend_execute,
 		_zend_register_ini_entries_ex,
@@ -8139,14 +8150,22 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_create_internal_iterator_zval,
 		_zend_throw_exception,
 		_zend_throw_exception_ex,
+		_zend_throw_exception_object,
 		_zend_strtod,
 		_gc_possible_root,
 		_zend_object_std_init,
 		_zend_object_std_dtor,
+		_zend_objects_new,
 		_zend_objects_clone_members,
+		_zend_std_get_properties,
+		_zend_std_read_property,
+		_zend_std_write_property,
 		_zend_std_compare_objects,
+		_zend_std_has_property,
 		_zend_objects_store_del,
+		_zend_do_implement_interface,
 		_smart_str_erealloc,
+		_strtoll,
 		_strlen,
 		_munmap,
 		_abort,
@@ -8160,26 +8179,38 @@ export function init(RuntimeName, PHPLoader) {
 		_dlclose,
 		_strcmp,
 		_getenv,
+		___wasm_setjmp,
+		___wasm_setjmp_test,
+		___wasm_longjmp,
 		_atoi,
 		___errno_location,
 		_strrchr,
 		_realloc,
 		_strcasecmp,
 		_memchr,
+		_isalnum,
 		_strncmp,
 		_tolower,
 		_strtok_r,
+		_unlink,
 		_fileno,
 		_fread,
 		_fclose,
 		_strtoul,
 		_strstr,
+		_write,
 		_close,
+		_fseek,
 		_fwrite,
 		_gettimeofday,
 		_stat,
 		_fopen,
+		_getcwd,
 		_open,
+		_rename,
+		_mkdir,
+		_rmdir,
+		_opendir,
 		_strncpy,
 		_siprintf,
 		_localtime_r,
@@ -8204,6 +8235,7 @@ export function init(RuntimeName, PHPLoader) {
 		_htonl,
 		_strcpy,
 		_strcat,
+		_clock_gettime,
 		_tzset,
 		_wasm_sleep,
 		_isdigit,
@@ -8212,12 +8244,18 @@ export function init(RuntimeName, PHPLoader) {
 		_qsort,
 		_mmap,
 		_calloc,
+		_writev,
 		_fgets,
 		_initgroups,
 		_atol,
+		_closedir,
+		_readdir,
+		_posix_memalign,
+		_ftell,
 		_wasm_read,
 		_feof,
 		_strncat,
+		_strerror_r,
 		___ctype_get_mb_cur_max,
 		___wrap_usleep,
 		___wrap_select,
@@ -8243,9 +8281,28 @@ export function init(RuntimeName, PHPLoader) {
 		_php_wasm_init,
 		_wasm_free,
 		_wasm_trace,
+		_getentropy,
+		_pthread_cond_signal,
+		_pthread_cond_wait,
+		_pthread_condattr_destroy,
+		_pthread_condattr_init,
+		_pthread_condattr_setclock,
+		_pthread_mutex_trylock,
+		_pthread_mutexattr_destroy,
+		_pthread_mutexattr_init,
+		_pthread_mutexattr_settype,
+		_sched_yield,
+		_sqlite3_auto_extension,
+		_sqlite3_cancel_auto_extension,
+		_pthread_mutex_init,
+		_pthread_mutex_destroy,
+		_pthread_mutex_lock,
+		_pthread_mutex_unlock,
 		_rewind,
 		_modf,
 		_round,
+		_pthread_cond_init,
+		_pthread_cond_destroy,
 		___extenddftf2,
 		___letf2,
 		___floatunditf,
@@ -8254,6 +8311,7 @@ export function init(RuntimeName, PHPLoader) {
 		___cxa_atexit,
 		___dl_seterr,
 		__emscripten_find_dylib,
+		_pthread_cond_timedwait,
 		_mbstowcs,
 		_emscripten_builtin_memalign,
 		__emscripten_timeout,
@@ -8278,6 +8336,7 @@ export function init(RuntimeName, PHPLoader) {
 		memory,
 		___stack_pointer,
 		__indirect_function_table,
+		___c_longjmp,
 		wasmTable,
 		wasmMemory;
 	function assignWasmExports(wasmExports) {
@@ -8349,6 +8408,8 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_call_known_instance_method_with_2_params = Module[
 			'_zend_call_known_instance_method_with_2_params'
 		] = wasmExports['zend_call_known_instance_method_with_2_params'];
+		_zend_lookup_class_ex = Module['_zend_lookup_class_ex'] =
+			wasmExports['zend_lookup_class_ex'];
 		_destroy_op_array = Module['_destroy_op_array'] =
 			wasmExports['destroy_op_array'];
 		_zend_destroy_static_vars = Module['_zend_destroy_static_vars'] =
@@ -8367,6 +8428,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zval_get_double_func'];
 		_zval_get_string_func = Module['_zval_get_string_func'] =
 			wasmExports['zval_get_string_func'];
+		_zend_is_true = Module['_zend_is_true'] = wasmExports['zend_is_true'];
 		_numeric_compare_function = Module['_numeric_compare_function'] =
 			wasmExports['numeric_compare_function'];
 		_compare_function = Module['_compare_function'] =
@@ -8450,6 +8512,11 @@ export function init(RuntimeName, PHPLoader) {
 		] = wasmExports['zend_register_internal_class_ex'];
 		_zend_class_implements = Module['_zend_class_implements'] =
 			wasmExports['zend_class_implements'];
+		_zend_register_internal_interface = Module[
+			'_zend_register_internal_interface'
+		] = wasmExports['zend_register_internal_interface'];
+		_zend_is_callable = Module['_zend_is_callable'] =
+			wasmExports['zend_is_callable'];
 		_zend_fcall_info_init = Module['_zend_fcall_info_init'] =
 			wasmExports['zend_fcall_info_init'];
 		_zend_declare_typed_property = Module['_zend_declare_typed_property'] =
@@ -8460,6 +8527,8 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_try_assign_typed_ref_arr = Module[
 			'_zend_try_assign_typed_ref_arr'
 		] = wasmExports['zend_try_assign_typed_ref_arr'];
+		_zend_declare_property = Module['_zend_declare_property'] =
+			wasmExports['zend_declare_property'];
 		_zend_declare_class_constant_ex = Module[
 			'_zend_declare_class_constant_ex'
 		] = wasmExports['zend_declare_class_constant_ex'];
@@ -8469,6 +8538,8 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_replace_error_handling'];
 		_zend_restore_error_handling = Module['_zend_restore_error_handling'] =
 			wasmExports['zend_restore_error_handling'];
+		_zend_is_iterable = Module['_zend_is_iterable'] =
+			wasmExports['zend_is_iterable'];
 		_zend_hash_str_find = Module['_zend_hash_str_find'] =
 			wasmExports['zend_hash_str_find'];
 		__zend_hash_init = Module['__zend_hash_init'] =
@@ -8477,6 +8548,8 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['_zend_new_array_0'];
 		__zend_new_array = Module['__zend_new_array'] =
 			wasmExports['_zend_new_array'];
+		_zend_array_count = Module['_zend_array_count'] =
+			wasmExports['zend_array_count'];
 		_zend_hash_update = Module['_zend_hash_update'] =
 			wasmExports['zend_hash_update'];
 		_zend_hash_str_update = Module['_zend_hash_str_update'] =
@@ -8493,6 +8566,17 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_hash_copy'];
 		_zend_hash_index_find = Module['_zend_hash_index_find'] =
 			wasmExports['zend_hash_index_find'];
+		_zend_hash_move_forward_ex = Module['_zend_hash_move_forward_ex'] =
+			wasmExports['zend_hash_move_forward_ex'];
+		_zend_hash_get_current_key_zval_ex = Module[
+			'_zend_hash_get_current_key_zval_ex'
+		] = wasmExports['zend_hash_get_current_key_zval_ex'];
+		_zend_hash_get_current_key_type_ex = Module[
+			'_zend_hash_get_current_key_type_ex'
+		] = wasmExports['zend_hash_get_current_key_type_ex'];
+		_zend_hash_get_current_data_ex = Module[
+			'_zend_hash_get_current_data_ex'
+		] = wasmExports['zend_hash_get_current_data_ex'];
 		_zend_hash_sort_ex = Module['_zend_hash_sort_ex'] =
 			wasmExports['zend_hash_sort_ex'];
 		_zend_execute = Module['_zend_execute'] = wasmExports['zend_execute'];
@@ -8525,6 +8609,8 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_throw_exception'];
 		_zend_throw_exception_ex = Module['_zend_throw_exception_ex'] =
 			wasmExports['zend_throw_exception_ex'];
+		_zend_throw_exception_object = Module['_zend_throw_exception_object'] =
+			wasmExports['zend_throw_exception_object'];
 		_zend_strtod = Module['_zend_strtod'] = wasmExports['zend_strtod'];
 		_gc_possible_root = Module['_gc_possible_root'] =
 			wasmExports['gc_possible_root'];
@@ -8532,14 +8618,27 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_object_std_init'];
 		_zend_object_std_dtor = Module['_zend_object_std_dtor'] =
 			wasmExports['zend_object_std_dtor'];
+		_zend_objects_new = Module['_zend_objects_new'] =
+			wasmExports['zend_objects_new'];
 		_zend_objects_clone_members = Module['_zend_objects_clone_members'] =
 			wasmExports['zend_objects_clone_members'];
+		_zend_std_get_properties = Module['_zend_std_get_properties'] =
+			wasmExports['zend_std_get_properties'];
+		_zend_std_read_property = Module['_zend_std_read_property'] =
+			wasmExports['zend_std_read_property'];
+		_zend_std_write_property = Module['_zend_std_write_property'] =
+			wasmExports['zend_std_write_property'];
 		_zend_std_compare_objects = Module['_zend_std_compare_objects'] =
 			wasmExports['zend_std_compare_objects'];
+		_zend_std_has_property = Module['_zend_std_has_property'] =
+			wasmExports['zend_std_has_property'];
 		_zend_objects_store_del = Module['_zend_objects_store_del'] =
 			wasmExports['zend_objects_store_del'];
+		_zend_do_implement_interface = Module['_zend_do_implement_interface'] =
+			wasmExports['zend_do_implement_interface'];
 		_smart_str_erealloc = Module['_smart_str_erealloc'] =
 			wasmExports['smart_str_erealloc'];
+		_strtoll = Module['_strtoll'] = wasmExports['strtoll'];
 		_strlen = Module['_strlen'] = wasmExports['strlen'];
 		_munmap = Module['_munmap'] = wasmExports['munmap'];
 		_abort = Module['_abort'] = wasmExports['abort'];
@@ -8556,6 +8655,12 @@ export function init(RuntimeName, PHPLoader) {
 		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
 		_strcmp = Module['_strcmp'] = wasmExports['strcmp'];
 		_getenv = Module['_getenv'] = wasmExports['getenv'];
+		___wasm_setjmp = Module['___wasm_setjmp'] =
+			wasmExports['__wasm_setjmp'];
+		___wasm_setjmp_test = Module['___wasm_setjmp_test'] =
+			wasmExports['__wasm_setjmp_test'];
+		___wasm_longjmp = Module['___wasm_longjmp'] =
+			wasmExports['__wasm_longjmp'];
 		_atoi = Module['_atoi'] = wasmExports['atoi'];
 		___errno_location = Module['___errno_location'] =
 			wasmExports['__errno_location'];
@@ -8563,20 +8668,29 @@ export function init(RuntimeName, PHPLoader) {
 		_realloc = Module['_realloc'] = wasmExports['realloc'];
 		_strcasecmp = Module['_strcasecmp'] = wasmExports['strcasecmp'];
 		_memchr = Module['_memchr'] = wasmExports['memchr'];
+		_isalnum = Module['_isalnum'] = wasmExports['isalnum'];
 		_strncmp = Module['_strncmp'] = wasmExports['strncmp'];
 		_tolower = Module['_tolower'] = wasmExports['tolower'];
 		_strtok_r = Module['_strtok_r'] = wasmExports['strtok_r'];
+		_unlink = Module['_unlink'] = wasmExports['unlink'];
 		_fileno = Module['_fileno'] = wasmExports['fileno'];
 		_fread = Module['_fread'] = wasmExports['fread'];
 		_fclose = Module['_fclose'] = wasmExports['fclose'];
 		_strtoul = Module['_strtoul'] = wasmExports['strtoul'];
 		_strstr = Module['_strstr'] = wasmExports['strstr'];
+		_write = Module['_write'] = wasmExports['write'];
 		_close = Module['_close'] = wasmExports['close'];
+		_fseek = Module['_fseek'] = wasmExports['fseek'];
 		_fwrite = Module['_fwrite'] = wasmExports['fwrite'];
 		_gettimeofday = Module['_gettimeofday'] = wasmExports['gettimeofday'];
 		_stat = Module['_stat'] = wasmExports['stat'];
 		_fopen = Module['_fopen'] = wasmExports['fopen'];
+		_getcwd = Module['_getcwd'] = wasmExports['getcwd'];
 		_open = Module['_open'] = wasmExports['open'];
+		_rename = Module['_rename'] = wasmExports['rename'];
+		_mkdir = Module['_mkdir'] = wasmExports['mkdir'];
+		_rmdir = Module['_rmdir'] = wasmExports['rmdir'];
+		_opendir = Module['_opendir'] = wasmExports['opendir'];
 		_strncpy = Module['_strncpy'] = wasmExports['strncpy'];
 		_siprintf = Module['_siprintf'] = wasmExports['siprintf'];
 		_localtime_r = Module['_localtime_r'] = wasmExports['localtime_r'];
@@ -8603,6 +8717,8 @@ export function init(RuntimeName, PHPLoader) {
 		_htonl = wasmExports['htonl'];
 		_strcpy = Module['_strcpy'] = wasmExports['strcpy'];
 		_strcat = Module['_strcat'] = wasmExports['strcat'];
+		_clock_gettime = Module['_clock_gettime'] =
+			wasmExports['clock_gettime'];
 		_tzset = Module['_tzset'] = wasmExports['tzset'];
 		_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'];
 		_isdigit = Module['_isdigit'] = wasmExports['isdigit'];
@@ -8611,12 +8727,19 @@ export function init(RuntimeName, PHPLoader) {
 		_qsort = Module['_qsort'] = wasmExports['qsort'];
 		_mmap = Module['_mmap'] = wasmExports['mmap'];
 		_calloc = wasmExports['calloc'];
+		_writev = Module['_writev'] = wasmExports['writev'];
 		_fgets = Module['_fgets'] = wasmExports['fgets'];
 		_initgroups = Module['_initgroups'] = wasmExports['initgroups'];
 		_atol = Module['_atol'] = wasmExports['atol'];
+		_closedir = Module['_closedir'] = wasmExports['closedir'];
+		_readdir = Module['_readdir'] = wasmExports['readdir'];
+		_posix_memalign = Module['_posix_memalign'] =
+			wasmExports['posix_memalign'];
+		_ftell = Module['_ftell'] = wasmExports['ftell'];
 		_wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'];
 		_feof = Module['_feof'] = wasmExports['feof'];
 		_strncat = Module['_strncat'] = wasmExports['strncat'];
+		_strerror_r = Module['_strerror_r'] = wasmExports['strerror_r'];
 		___ctype_get_mb_cur_max = Module['___ctype_get_mb_cur_max'] =
 			wasmExports['__ctype_get_mb_cur_max'];
 		___wrap_usleep = Module['___wrap_usleep'] =
@@ -8667,9 +8790,46 @@ export function init(RuntimeName, PHPLoader) {
 			Module['_wasm_free'] =
 				wasmExports['wasm_free'];
 		_wasm_trace = Module['_wasm_trace'] = wasmExports['wasm_trace'];
+		_getentropy = Module['_getentropy'] = wasmExports['getentropy'];
+		_pthread_cond_signal = Module['_pthread_cond_signal'] =
+			wasmExports['pthread_cond_signal'];
+		_pthread_cond_wait = Module['_pthread_cond_wait'] =
+			wasmExports['pthread_cond_wait'];
+		_pthread_condattr_destroy = Module['_pthread_condattr_destroy'] =
+			wasmExports['pthread_condattr_destroy'];
+		_pthread_condattr_init = Module['_pthread_condattr_init'] =
+			wasmExports['pthread_condattr_init'];
+		_pthread_condattr_setclock = Module['_pthread_condattr_setclock'] =
+			wasmExports['pthread_condattr_setclock'];
+		_pthread_mutex_trylock = Module['_pthread_mutex_trylock'] =
+			wasmExports['pthread_mutex_trylock'];
+		_pthread_mutexattr_destroy = Module['_pthread_mutexattr_destroy'] =
+			wasmExports['pthread_mutexattr_destroy'];
+		_pthread_mutexattr_init = Module['_pthread_mutexattr_init'] =
+			wasmExports['pthread_mutexattr_init'];
+		_pthread_mutexattr_settype = Module['_pthread_mutexattr_settype'] =
+			wasmExports['pthread_mutexattr_settype'];
+		_sched_yield = Module['_sched_yield'] = wasmExports['sched_yield'];
+		_sqlite3_auto_extension = Module['_sqlite3_auto_extension'] =
+			wasmExports['sqlite3_auto_extension'];
+		_sqlite3_cancel_auto_extension = Module[
+			'_sqlite3_cancel_auto_extension'
+		] = wasmExports['sqlite3_cancel_auto_extension'];
+		_pthread_mutex_init = Module['_pthread_mutex_init'] =
+			wasmExports['pthread_mutex_init'];
+		_pthread_mutex_destroy = Module['_pthread_mutex_destroy'] =
+			wasmExports['pthread_mutex_destroy'];
+		_pthread_mutex_lock = Module['_pthread_mutex_lock'] =
+			wasmExports['pthread_mutex_lock'];
+		_pthread_mutex_unlock = Module['_pthread_mutex_unlock'] =
+			wasmExports['pthread_mutex_unlock'];
 		_rewind = Module['_rewind'] = wasmExports['rewind'];
 		_modf = Module['_modf'] = wasmExports['modf'];
 		_round = Module['_round'] = wasmExports['round'];
+		_pthread_cond_init = Module['_pthread_cond_init'] =
+			wasmExports['pthread_cond_init'];
+		_pthread_cond_destroy = Module['_pthread_cond_destroy'] =
+			wasmExports['pthread_cond_destroy'];
 		___extenddftf2 = Module['___extenddftf2'] =
 			wasmExports['__extenddftf2'];
 		___letf2 = Module['___letf2'] = wasmExports['__letf2'];
@@ -8680,6 +8840,8 @@ export function init(RuntimeName, PHPLoader) {
 		___cxa_atexit = Module['___cxa_atexit'] = wasmExports['__cxa_atexit'];
 		___dl_seterr = wasmExports['__dl_seterr'];
 		__emscripten_find_dylib = wasmExports['_emscripten_find_dylib'];
+		_pthread_cond_timedwait = Module['_pthread_cond_timedwait'] =
+			wasmExports['pthread_cond_timedwait'];
 		_mbstowcs = Module['_mbstowcs'] = wasmExports['mbstowcs'];
 		_emscripten_builtin_memalign =
 			wasmExports['emscripten_builtin_memalign'];
@@ -8721,63 +8883,64 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__stack_pointer'];
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
+		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
-	var _file_globals = (Module['_file_globals'] = 12856584);
-	var _sapi_module = (Module['_sapi_module'] = 12801752);
-	var _sapi_globals = (Module['_sapi_globals'] = 12801896);
-	var _compiler_globals = (Module['_compiler_globals'] = 12859424);
-	var _executor_globals = (Module['_executor_globals'] = 12859808);
-	var _zend_compile_string = (Module['_zend_compile_string'] = 12861020);
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 12715764);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 12715768);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 12715772);
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 12715776);
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 12715780);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 12715784);
-	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 12715788);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12857192);
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12857176);
+	var _file_globals = (Module['_file_globals'] = 12856696);
+	var _sapi_module = (Module['_sapi_module'] = 12801864);
+	var _sapi_globals = (Module['_sapi_globals'] = 12802008);
+	var _compiler_globals = (Module['_compiler_globals'] = 12859536);
+	var _executor_globals = (Module['_executor_globals'] = 12859920);
+	var _zend_compile_string = (Module['_zend_compile_string'] = 12861132);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 12715876);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 12715880);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 12715884);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 12715888);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 12715892);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 12715896);
+	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 12715900);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12857304);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12857288);
 	var _zend_ce_division_by_zero_error = (Module[
 		'_zend_ce_division_by_zero_error'
-	] = 12857320);
+	] = 12857432);
 	var _zend_ce_unhandled_match_error = (Module[
 		'_zend_ce_unhandled_match_error'
-	] = 12857324);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 12714240);
+	] = 12857436);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 12714352);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		12714308);
-	var _zend_one_char_string = (Module['_zend_one_char_string'] = 12714320);
+		12714420);
+	var _zend_one_char_string = (Module['_zend_one_char_string'] = 12714432);
 	var _std_object_handlers = (Module['_std_object_handlers'] = 11816800);
-	var _zend_ce_unit_enum = (Module['_zend_ce_unit_enum'] = 12715992);
-	var _zend_ce_backed_enum = (Module['_zend_ce_backed_enum'] = 12715996);
+	var _zend_ce_unit_enum = (Module['_zend_ce_unit_enum'] = 12716104);
+	var _zend_ce_backed_enum = (Module['_zend_ce_backed_enum'] = 12716108);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
-	var _stdout = (Module['_stdout'] = 12707424);
+	var _stdout = (Module['_stdout'] = 12707536);
 	var __playground_zend_side_module_data_exports = (Module[
 		'__playground_zend_side_module_data_exports'
 	] = 12213936);
 	var __playground_zend_side_module_function_exports = (Module[
 		'__playground_zend_side_module_function_exports'
 	] = 12214032);
-	var _timezone = (Module['_timezone'] = 13196304);
-	var _tzname = (Module['_tzname'] = 13196312);
-	var ___heap_base = 14258576;
+	var _timezone = (Module['_timezone'] = 13196416);
+	var _tzname = (Module['_tzname'] = 13196424);
+	var ___heap_base = 14258688;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		13209980);
+		13210092);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 12707712);
+	] = 12707824);
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 12707672);
+	] = 12707784);
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 12707764);
+	] = 12707876);
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 12707884);
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 12707960);
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 12707980);
+	] = 12707996);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 12708072);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 12708092);
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncjs__js_module_onMessage,

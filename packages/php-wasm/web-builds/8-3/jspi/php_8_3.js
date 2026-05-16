@@ -1,6 +1,6 @@
 import dependencyFilename from './8_3_31/php_8_3.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20763473;
+export const dependenciesTotalSize = 20763515;
 const phpVersionString = '8.3.31';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -8019,6 +8019,7 @@ export function init(RuntimeName, PHPLoader) {
 		_php_date_get_interface_ce,
 		_php_date_get_timezone_ce,
 		_get_timezone_info,
+		_php_info_print_table_header,
 		_php_info_print_table_row,
 		_php_info_print_table_start,
 		_php_info_print_table_end,
@@ -8168,6 +8169,7 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_objects_store_del,
 		_zend_do_implement_interface,
 		_smart_str_erealloc,
+		_strtoll,
 		_strlen,
 		_munmap,
 		_abort,
@@ -8350,6 +8352,8 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['php_date_get_timezone_ce'];
 		_get_timezone_info = Module['_get_timezone_info'] =
 			wasmExports['get_timezone_info'];
+		_php_info_print_table_header = Module['_php_info_print_table_header'] =
+			wasmExports['php_info_print_table_header'];
 		_php_info_print_table_row = Module['_php_info_print_table_row'] =
 			wasmExports['php_info_print_table_row'];
 		_php_info_print_table_start = Module['_php_info_print_table_start'] =
@@ -8648,6 +8652,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_do_implement_interface'];
 		_smart_str_erealloc = Module['_smart_str_erealloc'] =
 			wasmExports['smart_str_erealloc'];
+		_strtoll = Module['_strtoll'] = wasmExports['strtoll'];
 		_strlen = Module['_strlen'] = wasmExports['strlen'];
 		_munmap = Module['_munmap'] = wasmExports['munmap'];
 		_abort = Module['_abort'] = wasmExports['abort'];
