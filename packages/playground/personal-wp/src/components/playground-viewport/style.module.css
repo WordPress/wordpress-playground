@@ -98,7 +98,7 @@
 
 .blueprint-install-dialog {
 	width: min(460px, calc(100vw - 32px));
-	max-height: min(560px, calc(100dvh - 32px));
+	max-height: min(560px, calc(100vh - 32px));
 	padding: 0;
 	overflow: hidden;
 	border: 0;
@@ -118,9 +118,16 @@
 
 .blueprint-install-dialog-content {
 	display: flex;
-	max-height: min(560px, calc(100dvh - 32px));
+	max-height: min(560px, calc(100vh - 32px));
 	flex-direction: column;
 	overflow: auto;
+}
+
+@supports (height: 100dvh) {
+	.blueprint-install-dialog,
+	.blueprint-install-dialog-content {
+		max-height: min(560px, calc(100dvh - 32px));
+	}
 }
 
 .blueprint-install-dialog-header {
@@ -167,6 +174,51 @@
 	color: #50575e;
 	font-size: 14px;
 	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.blueprint-install-warnings {
+	margin: 14px 20px 0;
+	padding: 12px 14px;
+	border-left: 3px solid #dba617;
+	border-radius: 6px;
+	background: #fff8e5;
+	color: #1e1e1e;
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+.blueprint-install-warnings-danger {
+	border-left-color: #d63638;
+	background: #fcf0f1;
+}
+
+.blueprint-install-warnings strong {
+	display: block;
+	margin-bottom: 8px;
+	font-weight: 600;
+}
+
+.blueprint-install-warnings ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.blueprint-install-warnings li + li {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.blueprint-install-warnings span {
+	display: block;
+	font-weight: 600;
+}
+
+.blueprint-install-warnings p {
+	margin: 2px 0 0;
+	color: #50575e;
 	overflow-wrap: anywhere;
 }
 

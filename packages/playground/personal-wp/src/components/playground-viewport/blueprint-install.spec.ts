@@ -158,6 +158,12 @@ describe('prepareBlueprintForRemoteInstall', () => {
 			title: 'Friends',
 			description: 'A private social app for WordPress.',
 			author: 'wordpress',
+			warnings: [
+				expect.objectContaining({
+					severity: 'warning',
+					title: 'Installs plugin from an external source',
+				}),
+			],
 			json: JSON.stringify(blueprint, null, 2),
 		});
 	});
@@ -168,6 +174,34 @@ describe('prepareBlueprintForRemoteInstall', () => {
 				'data:application/json;base64,eyJzdGVwcyI6W119'
 			)
 		).toEqual({ label: 'this page' });
+	});
+
+	it('falls back to a protocol label for hostless URLs', () => {
+		expect(getBlueprintInstallSource('about:blank')).toEqual({
+			label: 'about source',
+		});
+	});
+
+	it('preserves empty metadata strings in the preview', async () => {
+		const blueprint = {
+			meta: {
+				title: '',
+				description: '',
+				author: '',
+			},
+			steps: [],
+		};
+		stubFetchBlueprint(blueprint);
+
+		await expect(
+			getBlueprintInstallPreview('https://example.com/blueprint.json')
+		).resolves.toEqual({
+			title: '',
+			description: '',
+			author: '',
+			warnings: [],
+			json: JSON.stringify(blueprint, null, 2),
+		});
 	});
 });
 

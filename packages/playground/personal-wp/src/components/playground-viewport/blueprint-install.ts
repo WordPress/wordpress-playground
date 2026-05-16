@@ -7,6 +7,8 @@ import {
 	resolveRemoteBlueprint,
 } from '@wp-playground/blueprints';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
+import { analyzeBlueprint } from '../../lib/blueprint-confirmation';
+import type { BlueprintWarning } from '../../lib/blueprint-confirmation';
 
 export type RemoteBlueprintInstall = {
 	blueprintUrl: string;
@@ -17,6 +19,7 @@ export type BlueprintInstallPreview = {
 	title: string;
 	description?: string;
 	author?: string;
+	warnings: BlueprintWarning[];
 	json: string;
 };
 
@@ -68,9 +71,10 @@ export async function getBlueprintInstallPreview(
 ): Promise<BlueprintInstallPreview> {
 	const blueprint = await fetchBlueprint(blueprintUrl, corsProxyUrl);
 	return {
-		title: blueprint.meta?.title || 'Untitled app',
-		description: blueprint.meta?.description || blueprint.description,
+		title: blueprint.meta?.title ?? 'Untitled app',
+		description: blueprint.meta?.description ?? blueprint.description,
 		author: blueprint.meta?.author,
+		warnings: analyzeBlueprint(blueprint).warnings,
 		json: JSON.stringify(blueprint, null, 2),
 	};
 }
@@ -82,8 +86,14 @@ export function getBlueprintInstallSource(blueprintUrl: string): {
 	if (url.protocol === 'data:') {
 		return { label: 'this page' };
 	}
+	if (url.host) {
+		return { label: url.host };
+	}
+	if (url.origin && url.origin !== 'null') {
+		return { label: url.origin };
+	}
 	return {
-		label: url.host,
+		label: `${url.protocol.replace(/:$/, '') || 'unknown'} source`,
 	};
 }
 

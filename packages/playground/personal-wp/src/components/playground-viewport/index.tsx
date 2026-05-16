@@ -402,11 +402,23 @@ function BlueprintInstallDialog({
 	onClose: (confirmed: boolean) => void;
 }) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
+	const dialogResolvedRef = useRef(false);
 	const source = getBlueprintInstallSource(blueprintUrl);
 	const [previewState, setPreviewState] =
 		useState<BlueprintInstallPreviewState>({
 			status: 'loading',
 		});
+
+	const closeDialog = useCallback(
+		(confirmed: boolean) => {
+			if (dialogResolvedRef.current) {
+				return;
+			}
+			dialogResolvedRef.current = true;
+			onClose(confirmed);
+		},
+		[onClose]
+	);
 
 	useEffect(() => {
 		const dialog = dialogRef.current;
@@ -414,6 +426,11 @@ function BlueprintInstallDialog({
 			return;
 		}
 		dialog.showModal();
+		return () => {
+			if (dialog.open) {
+				dialog.close();
+			}
+		};
 	}, []);
 
 	useEffect(() => {
@@ -446,6 +463,11 @@ function BlueprintInstallDialog({
 		: previewState.status === 'error'
 			? 'Preview unavailable'
 			: 'Loading app details...';
+	const warnings = preview?.warnings || [];
+	const visibleWarnings = warnings.slice(0, 3);
+	const hasDangerWarning = warnings.some(
+		(warning) => warning.severity === 'danger'
+	);
 
 	return (
 		<dialog
@@ -455,7 +477,10 @@ function BlueprintInstallDialog({
 			aria-describedby="blueprint-install-dialog-description"
 			onCancel={(event) => {
 				event.preventDefault();
-				onClose(false);
+				closeDialog(false);
+			}}
+			onClose={() => {
+				closeDialog(false);
 			}}
 		>
 			<div className={css.blueprintInstallDialogContent}>
@@ -475,10 +500,39 @@ function BlueprintInstallDialog({
 					</h3>
 					{preview && (
 						<p>
-							{preview.description || 'No description provided.'}
+							{preview.description ?? 'No description provided.'}
 						</p>
 					)}
 				</div>
+
+				{warnings.length > 0 && (
+					<div
+						className={classNames(css.blueprintInstallWarnings, {
+							[css.blueprintInstallWarningsDanger]:
+								hasDangerWarning,
+						})}
+					>
+						<strong>
+							{hasDangerWarning
+								? 'Review high-risk actions'
+								: 'Review app actions'}
+						</strong>
+						<ul>
+							{visibleWarnings.map((warning, index) => (
+								<li key={index}>
+									<span>{warning.title}</span>
+									<p>{warning.description}</p>
+								</li>
+							))}
+						</ul>
+						{warnings.length > visibleWarnings.length && (
+							<p>
+								Open the details below to review the full
+								configuration.
+							</p>
+						)}
+					</div>
+				)}
 
 				{previewState.status === 'loading' && (
 					<div className={css.blueprintInstallStatus}>
@@ -500,13 +554,13 @@ function BlueprintInstallDialog({
 				)}
 
 				<div className={css.blueprintInstallDialogActions}>
-					<button type="button" onClick={() => onClose(false)}>
+					<button type="button" onClick={() => closeDialog(false)}>
 						Cancel
 					</button>
 					<button
 						type="button"
 						disabled={!canInstall}
-						onClick={() => onClose(true)}
+						onClick={() => closeDialog(true)}
 					>
 						Install
 					</button>
