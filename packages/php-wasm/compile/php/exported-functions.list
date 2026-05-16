@@ -16,7 +16,9 @@ _rename
 _rmdir
 _sqlite3_auto_extension
 _sqlite3_cancel_auto_extension
+_strtoll
 _unlink
+_php_info_print_table_header
 _php_wasm_init
 _wasm_add_ENV_entry
 _wasm_add_SERVER_entry
