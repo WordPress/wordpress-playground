@@ -344,8 +344,11 @@ test.describe('External PHP side modules', () => {
 		'https://wordpress.github.io/sqlite-database-integration/' +
 		'wp_mysql_parser-wasm-extension/' +
 		'b31fc53ea599d1a2211b75f4a3486b39e63ce01f/manifest.json';
+	const sqliteMarkdownCommit = '4656cd898cf8430c44e985d0515c2182ffcc5575';
 	const sqliteMarkdownManifestUrl =
-		'https://raw.githubusercontent.com/adamziel/wp-extensions/main/' +
+		'https://raw.githubusercontent.com/adamziel/wp-extensions/' +
+		sqliteMarkdownCommit +
+		'/' +
 		'markdown-editor/sqlite-markdown-extension/dist/manifest.json';
 
 	test.beforeEach(async ({ page }) => {
