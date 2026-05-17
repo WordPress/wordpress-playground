@@ -1,15 +1,14 @@
 <?php
 
 $client_id = getenv('CLIENT_ID');
+$popup_state_prefix = 'playground-popup-';
+$oauth_message_type = 'playground-github-oauth-token';
+
 if (array_key_exists('redirect', $_GET) && $_GET["redirect"] === "1") {
     http_response_code(302);
-    // Always redirect to the current host, even if the redirect_uri is set to a different host.
-    // Also, do not allow any custom path segments in the redirect_uri.
-    $redirect_host = $_SERVER['HTTP_HOST'];
-    $redirect_query = parse_url($_GET['redirect_uri'], PHP_URL_QUERY);
-    $redirect_uri = 'https://' . $redirect_host . '?' . $redirect_query;
-    $redirect_param = isset($_GET['redirect_uri']) ? "&redirect_uri=" . urlencode($redirect_uri) : '';
-    header("Location: https://github.com/login/oauth/authorize?client_id={$client_id}&scope=repo" . $redirect_param);
+    $redirect_uri = playground_oauth_callback_url();
+    $state_param = isset($_GET['state']) ? "&state=" . urlencode($_GET['state']) : '';
+    header("Location: https://github.com/login/oauth/authorize?client_id={$client_id}&scope=repo&redirect_uri=" . urlencode($redirect_uri) . $state_param);
     die();
 }
 
@@ -30,5 +29,53 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
 $result = curl_exec($ch);
 parse_str($result, $auth_data);
 
-header('Content-Type: application/json');
-echo json_encode($auth_data);
+$is_popup_callback = isset($_GET['state']) && strpos($_GET['state'], $popup_state_prefix) === 0;
+
+if ($is_popup_callback) {
+    header('Content-Type: text/html; charset=utf-8');
+    echo playground_oauth_popup_response([
+        'type'  => $oauth_message_type,
+        'state' => $_GET['state'],
+        'token' => $auth_data['access_token'] ?? null,
+        'error' => $auth_data['error_description'] ?? $auth_data['error'] ?? null,
+    ]);
+} else {
+    header('Content-Type: application/json');
+    echo json_encode($auth_data);
+}
+
+function playground_oauth_callback_url() {
+    $scheme = 'https';
+    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        $scheme = $_SERVER['HTTP_X_FORWARDED_PROTO'];
+    } elseif (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        $scheme = 'https';
+    } elseif (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'localhost') === 0) {
+        $scheme = 'http';
+    }
+
+    $path = strtok($_SERVER['REQUEST_URI'], '?');
+    return $scheme . '://' . $_SERVER['HTTP_HOST'] . $path;
+}
+
+function playground_oauth_popup_response($message) {
+    $encoded_message = json_encode($message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    return <<<HTML
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>GitHub authorization complete</title>
+    </head>
+    <body>
+        <script>
+            if (window.opener) {
+                window.opener.postMessage({$encoded_message}, window.location.origin);
+                window.close();
+            }
+        </script>
+        GitHub authorization complete. You can close this window.
+    </body>
+</html>
+HTML;
+}

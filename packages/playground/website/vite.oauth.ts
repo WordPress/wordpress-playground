@@ -2,6 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'http';
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const GITHUB_OAUTH_MESSAGE_TYPE = 'playground-github-oauth-token';
+const GITHUB_OAUTH_STATE_PREFIX = 'playground-popup-';
 
 export const oAuthMiddleware = async (
 	req: IncomingMessage,
@@ -9,19 +11,20 @@ export const oAuthMiddleware = async (
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 	next: Function
 ) => {
-	if (!req.url?.startsWith('/oauth.php')) {
+	if (!isOAuthRequest(req.url)) {
 		next();
 		return;
 	}
 
-	const query = new URL(req.url, 'http://example.com').searchParams;
+	const query = new URL(req.url ?? '/', 'http://example.com').searchParams;
 	if (query.get('redirect') === '1') {
 		const params: Record<string, string> = {
 			client_id: CLIENT_ID!,
 			scope: 'repo',
+			redirect_uri: getOAuthCallbackUrl(req),
 		};
-		if (query.has('redirect_uri')) {
-			params.redirect_uri = query.get('redirect_uri')!;
+		if (query.has('state')) {
+			params.state = query.get('state')!;
 		}
 		const redirectQS = new URLSearchParams(params).toString();
 		res.writeHead(302, {
@@ -62,15 +65,40 @@ export const oAuthMiddleware = async (
 			if (response.data.error) {
 				throw new Error(response.data.error_description);
 			}
-			res.writeHead(200, {
-				'Content-Type': 'application/json',
-			});
-			res.end(JSON.stringify(response.data));
+			if (isPopupOAuthState(query.get('state'))) {
+				res.writeHead(200, {
+					'Content-Type': 'text/html; charset=utf-8',
+				});
+				res.end(
+					renderOAuthPopupResponse({
+						state: query.get('state')!,
+						token: response.data.access_token,
+					})
+				);
+			} else {
+				res.writeHead(200, {
+					'Content-Type': 'application/json',
+				});
+				res.end(JSON.stringify(response.data));
+			}
 		} catch (error) {
-			res.writeHead(400, {
-				'Content-Type': 'application/json',
-			});
-			res.end(JSON.stringify({ error: (error as any)?.message }));
+			const message = (error as Error)?.message;
+			if (isPopupOAuthState(query.get('state'))) {
+				res.writeHead(400, {
+					'Content-Type': 'text/html; charset=utf-8',
+				});
+				res.end(
+					renderOAuthPopupResponse({
+						state: query.get('state')!,
+						error: message,
+					})
+				);
+			} else {
+				res.writeHead(400, {
+					'Content-Type': 'application/json',
+				});
+				res.end(JSON.stringify({ error: message }));
+			}
 			console.log({ error });
 		}
 	} else {
@@ -78,3 +106,57 @@ export const oAuthMiddleware = async (
 		res.end(JSON.stringify({ error: 'Invalid request' }));
 	}
 };
+
+function isOAuthRequest(url: string | undefined): boolean {
+	if (!url) {
+		return false;
+	}
+	const { pathname } = new URL(url, 'http://example.com');
+	return pathname.endsWith('/oauth.php');
+}
+
+function getOAuthCallbackUrl(req: IncomingMessage) {
+	const requestUrl = new URL(req.url!, `http://${req.headers.host}`);
+	requestUrl.search = '';
+	const forwardedProto = req.headers['x-forwarded-proto'];
+	requestUrl.protocol =
+		(typeof forwardedProto === 'string' ? forwardedProto : 'http') + ':';
+	return requestUrl.toString();
+}
+
+function isPopupOAuthState(state: string | null): state is string {
+	return !!state && state.startsWith(GITHUB_OAUTH_STATE_PREFIX);
+}
+
+function renderOAuthPopupResponse({
+	state,
+	token,
+	error,
+}: {
+	state: string;
+	token?: string;
+	error?: string;
+}) {
+	const message = JSON.stringify({
+		type: GITHUB_OAUTH_MESSAGE_TYPE,
+		state,
+		token,
+		error,
+	}).replace(/</g, '\\u003c');
+	return `<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>GitHub authorization complete</title>
+	</head>
+	<body>
+		<script>
+			if (window.opener) {
+				window.opener.postMessage(${message}, window.location.origin);
+				window.close();
+			}
+		</script>
+		GitHub authorization complete. You can close this window.
+	</body>
+</html>`;
+}

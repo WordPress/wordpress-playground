@@ -5,7 +5,6 @@ import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppSelector } from '../../lib/state/redux/store';
 import { useState, useRef, lazy, Suspense } from 'react';
-import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import type { ExportFormValues } from '../../github/github-export-form/form';
 import { asPullRequestAction } from '../../github/github-export-form/form';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
@@ -52,7 +51,6 @@ const PreviewPRModal = lazy(() =>
 	}))
 );
 
-acquireOAuthTokenIfNeeded();
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
 	const query = new URLSearchParams(document.location.search);
