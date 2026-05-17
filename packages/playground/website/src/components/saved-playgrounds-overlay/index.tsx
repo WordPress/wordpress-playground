@@ -92,16 +92,23 @@ export function SavedPlaygroundsOverlay({
 	const sitesAPI = useSitesAPI();
 	const playground = usePlaygroundClient();
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
+	const yourPlaygroundsRef = useRef<HTMLDivElement>(null);
 
 	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
-
-	const isTemporarySite = activeSite?.metadata.storage === 'none';
+	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
+		string | null
+	>(null);
 
 	useEffect(() => {
-		if (!pendingZipFile || !isTemporarySite || !playground) {
+		if (
+			!pendingZipFile ||
+			!playground ||
+			!activeSite ||
+			activeSite.slug !== pendingZipTargetSlug
+		) {
 			return;
 		}
 
@@ -124,19 +131,24 @@ export function SavedPlaygroundsOverlay({
 				);
 			} finally {
 				setPendingZipFile(null);
+				setPendingZipTargetSlug(null);
 				if (zipFileInputRef.current) {
 					zipFileInputRef.current.value = '';
 				}
 			}
 		};
 		doImport();
-	}, [pendingZipFile, isTemporarySite, playground, onClose]);
+	}, [pendingZipFile, pendingZipTargetSlug, activeSite, playground, onClose]);
 
-	async function switchToTemporarySite() {
-		if (temporarySite) {
-			await sitesAPI.setActiveSite(temporarySite.slug);
-		} else {
-			redirectTo(PlaygroundRoute.newTemporarySite());
+	async function createSiteForImport() {
+		try {
+			return await sitesAPI.createNewSavedSite();
+		} catch {
+			if (temporarySite) {
+				await sitesAPI.setActiveSite(temporarySite.slug);
+				return temporarySite.slug;
+			}
+			return await sitesAPI.createNewTemporarySite();
 		}
 	}
 
@@ -144,37 +156,18 @@ export function SavedPlaygroundsOverlay({
 		const file = e.target.files?.[0];
 		if (!file) return;
 
-		if (!isTemporarySite) {
-			setPendingZipFile(file);
-			switchToTemporarySite();
-			return;
-		}
-
-		if (!playground) {
-			alert(
-				'No active Playground to import into. Please create one first.'
-			);
-			return;
-		}
-
 		try {
-			await importWordPressFiles(playground, { wordPressFilesZip: file });
-			setTimeout(async () => {
-				await playground.goTo('/');
-			}, 200);
-			alert(
-				'File imported! This Playground instance has been updated and will refresh shortly.'
-			);
-			onClose();
+			const targetSlug = await createSiteForImport();
+			setPendingZipTargetSlug(targetSlug);
+			setPendingZipFile(file);
 		} catch (error) {
 			logger.error(error);
 			alert(
-				'Unable to import file. Is it a valid WordPress Playground export?'
+				'No active Playground to import into. Please create one first.'
 			);
-		}
-
-		if (zipFileInputRef.current) {
-			zipFileInputRef.current.value = '';
+			if (zipFileInputRef.current) {
+				zipFileInputRef.current.value = '';
+			}
 		}
 	};
 
@@ -263,7 +256,7 @@ export function SavedPlaygroundsOverlay({
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
 		dispatch(setSiteManagerOpen(false));
 		redirectTo(
-			PlaygroundRoute.newTemporarySite({
+			PlaygroundRoute.newSite({
 				query: {
 					name: 'Blueprint preview',
 					'blueprint-url': `https://raw.githubusercontent.com/WordPress/blueprints/trunk/${blueprintPath.replace(
@@ -278,7 +271,7 @@ export function SavedPlaygroundsOverlay({
 
 	function createVanillaSite() {
 		dispatch(setSiteManagerOpen(false));
-		redirectTo(PlaygroundRoute.newTemporarySite());
+		redirectTo(PlaygroundRoute.newSite());
 		onClose();
 	}
 
@@ -312,10 +305,8 @@ export function SavedPlaygroundsOverlay({
 			id: 'github',
 			title: 'From GitHub',
 			iconComponent: GitHubIcon,
-			onClick: () => {
-				if (!isTemporarySite) {
-					switchToTemporarySite();
-				}
+			onClick: async () => {
+				await createSiteForImport();
 				modalDispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
 			},
 			disabled: offline,
@@ -522,6 +513,19 @@ export function SavedPlaygroundsOverlay({
 				style={{ display: 'none' }}
 			/>
 			<OverlayHeader onClose={onClose} />
+			<div className={css.quickNav}>
+				<button
+					type="button"
+					className={css.quickNavButton}
+					onClick={() =>
+						yourPlaygroundsRef.current?.scrollIntoView({
+							block: 'start',
+						})
+					}
+				>
+					Your Playgrounds
+				</button>
+			</div>
 			<OverlayBody>
 				<OverlaySection title="Start a new Playground">
 					<div className={css.creationRow}>
@@ -612,134 +616,144 @@ export function SavedPlaygroundsOverlay({
 					)}
 				</OverlaySection>
 
-				<OverlaySection title="Your Playgrounds">
-					<div className={css.sitesList}>
-						<div
-							className={classNames(css.siteRow, {
-								[css.siteRowSelected]:
-									temporarySite?.slug === activeSite?.slug,
-							})}
-						>
-							<button
-								className={css.siteRowContent}
-								onClick={onTemporaryPlaygroundClick}
+				<div ref={yourPlaygroundsRef}>
+					<OverlaySection title="Your Playgrounds">
+						<div className={css.sitesList}>
+							<div
+								className={classNames(css.siteRow, {
+									[css.siteRowSelected]:
+										temporarySite?.slug ===
+										activeSite?.slug,
+								})}
 							>
-								<div className={css.siteRowLogo}>
-									{temporarySite?.metadata.logo ? (
-										<img
-											src={getLogoDataURL(
-												temporarySite.metadata.logo
-											)}
-											alt=""
-										/>
-									) : (
-										<WordPressIcon />
-									)}
-								</div>
-								<div className={css.siteRowInfo}>
-									<span className={css.siteRowName}>
-										Unsaved Playground
-									</span>
-									<span className={css.siteRowDate}>
-										Not saved to browser storage
-									</span>
-								</div>
-							</button>
-						</div>
-						{storedSites.map((site) => {
-							const isSelected = site.slug === activeSite?.slug;
-							return (
-								<div
-									key={site.slug}
-									className={classNames(css.siteRow, {
-										[css.siteRowSelected]: isSelected,
-									})}
+								<button
+									className={css.siteRowContent}
+									onClick={onTemporaryPlaygroundClick}
 								>
-									<button
-										className={css.siteRowContent}
-										onClick={() => onSiteClick(site.slug)}
-									>
-										<div className={css.siteRowLogo}>
-											{site.metadata.logo ? (
-												<img
-													src={getLogoDataURL(
-														site.metadata.logo
-													)}
-													alt=""
-												/>
-											) : (
-												<WordPressIcon />
-											)}
-										</div>
-										<div className={css.siteRowInfo}>
-											<span className={css.siteRowName}>
-												{site.metadata.name}
-											</span>
-											{site.metadata.whenCreated && (
-												<span
-													className={css.siteRowDate}
-												>
-													Created{' '}
-													{new Date(
-														site.metadata
-															.whenCreated
-													).toLocaleDateString(
-														undefined,
-														{
-															year: 'numeric',
-															month: 'short',
-															day: 'numeric',
-														}
-													)}
-												</span>
-											)}
-										</div>
-									</button>
-									<DropdownMenu
-										icon={moreVertical}
-										label="Site actions"
-										className={css.siteRowMenu}
-										popoverProps={{
-											placement: 'bottom-end',
-										}}
-									>
-										{({ onClose: closeMenu }) => (
-											<>
-												<MenuGroup>
-													<MenuItem
-														onClick={() =>
-															handleRenameSite(
-																site,
-																closeMenu
-															)
-														}
-													>
-														Rename
-													</MenuItem>
-												</MenuGroup>
-												<MenuGroup>
-													<MenuItem
-														className={
-															css.dangerMenuItem
-														}
-														onClick={() =>
-															handleDeleteSite(
-																site,
-																closeMenu
-															)
-														}
-													>
-														Delete
-													</MenuItem>
-												</MenuGroup>
-											</>
+									<div className={css.siteRowLogo}>
+										{temporarySite?.metadata.logo ? (
+											<img
+												src={getLogoDataURL(
+													temporarySite.metadata.logo
+												)}
+												alt=""
+											/>
+										) : (
+											<WordPressIcon />
 										)}
-									</DropdownMenu>
-								</div>
-							);
-						})}
-					</div>
-				</OverlaySection>
+									</div>
+									<div className={css.siteRowInfo}>
+										<span className={css.siteRowName}>
+											Unsaved Playground
+										</span>
+										<span className={css.siteRowDate}>
+											Not saved to browser storage
+										</span>
+									</div>
+								</button>
+							</div>
+							{storedSites.map((site) => {
+								const isSelected =
+									site.slug === activeSite?.slug;
+								return (
+									<div
+										key={site.slug}
+										className={classNames(css.siteRow, {
+											[css.siteRowSelected]: isSelected,
+										})}
+									>
+										<button
+											className={css.siteRowContent}
+											onClick={() =>
+												onSiteClick(site.slug)
+											}
+										>
+											<div className={css.siteRowLogo}>
+												{site.metadata.logo ? (
+													<img
+														src={getLogoDataURL(
+															site.metadata.logo
+														)}
+														alt=""
+													/>
+												) : (
+													<WordPressIcon />
+												)}
+											</div>
+											<div className={css.siteRowInfo}>
+												<span
+													className={css.siteRowName}
+												>
+													{site.metadata.name}
+												</span>
+												{site.metadata.whenCreated && (
+													<span
+														className={
+															css.siteRowDate
+														}
+													>
+														Created{' '}
+														{new Date(
+															site.metadata
+																.whenCreated
+														).toLocaleDateString(
+															undefined,
+															{
+																year: 'numeric',
+																month: 'short',
+																day: 'numeric',
+															}
+														)}
+													</span>
+												)}
+											</div>
+										</button>
+										<DropdownMenu
+											icon={moreVertical}
+											label="Site actions"
+											className={css.siteRowMenu}
+											popoverProps={{
+												placement: 'bottom-end',
+											}}
+										>
+											{({ onClose: closeMenu }) => (
+												<>
+													<MenuGroup>
+														<MenuItem
+															onClick={() =>
+																handleRenameSite(
+																	site,
+																	closeMenu
+																)
+															}
+														>
+															Rename
+														</MenuItem>
+													</MenuGroup>
+													<MenuGroup>
+														<MenuItem
+															className={
+																css.dangerMenuItem
+															}
+															onClick={() =>
+																handleDeleteSite(
+																	site,
+																	closeMenu
+																)
+															}
+														>
+															Delete
+														</MenuItem>
+													</MenuGroup>
+												</>
+											)}
+										</DropdownMenu>
+									</div>
+								);
+							})}
+						</div>
+					</OverlaySection>
+				</div>
 			</OverlayBody>
 		</Overlay>
 	);

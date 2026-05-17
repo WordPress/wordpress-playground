@@ -583,23 +583,102 @@ test.describe('Database panel', () => {
 	});
 });
 
-// Test saving playgrounds by default and when the "can-save" URL parameter is set to "no".
-test.describe('Save Status Indicator', () => {
-	test('should show "Unsaved Playground" status for temporary playgrounds', async ({
+// Test browser-saved Playgrounds by default and explicit temporary opt-outs.
+test.describe('Default Playground storage', () => {
+	test('should create a browser-saved Playground by default', async ({
 		website,
 	}) => {
 		await website.goto('./');
 		await website.ensureSiteManagerIsClosed();
 
-		const indicator = website.page.getByText('Unsaved Playground');
-		await expect(indicator).toBeVisible();
-		await expect(indicator).toHaveCount(1);
+		await expect
+			.poll(() =>
+				new URL(website.page.url()).searchParams.get('site-slug')
+			)
+			.toBeTruthy();
+		await expect(website.page.getByText('Unsaved Playground')).toHaveCount(
+			0
+		);
 	});
 
-	test('should see save playground message in the Site Manager', async ({
+	test('should show browser storage details in the Site Manager by default', async ({
 		website,
 	}) => {
 		await website.goto('./');
+		await website.ensureSiteManagerIsOpen();
+
+		await expect(
+			website.page.getByText('Saved in this browser')
+		).toBeVisible();
+		await expect(
+			website.page.getByText(
+				'This is an Unsaved Playground. Your changes will be lost on page refresh.'
+			)
+		).toHaveCount(0);
+	});
+
+	test('should persist WordPress changes after refreshing the default Playground', async ({
+		website,
+	}) => {
+		await website.goto('./');
+		await expect
+			.poll(() =>
+				new URL(website.page.url()).searchParams.get('site-slug')
+			)
+			.toBeTruthy();
+		const siteSlug = new URL(website.page.url()).searchParams.get(
+			'site-slug'
+		);
+		expect(siteSlug).toBeTruthy();
+
+		const expectedBlogName = `Saved Playground ${Date.now()}`;
+		await website.page.evaluate(async (blogName) => {
+			const playground = (window as any).playground;
+			await playground.run({
+				code: `<?php
+require_once '/wordpress/wp-load.php';
+update_option('blogname', ${JSON.stringify(blogName)});
+`,
+			});
+		}, expectedBlogName);
+
+		await website.page.reload();
+		await website.waitForNestedIframes();
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			siteSlug
+		);
+
+		const blogName = await website.page.evaluate(async () => {
+			const playground = (window as any).playground;
+			const result = await playground.run({
+				code: `<?php
+require_once '/wordpress/wp-load.php';
+echo get_option('blogname');
+`,
+			});
+			return result.text;
+		});
+		expect(blogName).toBe(expectedBlogName);
+	});
+
+	test('should show "Unsaved Playground" status for storage=temp Playgrounds', async ({
+		website,
+	}) => {
+		await website.goto('./?storage=temp');
+		await website.ensureSiteManagerIsClosed();
+
+		const indicator = website.page.getByText('Unsaved Playground');
+		await expect(indicator).toBeVisible();
+		await expect(indicator).toHaveCount(1);
+		expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
+			'temp'
+		);
+	});
+
+	test('should see save playground message in the Site Manager for storage=temp Playgrounds', async ({
+		website,
+	}) => {
+		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
 
 		const indicator = website.page.getByText(

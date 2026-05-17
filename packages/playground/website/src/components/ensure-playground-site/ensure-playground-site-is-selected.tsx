@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
+import {
+	isSaveDisabledByQueryParam,
+	isTemporaryStorageRequested,
+} from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
@@ -40,6 +44,10 @@ export function EnsurePlaygroundSiteIsSelected({
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);
+	const shouldUseTemporarySite =
+		isTemporaryStorageRequested(url.href) ||
+		isSaveDisabledByQueryParam() ||
+		!opfsSiteStorage;
 	const requestedClientInfo = useAppSelector(
 		(state) =>
 			requestedSiteSlug &&
@@ -78,14 +86,37 @@ export function EnsurePlaygroundSiteIsSelected({
 
 			// If the site slug is provided, try to load the site.
 			if (requestedSiteSlug) {
-				// If the site does not exist, create a new temporary site and prompt the user to save it.
+				// If the site does not exist, create it. Saved browser
+				// storage is the default unless the URL explicitly asks for
+				// a temporary site or saving is unavailable.
 				if (!requestedSiteObject) {
 					logger.log(
-						'The requested site was not found. Creating a new temporary site.'
+						'The requested site was not found. Creating a new site.'
 					);
 
-					await sitesAPI.createNewTemporarySite(requestedSiteSlug);
-					setNeedMissingSitePromptForSlug(requestedSiteSlug);
+					if (shouldUseTemporarySite) {
+						await sitesAPI.createNewTemporarySite(
+							requestedSiteSlug
+						);
+						if (!isSaveDisabledByQueryParam()) {
+							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+						}
+					} else {
+						try {
+							await sitesAPI.createNewSavedSite(
+								requestedSiteSlug
+							);
+						} catch (error) {
+							logger.error(
+								'Error creating saved site. Falling back to a temporary site.',
+								error
+							);
+							await sitesAPI.createNewTemporarySite(
+								requestedSiteSlug
+							);
+							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+						}
+					}
 					return;
 				}
 
@@ -105,7 +136,19 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			await sitesAPI.createNewTemporarySite();
+			if (shouldUseTemporarySite) {
+				await sitesAPI.createNewTemporarySite();
+			} else {
+				try {
+					await sitesAPI.createNewSavedSite();
+				} catch (error) {
+					logger.error(
+						'Error creating saved site. Falling back to a temporary site.',
+						error
+					);
+					await sitesAPI.createNewTemporarySite();
+				}
+			}
 		}
 
 		ensureSiteIsSelected();

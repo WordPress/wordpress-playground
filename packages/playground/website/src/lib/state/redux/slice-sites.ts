@@ -25,6 +25,10 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import { getUniqueSiteSlug, normalizeSiteSlug } from './site-slug';
+
+const DEFAULT_BLUEPRINT =
+	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -113,7 +117,7 @@ export const getSitesLoadingState = (state: {
 }) => state.sites.opfsSitesLoadingState;
 
 export function deriveSlugFromSiteName(name: string) {
-	return name.toLowerCase().replaceAll(' ', '-');
+	return normalizeSiteSlug(name);
 }
 export function deriveSiteNameFromSlug(slug: string) {
 	return slug
@@ -343,15 +347,11 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		// Then create a new temporary site
-		const defaultBlueprint =
-			'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
-
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
 			resolvedBlueprint = await resolveBlueprintFromURL(
 				playgroundUrlWithQueryApiArgs,
-				defaultBlueprint
+				DEFAULT_BLUEPRINT
 			);
 		} catch (e) {
 			logger.error(
@@ -374,17 +374,10 @@ export function setTemporarySiteSpec(
 		}
 
 		try {
-			const reflection = await BlueprintReflection.create(
-				resolvedBlueprint.blueprint
+			resolvedBlueprint = await prepareResolvedBlueprint(
+				resolvedBlueprint,
+				playgroundUrlWithQueryApiArgs
 			);
-			if (reflection.getVersion() === 1) {
-				resolvedBlueprint.blueprint = await applyQueryOverrides(
-					resolvedBlueprint.blueprint,
-					playgroundUrlWithQueryApiArgs.searchParams
-				);
-			}
-
-			// Compute the runtime configuration based on the resolved Blueprint:
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
@@ -415,6 +408,80 @@ export function setTemporarySiteSpec(
 			return showTemporarySiteError({ error: errorType, details: e });
 		}
 	};
+}
+
+/**
+ * Creates a new browser-stored site in OPFS and in the redux state.
+ */
+export function setStoredSiteSpec(
+	siteName: string,
+	playgroundUrlWithQueryApiArgs: URL,
+	preferredSlug?: string
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(siteName),
+			selectSiteSlugs(getState())
+		);
+		const originalUrlParams = {
+			searchParams: parseSearchParams(
+				playgroundUrlWithQueryApiArgs.searchParams
+			),
+			hash: playgroundUrlWithQueryApiArgs.hash,
+		};
+
+		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
+			playgroundUrlWithQueryApiArgs
+		);
+		const newSiteInfo: SiteInfo = {
+			slug: siteSlug,
+			originalUrlParams,
+			metadata: {
+				name: siteName,
+				id: crypto.randomUUID(),
+				whenCreated: Date.now(),
+				storage: 'opfs' as const,
+				originalBlueprint: resolvedBlueprint.blueprint,
+				originalBlueprintSource: resolvedBlueprint.source!,
+				runtimeConfiguration: await resolveRuntimeConfiguration(
+					resolvedBlueprint.blueprint
+				)!,
+			},
+		};
+
+		await dispatch(addSite(newSiteInfo));
+		return newSiteInfo;
+	};
+}
+
+async function resolveSiteBlueprintFromUrl(playgroundUrlWithQueryApiArgs: URL) {
+	const resolvedBlueprint = await resolveBlueprintFromURL(
+		playgroundUrlWithQueryApiArgs,
+		DEFAULT_BLUEPRINT
+	);
+	return prepareResolvedBlueprint(
+		resolvedBlueprint,
+		playgroundUrlWithQueryApiArgs
+	);
+}
+
+async function prepareResolvedBlueprint(
+	resolvedBlueprint: ResolvedBlueprint,
+	playgroundUrlWithQueryApiArgs: URL
+) {
+	const reflection = await BlueprintReflection.create(
+		resolvedBlueprint.blueprint
+	);
+	if (reflection.getVersion() === 1) {
+		resolvedBlueprint.blueprint = await applyQueryOverrides(
+			resolvedBlueprint.blueprint,
+			playgroundUrlWithQueryApiArgs.searchParams
+		);
+	}
+	return resolvedBlueprint;
 }
 
 function parseSearchParams(searchParams: URLSearchParams) {

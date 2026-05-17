@@ -304,7 +304,8 @@ export function SaveSiteModal() {
 			>
 				<p style={{ margin: 0, color: '#1e1e1e' }}>
 					This Playground is temporary and will be lost when you
-					refresh or close this page. Save it to keep your work.
+					refresh or close this page. Save it to keep your work and
+					find it later in Your Playgrounds.
 				</p>
 				<TextControl
 					label="Playground name"

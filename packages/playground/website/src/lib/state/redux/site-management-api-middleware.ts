@@ -12,6 +12,7 @@ import {
 	updateSiteMetadata,
 	removeSite,
 	setTemporarySiteSpec,
+	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
@@ -19,6 +20,7 @@ import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
+import { isOpfsAvailable } from '../opfs/opfs-site-storage';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -128,6 +130,19 @@ export interface PlaygroundSitesAPI {
 	 * @returns The new site's slug.
 	 */
 	createNewTemporarySite(
+		siteSlug?: string,
+		settings?: SiteSettings
+	): Promise<string>;
+
+	/**
+	 * Creates a new browser-stored site and boots it.
+	 *
+	 * @param siteSlug Optional slug hint. A random name is
+	 *   generated when omitted.
+	 * @param settings Optional site settings.
+	 * @returns The new site's slug.
+	 */
+	createNewSavedSite(
 		siteSlug?: string,
 		settings?: SiteSettings
 	): Promise<string>;
@@ -373,8 +388,59 @@ export function createSitesAPI(
 			await api.setActiveSite(newSiteInfo.slug);
 			return newSiteInfo.slug;
 		},
+
+		async createNewSavedSite(
+			requestedSiteSlug?: string,
+			settings?: SiteSettings
+		) {
+			if (!isOpfsAvailable) {
+				throw new Error(
+					'Cannot create a saved Playground because browser storage is not available.'
+				);
+			}
+			const siteName = requestedSiteSlug
+				? deriveSiteNameFromSlug(requestedSiteSlug)
+				: randomSiteName();
+			const url = getUrlWithSettings(settings);
+			const newSiteInfo = await dispatch(
+				setStoredSiteSpec(siteName, url, requestedSiteSlug)
+			);
+			await api.setActiveSite(newSiteInfo.slug);
+			return newSiteInfo.slug;
+		},
 	};
 	return api;
+}
+
+function getUrlWithSettings(settings?: SiteSettings) {
+	const url = new URL(window.location.href);
+	url.searchParams.delete('random');
+	url.searchParams.delete('site-slug');
+	url.searchParams.delete('storage');
+	if (settings) {
+		if (settings.phpVersion !== undefined) {
+			url.searchParams.set('php', settings.phpVersion);
+		}
+		if (settings.wpVersion !== undefined) {
+			url.searchParams.set('wp', settings.wpVersion);
+		}
+		if (settings.networking !== undefined) {
+			url.searchParams.set(
+				'networking',
+				settings.networking ? 'yes' : 'no'
+			);
+		}
+		if (settings.language !== undefined) {
+			url.searchParams.set('language', settings.language);
+		}
+		if (settings.multisite !== undefined) {
+			url.searchParams.set(
+				'multisite',
+				settings.multisite ? 'yes' : 'no'
+			);
+		}
+	}
+	return url;
 }
 
 /**

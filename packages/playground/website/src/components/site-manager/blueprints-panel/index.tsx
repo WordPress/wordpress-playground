@@ -64,7 +64,7 @@ export function BlueprintsPanel({
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
 		dispatch(setSiteManagerOpen(false));
 		redirectTo(
-			PlaygroundRoute.newTemporarySite({
+			PlaygroundRoute.newSite({
 				query: {
 					name: 'Blueprint preview',
 					// Explicitly do not use joinPaths() here as it normalizes the input and

@@ -77,6 +77,32 @@
 	border-radius: 8px;
 }
 
+.quickNav {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	padding: 10px 24px;
+	border-bottom: 1px solid #2c3338;
+	background: #1e1e1e;
+	flex-shrink: 0;
+}
+
+.quickNavButton {
+	background: transparent;
+	border: 1px solid #3c4349;
+	border-radius: 4px;
+	color: #e5e6e6;
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+	padding: 6px 12px;
+}
+
+.quickNavButton:hover {
+	background: #2c3338;
+	color: #fff;
+}
+
 /* Creation row - horizontal pills */
 .creationRow {
 	display: flex;
