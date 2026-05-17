@@ -587,7 +587,13 @@ test.describe('Database panel', () => {
 test.describe('Default Playground storage', () => {
 	test('should create a browser-saved Playground by default', async ({
 		website,
+		browserName,
 	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
 		await website.page.goto('./');
 		await expect(
 			website.page.getByRole('button', { name: /Site Manager/ })
@@ -606,7 +612,13 @@ test.describe('Default Playground storage', () => {
 
 	test('should show browser storage details in the Site Manager by default', async ({
 		website,
+		browserName,
 	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
 		await website.goto('./');
 		await website.ensureSiteManagerIsOpen();
 
@@ -622,7 +634,13 @@ test.describe('Default Playground storage', () => {
 
 	test('should persist WordPress changes after refreshing the default Playground', async ({
 		website,
+		browserName,
 	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
 		await website.goto('./');
 		await expect
 			.poll(() =>
@@ -662,6 +680,26 @@ echo get_option('blogname');
 			return result.text;
 		});
 		expect(blogName).toBe(expectedBlogName);
+	});
+
+	test('should fall back to an unsaved Playground when browser storage is unavailable', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName === 'chromium',
+			'Chromium provides OPFS in Playwright, so the saved-by-default tests cover it.'
+		);
+
+		await website.goto('./');
+		await website.ensureSiteManagerIsClosed();
+
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
+		);
+		await expect(
+			website.page.getByText('Unsaved Playground')
+		).toBeVisible();
 	});
 
 	test('should show "Unsaved Playground" status for storage=temp Playgrounds', async ({

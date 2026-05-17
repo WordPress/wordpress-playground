@@ -398,6 +398,7 @@ async function gotoPHPOnlyPlayground(
 ) {
 	const query = new URLSearchParams({
 		php: '8.3',
+		storage: 'temp',
 		...queryParams,
 	});
 	const blueprint: Blueprint = {

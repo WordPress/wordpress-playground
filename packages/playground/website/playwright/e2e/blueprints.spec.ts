@@ -114,12 +114,13 @@ test('?blueprint-url=... should work with simple blueprints', async ({
 		browserName === 'webkit',
 		'This test is flaky in WebKit. It seems like a GitHub CI issue rather than an actual flakiness since it is reliable locally.'
 	);
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint-simple.json`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint-simple.json',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -130,11 +131,11 @@ test('?blueprint-url=... should accept data URLs', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
+	await website.goto('./?storage=temp');
 	const blueprintUrl = encodeURIComponent(
 		`data:application/json;base64,eyJsYW5kaW5nUGFnZSI6Ii9weWdtYWxpb24udHh0Iiwic3RlcHMiOlt7InN0ZXAiOiJ3cml0ZUZpbGUiLCJwYXRoIjoiL3dvcmRwcmVzcy9weWdtYWxpb24udHh0IiwiZGF0YSI6IlBSRUZBQ0UgVE8gUFlHTUFMSU9OIn1dfQ==`
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -145,12 +146,13 @@ test('?blueprint-url=... should work with ZIP bundles', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint.zip`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint.zip',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -161,12 +163,13 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint-with-bundled-resources.json`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint-with-bundled-resources.json',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
