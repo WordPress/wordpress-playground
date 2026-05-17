@@ -141,7 +141,10 @@ test('should keep query arguments when updating settings', async ({
 }) => {
 	await website.goto('./?url=/wp-admin/&php=8.0&wp=6.6');
 
-	expect(website.page.url()).toContain('?url=%2Fwp-admin%2F&php=8.0&wp=6.6');
+	const initialParams = new URL(website.page.url()).searchParams;
+	expect(initialParams.get('url')).toBe('/wp-admin/');
+	expect(initialParams.get('php')).toBe('8.0');
+	expect(initialParams.get('wp')).toBe('6.6');
 	expect(
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
@@ -151,9 +154,11 @@ test('should keep query arguments when updating settings', async ({
 	await website.page.getByText('Apply Settings & Reset Playground').click();
 	await website.waitForNestedIframes();
 
-	expect(website.page.url()).toMatch(
-		'?url=%2Fwp-admin%2F&php=8.0&wp=6.6&networking=yes'
-	);
+	const updatedParams = new URL(website.page.url()).searchParams;
+	expect(updatedParams.get('url')).toBe('/wp-admin/');
+	expect(updatedParams.get('php')).toBe('8.0');
+	expect(updatedParams.get('wp')).toBe('6.6');
+	expect(updatedParams.get('networking')).toBe('yes');
 	expect(
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
