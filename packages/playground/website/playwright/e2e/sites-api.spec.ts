@@ -7,10 +7,7 @@ test('window.playgroundSites is exposed after boot', async ({ website }) => {
 	);
 });
 
-test('playgroundSites.list() returns the active site', async ({
-	website,
-	browserName,
-}) => {
+test('playgroundSites.list() returns the active site', async ({ website }) => {
 	await website.goto('./');
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
@@ -24,7 +21,9 @@ test('playgroundSites.list() returns the active site', async ({
 	expect(active).toBeTruthy();
 	expect(active.slug).toBeTruthy();
 	expect(active.storage).toBe(
-		browserName === 'chromium' ? 'opfs' : 'temporary'
+		new URL(website.page.url()).searchParams.has('site-slug')
+			? 'opfs'
+			: 'temporary'
 	);
 });
 
