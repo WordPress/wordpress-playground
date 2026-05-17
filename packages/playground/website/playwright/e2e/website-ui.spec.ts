@@ -12,7 +12,7 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
-	await website.goto('./?url=/wp-admin/');
+	await website.goto('./?storage=temp&url=/wp-admin/');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
@@ -27,7 +27,7 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 		browserName === 'webkit',
 		'This test is flaky in WebKit. It seems like a GitHub CI issue rather than an actual flakiness since it is reliable locally.'
 	);
-	await website.goto('./?url=/wp-admin');
+	await website.goto('./?storage=temp&url=/wp-admin');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
@@ -36,7 +36,7 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 
 SupportedPHPVersions.forEach(async (version) => {
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
-		await website.goto(`./`);
+		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
 		await website.page.getByLabel('PHP version').selectOption(version);
 		await website.page
@@ -58,7 +58,7 @@ Object.keys(MinifiedWordPressVersions)
 		test(`should switch WordPress version to ${version}`, async ({
 			website,
 		}) => {
-			await website.goto('./');
+			await website.goto('./?storage=temp');
 			await website.ensureSiteManagerIsOpen();
 			await website.page
 				.getByLabel('WordPress version')
@@ -76,7 +76,7 @@ Object.keys(MinifiedWordPressVersions)
 	});
 
 test('should display networking as active by default', async ({ website }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 	await website.ensureSiteManagerIsOpen();
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
@@ -84,13 +84,13 @@ test('should display networking as active by default', async ({ website }) => {
 test('should display networking as active when networking is enabled', async ({
 	website,
 }) => {
-	await website.goto('./?networking=yes');
+	await website.goto('./?storage=temp&networking=yes');
 	await website.ensureSiteManagerIsOpen();
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
 test('should enable networking when requested', async ({ website }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByLabel('Network access').check();
@@ -102,7 +102,7 @@ test('should enable networking when requested', async ({ website }) => {
 });
 
 test('should disable networking when requested', async ({ website }) => {
-	await website.goto('./?networking=yes');
+	await website.goto('./?storage=temp&networking=yes');
 
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByLabel('Network access').uncheck();
@@ -128,7 +128,7 @@ test('should display PHP output even when a fatal error is hit', async ({
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(`./?storage=temp#${JSON.stringify(blueprint)}`);
 
 	await expect(wordpress.locator('body')).toContainText(
 		'This is a fatal error'
@@ -163,7 +163,7 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	website,
 	wordpress,
 }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	// Open site manager
 	await website.ensureSiteManagerIsOpen();
@@ -243,7 +243,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	website,
 	wordpress,
 }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	// Open site manager
 	await website.ensureSiteManagerIsOpen();
@@ -331,7 +331,7 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	// Grant clipboard permissions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	// Open site manager
 	await website.ensureSiteManagerIsOpen();
@@ -382,7 +382,7 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 
 test.describe('Database panel', () => {
 	test.beforeEach(async ({ website }) => {
-		await website.goto('./');
+		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
 
 		// Navigate to Database tab
@@ -756,7 +756,7 @@ echo get_option('blogname');
 test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not set', async ({
 	website,
 }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 	const gtmScripts = await website.page
 		.locator('script[src*="googletagmanager.com"]')
 		.count();
