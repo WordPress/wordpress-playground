@@ -27,7 +27,7 @@ import type {
 	RmDirOptions,
 } from '@php-wasm/universal';
 import { PHPResponse } from '@php-wasm/universal';
-import { dirname, joinPaths } from '@php-wasm/util';
+import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import type { KernelRuntime } from './boot';
 
 import DEFINES_MU_PLUGIN_PHP from './wp-templates/playground-defines.php?raw';
@@ -44,7 +44,7 @@ const VFS_DOCROOT_IN_CODE = /(?<![\w/-])\/wordpress(?=$|[/"'`\s\\,;:)$])/g;
 
 export interface KernelLimitedPHPApiOptions {
 	serverUrl: string;
-	wordPressRoot: string;
+	wordPressRootHostPath: string;
 	phpWasmPath: string;
 	runtime: KernelRuntime;
 }
@@ -52,14 +52,23 @@ export interface KernelLimitedPHPApiOptions {
 export class KernelLimitedPHPApi {
 	readonly absoluteUrl: string;
 	/**
-	 * Host filesystem path, not the VFS literal `/wordpress`. Blueprint
-	 * v1 steps embed `documentRoot` into PHP source via `phpVar`, which
-	 * base64-encodes the value past `translateVfsPathsInCode`'s rewrite.
-	 * Returning the host path lets the kernel-spawned `php -r` resolve
-	 * `${documentRoot}/wp-load.php` directly against the same filesystem
-	 * nginx + php-fpm serve.
+	 * The host doc-root, POSIX-shaped — `/Users/...` on macOS/Linux,
+	 * `/C/Users/...` on Windows. Not the VFS literal `/wordpress`.
+	 *
+	 * Blueprint v1 steps embed `documentRoot` into PHP source via
+	 * `phpVar`, which base64-encodes the value past
+	 * `translateVfsPathsInCode`'s rewrite. The embedded value is then
+	 * resolved by PHP running inside the kernel, whose musl-libc
+	 * `path[0] == '/'` "absolute" check rejects native `C:\...` paths;
+	 * the POSIX-shaped form passes that check and the kernel's
+	 * `NodePlatformIO.rewritePath` translates it back for `fs.*`.
 	 */
 	readonly documentRoot: string;
+	/**
+	 * Native host path used by this class's own Node `fs.*` calls
+	 * (read/write/mkdir/...). Equal to `documentRoot` on macOS/Linux;
+	 * differs on Windows.
+	 */
 	private readonly hostRoot: string;
 	private readonly runtime: KernelRuntime;
 	private readonly phpWasmBytes: ArrayBuffer;
@@ -73,8 +82,8 @@ export class KernelLimitedPHPApi {
 
 	constructor(options: KernelLimitedPHPApiOptions) {
 		this.absoluteUrl = options.serverUrl;
-		this.hostRoot = options.wordPressRoot;
-		this.documentRoot = this.hostRoot;
+		this.hostRoot = options.wordPressRootHostPath;
+		this.documentRoot = toPosixPath(this.hostRoot);
 		this.runtime = options.runtime;
 		this.phpWasmBytes = readWasm(options.phpWasmPath);
 		this.definesPluginPath = joinPaths(
@@ -178,7 +187,7 @@ export class KernelLimitedPHPApi {
 				'php',
 				'-d',
 				'display_errors=stderr',
-				this.toHost(request.scriptPath),
+				toPosixPath(this.toHost(request.scriptPath)),
 			];
 		} else {
 			throw new Error(
@@ -196,7 +205,7 @@ export class KernelLimitedPHPApi {
 		const { exitCode, stdout, stderr } = await this.runtime.spawnCapturing({
 			programBytes: this.phpWasmBytes,
 			argv,
-			options: { env, cwd: this.hostRoot, stdin },
+			options: { env, cwd: this.documentRoot, stdin },
 		});
 
 		return new PHPResponse(
@@ -298,7 +307,7 @@ export class KernelLimitedPHPApi {
 		const env: Record<string, string> = {
 			HOME: '/tmp',
 			PATH: '/usr/local/bin:/usr/bin:/bin',
-			DOCROOT: this.hostRoot,
+			DOCROOT: this.documentRoot,
 		};
 		if (extra) {
 			for (const [k, v] of Object.entries(extra)) {
@@ -309,7 +318,7 @@ export class KernelLimitedPHPApi {
 	}
 
 	private translateVfsPathsInCode(code: string): string {
-		return code.replace(VFS_DOCROOT_IN_CODE, this.hostRoot);
+		return code.replace(VFS_DOCROOT_IN_CODE, this.documentRoot);
 	}
 
 	private serializeCookies(): string {

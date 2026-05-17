@@ -7,37 +7,43 @@
  */
 
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { toPosixPath } from '@php-wasm/util';
 
 import { bootPosixKernelWordPress } from '../../src/posix-kernel/boot';
 import type { PosixKernelBootResult } from '../../src/posix-kernel/boot';
 import { KernelLimitedPHPApi } from '../../src/posix-kernel/php-api';
 import { prepareWordPressForPosixKernel } from '../../src/posix-kernel/prepare-wordpress';
 import { reserveFreePort } from '../../src/start-server';
+import {
+	createPosixKernelTempDir,
+	type PosixKernelTempDir,
+} from '../../src/posix-kernel/temp-dir';
 
 describe('--experimental-posix-kernel KernelLimitedPHPApi.run stdout capture', () => {
-	let workDir: string;
+	let tempDir: PosixKernelTempDir;
 	let booted: PosixKernelBootResult;
 	let api: KernelLimitedPHPApi;
 
 	beforeAll(async () => {
-		workDir = mkdtempSync(join(tmpdir(), 'posix-kernel-stdout-'));
-		const wordPressRoot = join(workDir, 'wordpress');
+		tempDir = await createPosixKernelTempDir();
+		const wordPressRootHostPath = join(tempDir.hostPath, 'wordpress');
+		const wordPressRootKernelPath = toPosixPath(wordPressRootHostPath);
 		await prepareWordPressForPosixKernel({
-			wordPressRoot,
+			wordPressRoot: wordPressRootHostPath,
 			wpVersionQuery: 'latest',
 		});
 		const port = await reserveFreePort();
 		booted = await bootPosixKernelWordPress({
 			port,
-			wordPressRoot,
-			tempDir: join(workDir, 'tmp'),
+			wordPressRootHostPath,
+			wordPressRootKernelPath,
+			tempDirHostPath: tempDir.hostPath,
+			tempDirKernelPath: tempDir.kernelPath,
 		});
 		api = new KernelLimitedPHPApi({
 			serverUrl: booted.serverUrl,
-			wordPressRoot: booted.wordPressRoot,
+			wordPressRootHostPath,
 			phpWasmPath: booted.runtime.phpWasmPath,
 			runtime: booted.runtime,
 		});
@@ -45,9 +51,7 @@ describe('--experimental-posix-kernel KernelLimitedPHPApi.run stdout capture', (
 
 	afterAll(async () => {
 		await booted?.[Symbol.asyncDispose]?.();
-		if (workDir) {
-			rmSync(workDir, { recursive: true, force: true });
-		}
+		await tempDir?.cleanup?.();
 	});
 
 	it('preserves stdout across many sequential runs (no cross-pid leak)', async () => {

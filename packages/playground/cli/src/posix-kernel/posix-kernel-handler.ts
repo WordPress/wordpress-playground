@@ -6,18 +6,20 @@ import {
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { mkdirSync } from 'node:fs';
 import path from 'path';
+import { toPosixPath } from '@php-wasm/util';
 import { type Mount } from '@php-wasm/cli-util';
 import { type RunCLIArgs, mergeDefinedConstants } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { isPortInUse, reserveFreePort } from '../start-server';
-import { createPlaygroundCliTempDir } from '../temp-dir';
 import { bootPosixKernelWordPress } from './boot';
 import { KernelLimitedPHPApi } from './php-api';
 import {
 	ensureWordPressInstalled,
 	prepareWordPressForPosixKernel,
 } from './prepare-wordpress';
+import { createPosixKernelTempDir } from './temp-dir';
 
 export interface PosixKernelBootHandle {
 	serverUrl: string;
@@ -59,26 +61,34 @@ export class PosixKernelHandler {
 				? await reserveFreePort()
 				: requestedPort;
 
-		const nativeTempDir = await createPlaygroundCliTempDir(
-			'-playground-cli-posix-kernel-'
-		);
+		const tempDir = await createPosixKernelTempDir();
 
-		let wordPressRoot: string;
+		let wordPressRootHostPath: string;
+		// nginx's POSIX argv parser refuses native `C:\...` paths even when
+		// the rest of the kernel would accept them, so we stage every
+		// kernel-facing path through `toPosixPath`. For a user-supplied
+		// `--mount`, we have to mkdir an empty placeholder under our
+		// own temp dir for the nginx `root` directive to point at —
+		// nginx accepts the placeholder; PHP reads the real bytes via
+		// the kernel's host-fs adapter using the host path.
+		const nginxRootHostPath = path.join(tempDir.hostPath, 'wordpress');
 		if (wordPressMount) {
-			wordPressRoot = path.resolve(wordPressMount.hostPath);
+			wordPressRootHostPath = path.resolve(wordPressMount.hostPath);
+			mkdirSync(nginxRootHostPath, { recursive: true });
 		} else {
-			wordPressRoot = path.join(nativeTempDir.path, 'wordpress');
+			wordPressRootHostPath = nginxRootHostPath;
 			try {
 				await prepareWordPressForPosixKernel({
-					wordPressRoot,
+					wordPressRoot: wordPressRootHostPath,
 					wpVersionQuery: this.args.wp,
 					onStatus: (msg) => this.cliOutput.print(msg),
 				});
 			} catch (e) {
-				await nativeTempDir.cleanup();
+				await tempDir.cleanup();
 				throw e;
 			}
 		}
+		const wordPressRootKernelPath = toPosixPath(wordPressRootHostPath);
 
 		this.cliOutput.print(`Booting WordPress under wasm-posix-kernel...`);
 
@@ -86,11 +96,13 @@ export class PosixKernelHandler {
 		try {
 			booted = await bootPosixKernelWordPress({
 				port,
-				wordPressRoot,
-				tempDir: nativeTempDir.path,
+				wordPressRootHostPath,
+				wordPressRootKernelPath,
+				tempDirHostPath: tempDir.hostPath,
+				tempDirKernelPath: tempDir.kernelPath,
 			});
 		} catch (e) {
-			await nativeTempDir.cleanup();
+			await tempDir.cleanup();
 			throw e;
 		}
 
@@ -101,12 +113,12 @@ export class PosixKernelHandler {
 			}
 			disposed = true;
 			await booted[Symbol.asyncDispose]();
-			await nativeTempDir.cleanup();
+			await tempDir.cleanup();
 		};
 
 		const api = new KernelLimitedPHPApi({
 			serverUrl: booted.serverUrl,
-			wordPressRoot: booted.wordPressRoot,
+			wordPressRootHostPath,
 			phpWasmPath: booted.runtime.phpWasmPath,
 			runtime: booted.runtime,
 		});
