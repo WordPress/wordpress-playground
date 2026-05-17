@@ -4,6 +4,7 @@ import {
 	PlaygroundRoute,
 } from './router';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
+import type { SiteInfo } from '../redux/slice-sites';
 
 const toBase64 = (s: string) =>
 	typeof btoa === 'function'
@@ -122,6 +123,23 @@ describe('PlaygroundRoute site creation routes', () => {
 			'https://playground.test/website-server/?storage=temp'
 		);
 		expect(new URL(url).searchParams.get('storage')).toBeNull();
+	});
+
+	it('preserves Query API version settings when selecting a saved site', () => {
+		const url = PlaygroundRoute.site(
+			{
+				slug: 'saved-site',
+				metadata: {
+					storage: 'opfs',
+				},
+			} as unknown as SiteInfo,
+			'https://playground.test/website-server/?url=/wp-admin/&php=8.0&wp=6.6'
+		);
+		const params = new URL(url).searchParams;
+		expect(params.get('site-slug')).toBe('saved-site');
+		expect(params.get('url')).toBe('/wp-admin/');
+		expect(params.get('php')).toBe('8.0');
+		expect(params.get('wp')).toBe('6.6');
 	});
 
 	it('detects explicit temporary storage requests', () => {

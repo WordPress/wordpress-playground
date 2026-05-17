@@ -377,7 +377,8 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 			Uint8Array.from(atob(base64Part), (c) => c.charCodeAt(0))
 		)
 	);
-	expect(decodedBlueprint).toHaveProperty('landingPage');
+	expect(decodedBlueprint).toHaveProperty('steps');
+	expect(Array.isArray(decodedBlueprint.steps)).toBe(true);
 });
 
 test.describe('Database panel', () => {
@@ -573,7 +574,7 @@ test.describe('Database panel', () => {
 			.getByRole('link', { name: 'SQL' })
 			.click();
 		await newPage.waitForLoadState();
-		await newPage.locator('.CodeMirror').click();
+		await newPage.locator('.CodeMirror.cm-s-default').click();
 		await newPage.keyboard.type('SHOW TABLES');
 		await newPage.getByRole('button', { name: 'Go' }).click();
 		await newPage.waitForLoadState();
