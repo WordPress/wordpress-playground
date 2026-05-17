@@ -468,6 +468,9 @@ function BlueprintInstallDialog({
 	const hasDangerWarning = warnings.some(
 		(warning) => warning.severity === 'danger'
 	);
+	const hasWarning = warnings.some(
+		(warning) => warning.severity === 'warning'
+	);
 
 	return (
 		<dialog
@@ -510,12 +513,16 @@ function BlueprintInstallDialog({
 						className={classNames(css.blueprintInstallWarnings, {
 							[css.blueprintInstallWarningsDanger]:
 								hasDangerWarning,
+							[css.blueprintInstallWarningsWarning]:
+								!hasDangerWarning && hasWarning,
 						})}
 					>
 						<strong>
 							{hasDangerWarning
 								? 'Review high-risk actions'
-								: 'Review app actions'}
+								: hasWarning
+									? 'Review app actions'
+									: 'App actions'}
 						</strong>
 						<ul>
 							{visibleWarnings.map((warning, index) => (

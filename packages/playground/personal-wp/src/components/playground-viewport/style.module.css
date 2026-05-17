@@ -180,12 +180,17 @@
 .blueprint-install-warnings {
 	margin: 14px 20px 0;
 	padding: 12px 14px;
-	border-left: 3px solid #dba617;
+	border-left: 3px solid #3858e9;
 	border-radius: 6px;
-	background: #fff8e5;
+	background: #f5f7ff;
 	color: #1e1e1e;
 	font-size: 14px;
 	line-height: 1.45;
+}
+
+.blueprint-install-warnings-warning {
+	border-left-color: #dba617;
+	background: #fff8e5;
 }
 
 .blueprint-install-warnings-danger {

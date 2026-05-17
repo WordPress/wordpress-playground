@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeBlueprint } from './analyzer';
 
 describe('analyzeBlueprint', () => {
-	it('does not warn for WordPress.org plugin installs', () => {
+	it('shows WordPress.org plugin installs', () => {
 		const analysis = analyzeBlueprint({
 			steps: [
 				{
@@ -15,7 +15,14 @@ describe('analyzeBlueprint', () => {
 			],
 		});
 
-		expect(analysis.warnings).toEqual([]);
+		expect(analysis.warnings).toEqual([
+			expect.objectContaining({
+				severity: 'info',
+				title: 'Installs plugin from WordPress.org',
+				description: 'friends from the WordPress.org plugin directory.',
+				stepIndex: 0,
+			}),
+		]);
 	});
 
 	it('warns for plugin installs from external URLs', () => {

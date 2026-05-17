@@ -79,6 +79,21 @@ function analyzeInstallAsset(
 	const resourceType = resourceObj.resource;
 	const titleAssetType = titleCase(assetType);
 
+	if (assetType === 'plugin' && resourceType === 'wordpress.org/plugins') {
+		const slug =
+			typeof resourceObj.slug === 'string' ? resourceObj.slug : '';
+		return [
+			{
+				severity: 'info',
+				title: 'Installs plugin from WordPress.org',
+				description: slug
+					? `${slug} from the WordPress.org plugin directory.`
+					: 'Plugin comes from the WordPress.org plugin directory.',
+				stepIndex,
+			},
+		];
+	}
+
 	if (resourceType === 'url' && typeof resourceObj.url === 'string') {
 		return [
 			{
@@ -348,6 +363,7 @@ function sortWarnings(warnings: BlueprintWarning[]): BlueprintWarning[] {
 	const severityOrder: Record<BlueprintWarningSeverity, number> = {
 		danger: 0,
 		warning: 1,
+		info: 2,
 	};
 	return [...warnings].sort(
 		(a, b) => severityOrder[a.severity] - severityOrder[b.severity]

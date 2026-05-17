@@ -1,4 +1,4 @@
-export type BlueprintWarningSeverity = 'warning' | 'danger';
+export type BlueprintWarningSeverity = 'info' | 'warning' | 'danger';
 
 export type BlueprintWarning = {
 	severity: BlueprintWarningSeverity;
