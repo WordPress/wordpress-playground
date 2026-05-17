@@ -144,10 +144,13 @@ describe(
 		});
 
 		test('should use default site-url when not provided', async () => {
+			// Use port: 0 to dodge contention with the sibling
+			// tests/run-cli.spec.ts test that also wants 9500 — under
+			// vitest's file parallelism the two can race on Windows.
 			await using cliServer = await runCLI({
 				command: 'server',
 				'experimental-posix-kernel': true,
-				port: 9500,
+				port: 0,
 			});
 			const docRoot = cliServer.playground.documentRoot;
 			await cliServer.playground.writeFile(
@@ -159,7 +162,8 @@ describe(
 			);
 			expect(response.status).toBe(200);
 			const text = await response.text();
-			expect(text).toContain('http://127.0.0.1:9500');
+			const expectedOrigin = new URL(cliServer.serverUrl).origin;
+			expect(text).toContain(expectedOrigin);
 		});
 	},
 	60_000 * 5

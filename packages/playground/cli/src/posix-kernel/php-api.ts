@@ -371,6 +371,22 @@ export class KernelLimitedPHPApi {
 				vfsPath.slice(VFS_DOCUMENT_ROOT.length)
 			);
 		}
+		// Blueprint v1 steps such as installPlugin derive absolute paths
+		// from `await playground.documentRoot` (POSIX-shaped on Windows,
+		// e.g. `/C/Users/.../wordpress`) and pass them back through
+		// writeFile / readFile. Translate those back to native `hostRoot`
+		// so Node's fs.* on Windows writes to the directory the kernel
+		// actually reads from. No-op on macOS/Linux where documentRoot
+		// equals hostRoot.
+		if (vfsPath === this.documentRoot) {
+			return this.hostRoot;
+		}
+		if (vfsPath.startsWith(this.documentRoot + '/')) {
+			return joinPaths(
+				this.hostRoot,
+				vfsPath.slice(this.documentRoot.length)
+			);
+		}
 		return vfsPath;
 	}
 }
