@@ -7,7 +7,10 @@ test('window.playgroundSites is exposed after boot', async ({ website }) => {
 	);
 });
 
-test('playgroundSites.list() returns the active site', async ({ website }) => {
+test('playgroundSites.list() returns the active site', async ({
+	website,
+	browserName,
+}) => {
 	await website.goto('./');
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
@@ -20,7 +23,9 @@ test('playgroundSites.list() returns the active site', async ({ website }) => {
 	const active = sites.find((s: any) => s.isActive);
 	expect(active).toBeTruthy();
 	expect(active.slug).toBeTruthy();
-	expect(active.storage).toBe('temporary');
+	expect(active.storage).toBe(
+		browserName === 'chromium' ? 'opfs' : 'temporary'
+	);
 });
 
 test('playgroundSites.saveInBrowser() persists a temporary site', async ({
