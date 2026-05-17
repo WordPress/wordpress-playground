@@ -588,7 +588,10 @@ test.describe('Default Playground storage', () => {
 	test('should create a browser-saved Playground by default', async ({
 		website,
 	}) => {
-		await website.goto('./');
+		await website.page.goto('./');
+		await expect(
+			website.page.getByRole('button', { name: /Site Manager/ })
+		).toBeVisible();
 		await website.ensureSiteManagerIsClosed();
 
 		await expect

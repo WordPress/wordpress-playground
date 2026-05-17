@@ -1,4 +1,5 @@
 /* eslint-disable comment-length/limit-multi-line-comments */
+// @ts-nocheck
 
 /*
  * Import internal data parsers and structures from isomorphic-git. These
@@ -8,15 +9,16 @@
  * This file heavily relies on isomorphic-git internals to parse Git data formats
  * such as PACK, trees, deltas, etc.
  */
-import './isomorphic-git.d.ts';
-import { GitPktLine } from 'isomorphic-git/src/models/GitPktLine.js';
-import { GitTree } from 'isomorphic-git/src/models/GitTree.js';
-import { GitAnnotatedTag } from 'isomorphic-git/src/models/GitAnnotatedTag.js';
-import { GitCommit } from 'isomorphic-git/src/models/GitCommit.js';
-import { GitPackIndex } from 'isomorphic-git/src/models/GitPackIndex.js';
-import { collect } from 'isomorphic-git/src/internal-apis.js';
-import { parseUploadPackResponse } from 'isomorphic-git/src/wire/parseUploadPackResponse.js';
-import { ObjectTypeError } from 'isomorphic-git/src/errors/ObjectTypeError.js';
+import {
+	GitPktLine,
+	GitTree,
+	GitAnnotatedTag,
+	GitCommit,
+	GitPackIndex,
+	collect,
+	parseUploadPackResponse,
+	ObjectTypeError,
+} from './isomorphic-git-internals';
 import { Buffer as BufferPolyfill } from 'buffer';
 
 /**

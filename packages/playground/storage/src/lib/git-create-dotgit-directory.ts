@@ -1,4 +1,3 @@
-import { GitIndex } from 'isomorphic-git/src/models/GitIndex.js';
 import type { SparseCheckoutObject } from './git-sparse-checkout';
 import pako from 'pako';
 const deflate = pako.deflate;
@@ -10,6 +9,23 @@ type GitHeadInfo = {
 	branchName?: string;
 	branchRef?: string;
 	tagName?: string;
+};
+
+type GitIndexEntry = {
+	filepath: string;
+	oid: string;
+	stats: {
+		ctimeSeconds: number;
+		ctimeNanoseconds: number;
+		mtimeSeconds: number;
+		mtimeNanoseconds: number;
+		dev: number;
+		ino: number;
+		mode: number;
+		uid: number;
+		gid: number;
+		size: number;
+	};
 };
 
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
@@ -181,12 +197,10 @@ export async function createDotGitDirectory({
 	if (headInfo.branchRef && headInfo.branchName) {
 		gitFiles['.git/logs/HEAD'] = `ref: ${headInfo.branchRef}\n`;
 		gitFiles[`.git/${headInfo.branchRef}`] = `${commitHash}\n`;
-		gitFiles[
-			`.git/refs/remotes/origin/${headInfo.branchName}`
-		] = `${commitHash}\n`;
-		gitFiles[
-			'.git/refs/remotes/origin/HEAD'
-		] = `ref: refs/remotes/origin/${headInfo.branchName}\n`;
+		gitFiles[`.git/refs/remotes/origin/${headInfo.branchName}`] =
+			`${commitHash}\n`;
+		gitFiles['.git/refs/remotes/origin/HEAD'] =
+			`ref: refs/remotes/origin/${headInfo.branchName}\n`;
 	}
 
 	if (headInfo.tagName) {
@@ -196,33 +210,91 @@ export async function createDotGitDirectory({
 	// Use loose objects only, no packfiles
 	Object.assign(gitFiles, await createLooseGitObjectFiles(objects));
 
-	// Create the git index
-	const index = new GitIndex();
-	for (const [path, oid] of Object.entries(fileOids)) {
-		// Remove the path prefix to get the working tree relative path
-		const workingTreePath = path
-			.substring(pathPrefix.length)
-			.replace(/^\/+/, '');
-		index.insert({
-			filepath: workingTreePath,
-			oid,
-			stats: {
-				ctimeSeconds: 0,
-				ctimeNanoseconds: 0,
-				mtimeSeconds: 0,
-				mtimeNanoseconds: 0,
-				dev: 0,
-				ino: 0,
-				mode: 0o100644, // Regular file
-				uid: 0,
-				gid: 0,
-				size: 0,
-			},
-		});
-	}
-	const indexBuffer = await index.toObject();
-	// Convert Buffer to Uint8Array - copy the data to ensure it's a proper Uint8Array
-	gitFiles['.git/index'] = Uint8Array.from(indexBuffer);
+	const indexEntries = Object.entries(fileOids).map(([path, oid]) => ({
+		filepath: path.substring(pathPrefix.length).replace(/^\/+/, ''),
+		oid,
+		stats: {
+			ctimeSeconds: 0,
+			ctimeNanoseconds: 0,
+			mtimeSeconds: 0,
+			mtimeNanoseconds: 0,
+			dev: 0,
+			ino: 0,
+			mode: 0o100644,
+			uid: 0,
+			gid: 0,
+			size: 0,
+		},
+	}));
+	gitFiles['.git/index'] = await createGitIndex(indexEntries);
 
 	return gitFiles;
+}
+
+async function createGitIndex(entries: GitIndexEntry[]) {
+	const sortedEntryBuffers = entries
+		.sort((a, b) => a.filepath.localeCompare(b.filepath))
+		.map(createGitIndexEntry);
+	const header = new Uint8Array(12);
+	const headerView = new DataView(header.buffer);
+	header.set(new TextEncoder().encode('DIRC'), 0);
+	headerView.setUint32(4, 2);
+	headerView.setUint32(8, entries.length);
+	const body = concatUint8Arrays([header, ...sortedEntryBuffers]);
+	const checksum = new Uint8Array(await crypto.subtle.digest('SHA-1', body));
+	return concatUint8Arrays([body, checksum]);
+}
+
+function createGitIndexEntry({ filepath, oid, stats }: GitIndexEntry) {
+	const pathBytes = new TextEncoder().encode(filepath);
+	const length = Math.ceil((62 + pathBytes.length + 1) / 8) * 8;
+	const entry = new Uint8Array(length);
+	const view = new DataView(entry.buffer);
+
+	view.setUint32(0, stats.ctimeSeconds);
+	view.setUint32(4, stats.ctimeNanoseconds);
+	view.setUint32(8, stats.mtimeSeconds);
+	view.setUint32(12, stats.mtimeNanoseconds);
+	view.setUint32(16, stats.dev);
+	view.setUint32(20, stats.ino);
+	view.setUint32(24, normalizeGitFileMode(stats.mode));
+	view.setUint32(28, stats.uid);
+	view.setUint32(32, stats.gid);
+	view.setUint32(36, stats.size);
+	entry.set(hexToBytes(oid), 40);
+	view.setUint16(60, Math.min(pathBytes.length, 0xfff));
+	entry.set(pathBytes, 62);
+	return entry;
+}
+
+function normalizeGitFileMode(mode: number) {
+	let type = mode > 0 ? mode >> 12 : 0;
+	if (![0b0100, 0b1000, 0b1010, 0b1110].includes(type)) {
+		type = 0b1000;
+	}
+	let permissions = mode & 0o777;
+	permissions = permissions & 0b001001001 ? 0o755 : 0o644;
+	if (type !== 0b1000) {
+		permissions = 0;
+	}
+	return (type << 12) + permissions;
+}
+
+function hexToBytes(hex: string) {
+	const bytes = new Uint8Array(hex.length / 2);
+	for (let i = 0; i < bytes.length; i++) {
+		bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	}
+	return bytes;
+}
+
+function concatUint8Arrays(arrays: Uint8Array[]) {
+	const length = arrays.reduce((sum, array) => sum + array.length, 0);
+	const result = new Uint8Array(length);
+	let offset = 0;
+	for (const array of arrays) {
+		result.set(array, offset);
+		offset += array.length;
+	}
+	return result;
 }
