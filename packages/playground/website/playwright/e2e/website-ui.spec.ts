@@ -139,12 +139,16 @@ test('should keep query arguments when updating settings', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?url=/wp-admin/&php=8.0&wp=6.6');
+	await website.goto(
+		'./?storage=temp&url=/wp-admin/&php=8.0&wp=6.6&networking=no'
+	);
 
 	const initialParams = new URL(website.page.url()).searchParams;
+	expect(initialParams.get('storage')).toBe('temp');
 	expect(initialParams.get('url')).toBe('/wp-admin/');
 	expect(initialParams.get('php')).toBe('8.0');
 	expect(initialParams.get('wp')).toBe('6.6');
+	expect(initialParams.get('networking')).toBe('no');
 	expect(
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
@@ -155,6 +159,7 @@ test('should keep query arguments when updating settings', async ({
 	await website.waitForNestedIframes();
 
 	const updatedParams = new URL(website.page.url()).searchParams;
+	expect(updatedParams.get('storage')).toBe('temp');
 	expect(updatedParams.get('url')).toBe('/wp-admin/');
 	expect(updatedParams.get('php')).toBe('8.0');
 	expect(updatedParams.get('wp')).toBe('6.6');
@@ -690,12 +695,13 @@ echo get_option('blogname');
 
 	test('should fall back to an unsaved Playground when browser storage is unavailable', async ({
 		website,
-		browserName,
 	}) => {
-		test.skip(
-			browserName === 'chromium',
-			'Chromium provides OPFS in Playwright, so the saved-by-default tests cover it.'
-		);
+		await website.page.addInitScript(() => {
+			Object.defineProperty(navigator.storage, 'getDirectory', {
+				value: undefined,
+				configurable: true,
+			});
+		});
 
 		await website.goto('./');
 		await website.ensureSiteManagerIsClosed();
