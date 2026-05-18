@@ -18,10 +18,20 @@ export const oAuthMiddleware = async (
 
 	const query = new URL(req.url ?? '/', 'http://example.com').searchParams;
 	if (query.get('redirect') === '1') {
+		let redirectUri: string;
+		try {
+			redirectUri = getOAuthCallbackUrl(req);
+		} catch (error) {
+			res.writeHead(400, {
+				'Content-Type': 'application/json',
+			});
+			res.end(JSON.stringify({ error: getErrorMessage(error) }));
+			return;
+		}
 		const params: Record<string, string> = {
 			client_id: CLIENT_ID!,
 			scope: 'repo',
-			redirect_uri: getOAuthCallbackUrl(req),
+			redirect_uri: redirectUri,
 		};
 		if (query.has('state')) {
 			params.state = query.get('state')!;
@@ -60,10 +70,9 @@ export const oAuthMiddleware = async (
 				throw new Error(errorMessage);
 			}
 
-			// Mimic the axios response structure for the existing code below
-			const response = { data: responseData };
-			if (response.data.error) {
-				throw new Error(response.data.error_description);
+			const responseError = getOAuthResponseError(responseData);
+			if (responseError) {
+				throw new Error(responseError);
 			}
 			if (isPopupOAuthState(query.get('state'))) {
 				res.writeHead(200, {
@@ -72,17 +81,17 @@ export const oAuthMiddleware = async (
 				res.end(
 					renderOAuthPopupResponse({
 						state: query.get('state')!,
-						token: response.data.access_token,
+						...getPopupOAuthResult(responseData),
 					})
 				);
 			} else {
 				res.writeHead(200, {
 					'Content-Type': 'application/json',
 				});
-				res.end(JSON.stringify(response.data));
+				res.end(JSON.stringify(responseData));
 			}
 		} catch (error) {
-			const message = (error as Error)?.message;
+			const message = getErrorMessage(error);
 			if (isPopupOAuthState(query.get('state'))) {
 				res.writeHead(400, {
 					'Content-Type': 'text/html; charset=utf-8',
@@ -122,12 +131,18 @@ function isOAuthRequest(url: string | undefined): boolean {
  * Builds the callback URL GitHub should redirect to after authorization.
  */
 function getOAuthCallbackUrl(req: IncomingMessage) {
-	const requestUrl = new URL(req.url!, `http://${req.headers.host}`);
+	const requestUrl = new URL(req.url ?? '/', 'http://example.com');
 	requestUrl.search = '';
-	const forwardedProto = req.headers['x-forwarded-proto'];
-	requestUrl.protocol =
-		(typeof forwardedProto === 'string' ? forwardedProto : 'http') + ':';
-	return requestUrl.toString();
+	const baseUrl = process.env.OAUTH_CALLBACK_BASE_URL;
+	if (baseUrl) {
+		return new URL(requestUrl.pathname, baseUrl).toString();
+	}
+
+	const callbackUrl = new URL(
+		requestUrl.pathname,
+		`${getRequestProtocol(req)}://${getRequestHost(req)}`
+	);
+	return callbackUrl.toString();
 }
 
 /**
@@ -135,6 +150,96 @@ function getOAuthCallbackUrl(req: IncomingMessage) {
  */
 function isPopupOAuthState(state: string | null): state is string {
 	return !!state && state.startsWith(GITHUB_OAUTH_STATE_PREFIX);
+}
+
+/**
+ * Returns either a token or an error string for popup callbacks.
+ */
+function getPopupOAuthResult(responseData: unknown) {
+	const token = getOAuthAccessToken(responseData);
+	if (token) {
+		return { token };
+	}
+	return {
+		error:
+			getOAuthResponseError(responseData) ||
+			'GitHub OAuth did not return an access token.',
+	};
+}
+
+/**
+ * Reads an OAuth access token from GitHub's JSON response.
+ */
+function getOAuthAccessToken(responseData: unknown) {
+	if (
+		typeof responseData === 'object' &&
+		responseData !== null &&
+		'access_token' in responseData &&
+		typeof responseData.access_token === 'string'
+	) {
+		return responseData.access_token;
+	}
+	return undefined;
+}
+
+/**
+ * Reads the most specific OAuth error message from GitHub's JSON response.
+ */
+function getOAuthResponseError(responseData: unknown) {
+	if (typeof responseData !== 'object' || responseData === null) {
+		return undefined;
+	}
+	if (
+		'error_description' in responseData &&
+		typeof responseData.error_description === 'string'
+	) {
+		return responseData.error_description;
+	}
+	if ('error' in responseData && typeof responseData.error === 'string') {
+		return responseData.error;
+	}
+	return undefined;
+}
+
+/**
+ * Returns a validated host header for constructing local callback URLs.
+ */
+function getRequestHost(req: IncomingMessage) {
+	const host = getHeader(req.headers.host);
+	if (!host || /[\s/\\]/.test(host)) {
+		throw new Error('Invalid OAuth callback host.');
+	}
+	return host;
+}
+
+/**
+ * Returns a validated protocol for constructing local callback URLs.
+ */
+function getRequestProtocol(req: IncomingMessage) {
+	const forwardedProto = getHeader(req.headers['x-forwarded-proto']);
+	if (forwardedProto === 'http' || forwardedProto === 'https') {
+		return forwardedProto;
+	}
+	if (forwardedProto) {
+		throw new Error('Invalid OAuth callback protocol.');
+	}
+	return 'http';
+}
+
+/**
+ * Normalizes Node's string or string-array header values.
+ */
+function getHeader(value: string | string[] | undefined) {
+	return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * Converts thrown values into response-safe error messages.
+ */
+function getErrorMessage(error: unknown) {
+	return error instanceof Error && error.message
+		? error.message
+		: 'GitHub OAuth failed.';
 }
 
 /**

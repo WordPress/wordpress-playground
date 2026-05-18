@@ -1,11 +1,11 @@
 import { Icon, Spinner } from '@wordpress/components';
-import { oAuthState, setOAuthToken } from '../state';
+import { oAuthState } from '../state';
 import { GitHubIcon } from '../github';
 import css from './style.module.css';
 import { useState } from 'react';
 import classNames from 'classnames';
 import { Modal } from '../../components/modal';
-import { startGitHubOAuthFlow } from '../oauth-popup';
+import { connectToGitHub } from '../connect-to-github';
 
 export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 	const [isModalOpen, setIsModalOpen] = useState(!oAuthState.value.token);
@@ -107,7 +107,7 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 						if (mayLoseProgress && !exported) {
 							return;
 						}
-						await connectToGitHub(setError);
+						await connectToGitHub({ setError });
 					}}
 				>
 					<Icon icon={GitHubIcon} />
@@ -121,23 +121,4 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 			</p>
 		</div>
 	);
-}
-
-async function connectToGitHub(setError: (error?: string) => void) {
-	setError(undefined);
-	oAuthState.value = {
-		...oAuthState.value,
-		isAuthorizing: true,
-	};
-
-	try {
-		setOAuthToken(await startGitHubOAuthFlow());
-	} catch (error) {
-		setError((error as Error).message);
-	} finally {
-		oAuthState.value = {
-			...oAuthState.value,
-			isAuthorizing: false,
-		};
-	}
 }

@@ -5,8 +5,8 @@ import { Icon, Spinner } from '@wordpress/components';
 import { GitHubIcon } from '../../github/github';
 import css from '../../github/github-oauth-guard/style.module.css';
 import { staticAnalyzeGitHubURL } from '../../github/analyze-github-url';
-import { oAuthState, setOAuthToken } from '../../github/state';
-import { startGitHubOAuthFlow } from '../../github/oauth-popup';
+import { oAuthState } from '../../github/state';
+import { connectToGitHub } from '../../github/connect-to-github';
 import { useState } from 'react';
 
 export function GitHubPrivateRepoAuthModal() {
@@ -61,22 +61,12 @@ export function GitHubPrivateRepoAuthModal() {
 							).toString()}
 							onClick={async (event) => {
 								event.preventDefault();
-								setError(undefined);
-								oAuthState.value = {
-									...oAuthState.value,
-									isAuthorizing: true,
-								};
-								try {
-									setOAuthToken(await startGitHubOAuthFlow());
-									dispatch(setActiveModal(null));
-								} catch (oauthError) {
-									setError((oauthError as Error).message);
-								} finally {
-									oAuthState.value = {
-										...oAuthState.value,
-										isAuthorizing: false,
-									};
-								}
+								await connectToGitHub({
+									setError,
+									onSuccess: () => {
+										dispatch(setActiveModal(null));
+									},
+								});
 							}}
 						>
 							<Icon icon={GitHubIcon} />

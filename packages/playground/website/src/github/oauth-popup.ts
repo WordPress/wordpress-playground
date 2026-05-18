@@ -1,5 +1,6 @@
 export const GITHUB_OAUTH_MESSAGE_TYPE = 'playground-github-oauth-token';
 export const GITHUB_OAUTH_STATE_PREFIX = 'playground-popup-';
+const GITHUB_OAUTH_POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 
 export interface GitHubOAuthMessage {
 	type: typeof GITHUB_OAUTH_MESSAGE_TYPE;
@@ -85,12 +86,17 @@ function waitForGitHubOAuthMessage(
 	oauthUrl: string
 ) {
 	return new Promise<string>((resolve, reject) => {
-		const timeout = window.setInterval(() => {
+		const closedCheck = window.setInterval(() => {
 			if (popup.closed) {
 				cleanup();
 				reject(new Error('GitHub OAuth popup was closed.'));
 			}
 		}, 500);
+		const flowTimeout = window.setTimeout(() => {
+			cleanup();
+			popup.close();
+			reject(new Error('GitHub OAuth popup timed out.'));
+		}, GITHUB_OAUTH_POPUP_TIMEOUT_MS);
 
 		const handleMessage = (event: MessageEvent) => {
 			if (!isExpectedGitHubOAuthMessage(event, popup, state)) {
@@ -108,7 +114,8 @@ function waitForGitHubOAuthMessage(
 		};
 
 		function cleanup() {
-			window.clearInterval(timeout);
+			window.clearInterval(closedCheck);
+			window.clearTimeout(flowTimeout);
 			window.removeEventListener('message', handleMessage);
 		}
 
