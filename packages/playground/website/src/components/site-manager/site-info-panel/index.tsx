@@ -8,6 +8,7 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
 import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import classNames from 'classnames';
@@ -140,7 +141,9 @@ export function SiteInfoPanel({
 			? (opfsMountDescriptor as any)?.device?.handle?.name
 			: undefined;
 
-	const title = isTemporary ? 'Unsaved Playground' : site.metadata.name;
+	const title = isTemporary
+		? __('Unsaved Playground', 'playground-website')
+		: site.metadata.name;
 	const titleWords = title.split(' ');
 	const titleStart = titleWords.slice(0, -1).join(' ');
 	const titleEnd = titleWords[titleWords.length - 1];
@@ -172,7 +175,10 @@ export function SiteInfoPanel({
 							<FlexItem style={{ marginLeft: -20 }}>
 								<Button
 									variant="link"
-									label="Back to Playground"
+									label={__(
+										'Back to Playground',
+										'playground-website'
+									)}
 									icon={() => (
 										<Icon icon={chevronLeft} size={38} />
 									)}
@@ -187,7 +193,10 @@ export function SiteInfoPanel({
 							{site.metadata.logo ? (
 								<img
 									src={getLogoDataURL(site.metadata.logo)}
-									alt={site.metadata.name + ' logo'}
+									alt={sprintf(
+										__('%s logo', 'playground-website'),
+										site.metadata.name
+									)}
 								/>
 							) : (
 								<WordPressIcon
@@ -209,7 +218,10 @@ export function SiteInfoPanel({
 											className={
 												css.siteInfoHeaderDetailsName
 											}
-											aria-label="Playground title"
+											aria-label={__(
+												'Playground title',
+												'playground-website'
+											)}
 										>
 											<span
 												className={
@@ -229,7 +241,10 @@ export function SiteInfoPanel({
 																css.siteInfoRenameButton
 															}
 															icon={edit}
-															label="Rename Playground"
+															label={__(
+																'Rename Playground',
+																'playground-website'
+															)}
 															showTooltip={true}
 															variant="tertiary"
 															isSmall={true}
@@ -273,15 +288,30 @@ export function SiteInfoPanel({
 												: '';
 											switch (site.metadata.storage) {
 												case 'local-fs':
-													return (
-														'Saved in a local directory' +
-														(localDirName
-															? ` (${localDirName})`
-															: '') +
-														` ${createdAgo}`
-													);
+													return localDirName
+														? sprintf(
+																__(
+																	'Saved in a local directory (%1$s) %2$s',
+																	'playground-website'
+																),
+																localDirName,
+																createdAgo
+															)
+														: sprintf(
+																__(
+																	'Saved in a local directory %s',
+																	'playground-website'
+																),
+																createdAgo
+															);
 												case 'opfs':
-													return `Saved in this browser ${createdAgo}`;
+													return sprintf(
+														__(
+															'Saved in this browser %s',
+															'playground-website'
+														),
+														createdAgo
+													);
 											}
 										})()}{' '}
 									</span>
@@ -296,7 +326,7 @@ export function SiteInfoPanel({
 										dispatch(setSiteManagerOpen(false));
 									}}
 								>
-									Open site
+									{__('Open site', 'playground-website')}
 								</Button>
 							</FlexItem>
 						) : (
@@ -307,7 +337,7 @@ export function SiteInfoPanel({
 										disabled={!playground}
 										onClick={() => navigateTo('/wp-admin/')}
 									>
-										WP Admin
+										{__('WP Admin', 'playground-website')}
 									</Button>
 								</FlexItem>
 								<FlexItem className={css.siteInfoHeaderAction}>
@@ -316,7 +346,7 @@ export function SiteInfoPanel({
 										disabled={!playground}
 										onClick={() => navigateTo('/')}
 									>
-										Homepage
+										{__('Homepage', 'playground-website')}
 									</Button>
 								</FlexItem>
 							</>
@@ -324,7 +354,10 @@ export function SiteInfoPanel({
 						<FlexItem className={css.siteInfoHeaderAction}>
 							<DropdownMenu
 								icon={moreVertical}
-								label="Additional actions"
+								label={__(
+									'Additional actions',
+									'playground-website'
+								)}
 								popoverProps={{
 									placement: 'bottom-end',
 								}}
@@ -334,7 +367,10 @@ export function SiteInfoPanel({
 										{!isTemporary && (
 											<MenuGroup>
 												<MenuItem
-													aria-label="Delete this Playground"
+													aria-label={__(
+														'Delete this Playground',
+														'playground-website'
+													)}
 													className={css.danger}
 													onClick={() =>
 														removeSiteAndCloseMenu(
@@ -342,7 +378,10 @@ export function SiteInfoPanel({
 														)
 													}
 												>
-													Delete
+													{__(
+														'Delete',
+														'playground-website'
+													)}
 												</MenuItem>
 											</MenuGroup>
 										)}
@@ -372,23 +411,23 @@ export function SiteInfoPanel({
 						tabs={[
 							{
 								name: 'settings',
-								title: 'Settings',
+								title: __('Settings', 'playground-website'),
 							},
 							{
 								name: 'files',
-								title: 'File browser',
+								title: __('File browser', 'playground-website'),
 							},
 							{
 								name: 'blueprint',
-								title: 'Blueprint',
+								title: __('Blueprint', 'playground-website'),
 							},
 							{
 								name: 'database',
-								title: 'Database',
+								title: __('Database', 'playground-website'),
 							},
 							{
 								name: 'logs',
-								title: 'Logs',
+								title: __('Logs', 'playground-website'),
 							},
 						]}
 					>
@@ -431,7 +470,10 @@ export function SiteInfoPanel({
 									<Suspense
 										fallback={
 											<div className={css.padded}>
-												Loading file browser...
+												{__(
+													'Loading file browser...',
+													'playground-website'
+												)}
 											</div>
 										}
 									>
@@ -457,16 +499,19 @@ export function SiteInfoPanel({
 								>
 									{!isTemporary && (
 										<div className={css.blueprintNotice}>
-											This Blueprint is read-only for
-											saved Playgrounds. Create an Unsaved
-											Playground to edit and test
-											Blueprint changes.
+											{__(
+												'This Blueprint is read-only for saved Playgrounds. Create an Unsaved Playground to edit and test Blueprint changes.',
+												'playground-website'
+											)}
 										</div>
 									)}
 									<Suspense
 										fallback={
 											<div>
-												Loading Blueprint editor...
+												{__(
+													'Loading Blueprint editor...',
+													'playground-website'
+												)}
 											</div>
 										}
 									>

@@ -7,6 +7,7 @@ import {
 	__experimentalVStack as VStack,
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { info } from '@wordpress/icons';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
@@ -62,7 +63,10 @@ export function StoredSiteSettingsForm({
 				>
 					<Icon icon={info} size={16} />
 					<span>
-						Stored Playgrounds have limited configuration options.
+						{__(
+							'Stored Playgrounds have limited configuration options.',
+							'playground-website'
+						)}
 					</span>
 				</HStack>
 			}
@@ -78,7 +82,7 @@ export function StoredSiteSettingsForm({
 						variant="primary"
 						style={{ justifyContent: 'center' }}
 					>
-						Save & Reload
+						{__('Save & Reload', 'playground-website')}
 					</Button>
 				</VStack>
 			}

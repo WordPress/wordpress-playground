@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
 import { Spinner, TextControl } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
@@ -58,11 +59,17 @@ export default function PreviewPRForm({
 
 	function renderRetryIn(retryIn: number, isBranch: boolean) {
 		setError(
-			`Waiting for GitHub to finish building ${
-				isBranch ? 'branch' : 'PR'
-			} ${value}. This might take 15 minutes or more! Retrying in ${
+			sprintf(
+				__(
+					'Waiting for GitHub to finish building %1$s %2$s. This might take 15 minutes or more! Retrying in %3$d...',
+					'playground-website'
+				),
+				isBranch
+					? __('branch', 'playground-website')
+					: __('PR', 'playground-website'),
+				value,
 				retryIn / 1000
-			}...`
+			)
 		);
 	}
 
@@ -97,7 +104,10 @@ export default function PreviewPRForm({
 			// For WordPress core, only allow PR numbers/URLs, not branch names
 			if (target === 'wordpress') {
 				setError(
-					'Please enter a valid PR number or PR URL for WordPress Core.'
+					__(
+						'Please enter a valid PR number or PR URL for WordPress Core.',
+						'playground-website'
+					)
 				);
 				setSubmitting(false);
 				return;
@@ -123,19 +133,38 @@ export default function PreviewPRForm({
 					}
 				} catch (e) {
 					logger.error(e);
-					setError('An unexpected error occurred. Please try again.');
+					setError(
+						__(
+							'An unexpected error occurred. Please try again.',
+							'playground-website'
+						)
+					);
 					return;
 				}
 
 				if (error === 'invalid_pr_number' || error === 'no_ci_runs') {
-					setError(`The PR ${ref} does not exist.`);
+					setError(
+						sprintf(
+							__(
+								'The PR %s does not exist.',
+								'playground-website'
+							),
+							ref
+						)
+					);
 				} else if (
 					error === 'artifact_not_found' ||
 					error === 'artifact_not_available'
 				) {
 					if (parseInt(ref) < 5749) {
 						setError(
-							`The PR ${ref} predates the Pull Request previewer and requires a rebase before it can be previewed.`
+							sprintf(
+								__(
+									'The PR %s predates the Pull Request previewer and requires a rebase before it can be previewed.',
+									'playground-website'
+								),
+								ref
+							)
 						);
 					} else {
 						// For PRs, retry since we expect a specific build to complete
@@ -159,15 +188,33 @@ export default function PreviewPRForm({
 					}
 				} else if (error === 'artifact_invalid') {
 					setError(
-						`The PR ${ref} requires a rebase before it can be previewed.`
+						sprintf(
+							__(
+								'The PR %s requires a rebase before it can be previewed.',
+								'playground-website'
+							),
+							ref
+						)
 					);
 				} else if (error === 'artifact_expired') {
 					setError(
-						`The PR ${ref} couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.`
+						sprintf(
+							__(
+								"The PR %s couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.",
+								'playground-website'
+							),
+							ref
+						)
 					);
 				} else {
 					setError(
-						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`
+						sprintf(
+							__(
+								"The PR %s couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.",
+								'playground-website'
+							),
+							ref
+						)
 					);
 					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
@@ -232,8 +279,8 @@ export default function PreviewPRForm({
 
 	const inputLabel =
 		target === 'wordpress'
-			? 'PR number or URL'
-			: 'PR number, URL, or a branch name';
+			? __('PR number or URL', 'playground-website')
+			: __('PR number, URL, or a branch name', 'playground-website');
 
 	return (
 		<form onSubmit={handleSubmit}>
@@ -259,7 +306,7 @@ export default function PreviewPRForm({
 				areDisabled={submitting}
 				onCancel={onClose}
 				onSubmit={handleSubmit}
-				submitText="Preview"
+				submitText={__('Preview', 'playground-website')}
 			/>
 		</form>
 	);

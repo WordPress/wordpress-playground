@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { __ } from '@wordpress/i18n';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
@@ -155,10 +156,17 @@ export const KeepAliveTemporarySitesViewport = () => {
 							className={css.siteErrorContent}
 							style={{ textAlign: 'center' }}
 						>
-							<h2>No site is selected</h2>
+							<h2>
+								{__(
+									'No site is selected',
+									'playground-website'
+								)}
+							</h2>
 							<p>
-								Select a site from the site manager to explore
-								Playground.
+								{__(
+									'Select a site from the site manager to explore Playground.',
+									'playground-website'
+								)}
 							</p>
 						</div>
 					</div>
@@ -235,7 +243,10 @@ export const JustViewport = function JustViewport({
 		<>
 			<iframe
 				key={siteSlug}
-				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
+				title={__(
+					'WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)',
+					'playground-website'
+				)}
 				className={classNames('playground-viewport', css.fullSize)}
 				ref={iframeRef}
 			/>

@@ -1,4 +1,5 @@
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { external } from '@wordpress/icons';
 import { useEffect, useState } from 'react';
 import css from './style.module.css';
@@ -95,7 +96,9 @@ export function AdminerButton({
 			} catch (error) {
 				setState('idle');
 				setError(
-					error instanceof Error ? error.message : 'Unknown error'
+					error instanceof Error
+						? error.message
+						: __('Unknown error', 'playground-website')
 				);
 				return;
 			}
@@ -122,7 +125,9 @@ export function AdminerButton({
 					onClick={handleOpenAdminer}
 				>
 					<Flex justify="space-between" gap={2} expanded={true}>
-						<FlexItem>Open Adminer</FlexItem>
+						<FlexItem>
+							{__('Open Adminer', 'playground-website')}
+						</FlexItem>
 						<FlexItem>
 							<Icon icon={external} size={16} />
 						</FlexItem>
@@ -131,7 +136,13 @@ export function AdminerButton({
 			</Flex>
 			{error && (
 				<div className={css.error}>
-					Failed to install Adminer. Please try again. Error: {error}
+					{sprintf(
+						__(
+							'Failed to install Adminer. Please try again. Error: %s',
+							'playground-website'
+						),
+						error
+					)}
 				</div>
 			)}
 		</>

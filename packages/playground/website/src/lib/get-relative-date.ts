@@ -1,5 +1,8 @@
+import { __ } from '@wordpress/i18n';
+import { getActiveLanguageTag } from './i18n';
+
 export function getRelativeDate(inputDate: Date): string {
-	const formatter = new Intl.RelativeTimeFormat('en', {
+	const formatter = new Intl.RelativeTimeFormat(getActiveLanguageTag(), {
 		style: 'long',
 	});
 
@@ -21,11 +24,11 @@ export function getRelativeDate(inputDate: Date): string {
 		const value = Math.floor(diffInSeconds / interval.seconds);
 		if (![1, -1, 0].includes(value)) {
 			if (value < 60 && interval.unit === 'second') {
-				return 'a moment ago';
+				return __('a moment ago', 'playground-website');
 			}
 			return formatter.format(value, interval.unit);
 		}
 	}
 
-	return 'right now';
+	return __('right now', 'playground-website');
 }

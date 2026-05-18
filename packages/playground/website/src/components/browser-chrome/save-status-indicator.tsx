@@ -9,6 +9,7 @@ import {
 } from '../../lib/state/redux/store';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Icon } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { check, cautionFilled } from '@wordpress/icons';
 
 type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
@@ -46,7 +47,9 @@ export function SaveStatusIndicator() {
 		return (
 			<div className={classNames(css.indicator, css.saved)}>
 				<Icon icon={check} size={18} />
-				<span className={css.label}>Saved Playground</span>
+				<span className={css.label}>
+					{__('Saved Playground', 'playground-website')}
+				</span>
 			</div>
 		);
 	}
@@ -61,8 +64,12 @@ export function SaveStatusIndicator() {
 				<span className={css.spinner} />
 				<span className={css.label}>
 					{progress
-						? `Saving ${progress.files}/${progress.total}...`
-						: 'Saving...'}
+						? sprintf(
+								__('Saving %d/%d...', 'playground-website'),
+								progress.files,
+								progress.total
+							)
+						: __('Saving...', 'playground-website')}
 				</span>
 			</div>
 		);
@@ -76,7 +83,9 @@ export function SaveStatusIndicator() {
 				type="button"
 			>
 				<Icon icon={cautionFilled} size={18} />
-				<span className={css.label}>Save failed</span>
+				<span className={css.label}>
+					{__('Save failed', 'playground-website')}
+				</span>
 			</button>
 		);
 	}
@@ -85,13 +94,15 @@ export function SaveStatusIndicator() {
 	return (
 		<div className={classNames(css.indicator, css.unsaved)}>
 			<Icon icon={cautionFilled} size={18} />
-			<span className={css.label}>Unsaved Playground</span>
+			<span className={css.label}>
+				{__('Unsaved Playground', 'playground-website')}
+			</span>
 			<button
 				className={css.saveButton}
 				onClick={handleSaveClick}
 				type="button"
 			>
-				Save
+				{__('Save', 'playground-website')}
 			</button>
 		</div>
 	);

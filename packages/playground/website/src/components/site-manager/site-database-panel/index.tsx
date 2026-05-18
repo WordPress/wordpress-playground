@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { DownloadButton } from './download-button';
 import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
@@ -57,44 +59,68 @@ export function SiteDatabasePanel({
 				isDismissible={false}
 			>
 				<h3 style={{ fontWeight: 'bold' }}>
-					Database management is an early access feature
+					{__(
+						'Database management is an early access feature',
+						'playground-website'
+					)}
 				</h3>{' '}
 				<br />
 				<p style={{ fontSize: '1.1rem' }}>
-					WordPress Playground{' '}
-					<a
-						target="_blank"
-						rel="noreferrer"
-						href="https://make.wordpress.org/playground/2025/06/13/introducing-a-new-sqlite-driver-for-wordpress/"
-					>
-						emulates MySQL using SQLite
-					</a>
-					. The database tools are a work in progress and are
-					improving every week. Help shape them – report issues on the{' '}
-					<a
-						target="_blank"
-						rel="noreferrer"
-						href="https://github.com/WordPress/wordpress-playground/issues"
-					>
-						GitHub issue tracker
-					</a>
-					.
+					{createInterpolateElement(
+						__(
+							'WordPress Playground <sqliteLink>emulates MySQL using SQLite</sqliteLink>. The database tools are a work in progress and are improving every week. Help shape them by reporting issues on the <issuesLink>GitHub issue tracker</issuesLink>.',
+							'playground-website'
+						),
+						{
+							sqliteLink: (
+								<a
+									aria-label={__(
+										'emulates MySQL using SQLite',
+										'playground-website'
+									)}
+									target="_blank"
+									rel="noreferrer"
+									href="https://make.wordpress.org/playground/2025/06/13/introducing-a-new-sqlite-driver-for-wordpress/"
+								/>
+							),
+							issuesLink: (
+								<a
+									aria-label={__(
+										'GitHub issue tracker',
+										'playground-website'
+									)}
+									target="_blank"
+									rel="noreferrer"
+									href="https://github.com/WordPress/wordpress-playground/issues"
+								/>
+							),
+						}
+					)}
 				</p>{' '}
 			</Notice>
 
 			<VStack spacing={3} style={{ alignItems: 'flex-start' }}>
 				<div className={css.databaseInfo}>
-					<span className={css.label}>Database driver:</span>
-					<span className={css.value}>
-						MySQL emulation backed by SQLite
+					<span className={css.label}>
+						{__('Database driver:', 'playground-website')}
 					</span>
-					<span className={css.label}>SQLite database path:</span>
+					<span className={css.value}>
+						{__(
+							'MySQL emulation backed by SQLite',
+							'playground-website'
+						)}
+					</span>
+					<span className={css.label}>
+						{__('SQLite database path:', 'playground-website')}
+					</span>
 					<span className={css.value}>
 						<code>{DATABASE_PATH}</code>
 					</span>
 					{databaseSize !== null && (
 						<>
-							<span className={css.label}>Size:</span>
+							<span className={css.label}>
+								{__('Size:', 'playground-website')}
+							</span>
 							<span className={css.value}>
 								{formatBytes(databaseSize)}
 							</span>

@@ -7,6 +7,7 @@ import {
 	FlexItem,
 	Button,
 } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { close, arrowLeft } from '@wordpress/icons';
 import store from '../../lib/state/redux/store';
 import css from './style.module.css';
@@ -85,7 +86,7 @@ export function OverlayHeader({
 			{onBack ? (
 				<Button
 					icon={arrowLeft}
-					label="Back"
+					label={__('Back', 'playground-website')}
 					onClick={onBack}
 					className={css.backButton}
 				/>
@@ -100,7 +101,7 @@ export function OverlayHeader({
 			)}
 			<Button
 				icon={close}
-				label="Close"
+				label={__('Close', 'playground-website')}
 				onClick={onClose}
 				className={css.closeButton}
 			/>

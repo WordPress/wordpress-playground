@@ -4,6 +4,7 @@ import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
+import { __ } from '@wordpress/i18n';
 import { Modal } from '../../components/modal';
 
 interface GithubImportModalProps {
@@ -21,7 +22,10 @@ export function GithubImportModal({
 		dispatch(setActiveModal(null));
 	};
 	return (
-		<Modal title="Import from GitHub" onRequestClose={closeModal}>
+		<Modal
+			title={__('Import from GitHub', 'playground-website')}
+			onRequestClose={closeModal}
+		>
 			<GitHubImportForm
 				playground={playground!}
 				onClose={closeModal}
@@ -29,7 +33,10 @@ export function GithubImportModal({
 					playground!.goTo('/');
 					// eslint-disable-next-line no-alert
 					alert(
-						'Import finished! Your Playground site has been updated.'
+						__(
+							'Import finished! Your Playground site has been updated.',
+							'playground-website'
+						)
 					);
 					onImported?.(details);
 					closeModal();

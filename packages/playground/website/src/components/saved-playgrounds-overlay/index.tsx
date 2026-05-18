@@ -6,6 +6,7 @@ import {
 	MenuGroup,
 	MenuItem,
 } from '@wordpress/components';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { moreVertical, upload, link } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
@@ -114,13 +115,19 @@ export function SavedPlaygroundsOverlay({
 					await playground.goTo('/');
 				}, 200);
 				alert(
-					'File imported! This Playground instance has been updated and will refresh shortly.'
+					__(
+						'File imported! This Playground instance has been updated and will refresh shortly.',
+						'playground-website'
+					)
 				);
 				onClose();
 			} catch (error) {
 				logger.error(error);
 				alert(
-					'Unable to import file. Is it a valid WordPress Playground export?'
+					__(
+						'Unable to import file. Is it a valid WordPress Playground export?',
+						'playground-website'
+					)
 				);
 			} finally {
 				setPendingZipFile(null);
@@ -152,7 +159,10 @@ export function SavedPlaygroundsOverlay({
 
 		if (!playground) {
 			alert(
-				'No active Playground to import into. Please create one first.'
+				__(
+					'No active Playground to import into. Please create one first.',
+					'playground-website'
+				)
 			);
 			return;
 		}
@@ -163,13 +173,19 @@ export function SavedPlaygroundsOverlay({
 				await playground.goTo('/');
 			}, 200);
 			alert(
-				'File imported! This Playground instance has been updated and will refresh shortly.'
+				__(
+					'File imported! This Playground instance has been updated and will refresh shortly.',
+					'playground-website'
+				)
 			);
 			onClose();
 		} catch (error) {
 			logger.error(error);
 			alert(
-				'Unable to import file. Is it a valid WordPress Playground export?'
+				__(
+					'Unable to import file. Is it a valid WordPress Playground export?',
+					'playground-website'
+				)
 			);
 		}
 
@@ -265,7 +281,7 @@ export function SavedPlaygroundsOverlay({
 		redirectTo(
 			PlaygroundRoute.newTemporarySite({
 				query: {
-					name: 'Blueprint preview',
+					name: __('Blueprint preview', 'playground-website'),
 					'blueprint-url': `https://raw.githubusercontent.com/WordPress/blueprints/trunk/${blueprintPath.replace(
 						/^\//,
 						''
@@ -285,14 +301,14 @@ export function SavedPlaygroundsOverlay({
 	const creationOptions = [
 		{
 			id: 'vanilla',
-			title: 'Vanilla WordPress',
+			title: __('Vanilla WordPress', 'playground-website'),
 			iconComponent: <WordPressIcon />,
 			onClick: createVanillaSite,
 			disabled: false,
 		},
 		{
 			id: 'wp-pr',
-			title: 'WordPress PR',
+			title: __('WordPress PR', 'playground-website'),
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
@@ -301,7 +317,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'gutenberg-pr',
-			title: 'Gutenberg PR',
+			title: __('Gutenberg PR', 'playground-website'),
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
@@ -310,7 +326,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'github',
-			title: 'From GitHub',
+			title: __('From GitHub', 'playground-website'),
 			iconComponent: GitHubIcon,
 			onClick: () => {
 				if (!isTemporarySite) {
@@ -322,7 +338,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'blueprint-url',
-			title: 'Blueprint URL',
+			title: __('Blueprint URL', 'playground-website'),
 			icon: link,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
@@ -331,7 +347,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'zip',
-			title: 'Import .zip',
+			title: __('Import .zip', 'playground-website'),
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
@@ -350,7 +366,7 @@ export function SavedPlaygroundsOverlay({
 						setSearchQuery('');
 						setSelectedTag(null);
 					}}
-					title="Blueprints"
+					title={__('Blueprints', 'playground-website')}
 					showLogo={false}
 				/>
 				<div className={css.filtersBar}>
@@ -361,7 +377,7 @@ export function SavedPlaygroundsOverlay({
 							})}
 							onClick={() => setSelectedTag(null)}
 						>
-							All
+							{__('All', 'playground-website')}
 						</button>
 						<button
 							className={classNames(css.tagButton, {
@@ -376,7 +392,7 @@ export function SavedPlaygroundsOverlay({
 								)
 							}
 						>
-							Featured
+							{__('Featured', 'playground-website')}
 						</button>
 						{allTags.slice(0, 8).map((tag) => (
 							<button
@@ -412,7 +428,10 @@ export function SavedPlaygroundsOverlay({
 							type="text"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							placeholder="Search Blueprints"
+							placeholder={__(
+								'Search Blueprints',
+								'playground-website'
+							)}
 							className={css.searchField}
 							autoFocus
 						/>
@@ -422,8 +441,25 @@ export function SavedPlaygroundsOverlay({
 					<OverlaySection
 						title={
 							selectedTag || searchQuery
-								? `Showing ${filteredBlueprints.length} of ${allBlueprints.length} blueprints`
-								: `Showing all ${filteredBlueprints.length} blueprints`
+								? sprintf(
+										_n(
+											'Showing %1$d of %2$d blueprint',
+											'Showing %1$d of %2$d blueprints',
+											allBlueprints.length,
+											'playground-website'
+										),
+										filteredBlueprints.length,
+										allBlueprints.length
+									)
+								: sprintf(
+										_n(
+											'Showing all %d blueprint',
+											'Showing all %d blueprints',
+											filteredBlueprints.length,
+											'playground-website'
+										),
+										filteredBlueprints.length
+									)
 						}
 					>
 						{blueprintsLoading ? (
@@ -432,12 +468,17 @@ export function SavedPlaygroundsOverlay({
 							</div>
 						) : blueprintsError ? (
 							<p className={css.emptyMessage}>
-								Unable to load blueprints. Check your
-								connection.
+								{__(
+									'Unable to load blueprints. Check your connection.',
+									'playground-website'
+								)}
 							</p>
 						) : filteredBlueprints.length === 0 ? (
 							<p className={css.emptyMessage}>
-								No blueprints found matching your criteria.
+								{__(
+									'No blueprints found matching your criteria.',
+									'playground-website'
+								)}
 							</p>
 						) : (
 							<div className={css.blueprintsFullGrid}>
@@ -523,7 +564,9 @@ export function SavedPlaygroundsOverlay({
 			/>
 			<OverlayHeader onClose={onClose} />
 			<OverlayBody>
-				<OverlaySection title="Start a new Playground">
+				<OverlaySection
+					title={__('Start a new Playground', 'playground-website')}
+				>
 					<div className={css.creationRow}>
 						{creationOptions.map((option) => (
 							<button
@@ -547,14 +590,19 @@ export function SavedPlaygroundsOverlay({
 					</div>
 				</OverlaySection>
 
-				<OverlaySection title="Start from a Blueprint">
+				<OverlaySection
+					title={__('Start from a Blueprint', 'playground-website')}
+				>
 					{blueprintsLoading ? (
 						<div className={css.loadingContainer}>
 							<Spinner />
 						</div>
 					) : blueprintsError ? (
 						<p className={css.emptyMessage}>
-							Unable to load blueprints. Check your connection.
+							{__(
+								'Unable to load blueprints. Check your connection.',
+								'playground-website'
+							)}
 						</p>
 					) : (
 						<div className={css.blueprintsRow}>
@@ -605,14 +653,24 @@ export function SavedPlaygroundsOverlay({
 									<GridIcon size={50} />
 								</div>
 								<span className={css.blueprintPreviewTitle}>
-									View all {allBlueprints.length} blueprints
+									{sprintf(
+										_n(
+											'View all %d blueprint',
+											'View all %d blueprints',
+											allBlueprints.length,
+											'playground-website'
+										),
+										allBlueprints.length
+									)}
 								</span>
 							</button>
 						</div>
 					)}
 				</OverlaySection>
 
-				<OverlaySection title="Your Playgrounds">
+				<OverlaySection
+					title={__('Your Playgrounds', 'playground-website')}
+				>
 					<div className={css.sitesList}>
 						<div
 							className={classNames(css.siteRow, {
@@ -638,10 +696,16 @@ export function SavedPlaygroundsOverlay({
 								</div>
 								<div className={css.siteRowInfo}>
 									<span className={css.siteRowName}>
-										Unsaved Playground
+										{__(
+											'Unsaved Playground',
+											'playground-website'
+										)}
 									</span>
 									<span className={css.siteRowDate}>
-										Not saved to browser storage
+										{__(
+											'Not saved to browser storage',
+											'playground-website'
+										)}
 									</span>
 								</div>
 							</button>
@@ -679,17 +743,22 @@ export function SavedPlaygroundsOverlay({
 												<span
 													className={css.siteRowDate}
 												>
-													Created{' '}
-													{new Date(
-														site.metadata
-															.whenCreated
-													).toLocaleDateString(
-														undefined,
-														{
-															year: 'numeric',
-															month: 'short',
-															day: 'numeric',
-														}
+													{sprintf(
+														__(
+															'Created %s',
+															'playground-website'
+														),
+														new Date(
+															site.metadata
+																.whenCreated
+														).toLocaleDateString(
+															undefined,
+															{
+																year: 'numeric',
+																month: 'short',
+																day: 'numeric',
+															}
+														)
 													)}
 												</span>
 											)}
@@ -697,7 +766,10 @@ export function SavedPlaygroundsOverlay({
 									</button>
 									<DropdownMenu
 										icon={moreVertical}
-										label="Site actions"
+										label={__(
+											'Site actions',
+											'playground-website'
+										)}
 										className={css.siteRowMenu}
 										popoverProps={{
 											placement: 'bottom-end',
@@ -714,7 +786,10 @@ export function SavedPlaygroundsOverlay({
 															)
 														}
 													>
-														Rename
+														{__(
+															'Rename',
+															'playground-website'
+														)}
 													</MenuItem>
 												</MenuGroup>
 												<MenuGroup>
@@ -729,7 +804,10 @@ export function SavedPlaygroundsOverlay({
 															)
 														}
 													>
-														Delete
+														{__(
+															'Delete',
+															'playground-website'
+														)}
 													</MenuItem>
 												</MenuGroup>
 											</>

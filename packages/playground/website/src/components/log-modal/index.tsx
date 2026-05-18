@@ -5,6 +5,7 @@ import classNames from 'classnames';
 import css from './style.module.css';
 import { Modal } from '../modal';
 import { TextControl } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import type {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
@@ -23,7 +24,10 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	}
 
 	return (
-		<Modal title={props.title || 'Error Logs'} onRequestClose={onClose}>
+		<Modal
+			title={props.title || __('Error Logs', 'playground-website')}
+			onRequestClose={onClose}
+		>
 			<div>{props.description}</div>
 			<SiteLogs key={activeModal} className={css.logsInsideModal} />
 		</Modal>
@@ -67,8 +71,8 @@ export function SiteLogs({ className }: { className?: string }) {
 		<div className={classNames(css.logsComponent, className)}>
 			{logs.length > 0 ? (
 				<TextControl
-					aria-label="Search"
-					placeholder="Search logs"
+					aria-label={__('Search', 'playground-website')}
+					placeholder={__('Search logs', 'playground-website')}
 					value={searchTerm}
 					onChange={setSearchTerm}
 					autoFocus={true}
@@ -80,15 +84,17 @@ export function SiteLogs({ className }: { className?: string }) {
 					<main className={css.logList}>{logList()}</main>
 				) : logs.length > 0 ? (
 					<div className={css.logEmptyPlaceholder}>
-						No matching logs found.
+						{__('No matching logs found.', 'playground-website')}
 					</div>
 				) : (
 					<div>
-						Error logs for Playground, WordPress, and PHP will show
-						up here when something goes wrong.
+						{__(
+							'Error logs for Playground, WordPress, and PHP will show up here when something goes wrong.',
+							'playground-website'
+						)}
 						<br />
 						<br />
-						No problems so far – yay! 🎉
+						{__('No problems so far.', 'playground-website')}
 					</div>
 				)}
 			</div>

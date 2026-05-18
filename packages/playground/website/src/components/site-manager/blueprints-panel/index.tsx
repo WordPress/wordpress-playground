@@ -9,6 +9,8 @@ import {
 	__experimentalVStack as VStack,
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { chevronLeft } from '@wordpress/icons';
 import { DataViews } from '@wordpress/dataviews';
 import type { Field, View } from '@wordpress/dataviews';
@@ -66,7 +68,7 @@ export function BlueprintsPanel({
 		redirectTo(
 			PlaygroundRoute.newTemporarySite({
 				query: {
-					name: 'Blueprint preview',
+					name: __('Blueprint preview', 'playground-website'),
 					// Explicitly do not use joinPaths() here as it normalizes the input and
 					// rewrites https:// as https:/
 					'blueprint-url': `https://raw.githubusercontent.com/WordPress/blueprints/trunk/${blueprintPath.replace(
@@ -81,7 +83,7 @@ export function BlueprintsPanel({
 	const fields: Field<BlueprintsIndexEntry>[] = [
 		{
 			id: 'header',
-			label: 'Header',
+			label: __('Header', 'playground-website'),
 			enableHiding: false,
 			render: ({ item }) => {
 				return (
@@ -89,7 +91,7 @@ export function BlueprintsPanel({
 						<VStack spacing={0} style={{ flexGrow: 1 }}>
 							<h3 className={css.blueprintTitle}>{item.title}</h3>
 							<Text>
-								By{' '}
+								{__('By', 'playground-website')}{' '}
 								<a
 									target="_blank"
 									rel="noreferrer"
@@ -100,7 +102,7 @@ export function BlueprintsPanel({
 							</Text>
 						</VStack>
 						<Button style={{ flexShrink: 0 }} variant="primary">
-							Preview
+							{__('Preview', 'playground-website')}
 						</Button>
 					</HStack>
 				);
@@ -108,7 +110,7 @@ export function BlueprintsPanel({
 		},
 		{
 			id: 'description',
-			label: 'Description',
+			label: __('Description', 'playground-website'),
 			render: ({ item }) => {
 				return <Text>{item.description}</Text>;
 			},
@@ -142,7 +144,10 @@ export function BlueprintsPanel({
 								<FlexItem style={{ marginLeft: -17 }}>
 									<Button
 										variant="link"
-										label="Back to Playground"
+										label={__(
+											'Back to Playground',
+											'playground-website'
+										)}
 										icon={() => (
 											<Icon
 												icon={chevronLeft}
@@ -163,7 +168,10 @@ export function BlueprintsPanel({
 									expanded={true}
 								>
 									<h2 className={css.sectionTitle}>
-										Blueprints Gallery
+										{__(
+											'Blueprints Gallery',
+											'playground-website'
+										)}
 									</h2>
 								</Flex>
 							</FlexItem>
@@ -171,25 +179,36 @@ export function BlueprintsPanel({
 					</FlexItem>
 					<FlexItem className={css.paddedH}>
 						<p>
-							Blueprints are predefined configurations for setting
-							up WordPress. Here you can find all the Blueprints
-							from the WordPress{' '}
-							<a
-								href="https://github.com/WordPress/blueprints"
-								target="_blank"
-								rel="noreferrer"
-							>
-								Blueprints gallery
-							</a>
-							. Try them out in Playground and learn more in the{' '}
-							<a
-								href="https://wordpress.github.io/wordpress-playground/blueprints"
-								target="_blank"
-								rel="noreferrer"
-							>
-								Blueprints documentation
-							</a>
-							.
+							{createInterpolateElement(
+								__(
+									'Blueprints are predefined configurations for setting up WordPress. Here you can find all the Blueprints from the WordPress <galleryLink>Blueprints gallery</galleryLink>. Try them out in Playground and learn more in the <docsLink>Blueprints documentation</docsLink>.',
+									'playground-website'
+								),
+								{
+									galleryLink: (
+										<a
+											aria-label={__(
+												'Blueprints gallery',
+												'playground-website'
+											)}
+											href="https://github.com/WordPress/blueprints"
+											target="_blank"
+											rel="noreferrer"
+										/>
+									),
+									docsLink: (
+										<a
+											aria-label={__(
+												'Blueprints documentation',
+												'playground-website'
+											)}
+											href="https://wordpress.github.io/wordpress-playground/blueprints"
+											target="_blank"
+											rel="noreferrer"
+										/>
+									),
+								}
+							)}
 						</p>
 					</FlexItem>
 				</FlexItem>
@@ -210,8 +229,10 @@ export function BlueprintsPanel({
 						style={{ alignSelf: 'stretch' }}
 					>
 						<p>
-							Could not load the Blueprints from the gallery. Try
-							again later.
+							{__(
+								'Could not load the Blueprints from the gallery. Try again later.',
+								'playground-website'
+							)}
 						</p>
 					</FlexItem>
 				) : (

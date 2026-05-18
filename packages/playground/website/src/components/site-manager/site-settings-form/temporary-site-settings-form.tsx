@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import css from './style.module.css';
 import { Button, __experimentalVStack as VStack } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
@@ -56,11 +57,17 @@ export function TemporarySiteSettingsForm({
 					className={`${css.footer} ${css.formSection}`}
 				>
 					<p>
-						<b>Destructive action!</b> Applying these settings will
-						reset the WordPress site to its initial state.
+						<b>{__('Destructive action!', 'playground-website')}</b>{' '}
+						{__(
+							'Applying these settings will reset the WordPress site to its initial state.',
+							'playground-website'
+						)}
 					</p>
 					<Button type="submit" variant="primary">
-						Apply Settings & Reset Playground
+						{__(
+							'Apply Settings & Reset Playground',
+							'playground-website'
+						)}
 					</Button>
 				</VStack>
 			}

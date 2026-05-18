@@ -3,6 +3,7 @@ import GitHubExportForm from './form';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
+import { __ } from '@wordpress/i18n';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Modal } from '../../components/modal';
 
@@ -26,7 +27,10 @@ export function GithubExportModal({
 	};
 
 	return (
-		<Modal title="Export to GitHub" onRequestClose={closeModal}>
+		<Modal
+			title={__('Export to GitHub', 'playground-website')}
+			onRequestClose={closeModal}
+		>
 			<GitHubExportForm
 				onClose={closeModal}
 				onExported={onExported}

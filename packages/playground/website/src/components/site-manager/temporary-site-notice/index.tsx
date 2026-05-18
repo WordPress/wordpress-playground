@@ -1,4 +1,5 @@
 import { Notice, Flex, FlexItem, Button } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import css from './style.module.css';
 import { SitePersistButton } from '../site-persist-button';
 import { useState } from 'react';
@@ -23,24 +24,38 @@ export function TemporarySiteNotice({
 	return (
 		<Notice
 			className={classNames(css.siteNotice, className)}
-			spokenMessage="This is an Unsaved Playground. Your changes will be lost on page refresh."
+			spokenMessage={__(
+				'This is an Unsaved Playground. Your changes will be lost on page refresh.',
+				'playground-website'
+			)}
 			status="info"
 			isDismissible={isDismissible}
 			onDismiss={() => setIsDismissed(true)}
 		>
 			<Flex direction="row" gap={2} expanded={true}>
 				<FlexItem>
-					<b>This is an Unsaved Playground.</b> Your changes will be
-					lost on page refresh.
+					<b>
+						{__(
+							'This is an Unsaved Playground.',
+							'playground-website'
+						)}
+					</b>{' '}
+					{__(
+						'Your changes will be lost on page refresh.',
+						'playground-website'
+					)}
 				</FlexItem>
 				<FlexItem>
 					<SitePersistButton siteSlug={site.slug}>
 						<Button
 							variant="primary"
 							disabled={!playground}
-							aria-label="Save site locally"
+							aria-label={__(
+								'Save site locally',
+								'playground-website'
+							)}
 						>
-							Save
+							{__('Save', 'playground-website')}
 						</Button>
 					</SitePersistButton>
 				</FlexItem>
