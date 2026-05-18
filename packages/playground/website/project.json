@@ -128,6 +128,32 @@
 				]
 			}
 		},
+		"i18n-extract": {
+			"executor": "nx:run-commands",
+			"outputs": ["{projectRoot}/languages/playground-website.pot"],
+			"options": {
+				"command": "node packages/playground/website/bin/i18n.cjs extract"
+			}
+		},
+		"i18n-update": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["i18n-extract"],
+			"outputs": ["{projectRoot}/languages"],
+			"options": {
+				"command": "node packages/playground/website/bin/i18n.cjs update"
+			}
+		},
+		"i18n-compile": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["i18n-update"],
+			"outputs": [
+				"{projectRoot}/languages",
+				"{projectRoot}/src/lib/i18n/locales"
+			],
+			"options": {
+				"command": "node packages/playground/website/bin/i18n.cjs compile"
+			}
+		},
 		"e2e": {
 			"executor": "@nx/cypress:cypress",
 			"options": {

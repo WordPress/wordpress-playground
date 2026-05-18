@@ -3,6 +3,7 @@ import css from './style.module.css';
 import AddressBar from '../address-bar';
 import classNames from 'classnames';
 import { useMediaQuery } from '@wordpress/compose';
+import { __ } from '@wordpress/i18n';
 import {
 	useAppSelector,
 	getActiveClientInfo,
@@ -82,7 +83,7 @@ export default function BrowserChrome({
 					className={classNames(css.toolbar, {
 						[css.withSidebarOpen]: siteManagerIsOpen,
 					})}
-					aria-label="Playground toolbar"
+					aria-label={__('Playground toolbar', 'playground-website')}
 				>
 					<div className={addressBarClass}>
 						<AddressBar
@@ -98,7 +99,10 @@ export default function BrowserChrome({
 					<div className={css.toolbarButtons}>
 						<Button
 							variant="browser-chrome"
-							aria-label="Saved Playgrounds"
+							aria-label={__(
+								'Saved Playgrounds',
+								'playground-website'
+							)}
 							onClick={() => setIsPlaygroundsOverlayOpen(true)}
 							aria-expanded={isPlaygroundsOverlayOpen}
 							className={css.savedPlaygroundsButton}
@@ -110,8 +114,14 @@ export default function BrowserChrome({
 							variant="browser-chrome"
 							aria-label={
 								siteManagerIsOpen
-									? 'Close Site Manager'
-									: 'Open Site Manager'
+									? __(
+											'Close Site Manager',
+											'playground-website'
+										)
+									: __(
+											'Open Site Manager',
+											'playground-website'
+										)
 							}
 							aria-pressed={siteManagerIsOpen}
 							className={classNames(css.openSiteManagerButton, {
@@ -133,7 +143,10 @@ export default function BrowserChrome({
 							<>
 								<Button
 									variant="browser-chrome"
-									aria-label="Edit Playground settings"
+									aria-label={__(
+										'Edit Playground settings',
+										'playground-website'
+									)}
 									onClick={onSettingsToggle}
 									aria-expanded={isSettingsModalOpen}
 									style={{
@@ -147,7 +160,10 @@ export default function BrowserChrome({
 								{isSettingsModalOpen && (
 									<Modal
 										isFullScreen={true}
-										title="Playground settings"
+										title={__(
+											'Playground settings',
+											'playground-website'
+										)}
 										onRequestClose={closeSettingsModal}
 									>
 										<ActiveSiteSettingsForm
@@ -164,7 +180,10 @@ export default function BrowserChrome({
 								renderToggle={({ isOpen, onToggle }) => (
 									<Button
 										variant="browser-chrome"
-										aria-label="Edit Playground settings"
+										aria-label={__(
+											'Edit Playground settings',
+											'playground-website'
+										)}
 										onClick={onToggle}
 										aria-expanded={isOpen}
 										style={{
@@ -186,7 +205,10 @@ export default function BrowserChrome({
 									>
 										<div className={css.headerSection}>
 											<h2 style={{ margin: 0 }}>
-												Playground settings
+												{__(
+													'Playground settings',
+													'playground-website'
+												)}
 											</h2>
 										</div>
 										<ActiveSiteSettingsForm

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Notice, __experimentalText as Text } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import {
 	setActiveModal,
@@ -49,7 +50,10 @@ export function DeleteSiteModal() {
 			setError(
 				e instanceof Error
 					? e.message
-					: 'Deleting failed. Please try again.'
+					: __(
+							'Deleting failed. Please try again.',
+							'playground-website'
+						)
 			);
 		} finally {
 			setIsSubmitting(false);
@@ -58,8 +62,11 @@ export function DeleteSiteModal() {
 
 	return (
 		<Modal
-			title="Delete Playground"
-			contentLabel='This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called "Delete Playground". Pressing the Close button will close the modal and bring you back to where you were on the page.'
+			title={__('Delete Playground', 'playground-website')}
+			contentLabel={__(
+				'This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called "Delete Playground". Pressing the Close button will close the modal and bring you back to where you were on the page.',
+				'playground-website'
+			)}
 			onRequestClose={closeModal}
 			small
 		>
@@ -71,8 +78,13 @@ export function DeleteSiteModal() {
 				}}
 			>
 				<Text>
-					Are you sure you want to delete the site &ldquo;
-					{site.metadata.name}&rdquo;? This action cannot be undone.
+					{sprintf(
+						__(
+							'Are you sure you want to delete the site "%s"? This action cannot be undone.',
+							'playground-website'
+						),
+						site.metadata.name
+					)}
 				</Text>
 				{error ? (
 					<Notice status="error" isDismissible={false}>
@@ -80,7 +92,7 @@ export function DeleteSiteModal() {
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Delete"
+					submitText={__('Delete', 'playground-website')}
 					areBusy={isSubmitting}
 					onCancel={closeModal}
 				/>

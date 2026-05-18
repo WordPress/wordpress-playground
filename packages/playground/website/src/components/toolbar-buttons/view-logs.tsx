@@ -1,4 +1,5 @@
 import { MenuItem } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { details } from '@wordpress/icons';
 
 import { useDispatch } from 'react-redux';
@@ -13,13 +14,13 @@ export function ViewLogs({ onClose }: Props) {
 			icon={details}
 			iconPosition="left"
 			data-cy="view-logs"
-			aria-label="View logs"
+			aria-label={__('View logs', 'playground-website')}
 			onClick={() => {
 				dispatch(setActiveModal(modalSlugs.LOG));
 				onClose();
 			}}
 		>
-			View logs
+			{__('View logs', 'playground-website')}
 		</MenuItem>
 	);
 }

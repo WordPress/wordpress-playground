@@ -12,6 +12,7 @@ import {
 	RadioControl,
 	Notice,
 } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
@@ -142,8 +143,8 @@ export function SaveSiteModal() {
 	const localIsAvailable = localFsAvailability === 'available';
 	const localUnavailableMessage =
 		localFsAvailability === 'not-available'
-			? 'Not available in this browser'
-			: 'Not available on this site';
+			? __('Not available in this browser', 'playground-website')
+			: __('Not available on this site', 'playground-website');
 
 	const chooseStorage = (storage: StorageOption) => {
 		if (storage === 'local-fs' && !localIsAvailable) {
@@ -193,7 +194,10 @@ export function SaveSiteModal() {
 		setSubmitError(null);
 		if (!(window as any).showDirectoryPicker) {
 			setDirectoryError(
-				'Directory selection is not supported in this browser.'
+				__(
+					'Directory selection is not supported in this browser.',
+					'playground-website'
+				)
 			);
 			return;
 		}
@@ -209,7 +213,10 @@ export function SaveSiteModal() {
 			setDirectoryPermission(permission);
 			if (permission !== 'granted') {
 				setDirectoryError(
-					'Allow Playground to edit that directory in the browser prompt to continue.'
+					__(
+						'Allow Playground to edit that directory in the browser prompt to continue.',
+						'playground-website'
+					)
 				);
 			} else {
 				setDirectoryError(null);
@@ -219,7 +226,12 @@ export function SaveSiteModal() {
 				return;
 			}
 			logger.error(error);
-			setDirectoryError('Unable to access the selected directory.');
+			setDirectoryError(
+				__(
+					'Unable to access the selected directory.',
+					'playground-website'
+				)
+			);
 		}
 	};
 
@@ -235,14 +247,22 @@ export function SaveSiteModal() {
 
 			if (selectedStorage === 'local-fs') {
 				if (!directoryHandle) {
-					setDirectoryError('Choose a directory to continue.');
+					setDirectoryError(
+						__(
+							'Choose a directory to continue.',
+							'playground-website'
+						)
+					);
 					return;
 				}
 				const permission = await ensureWriteAccess(directoryHandle);
 				setDirectoryPermission(permission);
 				if (permission !== 'granted') {
 					setDirectoryError(
-						'Allow Playground to edit that directory in the browser prompt to continue.'
+						__(
+							'Allow Playground to edit that directory in the browser prompt to continue.',
+							'playground-website'
+						)
 					);
 					return;
 				}
@@ -260,7 +280,10 @@ export function SaveSiteModal() {
 			setSubmitError(
 				error instanceof Error
 					? error.message
-					: 'Saving failed. Please try again.'
+					: __(
+							'Saving failed. Please try again.',
+							'playground-website'
+						)
 			);
 			setIsSubmitting(false);
 		}
@@ -288,8 +311,8 @@ export function SaveSiteModal() {
 
 	return (
 		<Modal
-			title="Save Playground"
-			contentLabel="Save Playground"
+			title={__('Save Playground', 'playground-website')}
+			contentLabel={__('Save Playground', 'playground-website')}
 			onRequestClose={handleRequestClose}
 			isDismissible={!isSaving}
 			small
@@ -303,11 +326,13 @@ export function SaveSiteModal() {
 				autoComplete="off"
 			>
 				<p style={{ margin: 0, color: '#1e1e1e' }}>
-					This Playground is temporary and will be lost when you
-					refresh or close this page. Save it to keep your work.
+					{__(
+						'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work.',
+						'playground-website'
+					)}
 				</p>
 				<TextControl
-					label="Playground name"
+					label={__('Playground name', 'playground-website')}
 					value={name}
 					onChange={(value) => setName(value)}
 					autoFocus
@@ -318,19 +343,43 @@ export function SaveSiteModal() {
 					disabled={isSaving}
 				/>
 				<RadioControl
-					label="Storage location"
+					label={__('Storage location', 'playground-website')}
 					selected={selectedStorage}
 					options={[
 						{
-							label:
-								'Save in this browser' +
-								(!isOpfsAvailable ? ' (not available)' : ''),
+							label: isOpfsAvailable
+								? __(
+										'Save in this browser',
+										'playground-website'
+									)
+								: sprintf(
+										__(
+											'%s (not available)',
+											'playground-website'
+										),
+										__(
+											'Save in this browser',
+											'playground-website'
+										)
+									),
 							value: 'opfs',
 						},
 						{
-							label:
-								'Save to a local directory' +
-								(!localIsAvailable ? ' (not available)' : ''),
+							label: localIsAvailable
+								? __(
+										'Save to a local directory',
+										'playground-website'
+									)
+								: sprintf(
+										__(
+											'%s (not available)',
+											'playground-website'
+										),
+										__(
+											'Save to a local directory',
+											'playground-website'
+										)
+									),
 							value: 'local-fs',
 						},
 					]}
@@ -338,13 +387,20 @@ export function SaveSiteModal() {
 					disabled={isSaving}
 				/>
 				{!isOpfsAvailable && selectedStorage === 'opfs' && (
-					<p style={helpTextStyle}>Not available in this browser</p>
+					<p style={helpTextStyle}>
+						{__(
+							'Not available in this browser',
+							'playground-website'
+						)}
+					</p>
 				)}
 				{!localIsAvailable && selectedStorage === 'local-fs' && (
 					<p style={helpTextStyle}>{localUnavailableMessage}</p>
 				)}
 				{selectedStorage === 'local-fs' && (
-					<BaseControl label="Local directory">
+					<BaseControl
+						label={__('Local directory', 'playground-website')}
+					>
 						<div
 							style={{
 								display: 'flex',
@@ -357,7 +413,10 @@ export function SaveSiteModal() {
 								className="components-text-control__input"
 								value={directoryHandle?.name ?? ''}
 								readOnly
-								placeholder="Choose a directory..."
+								placeholder={__(
+									'Choose a directory...',
+									'playground-website'
+								)}
 								style={{ flexGrow: 1 }}
 							/>
 							<Button
@@ -366,7 +425,7 @@ export function SaveSiteModal() {
 								onClick={handlePickDirectory}
 								disabled={isSaving}
 							>
-								Choose...
+								{__('Choose...', 'playground-website')}
 							</Button>
 						</div>
 						{directoryError ? (
@@ -386,8 +445,18 @@ export function SaveSiteModal() {
 						></progress>
 						<p style={{ ...helpTextStyle, marginTop: 4 }}>
 							{savingProgress
-								? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
-								: 'Preparing to save...'}
+								? sprintf(
+										__(
+											'Saving %d / %d files...',
+											'playground-website'
+										),
+										savingProgress.files,
+										savingProgress.total
+									)
+								: __(
+										'Preparing to save...',
+										'playground-website'
+									)}
 						</p>
 					</div>
 				)}
@@ -397,7 +466,7 @@ export function SaveSiteModal() {
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Save"
+					submitText={__('Save', 'playground-website')}
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
 					areBusy={false}

@@ -1,4 +1,5 @@
 import { MenuItem } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 
 import type { PlaygroundClient } from '@wp-playground/client';
 import { zipWpContent } from '@wp-playground/client';
@@ -11,7 +12,10 @@ export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
 	return (
 		<MenuItem
 			data-cy="download-as-zip"
-			aria-label="Download the current playground as a .zip file"
+			aria-label={__(
+				'Download the current Playground as a .zip file',
+				'playground-website'
+			)}
 			disabled={disabled}
 			onClick={() => {
 				if (!playground) return;
@@ -19,7 +23,7 @@ export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
 				onClose();
 			}}
 		>
-			Download as .zip
+			{__('Download as .zip', 'playground-website')}
 		</MenuItem>
 	);
 }

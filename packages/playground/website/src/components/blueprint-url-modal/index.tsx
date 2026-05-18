@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TextControl } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import {
 	setActiveModal,
@@ -33,8 +34,11 @@ export function BlueprintUrlModal() {
 
 	return (
 		<Modal
-			title="Run Blueprint from URL"
-			contentLabel='This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called "Run Blueprint from URL". Pressing the Close button will close the modal and bring you back to where you were on the page.'
+			title={__('Run Blueprint from URL', 'playground-website')}
+			contentLabel={__(
+				'This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called "Run Blueprint from URL". Pressing the Close button will close the modal and bring you back to where you were on the page.',
+				'playground-website'
+			)}
 			onRequestClose={closeModal}
 			small
 		>
@@ -47,7 +51,7 @@ export function BlueprintUrlModal() {
 			>
 				<TextControl
 					__nextHasNoMarginBottom
-					label="Blueprint URL"
+					label={__('Blueprint URL', 'playground-website')}
 					value={url}
 					onChange={(val: string) => setUrl(val)}
 					placeholder="https://example.com/blueprint.json"
@@ -55,7 +59,7 @@ export function BlueprintUrlModal() {
 					autoFocus
 				/>
 				<ModalButtons
-					submitText="Run Blueprint"
+					submitText={__('Run Blueprint', 'playground-website')}
 					areDisabled={!url.trim()}
 					onCancel={closeModal}
 				/>

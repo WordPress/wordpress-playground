@@ -2,6 +2,7 @@ import type { AllPHPVersion } from '@php-wasm/universal';
 import { SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import classNames from 'classnames';
@@ -131,20 +132,26 @@ export function UnconnectedSiteSettingsForm({
 				// Without an empty option, React sometimes says the
 				// current selected version is "trunk" when `wp` is
 				// actually "6.4".
-				{ label: '-- Select a version --', value: '' },
+				{
+					label: __('-- Select a version --', 'playground-website'),
+					value: '',
+				},
 				...modernOptions,
 			];
 		}
 		return [
-			{ label: '-- Select a version --', value: '' },
 			{
-				label: '── Current versions ──',
+				label: __('-- Select a version --', 'playground-website'),
+				value: '',
+			},
+			{
+				label: __('-- Current versions --', 'playground-website'),
 				value: '__modern_sep',
 				disabled: true,
 			},
 			...modernOptions,
 			{
-				label: '── Older versions ──',
+				label: __('-- Older versions --', 'playground-website'),
 				value: '__older_sep',
 				disabled: true,
 			},
@@ -182,7 +189,10 @@ export function UnconnectedSiteSettingsForm({
 					name="wpVersion"
 					rules={{
 						required: {
-							message: 'WordPress Version is required',
+							message: __(
+								'WordPress Version is required',
+								'playground-website'
+							),
 							value: true,
 						},
 					}}
@@ -192,7 +202,10 @@ export function UnconnectedSiteSettingsForm({
 							<SelectControl
 								size="compact"
 								__nextHasNoMarginBottom={true}
-								label="WordPress Version"
+								label={__(
+									'WordPress Version',
+									'playground-website'
+								)}
 								labelPosition="side"
 								help={errors.wpVersion?.message}
 								className={classNames(css.addSiteInput, {
@@ -207,10 +220,16 @@ export function UnconnectedSiteSettingsForm({
 
 							{enabledFields.wpVersion && (
 								<CheckboxControl
-									label="Include older versions"
+									label={__(
+										'Include older versions',
+										'playground-website'
+									)}
 									help={
 										includeOlderVersions
-											? 'Selecting an older version locks the PHP version to the one it runs on.'
+											? __(
+													'Selecting an older version locks the PHP version to the one it runs on.',
+													'playground-website'
+												)
 											: undefined
 									}
 									checked={includeOlderVersions}
@@ -226,7 +245,10 @@ export function UnconnectedSiteSettingsForm({
 					name="phpVersion"
 					rules={{
 						required: {
-							message: 'PHP Version is required',
+							message: __(
+								'PHP Version is required',
+								'playground-website'
+							),
 							value: true,
 						},
 					}}
@@ -234,12 +256,18 @@ export function UnconnectedSiteSettingsForm({
 						<SelectControl
 							size="compact"
 							__nextHasNoMarginBottom={true}
-							label="PHP Version"
+							label={__('PHP Version', 'playground-website')}
 							labelPosition="side"
 							disabled={!!forcedPhpVersion}
 							help={
 								forcedPhpVersion
-									? `Locked to PHP ${forcedPhpVersion} for this WordPress version.`
+									? sprintf(
+											__(
+												'Locked to PHP %s for this WordPress version.',
+												'playground-website'
+											),
+											forcedPhpVersion
+										)
 									: errors.phpVersion?.message
 							}
 							className={classNames(css.addSiteInput, {
@@ -261,7 +289,7 @@ export function UnconnectedSiteSettingsForm({
 						<SelectControl
 							size="compact"
 							__nextHasNoMarginBottom={true}
-							label="Language"
+							label={__('Language', 'playground-website')}
 							labelPosition="side"
 							help={errors.language?.message}
 							className={classNames(css.addSiteInput, {
@@ -527,7 +555,10 @@ export function UnconnectedSiteSettingsForm({
 					name="withNetworking"
 					render={({ field: { onChange, ref, ...rest } }) => (
 						<CheckboxControl
-							label="Allow network access"
+							label={__(
+								'Allow network access',
+								'playground-website'
+							)}
 							onChange={(isChecked) => {
 								setValue('withNetworking', isChecked);
 							}}
@@ -544,7 +575,10 @@ export function UnconnectedSiteSettingsForm({
 					disabled={!enabledFields.multisite}
 					render={({ field: { onChange, ref, ...rest } }) => (
 						<CheckboxControl
-							label="Create a multisite network"
+							label={__(
+								'Create a multisite network',
+								'playground-website'
+							)}
 							onChange={(isChecked) => {
 								setValue('multisite', isChecked);
 							}}

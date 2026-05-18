@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
 import {
@@ -65,7 +66,9 @@ export function PhpMyAdminButton({
 			} catch (error) {
 				setState('idle');
 				setError(
-					error instanceof Error ? error.message : 'Unknown error'
+					error instanceof Error
+						? error.message
+						: __('Unknown error', 'playground-website')
 				);
 				return;
 			}
@@ -92,7 +95,9 @@ export function PhpMyAdminButton({
 					onClick={handleOpenPhpMyAdmin}
 				>
 					<Flex justify="space-between" gap={2} expanded={true}>
-						<FlexItem>Open phpMyAdmin</FlexItem>
+						<FlexItem>
+							{__('Open phpMyAdmin', 'playground-website')}
+						</FlexItem>
 						<FlexItem>
 							<Icon icon={external} size={16} />
 						</FlexItem>
@@ -101,8 +106,13 @@ export function PhpMyAdminButton({
 			</Flex>
 			{error && (
 				<div className={css.error}>
-					Failed to install phpMyAdmin. Please try again. Error:{' '}
-					{error}
+					{sprintf(
+						__(
+							'Failed to install phpMyAdmin. Please try again. Error: %s',
+							'playground-website'
+						),
+						error
+					)}
 				</div>
 			)}
 		</>

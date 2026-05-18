@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { __ } from '@wordpress/i18n';
 import Button from '../button';
 import {
 	getActiveClientInfo,
@@ -30,7 +31,9 @@ export function SyncLocalFilesButton() {
 				await client!.goTo(url!);
 			}}
 		>
-			{isSyncing ? 'Syncing...' : 'Sync local files'}
+			{isSyncing
+				? __('Syncing...', 'playground-website')
+				: __('Sync local files', 'playground-website')}
 		</Button>
 	);
 }

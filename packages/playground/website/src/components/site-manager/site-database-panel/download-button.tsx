@@ -1,4 +1,5 @@
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { download } from '@wordpress/icons';
 import type { PlaygroundClient } from '@wp-playground/client';
 
@@ -7,7 +8,9 @@ const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
 async function downloadDatabase(playground: PlaygroundClient): Promise<void> {
 	const fileExists = await playground.fileExists(DATABASE_PATH);
 	if (!fileExists) {
-		throw new Error('Database file does not exist');
+		throw new Error(
+			__('Database file does not exist', 'playground-website')
+		);
 	}
 
 	const buffer = await playground.readFileAsBuffer(DATABASE_PATH);
@@ -37,7 +40,9 @@ export function DownloadButton({
 			}
 		>
 			<Flex justify="space-between" gap={2} expanded={true}>
-				<FlexItem>Download database.sqlite</FlexItem>
+				<FlexItem>
+					{__('Download database.sqlite', 'playground-website')}
+				</FlexItem>
 				<FlexItem>
 					<Icon icon={download} size={16} />
 				</FlexItem>

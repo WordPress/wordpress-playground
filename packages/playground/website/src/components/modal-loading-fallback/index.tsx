@@ -1,3 +1,4 @@
+import { __ } from '@wordpress/i18n';
 import { Spinner } from '../spinner';
 import css from './style.module.css';
 
@@ -10,7 +11,9 @@ export function ModalLoadingFallback() {
 			<div className={css.spinner}>
 				<Spinner />
 			</div>
-			<p className={css.text}>Loading modal...</p>
+			<p className={css.text}>
+				{__('Loading modal...', 'playground-website')}
+			</p>
 		</div>
 	);
 }

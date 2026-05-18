@@ -1,4 +1,5 @@
 import { Icon, Spinner } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { oAuthState } from '../state';
 import { GitHubIcon } from '../github';
 import css from './style.module.css';
@@ -24,7 +25,7 @@ export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 
 	return (
 		<Modal
-			title="Connect to GitHub"
+			title={__('Connect to GitHub', 'playground-website')}
 			onRequestClose={() => {
 				setIsModalOpen(false);
 			}}
@@ -48,7 +49,7 @@ export default function GitHubOAuthGuard({
 		return (
 			<div>
 				<Spinner />
-				Authorizing...
+				{__('Authorizing...', 'playground-website')}
 			</div>
 		);
 	}
@@ -91,20 +92,30 @@ function Authenticate({
 	return (
 		<div>
 			<p>
-				Importing plugins, themes, and wp-content directories directly
-				from your public GitHub repositories.
+				{__(
+					'Importing plugins, themes, and wp-content directories directly from your public GitHub repositories.',
+					'playground-website'
+				)}
 			</p>
 			<p>
-				To enable this feature, connect your GitHub account with
-				WordPress Playground.
+				{__(
+					'To enable this feature, connect your GitHub account with WordPress Playground.',
+					'playground-website'
+				)}
 			</p>
 			{mayLoseProgress ? (
 				<>
 					<p>
-						<b>You will lose your progress.</b> Your Playground is
-						temporary and the authentication flow will redirect you
-						to GitHub and erase all your changes. Be sure to export
-						your Playground to a zip file before proceeding.
+						<b>
+							{__(
+								'You will lose your progress.',
+								'playground-website'
+							)}
+						</b>{' '}
+						{__(
+							'Your Playground is temporary and the authentication flow will redirect you to GitHub and erase all your changes. Be sure to export your Playground to a zip file before proceeding.',
+							'playground-website'
+						)}
 					</p>
 					<label style={{ cursor: 'pointer' }}>
 						<input
@@ -112,14 +123,19 @@ function Authenticate({
 							checked={exported}
 							onChange={() => setExported(!exported)}
 						/>
-						I understand, and I have exported my Playground as a zip
-						if needed.
+						{__(
+							'I understand, and I have exported my Playground as a zip if needed.',
+							'playground-website'
+						)}
 					</label>
 				</>
 			) : null}
 			<p>
 				<a
-					aria-label="Connect your GitHub account"
+					aria-label={__(
+						'Connect your GitHub account',
+						'playground-website'
+					)}
 					className={buttonClass}
 					href={authenticateUrl}
 					onClick={(e) => {
@@ -129,12 +145,14 @@ function Authenticate({
 					}}
 				>
 					<Icon icon={GitHubIcon} />
-					Connect your GitHub account
+					{__('Connect your GitHub account', 'playground-website')}
 				</a>
 			</p>
 			<p>
-				Your access token is not stored anywhere, which means you'll
-				have to re-authenticate after every page refresh.
+				{__(
+					"Your access token is not stored anywhere, which means you'll have to re-authenticate after every page refresh.",
+					'playground-website'
+				)}
 			</p>
 		</div>
 	);

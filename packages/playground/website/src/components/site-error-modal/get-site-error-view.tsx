@@ -1,5 +1,7 @@
 import React from 'react';
 import { Button } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
 import css from './style.module.css';
 import type { SiteError } from '../../lib/state/redux/slice-ui';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
@@ -70,26 +72,43 @@ export function getSiteErrorView(
 
 function directoryHandlePermissionsExpiredView(): SiteErrorViewConfig {
 	return {
-		title: 'Local directory permissions expired',
+		title: __('Local directory permissions expired', 'playground-website'),
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					The browser no longer lets Playground access your previously
-					shared local directory.
+					{__(
+						'The browser no longer lets Playground access your previously shared local directory.',
+						'playground-website'
+					)}
 				</p>
 				<ul className={css.errorList}>
-					<li>Re-selecting the directory is not supported yet.</li>
 					<li>
-						Need urgent access? Let us know on{' '}
-						<a
-							target="_blank"
-							rel="noopener noreferrer"
-							href="https://github.com/WordPress/wordpress-playground/issues/1746"
-						>
-							GitHub
-						</a>
-						.
+						{__(
+							'Re-selecting the directory is not supported yet.',
+							'playground-website'
+						)}
+					</li>
+					<li>
+						{createInterpolateElement(
+							__(
+								'Need urgent access? Let us know on <githubLink>GitHub</githubLink>.',
+								'playground-website'
+							),
+							{
+								githubLink: (
+									<a
+										aria-label={__(
+											'GitHub',
+											'playground-website'
+										)}
+										target="_blank"
+										rel="noopener noreferrer"
+										href="https://github.com/WordPress/wordpress-playground/issues/1746"
+									/>
+								),
+							}
+						)}
 					</li>
 				</ul>
 			</>
@@ -101,12 +120,14 @@ function directoryHandlePermissionsExpiredView(): SiteErrorViewConfig {
 
 function directoryHandleDeletedView(): SiteErrorViewConfig {
 	return {
-		title: 'Local directory was deleted',
+		title: __('Local directory was deleted', 'playground-website'),
 		isDeveloperError: false,
 		body: (
 			<p className={css.errorLead}>
-				It seems like the local directory backing this site was removed.
-				This Playground copy will not load anymore.
+				{__(
+					'It seems like the local directory backing this site was removed. This Playground copy will not load anymore.',
+					'playground-website'
+				)}
 			</p>
 		),
 		actions: [],
@@ -118,12 +139,14 @@ function githubArtifactExpiredView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'This GitHub artifact expired',
+		title: __('This GitHub artifact expired', 'playground-website'),
 		isDeveloperError: false,
 		body: (
 			<p className={css.errorLead}>
-				GitHub only keeps pull-request build artifacts for a limited
-				time. Re-run the workflow or restart without that PR.
+				{__(
+					'GitHub only keeps pull-request build artifacts for a limited time. Re-run the workflow or restart without that PR.',
+					'playground-website'
+				)}
 			</p>
 		),
 		actions: [
@@ -132,7 +155,7 @@ function githubArtifactExpiredView({
 				key="restart-pr"
 				onClick={helpers.restartWithoutPr}
 			>
-				Restart without that PR
+				{__('Restart without that PR', 'playground-website')}
 			</Button>,
 		],
 		detailSummaryOverride: undefined,
@@ -145,20 +168,23 @@ function blueprintFetchFailedView({
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	const blueprintUrl = getBlueprintSourceUrl(site);
 	return {
-		title: 'Blueprint could not be loaded',
+		title: __('Blueprint could not be loaded', 'playground-website'),
 		isDeveloperError: true,
-		detailSummaryOverride: 'Network error details',
+		detailSummaryOverride: __(
+			'Network error details',
+			'playground-website'
+		),
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground couldn’t download the Blueprint file. Make sure
-					the file is reachable, responds with valid JSON or a
-					blueprint.zip archive, and is still available at the link
-					before trying again.
+					{__(
+						"Playground couldn't download the Blueprint file. Make sure the file is reachable, responds with valid JSON or a blueprint.zip archive, and is still available at the link before trying again.",
+						'playground-website'
+					)}
 				</p>
 				{blueprintUrl ? (
 					<p>
-						Blueprint URL:{' '}
+						{__('Blueprint URL:', 'playground-website')}{' '}
 						<a
 							className={css.errorLink}
 							href={blueprintUrl}
@@ -175,7 +201,10 @@ function blueprintFetchFailedView({
 						rel="noopener noreferrer"
 						href="https://wordpress.github.io/wordpress-playground/blueprints/troubleshoot-and-debug"
 					>
-						Troubleshoot Blueprint loading issues ↗
+						{__(
+							'Troubleshoot Blueprint loading issues',
+							'playground-website'
+						)}
 					</a>
 				</p>
 			</>
@@ -186,7 +215,7 @@ function blueprintFetchFailedView({
 				key="start-without-blueprint"
 				onClick={helpers.reloadWithoutBlueprint}
 			>
-				Start without a Blueprint
+				{__('Start without a Blueprint', 'playground-website')}
 			</Button>,
 		],
 	};
@@ -196,24 +225,40 @@ function blueprintFilesystemRequiredView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Bundled resources used outside of a Blueprint bundle',
+		title: __(
+			'Bundled resources used outside of a Blueprint bundle',
+			'playground-website'
+		),
 		isDeveloperError: true,
-		detailSummaryOverride: 'Resource loader details',
+		detailSummaryOverride: __(
+			'Resource loader details',
+			'playground-website'
+		),
 		body: (
 			<>
 				<p className={css.errorLead}>
-					This Blueprint references bundled files via{' '}
-					<code>"resource": "bundled"</code>, but it was loaded as a
-					standalone JSON file.
+					{__(
+						'This Blueprint references bundled files via',
+						'playground-website'
+					)}{' '}
+					<code>"resource": "bundled"</code>,{' '}
+					{__(
+						'but it was loaded as a standalone JSON file.',
+						'playground-website'
+					)}
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						Ensure you are loading a Blueprint bundle (e.g. a
-						blueprint.zip file or a URL).
+						{__(
+							'Ensure you are loading a Blueprint bundle (for example, a blueprint.zip file or a URL).',
+							'playground-website'
+						)}
 					</li>
 					<li>
-						Confirm that referenced files exist next to the
-						blueprint.json file inside the bundle.
+						{__(
+							'Confirm that referenced files exist next to the blueprint.json file inside the bundle.',
+							'playground-website'
+						)}
 					</li>
 				</ul>
 				<p>
@@ -222,7 +267,10 @@ function blueprintFilesystemRequiredView({
 						rel="noopener noreferrer"
 						href="https://wordpress.github.io/wordpress-playground/blueprints/bundles"
 					>
-						Learn how Blueprint Bundles work ↗
+						{__(
+							'Learn how Blueprint Bundles work',
+							'playground-website'
+						)}
 					</a>
 				</p>
 			</>
@@ -233,7 +281,7 @@ function blueprintFilesystemRequiredView({
 				key="start-without-blueprint-invalid"
 				onClick={helpers.reloadWithoutBlueprint}
 			>
-				Start without a Blueprint
+				{__('Start without a Blueprint', 'playground-website')}
 			</Button>,
 		],
 	};
@@ -243,14 +291,16 @@ function blueprintValidationFailedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Blueprint validation error',
+		title: __('Blueprint validation error', 'playground-website'),
 		isDeveloperError: true,
-		detailSummaryOverride: 'Validation output',
+		detailSummaryOverride: __('Validation output', 'playground-website'),
 		body: (
 			<>
 				<p className={css.errorLead}>
-					The Blueprint does not conform to the required JSON schema.
-					Fix the validation output and retry.
+					{__(
+						'The Blueprint does not conform to the required JSON schema. Fix the validation output and retry.',
+						'playground-website'
+					)}
 				</p>
 				<p>
 					<a
@@ -258,7 +308,10 @@ function blueprintValidationFailedView({
 						rel="noopener noreferrer"
 						href="https://wordpress.github.io/wordpress-playground/blueprints/data-format"
 					>
-						Review the Blueprint data format ↗
+						{__(
+							'Review the Blueprint data format',
+							'playground-website'
+						)}
 					</a>
 				</p>
 			</>
@@ -269,7 +322,7 @@ function blueprintValidationFailedView({
 				key="start-without-blueprint-invalid"
 				onClick={helpers.reloadWithoutBlueprint}
 			>
-				Start without a Blueprint
+				{__('Start without a Blueprint', 'playground-website')}
 			</Button>,
 		],
 	};
@@ -277,13 +330,18 @@ function blueprintValidationFailedView({
 
 function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
 	return {
-		title: 'The local directory became unavailable',
+		title: __(
+			'The local directory became unavailable',
+			'playground-website'
+		),
 		isDeveloperError: false,
 		detailSummaryOverride: undefined,
 		body: (
 			<p className={css.errorLead}>
-				The browser could no longer access your local directory handle.
-				Re-importing the folder will be necessary to continue.
+				{__(
+					'The browser could no longer access your local directory handle. Re-importing the folder will be necessary to continue.',
+					'playground-website'
+				)}
 			</p>
 		),
 		actions: [],
@@ -360,46 +418,72 @@ function networkFirewallInterferenceView({
 	}
 
 	return {
-		title: 'Network blocked this request',
+		title: __('Network blocked this request', 'playground-website'),
 		isDeveloperError: false,
 		hideReportButton: true,
-		detailSummaryOverride: 'Technical details',
+		detailSummaryOverride: __('Technical details', 'playground-website'),
 		body: (
 			<>
 				<p>
 					<strong style={{ fontWeight: 'bold' }}>
-						Playground couldn't download a file
-						{effectiveTargetHost && (
-							<>
-								{' '}
-								from <code>{effectiveTargetHost}</code>
-							</>
-						)}
-						.
+						{effectiveTargetHost
+							? createInterpolateElement(
+									sprintf(
+										__(
+											"Playground couldn't download a file from <host>%s</host>.",
+											'playground-website'
+										),
+										effectiveTargetHost
+									),
+									{
+										host: <code />,
+									}
+								)
+							: __(
+									"Playground couldn't download a file.",
+									'playground-website'
+								)}
 					</strong>{' '}
-					Your network appears to be blocking the request.
+					{__(
+						'Your network appears to be blocking the request.',
+						'playground-website'
+					)}
 				</p>
 
 				<p>
-					Playground runs entirely in your browser. To download
-					plugins, themes, and other files, it routes requests through
-					a CORS proxy server
-					{corsProxyHost && (
-						<>
-							{' '}
-							at <code>{corsProxyHost}</code>
-						</>
-					)}
-					. Your network seems to be blocking this proxy — a common
-					issue on school, university, and corporate networks.
+					{corsProxyHost
+						? createInterpolateElement(
+								sprintf(
+									__(
+										'Playground runs entirely in your browser. To download plugins, themes, and other files, it routes requests through a CORS proxy server at <host>%s</host>. Your network seems to be blocking this proxy, a common issue on school, university, and corporate networks.',
+										'playground-website'
+									),
+									corsProxyHost
+								),
+								{
+									host: <code />,
+								}
+							)
+						: __(
+								'Playground runs entirely in your browser. To download plugins, themes, and other files, it routes requests through a CORS proxy server. Your network seems to be blocking this proxy, a common issue on school, university, and corporate networks.',
+								'playground-website'
+							)}
 				</p>
 
 				<p>
 					<strong style={{ fontWeight: 'bold' }}>
-						Verify this is a network issue
+						{__(
+							'Verify this is a network issue',
+							'playground-website'
+						)}
 					</strong>
 				</p>
-				<p>Try opening this link in a new browser tab:</p>
+				<p>
+					{__(
+						'Try opening this link in a new browser tab:',
+						'playground-website'
+					)}
+				</p>
 				<p>
 					<a href={testUrl} target="_blank" rel="noopener noreferrer">
 						{testUrl}
@@ -409,40 +493,58 @@ function networkFirewallInterferenceView({
 				<ul className={css.errorList}>
 					<li>
 						<strong style={{ fontWeight: 'bold' }}>
-							Link fails to load?
+							{__('Link fails to load?', 'playground-website')}
 						</strong>{' '}
-						Your network is blocking the proxy. Try a different
-						network (mobile data, personal Wi-Fi), use a VPN, or
-						contact your IT administrator.
+						{__(
+							'Your network is blocking the proxy. Try a different network (mobile data, personal Wi-Fi), use a VPN, or contact your IT administrator.',
+							'playground-website'
+						)}
 					</li>
 					<li>
 						<strong style={{ fontWeight: 'bold' }}>
-							Link works fine?
+							{__('Link works fine?', 'playground-website')}
 						</strong>{' '}
-						This might be a bug in Playground. Please{' '}
-						<a
-							href="https://github.com/WordPress/wordpress-playground/issues/new"
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							open an issue on GitHub
-						</a>{' '}
-						so we can investigate.
+						{createInterpolateElement(
+							__(
+								'This might be a bug in Playground. Please <githubIssueLink>open an issue on GitHub</githubIssueLink> so we can investigate.',
+								'playground-website'
+							),
+							{
+								githubIssueLink: (
+									<a
+										aria-label={__(
+											'open an issue on GitHub',
+											'playground-website'
+										)}
+										href="https://github.com/WordPress/wordpress-playground/issues/new"
+										target="_blank"
+										rel="noopener noreferrer"
+									/>
+								),
+							}
+						)}
 					</li>
 				</ul>
 
 				<p>
 					<strong style={{ fontWeight: 'bold' }}>
-						For IT administrators
+						{__('For IT administrators', 'playground-website')}
 					</strong>
 				</p>
 				<p>
-					Allow outbound HTTPS requests to{' '}
-					<code>{corsProxyHost || 'the CORS proxy domain'}</code>
+					{__(
+						'Allow outbound HTTPS requests to',
+						'playground-website'
+					)}{' '}
+					<code>
+						{corsProxyHost ||
+							__('the CORS proxy domain', 'playground-website')}
+					</code>
 					{window.location.hostname !== corsProxyHost && (
 						<>
 							{' '}
-							and <code>{window.location.hostname}</code>
+							{__('and', 'playground-website')}{' '}
+							<code>{window.location.hostname}</code>
 						</>
 					)}
 					.
@@ -455,14 +557,14 @@ function networkFirewallInterferenceView({
 				key="retry"
 				onClick={() => window.location.reload()}
 			>
-				Retry
+				{__('Retry', 'playground-website')}
 			</Button>,
 			<Button
 				variant="primary"
 				key="start-without-blueprint"
 				onClick={helpers.reloadWithoutBlueprint}
 			>
-				Start without a Blueprint
+				{__('Start without a Blueprint', 'playground-website')}
 			</Button>,
 		],
 	};
@@ -470,25 +572,37 @@ function networkFirewallInterferenceView({
 
 function resourceDownloadFailedView(): SiteErrorViewConfig {
 	return {
-		title: 'Could not download required files',
+		title: __('Could not download required files', 'playground-website'),
 		isDeveloperError: false,
 		hideReportButton: true,
 		hideTroubleshootWithAiButton: true,
-		detailSummaryOverride: 'Technical details',
+		detailSummaryOverride: __('Technical details', 'playground-website'),
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground could not download one or more files it needs to
-					run. This is usually caused by a network problem.
+					{__(
+						'Playground could not download one or more files it needs to run. This is usually caused by a network problem.',
+						'playground-website'
+					)}
 				</p>
 				<ul className={css.errorList}>
-					<li>Check your internet connection and try again.</li>
 					<li>
-						A firewall, proxy, or VPN may be blocking the download.
+						{__(
+							'Check your internet connection and try again.',
+							'playground-website'
+						)}
 					</li>
 					<li>
-						Browser extensions such as ad blockers can sometimes
-						interfere with downloads.
+						{__(
+							'A firewall, proxy, or VPN may be blocking the download.',
+							'playground-website'
+						)}
+					</li>
+					<li>
+						{__(
+							'Browser extensions such as ad blockers can sometimes interfere with downloads.',
+							'playground-website'
+						)}
 					</li>
 				</ul>
 			</>
@@ -499,7 +613,7 @@ function resourceDownloadFailedView(): SiteErrorViewConfig {
 				key="reload"
 				onClick={() => window.location.reload()}
 			>
-				Reload page
+				{__('Reload page', 'playground-website')}
 			</Button>,
 		],
 	};
@@ -520,13 +634,15 @@ function genericSiteBootFailedView({
 	}
 
 	return {
-		title: 'Playground crashed',
+		title: __('Playground crashed', 'playground-website'),
 		isDeveloperError: false,
 		detailSummaryOverride: undefined,
 		body: (
 			<p className={css.errorLead}>
-				Something unexpected interrupted the boot process. Reload the
-				tab or spin up a new site.
+				{__(
+					'Something unexpected interrupted the boot process. Reload the tab or spin up a new site.',
+					'playground-website'
+				)}
 			</p>
 		),
 		actions: [
@@ -535,7 +651,7 @@ function genericSiteBootFailedView({
 				key="reload-tab"
 				onClick={helpers.reloadWithoutBlueprint}
 			>
-				Reload Fresh Playground
+				{__('Reload Fresh Playground', 'playground-website')}
 			</Button>,
 		],
 	};
@@ -546,18 +662,24 @@ function blueprintStepExecutionView({
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	if (!blueprintStepError) {
 		return {
-			title: 'Blueprint execution failed',
+			title: __('Blueprint execution failed', 'playground-website'),
 			isDeveloperError: true,
-			detailSummaryOverride: 'Blueprint error details',
+			detailSummaryOverride: __(
+				'Blueprint error details',
+				'playground-website'
+			),
 			body: null,
 			actions: [],
 		};
 	}
 
 	return {
-		title: 'Blueprint execution failed',
+		title: __('Blueprint execution failed', 'playground-website'),
 		isDeveloperError: true,
-		detailSummaryOverride: 'Blueprint error details',
+		detailSummaryOverride: __(
+			'Blueprint error details',
+			'playground-website'
+		),
 		body: <BlueprintStepErrorDetails stepError={blueprintStepError} />,
 		actions: [
 			// Default action is handled by the generic reload button in the footer.

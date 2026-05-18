@@ -1,4 +1,5 @@
 import { MenuItem } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
@@ -11,14 +12,14 @@ export function GutenbergPRMenuItem({ onClose, disabled }: Props) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 	return (
 		<MenuItem
-			aria-label="Preview Gutenberg PR."
+			aria-label={__('Preview Gutenberg PR', 'playground-website')}
 			disabled={disabled}
 			onClick={() => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
 				onClose();
 			}}
 		>
-			Gutenberg PR
+			{__('Gutenberg PR', 'playground-website')}
 		</MenuItem>
 	);
 }
