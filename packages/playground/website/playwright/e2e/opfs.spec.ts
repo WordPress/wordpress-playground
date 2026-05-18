@@ -99,8 +99,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// The unsaved row creates a fresh default Playground. Since Playgrounds
-	// are saved by default, it should switch to a new saved site.
+	// The unsaved row is an explicit opt-out from saved-by-default.
 	await website.page
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: 'Unsaved Playground' })
@@ -110,8 +109,11 @@ test('should switch between sites', async ({ website, browserName }) => {
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
 		firstSiteName
 	);
-	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+	await expect(website.page.getByLabel('Playground title')).toContainText(
 		'Unsaved Playground'
+	);
+	expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
+		'temp'
 	);
 
 	await website.openSavedPlaygroundsOverlay();

@@ -621,6 +621,32 @@ test.describe('Default Playground storage', () => {
 		);
 	});
 
+	test('should start an unsaved Playground from the overlay opt-out', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto('./');
+		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.locator('[class*="siteRowContent"]')
+			.filter({ hasText: 'Unsaved Playground' })
+			.click();
+		await website.waitForNestedIframes();
+		await website.ensureSiteManagerIsClosed();
+
+		const url = new URL(website.page.url());
+		expect(url.searchParams.get('storage')).toBe('temp');
+		expect(url.searchParams.get('site-slug')).toBe(null);
+		await expect(
+			website.page.getByText('Unsaved Playground')
+		).toBeVisible();
+	});
+
 	test('should show browser storage details in the Site Manager by default', async ({
 		website,
 		browserName,

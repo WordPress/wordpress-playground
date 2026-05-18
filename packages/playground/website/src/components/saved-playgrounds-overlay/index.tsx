@@ -233,7 +233,9 @@ export function SavedPlaygroundsOverlay({
 			dispatch(setSiteManagerSection('site-details'));
 			onClose();
 		} else {
-			createVanillaSite();
+			dispatch(setSiteManagerOpen(false));
+			redirectTo(PlaygroundRoute.newTemporarySite());
+			onClose();
 		}
 	};
 

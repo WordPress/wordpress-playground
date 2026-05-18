@@ -17,7 +17,7 @@ import {
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
-import { setupPostMessageRelay } from '@php-wasm/web';
+import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
@@ -157,6 +157,20 @@ export function bootSiteClient(
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
 
+		const shouldSyncNewOpfsSiteInBackground =
+			site.metadata.storage === 'opfs' &&
+			!!mountDescriptor &&
+			!isWordPressInstalled;
+		const mounts =
+			mountDescriptor && !shouldSyncNewOpfsSiteInBackground
+				? [
+						{
+							...mountDescriptor,
+							initialSyncDirection: 'opfs-to-memfs' as const,
+						},
+					]
+				: [];
+
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
 			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
@@ -183,14 +197,7 @@ export function bootSiteClient(
 				},
 				// Log Blueprint events
 				onBlueprintValidated: logBlueprintEvents,
-				mounts: mountDescriptor
-					? [
-							{
-								...mountDescriptor,
-								initialSyncDirection: 'opfs-to-memfs',
-							},
-						]
-					: [],
+				mounts,
 				shouldInstallWordPress: blueprintRequestedNoWordPress
 					? false
 					: !isWordPressInstalled,
@@ -291,6 +298,7 @@ export function bootSiteClient(
 		if (signal.aborted || !playground) {
 			return;
 		}
+		const connectedPlayground = playground as PlaygroundClient;
 
 		setupPostMessageRelay(iframe, document.location.origin);
 
@@ -298,12 +306,69 @@ export function bootSiteClient(
 			addClientInfo({
 				siteSlug: site.slug,
 				url: '/',
-				client: playground,
+				client: connectedPlayground,
 				opfsMountDescriptor: mountDescriptor,
 			})
 		);
 
-		(playground as PlaygroundClient).onNavigation((url) => {
+		if (shouldSyncNewOpfsSiteInBackground && mountDescriptor) {
+			dispatch(
+				updateClientInfo({
+					siteSlug: site.slug,
+					changes: {
+						opfsSync: { status: 'syncing' },
+					},
+				})
+			);
+			void connectedPlayground
+				.mountOpfs(
+					{
+						...mountDescriptor,
+						initialSyncDirection: 'memfs-to-opfs',
+					},
+					(progress: SyncProgress) => {
+						dispatch(
+							updateClientInfo({
+								siteSlug: site.slug,
+								changes: {
+									opfsSync: {
+										status: 'syncing',
+										progress,
+									},
+								},
+							})
+						);
+					}
+				)
+				.then(() => {
+					dispatch(
+						updateClientInfo({
+							siteSlug: site.slug,
+							changes: {
+								opfsSync: undefined,
+							},
+						})
+					);
+				})
+				.catch((error: unknown) => {
+					logger.error(
+						'Error syncing saved Playground to OPFS',
+						error
+					);
+					dispatch(
+						updateClientInfo({
+							siteSlug: site.slug,
+							changes: {
+								opfsSync: {
+									status: 'error',
+								},
+							},
+						})
+					);
+				});
+		}
+
+		connectedPlayground.onNavigation((url) => {
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
