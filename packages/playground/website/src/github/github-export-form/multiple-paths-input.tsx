@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { __ } from '@wordpress/i18n';
 import css from './style.module.css';
 import Button from '../../components/button';
 
@@ -67,7 +68,7 @@ const MultiplePathsInput: React.FC<MultiplePathsInputProps> = ({
 				onClick={handleAddPath}
 				className={css.multipleInputsAddButton}
 			>
-				+ Add path
+				{__('+ Add path', 'playground-website')}
 			</Button>
 		</div>
 	);

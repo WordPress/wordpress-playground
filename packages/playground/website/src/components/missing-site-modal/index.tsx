@@ -1,4 +1,5 @@
 import { Button, Flex, FlexItem } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { Modal } from '../modal';
 import { SitePersistButton } from '../site-manager/site-persist-button';
 import {
@@ -30,21 +31,29 @@ export function MissingSiteModal() {
 	// TODO: Improve language for this modal
 	return (
 		<Modal
-			title="Save to browser storage?"
-			contentLabel="This is a dialog window which overlays the main content of the
-				page. It offers the user a choice between using an Unsaved Playground
-				and a persistent Playground that is saved to browser storage."
+			title={__('Save to browser storage?', 'playground-website')}
+			contentLabel={__(
+				'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
+				'playground-website'
+			)}
 			isDismissible={false}
 			shouldCloseOnClickOutside={false}
 			onRequestClose={closeModal}
 		>
 			<p>
-				The <b>{activeSite.metadata.name}</b> Playground does not exist,
-				so we loaded an Unsaved Playground instead.
+				{sprintf(
+					__(
+						'The %s Playground does not exist, so we loaded an Unsaved Playground instead.',
+						'playground-website'
+					),
+					activeSite.metadata.name
+				)}
 			</p>
 			<p>
-				If you want to preserve your changes, you can save the
-				Playground to browser storage.
+				{__(
+					'If you want to preserve your changes, you can save the Playground to browser storage.',
+					'playground-website'
+				)}
 			</p>
 			{/* Note: We are using row-reverse direction so the secondary
 				button can display first in row orientation and last when
@@ -66,7 +75,10 @@ export function MissingSiteModal() {
 						storage="opfs"
 					>
 						<Button variant="primary">
-							Save Playground to browser storage
+							{__(
+								'Save Playground to browser storage',
+								'playground-website'
+							)}
 						</Button>
 					</SitePersistButton>
 				</FlexItem>
@@ -83,7 +95,10 @@ export function MissingSiteModal() {
 							closeModal();
 						}}
 					>
-						Keep using an Unsaved Playground
+						{__(
+							'Keep using an Unsaved Playground',
+							'playground-website'
+						)}
 					</Button>
 				</FlexItem>
 			</Flex>

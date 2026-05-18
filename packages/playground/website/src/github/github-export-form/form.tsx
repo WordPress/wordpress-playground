@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import type { PlaygroundClient } from '@wp-playground/client';
 import {
 	getLegacyPlaygroundRuntimeWpContentPaths,
@@ -59,12 +60,14 @@ export function asPullRequestAction(value: any): PullRequestAction | undefined {
 	return 'create';
 }
 
-const NO_CHANGES_TO_EXPORT_MESSAGE =
-	'There are no changes to export. Make an edit in the Playground before exporting to GitHub.';
-
 class NoChangesToExportError extends Error {
 	constructor() {
-		super(NO_CHANGES_TO_EXPORT_MESSAGE);
+		super(
+			__(
+				'There are no changes to export. Make an edit in the Playground before exporting to GitHub.',
+				'playground-website'
+			)
+		);
 		this.name = 'NoChangesToExportError';
 	}
 }
@@ -97,7 +100,10 @@ export default function GitHubExportForm({
 		repoUrl: '',
 		prNumber: '',
 		prAction: 'create',
-		commitMessage: 'Changes from WordPress Playground',
+		commitMessage: __(
+			'Changes from WordPress Playground',
+			'playground-website'
+		),
 		relativeExportPaths: ['/'],
 		toPathInRepo: '/',
 		fromPlaygroundRoot: '/wordpress',
@@ -202,26 +208,38 @@ export default function GitHubExportForm({
 
 		const url = formValues.repoUrl?.trim();
 		if (!url) {
-			setError('repoUrl', 'Please enter a URL');
+			setError('repoUrl', __('Please enter a URL', 'playground-website'));
 			return;
 		}
 		if (!formValues.contentType) {
-			setError('contentType', 'Specify what you want to export');
+			setError(
+				'contentType',
+				__('Specify what you want to export', 'playground-website')
+			);
 			return;
 		}
 		if (formValues.contentType === 'theme' && !formValues.theme) {
-			setError('theme', 'Specify the theme to export');
+			setError(
+				'theme',
+				__('Specify the theme to export', 'playground-website')
+			);
 			return;
 		}
 		if (formValues.contentType === 'plugin' && !formValues.plugin) {
-			setError('plugin', 'Specify the plugin to export');
+			setError(
+				'plugin',
+				__('Specify the plugin to export', 'playground-website')
+			);
 			return;
 		}
 		if (URLNeedsAnalyzing) {
 			const analyzed = staticAnalyzeGitHubURL(formValues.repoUrl);
 			let { type, owner, repo, path, pr } = analyzed;
 			if (!['pr', 'branch', 'repo'].includes(type)) {
-				setError('repoUrl', 'This URL is not supported');
+				setError(
+					'repoUrl',
+					__('This URL is not supported', 'playground-website')
+				);
 				return;
 			}
 			if (type === 'branch') {
@@ -239,7 +257,10 @@ export default function GitHubExportForm({
 					}
 					setError(
 						'repoUrl',
-						'Could not analyze this GitHub branch URL. Please paste the repository URL and enter the path manually.'
+						__(
+							'Could not analyze this GitHub branch URL. Please paste the repository URL and enter the path manually.',
+							'playground-website'
+						)
 					);
 					return;
 				}
@@ -270,15 +291,24 @@ export default function GitHubExportForm({
 			return;
 		}
 		if (!formValues.prAction) {
-			setError('prAction', 'Please select an option');
+			setError(
+				'prAction',
+				__('Please select an option', 'playground-website')
+			);
 			return;
 		}
 		if (formValues.prAction === 'update' && !formValues.prNumber) {
-			setError('prNumber', 'Please enter a PR number');
+			setError(
+				'prNumber',
+				__('Please enter a PR number', 'playground-website')
+			);
 			return;
 		}
 		if (!formValues.commitMessage) {
-			setError('commitMessage', 'Specify a commit message');
+			setError(
+				'commitMessage',
+				__('Specify a commit message', 'playground-website')
+			);
 			return;
 		}
 
@@ -308,7 +338,10 @@ export default function GitHubExportForm({
 				});
 				if (!pullRequest.head.repo) {
 					throw new Error(
-						'Cannot update this pull request because its source repository is unavailable.'
+						__(
+							'Cannot update this pull request because its source repository is unavailable.',
+							'playground-website'
+						)
 					);
 				}
 				// Updating a PR must diff against its head, not the target branch.
@@ -342,24 +375,36 @@ export default function GitHubExportForm({
 			if (formValues.contentType === 'wp-content') {
 				fromPlaygroundRoot = docroot;
 				relativeExportPaths = ['/wp-content'];
-				prTitle = 'Update wp-content';
+				prTitle = __('Update wp-content', 'playground-website');
 			} else if (formValues.contentType === 'theme') {
 				fromPlaygroundRoot = `${docroot}/wp-content/themes/${formValues.theme}`;
 				relativeExportPaths = [`./`];
-				prTitle = `Update theme ${formValues.theme}`;
+				prTitle = sprintf(
+					/* translators: %s: Theme directory name. */
+					__('Update theme %s', 'playground-website'),
+					formValues.theme
+				);
 			} else if (formValues.contentType === 'plugin') {
 				fromPlaygroundRoot = `${docroot}/wp-content/plugins/${formValues.plugin}`;
 				relativeExportPaths = [`./`];
-				prTitle = `Update plugin ${formValues.plugin}`;
+				prTitle = sprintf(
+					/* translators: %s: Plugin directory name. */
+					__('Update plugin %s', 'playground-website'),
+					formValues.plugin
+				);
 			} else if (formValues.contentType === 'custom-paths') {
 				fromPlaygroundRoot = formValues.fromPlaygroundRoot;
 				relativeExportPaths = formValues.relativeExportPaths
 					.map((path) => path.replace(/^\//g, ''))
 					.filter(Boolean);
-				prTitle = `Update wp-content`;
+				prTitle = __('Update wp-content', 'playground-website');
 			} else {
 				throw new Error(
-					`Unknown content type ${formValues.contentType}`
+					sprintf(
+						/* translators: %s: Unrecognized export content type value. */
+						__('Unknown content type %s', 'playground-website'),
+						formValues.contentType
+					)
 				);
 			}
 
@@ -456,7 +501,14 @@ export default function GitHubExportForm({
 			eMessage = eMessage ? `(${eMessage})` : '';
 			setError(
 				'repoUrl',
-				`There was an unexpected error ${eMessage}, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.`
+				sprintf(
+					/* translators: %s: Optional error message in parentheses. */
+					__(
+						'There was an unexpected error %s, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.',
+						'playground-website'
+					),
+					eMessage
+				)
 			);
 			throw e;
 		} finally {
@@ -472,12 +524,15 @@ export default function GitHubExportForm({
 				onSubmit={handleSubmit}
 			>
 				<h2>
-					Pull Request{' '}
-					{formValues.prAction === 'create' ? 'created' : 'updated'}!
+					{formValues.prAction === 'create'
+						? __('Pull Request created!', 'playground-website')
+						: __('Pull Request updated!', 'playground-website')}
 				</h2>
 				<p>
-					Your changes have been submitted to GitHub. You can view
-					them here:{' '}
+					{__(
+						'Your changes have been submitted to GitHub. You can view them here:',
+						'playground-website'
+					)}{' '}
 					<a
 						href={pushResult.url}
 						target="_blank"
@@ -489,10 +544,10 @@ export default function GitHubExportForm({
 
 				{pushResult.forked && (
 					<p>
-						Because of access restrictions set by your organization,
-						these changes could not be submitted directly to the
-						repository. Instead, they were submitted to your fork of
-						the repository.
+						{__(
+							'Because of access restrictions set by your organization, these changes could not be submitted directly to the repository. Instead, they were submitted to your fork of the repository.',
+							'playground-website'
+						)}
 					</p>
 				)}
 
@@ -503,7 +558,7 @@ export default function GitHubExportForm({
 						size="large"
 						onClick={onClose}
 					>
-						Done
+						{__('Done', 'playground-website')}
 					</Button>
 				</div>
 			</form>
@@ -511,21 +566,27 @@ export default function GitHubExportForm({
 	}
 
 	return (
-		<GitHubOAuthGuard intro="Export plugins, themes, or a wp-content directory to a GitHub repository.">
+		<GitHubOAuthGuard
+			intro={__(
+				'Export plugins, themes, or a wp-content directory to a GitHub repository.',
+				'playground-website'
+			)}
+		>
 			<form
 				id="export-playground-form"
 				className={className}
 				onSubmit={handleSubmit}
 			>
 				<p>
-					You may export WordPress plugins, themes, and entire
-					wp-content directories as pull requests to any public GitHub
-					repository.
+					{__(
+						'You may export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository.',
+						'playground-website'
+					)}
 				</p>
 
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
-						I am exporting:
+						{__('I am exporting:', 'playground-website')}
 						<select
 							className={css.repoInput}
 							value={formValues.contentType}
@@ -536,13 +597,27 @@ export default function GitHubExportForm({
 								)
 							}
 						>
-							<option value="">-- Select an option --</option>
-							<option value="theme">A theme</option>
-							<option value="plugin">A plugin</option>
-							<option value="wp-content">
-								wp-content directory
+							<option value="">
+								{__(
+									'-- Select an option --',
+									'playground-website'
+								)}
 							</option>
-							<option value="custom-paths">Specific paths</option>
+							<option value="theme">
+								{__('A theme', 'playground-website')}
+							</option>
+							<option value="plugin">
+								{__('A plugin', 'playground-website')}
+							</option>
+							<option value="wp-content">
+								{__(
+									'wp-content directory',
+									'playground-website'
+								)}
+							</option>
+							<option value="custom-paths">
+								{__('Specific paths', 'playground-website')}
+							</option>
 						</select>
 					</label>
 					{errors.contentType && (
@@ -556,7 +631,10 @@ export default function GitHubExportForm({
 						>
 							<div className={`${css.pathMappingGroup}`}>
 								<label>
-									From Playground path
+									{__(
+										'From Playground path',
+										'playground-website'
+									)}
 									<input
 										type="text"
 										value={formValues.fromPlaygroundRoot}
@@ -575,7 +653,10 @@ export default function GitHubExportForm({
 								</label>
 								<span className={css.pathMappingArrow}>➔</span>
 								<label>
-									To repository path
+									{__(
+										'To repository path',
+										'playground-website'
+									)}
 									<input
 										type="text"
 										className={css.repoInput}
@@ -604,7 +685,10 @@ export default function GitHubExportForm({
 							className={`${forms.formGroup} ${forms.formGroupLast}`}
 						>
 							<label>
-								Paths to export – relative to the path root
+								{__(
+									'Paths to export - relative to the path root',
+									'playground-website'
+								)}
 								<MultiplePathsInput
 									initialValue={
 										formValues.relativeExportPaths
@@ -627,7 +711,7 @@ export default function GitHubExportForm({
 						className={`${forms.formGroup} ${forms.formGroupLast}`}
 					>
 						<label>
-							Which theme?
+							{__('Which theme?', 'playground-website')}
 							<select
 								className={css.repoInput}
 								value={formValues.theme}
@@ -635,7 +719,12 @@ export default function GitHubExportForm({
 									setValue('theme', e.target.value)
 								}
 							>
-								<option value="">-- Select a theme --</option>
+								<option value="">
+									{__(
+										'-- Select a theme --',
+										'playground-website'
+									)}
+								</option>
 								{themes.map((theme) => (
 									<option key={theme} value={theme}>
 										{theme}
@@ -653,7 +742,7 @@ export default function GitHubExportForm({
 						className={`${forms.formGroup} ${forms.formGroupLast}`}
 					>
 						<label>
-							Which plugin?
+							{__('Which plugin?', 'playground-website')}
 							<select
 								className={css.repoInput}
 								value={formValues.plugin}
@@ -661,7 +750,12 @@ export default function GitHubExportForm({
 									setValue('plugin', e.target.value)
 								}
 							>
-								<option value="">-- Select a plugin --</option>
+								<option value="">
+									{__(
+										'-- Select a plugin --',
+										'playground-website'
+									)}
+								</option>
 								{plugins.map((plugin) => (
 									<option key={plugin} value={plugin}>
 										{plugin}
@@ -676,8 +770,10 @@ export default function GitHubExportForm({
 				) : null}
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
-						{' '}
-						I want my Pull Request to target this GitHub repo:
+						{__(
+							'I want my Pull Request to target this GitHub repo:',
+							'playground-website'
+						)}
 						<input
 							type="text"
 							value={formValues.repoUrl}
@@ -702,8 +798,10 @@ export default function GitHubExportForm({
 							className={`${forms.formGroup} ${forms.formGroupLast}`}
 						>
 							<label>
-								Do you want to update an existing PR or create a
-								new one?
+								{__(
+									'Do you want to update an existing PR or create a new one?',
+									'playground-website'
+								)}
 								<select
 									className={css.repoInput}
 									value={formValues.prAction}
@@ -715,10 +813,16 @@ export default function GitHubExportForm({
 									}
 								>
 									<option value="update">
-										Update an existing PR
+										{__(
+											'Update an existing PR',
+											'playground-website'
+										)}
 									</option>
 									<option value="create">
-										Create a new PR
+										{__(
+											'Create a new PR',
+											'playground-website'
+										)}
 									</option>
 								</select>
 							</label>
@@ -728,7 +832,10 @@ export default function GitHubExportForm({
 								className={`${forms.formGroup} ${forms.formGroupLast}`}
 							>
 								<label>
-									I want to update the PR number:
+									{__(
+										'I want to update the PR number:',
+										'playground-website'
+									)}
 									<input
 										type="text"
 										className={css.repoInput}
@@ -751,8 +858,10 @@ export default function GitHubExportForm({
 								className={`${forms.formGroup} ${forms.formGroupLast}`}
 							>
 								<label>
-									Enter the path in the repository where the
-									changes should be committed:
+									{__(
+										'Enter the path in the repository where the changes should be committed:',
+										'playground-website'
+									)}
 									<input
 										type="text"
 										className={css.repoInput}
@@ -778,7 +887,10 @@ export default function GitHubExportForm({
 									className={`${forms.formGroup} ${forms.formGroupLast}`}
 								>
 									<label>
-										Commit message:
+										{__(
+											'Commit message:',
+											'playground-website'
+										)}
 										<textarea
 											className={css.repoInput}
 											rows={4}
@@ -818,9 +930,10 @@ export default function GitHubExportForm({
 													)
 												}
 											/>
-											Also export the changes as a zip
-											file, so they can be imported into
-											another Playground instance.
+											{__(
+												'Also export the changes as a zip file, so they can be imported into another Playground instance.',
+												'playground-website'
+											)}
 										</label>
 									</div>
 								) : null}
@@ -839,20 +952,33 @@ export default function GitHubExportForm({
 							formValues.prAction === 'update' ? (
 								<>
 									<Spinner size={20} />
-									Updating the Pull Request
+									{__(
+										'Updating the Pull Request',
+										'playground-website'
+									)}
 								</>
 							) : (
 								<>
 									<Spinner size={20} />
-									Creating the Pull Request
+									{__(
+										'Creating the Pull Request',
+										'playground-website'
+									)}
 								</>
 							)
 						) : URLNeedsAnalyzing ? (
-							'Next step'
+							__('Next step', 'playground-website')
 						) : formValues.prAction === 'update' ? (
-							`Update Pull Request #${formValues.prNumber}`
+							sprintf(
+								/* translators: %s: GitHub Pull Request number. */
+								__(
+									'Update Pull Request #%s',
+									'playground-website'
+								),
+								formValues.prNumber
+							)
 						) : (
-							'Create Pull Request'
+							__('Create Pull Request', 'playground-website')
 						)}
 					</Button>
 				</div>
@@ -938,7 +1064,10 @@ export async function pushToGithub(
 			PR = data;
 			if (!PR.head.repo) {
 				throw new Error(
-					'Cannot update this pull request because its source repository is unavailable.'
+					__(
+						'Cannot update this pull request because its source repository is unavailable.',
+						'playground-website'
+					)
 				);
 			}
 			pushToOwner = PR.head.repo.owner.login;
@@ -947,7 +1076,10 @@ export async function pushToGithub(
 			pushToBranch = PR.head.ref;
 			if (!(await mayPush(octokit, pushToOwner, pushToRepo))) {
 				throw new Error(
-					"Cannot update this pull request because you don't have permission to push to its source branch. Create a new pull request instead."
+					__(
+						"Cannot update this pull request because you don't have permission to push to its source branch. Create a new pull request instead.",
+						'playground-website'
+					)
 				);
 			}
 		}

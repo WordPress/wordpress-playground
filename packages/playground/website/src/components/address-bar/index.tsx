@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Icon, Popover } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { home, wordpress, layout, pin } from '@wordpress/icons';
 import classNames from 'classnames';
 import css from './style.module.css';
@@ -38,34 +39,40 @@ interface QuickNavItem {
 	icon: JSX.Element;
 }
 
-const quickNavItems: QuickNavItem[] = [
-	{ label: 'Homepage', path: '/', icon: <Icon icon={home} size={20} /> },
-	{
-		label: 'Dashboard',
-		path: '/wp-admin/',
-		icon: <Icon icon={wordpress} size={20} />,
-	},
-	{
-		label: 'Site Editor',
-		path: '/wp-admin/site-editor.php',
-		icon: <Icon icon={layout} size={20} />,
-	},
-	{
-		label: 'New Post',
-		path: '/wp-admin/post-new.php',
-		icon: <Icon icon={pin} size={20} />,
-	},
-	{
-		label: 'Plugins',
-		path: '/wp-admin/plugins.php',
-		icon: <DashiconPlugins />,
-	},
-	{
-		label: 'Themes',
-		path: '/wp-admin/themes.php',
-		icon: <DashiconAppearance />,
-	},
-];
+function getQuickNavItems(): QuickNavItem[] {
+	return [
+		{
+			label: __('Homepage', 'playground-website'),
+			path: '/',
+			icon: <Icon icon={home} size={20} />,
+		},
+		{
+			label: __('Dashboard', 'playground-website'),
+			path: '/wp-admin/',
+			icon: <Icon icon={wordpress} size={20} />,
+		},
+		{
+			label: __('Site Editor', 'playground-website'),
+			path: '/wp-admin/site-editor.php',
+			icon: <Icon icon={layout} size={20} />,
+		},
+		{
+			label: __('New Post', 'playground-website'),
+			path: '/wp-admin/post-new.php',
+			icon: <Icon icon={pin} size={20} />,
+		},
+		{
+			label: __('Plugins', 'playground-website'),
+			path: '/wp-admin/plugins.php',
+			icon: <DashiconPlugins />,
+		},
+		{
+			label: __('Themes', 'playground-website'),
+			path: '/wp-admin/themes.php',
+			icon: <DashiconAppearance />,
+		},
+	];
+}
 
 interface AddressBarProps {
 	url?: string;
@@ -100,6 +107,7 @@ export default function AddressBar({
 	// option is exposed via aria-activedescendant (WAI-ARIA combobox pattern).
 	const [activeIndex, setActiveIndex] = useState(-1);
 	const [menuWidth, setMenuWidth] = useState(0);
+	const quickNavItems = getQuickNavItems();
 
 	const idPrefix = useId();
 	const listboxId = `${idPrefix}-suggestions`;
@@ -235,8 +243,8 @@ export default function AddressBar({
 				className={css.refreshButton}
 				onClick={handleRefresh}
 				disabled={disabled}
-				aria-label="Refresh page"
-				title="Refresh page"
+				aria-label={__('Refresh page', 'playground-website')}
+				title={__('Refresh page', 'playground-website')}
 			>
 				<svg
 					width="16"
@@ -263,7 +271,10 @@ export default function AddressBar({
 					disabled={disabled}
 					name="url"
 					type="text"
-					aria-label='URL to visit in the WordPress site, like "/wp-admin"'
+					aria-label={__(
+						'URL to visit in the WordPress site, like "/wp-admin"',
+						'playground-website'
+					)}
 					autoComplete="off"
 					role="combobox"
 					aria-autocomplete="list"

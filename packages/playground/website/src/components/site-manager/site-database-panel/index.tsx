@@ -5,6 +5,8 @@ import {
 } from '@wp-playground/tools';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { Notice } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { PlaygroundBootNotice } from '../../pane-loading';
 import { AdminerButton } from './adminer-button';
 import { DownloadButton } from './download-button';
@@ -64,24 +66,35 @@ export function SiteDatabasePanel({
 	return (
 		<div className={css.databasePanel}>
 			<dl className={css.databaseInfo}>
-				<dt className={css.label}>Driver:</dt>
-				<dd className={css.value}>MySQL emulation backed by SQLite</dd>
-				<dt className={css.label}>Path:</dt>
+				<dt className={css.label}>
+					{__('Driver:', 'playground-website')}
+				</dt>
+				<dd className={css.value}>
+					{__(
+						'MySQL emulation backed by SQLite',
+						'playground-website'
+					)}
+				</dd>
+				<dt className={css.label}>
+					{__('Path:', 'playground-website')}
+				</dt>
 				<dd className={css.value}>
 					<code>
 						{databasePath ??
 							(sizeStatus === 'loading'
-								? 'Loading…'
-								: 'Unavailable')}
+								? __('Loading…', 'playground-website')
+								: __('Unavailable', 'playground-website'))}
 					</code>
 				</dd>
-				<dt className={css.label}>Size:</dt>
+				<dt className={css.label}>
+					{__('Size:', 'playground-website')}
+				</dt>
 				<dd className={css.value}>
 					{sizeStatus === 'loading'
-						? 'Calculating…'
+						? __('Calculating…', 'playground-website')
 						: sizeStatus === 'ready' && databaseSize !== null
 							? formatBytes(databaseSize)
-							: 'Unavailable'}
+							: __('Unavailable', 'playground-website')}
 				</dd>
 			</dl>
 
@@ -90,25 +103,32 @@ export function SiteDatabasePanel({
 				status="info"
 				isDismissible={false}
 			>
-				<p className={css.noticeEyebrow}>Early access</p>
+				<p className={css.noticeEyebrow}>
+					{__('Early access', 'playground-website')}
+				</p>
 				<p className={css.noticeBody}>
-					Playground{' '}
-					<a
-						target="_blank"
-						rel="noreferrer"
-						href="https://make.wordpress.org/playground/2025/06/13/introducing-a-new-sqlite-driver-for-wordpress/"
-					>
-						emulates MySQL with SQLite
-					</a>
-					. These tools are a work in progress —{' '}
-					<a
-						target="_blank"
-						rel="noreferrer"
-						href="https://github.com/WordPress/wordpress-playground/issues"
-					>
-						report issues
-					</a>
-					.
+					{createInterpolateElement(
+						__(
+							'Playground <sqliteLink>emulates MySQL with SQLite</sqliteLink>. These tools are a work in progress — <issuesLink>report issues</issuesLink>.',
+							'playground-website'
+						),
+						{
+							sqliteLink: (
+								<a
+									target="_blank"
+									rel="noreferrer"
+									href="https://make.wordpress.org/playground/2025/06/13/introducing-a-new-sqlite-driver-for-wordpress/"
+								/>
+							),
+							issuesLink: (
+								<a
+									target="_blank"
+									rel="noreferrer"
+									href="https://github.com/WordPress/wordpress-playground/issues"
+								/>
+							),
+						}
+					)}
 				</p>
 			</Notice>
 
@@ -124,7 +144,10 @@ export function SiteDatabasePanel({
 			) : (
 				<PlaygroundBootNotice
 					show={isBooting}
-					message="The Playground is still loading — database tools will be ready in a moment."
+					message={__(
+						'The Playground is still loading — database tools will be ready in a moment.',
+						'playground-website'
+					)}
 				/>
 			)}
 		</div>

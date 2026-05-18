@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Button, TextareaControl } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { logger } from '@php-wasm/logger';
 
 import { Modal } from '../modal';
@@ -121,15 +123,17 @@ export function SiteErrorModal({
 	const recoveryBody =
 		error === 'initial-opfs-sync-interrupted' ? (
 			<p className={css.errorLead}>
-				This Blueprint run stopped before its WordPress files finished
-				saving.
+				{__(
+					'This Blueprint run stopped before its WordPress files finished saving.',
+					'playground-website'
+				)}
 			</p>
 		) : error === 'site-boot-failed' && !blueprintStepError ? (
 			errorMessage ? (
 				<p className={css.errorLead}>{errorMessage}</p>
 			) : (
 				<p className={css.errorLead}>
-					The Blueprint run did not finish.
+					{__('The Blueprint run did not finish.', 'playground-website')}
 				</p>
 			)
 		) : (
@@ -144,7 +148,7 @@ export function SiteErrorModal({
 				await discardFailedBlueprintRun();
 			}}
 		>
-			Return to your last Playground
+			{__('Return to your last Playground', 'playground-website')}
 		</Button>
 	) : (
 		<Button
@@ -155,7 +159,7 @@ export function SiteErrorModal({
 				helpers.reloadWithoutBlueprint();
 			}}
 		>
-			Start a new Playground
+			{__('Start a new Playground', 'playground-website')}
 		</Button>
 	);
 	async function discardFailedBlueprintRun() {
@@ -171,9 +175,12 @@ export function SiteErrorModal({
 				...baseView,
 				title:
 					error === 'site-boot-failed'
-						? 'Blueprint run failed'
+						? __('Blueprint run failed', 'playground-website')
 						: error === 'initial-opfs-sync-interrupted'
-							? 'Blueprint run did not finish'
+							? __(
+									'Blueprint run did not finish',
+									'playground-website'
+								)
 							: baseView.title,
 				body: recoveryBody,
 				actions: [
@@ -187,7 +194,7 @@ export function SiteErrorModal({
 								dispatch(setDockPaneOpen(true));
 							}}
 						>
-							Edit Blueprint
+							{__('Edit Blueprint', 'playground-website')}
 						</Button>
 					) : null,
 				],
@@ -215,10 +222,11 @@ export function SiteErrorModal({
 					<>
 						<span className={css.errorBadge}>
 							{view.isDeveloperError
-								? 'Blueprint issue'
-								: 'Runtime error'}
+								? __('Blueprint issue', 'playground-website')
+								: __('Runtime error', 'playground-website')}
 						</span>{' '}
-						{view.title || 'Playground crashed'}
+						{view.title ||
+							__('Playground crashed', 'playground-website')}
 					</>
 				) as unknown as string
 			}
@@ -244,16 +252,28 @@ export function SiteErrorModal({
 							<summary>
 								{view.detailSummaryOverride ??
 									(view.isDeveloperError
-										? 'Inspection details'
-										: 'Error details')}
+										? __(
+												'Inspection details',
+												'playground-website'
+											)
+										: __(
+												'Error details',
+												'playground-website'
+											))}
 							</summary>
 							<pre>{detailText}</pre>
 						</details>
 					) : null}
 					{isReporting && !reportSubmitted && (
 						<TextareaControl
-							label="How can we recreate this error?"
-							help="Describe what caused the error and how can we recreate it."
+							label={__(
+								'How can we recreate this error?',
+								'playground-website'
+							)}
+							help={__(
+								'Describe what caused the error and how can we recreate it.',
+								'playground-website'
+							)}
 							value={reportText}
 							onChange={setReportText}
 							autoFocus={true}
@@ -261,28 +281,48 @@ export function SiteErrorModal({
 					)}
 					{reportSubmitted && !submitError && (
 						<p className={css.reportSuccess}>
-							Your report has been submitted to the{' '}
-							<a
-								href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								Making WordPress #playground-logs Slack channel
-							</a>{' '}
-							and will be reviewed by the team.
+							{createInterpolateElement(
+								__(
+									'Your report has been submitted to the <slackLink>Making WordPress #playground-logs Slack channel</slackLink> and will be reviewed by the team.',
+									'playground-website'
+								),
+								{
+									slackLink: (
+										<a
+											aria-label={__(
+												'Making WordPress #playground-logs Slack channel',
+												'playground-website'
+											)}
+											href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"
+											target="_blank"
+											rel="noopener noreferrer"
+										/>
+									),
+								}
+							)}
 						</p>
 					)}
 					{submitError && (
 						<p>
-							We were unable to submit the error report. Please
-							try again or open an{' '}
-							<a
-								href="https://github.com/WordPress/wordpress-playground/issues/"
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								issue on GitHub.
-							</a>
+							{createInterpolateElement(
+								__(
+									'We were unable to submit the error report. Please try again or open an <githubIssueLink>issue on GitHub</githubIssueLink>.',
+									'playground-website'
+								),
+								{
+									githubIssueLink: (
+										<a
+											aria-label={__(
+												'issue on GitHub',
+												'playground-website'
+											)}
+											href="https://github.com/WordPress/wordpress-playground/issues/"
+											target="_blank"
+											rel="noopener noreferrer"
+										/>
+									),
+								}
+							)}
 						</p>
 					)}
 				</div>
@@ -295,7 +335,10 @@ export function SiteErrorModal({
 									kapaAI.openWithErrorMessage(detailText!)
 								}
 							>
-								Troubleshoot with AI
+								{__(
+									'Troubleshoot with AI',
+									'playground-website'
+								)}
 							</Button>
 						)}
 						{!view.isDeveloperError &&
@@ -306,7 +349,7 @@ export function SiteErrorModal({
 								variant="secondary"
 								onClick={() => setIsReporting(true)}
 							>
-								Report this crash
+								{__('Report this crash', 'playground-website')}
 							</Button>
 						) : null}
 						{isReporting && !reportSubmitted && (
@@ -315,7 +358,7 @@ export function SiteErrorModal({
 									variant="secondary"
 									onClick={() => setIsReporting(false)}
 								>
-									Cancel
+									{__('Cancel', 'playground-website')}
 								</Button>
 								<Button
 									variant="primary"
@@ -323,7 +366,7 @@ export function SiteErrorModal({
 									isBusy={isSubmittingReport}
 									disabled={!reportText || isSubmittingReport}
 								>
-									Submit report
+									{__('Submit report', 'playground-website')}
 								</Button>
 							</>
 						)}

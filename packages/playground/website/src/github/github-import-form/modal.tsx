@@ -9,6 +9,7 @@ import {
 } from '../../lib/state/redux/store';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { useDispatch } from 'react-redux';
+import { __ } from '@wordpress/i18n';
 import { Modal } from '../../components/modal';
 
 interface GithubImportModalProps {
@@ -49,7 +50,10 @@ export function GithubImportModal({
 	};
 
 	return (
-		<Modal title="Import from GitHub" onRequestClose={closeModal}>
+		<Modal
+			title={__('Import from GitHub', 'playground-website')}
+			onRequestClose={closeModal}
+		>
 			<GitHubImportForm
 				playground={playground!}
 				getPlaygroundBeforeImport={
@@ -59,7 +63,10 @@ export function GithubImportModal({
 				onImported={(details) => {
 					// eslint-disable-next-line no-alert
 					alert(
-						'Import finished! Your Playground site has been updated.'
+						__(
+							'Import finished! Your Playground site has been updated.',
+							'playground-website'
+						)
 					);
 					onImported?.(details);
 					closeModal();

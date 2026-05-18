@@ -1,6 +1,7 @@
 import React from 'react';
 import { useRef, useState } from 'react';
 import { Notice, Button as WPButton } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
@@ -80,7 +81,7 @@ export default function GitHubImportForm({
 		setErrors({});
 		if (!newUrl) {
 			setErrors({
-				url: 'Please enter a URL',
+				url: __('Please enter a URL', 'playground-website'),
 			});
 			return;
 		}
@@ -88,7 +89,7 @@ export default function GitHubImportForm({
 			const info = staticAnalyzeGitHubURL(newUrl);
 			if (!['pr', 'branch', 'repo'].includes(info.type)) {
 				setErrors({
-					url: 'This URL is not supported',
+					url: __('This URL is not supported', 'playground-website'),
 				});
 				return;
 			}
@@ -138,7 +139,10 @@ export default function GitHubImportForm({
 							return;
 						case 404:
 							setErrors({
-								url: "This repo (or the resource in it) doesn't exist",
+								url: __(
+									"This repo (or the resource in it) doesn't exist",
+									'playground-website'
+								),
 							});
 							return;
 					}
@@ -157,7 +161,10 @@ export default function GitHubImportForm({
 		}
 		if (!contentType) {
 			setErrors({
-				contentType: 'Please select what you want to import',
+				contentType: __(
+					'Please select what you want to import',
+					'playground-website'
+				),
 			});
 			return;
 		}
@@ -210,7 +217,14 @@ export default function GitHubImportForm({
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';
 			setErrors({
-				url: `There was an unexpected error ${eMessage}, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.`,
+				url: sprintf(
+					/* translators: %s: Optional error message in parentheses. */
+					__(
+						'There was an unexpected error %s, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.',
+						'playground-website'
+					),
+					eMessage
+				),
 			});
 			return;
 		} finally {
@@ -226,8 +240,10 @@ export default function GitHubImportForm({
 				onSubmit={handleSubmit}
 			>
 				<p>
-					You may import WordPress plugins, themes, and entire
-					wp-content directories from any public GitHub repository.
+					{__(
+						'You may import WordPress plugins, themes, and entire wp-content directories from any public GitHub repository.',
+						'playground-website'
+					)}
 				</p>
 				<div
 					className={`${forms.formGroup} ${forms.formGroupLast} ${
@@ -235,8 +251,10 @@ export default function GitHubImportForm({
 					}`}
 				>
 					<label>
-						{' '}
-						I want to import from this GitHub URL:
+						{__(
+							'I want to import from this GitHub URL:',
+							'playground-website'
+						)}
 						<input
 							type="text"
 							value={url}
@@ -266,24 +284,36 @@ export default function GitHubImportForm({
 						style={{ marginTop: 5 }}
 						onClick={() => setShowExample(!showExample)}
 					>
-						{showExample ? 'Hide examples' : 'Need an example?'}
+						{showExample
+							? __('Hide examples', 'playground-website')
+							: __('Need an example?', 'playground-website')}
 					</WPButton>
 				</div>
 				{showExample ? (
 					<Notice isDismissible={false} className={css.notice}>
 						<p style={{ marginTop: 0 }}>
-							Here's a few examples of URLs you can use:
+							{__(
+								"Here's a few examples of URLs you can use:",
+								'playground-website'
+							)}
 						</p>
 						<dl className={css.examplesDl}>
-							<dt>A repository:</dt>
+							<dt>{__('A repository:', 'playground-website')}</dt>
 							<dd>https://github.com/org/repo-name</dd>
 
-							<dt>A path inside a repository:</dt>
+							<dt>
+								{__(
+									'A path inside a repository:',
+									'playground-website'
+								)}
+							</dt>
 							<dd>
 								https://github.com/org/repo-name/tree/trunk/my-theme
 							</dd>
 
-							<dt>A Pull Request:</dt>
+							<dt>
+								{__('A Pull Request:', 'playground-website')}
+							</dt>
 							<dd>https://github.com/org/repo-name/pull/733</dd>
 						</dl>
 					</Notice>
@@ -297,23 +327,41 @@ export default function GitHubImportForm({
 								<h3>
 									{urlInformation.type === 'pr' ? (
 										<>
-											Importing from Pull Request #
-											{urlInformation.pr} at{' '}
-											{urlInformation.owner}/
-											{urlInformation.repo}
+											{sprintf(
+												/* translators: 1: Pull Request number, 2: Repository owner, 3: Repository name. */
+												__(
+													'Importing from Pull Request #%1$s at %2$s/%3$s',
+													'playground-website'
+												),
+												urlInformation.pr,
+												urlInformation.owner,
+												urlInformation.repo
+											)}
 										</>
 									) : urlInformation.type === 'branch' ? (
 										<>
-											Importing from branch{' '}
-											{urlInformation.ref} at{' '}
-											{urlInformation.owner}/
-											{urlInformation.repo}
+											{sprintf(
+												/* translators: 1: Branch name, 2: Repository owner, 3: Repository name. */
+												__(
+													'Importing from branch %1$s at %2$s/%3$s',
+													'playground-website'
+												),
+												urlInformation.ref,
+												urlInformation.owner,
+												urlInformation.repo
+											)}
 										</>
 									) : urlInformation.type === 'repo' ? (
 										<>
-											Importing from the{' '}
-											{urlInformation.owner}/
-											{urlInformation.repo} repository
+											{sprintf(
+												/* translators: 1: Repository owner, 2: Repository name. */
+												__(
+													'Importing from the %1$s/%2$s repository',
+													'playground-website'
+												),
+												urlInformation.owner,
+												urlInformation.repo
+											)}
 										</>
 									) : (
 										false
@@ -333,7 +381,10 @@ export default function GitHubImportForm({
 									} ${inline ? css.inlineFieldGroup : ''}`}
 								>
 									<label>
-										I am importing a:
+										{__(
+											'I am importing a:',
+											'playground-website'
+										)}
 										<select
 											value={contentType}
 											className={css.repoInput}
@@ -345,14 +396,28 @@ export default function GitHubImportForm({
 											}
 										>
 											<option value="">
-												-- Select an option --
+												{__(
+													'-- Select an option --',
+													'playground-website'
+												)}
 											</option>
-											<option value="theme">Theme</option>
+											<option value="theme">
+												{__(
+													'Theme',
+													'playground-website'
+												)}
+											</option>
 											<option value="plugin">
-												Plugin
+												{__(
+													'Plugin',
+													'playground-website'
+												)}
 											</option>
 											<option value="wp-content">
-												wp-content directory
+												{__(
+													'wp-content directory',
+													'playground-website'
+												)}
 											</option>
 										</select>
 									</label>
@@ -368,7 +433,10 @@ export default function GitHubImportForm({
 									} ${inline ? css.inlineFieldGroup : ''}`}
 								>
 									<label>
-										From the following path in the repo:
+										{__(
+											'From the following path in the repo:',
+											'playground-website'
+										)}
 										<input
 											type="text"
 											className={css.repoInput}
@@ -406,17 +474,28 @@ export default function GitHubImportForm({
 						{isAnalyzing ? (
 							<>
 								<Spinner size={20} />
-								Analyzing the repository...
+								{__(
+									'Analyzing the repository...',
+									'playground-website'
+								)}
 							</>
 						) : isImporting ? (
 							<>
 								<Spinner size={20} />
-								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
+								{sprintf(
+									/* translators: 1: Number of downloaded files, 2: Total number of files found. */
+									__(
+										'Importing... %1$d/%2$d files downloaded',
+										'playground-website'
+									),
+									importProgress.downloadedFiles,
+									importProgress.foundFiles
+								)}
 							</>
 						) : showRepositoryDetails ? (
-							'Import'
+							__('Import', 'playground-website')
 						) : (
-							'Continue'
+							__('Continue', 'playground-website')
 						)}
 					</WPButton>
 				</div>
@@ -440,7 +519,10 @@ async function resolveImportSource(
 		});
 		if (!prDetails.data.head.repo) {
 			throw new Error(
-				'This pull request cannot be imported because its source repository is unavailable.'
+				__(
+					'This pull request cannot be imported because its source repository is unavailable.',
+					'playground-website'
+				)
 			);
 		}
 		return {

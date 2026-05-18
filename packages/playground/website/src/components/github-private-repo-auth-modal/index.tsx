@@ -2,6 +2,7 @@ import { Modal } from '../modal';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Icon, Spinner } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { GitHubIcon } from '../../github/github';
 import css from '../../github/github-oauth-guard/style.module.css';
 import { staticAnalyzeGitHubURL } from '../../github/analyze-github-url';
@@ -24,13 +25,15 @@ export function GitHubPrivateRepoAuthModal() {
 
 	return (
 		<Modal
-			title="Connect to GitHub"
+			title={__('Connect to GitHub', 'playground-website')}
 			onRequestClose={() => dispatch(setActiveModal(null))}
 		>
 			<div>
 				<p>
-					This blueprint requires access to a private GitHub
-					repository:
+					{__(
+						'This blueprint requires access to a private GitHub repository:',
+						'playground-website'
+					)}
 				</p>
 				<p>
 					<strong>
@@ -38,22 +41,29 @@ export function GitHubPrivateRepoAuthModal() {
 					</strong>
 				</p>
 				<p>
-					If you have a GitHub account with access to this repository,
-					you can connect it to continue.
+					{__(
+						'If you have a GitHub account with access to this repository, you can connect it to continue.',
+						'playground-website'
+					)}
 				</p>
 
 				{isAuthorizing ? (
 					<div>
 						<Spinner />
 						<p>
-							Authorization popup opened. Continue in the popup to
-							connect your GitHub account.
+							{__(
+								'Authorization popup opened. Continue in the popup to connect your GitHub account.',
+								'playground-website'
+							)}
 						</p>
 					</div>
 				) : (
 					<p>
 						<a
-							aria-label="Connect your GitHub account"
+							aria-label={__(
+								'Connect your GitHub account',
+								'playground-website'
+							)}
 							className={css.githubButton}
 							href={new URL(
 								'oauth.php',
@@ -70,15 +80,20 @@ export function GitHubPrivateRepoAuthModal() {
 							}}
 						>
 							<Icon icon={GitHubIcon} />
-							Connect your GitHub account
+							{__(
+								'Connect your GitHub account',
+								'playground-website'
+							)}
 						</a>
 					</p>
 				)}
 				{error ? <p role="alert">{error}</p> : null}
 				<p>
 					<small>
-						Your access token is stored only in memory and will be
-						cleared when you close this tab.
+						{__(
+							'Your access token is stored only in memory and will be cleared when you close this tab.',
+							'playground-website'
+						)}
 					</small>
 				</p>
 			</div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Button, Notice, TextControl } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { chevronRight, Icon, wordpress } from '@wordpress/icons';
 import css from './style.module.css';
 import gutenbergLogoUrl from './gutenberg-logo.svg';
@@ -147,7 +148,7 @@ export default function PreviewPRForm({
 
 		if (!resolvedInput.ok) {
 			setFeedback({
-				title: 'Check the pull request',
+				title: __('Check the pull request', 'playground-website'),
 				message: resolvedInput.error,
 				status: 'error',
 			});
@@ -182,7 +183,9 @@ export default function PreviewPRForm({
 		cleanupRetryRef.current = () => {};
 		setFeedback(undefined);
 		setRepositoryMatches([]);
-		setLoadingMessage('Checking WordPress Core and Gutenberg…');
+		setLoadingMessage(
+			__('Checking WordPress Core and Gutenberg…', 'playground-website')
+		);
 		setSubmitting(true);
 
 		let matches: RepositoryMatch[];
@@ -191,9 +194,14 @@ export default function PreviewPRForm({
 		} catch (error) {
 			logger.error(error);
 			setFeedback({
-				title: 'Playground couldn’t check GitHub right now.',
-				message:
+				title: __(
+					'Playground couldn’t check GitHub right now.',
+					'playground-website'
+				),
+				message: __(
 					'Check your internet connection, then try previewing the pull request again.',
+					'playground-website'
+				),
 				status: 'error',
 			});
 			setSubmitting(false);
@@ -202,9 +210,18 @@ export default function PreviewPRForm({
 
 		if (matches.length === 0) {
 			setFeedback({
-				title: `Couldn’t find PR ${ref} in WordPress Core or Gutenberg.`,
-				message:
+				title: sprintf(
+					/* translators: %s: Pull request number. */
+					__(
+						'Couldn’t find PR %s in WordPress Core or Gutenberg.',
+						'playground-website'
+					),
+					ref
+				),
+				message: __(
 					'Check the number, or paste the full GitHub URL if its preview build is still being prepared.',
+					'playground-website'
+				),
 				status: 'error',
 			});
 			setSubmitting(false);
@@ -221,12 +238,19 @@ export default function PreviewPRForm({
 
 	function renderRetryIn(retryIn: number, resolved: ResolvedRef) {
 		setFeedback({
-			title: 'Preview build in progress',
-			message: `GitHub is still building ${
-				resolved.isBranch ? 'branch' : 'PR'
-			} ${resolved.ref}. This can take 15 minutes or more. Retrying in ${
+			title: __('Preview build in progress', 'playground-website'),
+			message: sprintf(
+				/* translators: 1: Reference type ("branch" or "PR"), 2: Branch name or PR number, 3: Seconds until retry. */
+				__(
+					'GitHub is still building %1$s %2$s. This can take 15 minutes or more. Retrying in %3$d seconds…',
+					'playground-website'
+				),
+				resolved.isBranch
+					? __('branch', 'playground-website')
+					: __('PR', 'playground-website'),
+				resolved.ref,
 				retryIn / 1000
-			} seconds…`,
+			),
 			status: 'warning',
 		});
 	}
@@ -275,7 +299,9 @@ export default function PreviewPRForm({
 		const { target: repo, ref, isBranch } = resolved;
 		const isBareWordPressPr =
 			!inline && repo === 'wordpress' && value.trim() === ref;
-		setLoadingMessage('Checking GitHub for a preview build…');
+		setLoadingMessage(
+			__('Checking GitHub for a preview build…', 'playground-website')
+		);
 		setSubmitting(true);
 
 		// For branches, skip verification since we'll use the most recent matching artifact
@@ -287,9 +313,14 @@ export default function PreviewPRForm({
 			} catch (error) {
 				logger.error(error);
 				setFeedback({
-					title: 'Playground couldn’t check GitHub right now.',
-					message:
+					title: __(
+						'Playground couldn’t check GitHub right now.',
+						'playground-website'
+					),
+					message: __(
 						'Check your internet connection, then try previewing the pull request again.',
+						'playground-website'
+					),
 					status: 'error',
 				});
 				setSubmitting(false);
@@ -300,16 +331,36 @@ export default function PreviewPRForm({
 
 				if (error === 'invalid_pr_number') {
 					setFeedback({
-						title: `PR ${ref} wasn’t found`,
+						title: sprintf(
+							/* translators: %s: Pull request number. */
+							__('PR %s wasn’t found', 'playground-website'),
+							ref
+						),
 						message: isBareWordPressPr
-							? 'If this is a Gutenberg PR, paste its full GitHub URL instead.'
-							: 'Check the pull request number or URL and try again.',
+							? __(
+									'If this is a Gutenberg PR, paste its full GitHub URL instead.',
+									'playground-website'
+								)
+							: __(
+									'Check the pull request number or URL and try again.',
+									'playground-website'
+								),
 						status: 'error',
 					});
 				} else if (error === 'no_ci_runs') {
 					setFeedback({
-						title: 'Preview build not started',
-						message: `GitHub hasn’t started a preview build for PR ${ref}. Check that its preview workflow is enabled, then try again.`,
+						title: __(
+							'Preview build not started',
+							'playground-website'
+						),
+						message: sprintf(
+							/* translators: %s: Pull request number. */
+							__(
+								'GitHub hasn’t started a preview build for PR %s. Check that its preview workflow is enabled, then try again.',
+								'playground-website'
+							),
+							ref
+						),
 						status: 'error',
 					});
 				} else if (
@@ -318,8 +369,15 @@ export default function PreviewPRForm({
 				) {
 					if (isWordPressPrBeforePreviewer(resolved)) {
 						setFeedback({
-							title: 'Rebase required',
-							message: `PR ${ref} predates the Pull Request previewer. Rebase it to create a preview build.`,
+							title: __('Rebase required', 'playground-website'),
+							message: sprintf(
+								/* translators: %s: Pull request number. */
+								__(
+									'PR %s predates the Pull Request previewer. Rebase it to create a preview build.',
+									'playground-website'
+								),
+								ref
+							),
 							status: 'error',
 						});
 					} else {
@@ -344,22 +402,53 @@ export default function PreviewPRForm({
 					}
 				} else if (error === 'artifact_invalid') {
 					setFeedback({
-						title: 'Rebase required',
-						message: `Rebase PR ${ref} to create a valid preview build.`,
+						title: __('Rebase required', 'playground-website'),
+						message: sprintf(
+							/* translators: %s: Pull request number. */
+							__(
+								'Rebase PR %s to create a valid preview build.',
+								'playground-website'
+							),
+							ref
+						),
 						status: 'error',
 					});
 				} else if (error === 'artifact_expired') {
 					setFeedback({
-						title: 'Preview build expired',
-						message: `The CI build artifact has expired for PR ${ref}. Push a new commit, rebase, or rerun the CI job to create a fresh build.`,
+						title: __(
+							'Preview build expired',
+							'playground-website'
+						),
+						message: sprintf(
+							/* translators: %s: Pull request number. */
+							__(
+								'The CI build artifact has expired for PR %s. Push a new commit, rebase, or rerun the CI job to create a fresh build.',
+								'playground-website'
+							),
+							ref
+						),
 						status: 'error',
 					});
 				} else {
 					setFeedback({
-						title: 'Preview unavailable',
+						title: __('Preview unavailable', 'playground-website'),
 						message: isBareWordPressPr
-							? `Playground treated ${ref} as a WordPress Core PR but couldn’t verify it. If this is a Gutenberg PR, paste its full GitHub URL instead.`
-							: `PR ${ref} couldn’t be previewed. Try again later or file an issue in the WordPress Playground repository.`,
+							? sprintf(
+									/* translators: %s: Pull request number. */
+									__(
+										'Playground treated %s as a WordPress Core PR but couldn’t verify it. If this is a Gutenberg PR, paste its full GitHub URL instead.',
+										'playground-website'
+									),
+									ref
+								)
+							: sprintf(
+									/* translators: %s: Pull request number. */
+									__(
+										'PR %s couldn’t be previewed. Try again later or file an issue in the WordPress Playground repository.',
+										'playground-website'
+									),
+									ref
+								),
 						status: 'error',
 					});
 					// https://github.com/WordPress/wordpress-playground/issues/new
@@ -508,22 +597,32 @@ export default function PreviewPRForm({
 
 	const inputLabel =
 		target === 'wordpress'
-			? 'PR number or URL'
-			: 'PR number, URL, or a branch name';
+			? __('PR number or URL', 'playground-website')
+			: __('PR number, URL, or a branch name', 'playground-website');
 
 	return (
 		<form
 			className={inline ? css.inlineForm : undefined}
 			onSubmit={handleSubmit}
 		>
-			{inline && <h3>Preview a pull request</h3>}
+			{inline && (
+				<h3>{__('Preview a pull request', 'playground-website')}</h3>
+			)}
 			<div>
 				<TextControl
 					__nextHasNoMarginBottom={inline}
 					disabled={submitting}
 					hideLabelFromVision={inline}
-					label={inline ? 'PR number or GitHub URL' : inputLabel}
-					placeholder={inline ? 'PR number or GitHub URL' : undefined}
+					label={
+						inline
+							? __('PR number or GitHub URL', 'playground-website')
+							: inputLabel
+					}
+					placeholder={
+						inline
+							? __('PR number or GitHub URL', 'playground-website')
+							: undefined
+					}
 					value={value}
 					autoFocus={!inline}
 					onChange={(e) => {
@@ -539,11 +638,17 @@ export default function PreviewPRForm({
 							title={
 								resolvedSource.isBranch
 									? resolvedSource.ref
-									: `PR #${resolvedSource.ref}`
+									: sprintf(
+											/* translators: %s: Pull request number. */
+											__('PR #%s', 'playground-website'),
+											resolvedSource.ref
+										)
 							}
 							repositoryName={`wordpress/${targetParams[resolvedSource.target].repo}`}
 							details={
-								resolvedSource.isBranch ? 'Branch' : undefined
+								resolvedSource.isBranch
+									? __('Branch', 'playground-website')
+									: undefined
 							}
 							disabled={submitting}
 							onClick={() => previewPr(resolvedSource)}
@@ -564,10 +669,16 @@ export default function PreviewPRForm({
 							className={css.feedbackTitle}
 							id="pr-repository-picker-title"
 						>
-							Two pull requests found
+							{__(
+								'Two pull requests found',
+								'playground-website'
+							)}
 						</p>
 						<p className={css.feedbackMessage}>
-							Choose the change you want to preview.
+							{__(
+								'Choose the change you want to preview.',
+								'playground-website'
+							)}
 						</p>
 						<div className={css.repositoryChoices}>
 							{repositoryMatches.map((match) => {
@@ -576,7 +687,14 @@ export default function PreviewPRForm({
 								);
 								const pullRequestTitle =
 									match.verification.title ||
-									`Pull request ${match.resolved.ref}`;
+									sprintf(
+										/* translators: %s: Pull request number. */
+										__(
+											'Pull request %s',
+											'playground-website'
+										),
+										match.resolved.ref
+									);
 								const repositoryName = `wordpress/${
 									targetParams[match.resolved.target].repo
 								}`;
@@ -588,7 +706,14 @@ export default function PreviewPRForm({
 										repositoryName={repositoryName}
 										details={
 											<>
-												PR #{match.resolved.ref}
+												{sprintf(
+													/* translators: %s: Pull request number. */
+													__(
+														'PR #%s',
+														'playground-website'
+													),
+													match.resolved.ref
+												)}
 												{openedAt && (
 													<>
 														{' '}
@@ -597,7 +722,10 @@ export default function PreviewPRForm({
 																css.repositoryChoiceOpened
 															}
 														>
-															opened{' '}
+															{__(
+																'opened',
+																'playground-website'
+															)}{' '}
 															<time
 																dateTime={
 																	match
@@ -645,8 +773,10 @@ export default function PreviewPRForm({
 			</div>
 			{inline && (
 				<p className={css.inlineDescription}>
-					Enter a WordPress Core or Gutenberg PR number or GitHub URL
-					to open it in a fresh Playground.
+					{__(
+						'Enter a WordPress Core or Gutenberg PR number or GitHub URL to open it in a fresh Playground.',
+						'playground-website'
+					)}
 				</p>
 			)}
 			{inline && repositoryMatches.length === 0 && !resolvedSource ? (
@@ -656,7 +786,9 @@ export default function PreviewPRForm({
 						type="submit"
 						disabled={submitting || !value.trim()}
 					>
-						{isBarePrNumber ? 'Find pull request' : 'Preview'}
+						{isBarePrNumber
+							? __('Find pull request', 'playground-website')
+							: __('Preview', 'playground-website')}
 					</Button>
 				</div>
 			) : !inline ? (
@@ -664,7 +796,7 @@ export default function PreviewPRForm({
 					areDisabled={submitting}
 					onCancel={onClose}
 					onSubmit={handleSubmit}
-					submitText="Preview"
+					submitText={__('Preview', 'playground-website')}
 				/>
 			) : null}
 		</form>
@@ -702,7 +834,12 @@ function PullRequestPreviewCard({
 			variant="secondary"
 			type="button"
 			disabled={disabled}
-			aria-label={`Preview ${title} from ${repositoryName}`}
+			aria-label={sprintf(
+				/* translators: 1: Pull request or branch title, 2: GitHub repository name (e.g. wordpress/gutenberg). */
+				__('Preview %1$s from %2$s', 'playground-website'),
+				title,
+				repositoryName
+			)}
 			onClick={onClick}
 		>
 			<span className={css.repositoryChoiceMain}>
@@ -772,10 +909,18 @@ function formatPullRequestOpenedAt(
 		.replace(/\s/gu, '');
 
 	if (date.toDateString() === today.toDateString()) {
-		return `today ${time}`;
+		return sprintf(
+			/* translators: %s: Formatted local time, e.g. 2:30pm. */
+			__('today %s', 'playground-website'),
+			time
+		);
 	}
 	if (date.toDateString() === yesterday.toDateString()) {
-		return `yesterday at ${time}`;
+		return sprintf(
+			/* translators: %s: Formatted local time, e.g. 2:30pm. */
+			__('yesterday at %s', 'playground-website'),
+			time
+		);
 	}
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
 		2,

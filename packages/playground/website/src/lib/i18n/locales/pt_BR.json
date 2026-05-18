@@ -1,0 +1,148 @@
+{
+	"translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
+	"generator": "WordPress Playground i18n tooling",
+	"domain": "playground-website",
+	"locale_data": {
+		"playground-website": {
+			"": {
+				"domain": "playground-website",
+				"lang": "pt_BR",
+				"plural-forms": "nplurals=2; plural=(n > 1);"
+			},
+			"-- Select a version --": ["-- Selecione uma versão --"],
+			"Additional actions": ["Ações adicionais"],
+			"Allow network access": ["Permitir acesso à rede"],
+			"Allow Playground to edit that directory in the browser prompt to continue.": [
+				"Permita que o Playground edite esse diretório no prompt do navegador para continuar."
+			],
+			"Apply Settings & Reset Playground": [
+				"Aplicar Configurações e Redefinir Playground"
+			],
+			"Applying these settings will reset the WordPress site to its initial state.": [
+				"Aplicar essas configurações redefinirá o site WordPress para seu estado inicial."
+			],
+			"Blueprints Gallery": ["Galeria de Blueprints"],
+			"Browser": ["Navegador"],
+			"Cancel": ["Cancelar"],
+			"Choose a directory to continue.": [
+				"Escolha um diretório para continuar."
+			],
+			"Choose a directory...": ["Escolher um diretório..."],
+			"Choose...": ["Escolher..."],
+			"Close Site Manager": ["Fechar Gerenciador de Sites"],
+			"Create a multisite network": ["Criar uma rede multisite"],
+			"Delete": ["Excluir"],
+			"Delete this Playground": ["Excluir este Playground"],
+			"Describe what caused the error and how can we recreate it.": [
+				"Descreva o que causou o erro e como podemos recriá-lo."
+			],
+			"Destructive action!": ["Ação destrutiva!"],
+			"Directory selection is not supported in this browser.": [
+				"A seleção de diretório não é suportada neste navegador."
+			],
+			"Don't show again": ["Não mostrar novamente"],
+			"Download as .zip": ["Baixar como .zip"],
+			"e.g. Testing Gutenberg 24.17": ["ex: Testando Gutenberg 24.17"],
+			"Edit Playground settings": ["Editar configurações do Playground"],
+			"Error": ["Erro"],
+			"Error Logs": ["Logs de Erro"],
+			"Error logs for Playground, WordPress, and PHP will show up here when something goes wrong.": [
+				"Os logs de erro do Playground, WordPress e PHP aparecerão aqui quando algo der errado."
+			],
+			"Export to GitHub": ["Exportar para GitHub"],
+			"File browser": ["Navegador de arquivos"],
+			"GitHub repository": ["Repositório GitHub"],
+			"Gutenberg PR": ["PR do Gutenberg"],
+			"Homepage": ["Página inicial"],
+			"How can we recreate this error?": [
+				"Como podemos recriar este erro?"
+			],
+			"If you want to preserve your changes, you can save the Playground to browser storage.": [
+				"Se você deseja preservar suas alterações, pode salvar o Playground no armazenamento do navegador."
+			],
+			"Import": ["Importar"],
+			"Import WordPress theme, plugin, or wp-content directory from a GitHub repository.": [
+				"Importar tema WordPress, plugin ou diretório wp-content de um repositório GitHub."
+			],
+			"Language": ["Idioma"],
+			"Loading file browser...": ["Carregando navegador de arquivos..."],
+			"Local": ["Local"],
+			"Local directory": ["Diretório local"],
+			"Local directory permissions expired": [
+				"Permissões do diretório local expiraram"
+			],
+			"Local directory was deleted": ["Diretório local foi excluído"],
+			"Logs": ["Logs"],
+			"Name": ["Nome"],
+			"No matching logs found.": [
+				"Nenhum log correspondente encontrado."
+			],
+			"Not available in this browser": ["Não disponível neste navegador"],
+			"Not available on this site": ["Não disponível neste site"],
+			"Oops! There was a problem starting Playground. To figure out what went wrong, please take a look at the error logs provided below. If you see an \"Invalid blueprint error,\" the logs will point out the specific step causing the issue. You can then double-check your blueprint. For more help, you can also": [
+				"Ops! Houve um problema ao iniciar o Playground. Para descobrir o que deu errado, consulte os logs de erro fornecidos abaixo. Se você ver um \"Erro de blueprint inválido\", os logs apontarão a etapa específica que está causando o problema. Você pode então verificar novamente seu blueprint. Para mais ajuda, você também pode"
+			],
+			"Open site": ["Abrir site"],
+			"Open Site Manager": ["Abrir Gerenciador de Sites"],
+			"PHP Version": ["Versão do PHP"],
+			"Playground name": ["Nome do Playground"],
+			"Playground settings": ["Configurações do Playground"],
+			"Playground toolbar": ["Barra de ferramentas do Playground"],
+			"Preparing to save...": ["Preparando para salvar..."],
+			"Preview WordPress Core PR": ["Visualizar PR do WordPress Core"],
+			"Rename": ["Renomear"],
+			"Rename Playground": ["Renomear Playground"],
+			"Save": ["Salvar"],
+			"Save & Reload": ["Salvar e Recarregar"],
+			"Save failed": ["Falha ao salvar"],
+			"Save in this browser": ["Salvar neste navegador"],
+			"Save Playground": ["Salvar Playground"],
+			"Save Playground to browser storage": [
+				"Salvar Playground no armazenamento do navegador"
+			],
+			"Save to a local directory": ["Salvar em um diretório local"],
+			"Save to browser storage?": [
+				"Salvar no armazenamento do navegador?"
+			],
+			"Saved in this browser %s": ["Salvo neste navegador %s"],
+			"Saved Playgrounds": ["Playgrounds Salvos"],
+			"Saving %d / %d files...": ["Salvando %d de %d arquivos..."],
+			"Saving failed. Please try again.": [
+				"Falha ao salvar. Por favor, tente novamente."
+			],
+			"Search": ["Pesquisar"],
+			"Search logs": ["Pesquisar logs"],
+			"Settings": ["Configurações"],
+			"Storage location": ["Local de armazenamento"],
+			"Stored Playgrounds have limited configuration options.": [
+				"Playgrounds salvos têm opções de configuração limitadas."
+			],
+			"Submit": ["Enviar"],
+			"Sync local files": ["Sincronizar arquivos locais"],
+			"Syncing...": ["Sincronizando..."],
+			"This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called \"Rename Playground\". Pressing the Close button will close the modal and bring you back to where you were on the page.": [
+				"Esta é uma janela de diálogo que se sobrepõe ao conteúdo principal da página. O modal começa com um título 2 chamado \"Renomear Playground\". Pressionar o botão Fechar fechará o modal e o levará de volta para onde você estava na página."
+			],
+			"Unable to access the selected directory.": [
+				"Não foi possível acessar o diretório selecionado."
+			],
+			"Unable to import file. Is it a valid WordPress Playground export?": [
+				"Não foi possível importar o arquivo. É uma exportação válida do WordPress Playground?"
+			],
+			"View logs": ["Ver logs"],
+			"visit our documentation.": ["visitar nossa documentação."],
+			"WordPress Core PR": ["PR do WordPress Core"],
+			"WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)": [
+				"Wrapper do WordPress Playground (o site WordPress real está em outro iframe aninhado)"
+			],
+			"WordPress Version": ["Versão do WordPress"],
+			"WordPress Version is required": [
+				"A versão do WordPress é obrigatória"
+			],
+			"WP Admin": ["Painel WP"],
+			"Your changes will be lost on page refresh.": [
+				"Suas alterações serão perdidas ao atualizar a página."
+			]
+		}
+	}
+}

@@ -14,6 +14,7 @@ import {
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { Button, Dropdown, Icon, Tooltip } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import {
 	check,
 	cautionFilled,
@@ -169,7 +170,9 @@ export function SaveStatusIndicator({
 		return withStatusAnnouncement(
 			<div className={classNames(css.indicator, css.loading)}>
 				<Spinner size={16} />
-				<span className={css.label}>Loading…</span>
+				<span className={css.label}>
+					{__('Loading…', 'playground-website')}
+				</span>
 			</div>
 		);
 	}
@@ -203,10 +206,15 @@ export function SaveStatusIndicator({
 							disabled={disabled}
 							aria-expanded={isOpen}
 							aria-haspopup="dialog"
-							title="Saved to a local directory."
+							title={__(
+								'Saved to a local directory.',
+								'playground-website'
+							)}
 						>
 							<Icon icon={check} size={18} />
-							<span className={css.label}>Saved</span>
+							<span className={css.label}>
+								{__('Saved', 'playground-website')}
+							</span>
 							<Icon icon={chevronDown} size={16} />
 						</button>
 					)}
@@ -214,16 +222,25 @@ export function SaveStatusIndicator({
 						<aside
 							className={calloutCss.card}
 							role="dialog"
-							aria-label="Local directory save status"
+							aria-label={__(
+								'Local directory save status',
+								'playground-website'
+							)}
 						>
 							<div className={calloutCss.header}>
 								<div className={calloutCss.eyebrow}>
-									Local directory
+									{__(
+										'Local directory',
+										'playground-website'
+									)}
 								</div>
 								<Button
 									className={calloutCss.dismiss}
 									icon={close}
-									label="Close local directory status"
+									label={__(
+										'Close local directory status',
+										'playground-website'
+									)}
 									onClick={onClose}
 								/>
 							</div>
@@ -239,7 +256,10 @@ export function SaveStatusIndicator({
 										{activeSite?.metadata.name}
 									</div>
 									<div className={calloutCss.identityMeta}>
-										Saved directly to the linked folder
+										{__(
+											'Saved directly to the linked folder',
+											'playground-website'
+										)}
 									</div>
 								</div>
 							</div>
@@ -254,12 +274,17 @@ export function SaveStatusIndicator({
 								}}
 							>
 								{isReloadingFromDisk
-									? 'Reloading…'
-									: 'Reload files from disk'}
+									? __('Reloading…', 'playground-website')
+									: __(
+											'Reload files from disk',
+											'playground-website'
+										)}
 							</Button>
 							<p className={calloutCss.hint}>
-								Reload to pick up edits made to the folder
-								outside Playground.
+								{__(
+									'Reload to pick up edits made to the folder outside Playground.',
+									'playground-website'
+								)}
 							</p>
 						</aside>
 					)}
@@ -269,10 +294,15 @@ export function SaveStatusIndicator({
 		return withStatusAnnouncement(
 			<div
 				className={classNames(css.indicator, css.saved)}
-				title="Stored permanently in this browser."
+				title={__(
+					'Stored permanently in this browser.',
+					'playground-website'
+				)}
 			>
 				<Icon icon={check} size={18} />
-				<span className={css.label}>Saved</span>
+				<span className={css.label}>
+					{__('Saved', 'playground-website')}
+				</span>
 			</div>
 		);
 	}
@@ -280,7 +310,14 @@ export function SaveStatusIndicator({
 	if (status === 'autosaved') {
 		return withStatusAnnouncement(
 			<Tooltip
-				text={`Recent autosave — deleted after ${MAX_AUTOSAVED_SITES} newer autosaves. Click to store it permanently.`}
+				text={sprintf(
+					/* translators: %d: Maximum number of autosaved Playgrounds kept in browser storage. */
+					__(
+						'Recent autosave — deleted after %d newer autosaves. Click to store it permanently.',
+						'playground-website'
+					),
+					MAX_AUTOSAVED_SITES
+				)}
 				placement="top"
 			>
 				<button
@@ -293,7 +330,9 @@ export function SaveStatusIndicator({
 					type="button"
 					disabled={disabled}
 				>
-					<span className={css.label}>Autosaved</span>
+					<span className={css.label}>
+						{__('Autosaved', 'playground-website')}
+					</span>
 				</button>
 			</Tooltip>
 		);
@@ -311,8 +350,8 @@ export function SaveStatusIndicator({
 				className={classNames(css.indicator, css.saving)}
 				aria-label={
 					syncOperation === 'autosave'
-						? 'Autosave progress'
-						: 'Save progress'
+						? __('Autosave progress', 'playground-website')
+						: __('Save progress', 'playground-website')
 				}
 				aria-valuemax={100}
 				aria-valuemin={0}
@@ -335,7 +374,13 @@ export function SaveStatusIndicator({
 
 	if (status === 'error') {
 		return withStatusAnnouncement(
-			<Tooltip text="Saving failed. Click to try again." placement="top">
+			<Tooltip
+				text={__(
+					'Saving failed. Click to try again.',
+					'playground-website'
+				)}
+				placement="top"
+			>
 				<button
 					className={classNames(css.indicator, css.error)}
 					onClick={openStorePermanently}
@@ -356,7 +401,10 @@ export function SaveStatusIndicator({
 	if (canStorePermanently) {
 		return withStatusAnnouncement(
 			<Tooltip
-				text="Temporary Playground — everything is lost on refresh. Click to store it permanently."
+				text={__(
+					'Temporary Playground — everything is lost on refresh. Click to store it permanently.',
+					'playground-website'
+				)}
 				placement="top"
 			>
 				<button
@@ -370,7 +418,9 @@ export function SaveStatusIndicator({
 					disabled={disabled}
 				>
 					<Icon icon={cautionFilled} size={18} />
-					<span className={css.label}>Unsaved</span>
+					<span className={css.label}>
+						{__('Unsaved', 'playground-website')}
+					</span>
 				</button>
 			</Tooltip>
 		);
@@ -379,10 +429,15 @@ export function SaveStatusIndicator({
 	return withStatusAnnouncement(
 		<div
 			className={classNames(css.indicator, css.unsaved)}
-			title="Temporary Playground — lost on refresh. Saving is unavailable in this browser."
+			title={__(
+				'Temporary Playground — lost on refresh. Saving is unavailable in this browser.',
+				'playground-website'
+			)}
 		>
 			<Icon icon={cautionFilled} size={18} />
-			<span className={css.label}>Unsaved</span>
+			<span className={css.label}>
+				{__('Unsaved', 'playground-website')}
+			</span>
 		</div>
 	);
 }
@@ -425,8 +480,8 @@ function getStatusAnnouncement({
 	}
 	if (status === 'saved' || status === 'autosaved') {
 		return syncOperation === 'autosave'
-			? 'Autosave complete'
-			: 'Save complete';
+			? __('Autosave complete', 'playground-website')
+			: __('Save complete', 'playground-website');
 	}
 	return undefined;
 }
@@ -483,14 +538,16 @@ function getSyncLabel({
 	opfsSync: OpfsSync | undefined;
 }) {
 	if (opfsSync?.operation === 'save') {
-		return 'Saving';
+		return __('Saving', 'playground-website');
 	}
 	if (site && isAutosavedSite(site)) {
 		return site.metadata.initialOpfsSyncPending
-			? 'Autosaving'
-			: 'Autosaved';
+			? __('Autosaving', 'playground-website')
+			: __('Autosaved', 'playground-website');
 	}
-	return opfsSync?.operation === 'autosave' ? 'Autosaving' : 'Saving';
+	return opfsSync?.operation === 'autosave'
+		? __('Autosaving', 'playground-website')
+		: __('Saving', 'playground-website');
 }
 
 /**
@@ -511,7 +568,9 @@ function getSyncOperation({
 }
 
 function getFailedSyncLabel(syncOperation: SyncOperation) {
-	return syncOperation === 'autosave' ? 'Autosave failed' : 'Save failed';
+	return syncOperation === 'autosave'
+		? __('Autosave failed', 'playground-website')
+		: __('Save failed', 'playground-website');
 }
 
 /** Turns OPFS file-count progress into the bounded percentage used by the ring. */
