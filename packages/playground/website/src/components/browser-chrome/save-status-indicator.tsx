@@ -113,6 +113,15 @@ export function SaveStatusIndicator() {
 				<span className={css.label}>
 					{getSyncLabel({ isAutosaved, progress })}
 				</span>
+				{isAutosaved && (
+					<button
+						className={css.saveButton}
+						onClick={handleKeepClick}
+						type="button"
+					>
+						Keep
+					</button>
+				)}
 			</div>
 		);
 	}

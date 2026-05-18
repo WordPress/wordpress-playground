@@ -689,7 +689,23 @@ test.describe('Default Playground storage', () => {
 		await expect(keepButton).toBeVisible({ timeout: 120000 });
 		await keepButton.click();
 
-		await expect(website.page.getByText('Saved Playground')).toBeVisible();
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => {
+					const sites = (window as any).playgroundSites.list();
+					return sites.find((site: any) => site.isActive)
+						?.persistence;
+				})
+			)
+			.toBe('explicit');
+		await expect(
+			website.page.getByText(
+				/Autosaved Playground|Autosaving|Finalizing autosave/
+			)
+		).toHaveCount(0);
+		await expect(
+			website.page.getByText(/Saved Playground|Saving|Finalizing save/)
+		).toBeVisible();
 		await expect(
 			website.page.getByText('Autosaved Playground')
 		).toHaveCount(0);
@@ -715,6 +731,10 @@ test.describe('Default Playground storage', () => {
 		);
 		expect(siteSlug).toBeTruthy();
 
+		await expect(
+			website.page.getByText('Autosaved Playground')
+		).toBeVisible({ timeout: 120000 });
+
 		const expectedBlogName = `Saved Playground ${Date.now()}`;
 		await website.page.evaluate(async (blogName) => {
 			const playground = (window as any).playground;
@@ -724,6 +744,7 @@ require_once '/wordpress/wp-load.php';
 update_option('blogname', ${JSON.stringify(blogName)});
 `,
 			});
+			await playground.flushOpfs('/wordpress');
 		}, expectedBlogName);
 
 		await website.page.reload();
