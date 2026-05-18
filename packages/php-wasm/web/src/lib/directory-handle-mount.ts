@@ -74,17 +74,26 @@ export function createDirectoryHandleMountHandler(
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			return mount.unmount;
 		} else {
-			await copyMemfsToOpfs(
-				FS,
-				handle,
-				vfsMountPoint,
-				options.initialSync.onProgress
-			);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			try {
+				await copyMemfsToOpfs(
+					FS,
+					handle,
+					vfsMountPoint,
+					options.initialSync.onProgress
+				);
+				await mount.flush();
+			} catch (error) {
+				await mount.unmount();
+				throw error;
+			}
+			return mount.unmount;
 		}
-		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
-		options.onMount?.(mount);
-		return mount.unmount;
 	};
 }
 
