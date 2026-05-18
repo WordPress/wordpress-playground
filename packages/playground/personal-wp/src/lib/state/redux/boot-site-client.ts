@@ -223,9 +223,9 @@ export function bootSiteClient(
 			blueprint.preferredVersions?.wp === false;
 
 		// Check if we're in recovery mode (Health Check troubleshooting).
-		// Recovery mode uses 'do-not-attempt-installing' to skip the
-		// isWordPressInstalled() check that would load WordPress and crash
-		// due to a broken plugin.
+		// In recovery mode, skip the WordPress install check to avoid
+		// loading WordPress before blueprint steps run. The check would
+		// load WordPress and crash due to a broken plugin.
 		const urlBlueprintLandingPage = hasUrlBlueprint
 			? urlBlueprint.blueprint.landingPage
 			: undefined;
@@ -265,11 +265,6 @@ export function bootSiteClient(
 							},
 						]
 					: [],
-				shouldBootWordPress: blueprintRequestedNoWordPress
-					? false
-					: undefined,
-				// In recovery mode, skip the WordPress install check to avoid
-				// loading WordPress before blueprint steps run.
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 			});

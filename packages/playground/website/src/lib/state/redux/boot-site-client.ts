@@ -195,9 +195,6 @@ export function bootSiteClient(
 							},
 						]
 					: [],
-				shouldBootWordPress: blueprintRequestedNoWordPress
-					? false
-					: undefined,
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),

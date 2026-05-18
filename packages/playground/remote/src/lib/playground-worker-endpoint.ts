@@ -79,7 +79,6 @@ export type WorkerBootOptions = {
 	mounts?: Array<MountDescriptor>;
 	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
-	shouldBootWordPress?: boolean;
 	corsProxyUrl?: string;
 	/** When true, skip default WP install and run Blueprints v2 in the worker */
 	experimentalBlueprintsV2Runner?: boolean;
@@ -87,7 +86,7 @@ export type WorkerBootOptions = {
 	blueprint?: BlueprintDeclaration;
 	/**
 	 * How to handle WordPress installation.
-	 * Defaults to `download-and-install` when WordPress boot is enabled.
+	 * Defaults to `download-and-install`.
 	 */
 	wordpressInstallMode?: WordPressInstallMode;
 	/**

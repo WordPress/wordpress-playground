@@ -32,7 +32,6 @@ export class BlueprintsV1Handler {
 			sapiName,
 			scope,
 			shouldInstallWordPress,
-			shouldBootWordPress,
 			sqliteDriverVersion,
 			wordpressInstallMode,
 			onClientConnected,
@@ -68,40 +67,29 @@ export class BlueprintsV1Handler {
 		const declarativeOptOut =
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
-		const bootWordPress = shouldBootWordPress ?? !declarativeOptOut;
-		const resolvedWordPressInstallMode = getWordPressInstallMode({
-			bootWordPress,
-			shouldInstallWordPress,
-			wordpressInstallMode,
-		});
+		const resolvedWordPressInstallMode: WordPressInstallMode =
+			wordpressInstallMode ??
+			(declarativeOptOut
+				? 'do-not-attempt-installing'
+				: shouldInstallWordPress === false
+					? 'install-from-existing-files-if-needed'
+					: 'download-and-install');
 		if (
-			wordpressWasRequestedExplicitly({
-				declarativeOptOut,
-				resolvedWordPressInstallMode,
-				shouldBootWordPress,
-				shouldInstallWordPress,
-			})
+			declarativeOptOut &&
+			(shouldInstallWordPress === true ||
+				(wordpressInstallMode !== undefined &&
+					wordpressInstallMode !== 'do-not-attempt-installing'))
 		) {
 			throw new Error(
-				'Conflicting options: WordPress install or boot was requested, ' +
+				'Conflicting options: WordPress was requested, ' +
 					'but the Blueprint sets ' +
 					'`preferredVersions.wp: false`. Pick one.'
-			);
-		}
-		if (
-			!bootWordPress &&
-			resolvedWordPressInstallMode !== 'do-not-attempt-installing'
-		) {
-			throw new Error(
-				'Conflicting options: WordPress installation was requested, ' +
-					'but WordPress boot was disabled. Pick one.'
 			);
 		}
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
-			shouldBootWordPress: bootWordPress,
 			wordpressInstallMode: resolvedWordPressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
@@ -165,46 +153,3 @@ export class BlueprintsV1Handler {
 type WordPressInstallMode = NonNullable<
 	StartPlaygroundOptions['wordpressInstallMode']
 >;
-
-function getWordPressInstallMode({
-	bootWordPress,
-	shouldInstallWordPress,
-	wordpressInstallMode,
-}: {
-	bootWordPress: boolean;
-	shouldInstallWordPress?: boolean;
-	wordpressInstallMode?: WordPressInstallMode;
-}): WordPressInstallMode {
-	if (wordpressInstallMode) {
-		return wordpressInstallMode;
-	}
-	if (shouldInstallWordPress === true) {
-		return 'download-and-install';
-	}
-	if (!bootWordPress) {
-		return 'do-not-attempt-installing';
-	}
-	if (shouldInstallWordPress === false) {
-		return 'install-from-existing-files-if-needed';
-	}
-	return 'download-and-install';
-}
-
-function wordpressWasRequestedExplicitly({
-	declarativeOptOut,
-	resolvedWordPressInstallMode,
-	shouldBootWordPress,
-	shouldInstallWordPress,
-}: {
-	declarativeOptOut: boolean;
-	resolvedWordPressInstallMode: WordPressInstallMode;
-	shouldBootWordPress?: boolean;
-	shouldInstallWordPress?: boolean;
-}) {
-	return (
-		declarativeOptOut &&
-		(shouldBootWordPress === true ||
-			shouldInstallWordPress === true ||
-			resolvedWordPressInstallMode !== 'do-not-attempt-installing')
-	);
-}

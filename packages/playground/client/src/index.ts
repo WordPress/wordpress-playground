@@ -80,23 +80,8 @@ export interface StartPlaygroundOptions {
 	 * Whether to download/install WordPress files. Set this to `false` when
 	 * WordPress files are already available, for example from `mounts` or a
 	 * saved site.
-	 *
-	 * This option cannot be set to `true` when `shouldBootWordPress` is `false`,
-	 * because installing WordPress requires running the WordPress boot setup.
 	 */
 	shouldInstallWordPress?: boolean;
-	/**
-	 * Whether to run WordPress boot setup.
-	 *
-	 * This is separate from `wordpressInstallMode` because saved sites can run
-	 * WordPress boot setup against existing files without downloading a fresh copy.
-	 * Set this to `false` for PHP-only Playgrounds.
-	 *
-	 * If `wordpressInstallMode` uses existing files and this option is `true`,
-	 * WordPress files must already be present, for example via `mounts` or a
-	 * saved site.
-	 */
-	shouldBootWordPress?: boolean;
 	/**
 	 * The string prefix used in the site URL served by the currently
 	 * running remote.html. E.g. for a prefix like `/scope:playground/`,
@@ -128,7 +113,7 @@ export interface StartPlaygroundOptions {
 	sqliteDriverVersion?: string;
 	/**
 	 * How to handle WordPress installation.
-	 * Defaults to `download-and-install` when WordPress boot is enabled.
+	 * Defaults to `download-and-install`.
 	 */
 	wordpressInstallMode?: WordPressInstallMode;
 	/**

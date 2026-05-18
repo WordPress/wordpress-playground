@@ -131,7 +131,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			scope: 'test',
 			mounts: [mount as any],
 			phpVersion: '8.3',
-			shouldBootWordPress: false,
+			wordpressInstallMode: 'do-not-attempt-installing',
 			withNetworking: false,
 		});
 
@@ -139,44 +139,6 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
 		expect(fetch).not.toHaveBeenCalled();
 	}, 10000);
-
-	it('rejects WordPress installation when boot is disabled', async () => {
-		let endpoint:
-			| {
-					boot(options: Record<string, unknown>): Promise<void>;
-			  }
-			| undefined;
-		vi.doMock('@wp-playground/wordpress', () => ({
-			bootWordPress: vi.fn(),
-		}));
-		vi.doMock('@php-wasm/web', () => ({
-			certificateToPEM: vi.fn(),
-			createDirectoryHandleMountHandler: vi.fn(),
-			exposeAPI: vi.fn((api) => {
-				endpoint = api;
-				return [vi.fn(), vi.fn()];
-			}),
-			loadWebRuntime: vi.fn(),
-		}));
-		await import('./playground-worker-endpoint-blueprints-v1');
-		if (!endpoint) {
-			throw new Error('Expected exposeAPI to receive an endpoint');
-		}
-
-		await expect(
-			endpoint.boot({
-				scope: 'test',
-				phpVersion: '8.3',
-				shouldBootWordPress: false,
-				wordpressInstallMode: 'download-and-install',
-				withNetworking: false,
-			})
-		).rejects.toThrow(
-			'Conflicting options: WordPress installation was requested, ' +
-				'but WordPress boot was disabled. Pick one.'
-		);
-		expect(fetch).not.toHaveBeenCalled();
-	});
 
 	it('throws a diagnostic error if the worker entrypoint is evaluated twice in the same worker global', async () => {
 		vi.doMock('@php-wasm/web', () => ({

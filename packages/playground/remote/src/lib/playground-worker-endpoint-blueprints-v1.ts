@@ -41,7 +41,6 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		extensions = [],
 		withNetworking = true,
 		shouldInstallWordPress,
-		shouldBootWordPress = true,
 		wordpressInstallMode,
 		corsProxyUrl,
 		pathAliases,
@@ -59,20 +58,11 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
-			const resolvedWordPressInstallMode = getWordPressInstallMode({
-				shouldBootWordPress,
-				shouldInstallWordPress,
-				wordpressInstallMode,
-			});
-			if (
-				!shouldBootWordPress &&
-				resolvedWordPressInstallMode !== 'do-not-attempt-installing'
-			) {
-				throw new Error(
-					'Conflicting options: WordPress installation was requested, ' +
-						'but WordPress boot was disabled. Pick one.'
-				);
-			}
+			const resolvedWordPressInstallMode: WordPressInstallMode =
+				wordpressInstallMode ??
+				(shouldInstallWordPress === false
+					? 'install-from-existing-files-if-needed'
+					: 'download-and-install');
 			const siteUrl = this.computeSiteUrl(scope);
 
 			const requestHandler = await this.createRequestHandler({
@@ -170,7 +160,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			// PHP-only mode: the caller asked us to skip WordPress boot entirely.
 			// Apply mounts and stop, so the caller gets a usable PHP runtime.
-			if (!shouldBootWordPress) {
+			if (resolvedWordPressInstallMode === 'do-not-attempt-installing') {
 				const primaryPhp = await requestHandler.getPrimaryPhp();
 				for (const mount of mounts) {
 					await endpoint.mountOpfsIntoPhp(primaryPhp, mount);
@@ -261,30 +251,6 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 type WordPressInstallMode = NonNullable<
 	WorkerBootOptions['wordpressInstallMode']
 >;
-
-function getWordPressInstallMode({
-	shouldBootWordPress,
-	shouldInstallWordPress,
-	wordpressInstallMode,
-}: {
-	shouldBootWordPress: boolean;
-	shouldInstallWordPress?: boolean;
-	wordpressInstallMode?: WordPressInstallMode;
-}): WordPressInstallMode {
-	if (wordpressInstallMode) {
-		return wordpressInstallMode;
-	}
-	if (shouldInstallWordPress === true) {
-		return 'download-and-install';
-	}
-	if (!shouldBootWordPress) {
-		return 'do-not-attempt-installing';
-	}
-	if (shouldInstallWordPress === false) {
-		return 'install-from-existing-files-if-needed';
-	}
-	return 'download-and-install';
-}
 
 const workerGlobal = self as unknown as {
 	__playgroundWorkerEndpointBlueprintsV1?: boolean;
