@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
 	outputDir: './src/test/test-results',
 	testDir: './src/test',
-	testMatch: 'php-dynamic-loading.spec.ts',
+	testMatch: ['php-dynamic-loading.spec.ts', 'php-networking.spec.ts'],
 	fullyParallel: false,
 	forbidOnly: !!process.env['CI'],
 	workers: 1,
@@ -16,6 +16,7 @@ export default defineConfig({
 			name: 'chromium',
 			use: {
 				...devices['Desktop Chrome'],
+				ignoreHTTPSErrors: true,
 			},
 		},
 	],

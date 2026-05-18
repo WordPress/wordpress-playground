@@ -627,6 +627,9 @@ export class RawBytesFetch {
 
 		const headersBuffer = inputBuffer.slice(0, headersEndIndex);
 		const parsedHeaders = RawBytesFetch.parseRequestHeaders(headersBuffer);
+		const expectsContinue = RawBytesFetch.expectsContinue(
+			parsedHeaders.headers
+		);
 		const terminationMode =
 			parsedHeaders.headers.get('Transfer-Encoding') !== null
 				? 'chunked'
@@ -738,17 +741,20 @@ export class RawBytesFetch {
 		 */
 		const hostname = parsedHeaders.headers.get('Host') ?? host;
 		const url = new URL(parsedHeaders.path, protocol + '://' + hostname);
+		const requestHeaders = RawBytesFetch.normalizeRequestHeadersForFetch(
+			parsedHeaders.headers
+		);
 
 		const request = new Request(url.toString(), {
 			method: parsedHeaders.method,
-			headers: parsedHeaders.headers,
+			headers: requestHeaders,
 			body: outboundBodyStream,
 			// @ts-expect-error duplex is required for streaming request bodies
 			duplex: outboundBodyStream ? 'half' : undefined,
 		});
 		return {
 			request,
-			expectsContinue: parsedHeaders.expectsContinue,
+			expectsContinue,
 		};
 	}
 
@@ -773,15 +779,56 @@ export class RawBytesFetch {
 			}
 		}
 
-		// Strip the Expect header. PHP's curl sends
-		// "Expect: 100-continue" for POST bodies > 1024 bytes
-		// (e.g. CURLFile uploads). The fetch() API does not
-		// support this header and will reject the request.
-		const expectsContinue =
-			headers.get('Expect')?.toLowerCase() === '100-continue';
-		headers.delete('Expect');
+		return { method, path, headers };
+	}
 
-		return { method, path, headers, expectsContinue };
+	private static expectsContinue(headers: Headers) {
+		return headers.get('Expect')?.toLowerCase() === '100-continue';
+	}
+
+	private static normalizeRequestHeadersForFetch(headers: Headers) {
+		const normalizedHeaders = new Headers(headers);
+		/*
+		 * PHP writes a raw HTTP/1.1 request to what it believes is a TCP socket.
+		 * tcpOverFetch parses that byte stream and turns it into a browser
+		 * Request. At that point there are two different network hops involved:
+		 *
+		 * 1. PHP to tcpOverFetch, where HTTP/1.1 framing headers such as
+		 *    Content-Length, Transfer-Encoding, Expect, and Connection are valid.
+		 * 2. Browser fetch to the remote server, where the browser owns request
+		 *    framing, connection management, host selection, and upload streaming.
+		 *
+		 * Forwarding PHP's hop-by-hop headers into fetch mixes those two layers.
+		 * Some of these names are forbidden by the Fetch spec and can make
+		 * `new Request()` or `fetch()` reject. Others are technically accepted
+		 * but stale after tcpOverFetch transforms the request, e.g. after
+		 * responding to Expect: 100-continue or decoding Transfer-Encoding:
+		 * chunked. Content-Length is especially problematic for CURLFile uploads:
+		 * Chromium requires streaming uploads to be sent without caller-supplied
+		 * HTTP/1.1 framing metadata, and forwarding it can make large streamed
+		 * multipart requests fail before the server receives the body.
+		 *
+		 * Keep end-to-end headers such as Content-Type and Authorization, but
+		 * remove headers that describe only the PHP-to-socket hop. The Host header
+		 * is handled above when choosing the target URL because fetch does not
+		 * support Host spoofing.
+		 */
+		for (const header of [
+			'Connection',
+			'Content-Length',
+			'Expect',
+			'Host',
+			'Keep-Alive',
+			'Proxy-Authenticate',
+			'Proxy-Authorization',
+			'TE',
+			'Trailer',
+			'Transfer-Encoding',
+			'Upgrade',
+		]) {
+			normalizedHeaders.delete(header);
+		}
+		return normalizedHeaders;
 	}
 }
 

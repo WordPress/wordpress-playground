@@ -954,6 +954,45 @@ describe('RawBytesFetch', () => {
 		expect(request.url).toEqual('https://custom.host.com/api');
 	});
 
+	it('parseHttpRequest should normalize raw HTTP/1.1 headers for fetch', async () => {
+		const body = 'hello=world';
+		const requestBytes =
+			`POST /upload HTTP/1.1\r\n` +
+			`Host: custom.host.com\r\n` +
+			`Connection: keep-alive\r\n` +
+			`Content-Length: ${body.length}\r\n` +
+			`Expect: 100-continue\r\n` +
+			`Authorization: Bearer token\r\n` +
+			`Content-Type: application/x-www-form-urlencoded\r\n` +
+			`\r\n` +
+			body;
+		const { request, expectsContinue } =
+			await RawBytesFetch.parseHttpRequest(
+				new ReadableStream({
+					start(controller) {
+						controller.enqueue(
+							new TextEncoder().encode(requestBytes)
+						);
+						controller.close();
+					},
+				}),
+				'default.host.com',
+				'https'
+			);
+
+		expect(expectsContinue).toBe(true);
+		expect(request.url).toEqual('https://custom.host.com/upload');
+		expect(request.headers.get('authorization')).toEqual('Bearer token');
+		expect(request.headers.get('content-type')).toEqual(
+			'application/x-www-form-urlencoded'
+		);
+		expect(request.headers.has('connection')).toBe(false);
+		expect(request.headers.has('content-length')).toBe(false);
+		expect(request.headers.has('expect')).toBe(false);
+		expect(request.headers.has('host')).toBe(false);
+		expect(await new Response(request.body).text()).toEqual(body);
+	});
+
 	/**
 	 * Regression test: when the full body arrives with the headers
 	 * in a single chunk (small POST bodies without Expect:
