@@ -9,7 +9,7 @@ import {
 } from '../../lib/state/redux/store';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Icon } from '@wordpress/components';
-import { check, cautionFilled } from '@wordpress/icons';
+import { backup, check, cautionFilled } from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	preserveSite,
@@ -91,14 +91,14 @@ export function SaveStatusIndicator() {
 	if (status === 'autosaved') {
 		return (
 			<div className={classNames(css.indicator, css.autosaved)}>
-				<Icon icon={check} size={18} />
+				<Icon icon={backup} size={18} />
 				<span className={css.label}>Autosaved Playground</span>
 				<button
 					className={css.saveButton}
 					onClick={handleKeepClick}
 					type="button"
 				>
-					Keep
+					Keep forever
 				</button>
 			</div>
 		);
@@ -119,7 +119,7 @@ export function SaveStatusIndicator() {
 						onClick={handleKeepClick}
 						type="button"
 					>
-						Keep
+						Keep forever
 					</button>
 				)}
 			</div>

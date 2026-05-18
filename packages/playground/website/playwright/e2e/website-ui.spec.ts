@@ -669,6 +669,14 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
+				'Removed after 5 newer autosaves unless kept.'
+			)
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Keep forever' })
+		).toBeVisible();
+		await expect(
+			website.page.getByText(
 				'This is an Unsaved Playground. Your changes will be lost on page refresh.'
 			)
 		).toHaveCount(0);
@@ -685,7 +693,9 @@ test.describe('Default Playground storage', () => {
 
 		await website.goto('./');
 		await website.ensureSiteManagerIsClosed();
-		const keepButton = website.page.getByRole('button', { name: 'Keep' });
+		const keepButton = website.page.getByRole('button', {
+			name: 'Keep forever',
+		});
 		await expect(keepButton).toBeVisible({ timeout: 120000 });
 		await keepButton.click();
 

@@ -41,7 +41,7 @@ The useful pattern for Playground is:
 ### Browser Chrome Status
 
 - Temporary site: `Unsaved Playground` with the existing `Save` button.
-- Autosaved site, idle: `Autosaved Playground` with a `Keep` button.
+- Autosaved site, idle: `Autosaved Playground` with a `Keep forever` button.
 - Autosaved site, initial sync active: `Autosaving...` or `Finalizing autosave...`.
 - Explicitly preserved site: `Saved Playground`.
 - OPFS sync error on autosaved site: `Autosave failed`.
@@ -53,17 +53,17 @@ This avoids saying "Saved Playground" before the user has explicitly kept it.
 
 Show all non-temporary browser/local sites in `Your Playgrounds`, but label their lifecycle:
 
-- Autosaved rows: `Autosaved · kept with the latest 5 autosaves`
+- Autosaved rows: `Autosaved · removed after 5 newer autosaves`
 - Explicit rows: `Saved in this browser` or `Saved in a local directory`
 
-Autosaved rows should include a `Keep` action in the row menu. Keeping promotes the site to the explicit saved lifecycle.
+Autosaved rows should include a `Keep forever` action in the row menu. Keeping promotes the site to the explicit saved lifecycle.
 
 ### Site Manager Details
 
-- Autosaved OPFS sites should say: `Autosaved in this browser. Kept with the latest 5 autosaves.`
+- Autosaved OPFS sites should say: `Autosaved in this browser. Removed after 5 newer autosaves unless kept.`
 - Explicit OPFS sites should continue to say: `Saved in this browser`.
 - Local filesystem sites should continue to say: `Saved in a local directory`.
-- Autosaved sites should expose a `Keep` action near the standard site actions.
+- Autosaved sites should expose a `Keep forever` action near the standard site actions.
 
 ## Data Model
 

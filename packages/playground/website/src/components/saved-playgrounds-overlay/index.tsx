@@ -263,7 +263,7 @@ export function SavedPlaygroundsOverlay({
 
 	const getStoredSiteDetails = (site: SiteInfo) => {
 		if (isAutosavedSite(site)) {
-			return 'Autosaved - kept with the latest 5 autosaves';
+			return 'Autosaved - removed after 5 newer autosaves';
 		}
 		if (site.metadata.storage === 'local-fs') {
 			return 'Saved in a local directory';
@@ -745,7 +745,7 @@ export function SavedPlaygroundsOverlay({
 																	)
 																}
 															>
-																Keep
+																Keep forever
 															</MenuItem>
 														)}
 														<MenuItem
