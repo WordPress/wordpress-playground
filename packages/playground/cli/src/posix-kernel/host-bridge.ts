@@ -18,6 +18,12 @@ export interface NodeKernelHostOptions {
 	maxWorkers?: number;
 	onStdout?: (pid: number, data: Uint8Array) => void;
 	onStderr?: (pid: number, data: Uint8Array) => void;
+	rootfsImage?: 'default' | ArrayBuffer | Uint8Array;
+	extraMounts?: Array<{
+		mountPoint: string;
+		hostPath: string;
+		readonly?: boolean;
+	}>;
 }
 
 export interface SpawnOptions {

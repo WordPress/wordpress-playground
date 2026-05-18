@@ -158,6 +158,17 @@ export async function bootPosixKernelWordPress(
 
 	const kernelHost = new bridge.NodeKernelHost({
 		maxWorkers: 8,
+		rootfsImage: 'default',
+		extraMounts: [
+			{
+				mountPoint: options.tempDirKernelPath,
+				hostPath: options.tempDirHostPath,
+			},
+			{
+				mountPoint: options.wordPressRootKernelPath,
+				hostPath: options.wordPressRootHostPath,
+			},
+		],
 		onStdout: (_pid, data) => {
 			if (activeCapture) {
 				activeCapture.stdout.push(data);
