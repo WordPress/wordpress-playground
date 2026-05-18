@@ -39,6 +39,7 @@ import {
 	getBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstall,
+	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
 import type { BlueprintInstallPreview } from './blueprint-install';
 import { isAllowedBlueprintUrl } from '../../lib/blueprint-url';
@@ -276,6 +277,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		isDependentMode,
 		requestBlueprintInstallConfirmation,
 		siteSlug,
+		url,
 	]);
 
 	async function installBlueprintFromRelay(
@@ -308,7 +310,15 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			installLocally = false;
 		}
 
-		if (!(await requestBlueprintInstallConfirmation(blueprintUrl))) {
+		const skipConfirmation = shouldSkipConfirmationForInstallMessage(
+			event,
+			iframeRef.current,
+			url
+		);
+		if (
+			!skipConfirmation &&
+			!(await requestBlueprintInstallConfirmation(blueprintUrl))
+		) {
 			postInstallBlueprintResult(event, {
 				blueprintUrl,
 				requestId,
@@ -728,6 +738,32 @@ function getInstallBlueprintMessageData(
 
 function getRequestId(data: RelayMessageData): string | undefined {
 	return typeof data.requestId === 'string' ? data.requestId : undefined;
+}
+
+function shouldSkipConfirmationForInstallMessage(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null,
+	currentUrl: string | undefined
+): boolean {
+	return [
+		getWindowLocation(event.source),
+		getWindowLocation(iframe?.contentWindow),
+		currentUrl,
+	].some(shouldSkipBlueprintInstallConfirmation);
+}
+
+function getWindowLocation(
+	source: MessageEventSource | Window | null | undefined
+): string | undefined {
+	if (!source || !('location' in source)) {
+		return;
+	}
+
+	try {
+		return (source as Window).location.href;
+	} catch {
+		return;
+	}
 }
 
 function postInstallBlueprintResult(

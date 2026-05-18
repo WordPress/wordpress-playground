@@ -23,6 +23,8 @@ export type BlueprintInstallPreview = {
 	json: string;
 };
 
+const TRUSTED_BLUEPRINT_INSTALL_PATHS = ['/my-apps/'];
+
 export async function prepareBlueprintForRemoteInstall(
 	blueprintUrl: string,
 	corsProxyUrl?: string
@@ -97,10 +99,43 @@ export function getBlueprintInstallSource(blueprintUrl: string): {
 	};
 }
 
+export function shouldSkipBlueprintInstallConfirmation(
+	location: string | undefined
+): boolean {
+	const pathname = getWordPressPathname(location);
+	return pathname
+		? TRUSTED_BLUEPRINT_INSTALL_PATHS.includes(pathname)
+		: false;
+}
+
 function getBlueprintLandingPage(
 	blueprint: BlueprintV1Declaration
 ): string | undefined {
 	return typeof blueprint.landingPage === 'string' && blueprint.landingPage
 		? blueprint.landingPage
 		: undefined;
+}
+
+function getWordPressPathname(
+	location: string | undefined
+): string | undefined {
+	if (!location) {
+		return;
+	}
+
+	let url: URL;
+	try {
+		url = new URL(location, 'https://playground.local');
+	} catch {
+		return;
+	}
+
+	const pathname = stripScopePrefix(url.pathname);
+	return pathname === '/' || pathname.endsWith('/')
+		? pathname
+		: `${pathname}/`;
+}
+
+function stripScopePrefix(pathname: string): string {
+	return pathname.replace(/^\/scope:[^/]+(?=\/|$)/, '') || '/';
 }

@@ -6,6 +6,7 @@ import {
 	getBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstall,
+	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
 
 describe('prepareBlueprintForRemoteInstall', () => {
@@ -202,6 +203,32 @@ describe('prepareBlueprintForRemoteInstall', () => {
 			warnings: [],
 			json: JSON.stringify(blueprint, null, 2),
 		});
+	});
+
+	it('skips confirmation for My Apps locations', () => {
+		expect(shouldSkipBlueprintInstallConfirmation('/my-apps/')).toBe(true);
+		expect(shouldSkipBlueprintInstallConfirmation('/my-apps')).toBe(true);
+		expect(
+			shouldSkipBlueprintInstallConfirmation('/my-apps/?category=forms')
+		).toBe(true);
+		expect(
+			shouldSkipBlueprintInstallConfirmation(
+				'https://playground.local/scope:test-site/my-apps/?category=forms'
+			)
+		).toBe(true);
+	});
+
+	it('requires an exact trusted path before skipping confirmation', () => {
+		expect(shouldSkipBlueprintInstallConfirmation('/')).toBe(false);
+		expect(shouldSkipBlueprintInstallConfirmation('/my-apps-copy/')).toBe(
+			false
+		);
+		expect(
+			shouldSkipBlueprintInstallConfirmation(
+				'/wp-admin/admin.php?page=my-apps'
+			)
+		).toBe(false);
+		expect(shouldSkipBlueprintInstallConfirmation(undefined)).toBe(false);
 	});
 });
 
