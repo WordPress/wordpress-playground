@@ -52,19 +52,27 @@ function resolveKernelDir(): string {
 }
 
 /**
- * Resolve `@kernel-wasm?url` and `@kernel-binary/<rel>?url` imports
- * against the kernel checkout. Mirrors the alias scheme used by
+ * Resolve `@kernel-wasm?url`, `@rootfs-vfs?url`, and
+ * `@kernel-binary/<rel>?url` imports against the kernel checkout.
+ * Mirrors the alias scheme used by
  * `wasm-posix-kernel/examples/browser/vite.config.ts` so the demo's
  * `BrowserKernel` / `kernel-worker-entry.ts` imports work unchanged
  * when re-exported from `posix-kernel/host-bridge.ts`.
  *
- * Lookup order, first hit wins:
+ * Lookup order for `@kernel-wasm` and `@kernel-binary/*`, first hit wins:
  *   1. `<kernelDir>/local-binaries/<rel>` — local `bash build.sh` output.
  *   2. `<kernelDir>/binaries/<rel>` — release-mirrored artifacts.
+ *
+ * `@rootfs-vfs` resolves to `<kernelDir>/host/wasm/rootfs.vfs` (built by
+ * `scripts/build-rootfs.sh` during `bash build.sh`). The kernel-mode
+ * `BrowserKernel` imports it unconditionally to overlay `/etc/*` onto
+ * the SAB-backed VFS, so a missing file would otherwise surface as a
+ * cryptic worker-load failure — we throw with the build hint instead.
  */
 function resolveKernelBinariesPlugin(): Plugin {
 	const kernelDir = resolveKernelDir();
 	const KERNEL_WASM_ALIAS = '@kernel-wasm';
+	const ROOTFS_VFS_ALIAS = '@rootfs-vfs';
 	const BINARIES_PREFIX = '@kernel-binary/';
 	const tryRoots = ['local-binaries', 'binaries'];
 
@@ -93,6 +101,17 @@ function resolveKernelBinariesPlugin(): Plugin {
 			let resolved: string | null = null;
 			if (pathPart === KERNEL_WASM_ALIAS) {
 				resolved = findUnder('kernel.wasm');
+			} else if (pathPart === ROOTFS_VFS_ALIAS) {
+				const candidate = join(kernelDir, 'host/wasm/rootfs.vfs');
+				if (existsSync(candidate)) {
+					resolved = candidate;
+				} else {
+					this.error(
+						`rootfs.vfs not found at ${candidate}. ` +
+							'Run `bash build.sh` from the wasm-posix-kernel ' +
+							'checkout to produce it.'
+					);
+				}
 			} else if (pathPart.startsWith(BINARIES_PREFIX)) {
 				resolved = findUnder(pathPart.slice(BINARIES_PREFIX.length));
 			}
