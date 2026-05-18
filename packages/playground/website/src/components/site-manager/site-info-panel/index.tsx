@@ -16,6 +16,10 @@ import { getRelativeDate } from '../../../lib/get-relative-date';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import {
+	isAutosavedSite,
+	preserveSite,
+} from '../../../lib/state/redux/slice-sites';
+import {
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
@@ -99,11 +103,15 @@ export function SiteInfoPanel({
 	};
 
 	const isTemporary = site.metadata.storage === 'none';
+	const isAutosaved = isAutosavedSite(site);
 
 	const removeSiteAndCloseMenu = (onClose: () => void) => {
 		dispatch(setSiteSlugToDelete(site.slug));
 		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
 		onClose();
+	};
+	const keepSite = () => {
+		void dispatch(preserveSite(site.slug));
 	};
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
@@ -281,6 +289,9 @@ export function SiteInfoPanel({
 														` ${createdAgo}`
 													);
 												case 'opfs':
+													if (isAutosaved) {
+														return `Autosaved in this browser ${createdAgo}. Kept with the latest 5 autosaves.`;
+													}
 													return `Saved in this browser ${createdAgo}`;
 											}
 										})()}{' '}
@@ -288,6 +299,13 @@ export function SiteInfoPanel({
 								)}
 							</Flex>
 						</FlexItem>
+						{isAutosaved && (
+							<FlexItem className={css.siteInfoHeaderAction}>
+								<Button variant="primary" onClick={keepSite}>
+									Keep
+								</Button>
+							</FlexItem>
+						)}
 						{mobileUi ? (
 							<FlexItem style={{ flexShrink: 0 }}>
 								<Button

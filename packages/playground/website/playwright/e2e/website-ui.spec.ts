@@ -596,7 +596,7 @@ test.describe('Database panel', () => {
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
 test.describe('Default Playground storage', () => {
-	test('should create a browser-saved Playground by default', async ({
+	test('should create a browser-autosaved Playground by default', async ({
 		website,
 		browserName,
 	}) => {
@@ -619,6 +619,11 @@ test.describe('Default Playground storage', () => {
 		await expect(website.page.getByText('Unsaved Playground')).toHaveCount(
 			0
 		);
+		await expect(
+			website.page.getByText(
+				/Autosaved Playground|Autosaving|Finalizing autosave/
+			)
+		).toBeVisible();
 	});
 
 	test('should start an unsaved Playground from the overlay opt-out', async ({
@@ -647,7 +652,7 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 	});
 
-	test('should show browser storage details in the Site Manager by default', async ({
+	test('should show autosave browser storage details in the Site Manager by default', async ({
 		website,
 		browserName,
 	}) => {
@@ -660,12 +665,33 @@ test.describe('Default Playground storage', () => {
 		await website.ensureSiteManagerIsOpen();
 
 		await expect(
-			website.page.getByText('Saved in this browser')
+			website.page.getByText('Autosaved in this browser')
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
 				'This is an Unsaved Playground. Your changes will be lost on page refresh.'
 			)
+		).toHaveCount(0);
+	});
+
+	test('should promote a default autosaved Playground when kept', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto('./');
+		await website.ensureSiteManagerIsClosed();
+		const keepButton = website.page.getByRole('button', { name: 'Keep' });
+		await expect(keepButton).toBeVisible({ timeout: 120000 });
+		await keepButton.click();
+
+		await expect(website.page.getByText('Saved Playground')).toBeVisible();
+		await expect(
+			website.page.getByText('Autosaved Playground')
 		).toHaveCount(0);
 	});
 

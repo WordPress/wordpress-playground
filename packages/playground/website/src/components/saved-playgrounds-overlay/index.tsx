@@ -22,6 +22,7 @@ import {
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
+	isAutosavedSite,
 	selectSortedSites,
 	selectTemporarySite,
 } from '../../lib/state/redux/slice-sites';
@@ -253,6 +254,21 @@ export function SavedPlaygroundsOverlay({
 		dispatch(setSiteSlugToRename(site.slug));
 		modalDispatch(setActiveModal(modalSlugs.RENAME_SITE));
 		closeMenu();
+	};
+
+	const handleKeepSite = async (site: SiteInfo, closeMenu: () => void) => {
+		await sitesAPI.keep(site.slug);
+		closeMenu();
+	};
+
+	const getStoredSiteDetails = (site: SiteInfo) => {
+		if (isAutosavedSite(site)) {
+			return 'Autosaved - kept with the latest 5 autosaves';
+		}
+		if (site.metadata.storage === 'local-fs') {
+			return 'Saved in a local directory';
+		}
+		return 'Saved in this browser';
 	};
 
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
@@ -657,6 +673,15 @@ export function SavedPlaygroundsOverlay({
 							{storedSites.map((site) => {
 								const isSelected =
 									site.slug === activeSite?.slug;
+								const createdDate = site.metadata.whenCreated
+									? new Date(
+											site.metadata.whenCreated
+										).toLocaleDateString(undefined, {
+											year: 'numeric',
+											month: 'short',
+											day: 'numeric',
+										})
+									: undefined;
 								return (
 									<div
 										key={site.slug}
@@ -688,26 +713,14 @@ export function SavedPlaygroundsOverlay({
 												>
 													{site.metadata.name}
 												</span>
-												{site.metadata.whenCreated && (
-													<span
-														className={
-															css.siteRowDate
-														}
-													>
-														Created{' '}
-														{new Date(
-															site.metadata
-																.whenCreated
-														).toLocaleDateString(
-															undefined,
-															{
-																year: 'numeric',
-																month: 'short',
-																day: 'numeric',
-															}
-														)}
-													</span>
-												)}
+												<span
+													className={css.siteRowDate}
+												>
+													{getStoredSiteDetails(site)}
+													{createdDate
+														? ` - Created ${createdDate}`
+														: ''}
+												</span>
 											</div>
 										</button>
 										<DropdownMenu
@@ -721,6 +734,20 @@ export function SavedPlaygroundsOverlay({
 											{({ onClose: closeMenu }) => (
 												<>
 													<MenuGroup>
+														{isAutosavedSite(
+															site
+														) && (
+															<MenuItem
+																onClick={() =>
+																	handleKeepSite(
+																		site,
+																		closeMenu
+																	)
+																}
+															>
+																Keep
+															</MenuItem>
+														)}
 														<MenuItem
 															onClick={() =>
 																handleRenameSite(

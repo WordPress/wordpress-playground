@@ -224,9 +224,11 @@ export function persistTemporarySite(
 				slug: siteSlug,
 				changes: {
 					storage: storageType,
+					persistence: 'explicit',
 					// Reset the created date. Mental model: From the perspective of
 					// the storage backend, the site was just created.
 					whenCreated: Date.now(),
+					whenLastUsed: Date.now(),
 					// Make sure to store the constants we'll want to re-apply
 					// on the next page load.
 					runtimeConfiguration: {

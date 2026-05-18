@@ -279,6 +279,15 @@ export function SaveSiteModal() {
 		!selectionIsAvailable ||
 		!hasDirectoryAccess ||
 		isSaving;
+	const savingProgressLabel =
+		savingProgress?.phase === 'flushing' ||
+		(savingProgress &&
+			savingProgress.total > 0 &&
+			savingProgress.files >= savingProgress.total)
+			? 'Finalizing save...'
+			: savingProgress
+				? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
+				: 'Preparing to save...';
 
 	const handleRequestClose = () => {
 		if (!isSaving) {
@@ -386,9 +395,7 @@ export function SaveSiteModal() {
 							style={{ width: '100%', height: 24 }}
 						></progress>
 						<p style={{ ...helpTextStyle, marginTop: 4 }}>
-							{savingProgress
-								? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
-								: 'Preparing to save...'}
+							{savingProgressLabel}
 						</p>
 					</div>
 				)}

@@ -387,6 +387,37 @@ describe('createDirectoryHandleMountHandler', () => {
 			'changed'
 		);
 	});
+
+	it('reports a flushing phase after the initial MEMFS to OPFS copy', async () => {
+		const progressEvents: Array<{
+			files: number;
+			total: number;
+			phase?: 'copying' | 'flushing';
+		}> = [];
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		files.set('/wordpress/database.sqlite', encode('initial'));
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+					onProgress: (progress) => {
+						progressEvents.push(progress);
+					},
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+
+		expect(progressEvents).toContainEqual({
+			files: 1,
+			total: 1,
+			phase: 'flushing',
+		});
+	});
 });
 
 function createFakePhp() {

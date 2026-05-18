@@ -46,6 +46,8 @@ export type SyncProgress = {
 	files: number;
 	/** The number of all files that need to be synced. */
 	total: number;
+	/** The current stage of the initial sync. */
+	phase?: 'copying' | 'flushing';
 };
 export type SyncProgressCallback = (progress: SyncProgress) => void;
 
@@ -80,13 +82,20 @@ export function createDirectoryHandleMountHandler(
 		} else {
 			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
 			options.onMount?.(mount);
+			let lastProgress: SyncProgress | undefined;
 			try {
-				await copyMemfsToOpfs(
-					FS,
-					handle,
-					vfsMountPoint,
-					options.initialSync.onProgress
-				);
+				await copyMemfsToOpfs(FS, handle, vfsMountPoint, (progress) => {
+					lastProgress = {
+						...progress,
+						phase: 'copying',
+					};
+					options.initialSync.onProgress?.(lastProgress);
+				});
+				options.initialSync.onProgress?.({
+					files: lastProgress?.total ?? 0,
+					total: lastProgress?.total ?? 0,
+					phase: 'flushing',
+				});
 				await mount.flush();
 			} catch (error) {
 				await mount.unmount();
@@ -249,6 +258,10 @@ export async function copyMemfsToOpfs(
 		// to a conflict with writes from the earlier attempt.
 		await Promise.allSettled(concurrentWrites);
 	}
+	onProgress?.({
+		files: filesToCreate.length,
+		total: filesToCreate.length,
+	});
 }
 
 function isMemfsDir(FS: Emscripten.RootFS, path: string) {

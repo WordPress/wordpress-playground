@@ -26,6 +26,24 @@ import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
 import { getUniqueSiteSlug, normalizeSiteSlug } from './site-slug';
+import {
+	getAutosavedSitesToPrune,
+	getSiteRecencyTimestamp,
+	type AutosavedSitesPruneOptions,
+	type SitePersistence,
+} from './site-lifecycle';
+export {
+	MAX_AUTOSAVED_SITES,
+	SitePersistenceTypes,
+	getAutosavedSitesToPrune,
+	getSiteRecencyTimestamp,
+	isAutosavedSite,
+	isExplicitlySavedSite,
+} from './site-lifecycle';
+export type {
+	AutosavedSitesPruneOptions,
+	SitePersistence,
+} from './site-lifecycle';
 
 const DEFAULT_BLUEPRINT =
 	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
@@ -159,6 +177,32 @@ export function updateSiteMetadata({
 }
 
 /**
+ * Marks a browser-stored Playground as intentionally saved by the user.
+ */
+export function preserveSite(slug: string) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const site = selectSiteBySlug(getState(), slug);
+		if (!site) {
+			throw new Error(`Site not found: ${slug}`);
+		}
+		if (site.metadata.storage === 'none') {
+			throw new Error('Cannot preserve a temporary site. Save it first.');
+		}
+		await dispatch(
+			updateSiteMetadata({
+				slug,
+				changes: {
+					persistence: 'explicit',
+				},
+			})
+		);
+	};
+}
+
+/**
  * Updates a site in the OPFS and in the redux state.
  *
  * @param siteInfo The site info to update.
@@ -244,6 +288,21 @@ export function removeSite(slug: string) {
 			if (newActiveSite) {
 				dispatch(setActiveSite(newActiveSite.slug));
 			}
+		}
+	};
+}
+
+export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const sitesToPrune = getAutosavedSitesToPrune(
+			selectAllSites(getState()),
+			options
+		);
+		for (const site of sitesToPrune) {
+			await dispatch(removeSite(site.slug));
 		}
 	};
 }
@@ -416,7 +475,10 @@ export function setTemporarySiteSpec(
 export function setStoredSiteSpec(
 	siteName: string,
 	playgroundUrlWithQueryApiArgs: URL,
-	preferredSlug?: string
+	preferredSlug?: string,
+	options: {
+		persistence?: SitePersistence;
+	} = {}
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -436,13 +498,16 @@ export function setStoredSiteSpec(
 		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
 			playgroundUrlWithQueryApiArgs
 		);
+		const now = Date.now();
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
 			originalUrlParams,
 			metadata: {
 				name: siteName,
 				id: crypto.randomUUID(),
-				whenCreated: Date.now(),
+				whenCreated: now,
+				whenLastUsed: now,
+				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
 				originalBlueprint: resolvedBlueprint.blueprint,
 				originalBlueprintSource: resolvedBlueprint.source!,
@@ -525,10 +590,13 @@ export interface SiteMetadata {
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
-	// TODO: Consider keeping timestamps.
-	//       For a user, timestamps might be useful to disambiguate identically-named sites.
-	//       For playground, we might choose to sort by most recently used.
-	//whenLastLoaded: number;
+	whenLastUsed?: number;
+	/**
+	 * Whether this OPFS site is only an automatic recovery copy or was
+	 * explicitly kept by the user. Missing means explicit for backwards
+	 * compatibility with existing saved Playgrounds.
+	 */
+	persistence?: SitePersistence;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
@@ -551,8 +619,7 @@ export const selectSortedSites = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) =>
 		sites.sort(
-			(a, b) =>
-				(b.metadata.whenCreated || 0) - (a.metadata.whenCreated || 0)
+			(a, b) => getSiteRecencyTimestamp(b) - getSiteRecencyTimestamp(a)
 		)
 );
 

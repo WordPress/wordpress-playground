@@ -25,6 +25,14 @@
 	fill: #86efac;
 }
 
+.autosaved {
+	color: #93c5fd;
+}
+
+.autosaved svg {
+	fill: #93c5fd;
+}
+
 .unsaved {
 	color: #fcd34d;
 }

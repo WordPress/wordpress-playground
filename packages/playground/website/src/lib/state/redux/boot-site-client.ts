@@ -27,7 +27,7 @@ import {
 	setGitHubAuthRepoUrl,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectSiteBySlug } from './slice-sites';
+import { selectSiteBySlug, updateSiteMetadata } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -310,6 +310,20 @@ export function bootSiteClient(
 				opfsMountDescriptor: mountDescriptor,
 			})
 		);
+		if (site.metadata.storage !== 'none') {
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							whenLastUsed: Date.now(),
+						},
+					})
+				);
+			} catch (error) {
+				logger.error('Error updating Playground last-used time', error);
+			}
+		}
 
 		if (shouldSyncNewOpfsSiteInBackground && mountDescriptor) {
 			dispatch(

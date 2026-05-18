@@ -11,9 +11,12 @@ import {
 	setOPFSSitesLoadingState,
 	updateSiteMetadata,
 	removeSite,
+	pruneAutosavedSites,
+	preserveSite,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
+	isAutosavedSite,
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
@@ -45,6 +48,7 @@ export interface PlaygroundSitesAPI {
 		slug: string;
 		name: string;
 		storage: string;
+		persistence: string;
 		isActive: boolean;
 	}>;
 
@@ -73,6 +77,14 @@ export interface PlaygroundSitesAPI {
 	 * @throws When no site is selected or saving fails.
 	 */
 	saveInBrowser(name?: string): Promise<{ slug: string; storage: string }>;
+
+	/**
+	 * Keeps an autosaved browser Playground indefinitely.
+	 *
+	 * @param siteSlug Optional slug. Uses the active site when omitted.
+	 * @throws When no site is selected or the site is temporary.
+	 */
+	keep(siteSlug?: string): Promise<void>;
 
 	/**
 	 * Persists the active temporary site to a local directory.
@@ -181,6 +193,7 @@ export function createSitesAPI(
 					s.metadata.storage === 'none'
 						? 'temporary'
 						: s.metadata.storage,
+				persistence: isAutosavedSite(s) ? 'autosave' : 'explicit',
 				isActive: s.slug === active?.slug,
 			}));
 		},
@@ -206,7 +219,7 @@ export function createSitesAPI(
 			await dispatch(
 				updateSiteMetadata({
 					slug: site.slug,
-					changes: { name: newName },
+					changes: { name: newName, persistence: 'explicit' },
 				})
 			);
 		},
@@ -217,6 +230,9 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			if (site.metadata.storage !== 'none') {
+				if (isAutosavedSite(site)) {
+					await dispatch(preserveSite(site.slug));
+				}
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 			await dispatch(
@@ -230,6 +246,16 @@ export function createSitesAPI(
 			return { slug: site.slug, storage };
 		},
 
+		async keep(siteSlug?: string) {
+			const site = siteSlug
+				? selectSiteBySlug(getState(), siteSlug)
+				: selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No site selected');
+			}
+			await dispatch(preserveSite(site.slug));
+		},
+
 		async saveToLocalFileSystem(
 			name?: string,
 			localFsHandle?: FileSystemDirectoryHandle
@@ -239,6 +265,9 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			if (site.metadata.storage !== 'none') {
+				if (isAutosavedSite(site)) {
+					await dispatch(preserveSite(site.slug));
+				}
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 			await dispatch(
@@ -403,9 +432,16 @@ export function createSitesAPI(
 				: randomSiteName();
 			const url = getUrlWithSettings(settings);
 			const newSiteInfo = await dispatch(
-				setStoredSiteSpec(siteName, url, requestedSiteSlug)
+				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+					persistence: 'autosave',
+				})
 			);
 			await api.setActiveSite(newSiteInfo.slug);
+			await dispatch(
+				pruneAutosavedSites({
+					excludeSlugs: [newSiteInfo.slug],
+				})
+			);
 			return newSiteInfo.slug;
 		},
 	};
