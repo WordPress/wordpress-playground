@@ -53,6 +53,12 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 		.getByRole('link', { name: 'Connect your GitHub account' })
 		.click();
 
+	await expect(
+		dialog.getByText(
+			'Authorization popup opened. Continue in the popup to connect your GitHub account.'
+		)
+	).toBeVisible();
+
 	await expect
 		.poll(() => capturedState, {
 			message: 'OAuth state should be passed to the popup',
@@ -83,9 +89,7 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 	await expect(dialog).not.toBeVisible();
 
 	await expect
-		.poll(() =>
-			page.evaluate(() => window.__githubOAuthPageLoads)
-		)
+		.poll(() => page.evaluate(() => window.__githubOAuthPageLoads))
 		.toBe(1);
 });
 

@@ -44,7 +44,10 @@ export default function GitHubOAuthGuard({
 		return (
 			<div>
 				<Spinner />
-				Authorizing...
+				<p>
+					Authorization popup opened. Continue in the popup to connect
+					your GitHub account.
+				</p>
 			</div>
 		);
 	}

@@ -1,7 +1,7 @@
 import { Modal } from '../modal';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { Icon } from '@wordpress/components';
+import { Icon, Spinner } from '@wordpress/components';
 import { GitHubIcon } from '../../github/github';
 import css from '../../github/github-oauth-guard/style.module.css';
 import { staticAnalyzeGitHubURL } from '../../github/analyze-github-url';
@@ -20,6 +20,7 @@ export function GitHubPrivateRepoAuthModal() {
 
 	const { owner, repo } = staticAnalyzeGitHubURL(repoUrl);
 	const displayRepoName = owner && repo ? `${owner}/${repo}` : repoUrl;
+	const isAuthorizing = oAuthState.value.isAuthorizing;
 
 	return (
 		<Modal
@@ -41,38 +42,48 @@ export function GitHubPrivateRepoAuthModal() {
 					you can connect it to continue.
 				</p>
 
-				<p>
-					<a
-						aria-label="Connect your GitHub account"
-						className={css.githubButton}
-						href={new URL(
-							'oauth.php',
-							window.location.href
-						).toString()}
-						onClick={async (event) => {
-							event.preventDefault();
-							setError(undefined);
-							oAuthState.value = {
-								...oAuthState.value,
-								isAuthorizing: true,
-							};
-							try {
-								setOAuthToken(await startGitHubOAuthFlow());
-								dispatch(setActiveModal(null));
-							} catch (oauthError) {
-								setError((oauthError as Error).message);
-							} finally {
+				{isAuthorizing ? (
+					<div>
+						<Spinner />
+						<p>
+							Authorization popup opened. Continue in the popup to
+							connect your GitHub account.
+						</p>
+					</div>
+				) : (
+					<p>
+						<a
+							aria-label="Connect your GitHub account"
+							className={css.githubButton}
+							href={new URL(
+								'oauth.php',
+								window.location.href
+							).toString()}
+							onClick={async (event) => {
+								event.preventDefault();
+								setError(undefined);
 								oAuthState.value = {
 									...oAuthState.value,
-									isAuthorizing: false,
+									isAuthorizing: true,
 								};
-							}
-						}}
-					>
-						<Icon icon={GitHubIcon} />
-						Connect your GitHub account
-					</a>
-				</p>
+								try {
+									setOAuthToken(await startGitHubOAuthFlow());
+									dispatch(setActiveModal(null));
+								} catch (oauthError) {
+									setError((oauthError as Error).message);
+								} finally {
+									oAuthState.value = {
+										...oAuthState.value,
+										isAuthorizing: false,
+									};
+								}
+							}}
+						>
+							<Icon icon={GitHubIcon} />
+							Connect your GitHub account
+						</a>
+					</p>
+				)}
 				{error ? <p role="alert">{error}</p> : null}
 				<p>
 					<small>
