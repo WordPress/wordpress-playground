@@ -6,6 +6,7 @@ import {
 	getBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstall,
+	resolveBlueprintForInstallExecution,
 	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
 
@@ -129,6 +130,42 @@ describe('prepareBlueprintForRemoteInstall', () => {
 			landingPage: '/wp-admin/',
 			steps: [],
 		});
+	});
+
+	it('removes login directives from install execution blueprints', async () => {
+		const installPluginStep = {
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'wordpress.org/plugins',
+				slug: 'friends',
+			},
+		};
+		const expectedDeclaration = {
+			landingPage: '/friends/',
+			steps: [installPluginStep],
+		};
+		stubFetchBlueprint({
+			login: true,
+			landingPage: '/friends/',
+			steps: [
+				{
+					step: 'login',
+					username: 'admin',
+				},
+				installPluginStep,
+			],
+		});
+
+		const { blueprint, declaration } =
+			await resolveBlueprintForInstallExecution(
+				'https://example.com/blueprint.json'
+			);
+		const bundledDeclaration = JSON.parse(
+			await (await blueprint.read('blueprint.json')).text()
+		);
+
+		expect(declaration).toEqual(expectedDeclaration);
+		expect(bundledDeclaration).toEqual(expectedDeclaration);
 	});
 
 	it('builds a blueprint preview for the install dialog', async () => {

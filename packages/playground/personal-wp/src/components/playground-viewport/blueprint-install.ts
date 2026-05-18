@@ -7,6 +7,7 @@ import {
 	resolveRemoteBlueprint,
 } from '@wp-playground/blueprints';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
+import { StreamedFile } from '@php-wasm/stream-compression';
 import { analyzeBlueprint } from '../../lib/blueprint-confirmation';
 import type { BlueprintWarning } from '../../lib/blueprint-confirmation';
 
@@ -33,7 +34,9 @@ export async function prepareBlueprintForRemoteInstall(
 		blueprintUrl,
 		corsProxyUrl
 	);
-	const declaration = await getBlueprintDeclaration(blueprint);
+	const declaration = stripLoginFromInstallBlueprint(
+		await getBlueprintDeclaration(blueprint)
+	);
 	const landingPage = getBlueprintLandingPage(declaration);
 	return landingPage ? { blueprintUrl, landingPage } : { blueprintUrl };
 }
@@ -54,6 +57,26 @@ export async function resolveBlueprintForInstall(
 				playgroundUrl
 			),
 	});
+}
+
+export async function resolveBlueprintForInstallExecution(
+	blueprintUrl: string,
+	corsProxyUrl?: string
+): Promise<{
+	blueprint: BlueprintBundle;
+	declaration: BlueprintV1Declaration;
+}> {
+	const blueprint = await resolveBlueprintForInstall(
+		blueprintUrl,
+		corsProxyUrl
+	);
+	const declaration = stripLoginFromInstallBlueprint(
+		await getBlueprintDeclaration(blueprint)
+	);
+	return {
+		blueprint: withBlueprintDeclaration(blueprint, declaration),
+		declaration,
+	};
 }
 
 export async function fetchBlueprint(
@@ -99,6 +122,21 @@ export function getBlueprintInstallSource(blueprintUrl: string): {
 	};
 }
 
+export function stripLoginFromInstallBlueprint(
+	blueprint: BlueprintV1Declaration
+): BlueprintV1Declaration {
+	const blueprintWithoutLogin = { ...blueprint };
+	delete blueprintWithoutLogin.login;
+
+	if (blueprint.steps) {
+		blueprintWithoutLogin.steps = blueprint.steps.filter(
+			(step) => !isLoginStep(step)
+		);
+	}
+
+	return blueprintWithoutLogin;
+}
+
 export function shouldSkipBlueprintInstallConfirmation(
 	location: string | undefined
 ): boolean {
@@ -114,6 +152,44 @@ function getBlueprintLandingPage(
 	return typeof blueprint.landingPage === 'string' && blueprint.landingPage
 		? blueprint.landingPage
 		: undefined;
+}
+
+function withBlueprintDeclaration(
+	blueprint: BlueprintBundle,
+	declaration: BlueprintV1Declaration
+): BlueprintBundle {
+	return {
+		read: async (path: string) => {
+			if (normalizeBlueprintPath(path) === 'blueprint.json') {
+				return createBlueprintFile(declaration);
+			}
+			return blueprint.read(path);
+		},
+	};
+}
+
+function createBlueprintFile(
+	declaration: BlueprintV1Declaration
+): StreamedFile {
+	const blueprintJson = JSON.stringify(declaration);
+	const bytes = new TextEncoder().encode(blueprintJson);
+	return StreamedFile.fromArrayBuffer(bytes, 'blueprint.json', {
+		type: 'application/json',
+		filesize: bytes.byteLength,
+	});
+}
+
+function normalizeBlueprintPath(path: string): string {
+	return path.replace(/^\/+/, '');
+}
+
+function isLoginStep(step: unknown): boolean {
+	return (
+		!!step &&
+		typeof step === 'object' &&
+		'step' in step &&
+		(step as { step?: unknown }).step === 'login'
+	);
 }
 
 function getWordPressPathname(

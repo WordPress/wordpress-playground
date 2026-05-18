@@ -3,7 +3,6 @@ import type { RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
 	compileBlueprintV1,
-	getBlueprintDeclaration,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
@@ -38,7 +37,7 @@ import {
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
-	resolveBlueprintForInstall,
+	resolveBlueprintForInstallExecution,
 	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
 import type { BlueprintInstallPreview } from './blueprint-install';
@@ -138,11 +137,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			clearInstallBannerResetTimeout();
 			try {
 				setInstallingBlueprint('Installing\u2026');
-				const blueprint = await resolveBlueprintForInstall(
-					blueprintUrl,
-					corsProxyUrl
-				);
-				const declaration = await getBlueprintDeclaration(blueprint);
+				const { blueprint, declaration } =
+					await resolveBlueprintForInstallExecution(
+						blueprintUrl,
+						corsProxyUrl
+					);
 				const title = declaration.meta?.title || 'app';
 				setInstallingBlueprint(`Installing ${title}\u2026`);
 
@@ -827,20 +826,7 @@ function getBlueprintRunnerClient<T extends object>(
 function shouldAllowBlueprintRunnerRedirect(
 	blueprint: BlueprintV1Declaration
 ): boolean {
-	return (
-		!!blueprint.landingPage ||
-		!!blueprint.login ||
-		!!blueprint.steps?.some(isLoginStep)
-	);
-}
-
-function isLoginStep(step: unknown): boolean {
-	return (
-		!!step &&
-		typeof step === 'object' &&
-		'step' in step &&
-		(step as { step?: unknown }).step === 'login'
-	);
+	return !!blueprint.landingPage;
 }
 
 function withoutGoTo<T extends object>(playground: T): T {
