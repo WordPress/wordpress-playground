@@ -44,6 +44,9 @@ if ($is_popup_callback) {
     echo json_encode($auth_data);
 }
 
+/**
+ * Returns the callback URL GitHub should redirect to after authorization.
+ */
 function playground_oauth_callback_url() {
     $scheme = 'https';
     if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
@@ -58,6 +61,10 @@ function playground_oauth_callback_url() {
     return $scheme . '://' . $_SERVER['HTTP_HOST'] . $path;
 }
 
+/**
+ * Renders the popup callback page that sends the OAuth result to a trusted
+ * opener.
+ */
 function playground_oauth_popup_response($message) {
     $encoded_message = json_encode($message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     return <<<HTML
@@ -69,9 +76,44 @@ function playground_oauth_popup_response($message) {
     </head>
     <body>
         <script>
-            if (window.opener) {
-                window.opener.postMessage({$encoded_message}, window.location.origin);
-                window.close();
+            const message = {$encoded_message};
+            const currentScript = document.currentScript;
+            if (currentScript) {
+                currentScript.remove();
+            }
+
+            const targetOrigin = getTrustedOAuthOpenerOrigin();
+            if (targetOrigin) {
+                window.opener.postMessage(message, targetOrigin);
+            }
+            window.close();
+
+            function getTrustedOAuthOpenerOrigin() {
+                if (!window.opener) {
+                    return null;
+                }
+
+                try {
+                    const opener = window.opener;
+                    const openerUrl = new URL(opener.location.href);
+                    // Same-origin WordPress pages live under /scope:* paths.
+                    // Only top-level Playground pages may receive credentials.
+                    const isScopedPath = openerUrl.pathname
+                        .split('/')
+                        .some((segment) => segment.startsWith('scope:'));
+
+                    if (
+                        opener !== opener.top ||
+                        openerUrl.origin !== window.location.origin ||
+                        isScopedPath
+                    ) {
+                        return null;
+                    }
+
+                    return openerUrl.origin;
+                } catch {
+                    return null;
+                }
             }
         </script>
         GitHub authorization complete. You can close this window.

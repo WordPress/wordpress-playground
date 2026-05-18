@@ -107,6 +107,9 @@ export const oAuthMiddleware = async (
 	}
 };
 
+/**
+ * Detects OAuth requests even when the website is served from a subdirectory.
+ */
 function isOAuthRequest(url: string | undefined): boolean {
 	if (!url) {
 		return false;
@@ -115,6 +118,9 @@ function isOAuthRequest(url: string | undefined): boolean {
 	return pathname.endsWith('/oauth.php');
 }
 
+/**
+ * Builds the callback URL GitHub should redirect to after authorization.
+ */
 function getOAuthCallbackUrl(req: IncomingMessage) {
 	const requestUrl = new URL(req.url!, `http://${req.headers.host}`);
 	requestUrl.search = '';
@@ -124,10 +130,17 @@ function getOAuthCallbackUrl(req: IncomingMessage) {
 	return requestUrl.toString();
 }
 
+/**
+ * Distinguishes popup OAuth callbacks from the legacy JSON token exchange.
+ */
 function isPopupOAuthState(state: string | null): state is string {
 	return !!state && state.startsWith(GITHUB_OAUTH_STATE_PREFIX);
 }
 
+/**
+ * Renders the popup callback page that sends the OAuth result to a trusted
+ * opener.
+ */
 function renderOAuthPopupResponse({
 	state,
 	token,
@@ -151,9 +164,44 @@ function renderOAuthPopupResponse({
 	</head>
 	<body>
 		<script>
-			if (window.opener) {
-				window.opener.postMessage(${message}, window.location.origin);
-				window.close();
+			const message = ${message};
+			const currentScript = document.currentScript;
+			if (currentScript) {
+				currentScript.remove();
+			}
+
+			const targetOrigin = getTrustedOAuthOpenerOrigin();
+			if (targetOrigin) {
+				window.opener.postMessage(message, targetOrigin);
+			}
+			window.close();
+
+			function getTrustedOAuthOpenerOrigin() {
+				if (!window.opener) {
+					return null;
+				}
+
+				try {
+					const opener = window.opener;
+					const openerUrl = new URL(opener.location.href);
+					// Same-origin WordPress pages live under /scope:* paths.
+					// Only top-level Playground pages may receive credentials.
+					const isScopedPath = openerUrl.pathname
+						.split('/')
+						.some((segment) => segment.startsWith('scope:'));
+
+					if (
+						opener !== opener.top ||
+						openerUrl.origin !== window.location.origin ||
+						isScopedPath
+					) {
+						return null;
+					}
+
+					return openerUrl.origin;
+				} catch {
+					return null;
+				}
 			}
 		</script>
 		GitHub authorization complete. You can close this window.

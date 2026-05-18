@@ -5,6 +5,7 @@ const OAUTH_MESSAGE_TYPE = 'playground-github-oauth-token';
 declare global {
 	interface Window {
 		__githubOAuthPageLoads?: number;
+		__githubOAuthMessages?: unknown[];
 	}
 }
 
@@ -93,6 +94,41 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 		.toBe(1);
 });
 
+test('does not post an OAuth token to a scoped opener', async ({ page }) => {
+	await page.goto('./');
+	await page.evaluate(() => {
+		window.history.pushState({}, '', '/scope:malicious/');
+		window.__githubOAuthMessages = [];
+		window.addEventListener('message', (event) => {
+			window.__githubOAuthMessages!.push(event.data);
+		});
+	});
+
+	await page.context().route('**/oauth-test-callback', async (route) => {
+		await route.fulfill({
+			contentType: 'text/html',
+			body: guardedOAuthCallbackPage(
+				'playground-popup-scoped',
+				'gho_scoped_token'
+			),
+		});
+	});
+
+	const popupPromise = page.waitForEvent('popup');
+	await page.evaluate(() => {
+		window.open(
+			'/oauth-test-callback',
+			'scoped-oauth-test',
+			'popup,width=640,height=720'
+		);
+	});
+	const popup = await popupPromise;
+	await popup.waitForLoadState('domcontentloaded').catch(() => undefined);
+
+	await expect.poll(() => popup.isClosed()).toBe(true);
+	expect(await page.evaluate(() => window.__githubOAuthMessages)).toEqual([]);
+});
+
 function oauthCallbackPage(state: string, token: string) {
 	return `<!doctype html>
 <html>
@@ -107,6 +143,57 @@ function oauthCallbackPage(state: string, token: string) {
 				window.location.origin
 			);
 			window.close();
+		</script>
+	</body>
+</html>`;
+}
+
+function guardedOAuthCallbackPage(state: string, token: string) {
+	return `<!doctype html>
+<html>
+	<body>
+		<script>
+			const message = ${JSON.stringify({
+				type: OAUTH_MESSAGE_TYPE,
+				state,
+				token,
+			})};
+			const currentScript = document.currentScript;
+			if (currentScript) {
+				currentScript.remove();
+			}
+
+			const targetOrigin = getTrustedOAuthOpenerOrigin();
+			if (targetOrigin) {
+				window.opener.postMessage(message, targetOrigin);
+			}
+			window.close();
+
+			function getTrustedOAuthOpenerOrigin() {
+				if (!window.opener) {
+					return null;
+				}
+
+				try {
+					const opener = window.opener;
+					const openerUrl = new URL(opener.location.href);
+					const isScopedPath = openerUrl.pathname
+						.split('/')
+						.some((segment) => segment.startsWith('scope:'));
+
+					if (
+						opener !== opener.top ||
+						openerUrl.origin !== window.location.origin ||
+						isScopedPath
+					) {
+						return null;
+					}
+
+					return openerUrl.origin;
+				} catch {
+					return null;
+				}
+			}
 		</script>
 	</body>
 </html>`;

@@ -1,5 +1,4 @@
-export const GITHUB_OAUTH_MESSAGE_TYPE =
-	'playground-github-oauth-token';
+export const GITHUB_OAUTH_MESSAGE_TYPE = 'playground-github-oauth-token';
 export const GITHUB_OAUTH_STATE_PREFIX = 'playground-popup-';
 
 export interface GitHubOAuthMessage {
@@ -9,6 +8,10 @@ export interface GitHubOAuthMessage {
 	error?: string;
 }
 
+/**
+ * Opens GitHub OAuth in a popup and resolves with the token sent by the
+ * same-origin callback page.
+ */
 export function startGitHubOAuthFlow(): Promise<string> {
 	const state = createGitHubOAuthState();
 	const oauthUrl = buildGitHubOAuthUrl(state);
@@ -25,6 +28,10 @@ export function startGitHubOAuthFlow(): Promise<string> {
 	return waitForGitHubOAuthMessage(popup, state, oauthUrl);
 }
 
+/**
+ * Creates a popup-specific state value so the callback can be tied to the
+ * auth request that opened it.
+ */
 export function createGitHubOAuthState() {
 	if (globalThis.crypto?.randomUUID) {
 		return `${GITHUB_OAUTH_STATE_PREFIX}${globalThis.crypto.randomUUID()}`;
@@ -34,6 +41,9 @@ export function createGitHubOAuthState() {
 		.slice(2)}`;
 }
 
+/**
+ * Builds the local OAuth redirect endpoint URL for the popup window.
+ */
 export function buildGitHubOAuthUrl(
 	state: string,
 	currentUrl = window.location.href
@@ -44,6 +54,10 @@ export function buildGitHubOAuthUrl(
 	return oauthUrl.toString();
 }
 
+/**
+ * Validates that an OAuth message came from the tracked popup, not from the
+ * same-origin WordPress iframe or another window.
+ */
 export function isExpectedGitHubOAuthMessage(
 	event: MessageEvent,
 	popup: Window,
@@ -62,6 +76,9 @@ export function isExpectedGitHubOAuthMessage(
 	);
 }
 
+/**
+ * Waits for the popup callback to post either a token or an OAuth error.
+ */
 function waitForGitHubOAuthMessage(
 	popup: Window,
 	state: string,
