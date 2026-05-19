@@ -362,6 +362,8 @@ export function SavedPlaygroundsOverlay({
 		: explicitlySavedSites.slice(0, MAX_VISIBLE_SAVED_SITES);
 	const hiddenSavedSitesCount =
 		explicitlySavedSites.length - visibleSavedSites.length;
+	const activeTemporarySite =
+		activeSite?.metadata.storage === 'none' ? activeSite : undefined;
 
 	function formatSiteCreatedDate(site: SiteInfo) {
 		return site.metadata.whenCreated
@@ -466,6 +468,110 @@ export function SavedPlaygroundsOverlay({
 					</DropdownMenu>
 				</div>
 			</div>
+		);
+	}
+
+	function openSaveSiteModal() {
+		onClose();
+		modalDispatch(setActiveModal(modalSlugs.SAVE_SITE));
+	}
+
+	function renderCurrentPlaygroundSection() {
+		if (!activeTemporarySite) {
+			return null;
+		}
+
+		return (
+			<OverlaySection title="Current Playground">
+				<div className={css.sitesList}>
+					<div
+						className={classNames(css.siteRow, css.siteRowSelected)}
+					>
+						<button
+							className={css.siteRowContent}
+							onClick={onTemporaryPlaygroundClick}
+						>
+							<div className={css.siteRowLogo}>
+								{activeTemporarySite.metadata.logo ? (
+									<img
+										src={getLogoDataURL(
+											activeTemporarySite.metadata.logo
+										)}
+										alt=""
+									/>
+								) : (
+									<WordPressIcon />
+								)}
+							</div>
+							<div className={css.siteRowInfo}>
+								<span className={css.siteRowName}>
+									{activeTemporarySite.metadata.name}
+								</span>
+								<span className={css.siteRowDate}>
+									Temporary Playground
+								</span>
+							</div>
+						</button>
+						<div className={css.siteRowActions}>
+							<button
+								type="button"
+								className={css.keepButton}
+								onClick={openSaveSiteModal}
+							>
+								Save
+							</button>
+						</div>
+					</div>
+				</div>
+			</OverlaySection>
+		);
+	}
+
+	function renderSavedPlaygroundsSection() {
+		if (explicitlySavedSites.length === 0) {
+			return null;
+		}
+
+		return (
+			<OverlaySection title="Saved Playgrounds">
+				<div className={css.sitesList}>
+					{visibleSavedSites.map(renderSiteRow)}
+				</div>
+				{hiddenSavedSitesCount > 0 && (
+					<button
+						type="button"
+						className={css.showMoreButton}
+						onClick={() => setShowAllSavedSites(!showAllSavedSites)}
+					>
+						{showAllSavedSites
+							? 'Show fewer saved Playgrounds'
+							: `Show ${hiddenSavedSitesCount} more saved Playgrounds`}
+					</button>
+				)}
+			</OverlaySection>
+		);
+	}
+
+	function renderAutosavesSection() {
+		if (autosavedSites.length === 0) {
+			return null;
+		}
+
+		return (
+			<OverlaySection title="Recent autosaves">
+				<div className={css.autosaveSummary}>
+					<span className={css.autosaveBadge}>
+						Last {MAX_AUTOSAVED_SITES}
+					</span>
+					<span className={css.autosaveBadge}>Auto-delete</span>
+					<span className={css.autosaveHint}>
+						Use Save to keep one.
+					</span>
+				</div>
+				<div className={css.sitesList}>
+					{autosavedSites.map(renderSiteRow)}
+				</div>
+			</OverlaySection>
 		);
 	}
 
@@ -741,75 +847,10 @@ export function SavedPlaygroundsOverlay({
 					)}
 				</OverlaySection>
 
-				<OverlaySection title="Saved Playgrounds">
-					<div className={css.sitesList}>
-						<div
-							className={classNames(css.siteRow, {
-								[css.siteRowSelected]:
-									temporarySite?.slug === activeSite?.slug,
-							})}
-						>
-							<button
-								className={css.siteRowContent}
-								onClick={onTemporaryPlaygroundClick}
-							>
-								<div className={css.siteRowLogo}>
-									{temporarySite?.metadata.logo ? (
-										<img
-											src={getLogoDataURL(
-												temporarySite.metadata.logo
-											)}
-											alt=""
-										/>
-									) : (
-										<WordPressIcon />
-									)}
-								</div>
-								<div className={css.siteRowInfo}>
-									<span className={css.siteRowName}>
-										Unsaved Playground
-									</span>
-									<span className={css.siteRowDate}>
-										Not saved to browser storage
-									</span>
-								</div>
-							</button>
-						</div>
-						{visibleSavedSites.map(renderSiteRow)}
-					</div>
-					{hiddenSavedSitesCount > 0 && (
-						<button
-							type="button"
-							className={css.showMoreButton}
-							onClick={() =>
-								setShowAllSavedSites(!showAllSavedSites)
-							}
-						>
-							{showAllSavedSites
-								? 'Show fewer saved Playgrounds'
-								: `Show ${hiddenSavedSitesCount} more saved Playgrounds`}
-						</button>
-					)}
-				</OverlaySection>
-
-				{autosavedSites.length > 0 && (
-					<OverlaySection title="Recent autosaves">
-						<div className={css.autosaveSummary}>
-							<span className={css.autosaveBadge}>
-								Last {MAX_AUTOSAVED_SITES}
-							</span>
-							<span className={css.autosaveBadge}>
-								Auto-delete
-							</span>
-							<span className={css.autosaveHint}>
-								Use Save to keep one.
-							</span>
-						</div>
-						<div className={css.sitesList}>
-							{autosavedSites.map(renderSiteRow)}
-						</div>
-					</OverlaySection>
-				)}
+				{explicitlySavedSites.length === 0 && renderAutosavesSection()}
+				{renderCurrentPlaygroundSection()}
+				{renderSavedPlaygroundsSection()}
+				{explicitlySavedSites.length > 0 && renderAutosavesSection()}
 			</OverlayBody>
 		</Overlay>
 	);
