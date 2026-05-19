@@ -33,6 +33,7 @@ export const modalSlugs = {
 	SAVE_SITE: 'save-site',
 	DELETE_SITE: 'delete-site',
 	BLUEPRINT_URL: 'blueprint-url',
+	SHARE_PLAYGROUND: 'share-playground',
 } as const;
 
 export type SerializedPlainErrorDetails = {

@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig, createLogger } from 'vite';
 import type { CommonServerOptions, Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -41,6 +41,53 @@ const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
 // a port that was published using the devcontainer "appPort" configuration.
 const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
 
+// `npm run dev` and the CI preview script both spawn
+// `php -S 127.0.0.1:5264 relay.php` alongside the vite server (see the
+// dev:relay-php target in playground-website's project.json), and we
+// proxy /relay/* there. The same relay.php is what gets served in
+// production by Atomic / static hosts, so dev, CI and prod run identical
+// code. The X-Forwarded-Host value is what the relay uses to build the
+// public share URL — it has to be the URL the *browser* sees, not the
+// vite server itself, so production deployments behind a CDN keep
+// working too.
+const phpRelayUrl = 'http://127.0.0.1:5264';
+const buildRelayProxy = (forwardedHost: string) => ({
+	'^/relay/': {
+		target: phpRelayUrl,
+		changeOrigin: true,
+		headers: {
+			'X-Forwarded-Host': forwardedHost,
+			'X-Forwarded-Proto': 'http',
+		},
+		// Don't let vite spam its terminal with one ECONNREFUSED
+		// stacktrace per polling tick when the relay PHP server is
+		// briefly unreachable (e.g. mid-restart). Reply to the
+		// browser with a 502 — guests already know how to surface
+		// the resulting status flip — and stay quiet in the dev log.
+		configure: (proxy: {
+			on: (
+				event: 'error',
+				handler: (
+					err: Error,
+					req: unknown,
+					res: { writeHead?: (status: number) => void; end?: (body?: string) => void; headersSent?: boolean }
+				) => void
+			) => void;
+		}) => {
+			proxy.on('error', (_err, _req, res) => {
+				if (res && !res.headersSent && res.writeHead && res.end) {
+					try {
+						res.writeHead(502);
+						res.end('Relay unreachable');
+					} catch {
+						// best effort — the socket might already be gone
+					}
+				}
+			});
+		},
+	},
+});
+
 async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	// eslint-disable-next-line no-console
 	console.log(`Publishing port ${port}...`);
@@ -72,8 +119,29 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
+	// Filter the noisy "http proxy error" stack traces vite emits
+	// when the relay PHP server is briefly unreachable. Our custom
+	// proxy error handler in the relay block already returns a
+	// clean 502 to the client, so the dev terminal doesn't need to
+	// see the duplicate stack-trace log line on every poll. We only
+	// suppress proxy errors that target /relay/ — anything else
+	// still logs normally.
+	const customLogger = createLogger();
+	const originalError = customLogger.error.bind(customLogger);
+	customLogger.error = (msg, options) => {
+		if (
+			typeof msg === 'string' &&
+			msg.includes('http proxy error') &&
+			msg.includes('/relay/')
+		) {
+			return;
+		}
+		originalError(msg, options);
+	};
+
 	return {
 		root: __dirname,
+		customLogger,
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
 		// already the same host, but dev builds run two separate servers. See proxy
@@ -93,7 +161,15 @@ export default defineConfig(({ command, mode }) => {
 		preview: {
 			port: websiteDevServerPort,
 			host: serverHost,
-			proxy,
+			proxy: {
+				...proxy,
+				// In CI the website is served by `vite preview` on port
+				// 80 with no `/website-server/` base path, so the relay
+				// has to advertise share links pointing back at the bare
+				// host. The dev:standalone path below uses a different
+				// X-Forwarded-Host because dev runs on a different port.
+				...buildRelayProxy('127.0.0.1'),
+			},
 		},
 
 		server: {
@@ -121,9 +197,16 @@ export default defineConfig(({ command, mode }) => {
 					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
 					changeOrigin: true,
 				},
+				// All /relay/* traffic goes to the dedicated PHP relay
+				// server (php -S, started by the dev:relay-php nx target).
+				// We forward the original Host header so relay.php can
+				// build share URLs that point back at the vite dev server
+				// instead of the PHP server it happens to live on.
+				...buildRelayProxy(`${serverHost}:${websiteDevServerPort}`),
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
-				'^[/]((?!website-server).)': {
+				// Exclude /relay/ which is handled by the relay middleware for peer-to-peer sharing.
+				'^[/]((?!website-server|relay).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 					changeOrigin: true,
 				},
@@ -183,7 +266,11 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
 			}),
-			// GitHub OAuth flow
+			// GitHub OAuth callback handler. The peer-to-peer sharing
+			// relay used to live here as a TypeScript middleware too,
+			// but we deleted it — /relay/* is now proxied straight to
+			// `php -S 127.0.0.1:5264 relay.php` (see the proxy block
+			// above) so dev and prod run the exact same PHP code.
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {

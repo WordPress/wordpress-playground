@@ -56,12 +56,31 @@
 			"options": {
 				"commands": [
 					"nx run playground-php-cors-proxy:start",
+					"nx run playground-website:dev:relay-php",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
-					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
+					"node packages/playground/website/bin/wait-for-tcp.cjs 127.0.0.1 4400 && nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true
+			}
+		},
+		"dev:relay-php": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"PHP_CLI_SERVER_WORKERS=20 PLAYGROUND_RELAY_PUBLIC_BASE_URL=http://127.0.0.1:5400/website-server/ node ../bin/quiet-php-server.cjs 127.0.0.1:5264 relay.php"
+				],
+				"cwd": "packages/playground/website/public"
+			}
+		},
+		"preview:relay-php": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"PHP_CLI_SERVER_WORKERS=20 PLAYGROUND_RELAY_PUBLIC_BASE_URL=http://127.0.0.1/ node ../bin/quiet-php-server.cjs 127.0.0.1:5264 relay.php"
+				],
+				"cwd": "packages/playground/website/public"
 			}
 		},
 		"dev:standalone": {

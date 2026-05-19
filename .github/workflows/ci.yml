@@ -201,6 +201,23 @@ jobs:
     test-e2e-playwright:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        # Spin up a real MySQL alongside the runner so the share-relay
+        # PHP backend (relay.php) is exercised end-to-end against the
+        # mysql storage class. The credentials below are fed to the
+        # relay process via the env: block on the playwright step.
+        services:
+            mysql:
+                image: mysql:8
+                env:
+                    MYSQL_ROOT_PASSWORD: relay
+                    MYSQL_DATABASE: relay
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping -h localhost -uroot -prelay"
+                    --health-interval=5s
+                    --health-timeout=2s
+                    --health-retries=20
         strategy:
             fail-fast: false
             matrix:
@@ -252,6 +269,25 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+            - name: Install pdo_mysql for the relay backend
+              # The runner ships with PHP but pdo_mysql isn't always
+              # enabled by default. The relay process opens its own
+              # PDO connection so it needs the extension loaded.
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y php-mysql
+                  php -m | grep -i pdo_mysql
+            - name: Wait for MySQL to accept connections
+              run: |
+                  for i in $(seq 1 30); do
+                    if mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -prelay --silent 2>/dev/null; then
+                      echo "MySQL ready"
+                      exit 0
+                    fi
+                    sleep 1
+                  done
+                  echo "MySQL never came up"
+                  exit 1
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.browser }} --with-deps
             - name: Build app for E2E tests
@@ -262,10 +298,18 @@ jobs:
                   if [ -n "${{ matrix.shard }}" ]; then
                     SHARD_ARG="--shard=${{ matrix.shard }}"
                   fi
+                  # Switch the relay subprocess (php -S relay.php,
+                  # spawned by run-ci-preview-with-cors-proxy.cjs) onto
+                  # the mysql storage backend by passing PLAYGROUND_RELAY_BACKEND
+                  # and the DB_* credentials on the sudo command line.
+                  # We pass them explicitly (rather than relying on
+                  # `sudo -E`) because Ubuntu's default sudoers policy
+                  # resets the environment.
+                  RELAY_ENV="PLAYGROUND_RELAY_BACKEND=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_USER=root DB_PASSWORD=relay DB_NAME=relay"
                   if [ "${{ matrix.browser }}" = "firefox" ]; then
-                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true $RELAY_ENV npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   else
-                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                    sudo CI=true $RELAY_ENV npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   fi
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
