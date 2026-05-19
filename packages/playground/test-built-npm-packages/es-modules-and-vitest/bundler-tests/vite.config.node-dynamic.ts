@@ -24,6 +24,7 @@ export default defineConfig({
 			external: [
 				...builtinModules,
 				...builtinModules.map((m) => `node:${m}`),
+				'fs-ext-extra-prebuilt',
 				/\.wasm$/,
 				/\.so$/,
 				/\.dat$/,
