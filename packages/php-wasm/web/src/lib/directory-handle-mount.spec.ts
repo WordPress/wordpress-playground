@@ -3,6 +3,7 @@ import { __private__dont__use, type PHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import {
+	copyMemfsToOpfs,
 	createDirectoryHandleMountHandler,
 	journalFSEventsToOpfs,
 } from './directory-handle-mount';
@@ -457,6 +458,39 @@ describe('createDirectoryHandleMountHandler', () => {
 			total: 1,
 			phase: 'flushing',
 		});
+	});
+
+	it('does not emit stale copy progress after the final progress event', async () => {
+		vi.useFakeTimers();
+
+		try {
+			const progressEvents: Array<{ files: number; total: number }> = [];
+			const { FS, files } = createFakePhp();
+			const opfsRoot = new MemoryDirectoryHandle('root');
+			FS.readdir.mockReturnValue(['.', '..', 'first.txt', 'second.txt']);
+			files.set('/wordpress/first.txt', encode('first'));
+			files.set('/wordpress/second.txt', encode('second'));
+
+			await copyMemfsToOpfs(
+				FS as any,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress',
+				(progress) => {
+					progressEvents.push(progress);
+				}
+			);
+
+			const progressEventCount = progressEvents.length;
+			await vi.advanceTimersByTimeAsync(1000);
+
+			expect(progressEvents).toHaveLength(progressEventCount);
+			expect(progressEvents.at(-1)).toEqual({
+				files: 2,
+				total: 2,
+			});
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
 

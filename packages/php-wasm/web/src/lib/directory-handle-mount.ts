@@ -260,6 +260,7 @@ export async function copyMemfsToOpfs(
 		// to a conflict with writes from the earlier attempt.
 		await Promise.allSettled(concurrentWrites);
 	}
+	throttledProgressCallback?.cancel();
 	onProgress?.({
 		files: filesToCreate.length,
 		total: filesToCreate.length,
@@ -556,15 +557,21 @@ async function resolveParent(
 	return handle as any;
 }
 
+type CancelableThrottledFunction<T extends (...args: any[]) => any> = T & {
+	cancel(): void;
+};
+
 function throttle<T extends (...args: any[]) => any>(
 	fn: T,
 	debounceMs: number
-): T {
+): CancelableThrottledFunction<T> {
 	let lastCallTime = 0;
 	let timeoutId: ReturnType<typeof setTimeout> | undefined;
 	let pendingArgs: Parameters<T> | undefined;
 
-	return function throttledCallback(...args: Parameters<T>) {
+	const throttledCallback = function throttledCallback(
+		...args: Parameters<T>
+	) {
 		pendingArgs = args;
 
 		const timeSinceLastCall = Date.now() - lastCallTime;
@@ -576,5 +583,15 @@ function throttle<T extends (...args: any[]) => any>(
 				fn(...pendingArgs!);
 			}, delay);
 		}
-	} as T;
+	} as CancelableThrottledFunction<T>;
+
+	throttledCallback.cancel = () => {
+		if (timeoutId !== undefined) {
+			clearTimeout(timeoutId);
+		}
+		timeoutId = undefined;
+		pendingArgs = undefined;
+	};
+
+	return throttledCallback;
 }

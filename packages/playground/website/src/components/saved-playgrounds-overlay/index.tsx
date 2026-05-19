@@ -23,6 +23,8 @@ import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
+	isExplicitlySavedSite,
+	MAX_AUTOSAVED_SITES,
 	selectSortedSites,
 	selectTemporarySite,
 } from '../../lib/state/redux/slice-sites';
@@ -44,6 +46,8 @@ import {
 	OverlayBody,
 	OverlaySection,
 } from '../overlay';
+
+const MAX_VISIBLE_SAVED_SITES = 8;
 
 type BlueprintsIndexEntry = {
 	title: string;
@@ -86,6 +90,10 @@ export function SavedPlaygroundsOverlay({
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
+	const explicitlySavedSites = storedSites.filter(isExplicitlySavedSite);
+	const autosavedSites = storedSites
+		.filter(isAutosavedSite)
+		.slice(0, MAX_AUTOSAVED_SITES);
 	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
@@ -93,11 +101,11 @@ export function SavedPlaygroundsOverlay({
 	const sitesAPI = useSitesAPI();
 	const playground = usePlaygroundClient();
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
-	const yourPlaygroundsRef = useRef<HTMLDivElement>(null);
 
 	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
+	const [showAllSavedSites, setShowAllSavedSites] = useState(false);
 	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
 	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
 		string | null
@@ -256,14 +264,14 @@ export function SavedPlaygroundsOverlay({
 		closeMenu();
 	};
 
-	const handleKeepSite = async (site: SiteInfo, closeMenu: () => void) => {
+	const handleKeepSite = async (site: SiteInfo, closeMenu?: () => void) => {
 		await sitesAPI.keep(site.slug);
-		closeMenu();
+		closeMenu?.();
 	};
 
 	const getStoredSiteDetails = (site: SiteInfo) => {
 		if (isAutosavedSite(site)) {
-			return 'Autosaved - removed after 5 newer autosaves';
+			return 'Recovery copy';
 		}
 		if (site.metadata.storage === 'local-fs') {
 			return 'Saved in a local directory';
@@ -348,6 +356,118 @@ export function SavedPlaygroundsOverlay({
 			disabled: false,
 		},
 	];
+
+	const visibleSavedSites = showAllSavedSites
+		? explicitlySavedSites
+		: explicitlySavedSites.slice(0, MAX_VISIBLE_SAVED_SITES);
+	const hiddenSavedSitesCount =
+		explicitlySavedSites.length - visibleSavedSites.length;
+
+	function formatSiteCreatedDate(site: SiteInfo) {
+		return site.metadata.whenCreated
+			? new Date(site.metadata.whenCreated).toLocaleDateString(
+					undefined,
+					{
+						year: 'numeric',
+						month: 'short',
+						day: 'numeric',
+					}
+				)
+			: undefined;
+	}
+
+	function renderSiteRow(site: SiteInfo) {
+		const isSelected = site.slug === activeSite?.slug;
+		const isAutosave = isAutosavedSite(site);
+		const createdDate = formatSiteCreatedDate(site);
+
+		return (
+			<div
+				key={site.slug}
+				className={classNames(css.siteRow, {
+					[css.siteRowSelected]: isSelected,
+				})}
+			>
+				<button
+					className={css.siteRowContent}
+					onClick={() => onSiteClick(site.slug)}
+				>
+					<div className={css.siteRowLogo}>
+						{site.metadata.logo ? (
+							<img
+								src={getLogoDataURL(site.metadata.logo)}
+								alt=""
+							/>
+						) : (
+							<WordPressIcon />
+						)}
+					</div>
+					<div className={css.siteRowInfo}>
+						<span className={css.siteRowName}>
+							{site.metadata.name}
+						</span>
+						<span className={css.siteRowDate}>
+							{getStoredSiteDetails(site)}
+							{createdDate ? ` - Created ${createdDate}` : ''}
+						</span>
+					</div>
+				</button>
+				<div className={css.siteRowActions}>
+					{isAutosave && (
+						<button
+							type="button"
+							className={css.keepButton}
+							onClick={() => handleKeepSite(site)}
+							title="Save this Playground so it is not pruned from recent autosaves."
+						>
+							Save
+						</button>
+					)}
+					<DropdownMenu
+						icon={moreVertical}
+						label="Site actions"
+						className={css.siteRowMenu}
+						popoverProps={{
+							placement: 'bottom-end',
+						}}
+					>
+						{({ onClose: closeMenu }) => (
+							<>
+								<MenuGroup>
+									{isAutosave && (
+										<MenuItem
+											onClick={() =>
+												handleKeepSite(site, closeMenu)
+											}
+										>
+											Save Playground
+										</MenuItem>
+									)}
+									<MenuItem
+										onClick={() =>
+											handleRenameSite(site, closeMenu)
+										}
+									>
+										Rename
+									</MenuItem>
+								</MenuGroup>
+								<MenuGroup>
+									<MenuItem
+										className={css.dangerMenuItem}
+										onClick={() =>
+											handleDeleteSite(site, closeMenu)
+										}
+									>
+										Delete
+									</MenuItem>
+								</MenuGroup>
+							</>
+						)}
+					</DropdownMenu>
+				</div>
+			</div>
+		);
+	}
 
 	if (viewMode === 'blueprints') {
 		return (
@@ -531,19 +651,6 @@ export function SavedPlaygroundsOverlay({
 				style={{ display: 'none' }}
 			/>
 			<OverlayHeader onClose={onClose} />
-			<div className={css.quickNav}>
-				<button
-					type="button"
-					className={css.quickNavButton}
-					onClick={() =>
-						yourPlaygroundsRef.current?.scrollIntoView({
-							block: 'start',
-						})
-					}
-				>
-					Your Playgrounds
-				</button>
-			</div>
 			<OverlayBody>
 				<OverlaySection title="Start a new Playground">
 					<div className={css.creationRow}>
@@ -634,155 +741,75 @@ export function SavedPlaygroundsOverlay({
 					)}
 				</OverlaySection>
 
-				<div ref={yourPlaygroundsRef}>
-					<OverlaySection title="Your Playgrounds">
-						<div className={css.sitesList}>
-							<div
-								className={classNames(css.siteRow, {
-									[css.siteRowSelected]:
-										temporarySite?.slug ===
-										activeSite?.slug,
-								})}
-							>
-								<button
-									className={css.siteRowContent}
-									onClick={onTemporaryPlaygroundClick}
-								>
-									<div className={css.siteRowLogo}>
-										{temporarySite?.metadata.logo ? (
-											<img
-												src={getLogoDataURL(
-													temporarySite.metadata.logo
-												)}
-												alt=""
-											/>
-										) : (
-											<WordPressIcon />
-										)}
-									</div>
-									<div className={css.siteRowInfo}>
-										<span className={css.siteRowName}>
-											Unsaved Playground
-										</span>
-										<span className={css.siteRowDate}>
-											Not saved to browser storage
-										</span>
-									</div>
-								</button>
-							</div>
-							{storedSites.map((site) => {
-								const isSelected =
-									site.slug === activeSite?.slug;
-								const createdDate = site.metadata.whenCreated
-									? new Date(
-											site.metadata.whenCreated
-										).toLocaleDateString(undefined, {
-											year: 'numeric',
-											month: 'short',
-											day: 'numeric',
-										})
-									: undefined;
-								return (
-									<div
-										key={site.slug}
-										className={classNames(css.siteRow, {
-											[css.siteRowSelected]: isSelected,
-										})}
-									>
-										<button
-											className={css.siteRowContent}
-											onClick={() =>
-												onSiteClick(site.slug)
-											}
-										>
-											<div className={css.siteRowLogo}>
-												{site.metadata.logo ? (
-													<img
-														src={getLogoDataURL(
-															site.metadata.logo
-														)}
-														alt=""
-													/>
-												) : (
-													<WordPressIcon />
-												)}
-											</div>
-											<div className={css.siteRowInfo}>
-												<span
-													className={css.siteRowName}
-												>
-													{site.metadata.name}
-												</span>
-												<span
-													className={css.siteRowDate}
-												>
-													{getStoredSiteDetails(site)}
-													{createdDate
-														? ` - Created ${createdDate}`
-														: ''}
-												</span>
-											</div>
-										</button>
-										<DropdownMenu
-											icon={moreVertical}
-											label="Site actions"
-											className={css.siteRowMenu}
-											popoverProps={{
-												placement: 'bottom-end',
-											}}
-										>
-											{({ onClose: closeMenu }) => (
-												<>
-													<MenuGroup>
-														{isAutosavedSite(
-															site
-														) && (
-															<MenuItem
-																onClick={() =>
-																	handleKeepSite(
-																		site,
-																		closeMenu
-																	)
-																}
-															>
-																Save Playground
-															</MenuItem>
-														)}
-														<MenuItem
-															onClick={() =>
-																handleRenameSite(
-																	site,
-																	closeMenu
-																)
-															}
-														>
-															Rename
-														</MenuItem>
-													</MenuGroup>
-													<MenuGroup>
-														<MenuItem
-															className={
-																css.dangerMenuItem
-															}
-															onClick={() =>
-																handleDeleteSite(
-																	site,
-																	closeMenu
-																)
-															}
-														>
-															Delete
-														</MenuItem>
-													</MenuGroup>
-												</>
-											)}
-										</DropdownMenu>
-									</div>
-								);
+				<OverlaySection title="Saved Playgrounds">
+					<div className={css.sitesList}>
+						<div
+							className={classNames(css.siteRow, {
+								[css.siteRowSelected]:
+									temporarySite?.slug === activeSite?.slug,
 							})}
+						>
+							<button
+								className={css.siteRowContent}
+								onClick={onTemporaryPlaygroundClick}
+							>
+								<div className={css.siteRowLogo}>
+									{temporarySite?.metadata.logo ? (
+										<img
+											src={getLogoDataURL(
+												temporarySite.metadata.logo
+											)}
+											alt=""
+										/>
+									) : (
+										<WordPressIcon />
+									)}
+								</div>
+								<div className={css.siteRowInfo}>
+									<span className={css.siteRowName}>
+										Unsaved Playground
+									</span>
+									<span className={css.siteRowDate}>
+										Not saved to browser storage
+									</span>
+								</div>
+							</button>
+						</div>
+						{visibleSavedSites.map(renderSiteRow)}
+					</div>
+					{hiddenSavedSitesCount > 0 && (
+						<button
+							type="button"
+							className={css.showMoreButton}
+							onClick={() =>
+								setShowAllSavedSites(!showAllSavedSites)
+							}
+						>
+							{showAllSavedSites
+								? 'Show fewer saved Playgrounds'
+								: `Show ${hiddenSavedSitesCount} more saved Playgrounds`}
+						</button>
+					)}
+				</OverlaySection>
+
+				{autosavedSites.length > 0 && (
+					<OverlaySection title="Recent autosaves">
+						<div className={css.autosaveSummary}>
+							<span className={css.autosaveBadge}>
+								Last {MAX_AUTOSAVED_SITES}
+							</span>
+							<span className={css.autosaveBadge}>
+								Auto-delete
+							</span>
+							<span className={css.autosaveHint}>
+								Use Save to keep one.
+							</span>
+						</div>
+						<div className={css.sitesList}>
+							{autosavedSites.map(renderSiteRow)}
 						</div>
 					</OverlaySection>
-				</div>
+				)}
 			</OverlayBody>
 		</Overlay>
 	);
