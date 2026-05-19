@@ -325,6 +325,10 @@ export function bootSiteClient(
 		}
 
 		if (shouldSyncNewOpfsSiteInBackground && mountDescriptor) {
+			// Progress callbacks cross worker and iframe boundaries asynchronously.
+			// A final progress message may arrive after mountOpfs() resolves and
+			// must not resurrect the completed sync state in Redux.
+			let opfsMountSettled = false;
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
@@ -340,6 +344,9 @@ export function bootSiteClient(
 						initialSyncDirection: 'memfs-to-opfs',
 					},
 					(progress: SyncProgress) => {
+						if (opfsMountSettled) {
+							return;
+						}
 						dispatch(
 							updateClientInfo({
 								siteSlug: site.slug,
@@ -354,6 +361,7 @@ export function bootSiteClient(
 					}
 				)
 				.then(() => {
+					opfsMountSettled = true;
 					dispatch(
 						updateClientInfo({
 							siteSlug: site.slug,
@@ -364,6 +372,7 @@ export function bootSiteClient(
 					);
 				})
 				.catch((error: unknown) => {
+					opfsMountSettled = true;
 					logger.error(
 						'Error syncing saved Playground to OPFS',
 						error

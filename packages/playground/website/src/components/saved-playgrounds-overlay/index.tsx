@@ -476,23 +476,27 @@ export function SavedPlaygroundsOverlay({
 		modalDispatch(setActiveModal(modalSlugs.SAVE_SITE));
 	}
 
-	function renderCurrentPlaygroundSection() {
-		if (!activeTemporarySite) {
-			return null;
-		}
-
+	function renderTemporaryPlaygroundSection() {
 		return (
-			<OverlaySection title="Current Playground">
+			<OverlaySection
+				title={
+					activeTemporarySite
+						? 'Current Playground'
+						: 'Start without autosave'
+				}
+			>
 				<div className={css.sitesList}>
 					<div
-						className={classNames(css.siteRow, css.siteRowSelected)}
+						className={classNames(css.siteRow, {
+							[css.siteRowSelected]: !!activeTemporarySite,
+						})}
 					>
 						<button
 							className={css.siteRowContent}
 							onClick={onTemporaryPlaygroundClick}
 						>
 							<div className={css.siteRowLogo}>
-								{activeTemporarySite.metadata.logo ? (
+								{activeTemporarySite?.metadata.logo ? (
 									<img
 										src={getLogoDataURL(
 											activeTemporarySite.metadata.logo
@@ -505,22 +509,27 @@ export function SavedPlaygroundsOverlay({
 							</div>
 							<div className={css.siteRowInfo}>
 								<span className={css.siteRowName}>
-									{activeTemporarySite.metadata.name}
+									{activeTemporarySite?.metadata.name ??
+										'Unsaved Playground'}
 								</span>
 								<span className={css.siteRowDate}>
-									Temporary Playground
+									{activeTemporarySite
+										? 'Temporary Playground'
+										: 'Changes are lost on refresh'}
 								</span>
 							</div>
 						</button>
-						<div className={css.siteRowActions}>
-							<button
-								type="button"
-								className={css.keepButton}
-								onClick={openSaveSiteModal}
-							>
-								Save
-							</button>
-						</div>
+						{activeTemporarySite && (
+							<div className={css.siteRowActions}>
+								<button
+									type="button"
+									className={css.keepButton}
+									onClick={openSaveSiteModal}
+								>
+									Save
+								</button>
+							</div>
+						)}
 					</div>
 				</div>
 			</OverlaySection>
@@ -848,7 +857,7 @@ export function SavedPlaygroundsOverlay({
 				</OverlaySection>
 
 				{explicitlySavedSites.length === 0 && renderAutosavesSection()}
-				{renderCurrentPlaygroundSection()}
+				{renderTemporaryPlaygroundSection()}
 				{renderSavedPlaygroundsSection()}
 				{explicitlySavedSites.length > 0 && renderAutosavesSection()}
 			</OverlayBody>

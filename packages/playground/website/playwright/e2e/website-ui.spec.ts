@@ -596,7 +596,7 @@ test.describe('Database panel', () => {
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
 test.describe('Default Playground storage', () => {
-	test('should create a browser-autosaved Playground by default', async ({
+	test('should create and finish autosaving a Playground from the root URL', async ({
 		website,
 		browserName,
 	}) => {
@@ -620,10 +620,13 @@ test.describe('Default Playground storage', () => {
 			0
 		);
 		await expect(
-			website.page.getByText(
-				/Autosaved Playground|Autosaving|Finalizing autosave/
-			)
-		).toBeVisible();
+			website.page.getByText('Autosaved Playground')
+		).toBeVisible({
+			timeout: 120000,
+		});
+		await expect(
+			website.page.getByText(/Autosaving|Finalizing autosave/)
+		).toHaveCount(0);
 	});
 
 	test('should start an unsaved Playground from the overlay opt-out', async ({
