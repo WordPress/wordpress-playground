@@ -99,10 +99,9 @@ test('should switch between sites', async ({ website, browserName }) => {
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// The unsaved row is an explicit opt-out from saved-by-default.
+	// The unsaved button is an explicit opt-out from saved-by-default.
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' })
+		.getByRole('button', { name: 'Unsaved Playground' })
 		.click();
 	await website.ensureSiteManagerIsOpen();
 
@@ -174,10 +173,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Use the unsaved row to create another default Playground, then switch back.
+	// Use the unsaved button to create a temporary Playground, then switch back.
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' })
+		.getByRole('button', { name: 'Unsaved Playground' })
 		.click();
 
 	// Open the overlay again to switch back to the stored site
@@ -622,14 +620,13 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 
-	// The unsaved row is available as the affordance for creating another
+	// The unsaved button is available as the affordance for creating another
 	// Playground.
-	const tempPlaygroundRow = website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' });
+	const tempPlaygroundButton = website.page.getByRole('button', {
+		name: 'Unsaved Playground',
+	});
 
-	// The row exists but creates a new saved Playground by default.
-	await expect(tempPlaygroundRow).toBeVisible();
+	await expect(tempPlaygroundButton).toBeVisible();
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';

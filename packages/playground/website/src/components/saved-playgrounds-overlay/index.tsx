@@ -6,7 +6,7 @@ import {
 	MenuGroup,
 	MenuItem,
 } from '@wordpress/components';
-import { moreVertical, upload, link } from '@wordpress/icons';
+import { cautionFilled, moreVertical, upload, link } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useDispatch } from 'react-redux';
@@ -304,9 +304,16 @@ export function SavedPlaygroundsOverlay({
 	const creationOptions = [
 		{
 			id: 'vanilla',
-			title: 'Vanilla WordPress',
+			title: 'New Playground',
 			iconComponent: <WordPressIcon />,
 			onClick: createVanillaSite,
+			disabled: false,
+		},
+		{
+			id: 'temporary',
+			title: 'Unsaved Playground',
+			icon: cautionFilled,
+			onClick: onTemporaryPlaygroundClick,
 			disabled: false,
 		},
 		{
@@ -362,8 +369,6 @@ export function SavedPlaygroundsOverlay({
 		: explicitlySavedSites.slice(0, MAX_VISIBLE_SAVED_SITES);
 	const hiddenSavedSitesCount =
 		explicitlySavedSites.length - visibleSavedSites.length;
-	const activeTemporarySite =
-		activeSite?.metadata.storage === 'none' ? activeSite : undefined;
 
 	function formatSiteCreatedDate(site: SiteInfo) {
 		return site.metadata.whenCreated
@@ -468,71 +473,6 @@ export function SavedPlaygroundsOverlay({
 					</DropdownMenu>
 				</div>
 			</div>
-		);
-	}
-
-	function openSaveSiteModal() {
-		onClose();
-		modalDispatch(setActiveModal(modalSlugs.SAVE_SITE));
-	}
-
-	function renderTemporaryPlaygroundSection() {
-		return (
-			<OverlaySection
-				title={
-					activeTemporarySite
-						? 'Current Playground'
-						: 'New Playground'
-				}
-			>
-				<div className={css.sitesList}>
-					<div
-						className={classNames(css.siteRow, {
-							[css.siteRowSelected]: !!activeTemporarySite,
-						})}
-					>
-						<button
-							className={css.siteRowContent}
-							onClick={onTemporaryPlaygroundClick}
-						>
-							<div className={css.siteRowLogo}>
-								{activeTemporarySite?.metadata.logo ? (
-									<img
-										src={getLogoDataURL(
-											activeTemporarySite.metadata.logo
-										)}
-										alt=""
-									/>
-								) : (
-									<WordPressIcon />
-								)}
-							</div>
-							<div className={css.siteRowInfo}>
-								<span className={css.siteRowName}>
-									{activeTemporarySite?.metadata.name ??
-										'Unsaved Playground'}
-								</span>
-								<span className={css.siteRowDate}>
-									{activeTemporarySite
-										? 'Temporary Playground'
-										: 'Changes are lost on refresh'}
-								</span>
-							</div>
-						</button>
-						{activeTemporarySite && (
-							<div className={css.siteRowActions}>
-								<button
-									type="button"
-									className={css.keepButton}
-									onClick={openSaveSiteModal}
-								>
-									Save
-								</button>
-							</div>
-						)}
-					</div>
-				</div>
-			</OverlaySection>
 		);
 	}
 
@@ -858,7 +798,6 @@ export function SavedPlaygroundsOverlay({
 
 				{renderAutosavesSection()}
 				{renderSavedPlaygroundsSection()}
-				{renderTemporaryPlaygroundSection()}
 			</OverlayBody>
 		</Overlay>
 	);

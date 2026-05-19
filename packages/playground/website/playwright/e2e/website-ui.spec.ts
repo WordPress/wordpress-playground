@@ -641,8 +641,7 @@ test.describe('Default Playground storage', () => {
 		await website.goto('./');
 		await website.openSavedPlaygroundsOverlay();
 		await website.page
-			.locator('[class*="siteRowContent"]')
-			.filter({ hasText: 'Unsaved Playground' })
+			.getByRole('button', { name: 'Unsaved Playground' })
 			.click();
 		await website.waitForNestedIframes();
 		await website.ensureSiteManagerIsClosed();
