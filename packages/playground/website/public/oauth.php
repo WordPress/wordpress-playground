@@ -66,6 +66,8 @@ function playground_oauth_callback_url() {
         return rtrim($base_url, '/') . $path;
     }
 
+    // Infer the public callback scheme for proxied and local development
+    // requests while only accepting explicit http/https forwarded values.
     $scheme = 'https';
     $forwarded_proto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
     if (in_array($forwarded_proto, ['http', 'https'], true)) {
@@ -76,6 +78,9 @@ function playground_oauth_callback_url() {
         $scheme = 'http';
     }
 
+    // Some servers/proxies route by listener or default vhost and still run
+    // this script for arbitrary Host values. Since the fallback reflects Host
+    // into redirect_uri, keep it to hostname[:port] URL authority syntax.
     $host = $_SERVER['HTTP_HOST'] ?? '';
     if (!preg_match('/^[A-Za-z0-9.-]+(?::[0-9]+)?$/', $host)) {
         return null;
