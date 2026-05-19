@@ -15,10 +15,16 @@
 	"type": "module",
 	"main": "index.js",
 	"scripts": {
-		"test": "node --experimental-strip-types --experimental-transform-types ./run-tests.ts"
+		"test": "node --experimental-strip-types --experimental-transform-types ./run-tests.ts",
+		"test:bundle": "node --experimental-strip-types --experimental-transform-types ./bundler-tests/run-bundler-tests.ts"
 	},
 	"devDependencies": {
+		"@php-wasm/node": "^1.2.3",
+		"@php-wasm/universal": "^1.2.3",
+		"@php-wasm/web": "^1.2.3",
 		"@types/node": "^22.14.1",
-		"@wp-playground/cli": "^1.2.3"
+		"@wp-playground/cli": "^1.2.3",
+		"playwright": "1.55.1",
+		"vite": "^5.0.0"
 	}
 }
