@@ -36,7 +36,7 @@ Here is the complete embed:
 			{
 				"step": "writeFile",
 				"path": "/wordpress/wp-content/mu-plugins/product-cards.php",
-				"data": "<?php\nfunction docs_render_product_card(array $product): string {\n    return sprintf(\n        '<article class=\"product-card\"><h3>%s</h3><p>$%0.2f</p></article>',\n        esc_html($product['name']),\n        $product['price']\n    );\n}\n"
+				"data": "<?php\nfunction docs_render_product_card( array $product ): string {\n\treturn sprintf(\n\t\t'<article class=\"product-card\"><h3>%s</h3><p>$%0.2f</p></article>',\n\t\tesc_html( $product['name'] ),\n\t\t$product['price']\n\t);\n}\n"
 			}
 		]
 	}
@@ -48,12 +48,18 @@ Here is the complete embed:
 		require '/wordpress/wp-load.php';
 
 		$products = [
-		    [ 'name' => 'Canvas Tote', 'price' => 24 ],
-		    [ 'name' => 'Coffee & Code Mug', 'price' => 16.5 ],
+			[
+				'name'  => 'Canvas Tote',
+				'price' => 24,
+			],
+			[
+				'name'  => 'Coffee & Code Mug',
+				'price' => 16.5,
+			],
 		];
 
 		foreach ( $products as $product ) {
-		    echo docs_render_product_card( $product ) . "\n";
+			echo docs_render_product_card( $product ) . "\n";
 		}
 	</script>
 	<script type="text/expected-output">
@@ -79,7 +85,7 @@ For a basic runnable example, add the component script once and place PHP inside
 <php-snippet name="hello.php">
 	<script type="application/x-php">
 		<?php
-		echo "Hello from PHP " . phpversion();
+		echo 'Hello from PHP ' . phpversion();
 	</script>
 	<script type="text/expected-output">
 		Hello from PHP 8.4.x
@@ -109,7 +115,7 @@ escaping every `<` character.
 		$tags = new WP_HTML_Tag_Processor( $html );
 
 		if ( $tags->next_tag( 'img' ) ) {
-		    $tags->set_attribute( 'loading', 'lazy' );
+			$tags->set_attribute( 'loading', 'lazy' );
 		}
 
 		echo $tags->get_updated_html();
@@ -160,7 +166,7 @@ the WordPress download and boot step:
 <php-snippet name="pure-php.php" wp="none">
 	<script type="application/x-php">
 		<?php
-		echo "WordPress installed: ";
+		echo 'WordPress installed: ';
 		echo file_exists( '/wordpress/wp-load.php' ) ? 'yes' : 'no';
 	</script>
 	<script type="text/expected-output">
@@ -200,7 +206,7 @@ Use `readonly` for runnable examples that should be copied or run as-is:
 <php-snippet name="reference.php" readonly>
 	<script type="application/x-php">
 		<?php
-		echo "This example can run, but the code is locked.";
+		echo 'This example can run, but the code is locked.';
 	</script>
 	<script type="text/expected-output">
 		This example can run, but the code is locked.
@@ -221,7 +227,7 @@ is replaced with real runtime output after the reader clicks Run.
 <php-snippet name="precomputed.php">
 	<script type="application/x-php">
 		<?php
-		echo "2 + 2 = " . ( 2 + 2 );
+		echo '2 + 2 = ' . ( 2 + 2 );
 	</script>
 	<script type="text/expected-output">
 		2 + 2 = 4
@@ -236,7 +242,8 @@ For one-line output, use the `expected-output` attribute:
 ```html
 <php-snippet name="one-line.php" expected-output="Ready">
 	<script type="application/x-php">
-		<?php echo "Ready";
+		<?php
+		echo 'Ready';
 	</script>
 </php-snippet>
 ```
@@ -256,7 +263,7 @@ selector.
 			{
 				"step": "writeFile",
 				"path": "/wordpress/wp-content/mu-plugins/helpers.php",
-				"data": "<?php\nfunction docs_greet($name) { return 'Hello, ' . $name; }\n"
+				"data": "<?php\nfunction docs_greet( $name ) {\n\treturn 'Hello, ' . $name;\n}\n"
 			}
 		]
 	}
@@ -325,8 +332,8 @@ Set `php` or `wp` when the example depends on a specific version.
 	<script type="application/x-php">
 		<?php
 		enum Status {
-		    case Draft;
-		    case Published;
+			case Draft;
+			case Published;
 		}
 
 		echo Status::Published->name;
