@@ -482,7 +482,7 @@ export function SavedPlaygroundsOverlay({
 				title={
 					activeTemporarySite
 						? 'Current Playground'
-						: 'Start without autosave'
+						: 'New Playground'
 				}
 			>
 				<div className={css.sitesList}>
@@ -856,10 +856,9 @@ export function SavedPlaygroundsOverlay({
 					)}
 				</OverlaySection>
 
-				{explicitlySavedSites.length === 0 && renderAutosavesSection()}
-				{renderTemporaryPlaygroundSection()}
+				{renderAutosavesSection()}
 				{renderSavedPlaygroundsSection()}
-				{explicitlySavedSites.length > 0 && renderAutosavesSection()}
+				{renderTemporaryPlaygroundSection()}
 			</OverlayBody>
 		</Overlay>
 	);
