@@ -236,18 +236,6 @@ export function SavedPlaygroundsOverlay({
 		onClose();
 	};
 
-	const onTemporaryPlaygroundClick = async () => {
-		if (temporarySite) {
-			await sitesAPI.setActiveSite(temporarySite.slug);
-			dispatch(setSiteManagerSection('site-details'));
-			onClose();
-		} else {
-			dispatch(setSiteManagerOpen(false));
-			redirectTo(PlaygroundRoute.newTemporarySite());
-			onClose();
-		}
-	};
-
 	const getLogoDataURL = (logo: SiteLogo): string => {
 		return `data:${logo.mime};base64,${logo.data}`;
 	};
@@ -311,14 +299,8 @@ export function SavedPlaygroundsOverlay({
 			disabled: false,
 		},
 		{
-			id: 'temporary',
-			title: 'Unsaved Playground',
-			onClick: onTemporaryPlaygroundClick,
-			disabled: false,
-		},
-		{
 			id: 'wp-pr',
-			title: 'WordPress PR',
+			title: 'Preview a WordPress PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
@@ -327,7 +309,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'gutenberg-pr',
-			title: 'Gutenberg PR',
+			title: 'Preview a Gutenberg PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
@@ -336,7 +318,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'github',
-			title: 'From GitHub',
+			title: 'Import from GitHub',
 			iconComponent: GitHubIcon,
 			onClick: async () => {
 				await createSiteForImport();
@@ -346,7 +328,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'blueprint-url',
-			title: 'Blueprint URL',
+			title: 'Open a Blueprint URL',
 			icon: link,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
@@ -355,7 +337,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'zip',
-			title: 'Import .zip',
+			title: 'Import a .zip',
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();

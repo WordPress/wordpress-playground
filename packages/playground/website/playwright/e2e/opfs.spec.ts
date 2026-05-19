@@ -99,21 +99,20 @@ test('should switch between sites', async ({ website, browserName }) => {
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// The unsaved button is an explicit opt-out from saved-by-default.
-	await website.page
-		.getByRole('button', { name: 'Unsaved Playground' })
-		.click();
+	// Start another saved Playground, then switch back to the first one.
+	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.waitForNestedIframes();
 	await website.ensureSiteManagerIsOpen();
 
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
 		firstSiteName
 	);
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground'
-	);
-	expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
-		'temp'
-	);
+	await expect(
+		website.page.getByText('Autosaved in this browser')
+	).toBeVisible({ timeout: 120000 });
+	await expect
+		.poll(() => new URL(website.page.url()).searchParams.get('site-slug'))
+		.toBeTruthy();
 
 	await website.openSavedPlaygroundsOverlay();
 	await website.page
@@ -173,10 +172,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Use the unsaved button to create a temporary Playground, then switch back.
-	await website.page
-		.getByRole('button', { name: 'Unsaved Playground' })
-		.click();
+	// Create another Playground, then switch back.
+	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.waitForNestedIframes();
 
 	// Open the overlay again to switch back to the stored site
 	await website.openSavedPlaygroundsOverlay();
@@ -620,13 +618,10 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 
-	// The unsaved button is available as the affordance for creating another
-	// Playground.
-	const tempPlaygroundButton = website.page.getByRole('button', {
-		name: 'Unsaved Playground',
+	const importZipButton = website.page.getByRole('button', {
+		name: 'Import a .zip',
 	});
-
-	await expect(tempPlaygroundButton).toBeVisible();
+	await expect(importZipButton).toBeVisible();
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';

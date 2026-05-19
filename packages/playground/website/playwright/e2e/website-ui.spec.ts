@@ -629,7 +629,7 @@ test.describe('Default Playground storage', () => {
 		).toHaveCount(0);
 	});
 
-	test('should start an unsaved Playground from the overlay opt-out', async ({
+	test('should show intent-driven creation actions in the overlay', async ({
 		website,
 		browserName,
 	}) => {
@@ -640,18 +640,33 @@ test.describe('Default Playground storage', () => {
 
 		await website.goto('./');
 		await website.openSavedPlaygroundsOverlay();
-		await website.page
-			.getByRole('button', { name: 'Unsaved Playground' })
-			.click();
-		await website.waitForNestedIframes();
-		await website.ensureSiteManagerIsClosed();
-
-		const url = new URL(website.page.url());
-		expect(url.searchParams.get('storage')).toBe('temp');
-		expect(url.searchParams.get('site-slug')).toBe(null);
 		await expect(
-			website.page.getByText('Unsaved Playground')
+			website.page.getByRole('button', { name: 'New Playground' })
 		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Preview a WordPress PR',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Preview a Gutenberg PR',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Import from GitHub' })
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Open a Blueprint URL',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Import a .zip' })
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved Playground' })
+		).toHaveCount(0);
 	});
 
 	test('should show autosave browser storage details in the Site Manager by default', async ({
