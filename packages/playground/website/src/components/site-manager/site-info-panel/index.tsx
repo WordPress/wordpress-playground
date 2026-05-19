@@ -290,7 +290,7 @@ export function SiteInfoPanel({
 													);
 												case 'opfs':
 													if (isAutosaved) {
-														return `Autosaved in this browser ${createdAgo}. Removed after 5 newer autosaves unless kept.`;
+														return `Autosaved in this browser ${createdAgo}. Removed after 5 newer autosaves unless saved.`;
 													}
 													return `Saved in this browser ${createdAgo}`;
 											}
@@ -302,7 +302,7 @@ export function SiteInfoPanel({
 						{isAutosaved && (
 							<FlexItem className={css.siteInfoHeaderAction}>
 								<Button variant="primary" onClick={keepSite}>
-									Keep forever
+									Save Playground
 								</Button>
 							</FlexItem>
 						)}

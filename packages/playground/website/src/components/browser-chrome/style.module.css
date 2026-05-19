@@ -94,15 +94,24 @@ body.is-embedded .fake-window-wrapper {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 8px;
+	gap: 6px;
+	padding: 8px 10px;
 	background: transparent;
 	border: none;
 	cursor: pointer;
 	flex-shrink: 0;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 16px;
 }
 
 .saved-playgrounds-button svg {
 	fill: #fff;
+}
+
+.saved-playgrounds-button-label {
+	color: #fff;
 }
 
 .saved-playgrounds-button:hover {
@@ -141,6 +150,10 @@ body.is-embedded .fake-window-wrapper {
 	}
 	.toolbar-buttons {
 		padding: 0;
+	}
+
+	.saved-playgrounds-button-label {
+		display: none;
 	}
 }
 

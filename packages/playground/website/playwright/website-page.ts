@@ -71,7 +71,7 @@ export class WebsitePage {
 
 	async openSavedPlaygroundsOverlay() {
 		await this.page
-			.getByRole('button', { name: 'Saved Playgrounds' })
+			.getByRole('button', { name: 'Your Playgrounds' })
 			.click();
 		await expect(
 			this.page

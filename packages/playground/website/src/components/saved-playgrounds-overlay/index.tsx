@@ -745,7 +745,7 @@ export function SavedPlaygroundsOverlay({
 																	)
 																}
 															>
-																Keep forever
+																Save Playground
 															</MenuItem>
 														)}
 														<MenuItem

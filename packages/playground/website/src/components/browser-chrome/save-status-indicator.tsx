@@ -95,10 +95,11 @@ export function SaveStatusIndicator() {
 				<span className={css.label}>Autosaved Playground</span>
 				<button
 					className={css.saveButton}
+					aria-label="Save Playground"
 					onClick={handleKeepClick}
 					type="button"
 				>
-					Keep forever
+					Save
 				</button>
 			</div>
 		);
@@ -116,10 +117,11 @@ export function SaveStatusIndicator() {
 				{isAutosaved && (
 					<button
 						className={css.saveButton}
+						aria-label="Save Playground"
 						onClick={handleKeepClick}
 						type="button"
 					>
-						Keep forever
+						Save
 					</button>
 				)}
 			</div>

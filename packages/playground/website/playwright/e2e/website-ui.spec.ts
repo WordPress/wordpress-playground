@@ -669,11 +669,14 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
-				'Removed after 5 newer autosaves unless kept.'
+				'Removed after 5 newer autosaves unless saved.'
 			)
 		).toBeVisible();
+		const siteInfoPanel = website.page.locator(
+			'section[class*="site-info-panel"]'
+		);
 		await expect(
-			website.page.getByRole('button', { name: 'Keep forever' })
+			siteInfoPanel.getByRole('button', { name: 'Save Playground' })
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
@@ -694,7 +697,7 @@ test.describe('Default Playground storage', () => {
 		await website.goto('./');
 		await website.ensureSiteManagerIsClosed();
 		const keepButton = website.page.getByRole('button', {
-			name: 'Keep forever',
+			name: 'Save Playground',
 		});
 		await expect(keepButton).toBeVisible({ timeout: 120000 });
 		await keepButton.click();
