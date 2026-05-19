@@ -36,7 +36,18 @@ describe('socket timeout support', () => {
 		expect(source).toContain(
 			'PHPWASM.socketTimeouts.set(socketd, timeouts)'
 		);
-		expect(source).toContain('PHPWASM.socketTimeouts.get(sockfd)?.send');
+		expect(source).toContain('const receiveTimeout =');
+		expect(source).toContain('PHPWASM.socketTimeouts.get(sockfd)?.receive');
+		expect(source).toContain('wakeUp(-ERRNO_CODES.EAGAIN)');
+		expect(source).toContain(
+			'const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send'
+		);
+		expect(source).toContain('const timeout = sendTimeout ?? 30000');
+		expect(source).toContain('const cleanupConnectListeners = () =>');
+		expect(source).toContain('const cleanupFailedConnect = (errno) =>');
+		expect(source).toContain('sock.connecting = false');
+		expect(source).toContain('sock.error = errno');
+		expect(source).not.toContain('?.send || 30000');
 		expect(source).not.toContain('const isIgnorable');
 	});
 
@@ -62,8 +73,27 @@ describe('socket timeout support', () => {
 				'PHPWASM.socketTimeouts.set(socketd, timeouts)'
 			);
 			expect(loader, loaderFile).toContain(
+				'parseSocketTimeout: function'
+			);
+			if (loader.includes('___syscall_recvfrom(sockfd')) {
+				expect(loader, loaderFile).toContain(
+					'PHPWASM.socketTimeouts.get(sockfd)?.receive'
+				);
+				expect(loader, loaderFile).toContain(
+					'wakeUp(-ERRNO_CODES.EAGAIN)'
+				);
+			}
+			expect(loader, loaderFile).toContain(
 				'PHPWASM.socketTimeouts.get(sockfd)?.send'
 			);
+			expect(loader, loaderFile).toContain(
+				'const timeout = sendTimeout ?? 3e4'
+			);
+			expect(loader, loaderFile).toContain('cleanupConnectListeners');
+			expect(loader, loaderFile).toContain('cleanupFailedConnect');
+			expect(loader, loaderFile).toContain('sock.connecting = false');
+			expect(loader, loaderFile).toContain('sock.error = errno');
+			expect(loader, loaderFile).not.toContain('?.send || 3e4');
 			expect(loader, loaderFile).not.toContain('isIgnorable');
 		}
 	});
