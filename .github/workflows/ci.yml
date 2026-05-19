@@ -505,7 +505,7 @@ jobs:
         needs: detect-compile-extension-helper-changes
         if: (github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request') && needs.detect-compile-extension-helper-changes.outputs.changed == 'true'
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        timeout-minutes: 60
         permissions:
             contents: read # Required to clone the repo.
         steps:

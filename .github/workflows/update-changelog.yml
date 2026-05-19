@@ -38,6 +38,7 @@ jobs:
         timeout-minutes: 20
         permissions:
             contents: write # Required to clone the repo, commit, and push the updated changelog.
+            issues: read # Required to query merged pull requests for changelog generation.
         environment:
             name: wordpress-assets
         env:
