@@ -126,6 +126,16 @@
 	height: 28px;
 }
 
+.newPlaygroundIcon {
+	width: 42px;
+	height: 42px;
+}
+
+.newPlaygroundIcon :global(svg) {
+	width: 40px;
+	height: 40px;
+}
+
 .creationTitle {
 	font-size: clamp(13px, 1.3vw, 14px);
 	font-weight: 500;

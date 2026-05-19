@@ -6,7 +6,7 @@ import {
 	MenuGroup,
 	MenuItem,
 } from '@wordpress/components';
-import { cautionFilled, moreVertical, upload, link } from '@wordpress/icons';
+import { moreVertical, plus, upload, link } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useDispatch } from 'react-redux';
@@ -305,14 +305,14 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'vanilla',
 			title: 'New Playground',
-			iconComponent: <WordPressIcon />,
+			icon: plus,
+			iconSize: 40,
 			onClick: createVanillaSite,
 			disabled: false,
 		},
 		{
 			id: 'temporary',
 			title: 'Unsaved Playground',
-			icon: cautionFilled,
 			onClick: onTemporaryPlaygroundClick,
 			disabled: false,
 		},
@@ -709,25 +709,45 @@ export function SavedPlaygroundsOverlay({
 			<OverlayBody>
 				<OverlaySection title="Start a new Playground">
 					<div className={css.creationRow}>
-						{creationOptions.map((option) => (
-							<button
-								key={option.id}
-								className={css.creationButton}
-								onClick={option.onClick}
-								disabled={option.disabled}
-							>
-								<span className={css.creationIcon}>
-									{'iconComponent' in option ? (
-										option.iconComponent
-									) : (
-										<Icon icon={option.icon} size={24} />
+						{creationOptions.map((option) => {
+							const hasIcon =
+								'iconComponent' in option || 'icon' in option;
+							return (
+								<button
+									key={option.id}
+									className={css.creationButton}
+									onClick={option.onClick}
+									disabled={option.disabled}
+								>
+									{hasIcon && (
+										<span
+											className={classNames(
+												css.creationIcon,
+												option.id === 'vanilla'
+													? css.newPlaygroundIcon
+													: undefined
+											)}
+										>
+											{'iconComponent' in option ? (
+												option.iconComponent
+											) : 'icon' in option ? (
+												<Icon
+													icon={option.icon!}
+													size={
+														'iconSize' in option
+															? option.iconSize
+															: 24
+													}
+												/>
+											) : null}
+										</span>
 									)}
-								</span>
-								<span className={css.creationTitle}>
-									{option.title}
-								</span>
-							</button>
-						))}
+									<span className={css.creationTitle}>
+										{option.title}
+									</span>
+								</button>
+							);
+						})}
 					</div>
 				</OverlaySection>
 
