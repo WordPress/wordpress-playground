@@ -96,7 +96,9 @@ export function createDirectoryHandleMountHandler(
 					total: lastProgress?.total ?? 0,
 					phase: 'flushing',
 				});
-				await mount.flush();
+				void mount.flush().catch((error) => {
+					logger.error(error);
+				});
 			} catch (error) {
 				await mount.unmount();
 				throw error;

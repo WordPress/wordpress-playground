@@ -32,7 +32,6 @@ export class BlueprintsV1Handler {
 			sapiName,
 			scope,
 			shouldInstallWordPress,
-			shouldBootWordPress,
 			sqliteDriverVersion,
 			wordpressInstallMode,
 			onClientConnected,
@@ -68,31 +67,30 @@ export class BlueprintsV1Handler {
 		const declarativeOptOut =
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
+		const resolvedWordPressInstallMode: WordPressInstallMode =
+			wordpressInstallMode ??
+			(declarativeOptOut
+				? 'do-not-attempt-installing'
+				: shouldInstallWordPress === false
+					? 'install-from-existing-files-if-needed'
+					: 'download-and-install');
 		if (
-			(shouldInstallWordPress === true || shouldBootWordPress === true) &&
-			declarativeOptOut
+			declarativeOptOut &&
+			(shouldInstallWordPress === true ||
+				(wordpressInstallMode !== undefined &&
+					wordpressInstallMode !== 'do-not-attempt-installing'))
 		) {
 			throw new Error(
-				'Conflicting options: WordPress install or boot was requested, ' +
+				'Conflicting options: WordPress was requested, ' +
 					'but the Blueprint sets ' +
 					'`preferredVersions.wp: false`. Pick one.'
-			);
-		}
-		const bootWordPress = shouldBootWordPress ?? !declarativeOptOut;
-		const installWordPress = shouldInstallWordPress ?? bootWordPress;
-		if (installWordPress && !bootWordPress) {
-			throw new Error(
-				'Conflicting options: WordPress installation was requested, ' +
-					'but WordPress boot was disabled. Pick one.'
 			);
 		}
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
-			shouldInstallWordPress: installWordPress,
-			shouldBootWordPress: bootWordPress,
-			wordpressInstallMode,
+			wordpressInstallMode: resolvedWordPressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			extensions,
@@ -143,7 +141,7 @@ export class BlueprintsV1Handler {
 		if (
 			runtimeConfiguration.networking &&
 			!isLegacyWpVersion &&
-			installWordPress
+			resolvedWordPressInstallMode === 'download-and-install'
 		) {
 			await playground.prefetchUpdateChecks();
 		}
@@ -151,3 +149,7 @@ export class BlueprintsV1Handler {
 		return playground;
 	}
 }
+
+type WordPressInstallMode = NonNullable<
+	StartPlaygroundOptions['wordpressInstallMode']
+>;

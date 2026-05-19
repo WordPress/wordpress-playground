@@ -96,6 +96,214 @@
 	}
 }
 
+.blueprint-install-dialog {
+	width: min(460px, calc(100vw - 32px));
+	max-height: min(560px, calc(100vh - 32px));
+	padding: 0;
+	overflow: hidden;
+	border: 0;
+	border-radius: 8px;
+	background: #fff;
+	color: #1e1e1e;
+	box-shadow:
+		0 24px 64px rgba(0, 0, 0, 0.26),
+		0 0 0 1px rgba(0, 0, 0, 0.08);
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.blueprint-install-dialog::backdrop {
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.blueprint-install-dialog-content {
+	display: flex;
+	max-height: min(560px, calc(100vh - 32px));
+	flex-direction: column;
+	overflow: auto;
+}
+
+@supports (height: 100dvh) {
+	.blueprint-install-dialog,
+	.blueprint-install-dialog-content {
+		max-height: min(560px, calc(100dvh - 32px));
+	}
+}
+
+.blueprint-install-dialog-header {
+	padding: 18px 20px 14px;
+	border-bottom: 1px solid #f0f0f1;
+	background: #f8f9ff;
+	box-shadow: inset 0 4px 0 #3858e9;
+}
+
+.blueprint-install-dialog-header p {
+	margin: 0;
+	color: #50575e;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.blueprint-install-dialog-header h2 {
+	margin: 0 0 8px;
+	font-size: 20px;
+	font-weight: 600;
+	line-height: 1.25;
+}
+
+.blueprint-install-summary {
+	padding: 16px 20px 4px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.blueprint-install-summary h3 {
+	margin: 0 0 8px;
+	font-size: 18px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.blueprint-install-summary h3 span {
+	color: #646970;
+	font-size: 14px;
+	font-weight: 400;
+}
+
+.blueprint-install-summary p {
+	margin: 0;
+	color: #50575e;
+	font-size: 14px;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.blueprint-install-warnings {
+	margin: 14px 20px 0;
+	padding: 12px 14px;
+	border-left: 3px solid #3858e9;
+	border-radius: 6px;
+	background: #f5f7ff;
+	color: #1e1e1e;
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+.blueprint-install-warnings-warning {
+	border-left-color: #dba617;
+	background: #fff8e5;
+}
+
+.blueprint-install-warnings-danger {
+	border-left-color: #d63638;
+	background: #fcf0f1;
+}
+
+.blueprint-install-warnings strong {
+	display: block;
+	margin-bottom: 8px;
+	font-weight: 600;
+}
+
+.blueprint-install-warnings ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.blueprint-install-warnings li + li {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.blueprint-install-warnings span {
+	display: block;
+	font-weight: 600;
+}
+
+.blueprint-install-warnings p {
+	margin: 2px 0 0;
+	color: #50575e;
+	overflow-wrap: anywhere;
+}
+
+.blueprint-install-status,
+.blueprint-install-error {
+	margin: 14px 20px 0;
+	padding: 12px 14px;
+	border-radius: 6px;
+	background: #f6f7f7;
+	color: #50575e;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.blueprint-install-error {
+	background: #fcf0f1;
+	color: #8a2424;
+}
+
+.blueprint-install-details {
+	margin: 12px 20px 0;
+	border-top: 1px solid #f0f0f1;
+}
+
+.blueprint-install-details summary {
+	padding: 12px 0;
+	color: #3858e9;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.blueprint-install-details pre {
+	max-height: 220px;
+	margin: 0 0 4px;
+	padding: 12px;
+	overflow: auto;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #f6f7f7;
+	color: #1e1e1e;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	tab-size: 2;
+	white-space: pre;
+}
+
+.blueprint-install-dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 16px 20px 20px;
+}
+
+.blueprint-install-dialog-actions button {
+	min-width: 96px;
+	padding: 10px 14px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	background: #fff;
+	color: #1e1e1e;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.blueprint-install-dialog-actions button:last-child {
+	border-color: #3858e9;
+	background: #3858e9;
+	color: #fff;
+}
+
+.blueprint-install-dialog-actions button:disabled {
+	cursor: default;
+	opacity: 0.55;
+}
+
 .main-tab-notice {
 	position: absolute;
 	top: 16px;
@@ -147,6 +355,14 @@
 }
 
 @media (max-width: 640px) {
+	.blueprint-install-dialog-actions {
+		flex-direction: column-reverse;
+	}
+
+	.blueprint-install-dialog-actions button {
+		width: 100%;
+	}
+
 	.main-tab-notice {
 		align-items: stretch;
 		flex-direction: column;

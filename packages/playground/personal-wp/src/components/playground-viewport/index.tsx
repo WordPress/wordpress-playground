@@ -3,7 +3,6 @@ import type { RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
 	compileBlueprintV1,
-	getBlueprintDeclaration,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
@@ -35,9 +34,13 @@ import { playgroundLogo } from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
 import {
+	getBlueprintInstallPreview,
+	getBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
-	resolveBlueprintForInstall,
+	resolveBlueprintForInstallExecution,
+	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
+import type { BlueprintInstallPreview } from './blueprint-install';
 import { isAllowedBlueprintUrl } from '../../lib/blueprint-url';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -65,9 +68,14 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
 	>(null);
+	const [blueprintInstallDialogRequest, setBlueprintInstallDialogRequest] =
+		useState<BlueprintInstallDialogRequest | null>(null);
 	const installBannerResetTimeoutRef = useRef<ReturnType<
 		typeof setTimeout
 	> | null>(null);
+	const blueprintInstallDialogResolverRef = useRef<
+		((confirmed: boolean) => void) | null
+	>(null);
 
 	const clearInstallBannerResetTimeout = useCallback(() => {
 		if (installBannerResetTimeoutRef.current) {
@@ -88,6 +96,31 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		return clearInstallBannerResetTimeout;
 	}, [clearInstallBannerResetTimeout]);
 
+	const requestBlueprintInstallConfirmation = useCallback(
+		(blueprintUrl: string): Promise<boolean> => {
+			blueprintInstallDialogResolverRef.current?.(false);
+			return new Promise((resolve) => {
+				blueprintInstallDialogResolverRef.current = resolve;
+				setBlueprintInstallDialogRequest({ blueprintUrl });
+			});
+		},
+		[]
+	);
+
+	const closeBlueprintInstallDialog = useCallback((confirmed: boolean) => {
+		const resolve = blueprintInstallDialogResolverRef.current;
+		blueprintInstallDialogResolverRef.current = null;
+		setBlueprintInstallDialogRequest(null);
+		resolve?.(confirmed);
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			blueprintInstallDialogResolverRef.current?.(false);
+			blueprintInstallDialogResolverRef.current = null;
+		};
+	}, []);
+
 	// Apply a blueprint in-place on the running instance.
 	const applyBlueprint = useCallback(
 		async (
@@ -104,11 +137,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			clearInstallBannerResetTimeout();
 			try {
 				setInstallingBlueprint('Installing\u2026');
-				const blueprint = await resolveBlueprintForInstall(
-					blueprintUrl,
-					corsProxyUrl
-				);
-				const declaration = await getBlueprintDeclaration(blueprint);
+				const { blueprint, declaration } =
+					await resolveBlueprintForInstallExecution(
+						blueprintUrl,
+						corsProxyUrl
+					);
 				const title = declaration.meta?.title || 'app';
 				setInstallingBlueprint(`Installing ${title}\u2026`);
 
@@ -241,7 +274,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		applyBlueprintInMainTab,
 		hasLocalRuntimeClient,
 		isDependentMode,
+		requestBlueprintInstallConfirmation,
 		siteSlug,
+		url,
 	]);
 
 	async function installBlueprintFromRelay(
@@ -274,7 +309,15 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			installLocally = false;
 		}
 
-		if (!confirmBlueprintInstall(blueprintUrl)) {
+		const skipConfirmation = shouldSkipConfirmationForInstallMessage(
+			event,
+			iframeRef.current,
+			url
+		);
+		if (
+			!skipConfirmation &&
+			!(await requestBlueprintInstallConfirmation(blueprintUrl))
+		) {
 			postInstallBlueprintResult(event, {
 				blueprintUrl,
 				requestId,
@@ -323,6 +366,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			{installingBlueprint && (
 				<div className={css.installBanner}>{installingBlueprint}</div>
 			)}
+			{blueprintInstallDialogRequest && (
+				<BlueprintInstallDialog
+					blueprintUrl={blueprintInstallDialogRequest.blueprintUrl}
+					onClose={closeBlueprintInstallDialog}
+				/>
+			)}
 			<JustViewport siteSlug={siteSlug} iframeRef={iframeRef} />
 			<MainTabRecoveryNotice
 				isDependentMode={isDependentMode}
@@ -351,6 +400,189 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+function BlueprintInstallDialog({
+	blueprintUrl,
+	onClose,
+}: {
+	blueprintUrl: string;
+	onClose: (confirmed: boolean) => void;
+}) {
+	const dialogRef = useRef<HTMLDialogElement>(null);
+	const dialogResolvedRef = useRef(false);
+	const source = getBlueprintInstallSource(blueprintUrl);
+	const [previewState, setPreviewState] =
+		useState<BlueprintInstallPreviewState>({
+			status: 'loading',
+		});
+
+	const closeDialog = useCallback(
+		(confirmed: boolean) => {
+			if (dialogResolvedRef.current) {
+				return;
+			}
+			dialogResolvedRef.current = true;
+			onClose(confirmed);
+		},
+		[onClose]
+	);
+
+	useEffect(() => {
+		const dialog = dialogRef.current;
+		if (!dialog || dialog.open) {
+			return;
+		}
+		dialog.showModal();
+		return () => {
+			if (dialog.open) {
+				dialog.close();
+			}
+		};
+	}, []);
+
+	useEffect(() => {
+		let cancelled = false;
+		setPreviewState({ status: 'loading' });
+		getBlueprintInstallPreview(blueprintUrl, corsProxyUrl)
+			.then((preview) => {
+				if (!cancelled) {
+					setPreviewState({ status: 'ready', preview });
+				}
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					setPreviewState({
+						status: 'error',
+						error: getErrorMessage(error),
+					});
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [blueprintUrl]);
+
+	const preview =
+		previewState.status === 'ready' ? previewState.preview : null;
+	const canInstall = previewState.status === 'ready';
+	const blueprintTitle = preview
+		? preview.title
+		: previewState.status === 'error'
+			? 'Preview unavailable'
+			: 'Loading app details...';
+	const warnings = preview?.warnings || [];
+	const visibleWarnings = warnings.slice(0, 3);
+	const hasDangerWarning = warnings.some(
+		(warning) => warning.severity === 'danger'
+	);
+	const hasWarning = warnings.some(
+		(warning) => warning.severity === 'warning'
+	);
+
+	return (
+		<dialog
+			ref={dialogRef}
+			className={css.blueprintInstallDialog}
+			aria-labelledby="blueprint-install-dialog-title"
+			aria-describedby="blueprint-install-dialog-description"
+			onCancel={(event) => {
+				event.preventDefault();
+				closeDialog(false);
+			}}
+			onClose={() => {
+				closeDialog(false);
+			}}
+		>
+			<div className={css.blueprintInstallDialogContent}>
+				<div className={css.blueprintInstallDialogHeader}>
+					<h2 id="blueprint-install-dialog-title">Install app?</h2>
+					<p id="blueprint-install-dialog-description">
+						A WordPress page requested to install an app from{' '}
+						<strong>{source.label}</strong>. This may change your
+						site.
+					</p>
+				</div>
+
+				<div className={css.blueprintInstallSummary}>
+					<h3>
+						{blueprintTitle}
+						{preview?.author && <span> by {preview.author}</span>}
+					</h3>
+					{preview && (
+						<p>
+							{preview.description ?? 'No description provided.'}
+						</p>
+					)}
+				</div>
+
+				{warnings.length > 0 && (
+					<div
+						className={classNames(css.blueprintInstallWarnings, {
+							[css.blueprintInstallWarningsDanger]:
+								hasDangerWarning,
+							[css.blueprintInstallWarningsWarning]:
+								!hasDangerWarning && hasWarning,
+						})}
+					>
+						<strong>
+							{hasDangerWarning
+								? 'Review high-risk actions'
+								: hasWarning
+									? 'Review app actions'
+									: 'App actions'}
+						</strong>
+						<ul>
+							{visibleWarnings.map((warning, index) => (
+								<li key={index}>
+									<span>{warning.title}</span>
+									<p>{warning.description}</p>
+								</li>
+							))}
+						</ul>
+						{warnings.length > visibleWarnings.length && (
+							<p>
+								Open the details below to review the full
+								configuration.
+							</p>
+						)}
+					</div>
+				)}
+
+				{previewState.status === 'loading' && (
+					<div className={css.blueprintInstallStatus}>
+						Loading app details...
+					</div>
+				)}
+				{previewState.status === 'error' && (
+					<div className={css.blueprintInstallError} role="alert">
+						Could not load app details: {previewState.error}
+					</div>
+				)}
+				{preview && (
+					<details className={css.blueprintInstallDetails}>
+						<summary>View blueprint.json</summary>
+						<pre tabIndex={0}>
+							<code>{preview.json}</code>
+						</pre>
+					</details>
+				)}
+
+				<div className={css.blueprintInstallDialogActions}>
+					<button type="button" onClick={() => closeDialog(false)}>
+						Cancel
+					</button>
+					<button
+						type="button"
+						disabled={!canInstall}
+						onClick={() => closeDialog(true)}
+					>
+						Install
+					</button>
+				</div>
+			</div>
+		</dialog>
 	);
 }
 
@@ -407,14 +639,6 @@ function MainTabRecoveryNotice({
 	);
 }
 
-function confirmBlueprintInstall(blueprintUrl: string): boolean {
-	const url = new URL(blueprintUrl);
-	const source = url.protocol === 'data:' ? 'an inline blueprint' : url.host;
-	return window.confirm(
-		`Install an app from ${source}? This may change your WordPress site.`
-	);
-}
-
 type RelayMessageData = {
 	type: 'relay';
 	relayType?: unknown;
@@ -428,6 +652,23 @@ type InstallBlueprintMessageData = {
 	blueprintUrl: string;
 	requestId?: string;
 };
+
+type BlueprintInstallDialogRequest = {
+	blueprintUrl: string;
+};
+
+type BlueprintInstallPreviewState =
+	| {
+			status: 'loading';
+	  }
+	| {
+			status: 'ready';
+			preview: BlueprintInstallPreview;
+	  }
+	| {
+			status: 'error';
+			error: string;
+	  };
 
 type ApplyBlueprintOptions = {
 	allowNavigation?: boolean;
@@ -498,6 +739,32 @@ function getRequestId(data: RelayMessageData): string | undefined {
 	return typeof data.requestId === 'string' ? data.requestId : undefined;
 }
 
+function shouldSkipConfirmationForInstallMessage(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null,
+	currentUrl: string | undefined
+): boolean {
+	return [
+		getWindowLocation(event.source),
+		getWindowLocation(iframe?.contentWindow),
+		currentUrl,
+	].some(shouldSkipBlueprintInstallConfirmation);
+}
+
+function getWindowLocation(
+	source: MessageEventSource | Window | null | undefined
+): string | undefined {
+	if (!source || !('location' in source)) {
+		return;
+	}
+
+	try {
+		return (source as Window).location.href;
+	} catch {
+		return;
+	}
+}
+
 function postInstallBlueprintResult(
 	event: MessageEvent,
 	result: Omit<InstallBlueprintResultMessage, 'type' | 'relayType'>
@@ -559,20 +826,7 @@ function getBlueprintRunnerClient<T extends object>(
 function shouldAllowBlueprintRunnerRedirect(
 	blueprint: BlueprintV1Declaration
 ): boolean {
-	return (
-		!!blueprint.landingPage ||
-		!!blueprint.login ||
-		!!blueprint.steps?.some(isLoginStep)
-	);
-}
-
-function isLoginStep(step: unknown): boolean {
-	return (
-		!!step &&
-		typeof step === 'object' &&
-		'step' in step &&
-		(step as { step?: unknown }).step === 'login'
-	);
+	return !!blueprint.landingPage;
 }
 
 function withoutGoTo<T extends object>(playground: T): T {

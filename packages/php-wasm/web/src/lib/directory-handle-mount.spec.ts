@@ -361,6 +361,7 @@ describe('journalFSEventsToOpfs', () => {
 describe('createDirectoryHandleMountHandler', () => {
 	it('flushes changes made while the initial MEMFS to OPFS sync is still running', async () => {
 		let changedDuringInitialSync = false;
+		let mount: { flush(): Promise<void> } | undefined;
 		const { FS, files, php } = createFakePhp();
 		const opfsRoot = new MemoryDirectoryHandle('root', () => {
 			if (changedDuringInitialSync) {
@@ -378,13 +379,52 @@ describe('createDirectoryHandleMountHandler', () => {
 				initialSync: {
 					direction: 'memfs-to-opfs',
 				},
+				onMount: (createdMount) => {
+					mount = createdMount;
+				},
 			}
 		);
 
 		await mountHandler(php, FS as any, '/wordpress');
+		await mount!.flush();
 
 		expect(decode(opfsRoot.files.get('database.sqlite')!.bytes)).toBe(
 			'changed'
+		);
+	});
+
+	it('does not block the initial MEMFS to OPFS sync on the final flush', async () => {
+		let mount: { flush(): Promise<void> } | undefined;
+		let changedDuringInitialSync = false;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			if (changedDuringInitialSync) {
+				return;
+			}
+			changedDuringInitialSync = true;
+			FS.write({ path: '/wordpress/database.sqlite' });
+		});
+		files.set('/wordpress/database.sqlite', encode('initial'));
+		const releaseSemaphore = await php.semaphore.acquire();
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+				},
+				onMount: (createdMount) => {
+					mount = createdMount;
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+		releaseSemaphore();
+		await mount!.flush();
+
+		expect(decode(opfsRoot.files.get('database.sqlite')!.bytes)).toBe(
+			'initial'
 		);
 	});
 

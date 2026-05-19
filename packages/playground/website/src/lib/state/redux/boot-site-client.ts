@@ -150,12 +150,16 @@ export function bootSiteClient(
 
 		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
 		// declares it doesn't want WordPress, so honor that even if the
-		// storage layer thinks WP isn't installed yet. Passing `true` here
-		// would conflict with the Blueprint and the handler would throw.
+		// storage layer thinks WP isn't installed yet.
 		const blueprintRequestedNoWordPress =
 			!!blueprint &&
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
+		const wordpressInstallMode = blueprintRequestedNoWordPress
+			? 'do-not-attempt-installing'
+			: isWordPressInstalled
+				? 'install-from-existing-files-if-needed'
+				: 'download-and-install';
 
 		const shouldSyncNewOpfsSiteInBackground =
 			site.metadata.storage === 'opfs' &&
@@ -198,12 +202,7 @@ export function bootSiteClient(
 				// Log Blueprint events
 				onBlueprintValidated: logBlueprintEvents,
 				mounts,
-				shouldInstallWordPress: blueprintRequestedNoWordPress
-					? false
-					: !isWordPressInstalled,
-				shouldBootWordPress: blueprintRequestedNoWordPress
-					? false
-					: undefined,
+				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 				pathAliases: [
