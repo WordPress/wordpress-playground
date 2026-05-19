@@ -37,6 +37,7 @@ test.describe('php-code-snippet embed', () => {
 
 	test('renders all snippets with Run buttons', async ({ page }) => {
 		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
 		for (const name of [
 			'hello.php',
 			'lazy-load-images.php',
@@ -71,8 +72,14 @@ test.describe('php-code-snippet embed', () => {
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
-		const defaultEditable = page.locator('php-snippet[name="hello.php"]');
-		const readOnly = page.locator('php-snippet[name="reference.php"]');
+		const defaultEditable = await waitForRenderedPhpSnippet(
+			page,
+			'php-snippet[name="hello.php"]'
+		);
+		const readOnly = await waitForRenderedPhpSnippet(
+			page,
+			'php-snippet[name="reference.php"]'
+		);
 
 		await expect(defaultEditable).toBeVisible();
 		await expect(defaultEditable.locator('textarea.ta')).toBeVisible();
@@ -96,7 +103,8 @@ test.describe('php-code-snippet embed', () => {
 			document.body.append(snippet);
 		});
 
-		const editableFalse = page.locator(
+		const editableFalse = await waitForRenderedPhpSnippet(
+			page,
 			'php-snippet[name="editable-false.php"]'
 		);
 		await expect(editableFalse.locator('.run')).toBeVisible();
@@ -730,4 +738,24 @@ async function ensureToolkitAutoloadIsServed(page: Page) {
 			contentType: 'text/plain',
 		});
 	});
+}
+
+async function waitForPhpSnippetDefinition(page: Page) {
+	await page.evaluate(() => customElements.whenDefined('php-snippet'));
+}
+
+async function waitForRenderedPhpSnippet(page: Page, selector: string) {
+	await waitForPhpSnippetDefinition(page);
+	const snippet = page.locator(selector);
+
+	await expect(snippet).toBeVisible();
+	await expect
+		.poll(() =>
+			snippet.evaluate(
+				(element) => element.shadowRoot?.childElementCount ?? 0
+			)
+		)
+		.toBeGreaterThan(0);
+
+	return snippet;
 }

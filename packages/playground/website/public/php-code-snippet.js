@@ -33,8 +33,11 @@
  *                         illustrative examples that aren't meant to execute.
  *   readonly              render runnable snippets as read-only code blocks.
  *                         Snippets are editable by default, and Run executes
- *                         whatever the reader typed. editable="false" is also
- *                         accepted as a compatibility alias.
+ *                         whatever the reader typed.
+ *   editable              legacy opt-in for editable snippets. Since editing
+ *                         is now the default, this is only needed for older
+ *                         embeds. Set readonly or editable="false" to disable
+ *                         editing.
  *   blueprint="toolkit"  CSS-selector-or-id of a JSON Blueprint container
  *                         on the page (a <script type="application/json"> is
  *                         recommended; <template> works too). Snippets that
