@@ -1313,7 +1313,7 @@
 
 			.command-results {
 				max-height: none;
-				padding: 14px;
+				padding: 14px 18px 18px;
 			}
 
 			.feature-browser {
@@ -1327,24 +1327,26 @@
 			.feature-columns {
 				display: grid;
 				grid-template-columns: repeat(2, minmax(0, 1fr));
-				gap: 12px;
+				column-gap: 28px;
+				row-gap: 16px;
 			}
 
 			.feature-group {
 				display: flex;
 				flex-direction: column;
-				gap: 0;
+				gap: 2px;
 				padding: 0;
-				border: 1px solid var(--wp-gray-20);
+				border: 0;
 				box-shadow: none;
 			}
 
 			.feature-group h3 {
-				padding: 13px 16px 7px;
+				padding: 4px 8px 6px;
 				margin: 0;
 				color: var(--wp-gray-70);
 				font-size: 11px;
 				letter-spacing: 0.04em;
+				border-bottom: 1px solid var(--wp-gray-20);
 			}
 
 			.feature-row {
@@ -1353,14 +1355,15 @@
 				gap: 10px;
 				align-items: start;
 				width: 100%;
-				padding: 10px 16px;
+				padding: 9px 8px;
+				border-radius: 4px;
 				background: #fff;
 				box-shadow: none;
 				text-align: left;
 			}
 
 			.feature-row + .feature-row {
-				box-shadow: inset 0 1px 0 var(--wp-gray-20);
+				box-shadow: none;
 			}
 
 			.feature-row > .pill,

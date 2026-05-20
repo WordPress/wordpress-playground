@@ -73,7 +73,7 @@ function stateBudget(state) {
 	return {
 		main: { maxSurfaceRatio: 0.05, maxVisibleBorderCount: 0 },
 		runtime: { maxSurfaceRatio: 0.56, maxVisibleBorderCount: 12 },
-		command: { maxSurfaceRatio: 0.57, maxVisibleBorderCount: 12 },
+		command: { maxSurfaceRatio: 0.57, maxVisibleBorderCount: 8 },
 		files: { maxSurfaceRatio: 0.62, maxVisibleBorderCount: 12 },
 		current: { maxSurfaceRatio: 0.53, maxVisibleBorderCount: 10 },
 		share: { maxSurfaceRatio: 0.42, maxVisibleBorderCount: 8 },

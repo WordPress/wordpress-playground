@@ -95,6 +95,11 @@ feature set without assuming search or a command palette will solve discovery.
   deliberately treats search as secondary to grouped browsing.
 - WordPress admin and Gutenberg component patterns inform the simplified visual
   system: flatter lists, gray separators, and minimal color.
+- Material's list guidance treats rows as a continuous scanning surface; the
+  Tools browser follows that by removing boxed category cards.
+- Atlassian menu sections and Maersk menu dividers informed the latest Tools
+  surface: section labels and a single category divider, not borders around every
+  group or row.
 
 ## Acceptance criteria for this mockup
 
