@@ -116,8 +116,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
+	width: 58px;
+	height: 58px;
 }
 
 .creationIcon :global(svg) {

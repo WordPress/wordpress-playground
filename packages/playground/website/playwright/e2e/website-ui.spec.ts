@@ -639,6 +639,9 @@ test.describe('Default Playground storage', () => {
 		);
 
 		await website.goto('./');
+		const siteSlugBeforeGitHubImport = new URL(
+			website.page.url()
+		).searchParams.get('site-slug');
 		await website.openSavedPlaygroundsOverlay();
 		await expect(
 			website.page.getByRole('button', { name: 'New Playground' })
@@ -667,6 +670,16 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved Playground' })
 		).toHaveCount(0);
+
+		await website.page
+			.getByRole('button', { name: 'Import from GitHub' })
+			.click();
+		await expect(
+			website.page.getByRole('dialog', { name: 'Import from GitHub' })
+		).toBeVisible();
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			siteSlugBeforeGitHubImport
+		);
 	});
 
 	test('should show autosave browser storage details in the Site Manager by default', async ({

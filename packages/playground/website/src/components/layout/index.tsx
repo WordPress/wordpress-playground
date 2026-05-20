@@ -188,10 +188,16 @@ function Modals() {
 				<PreviewPRModal target="gutenberg" />
 			</LazyModal>
 		);
-	} else if (currentModal === modalSlugs.GITHUB_IMPORT) {
+	} else if (
+		currentModal === modalSlugs.GITHUB_IMPORT ||
+		currentModal === modalSlugs.GITHUB_IMPORT_NEW_SITE
+	) {
 		return (
 			<LazyModal>
 				<GithubImportModal
+					createNewSiteBeforeImport={
+						currentModal === modalSlugs.GITHUB_IMPORT_NEW_SITE
+					}
 					onImported={({
 						url,
 						path,

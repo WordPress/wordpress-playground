@@ -320,9 +320,10 @@ export function SavedPlaygroundsOverlay({
 			id: 'github',
 			title: 'Import from GitHub',
 			iconComponent: GitHubIcon,
-			onClick: async () => {
-				await createSiteForImport();
-				modalDispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
+			onClick: () => {
+				modalDispatch(
+					setActiveModal(modalSlugs.GITHUB_IMPORT_NEW_SITE)
+				);
 			},
 			disabled: offline,
 		},
