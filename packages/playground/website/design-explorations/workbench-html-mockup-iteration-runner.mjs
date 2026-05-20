@@ -41,7 +41,7 @@ const states = [
 		expectedText: [
 			'Your Playgrounds',
 			'SQLite database',
-			'GitHub, ZIP, or PR',
+			'GitHub / ZIP / PR',
 		],
 	},
 	{

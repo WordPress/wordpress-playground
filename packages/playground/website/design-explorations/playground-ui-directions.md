@@ -100,6 +100,9 @@ feature set without assuming search or a command palette will solve discovery.
 - Atlassian menu sections and Maersk menu dividers informed the latest Tools
   surface: section labels and a single category divider, not borders around every
   group or row.
+- The latest density pass promotes five common tasks and demotes rarer features
+  into short chips. This keeps discoverability without making every feature look
+  equally important.
 
 ## Acceptance criteria for this mockup
 

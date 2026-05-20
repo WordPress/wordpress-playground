@@ -1281,7 +1281,7 @@
 
 			.command-search {
 				grid-template-columns: 1fr minmax(190px, 260px);
-				padding: 16px 18px;
+				padding: 14px 18px;
 			}
 
 			.command-search input {
@@ -1313,7 +1313,7 @@
 
 			.command-results {
 				max-height: none;
-				padding: 14px 18px 18px;
+				padding: 16px 18px 18px;
 			}
 
 			.feature-browser {
@@ -1369,6 +1369,66 @@
 			.feature-row > .pill,
 			.feature-row > span:last-child:empty {
 				display: none;
+			}
+
+			.tools-primary-grid {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 10px;
+			}
+
+			.tool-primary {
+				display: grid;
+				grid-template-columns: 36px minmax(0, 1fr);
+				gap: 10px;
+				align-items: center;
+				min-height: 64px;
+				padding: 10px;
+				border: 0;
+				border-radius: 4px;
+				background: var(--wp-gray-5);
+				text-align: left;
+			}
+
+			.tool-primary:hover,
+			.tool-chip:hover {
+				background: var(--wp-gray-5);
+			}
+
+			.tool-primary strong,
+			.tool-primary small {
+				display: block;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.tool-primary small {
+				margin-top: 2px;
+				color: var(--wp-gray-70);
+			}
+
+			.tools-secondary {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+				align-items: center;
+				padding-top: 14px;
+				margin-top: 14px;
+				border-top: 1px solid var(--wp-gray-20);
+			}
+
+			.tools-secondary .eyebrow {
+				margin-right: 2px;
+			}
+
+			.tool-chip {
+				padding: 7px 10px;
+				border: 0;
+				border-radius: 999px;
+				background: var(--wp-gray-5);
+				font-size: 13px;
+				font-weight: 700;
 			}
 
 			.feature-row .result-copy strong,
@@ -1763,143 +1823,69 @@
 			<div class="command-search">
 				<div class="tools-heading">
 					<span class="eyebrow">Playground tools</span>
-					<h2>Browse features</h2>
-					<p>One place for import, inspect, files, and export.</p>
+					<h2>Tools</h2>
+					<p>Common tasks first.</p>
 				</div>
 				<input
 					name="playground-tool-filter"
 					value=""
-					placeholder="Filter tools or type /wp-admin/"
-					aria-label="Search tools or type a WordPress path"
+					placeholder="Search tools"
+					aria-label="Search tools"
 				/>
 			</div>
 			<div class="command-results feature-browser">
-				<div class="feature-intro">
-					<span class="eyebrow">Browse tools</span>
-					<h2>Everything Playground can do</h2>
-					<p>
-						Search is optional. The same actions are grouped by job
-						so you can scan them without remembering command names.
-					</p>
+				<div class="tools-primary-grid">
+					<button class="tool-primary" data-open="runtime">
+						<span class="result-icon">PHP</span>
+						<span
+							><strong>Runtime</strong
+							><small>WP, PHP, storage</small></span
+						>
+					</button>
+					<button class="tool-primary" data-open="files">
+						<span class="result-icon">FS</span>
+						<span
+							><strong>Files</strong
+							><small>Recovery editor</small></span
+						>
+					</button>
+					<button class="tool-primary" data-action="import">
+						<span class="result-icon">In</span>
+						<span
+							><strong>Import</strong
+							><small>GitHub / ZIP / PR</small></span
+						>
+					</button>
+					<button class="tool-primary" data-open="current">
+						<span class="result-icon">Sites</span>
+						<span
+							><strong>Your Playgrounds</strong
+							><small>30 sites</small></span
+						>
+					</button>
+					<button class="tool-primary" data-open="share">
+						<span class="result-icon">Zip</span>
+						<span
+							><strong>Save/share</strong
+							><small>Link, ZIP, GitHub</small></span
+						>
+					</button>
 				</div>
-				<div class="feature-columns">
-					<section class="feature-group">
-						<h3>Current site</h3>
-						<button class="feature-row" data-action="open-path">
-							<span class="result-icon">Go</span
-							><span class="result-copy"
-								><strong>Open /wp-admin/</strong
-								><small>Navigate inside WordPress</small></span
-							><span></span>
-						</button>
-						<button class="feature-row" data-open="runtime">
-							<span class="result-icon">PHP</span
-							><span class="result-copy"
-								><strong>Change runtime</strong
-								><small
-									>WordPress, PHP, storage, network</small
-								></span
-							><span></span>
-						</button>
-						<button class="feature-row" data-open="files">
-							<span class="result-icon">FS</span
-							><span class="result-copy"
-								><strong>Edit files</strong
-								><small
-									>Recovery editor and safe-mode tools</small
-								></span
-							><span></span>
-						</button>
-					</section>
-					<section class="feature-group">
-						<h3>Create or import</h3>
-						<button class="feature-row" data-action="blank-site">
-							<span class="result-icon">New</span
-							><span class="result-copy"
-								><strong>Blank WordPress</strong
-								><small>Start clean</small></span
-							><span></span>
-						</button>
-						<button class="feature-row" data-action="import">
-							<span class="result-icon">Git</span
-							><span class="result-copy"
-								><strong>GitHub, ZIP, or PR</strong
-								><small>Start from existing work</small></span
-							><span></span>
-						</button>
-						<button class="feature-row" data-action="blueprint">
-							<span class="result-icon">BP</span
-							><span class="result-copy"
-								><strong>Blueprint URL or gallery</strong
-								><small
-									>Reproduce a configured site</small
-								></span
-							><span></span>
-						</button>
-					</section>
-					<section class="feature-group">
-						<h3>Inspect and debug</h3>
-						<button class="feature-row" data-action="logs">
-							<span class="result-icon">Log</span
-							><span class="result-copy"
-								><strong>PHP and browser logs</strong
-								><small>Debug the running site</small></span
-							><span></span>
-						</button>
-						<button class="feature-row" data-action="database">
-							<span class="result-icon">DB</span
-							><span class="result-copy"
-								><strong>SQLite database</strong
-								><small>Browse tables and queries</small></span
-							><span></span>
-						</button>
-						<button
-							class="feature-row"
-							data-action="blueprint-source"
-						>
-							<span class="result-icon">JSON</span
-							><span class="result-copy"
-								><strong>Blueprint source</strong
-								><small
-									>Inspect and copy configuration</small
-								></span
-							><span></span>
-						</button>
-					</section>
-					<section class="feature-group">
-						<h3>Save and hand off</h3>
-						<button
-							class="feature-row"
-							data-action="save-playground"
-						>
-							<span class="result-icon">Save</span
-							><span class="result-copy"
-								><strong>Save this Playground</strong
-								><small
-									>Promote recovery to a named site</small
-								></span
-							><span></span>
-						</button>
-						<button class="feature-row" data-open="current">
-							<span class="result-icon">Sites</span
-							><span class="result-copy"
-								><strong>Your Playgrounds</strong
-								><small
-									>Browse saved, autosaved, and local
-									sites</small
-								></span
-							><span></span>
-						</button>
-						<button class="feature-row" data-open="share">
-							<span class="result-icon">Zip</span
-							><span class="result-copy"
-								><strong>Share or export</strong
-								><small
-									>Copy link, ZIP, GitHub export</small
-								></span
-							><span></span>
-						</button>
-					</section>
+				<div class="tools-secondary" aria-label="More tools">
+					<span class="eyebrow">More</span>
+					<button class="tool-chip" data-action="blank-site">
+						Blank site
+					</button>
+					<button class="tool-chip" data-action="blueprint">
+						Blueprints
+					</button>
+					<button class="tool-chip" data-action="logs">Logs</button>
+					<button class="tool-chip" data-action="database">
+						SQLite database
+					</button>
+					<button class="tool-chip" data-action="blueprint-source">
+						Blueprint source
+					</button>
 				</div>
 			</div>
 		</section>
