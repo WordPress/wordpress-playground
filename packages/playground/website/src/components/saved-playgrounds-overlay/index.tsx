@@ -407,9 +407,9 @@ export function SavedPlaygroundsOverlay({
 							type="button"
 							className={css.keepButton}
 							onClick={() => handleKeepSite(site)}
-							title="Save this Playground so it is not pruned from recent autosaves."
+							title="Store this Playground permanently so it is not pruned from recent autosaves."
 						>
-							Save
+							Store permanently
 						</button>
 					)}
 					<DropdownMenu
@@ -429,7 +429,7 @@ export function SavedPlaygroundsOverlay({
 												handleKeepSite(site, closeMenu)
 											}
 										>
-											Save Playground
+											Store permanently
 										</MenuItem>
 									)}
 									<MenuItem

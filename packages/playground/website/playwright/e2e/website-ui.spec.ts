@@ -616,16 +616,16 @@ test.describe('Default Playground storage', () => {
 				new URL(website.page.url()).searchParams.get('site-slug')
 			)
 			.toBeTruthy();
-		await expect(website.page.getByText('Unsaved Playground')).toHaveCount(
-			0
-		);
 		await expect(
-			website.page.getByText('Autosaved Playground')
+			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({
 			timeout: 120000,
 		});
 		await expect(
 			website.page.getByText(/Autosaving|Finalizing autosave/)
+		).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved' })
 		).toHaveCount(0);
 	});
 
@@ -693,7 +693,7 @@ test.describe('Default Playground storage', () => {
 			'section[class*="site-info-panel"]'
 		);
 		await expect(
-			siteInfoPanel.getByRole('button', { name: 'Save Playground' })
+			siteInfoPanel.getByRole('button', { name: 'Store permanently' })
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
@@ -713,11 +713,14 @@ test.describe('Default Playground storage', () => {
 
 		await website.goto('./');
 		await website.ensureSiteManagerIsClosed();
-		const keepButton = website.page.getByRole('button', {
-			name: 'Save Playground',
+		const statusButton = website.page.getByRole('button', {
+			name: 'Autosaved',
 		});
-		await expect(keepButton).toBeVisible({ timeout: 120000 });
-		await keepButton.click();
+		await expect(statusButton).toBeVisible({ timeout: 120000 });
+		await statusButton.click();
+		await website.page
+			.getByRole('button', { name: 'Store permanently' })
+			.click();
 
 		await expect
 			.poll(() =>
@@ -729,15 +732,13 @@ test.describe('Default Playground storage', () => {
 			)
 			.toBe('explicit');
 		await expect(
-			website.page.getByText(
-				/Autosaved Playground|Autosaving|Finalizing autosave/
-			)
+			website.page.getByText(/Autosaved|Autosaving|Finalizing autosave/)
 		).toHaveCount(0);
 		await expect(
 			website.page.getByText(/Saved Playground|Saving|Finalizing save/)
 		).toBeVisible();
 		await expect(
-			website.page.getByText('Autosaved Playground')
+			website.page.getByRole('button', { name: 'Autosaved' })
 		).toHaveCount(0);
 	});
 
@@ -762,7 +763,7 @@ test.describe('Default Playground storage', () => {
 		expect(siteSlug).toBeTruthy();
 
 		await expect(
-			website.page.getByText('Autosaved Playground')
+			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
 
 		const expectedBlogName = `Saved Playground ${Date.now()}`;
@@ -813,19 +814,33 @@ echo get_option('blogname');
 			null
 		);
 		await expect(
-			website.page.getByText('Unsaved Playground')
+			website.page.getByRole('button', { name: 'Unsaved' })
 		).toBeVisible();
 	});
 
-	test('should show "Unsaved Playground" status for storage=temp Playgrounds', async ({
+	test('should show "Unsaved" status for storage=temp Playgrounds', async ({
 		website,
 	}) => {
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsClosed();
 
-		const indicator = website.page.getByText('Unsaved Playground');
+		const indicator = website.page.getByRole('button', {
+			name: 'Unsaved',
+		});
 		await expect(indicator).toBeVisible();
 		await expect(indicator).toHaveCount(1);
+		await indicator.click();
+		await expect(
+			website.page.getByText(
+				'This Playground is not stored anywhere. Changes are lost when this page is refreshed or closed.'
+			)
+		).toBeVisible();
+		await website.page
+			.getByRole('button', { name: 'Store permanently' })
+			.click();
+		await expect(
+			website.page.getByRole('dialog', { name: 'Save Playground' })
+		).toBeVisible();
 		expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
 			'temp'
 		);
@@ -845,13 +860,15 @@ echo get_option('blogname');
 		await expect(indicator).toHaveCount(1);
 	});
 
-	test('should not show "Unsaved Playground" status when "can-save=no" is set', async ({
+	test('should not show "Unsaved" status when "can-save=no" is set', async ({
 		website,
 	}) => {
 		await website.goto('./?can-save=no');
 		await website.ensureSiteManagerIsClosed();
 
-		const indicator = website.page.getByText('Unsaved Playground');
+		const indicator = website.page.getByRole('button', {
+			name: 'Unsaved',
+		});
 		await expect(indicator).toHaveCount(0);
 	});
 

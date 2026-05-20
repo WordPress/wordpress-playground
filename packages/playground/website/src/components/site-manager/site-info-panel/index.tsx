@@ -302,7 +302,7 @@ export function SiteInfoPanel({
 						{isAutosaved && (
 							<FlexItem className={css.siteInfoHeaderAction}>
 								<Button variant="primary" onClick={keepSite}>
-									Save Playground
+									Store permanently
 								</Button>
 							</FlexItem>
 						)}

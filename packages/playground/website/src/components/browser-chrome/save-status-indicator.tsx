@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import css from './save-status-indicator.module.css';
 import classNames from 'classnames';
 import {
@@ -8,7 +8,7 @@ import {
 	useAppDispatch,
 } from '../../lib/state/redux/store';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
-import { Icon } from '@wordpress/components';
+import { Icon, Popover } from '@wordpress/components';
 import { backup, check, cautionFilled } from '@wordpress/icons';
 import {
 	isAutosavedSite,
@@ -64,16 +64,20 @@ export function SaveStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
+	const statusButtonRef = useRef<HTMLButtonElement>(null);
+	const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(activeSite, opfsSync);
 	const isAutosaved = activeSite ? isAutosavedSite(activeSite) : false;
 
 	const handleSaveClick = () => {
+		setIsPopoverOpen(false);
 		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
 	};
 
 	const handleKeepClick = () => {
+		setIsPopoverOpen(false);
 		if (activeSite) {
 			void dispatch(preserveSite(activeSite.slug));
 		}
@@ -90,18 +94,48 @@ export function SaveStatusIndicator() {
 
 	if (status === 'autosaved') {
 		return (
-			<div className={classNames(css.indicator, css.autosaved)}>
-				<Icon icon={backup} size={18} />
-				<span className={css.label}>Autosaved Playground</span>
+			<>
 				<button
-					className={css.saveButton}
-					aria-label="Save Playground"
-					onClick={handleKeepClick}
+					ref={statusButtonRef}
+					className={classNames(
+						css.indicator,
+						css.autosaved,
+						css.actionable
+					)}
+					onClick={() => setIsPopoverOpen((isOpen) => !isOpen)}
+					aria-expanded={isPopoverOpen}
 					type="button"
 				>
-					Save
+					<Icon icon={backup} size={18} />
+					<span className={css.label}>Autosaved</span>
 				</button>
-			</div>
+				{isPopoverOpen && (
+					<Popover
+						placement="bottom-end"
+						onClose={() => setIsPopoverOpen(false)}
+						anchor={statusButtonRef.current}
+						focusOnMount="firstElement"
+						className={css.popover}
+					>
+						<div className={css.popoverContent}>
+							<div className={css.popoverTitle}>Autosaved</div>
+							<p className={css.popoverDescription}>
+								This Playground is saved in this browser with
+								your recent autosaves. It will be deleted after
+								5 newer autosaves unless you store it
+								permanently.
+							</p>
+							<button
+								className={css.primaryAction}
+								onClick={handleKeepClick}
+								type="button"
+							>
+								Store permanently
+							</button>
+						</div>
+					</Popover>
+				)}
+			</>
 		);
 	}
 
@@ -114,16 +148,6 @@ export function SaveStatusIndicator() {
 				<span className={css.label}>
 					{getSyncLabel({ isAutosaved, progress })}
 				</span>
-				{isAutosaved && (
-					<button
-						className={css.saveButton}
-						aria-label="Save Playground"
-						onClick={handleKeepClick}
-						type="button"
-					>
-						Save
-					</button>
-				)}
 			</div>
 		);
 	}
@@ -145,16 +169,45 @@ export function SaveStatusIndicator() {
 
 	// Unsaved - temporary playground that will be lost on refresh
 	return (
-		<div className={classNames(css.indicator, css.unsaved)}>
-			<Icon icon={cautionFilled} size={18} />
-			<span className={css.label}>Unsaved Playground</span>
+		<>
 			<button
-				className={css.saveButton}
-				onClick={handleSaveClick}
+				ref={statusButtonRef}
+				className={classNames(
+					css.indicator,
+					css.unsaved,
+					css.actionable
+				)}
+				onClick={() => setIsPopoverOpen((isOpen) => !isOpen)}
+				aria-expanded={isPopoverOpen}
 				type="button"
 			>
-				Save
+				<Icon icon={cautionFilled} size={18} />
+				<span className={css.label}>Unsaved</span>
 			</button>
-		</div>
+			{isPopoverOpen && (
+				<Popover
+					placement="bottom-end"
+					onClose={() => setIsPopoverOpen(false)}
+					anchor={statusButtonRef.current}
+					focusOnMount="firstElement"
+					className={css.popover}
+				>
+					<div className={css.popoverContent}>
+						<div className={css.popoverTitle}>Unsaved</div>
+						<p className={css.popoverDescription}>
+							This Playground is not stored anywhere. Changes are
+							lost when this page is refreshed or closed.
+						</p>
+						<button
+							className={css.primaryAction}
+							onClick={handleSaveClick}
+							type="button"
+						>
+							Store permanently
+						</button>
+					</div>
+				</Popover>
+			)}
+		</>
 	);
 }
