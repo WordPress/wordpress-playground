@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>WordPress Playground Workbench Direction</title>
+	<style>
+		:root {
+			--bg: #f6f7f7;
+			--surface: #fff;
+			--surface-alt: #f0f0f1;
+			--line: #dcdcde;
+			--line-strong: #c3c4c7;
+			--text: #1e1e1e;
+			--muted: #646970;
+			--blue: #3858e9;
+			--blue-dark: #1d35b4;
+			--green: #008a20;
+			--amber: #996800;
+			--red: #d63638;
+			--admin: #1d2327;
+			--admin-2: #2c3338;
+			--shadow: 0 18px 44px rgba(0, 0, 0, .16);
+		}
+
+		* { box-sizing: border-box; }
+		html, body { margin: 0; min-height: 100%; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+			font-size: 14px;
+			line-height: 1.4;
+			color: var(--text);
+			background: var(--bg);
+			overflow-x: hidden;
+		}
+		button, input, select, textarea { font: inherit; }
+		button { cursor: pointer; }
+		:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+		.shell {
+			min-height: 100vh;
+			display: grid;
+			grid-template-rows: auto 1fr;
+		}
+
+		.chrome {
+			position: sticky;
+			top: 0;
+			z-index: 40;
+			background: var(--surface);
+			border-bottom: 1px solid var(--line);
+		}
+
+		.chrome-row {
+			min-height: 58px;
+			display: grid;
+			grid-template-columns: minmax(190px, auto) minmax(260px, 1fr) auto auto;
+			align-items: center;
+			gap: 10px;
+			padding: 9px 14px;
+		}
+
+		.brand {
+			display: flex;
+			align-items: center;
+			min-width: 0;
+			gap: 9px;
+			color: var(--text);
+		}
+
+		.wp-mark {
+			width: 28px;
+			height: 28px;
+			display: grid;
+			place-items: center;
+			flex: 0 0 auto;
+			border: 1px solid var(--line-strong);
+			border-radius: 50%;
+			font-family: Georgia, serif;
+			font-weight: 700;
+			background: var(--surface);
+		}
+
+		.instance {
+			min-width: 0;
+		}
+
+		.instance strong,
+		.instance span {
+			display: block;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.instance span {
+			color: var(--muted);
+			font-size: 12px;
+		}
+
+		.address {
+			height: 38px;
+			min-width: 0;
+			display: flex;
+			align-items: center;
+			gap: 9px;
+			border: 1px solid var(--line-strong);
+			border-radius: 7px;
+			background: #fff;
+			padding: 0 11px;
+			color: var(--text);
+		}
+
+		.address svg {
+			width: 15px;
+			height: 15px;
+			flex: 0 0 auto;
+		}
+
+		.address span {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.status {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			min-width: 0;
+		}
+
+		.status-chip,
+		.env-button,
+		.workbench-button,
+		.text-button,
+		.row-action,
+		.segment {
+			border: 1px solid var(--line-strong);
+			border-radius: 5px;
+			background: var(--surface);
+			color: var(--text);
+		}
+
+		.env-button {
+			min-height: 34px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 5px 9px;
+			white-space: nowrap;
+		}
+
+		.env-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: var(--green);
+		}
+
+		.status-chip {
+			min-height: 28px;
+			display: inline-flex;
+			align-items: center;
+			gap: 5px;
+			padding: 4px 8px;
+			font-size: 12px;
+			color: var(--muted);
+			white-space: nowrap;
+		}
+
+		.status-chip.warning {
+			border-color: #dec77a;
+			background: #fcf9e8;
+			color: #4f3500;
+		}
+
+		.workbench-button {
+			min-height: 38px;
+			padding: 7px 13px;
+			background: var(--blue);
+			border-color: var(--blue);
+			color: #fff;
+			font-weight: 600;
+			white-space: nowrap;
+		}
+
+		.workbench-button:hover { background: var(--blue-dark); }
+
+		.text-button,
+		.row-action {
+			min-height: 32px;
+			padding: 6px 10px;
+			font-weight: 500;
+			white-space: nowrap;
+		}
+
+		.text-button.subtle {
+			border-color: transparent;
+			background: transparent;
+			color: var(--muted);
+		}
+
+		.canvas-shell {
+			padding: 14px;
+		}
+
+		.site-frame {
+			min-height: calc(100vh - 86px);
+			background: var(--surface);
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			overflow: hidden;
+			display: grid;
+			grid-template-rows: auto 1fr;
+		}
+
+		.wp-bar {
+			height: 38px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 0 14px;
+			background: var(--admin);
+			color: #f0f0f1;
+			font-size: 13px;
+		}
+
+		.wp-body {
+			display: grid;
+			grid-template-columns: 176px minmax(0, 1fr);
+			min-height: 0;
+		}
+
+		.wp-nav {
+			background: var(--admin-2);
+			color: #c3c4c7;
+			padding: 12px 0;
+		}
+
+		.wp-nav strong,
+		.wp-nav a {
+			display: block;
+			padding: 8px 16px;
+			color: inherit;
+			text-decoration: none;
+		}
+
+		.wp-nav strong { color: #fff; font-size: 13px; }
+		.wp-nav a.active { background: var(--blue); color: #fff; }
+
+		.wp-content {
+			min-width: 0;
+			padding: 24px;
+			background: #fff;
+		}
+
+		.wp-content h1 {
+			margin: 0 0 14px;
+			font-size: 24px;
+			font-weight: 400;
+		}
+
+		.wp-actions {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin-bottom: 16px;
+		}
+
+		.notice {
+			margin: 0 0 16px;
+			padding: 10px 12px;
+			border-left: 4px solid var(--blue);
+			background: var(--surface-alt);
+		}
+
+		.notice.error {
+			border-color: var(--red);
+			background: #fcf0f1;
+		}
+
+		.plugin-table {
+			width: 100%;
+			border-collapse: collapse;
+			border: 1px solid var(--line);
+		}
+
+		.plugin-table th,
+		.plugin-table td {
+			text-align: left;
+			padding: 10px 12px;
+			border-bottom: 1px solid var(--line);
+			vertical-align: top;
+		}
+
+		.plugin-table th {
+			background: #f6f7f7;
+			font-weight: 600;
+		}
+
+		.meta {
+			color: var(--muted);
+			font-size: 12px;
+			overflow-wrap: anywhere;
+		}
+
+		.overlay {
+			position: fixed;
+			inset: 0;
+			z-index: 80;
+			display: none;
+			background: rgba(30, 30, 30, .18);
+		}
+
+		.overlay.open { display: block; }
+
+		.sheet {
+			position: absolute;
+			top: 68px;
+			right: 16px;
+			width: min(760px, calc(100vw - 32px));
+			max-height: calc(100vh - 86px);
+			display: grid;
+			grid-template-rows: auto auto 1fr;
+			background: var(--surface);
+			border: 1px solid var(--line-strong);
+			border-radius: 8px;
+			box-shadow: var(--shadow);
+			overflow: hidden;
+		}
+
+		.sheet.narrow {
+			width: min(460px, calc(100vw - 32px));
+		}
+
+		.sheet-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 14px;
+			padding: 14px 16px;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.sheet-head h2 {
+			margin: 0;
+			font-size: 17px;
+		}
+
+		.sheet-head p {
+			margin: 2px 0 0;
+			color: var(--muted);
+			font-size: 12px;
+		}
+
+		.search-row {
+			padding: 12px 16px;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.search-row input {
+			width: 100%;
+			height: 38px;
+			border: 1px solid var(--line-strong);
+			border-radius: 6px;
+			padding: 0 11px;
+		}
+
+		.sheet-body {
+			min-height: 0;
+			overflow: auto;
+			padding: 14px 16px;
+		}
+
+		.workbench-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 14px;
+		}
+
+		.group {
+			min-width: 0;
+			border-top: 1px solid var(--line);
+			padding-top: 12px;
+		}
+
+		.group:first-child,
+		.group:nth-child(2) {
+			border-top: 0;
+			padding-top: 0;
+		}
+
+		.group h3 {
+			margin: 0 0 8px;
+			color: var(--muted);
+			font-size: 12px;
+			text-transform: uppercase;
+		}
+
+		.action-list {
+			display: grid;
+			gap: 2px;
+		}
+
+		.action-row {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: center;
+			gap: 12px;
+			min-height: 50px;
+			padding: 8px 0;
+			border-top: 1px solid #f0f0f1;
+		}
+
+		.action-row:first-child { border-top: 0; }
+		.action-row strong { display: block; margin-bottom: 2px; }
+		.action-row .chevron { color: var(--muted); font-size: 18px; }
+
+		.field-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+		}
+
+		.field {
+			display: grid;
+			gap: 5px;
+		}
+
+		.field label {
+			font-size: 13px;
+			font-weight: 600;
+		}
+
+		.field select,
+		.field input,
+		.field textarea {
+			width: 100%;
+			min-height: 36px;
+			border: 1px solid var(--line-strong);
+			border-radius: 5px;
+			padding: 7px 9px;
+			background: #fff;
+		}
+
+		.segmented {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			border: 1px solid var(--line-strong);
+			border-radius: 5px;
+			overflow: hidden;
+		}
+
+		.segment {
+			border: 0;
+			border-right: 1px solid var(--line-strong);
+			border-radius: 0;
+			padding: 8px;
+			background: #fff;
+		}
+
+		.segment:last-child { border-right: 0; }
+		.segment.active { background: #f0f4ff; color: var(--blue); font-weight: 600; }
+
+		.blueprint {
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			overflow: hidden;
+			background: #fff;
+		}
+
+		.blueprint header {
+			display: flex;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 9px 10px;
+			border-bottom: 1px solid var(--line);
+			background: #f6f7f7;
+			font-size: 12px;
+		}
+
+		.code {
+			margin: 0;
+			width: 100%;
+			min-height: 166px;
+			border: 0;
+			padding: 12px;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+			font-size: 12px;
+			line-height: 1.5;
+			white-space: pre;
+			overflow: auto;
+		}
+
+		.drawer {
+			position: fixed;
+			left: 14px;
+			right: 14px;
+			bottom: 0;
+			z-index: 90;
+			display: none;
+			grid-template-columns: 210px minmax(280px, 1fr) 310px;
+			max-height: min(48vh, 460px);
+			background: var(--surface);
+			border: 1px solid var(--line-strong);
+			border-bottom: 0;
+			border-radius: 8px 8px 0 0;
+			box-shadow: 0 -16px 40px rgba(0, 0, 0, .14);
+			overflow: hidden;
+		}
+
+		.drawer.open { display: grid; }
+
+		.drawer-col {
+			min-width: 0;
+			padding: 12px;
+			overflow: auto;
+			border-right: 1px solid var(--line);
+		}
+
+		.drawer-col:last-child { border-right: 0; }
+
+		.drawer-title {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 10px;
+			font-weight: 600;
+		}
+
+		.file-tree {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+		}
+
+		.file-tree li {
+			padding: 6px 5px;
+			border-radius: 4px;
+			color: var(--muted);
+		}
+
+		.file-tree li.active {
+			background: #f0f4ff;
+			color: var(--blue);
+			font-weight: 600;
+		}
+
+		.log-line {
+			display: grid;
+			grid-template-columns: 50px minmax(0, 1fr);
+			gap: 8px;
+			padding: 7px 0;
+			border-top: 1px solid #f0f0f1;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+			font-size: 12px;
+		}
+
+		.log-line:first-child { border-top: 0; }
+		.log-line strong { color: var(--red); }
+		.log-line span { min-width: 0; overflow-wrap: anywhere; }
+
+		@media (max-width: 900px) {
+			.chrome-row {
+				grid-template-columns: minmax(0, 1fr) auto;
+				gap: 8px;
+				width: 100vw;
+				max-width: 100vw;
+				overflow: hidden;
+			}
+
+			.address {
+				grid-column: 1 / -1;
+				grid-row: 2;
+			}
+
+			.status {
+				grid-column: 1 / -1;
+				grid-row: 3;
+				overflow-x: auto;
+				padding-bottom: 2px;
+			}
+
+			.status { scrollbar-width: none; }
+			.status::-webkit-scrollbar { display: none; }
+
+			.workbench-button {
+				position: static;
+				grid-column: 1 / -1;
+				grid-row: 4;
+				justify-self: start;
+				min-height: 32px;
+				padding: 5px 10px;
+			}
+
+			.brand {
+				padding-right: 0;
+			}
+
+			.canvas-shell { padding: 10px; }
+			.site-frame { min-height: 570px; }
+			.wp-body { grid-template-columns: 106px minmax(0, 1fr); }
+			.wp-nav strong, .wp-nav a { padding: 8px 10px; font-size: 12px; }
+			.wp-content { padding: 16px 12px; }
+			.wp-content h1 { font-size: 21px; }
+			.plugin-table { display: block; overflow-x: auto; white-space: nowrap; }
+
+			.sheet {
+				top: auto;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				width: 100%;
+				max-height: 72vh;
+				border-radius: 9px 9px 0 0;
+			}
+
+			.workbench-grid,
+			.field-grid {
+				grid-template-columns: 1fr;
+			}
+
+			.group:nth-child(2) {
+				border-top: 1px solid var(--line);
+				padding-top: 12px;
+			}
+
+			.drawer {
+				left: 0;
+				right: 0;
+				display: none;
+				grid-template-columns: 1fr;
+				max-height: 68vh;
+				border-radius: 9px 9px 0 0;
+			}
+
+			.drawer.open { display: block; }
+
+			.drawer-col {
+				border-right: 0;
+				border-top: 1px solid var(--line);
+				max-height: 23vh;
+			}
+
+			.drawer-col:first-child { border-top: 0; }
+		}
+
+		@media (max-width: 430px) {
+			body { font-size: 13px; }
+			.chrome-row { padding: 8px; }
+			.wp-body { grid-template-columns: 94px minmax(0, 1fr); }
+			.wp-bar { padding: 0 10px; }
+			.status-chip:not(.warning) { display: none; }
+			.sheet-body { padding: 12px; }
+		}
+	</style>
+</head>
+<body>
+	<div class="shell">
+		<header class="chrome" aria-label="Playground chrome">
+			<div class="chrome-row">
+				<div class="brand">
+					<span class="wp-mark">W</span>
+					<div class="instance">
+						<strong>Plugin QA Playground</strong>
+						<span>Saved library / recovery copy available</span>
+					</div>
+				</div>
+
+				<div class="address" aria-label="Current WordPress URL">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.75A5.25 5.25 0 0 0 6.75 7v3H5.5A1.5 1.5 0 0 0 4 11.5v9A1.5 1.5 0 0 0 5.5 22h13a1.5 1.5 0 0 0 1.5-1.5v-9a1.5 1.5 0 0 0-1.5-1.5h-1.25V7A5.25 5.25 0 0 0 12 1.75ZM15.75 10h-7.5V7a3.75 3.75 0 1 1 7.5 0v3Z"/></svg>
+					<span>playground.local/wp-admin/plugins.php</span>
+				</div>
+
+				<div class="status" aria-label="Runtime status">
+					<button class="env-button" type="button" data-panel="environment"><span class="env-dot"></span><span>WP 6.8 · PHP 8.3</span></button>
+					<span class="status-chip optional">Networking off</span>
+					<span class="status-chip">Saved 2 min ago</span>
+					<button class="status-chip warning" type="button" data-drawer-open>1 warning</button>
+				</div>
+
+				<button class="workbench-button" type="button" data-panel="workbench">Workbench</button>
+			</div>
+		</header>
+
+		<main class="canvas-shell">
+			<section class="site-frame" aria-label="WordPress canvas">
+				<div class="wp-bar"><span>WordPress</span><span>Plugin QA Playground</span></div>
+				<div class="wp-body">
+					<nav class="wp-nav" aria-label="WordPress admin">
+						<strong>Dashboard</strong>
+						<a href="#">Posts</a>
+						<a href="#">Media</a>
+						<a href="#">Pages</a>
+						<a href="#" class="active">Plugins</a>
+						<a href="#">Appearance</a>
+						<a href="#">Tools</a>
+						<a href="#">Settings</a>
+					</nav>
+					<div class="wp-content">
+						<h1>Plugins</h1>
+						<div class="wp-actions">
+							<button class="text-button" type="button">Add New Plugin</button>
+							<button class="text-button" type="button">Upload Plugin</button>
+						</div>
+						<div class="notice">Gutenberg is active. Playground is saved and running WordPress 6.8 on PHP 8.3.</div>
+						<div class="notice error" data-error hidden>Plugin Demo triggered a PHP warning. Use Workbench or the warning status to inspect logs.</div>
+						<table class="plugin-table">
+							<thead><tr><th>Plugin</th><th>Status</th><th>Version</th></tr></thead>
+							<tbody>
+								<tr><td><strong>Gutenberg</strong><div class="meta">Block editor test build from trunk.</div></td><td>Active</td><td>19.8.0</td></tr>
+								<tr><td><strong>Plugin Demo</strong><div class="meta">Local development plugin mounted from files.</div></td><td data-plugin-state>Paused after warning</td><td>0.4.2</td></tr>
+								<tr><td><strong>SQLite Database Integration</strong><div class="meta">Stores the Playground database in browser storage.</div></td><td>Active</td><td>2.1.12</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+		</main>
+	</div>
+
+	<div class="overlay" data-overlay="workbench" aria-hidden="true">
+		<section class="sheet" role="dialog" aria-label="Workbench">
+			<header class="sheet-head">
+				<div>
+					<h2>Workbench</h2>
+					<p>Start, inspect, build, and hand off this Playground.</p>
+				</div>
+				<button class="text-button subtle" type="button" data-close>Close</button>
+			</header>
+			<div class="search-row"><input value="Search saved Playgrounds, Blueprints, GitHub PRs, files, and exports" aria-label="Workbench search"></div>
+			<div class="sheet-body">
+				<div class="workbench-grid">
+					<section class="group">
+						<h3>Start or switch</h3>
+						<div class="action-list">
+							<div class="action-row"><div><strong>Blank WordPress</strong><span class="meta">WP 6.8, PHP 8.3, temporary or saved storage.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>Saved Playgrounds</strong><span class="meta">Plugin QA, theme review, recovery copy, local mounts.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>GitHub repository or PR</strong><span class="meta">Preview Core, Gutenberg, plugin, or theme branches.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>Import zip</strong><span class="meta">Upload plugin, theme, wp-content, or setup archive.</span></div><span class="chevron">›</span></div>
+						</div>
+					</section>
+					<section class="group">
+						<h3>Build with Blueprints</h3>
+						<div class="blueprint">
+							<header><strong>blueprint.json</strong><span class="status-chip">Valid</span></header>
+							<textarea class="code" aria-label="Blueprint editor">{
+  "landingPage": "/wp-admin/plugins.php",
+  "login": true,
+  "preferredVersions": {
+    "php": "8.3",
+    "wp": "6.8"
+  },
+  "plugins": [ "gutenberg" ]
+}</textarea>
+						</div>
+						<div class="action-row"><div><strong>Validate and run</strong><span class="meta">Apply this setup to the current Playground.</span></div><span class="chevron">›</span></div>
+						<div class="action-row"><div><strong>Browse gallery</strong><span class="meta">Use community Blueprints and examples.</span></div><span class="chevron">›</span></div>
+					</section>
+					<section class="group">
+						<h3>Inspect and recover</h3>
+						<div class="action-list">
+							<div class="action-row" data-drawer-open><div><strong>Files and logs</strong><span class="meta">Open the recovery drawer with editor, PHP logs, and rollback.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>Database</strong><span class="meta">Open Adminer/phpMyAdmin or download `.sqlite`.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>Runtime settings</strong><span class="meta">WordPress, PHP, language, multisite, networking.</span></div><span class="chevron">›</span></div>
+						</div>
+					</section>
+					<section class="group">
+						<h3>Save and hand off</h3>
+						<div class="action-list">
+							<div class="action-row"><div><strong>Save Playground</strong><span class="meta">Keep this instance in your library.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>Share or embed</strong><span class="meta">Copy a URL or iframe for docs and demos.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>Export to GitHub PR</strong><span class="meta">Send plugin, theme, or wp-content changes upstream.</span></div><span class="chevron">›</span></div>
+							<div class="action-row"><div><strong>Download setup zip</strong><span class="meta">Download plugins, themes, and setup files.</span></div><span class="chevron">›</span></div>
+						</div>
+					</section>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div class="overlay" data-overlay="environment" aria-hidden="true">
+		<section class="sheet narrow" role="dialog" aria-label="Environment">
+			<header class="sheet-head">
+				<div>
+					<h2>Environment</h2>
+					<p>Visible status stays compact; detailed controls live here.</p>
+				</div>
+				<button class="text-button subtle" type="button" data-close>Close</button>
+			</header>
+			<div class="sheet-body">
+				<div class="field-grid">
+					<div class="field"><label for="wp-version">WordPress</label><select id="wp-version"><option>6.8 latest</option><option>6.7</option><option>trunk</option><option>PR build</option></select></div>
+					<div class="field"><label for="php-version">PHP</label><select id="php-version"><option>8.3</option><option>8.4</option><option>8.2</option><option>7.4</option></select></div>
+					<div class="field"><label for="language">Language</label><select id="language"><option>English (US)</option><option>Polski</option><option>Español</option><option>Japanese</option></select></div>
+					<div class="field"><label>Networking</label><div class="segmented"><button class="segment active" type="button">Off</button><button class="segment" type="button">On</button></div></div>
+					<div class="field"><label>Multisite</label><div class="segmented"><button class="segment active" type="button">Single</button><button class="segment" type="button">Multi</button></div></div>
+					<div class="field"><label>Storage</label><div class="segmented"><button class="segment active" type="button">Saved</button><button class="segment" type="button">Temp</button></div></div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<section class="drawer" data-drawer aria-label="Files and logs">
+		<div class="drawer-col">
+			<div class="drawer-title"><span>Files</span><button class="text-button subtle" type="button" data-drawer-close>Close</button></div>
+			<ul class="file-tree">
+				<li>wp-content/</li>
+				<li>plugins/</li>
+				<li class="active">plugin-demo.php</li>
+				<li>gutenberg/</li>
+				<li>themes/</li>
+				<li>twentytwentyfive/</li>
+				<li>uploads/</li>
+			</ul>
+		</div>
+		<div class="drawer-col">
+			<div class="drawer-title"><span>plugin-demo.php</span><button class="row-action" type="button">Save file</button></div>
+			<pre class="code">function playground_demo_register_block() {
+    $settings = get_option( 'plugin_demo_settings' );
+    if ( ! is_array( $settings ) ) {
+        return;
+    }
+    register_block_type( __DIR__ . '/build' );
+}</pre>
+			<div class="meta">Live reload is paused while the runtime warning is active.</div>
+		</div>
+		<div class="drawer-col">
+			<div class="drawer-title"><span>Logs and recovery</span><span class="status-chip warning">1 warning</span></div>
+			<div class="log-line"><strong>23:41</strong><span>PHP Warning: foreach() argument must be of type array in plugin-demo.php:42</span></div>
+			<div class="log-line"><span>23:40</span><span>Blueprint step installPlugin completed: gutenberg</span></div>
+			<div class="log-line"><span>23:39</span><span>SQLite database saved to browser storage</span></div>
+			<div class="action-row"><div><strong>Disable Plugin Demo</strong><span class="meta">Recover boot without deleting files.</span></div><span class="chevron">›</span></div>
+			<div class="action-row"><div><strong>Restore recovery copy</strong><span class="meta">Autosaved 45 seconds ago.</span></div><span class="chevron">›</span></div>
+		</div>
+	</section>
+
+	<script>
+		const overlays = Array.from(document.querySelectorAll('[data-overlay]'));
+		const drawer = document.querySelector('[data-drawer]');
+
+		function openPanel(name) {
+			overlays.forEach((overlay) => {
+				const open = overlay.dataset.overlay === name;
+				overlay.classList.toggle('open', open);
+				overlay.setAttribute('aria-hidden', String(!open));
+			});
+			const url = new URL(window.location.href);
+			if (name) {
+				url.searchParams.set('panel', name);
+			} else {
+				url.searchParams.delete('panel');
+			}
+			window.history.replaceState({}, '', url);
+		}
+
+		function setDrawer(open) {
+			drawer.classList.toggle('open', open);
+			const url = new URL(window.location.href);
+			if (open) {
+				url.searchParams.set('drawer', 'recovery');
+			} else {
+				url.searchParams.delete('drawer');
+			}
+			window.history.replaceState({}, '', url);
+		}
+
+		document.addEventListener('click', (event) => {
+			const panelButton = event.target.closest('[data-panel]');
+			if (panelButton) openPanel(panelButton.dataset.panel);
+			if (event.target.closest('[data-close]')) openPanel(null);
+			if (event.target.closest('[data-drawer-open]')) setDrawer(true);
+			if (event.target.closest('[data-drawer-close]')) setDrawer(false);
+			if (event.target.classList.contains('overlay')) openPanel(null);
+		});
+
+		const params = new URLSearchParams(window.location.search);
+		const panel = params.get('panel');
+		if (panel === 'workbench' || panel === 'environment') openPanel(panel);
+		if (params.get('drawer') === 'recovery' || panel === 'files') setDrawer(true);
+		if (params.get('state') === 'error') {
+			document.querySelector('[data-error]').hidden = false;
+			document.querySelector('[data-plugin-state]').textContent = 'Fatal error paused';
+			setDrawer(true);
+		}
+	</script>
+</body>
+</html>
