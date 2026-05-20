@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>WordPress Playground Browser Command Layer Prototype</title>
+		<title>WordPress Playground Browser Tools Prototype</title>
 		<style>
 			:root {
 				--chrome-h: 76px;
@@ -26,6 +26,17 @@
 				--shadow: 0 18px 52px rgb(32 55 78 / 18%);
 				--radius-lg: 22px;
 				--radius-md: 15px;
+				--wp-black: #1e1e1e;
+				--wp-gray-90: #1d2327;
+				--wp-gray-70: #50575e;
+				--wp-gray-50: #8c8f94;
+				--wp-gray-30: #c3c4c7;
+				--wp-gray-20: #dcdcde;
+				--wp-gray-10: #f0f0f1;
+				--wp-gray-5: #f6f7f7;
+				--wp-blue: #2271b1;
+				--wp-blue-dark: #135e96;
+				--wp-amber: #f0b849;
 				--font-ui:
 					Inter, ui-sans-serif, system-ui, -apple-system,
 					BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -89,7 +100,7 @@
 				display: grid;
 				grid-template-columns:
 					minmax(180px, 230px) minmax(460px, 1fr)
-					minmax(240px, 300px) 58px;
+					minmax(240px, 300px) 92px;
 				gap: 14px;
 				align-items: center;
 				padding: 10px 16px;
@@ -1049,11 +1060,464 @@
 				display: block;
 			}
 
+			/*
+			 * WordPress/Gutenberg-inspired simplification pass.
+			 *
+			 * This intentionally avoids a new decorative design language. The
+			 * mockup borrows WordPress admin/component primitives: white
+			 * surfaces, gray separators, blue only for primary actions, amber
+			 * only for recovery state, and hierarchy from spacing/type rather
+			 * than nested cards.
+			 */
+			body {
+				background: var(--wp-gray-10);
+				color: var(--wp-gray-90);
+			}
+
+			.chrome {
+				border-bottom-color: var(--wp-gray-20);
+				background: #fff;
+				box-shadow: none;
+			}
+
+			.site-card,
+			.address-card,
+			.environment-pill,
+			.command-button {
+				border: 1px solid var(--wp-gray-20);
+				background: #fff;
+				box-shadow: none;
+			}
+
+			.site-card,
+			.address-card,
+			.environment-pill,
+			.command-button,
+			.address-input-wrap,
+			.command-layer,
+			.popover,
+			.bottom-tray,
+			.notice,
+			.runtime-card,
+			.feature-group,
+			.feature-row,
+			.playground-row,
+			.panel-button,
+			.fake-select,
+			.fake-toggle,
+			.library-toolbar input {
+				border-radius: 2px;
+			}
+
+			.site-card:hover,
+			.environment-pill:hover,
+			.environment-pill[aria-expanded='true'],
+			.command-button:hover,
+			.command-button[aria-expanded='true'] {
+				border-color: var(--wp-gray-50);
+				background: #fff;
+				box-shadow: none;
+			}
+
+			.environment-pill {
+				grid-template-columns: 1fr;
+				gap: 3px;
+				align-content: center;
+			}
+
+			.address-input-wrap {
+				background: var(--wp-gray-5);
+				box-shadow: none;
+			}
+
+			.lock,
+			.env-line {
+				color: var(--wp-gray-90);
+			}
+
+			.chip,
+			.pill,
+			kbd {
+				border: 0;
+				background: var(--wp-gray-5);
+				color: var(--wp-gray-70);
+				box-shadow: inset 0 0 0 1px var(--wp-gray-20);
+			}
+
+			.env-dot,
+			.recovery-badge::before {
+				background: var(--wp-amber);
+				box-shadow: none;
+			}
+
+			.primary-button,
+			.save-button,
+			.toolbar-button.primary {
+				background: var(--wp-blue);
+				color: #fff;
+			}
+
+			.primary-button:hover,
+			.save-button:hover,
+			.toolbar-button.primary:hover {
+				background: var(--wp-blue-dark);
+			}
+
+			.command-icon,
+			.panel-icon,
+			.result-icon {
+				background: var(--wp-gray-5);
+				color: var(--wp-gray-70);
+				font-size: 12px;
+				letter-spacing: -0.01em;
+			}
+
+			.wordpress-boundary {
+				inset: 0;
+				border: 0;
+				border-radius: 0;
+				box-shadow: none;
+			}
+
+			.scrim {
+				background: rgb(30 30 30 / 8%);
+				backdrop-filter: none;
+			}
+
+			.popover,
+			.command-layer,
+			.bottom-tray {
+				border: 1px solid var(--wp-gray-20);
+				background: #fff;
+				box-shadow: 0 18px 38px rgb(30 30 30 / 18%);
+				backdrop-filter: none;
+			}
+
+			.popover::before {
+				display: none;
+			}
+
+			.panel-header,
+			.command-search,
+			.tray-header,
+			.editor-toolbar {
+				border-bottom-color: var(--wp-gray-20);
+				background: #fff;
+			}
+
+			.panel-body {
+				gap: 0;
+				padding: 0;
+			}
+
+			.notice,
+			.runtime-card,
+			.saved-card,
+			.result-row,
+			.feature-row,
+			.feature-group,
+			.editor-note,
+			.panel-button,
+			.context-card,
+			.playground-row {
+				border: 0;
+				background: #fff;
+				box-shadow: none;
+			}
+
+			.notice {
+				align-items: start;
+				padding: 16px 18px;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.setting-grid {
+				gap: 0;
+				padding: 10px 18px 0;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.runtime-card {
+				padding: 12px 0;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.runtime-card:nth-last-child(-n + 2) {
+				box-shadow: none;
+			}
+
+			.fake-select,
+			.fake-toggle {
+				border: 1px solid var(--wp-gray-20);
+				background: #fff;
+			}
+
+			.fake-toggle span:last-child {
+				background: var(--wp-gray-20);
+				box-shadow: inset 14px 0 0 var(--wp-blue);
+			}
+
+			.panel-button {
+				border-radius: 0;
+				padding: 13px 18px;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.panel-button:hover,
+			.result-row:hover,
+			.feature-row:hover,
+			.playground-row:hover,
+			.saved-card:hover {
+				background: var(--wp-gray-5);
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.command-layer {
+				top: calc(var(--chrome-h) + 10px);
+				right: 16px;
+				left: auto;
+				width: min(680px, calc(100vw - 32px));
+				max-height: min(650px, calc(100vh - var(--chrome-h) - 26px));
+				overflow: auto;
+				transform: none;
+			}
+
+			.command-search {
+				grid-template-columns: 1fr minmax(190px, 260px);
+				padding: 16px 18px;
+			}
+
+			.command-search input {
+				height: 36px;
+				padding: 0 10px;
+				border: 1px solid var(--wp-gray-20);
+				border-radius: 2px;
+				background: #fff;
+				font-size: 14px;
+				font-weight: 400;
+			}
+
+			.command-search kbd {
+				display: none;
+			}
+
+			.tools-heading h2,
+			.feature-intro h2 {
+				margin: 0 0 3px;
+				font-size: 18px;
+				line-height: 1.2;
+			}
+
+			.tools-heading p {
+				margin: 0;
+				color: var(--wp-gray-70);
+				line-height: 1.4;
+			}
+
+			.command-results {
+				max-height: none;
+				padding: 0;
+			}
+
+			.feature-browser {
+				display: block;
+			}
+
+			.feature-intro {
+				display: none;
+			}
+
+			.feature-columns {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0;
+			}
+
+			.feature-group {
+				gap: 0;
+				padding: 0;
+				box-shadow:
+					inset -1px 0 0 var(--wp-gray-20),
+					inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.feature-group:nth-child(2n) {
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.feature-group h3 {
+				padding: 13px 16px 7px;
+				margin: 0;
+				color: var(--wp-gray-70);
+				font-size: 11px;
+				letter-spacing: 0.04em;
+			}
+
+			.feature-row {
+				grid-template-columns: 36px minmax(0, 1fr);
+				gap: 10px;
+				padding: 10px 16px;
+				background: #fff;
+				box-shadow: none;
+			}
+
+			.feature-row > .pill,
+			.feature-row > span:last-child:empty {
+				display: none;
+			}
+
+			.feature-row .result-copy strong,
+			.feature-row .result-copy small,
+			.playground-row strong,
+			.playground-row small {
+				white-space: nowrap;
+			}
+
+			.library-body {
+				gap: 0;
+			}
+
+			.library-summary {
+				display: grid;
+				grid-template-columns: 1fr auto;
+				gap: 16px;
+				align-items: center;
+				padding: 14px 18px;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.library-summary strong,
+			.library-count strong {
+				display: block;
+				margin-bottom: 2px;
+			}
+
+			.library-toolbar {
+				position: sticky;
+				top: 71px;
+				z-index: 2;
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto;
+				gap: 12px;
+				padding: 12px 18px;
+				background: #fff;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.library-toolbar input {
+				height: 36px;
+				border: 1px solid var(--wp-gray-20);
+				background: #fff;
+				box-shadow: none;
+			}
+
+			.library-tabs {
+				padding: 0;
+				border-radius: 2px;
+				background: transparent;
+				box-shadow: inset 0 0 0 1px var(--wp-gray-20);
+			}
+
+			.tab-button {
+				border-radius: 0;
+				color: var(--wp-gray-70);
+			}
+
+			.tab-button + .tab-button {
+				box-shadow: inset 1px 0 0 var(--wp-gray-20);
+			}
+
+			.tab-button.is-selected {
+				background: var(--wp-gray-90);
+				color: #fff;
+				box-shadow: none;
+			}
+
+			.playground-list {
+				display: block;
+				max-height: min(300px, calc(100vh - var(--chrome-h) - 360px));
+				overflow: auto;
+			}
+
+			.playground-row {
+				display: grid;
+				grid-template-columns: 20px minmax(180px, 1fr) 108px 88px 82px;
+				gap: 12px;
+				align-items: center;
+				min-height: 44px;
+				padding: 7px 18px;
+				background: #fff;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+				text-align: left;
+			}
+
+			.playground-row.is-current {
+				background: var(--wp-gray-5);
+			}
+
+			.library-list-header {
+				position: sticky;
+				top: 0;
+				z-index: 1;
+				min-height: 32px;
+				background: var(--wp-gray-5);
+				color: var(--wp-gray-70);
+				font-size: 11px;
+				font-weight: 700;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+
+			.library-list-header:hover {
+				background: var(--wp-gray-5);
+			}
+
+			.playground-row small {
+				color: var(--wp-gray-70);
+			}
+
+			.playground-row time,
+			.playground-row .runtime-meta {
+				overflow: hidden;
+				color: var(--wp-gray-70);
+				font-size: 12px;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.site-dot {
+				width: 8px;
+				height: 8px;
+				background: var(--wp-gray-50);
+			}
+
+			.site-dot.saved,
+			.site-dot.local {
+				background: var(--wp-gray-50);
+			}
+
+			.site-dot.recovery {
+				background: var(--wp-amber);
+			}
+
+			.library-actions {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0;
+				box-shadow: inset 0 -1px 0 var(--wp-gray-20);
+			}
+
+			.library-actions .panel-button:first-child {
+				box-shadow:
+					inset -1px 0 0 var(--wp-gray-20),
+					inset 0 -1px 0 var(--wp-gray-20);
+			}
+
 			@media (max-width: 1280px) {
 				.chrome {
 					grid-template-columns:
 						minmax(170px, 220px) minmax(390px, 1fr)
-						minmax(230px, 280px) 54px;
+						minmax(230px, 280px) 84px;
 					gap: 10px;
 					padding-inline: 10px;
 				}
@@ -1101,13 +1565,25 @@
 					overflow: hidden;
 					white-space: nowrap;
 				}
+
+				.command-button-label {
+					display: none;
+				}
+
+				.feature-browser {
+					grid-template-columns: 1fr;
+				}
+
+				.feature-intro {
+					display: none;
+				}
 			}
 		</style>
 	</head>
 	<body>
 		<div class="shell">
 			<header class="chrome" aria-label="Playground browser chrome">
-				<section class="site-card" aria-label="Current Playground">
+				<section class="site-card" aria-label="Your Playgrounds">
 					<button
 						class="current-button"
 						data-open="current"
@@ -1115,7 +1591,7 @@
 					>
 						<span class="wp-mark">W</span>
 						<span class="identity">
-							<span class="eyebrow">Playground</span>
+							<span class="eyebrow">Your Playgrounds</span>
 							<strong>Classic Mountain</strong>
 						</span>
 					</button>
@@ -1152,13 +1628,14 @@
 						<label class="address-input-wrap">
 							<span class="lock" aria-hidden="true">●</span>
 							<input
+								data-address-input
 								name="playground-address"
 								value="/wp-admin/"
 								aria-label="WordPress URL"
 							/>
 						</label>
 						<div class="command-hints">
-							<span>Path or command</span><kbd>/</kbd>
+							<span>WordPress path</span><kbd>/</kbd>
 						</div>
 					</div>
 				</form>
@@ -1171,11 +1648,11 @@
 				>
 					<span class="runtime-summary">
 						<span class="eyebrow">Environment</span>
-						<strong>Unsaved · WP latest · PHP 8.4 · Temp</strong>
+						<strong>WP latest · PHP 8.4</strong>
 					</span>
 					<span class="env-line"
-						><span class="env-dot" aria-hidden="true"></span
-						>Recovery on</span
+						><span class="env-dot" aria-hidden="true"></span>Unsaved
+						recovery</span
 					>
 				</button>
 
@@ -1183,9 +1660,10 @@
 					class="command-button"
 					data-open="command"
 					aria-expanded="false"
-					aria-label="Open actions command layer"
+					aria-label="Browse Playground tools"
 				>
-					<span class="command-icon">⌘</span>
+					<span class="command-icon">•••</span>
+					<span class="command-button-label">Tools</span>
 				</button>
 			</header>
 
@@ -1264,92 +1742,149 @@
 		<section
 			class="command-layer"
 			data-command-layer
-			aria-label="Command layer"
+			aria-label="Browse Playground tools"
 		>
 			<div class="command-search">
-				<span class="command-icon" aria-hidden="true">⌘</span>
-				<input
-					value="/wp-admin/"
-					aria-label="Command or WordPress path"
-				/>
-				<kbd>Enter</kbd>
-			</div>
-			<div class="command-results">
-				<div class="result-stack">
-					<div class="section-title">
-						<h3>Current page</h3>
-						<span class="section-note"
-							>Dashboard-aware actions</span
-						>
-					</div>
-					<button class="result-row" data-action="open-path">
-						<span class="result-icon">↵</span
-						><span class="result-copy"
-							><strong>Open /wp-admin/</strong
-							><small>Navigate inside WordPress</small></span
-						><span class="pill">Path</span>
-					</button>
-					<button class="result-row" data-open="runtime">
-						<span class="result-icon">⚙</span
-						><span class="result-copy"
-							><strong>Change runtime</strong
-							><small
-								>WordPress, PHP, storage, network</small
-							></span
-						><span class="pill">1 click</span>
-					</button>
-					<button class="result-row" data-open="files">
-						<span class="result-icon">{ }</span
-						><span class="result-copy"
-							><strong>Open files in recovery editor</strong
-							><small
-								>Wide bottom tray, site remains visible</small
-							></span
-						><span class="pill">Files</span>
-					</button>
-					<button class="result-row" data-open="share">
-						<span class="result-icon">↗</span
-						><span class="result-copy"
-							><strong>Save or share this Playground</strong
-							><small
-								>Save, copy link, ZIP, GitHub export</small
-							></span
-						><span class="pill">Preserve</span>
-					</button>
-					<div class="section-title"><h3>Import and inspect</h3></div>
-					<button class="result-row" data-action="import">
-						<span class="result-icon">⇧</span
-						><span class="result-copy"
-							><strong
-								>Import from GitHub, ZIP, PR, or
-								Blueprint</strong
-							><small>Start from existing work</small></span
-						><span class="pill">Import</span>
-					</button>
-					<button class="result-row" data-action="logs">
-						<span class="result-icon">☰</span
-						><span class="result-copy"
-							><strong>View PHP and browser logs</strong
-							><small>Debug the running site</small></span
-						><span class="pill">Inspect</span>
-					</button>
+				<div class="tools-heading">
+					<span class="eyebrow">Playground tools</span>
+					<h2>Browse features</h2>
+					<p>One place for import, inspect, files, and export.</p>
 				</div>
-				<aside class="command-aside">
-					<div class="context-card">
-						<h3>Browser-native model</h3>
-						<p>
-							The address stays for WordPress navigation. Commands
-							layer on top when requested, then disappear.
-						</p>
-					</div>
-					<div class="context-card">
-						<h3>Runtime is not hidden</h3>
-						<p>
-							The visible runtime chips are shortcuts, status, and
-							affordances at the same time.
-						</p>
-					</div>
-				</aside>
+				<input
+					name="playground-tool-filter"
+					value=""
+					placeholder="Filter tools or type /wp-admin/"
+					aria-label="Search tools or type a WordPress path"
+				/>
+			</div>
+			<div class="command-results feature-browser">
+				<div class="feature-intro">
+					<span class="eyebrow">Browse tools</span>
+					<h2>Everything Playground can do</h2>
+					<p>
+						Search is optional. The same actions are grouped by job
+						so you can scan them without remembering command names.
+					</p>
+				</div>
+				<div class="feature-columns">
+					<section class="feature-group">
+						<h3>Current site</h3>
+						<button class="feature-row" data-action="open-path">
+							<span class="result-icon">Go</span
+							><span class="result-copy"
+								><strong>Open /wp-admin/</strong
+								><small>Navigate inside WordPress</small></span
+							><span></span>
+						</button>
+						<button class="feature-row" data-open="runtime">
+							<span class="result-icon">PHP</span
+							><span class="result-copy"
+								><strong>Change runtime</strong
+								><small
+									>WordPress, PHP, storage, network</small
+								></span
+							><span></span>
+						</button>
+						<button class="feature-row" data-open="files">
+							<span class="result-icon">FS</span
+							><span class="result-copy"
+								><strong>Edit files</strong
+								><small
+									>Recovery editor and safe-mode tools</small
+								></span
+							><span></span>
+						</button>
+					</section>
+					<section class="feature-group">
+						<h3>Create or import</h3>
+						<button class="feature-row" data-action="blank-site">
+							<span class="result-icon">New</span
+							><span class="result-copy"
+								><strong>Blank WordPress</strong
+								><small>Start clean</small></span
+							><span></span>
+						</button>
+						<button class="feature-row" data-action="import">
+							<span class="result-icon">Git</span
+							><span class="result-copy"
+								><strong>GitHub, ZIP, or PR</strong
+								><small>Start from existing work</small></span
+							><span></span>
+						</button>
+						<button class="feature-row" data-action="blueprint">
+							<span class="result-icon">BP</span
+							><span class="result-copy"
+								><strong>Blueprint URL or gallery</strong
+								><small
+									>Reproduce a configured site</small
+								></span
+							><span></span>
+						</button>
+					</section>
+					<section class="feature-group">
+						<h3>Inspect and debug</h3>
+						<button class="feature-row" data-action="logs">
+							<span class="result-icon">Log</span
+							><span class="result-copy"
+								><strong>PHP and browser logs</strong
+								><small>Debug the running site</small></span
+							><span></span>
+						</button>
+						<button class="feature-row" data-action="database">
+							<span class="result-icon">DB</span
+							><span class="result-copy"
+								><strong>SQLite database</strong
+								><small>Browse tables and queries</small></span
+							><span></span>
+						</button>
+						<button
+							class="feature-row"
+							data-action="blueprint-source"
+						>
+							<span class="result-icon">JSON</span
+							><span class="result-copy"
+								><strong>Blueprint source</strong
+								><small
+									>Inspect and copy configuration</small
+								></span
+							><span></span>
+						</button>
+					</section>
+					<section class="feature-group">
+						<h3>Save and hand off</h3>
+						<button
+							class="feature-row"
+							data-action="save-playground"
+						>
+							<span class="result-icon">Save</span
+							><span class="result-copy"
+								><strong>Save this Playground</strong
+								><small
+									>Promote recovery to a named site</small
+								></span
+							><span></span>
+						</button>
+						<button class="feature-row" data-open="current">
+							<span class="result-icon">Sites</span
+							><span class="result-copy"
+								><strong>Your Playgrounds</strong
+								><small
+									>Browse saved, autosaved, and local
+									sites</small
+								></span
+							><span></span>
+						</button>
+						<button class="feature-row" data-open="share">
+							<span class="result-icon">Zip</span
+							><span class="result-copy"
+								><strong>Share or export</strong
+								><small
+									>Copy link, ZIP, GitHub export</small
+								></span
+							><span></span>
+						</button>
+					</section>
+				</div>
 			</div>
 		</section>
 
@@ -1563,20 +2098,21 @@ add_filter( <span class="string">'playground_demo_label'</span>, function() {
 			<header class="panel-header">
 				<div class="panel-icon">W</div>
 				<div>
-					<h2>Classic Mountain</h2>
-					<p>Autosaved recovery copy. Not intentionally saved yet.</p>
+					<h2>Your Playgrounds</h2>
+					<p>
+						Saved sites, recovery copies, and local work in one
+						place.
+					</p>
 				</div>
 				<button class="close-button" data-close>×</button>
 			</header>
-			<div class="panel-body">
-				<section class="notice">
+			<div class="panel-body library-body">
+				<section class="library-summary">
 					<div>
-						<strong
-							>Recovery is automatic; Save is a decision</strong
-						>
+						<strong>Classic Mountain is a recovery copy</strong>
 						<p class="muted-copy">
-							Autosave protects you from loss. Save names this
-							Playground and keeps it in your sites.
+							Save names the current Playground. Recovery copies
+							stay separate so experiments remain disposable.
 						</p>
 					</div>
 					<button
@@ -1586,31 +2122,362 @@ add_filter( <span class="string">'playground_demo_label'</span>, function() {
 						Save Playground
 					</button>
 				</section>
-				<div class="section-title">
-					<h3>Your Playgrounds</h3>
-					<span class="section-note">Saved and recovery copies</span>
+				<section class="library-summary library-count">
+					<div>
+						<strong>30 Playgrounds</strong>
+						<p class="muted-copy">
+							Saved, recovery, and local workspaces.
+						</p>
+					</div>
+					<button
+						class="secondary-button"
+						data-action="manage-playgrounds"
+					>
+						Manage
+					</button>
+				</section>
+				<div class="library-toolbar">
+					<input
+						name="playground-library-filter"
+						value=""
+						placeholder="Filter Playgrounds"
+						aria-label="Filter Playgrounds"
+					/>
+					<div class="library-tabs" aria-label="Playground filters">
+						<button class="tab-button is-selected">All</button>
+						<button class="tab-button">Saved</button>
+						<button class="tab-button">Recovery</button>
+						<button class="tab-button">Local</button>
+					</div>
 				</div>
-				<div class="saved-grid">
-					<button class="saved-card">
-						<strong>Autosaved Storefront Test</strong
-						><small>Recovery copy · today</small></button
-					><button class="saved-card">
-						<strong>Saved Plugin Demo</strong
-						><small>Kept · yesterday</small>
+				<div class="playground-list" aria-label="30 saved Playgrounds">
+					<div
+						class="playground-row library-list-header"
+						aria-hidden="true"
+					>
+						<span></span><span>Name</span><span>Opened</span
+						><span>Runtime</span><span>Type</span>
+					</div>
+					<button class="playground-row is-current">
+						<span class="site-dot recovery"></span>
+						<span
+							><strong>Classic Mountain</strong
+							><small
+								>Autosaved recovery · current site</small
+							></span
+						>
+						<time>Now</time>
+						<span class="runtime-meta">WP latest · PHP 8.4</span>
+						<span class="pill">Current</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Saved Plugin Demo</strong
+							><small>GitHub export ready</small></span
+						>
+						<time>Yesterday</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.3</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot local"></span>
+						<span
+							><strong>Local theme mount</strong
+							><small>Filesystem-backed child theme</small></span
+						>
+						<time>Today</time>
+						<span class="runtime-meta">WP latest · PHP 8.4</span>
+						<span class="pill">Local</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot recovery"></span>
+						<span
+							><strong>Autosaved Storefront Test</strong
+							><small
+								>Recovery copy from checkout experiment</small
+							></span
+						>
+						<time>Today</time>
+						<span class="runtime-meta">WP 6.7 · PHP 8.2</span>
+						<span class="pill">Recovery</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Woo Checkout Regression</strong
+							><small>Repro for payment block issue</small></span
+						>
+						<time>Today</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.3</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Gutenberg PR 70412</strong
+							><small>Pull request preview</small></span
+						>
+						<time>2 days ago</time>
+						<span class="runtime-meta">WP trunk · PHP 8.4</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Theme JSON Lab</strong
+							><small>Global styles and typography</small></span
+						>
+						<time>3 days ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.2</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Docs Tutorial Draft</strong
+							><small>Interactive lesson environment</small></span
+						>
+						<time>4 days ago</time>
+						<span class="runtime-meta">WP latest · PHP 8.4</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot recovery"></span>
+						<span
+							><strong>Plugin Crash Recovery</strong
+							><small
+								>Safe-mode session after fatal error</small
+							></span
+						>
+						<time>5 days ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.1</span>
+						<span class="pill">Recovery</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>SQLite Import Fixture</strong
+							><small>Large WXR import test</small></span
+						>
+						<time>6 days ago</time>
+						<span class="runtime-meta">WP 6.7 · PHP 8.3</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Block Theme Starter</strong
+							><small>New theme scaffold</small></span
+						>
+						<time>1 week ago</time>
+						<span class="runtime-meta">WP latest · PHP 8.4</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Multisite Smoke Test</strong
+							><small>Network install settings</small></span
+						>
+						<time>1 week ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.2</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot local"></span>
+						<span
+							><strong>Local plugin mount</strong
+							><small>Filesystem-backed plugin work</small></span
+						>
+						<time>1 week ago</time>
+						<span class="runtime-meta">WP latest · PHP 8.3</span>
+						<span class="pill">Local</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Pattern Directory Demo</strong
+							><small>Synced pattern experiment</small></span
+						>
+						<time>8 days ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.4</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>REST API Fixture</strong
+							><small>API endpoint reproduction</small></span
+						>
+						<time>9 days ago</time>
+						<span class="runtime-meta">WP 6.7 · PHP 8.2</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot recovery"></span>
+						<span
+							><strong>Autosaved Media Library</strong
+							><small>Image import experiment</small></span
+						>
+						<time>10 days ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.4</span>
+						<span class="pill">Recovery</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Blueprint Gallery Sample</strong
+							><small>Reusable demo blueprint</small></span
+						>
+						<time>11 days ago</time>
+						<span class="runtime-meta">WP latest · PHP 8.4</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Classic Editor Compatibility</strong
+							><small>Plugin comparison site</small></span
+						>
+						<time>12 days ago</time>
+						<span class="runtime-meta">WP 6.6 · PHP 8.1</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Translation Smoke Test</strong
+							><small>Locale and language packs</small></span
+						>
+						<time>13 days ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.3</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>E2E Fixture: Posts</strong
+							><small>Content-heavy test site</small></span
+						>
+						<time>2 weeks ago</time>
+						<span class="runtime-meta">WP latest · PHP 8.2</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot local"></span>
+						<span
+							><strong>Local mu-plugin mount</strong
+							><small>Filesystem-backed mu-plugin</small></span
+						>
+						<time>2 weeks ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.4</span>
+						<span class="pill">Local</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Performance Baseline</strong
+							><small>Cache and query timing checks</small></span
+						>
+						<time>2 weeks ago</time>
+						<span class="runtime-meta">WP 6.7 · PHP 8.3</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Twenty Twenty-Five Demo</strong
+							><small>Theme preview and content</small></span
+						>
+						<time>3 weeks ago</time>
+						<span class="runtime-meta">WP latest · PHP 8.4</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Custom Post Types Fixture</strong
+							><small>CPT and taxonomy demo</small></span
+						>
+						<time>3 weeks ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.2</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot recovery"></span>
+						<span
+							><strong>Autosaved Theme Switch</strong
+							><small>Unfinished appearance test</small></span
+						>
+						<time>3 weeks ago</time>
+						<span class="runtime-meta">WP 6.7 · PHP 8.3</span>
+						<span class="pill">Recovery</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Import WordPress Files</strong
+							><small>ZIP import workflow test</small></span
+						>
+						<time>1 month ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.4</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>WP-CLI Blueprint Test</strong
+							><small>CLI-like setup blueprint</small></span
+						>
+						<time>1 month ago</time>
+						<span class="runtime-meta">WP latest · PHP 8.3</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Database Browser Fixture</strong
+							><small>SQLite table inspection</small></span
+						>
+						<time>1 month ago</time>
+						<span class="runtime-meta">WP 6.8 · PHP 8.2</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Network Blocked Fixture</strong
+							><small>Offline/plugin install state</small></span
+						>
+						<time>1 month ago</time>
+						<span class="runtime-meta">WP 6.7 · PHP 8.1</span>
+						<span class="pill">Saved</span>
+					</button>
+					<button class="playground-row">
+						<span class="site-dot saved"></span>
+						<span
+							><strong>Archived Support Repro</strong
+							><small>Kept for bug report link</small></span
+						>
+						<time>2 months ago</time>
+						<span class="runtime-meta">WP 6.6 · PHP 8.0</span>
+						<span class="pill">Saved</span>
 					</button>
 				</div>
-				<div class="action-grid">
+				<div class="library-actions">
 					<button class="panel-button" data-action="new-site">
-						<span class="result-icon">＋</span
+						<span class="result-icon">New</span
 						><span class="result-copy"
 							><strong>Blank WordPress</strong
 							><small>Start clean</small></span
-						><span></span></button
-					><button class="panel-button" data-open="share">
-						<span class="result-icon">↗</span
+						><span></span>
+					</button>
+					<button class="panel-button" data-action="import">
+						<span class="result-icon">Git</span
 						><span class="result-copy"
-							><strong>Preserve or export</strong
-							><small>Save, link, ZIP, GitHub</small></span
+							><strong>Import site</strong
+							><small>GitHub, ZIP, PR, Blueprint</small></span
 						><span></span>
 					</button>
 				</div>
@@ -1733,7 +2600,7 @@ add_filter( <span class="string">'playground_demo_label'</span>, function() {
 					!popover.classList.contains('is-visible')
 				)
 					return;
-				const widths = { current: 620, runtime: 680, share: 590 };
+				const widths = { current: 620, runtime: 620, share: 620 };
 				const width = Math.min(
 					widths[activeSurface] || 620,
 					window.innerWidth - 36
@@ -1801,10 +2668,7 @@ add_filter( <span class="string">'playground_demo_label'</span>, function() {
 					document.activeElement?.tagName !== 'INPUT'
 				) {
 					event.preventDefault();
-					openSurface(
-						'command',
-						document.querySelector('[data-open="command"]')
-					);
+					document.querySelector('[data-address-input]')?.focus();
 				}
 			});
 

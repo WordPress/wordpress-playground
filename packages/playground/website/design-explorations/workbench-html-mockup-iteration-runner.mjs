@@ -38,7 +38,11 @@ const states = [
 	{
 		id: 'command',
 		panel: 'command',
-		expectedText: ['Change runtime', 'Open files', 'Import from GitHub'],
+		expectedText: [
+			'Your Playgrounds',
+			'SQLite database',
+			'GitHub, ZIP, or PR',
+		],
 	},
 	{
 		id: 'files',
@@ -48,7 +52,11 @@ const states = [
 	{
 		id: 'current',
 		panel: 'current',
-		expectedText: ['Recovery is automatic', 'Your Playgrounds'],
+		expectedText: [
+			'Filter Playgrounds',
+			'Saved Plugin Demo',
+			'Local theme mount',
+		],
 	},
 	{
 		id: 'share',
@@ -65,9 +73,9 @@ function stateBudget(state) {
 	return {
 		main: { maxSurfaceRatio: 0.05 },
 		runtime: { maxSurfaceRatio: 0.56 },
-		command: { maxSurfaceRatio: 0.56 },
+		command: { maxSurfaceRatio: 0.57 },
 		files: { maxSurfaceRatio: 0.62 },
-		current: { maxSurfaceRatio: 0.42 },
+		current: { maxSurfaceRatio: 0.52 },
 		share: { maxSurfaceRatio: 0.42 },
 	}[state.id];
 }
@@ -150,6 +158,41 @@ async function collectMetrics(page, state) {
 						: activeSurface === 'main'
 							? { width: 0, height: 0 }
 							: popoverRect;
+			const activeElement =
+				activeSurface === 'files'
+					? document.querySelector('[data-files-tray]')
+					: activeSurface === 'command'
+						? document.querySelector('[data-command-layer]')
+						: activeSurface === 'main'
+							? null
+							: document.querySelector('[data-popover]');
+			const visibleBorderCount = activeElement
+				? [
+						activeElement,
+						...activeElement.querySelectorAll('*'),
+					].filter((element) => {
+						const rect = element.getBoundingClientRect();
+						const style = getComputedStyle(element);
+						return (
+							rect.width > 0 &&
+							rect.height > 0 &&
+							['top', 'right', 'bottom', 'left'].some(
+								(side) =>
+									Number.parseFloat(
+										style.getPropertyValue(
+											`border-${side}-width`
+										)
+									) > 0 &&
+									style.getPropertyValue(
+										`border-${side}-style`
+									) !== 'none' &&
+									style.getPropertyValue(
+										`border-${side}-color`
+									) !== 'rgba(0, 0, 0, 0)'
+							)
+						);
+					}).length
+				: 0;
 			const surfaceRatio =
 				(activeRect.width * activeRect.height) /
 				Math.max(1, window.innerWidth * window.innerHeight);
@@ -174,6 +217,10 @@ async function collectMetrics(page, state) {
 					siteRect.height >= 420,
 				expectedTextOk,
 				surfaceBounded: surfaceRatio <= maxSurfaceRatio,
+				borderNoiseReduced:
+					stateId === 'files'
+						? visibleBorderCount <= 10
+						: visibleBorderCount <= 7,
 				playgroundSeparated: chromeRect.bottom <= siteRect.top + 2,
 				filesEditorReadable:
 					stateId !== 'files' ||
@@ -194,6 +241,7 @@ async function collectMetrics(page, state) {
 				siteRect,
 				activeRect,
 				surfaceRatio: Number(surfaceRatio.toFixed(3)),
+				visibleBorderCount,
 				editorRect,
 				fileTreeRect,
 				recoveryRect,
@@ -263,6 +311,7 @@ Generated ${results.length} screenshots for ${states.length} states across ${vie
 - WordPress canvas remains the page owner.
 - Expected labels/actions are visible in each state.
 - Transient surfaces stay bounded.
+- Visible border count stays low enough to avoid nested card noise.
 - Playground chrome is visually separated from WordPress.
 - Files has readable tree, editor, and recovery rail widths.
 `;
