@@ -121,6 +121,9 @@ function makeChanges(iteration, panel, viewport, metrics) {
 		`Set popover shadow y-offset to ${metrics.tokens.shadowY} with alpha ${metrics.tokens.shadowAlpha} so the Playground layer separates from WordPress.`,
 		`Set scrim alpha to ${metrics.tokens.scrimAlpha} to dim WordPress just enough to read the active Playground surface.`,
 		`Gave the ${panel} surface its own ${metrics.panelAccent} accent and ${metrics.panelSurface} surface token so neighboring popovers no longer feel like the same drawer.`,
+		`Kept the design direction on the atelier-browser palette with display font ${metrics.displayFontToken} and UI font ${metrics.uiFontToken}.`,
+		`Verified the mockup stylesheet avoids the configured generic AI-font marker list.`,
+		`Verified the atmospheric motion hooks are present for chrome entry, panel entry, and staggered panel content.`,
 		`Kept the active surface class as ${metrics.popoverClassList.join(' ')} so every panel can carry a distinct visual identity.`,
 		`Reduced visible bordered elements inside this panel to ${metrics.visibleBorderCount}, favoring soft fills and elevation over boxed-in rows.`,
 		`Reduced this panel to ${metrics.panelWordCount} words, keeping labels scannable without the previous explanatory paragraphs.`,
@@ -148,6 +151,9 @@ function makeReview(iteration, panel, viewport, metrics) {
 	if (!metrics.popoverClassList.includes(`panel-${panel}`))
 		concerns.push('panel identity class missing');
 	if (!metrics.panelAccent) concerns.push('panel accent missing');
+	if (metrics.genericFontMarkerPresent)
+		concerns.push('generic AI-font marker present');
+	if (!metrics.motionHooksPresent) concerns.push('motion hooks missing');
 	if (metrics.panelWordCount > wordBudgetForPanel(panel))
 		concerns.push('panel copy too long');
 	if (metrics.visibleBorderCount > borderBudgetForPanel(panel))
@@ -169,6 +175,7 @@ function makeReview(iteration, panel, viewport, metrics) {
 		`The arrow delta is ${metrics.arrowDelta.toFixed(2)}px, the address bar is ${formatPx(metrics.addressRect.width)}, and the WordPress visible-width ratio is ${metrics.previewVisibleRatio.toFixed(2)}.`,
 		`The active panel is ${formatPx(metrics.popoverRect.width)} wide, ${formatPx(metrics.popoverRect.height)} tall, ${metrics.panelWordCount} words, and ${metrics.visibleBorderCount} visibly bordered ${metrics.visibleBorderCount === 1 ? 'element' : 'elements'}.`,
 		`Its identity is ${metrics.popoverClassList.join(' ')} with ${metrics.panelAccent} accent.`,
+		`Typography tokens are ${metrics.displayFontToken} for display and ${metrics.uiFontToken} for UI; motion hooks are ${metrics.motionHooksPresent ? 'present' : 'missing'}.`,
 		concerns.length
 			? `Concerns to address next: ${concerns.join(', ')}.`
 			: 'No visual gate failed in this pass.',
@@ -194,7 +201,7 @@ function makeReflection(iteration, panel, viewport, metrics) {
 		metrics.previewVisibleRatio < 0.2
 			? 'next, trim surface width or strengthen context cues so the WordPress page still feels owned by the user.'
 			: 'next, preserve the same interaction model and refine copy, spacing, and grouping rather than adding another permanent control.';
-	return `${phase.name}: ${panelLesson} At ${viewport.label}, the measured layout leaves ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible, keeps the connector within ${metrics.arrowDelta.toFixed(2)}px, uses ${metrics.visibleBorderCount} visible ${metrics.visibleBorderCount === 1 ? 'border' : 'borders'}, and keeps the panel at ${metrics.panelWordCount} words. The next pass is ${next.name}; ${nextMove}`;
+	return `${phase.name}: ${panelLesson} At ${viewport.label}, the measured layout leaves ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible, keeps the connector within ${metrics.arrowDelta.toFixed(2)}px, uses ${metrics.visibleBorderCount} visible ${metrics.visibleBorderCount === 1 ? 'border' : 'borders'}, keeps the panel at ${metrics.panelWordCount} words, and preserves the atelier-browser typography/motion tokens. The next pass is ${next.name}; ${nextMove}`;
 }
 
 async function collectMetrics(page, panel) {
@@ -285,6 +292,15 @@ async function collectMetrics(page, panel) {
 			].join('|'),
 			'i'
 		);
+		const styleText = Array.from(document.querySelectorAll('style'))
+			.map((style) => style.textContent || '')
+			.join('\n');
+		const genericFontMarkerPattern =
+			/\b(Inter|Roboto|Arial|Space Grotesk|system-ui|-apple-system|BlinkMacSystemFont|Segoe UI)\b/i;
+		const motionHooksPresent =
+			styleText.includes('@keyframes chromeIn') &&
+			styleText.includes('@keyframes sheetIn') &&
+			styleText.includes('@keyframes liftIn');
 		return {
 			viewport: { width: window.innerWidth, height: window.innerHeight },
 			popoverRect,
@@ -295,6 +311,12 @@ async function collectMetrics(page, panel) {
 			panelSurface: getComputedStyle(popover)
 				.getPropertyValue('--panel-surface')
 				.trim(),
+			displayFontToken: rootStyle
+				.getPropertyValue('--font-display')
+				.trim(),
+			uiFontToken: rootStyle.getPropertyValue('--font-ui').trim(),
+			genericFontMarkerPresent: genericFontMarkerPattern.test(styleText),
+			motionHooksPresent,
 			panelWordCount: popoverText
 				? popoverText.split(/\s+/).filter(Boolean).length
 				: 0,
@@ -368,6 +390,8 @@ function visualTests(panel, metrics) {
 		addressBarVisible: metrics.addressRect.width >= 260,
 		distinctPanelClass: metrics.popoverClassList.includes(`panel-${panel}`),
 		panelAccentPresent: Boolean(metrics.panelAccent),
+		distinctiveTypography: !metrics.genericFontMarkerPresent,
+		motionHooksPresent: metrics.motionHooksPresent,
 		runtimeFluffRemoved: !metrics.runtimeFluffPresent,
 		panelWordCountOk: metrics.panelWordCount <= wordBudgetForPanel(panel),
 		visibleBorderCountOk:
@@ -422,6 +446,10 @@ for (let iteration = firstIteration; iteration <= lastIteration; iteration++) {
 			panelWordCount: metrics.panelWordCount,
 			visibleBorderCount: metrics.visibleBorderCount,
 			panelAccent: metrics.panelAccent,
+			displayFontToken: metrics.displayFontToken,
+			uiFontToken: metrics.uiFontToken,
+			genericFontMarkerAbsent: !metrics.genericFontMarkerPresent,
+			motionHooksPresent: metrics.motionHooksPresent,
 			fileEditorWidth: Math.round(metrics.fileEditorRect.width),
 		},
 		review: makeReview(iteration, panel, viewport, metrics),
@@ -472,11 +500,13 @@ Generated 100 screenshot-backed iterations for \`workbench-html-mockup.html\`.
 3. The page has no horizontal overflow at the tested viewport.
 4. The address bar remains visible and useful.
 5. Each panel has a distinct surface class and accent token.
-6. Old Runtime helper fluff remains removed.
-7. Panel word count stays below the panel-specific budget.
-8. Visible border count stays below the panel-specific budget.
-9. The WordPress preview remains visible behind transient panels.
-10. The file editor has a readable tree and code area when opened.
+6. The stylesheet uses distinctive typography tokens and avoids common generic AI-font markers.
+7. Chrome, panel, and panel-content motion hooks are present.
+8. Old Runtime helper fluff remains removed.
+9. Panel word count stays below the panel-specific budget.
+10. Visible border count stays below the panel-specific budget.
+11. The WordPress preview remains visible behind transient panels.
+12. The file editor has a readable tree and code area when opened.
 
 ## Iteration coverage
 

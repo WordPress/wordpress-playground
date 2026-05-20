@@ -22,6 +22,24 @@ Useful panels:
 - `?panel=share`
 - `?panel=command`
 
+## Aesthetic direction
+
+The current pass commits to a more opinionated direction: **atelier browser**.
+It treats Playground as a crafted instrument sitting above the live WordPress
+site, not as a generic SaaS toolbar. The memorable visual hook is the contrast
+between the ordinary WordPress admin underneath and a warm, tactile browser rail
+with vellum panels, editorial type, brass/oxide accents, and dark recovery tools.
+
+This deliberately avoids the default white-card/product-dashboard look:
+
+- display type uses an editorial serif stack;
+- UI type uses a characterful humanist stack;
+- the palette is paper, charcoal, oxide, cobalt, moss, plum, and steel;
+- panels use subtle grid/folio textures, not plain white rectangles;
+- chrome/panel/content entry animations create one staged reveal;
+- the file editor becomes a dark recovery workbench with a right-side recovery
+  rail.
+
 ## What changed in this direction
 
 The latest direction keeps the pieces people already understand:
@@ -41,7 +59,7 @@ buttons:
    control. Runtime is a chip inside the address surface, so WordPress/PHP,
    network, and storage settings stay one click away without adding another
    top-level button.
-3. **Workbench** — one dark, high-confidence entry point for tasks that affect
+3. **Workbench** — one brass, high-confidence entry point for tasks that affect
    the running site.
 
 Each panel is anchored to its invoking control with a visual triangle, but the
@@ -179,3 +197,37 @@ Round 2 adds stricter checks for:
 Latest local round-2 run: iterations 101–200, 100 screenshots, 0 visual-gate
 failures. The measured maximums were 128 words in a panel and 14 visibly
 bordered elements, both from the wide file editor.
+
+## Third 100-iteration aesthetic pass
+
+The third pass replaces the polite mockup aesthetic with the atelier-browser
+direction described above.
+
+```bash
+ITERATION_ROUND=3 node packages/playground/website/design-explorations/workbench-html-mockup-iteration-runner.mjs
+```
+
+It generates screenshots under:
+
+```text
+.context/workbench-html-mockup-iterations/screenshots-round-3/
+```
+
+And writes:
+
+```text
+packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-3.json
+packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-3.md
+```
+
+Round 3 keeps the previous layout gates and adds checks that the mockup:
+
+1. uses distinct display/UI typography tokens;
+2. avoids the configured generic AI-font marker list in the mockup stylesheet;
+3. keeps chrome, panel, and panel-content motion hooks present;
+4. preserves six distinct panel accents;
+5. keeps the file editor wide and readable.
+
+Latest local round-3 run: iterations 201–300, 100 screenshots, 0 visual-gate
+failures. The measured maximums were 118 words in a panel and 2 visibly bordered
+elements.
