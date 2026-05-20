@@ -235,6 +235,63 @@ if (!isJspiAvailable) {
 				expect(result.errors).toBeFalsy();
 			});
 
+			it('honors a custom read timeout against a blocking Redis command', async () => {
+				const testKey = `test_read_timeout_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+				const result = await php.run({
+					code: `<?php
+					$r = new Redis();
+					$r->connect('${REDIS_HOST}', ${REDIS_PORT}, 5.0);
+
+					if (!defined('Redis::OPT_READ_TIMEOUT')) {
+						echo json_encode([
+							'outcome' => 'MISSING_OPT_READ_TIMEOUT',
+						]);
+						exit;
+					}
+
+					$key = '${testKey}';
+					$r->del($key);
+					$r->setOption(Redis::OPT_READ_TIMEOUT, 0.2);
+
+					$start = microtime(true);
+					$outcome = 'UNKNOWN';
+					$error = null;
+
+					try {
+						$value = $r->blPop([$key], 2);
+						$outcome = $value === false ? 'FALSE' : 'VALUE';
+					} catch (Throwable $e) {
+						$outcome = 'EXCEPTION';
+						$error = $e->getMessage();
+					}
+
+					$elapsedMs = (int) round((microtime(true) - $start) * 1000);
+					$r->close();
+
+					echo json_encode([
+						'outcome' => $outcome,
+						'elapsedMs' => $elapsedMs,
+						'error' => $error,
+					]);
+				?>`,
+				});
+
+				const timeoutResult = JSON.parse(result.text) as {
+					outcome: string;
+					elapsedMs: number;
+					error: string | null;
+				};
+				expect(['EXCEPTION', 'FALSE']).toContain(timeoutResult.outcome);
+				expect(timeoutResult.elapsedMs).toBeGreaterThanOrEqual(100);
+				expect(timeoutResult.elapsedMs).toBeLessThan(1500);
+				if (timeoutResult.outcome === 'EXCEPTION') {
+					expect(timeoutResult.error).toMatch(
+						/read|socket|timed? out/i
+					);
+				}
+			});
+
 			it('can set values with expiration', async () => {
 				const testKey = `test_expiry_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
