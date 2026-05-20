@@ -22,3 +22,19 @@ function smokeTest() {
 
 // Export for use in smoke tests
 module.exports = { PHP, loadWebRuntime, smokeTest };
+
+if (typeof window !== 'undefined') {
+	Promise.resolve()
+		.then(() => smokeTest())
+		.then(() => {
+			window.smokeTestPassed = true;
+			window.testComplete = true;
+		})
+		.catch((error) => {
+			window.testErrors?.push({
+				msg: error?.stack || error?.message || error?.toString(),
+			});
+			window.testComplete = true;
+			throw error;
+		});
+}

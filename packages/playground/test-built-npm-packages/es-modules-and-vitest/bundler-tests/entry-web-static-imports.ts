@@ -22,3 +22,19 @@ export function smokeTest(): boolean {
 	);
 	return true;
 }
+
+if (typeof window !== 'undefined') {
+	Promise.resolve()
+		.then(() => smokeTest())
+		.then(() => {
+			(window as any).smokeTestPassed = true;
+			(window as any).testComplete = true;
+		})
+		.catch((error) => {
+			(window as any).testErrors?.push({
+				msg: error?.stack || error?.message || error?.toString(),
+			});
+			(window as any).testComplete = true;
+			throw error;
+		});
+}

@@ -143,27 +143,7 @@ async function loadWebBundleInBrowser(distDir, jsFile) {
 			originalConsoleError.apply(console, args);
 		};
 	</script>
-	<script type="module">
-		(async () => {
-			try {
-				const module = await import('./${jsFile}');
-				const smokeTest = module.smokeTest || module.default?.smokeTest;
-				if (typeof smokeTest !== 'function') {
-					throw new Error(
-						'Bundle does not export smokeTest. Exports: ' +
-							Object.keys(module).join(', ')
-					);
-				}
-				await smokeTest();
-				window.smokeTestPassed = true;
-			} catch (error) {
-				window.testErrors.push({
-					msg: error?.stack || error?.message || error?.toString(),
-				});
-			}
-			window.testComplete = true;
-		})();
-	</script>
+	<script type="module" src="./${jsFile}"></script>
 </body>
 </html>`;
 
@@ -199,10 +179,14 @@ async function loadWebBundleInBrowser(distDir, jsFile) {
 			waitUntil: 'networkidle',
 		});
 
-		// Wait for test to complete
-		await page.waitForFunction('window.testComplete === true', {
-			timeout: 10000,
-		});
+		// Wait for the bundle entry to report completion, or for the error
+		// handlers installed above to capture a load/runtime failure.
+		await page.waitForFunction(
+			'window.testComplete === true || window.testErrors.length > 0',
+			{
+				timeout: 10000,
+			}
+		);
 
 		// Check results
 		const results = await page.evaluate(() => ({
