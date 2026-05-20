@@ -18,6 +18,14 @@ const red = (text) => `\x1b[31m${text}\x1b[0m`;
 
 async function runCommand(command, args, cwd) {
 	return new Promise((resolve) => {
+		let settled = false;
+		const resolveOnce = (result) => {
+			if (!settled) {
+				settled = true;
+				resolve(result);
+			}
+		};
+
 		const proc = spawn(command, args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -35,8 +43,13 @@ async function runCommand(command, args, cwd) {
 			stderr += data.toString();
 		});
 
+		proc.on('error', (error) => {
+			stderr += error.stack || error.message;
+			resolveOnce({ code: 1, stdout, stderr });
+		});
+
 		proc.on('close', (code) => {
-			resolve({ code: code ?? 1, stdout, stderr });
+			resolveOnce({ code: code ?? 1, stdout, stderr });
 		});
 	});
 }
@@ -74,6 +87,23 @@ async function loadNodeBundle(bundlePath) {
 	}
 }
 
+async function findOutputFile(distDir, expectedBaseName, extensions) {
+	const files = await readdir(distDir);
+	const expectedFiles = extensions.map(
+		(extension) => `${expectedBaseName}${extension}`
+	);
+	const outputFile = expectedFiles.find((file) => files.includes(file));
+
+	if (!outputFile) {
+		return {
+			success: false,
+			error: `Expected ${expectedFiles.join(' or ')} in output. Files: ${files.join(', ')}`,
+		};
+	}
+
+	return { success: true, file: outputFile };
+}
+
 async function loadWebBundleInBrowser(distDir, jsFile) {
 	console.log(`  Loading web bundle in browser: ${jsFile}...`);
 
@@ -94,6 +124,13 @@ async function loadWebBundleInBrowser(distDir, jsFile) {
 			window.testErrors.push({ msg, url, line, col, error: error?.toString() });
 		};
 
+		window.onunhandledrejection = (event) => {
+			window.testErrors.push({
+				msg: 'Unhandled promise rejection',
+				error: event.reason?.stack || event.reason?.message || event.reason?.toString(),
+			});
+		};
+
 		const originalConsoleLog = console.log;
 		console.log = (...args) => {
 			window.testLogs.push(args.join(' '));
@@ -106,15 +143,26 @@ async function loadWebBundleInBrowser(distDir, jsFile) {
 			originalConsoleError.apply(console, args);
 		};
 	</script>
-	<script type="module" src="./${jsFile}"></script>
 	<script type="module">
-		// Check if smoke test passed by looking for the log message
-		setTimeout(() => {
-			window.smokeTestPassed = window.testLogs.some(log =>
-				log.includes('Smoke test passed')
-			);
+		(async () => {
+			try {
+				const module = await import('./${jsFile}');
+				const smokeTest = module.smokeTest || module.default?.smokeTest;
+				if (typeof smokeTest !== 'function') {
+					throw new Error(
+						'Bundle does not export smokeTest. Exports: ' +
+							Object.keys(module).join(', ')
+					);
+				}
+				await smokeTest();
+				window.smokeTestPassed = true;
+			} catch (error) {
+				window.testErrors.push({
+					msg: error?.stack || error?.message || error?.toString(),
+				});
+			}
 			window.testComplete = true;
-		}, 1000);
+		})();
 	</script>
 </body>
 </html>`;
@@ -198,7 +246,7 @@ async function loadWebBundleInBrowser(distDir, jsFile) {
 	}
 }
 
-async function runTest(name, configFile, outputDir, target) {
+async function runTest(name, configFile, outputDir, expectedBaseName, target) {
 	console.log(`\n=== ${name} ===`);
 
 	// Build the bundle
@@ -211,19 +259,15 @@ async function runTest(name, configFile, outputDir, target) {
 	if (target === 'node') {
 		const distDir = join(__dirname, outputDir);
 		try {
-			const files = await readdir(distDir);
-			const jsFile = files.find(
-				(f) => f.endsWith('.cjs') || f.endsWith('.js')
-			);
-			if (!jsFile) {
-				return {
-					name,
-					success: false,
-					error: 'No JS file found in output',
-				};
+			const outputFile = await findOutputFile(distDir, expectedBaseName, [
+				'.cjs',
+				'.js',
+			]);
+			if (!outputFile.success) {
+				return { name, success: false, error: outputFile.error };
 			}
 
-			const bundlePath = join(distDir, jsFile);
+			const bundlePath = join(distDir, outputFile.file);
 			const loadSuccess = await loadNodeBundle(bundlePath);
 			if (!loadSuccess) {
 				return { name, success: false, error: 'Failed to load bundle' };
@@ -241,20 +285,18 @@ async function runTest(name, configFile, outputDir, target) {
 	if (target === 'web') {
 		const distDir = join(__dirname, outputDir);
 		try {
-			const files = await readdir(distDir);
-			// Look for .js or .mjs files (Vite may use either depending on package type)
-			const jsFile = files.find(
-				(f) => f.endsWith('.js') || f.endsWith('.mjs')
-			);
-			if (!jsFile) {
-				return {
-					name,
-					success: false,
-					error: `No JS file found in output. Files: ${files.join(', ')}`,
-				};
+			const outputFile = await findOutputFile(distDir, expectedBaseName, [
+				'.mjs',
+				'.js',
+			]);
+			if (!outputFile.success) {
+				return { name, success: false, error: outputFile.error };
 			}
 
-			const browserResult = await loadWebBundleInBrowser(distDir, jsFile);
+			const browserResult = await loadWebBundleInBrowser(
+				distDir,
+				outputFile.file
+			);
 			if (!browserResult.success) {
 				return { name, success: false, error: browserResult.error };
 			}
@@ -286,6 +328,7 @@ async function main() {
 			'Node Bundle (require)',
 			'vite.config.node-require.mjs',
 			'dist/node-require',
+			'bundle-node-require',
 			'node'
 		)
 	);
@@ -296,6 +339,7 @@ async function main() {
 			'Node Bundle (dynamic import in CJS)',
 			'vite.config.node-dynamic.mjs',
 			'dist/node-dynamic',
+			'bundle-node-dynamic-import',
 			'node'
 		)
 	);
@@ -306,6 +350,7 @@ async function main() {
 			'Web Bundle (require)',
 			'vite.config.web-require.mjs',
 			'dist/web-require',
+			'bundle-web-require',
 			'web'
 		)
 	);

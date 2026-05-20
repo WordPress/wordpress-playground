@@ -6,9 +6,6 @@
 const { PHP } = require('@php-wasm/universal');
 const { loadWebRuntime } = require('@php-wasm/web');
 
-// Export for use in smoke tests
-module.exports = { PHP, loadWebRuntime };
-
 // Simple smoke test that verifies the requires resolved correctly
 function smokeTest() {
 	if (typeof PHP !== 'function') {
@@ -23,5 +20,5 @@ function smokeTest() {
 	return true;
 }
 
-// Auto-run smoke test when loaded
-smokeTest();
+// Export for use in smoke tests
+module.exports = { PHP, loadWebRuntime, smokeTest };

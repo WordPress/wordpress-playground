@@ -6,7 +6,10 @@
  * not bundled inline. This matches how real-world applications use these packages.
  */
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
 	build: {
