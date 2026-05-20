@@ -127,13 +127,13 @@
 }
 
 .newPlaygroundIcon {
-	width: 42px;
-	height: 42px;
+	width: 58px;
+	height: 58px;
 }
 
 .newPlaygroundIcon :global(svg) {
-	width: 40px;
-	height: 40px;
+	width: 56px;
+	height: 56px;
 }
 
 .creationTitle {
@@ -381,32 +381,6 @@
 .showMoreButton:hover {
 	background: #2c3338;
 	color: #fff;
-}
-
-.autosaveSummary {
-	align-items: center;
-	color: #9ca3af;
-	display: flex;
-	flex-wrap: wrap;
-	font-size: 13px;
-	gap: 8px;
-	margin-bottom: 12px;
-}
-
-.autosaveBadge {
-	background: #2c3338;
-	border: 1px solid #3c4349;
-	border-radius: 999px;
-	color: #e5e6e6;
-	font-size: 12px;
-	font-weight: 500;
-	line-height: 1;
-	padding: 5px 8px;
-	white-space: nowrap;
-}
-
-.autosaveHint {
-	color: #c3c4c7;
 }
 
 /* Loading state */

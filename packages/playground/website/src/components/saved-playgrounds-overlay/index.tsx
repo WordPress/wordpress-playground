@@ -294,7 +294,7 @@ export function SavedPlaygroundsOverlay({
 			id: 'vanilla',
 			title: 'New Playground',
 			icon: plus,
-			iconSize: 40,
+			iconSize: 56,
 			onClick: createVanillaSite,
 			disabled: false,
 		},
@@ -489,16 +489,10 @@ export function SavedPlaygroundsOverlay({
 		}
 
 		return (
-			<OverlaySection title="Recent autosaves">
-				<div className={css.autosaveSummary}>
-					<span className={css.autosaveBadge}>
-						Last {MAX_AUTOSAVED_SITES}
-					</span>
-					<span className={css.autosaveBadge}>Auto-delete</span>
-					<span className={css.autosaveHint}>
-						Use Save to keep one.
-					</span>
-				</div>
+			<OverlaySection
+				title={`Last ${MAX_AUTOSAVED_SITES} autosaves`}
+				description="Older autosaves are deleted automatically. Use Store permanently to keep one."
+			>
 				<div className={css.sitesList}>
 					{autosavedSites.map(renderSiteRow)}
 				</div>
