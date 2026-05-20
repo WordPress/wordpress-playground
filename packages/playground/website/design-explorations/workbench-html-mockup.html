@@ -1,0 +1,2164 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>WordPress Playground Workbench HTML Mockup</title>
+		<style>
+			:root {
+				--ink: #14181f;
+				--text: #253040;
+				--muted: #6b7280;
+				--quiet: #8b94a5;
+				--line: #dbe1ea;
+				--line-strong: #b8c1d2;
+				--blue: #3858e9;
+				--blue-strong: #1f3fd2;
+				--blue-soft: #eef3ff;
+				--green: #0e8a43;
+				--gold: #dba617;
+				--red: #b42318;
+				--surface: #ffffff;
+				--wash: #f5f7fb;
+				--wash-strong: #eef2f8;
+				--chrome: #f8fafc;
+				--chrome-h: 66px;
+				--chrome-pad-x: 14px;
+				--chrome-gap: 12px;
+				--cluster-w: 390px;
+				--panel-w: 700px;
+				--panel-radius: 24px;
+				--panel-top: 12px;
+				--shadow-y: 34px;
+				--shadow-alpha: 0.22;
+				--scrim-alpha: 0.16;
+				--focus: 0 0 0 3px rgb(56 88 233 / 18%);
+				font-family:
+					Inter,
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					sans-serif;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				width: 100vw;
+				height: 100vh;
+				overflow: hidden;
+				background: #d9dee8;
+				color: var(--text);
+				text-rendering: geometricPrecision;
+			}
+
+			button,
+			input,
+			select,
+			textarea {
+				font: inherit;
+			}
+
+			button {
+				cursor: pointer;
+			}
+
+			.playground-shell {
+				position: relative;
+				display: grid;
+				grid-template-rows: var(--chrome-h) 1fr;
+				width: 100vw;
+				height: 100vh;
+				background: var(--surface);
+			}
+
+			.playground-chrome {
+				position: relative;
+				z-index: 20;
+				display: grid;
+				grid-template-columns:
+					minmax(282px, var(--cluster-w)) minmax(340px, 1fr)
+					auto;
+				align-items: center;
+				gap: var(--chrome-gap);
+				padding: 8px var(--chrome-pad-x);
+				border-bottom: 1px solid var(--line-strong);
+				background:
+					linear-gradient(
+						180deg,
+						rgb(255 255 255 / 74%),
+						rgb(243 247 252 / 96%)
+					),
+					radial-gradient(
+						circle at top left,
+						rgb(56 88 233 / 10%),
+						transparent 32%
+					);
+				box-shadow:
+					0 1px 0 rgb(255 255 255 / 80%),
+					0 10px 24px rgb(15 23 42 / 8%);
+			}
+
+			.brand-mark {
+				display: grid;
+				place-items: center;
+				width: 39px;
+				height: 39px;
+				border: 1px solid rgb(56 88 233 / 26%);
+				border-radius: 14px;
+				background: linear-gradient(180deg, #fff, #f7f9ff);
+				color: var(--blue);
+				font-size: 24px;
+				font-weight: 900;
+				letter-spacing: -0.08em;
+				box-shadow:
+					inset 0 0 0 1px rgb(255 255 255 / 70%),
+					0 5px 14px rgb(15 23 42 / 8%);
+			}
+
+			.site-cluster {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 5px;
+				min-width: 0;
+				padding: 4px;
+				border: 1px solid var(--line-strong);
+				border-radius: 22px;
+				background: rgb(255 255 255 / 84%);
+				box-shadow:
+					inset 0 1px 0 rgb(255 255 255 / 80%),
+					0 1px 2px rgb(15 23 42 / 7%);
+			}
+
+			.site-cluster.is-active {
+				border-color: rgb(56 88 233 / 72%);
+				box-shadow:
+					var(--focus),
+					0 1px 2px rgb(15 23 42 / 7%);
+			}
+
+			.chrome-button,
+			.icon-button,
+			.row-button,
+			.card-button,
+			.segment-button,
+			.close-button,
+			.toolbar-button,
+			.editor-tab {
+				border: 0;
+				background: transparent;
+				color: inherit;
+			}
+
+			.current-trigger {
+				display: grid;
+				grid-template-columns: 39px minmax(0, 1fr) 18px;
+				align-items: center;
+				gap: 10px;
+				min-width: 0;
+				height: 48px;
+				padding: 4px 10px 4px 4px;
+				border-radius: 18px;
+				text-align: left;
+			}
+
+			.current-trigger:hover,
+			.current-trigger[aria-expanded='true'] {
+				background: #fff;
+			}
+
+			.identity {
+				display: grid;
+				gap: 2px;
+				min-width: 0;
+			}
+
+			.eyebrow {
+				display: block;
+				overflow: hidden;
+				color: var(--muted);
+				font-size: 10.5px;
+				font-weight: 850;
+				letter-spacing: 0.075em;
+				line-height: 1.05;
+				text-overflow: ellipsis;
+				text-transform: uppercase;
+				white-space: nowrap;
+			}
+
+			.identity strong,
+			.trigger-title {
+				display: block;
+				overflow: hidden;
+				color: var(--ink);
+				font-size: 15px;
+				font-weight: 800;
+				letter-spacing: -0.025em;
+				line-height: 1.15;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.chevron {
+				color: #556070;
+				font-size: 16px;
+				font-weight: 850;
+			}
+
+			.save-inline {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				height: 40px;
+				padding: 0 8px 0 11px;
+				border-left: 1px solid var(--line);
+				white-space: nowrap;
+			}
+
+			.status-dot {
+				display: inline-grid;
+				place-items: center;
+				width: 18px;
+				height: 18px;
+				border-radius: 999px;
+				background: var(--gold);
+				color: #fff;
+				font-size: 11px;
+				font-weight: 900;
+			}
+
+			.status-text {
+				color: #536071;
+				font-size: 13px;
+				font-weight: 760;
+			}
+
+			.primary-button,
+			.save-button {
+				display: inline-grid;
+				place-items: center;
+				height: 34px;
+				padding: 0 14px;
+				border: 1px solid #111827;
+				border-radius: 999px;
+				background: #111827;
+				color: #fff;
+				font-size: 13px;
+				font-weight: 840;
+				letter-spacing: -0.01em;
+				box-shadow:
+					0 1px 0 rgb(255 255 255 / 13%) inset,
+					0 8px 18px rgb(15 23 42 / 14%);
+			}
+
+			.save-button:hover,
+			.primary-button:hover {
+				background: #000;
+			}
+
+			.nav-area {
+				display: grid;
+				min-width: 0;
+				gap: 4px;
+			}
+
+			.address-bar {
+				display: grid;
+				grid-template-columns: auto 30px minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 8px;
+				height: 48px;
+				min-width: 0;
+				padding: 0 7px;
+				border: 1px solid var(--line-strong);
+				border-radius: 999px;
+				background: #fff;
+				box-shadow:
+					inset 0 1px 0 rgb(255 255 255 / 95%),
+					0 1px 2px rgb(15 23 42 / 5%);
+			}
+
+			.icon-group {
+				display: inline-flex;
+				gap: 2px;
+			}
+
+			.icon-button {
+				display: grid;
+				place-items: center;
+				width: 32px;
+				height: 32px;
+				border-radius: 11px;
+				color: #5f6b7a;
+				font-weight: 850;
+			}
+
+			.icon-button:hover {
+				background: #eef2f7;
+				color: var(--ink);
+			}
+
+			.address-bar input {
+				min-width: 0;
+				border: 0;
+				outline: 0;
+				background: transparent;
+				color: var(--ink);
+				font-size: 15px;
+				font-weight: 570;
+				letter-spacing: -0.01em;
+			}
+
+			.address-bar:focus-within {
+				border-color: rgb(56 88 233 / 72%);
+				box-shadow:
+					var(--focus),
+					0 1px 2px rgb(15 23 42 / 5%);
+			}
+
+			.runtime-chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 7px;
+				height: 34px;
+				padding: 0 12px;
+				border: 1px solid rgb(56 88 233 / 25%);
+				border-radius: 999px;
+				background: var(--blue-soft);
+				color: #1d328f;
+				font-size: 12px;
+				font-weight: 820;
+				white-space: nowrap;
+			}
+
+			.runtime-chip:hover,
+			.runtime-chip[aria-expanded='true'] {
+				border-color: rgb(56 88 233 / 60%);
+				background: #e3ebff;
+			}
+
+			.workbench-trigger {
+				display: inline-flex;
+				align-items: center;
+				gap: 10px;
+				height: 48px;
+				padding: 0 16px 0 14px;
+				border: 1px solid #101820;
+				border-radius: 18px;
+				background: #111827;
+				color: #fff;
+				font-weight: 840;
+				letter-spacing: -0.015em;
+				box-shadow:
+					0 1px 0 rgb(255 255 255 / 14%) inset,
+					0 12px 28px rgb(15 23 42 / 17%);
+				white-space: nowrap;
+			}
+
+			.workbench-trigger span:first-child {
+				display: grid;
+				place-items: center;
+				width: 24px;
+				height: 24px;
+				border-radius: 8px;
+				background: rgb(255 255 255 / 12%);
+				font-size: 15px;
+			}
+
+			.workbench-trigger kbd {
+				padding: 2px 5px;
+				border: 1px solid rgb(255 255 255 / 18%);
+				border-radius: 6px;
+				background: rgb(255 255 255 / 10%);
+				color: rgb(255 255 255 / 78%);
+				font-size: 10px;
+				font-weight: 820;
+			}
+
+			.workbench-trigger:hover,
+			.workbench-trigger[aria-expanded='true'] {
+				background: #05070a;
+			}
+
+			.site-frame {
+				position: relative;
+				overflow: hidden;
+				background: #fff;
+			}
+
+			.wp-admin-bar {
+				display: flex;
+				align-items: center;
+				gap: 20px;
+				height: 42px;
+				padding: 0 17px;
+				background: #1d2327;
+				color: rgb(255 255 255 / 82%);
+				font-size: 13px;
+				font-weight: 650;
+			}
+
+			.wp-admin-dot {
+				width: 11px;
+				height: 11px;
+				border-radius: 50%;
+				background: #72aee6;
+				box-shadow:
+					16px 0 0 #f0b849,
+					32px 0 0 #00a32a;
+			}
+
+			.wp-stage {
+				display: grid;
+				grid-template-columns: 190px minmax(0, 1fr);
+				height: calc(100vh - var(--chrome-h) - 42px);
+				background: #f0f0f1;
+			}
+
+			.wp-sidebar {
+				padding: 18px 12px;
+				background: #1d2327;
+				color: rgb(255 255 255 / 75%);
+			}
+
+			.wp-sidebar div {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				height: 38px;
+				padding: 0 11px;
+				border-radius: 8px;
+				font-size: 13px;
+				font-weight: 650;
+			}
+
+			.wp-sidebar .active {
+				background: #3858e9;
+				color: #fff;
+			}
+
+			.wp-page {
+				overflow: hidden;
+				padding: 34px 40px;
+				background: #f6f7f7;
+			}
+
+			.wp-page-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 24px;
+				margin-bottom: 28px;
+			}
+
+			.wp-page h1 {
+				margin: 0;
+				color: #1d2327;
+				font-size: 30px;
+				font-weight: 520;
+				letter-spacing: -0.02em;
+			}
+
+			.wp-search {
+				width: min(360px, 34vw);
+				height: 38px;
+				border: 1px solid #c3c4c7;
+				border-radius: 3px;
+				background: #fff;
+			}
+
+			.wp-grid {
+				display: grid;
+				grid-template-columns: 1.25fr 0.75fr;
+				gap: 20px;
+			}
+
+			.wp-widget {
+				min-height: 170px;
+				padding: 22px;
+				border: 1px solid #c3c4c7;
+				background: #fff;
+				box-shadow: 0 1px 1px rgb(0 0 0 / 4%);
+			}
+
+			.wp-widget h2 {
+				margin: 0 0 14px;
+				font-size: 18px;
+				font-weight: 600;
+			}
+
+			.wp-widget p {
+				margin: 0 0 16px;
+				color: #50575e;
+				line-height: 1.6;
+			}
+
+			.wp-button {
+				display: inline-flex;
+				align-items: center;
+				height: 34px;
+				padding: 0 12px;
+				border: 1px solid #2271b1;
+				border-radius: 3px;
+				background: #2271b1;
+				color: #fff;
+				font-size: 13px;
+				font-weight: 600;
+			}
+
+			.scrim {
+				position: absolute;
+				z-index: 10;
+				inset: var(--chrome-h) 0 0;
+				border: 0;
+				background:
+					linear-gradient(
+						180deg,
+						rgb(15 23 42 / calc(var(--scrim-alpha) + 0.03)),
+						rgb(15 23 42 / var(--scrim-alpha))
+					),
+					radial-gradient(
+						circle at 50% 0,
+						rgb(255 255 255 / 28%),
+						transparent 42%
+					);
+				backdrop-filter: blur(2.5px) saturate(1.04);
+				opacity: 0;
+				pointer-events: none;
+				transition: opacity 0.14s ease;
+			}
+
+			.scrim.is-visible {
+				opacity: 1;
+				pointer-events: auto;
+			}
+
+			.popover {
+				position: absolute;
+				z-index: 30;
+				top: calc(var(--chrome-h) + var(--panel-top));
+				left: 24px;
+				display: none;
+				grid-template-rows: auto minmax(0, 1fr);
+				width: min(var(--panel-w), calc(100vw - 48px));
+				max-height: calc(100vh - var(--chrome-h) - 30px);
+				border: 1px solid rgb(15 23 42 / 18%);
+				border-radius: var(--panel-radius);
+				background: var(--surface);
+				box-shadow:
+					0 var(--shadow-y) 80px rgb(15 23 42 / var(--shadow-alpha)),
+					0 0 0 1px rgb(255 255 255 / 70%) inset;
+				overflow: visible;
+			}
+
+			.popover.is-visible {
+				display: grid;
+			}
+
+			.popover::before,
+			.popover::after {
+				content: '';
+				position: absolute;
+				left: var(--arrow-left, 46px);
+				width: 0;
+				height: 0;
+				transform: translateX(-50%);
+				pointer-events: none;
+			}
+
+			.popover::before {
+				top: -14px;
+				border-left: 14px solid transparent;
+				border-right: 14px solid transparent;
+				border-bottom: 14px solid rgb(15 23 42 / 18%);
+			}
+
+			.popover::after {
+				top: -12px;
+				border-left: 12px solid transparent;
+				border-right: 12px solid transparent;
+				border-bottom: 12px solid #fff;
+			}
+
+			.popover-header {
+				display: grid;
+				grid-template-columns: 44px minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 13px;
+				padding: 17px 18px;
+				border-bottom: 1px solid var(--line);
+				border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+				background:
+					linear-gradient(180deg, #fff, #f9fbff),
+					radial-gradient(
+						circle at 30% 0,
+						rgb(56 88 233 / 12%),
+						transparent 45%
+					);
+			}
+
+			.pop-icon {
+				display: grid;
+				place-items: center;
+				width: 44px;
+				height: 44px;
+				border: 1px solid rgb(56 88 233 / 20%);
+				border-radius: 15px;
+				background: var(--blue-soft);
+				color: var(--blue);
+				font-size: 20px;
+				font-weight: 900;
+			}
+
+			.popover h2,
+			.popover h3,
+			.popover p,
+			.popover ul,
+			.popover pre {
+				margin: 0;
+			}
+
+			.popover h2 {
+				color: var(--ink);
+				font-size: 21px;
+				font-weight: 860;
+				letter-spacing: -0.025em;
+				line-height: 1.1;
+			}
+
+			.subcopy {
+				margin-top: 3px;
+				color: #536071;
+				font-size: 13px;
+				font-weight: 560;
+				line-height: 1.45;
+			}
+
+			.close-button {
+				display: grid;
+				place-items: center;
+				width: 36px;
+				height: 36px;
+				border-radius: 12px;
+				color: #5b6675;
+				font-size: 24px;
+				font-weight: 400;
+			}
+
+			.close-button:hover {
+				background: #eef2f7;
+				color: var(--ink);
+			}
+
+			.panel-body {
+				display: grid;
+				gap: 12px;
+				align-content: start;
+				padding: 15px;
+				overflow: auto;
+				background: var(--wash);
+				border-radius: 0 0 var(--panel-radius) var(--panel-radius);
+			}
+
+			.card {
+				padding: 15px;
+				border: 1px solid #dbe5f3;
+				border-radius: 18px;
+				background: #fff;
+				box-shadow: 0 1px 0 rgb(255 255 255 / 90%) inset;
+			}
+
+			.hero-card {
+				display: grid;
+				gap: 14px;
+				padding: 17px;
+				background:
+					linear-gradient(135deg, rgb(56 88 233 / 9%), #fff 42%), #fff;
+			}
+
+			.hero-top,
+			.split-row {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 16px;
+			}
+
+			.hero-card h3 {
+				color: var(--ink);
+				font-size: 27px;
+				font-weight: 880;
+				letter-spacing: -0.04em;
+				line-height: 1.02;
+			}
+
+			.hint-list {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+
+			.hint {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				height: 28px;
+				padding: 0 9px;
+				border: 1px solid #dbe5f3;
+				border-radius: 999px;
+				background: rgb(255 255 255 / 80%);
+				color: #4f5c6e;
+				font-size: 12px;
+				font-weight: 720;
+			}
+
+			.meta-grid,
+			.workbench-grid,
+			.quick-grid,
+			.share-grid {
+				display: grid;
+				gap: 10px;
+			}
+
+			.meta-grid {
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+			}
+			.workbench-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
+			.quick-grid {
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+			}
+			.share-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
+
+			.metric {
+				min-width: 0;
+				padding: 10px 11px;
+				border: 1px solid #dbe5f3;
+				border-radius: 14px;
+				background: rgb(255 255 255 / 78%);
+			}
+
+			.metric strong,
+			.metric small {
+				display: block;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.metric strong {
+				color: var(--ink);
+				font-size: 13px;
+				font-weight: 820;
+			}
+
+			.metric small {
+				margin-top: 3px;
+				color: var(--muted);
+				font-size: 12px;
+				font-weight: 630;
+			}
+
+			.section-label {
+				margin: 2px 3px -4px;
+				color: #718096;
+				font-size: 11px;
+				font-weight: 900;
+				letter-spacing: 0.085em;
+				text-transform: uppercase;
+			}
+
+			.row-stack {
+				display: grid;
+				gap: 8px;
+			}
+
+			.card-button,
+			.row-button,
+			.setting-row {
+				display: grid;
+				grid-template-columns: 42px minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 12px;
+				min-width: 0;
+				padding: 12px;
+				border: 1px solid #dbe5f3;
+				border-radius: 17px;
+				background: #fff;
+				color: var(--ink);
+				text-align: left;
+				box-shadow: 0 1px 0 rgb(255 255 255 / 90%) inset;
+			}
+
+			.card-button {
+				grid-template-columns: 46px minmax(0, 1fr);
+				align-content: start;
+				min-height: 104px;
+			}
+
+			.row-button:hover,
+			.card-button:hover,
+			.setting-row:hover,
+			.segment-button:hover {
+				border-color: rgb(56 88 233 / 58%);
+				box-shadow:
+					0 10px 28px rgb(56 88 233 / 11%),
+					0 1px 0 rgb(255 255 255 / 90%) inset;
+				transform: translateY(-1px);
+			}
+
+			.tile-icon {
+				display: grid;
+				place-items: center;
+				width: 42px;
+				height: 42px;
+				border: 1px solid rgb(56 88 233 / 18%);
+				border-radius: 14px;
+				background: var(--blue-soft);
+				color: var(--blue);
+				font-size: 19px;
+				font-weight: 900;
+			}
+
+			.tile-icon.dark {
+				border-color: rgb(17 24 39 / 12%);
+				background: #111827;
+				color: #fff;
+			}
+
+			.tile-icon.green {
+				border-color: rgb(14 138 67 / 18%);
+				background: #eaf8f0;
+				color: var(--green);
+			}
+
+			.tile-icon.gold {
+				border-color: rgb(219 166 23 / 25%);
+				background: #fff7dc;
+				color: #9b6c00;
+			}
+
+			.card-button strong,
+			.row-button strong,
+			.setting-row strong {
+				display: block;
+				overflow: hidden;
+				color: var(--ink);
+				font-size: 15px;
+				font-weight: 840;
+				letter-spacing: -0.015em;
+				line-height: 1.16;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.card-button small,
+			.row-button small,
+			.setting-row small {
+				display: block;
+				margin-top: 4px;
+				overflow: hidden;
+				color: var(--muted);
+				font-size: 12.5px;
+				font-weight: 620;
+				line-height: 1.35;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.value-pill {
+				display: inline-flex;
+				align-items: center;
+				height: 28px;
+				padding: 0 10px;
+				border-radius: 999px;
+				background: var(--blue-soft);
+				color: #1d328f;
+				font-size: 12px;
+				font-weight: 850;
+			}
+
+			.segmented {
+				display: flex;
+				gap: 6px;
+				padding: 5px;
+				border: 1px solid #dbe5f3;
+				border-radius: 999px;
+				background: #fff;
+			}
+
+			.segment-button {
+				height: 31px;
+				padding: 0 12px;
+				border-radius: 999px;
+				color: #536071;
+				font-size: 12.5px;
+				font-weight: 780;
+			}
+
+			.segment-button.is-selected {
+				background: #111827;
+				color: #fff;
+			}
+
+			.settings-grid {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 10px;
+			}
+
+			.setting-card {
+				display: grid;
+				gap: 10px;
+				padding: 14px;
+				border: 1px solid #dbe5f3;
+				border-radius: 18px;
+				background: #fff;
+			}
+
+			.setting-card label {
+				color: var(--ink);
+				font-size: 14px;
+				font-weight: 840;
+			}
+
+			.fake-select,
+			.fake-toggle {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				height: 42px;
+				padding: 0 12px;
+				border: 1px solid var(--line-strong);
+				border-radius: 13px;
+				background: #fbfcff;
+				color: var(--ink);
+				font-weight: 740;
+			}
+
+			.fake-toggle span:last-child {
+				display: inline-block;
+				width: 36px;
+				height: 22px;
+				border-radius: 999px;
+				background: var(--blue);
+				box-shadow:
+					inset 14px 0 0 #fff,
+					inset 0 0 0 2px var(--blue);
+			}
+
+			.warning-card {
+				border-color: rgb(180 35 24 / 22%);
+				background: #fff8f7;
+			}
+
+			.warning-card .tile-icon {
+				border-color: rgb(180 35 24 / 18%);
+				background: #fee4e2;
+				color: var(--red);
+			}
+
+			.command-search {
+				display: grid;
+				grid-template-columns: 34px minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 9px;
+				height: 50px;
+				padding: 0 11px;
+				border: 1px solid rgb(56 88 233 / 50%);
+				border-radius: 16px;
+				background: #fff;
+				box-shadow: var(--focus);
+			}
+
+			.command-search input {
+				min-width: 0;
+				border: 0;
+				outline: 0;
+				background: transparent;
+				font-size: 16px;
+				font-weight: 620;
+			}
+
+			.command-kbd {
+				padding: 3px 7px;
+				border: 1px solid #d7dee9;
+				border-radius: 8px;
+				background: #f5f7fb;
+				color: #6b7280;
+				font-size: 11px;
+				font-weight: 850;
+			}
+
+			.file-panel .panel-body {
+				padding: 0;
+				background: #eef2f8;
+			}
+
+			.file-workspace {
+				display: grid;
+				grid-template-rows: auto minmax(0, 1fr) auto;
+				min-height: 558px;
+				border-radius: 0 0 var(--panel-radius) var(--panel-radius);
+				overflow: hidden;
+				background: #fff;
+			}
+
+			.editor-toolbar {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 10px;
+				padding: 11px 13px;
+				border-bottom: 1px solid var(--line);
+				background: #f8fafc;
+			}
+
+			.crumbs {
+				overflow: hidden;
+				color: #4c596a;
+				font-family: 'SFMono-Regular', Consolas, monospace;
+				font-size: 12px;
+				font-weight: 700;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.toolbar-actions {
+				display: inline-flex;
+				gap: 7px;
+			}
+
+			.toolbar-button {
+				height: 31px;
+				padding: 0 10px;
+				border: 1px solid #d7dee9;
+				border-radius: 10px;
+				background: #fff;
+				font-size: 12px;
+				font-weight: 800;
+			}
+
+			.toolbar-button.primary {
+				border-color: #111827;
+				background: #111827;
+				color: #fff;
+			}
+
+			.editor-layout {
+				display: grid;
+				grid-template-columns: 248px minmax(0, 1fr) 250px;
+				min-height: 0;
+			}
+
+			.file-tree {
+				overflow: auto;
+				padding: 12px;
+				border-right: 1px solid var(--line);
+				background: #fbfcff;
+			}
+
+			.file-tree-title {
+				margin: 2px 8px 10px;
+				color: var(--quiet);
+				font-size: 10px;
+				font-weight: 900;
+				letter-spacing: 0.085em;
+				text-transform: uppercase;
+			}
+
+			.file-node {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				height: 31px;
+				padding: 0 9px;
+				border-radius: 9px;
+				color: #536071;
+				font-size: 12.5px;
+				font-weight: 690;
+			}
+
+			.file-node.is-selected {
+				background: var(--blue);
+				color: #fff;
+			}
+
+			.code-editor {
+				position: relative;
+				overflow: auto;
+				background: #0f172a;
+				color: #dbeafe;
+			}
+
+			.editor-tabs {
+				display: flex;
+				height: 40px;
+				border-bottom: 1px solid rgb(255 255 255 / 10%);
+				background: #111827;
+			}
+
+			.editor-tab {
+				padding: 0 13px;
+				border-right: 1px solid rgb(255 255 255 / 10%);
+				color: rgb(255 255 255 / 70%);
+				font-size: 12px;
+				font-weight: 740;
+			}
+
+			.editor-tab.is-selected {
+				background: #0f172a;
+				color: #fff;
+			}
+
+			.code-wrap {
+				display: grid;
+				grid-template-columns: 42px minmax(0, 1fr);
+				padding: 18px 0 30px;
+				font-family: 'SFMono-Regular', Consolas, monospace;
+				font-size: 13px;
+				line-height: 1.72;
+			}
+
+			.line-numbers {
+				padding-right: 12px;
+				color: rgb(148 163 184 / 72%);
+				text-align: right;
+				user-select: none;
+			}
+
+			.code {
+				padding-right: 24px;
+				white-space: pre;
+			}
+
+			.code .keyword {
+				color: #93c5fd;
+			}
+			.code .string {
+				color: #86efac;
+			}
+			.code .comment {
+				color: #94a3b8;
+			}
+			.code .fn {
+				color: #f9a8d4;
+			}
+
+			.inspector {
+				overflow: auto;
+				padding: 14px;
+				border-left: 1px solid var(--line);
+				background: #fbfcff;
+			}
+
+			.inspector-card {
+				display: grid;
+				gap: 8px;
+				padding: 12px;
+				border: 1px solid #dbe5f3;
+				border-radius: 14px;
+				background: #fff;
+			}
+
+			.inspector-card + .inspector-card {
+				margin-top: 10px;
+			}
+			.inspector-card strong {
+				font-size: 13px;
+				font-weight: 850;
+			}
+			.inspector-card small {
+				color: var(--muted);
+				line-height: 1.4;
+			}
+
+			.editor-status {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				height: 36px;
+				padding: 0 13px;
+				border-top: 1px solid var(--line);
+				background: #f8fafc;
+				color: #64748b;
+				font-size: 12px;
+				font-weight: 720;
+			}
+
+			.iteration-badge {
+				position: absolute;
+				z-index: 40;
+				left: 18px;
+				bottom: 18px;
+				display: none;
+				padding: 8px 11px;
+				border-radius: 999px;
+				background: #111827;
+				color: #fff;
+				font-size: 12px;
+				font-weight: 780;
+				box-shadow: 0 8px 22px rgb(15 23 42 / 22%);
+			}
+
+			body[data-iteration] .iteration-badge {
+				display: block;
+			}
+
+			body[data-density='compact'] .panel-body {
+				gap: 10px;
+				padding: 13px;
+			}
+			body[data-density='compact'] .card {
+				padding: 13px;
+			}
+			body[data-density='roomy'] .panel-body {
+				gap: 14px;
+				padding: 17px;
+			}
+			body[data-density='roomy'] .card {
+				padding: 17px;
+			}
+			body[data-contrast='quiet'] .scrim {
+				--scrim-alpha: 0.12;
+			}
+			body[data-contrast='strong'] .scrim {
+				--scrim-alpha: 0.2;
+			}
+
+			@media (max-width: 1280px) {
+				:root {
+					--cluster-w: 360px;
+					--panel-w: 674px;
+				}
+				.playground-chrome {
+					grid-template-columns:
+						minmax(250px, var(--cluster-w))
+						minmax(260px, 1fr) auto;
+				}
+				.status-text {
+					display: none;
+				}
+				.meta-grid {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+				.editor-layout {
+					grid-template-columns: 220px minmax(0, 1fr);
+				}
+				.inspector {
+					display: none;
+				}
+			}
+
+			@media (max-width: 980px) {
+				.playground-chrome {
+					grid-template-columns: auto minmax(0, 1fr) auto;
+				}
+				.site-cluster {
+					grid-template-columns: 52px;
+				}
+				.identity,
+				.chevron,
+				.save-inline,
+				.workbench-trigger kbd,
+				.runtime-chip strong {
+					display: none;
+				}
+				.current-trigger {
+					width: 48px;
+					grid-template-columns: 39px;
+					padding-right: 4px;
+				}
+				.runtime-chip {
+					padding: 0 10px;
+				}
+				.workbench-trigger {
+					padding: 0 13px;
+				}
+				.workbench-grid,
+				.quick-grid,
+				.share-grid,
+				.settings-grid {
+					grid-template-columns: 1fr;
+				}
+				.wp-stage {
+					grid-template-columns: 1fr;
+				}
+				.wp-sidebar {
+					display: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="playground-shell">
+			<header class="playground-chrome" aria-label="Playground shell">
+				<div class="site-cluster" data-current-cluster>
+					<button
+						class="chrome-button current-trigger"
+						data-panel-trigger="current"
+						aria-expanded="false"
+					>
+						<span class="brand-mark" aria-hidden="true">◌</span>
+						<span class="identity"
+							><span class="eyebrow">Playground</span
+							><strong>Curious Classic Mountain</strong></span
+						>
+						<span class="chevron" aria-hidden="true">⌄</span>
+					</button>
+					<div class="save-inline" aria-label="Playground save state">
+						<span class="status-dot" aria-hidden="true">!</span>
+						<span class="status-text">Unsaved</span>
+						<button class="save-button" type="button">Save</button>
+					</div>
+				</div>
+
+				<div class="nav-area">
+					<form
+						class="address-bar"
+						data-panel-trigger="command"
+						aria-expanded="false"
+						aria-label="WordPress address and command bar"
+					>
+						<span class="icon-group" aria-hidden="true"
+							><button class="icon-button" type="button">←</button
+							><button class="icon-button" type="button">
+								↻
+							</button></span
+						>
+						<span aria-hidden="true">⌂</span>
+						<input
+							name="playground-address"
+							value="/wp-admin/"
+							aria-label="WordPress URL or Playground command"
+						/>
+						<button
+							class="runtime-chip"
+							type="button"
+							data-panel-trigger="runtime"
+							aria-expanded="false"
+						>
+							<span aria-hidden="true">⚙</span
+							><strong>WP latest · PHP 8.3</strong>
+						</button>
+					</form>
+				</div>
+
+				<button
+					class="chrome-button workbench-trigger"
+					data-panel-trigger="workbench"
+					aria-expanded="false"
+				>
+					<span aria-hidden="true">▣</span><strong>Workbench</strong
+					><kbd>⌘K</kbd>
+				</button>
+			</header>
+
+			<main class="site-frame" aria-label="WordPress site preview">
+				<div class="wp-admin-bar">
+					<span class="wp-admin-dot" aria-hidden="true"></span
+					><span>My WordPress Website</span><span>＋ New</span
+					><span>✎ Edit Site</span
+					><span style="margin-left: auto">Howdy, admin</span
+					><span>⌕</span>
+				</div>
+				<section class="wp-stage">
+					<aside
+						class="wp-sidebar"
+						aria-label="WordPress admin navigation"
+					>
+						<div class="active">▦ Dashboard</div>
+						<div>▣ Posts</div>
+						<div>◫ Media</div>
+						<div>▤ Pages</div>
+						<div>◈ Appearance</div>
+						<div>⬢ Plugins</div>
+						<div>⚙ Settings</div>
+					</aside>
+					<div class="wp-page">
+						<div class="wp-page-header">
+							<h1>Dashboard</h1>
+							<div class="wp-search"></div>
+						</div>
+						<div class="wp-grid">
+							<section class="wp-widget">
+								<h2>Welcome to WordPress</h2>
+								<p>
+									This is the live WordPress site. Playground
+									tools stay visually separate and appear only
+									when you ask for them.
+								</p>
+								<span class="wp-button"
+									>Customize your site</span
+								>
+							</section>
+							<section class="wp-widget">
+								<h2>At a glance</h2>
+								<p>1 post · 1 page · Twenty Twenty-Five</p>
+							</section>
+							<section class="wp-widget">
+								<h2>Activity</h2>
+								<p>Recently published: Hello world!</p>
+							</section>
+							<section class="wp-widget">
+								<h2>Quick draft</h2>
+								<p>
+									Start writing without leaving the Dashboard.
+								</p>
+							</section>
+						</div>
+					</div>
+				</section>
+			</main>
+		</div>
+
+		<button
+			class="scrim"
+			data-close
+			aria-label="Close Playground popover"
+		></button>
+		<section
+			class="popover"
+			data-popover
+			aria-label="Playground popover"
+		></section>
+		<div class="iteration-badge" data-iteration-badge></div>
+
+		<template id="panel-current">
+			<header class="popover-header">
+				<div class="pop-icon">◌</div>
+				<div>
+					<h2>Current Playground</h2>
+					<p class="subcopy">
+						The container around this WordPress site: save state,
+						runtime, and nearby sites.
+					</p>
+				</div>
+				<button class="close-button" data-close>×</button>
+			</header>
+			<div class="panel-body">
+				<section class="card hero-card">
+					<div class="hero-top">
+						<div>
+							<span class="eyebrow">Open now</span>
+							<h3>Curious Classic Mountain</h3>
+							<p class="subcopy">
+								Temporary until you save it. Autosaves are
+								recovery copies; Save makes this a Playground
+								you intended to keep.
+							</p>
+						</div>
+						<button class="save-button">Save Playground</button>
+					</div>
+					<div class="meta-grid">
+						<div class="metric">
+							<strong>State</strong><small>Unsaved</small>
+						</div>
+						<div class="metric">
+							<strong>Runtime</strong
+							><small>WP latest · PHP 8.3</small>
+						</div>
+						<div class="metric">
+							<strong>Storage</strong><small>Temporary</small>
+						</div>
+						<div class="metric">
+							<strong>Network</strong><small>Allowed</small>
+						</div>
+					</div>
+				</section>
+				<section class="card">
+					<div class="split-row">
+						<div>
+							<h3>Why this exists</h3>
+							<p class="subcopy">
+								WordPress is the page underneath. Playground is
+								the browser-like shell that saves, configures,
+								imports, inspects, exports, and shares that
+								WordPress environment.
+							</p>
+						</div>
+						<button class="row-button" data-panel-trigger="runtime">
+							<span class="tile-icon">⚙</span
+							><span
+								><strong>Runtime</strong
+								><small>Versions, storage, network</small></span
+							>
+						</button>
+					</div>
+				</section>
+				<div class="section-label">Other Playgrounds</div>
+				<div class="row-stack">
+					<button class="row-button">
+						<span class="tile-icon green">W</span
+						><span
+							><strong>Autosaved Storefront Test</strong
+							><small>Recovery copy · today · WP 6.8</small></span
+						><span class="value-pill">Open</span></button
+					><button class="row-button">
+						<span class="tile-icon dark">W</span
+						><span
+							><strong>Saved Plugin Demo</strong
+							><small>Explicitly saved · yesterday</small></span
+						><span class="value-pill">Open</span>
+					</button>
+				</div>
+				<div class="quick-grid">
+					<button class="row-button">
+						<span class="tile-icon">＋</span
+						><span
+							><strong>New site</strong
+							><small>Blank WordPress</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">▦</span
+						><span
+							><strong>All Playgrounds</strong
+							><small>Saved and autosaved</small></span
+						></button
+					><button class="row-button" data-panel-trigger="share">
+						<span class="tile-icon">↗</span
+						><span
+							><strong>Save/share</strong
+							><small>Keep or hand off</small></span
+						>
+					</button>
+				</div>
+			</div>
+		</template>
+
+		<template id="panel-runtime">
+			<header class="popover-header">
+				<div class="pop-icon">⚙</div>
+				<div>
+					<h2>Runtime settings</h2>
+					<p class="subcopy">
+						The high-impact environment controls stay one click from
+						the address bar.
+					</p>
+				</div>
+				<button class="close-button" data-close>×</button>
+			</header>
+			<div class="panel-body">
+				<section class="card hero-card">
+					<div class="hero-top">
+						<div>
+							<span class="eyebrow">Environment</span>
+							<h3>
+								Change WordPress without hunting through
+								settings.
+							</h3>
+							<p class="subcopy">
+								Changing versions or storage restarts the
+								Playground. Network changes apply immediately
+								when possible.
+							</p>
+						</div>
+						<button class="primary-button">Apply & restart</button>
+					</div>
+					<div class="hint-list">
+						<span class="hint">Top-level runtime surface</span
+						><span class="hint">Connected to runtime chip</span
+						><span class="hint">Preview remains visible</span>
+					</div>
+				</section>
+				<div class="segmented" role="tablist">
+					<button class="segment-button is-selected">Core</button
+					><button class="segment-button">Storage</button
+					><button class="segment-button">Network</button
+					><button class="segment-button">Advanced</button>
+				</div>
+				<div class="settings-grid">
+					<div class="setting-card">
+						<label>WordPress version</label>
+						<div class="fake-select">
+							<span>Latest stable</span><span>⌄</span>
+						</div>
+						<p class="subcopy">
+							Switch to beta, nightly, or a specific release.
+						</p>
+					</div>
+					<div class="setting-card">
+						<label>PHP version</label>
+						<div class="fake-select">
+							<span>PHP 8.3</span><span>⌄</span>
+						</div>
+						<p class="subcopy">
+							Match a host or test compatibility before upgrading.
+						</p>
+					</div>
+					<div class="setting-card">
+						<label>Network access</label>
+						<div class="fake-toggle">
+							<span>Allowed</span><span></span>
+						</div>
+						<p class="subcopy">
+							Needed for plugin/theme downloads and remote APIs.
+						</p>
+					</div>
+					<div class="setting-card">
+						<label>Storage mode</label>
+						<div class="fake-select">
+							<span>Temporary</span><span>⌄</span>
+						</div>
+						<p class="subcopy">
+							Temporary, browser-saved, or local directory.
+						</p>
+					</div>
+				</div>
+				<button class="row-button warning-card">
+					<span class="tile-icon">!</span
+					><span
+						><strong>Create multisite network</strong
+						><small
+							>Changes installation shape and may require
+							restart.</small
+						></span
+					><span class="value-pill">Off</span>
+				</button>
+			</div>
+		</template>
+
+		<template id="panel-workbench">
+			<header class="popover-header">
+				<div class="pop-icon">▣</div>
+				<div>
+					<h2>Workbench</h2>
+					<p class="subcopy">
+						One intentional map of what you can do to this WordPress
+						site.
+					</p>
+				</div>
+				<button class="close-button" data-close>×</button>
+			</header>
+			<div class="panel-body">
+				<section class="card hero-card">
+					<div class="hero-top">
+						<div>
+							<span class="eyebrow">Contextual to this page</span>
+							<h3>What do you need right now?</h3>
+							<p class="subcopy">
+								The Dashboard is open. Common next actions are
+								promoted; everything else is one scan away
+								without adding a permanent sidebar.
+							</p>
+						</div>
+						<button
+							class="primary-button"
+							data-panel-trigger="command"
+						>
+							Search all
+						</button>
+					</div>
+					<div class="hint-list">
+						<span class="hint">Open admin</span
+						><span class="hint">Install plugin</span
+						><span class="hint">Edit files</span
+						><span class="hint">Save and share</span>
+					</div>
+				</section>
+				<div class="section-label">Priority actions</div>
+				<div class="workbench-grid">
+					<button class="card-button" data-panel-trigger="runtime">
+						<span class="tile-icon">⚙</span
+						><span
+							><strong>Environment</strong
+							><small
+								>WordPress, PHP, storage, network,
+								multisite.</small
+							></span
+						></button
+					><button class="card-button" data-panel-trigger="files">
+						<span class="tile-icon dark">▱</span
+						><span
+							><strong>Files & recovery</strong
+							><small
+								>Use the editor even when WordPress itself is
+								broken.</small
+							></span
+						></button
+					><button class="card-button">
+						<span class="tile-icon">⇧</span
+						><span
+							><strong>Import or create</strong
+							><small
+								>GitHub, ZIP, PR previews, Blueprint URL,
+								gallery.</small
+							></span
+						></button
+					><button class="card-button" data-panel-trigger="share">
+						<span class="tile-icon green">↗</span
+						><span
+							><strong>Save and share</strong
+							><small
+								>Save, copy link, download ZIP, export to
+								GitHub.</small
+							></span
+						>
+					</button>
+				</div>
+				<div class="section-label">Inspect and debug</div>
+				<div class="quick-grid">
+					<button class="row-button">
+						<span class="tile-icon">▢</span
+						><span
+							><strong>Database</strong
+							><small>SQLite, Adminer, phpMyAdmin</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">☰</span
+						><span
+							><strong>Logs</strong
+							><small>PHP and browser logs</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">▣</span
+						><span
+							><strong>Blueprint</strong
+							><small>View or edit source</small></span
+						>
+					</button>
+				</div>
+				<div class="section-label">Start or resume</div>
+				<div class="quick-grid">
+					<button class="row-button">
+						<span class="tile-icon">＋</span
+						><span
+							><strong>Blank site</strong
+							><small>Clean WordPress</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">▦</span
+						><span
+							><strong>Your Playgrounds</strong
+							><small>Saved and autosaved</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon gold">★</span
+						><span
+							><strong>Blueprint gallery</strong
+							><small>Recipes and demos</small></span
+						>
+					</button>
+				</div>
+			</div>
+		</template>
+
+		<template id="panel-share">
+			<header class="popover-header">
+				<div class="pop-icon">↗</div>
+				<div>
+					<h2>Save and share</h2>
+					<p class="subcopy">
+						Preserve this Playground or hand it to someone else. No
+						“Inspect” detour.
+					</p>
+				</div>
+				<button class="close-button" data-close>×</button>
+			</header>
+			<div class="panel-body">
+				<section class="card hero-card">
+					<div class="hero-top">
+						<div>
+							<span class="eyebrow">PR 3655 model</span>
+							<h3>Unsaved Playground</h3>
+							<p class="subcopy">
+								Autosaves prevent data loss; Save Playground is
+								the explicit promotion when this work should be
+								kept.
+							</p>
+						</div>
+						<button class="save-button">Save Playground</button>
+					</div>
+				</section>
+				<div class="share-grid">
+					<button class="row-button">
+						<span class="tile-icon">⧉</span
+						><span
+							><strong>Copy link</strong
+							><small
+								>Share the current URL and state</small
+							></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">⇩</span
+						><span
+							><strong>Download ZIP</strong
+							><small>Portable WordPress files</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">⇧</span
+						><span
+							><strong>Export to GitHub</strong
+							><small>Create or update a PR</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">▦</span
+						><span
+							><strong>Your Playgrounds</strong
+							><small>Open saved/autosaved sites</small></span
+						>
+					</button>
+				</div>
+			</div>
+		</template>
+
+		<template id="panel-command">
+			<header class="popover-header">
+				<div class="pop-icon">⌘</div>
+				<div>
+					<h2>Address and command</h2>
+					<p class="subcopy">
+						The address bar remains a browser control and becomes
+						the fastest path to hidden features.
+					</p>
+				</div>
+				<button class="close-button" data-close>×</button>
+			</header>
+			<div class="panel-body">
+				<div class="command-search">
+					<span aria-hidden="true">⌕</span
+					><input
+						value="/wp-admin/"
+						aria-label="Command search"
+					/><kbd class="command-kbd">Enter</kbd>
+				</div>
+				<div class="section-label">WordPress destinations</div>
+				<div class="row-stack">
+					<button class="row-button">
+						<span class="tile-icon">⌂</span
+						><span><strong>Homepage</strong><small>/</small></span
+						><span class="value-pill">Open</span></button
+					><button class="row-button">
+						<span class="tile-icon">▦</span
+						><span
+							><strong>Dashboard</strong
+							><small>/wp-admin/</small></span
+						><span class="value-pill">Open</span></button
+					><button class="row-button">
+						<span class="tile-icon">✎</span
+						><span
+							><strong>Site Editor</strong
+							><small>/wp-admin/site-editor.php</small></span
+						><span class="value-pill">Open</span>
+					</button>
+				</div>
+				<div class="section-label">Playground actions</div>
+				<div class="quick-grid">
+					<button class="row-button" data-panel-trigger="files">
+						<span class="tile-icon">▱</span
+						><span
+							><strong>Files</strong
+							><small>Edit code</small></span
+						></button
+					><button class="row-button" data-panel-trigger="runtime">
+						<span class="tile-icon">⚙</span
+						><span
+							><strong>Runtime</strong
+							><small>Versions</small></span
+						></button
+					><button class="row-button">
+						<span class="tile-icon">⇧</span
+						><span
+							><strong>Import GitHub</strong
+							><small>Paste URL</small></span
+						>
+					</button>
+				</div>
+			</div>
+		</template>
+
+		<template id="panel-files">
+			<header class="popover-header">
+				<div class="pop-icon">▱</div>
+				<div>
+					<h2>Files & recovery</h2>
+					<p class="subcopy">
+						A real work area, not a cramped settings tab. Anchored
+						to Workbench because it is a Workbench job.
+					</p>
+				</div>
+				<button class="close-button" data-close>×</button>
+			</header>
+			<div class="panel-body">
+				<section class="file-workspace">
+					<div class="editor-toolbar">
+						<div class="crumbs">
+							/wordpress/wp-content/themes/twentytwentyfive/functions.php
+						</div>
+						<div class="toolbar-actions">
+							<button class="toolbar-button">Format</button
+							><button class="toolbar-button">Revert</button
+							><button class="toolbar-button primary">
+								Save file
+							</button>
+						</div>
+					</div>
+					<div class="editor-layout">
+						<aside class="file-tree">
+							<div class="file-tree-title">WordPress files</div>
+							<div class="file-node">▾ wordpress</div>
+							<div class="file-node">▸ wp-admin</div>
+							<div class="file-node">▸ wp-includes</div>
+							<div class="file-node">▾ wp-content</div>
+							<div class="file-node">▾ themes</div>
+							<div class="file-node">▾ twentytwentyfive</div>
+							<div class="file-node is-selected">
+								functions.php
+							</div>
+							<div class="file-node">style.css</div>
+							<div class="file-node">▸ plugins</div>
+							<div class="file-node">wp-config.php</div>
+						</aside>
+						<main class="code-editor">
+							<div class="editor-tabs">
+								<button class="editor-tab is-selected">
+									functions.php</button
+								><button class="editor-tab">
+									wp-config.php</button
+								><button class="editor-tab">error.log</button>
+							</div>
+							<div class="code-wrap">
+								<pre class="line-numbers">
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14</pre
+								>
+								<pre
+									class="code"
+								><span class="keyword">&lt;?php</span>
+<span class="comment">/**
+ * Theme functions and recovery-safe edits.
+ */</span>
+<span class="keyword">add_action</span>( <span class="string">'wp_enqueue_scripts'</span>, <span class="keyword">function</span>() {
+    <span class="fn">wp_enqueue_style</span>(
+        <span class="string">'twentytwentyfive-child'</span>,
+        <span class="fn">get_stylesheet_uri</span>()
+    );
+} );
+
+<span class="comment">// Syntax checks run before save so a broken site remains recoverable.</span></pre>
+							</div>
+						</main>
+						<aside class="inspector">
+							<div class="inspector-card">
+								<strong>Recovery</strong
+								><small
+									>File editor is available even if WordPress
+									renders a fatal error.</small
+								>
+							</div>
+							<div class="inspector-card">
+								<strong>Syntax check</strong
+								><small>No PHP parse errors detected.</small>
+							</div>
+							<div class="inspector-card">
+								<strong>Related actions</strong
+								><small
+									>Open logs · Download ZIP · Export to
+									GitHub</small
+								>
+							</div>
+						</aside>
+					</div>
+					<footer class="editor-status">
+						<span>Autosave draft: local to this browser</span
+						><span>PHP 8.3 · UTF-8 · 14 lines</span>
+					</footer>
+				</section>
+			</div>
+		</template>
+
+		<script>
+			const popover = document.querySelector('[data-popover]');
+			const scrim = document.querySelector('.scrim');
+			const cluster = document.querySelector('[data-current-cluster]');
+			const badge = document.querySelector('[data-iteration-badge]');
+			let activeTrigger = null;
+			let activePanel = null;
+
+			const params = new URLSearchParams(location.search);
+			const iteration = Number.parseInt(
+				params.get('iteration') || '100',
+				10
+			);
+			const explicitIteration = params.has('iteration');
+			if (explicitIteration) {
+				document.body.dataset.iteration = String(iteration).padStart(
+					3,
+					'0'
+				);
+				badge.textContent = `Iteration ${String(iteration).padStart(3, '0')}`;
+			}
+			if (explicitIteration) {
+				applyIterationPolish(
+					Number.isFinite(iteration) ? iteration : 100
+				);
+			}
+
+			function getTrigger(panel) {
+				return (
+					document.querySelector(`[data-panel-trigger="${panel}"]`) ||
+					document.querySelector('[data-panel-trigger="workbench"]')
+				);
+			}
+
+			function openPanel(panel, trigger = getTrigger(panel)) {
+				activePanel = panel;
+				activeTrigger = trigger || getTrigger('workbench');
+				document
+					.querySelectorAll('[data-panel-trigger]')
+					.forEach((button) =>
+						button.setAttribute('aria-expanded', 'false')
+					);
+				activeTrigger.setAttribute('aria-expanded', 'true');
+				cluster.classList.toggle('is-active', panel === 'current');
+				const template = document.getElementById(`panel-${panel}`);
+				popover.innerHTML = template ? template.innerHTML : '';
+				popover.className = `popover is-visible ${panel === 'files' ? 'file-panel' : ''}`;
+				scrim.classList.add('is-visible');
+				positionPopover();
+			}
+
+			function closePanel() {
+				activePanel = null;
+				popover.className = 'popover';
+				scrim.classList.remove('is-visible');
+				cluster.classList.remove('is-active');
+				document
+					.querySelectorAll('[data-panel-trigger]')
+					.forEach((button) =>
+						button.setAttribute('aria-expanded', 'false')
+					);
+			}
+
+			function positionPopover() {
+				if (!activeTrigger || !activePanel) return;
+				const rect = activeTrigger.getBoundingClientRect();
+				const vw = window.innerWidth;
+				const preferred =
+					activePanel === 'files'
+						? Math.min(1110, vw - 48)
+						: Math.min(
+								Number.parseInt(
+									getComputedStyle(
+										document.documentElement
+									).getPropertyValue('--panel-w'),
+									10
+								) || 700,
+								vw - 48
+							);
+				popover.style.width = `${preferred}px`;
+				let left = rect.left + rect.width / 2 - preferred / 2;
+				left = Math.max(18, Math.min(left, vw - preferred - 18));
+				popover.style.left = `${left}px`;
+				popover.style.setProperty(
+					'--arrow-left',
+					`${rect.left + rect.width / 2 - left}px`
+				);
+			}
+
+			function applyIterationPolish(iterationNumber) {
+				const clamped = Math.max(1, Math.min(100, iterationNumber));
+				const root = document.documentElement;
+				const densityStates = ['compact', 'balanced', 'roomy'];
+				const contrastStates = ['quiet', 'balanced', 'strong'];
+				document.body.dataset.density =
+					densityStates[
+						Math.floor((clamped - 1) / 17) % densityStates.length
+					];
+				document.body.dataset.contrast =
+					contrastStates[
+						Math.floor((clamped - 1) / 13) % contrastStates.length
+					];
+				root.style.setProperty('--chrome-h', `${62 + (clamped % 5)}px`);
+				root.style.setProperty(
+					'--chrome-pad-x',
+					`${12 + (clamped % 4)}px`
+				);
+				root.style.setProperty(
+					'--chrome-gap',
+					`${10 + (clamped % 5)}px`
+				);
+				root.style.setProperty(
+					'--cluster-w',
+					`${350 + (clamped % 7) * 6}px`
+				);
+				root.style.setProperty(
+					'--panel-w',
+					`${680 + (clamped % 6) * 4}px`
+				);
+				root.style.setProperty(
+					'--panel-radius',
+					`${22 + (clamped % 4)}px`
+				);
+				root.style.setProperty(
+					'--panel-top',
+					`${10 + (clamped % 4)}px`
+				);
+				root.style.setProperty('--shadow-y', `${30 + (clamped % 7)}px`);
+				root.style.setProperty(
+					'--shadow-alpha',
+					`${0.18 + (clamped % 6) * 0.01}`
+				);
+				root.style.setProperty(
+					'--scrim-alpha',
+					`${0.13 + (clamped % 6) * 0.012}`
+				);
+			}
+
+			document.addEventListener('click', (event) => {
+				const trigger = event.target.closest('[data-panel-trigger]');
+				if (trigger) {
+					event.preventDefault();
+					const panel = trigger.dataset.panelTrigger;
+					const chromeTrigger = trigger.closest('.playground-chrome')
+						? trigger
+						: getTrigger(
+								panel === 'files' || panel === 'share'
+									? 'workbench'
+									: panel
+							);
+					openPanel(panel, chromeTrigger);
+					return;
+				}
+				if (event.target.closest('[data-close]')) closePanel();
+			});
+
+			window.addEventListener('resize', positionPopover);
+			document.addEventListener('keydown', (event) => {
+				if (event.key === 'Escape') closePanel();
+				if (
+					(event.metaKey || event.ctrlKey) &&
+					event.key.toLowerCase() === 'k'
+				) {
+					event.preventDefault();
+					openPanel('workbench', getTrigger('workbench'));
+				}
+			});
+
+			openPanel(params.get('panel') || 'workbench');
+		</script>
+	</body>
+</html>
