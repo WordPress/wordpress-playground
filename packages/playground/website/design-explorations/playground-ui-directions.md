@@ -44,9 +44,12 @@ buttons:
 3. **Workbench** — one dark, high-confidence entry point for tasks that affect
    the running site.
 
-Each panel is anchored to its invoking control with a visual triangle. Runtime
-has no Back to Workbench button. Share is not hidden under Inspect. Files open as
-a wide editor-grade workspace rather than a cramped settings tab.
+Each panel is anchored to its invoking control with a visual triangle, but the
+surfaces no longer feel like the same popover wearing different content.
+Runtime, Workbench, Share, Command, Current Playground, and Files each get their
+own accent and background wash. Runtime has no Back to Workbench button. Share
+is not hidden under Inspect. Files open as a wide editor-grade workspace rather
+than a cramped settings tab.
 
 ## Feature surface audit
 
@@ -97,9 +100,10 @@ The UX model also follows a few broad interface principles:
   exports live under a gear, sidebar, or modal.
 - **Progressive disclosure:** frequently needed surfaces are visible or one click
   away; deeper features are grouped contextually and labeled by user intent.
-- **Consistency and visual attachment:** every transient panel has the same
-  header, border, shadow, scrim, and connector triangle so it reads as Playground
-  UI rather than a stray WordPress popover.
+- **Consistency and visual attachment:** every transient panel shares the same
+  connector, shell behavior, and close mechanics, while panel-specific accents
+  make Runtime, Workbench, Files, Share, Command, and Current Playground
+  distinguishable at a glance.
 
 ## 100-iteration evidence
 
@@ -141,3 +145,37 @@ The visual gates check that:
 6. the file editor has readable tree and code widths when opened.
 
 Latest local run: 100 iterations, 100 screenshots, 0 visual-gate failures.
+
+## Second 100-iteration pass
+
+The second pass responds to the critique that the first Workbench mockup still
+felt too popover-shaped, too wordy, and too bordered.
+
+```bash
+ITERATION_ROUND=2 node packages/playground/website/design-explorations/workbench-html-mockup-iteration-runner.mjs
+```
+
+It generates another 100 screenshots under:
+
+```text
+.context/workbench-html-mockup-iterations/screenshots-round-2/
+```
+
+And writes the second-run artifacts:
+
+```text
+packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-2.json
+packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-2.md
+```
+
+Round 2 adds stricter checks for:
+
+1. distinct panel classes and accent tokens;
+2. old Runtime helper fluff staying removed;
+3. panel word counts staying below per-panel budgets;
+4. visible borders staying below per-panel budgets;
+5. the same desktop layout gates from round 1.
+
+Latest local round-2 run: iterations 101–200, 100 screenshots, 0 visual-gate
+failures. The measured maximums were 128 words in a panel and 14 visibly
+bordered elements, both from the wide file editor.

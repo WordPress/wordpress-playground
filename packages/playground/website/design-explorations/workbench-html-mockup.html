@@ -548,13 +548,73 @@
 				grid-template-rows: auto minmax(0, 1fr);
 				width: min(var(--panel-w), calc(100vw - 48px));
 				max-height: calc(100vh - var(--chrome-h) - 30px);
-				border: 1px solid rgb(15 23 42 / 18%);
+				--panel-accent: var(--blue);
+				--panel-surface: #ffffff;
+				--panel-wash: #f6f8fb;
+				--panel-head: #ffffff;
+				--panel-icon-bg: var(--blue-soft);
+				--panel-icon-color: var(--panel-accent);
+				border: 0;
 				border-radius: var(--panel-radius);
-				background: var(--surface);
+				background: var(--panel-surface);
 				box-shadow:
 					0 var(--shadow-y) 80px rgb(15 23 42 / var(--shadow-alpha)),
-					0 0 0 1px rgb(255 255 255 / 70%) inset;
+					0 0 0 1px rgb(15 23 42 / 12%);
 				overflow: visible;
+			}
+
+			.panel-current {
+				--panel-accent: #b7791f;
+				--panel-surface: #fffaf0;
+				--panel-wash: #fff6df;
+				--panel-head: linear-gradient(180deg, #fffaf0, #fff3d6);
+				--panel-icon-bg: #ffe9a8;
+				--panel-icon-color: #8a5a00;
+			}
+
+			.panel-runtime {
+				--panel-accent: #3858e9;
+				--panel-surface: #f7f9ff;
+				--panel-wash: #eef3ff;
+				--panel-head: linear-gradient(180deg, #f8faff, #edf3ff);
+				--panel-icon-bg: #e3ebff;
+				--panel-icon-color: #2447d8;
+			}
+
+			.panel-workbench {
+				--panel-accent: #111827;
+				--panel-surface: #fbfcff;
+				--panel-wash: #f0f3f8;
+				--panel-head: linear-gradient(180deg, #ffffff, #f4f6fa);
+				--panel-icon-bg: #111827;
+				--panel-icon-color: #ffffff;
+			}
+
+			.panel-share {
+				--panel-accent: #0e8a43;
+				--panel-surface: #f6fcf8;
+				--panel-wash: #edf8f1;
+				--panel-head: linear-gradient(180deg, #fbfffc, #ecf8f0);
+				--panel-icon-bg: #ddf6e8;
+				--panel-icon-color: #08783a;
+			}
+
+			.panel-command {
+				--panel-accent: #6d3fd4;
+				--panel-surface: #fbf8ff;
+				--panel-wash: #f3edff;
+				--panel-head: linear-gradient(180deg, #fdfbff, #f2ebff);
+				--panel-icon-bg: #eadfff;
+				--panel-icon-color: #5b2fc1;
+			}
+
+			.panel-files {
+				--panel-accent: #0f172a;
+				--panel-surface: #f8fafc;
+				--panel-wash: #e9eef6;
+				--panel-head: linear-gradient(180deg, #fbfcff, #eef2f8);
+				--panel-icon-bg: #0f172a;
+				--panel-icon-color: #ffffff;
 			}
 
 			.popover.is-visible {
@@ -576,43 +636,37 @@
 				top: -14px;
 				border-left: 14px solid transparent;
 				border-right: 14px solid transparent;
-				border-bottom: 14px solid rgb(15 23 42 / 18%);
+				border-bottom: 14px solid rgb(15 23 42 / 12%);
 			}
 
 			.popover::after {
 				top: -12px;
 				border-left: 12px solid transparent;
 				border-right: 12px solid transparent;
-				border-bottom: 12px solid #fff;
+				border-bottom: 12px solid var(--panel-surface);
 			}
 
 			.popover-header {
 				display: grid;
-				grid-template-columns: 44px minmax(0, 1fr) auto;
+				grid-template-columns: 36px minmax(0, 1fr) auto;
 				align-items: center;
-				gap: 13px;
-				padding: 17px 18px;
-				border-bottom: 1px solid var(--line);
+				gap: 11px;
+				padding: 13px 15px;
+				border-bottom: 0;
 				border-radius: var(--panel-radius) var(--panel-radius) 0 0;
-				background:
-					linear-gradient(180deg, #fff, #f9fbff),
-					radial-gradient(
-						circle at 30% 0,
-						rgb(56 88 233 / 12%),
-						transparent 45%
-					);
+				background: var(--panel-head);
 			}
 
 			.pop-icon {
 				display: grid;
 				place-items: center;
-				width: 44px;
-				height: 44px;
-				border: 1px solid rgb(56 88 233 / 20%);
-				border-radius: 15px;
-				background: var(--blue-soft);
-				color: var(--blue);
-				font-size: 20px;
+				width: 36px;
+				height: 36px;
+				border: 0;
+				border-radius: 13px;
+				background: var(--panel-icon-bg);
+				color: var(--panel-icon-color);
+				font-size: 17px;
 				font-weight: 900;
 			}
 
@@ -626,7 +680,7 @@
 
 			.popover h2 {
 				color: var(--ink);
-				font-size: 21px;
+				font-size: 19px;
 				font-weight: 860;
 				letter-spacing: -0.025em;
 				line-height: 1.1;
@@ -635,9 +689,9 @@
 			.subcopy {
 				margin-top: 3px;
 				color: #536071;
-				font-size: 13px;
+				font-size: 12.5px;
 				font-weight: 560;
-				line-height: 1.45;
+				line-height: 1.34;
 			}
 
 			.close-button {
@@ -658,28 +712,27 @@
 
 			.panel-body {
 				display: grid;
-				gap: 12px;
+				gap: 9px;
 				align-content: start;
-				padding: 15px;
+				padding: 12px;
 				overflow: auto;
-				background: var(--wash);
+				background: var(--panel-wash);
 				border-radius: 0 0 var(--panel-radius) var(--panel-radius);
 			}
 
 			.card {
-				padding: 15px;
-				border: 1px solid #dbe5f3;
-				border-radius: 18px;
+				padding: 12px;
+				border: 0;
+				border-radius: 16px;
 				background: #fff;
-				box-shadow: 0 1px 0 rgb(255 255 255 / 90%) inset;
+				box-shadow: 0 1px 2px rgb(15 23 42 / 7%);
 			}
 
 			.hero-card {
 				display: grid;
-				gap: 14px;
-				padding: 17px;
-				background:
-					linear-gradient(135deg, rgb(56 88 233 / 9%), #fff 42%), #fff;
+				gap: 9px;
+				padding: 13px;
+				background: #fff;
 			}
 
 			.hero-top,
@@ -692,29 +745,73 @@
 
 			.hero-card h3 {
 				color: var(--ink);
-				font-size: 27px;
+				font-size: 21px;
 				font-weight: 880;
-				letter-spacing: -0.04em;
-				line-height: 1.02;
+				letter-spacing: -0.03em;
+				line-height: 1.08;
+			}
+
+			.summary-card {
+				display: grid;
+				gap: 8px;
+				padding: 12px;
+				border-radius: 16px;
+				background: #fff;
+				box-shadow: 0 1px 2px rgb(15 23 42 / 7%);
+			}
+
+			.summary-line {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				min-width: 0;
+			}
+
+			.summary-line strong {
+				overflow: hidden;
+				color: var(--ink);
+				font-size: 17px;
+				font-weight: 860;
+				letter-spacing: -0.025em;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.panel-note {
+				padding: 9px 10px;
+				border-radius: 13px;
+				background: color-mix(in srgb, var(--panel-accent) 9%, white);
+				color: #4b5563;
+				font-size: 12px;
+				font-weight: 650;
+				line-height: 1.35;
+			}
+
+			.action-row {
+				display: flex;
+				align-items: center;
+				justify-content: flex-end;
+				gap: 8px;
 			}
 
 			.hint-list {
 				display: flex;
 				flex-wrap: wrap;
-				gap: 8px;
+				gap: 6px;
 			}
 
 			.hint {
 				display: inline-flex;
 				align-items: center;
 				gap: 6px;
-				height: 28px;
-				padding: 0 9px;
-				border: 1px solid #dbe5f3;
+				height: 25px;
+				padding: 0 8px;
+				border: 0;
 				border-radius: 999px;
-				background: rgb(255 255 255 / 80%);
+				background: color-mix(in srgb, var(--panel-accent) 8%, white);
 				color: #4f5c6e;
-				font-size: 12px;
+				font-size: 11.5px;
 				font-weight: 720;
 			}
 
@@ -741,10 +838,10 @@
 
 			.metric {
 				min-width: 0;
-				padding: 10px 11px;
-				border: 1px solid #dbe5f3;
-				border-radius: 14px;
-				background: rgb(255 255 255 / 78%);
+				padding: 8px 9px;
+				border: 0;
+				border-radius: 12px;
+				background: color-mix(in srgb, var(--panel-accent) 7%, white);
 			}
 
 			.metric strong,
@@ -786,63 +883,60 @@
 			.row-button,
 			.setting-row {
 				display: grid;
-				grid-template-columns: 42px minmax(0, 1fr) auto;
+				grid-template-columns: 36px minmax(0, 1fr) auto;
 				align-items: center;
-				gap: 12px;
+				gap: 10px;
 				min-width: 0;
-				padding: 12px;
-				border: 1px solid #dbe5f3;
-				border-radius: 17px;
+				padding: 10px;
+				border: 0;
+				border-radius: 15px;
 				background: #fff;
 				color: var(--ink);
 				text-align: left;
-				box-shadow: 0 1px 0 rgb(255 255 255 / 90%) inset;
+				box-shadow: 0 1px 2px rgb(15 23 42 / 7%);
 			}
 
 			.card-button {
-				grid-template-columns: 46px minmax(0, 1fr);
+				grid-template-columns: 40px minmax(0, 1fr);
 				align-content: start;
-				min-height: 104px;
+				min-height: 84px;
 			}
 
 			.row-button:hover,
 			.card-button:hover,
 			.setting-row:hover,
 			.segment-button:hover {
-				border-color: rgb(56 88 233 / 58%);
 				box-shadow:
-					0 10px 28px rgb(56 88 233 / 11%),
-					0 1px 0 rgb(255 255 255 / 90%) inset;
+					0 10px 24px rgb(15 23 42 / 10%),
+					0 0 0 1px
+						color-mix(in srgb, var(--panel-accent) 25%, transparent);
 				transform: translateY(-1px);
 			}
 
 			.tile-icon {
 				display: grid;
 				place-items: center;
-				width: 42px;
-				height: 42px;
-				border: 1px solid rgb(56 88 233 / 18%);
-				border-radius: 14px;
-				background: var(--blue-soft);
-				color: var(--blue);
-				font-size: 19px;
+				width: 36px;
+				height: 36px;
+				border: 0;
+				border-radius: 12px;
+				background: color-mix(in srgb, var(--panel-accent) 11%, white);
+				color: var(--panel-accent);
+				font-size: 17px;
 				font-weight: 900;
 			}
 
 			.tile-icon.dark {
-				border-color: rgb(17 24 39 / 12%);
 				background: #111827;
 				color: #fff;
 			}
 
 			.tile-icon.green {
-				border-color: rgb(14 138 67 / 18%);
 				background: #eaf8f0;
 				color: var(--green);
 			}
 
 			.tile-icon.gold {
-				border-color: rgb(219 166 23 / 25%);
 				background: #fff7dc;
 				color: #9b6c00;
 			}
@@ -853,7 +947,7 @@
 				display: block;
 				overflow: hidden;
 				color: var(--ink);
-				font-size: 15px;
+				font-size: 14px;
 				font-weight: 840;
 				letter-spacing: -0.015em;
 				line-height: 1.16;
@@ -868,7 +962,7 @@
 				margin-top: 4px;
 				overflow: hidden;
 				color: var(--muted);
-				font-size: 12.5px;
+				font-size: 12px;
 				font-weight: 620;
 				line-height: 1.35;
 				text-overflow: ellipsis;
@@ -881,8 +975,8 @@
 				height: 28px;
 				padding: 0 10px;
 				border-radius: 999px;
-				background: var(--blue-soft);
-				color: #1d328f;
+				background: color-mix(in srgb, var(--panel-accent) 10%, white);
+				color: var(--panel-accent);
 				font-size: 12px;
 				font-weight: 850;
 			}
@@ -891,9 +985,10 @@
 				display: flex;
 				gap: 6px;
 				padding: 5px;
-				border: 1px solid #dbe5f3;
+				border: 0;
 				border-radius: 999px;
 				background: #fff;
+				box-shadow: 0 1px 2px rgb(15 23 42 / 7%);
 			}
 
 			.segment-button {
@@ -906,7 +1001,7 @@
 			}
 
 			.segment-button.is-selected {
-				background: #111827;
+				background: var(--panel-accent);
 				color: #fff;
 			}
 
@@ -918,11 +1013,12 @@
 
 			.setting-card {
 				display: grid;
-				gap: 10px;
-				padding: 14px;
-				border: 1px solid #dbe5f3;
-				border-radius: 18px;
+				gap: 8px;
+				padding: 12px;
+				border: 0;
+				border-radius: 16px;
 				background: #fff;
+				box-shadow: 0 1px 2px rgb(15 23 42 / 7%);
 			}
 
 			.setting-card label {
@@ -939,9 +1035,9 @@
 				gap: 12px;
 				height: 42px;
 				padding: 0 12px;
-				border: 1px solid var(--line-strong);
+				border: 0;
 				border-radius: 13px;
-				background: #fbfcff;
+				background: color-mix(in srgb, var(--panel-accent) 6%, #fbfcff);
 				color: var(--ink);
 				font-weight: 740;
 			}
@@ -958,12 +1054,10 @@
 			}
 
 			.warning-card {
-				border-color: rgb(180 35 24 / 22%);
 				background: #fff8f7;
 			}
 
 			.warning-card .tile-icon {
-				border-color: rgb(180 35 24 / 18%);
 				background: #fee4e2;
 				color: var(--red);
 			}
@@ -1441,25 +1535,19 @@
 				<div>
 					<h2>Current Playground</h2>
 					<p class="subcopy">
-						The container around this WordPress site: save state,
-						runtime, and nearby sites.
+						Unsaved · Temporary · WP latest · PHP 8.3
 					</p>
 				</div>
 				<button class="close-button" data-close>×</button>
 			</header>
 			<div class="panel-body">
-				<section class="card hero-card">
-					<div class="hero-top">
+				<section class="summary-card">
+					<div class="summary-line">
 						<div>
-							<span class="eyebrow">Open now</span>
-							<h3>Curious Classic Mountain</h3>
-							<p class="subcopy">
-								Temporary until you save it. Autosaves are
-								recovery copies; Save makes this a Playground
-								you intended to keep.
-							</p>
+							<span class="eyebrow">Open now</span
+							><strong>Curious Classic Mountain</strong>
 						</div>
-						<button class="save-button">Save Playground</button>
+						<button class="save-button">Save</button>
 					</div>
 					<div class="meta-grid">
 						<div class="metric">
@@ -1477,35 +1565,20 @@
 						</div>
 					</div>
 				</section>
-				<section class="card">
-					<div class="split-row">
-						<div>
-							<h3>Why this exists</h3>
-							<p class="subcopy">
-								WordPress is the page underneath. Playground is
-								the browser-like shell that saves, configures,
-								imports, inspects, exports, and shares that
-								WordPress environment.
-							</p>
-						</div>
-						<button class="row-button" data-panel-trigger="runtime">
-							<span class="tile-icon">⚙</span
-							><span
-								><strong>Runtime</strong
-								><small>Versions, storage, network</small></span
-							>
-						</button>
-					</div>
-				</section>
+				<div class="panel-note">
+					Playground is the shell around WordPress. Save only when
+					this site should be kept.
+				</div>
 				<div class="section-label">Other Playgrounds</div>
 				<div class="row-stack">
 					<button class="row-button">
 						<span class="tile-icon green">W</span
 						><span
 							><strong>Autosaved Storefront Test</strong
-							><small>Recovery copy · today · WP 6.8</small></span
-						><span class="value-pill">Open</span></button
-					><button class="row-button">
+							><small>Recovery copy · today</small></span
+						><span class="value-pill">Open</span>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon dark">W</span
 						><span
 							><strong>Saved Plugin Demo</strong
@@ -1519,18 +1592,20 @@
 						><span
 							><strong>New site</strong
 							><small>Blank WordPress</small></span
-						></button
-					><button class="row-button">
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">▦</span
 						><span
 							><strong>All Playgrounds</strong
 							><small>Saved and autosaved</small></span
-						></button
-					><button class="row-button" data-panel-trigger="share">
+						>
+					</button>
+					<button class="row-button" data-panel-trigger="share">
 						<span class="tile-icon">↗</span
 						><span
-							><strong>Save/share</strong
-							><small>Keep or hand off</small></span
+							><strong>Share</strong
+							><small>Save or export</small></span
 						>
 					</button>
 				</div>
@@ -1541,35 +1616,23 @@
 			<header class="popover-header">
 				<div class="pop-icon">⚙</div>
 				<div>
-					<h2>Runtime settings</h2>
-					<p class="subcopy">
-						The high-impact environment controls stay one click from
-						the address bar.
-					</p>
+					<h2>Runtime</h2>
+					<p class="subcopy">WP latest · PHP 8.3 · Network on</p>
 				</div>
 				<button class="close-button" data-close>×</button>
 			</header>
 			<div class="panel-body">
-				<section class="card hero-card">
-					<div class="hero-top">
+				<section class="summary-card">
+					<div class="summary-line">
 						<div>
-							<span class="eyebrow">Environment</span>
-							<h3>
-								Change WordPress without hunting through
-								settings.
-							</h3>
-							<p class="subcopy">
-								Changing versions or storage restarts the
-								Playground. Network changes apply immediately
-								when possible.
-							</p>
+							<span class="eyebrow">Environment</span
+							><strong>Versions and storage</strong>
 						</div>
-						<button class="primary-button">Apply & restart</button>
+						<button class="primary-button">Apply changes</button>
 					</div>
-					<div class="hint-list">
-						<span class="hint">Top-level runtime surface</span
-						><span class="hint">Connected to runtime chip</span
-						><span class="hint">Preview remains visible</span>
+					<div class="panel-note">
+						Changing WordPress, PHP, or storage may restart the
+						Playground.
 					</div>
 				</section>
 				<div class="segmented" role="tablist">
@@ -1580,50 +1643,35 @@
 				</div>
 				<div class="settings-grid">
 					<div class="setting-card">
-						<label>WordPress version</label>
+						<label>WordPress</label>
 						<div class="fake-select">
 							<span>Latest stable</span><span>⌄</span>
 						</div>
-						<p class="subcopy">
-							Switch to beta, nightly, or a specific release.
-						</p>
 					</div>
 					<div class="setting-card">
-						<label>PHP version</label>
+						<label>PHP</label>
 						<div class="fake-select">
 							<span>PHP 8.3</span><span>⌄</span>
 						</div>
-						<p class="subcopy">
-							Match a host or test compatibility before upgrading.
-						</p>
 					</div>
 					<div class="setting-card">
-						<label>Network access</label>
+						<label>Network</label>
 						<div class="fake-toggle">
 							<span>Allowed</span><span></span>
 						</div>
-						<p class="subcopy">
-							Needed for plugin/theme downloads and remote APIs.
-						</p>
 					</div>
 					<div class="setting-card">
-						<label>Storage mode</label>
+						<label>Storage</label>
 						<div class="fake-select">
 							<span>Temporary</span><span>⌄</span>
 						</div>
-						<p class="subcopy">
-							Temporary, browser-saved, or local directory.
-						</p>
 					</div>
 				</div>
 				<button class="row-button warning-card">
 					<span class="tile-icon">!</span
 					><span
-						><strong>Create multisite network</strong
-						><small
-							>Changes installation shape and may require
-							restart.</small
-						></span
+						><strong>Multisite</strong
+						><small>Off · restart required</small></span
 					><span class="value-pill">Off</span>
 				</button>
 			</div>
@@ -1635,119 +1683,108 @@
 				<div>
 					<h2>Workbench</h2>
 					<p class="subcopy">
-						One intentional map of what you can do to this WordPress
-						site.
+						Current page actions first. Search for the rest.
 					</p>
 				</div>
 				<button class="close-button" data-close>×</button>
 			</header>
 			<div class="panel-body">
-				<section class="card hero-card">
-					<div class="hero-top">
+				<section class="summary-card">
+					<div class="summary-line">
 						<div>
-							<span class="eyebrow">Contextual to this page</span>
-							<h3>What do you need right now?</h3>
-							<p class="subcopy">
-								The Dashboard is open. Common next actions are
-								promoted; everything else is one scan away
-								without adding a permanent sidebar.
-							</p>
+							<span class="eyebrow">Dashboard</span
+							><strong>Common actions</strong>
 						</div>
 						<button
 							class="primary-button"
 							data-panel-trigger="command"
 						>
-							Search all
+							Search
 						</button>
 					</div>
 					<div class="hint-list">
 						<span class="hint">Open admin</span
 						><span class="hint">Install plugin</span
 						><span class="hint">Edit files</span
-						><span class="hint">Save and share</span>
+						><span class="hint">Share</span>
 					</div>
 				</section>
-				<div class="section-label">Priority actions</div>
+				<div class="section-label">Priority</div>
 				<div class="workbench-grid">
 					<button class="card-button" data-panel-trigger="runtime">
 						<span class="tile-icon">⚙</span
 						><span
-							><strong>Environment</strong
-							><small
-								>WordPress, PHP, storage, network,
-								multisite.</small
-							></span
-						></button
-					><button class="card-button" data-panel-trigger="files">
+							><strong>Runtime</strong
+							><small>WP, PHP, storage, network</small></span
+						>
+					</button>
+					<button class="card-button" data-panel-trigger="files">
 						<span class="tile-icon dark">▱</span
 						><span
-							><strong>Files & recovery</strong
-							><small
-								>Use the editor even when WordPress itself is
-								broken.</small
-							></span
-						></button
-					><button class="card-button">
+							><strong>Files</strong
+							><small>Editor and recovery</small></span
+						>
+					</button>
+					<button class="card-button">
 						<span class="tile-icon">⇧</span
 						><span
-							><strong>Import or create</strong
-							><small
-								>GitHub, ZIP, PR previews, Blueprint URL,
-								gallery.</small
-							></span
-						></button
-					><button class="card-button" data-panel-trigger="share">
+							><strong>Import</strong
+							><small>GitHub, ZIP, PR, Blueprint</small></span
+						>
+					</button>
+					<button class="card-button" data-panel-trigger="share">
 						<span class="tile-icon green">↗</span
 						><span
-							><strong>Save and share</strong
-							><small
-								>Save, copy link, download ZIP, export to
-								GitHub.</small
-							></span
+							><strong>Share</strong
+							><small>Save, link, export</small></span
 						>
 					</button>
 				</div>
-				<div class="section-label">Inspect and debug</div>
+				<div class="section-label">Inspect</div>
 				<div class="quick-grid">
 					<button class="row-button">
 						<span class="tile-icon">▢</span
 						><span
 							><strong>Database</strong
-							><small>SQLite, Adminer, phpMyAdmin</small></span
-						></button
-					><button class="row-button">
+							><small>SQLite tools</small></span
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">☰</span
 						><span
 							><strong>Logs</strong
-							><small>PHP and browser logs</small></span
-						></button
-					><button class="row-button">
+							><small>PHP/browser</small></span
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">▣</span
 						><span
 							><strong>Blueprint</strong
-							><small>View or edit source</small></span
+							><small>Source</small></span
 						>
 					</button>
 				</div>
-				<div class="section-label">Start or resume</div>
+				<div class="section-label">Start</div>
 				<div class="quick-grid">
 					<button class="row-button">
 						<span class="tile-icon">＋</span
 						><span
 							><strong>Blank site</strong
-							><small>Clean WordPress</small></span
-						></button
-					><button class="row-button">
+							><small>Clean WP</small></span
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">▦</span
 						><span
-							><strong>Your Playgrounds</strong
-							><small>Saved and autosaved</small></span
-						></button
-					><button class="row-button">
+							><strong>Your sites</strong
+							><small>Saved/autosaved</small></span
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon gold">★</span
 						><span
-							><strong>Blueprint gallery</strong
-							><small>Recipes and demos</small></span
+							><strong>Gallery</strong
+							><small>Blueprints</small></span
 						>
 					</button>
 				</div>
@@ -1759,26 +1796,21 @@
 				<div class="pop-icon">↗</div>
 				<div>
 					<h2>Save and share</h2>
-					<p class="subcopy">
-						Preserve this Playground or hand it to someone else. No
-						“Inspect” detour.
-					</p>
+					<p class="subcopy">Keep this Playground or hand it off.</p>
 				</div>
 				<button class="close-button" data-close>×</button>
 			</header>
 			<div class="panel-body">
-				<section class="card hero-card">
-					<div class="hero-top">
+				<section class="summary-card">
+					<div class="summary-line">
 						<div>
-							<span class="eyebrow">PR 3655 model</span>
-							<h3>Unsaved Playground</h3>
-							<p class="subcopy">
-								Autosaves prevent data loss; Save Playground is
-								the explicit promotion when this work should be
-								kept.
-							</p>
+							<span class="eyebrow">Unsaved</span
+							><strong>Not kept yet</strong>
 						</div>
-						<button class="save-button">Save Playground</button>
+						<button class="save-button">Save</button>
+					</div>
+					<div class="panel-note">
+						Autosaves are recovery copies. Save marks intent.
 					</div>
 				</section>
 				<div class="share-grid">
@@ -1786,27 +1818,28 @@
 						<span class="tile-icon">⧉</span
 						><span
 							><strong>Copy link</strong
-							><small
-								>Share the current URL and state</small
-							></span
-						></button
-					><button class="row-button">
+							><small>Current URL</small></span
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">⇩</span
 						><span
 							><strong>Download ZIP</strong
-							><small>Portable WordPress files</small></span
-						></button
-					><button class="row-button">
+							><small>Files archive</small></span
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">⇧</span
 						><span
-							><strong>Export to GitHub</strong
-							><small>Create or update a PR</small></span
-						></button
-					><button class="row-button">
+							><strong>GitHub export</strong
+							><small>Create/update PR</small></span
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">▦</span
 						><span
-							><strong>Your Playgrounds</strong
-							><small>Open saved/autosaved sites</small></span
+							><strong>Your sites</strong
+							><small>Saved/autosaved</small></span
 						>
 					</button>
 				</div>
@@ -1817,10 +1850,9 @@
 			<header class="popover-header">
 				<div class="pop-icon">⌘</div>
 				<div>
-					<h2>Address and command</h2>
+					<h2>Command</h2>
 					<p class="subcopy">
-						The address bar remains a browser control and becomes
-						the fastest path to hidden features.
+						Paths, repos, PRs, Blueprints, and tools.
 					</p>
 				</div>
 				<button class="close-button" data-close>×</button>
@@ -1829,23 +1861,26 @@
 				<div class="command-search">
 					<span aria-hidden="true">⌕</span
 					><input
+						name="playground-command"
 						value="/wp-admin/"
 						aria-label="Command search"
 					/><kbd class="command-kbd">Enter</kbd>
 				</div>
-				<div class="section-label">WordPress destinations</div>
+				<div class="section-label">WordPress</div>
 				<div class="row-stack">
 					<button class="row-button">
 						<span class="tile-icon">⌂</span
 						><span><strong>Homepage</strong><small>/</small></span
-						><span class="value-pill">Open</span></button
-					><button class="row-button">
+						><span class="value-pill">Open</span>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">▦</span
 						><span
 							><strong>Dashboard</strong
 							><small>/wp-admin/</small></span
-						><span class="value-pill">Open</span></button
-					><button class="row-button">
+						><span class="value-pill">Open</span>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">✎</span
 						><span
 							><strong>Site Editor</strong
@@ -1853,24 +1888,26 @@
 						><span class="value-pill">Open</span>
 					</button>
 				</div>
-				<div class="section-label">Playground actions</div>
+				<div class="section-label">Playground</div>
 				<div class="quick-grid">
 					<button class="row-button" data-panel-trigger="files">
 						<span class="tile-icon">▱</span
 						><span
 							><strong>Files</strong
 							><small>Edit code</small></span
-						></button
-					><button class="row-button" data-panel-trigger="runtime">
+						>
+					</button>
+					<button class="row-button" data-panel-trigger="runtime">
 						<span class="tile-icon">⚙</span
 						><span
 							><strong>Runtime</strong
 							><small>Versions</small></span
-						></button
-					><button class="row-button">
+						>
+					</button>
+					<button class="row-button">
 						<span class="tile-icon">⇧</span
 						><span
-							><strong>Import GitHub</strong
+							><strong>GitHub</strong
 							><small>Paste URL</small></span
 						>
 					</button>
@@ -1884,8 +1921,7 @@
 				<div>
 					<h2>Files & recovery</h2>
 					<p class="subcopy">
-						A real work area, not a cramped settings tab. Anchored
-						to Workbench because it is a Workbench job.
+						Wide editor · recovery-safe · anchored to Workbench
 					</p>
 				</div>
 				<button class="close-button" data-close>×</button>
@@ -2036,7 +2072,7 @@
 				cluster.classList.toggle('is-active', panel === 'current');
 				const template = document.getElementById(`panel-${panel}`);
 				popover.innerHTML = template ? template.innerHTML : '';
-				popover.className = `popover is-visible ${panel === 'files' ? 'file-panel' : ''}`;
+				popover.className = `popover is-visible panel-${panel} ${panel === 'files' ? 'file-panel' : ''}`;
 				scrim.classList.add('is-visible');
 				positionPopover();
 			}
@@ -2057,16 +2093,25 @@
 				if (!activeTrigger || !activePanel) return;
 				const rect = activeTrigger.getBoundingClientRect();
 				const vw = window.innerWidth;
+				const panelWidths = {
+					current: 620,
+					runtime: 560,
+					workbench: 700,
+					share: 540,
+					command: 610,
+				};
 				const preferred =
 					activePanel === 'files'
 						? Math.min(1110, vw - 48)
 						: Math.min(
-								Number.parseInt(
-									getComputedStyle(
-										document.documentElement
-									).getPropertyValue('--panel-w'),
-									10
-								) || 700,
+								panelWidths[activePanel] ||
+									Number.parseInt(
+										getComputedStyle(
+											document.documentElement
+										).getPropertyValue('--panel-w'),
+										10
+									) ||
+									700,
 								vw - 48
 							);
 				popover.style.width = `${preferred}px`;
@@ -2080,51 +2125,59 @@
 			}
 
 			function applyIterationPolish(iterationNumber) {
-				const clamped = Math.max(1, Math.min(100, iterationNumber));
+				const clamped = Math.max(1, Math.min(200, iterationNumber));
+				const polishStep = clamped > 100 ? clamped - 100 : clamped;
 				const root = document.documentElement;
 				const densityStates = ['compact', 'balanced', 'roomy'];
 				const contrastStates = ['quiet', 'balanced', 'strong'];
 				document.body.dataset.density =
 					densityStates[
-						Math.floor((clamped - 1) / 17) % densityStates.length
+						Math.floor((polishStep - 1) / 17) % densityStates.length
 					];
 				document.body.dataset.contrast =
 					contrastStates[
-						Math.floor((clamped - 1) / 13) % contrastStates.length
+						Math.floor((polishStep - 1) / 13) %
+							contrastStates.length
 					];
-				root.style.setProperty('--chrome-h', `${62 + (clamped % 5)}px`);
+				root.style.setProperty(
+					'--chrome-h',
+					`${62 + (polishStep % 5)}px`
+				);
 				root.style.setProperty(
 					'--chrome-pad-x',
-					`${12 + (clamped % 4)}px`
+					`${12 + (polishStep % 4)}px`
 				);
 				root.style.setProperty(
 					'--chrome-gap',
-					`${10 + (clamped % 5)}px`
+					`${10 + (polishStep % 5)}px`
 				);
 				root.style.setProperty(
 					'--cluster-w',
-					`${350 + (clamped % 7) * 6}px`
+					`${350 + (polishStep % 7) * 6}px`
 				);
 				root.style.setProperty(
 					'--panel-w',
-					`${680 + (clamped % 6) * 4}px`
+					`${680 + (polishStep % 6) * 4}px`
 				);
 				root.style.setProperty(
 					'--panel-radius',
-					`${22 + (clamped % 4)}px`
+					`${22 + (polishStep % 4)}px`
 				);
 				root.style.setProperty(
 					'--panel-top',
-					`${10 + (clamped % 4)}px`
+					`${10 + (polishStep % 4)}px`
 				);
-				root.style.setProperty('--shadow-y', `${30 + (clamped % 7)}px`);
+				root.style.setProperty(
+					'--shadow-y',
+					`${30 + (polishStep % 7)}px`
+				);
 				root.style.setProperty(
 					'--shadow-alpha',
-					`${0.18 + (clamped % 6) * 0.01}`
+					`${0.18 + (polishStep % 6) * 0.01}`
 				);
 				root.style.setProperty(
 					'--scrim-alpha',
-					`${0.13 + (clamped % 6) * 0.012}`
+					`${0.13 + (polishStep % 6) * 0.012}`
 				);
 			}
 

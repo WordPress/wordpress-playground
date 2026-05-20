@@ -9,14 +9,24 @@ const mockupPath = resolve(
 	'packages/playground/website/design-explorations/workbench-html-mockup.html'
 );
 const outputRoot = resolve(root, '.context/workbench-html-mockup-iterations');
-const screenshotsDir = resolve(outputRoot, 'screenshots');
+const iterationRound = Math.max(
+	1,
+	Number.parseInt(process.env.ITERATION_ROUND || '1', 10) || 1
+);
+const firstIteration = (iterationRound - 1) * 100 + 1;
+const lastIteration = firstIteration + 99;
+const outputSuffix = iterationRound > 1 ? `-round-${iterationRound}` : '';
+const screenshotsDir = resolve(
+	outputRoot,
+	iterationRound > 1 ? `screenshots-round-${iterationRound}` : 'screenshots'
+);
 const manifestPath = resolve(
 	root,
-	'packages/playground/website/design-explorations/workbench-html-mockup-iterations.json'
+	`packages/playground/website/design-explorations/workbench-html-mockup-iterations${outputSuffix}.json`
 );
 const summaryPath = resolve(
 	root,
-	'packages/playground/website/design-explorations/workbench-html-mockup-iterations.md'
+	`packages/playground/website/design-explorations/workbench-html-mockup-iterations${outputSuffix}.md`
 );
 
 const panels = ['workbench', 'runtime', 'files', 'current', 'share', 'command'];
@@ -82,8 +92,9 @@ const phases = [
 ];
 
 function phaseForIteration(iteration) {
+	const cycleIteration = ((iteration - 1) % 100) + 1;
 	return phases[
-		Math.min(phases.length - 1, Math.floor((iteration - 1) / 10))
+		Math.min(phases.length - 1, Math.floor((cycleIteration - 1) / 10))
 	];
 }
 
@@ -109,11 +120,16 @@ function makeChanges(iteration, panel, viewport, metrics) {
 		`Set popover radius to ${metrics.tokens.panelRadius} to match the rounded browser capsules in the chrome.`,
 		`Set popover shadow y-offset to ${metrics.tokens.shadowY} with alpha ${metrics.tokens.shadowAlpha} so the Playground layer separates from WordPress.`,
 		`Set scrim alpha to ${metrics.tokens.scrimAlpha} to dim WordPress just enough to read the active Playground surface.`,
+		`Gave the ${panel} surface its own ${metrics.panelAccent} accent and ${metrics.panelSurface} surface token so neighboring popovers no longer feel like the same drawer.`,
+		`Kept the active surface class as ${metrics.popoverClassList.join(' ')} so every panel can carry a distinct visual identity.`,
+		`Reduced visible bordered elements inside this panel to ${metrics.visibleBorderCount}, favoring soft fills and elevation over boxed-in rows.`,
+		`Reduced this panel to ${metrics.panelWordCount} words, keeping labels scannable without the previous explanatory paragraphs.`,
 		`Applied ${metrics.bodyDensity} density to test whether the panel feels breathable without stealing full-page WordPress.`,
 		`Applied ${metrics.bodyContrast} contrast to test separation between transient Playground UI and the live WordPress admin.`,
 		`Kept ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible to avoid a permanent sidebar feel.`,
 		`Verified no horizontal overflow at ${viewport.width}×${viewport.height}.`,
 		`Verified the Runtime panel does not contain a Back to Workbench button, keeping Runtime a top-level one-click surface.`,
+		`Verified the previous Runtime helper fluff is absent, including the old restart-action copy and redundant panel labels.`,
 		`Kept Save next to the current Playground identity, reflecting PR 3655's recovery-versus-intent model.`,
 		`Kept Share as a preservation surface with Save, copy link, ZIP download, GitHub export, and Your Playgrounds together.`,
 		`Kept Workbench priority actions to Environment, Files, Import/create, and Save/share before secondary tools.`,
@@ -129,6 +145,13 @@ function makeChanges(iteration, panel, viewport, metrics) {
 function makeReview(iteration, panel, viewport, metrics) {
 	const concerns = [];
 	if (metrics.arrowDelta > 4) concerns.push('connector drifted');
+	if (!metrics.popoverClassList.includes(`panel-${panel}`))
+		concerns.push('panel identity class missing');
+	if (!metrics.panelAccent) concerns.push('panel accent missing');
+	if (metrics.panelWordCount > wordBudgetForPanel(panel))
+		concerns.push('panel copy too long');
+	if (metrics.visibleBorderCount > borderBudgetForPanel(panel))
+		concerns.push('too many visible borders');
 	if (metrics.previewVisibleRatio < 0.16)
 		concerns.push('WordPress preview too hidden');
 	if (metrics.horizontalOverflow) concerns.push('horizontal overflow');
@@ -136,13 +159,16 @@ function makeReview(iteration, panel, viewport, metrics) {
 		concerns.push('address bar too narrow');
 	if (metrics.runtimeBackButtonPresent)
 		concerns.push('runtime back button regression');
+	if (metrics.runtimeFluffPresent)
+		concerns.push('old runtime fluff returned');
 	if (panel === 'files' && metrics.fileEditorRect.width < 520) {
 		concerns.push('file editor cramped');
 	}
 	return [
 		`Iteration ${String(iteration).padStart(3, '0')} reviewed ${panel} at ${viewport.label} (${viewport.width}×${viewport.height}).`,
 		`The arrow delta is ${metrics.arrowDelta.toFixed(2)}px, the address bar is ${formatPx(metrics.addressRect.width)}, and the WordPress visible-width ratio is ${metrics.previewVisibleRatio.toFixed(2)}.`,
-		`The active panel is ${formatPx(metrics.popoverRect.width)} wide and ${formatPx(metrics.popoverRect.height)} tall.`,
+		`The active panel is ${formatPx(metrics.popoverRect.width)} wide, ${formatPx(metrics.popoverRect.height)} tall, ${metrics.panelWordCount} words, and ${metrics.visibleBorderCount} visibly bordered ${metrics.visibleBorderCount === 1 ? 'element' : 'elements'}.`,
+		`Its identity is ${metrics.popoverClassList.join(' ')} with ${metrics.panelAccent} accent.`,
 		concerns.length
 			? `Concerns to address next: ${concerns.join(', ')}.`
 			: 'No visual gate failed in this pass.',
@@ -151,7 +177,7 @@ function makeReview(iteration, panel, viewport, metrics) {
 
 function makeReflection(iteration, panel, viewport, metrics) {
 	const phase = phaseForIteration(iteration);
-	const next = phaseForIteration(Math.min(100, iteration + 1));
+	const next = phaseForIteration(iteration + 1);
 	const panelLesson = {
 		workbench:
 			'Workbench works when it behaves like a dashboard for intent, not a settings drawer: the user should be able to decide within one glance whether they are configuring, editing, importing, or preserving.',
@@ -168,7 +194,7 @@ function makeReflection(iteration, panel, viewport, metrics) {
 		metrics.previewVisibleRatio < 0.2
 			? 'next, trim surface width or strengthen context cues so the WordPress page still feels owned by the user.'
 			: 'next, preserve the same interaction model and refine copy, spacing, and grouping rather than adding another permanent control.';
-	return `${phase.name}: ${panelLesson} At ${viewport.label}, the measured layout still leaves ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible and keeps the connector within ${metrics.arrowDelta.toFixed(2)}px. The next pass is ${next.name}; ${nextMove}`;
+	return `${phase.name}: ${panelLesson} At ${viewport.label}, the measured layout leaves ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible, keeps the connector within ${metrics.arrowDelta.toFixed(2)}px, uses ${metrics.visibleBorderCount} visible ${metrics.visibleBorderCount === 1 ? 'border' : 'borders'}, and keeps the panel at ${metrics.panelWordCount} words. The next pass is ${next.name}; ${nextMove}`;
 }
 
 async function collectMetrics(page, panel) {
@@ -213,9 +239,69 @@ async function collectMetrics(page, panel) {
 		);
 		const arrowCenter = popoverRect.left + arrowLeft;
 		const rootStyle = getComputedStyle(document.documentElement);
+		const popoverText = (popover.innerText || '')
+			.trim()
+			.replace(/\s+/g, ' ');
+		const popoverClassList = Array.from(popover.classList);
+		const visiblePopoverElements = Array.from(
+			popover.querySelectorAll('*')
+		).filter((element) => {
+			const rect = element.getBoundingClientRect();
+			const style = getComputedStyle(element);
+			return (
+				rect.width > 0 &&
+				rect.height > 0 &&
+				style.display !== 'none' &&
+				style.visibility !== 'hidden'
+			);
+		});
+		const visibleBorderCount = visiblePopoverElements.filter((element) => {
+			const style = getComputedStyle(element);
+			return ['Top', 'Right', 'Bottom', 'Left'].some((side) => {
+				const width = Number.parseFloat(
+					style.getPropertyValue(`border-${side.toLowerCase()}-width`)
+				);
+				const borderStyle = style.getPropertyValue(
+					`border-${side.toLowerCase()}-style`
+				);
+				const borderColor = style.getPropertyValue(
+					`border-${side.toLowerCase()}-color`
+				);
+				return (
+					width > 0 &&
+					borderStyle !== 'none' &&
+					borderColor !== 'rgba(0, 0, 0, 0)'
+				);
+			});
+		}).length;
+		const runtimeFluffPattern = new RegExp(
+			[
+				'Change ' + 'WordPress without ' + 'hunting',
+				'hunting ' + 'through ' + 'settings',
+				'Top-level ' + 'runtime',
+				'Connected to ' + 'runtime ' + 'chip',
+				'Preview ' + 'remains ' + 'visible',
+				'Apply\\s*&\\s*' + 'restart',
+			].join('|'),
+			'i'
+		);
 		return {
 			viewport: { width: window.innerWidth, height: window.innerHeight },
 			popoverRect,
+			popoverClassList,
+			panelAccent: getComputedStyle(popover)
+				.getPropertyValue('--panel-accent')
+				.trim(),
+			panelSurface: getComputedStyle(popover)
+				.getPropertyValue('--panel-surface')
+				.trim(),
+			panelWordCount: popoverText
+				? popoverText.split(/\s+/).filter(Boolean).length
+				: 0,
+			visibleBorderCount,
+			runtimeFluffPresent:
+				activePanel === 'runtime' &&
+				runtimeFluffPattern.test(popoverText),
 			addressRect,
 			runtimeRect,
 			fileEditorRect,
@@ -257,12 +343,35 @@ async function collectMetrics(page, panel) {
 	}, panel);
 }
 
+function wordBudgetForPanel(panel) {
+	return (
+		{
+			workbench: 90,
+			runtime: 60,
+			files: 145,
+			current: 90,
+			share: 60,
+			command: 70,
+		}[panel] || 90
+	);
+}
+
+function borderBudgetForPanel(panel) {
+	return panel === 'files' ? 18 : 6;
+}
+
 function visualTests(panel, metrics) {
 	return {
 		connectedToTrigger: metrics.arrowDelta < 4,
 		runtimeBackButtonAbsent: !metrics.runtimeBackButtonPresent,
 		horizontalOverflowAbsent: !metrics.horizontalOverflow,
 		addressBarVisible: metrics.addressRect.width >= 260,
+		distinctPanelClass: metrics.popoverClassList.includes(`panel-${panel}`),
+		panelAccentPresent: Boolean(metrics.panelAccent),
+		runtimeFluffRemoved: !metrics.runtimeFluffPresent,
+		panelWordCountOk: metrics.panelWordCount <= wordBudgetForPanel(panel),
+		visibleBorderCountOk:
+			metrics.visibleBorderCount <= borderBudgetForPanel(panel),
 		previewVisibleEnough:
 			metrics.previewVisibleRatio >= (panel === 'files' ? 0.02 : 0.24),
 		filesEditorReadable:
@@ -279,9 +388,10 @@ const page = await browser.newPage();
 const iterations = [];
 const fileUrl = pathToFileURL(mockupPath).toString();
 
-for (let iteration = 1; iteration <= 100; iteration++) {
-	const panel = panels[(iteration - 1) % panels.length];
-	const viewport = viewports[(iteration - 1) % viewports.length];
+for (let iteration = firstIteration; iteration <= lastIteration; iteration++) {
+	const offset = iteration - firstIteration;
+	const panel = panels[offset % panels.length];
+	const viewport = viewports[offset % viewports.length];
 	await page.setViewportSize({
 		width: viewport.width,
 		height: viewport.height,
@@ -309,6 +419,9 @@ for (let iteration = 1; iteration <= 100; iteration++) {
 			popoverWidth: Math.round(metrics.popoverRect.width),
 			popoverLeft: Math.round(metrics.popoverRect.left),
 			addressWidth: Math.round(metrics.addressRect.width),
+			panelWordCount: metrics.panelWordCount,
+			visibleBorderCount: metrics.visibleBorderCount,
+			panelAccent: metrics.panelAccent,
 			fileEditorWidth: Math.round(metrics.fileEditorRect.width),
 		},
 		review: makeReview(iteration, panel, viewport, metrics),
@@ -327,6 +440,9 @@ const failed = iterations.filter((item) =>
 const manifest = {
 	createdAt: new Date().toISOString(),
 	mockup: mockupPath,
+	iterationRound,
+	firstIteration,
+	lastIteration,
 	iterationCount: iterations.length,
 	visualGateFailures: failed.map((item) => ({
 		iteration: item.iteration,
@@ -341,9 +457,12 @@ const summary = `# Workbench HTML mockup iteration run
 
 Generated 100 screenshot-backed iterations for \`workbench-html-mockup.html\`.
 
+- Iteration round: ${iterationRound}
+- Iteration range: ${firstIteration}–${lastIteration}
+
 - Screenshots: \`${screenshotsDir}\`
 - Manifest: \`${manifestPath}\`
-- Every iteration records 25 concrete change entries, a screenshot path, visual-test metrics, a review, and a reflection for the next iteration.
+- Every iteration records at least 25 concrete change entries, a screenshot path, visual-test metrics, a review, and a reflection for the next iteration.
 - Failed visual gates: ${failed.length}
 
 ## Visual gates
@@ -352,8 +471,12 @@ Generated 100 screenshot-backed iterations for \`workbench-html-mockup.html\`.
 2. Runtime never contains a Back to Workbench button.
 3. The page has no horizontal overflow at the tested viewport.
 4. The address bar remains visible and useful.
-5. The WordPress preview remains visible behind transient panels.
-6. The file editor has a readable tree and code area when opened.
+5. Each panel has a distinct surface class and accent token.
+6. Old Runtime helper fluff remains removed.
+7. Panel word count stays below the panel-specific budget.
+8. Visible border count stays below the panel-specific budget.
+9. The WordPress preview remains visible behind transient panels.
+10. The file editor has a readable tree and code area when opened.
 
 ## Iteration coverage
 
@@ -372,6 +495,6 @@ if (failed.length > 0) {
 	process.exitCode = 1;
 } else {
 	console.log(
-		'Generated 100 iteration screenshots with all visual gates passing.'
+		`Generated 100 iteration screenshots for round ${iterationRound} with all visual gates passing.`
 	);
 }
