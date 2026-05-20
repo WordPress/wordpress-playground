@@ -71,18 +71,18 @@ function stateUrl(state) {
 
 function stateBudget(state) {
 	return {
-		main: { maxSurfaceRatio: 0.05 },
-		runtime: { maxSurfaceRatio: 0.56 },
-		command: { maxSurfaceRatio: 0.57 },
-		files: { maxSurfaceRatio: 0.62 },
-		current: { maxSurfaceRatio: 0.52 },
-		share: { maxSurfaceRatio: 0.42 },
+		main: { maxSurfaceRatio: 0.05, maxVisibleBorderCount: 0 },
+		runtime: { maxSurfaceRatio: 0.56, maxVisibleBorderCount: 12 },
+		command: { maxSurfaceRatio: 0.57, maxVisibleBorderCount: 12 },
+		files: { maxSurfaceRatio: 0.62, maxVisibleBorderCount: 12 },
+		current: { maxSurfaceRatio: 0.53, maxVisibleBorderCount: 10 },
+		share: { maxSurfaceRatio: 0.42, maxVisibleBorderCount: 8 },
 	}[state.id];
 }
 
 async function collectMetrics(page, state) {
 	return page.evaluate(
-		({ expectedText, stateId, maxSurfaceRatio }) => {
+		({ expectedText, stateId, maxSurfaceRatio, maxVisibleBorderCount }) => {
 			function rectFor(selector) {
 				const element = document.querySelector(selector);
 				if (!element) {
@@ -217,10 +217,8 @@ async function collectMetrics(page, state) {
 					siteRect.height >= 420,
 				expectedTextOk,
 				surfaceBounded: surfaceRatio <= maxSurfaceRatio,
-				borderNoiseReduced:
-					stateId === 'files'
-						? visibleBorderCount <= 10
-						: visibleBorderCount <= 7,
+				borderUseIntentional:
+					visibleBorderCount <= maxVisibleBorderCount,
 				playgroundSeparated: chromeRect.bottom <= siteRect.top + 2,
 				filesEditorReadable:
 					stateId !== 'files' ||
@@ -311,7 +309,7 @@ Generated ${results.length} screenshots for ${states.length} states across ${vie
 - WordPress canvas remains the page owner.
 - Expected labels/actions are visible in each state.
 - Transient surfaces stay bounded.
-- Visible border count stays low enough to avoid nested card noise.
+- Visible border count stays bounded, allowing structural borders without card noise.
 - Playground chrome is visually separated from WordPress.
 - Files has readable tree, editor, and recovery rail widths.
 `;

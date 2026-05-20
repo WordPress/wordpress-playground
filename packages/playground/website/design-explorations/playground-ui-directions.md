@@ -77,6 +77,9 @@ feature set without assuming search or a command palette will solve discovery.
 - No invented decorative system. The latest pass uses WordPress/Gutenberg-like
   primitives: white surfaces, WordPress grays, blue primary actions, and amber
   only for recovery state.
+- Borders are allowed when they carry information: grouping runtime fields,
+  separating tool categories, and containing long library tables. The goal is
+  fewer decorative borders, not a borderless interface.
 
 ## References and borrowed patterns
 
@@ -154,7 +157,8 @@ The check verifies:
 4. WordPress canvas remains the page owner;
 5. expected labels/actions are visible in each state;
 6. transient surfaces stay bounded;
-7. visible border count remains low so popovers do not become card soup;
+7. visible border count remains bounded so structural borders are useful without
+   becoming card soup;
 8. Playground chrome is visually separated from WordPress;
 9. Files has readable tree, editor, and recovery rail widths.
 
