@@ -160,7 +160,7 @@ test('should load WordPress latest by default', async ({
 	await website.goto('./?url=/wp-admin/');
 
 	const expectedBodyClass =
-		'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
+		'version-' + LatestSupportedWordPressVersion.replace('.', '-');
 	await expect(wordpress.locator(`body.${expectedBodyClass}`)).toContainText(
 		'Dashboard'
 	);
