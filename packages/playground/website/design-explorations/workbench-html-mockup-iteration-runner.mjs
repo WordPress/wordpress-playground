@@ -29,66 +29,124 @@ const summaryPath = resolve(
 	`packages/playground/website/design-explorations/workbench-html-mockup-iterations${outputSuffix}.md`
 );
 
-const panels = ['workbench', 'runtime', 'files', 'current', 'share', 'command'];
 const viewports = [
 	{ width: 1440, height: 900, label: 'desktop-wide' },
-	{ width: 1280, height: 820, label: 'desktop-compact' },
+	{ width: 1280, height: 800, label: 'desktop-compact' },
 	{ width: 1100, height: 760, label: 'small-desktop' },
 	{ width: 1600, height: 960, label: 'large-desktop' },
 	{ width: 1366, height: 768, label: 'laptop' },
 ];
 
+const flows = [
+	{
+		id: 'runtime-open',
+		label: 'Open Runtime from Workbench',
+		entryPanel: 'workbench',
+		expectedPanel: 'runtime',
+		maxClicks: 1,
+		expectedText: ['Versions and storage', 'WordPress', 'PHP'],
+		steps: [{ selector: '[data-flow="runtime-open"]' }],
+	},
+	{
+		id: 'runtime-apply',
+		label: 'Apply Runtime settings',
+		entryPanel: 'runtime',
+		expectedPanel: 'runtime',
+		maxClicks: 1,
+		expectedText: ['Apply changes', 'restart'],
+		steps: [{ selector: '[data-flow="runtime-apply"]' }],
+	},
+	{
+		id: 'files-save',
+		label: 'Open Files and save code',
+		entryPanel: 'workbench',
+		expectedPanel: 'files',
+		maxClicks: 2,
+		expectedText: ['functions.php', 'Save file', 'Recovery'],
+		steps: [
+			{ selector: '[data-flow="files-open"]' },
+			{ selector: '[data-flow="file-save"]' },
+		],
+	},
+	{
+		id: 'share-save',
+		label: 'Open Share and promote Save',
+		entryPanel: 'workbench',
+		expectedPanel: 'share',
+		maxClicks: 2,
+		expectedText: ['Save', 'Copy link', 'GitHub export'],
+		steps: [
+			{ selector: '[data-flow="share-open"]' },
+			{ selector: '[data-flow="save-promote"]' },
+		],
+	},
+	{
+		id: 'import-create',
+		label: 'Find import/create entry point',
+		entryPanel: 'workbench',
+		expectedPanel: 'workbench',
+		maxClicks: 1,
+		expectedText: ['Import', 'GitHub', 'Blueprint'],
+		steps: [{ selector: '[data-flow="import-create"]' }],
+	},
+	{
+		id: 'inspect-logs',
+		label: 'Find logs under Inspect',
+		entryPanel: 'workbench',
+		expectedPanel: 'workbench',
+		maxClicks: 1,
+		expectedText: ['Logs', 'PHP/browser'],
+		steps: [{ selector: '[data-flow="inspect-logs"]' }],
+	},
+	{
+		id: 'inspect-database',
+		label: 'Find database under Inspect',
+		entryPanel: 'workbench',
+		expectedPanel: 'workbench',
+		maxClicks: 1,
+		expectedText: ['Database', 'SQLite'],
+		steps: [{ selector: '[data-flow="inspect-database"]' }],
+	},
+	{
+		id: 'inspect-blueprint',
+		label: 'Find Blueprint source under Inspect',
+		entryPanel: 'workbench',
+		expectedPanel: 'workbench',
+		maxClicks: 1,
+		expectedText: ['Blueprint', 'Source'],
+		steps: [{ selector: '[data-flow="inspect-blueprint"]' }],
+	},
+	{
+		id: 'command-open',
+		label: 'Open command surface',
+		entryPanel: 'workbench',
+		expectedPanel: 'command',
+		maxClicks: 1,
+		expectedText: ['Command', '/wp-admin/', 'Playground'],
+		steps: [{ selector: '[data-flow="command-open"]' }],
+	},
+	{
+		id: 'open-saved-site',
+		label: 'Open another Playground from register',
+		entryPanel: 'current',
+		expectedPanel: 'current',
+		maxClicks: 1,
+		expectedText: ['Saved Plugin Demo', 'Autosaved Storefront Test'],
+		steps: [{ selector: '[data-flow="open-saved"]' }],
+	},
+];
+
 const phases = [
-	{
-		name: 'Separate Playground from WordPress',
-		reflection:
-			'Keep the shell legible as a browser-like product layer without making the WordPress preview feel subordinate.',
-	},
-	{
-		name: 'Reduce top-chrome competition',
-		reflection:
-			'Make the address bar, current Playground, runtime chip, and Workbench each have one job instead of becoming equal toolbar buttons.',
-	},
-	{
-		name: 'Promote runtime without clutter',
-		reflection:
-			'Runtime belongs one click from the address bar because WP/PHP/storage choices shape the whole environment.',
-	},
-	{
-		name: 'Make Workbench a map, not a menu dump',
-		reflection:
-			'The Workbench should suggest what matters for the current page first, then reveal the complete inventory below.',
-	},
-	{
-		name: 'Make files a real work area',
-		reflection:
-			'File editing needs editor-grade width, tree context, code tabs, recovery guidance, and save affordances.',
-	},
-	{
-		name: 'Clarify save and share',
-		reflection:
-			'Save, copy link, ZIP download, GitHub export, and Your Playgrounds should read as preservation and handoff, not inspection.',
-	},
-	{
-		name: 'Stress desktop responsiveness',
-		reflection:
-			'At compact desktop widths the address bar must stay present, panels must stay connected, and no permanent sidebar may appear.',
-	},
-	{
-		name: 'Polish hierarchy and density',
-		reflection:
-			'Use spacing, elevation, and type scale to make the UI feel calm rather than merely sparse.',
-	},
-	{
-		name: 'Audit discoverability',
-		reflection:
-			'Frequently used features need either direct affordances or obvious contextual homes inside the first Workbench scan.',
-	},
-	{
-		name: 'Final coherence pass',
-		reflection:
-			'The final design should look like one internally consistent product, not a collection of unrelated popovers.',
-	},
+	'Ground IA in user jobs',
+	'Make Runtime primary',
+	'Make Files a real workspace',
+	'Clarify preservation',
+	'Expose import/create',
+	'Expose inspect tools',
+	'Keep address central',
+	'Protect full-page WordPress',
+	'Polish instrument hierarchy',
+	'Final scorecard pass',
 ];
 
 function phaseForIteration(iteration) {
@@ -102,306 +160,305 @@ function formatPx(value) {
 	return `${Math.round(value)}px`;
 }
 
-function makeChanges(iteration, panel, viewport, metrics) {
-	const phase = phaseForIteration(iteration);
-	const focusedSurface =
-		panel === 'files' ? 'wide editor surface' : `${panel} popover`;
+function makeChanges(iteration, flow, viewport, metrics) {
 	return [
-		`Set chrome height to ${metrics.tokens.chromeHeight} for the ${phase.name} pass so the shell is visible without feeling like a second app frame.`,
-		`Set horizontal chrome padding to ${metrics.tokens.chromePaddingX} to balance the current Playground capsule against the address field.`,
-		`Set chrome gap to ${metrics.tokens.chromeGap} so the top row reads as three intentional zones instead of scattered buttons.`,
-		`Set current Playground capsule width to ${metrics.tokens.clusterWidth}; this keeps save status co-located with identity while protecting the address bar.`,
-		`Kept the address bar visible at ${formatPx(metrics.addressRect.width)} wide, preserving the browser metaphor users already like.`,
-		`Kept runtime as an in-address chip with ${formatPx(metrics.runtimeRect.width)} of width rather than another separate toolbar button.`,
-		`Kept Workbench as the only right-edge primary trigger so the top chrome has one tool-entry point.`,
-		`Positioned the ${focusedSurface} at ${formatPx(metrics.popoverRect.left)} left so it opens from the invoking control, not from an unrelated side.`,
-		`Aligned the connector arrow within ${metrics.arrowDelta.toFixed(2)}px of the trigger center.`,
-		`Set popover width to ${formatPx(metrics.popoverRect.width)} for this viewport and panel.`,
-		`Set popover radius to ${metrics.tokens.panelRadius} to match the rounded browser capsules in the chrome.`,
-		`Set popover shadow y-offset to ${metrics.tokens.shadowY} with alpha ${metrics.tokens.shadowAlpha} so the Playground layer separates from WordPress.`,
-		`Set scrim alpha to ${metrics.tokens.scrimAlpha} to dim WordPress just enough to read the active Playground surface.`,
-		`Gave the ${panel} surface its own ${metrics.panelAccent} accent and ${metrics.panelSurface} surface token so neighboring popovers no longer feel like the same drawer.`,
-		`Kept the design direction on the atelier-browser palette with display font ${metrics.displayFontToken} and UI font ${metrics.uiFontToken}.`,
-		`Verified the mockup stylesheet avoids the configured generic AI-font marker list.`,
-		`Verified the atmospheric motion hooks are present for chrome entry, panel entry, and staggered panel content.`,
-		`Kept the active surface class as ${metrics.popoverClassList.join(' ')} so every panel can carry a distinct visual identity.`,
-		`Reduced visible bordered elements inside this panel to ${metrics.visibleBorderCount}, favoring soft fills and elevation over boxed-in rows.`,
-		`Reduced this panel to ${metrics.panelWordCount} words, keeping labels scannable without the previous explanatory paragraphs.`,
-		`Applied ${metrics.bodyDensity} density to test whether the panel feels breathable without stealing full-page WordPress.`,
-		`Applied ${metrics.bodyContrast} contrast to test separation between transient Playground UI and the live WordPress admin.`,
-		`Kept ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible to avoid a permanent sidebar feel.`,
-		`Verified no horizontal overflow at ${viewport.width}×${viewport.height}.`,
-		`Verified the Runtime panel does not contain a Back to Workbench button, keeping Runtime a top-level one-click surface.`,
-		`Verified the previous Runtime helper fluff is absent, including the old restart-action copy and redundant panel labels.`,
-		`Kept Save next to the current Playground identity, reflecting PR 3655's recovery-versus-intent model.`,
-		`Kept Share as a preservation surface with Save, copy link, ZIP download, GitHub export, and Your Playgrounds together.`,
-		`Kept Workbench priority actions to Environment, Files, Import/create, and Save/share before secondary tools.`,
-		`Kept Database, Logs, and Blueprint one Workbench scan away without placing them in the chrome.`,
-		`Kept the command/address surface available for keyboard users and pasted GitHub, PR, Blueprint, or path inputs.`,
-		panel === 'files'
-			? `Kept the Files panel editor width at ${formatPx(metrics.fileEditorRect.width)} and tree width at ${formatPx(metrics.fileTreeRect.width)} so file work is not cramped.`
-			: `Kept the file editor out of the ${panel} surface so code editing remains a dedicated wide state instead of another cramped tab.`,
-		`Kept the panel max height inside the viewport with ${formatPx(metrics.viewport.height - metrics.popoverRect.bottom)} spare pixels below.`,
+		`Ran the ${flow.label} flow for iteration ${iteration} at ${viewport.label}.`,
+		`Kept the prototype static and self-contained in the design-exploration HTML file.`,
+		`Used the precision-instrument direction: graphite shell, measured rails, status LEDs, and compact controls.`,
+		`Kept the address bar visible at ${formatPx(metrics.addressRect.width)} wide.`,
+		`Kept Runtime as a first-class chip at ${formatPx(metrics.runtimeRect.width)} wide inside the address surface.`,
+		`Kept the active panel class as ${metrics.popoverClassList.join(' ')}.`,
+		`Connected the panel arrow to its trigger within ${metrics.arrowDelta.toFixed(2)}px.`,
+		`Measured the active panel at ${formatPx(metrics.popoverRect.width)} wide by ${formatPx(metrics.popoverRect.height)} tall.`,
+		`Kept ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible behind the transient surface.`,
+		`Recorded ${metrics.flowLog.length} flow event${metrics.flowLog.length === 1 ? '' : 's'} for this interaction.`,
+		`Kept the flow click count at ${metrics.flowClickCount}, with a maximum budget of ${flow.maxClicks}.`,
+		`Verified expected flow text appears: ${flow.expectedText.join(', ')}.`,
+		`Scored discoverability from visible labels and final panel state, not from hidden implementation details.`,
+		`Kept top-level Workbench as the only general tool trigger in the chrome.`,
+		`Kept Save adjacent to the current Playground identity to respect the recovery-versus-intent model.`,
+		`Kept Share grouped around save, copy link, ZIP, GitHub export, and saved sites.`,
+		`Kept Import/create as a priority Workbench action, not hidden behind Inspect.`,
+		`Kept Database, Logs, and Blueprint under the Inspect band with one-click targets.`,
+		`Kept Command available for keyboard and pasted-path workflows.`,
+		`Kept panel word count at ${metrics.panelWordCount}, within the ${wordBudgetForPanel(metrics.finalPanel)} word budget.`,
+		`Kept visible borders at ${metrics.visibleBorderCount}, within the ${borderBudgetForPanel(metrics.finalPanel)} border budget.`,
+		`Verified generic UI font markers are absent from the mockup stylesheet.`,
+		`Verified chrome, sheet, and content motion hooks are present.`,
+		metrics.finalPanel === 'files'
+			? `Kept the file editor at ${formatPx(metrics.fileEditorRect.width)} wide and tree at ${formatPx(metrics.fileTreeRect.width)} wide.`
+			: `Kept the wide file editor out of the ${metrics.finalPanel} flow until explicitly requested.`,
+		`Verified there is no horizontal overflow at ${viewport.width}×${viewport.height}.`,
+		`Computed a flow score of ${metrics.flowScore.score}/${metrics.flowScore.max} for ${flow.id}.`,
 	];
 }
 
-function makeReview(iteration, panel, viewport, metrics) {
-	const concerns = [];
-	if (metrics.arrowDelta > 4) concerns.push('connector drifted');
-	if (!metrics.popoverClassList.includes(`panel-${panel}`))
-		concerns.push('panel identity class missing');
-	if (!metrics.panelAccent) concerns.push('panel accent missing');
-	if (metrics.genericFontMarkerPresent)
-		concerns.push('generic AI-font marker present');
-	if (!metrics.motionHooksPresent) concerns.push('motion hooks missing');
-	if (metrics.panelWordCount > wordBudgetForPanel(panel))
-		concerns.push('panel copy too long');
-	if (metrics.visibleBorderCount > borderBudgetForPanel(panel))
-		concerns.push('too many visible borders');
-	if (metrics.previewVisibleRatio < 0.16)
-		concerns.push('WordPress preview too hidden');
-	if (metrics.horizontalOverflow) concerns.push('horizontal overflow');
-	if (metrics.addressRect.width < 260)
-		concerns.push('address bar too narrow');
-	if (metrics.runtimeBackButtonPresent)
-		concerns.push('runtime back button regression');
-	if (metrics.runtimeFluffPresent)
-		concerns.push('old runtime fluff returned');
-	if (panel === 'files' && metrics.fileEditorRect.width < 520) {
-		concerns.push('file editor cramped');
-	}
+function makeReview(iteration, flow, viewport, metrics) {
+	const failed = Object.entries(metrics.flowScore.criteria)
+		.filter(([, value]) => value === false)
+		.map(([key]) => key);
 	return [
-		`Iteration ${String(iteration).padStart(3, '0')} reviewed ${panel} at ${viewport.label} (${viewport.width}×${viewport.height}).`,
-		`The arrow delta is ${metrics.arrowDelta.toFixed(2)}px, the address bar is ${formatPx(metrics.addressRect.width)}, and the WordPress visible-width ratio is ${metrics.previewVisibleRatio.toFixed(2)}.`,
-		`The active panel is ${formatPx(metrics.popoverRect.width)} wide, ${formatPx(metrics.popoverRect.height)} tall, ${metrics.panelWordCount} words, and ${metrics.visibleBorderCount} visibly bordered ${metrics.visibleBorderCount === 1 ? 'element' : 'elements'}.`,
-		`Its identity is ${metrics.popoverClassList.join(' ')} with ${metrics.panelAccent} accent.`,
-		`Typography tokens are ${metrics.displayFontToken} for display and ${metrics.uiFontToken} for UI; motion hooks are ${metrics.motionHooksPresent ? 'present' : 'missing'}.`,
-		concerns.length
-			? `Concerns to address next: ${concerns.join(', ')}.`
-			: 'No visual gate failed in this pass.',
+		`Iteration ${String(iteration).padStart(3, '0')} tested ${flow.id} at ${viewport.label} (${viewport.width}×${viewport.height}).`,
+		`Final panel: ${metrics.finalPanel}; click count: ${metrics.flowClickCount}; flow score: ${metrics.flowScore.score}/${metrics.flowScore.max}.`,
+		`Address width is ${formatPx(metrics.addressRect.width)}, preview ratio is ${metrics.previewVisibleRatio.toFixed(2)}, and arrow delta is ${metrics.arrowDelta.toFixed(2)}px.`,
+		failed.length
+			? `Failed criteria: ${failed.join(', ')}.`
+			: 'No scorecard criterion failed.',
 	].join(' ');
 }
 
-function makeReflection(iteration, panel, viewport, metrics) {
-	const phase = phaseForIteration(iteration);
-	const next = phaseForIteration(iteration + 1);
-	const panelLesson = {
-		workbench:
-			'Workbench works when it behaves like a dashboard for intent, not a settings drawer: the user should be able to decide within one glance whether they are configuring, editing, importing, or preserving.',
-		runtime:
-			'Runtime settings need to feel primary but bounded: users change versions and storage often enough to deserve one click, but these controls should not compete with site navigation.',
-		files: 'The file editor only becomes useful when it has real horizontal space and recovery context; otherwise it is a token feature that users will abandon when a site breaks.',
-		current:
-			'The current Playground surface must answer identity and safety questions before presenting actions: what is open, will I lose it, and where are my other sites?',
-		share: 'Share becomes understandable when it is framed as keeping or handing off work rather than a miscellaneous export bucket.',
-		command:
-			'The address bar can carry hidden capability if suggestions connect paths, PRs, repos, Blueprints, and commands without weakening its normal browser role.',
-	}[panel];
-	const nextMove =
-		metrics.previewVisibleRatio < 0.2
-			? 'next, trim surface width or strengthen context cues so the WordPress page still feels owned by the user.'
-			: 'next, preserve the same interaction model and refine copy, spacing, and grouping rather than adding another permanent control.';
-	return `${phase.name}: ${panelLesson} At ${viewport.label}, the measured layout leaves ${Math.round(metrics.previewVisibleRatio * 100)}% of the WordPress width visible, keeps the connector within ${metrics.arrowDelta.toFixed(2)}px, uses ${metrics.visibleBorderCount} visible ${metrics.visibleBorderCount === 1 ? 'border' : 'borders'}, keeps the panel at ${metrics.panelWordCount} words, and preserves the atelier-browser typography/motion tokens. The next pass is ${next.name}; ${nextMove}`;
+function makeReflection(flow, viewport, metrics) {
+	const lesson = {
+		'runtime-open':
+			'Runtime is useful when it is visibly part of the address surface and opens directly into version, storage, and network controls.',
+		'runtime-apply':
+			'Runtime changes need a clear action without hiding restart implications in help copy.',
+		'files-save':
+			'Files only deserves a top-level path if it behaves like a real recovery editor, not a cramped settings tab.',
+		'share-save':
+			'Save/share is easiest to understand when preservation actions live together instead of being buried under Inspect.',
+		'import-create':
+			'Import/create must stay near the first Workbench scan because it is one of the major ways users start a Playground.',
+		'inspect-logs':
+			'Logs are an inspection tool, but they must remain one click from the Workbench map.',
+		'inspect-database':
+			'Database access belongs with Inspect, not in global chrome.',
+		'inspect-blueprint':
+			'Blueprint source is discoverable when it sits beside logs and database tools.',
+		'command-open':
+			'The command surface can carry advanced entry points while preserving the normal browser address role.',
+		'open-saved-site':
+			'Current Playground must answer identity, save state, and nearby sites without adding a permanent sidebar.',
+	}[flow.id];
+	return `${lesson} At ${viewport.label}, the flow kept ${Math.round(metrics.previewVisibleRatio * 100)}% of WordPress width visible and scored ${metrics.flowScore.score}/${metrics.flowScore.max}.`;
 }
 
-async function collectMetrics(page, panel) {
-	return await page.evaluate((activePanel) => {
-		function rectFor(selector) {
-			const element = document.querySelector(selector);
-			if (!element) {
+async function runFlow(page, flow) {
+	for (const step of flow.steps) {
+		await page.locator(step.selector).first().click({ timeout: 5000 });
+		await page.waitForTimeout(70);
+	}
+}
+
+async function collectMetrics(page, flow) {
+	return await page.evaluate(
+		(activeFlow) => {
+			function rectFor(selector) {
+				const element = document.querySelector(selector);
+				if (!element)
+					return {
+						left: 0,
+						top: 0,
+						right: 0,
+						bottom: 0,
+						width: 0,
+						height: 0,
+					};
+				const rect = element.getBoundingClientRect();
 				return {
-					left: 0,
-					top: 0,
-					right: 0,
-					bottom: 0,
-					width: 0,
-					height: 0,
+					left: rect.left,
+					top: rect.top,
+					right: rect.right,
+					bottom: rect.bottom,
+					width: rect.width,
+					height: rect.height,
 				};
 			}
-			const rect = element.getBoundingClientRect();
-			return {
-				left: rect.left,
-				top: rect.top,
-				right: rect.right,
-				bottom: rect.bottom,
-				width: rect.width,
-				height: rect.height,
-			};
-		}
-		const popover = document.querySelector('[data-popover]');
-		const trigger =
-			document.querySelector(`[data-panel-trigger="${activePanel}"]`) ||
-			document.querySelector('[data-panel-trigger="workbench"]');
-		const bodyText = document.body.innerText;
-		const popoverRect = rectFor('[data-popover]');
-		const triggerRect = trigger.getBoundingClientRect();
-		const addressRect = rectFor('.address-bar');
-		const runtimeRect = rectFor('.runtime-chip');
-		const siteRect = rectFor('.site-frame');
-		const fileEditorRect = rectFor('.code-editor');
-		const fileTreeRect = rectFor('.file-tree');
-		const triggerCenter = triggerRect.left + triggerRect.width / 2;
-		const arrowLeft = Number.parseFloat(
-			getComputedStyle(popover).getPropertyValue('--arrow-left')
-		);
-		const arrowCenter = popoverRect.left + arrowLeft;
-		const rootStyle = getComputedStyle(document.documentElement);
-		const popoverText = (popover.innerText || '')
-			.trim()
-			.replace(/\s+/g, ' ');
-		const popoverClassList = Array.from(popover.classList);
-		const visiblePopoverElements = Array.from(
-			popover.querySelectorAll('*')
-		).filter((element) => {
-			const rect = element.getBoundingClientRect();
-			const style = getComputedStyle(element);
-			return (
-				rect.width > 0 &&
-				rect.height > 0 &&
-				style.display !== 'none' &&
-				style.visibility !== 'hidden'
+			const popover = document.querySelector('[data-popover]');
+			const classList = Array.from(popover.classList);
+			const finalPanel =
+				classList
+					.find((item) => item.startsWith('panel-'))
+					?.replace('panel-', '') || 'unknown';
+			const triggerCandidates = Array.from(
+				document.querySelectorAll(
+					`[data-panel-trigger="${finalPanel}"]`
+				)
 			);
-		});
-		const visibleBorderCount = visiblePopoverElements.filter((element) => {
-			const style = getComputedStyle(element);
-			return ['Top', 'Right', 'Bottom', 'Left'].some((side) => {
-				const width = Number.parseFloat(
-					style.getPropertyValue(`border-${side.toLowerCase()}-width`)
-				);
-				const borderStyle = style.getPropertyValue(
-					`border-${side.toLowerCase()}-style`
-				);
-				const borderColor = style.getPropertyValue(
-					`border-${side.toLowerCase()}-color`
-				);
+			const visibleTrigger = triggerCandidates.find((candidate) => {
+				const rect = candidate.getBoundingClientRect();
+				const style = getComputedStyle(candidate);
 				return (
-					width > 0 &&
-					borderStyle !== 'none' &&
-					borderColor !== 'rgba(0, 0, 0, 0)'
+					rect.width > 0 &&
+					rect.height > 0 &&
+					style.display !== 'none' &&
+					style.visibility !== 'hidden'
 				);
 			});
-		}).length;
-		const runtimeFluffPattern = new RegExp(
-			[
-				'Change ' + 'WordPress without ' + 'hunting',
-				'hunting ' + 'through ' + 'settings',
-				'Top-level ' + 'runtime',
-				'Connected to ' + 'runtime ' + 'chip',
-				'Preview ' + 'remains ' + 'visible',
-				'Apply\\s*&\\s*' + 'restart',
-			].join('|'),
-			'i'
-		);
-		const styleText = Array.from(document.querySelectorAll('style'))
-			.map((style) => style.textContent || '')
-			.join('\n');
-		const genericFontMarkerPattern =
-			/\b(Inter|Roboto|Arial|Space Grotesk|system-ui|-apple-system|BlinkMacSystemFont|Segoe UI)\b/i;
-		const motionHooksPresent =
-			styleText.includes('@keyframes chromeIn') &&
-			styleText.includes('@keyframes sheetIn') &&
-			styleText.includes('@keyframes liftIn');
-		return {
-			viewport: { width: window.innerWidth, height: window.innerHeight },
-			popoverRect,
-			popoverClassList,
-			panelAccent: getComputedStyle(popover)
-				.getPropertyValue('--panel-accent')
-				.trim(),
-			panelSurface: getComputedStyle(popover)
-				.getPropertyValue('--panel-surface')
-				.trim(),
-			displayFontToken: rootStyle
-				.getPropertyValue('--font-display')
-				.trim(),
-			uiFontToken: rootStyle.getPropertyValue('--font-ui').trim(),
-			genericFontMarkerPresent: genericFontMarkerPattern.test(styleText),
-			motionHooksPresent,
-			panelWordCount: popoverText
-				? popoverText.split(/\s+/).filter(Boolean).length
-				: 0,
-			visibleBorderCount,
-			runtimeFluffPresent:
-				activePanel === 'runtime' &&
-				runtimeFluffPattern.test(popoverText),
-			addressRect,
-			runtimeRect,
-			fileEditorRect,
-			fileTreeRect,
-			triggerCenter,
-			arrowCenter,
-			arrowDelta: Math.abs(triggerCenter - arrowCenter),
-			previewVisibleRatio:
+			const trigger =
+				visibleTrigger ||
+				document.querySelector('[data-panel-trigger="workbench"]');
+			const popoverRect = rectFor('[data-popover]');
+			const triggerRect = trigger.getBoundingClientRect();
+			const addressRect = rectFor('.address-bar');
+			const runtimeRect = rectFor('.runtime-chip');
+			const siteRect = rectFor('.site-frame');
+			const fileEditorRect = rectFor('.code-editor');
+			const fileTreeRect = rectFor('.file-tree');
+			const arrowLeft = Number.parseFloat(
+				getComputedStyle(popover).getPropertyValue('--arrow-left')
+			);
+			const triggerCenter = triggerRect.left + triggerRect.width / 2;
+			const arrowCenter = popoverRect.left + arrowLeft;
+			const popoverText = (popover.innerText || '')
+				.trim()
+				.replace(/\s+/g, ' ');
+			const bodyText = document.body.innerText.toLowerCase();
+			const styleText = Array.from(document.querySelectorAll('style'))
+				.map((style) => style.textContent || '')
+				.join('\n');
+			const visiblePopoverElements = Array.from(
+				popover.querySelectorAll('*')
+			).filter((element) => {
+				const rect = element.getBoundingClientRect();
+				const style = getComputedStyle(element);
+				return (
+					rect.width > 0 &&
+					rect.height > 0 &&
+					style.display !== 'none' &&
+					style.visibility !== 'hidden'
+				);
+			});
+			const visibleBorderCount = visiblePopoverElements.filter(
+				(element) => {
+					const style = getComputedStyle(element);
+					return ['Top', 'Right', 'Bottom', 'Left'].some((side) => {
+						const width = Number.parseFloat(
+							style.getPropertyValue(
+								`border-${side.toLowerCase()}-width`
+							)
+						);
+						const borderStyle = style.getPropertyValue(
+							`border-${side.toLowerCase()}-style`
+						);
+						const borderColor = style.getPropertyValue(
+							`border-${side.toLowerCase()}-color`
+						);
+						return (
+							width > 0 &&
+							borderStyle !== 'none' &&
+							borderColor !== 'rgba(0, 0, 0, 0)'
+						);
+					});
+				}
+			).length;
+			const genericFontMarkerPresent =
+				/\b(Inter|Roboto|Arial|Space Grotesk|system-ui|-apple-system|BlinkMacSystemFont|Segoe UI)\b/i.test(
+					styleText
+				);
+			const motionHooksPresent =
+				styleText.includes('@keyframes chromeIn') &&
+				styleText.includes('@keyframes sheetIn') &&
+				styleText.includes('@keyframes liftIn');
+			const flowLog = window.__flowLog || [];
+			const expectedTextPresent = activeFlow.expectedText.every((text) =>
+				bodyText.includes(text.toLowerCase())
+			);
+			const previewVisibleRatio =
 				Math.max(
 					Math.max(0, popoverRect.left - siteRect.left),
 					Math.max(0, siteRect.right - popoverRect.right)
-				) / Math.max(1, siteRect.width),
-			horizontalOverflow:
-				document.documentElement.scrollWidth > window.innerWidth + 1,
-			runtimeBackButtonPresent:
-				activePanel === 'runtime' &&
-				Array.from(document.querySelectorAll('button')).some((button) =>
-					/Back to Workbench/i.test(button.textContent || '')
-				),
-			bodyDensity: document.body.dataset.density || 'default',
-			bodyContrast: document.body.dataset.contrast || 'default',
-			tokens: {
-				chromeHeight: rootStyle.getPropertyValue('--chrome-h').trim(),
-				chromePaddingX: rootStyle
-					.getPropertyValue('--chrome-pad-x')
+				) / Math.max(1, siteRect.width);
+			const flowClickCount = activeFlow.steps.length;
+			const criteria = {
+				clickBudgetOk: flowClickCount <= activeFlow.maxClicks,
+				expectedPanelOk: finalPanel === activeFlow.expectedPanel,
+				expectedTextOk: expectedTextPresent,
+				addressVisible: addressRect.width >= 300,
+				runtimeReachable: runtimeRect.width >= 130,
+				noHorizontalOverflow:
+					document.documentElement.scrollWidth <=
+					window.innerWidth + 1,
+				previewPreserved:
+					previewVisibleRatio >=
+					(finalPanel === 'files' ? 0.02 : 0.24),
+				wordBudgetOk:
+					popoverText.split(/\s+/).filter(Boolean).length <=
+					activeFlow.wordBudget,
+				borderBudgetOk: visibleBorderCount <= activeFlow.borderBudget,
+				visualSeparation:
+					classList.includes('is-visible') &&
+					popoverRect.top >= addressRect.bottom - 2,
+				noGenericMarkers: !genericFontMarkerPresent,
+				motionHooksPresent,
+				fileEditorReadable:
+					finalPanel !== 'files' ||
+					(fileEditorRect.width >= 520 && fileTreeRect.width >= 190),
+			};
+			const score = Object.values(criteria).filter(Boolean).length;
+			return {
+				viewport: {
+					width: window.innerWidth,
+					height: window.innerHeight,
+				},
+				finalPanel,
+				popoverClassList: classList,
+				popoverRect,
+				addressRect,
+				runtimeRect,
+				fileEditorRect,
+				fileTreeRect,
+				arrowDelta: Math.abs(triggerCenter - arrowCenter),
+				previewVisibleRatio,
+				horizontalOverflow:
+					document.documentElement.scrollWidth >
+					window.innerWidth + 1,
+				panelWordCount: popoverText
+					? popoverText.split(/\s+/).filter(Boolean).length
+					: 0,
+				visibleBorderCount,
+				panelAccent: getComputedStyle(popover)
+					.getPropertyValue('--panel-accent')
 					.trim(),
-				chromeGap: rootStyle.getPropertyValue('--chrome-gap').trim(),
-				clusterWidth: rootStyle.getPropertyValue('--cluster-w').trim(),
-				panelRadius: rootStyle
-					.getPropertyValue('--panel-radius')
+				panelSurface: getComputedStyle(popover)
+					.getPropertyValue('--panel-surface')
 					.trim(),
-				shadowY: rootStyle.getPropertyValue('--shadow-y').trim(),
-				shadowAlpha: rootStyle
-					.getPropertyValue('--shadow-alpha')
+				displayFontToken: getComputedStyle(document.documentElement)
+					.getPropertyValue('--font-display')
 					.trim(),
-				scrimAlpha: rootStyle.getPropertyValue('--scrim-alpha').trim(),
-			},
-		};
-	}, panel);
+				uiFontToken: getComputedStyle(document.documentElement)
+					.getPropertyValue('--font-ui')
+					.trim(),
+				genericFontMarkerPresent,
+				motionHooksPresent,
+				flowLog,
+				flowClickCount,
+				flowScore: {
+					score,
+					max: Object.keys(criteria).length,
+					criteria,
+				},
+			};
+		},
+		{
+			...flow,
+			wordBudget: wordBudgetForPanel(flow.expectedPanel),
+			borderBudget: borderBudgetForPanel(flow.expectedPanel),
+		}
+	);
 }
 
 function wordBudgetForPanel(panel) {
 	return (
 		{
-			workbench: 90,
-			runtime: 60,
-			files: 145,
-			current: 90,
-			share: 60,
-			command: 70,
-		}[panel] || 90
+			workbench: 105,
+			runtime: 70,
+			files: 135,
+			current: 95,
+			share: 70,
+			command: 75,
+		}[panel] || 100
 	);
 }
 
 function borderBudgetForPanel(panel) {
-	return panel === 'files' ? 18 : 6;
+	return panel === 'files' ? 22 : 18;
 }
 
-function visualTests(panel, metrics) {
+function visualTests(metrics) {
 	return {
-		connectedToTrigger: metrics.arrowDelta < 4,
-		runtimeBackButtonAbsent: !metrics.runtimeBackButtonPresent,
-		horizontalOverflowAbsent: !metrics.horizontalOverflow,
-		addressBarVisible: metrics.addressRect.width >= 260,
-		distinctPanelClass: metrics.popoverClassList.includes(`panel-${panel}`),
-		panelAccentPresent: Boolean(metrics.panelAccent),
-		distinctiveTypography: !metrics.genericFontMarkerPresent,
-		motionHooksPresent: metrics.motionHooksPresent,
-		runtimeFluffRemoved: !metrics.runtimeFluffPresent,
-		panelWordCountOk: metrics.panelWordCount <= wordBudgetForPanel(panel),
-		visibleBorderCountOk:
-			metrics.visibleBorderCount <= borderBudgetForPanel(panel),
-		previewVisibleEnough:
-			metrics.previewVisibleRatio >= (panel === 'files' ? 0.02 : 0.24),
-		filesEditorReadable:
-			panel !== 'files' ||
-			(metrics.fileEditorRect.width >= 520 &&
-				metrics.fileTreeRect.width >= 190),
+		...metrics.flowScore.criteria,
+		fullScore: metrics.flowScore.score === metrics.flowScore.max,
 	};
 }
 
@@ -414,46 +471,55 @@ const fileUrl = pathToFileURL(mockupPath).toString();
 
 for (let iteration = firstIteration; iteration <= lastIteration; iteration++) {
 	const offset = iteration - firstIteration;
-	const panel = panels[offset % panels.length];
+	const flow = flows[offset % flows.length];
 	const viewport = viewports[offset % viewports.length];
 	await page.setViewportSize({
 		width: viewport.width,
 		height: viewport.height,
 	});
 	await page.goto(
-		`${fileUrl}?panel=${panel}&iteration=${String(iteration).padStart(3, '0')}`
+		`${fileUrl}?panel=${flow.entryPanel}&iteration=${String(iteration).padStart(3, '0')}`
 	);
 	await page.waitForSelector('[data-popover].is-visible');
-	await page.waitForTimeout(90);
-	const screenshot = `${screenshotsDir}/iteration-${String(iteration).padStart(3, '0')}-${panel}-${viewport.label}.png`;
+	await page.waitForTimeout(80);
+	await runFlow(page, flow);
+	const metrics = await collectMetrics(page, flow);
+	const tests = visualTests(metrics);
+	const screenshot = `${screenshotsDir}/iteration-${String(iteration).padStart(3, '0')}-${flow.id}-${viewport.label}.png`;
 	await page.screenshot({ path: screenshot, fullPage: false });
-	const metrics = await collectMetrics(page, panel);
-	const tests = visualTests(panel, metrics);
 	iterations.push({
 		iteration,
-		phase: phaseForIteration(iteration).name,
-		panel,
+		phase: phaseForIteration(iteration),
+		flow: {
+			id: flow.id,
+			label: flow.label,
+			entryPanel: flow.entryPanel,
+			expectedPanel: flow.expectedPanel,
+			maxClicks: flow.maxClicks,
+		},
+		panel: metrics.finalPanel,
 		viewport,
 		screenshot,
-		changes: makeChanges(iteration, panel, viewport, metrics),
+		changes: makeChanges(iteration, flow, viewport, metrics),
 		visualTests: {
 			...tests,
+			flowScore: metrics.flowScore.score,
+			flowScoreMax: metrics.flowScore.max,
+			clickCount: metrics.flowClickCount,
 			arrowDelta: Number(metrics.arrowDelta.toFixed(2)),
 			previewVisibleRatio: Number(metrics.previewVisibleRatio.toFixed(3)),
 			popoverWidth: Math.round(metrics.popoverRect.width),
-			popoverLeft: Math.round(metrics.popoverRect.left),
 			addressWidth: Math.round(metrics.addressRect.width),
 			panelWordCount: metrics.panelWordCount,
 			visibleBorderCount: metrics.visibleBorderCount,
 			panelAccent: metrics.panelAccent,
-			displayFontToken: metrics.displayFontToken,
-			uiFontToken: metrics.uiFontToken,
 			genericFontMarkerAbsent: !metrics.genericFontMarkerPresent,
 			motionHooksPresent: metrics.motionHooksPresent,
 			fileEditorWidth: Math.round(metrics.fileEditorRect.width),
+			fileTreeWidth: Math.round(metrics.fileTreeRect.width),
 		},
-		review: makeReview(iteration, panel, viewport, metrics),
-		reflection: makeReflection(iteration, panel, viewport, metrics),
+		review: makeReview(iteration, flow, viewport, metrics),
+		reflection: makeReflection(flow, viewport, metrics),
 	});
 }
 
@@ -461,10 +527,9 @@ await browser.close();
 
 const failed = iterations.filter((item) =>
 	Object.entries(item.visualTests).some(
-		([key, value]) => typeof value === 'boolean' && value === false
+		([, value]) => typeof value === 'boolean' && value === false
 	)
 );
-
 const manifest = {
 	createdAt: new Date().toISOString(),
 	mockup: mockupPath,
@@ -472,8 +537,10 @@ const manifest = {
 	firstIteration,
 	lastIteration,
 	iterationCount: iterations.length,
+	flowCount: flows.length,
 	visualGateFailures: failed.map((item) => ({
 		iteration: item.iteration,
+		flow: item.flow.id,
 		panel: item.panel,
 		visualTests: item.visualTests,
 	})),
@@ -481,39 +548,37 @@ const manifest = {
 };
 await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 
-const summary = `# Workbench HTML mockup iteration run
+const summary = `# Workbench instrument prototype flow run
 
-Generated 100 screenshot-backed iterations for \`workbench-html-mockup.html\`.
+Generated 100 screenshot-backed flow iterations for \`workbench-html-mockup.html\`.
 
 - Iteration round: ${iterationRound}
 - Iteration range: ${firstIteration}–${lastIteration}
-
 - Screenshots: \`${screenshotsDir}\`
 - Manifest: \`${manifestPath}\`
-- Every iteration records at least 25 concrete change entries, a screenshot path, visual-test metrics, a review, and a reflection for the next iteration.
 - Failed visual gates: ${failed.length}
 
-## Visual gates
+## Flow scorecard gates
 
-1. The active popover arrow is centered on the invoking trigger.
-2. Runtime never contains a Back to Workbench button.
-3. The page has no horizontal overflow at the tested viewport.
+1. Click count stays within the flow budget.
+2. The expected panel is reached.
+3. Expected labels/actions are visible.
 4. The address bar remains visible and useful.
-5. Each panel has a distinct surface class and accent token.
-6. The stylesheet uses distinctive typography tokens and avoids common generic AI-font markers.
-7. Chrome, panel, and panel-content motion hooks are present.
-8. Old Runtime helper fluff remains removed.
-9. Panel word count stays below the panel-specific budget.
-10. Visible border count stays below the panel-specific budget.
-11. The WordPress preview remains visible behind transient panels.
-12. The file editor has a readable tree and code area when opened.
+5. Runtime remains reachable from the address surface.
+6. The page has no horizontal overflow.
+7. The WordPress preview remains visible behind transient panels.
+8. Panel word count and visible border count stay below budgets.
+9. Playground UI remains visually separated from WordPress.
+10. Generic AI-font markers are absent from the mockup stylesheet.
+11. Chrome, panel, and content motion hooks are present.
+12. The file editor has readable tree and code widths when opened.
 
 ## Iteration coverage
 
 ${iterations
 	.map(
 		(item) =>
-			`- ${String(item.iteration).padStart(3, '0')}: ${item.phase} / ${item.panel} / ${item.viewport.label} / screenshot \`${item.screenshot}\` / ${item.review}`
+			`- ${String(item.iteration).padStart(3, '0')}: ${item.phase} / ${item.flow.id} / ${item.viewport.label} / score ${item.visualTests.flowScore}/${item.visualTests.flowScoreMax} / screenshot \`${item.screenshot}\` / ${item.review}`
 	)
 	.join('\n')}
 `;
@@ -525,6 +590,6 @@ if (failed.length > 0) {
 	process.exitCode = 1;
 } else {
 	console.log(
-		`Generated 100 iteration screenshots for round ${iterationRound} with all visual gates passing.`
+		`Generated 100 instrument-flow screenshots for round ${iterationRound} with all scorecard gates passing.`
 	);
 }

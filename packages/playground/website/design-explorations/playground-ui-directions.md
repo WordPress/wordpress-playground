@@ -1,6 +1,6 @@
 # Playground Workbench HTML mockup
 
-This PR is now a design exploration only. It does **not** wire a new route into the
+This PR is a **design exploration only**. It does not wire a new route into the
 Playground app. Open the standalone clickable mockup directly:
 
 ```text
@@ -10,64 +10,60 @@ packages/playground/website/design-explorations/workbench-html-mockup.html
 For example:
 
 ```text
-file:///Users/cloudnik/conductor/workspaces/wordpress-playground/helsinki/packages/playground/website/design-explorations/workbench-html-mockup.html?panel=workbench
+file:///Users/cloudnik/conductor/workspaces/wordpress-playground/helsinki/packages/playground/website/design-explorations/workbench-html-mockup.html?panel=workbench&iteration=350
 ```
 
 Useful panels:
 
-- `?panel=workbench`
-- `?panel=runtime`
-- `?panel=files`
-- `?panel=current`
-- `?panel=share`
-- `?panel=command`
+- `?panel=workbench&iteration=350`
+- `?panel=runtime&iteration=350`
+- `?panel=files&iteration=350`
+- `?panel=current&iteration=350`
+- `?panel=share&iteration=350`
+- `?panel=command&iteration=350`
 
-## Aesthetic direction
+## Current direction: precision instrument
 
-The current pass commits to a more opinionated direction: **atelier browser**.
-It treats Playground as a crafted instrument sitting above the live WordPress
-site, not as a generic SaaS toolbar. The memorable visual hook is the contrast
-between the ordinary WordPress admin underneath and a warm, tactile browser rail
-with vellum panels, editorial type, brass/oxide accents, and dark recovery tools.
+The latest pass replaces the warmer atelier-browser direction with a sharper
+**precision instrument**. Playground now reads like a focused browser/workbench
+built for operating a live WordPress runtime: graphite shell, measured address
+bar, status LEDs, compact segmented controls, dark editor-grade panels, and
+one deliberate Workbench entry point.
 
-This deliberately avoids the default white-card/product-dashboard look:
+The important product constraints stay intact:
 
-- display type uses an editorial serif stack;
-- UI type uses a characterful humanist stack;
-- the palette is paper, charcoal, oxide, cobalt, moss, plum, and steel;
-- panels use subtle grid/folio textures, not plain white rectangles;
-- chrome/panel/content entry animations create one staged reveal;
-- the file editor becomes a dark recovery workbench with a right-side recovery
-  rail.
+- Playground remains full-page; there is no permanent sidebar competing with
+  `wp-admin`.
+- The address bar remains central and visible.
+- Runtime settings are first-class via the blue chip inside the address bar.
+- Workbench is the only broad tool trigger in chrome.
+- Panels are transient, anchored, and visually separate from the WordPress site.
+- Files open as a real editor/recovery workspace, not a cramped settings panel.
 
-## What changed in this direction
+## What changed in this pass
 
-The latest direction keeps the pieces people already understand:
+The chrome now has three deliberate zones instead of many equal toolbar buttons:
 
-- Playground is still full-page.
-- The address bar is still visible and central.
-- WordPress remains the main canvas.
-- Playground tools are visually separate from WordPress and open only on demand.
-
-The chrome now has three deliberate zones instead of a row of equal toolbar
-buttons:
-
-1. **Playground identity and persistence** — active Playground name, save state,
-   and Save live together. This reflects PR 3655's model: autosaves are recovery
-   copies; Save is an intentional promotion.
-2. **Address and runtime** — the address bar remains the browser-like primary
-   control. Runtime is a chip inside the address surface, so WordPress/PHP,
-   network, and storage settings stay one click away without adding another
-   top-level button.
-3. **Workbench** — one brass, high-confidence entry point for tasks that affect
+1. **Identity and persistence** — current Playground name, unsaved state, and
+   Save live together. This follows PR 3655's split between automatic recovery
+   and intentional saving.
+2. **Address and runtime** — the browser-like URL control stays dominant.
+   Runtime is inside the same surface because WordPress/PHP/storage/network are
+   often-needed environment choices.
+3. **Workbench** — one high-confidence command surface for actions that affect
    the running site.
 
-Each panel is anchored to its invoking control with a visual triangle, but the
-surfaces no longer feel like the same popover wearing different content.
-Runtime, Workbench, Share, Command, Current Playground, and Files each get their
-own accent and background wash. Runtime has no Back to Workbench button. Share
-is not hidden under Inspect. Files open as a wide editor-grade workspace rather
-than a cramped settings tab.
+Workbench organizes the product surface by user job instead of implementation
+bucket:
+
+| User question                             | Surface                                  | Why                                                           |
+| ----------------------------------------- | ---------------------------------------- | ------------------------------------------------------------- |
+| What am I looking at, and will I lose it? | Current Playground                       | Identity and safety should be one click from the name.        |
+| Where do I go in WordPress?               | Address bar                              | Users like the browser model; do not dilute it.               |
+| How do I change WP/PHP/network/storage?   | Runtime chip + Workbench priority action | Runtime settings are important enough to stay visible.        |
+| What can I do to this site?               | Workbench                                | One map avoids separate Create/Inspect/Settings vocabularies. |
+| How do I recover or edit files?           | Files & recovery                         | File work needs a wide editor and recovery context.           |
+| How do I keep or hand off this work?      | Save and Share                           | Preservation/export actions belong together.                  |
 
 ## Feature surface audit
 
@@ -84,24 +80,27 @@ Current Playground web exposes these product jobs:
 - Inspect/edit: files, Blueprint source, database tools, logs.
 - Preserve/hand off: Save, copy/share URL, download ZIP, export to GitHub.
 
-The mockup groups those jobs this way:
+The mockup surfaces the highest-frequency / highest-risk jobs this way:
 
-| User question                             | Surface                                  | Why                                                                |
-| ----------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------ |
-| What am I looking at, and will I lose it? | Current Playground                       | Identity and safety should be one click from the name.             |
-| Where do I go in WordPress?               | Address bar                              | Users like the browser model; do not dilute it.                    |
-| How do I change WP/PHP/network/storage?   | Runtime chip + Workbench priority action | Runtime settings are important enough to be visible.               |
-| What can I do to this site?               | Workbench                                | A single map avoids separate Create/Inspect/Settings vocabularies. |
-| How do I recover or edit files?           | Files & recovery                         | File work needs a real editor surface and recovery context.        |
-| How do I keep or hand off this work?      | Save and share                           | Preservation/export actions belong together.                       |
+- **Runtime** is visible at all times in the address surface and also appears as
+  the first Workbench priority action.
+- **Save** is next to Playground identity; **Share** groups copy link, ZIP,
+  GitHub export, and saved sites.
+- **Files** is one Workbench click away and opens wide enough for a readable
+  tree, tabs, code, and recovery rail.
+- **Import/create** is a priority Workbench tile, not hidden under Inspect.
+- **Database, Logs, and Blueprint** are one Workbench scan away under Inspect.
+- **Command** carries path/repo/Blueprint power-user flows without replacing the
+  browser address bar.
 
-## Public conversation and research constraints
+## Public conversation and product constraints
 
 The mockup follows the active product direction from PR 3655 and older redesign
 conversation in issue 1561:
 
 - PR 3655 separates automatic recovery from intentional saving: autosaved
-  Playgrounds prevent data loss, while saved Playgrounds are explicit user intent.
+  Playgrounds prevent data loss, while saved Playgrounds are explicit user
+  intent.
 - Issue 1561 called for a redesign that supports multiple offline/stored sites,
   site management, multiple data sources/targets, and Blueprint builder
   integration.
@@ -112,122 +111,75 @@ conversation in issue 1561:
 The UX model also follows a few broad interface principles:
 
 - **Aesthetic/minimalist design:** reduce competing always-visible controls; the
-  top chrome only shows identity, navigation/runtime, and Workbench.
+  top chrome only shows identity, address/runtime, and Workbench.
 - **Recognition over recall:** Workbench exposes a categorized map of actions so
   users do not have to remember whether files, logs, database, Blueprints, or
   exports live under a gear, sidebar, or modal.
-- **Progressive disclosure:** frequently needed surfaces are visible or one click
-  away; deeper features are grouped contextually and labeled by user intent.
-- **Consistency and visual attachment:** every transient panel shares the same
-  connector, shell behavior, and close mechanics, while panel-specific accents
-  make Runtime, Workbench, Files, Share, Command, and Current Playground
-  distinguishable at a glance.
+- **Progressive disclosure:** frequent surfaces are visible or one click away;
+  deeper features are grouped contextually and labeled by user intent.
+- **Visual attachment and separation:** transient panels anchor to their control
+  but use a dark instrument shell and scrim so they do not blend into WordPress.
 
-## 100-iteration evidence
+## Fourth 100-iteration flow scorecard
 
-The mockup includes a Playwright-backed iteration runner:
-
-```bash
-node packages/playground/website/design-explorations/workbench-html-mockup-iteration-runner.mjs
-```
-
-It generates 100 desktop screenshots under:
-
-```text
-.context/workbench-html-mockup-iterations/screenshots/
-```
-
-And writes the audit artifacts:
-
-```text
-packages/playground/website/design-explorations/workbench-html-mockup-iterations.json
-packages/playground/website/design-explorations/workbench-html-mockup-iterations.md
-```
-
-Every iteration records:
-
-- a screenshot path;
-- 25 concrete change entries tied to actual CSS/layout values and product
-  decisions;
-- visual-test metrics;
-- a review;
-- a reflection for the next iteration.
-
-The visual gates check that:
-
-1. the active popover arrow is centered on the invoking trigger;
-2. Runtime has no Back to Workbench button;
-3. the page has no horizontal overflow;
-4. the address bar remains visible;
-5. the WordPress preview remains visible behind transient panels;
-6. the file editor has readable tree and code widths when opened.
-
-Latest local run: 100 iterations, 100 screenshots, 0 visual-gate failures.
-
-## Second 100-iteration pass
-
-The second pass responds to the critique that the first Workbench mockup still
-felt too popover-shaped, too wordy, and too bordered.
+The runner now tests actual user flows across desktop breakpoints instead of
+only measuring static layout properties:
 
 ```bash
-ITERATION_ROUND=2 node packages/playground/website/design-explorations/workbench-html-mockup-iteration-runner.mjs
+ITERATION_ROUND=4 node packages/playground/website/design-explorations/workbench-html-mockup-iteration-runner.mjs
 ```
 
-It generates another 100 screenshots under:
+It generated 100 screenshot-backed iterations under:
 
 ```text
-.context/workbench-html-mockup-iterations/screenshots-round-2/
+.context/workbench-html-mockup-iterations/screenshots-round-4/
 ```
 
-And writes the second-run artifacts:
+And wrote:
 
 ```text
-packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-2.json
-packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-2.md
+packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-4.json
+packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-4.md
 ```
 
-Round 2 adds stricter checks for:
+Round 4 covers these flows:
 
-1. distinct panel classes and accent tokens;
-2. old Runtime helper fluff staying removed;
-3. panel word counts staying below per-panel budgets;
-4. visible borders staying below per-panel budgets;
-5. the same desktop layout gates from round 1.
+1. Open Runtime from Workbench.
+2. Apply Runtime settings.
+3. Open Files and save code.
+4. Open Share and promote Save.
+5. Find import/create.
+6. Find logs.
+7. Find database.
+8. Find Blueprint source.
+9. Open Command.
+10. Open another saved Playground.
 
-Latest local round-2 run: iterations 101–200, 100 screenshots, 0 visual-gate
-failures. The measured maximums were 128 words in a panel and 14 visibly
-bordered elements, both from the wide file editor.
+The scorecard gates check:
 
-## Third 100-iteration aesthetic pass
+1. click count stays within the flow budget;
+2. the expected panel is reached;
+3. expected labels/actions are visible;
+4. the address bar remains visible and useful;
+5. Runtime remains reachable from the address surface;
+6. the page has no horizontal overflow;
+7. the WordPress preview remains visible behind transient panels;
+8. panel word count and visible border count stay below budgets;
+9. Playground UI remains visually separated from WordPress;
+10. generic AI-font markers are absent from the mockup stylesheet;
+11. chrome, panel, and content motion hooks are present;
+12. the file editor has readable tree and code widths when opened.
 
-The third pass replaces the polite mockup aesthetic with the atelier-browser
-direction described above.
+Latest local round-4 run: iterations 301–400, 100 screenshots, 0 visual-gate
+failures. Measured limits: max 113 words in a panel, max 7 visibly bordered
+panel elements, minimum address width 531px, minimum preview ratio 2.7% for the
+wide file editor flow, and 0px max arrow drift.
 
-```bash
-ITERATION_ROUND=3 node packages/playground/website/design-explorations/workbench-html-mockup-iteration-runner.mjs
-```
+## Earlier passes
 
-It generates screenshots under:
+Earlier committed artifacts remain useful history:
 
-```text
-.context/workbench-html-mockup-iterations/screenshots-round-3/
-```
-
-And writes:
-
-```text
-packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-3.json
-packages/playground/website/design-explorations/workbench-html-mockup-iterations-round-3.md
-```
-
-Round 3 keeps the previous layout gates and adds checks that the mockup:
-
-1. uses distinct display/UI typography tokens;
-2. avoids the configured generic AI-font marker list in the mockup stylesheet;
-3. keeps chrome, panel, and panel-content motion hooks present;
-4. preserves six distinct panel accents;
-5. keeps the file editor wide and readable.
-
-Latest local round-3 run: iterations 201–300, 100 screenshots, 0 visual-gate
-failures. The measured maximums were 118 words in a panel and 2 visibly bordered
-elements.
+- Round 1 established the first clickable Workbench model and base layout gates.
+- Round 2 reduced popover clutter, word count, and visible borders.
+- Round 3 explored the atelier-browser aesthetic, now superseded by the
+  precision-instrument direction above.
