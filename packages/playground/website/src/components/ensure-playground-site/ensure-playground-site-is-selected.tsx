@@ -281,7 +281,7 @@ function RestoreAutosaveNudge({
 				<div className={css.title}>Recent autosave available</div>
 				<div className={css.description}>
 					Another Playground was created {getRelativeDate(createdAt)}{' '}
-					from the same setup URL.
+					from the same URL.
 				</div>
 			</div>
 			<div className={css.actions}>

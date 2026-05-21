@@ -1029,7 +1029,7 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
-				/Another Playground was created .* from the same setup URL\./
+				/Another Playground was created .* from the same URL\./
 			)
 		).toBeVisible();
 		await website.waitForNestedIframes();

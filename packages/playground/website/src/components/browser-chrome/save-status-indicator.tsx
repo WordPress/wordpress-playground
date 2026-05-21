@@ -47,8 +47,11 @@ function getSaveStatus(
 	return 'saved';
 }
 
-function getSyncLabel({ isAutosaved }: { isAutosaved: boolean }) {
-	return isAutosaved ? 'Autosaving' : 'Saving';
+function getSyncLabel({ site }: { site: SiteInfo | undefined }) {
+	return site &&
+		(isAutosavedSite(site) || site.metadata.initialOpfsSyncPending)
+		? 'Autosaving'
+		: 'Saving';
 }
 
 function getProgressPercent(
@@ -174,7 +177,7 @@ export function SaveStatusIndicator() {
 			<div
 				className={classNames(css.indicator, css.saving)}
 				aria-label={`${getSyncLabel({
-					isAutosaved,
+					site: activeSite,
 				})} ${progressPercent}%`}
 				role="status"
 			>
@@ -188,7 +191,7 @@ export function SaveStatusIndicator() {
 					aria-hidden="true"
 				/>
 				<span className={css.label}>
-					{getSyncLabel({ isAutosaved })}
+					{getSyncLabel({ site: activeSite })}
 				</span>
 			</div>
 		);
