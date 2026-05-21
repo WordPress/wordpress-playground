@@ -119,7 +119,7 @@ test('?blueprint-url=... should work with simple blueprints', async ({
 	const blueprintUrl = encodeURIComponent(
 		`${websiteUrl}test-fixtures/blueprint/blueprint-simple.json`
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await website.goto(`./?blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -134,7 +134,7 @@ test('?blueprint-url=... should accept data URLs', async ({
 	const blueprintUrl = encodeURIComponent(
 		`data:application/json;base64,eyJsYW5kaW5nUGFnZSI6Ii9weWdtYWxpb24udHh0Iiwic3RlcHMiOlt7InN0ZXAiOiJ3cml0ZUZpbGUiLCJwYXRoIjoiL3dvcmRwcmVzcy9weWdtYWxpb24udHh0IiwiZGF0YSI6IlBSRUZBQ0UgVE8gUFlHTUFMSU9OIn1dfQ==`
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await website.goto(`./?blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -150,7 +150,7 @@ test('?blueprint-url=... should work with ZIP bundles', async ({
 	const blueprintUrl = encodeURIComponent(
 		`${websiteUrl}test-fixtures/blueprint/blueprint.zip`
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await website.goto(`./?blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -166,7 +166,7 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 	const blueprintUrl = encodeURIComponent(
 		`${websiteUrl}test-fixtures/blueprint/blueprint-with-bundled-resources.json`
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await website.goto(`./?blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
