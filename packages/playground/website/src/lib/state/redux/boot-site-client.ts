@@ -307,6 +307,9 @@ export function bootSiteClient(
 				url: '/',
 				client: connectedPlayground,
 				opfsMountDescriptor: mountDescriptor,
+				opfsSync: shouldSyncNewOpfsSiteInBackground
+					? { status: 'syncing' }
+					: undefined,
 			})
 		);
 		if (site.metadata.storage !== 'none') {
@@ -329,14 +332,6 @@ export function bootSiteClient(
 			// A final progress message may arrive after mountOpfs() resolves and
 			// must not resurrect the completed sync state in Redux.
 			let opfsMountSettled = false;
-			dispatch(
-				updateClientInfo({
-					siteSlug: site.slug,
-					changes: {
-						opfsSync: { status: 'syncing' },
-					},
-				})
-			);
 			void connectedPlayground
 				.mountOpfs(
 					{

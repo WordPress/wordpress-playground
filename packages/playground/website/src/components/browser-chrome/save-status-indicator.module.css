@@ -109,8 +109,8 @@
 
 .primary-action {
 	align-items: center;
-	background: #1e1e1e;
-	border: none;
+	background: #3858e9;
+	border: 1px solid #6c84ff;
 	border-radius: 4px;
 	color: #fff;
 	cursor: pointer;
@@ -127,7 +127,8 @@
 
 .primary-action:hover,
 .primary-action:focus-visible {
-	background: #2f2f2f;
+	background: #4f6df0;
+	border-color: #8fa1ff;
 }
 
 .spinner {

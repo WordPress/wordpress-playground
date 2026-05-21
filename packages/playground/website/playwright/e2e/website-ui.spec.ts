@@ -826,7 +826,9 @@ test.describe('Default Playground storage', () => {
 			website.page.getByText('Recent autosave available')
 		).toBeVisible();
 		await expect(
-			website.page.getByText('from the same setup URL.')
+			website.page.getByText(
+				/Another Playground was created .* from the same setup URL\./
+			)
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
@@ -967,11 +969,14 @@ echo get_option('blogname');
 		await expect(indicator).toBeVisible();
 		await expect(indicator).toHaveCount(1);
 		await indicator.click();
-		await expect(
-			website.page.getByText(
-				'This Playground is not stored anywhere. Changes are lost when this page is refreshed or closed.'
-			)
-		).toBeVisible();
+		const popoverDescription = website.page.getByText(
+			'This Playground is not stored anywhere. Changes are lost when this page is refreshed or closed.'
+		);
+		await expect(popoverDescription).toBeVisible();
+		await indicator.click();
+		await expect(popoverDescription).toHaveCount(0);
+		await indicator.click();
+		await expect(popoverDescription).toBeVisible();
 		await website.page
 			.getByRole('button', { name: 'Store permanently' })
 			.click();

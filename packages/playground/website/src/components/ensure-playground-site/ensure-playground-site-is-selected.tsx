@@ -266,18 +266,14 @@ function RestoreAutosaveNudge({
 	onRestore: () => void;
 	onKeepNew: () => void;
 }) {
-	const lastUsed = new Date(
-		(site.metadata.whenLastUsed ??
-			site.metadata.whenCreated ??
-			Date.now()) - 2
-	);
+	const createdAt = new Date((site.metadata.whenCreated ?? Date.now()) - 2);
 
 	return (
 		<aside className={css.nudge} aria-label="Recent autosaved Playground">
 			<div className={css.copy}>
 				<div className={css.title}>Recent autosave available</div>
 				<div className={css.description}>
-					Autosaved another Playground {getRelativeDate(lastUsed)}{' '}
+					Another Playground was created {getRelativeDate(createdAt)}{' '}
 					from the same setup URL.
 				</div>
 			</div>

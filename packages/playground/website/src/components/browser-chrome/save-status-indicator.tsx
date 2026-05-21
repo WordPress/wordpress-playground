@@ -46,18 +46,19 @@ function getSyncLabel({
 	isAutosaved: boolean;
 	progress: Extract<OpfsSync, { status: 'syncing' }>['progress'];
 }) {
+	if (isAutosaved) {
+		return 'Unsaved';
+	}
 	if (
 		progress?.phase === 'flushing' ||
 		(progress && progress.total > 0 && progress.files >= progress.total)
 	) {
-		return isAutosaved ? 'Finalizing autosave...' : 'Finalizing save...';
+		return 'Finalizing save...';
 	}
 	if (progress) {
-		return isAutosaved
-			? `Autosaving ${progress.files}/${progress.total}...`
-			: `Saving ${progress.files}/${progress.total}...`;
+		return `Saving ${progress.files}/${progress.total}...`;
 	}
-	return isAutosaved ? 'Autosaving...' : 'Saving...';
+	return 'Saving...';
 }
 
 export function SaveStatusIndicator() {
@@ -65,6 +66,7 @@ export function SaveStatusIndicator() {
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const statusButtonRef = useRef<HTMLButtonElement>(null);
+	const suppressNextTriggerClickRef = useRef(false);
 	const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
 	const opfsSync = clientInfo?.opfsSync;
@@ -81,6 +83,27 @@ export function SaveStatusIndicator() {
 		if (activeSite) {
 			void dispatch(preserveSite(activeSite.slug));
 		}
+	};
+
+	const handleTriggerMouseDown = (
+		event: React.MouseEvent<HTMLButtonElement>
+	) => {
+		if (!isPopoverOpen) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		suppressNextTriggerClickRef.current = true;
+		setIsPopoverOpen(false);
+	};
+
+	const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		event.stopPropagation();
+		if (suppressNextTriggerClickRef.current) {
+			suppressNextTriggerClickRef.current = false;
+			return;
+		}
+		setIsPopoverOpen((isOpen) => !isOpen);
 	};
 
 	if (status === 'saved') {
@@ -102,7 +125,8 @@ export function SaveStatusIndicator() {
 						css.autosaved,
 						css.actionable
 					)}
-					onClick={() => setIsPopoverOpen((isOpen) => !isOpen)}
+					onMouseDown={handleTriggerMouseDown}
+					onClick={handleTriggerClick}
 					aria-expanded={isPopoverOpen}
 					type="button"
 				>
@@ -177,7 +201,8 @@ export function SaveStatusIndicator() {
 					css.unsaved,
 					css.actionable
 				)}
-				onClick={() => setIsPopoverOpen((isOpen) => !isOpen)}
+				onMouseDown={handleTriggerMouseDown}
+				onClick={handleTriggerClick}
 				aria-expanded={isPopoverOpen}
 				type="button"
 			>
