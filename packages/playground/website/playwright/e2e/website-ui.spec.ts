@@ -9,6 +9,17 @@ import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/sup
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 
+function getUniqueSavedPlaygroundSetupUrl(
+	label: string,
+	params: Record<string, string> = {}
+) {
+	const searchParams = new URLSearchParams({
+		name: `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+		...params,
+	});
+	return `./?${searchParams}`;
+}
+
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
@@ -596,6 +607,8 @@ test.describe('Database panel', () => {
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
 test.describe('Default Playground storage', () => {
+	test.describe.configure({ mode: 'serial' });
+
 	test('should create and finish autosaving a Playground from the root URL', async ({
 		website,
 		browserName,
@@ -611,16 +624,14 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 		await website.ensureSiteManagerIsClosed();
 
-		await expect
-			.poll(() =>
-				new URL(website.page.url()).searchParams.get('site-slug')
-			)
-			.toBeTruthy();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({
 			timeout: 120000,
 		});
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
+		);
 		await expect(
 			website.page.getByText(/Autosaving|Finalizing autosave/)
 		).toHaveCount(0);
@@ -638,7 +649,9 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.goto('./');
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('creation-actions')
+		);
 		const siteSlugBeforeGitHubImport = new URL(
 			website.page.url()
 		).searchParams.get('site-slug');
@@ -691,7 +704,7 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.goto('./');
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('storage-details'));
 		await website.ensureSiteManagerIsOpen();
 
 		await expect(
@@ -724,7 +737,7 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.goto('./');
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('promote'));
 		await website.ensureSiteManagerIsClosed();
 		const statusButton = website.page.getByRole('button', {
 			name: 'Autosaved',
@@ -764,16 +777,10 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.goto('./');
-		await expect
-			.poll(() =>
-				new URL(website.page.url()).searchParams.get('site-slug')
-			)
-			.toBeTruthy();
-		const siteSlug = new URL(website.page.url()).searchParams.get(
-			'site-slug'
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('restore'));
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
 		);
-		expect(siteSlug).toBeTruthy();
 
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -792,10 +799,20 @@ update_option('blogname', ${JSON.stringify(blogName)});
 		}, expectedBlogName);
 
 		await website.page.reload();
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Restore autosaved Playground?',
+			})
+		).toBeVisible();
+		await website.page
+			.getByRole('button', { name: 'Restore autosave' })
+			.click();
 		await website.waitForNestedIframes();
-		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
-			siteSlug
-		);
+		await expect
+			.poll(() =>
+				new URL(website.page.url()).searchParams.get('site-slug')
+			)
+			.toBeTruthy();
 
 		const blogName = await website.page.evaluate(async () => {
 			const playground = (window as any).playground;
@@ -808,6 +825,60 @@ echo get_option('blogname');
 			return result.text;
 		});
 		expect(blogName).toBe(expectedBlogName);
+	});
+
+	test('should start fresh from a setup URL when an autosave exists', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const setupName = `fresh-${Date.now()}-${Math.random()
+			.toString(36)
+			.slice(2)}`;
+		await website.goto(`./?php=8.3&name=${setupName}&random=first`);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+
+		const firstBlogName = `Restored Playground ${Date.now()}`;
+		await website.page.evaluate(async (blogName) => {
+			const playground = (window as any).playground;
+			await playground.run({
+				code: `<?php
+require_once '/wordpress/wp-load.php';
+update_option('blogname', ${JSON.stringify(blogName)});
+`,
+			});
+			await playground.flushOpfs('/wordpress');
+		}, firstBlogName);
+
+		await website.page.goto(`./?php=8.3&name=${setupName}&cb=cache-buster`);
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Restore autosaved Playground?',
+			})
+		).toBeVisible();
+		await website.page.getByRole('button', { name: 'Start fresh' }).click();
+		await website.waitForNestedIframes();
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
+		);
+
+		const freshBlogName = await website.page.evaluate(async () => {
+			const playground = (window as any).playground;
+			const result = await playground.run({
+				code: `<?php
+require_once '/wordpress/wp-load.php';
+echo get_option('blogname');
+`,
+			});
+			return result.text;
+		});
+		expect(freshBlogName).not.toBe(firstBlogName);
 	});
 
 	test('should fall back to an unsaved Playground when browser storage is unavailable', async ({

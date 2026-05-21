@@ -32,6 +32,7 @@ import {
 	type AutosavedSitesPruneOptions,
 	type SitePersistence,
 } from './site-lifecycle';
+import { getSetupUrlFingerprint } from '../url/setup-url';
 export {
 	MAX_AUTOSAVED_SITES,
 	SitePersistenceTypes,
@@ -342,6 +343,9 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
+					sourceSetupUrlFingerprint: getSetupUrlFingerprint(
+						playgroundUrlWithQueryApiArgs
+					),
 					originalBlueprint: {},
 					originalBlueprintSource: {
 						type: 'none',
@@ -445,6 +449,9 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
+					sourceSetupUrlFingerprint: getSetupUrlFingerprint(
+						playgroundUrlWithQueryApiArgs
+					),
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
 					runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -509,6 +516,9 @@ export function setStoredSiteSpec(
 				whenLastUsed: now,
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
+				sourceSetupUrlFingerprint: getSetupUrlFingerprint(
+					playgroundUrlWithQueryApiArgs
+				),
 				originalBlueprint: resolvedBlueprint.blueprint,
 				originalBlueprintSource: resolvedBlueprint.source!,
 				runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -597,6 +607,7 @@ export interface SiteMetadata {
 	 * compatibility with existing saved Playgrounds.
 	 */
 	persistence?: SitePersistence;
+	sourceSetupUrlFingerprint?: string;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;

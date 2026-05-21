@@ -17,6 +17,7 @@ import {
 	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
 	isAutosavedSite,
+	type SitePersistence,
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
@@ -131,7 +132,10 @@ export interface PlaygroundSitesAPI {
 	 * @param siteSlug The slug of the site to activate.
 	 * @throws When the site is not found or fails to boot.
 	 */
-	setActiveSite(siteSlug: string): Promise<void>;
+	setActiveSite(
+		siteSlug: string,
+		options?: { updateUrl?: boolean }
+	): Promise<void>;
 
 	/**
 	 * Creates a new temporary site and boots it.
@@ -156,7 +160,11 @@ export interface PlaygroundSitesAPI {
 	 */
 	createNewSavedSite(
 		siteSlug?: string,
-		settings?: SiteSettings
+		settings?: SiteSettings,
+		options?: {
+			persistence?: SitePersistence;
+			updateUrl?: boolean;
+		}
 	): Promise<string>;
 }
 
@@ -341,7 +349,7 @@ export function createSitesAPI(
 			await dispatch(removeSite(siteSlug));
 		},
 
-		async setActiveSite(siteSlug: string) {
+		async setActiveSite(siteSlug: string, options = {}) {
 			const state = getState();
 			const site = selectSiteBySlug(state, siteSlug);
 			if (!site) {
@@ -376,7 +384,7 @@ export function createSitesAPI(
 					},
 				});
 			});
-			dispatch(setActiveSite(siteSlug));
+			dispatch(setActiveSite(siteSlug, options));
 			await bootPromise;
 		},
 
@@ -420,7 +428,8 @@ export function createSitesAPI(
 
 		async createNewSavedSite(
 			requestedSiteSlug?: string,
-			settings?: SiteSettings
+			settings?: SiteSettings,
+			options = {}
 		) {
 			if (!isOpfsAvailable) {
 				throw new Error(
@@ -433,10 +442,12 @@ export function createSitesAPI(
 			const url = getUrlWithSettings(settings);
 			const newSiteInfo = await dispatch(
 				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
-					persistence: 'autosave',
+					persistence: options.persistence ?? 'autosave',
 				})
 			);
-			await api.setActiveSite(newSiteInfo.slug);
+			await api.setActiveSite(newSiteInfo.slug, {
+				updateUrl: options.updateUrl,
+			});
 			await dispatch(
 				pruneAutosavedSites({
 					excludeSlugs: [newSiteInfo.slug],

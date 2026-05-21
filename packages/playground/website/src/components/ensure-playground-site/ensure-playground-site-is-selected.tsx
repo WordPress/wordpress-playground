@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Flex, FlexItem } from '@wordpress/components';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import {
 	isSaveDisabledByQueryParam,
@@ -7,7 +8,10 @@ import {
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
+	isAutosavedSite,
 	selectSiteBySlug,
+	selectSortedSites,
+	type SiteInfo,
 } from '../../lib/state/redux/slice-sites';
 import {
 	selectActiveSite,
@@ -19,6 +23,12 @@ import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
+import {
+	getSetupUrlFingerprint,
+	getSetupUrlFingerprintFromSite,
+} from '../../lib/state/url/setup-url';
+import { Modal } from '../modal';
+import { getRelativeDate } from '../../lib/get-relative-date';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -37,6 +47,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		(state) => state.sites.opfsSitesLoadingState
 	);
 	const activeSite = useAppSelector((state) => selectActiveSite(state));
+	const sortedSites = useAppSelector(selectSortedSites);
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const url = useCurrentUrl();
@@ -55,6 +66,17 @@ export function EnsurePlaygroundSiteIsSelected({
 	);
 	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
 		useState<false | string>(false);
+	const [autosavePrompt, setAutosavePrompt] = useState<{
+		site: SiteInfo;
+		setupUrlFingerprint: string;
+	}>();
+	const [freshSetupFingerprints, setFreshSetupFingerprints] = useState<
+		string[]
+	>([]);
+	const currentSetupUrlFingerprint = useMemo(
+		() => getSetupUrlFingerprint(url),
+		[url.href]
+	);
 
 	const prevUrl = usePrevious(url);
 
@@ -139,8 +161,28 @@ export function EnsurePlaygroundSiteIsSelected({
 			if (shouldUseTemporarySite) {
 				await sitesAPI.createNewTemporarySite();
 			} else {
+				const matchingAutosave = sortedSites
+					.filter(isAutosavedSite)
+					.find(
+						(site) =>
+							getSetupUrlFingerprintFromSite(site) ===
+							currentSetupUrlFingerprint
+					);
+				if (
+					matchingAutosave &&
+					!freshSetupFingerprints.includes(currentSetupUrlFingerprint)
+				) {
+					setAutosavePrompt({
+						site: matchingAutosave,
+						setupUrlFingerprint: currentSetupUrlFingerprint,
+					});
+					return;
+				}
+
 				try {
-					await sitesAPI.createNewSavedSite();
+					await sitesAPI.createNewSavedSite(undefined, undefined, {
+						updateUrl: false,
+					});
 				} catch (error) {
 					logger.error(
 						'Error creating saved site. Falling back to a temporary site.',
@@ -153,7 +195,12 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, requestedSiteSlug, siteListingStatus]);
+	}, [
+		url.href,
+		requestedSiteSlug,
+		siteListingStatus,
+		freshSetupFingerprints,
+	]);
 
 	useEffect(() => {
 		if (
@@ -178,5 +225,74 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	}, [url.searchParams]);
 
+	if (autosavePrompt) {
+		return (
+			<RestoreAutosavePrompt
+				site={autosavePrompt.site}
+				onRestore={() => {
+					void sitesAPI.setActiveSite(autosavePrompt.site.slug);
+					setAutosavePrompt(undefined);
+				}}
+				onStartFresh={() => {
+					setFreshSetupFingerprints((fingerprints) => [
+						...fingerprints,
+						autosavePrompt.setupUrlFingerprint,
+					]);
+					setAutosavePrompt(undefined);
+				}}
+			/>
+		);
+	}
+
 	return children;
+}
+
+function RestoreAutosavePrompt({
+	site,
+	onRestore,
+	onStartFresh,
+}: {
+	site: SiteInfo;
+	onRestore: () => void;
+	onStartFresh: () => void;
+}) {
+	const lastUsed = new Date(
+		(site.metadata.whenLastUsed ??
+			site.metadata.whenCreated ??
+			Date.now()) - 2
+	);
+
+	return (
+		<Modal
+			title="Restore autosaved Playground?"
+			contentLabel="Restore autosaved Playground?"
+			isDismissible={false}
+			shouldCloseOnClickOutside={false}
+			onRequestClose={onStartFresh}
+		>
+			<p>
+				You have an autosaved Playground from{' '}
+				{getRelativeDate(lastUsed)}.
+			</p>
+			<p>Restore it, or start fresh from this setup URL.</p>
+			<Flex
+				direction="row-reverse"
+				gap={5}
+				expanded={true}
+				wrap={true}
+				justify="flex-start"
+			>
+				<FlexItem>
+					<Button variant="primary" onClick={onRestore}>
+						Restore autosave
+					</Button>
+				</FlexItem>
+				<FlexItem>
+					<Button variant="link" onClick={onStartFresh}>
+						Start fresh
+					</Button>
+				</FlexItem>
+			</Flex>
+		</Modal>
+	);
 }
