@@ -94,8 +94,7 @@ body.is-embedded .fake-window-wrapper {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 6px;
-	padding: 8px 10px;
+	padding: 8px;
 	background: transparent;
 	border: none;
 	cursor: pointer;
@@ -108,10 +107,6 @@ body.is-embedded .fake-window-wrapper {
 
 .saved-playgrounds-button svg {
 	fill: #fff;
-}
-
-.saved-playgrounds-button-label {
-	color: #fff;
 }
 
 .saved-playgrounds-button:hover {
@@ -150,10 +145,6 @@ body.is-embedded .fake-window-wrapper {
 	}
 	.toolbar-buttons {
 		padding: 0;
-	}
-
-	.saved-playgrounds-button-label {
-		display: none;
 	}
 }
 

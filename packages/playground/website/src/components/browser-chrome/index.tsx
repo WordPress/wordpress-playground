@@ -104,9 +104,6 @@ export default function BrowserChrome({
 							className={css.savedPlaygroundsButton}
 						>
 							<Icon icon={category} size={20} />
-							<span className={css.savedPlaygroundsButtonLabel}>
-								Your Playgrounds
-							</span>
 						</Button>
 
 						<Button

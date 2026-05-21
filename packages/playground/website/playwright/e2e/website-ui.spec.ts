@@ -1,5 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
+import type { Page } from '@playwright/test';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -20,7 +21,7 @@ function getUniqueSavedPlaygroundSetupUrl(
 	return `./?${searchParams}`;
 }
 
-async function runPHPAndFlushOpfs(page: any, code: string) {
+async function runPHPAndFlushOpfs(page: Page, code: string) {
 	await expect
 		.poll(
 			() =>
