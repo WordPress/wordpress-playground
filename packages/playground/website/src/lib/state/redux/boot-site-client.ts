@@ -327,6 +327,27 @@ export function bootSiteClient(
 			}
 		}
 
+		if (
+			site.metadata.initialOpfsSyncPending &&
+			!shouldSyncNewOpfsSiteInBackground
+		) {
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							initialOpfsSyncPending: false,
+						},
+					})
+				);
+			} catch (error) {
+				logger.error(
+					'Error updating Playground initial sync state',
+					error
+				);
+			}
+		}
+
 		if (shouldSyncNewOpfsSiteInBackground && mountDescriptor) {
 			// Progress callbacks cross worker and iframe boundaries asynchronously.
 			// A final progress message may arrive after mountOpfs() resolves and
@@ -356,6 +377,21 @@ export function bootSiteClient(
 					}
 				)
 				.then(async () => {
+					try {
+						await dispatch(
+							updateSiteMetadata({
+								slug: site.slug,
+								changes: {
+									initialOpfsSyncPending: false,
+								},
+							})
+						);
+					} catch (error) {
+						logger.error(
+							'Error updating Playground initial sync state',
+							error
+						);
+					}
 					await new Promise((resolve) => setTimeout(resolve, 100));
 					opfsMountSettled = true;
 					dispatch(

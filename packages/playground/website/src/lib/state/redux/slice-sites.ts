@@ -517,6 +517,7 @@ export function setStoredSiteSpec(
 				whenLastUsed: now,
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
+				initialOpfsSyncPending: true,
 				sourceSetupUrlFingerprint: getSetupUrlFingerprint(
 					playgroundUrlWithQueryApiArgs
 				),
@@ -609,6 +610,7 @@ export interface SiteMetadata {
 	 */
 	persistence?: SitePersistence;
 	sourceSetupUrlFingerprint?: string;
+	initialOpfsSyncPending?: boolean;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;

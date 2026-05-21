@@ -868,8 +868,45 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByText('Recent autosave available')
 		).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
 
 		await website.openSavedPlaygroundsOverlay();
+		await website.page.evaluate(() => {
+			(window as any).__siteSwitchStatusSamples = [];
+			const sampleStatus = () => {
+				const status = [
+					...document.querySelectorAll('[role="status"], button'),
+				]
+					.map((node) => (node.textContent || '').trim())
+					.find((text) =>
+						[
+							'Autosaving',
+							'Saving',
+							'Autosaved',
+							'Saved Playground',
+							'Unsaved',
+						].includes(text)
+					);
+				if (status) {
+					(window as any).__siteSwitchStatusSamples.push(status);
+				}
+			};
+			const observer = new MutationObserver(sampleStatus);
+			observer.observe(document.documentElement, {
+				attributes: true,
+				characterData: true,
+				childList: true,
+				subtree: true,
+			});
+			(window as any).__siteSwitchStatusObserver = observer;
+			(window as any).__siteSwitchStatusInterval = window.setInterval(
+				sampleStatus,
+				25
+			);
+			sampleStatus();
+		});
 		await website.page
 			.getByRole('button', {
 				name: new RegExp(`^${escapeRegExp(firstSite.name)}`),
@@ -881,6 +918,12 @@ test.describe('Default Playground storage', () => {
 				timeout: 120000,
 			})
 			.toMatchObject({ slug: firstSite.slug });
+		const switchStatusSamples = await website.page.evaluate(() => {
+			window.clearInterval((window as any).__siteSwitchStatusInterval);
+			(window as any).__siteSwitchStatusObserver?.disconnect();
+			return (window as any).__siteSwitchStatusSamples;
+		});
+		expect(switchStatusSamples).not.toContain('Autosaving');
 	});
 
 	test('should show autosave browser storage details in the Site Manager by default', async ({

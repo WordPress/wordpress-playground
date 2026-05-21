@@ -28,14 +28,14 @@ function getSaveStatus(
 	}
 	const opfsSync = clientInfo?.opfsSync;
 	const isAutosaved = isAutosavedSite(site);
-	if (isAutosaved && (!clientInfo || opfsSync?.status === 'syncing')) {
-		return 'saving';
-	}
-	if (opfsSync?.status === 'syncing') {
-		return 'saving';
-	}
 	if (opfsSync?.status === 'error') {
 		return 'error';
+	}
+	if (
+		opfsSync?.status === 'syncing' ||
+		(!clientInfo && site.metadata.initialOpfsSyncPending)
+	) {
+		return 'saving';
 	}
 	const storage = site?.metadata.storage;
 	if (storage === 'none' || !storage) {
