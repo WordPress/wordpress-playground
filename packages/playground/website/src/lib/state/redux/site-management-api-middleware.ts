@@ -286,6 +286,7 @@ export function createSitesAPI(
 					persistence: 'autosave',
 					updateUrl: options.updateUrl ?? false,
 					keepOriginalUrlParams: true,
+					keepRunningClient: true,
 				})
 			);
 			await dispatch(

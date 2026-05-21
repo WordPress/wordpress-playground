@@ -917,6 +917,15 @@ echo get_option('blogname');
 		});
 		expect(freshBlogName).not.toBe(firstBlogName);
 
+		const iframeToken = `keep-running-${Date.now()}`;
+		await website.page
+			.locator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.evaluate((iframe: HTMLIFrameElement, token) => {
+				(iframe.contentWindow as any).__playgroundIframeToken = token;
+			}, iframeToken);
+
 		await website.page.getByRole('button', { name: 'No, thanks' }).click();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -934,6 +943,19 @@ echo get_option('blogname');
 				})
 			)
 			.toEqual({ storage: 'opfs', persistence: 'autosave' });
+		await expect
+			.poll(() =>
+				website.page
+					.locator(
+						'#playground-viewport:visible,.playground-viewport:visible'
+					)
+					.evaluate(
+						(iframe: HTMLIFrameElement) =>
+							(iframe.contentWindow as any)
+								.__playgroundIframeToken
+					)
+			)
+			.toBe(iframeToken);
 	});
 
 	test('should fall back to an unsaved Playground when browser storage is unavailable', async ({

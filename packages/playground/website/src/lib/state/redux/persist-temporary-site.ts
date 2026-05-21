@@ -34,6 +34,7 @@ export function persistTemporarySite(
 		persistence?: SitePersistence;
 		updateUrl?: boolean;
 		keepOriginalUrlParams?: boolean;
+		keepRunningClient?: boolean;
 	} = {}
 ) {
 	return async (
@@ -225,23 +226,33 @@ export function persistTemporarySite(
 			);
 		}
 
+		const persistedAt = Date.now();
+		const runtimeConfiguration = {
+			...siteInfo.metadata.runtimeConfiguration,
+			constants: await getPlaygroundDefinedPHPConstants(playground),
+		};
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					storage: storageType,
 					persistence: options.persistence ?? 'explicit',
-					// Reset the created date. Mental model: From the perspective of
-					// the storage backend, the site was just created.
-					whenCreated: Date.now(),
-					whenLastUsed: Date.now(),
+					/**
+					 * The viewport key includes whenCreated to distinguish
+					 * delete/recreate cycles for the same slug. The delayed
+					 * autosave path already has a live Playground iframe and
+					 * must not change that key, or React will remount it after
+					 * the OPFS sync completes.
+					 */
+					...(options.keepRunningClient
+						? {}
+						: { whenCreated: persistedAt }),
+					whenLastUsed: persistedAt,
 					// Make sure to store the constants we'll want to re-apply
 					// on the next page load.
-					runtimeConfiguration: {
-						...siteInfo.metadata.runtimeConfiguration,
-						constants:
-							await getPlaygroundDefinedPHPConstants(playground),
-					},
+					...(options.keepRunningClient
+						? {}
+						: { runtimeConfiguration }),
 					// If we persisted a blueprint bundle, point to it so we can
 					// load the full bundle (not just the declaration) on next load.
 					...(bundleWasPersisted
@@ -255,6 +266,15 @@ export function persistTemporarySite(
 				},
 			})
 		);
+		if (options.keepRunningClient) {
+			const updatedSite = selectSiteBySlug(getState(), siteSlug);
+			if (updatedSite?.metadata.storage !== 'none') {
+				await opfsSiteStorage?.update(updatedSite.slug, {
+					...updatedSite.metadata,
+					runtimeConfiguration,
+				});
+			}
+		}
 		/**
 		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
 		 *        "Cannot read properties of undefined (reading 'apply')" errors here:
