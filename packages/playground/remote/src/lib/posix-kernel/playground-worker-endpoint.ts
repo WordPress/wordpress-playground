@@ -445,6 +445,8 @@ export class KernelPlaygroundWorkerEndpoint {
 
 		let wpZipBytes: Uint8Array | undefined;
 		let sqliteZipBytes: Uint8Array | undefined;
+		let wpZipStripLeadingDir: string | undefined;
+		let wpStaticZipBytes: Uint8Array | undefined;
 		if (bootWordPress) {
 			logger.debug(
 				`[posix-kernel] preparing WordPress zips (scope=${options.scope})`
@@ -470,6 +472,8 @@ export class KernelPlaygroundWorkerEndpoint {
 			});
 			wpZipBytes = zips.wpZipBytes;
 			sqliteZipBytes = zips.sqliteZipBytes;
+			wpZipStripLeadingDir = zips.wpZipStripLeadingDir;
+			wpStaticZipBytes = zips.wpStaticZipBytes;
 			logger.debug(
 				`[posix-kernel] WordPress ${zips.wpVersion} downloaded`
 			);
@@ -484,6 +488,8 @@ export class KernelPlaygroundWorkerEndpoint {
 		const vfsImage = await buildVfsImage({
 			wpZipBytes,
 			sqliteZipBytes,
+			wpZipStripLeadingDir,
+			wpStaticZipBytes,
 			onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
 		});
 

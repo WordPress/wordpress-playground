@@ -70,6 +70,21 @@ export interface BuildVfsImageOptions {
 	 */
 	wpZipBytes?: Uint8Array;
 	sqliteZipBytes?: Uint8Array;
+	/**
+	 * Top-level directory inside `wpZipBytes` to strip when extracting,
+	 * or omitted when files sit at the archive root. The bundled
+	 * `wp-X.Y.zip` is flat; `downloads.w.org/release/wordpress-X.Y.Z.zip`
+	 * wraps everything in `wordpress/`.
+	 */
+	wpZipStripLeadingDir?: string;
+	/**
+	 * Companion static-asset archive (admin CSS/JS, theme screenshots,
+	 * etc.) for the minified `wp-X.Y.zip`. When present, extracted into
+	 * `/var/www/html` after the core zip with no-overwrite semantics —
+	 * matching classic mode's runtime backfill (`backfillStaticFiles
+	 * RemovedFromMinifiedBuild`). Omit for upstream full releases.
+	 */
+	wpStaticZipBytes?: Uint8Array;
 	/** Status callback (download progress, populate steps). */
 	onStatus?: (message: string) => void;
 }
@@ -107,6 +122,13 @@ export async function buildVfsImage(
 			'/var/www/html/wp-content/mu-plugins/wasm-optimizations.php',
 			WASM_OPTIMIZATIONS_MU_PLUGIN
 		);
+		// Out-of-band tools (Adminer, phpMyAdmin) require()
+		// /internal/shared/wp-env.php to discover the SQLite driver path.
+		// Classic mode writes this from a wp_loaded mu-plugin (see
+		// `platform-mu-plugins.ts`); kernel-mode paths are stable, so just
+		// drop a static file here.
+		ensureDirRecursive(fs, '/internal/shared');
+		writeVfsFile(fs, '/internal/shared/wp-env.php', WP_ENV_PHP);
 		// Mirrors the CLI's `ensureAutoLoginMuPlugin`
 		// (packages/playground/cli/src/posix-kernel/prepare-wordpress.ts).
 		// The `login` blueprint step only calls `defineConstant
@@ -121,9 +143,25 @@ export async function buildVfsImage(
 
 		onStatus('Extracting WordPress core into VFS');
 		await extractZipIntoVfs(fs, '/var/www/html', options.wpZipBytes, {
-			stripLeadingDir: 'wordpress',
-			exclude: (rel) => rel.endsWith('.db'),
+			stripLeadingDir: options.wpZipStripLeadingDir,
+			// Drop the archive's own `wp-config.php` (the bundled
+			// `wp-X.Y.zip` ships a sample with `DB_HOST=localhost` that
+			// would clobber the kernel-tailored config written above).
+			exclude: (rel) => rel.endsWith('.db') || rel === 'wp-config.php',
 		});
+
+		if (options.wpStaticZipBytes) {
+			onStatus('Extracting WordPress static assets into VFS');
+			await extractZipIntoVfs(
+				fs,
+				'/var/www/html',
+				options.wpStaticZipBytes,
+				{
+					exclude: (rel) => rel.endsWith('.db'),
+					noOverwrite: true,
+				}
+			);
+		}
 
 		onStatus('Extracting SQLite plugin into VFS');
 		const sqliteMountPrefix =
@@ -473,6 +511,13 @@ interface ExtractZipOptions {
 	stripLeadingDir?: string;
 	/** Skip entries by relative path (post-strip). */
 	exclude?: (relPath: string) => boolean;
+	/**
+	 * Skip entries whose target path already exists. Mirrors classic
+	 * mode's `unzipFile(..., noOverwrite=true)` semantics — used for the
+	 * static-asset backfill so the bundled WP archive's contents win on
+	 * any overlap.
+	 */
+	noOverwrite?: boolean;
 	/** Observe each materialized file (post-strip) — used to fish out
 	 *  db.copy from the SQLite zip without a second pass. */
 	onEntry?: (relPath: string, bytes: Uint8Array) => void;
@@ -528,6 +573,9 @@ async function extractZipIntoVfs(
 				ensureDirRecursive(fs, targetPath);
 				continue;
 			}
+			if (options.noOverwrite && pathExists(fs, targetPath)) {
+				continue;
+			}
 			ensureDirRecursive(fs, dirname(targetPath));
 			const bytes = new Uint8Array(await value.arrayBuffer());
 			writeVfsBinary(fs, targetPath, bytes, 0o644);
@@ -541,6 +589,15 @@ async function extractZipIntoVfs(
 				`${(err as Error).message}`,
 			{ cause: err as Error }
 		);
+	}
+}
+
+function pathExists(fs: MemoryFileSystem, path: string): boolean {
+	try {
+		fs.stat(path);
+		return true;
+	} catch {
+		return false;
 	}
 }
 
@@ -851,6 +908,31 @@ $staticTypes = [
     'txt'   => 'text/plain',
 ];
 
+// Scope path is reused by the trailing-slash 301 (Location must be
+// scope-aware) and the REQUEST_URI re-attachment further down.
+$scopePath = '';
+if (isset($_SERVER['HTTP_X_PLAYGROUND_ABSOLUTE_URL'])) {
+    $maybeScope = parse_url(
+        $_SERVER['HTTP_X_PLAYGROUND_ABSOLUTE_URL'],
+        PHP_URL_PATH
+    );
+    if (is_string($maybeScope) && $maybeScope !== '' && $maybeScope !== '/') {
+        $scopePath = rtrim($maybeScope, '/');
+    }
+}
+
+// Add trailing slash to directory URLs (mirror classic-mode 301).
+// Otherwise /wp-admin renders, but the iframe URL bar stays at the
+// un-canonical /wp-admin and relative admin links break.
+if ($uri !== '/' && substr($uri, -1) !== '/' && is_dir($file)) {
+    $location = $scopePath . $uri . '/';
+    if (!empty($_SERVER['QUERY_STRING'])) {
+        $location .= '?' . $_SERVER['QUERY_STRING'];
+    }
+    header('Location: ' . $location, true, 301);
+    exit;
+}
+
 // Resolve directory URLs to index.php (e.g. /wp-admin/ -> /wp-admin/index.php)
 if (is_dir($file)) {
     $idx = rtrim($file, '/') . '/index.php';
@@ -862,19 +944,13 @@ if (is_dir($file)) {
 
 // Re-attach the scope to REQUEST_URI so WP-internal URL builders
 // (auth_redirect, redirect_canonical, ...) agree with home_url().
-// $file is already resolved from the unscoped path above.
-if (isset($_SERVER['HTTP_X_PLAYGROUND_ABSOLUTE_URL'])) {
-    $absUrl = $_SERVER['HTTP_X_PLAYGROUND_ABSOLUTE_URL'];
-    $scopePath = parse_url($absUrl, PHP_URL_PATH);
-    if (is_string($scopePath) && $scopePath !== '' && $scopePath !== '/') {
-        $scopePath = rtrim($scopePath, '/');
-        $reqUri = $_SERVER['REQUEST_URI'];
-        if (
-            $reqUri !== $scopePath &&
-            strpos($reqUri, $scopePath . '/') !== 0
-        ) {
-            $_SERVER['REQUEST_URI'] = $scopePath . $reqUri;
-        }
+if ($scopePath !== '') {
+    $reqUri = $_SERVER['REQUEST_URI'];
+    if (
+        $reqUri !== $scopePath &&
+        strpos($reqUri, $scopePath . '/') !== 0
+    ) {
+        $_SERVER['REQUEST_URI'] = $scopePath . $reqUri;
     }
 }
 
@@ -956,4 +1032,17 @@ add_filter('pre_http_request', function($pre, $args, $url) {
     return new WP_Error('http_disabled', 'HTTP requests disabled in Wasm');
 }, 10, 3);
 if (!defined('DISALLOW_FILE_MODS')) define('DISALLOW_FILE_MODS', true);
+`;
+
+// Paths track what's extracted in `extractZipIntoVfs` below: the
+// SQLite plugin lives at `/var/www/html/wp-content/plugins/sqlite-…`
+// and its mysql-on-sqlite loader is `wp-pdo-mysql-on-sqlite.php`.
+// `path` matches FQDB in `WP_CONFIG_PHP`.
+const WP_ENV_PHP = `<?php return array(
+    'db' => array(
+        'type' => 'sqlite',
+        'path' => '/var/www/html/wp-content/database/wordpress.db',
+        'driver_path' => '/var/www/html/wp-content/plugins/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php',
+    ),
+);
 `;

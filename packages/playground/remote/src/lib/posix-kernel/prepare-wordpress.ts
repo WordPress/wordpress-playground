@@ -9,10 +9,12 @@
  *
  * Two zips come back:
  *
- *   1. WordPress core — resolved via `resolveWordPressRelease` from
- *      `@wp-playground/wordpress`. Falls through a CORS proxy for
- *      GitHub-hosted archives (wordpress.org sets CORS so it doesn't
- *      need one).
+ *   1. WordPress core — for the bundled minified versions, resolved at
+ *      build time via `getWordPressModuleDetails` (same Vite-bundled
+ *      same-origin asset the classic worker fetches). For `trunk` /
+ *      arbitrary version queries, falls back to `resolveWordPressRelease`
+ *      from `@wp-playground/wordpress` plus a CORS proxy for any host
+ *      that doesn't serve CORS.
  *   2. sqlite-database-integration — pre-bundled inside
  *      `@wp-playground/wordpress-builds`'s assets and resolved at
  *      build time via `getSqliteDriverModuleDetails`. Same source the
@@ -20,7 +22,12 @@
  */
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import { getSqliteDriverModuleDetails } from '@wp-playground/wordpress-builds';
+import {
+	getSqliteDriverModuleDetails,
+	getWordPressModuleDetails,
+	MinifiedWordPressVersionsList,
+	wpVersionToStaticAssetsDirectory,
+} from '@wp-playground/wordpress-builds';
 
 /**
  * The SQLite driver bundle versions shipped by `@wp-playground/wordpress-
@@ -50,8 +57,28 @@ export interface PrepareWordPressZipsOptions {
 export interface PrepareWordPressZipsResult {
 	wpZipBytes: Uint8Array;
 	sqliteZipBytes: Uint8Array;
-	/** Concrete version returned by `resolveWordPressRelease` (e.g. `6.8.0`). */
+	/**
+	 * The bundled minified key (e.g. `'6.8'`) when fetched from the local
+	 * Vite asset, otherwise the concrete release version (e.g. `'6.8.5'`)
+	 * resolved by `resolveWordPressRelease`.
+	 */
 	wpVersion: string;
+	/**
+	 * Top-level directory inside `wpZipBytes` to strip when extracting,
+	 * or `undefined` when files sit at the archive root. The bundled
+	 * `wp-X.Y.zip` ships flat; `downloads.w.org/release/wordpress-X.Y.Z
+	 * .zip` wraps everything in `wordpress/`.
+	 */
+	wpZipStripLeadingDir?: string;
+	/**
+	 * Companion archive shipping every static asset the bundled
+	 * `wp-X.Y.zip` strips at build time (admin CSS/JS, theme screenshots,
+	 * editor styles, etc.). Present only when `wpZipBytes` came from the
+	 * bundled path; classic mode backfills these at runtime via
+	 * `backfillStaticFilesRemovedFromMinifiedBuild`, but kernel mode
+	 * extracts them into the VFS image at build time.
+	 */
+	wpStaticZipBytes?: Uint8Array;
 }
 
 export async function prepareWordPressZips(
@@ -62,14 +89,51 @@ export async function prepareWordPressZips(
 	const onStatus = options.onStatus ?? (() => undefined);
 	const monitor = options.monitor;
 
-	onStatus(`Resolving WordPress ${wpVersionQuery}`);
-	const release = await resolveWordPressRelease(wpVersionQuery);
+	let wpZipBytes: Uint8Array;
+	let wpVersion: string;
+	let wpZipStripLeadingDir: string | undefined;
+	let wpStaticZipBytes: Uint8Array | undefined;
 
-	onStatus(`Downloading WordPress ${release.version}`);
-	const wpZipBytes = await fetchZipBytes(
-		maybeProxyUrl(release.releaseUrl, options.corsProxyUrl),
-		monitor
-	);
+	// Mirror classic mode (`playground-worker-endpoint-blueprints-v1.ts`):
+	// for bundled minified versions, fetch the Vite-bundled same-origin
+	// asset rather than `downloads.w.org` through the CORS proxy. The
+	// `php -S` proxy is fragile under parallel workers — one >30s
+	// curl_exec takes the whole sidecar down, cascading every later
+	// test. `trunk`/`nightly` still return an upstream GitHub URL from
+	// `getWordPressModuleDetails`, so fall through to the proxy path
+	// when the bundled entry isn't a local asset.
+	const bundled = MinifiedWordPressVersionsList.includes(wpVersionQuery)
+		? getWordPressModuleDetails(wpVersionQuery)
+		: null;
+	if (bundled && !/^https?:\/\//.test(bundled.url)) {
+		onStatus(`Downloading WordPress ${wpVersionQuery}`);
+		wpZipBytes = await fetchZipBytes(bundled.url, monitor, bundled.size);
+		wpVersion = wpVersionQuery;
+		// Bundled `wp-X.Y.zip` files are flat — no `wordpress/` wrapper.
+		wpZipStripLeadingDir = undefined;
+		// Pair the minified core with its companion static-asset archive
+		// (admin CSS/JS, theme screenshots, …) — classic mode fetches this
+		// at runtime via `backfillStaticFilesRemovedFromMinifiedBuild`;
+		// kernel mode bakes it into the VFS image at build time. Served
+		// same-origin by `@wp-playground/wordpress-builds` under the
+		// version-keyed directory.
+		const staticDir = wpVersionToStaticAssetsDirectory(wpVersionQuery);
+		if (staticDir) {
+			const staticUrl = `/${staticDir}/wordpress-static.zip`;
+			onStatus(`Downloading WordPress static assets ${wpVersionQuery}`);
+			wpStaticZipBytes = await fetchZipBytes(staticUrl, monitor);
+		}
+	} else {
+		onStatus(`Resolving WordPress ${wpVersionQuery}`);
+		const release = await resolveWordPressRelease(wpVersionQuery);
+		onStatus(`Downloading WordPress ${release.version}`);
+		wpZipBytes = await fetchZipBytes(
+			maybeProxyUrl(release.releaseUrl, options.corsProxyUrl),
+			monitor
+		);
+		wpVersion = release.version;
+		wpZipStripLeadingDir = 'wordpress';
+	}
 
 	onStatus(`Downloading sqlite-database-integration ${sqliteVersion}`);
 	const sqliteDetails = getSqliteDriverModuleDetails(sqliteVersion);
@@ -82,7 +146,9 @@ export async function prepareWordPressZips(
 	return {
 		wpZipBytes,
 		sqliteZipBytes,
-		wpVersion: release.version,
+		wpVersion,
+		wpZipStripLeadingDir,
+		wpStaticZipBytes,
 	};
 }
 
