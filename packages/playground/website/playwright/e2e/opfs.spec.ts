@@ -111,8 +111,17 @@ test('should switch between sites', async ({ website, browserName }) => {
 		website.page.getByText('Autosaved in this browser')
 	).toBeVisible({ timeout: 120000 });
 	await expect
-		.poll(() => new URL(website.page.url()).searchParams.get('site-slug'))
-		.toBeTruthy();
+		.poll(() =>
+			website.page.evaluate(() => {
+				const activeSite = (window as any).playgroundSites
+					.list()
+					.find((site: any) => site.isActive);
+				return activeSite
+					? `${activeSite.storage}:${activeSite.persistence}`
+					: null;
+			})
+		)
+		.toBe('opfs:autosave');
 
 	await website.openSavedPlaygroundsOverlay();
 	await website.page
