@@ -44,8 +44,10 @@ import {
 // dev:experimental-posix-kernel` to start.
 import nginxUrl from '@kernel-binary/programs/wasm32/nginx.wasm?url';
 import phpFpmUrl from '@kernel-binary/programs/wasm32/php/php-fpm.wasm?url';
+import phpUrl from '@kernel-binary/programs/wasm32/php/php.wasm?url';
 import dashUrl from '@kernel-binary/programs/wasm32/dash.wasm?url';
 import coreutilsUrl from '@kernel-binary/programs/wasm32/coreutils.wasm?url';
+import lessUrl from '@kernel-binary/programs/wasm32/less.wasm?url';
 import dinitUrl from '@kernel-binary/programs/wasm32/dinit/dinit.wasm?url';
 import dinitctlUrl from '@kernel-binary/programs/wasm32/dinit/dinitctl.wasm?url';
 
@@ -83,6 +85,7 @@ export async function buildVfsImage(
 	onStatus('Populating system directories and configs');
 	populateSystem(fs);
 	await populateServerBinaries(fs);
+	await populateUserBinaries(fs);
 	populateShellSymlinks(fs);
 	populateNginxConfig(fs);
 	populatePhpFpmConfig(fs);
@@ -201,6 +204,32 @@ async function populateServerBinaries(fs: MemoryFileSystem): Promise<void> {
 	writeVfsBinary(fs, '/usr/sbin/nginx', nginxBytes);
 	writeVfsBinary(fs, '/usr/sbin/php-fpm', phpFpmBytes);
 	writeVfsBinary(fs, '/bin/coreutils', coreutilsBytes);
+}
+
+/**
+ * Binaries that aren't part of the dinit service tree but must be on
+ * `$PATH` so PHP code running inside php-fpm can shell out to them via
+ * `proc_open()`. The boot env sets
+ * `PATH=/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin`
+ * (`boot.ts:bootKernelWordPress`); placing each binary at one of those
+ * locations lets `/bin/sh -c '<cmd>'` resolve it without the caller
+ * having to spell out an absolute path.
+ *
+ * `php` lands at `/usr/local/bin/php` (matches the upstream demo's
+ * convention in `wasm-posix-kernel/examples/browser/pages/php/main.ts`);
+ * `less` lands at `/usr/bin/less` (upstream's `shell-vfs-build.ts`
+ * convention). The php.wasm bytes are also fetched a second time by
+ * `playground-worker-endpoint.ts` for the host-side
+ * `KernelSpawnAdapter`; the browser's HTTP cache dedupes the two
+ * `fetch()` calls so this redundancy is essentially free.
+ */
+async function populateUserBinaries(fs: MemoryFileSystem): Promise<void> {
+	const [phpBytes, lessBytes] = await Promise.all([
+		fetchBinary(phpUrl),
+		fetchBinary(lessUrl),
+	]);
+	writeVfsBinary(fs, '/usr/local/bin/php', phpBytes);
+	writeVfsBinary(fs, '/usr/bin/less', lessBytes);
 }
 
 /**
