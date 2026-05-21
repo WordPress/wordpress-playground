@@ -44,29 +44,17 @@ function getSaveStatus(
 	return 'saved';
 }
 
-function getSyncLabel({
-	isAutosaved,
-	progress,
-}: {
-	isAutosaved: boolean;
-	progress: Extract<OpfsSync, { status: 'syncing' }>['progress'];
-}) {
-	if (isAutosaved) {
-		if (progress) {
-			return `Unsaved ${progress.files}/${progress.total}`;
-		}
-		return 'Unsaved';
+function getSyncLabel({ isAutosaved }: { isAutosaved: boolean }) {
+	return isAutosaved ? 'Autosaving' : 'Saving';
+}
+
+function getProgressPercent(
+	progress: Extract<OpfsSync, { status: 'syncing' }>['progress']
+) {
+	if (!progress || progress.total <= 0) {
+		return 0;
 	}
-	if (
-		progress?.phase === 'flushing' ||
-		(progress && progress.total > 0 && progress.files >= progress.total)
-	) {
-		return 'Finalizing save...';
-	}
-	if (progress) {
-		return `Saving ${progress.files}/${progress.total}...`;
-	}
-	return 'Saving...';
+	return Math.min(100, Math.round((progress.files / progress.total) * 100));
 }
 
 export function SaveStatusIndicator() {
@@ -174,16 +162,26 @@ export function SaveStatusIndicator() {
 	if (status === 'saving') {
 		const progress =
 			opfsSync?.status === 'syncing' ? opfsSync.progress : undefined;
+		const progressPercent = getProgressPercent(progress);
 		return (
 			<div
-				className={classNames(
-					css.indicator,
-					isAutosaved ? css.unsaved : css.saving
-				)}
+				className={classNames(css.indicator, css.saving)}
+				aria-label={`${getSyncLabel({
+					isAutosaved,
+				})} ${progressPercent}%`}
+				role="status"
 			>
-				<span className={css.spinner} />
+				<span
+					className={css.progressRing}
+					style={
+						{
+							'--save-progress': `${progressPercent}%`,
+						} as React.CSSProperties
+					}
+					aria-hidden="true"
+				/>
 				<span className={css.label}>
-					{getSyncLabel({ isAutosaved, progress })}
+					{getSyncLabel({ isAutosaved })}
 				</span>
 			</div>
 		);

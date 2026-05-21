@@ -652,13 +652,15 @@ test.describe('Default Playground storage', () => {
 			let installed = false;
 			const sampleStatus = () => {
 				const statusButton = [
-					...document.querySelectorAll('button'),
+					...document.querySelectorAll('[role="status"], button'),
 				].find((node) => {
 					const label = (node.textContent || '').trim();
 					return (
+						label === 'Autosaving' ||
+						label === 'Saving' ||
 						label === 'Autosaved' ||
 						label === 'Saved Playground' ||
-						/^Unsaved( \d+\/\d+)?$/.test(label)
+						label === 'Unsaved'
 					);
 				});
 				if (!statusButton) {
@@ -666,6 +668,7 @@ test.describe('Default Playground storage', () => {
 				}
 				(window as any).__saveStatusSamples.push({
 					text: (statusButton.textContent || '').trim(),
+					ariaLabel: statusButton.getAttribute('aria-label'),
 					color: getComputedStyle(statusButton).color,
 				});
 			};
@@ -715,26 +718,41 @@ test.describe('Default Playground storage', () => {
 		const saveStatusSamples = await website.page.evaluate(() =>
 			((window as any).__saveStatusSamples || []).filter(
 				(
-					sample: { text: string; color: string },
+					sample: {
+						text: string;
+						ariaLabel: string | null;
+						color: string;
+					},
 					index: number,
-					all: { text: string; color: string }[]
+					all: {
+						text: string;
+						ariaLabel: string | null;
+						color: string;
+					}[]
 				) => {
 					const previous = all[index - 1];
 					return (
 						!previous ||
 						previous.text !== sample.text ||
+						previous.ariaLabel !== sample.ariaLabel ||
 						previous.color !== sample.color
 					);
 				}
 			)
 		);
-		expect(saveStatusSamples[0]).toEqual({
-			text: 'Unsaved',
-			color: 'rgb(252, 211, 77)',
-		});
-		expect(saveStatusSamples.some(({ text }) => text === 'Autosaved')).toBe(
-			true
+		const autosavingIndex = saveStatusSamples.findIndex(
+			({ text }) => text === 'Autosaving'
 		);
+		const autosavedIndex = saveStatusSamples.findIndex(
+			({ text }) => text === 'Autosaved'
+		);
+		expect(autosavingIndex).toBeGreaterThan(-1);
+		expect(autosavedIndex).toBeGreaterThan(autosavingIndex);
+		expect(
+			saveStatusSamples.some(({ ariaLabel }) =>
+				/^Autosaving [1-9]\d*%$/.test(ariaLabel ?? '')
+			)
+		).toBe(true);
 	});
 
 	test('should show intent-driven creation actions in the overlay', async ({
