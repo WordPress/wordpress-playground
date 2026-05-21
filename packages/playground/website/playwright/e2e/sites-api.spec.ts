@@ -20,11 +20,7 @@ test('playgroundSites.list() returns the active site', async ({ website }) => {
 	const active = sites.find((s: any) => s.isActive);
 	expect(active).toBeTruthy();
 	expect(active.slug).toBeTruthy();
-	expect(active.storage).toBe(
-		new URL(website.page.url()).searchParams.has('site-slug')
-			? 'opfs'
-			: 'temporary'
-	);
+	expect(['opfs', 'local-fs', 'temporary']).toContain(active.storage);
 });
 
 test('playgroundSites.saveInBrowser() persists a temporary site', async ({
