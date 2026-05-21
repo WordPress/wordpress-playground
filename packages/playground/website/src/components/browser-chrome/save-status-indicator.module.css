@@ -141,6 +141,11 @@
 	flex-shrink: 0;
 }
 
+.unsaved .spinner {
+	border-color: rgba(252, 211, 77, 0.3);
+	border-top-color: #fcd34d;
+}
+
 @keyframes spin {
 	to {
 		transform: rotate(360deg);

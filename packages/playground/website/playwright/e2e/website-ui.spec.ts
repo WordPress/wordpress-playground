@@ -647,6 +647,48 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
+		await website.page.addInitScript(() => {
+			(window as any).__saveStatusSamples = [];
+			let installed = false;
+			const sampleStatus = () => {
+				const statusButton = [
+					...document.querySelectorAll('button'),
+				].find((node) =>
+					['Unsaved', 'Autosaved', 'Saved Playground'].includes(
+						(node.textContent || '').trim()
+					)
+				);
+				if (!statusButton) {
+					return;
+				}
+				(window as any).__saveStatusSamples.push({
+					text: (statusButton.textContent || '').trim(),
+					color: getComputedStyle(statusButton).color,
+				});
+			};
+			const installObserver = () => {
+				if (installed) {
+					return;
+				}
+				if (!document.documentElement) {
+					requestAnimationFrame(installObserver);
+					return;
+				}
+				installed = true;
+				new MutationObserver(sampleStatus).observe(
+					document.documentElement,
+					{
+						attributes: true,
+						characterData: true,
+						childList: true,
+						subtree: true,
+					}
+				);
+				window.setInterval(sampleStatus, 25);
+				sampleStatus();
+			};
+			installObserver();
+		});
 		await website.page.goto('./');
 		await expect(
 			website.page.getByRole('button', { name: /Site Manager/ })
@@ -667,6 +709,29 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toHaveCount(0);
+		const saveStatusSamples = await website.page.evaluate(() =>
+			((window as any).__saveStatusSamples || []).filter(
+				(
+					sample: { text: string; color: string },
+					index: number,
+					all: { text: string; color: string }[]
+				) => {
+					const previous = all[index - 1];
+					return (
+						!previous ||
+						previous.text !== sample.text ||
+						previous.color !== sample.color
+					);
+				}
+			)
+		);
+		expect(saveStatusSamples[0]).toEqual({
+			text: 'Unsaved',
+			color: 'rgb(252, 211, 77)',
+		});
+		expect(saveStatusSamples.some(({ text }) => text === 'Autosaved')).toBe(
+			true
+		);
 	});
 
 	test('should show intent-driven creation actions in the overlay', async ({

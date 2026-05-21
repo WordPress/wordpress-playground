@@ -15,14 +15,19 @@ import {
 	preserveSite,
 	type SiteInfo,
 } from '../../lib/state/redux/slice-sites';
-import type { OpfsSync } from '../../lib/state/redux/slice-clients';
+import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 
 type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
 
 function getSaveStatus(
 	site: SiteInfo | undefined,
-	opfsSync: OpfsSync | undefined
+	clientInfo: ClientInfo | undefined
 ): SaveStatus {
+	const opfsSync = clientInfo?.opfsSync;
+	const isAutosaved = site ? isAutosavedSite(site) : false;
+	if (isAutosaved && (!clientInfo || opfsSync?.status === 'syncing')) {
+		return 'saving';
+	}
 	if (opfsSync?.status === 'syncing') {
 		return 'saving';
 	}
@@ -33,7 +38,7 @@ function getSaveStatus(
 	if (storage === 'none' || !storage) {
 		return 'unsaved';
 	}
-	if (site && isAutosavedSite(site)) {
+	if (isAutosaved) {
 		return 'autosaved';
 	}
 	return 'saved';
@@ -70,7 +75,7 @@ export function SaveStatusIndicator() {
 	const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
 	const opfsSync = clientInfo?.opfsSync;
-	const status = getSaveStatus(activeSite, opfsSync);
+	const status = getSaveStatus(activeSite, clientInfo);
 	const isAutosaved = activeSite ? isAutosavedSite(activeSite) : false;
 
 	const handleSaveClick = () => {
@@ -167,7 +172,12 @@ export function SaveStatusIndicator() {
 		const progress =
 			opfsSync?.status === 'syncing' ? opfsSync.progress : undefined;
 		return (
-			<div className={classNames(css.indicator, css.saving)}>
+			<div
+				className={classNames(
+					css.indicator,
+					isAutosaved ? css.unsaved : css.saving
+				)}
+			>
 				<span className={css.spinner} />
 				<span className={css.label}>
 					{getSyncLabel({ isAutosaved, progress })}
