@@ -16,6 +16,7 @@ import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
 import {
 	selectSiteBySlug,
+	type SitePersistence,
 	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
@@ -30,6 +31,9 @@ export function persistTemporarySite(
 		localFsHandle?: FileSystemDirectoryHandle;
 		siteName?: string;
 		skipRenameModal?: boolean;
+		persistence?: SitePersistence;
+		updateUrl?: boolean;
+		keepOriginalUrlParams?: boolean;
 	} = {}
 ) {
 	return async (
@@ -210,21 +214,23 @@ export function persistTemporarySite(
 			throw error;
 		}
 
-		await dispatch(
-			updateSite({
-				slug: siteSlug,
-				changes: {
-					originalUrlParams: undefined,
-				},
-			})
-		);
+		if (!options.keepOriginalUrlParams) {
+			await dispatch(
+				updateSite({
+					slug: siteSlug,
+					changes: {
+						originalUrlParams: undefined,
+					},
+				})
+			);
+		}
 
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					storage: storageType,
-					persistence: 'explicit',
+					persistence: options.persistence ?? 'explicit',
 					// Reset the created date. Mental model: From the perspective of
 					// the storage backend, the site was just created.
 					whenCreated: Date.now(),
@@ -260,7 +266,9 @@ export function persistTemporarySite(
 		const updatedState = getState();
 		const updatedSite = selectSiteBySlug(updatedState, siteSlug);
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
-		redirectTo(persistentSiteUrl);
+		if (options.updateUrl !== false) {
+			redirectTo(persistentSiteUrl);
+		}
 		if (!options.skipRenameModal) {
 			dispatch(setActiveModal('rename-site'));
 		}

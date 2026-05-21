@@ -167,6 +167,21 @@ export interface PlaygroundSitesAPI {
 			excludeFromPruning?: string[];
 		}
 	): Promise<string>;
+
+	/**
+	 * Autosaves an active temporary site without changing the URL.
+	 *
+	 * @param siteSlug Optional slug. Uses the active site when omitted.
+	 * @param options Optional autosave behavior overrides.
+	 * @returns The site's slug and storage type.
+	 */
+	autosaveTemporarySite(
+		siteSlug?: string,
+		options?: {
+			updateUrl?: boolean;
+			excludeFromPruning?: string[];
+		}
+	): Promise<{ slug: string; storage: string }>;
 }
 
 export const siteManagementMiddleware = createListenerMiddleware();
@@ -248,6 +263,37 @@ export function createSitesAPI(
 				persistTemporarySite(site.slug, 'opfs', {
 					siteName: name,
 					skipRenameModal: true,
+				})
+			);
+			const updatedSite = selectSiteBySlug(getState(), site.slug);
+			const storage = updatedSite?.metadata.storage ?? 'none';
+			return { slug: site.slug, storage };
+		},
+
+		async autosaveTemporarySite(siteSlug?: string, options = {}) {
+			const site = siteSlug
+				? selectSiteBySlug(getState(), siteSlug)
+				: selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No site selected');
+			}
+			if (site.metadata.storage !== 'none') {
+				return { slug: site.slug, storage: site.metadata.storage };
+			}
+			await dispatch(
+				persistTemporarySite(site.slug, 'opfs', {
+					skipRenameModal: true,
+					persistence: 'autosave',
+					updateUrl: options.updateUrl ?? false,
+					keepOriginalUrlParams: true,
+				})
+			);
+			await dispatch(
+				pruneAutosavedSites({
+					excludeSlugs: [
+						site.slug,
+						...(options.excludeFromPruning ?? []),
+					],
 				})
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);

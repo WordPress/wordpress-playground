@@ -20,6 +20,34 @@ function getUniqueSavedPlaygroundSetupUrl(
 	return `./?${searchParams}`;
 }
 
+async function runPHPAndFlushOpfs(page: any, code: string) {
+	await expect
+		.poll(
+			() =>
+				page.evaluate(async (phpCode: string) => {
+					try {
+						const playground = (window as any).playground;
+						await playground.run({ code: phpCode });
+						await playground.flushOpfs('/wordpress');
+						return 'ok';
+					} catch (error) {
+						return String(
+							error instanceof Error ? error.message : error
+						);
+					}
+				}, code),
+			{ timeout: 120000 }
+		)
+		.toBe('ok');
+}
+
+function updateBlogNameCode(blogName: string) {
+	return `<?php
+require_once '/wordpress/wp-load.php';
+update_option('blogname', ${JSON.stringify(blogName)});
+`;
+}
+
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
@@ -787,16 +815,10 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({ timeout: 120000 });
 
 		const expectedBlogName = `Saved Playground ${Date.now()}`;
-		await website.page.evaluate(async (blogName) => {
-			const playground = (window as any).playground;
-			await playground.run({
-				code: `<?php
-require_once '/wordpress/wp-load.php';
-update_option('blogname', ${JSON.stringify(blogName)});
-`,
-			});
-			await playground.flushOpfs('/wordpress');
-		}, expectedBlogName);
+		await runPHPAndFlushOpfs(
+			website.page,
+			updateBlogNameCode(expectedBlogName)
+		);
 
 		await website.page.reload();
 		await expect(
@@ -806,6 +828,9 @@ update_option('blogname', ${JSON.stringify(blogName)});
 			website.page.getByText('A new Playground is already starting.')
 		).toBeVisible();
 		await website.waitForNestedIframes();
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved' })
+		).toBeVisible();
 		await website.page.getByRole('button', { name: 'Restore' }).click();
 		await website.waitForNestedIframes();
 		await expect
@@ -845,26 +870,35 @@ echo get_option('blogname');
 		).toBeVisible({ timeout: 120000 });
 
 		const firstBlogName = `Restored Playground ${Date.now()}`;
-		await website.page.evaluate(async (blogName) => {
-			const playground = (window as any).playground;
-			await playground.run({
-				code: `<?php
-require_once '/wordpress/wp-load.php';
-update_option('blogname', ${JSON.stringify(blogName)});
-`,
-			});
-			await playground.flushOpfs('/wordpress');
-		}, firstBlogName);
+		await runPHPAndFlushOpfs(
+			website.page,
+			updateBlogNameCode(firstBlogName)
+		);
 
 		await website.page.goto(`./?php=8.3&name=${setupName}&cb=cache-buster`);
 		await expect(
 			website.page.getByText('Recent autosave available')
 		).toBeVisible();
 		await website.waitForNestedIframes();
-		await website.page.getByRole('button', { name: 'Keep new' }).click();
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved' })
+		).toBeVisible();
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			null
 		);
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => {
+					const activeSite = (window as any).playgroundSites
+						.list()
+						.find((site: any) => site.isActive);
+					return {
+						storage: activeSite?.storage,
+						persistence: activeSite?.persistence,
+					};
+				})
+			)
+			.toEqual({ storage: 'temporary', persistence: 'explicit' });
 
 		const freshBlogName = await website.page.evaluate(async () => {
 			const playground = (window as any).playground;
@@ -877,6 +911,24 @@ echo get_option('blogname');
 			return result.text;
 		});
 		expect(freshBlogName).not.toBe(firstBlogName);
+
+		await website.page.getByRole('button', { name: 'Keep new' }).click();
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => {
+					const activeSite = (window as any).playgroundSites
+						.list()
+						.find((site: any) => site.isActive);
+					return {
+						storage: activeSite?.storage,
+						persistence: activeSite?.persistence,
+					};
+				})
+			)
+			.toEqual({ storage: 'opfs', persistence: 'autosave' });
 	});
 
 	test('should fall back to an unsaved Playground when browser storage is unavailable', async ({

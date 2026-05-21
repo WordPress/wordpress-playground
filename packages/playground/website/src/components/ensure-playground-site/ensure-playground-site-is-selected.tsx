@@ -180,14 +180,13 @@ export function EnsurePlaygroundSiteIsSelected({
 						site: matchingAutosave,
 						setupUrlFingerprint: currentSetupUrlFingerprint,
 					});
+					await sitesAPI.createNewTemporarySite();
+					return;
 				}
 
 				try {
 					await sitesAPI.createNewSavedSite(undefined, undefined, {
 						updateUrl: false,
-						excludeFromPruning: matchingAutosave
-							? [matchingAutosave.slug]
-							: [],
 					});
 				} catch (error) {
 					logger.error(
@@ -246,6 +245,10 @@ export function EnsurePlaygroundSiteIsSelected({
 							...fingerprints,
 							autosaveNudge.setupUrlFingerprint,
 						]);
+						void sitesAPI.autosaveTemporarySite(undefined, {
+							updateUrl: false,
+							excludeFromPruning: [autosaveNudge.site.slug],
+						});
 						setAutosaveNudge(undefined);
 					}}
 				/>
