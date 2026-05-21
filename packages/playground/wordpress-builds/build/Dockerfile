@@ -85,7 +85,7 @@ RUN cd wordpress && \
     find ./ -type f -name '*.css' \
     -not -path '*/wp-includes/blocks/*/*.min.css' \
     -not -path '*/wp-admin/css/view-transitions*.css' \
-    -not -path '*/wp-content/themes/*/style*.css' \
+    -not -path '*/wp-content/themes/*/style.css' \
     -not -path '*/wp-includes/css/dist/block-library/common*.css' \
     -not -path '*/wp-includes/css/wp-block-template-skip-link*.css' \
     -not -path '*/wp-includes/css/wp-embed-template.min.css' \
