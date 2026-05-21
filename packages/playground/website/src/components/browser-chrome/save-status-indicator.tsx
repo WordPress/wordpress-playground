@@ -22,9 +22,12 @@ type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
 function getSaveStatus(
 	site: SiteInfo | undefined,
 	clientInfo: ClientInfo | undefined
-): SaveStatus {
+): SaveStatus | undefined {
+	if (!site) {
+		return undefined;
+	}
 	const opfsSync = clientInfo?.opfsSync;
-	const isAutosaved = site ? isAutosavedSite(site) : false;
+	const isAutosaved = isAutosavedSite(site);
 	if (isAutosaved && (!clientInfo || opfsSync?.status === 'syncing')) {
 		return 'saving';
 	}
@@ -101,6 +104,10 @@ export function SaveStatusIndicator() {
 		}
 		setIsPopoverOpen((isOpen) => !isOpen);
 	};
+
+	if (!status) {
+		return null;
+	}
 
 	if (status === 'saved') {
 		return (
