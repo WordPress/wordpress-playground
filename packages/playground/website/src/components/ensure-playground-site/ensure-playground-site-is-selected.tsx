@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@wordpress/components';
 import css from './restore-autosave-nudge.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
@@ -52,6 +52,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const url = useCurrentUrl();
+	const initialUrlHref = useRef(window.location.href);
 	const requestedSiteSlug = url.searchParams.get('site-slug');
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
@@ -99,6 +100,11 @@ export function EnsurePlaygroundSiteIsSelected({
 
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
+			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
+			if (!isInitialPageLoadUrl) {
+				setAutosaveNudge(undefined);
+			}
+
 			// Don't create a new temporary site until the site listing settles.
 			// Otherwise, the status change from "loading" to "loaded" would
 			// re-run this entire effect, potentially leading to multiple
@@ -171,6 +177,7 @@ export function EnsurePlaygroundSiteIsSelected({
 					);
 				if (
 					matchingAutosave &&
+					isInitialPageLoadUrl &&
 					!freshSetupFingerprints.includes(
 						currentSetupUrlFingerprint
 					) &&

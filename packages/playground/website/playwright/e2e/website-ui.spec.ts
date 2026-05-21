@@ -49,6 +49,18 @@ update_option('blogname', ${JSON.stringify(blogName)});
 `;
 }
 
+async function getActivePlaygroundSite(page: Page) {
+	return page.evaluate(() =>
+		(window as any).playgroundSites
+			.list()
+			.find((site: any) => site.isActive)
+	);
+}
+
+function escapeRegExp(text: string) {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
@@ -808,6 +820,67 @@ test.describe('Default Playground storage', () => {
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			siteSlugBeforeGitHubImport
 		);
+	});
+
+	test('should treat New Playground as an explicit fresh start', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('explicit-new'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const firstSite = await getActivePlaygroundSite(website.page);
+
+		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.getByRole('button', { name: 'New Playground' })
+			.click();
+		const overlay = website.page
+			.locator('[class*="overlay"]')
+			.filter({ hasText: 'Playground' });
+		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: firstSite.slug });
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const firstBlankSite = await getActivePlaygroundSite(website.page);
+
+		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.getByRole('button', { name: 'New Playground' })
+			.click();
+		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: firstBlankSite.slug });
+		await expect(
+			website.page.getByText('Recent autosave available')
+		).toHaveCount(0);
+
+		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.getByRole('button', {
+				name: new RegExp(`^${escapeRegExp(firstSite.name)}`),
+			})
+			.click();
+		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.toMatchObject({ slug: firstSite.slug });
 	});
 
 	test('should show autosave browser storage details in the Site Manager by default', async ({

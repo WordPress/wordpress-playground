@@ -230,10 +230,12 @@ export function SavedPlaygroundsOverlay({
 		return matchesSearch && matchesTag;
 	});
 
-	const onSiteClick = async (slug: string) => {
-		await sitesAPI.setActiveSite(slug);
+	const onSiteClick = (slug: string) => {
 		dispatch(setSiteManagerSection('site-details'));
 		onClose();
+		void sitesAPI.setActiveSite(slug).catch((error) => {
+			logger.error('Error opening saved Playground', error);
+		});
 	};
 
 	const getLogoDataURL = (logo: SiteLogo): string => {
