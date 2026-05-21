@@ -1,6 +1,7 @@
 import type { SiteInfo } from './slice-sites';
 
 export const MAX_AUTOSAVED_SITES = 5;
+export const RECENT_AUTOSAVE_RESTORE_WINDOW_MS = 15 * 60 * 1000;
 
 export const SitePersistenceTypes = ['autosave', 'explicit'] as const;
 export type SitePersistence = (typeof SitePersistenceTypes)[number];
@@ -12,6 +13,17 @@ export type AutosavedSitesPruneOptions = {
 
 export function getSiteRecencyTimestamp(site: SiteInfo) {
 	return site.metadata.whenLastUsed ?? site.metadata.whenCreated ?? 0;
+}
+
+export function wasSiteRecentlyInteractedWith(
+	site: SiteInfo,
+	now = Date.now()
+) {
+	const recencyTimestamp = getSiteRecencyTimestamp(site);
+	return (
+		recencyTimestamp > 0 &&
+		now - recencyTimestamp <= RECENT_AUTOSAVE_RESTORE_WINDOW_MS
+	);
 }
 
 export function isAutosavedSite(site: SiteInfo) {

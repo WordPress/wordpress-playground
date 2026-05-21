@@ -1,4 +1,9 @@
-import { getAutosavedSitesToPrune, isAutosavedSite } from './site-lifecycle';
+import {
+	RECENT_AUTOSAVE_RESTORE_WINDOW_MS,
+	getAutosavedSitesToPrune,
+	isAutosavedSite,
+	wasSiteRecentlyInteractedWith,
+} from './site-lifecycle';
 import type { SiteInfo } from './slice-sites';
 import { getUniqueSiteSlug, normalizeSiteSlug } from './site-slug';
 
@@ -102,6 +107,29 @@ describe('autosaved site helpers', () => {
 				excludeSlugs: ['old-active'],
 			}).map((site) => site.slug)
 		).toEqual(['new-1']);
+	});
+
+	it('only treats recently interacted-with sites as restore candidates', () => {
+		const now = Date.now();
+
+		expect(
+			wasSiteRecentlyInteractedWith(
+				createSite('recent', {
+					persistence: 'autosave',
+					whenLastUsed: now - RECENT_AUTOSAVE_RESTORE_WINDOW_MS + 1,
+				}),
+				now
+			)
+		).toBe(true);
+		expect(
+			wasSiteRecentlyInteractedWith(
+				createSite('stale', {
+					persistence: 'autosave',
+					whenLastUsed: now - RECENT_AUTOSAVE_RESTORE_WINDOW_MS - 1,
+				}),
+				now
+			)
+		).toBe(false);
 	});
 });
 

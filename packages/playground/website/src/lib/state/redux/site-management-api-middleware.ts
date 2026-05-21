@@ -164,6 +164,7 @@ export interface PlaygroundSitesAPI {
 		options?: {
 			persistence?: SitePersistence;
 			updateUrl?: boolean;
+			excludeFromPruning?: string[];
 		}
 	): Promise<string>;
 }
@@ -450,7 +451,10 @@ export function createSitesAPI(
 			});
 			await dispatch(
 				pruneAutosavedSites({
-					excludeSlugs: [newSiteInfo.slug],
+					excludeSlugs: [
+						newSiteInfo.slug,
+						...(options.excludeFromPruning ?? []),
+					],
 				})
 			);
 			return newSiteInfo.slug;

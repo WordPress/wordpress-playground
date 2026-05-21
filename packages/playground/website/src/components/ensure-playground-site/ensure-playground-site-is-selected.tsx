@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Flex, FlexItem } from '@wordpress/components';
+import { Button } from '@wordpress/components';
+import css from './restore-autosave-nudge.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import {
 	isSaveDisabledByQueryParam,
@@ -12,6 +13,7 @@ import {
 	selectSiteBySlug,
 	selectSortedSites,
 	type SiteInfo,
+	wasSiteRecentlyInteractedWith,
 } from '../../lib/state/redux/slice-sites';
 import {
 	selectActiveSite,
@@ -27,7 +29,6 @@ import {
 	getSetupUrlFingerprint,
 	getSetupUrlFingerprintFromSite,
 } from '../../lib/state/url/setup-url';
-import { Modal } from '../modal';
 import { getRelativeDate } from '../../lib/get-relative-date';
 
 /**
@@ -66,7 +67,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	);
 	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
 		useState<false | string>(false);
-	const [autosavePrompt, setAutosavePrompt] = useState<{
+	const [autosaveNudge, setAutosaveNudge] = useState<{
 		site: SiteInfo;
 		setupUrlFingerprint: string;
 	}>();
@@ -170,18 +171,23 @@ export function EnsurePlaygroundSiteIsSelected({
 					);
 				if (
 					matchingAutosave &&
-					!freshSetupFingerprints.includes(currentSetupUrlFingerprint)
+					!freshSetupFingerprints.includes(
+						currentSetupUrlFingerprint
+					) &&
+					wasSiteRecentlyInteractedWith(matchingAutosave)
 				) {
-					setAutosavePrompt({
+					setAutosaveNudge({
 						site: matchingAutosave,
 						setupUrlFingerprint: currentSetupUrlFingerprint,
 					});
-					return;
 				}
 
 				try {
 					await sitesAPI.createNewSavedSite(undefined, undefined, {
 						updateUrl: false,
+						excludeFromPruning: matchingAutosave
+							? [matchingAutosave.slug]
+							: [],
 					});
 				} catch (error) {
 					logger.error(
@@ -225,36 +231,37 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	}, [url.searchParams]);
 
-	if (autosavePrompt) {
-		return (
-			<RestoreAutosavePrompt
-				site={autosavePrompt.site}
-				onRestore={() => {
-					void sitesAPI.setActiveSite(autosavePrompt.site.slug);
-					setAutosavePrompt(undefined);
-				}}
-				onStartFresh={() => {
-					setFreshSetupFingerprints((fingerprints) => [
-						...fingerprints,
-						autosavePrompt.setupUrlFingerprint,
-					]);
-					setAutosavePrompt(undefined);
-				}}
-			/>
-		);
-	}
-
-	return children;
+	return (
+		<>
+			{children}
+			{autosaveNudge && (
+				<RestoreAutosaveNudge
+					site={autosaveNudge.site}
+					onRestore={() => {
+						void sitesAPI.setActiveSite(autosaveNudge.site.slug);
+						setAutosaveNudge(undefined);
+					}}
+					onKeepNew={() => {
+						setFreshSetupFingerprints((fingerprints) => [
+							...fingerprints,
+							autosaveNudge.setupUrlFingerprint,
+						]);
+						setAutosaveNudge(undefined);
+					}}
+				/>
+			)}
+		</>
+	);
 }
 
-function RestoreAutosavePrompt({
+function RestoreAutosaveNudge({
 	site,
 	onRestore,
-	onStartFresh,
+	onKeepNew,
 }: {
 	site: SiteInfo;
 	onRestore: () => void;
-	onStartFresh: () => void;
+	onKeepNew: () => void;
 }) {
 	const lastUsed = new Date(
 		(site.metadata.whenLastUsed ??
@@ -263,36 +270,22 @@ function RestoreAutosavePrompt({
 	);
 
 	return (
-		<Modal
-			title="Restore autosaved Playground?"
-			contentLabel="Restore autosaved Playground?"
-			isDismissible={false}
-			shouldCloseOnClickOutside={false}
-			onRequestClose={onStartFresh}
-		>
-			<p>
-				You have an autosaved Playground from{' '}
-				{getRelativeDate(lastUsed)}.
-			</p>
-			<p>Restore it, or start fresh from this setup URL.</p>
-			<Flex
-				direction="row-reverse"
-				gap={5}
-				expanded={true}
-				wrap={true}
-				justify="flex-start"
-			>
-				<FlexItem>
-					<Button variant="primary" onClick={onRestore}>
-						Restore autosave
-					</Button>
-				</FlexItem>
-				<FlexItem>
-					<Button variant="link" onClick={onStartFresh}>
-						Start fresh
-					</Button>
-				</FlexItem>
-			</Flex>
-		</Modal>
+		<aside className={css.nudge} aria-label="Recent autosaved Playground">
+			<div className={css.copy}>
+				<div className={css.title}>Recent autosave available</div>
+				<div className={css.description}>
+					Autosaved {getRelativeDate(lastUsed)} from this setup URL. A
+					new Playground is already starting.
+				</div>
+			</div>
+			<div className={css.actions}>
+				<Button variant="primary" onClick={onRestore}>
+					Restore
+				</Button>
+				<Button variant="tertiary" onClick={onKeepNew}>
+					Keep new
+				</Button>
+			</div>
+		</aside>
 	);
 }

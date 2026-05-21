@@ -40,6 +40,7 @@ export {
 	getSiteRecencyTimestamp,
 	isAutosavedSite,
 	isExplicitlySavedSite,
+	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 export type {
 	AutosavedSitesPruneOptions,

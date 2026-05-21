@@ -800,13 +800,13 @@ update_option('blogname', ${JSON.stringify(blogName)});
 
 		await website.page.reload();
 		await expect(
-			website.page.getByRole('dialog', {
-				name: 'Restore autosaved Playground?',
-			})
+			website.page.getByText('Recent autosave available')
 		).toBeVisible();
-		await website.page
-			.getByRole('button', { name: 'Restore autosave' })
-			.click();
+		await expect(
+			website.page.getByText('A new Playground is already starting.')
+		).toBeVisible();
+		await website.waitForNestedIframes();
+		await website.page.getByRole('button', { name: 'Restore' }).click();
 		await website.waitForNestedIframes();
 		await expect
 			.poll(() =>
@@ -858,12 +858,10 @@ update_option('blogname', ${JSON.stringify(blogName)});
 
 		await website.page.goto(`./?php=8.3&name=${setupName}&cb=cache-buster`);
 		await expect(
-			website.page.getByRole('dialog', {
-				name: 'Restore autosaved Playground?',
-			})
+			website.page.getByText('Recent autosave available')
 		).toBeVisible();
-		await website.page.getByRole('button', { name: 'Start fresh' }).click();
 		await website.waitForNestedIframes();
+		await website.page.getByRole('button', { name: 'Keep new' }).click();
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			null
 		);
