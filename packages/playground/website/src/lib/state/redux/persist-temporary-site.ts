@@ -161,13 +161,18 @@ export function persistTemporarySite(
 		} else {
 			throw new Error(`Unsupported device type: ${storageType}`);
 		}
+		const syncOperation =
+			options.persistence === 'autosave' ? 'autosave' : 'save';
 
 		dispatch(
 			updateClientInfo({
 				siteSlug,
 				changes: {
 					opfsMountDescriptor: mountDescriptor,
-					opfsSync: { status: 'syncing' },
+					opfsSync: {
+						status: 'syncing',
+						operation: syncOperation,
+					},
 				},
 			})
 		);
@@ -185,6 +190,7 @@ export function persistTemporarySite(
 								opfsSync: {
 									status: 'syncing',
 									progress,
+									operation: syncOperation,
 								},
 							},
 						})
@@ -208,6 +214,7 @@ export function persistTemporarySite(
 					changes: {
 						opfsSync: {
 							status: 'error',
+							operation: syncOperation,
 						},
 					},
 				})

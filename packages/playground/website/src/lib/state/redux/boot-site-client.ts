@@ -27,7 +27,11 @@ import {
 	setGitHubAuthRepoUrl,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectSiteBySlug, updateSiteMetadata } from './slice-sites';
+import {
+	isAutosavedSite,
+	selectSiteBySlug,
+	updateSiteMetadata,
+} from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -165,6 +169,7 @@ export function bootSiteClient(
 			site.metadata.storage === 'opfs' &&
 			!!mountDescriptor &&
 			!isWordPressInstalled;
+		const syncOperation = isAutosavedSite(site) ? 'autosave' : 'save';
 		const mounts =
 			mountDescriptor && !shouldSyncNewOpfsSiteInBackground
 				? [
@@ -308,7 +313,10 @@ export function bootSiteClient(
 				client: connectedPlayground,
 				opfsMountDescriptor: mountDescriptor,
 				opfsSync: shouldSyncNewOpfsSiteInBackground
-					? { status: 'syncing' }
+					? {
+							status: 'syncing',
+							operation: syncOperation,
+						}
 					: undefined,
 			})
 		);
@@ -370,6 +378,7 @@ export function bootSiteClient(
 									opfsSync: {
 										status: 'syncing',
 										progress,
+										operation: syncOperation,
 									},
 								},
 							})
@@ -415,6 +424,7 @@ export function bootSiteClient(
 							changes: {
 								opfsSync: {
 									status: 'error',
+									operation: syncOperation,
 								},
 							},
 						})

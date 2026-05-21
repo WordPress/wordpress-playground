@@ -1128,10 +1128,51 @@ echo get_option('blogname');
 				(iframe.contentWindow as any).__playgroundIframeToken = token;
 			}, iframeToken);
 
+		await website.page.evaluate(() => {
+			(window as any).__keepNewStatusSamples = [];
+			const sampleStatus = () => {
+				const status = [
+					...document.querySelectorAll('[role="status"], button'),
+				]
+					.map((node) => (node.textContent || '').trim())
+					.find((text) =>
+						[
+							'Autosaving',
+							'Saving',
+							'Autosaved',
+							'Saved Playground',
+							'Unsaved',
+						].includes(text)
+					);
+				if (status) {
+					(window as any).__keepNewStatusSamples.push(status);
+				}
+			};
+			const observer = new MutationObserver(sampleStatus);
+			observer.observe(document.documentElement, {
+				attributes: true,
+				characterData: true,
+				childList: true,
+				subtree: true,
+			});
+			(window as any).__keepNewStatusObserver = observer;
+			(window as any).__keepNewStatusInterval = window.setInterval(
+				sampleStatus,
+				25
+			);
+			sampleStatus();
+		});
 		await website.page.getByRole('button', { name: 'No, thanks' }).click();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
+		const keepNewStatusSamples = await website.page.evaluate(() => {
+			window.clearInterval((window as any).__keepNewStatusInterval);
+			(window as any).__keepNewStatusObserver?.disconnect();
+			return (window as any).__keepNewStatusSamples;
+		});
+		expect(keepNewStatusSamples).toContain('Autosaving');
+		expect(keepNewStatusSamples).not.toContain('Saving');
 		await expect
 			.poll(() =>
 				website.page.evaluate(() => {

@@ -47,9 +47,16 @@ function getSaveStatus(
 	return 'saved';
 }
 
-function getSyncLabel({ site }: { site: SiteInfo | undefined }) {
-	return site &&
-		(isAutosavedSite(site) || site.metadata.initialOpfsSyncPending)
+function getSyncLabel({
+	site,
+	opfsSync,
+}: {
+	site: SiteInfo | undefined;
+	opfsSync: OpfsSync | undefined;
+}) {
+	return opfsSync?.operation === 'autosave' ||
+		(site &&
+			(isAutosavedSite(site) || site.metadata.initialOpfsSyncPending))
 		? 'Autosaving'
 		: 'Saving';
 }
@@ -178,6 +185,7 @@ export function SaveStatusIndicator() {
 				className={classNames(css.indicator, css.saving)}
 				aria-label={`${getSyncLabel({
 					site: activeSite,
+					opfsSync,
 				})} ${progressPercent}%`}
 				role="status"
 			>
@@ -191,7 +199,7 @@ export function SaveStatusIndicator() {
 					aria-hidden="true"
 				/>
 				<span className={css.label}>
-					{getSyncLabel({ site: activeSite })}
+					{getSyncLabel({ site: activeSite, opfsSync })}
 				</span>
 			</div>
 		);
@@ -206,7 +214,9 @@ export function SaveStatusIndicator() {
 			>
 				<Icon icon={cautionFilled} size={18} />
 				<span className={css.label}>
-					{isAutosaved ? 'Autosave failed' : 'Save failed'}
+					{opfsSync?.operation === 'autosave' || isAutosaved
+						? 'Autosave failed'
+						: 'Save failed'}
 				</span>
 			</button>
 		);
