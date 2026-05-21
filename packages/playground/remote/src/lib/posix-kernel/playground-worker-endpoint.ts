@@ -56,6 +56,11 @@ import { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
 import { CookieJar } from './cookie-jar';
 import type { HttpRequest, HttpResponse } from './host-bridge';
+import {
+	LatestMinifiedWordPressVersion,
+	MinifiedWordPressVersions,
+	MinifiedWordPressVersionsList,
+} from '@wp-playground/wordpress-builds';
 
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
@@ -119,6 +124,13 @@ export interface KernelWorkerBootOptions {
 	sqliteDriverVersion?: 'trunk' | 'v2.1.16' | 'v3.0.0-rc.3-php52';
 	/** Optional override for the build-time CORS proxy URL. */
 	corsProxyUrl?: string;
+	/**
+	 * When `false`, the kernel comes up without downloading or extracting
+	 * WordPress (PHP-only mode). `shouldInstallWordPress` gates the
+	 * post-boot install drive independently. Both default to `true`.
+	 */
+	shouldBootWordPress?: boolean;
+	shouldInstallWordPress?: boolean;
 }
 
 /**
@@ -347,6 +359,13 @@ export class KernelPlaygroundWorkerEndpoint {
 		/* no-op for the first cut */
 	}
 
+	async getMinifiedWordPressVersions() {
+		return {
+			all: MinifiedWordPressVersions,
+			latest: LatestMinifiedWordPressVersion,
+		};
+	}
+
 	/**
 	 * No-op stub for `BlueprintsV1Handler`'s prefetch step
 	 * (`packages/playground/client/src/blueprints-v1-handler.ts:143`).
@@ -421,19 +440,45 @@ export class KernelPlaygroundWorkerEndpoint {
 		).toString();
 
 		const corsProxyUrl = options.corsProxyUrl ?? defaultCorsProxyUrl;
+		const bootWordPress = options.shouldBootWordPress !== false;
+		const installWordPress = options.shouldInstallWordPress !== false;
 
-		logger.debug(
-			`[posix-kernel] preparing WordPress zips (scope=${options.scope})`
-		);
-		const { wpZipBytes, sqliteZipBytes, wpVersion } =
-			await prepareWordPressZips({
-				wpVersionQuery: options.wpVersion,
+		let wpZipBytes: Uint8Array | undefined;
+		let sqliteZipBytes: Uint8Array | undefined;
+		if (bootWordPress) {
+			logger.debug(
+				`[posix-kernel] preparing WordPress zips (scope=${options.scope})`
+			);
+			// `'nightly'` aliases to `'trunk'`; anything else not in the
+			// minified bundle (e.g. `'latest'`) falls back to the bundled
+			// `LatestMinifiedWordPressVersion`.
+			const requestedWpVersion =
+				(options.wpVersion === 'nightly'
+					? 'trunk'
+					: options.wpVersion) ?? LatestMinifiedWordPressVersion;
+			const wpVersionQuery = MinifiedWordPressVersionsList.includes(
+				requestedWpVersion
+			)
+				? requestedWpVersion
+				: LatestMinifiedWordPressVersion;
+			const zips = await prepareWordPressZips({
+				wpVersionQuery,
 				sqliteVersion: options.sqliteDriverVersion,
 				corsProxyUrl,
 				monitor: this.downloadMonitor,
 				onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
 			});
-		logger.debug(`[posix-kernel] WordPress ${wpVersion} downloaded`);
+			wpZipBytes = zips.wpZipBytes;
+			sqliteZipBytes = zips.sqliteZipBytes;
+			logger.debug(
+				`[posix-kernel] WordPress ${zips.wpVersion} downloaded`
+			);
+		} else {
+			logger.debug(
+				'[posix-kernel] PHP-only mode (shouldBootWordPress=false); ' +
+					'skipping WordPress download'
+			);
+		}
 
 		logger.debug('[posix-kernel] building VFS image');
 		const vfsImage = await buildVfsImage({
@@ -476,11 +521,21 @@ export class KernelPlaygroundWorkerEndpoint {
 		});
 		this.bindApiMethods(api);
 
-		logger.debug('[posix-kernel] driving WordPress installer if needed');
-		await ensureWordPressInstalled(
-			this.kernel.sendRequest,
-			this.absoluteUrl
-		);
+		if (installWordPress) {
+			logger.debug(
+				'[posix-kernel] driving WordPress installer if needed'
+			);
+			await ensureWordPressInstalled(
+				this.kernel.sendRequest,
+				this.absoluteUrl
+			);
+			await defaultToPrettyPermalinks(api);
+		} else {
+			logger.debug(
+				'[posix-kernel] skipping WordPress install drive ' +
+					'(shouldInstallWordPress=false)'
+			);
+		}
 		logger.debug('[posix-kernel] boot complete');
 	}
 
@@ -624,6 +679,33 @@ async function ensureWordPressInstalled(
 	) {
 		throw new Error(
 			`WordPress installer did not report success: ${html.slice(0, 1000)}`
+		);
+	}
+}
+
+/**
+ * Set `permalink_structure` to the date-based pretty pattern. Required
+ * by `wp_redirect_xml_sitemap` (WP 6.7+) and any rewrite-rule-driven
+ * URL (pretty posts, /feed/, archives).
+ */
+async function defaultToPrettyPermalinks(
+	api: KernelLimitedPHPApi
+): Promise<void> {
+	const result = await api.run({
+		code: `<?php
+			ob_start();
+			require '/var/www/html/wp-load.php';
+			$nice = '/%year%/%monthnum%/%day%/%postname%/';
+			update_option('permalink_structure', $nice);
+			ob_end_clean();
+			echo get_option('permalink_structure') === $nice ? '1' : '0';
+		`,
+	});
+	if (result.text !== '1') {
+		logger.warn(
+			`[posix-kernel] Failed to default to pretty permalinks ` +
+				`after WP install (stdout=${JSON.stringify(result.text)}, ` +
+				`stderr=${JSON.stringify(result.errors)}).`
 		);
 	}
 }

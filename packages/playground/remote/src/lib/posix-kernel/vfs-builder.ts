@@ -64,10 +64,12 @@ const VFS_INITIAL_BYTES = 128 * 1024 * 1024;
 const VFS_MAX_BYTES = 256 * 1024 * 1024;
 
 export interface BuildVfsImageOptions {
-	/** WordPress core zip (e.g. wordpress-6.x.zip downloaded from wp.org). */
-	wpZipBytes: Uint8Array;
-	/** sqlite-database-integration zip (e.g. v2.1.16). */
-	sqliteZipBytes: Uint8Array;
+	/**
+	 * WordPress core zip + SQLite drop-in zip. Both omitted for PHP-only
+	 * mode; both required otherwise.
+	 */
+	wpZipBytes?: Uint8Array;
+	sqliteZipBytes?: Uint8Array;
 	/** Status callback (download progress, populate steps). */
 	onStatus?: (message: string) => void;
 }
@@ -86,59 +88,69 @@ export async function buildVfsImage(
 	populateSystem(fs);
 	await populateServerBinaries(fs);
 	await populateUserBinaries(fs);
+	populatePreloadFiles(fs);
 	populateShellSymlinks(fs);
 	populateNginxConfig(fs);
 	populatePhpFpmConfig(fs);
 
-	onStatus('Writing wp-config.php');
+	// php-api.ts chdirs here and the FPM router includes `${DOCROOT}/index.php`,
+	// so the doc root must exist even in PHP-only mode.
 	ensureDirRecursive(fs, '/var/www/html');
-	writeVfsFile(fs, '/var/www/html/wp-config.php', WP_CONFIG_PHP);
+	if (options.wpZipBytes) {
+		onStatus('Writing wp-config.php');
+		writeVfsFile(fs, '/var/www/html/wp-config.php', WP_CONFIG_PHP);
 
-	ensureDirRecursive(fs, '/var/www/html/wp-content/database');
-	ensureDirRecursive(fs, '/var/www/html/wp-content/mu-plugins');
-	writeVfsFile(
-		fs,
-		'/var/www/html/wp-content/mu-plugins/wasm-optimizations.php',
-		WASM_OPTIMIZATIONS_MU_PLUGIN
-	);
-	// Mirrors the CLI's `ensureAutoLoginMuPlugin`
-	// (packages/playground/cli/src/posix-kernel/prepare-wordpress.ts).
-	// The `login` blueprint step only calls `defineConstant
-	// ('PLAYGROUND_AUTO_LOGIN_AS_USER', …)`; this mu-plugin is what
-	// turns that constant into an actual WordPress session on the first
-	// HTTP request.
-	writeVfsFile(
-		fs,
-		'/var/www/html/wp-content/mu-plugins/1-playground-auto-login.php',
-		AUTO_LOGIN_MU_PLUGIN
-	);
-
-	onStatus('Extracting WordPress core into VFS');
-	await extractZipIntoVfs(fs, '/var/www/html', options.wpZipBytes, {
-		stripLeadingDir: 'wordpress',
-		exclude: (rel) => rel.endsWith('.db'),
-	});
-
-	onStatus('Extracting SQLite plugin into VFS');
-	const sqliteMountPrefix =
-		'/var/www/html/wp-content/plugins/sqlite-database-integration';
-	let dbCopyBytes: Uint8Array | null = null;
-	await extractZipIntoVfs(fs, sqliteMountPrefix, options.sqliteZipBytes, {
-		stripLeadingDir: 'sqlite-database-integration',
-		exclude: (rel) => rel.endsWith('.db'),
-		onEntry: (relPath, bytes) => {
-			if (relPath === 'db.copy') {
-				dbCopyBytes = bytes;
-			}
-		},
-	});
-	if (dbCopyBytes) {
-		writeVfsBinary(
+		ensureDirRecursive(fs, '/var/www/html/wp-content/database');
+		ensureDirRecursive(fs, '/var/www/html/wp-content/mu-plugins');
+		writeVfsFile(
 			fs,
-			'/var/www/html/wp-content/db.php',
-			dbCopyBytes,
-			0o644
+			'/var/www/html/wp-content/mu-plugins/wasm-optimizations.php',
+			WASM_OPTIMIZATIONS_MU_PLUGIN
 		);
+		// Mirrors the CLI's `ensureAutoLoginMuPlugin`
+		// (packages/playground/cli/src/posix-kernel/prepare-wordpress.ts).
+		// The `login` blueprint step only calls `defineConstant
+		// ('PLAYGROUND_AUTO_LOGIN_AS_USER', …)`; this mu-plugin is what
+		// turns that constant into an actual WordPress session on the first
+		// HTTP request.
+		writeVfsFile(
+			fs,
+			'/var/www/html/wp-content/mu-plugins/1-playground-auto-login.php',
+			AUTO_LOGIN_MU_PLUGIN
+		);
+
+		onStatus('Extracting WordPress core into VFS');
+		await extractZipIntoVfs(fs, '/var/www/html', options.wpZipBytes, {
+			stripLeadingDir: 'wordpress',
+			exclude: (rel) => rel.endsWith('.db'),
+		});
+
+		onStatus('Extracting SQLite plugin into VFS');
+		const sqliteMountPrefix =
+			'/var/www/html/wp-content/plugins/sqlite-database-integration';
+		let dbCopyBytes: Uint8Array | null = null;
+		await extractZipIntoVfs(
+			fs,
+			sqliteMountPrefix,
+			options.sqliteZipBytes!,
+			{
+				stripLeadingDir: 'sqlite-database-integration',
+				exclude: (rel) => rel.endsWith('.db'),
+				onEntry: (relPath, bytes) => {
+					if (relPath === 'db.copy') {
+						dbCopyBytes = bytes;
+					}
+				},
+			}
+		);
+		if (dbCopyBytes) {
+			writeVfsBinary(
+				fs,
+				'/var/www/html/wp-content/db.php',
+				dbCopyBytes,
+				0o644
+			);
+		}
 	}
 
 	onStatus('Installing dinit + service tree');
@@ -230,6 +242,63 @@ async function populateUserBinaries(fs: MemoryFileSystem): Promise<void> {
 	]);
 	writeVfsBinary(fs, '/usr/local/bin/php', phpBytes);
 	writeVfsBinary(fs, '/usr/bin/less', lessBytes);
+}
+
+/**
+ * Platform-level preload scripts. The php-fpm pool config sets
+ * `auto_prepend_file` to the loader below, which globs `preload/*.php`
+ * and `require_once`'s each file before WordPress boots.
+ */
+function populatePreloadFiles(fs: MemoryFileSystem): void {
+	ensureDirRecursive(fs, '/internal/shared/preload');
+
+	writeVfsFile(
+		fs,
+		'/internal/shared/auto_prepend_file.php',
+		`<?php
+foreach (glob('/internal/shared/preload/*.php') as $file) {
+    require_once $file;
+}
+`
+	);
+
+	writeVfsFile(
+		fs,
+		'/internal/shared/preload/phpinfo.php',
+		`<?php
+if (isset($_SERVER['REQUEST_URI']) && '/phpinfo.php' === $_SERVER['REQUEST_URI']) {
+    phpinfo();
+    exit;
+}
+`
+	);
+
+	// WP 6.7+ only redirects /sitemap.xml -> /wp-sitemap.xml when installed
+	// at the domain root; Playground sites live under /scope:<id>/ so the
+	// auto-generated rule never matches. REQUEST_URI here is already
+	// scope-stripped; the service worker re-scopes the Location.
+	writeVfsFile(
+		fs,
+		'/internal/shared/preload/sitemap-redirect.php',
+		`<?php
+if (isset($_SERVER['REQUEST_URI'])) {
+    $request_uri = $_SERVER['REQUEST_URI'];
+    if (
+        $request_uri === '/sitemap.xml' ||
+        strpos($request_uri, '/sitemap.xml?') === 0 ||
+        strpos($request_uri, '/sitemap.xml/') === 0
+    ) {
+        $query_string = '';
+        $qpos = strpos($request_uri, '?');
+        if ($qpos !== false) {
+            $query_string = substr($request_uri, $qpos);
+        }
+        header('Location: /wp-sitemap.xml' . $query_string, true, 301);
+        exit;
+    }
+}
+`
+	);
 }
 
 /**
@@ -753,6 +822,9 @@ pm.max_children = 2
 clear_env = no
 slowlog = /dev/null
 request_slowlog_trace_depth = 0
+; php-fpm runs with \`-c /dev/null\`; no php.ini auto_prepend_file fires,
+; so wire the platform preload loader via the pool config instead.
+php_admin_value[auto_prepend_file] = /internal/shared/auto_prepend_file.php
 `;
 
 const FPM_ROUTER_PHP = `<?php
@@ -785,6 +857,24 @@ if (is_dir($file)) {
     if (is_file($idx)) {
         $file = $idx;
         $uri = rtrim($uri, '/') . '/index.php';
+    }
+}
+
+// Re-attach the scope to REQUEST_URI so WP-internal URL builders
+// (auth_redirect, redirect_canonical, ...) agree with home_url().
+// $file is already resolved from the unscoped path above.
+if (isset($_SERVER['HTTP_X_PLAYGROUND_ABSOLUTE_URL'])) {
+    $absUrl = $_SERVER['HTTP_X_PLAYGROUND_ABSOLUTE_URL'];
+    $scopePath = parse_url($absUrl, PHP_URL_PATH);
+    if (is_string($scopePath) && $scopePath !== '' && $scopePath !== '/') {
+        $scopePath = rtrim($scopePath, '/');
+        $reqUri = $_SERVER['REQUEST_URI'];
+        if (
+            $reqUri !== $scopePath &&
+            strpos($reqUri, $scopePath . '/') !== 0
+        ) {
+            $_SERVER['REQUEST_URI'] = $scopePath . $reqUri;
+        }
     }
 }
 
