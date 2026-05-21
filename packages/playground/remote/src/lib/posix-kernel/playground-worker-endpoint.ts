@@ -54,6 +54,7 @@ import { prepareWordPressZips } from './prepare-wordpress';
 import { buildVfsImage } from './vfs-builder';
 import { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
+import { CookieJar } from './cookie-jar';
 import type { HttpRequest, HttpResponse } from './host-bridge';
 
 /* @ts-ignore */
@@ -147,6 +148,15 @@ export class KernelPlaygroundWorkerEndpoint {
 	private booted = false;
 	private kernel: KernelBootResult | undefined;
 	private readonly downloadMonitor: EmscriptenDownloadMonitor;
+	/**
+	 * Cookie state shared between the SW-driven {@link requestStreamed}
+	 * flow (iframe nav) and the blueprint-driven `playground.request(…)`
+	 * flow (via {@link KernelLimitedPHPApi}). Necessary because
+	 * Chrome's `Response` "response" headers guard silently drops
+	 * `Set-Cookie` from synthetic SW responses, so we cannot delegate
+	 * cookie persistence to the browser. See `cookie-jar.ts`.
+	 */
+	private readonly cookieJar = new CookieJar();
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		this.downloadMonitor = monitor;
@@ -224,6 +234,15 @@ export class KernelPlaygroundWorkerEndpoint {
 			''
 		);
 
+		// Inject the jar's current state as the `Cookie:` header. The
+		// browser never sees the kernel's `Set-Cookie` (synthetic
+		// responses from a SW drop it), so the jar is the only place
+		// session cookies are tracked between iframe nav requests.
+		const cookieHeader = this.cookieJar.serialize();
+		if (cookieHeader && !('cookie' in headers)) {
+			headers['cookie'] = cookieHeader;
+		}
+
 		const bridgeRequest: HttpRequest = {
 			method: request.method ?? 'GET',
 			url: originForm,
@@ -233,6 +252,18 @@ export class KernelPlaygroundWorkerEndpoint {
 
 		const bridgeResponse: HttpResponse =
 			await this.kernel.sendRequest(bridgeRequest);
+
+		// Ingest any `Set-Cookie` PHP emitted into the jar, then drop
+		// `set-cookie` from the response we hand the SW. Chrome's
+		// response-guard would discard it anyway; stripping it here
+		// makes the data flow honest and avoids any code path that
+		// might inadvertently try to use the (lost) header.
+		this.cookieJar.ingestAll(
+			bridgeResponse.headers['set-cookie'] ??
+				bridgeResponse.headers['Set-Cookie']
+		);
+		delete bridgeResponse.headers['set-cookie'];
+		delete bridgeResponse.headers['Set-Cookie'];
 
 		// The kernel-mode parent document (`remote.html` served by Vite
 		// at port 5400) is configured with
@@ -441,6 +472,7 @@ export class KernelPlaygroundWorkerEndpoint {
 			absoluteUrl: this.absoluteUrl,
 			adapter,
 			sendRequest: this.kernel.sendRequest,
+			cookieJar: this.cookieJar,
 		});
 		this.bindApiMethods(api);
 
@@ -612,7 +644,7 @@ function flattenHeaders(
 /**
  * The bridge speaks `Record<string,string>`; `PHPResponse` expects
  * `Record<string,string[]>` so values are uniformly indexable. Wrap
- * each header value in a single-element array to bridge the gap.
+ * each header value in a single-element array.
  */
 function arrayifyHeaders(
 	headers: Record<string, string>

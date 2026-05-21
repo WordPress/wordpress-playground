@@ -49,6 +49,8 @@ import coreutilsUrl from '@kernel-binary/programs/wasm32/coreutils.wasm?url';
 import dinitUrl from '@kernel-binary/programs/wasm32/dinit/dinit.wasm?url';
 import dinitctlUrl from '@kernel-binary/programs/wasm32/dinit/dinitctl.wasm?url';
 
+import AUTO_LOGIN_MU_PLUGIN from './wp-templates/auto-login.php?raw';
+
 /**
  * Initial / max sizes for the SharedArrayBuffer that backs the VFS.
  * WordPress core + SQLite drop-in totals ~80 MiB on disk; 128 MiB
@@ -95,6 +97,17 @@ export async function buildVfsImage(
 		fs,
 		'/var/www/html/wp-content/mu-plugins/wasm-optimizations.php',
 		WASM_OPTIMIZATIONS_MU_PLUGIN
+	);
+	// Mirrors the CLI's `ensureAutoLoginMuPlugin`
+	// (packages/playground/cli/src/posix-kernel/prepare-wordpress.ts).
+	// The `login` blueprint step only calls `defineConstant
+	// ('PLAYGROUND_AUTO_LOGIN_AS_USER', …)`; this mu-plugin is what
+	// turns that constant into an actual WordPress session on the first
+	// HTTP request.
+	writeVfsFile(
+		fs,
+		'/var/www/html/wp-content/mu-plugins/1-playground-auto-login.php',
+		AUTO_LOGIN_MU_PLUGIN
 	);
 
 	onStatus('Extracting WordPress core into VFS');

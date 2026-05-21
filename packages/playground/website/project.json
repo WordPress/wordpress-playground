@@ -189,6 +189,15 @@
 				"parallel": false
 			}
 		},
+		"e2e:playwright:posix-kernel": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright/playwright.posix-kernel.config.ts"
+				],
+				"parallel": false
+			}
+		},
 		"e2e:playwright:prepare-app-deploy-and-offline-mode": {
 			"executor": "nx:noop",
 			"dependsOn": [

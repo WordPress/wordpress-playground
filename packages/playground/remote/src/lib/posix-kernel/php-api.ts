@@ -28,6 +28,7 @@ import { dirname, joinPaths } from '@php-wasm/util';
 
 import type { HttpRequest, HttpResponse } from './host-bridge';
 import type { KernelSpawnAdapter } from './kernel-spawn-adapter';
+import type { CookieJar } from './cookie-jar';
 
 import DEFINES_MU_PLUGIN_PHP from './wp-templates/playground-defines.php?raw';
 
@@ -54,6 +55,15 @@ export interface KernelLimitedPHPApiOptions {
 	absoluteUrl: string;
 	adapter: KernelSpawnAdapter;
 	sendRequest: (request: HttpRequest) => Promise<HttpResponse>;
+	/**
+	 * Shared cookie jar — the SW-driven `requestStreamed` flow and the
+	 * blueprint `playground.request(...)` flow both update the same jar
+	 * so the iframe and blueprint code see a consistent session. The
+	 * jar is owned by {@link KernelPlaygroundWorkerEndpoint} and passed
+	 * in here; see `cookie-jar.ts` for why we maintain it in JS rather
+	 * than relying on Chrome's cookie store.
+	 */
+	cookieJar: CookieJar;
 }
 
 export class KernelLimitedPHPApi {
@@ -62,7 +72,7 @@ export class KernelLimitedPHPApi {
 	private readonly sendRequest: (
 		request: HttpRequest
 	) => Promise<HttpResponse>;
-	private readonly cookieJar = new Map<string, string>();
+	private readonly cookieJar: CookieJar;
 	private readonly constants = new Map<
 		string,
 		string | number | boolean | null
@@ -80,6 +90,7 @@ export class KernelLimitedPHPApi {
 		this.absoluteUrl = options.absoluteUrl;
 		this.adapter = options.adapter;
 		this.sendRequest = options.sendRequest;
+		this.cookieJar = options.cookieJar;
 	}
 
 	async mkdir(path: string): Promise<void> {
@@ -223,7 +234,7 @@ export class KernelLimitedPHPApi {
 		const unscoped = removeURLScope(resolved).toString();
 
 		const headers = flattenAndLowercase(request.headers);
-		const cookieHeader = this.serializeCookies();
+		const cookieHeader = this.cookieJar.serialize();
 		if (cookieHeader && !('cookie' in headers)) {
 			headers['cookie'] = cookieHeader;
 		}
@@ -237,17 +248,14 @@ export class KernelLimitedPHPApi {
 			body,
 		});
 
-		// `set-cookie` arrives as a single comma-joined string from the
-		// bridge (HttpResponse uses `Record<string, string>`). Split it
-		// the same way Node 24's `Headers.getSetCookie()` does so each
-		// Set-Cookie ends up in its own jar entry.
-		const setCookies = splitSetCookieHeader(
+		// `set-cookie` arrives as a single joined string from the
+		// bridge (HttpResponse uses `Record<string, string>`). The jar
+		// re-separates and ingests each cookie; we keep the split list
+		// to re-emit per-cookie entries in the response headers.
+		const setCookies = this.cookieJar.ingestAll(
 			bridgeResponse.headers['set-cookie'] ??
 				bridgeResponse.headers['Set-Cookie']
 		);
-		for (const raw of setCookies) {
-			this.ingestSetCookie(raw);
-		}
 
 		const responseHeaders: Record<string, string[]> = {};
 		for (const [name, value] of Object.entries(bridgeResponse.headers)) {
@@ -330,46 +338,6 @@ export class KernelLimitedPHPApi {
 		return code.replace(VFS_DOCROOT_IN_CODE, VFS_DOCUMENT_ROOT);
 	}
 
-	private serializeCookies(): string {
-		if (this.cookieJar.size === 0) {
-			return '';
-		}
-		return Array.from(this.cookieJar.entries())
-			.map(([k, v]) => `${k}=${v}`)
-			.join('; ');
-	}
-
-	private ingestSetCookie(raw: string): void {
-		const segments = raw.split(';');
-		const first = segments[0]?.trim();
-		if (!first) {
-			return;
-		}
-		const eq = first.indexOf('=');
-		if (eq === -1) {
-			return;
-		}
-		const name = first.slice(0, eq).trim();
-		const value = first.slice(eq + 1).trim();
-		const isExpired = segments.slice(1).some((seg) => {
-			const trimmed = seg.trim().toLowerCase();
-			if (trimmed.startsWith('max-age=')) {
-				const n = Number(trimmed.slice('max-age='.length));
-				return Number.isFinite(n) && n <= 0;
-			}
-			if (trimmed.startsWith('expires=')) {
-				const d = Date.parse(trimmed.slice('expires='.length));
-				return Number.isFinite(d) && d <= Date.now();
-			}
-			return false;
-		});
-		if (isExpired) {
-			this.cookieJar.delete(name);
-		} else {
-			this.cookieJar.set(name, value);
-		}
-	}
-
 	/**
 	 * Translate from the classic Playground convention (`/wordpress`)
 	 * to the kernel VFS docroot (`/var/www/html`). Paths that don't
@@ -424,19 +392,6 @@ function encodeBody(body: PHPRequest['body']): Uint8Array | null {
 		'KernelLimitedPHPApi.request: multipart `body` objects are not ' +
 			'supported in the kernel-mode worker yet.'
 	);
-}
-
-/**
- * The bridge collapses duplicate `Set-Cookie` headers into a single
- * comma-joined string. Split on the comma that precedes a fresh cookie
- * name to recover individual values. Matches the regex Node 24's
- * `Headers.getSetCookie()` uses internally.
- */
-function splitSetCookieHeader(value: string | undefined): string[] {
-	if (!value) {
-		return [];
-	}
-	return value.split(/,(?=\s*[A-Za-z0-9!#$%&'*+\-.^_`|~]+=)/);
 }
 
 function phpString(value: string): string {
