@@ -1209,6 +1209,10 @@ echo get_option('blogname');
 				value: undefined,
 				configurable: true,
 			});
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				value: undefined,
+				configurable: true,
+			});
 		});
 
 		await website.goto('./');
@@ -1220,6 +1224,10 @@ echo get_option('blogname');
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toBeVisible();
+		await website.page.getByRole('button', { name: 'Unsaved' }).click();
+		await expect(
+			website.page.getByRole('button', { name: 'Store permanently' })
+		).toHaveCount(0);
 	});
 
 	test('should show "Unsaved" status for storage=temp Playgrounds', async ({

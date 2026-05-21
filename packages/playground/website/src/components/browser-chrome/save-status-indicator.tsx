@@ -16,6 +16,8 @@ import {
 	type SiteInfo,
 } from '../../lib/state/redux/slice-sites';
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
+import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
+import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 
 type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
 
@@ -81,6 +83,9 @@ export function SaveStatusIndicator() {
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(activeSite, clientInfo);
 	const isAutosaved = activeSite ? isAutosavedSite(activeSite) : false;
+	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
+	const canStorePermanently =
+		isOpfsAvailable || localFsAvailability === 'available';
 
 	const handleSaveClick = () => {
 		setIsPopoverOpen(false);
@@ -254,13 +259,15 @@ export function SaveStatusIndicator() {
 							This Playground is not stored anywhere. Changes are
 							lost when this page is refreshed or closed.
 						</p>
-						<button
-							className={css.primaryAction}
-							onClick={handleSaveClick}
-							type="button"
-						>
-							Store permanently
-						</button>
+						{canStorePermanently && (
+							<button
+								className={css.primaryAction}
+								onClick={handleSaveClick}
+								type="button"
+							>
+								Store permanently
+							</button>
+						)}
 					</div>
 				</Popover>
 			)}
