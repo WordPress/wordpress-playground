@@ -52,6 +52,9 @@ function getSyncLabel({
 	progress: Extract<OpfsSync, { status: 'syncing' }>['progress'];
 }) {
 	if (isAutosaved) {
+		if (progress) {
+			return `Unsaved ${progress.files}/${progress.total}`;
+		}
 		return 'Unsaved';
 	}
 	if (

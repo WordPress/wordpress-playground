@@ -453,6 +453,11 @@ describe('createDirectoryHandleMountHandler', () => {
 
 		await mountHandler(php, FS as any, '/wordpress');
 
+		expect(progressEvents[0]).toEqual({
+			files: 0,
+			total: 1,
+			phase: 'copying',
+		});
 		expect(progressEvents).toContainEqual({
 			files: 1,
 			total: 1,

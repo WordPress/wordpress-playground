@@ -49,7 +49,9 @@ export type SyncProgress = {
 	/** The current stage of the initial sync. */
 	phase?: 'copying' | 'flushing';
 };
-export type SyncProgressCallback = (progress: SyncProgress) => void;
+export type SyncProgressCallback = (
+	progress: SyncProgress
+) => void | Promise<void>;
 
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
@@ -84,14 +86,19 @@ export function createDirectoryHandleMountHandler(
 			options.onMount?.(mount);
 			let lastProgress: SyncProgress | undefined;
 			try {
-				await copyMemfsToOpfs(FS, handle, vfsMountPoint, (progress) => {
-					lastProgress = {
-						...progress,
-						phase: 'copying',
-					};
-					options.initialSync.onProgress?.(lastProgress);
-				});
-				options.initialSync.onProgress?.({
+				await copyMemfsToOpfs(
+					FS,
+					handle,
+					vfsMountPoint,
+					async (progress) => {
+						lastProgress = {
+							...progress,
+							phase: 'copying',
+						};
+						await options.initialSync.onProgress?.(lastProgress);
+					}
+				);
+				await options.initialSync.onProgress?.({
 					files: lastProgress?.total ?? 0,
 					total: lastProgress?.total ?? 0,
 					phase: 'flushing',
@@ -215,6 +222,10 @@ export async function copyMemfsToOpfs(
 	// so we report progress. Throttle the progress callback to avoid flooding
 	// the main thread with excessive updates.
 	let numFilesCompleted = 0;
+	await onProgress?.({
+		files: numFilesCompleted,
+		total: filesToCreate.length,
+	});
 	const throttledProgressCallback = onProgress && throttle(onProgress, 100);
 
 	// Limit max concurrent writes because Safari may otherwise encounter
@@ -261,7 +272,7 @@ export async function copyMemfsToOpfs(
 		await Promise.allSettled(concurrentWrites);
 	}
 	throttledProgressCallback?.cancel();
-	onProgress?.({
+	await onProgress?.({
 		files: filesToCreate.length,
 		total: filesToCreate.length,
 	});

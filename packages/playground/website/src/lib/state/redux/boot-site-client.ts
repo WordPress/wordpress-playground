@@ -355,7 +355,8 @@ export function bootSiteClient(
 						);
 					}
 				)
-				.then(() => {
+				.then(async () => {
+					await new Promise((resolve) => setTimeout(resolve, 100));
 					opfsMountSettled = true;
 					dispatch(
 						updateClientInfo({

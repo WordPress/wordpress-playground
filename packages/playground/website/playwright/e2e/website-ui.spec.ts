@@ -653,11 +653,14 @@ test.describe('Default Playground storage', () => {
 			const sampleStatus = () => {
 				const statusButton = [
 					...document.querySelectorAll('button'),
-				].find((node) =>
-					['Unsaved', 'Autosaved', 'Saved Playground'].includes(
-						(node.textContent || '').trim()
-					)
-				);
+				].find((node) => {
+					const label = (node.textContent || '').trim();
+					return (
+						label === 'Autosaved' ||
+						label === 'Saved Playground' ||
+						/^Unsaved( \d+\/\d+)?$/.test(label)
+					);
+				});
 				if (!statusButton) {
 					return;
 				}
