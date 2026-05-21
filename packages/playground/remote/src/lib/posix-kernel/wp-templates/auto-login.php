@@ -50,3 +50,18 @@ function playground_auto_login() {
     exit;
 }
 add_action('init', 'playground_auto_login', 1);
+
+// Intermediate target the Blueprint v1 runner navigates to; lets
+// `playground_auto_login` above set cookies before the browser follows
+// to a page whose auth check runs before `init` (e.g. customize.php).
+function playground_auto_login_redirect_target() {
+    if (
+        isset($_SERVER['REQUEST_URI']) &&
+        strpos($_SERVER['REQUEST_URI'], '?playground-redirection-handler') !== false &&
+        isset($_GET['next'])
+    ) {
+        header('Location: ' . $_GET['next'], true, 302);
+        exit;
+    }
+}
+add_action('init', 'playground_auto_login_redirect_target', 1);

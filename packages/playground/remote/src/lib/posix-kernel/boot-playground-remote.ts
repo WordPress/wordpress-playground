@@ -127,37 +127,6 @@ export async function bootPlaygroundRemote() {
 			if (requestedPath === '/wp-admin') {
 				requestedPath = '/wp-admin/';
 			}
-			// The V1 blueprint runner wraps every landing-page navigation
-			// in `/index.php?playground-redirection-handler&next=<encoded
-			// scoped url>` so the classic playground's auto-login
-			// mu-plugin can finalize cookies before the redirect
-			// (`packages/playground/blueprints/src/lib/v1/compile.ts:
-			// 460`). Inside the posix-kernel WP stack that exact URL
-			// hangs the FPM worker indefinitely (req has been observed
-			// at 30s+ with no FCGI End-Of-Request), even when a
-			// short-circuit mu-plugin is installed — whatever stalls
-			// runs *before* mu-plugins load. We don't (yet) wire
-			// auto-login in kernel mode, so the cookie-ordering
-			// rationale doesn't apply; unwrap to the bare `next` URL
-			// instead. If/when auto-login lands, this needs to drop
-			// back to the wrapper and the underlying hang must be
-			// fixed.
-			const REDIRECT_HANDLER_PATH =
-				'/index.php?playground-redirection-handler';
-			if (requestedPath.startsWith(REDIRECT_HANDLER_PATH)) {
-				const params = new URLSearchParams(
-					requestedPath.slice(requestedPath.indexOf('?') + 1)
-				);
-				const next = params.get('next');
-				if (next) {
-					try {
-						requestedPath =
-							await playground.internalUrlToPath(next);
-					} catch {
-						/* fall through to original path */
-					}
-				}
-			}
 			const newUrl = await playground.pathToInternalUrl(requestedPath);
 			const oldUrl = wpFrame.src;
 			const navigationComplete = new Promise<void>((resolve) => {
