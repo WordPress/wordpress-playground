@@ -826,13 +826,15 @@ test.describe('Default Playground storage', () => {
 			website.page.getByText('Recent autosave available')
 		).toBeVisible();
 		await expect(
-			website.page.getByText('A new Playground is already starting.')
+			website.page.getByText('from the same setup URL.')
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toBeVisible();
-		await website.page.getByRole('button', { name: 'Restore' }).click();
+		await website.page
+			.getByRole('button', { name: 'Restore Autosave' })
+			.click();
 		await website.waitForNestedIframes();
 		await expect
 			.poll(() =>
@@ -913,7 +915,7 @@ echo get_option('blogname');
 		});
 		expect(freshBlogName).not.toBe(firstBlogName);
 
-		await website.page.getByRole('button', { name: 'Keep new' }).click();
+		await website.page.getByRole('button', { name: 'No, thanks' }).click();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });

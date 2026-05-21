@@ -277,16 +277,16 @@ function RestoreAutosaveNudge({
 			<div className={css.copy}>
 				<div className={css.title}>Recent autosave available</div>
 				<div className={css.description}>
-					Autosaved {getRelativeDate(lastUsed)} from this setup URL. A
-					new Playground is already starting.
+					Autosaved another Playground {getRelativeDate(lastUsed)}{' '}
+					from the same setup URL.
 				</div>
 			</div>
 			<div className={css.actions}>
 				<Button variant="primary" onClick={onRestore}>
-					Restore
+					Restore Autosave
 				</Button>
 				<Button variant="tertiary" onClick={onKeepNew}>
-					Keep new
+					No, thanks
 				</Button>
 			</div>
 		</aside>
