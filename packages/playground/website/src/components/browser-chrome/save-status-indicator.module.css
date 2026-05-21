@@ -33,6 +33,11 @@
 	fill: #93c5fd;
 }
 
+.autosaved .label,
+.saving .label {
+	font-weight: 600;
+}
+
 .actionable {
 	cursor: pointer;
 	transition: background 0.15s ease;
