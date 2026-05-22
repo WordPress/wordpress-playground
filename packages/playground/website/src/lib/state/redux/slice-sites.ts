@@ -462,6 +462,10 @@ export interface SiteMetadata {
 	//       For a user, timestamps might be useful to disambiguate identically-named sites.
 	//       For playground, we might choose to sort by most recently used.
 	//whenLastLoaded: number;
+	/**
+	 * Stable fingerprint of the setup URL that created this site, when known.
+	 */
+	sourceSetupUrlFingerprint?: string;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
