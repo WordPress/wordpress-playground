@@ -17,7 +17,7 @@ const LatestSupportedWordPressVersion = Object.keys(
 
 test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
-	await website.goto('./?url=/phpinfo.php');
+	await website.goto('./?storage=temp&url=/phpinfo.php');
 	await expect(wordpress.locator('h1.p').first()).toContainText(
 		'PHP Version 8.3'
 	);
@@ -157,7 +157,7 @@ test('should load WordPress latest by default', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?url=/wp-admin/');
+	await website.goto('./?storage=temp&url=/wp-admin/');
 
 	const expectedBodyClass =
 		'version-' + LatestSupportedWordPressVersion.replace('.', '-');
@@ -170,7 +170,7 @@ test('should load WordPress 6.3 when requested', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?wp=6.3&url=/wp-admin/');
+	await website.goto('./?storage=temp&wp=6.3&url=/wp-admin/');
 	await expect(wordpress.locator(`body.branch-6-3`)).toContainText(
 		'Dashboard'
 	);
@@ -180,7 +180,9 @@ test('should disable networking when requested', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?networking=no&url=/wp-admin/plugin-install.php');
+	await website.goto(
+		'./?storage=temp&networking=no&url=/wp-admin/plugin-install.php'
+	);
 	await expect(wordpress.locator('.notice.error')).toContainText(
 		'Network access is an experimental, opt-in feature'
 	);
@@ -190,12 +192,16 @@ test('should enable networking when requested', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?networking=yes&url=/wp-admin/plugin-install.php');
+	await website.goto(
+		'./?storage=temp&networking=yes&url=/wp-admin/plugin-install.php'
+	);
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
 
 test('should install the specified plugin', async ({ website, wordpress }) => {
-	await website.goto('./?plugin=gutenberg&url=/wp-admin/plugins.php');
+	await website.goto(
+		'./?storage=temp&plugin=gutenberg&url=/wp-admin/plugins.php'
+	);
 	await expect(wordpress.locator('#deactivate-gutenberg')).toContainText(
 		'Deactivate'
 	);
@@ -205,7 +211,7 @@ test('should login the user in by default if no login query parameter is provide
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?url=/wp-admin/');
+	await website.goto('./?storage=temp&url=/wp-admin/');
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
@@ -213,7 +219,7 @@ test('should login the user in if the login query parameter is set to yes', asyn
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?login=yes&url=/wp-admin/');
+	await website.goto('./?storage=temp&login=yes&url=/wp-admin/');
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
@@ -221,7 +227,7 @@ test('should not login the user in if the login query parameter is set to no', a
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?login=no&url=/wp-admin/');
+	await website.goto('./?storage=temp&login=no&url=/wp-admin/');
 	await expect(wordpress.locator('input[type="submit"]')).toContainText(
 		'Log In'
 	);
@@ -232,7 +238,7 @@ test('should not login the user in if the login query parameter is set to no', a
 	['/wp-admin/post.php?post=1&action=edit', 'should redirect to post editor'],
 ].forEach(([path, description]) => {
 	test(description, async ({ website, wordpress }) => {
-		await website.goto(`./?url=${encodeURIComponent(path)}`);
+		await website.goto(`./?storage=temp&url=${encodeURIComponent(path)}`);
 		expect(
 			await wordpress
 				.locator('body')
@@ -251,7 +257,7 @@ test('should translate WP-admin to Spanish using the language query parameter', 
 		`It's unclear why this test fails on Safari. The root cause of the failure is unknown as the feature ` +
 			`seems to be working in manual testing.`
 	);
-	await website.goto('./?language=es_ES&url=/wp-admin/');
+	await website.goto('./?storage=temp&language=es_ES&url=/wp-admin/');
 	await expect(wordpress.locator('body')).toContainText('Escritorio');
 });
 
@@ -318,7 +324,7 @@ test('should retain encoded control characters in the URL', async ({
 	// most wp-admin pages enforce a redirect to a sanitized (broken)
 	// version of the URL.
 	await website.goto(
-		`./?url=${encodeURIComponent(
+		`./?storage=temp&url=${encodeURIComponent(
 			path
 		)}&plugin=html-api-debugger#${JSON.stringify(blueprint)}`
 	);
@@ -398,6 +404,7 @@ async function gotoPHPOnlyPlayground(
 ) {
 	const query = new URLSearchParams({
 		php: '8.3',
+		storage: 'temp',
 		...queryParams,
 	});
 	const blueprint: Blueprint = {

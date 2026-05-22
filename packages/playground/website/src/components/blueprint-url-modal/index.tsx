@@ -23,7 +23,7 @@ export function BlueprintUrlModal() {
 		dispatch(setSiteManagerOpen(false));
 		closeModal();
 		redirectTo(
-			PlaygroundRoute.newTemporarySite({
+			PlaygroundRoute.newSite({
 				query: {
 					'blueprint-url': trimmed,
 				},

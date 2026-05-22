@@ -42,11 +42,7 @@ describe('isExpectedGitHubOAuthMessage', () => {
 		});
 
 		expect(
-			isExpectedGitHubOAuthMessage(
-				event,
-				popup,
-				'playground-popup-test'
-			)
+			isExpectedGitHubOAuthMessage(event, popup, 'playground-popup-test')
 		).toBe(true);
 	});
 
@@ -65,11 +61,7 @@ describe('isExpectedGitHubOAuthMessage', () => {
 		});
 
 		expect(
-			isExpectedGitHubOAuthMessage(
-				event,
-				popup,
-				'playground-popup-test'
-			)
+			isExpectedGitHubOAuthMessage(event, popup, 'playground-popup-test')
 		).toBe(false);
 	});
 });

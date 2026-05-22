@@ -11,14 +11,20 @@ import {
 	setOPFSSitesLoadingState,
 	updateSiteMetadata,
 	removeSite,
+	pruneAutosavedSites,
+	preserveSite,
 	setTemporarySiteSpec,
+	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
+	isAutosavedSite,
+	type SitePersistence,
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
+import { isOpfsAvailable } from '../opfs/opfs-site-storage';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -43,6 +49,7 @@ export interface PlaygroundSitesAPI {
 		slug: string;
 		name: string;
 		storage: string;
+		persistence: string;
 		isActive: boolean;
 	}>;
 
@@ -71,6 +78,14 @@ export interface PlaygroundSitesAPI {
 	 * @throws When no site is selected or saving fails.
 	 */
 	saveInBrowser(name?: string): Promise<{ slug: string; storage: string }>;
+
+	/**
+	 * Keeps an autosaved browser Playground indefinitely.
+	 *
+	 * @param siteSlug Optional slug. Uses the active site when omitted.
+	 * @throws When no site is selected or the site is temporary.
+	 */
+	keep(siteSlug?: string): Promise<void>;
 
 	/**
 	 * Persists the active temporary site to a local directory.
@@ -117,7 +132,10 @@ export interface PlaygroundSitesAPI {
 	 * @param siteSlug The slug of the site to activate.
 	 * @throws When the site is not found or fails to boot.
 	 */
-	setActiveSite(siteSlug: string): Promise<void>;
+	setActiveSite(
+		siteSlug: string,
+		options?: { updateUrl?: boolean }
+	): Promise<void>;
 
 	/**
 	 * Creates a new temporary site and boots it.
@@ -131,6 +149,39 @@ export interface PlaygroundSitesAPI {
 		siteSlug?: string,
 		settings?: SiteSettings
 	): Promise<string>;
+
+	/**
+	 * Creates a new browser-stored site and boots it.
+	 *
+	 * @param siteSlug Optional slug hint. A random name is
+	 *   generated when omitted.
+	 * @param settings Optional site settings.
+	 * @returns The new site's slug.
+	 */
+	createNewSavedSite(
+		siteSlug?: string,
+		settings?: SiteSettings,
+		options?: {
+			persistence?: SitePersistence;
+			updateUrl?: boolean;
+			excludeFromPruning?: string[];
+		}
+	): Promise<string>;
+
+	/**
+	 * Autosaves an active temporary site without changing the URL.
+	 *
+	 * @param siteSlug Optional slug. Uses the active site when omitted.
+	 * @param options Optional autosave behavior overrides.
+	 * @returns The site's slug and storage type.
+	 */
+	autosaveTemporarySite(
+		siteSlug?: string,
+		options?: {
+			updateUrl?: boolean;
+			excludeFromPruning?: string[];
+		}
+	): Promise<{ slug: string; storage: string }>;
 }
 
 export const siteManagementMiddleware = createListenerMiddleware();
@@ -166,6 +217,7 @@ export function createSitesAPI(
 					s.metadata.storage === 'none'
 						? 'temporary'
 						: s.metadata.storage,
+				persistence: isAutosavedSite(s) ? 'autosave' : 'explicit',
 				isActive: s.slug === active?.slug,
 			}));
 		},
@@ -191,7 +243,7 @@ export function createSitesAPI(
 			await dispatch(
 				updateSiteMetadata({
 					slug: site.slug,
-					changes: { name: newName },
+					changes: { name: newName, persistence: 'explicit' },
 				})
 			);
 		},
@@ -202,6 +254,9 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			if (site.metadata.storage !== 'none') {
+				if (isAutosavedSite(site)) {
+					await dispatch(preserveSite(site.slug));
+				}
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 			await dispatch(
@@ -215,6 +270,48 @@ export function createSitesAPI(
 			return { slug: site.slug, storage };
 		},
 
+		async autosaveTemporarySite(siteSlug?: string, options = {}) {
+			const site = siteSlug
+				? selectSiteBySlug(getState(), siteSlug)
+				: selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No site selected');
+			}
+			if (site.metadata.storage !== 'none') {
+				return { slug: site.slug, storage: site.metadata.storage };
+			}
+			await dispatch(
+				persistTemporarySite(site.slug, 'opfs', {
+					skipRenameModal: true,
+					persistence: 'autosave',
+					updateUrl: options.updateUrl ?? false,
+					keepOriginalUrlParams: true,
+					keepRunningClient: true,
+				})
+			);
+			await dispatch(
+				pruneAutosavedSites({
+					excludeSlugs: [
+						site.slug,
+						...(options.excludeFromPruning ?? []),
+					],
+				})
+			);
+			const updatedSite = selectSiteBySlug(getState(), site.slug);
+			const storage = updatedSite?.metadata.storage ?? 'none';
+			return { slug: site.slug, storage };
+		},
+
+		async keep(siteSlug?: string) {
+			const site = siteSlug
+				? selectSiteBySlug(getState(), siteSlug)
+				: selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No site selected');
+			}
+			await dispatch(preserveSite(site.slug));
+		},
+
 		async saveToLocalFileSystem(
 			name?: string,
 			localFsHandle?: FileSystemDirectoryHandle
@@ -224,6 +321,9 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			if (site.metadata.storage !== 'none') {
+				if (isAutosavedSite(site)) {
+					await dispatch(preserveSite(site.slug));
+				}
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 			await dispatch(
@@ -297,7 +397,7 @@ export function createSitesAPI(
 			await dispatch(removeSite(siteSlug));
 		},
 
-		async setActiveSite(siteSlug: string) {
+		async setActiveSite(siteSlug: string, options = {}) {
 			const state = getState();
 			const site = selectSiteBySlug(state, siteSlug);
 			if (!site) {
@@ -332,7 +432,7 @@ export function createSitesAPI(
 					},
 				});
 			});
-			dispatch(setActiveSite(siteSlug));
+			dispatch(setActiveSite(siteSlug, options));
 			await bootPromise;
 		},
 
@@ -373,8 +473,72 @@ export function createSitesAPI(
 			await api.setActiveSite(newSiteInfo.slug);
 			return newSiteInfo.slug;
 		},
+
+		async createNewSavedSite(
+			requestedSiteSlug?: string,
+			settings?: SiteSettings,
+			options = {}
+		) {
+			if (!isOpfsAvailable) {
+				throw new Error(
+					'Cannot create a saved Playground because browser storage is not available.'
+				);
+			}
+			const siteName = requestedSiteSlug
+				? deriveSiteNameFromSlug(requestedSiteSlug)
+				: randomSiteName();
+			const url = getUrlWithSettings(settings);
+			const newSiteInfo = await dispatch(
+				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+					persistence: options.persistence ?? 'autosave',
+				})
+			);
+			await api.setActiveSite(newSiteInfo.slug, {
+				updateUrl: options.updateUrl,
+			});
+			await dispatch(
+				pruneAutosavedSites({
+					excludeSlugs: [
+						newSiteInfo.slug,
+						...(options.excludeFromPruning ?? []),
+					],
+				})
+			);
+			return newSiteInfo.slug;
+		},
 	};
 	return api;
+}
+
+function getUrlWithSettings(settings?: SiteSettings) {
+	const url = new URL(window.location.href);
+	url.searchParams.delete('random');
+	url.searchParams.delete('site-slug');
+	url.searchParams.delete('storage');
+	if (settings) {
+		if (settings.phpVersion !== undefined) {
+			url.searchParams.set('php', settings.phpVersion);
+		}
+		if (settings.wpVersion !== undefined) {
+			url.searchParams.set('wp', settings.wpVersion);
+		}
+		if (settings.networking !== undefined) {
+			url.searchParams.set(
+				'networking',
+				settings.networking ? 'yes' : 'no'
+			);
+		}
+		if (settings.language !== undefined) {
+			url.searchParams.set('language', settings.language);
+		}
+		if (settings.multisite !== undefined) {
+			url.searchParams.set(
+				'multisite',
+				settings.multisite ? 'yes' : 'no'
+			);
+		}
+	}
+	return url;
 }
 
 /**

@@ -16,6 +16,7 @@ import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
 import {
 	selectSiteBySlug,
+	type SitePersistence,
 	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
@@ -30,6 +31,10 @@ export function persistTemporarySite(
 		localFsHandle?: FileSystemDirectoryHandle;
 		siteName?: string;
 		skipRenameModal?: boolean;
+		persistence?: SitePersistence;
+		updateUrl?: boolean;
+		keepOriginalUrlParams?: boolean;
+		keepRunningClient?: boolean;
 	} = {}
 ) {
 	return async (
@@ -156,13 +161,18 @@ export function persistTemporarySite(
 		} else {
 			throw new Error(`Unsupported device type: ${storageType}`);
 		}
+		const syncOperation =
+			options.persistence === 'autosave' ? 'autosave' : 'save';
 
 		dispatch(
 			updateClientInfo({
 				siteSlug,
 				changes: {
 					opfsMountDescriptor: mountDescriptor,
-					opfsSync: { status: 'syncing' },
+					opfsSync: {
+						status: 'syncing',
+						operation: syncOperation,
+					},
 				},
 			})
 		);
@@ -180,6 +190,7 @@ export function persistTemporarySite(
 								opfsSync: {
 									status: 'syncing',
 									progress,
+									operation: syncOperation,
 								},
 							},
 						})
@@ -203,6 +214,7 @@ export function persistTemporarySite(
 					changes: {
 						opfsSync: {
 							status: 'error',
+							operation: syncOperation,
 						},
 					},
 				})
@@ -210,30 +222,44 @@ export function persistTemporarySite(
 			throw error;
 		}
 
-		await dispatch(
-			updateSite({
-				slug: siteSlug,
-				changes: {
-					originalUrlParams: undefined,
-				},
-			})
-		);
+		if (!options.keepOriginalUrlParams) {
+			await dispatch(
+				updateSite({
+					slug: siteSlug,
+					changes: {
+						originalUrlParams: undefined,
+					},
+				})
+			);
+		}
 
+		const persistedAt = Date.now();
+		const runtimeConfiguration = {
+			...siteInfo.metadata.runtimeConfiguration,
+			constants: await getPlaygroundDefinedPHPConstants(playground),
+		};
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					storage: storageType,
-					// Reset the created date. Mental model: From the perspective of
-					// the storage backend, the site was just created.
-					whenCreated: Date.now(),
+					persistence: options.persistence ?? 'explicit',
+					/**
+					 * The viewport key includes whenCreated to distinguish
+					 * delete/recreate cycles for the same slug. The delayed
+					 * autosave path already has a live Playground iframe and
+					 * must not change that key, or React will remount it after
+					 * the OPFS sync completes.
+					 */
+					...(options.keepRunningClient
+						? {}
+						: { whenCreated: persistedAt }),
+					whenLastUsed: persistedAt,
 					// Make sure to store the constants we'll want to re-apply
 					// on the next page load.
-					runtimeConfiguration: {
-						...siteInfo.metadata.runtimeConfiguration,
-						constants:
-							await getPlaygroundDefinedPHPConstants(playground),
-					},
+					...(options.keepRunningClient
+						? {}
+						: { runtimeConfiguration }),
 					// If we persisted a blueprint bundle, point to it so we can
 					// load the full bundle (not just the declaration) on next load.
 					...(bundleWasPersisted
@@ -247,6 +273,15 @@ export function persistTemporarySite(
 				},
 			})
 		);
+		if (options.keepRunningClient) {
+			const updatedSite = selectSiteBySlug(getState(), siteSlug);
+			if (updatedSite?.metadata.storage !== 'none') {
+				await opfsSiteStorage?.update(updatedSite.slug, {
+					...updatedSite.metadata,
+					runtimeConfiguration,
+				});
+			}
+		}
 		/**
 		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
 		 *        "Cannot read properties of undefined (reading 'apply')" errors here:
@@ -258,7 +293,9 @@ export function persistTemporarySite(
 		const updatedState = getState();
 		const updatedSite = selectSiteBySlug(updatedState, siteSlug);
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
-		redirectTo(persistentSiteUrl);
+		if (options.updateUrl !== false) {
+			redirectTo(persistentSiteUrl);
+		}
 		if (!options.skipRenameModal) {
 			dispatch(setActiveModal('rename-site'));
 		}

@@ -23,6 +23,7 @@ interface QueryAPIParams {
 	url?: string;
 	'blueprint-url'?: string;
 	'page-title'?: string;
+	storage?: 'temp';
 }
 
 /**
@@ -58,7 +59,10 @@ export function parseBlueprint(rawData: string) {
  * base64-decode-then-parse error if the input looks base64-shaped,
  * otherwise the plain JSON.parse error.
  */
-function formatInvalidBlueprintError(rawData: string, errors: unknown[]): string {
+function formatInvalidBlueprintError(
+	rawData: string,
+	errors: unknown[]
+): string {
 	const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(rawData.trim());
 	const primary = looksLikeBase64 && errors[1] ? errors[1] : errors[0];
 	const detail =
@@ -85,6 +89,10 @@ export class PlaygroundRoute {
 				'mode',
 				'networking',
 				'login',
+				'php',
+				'wp',
+				'language',
+				'multisite',
 				'url',
 				'page-title',
 				'mcp',
@@ -117,9 +125,31 @@ export class PlaygroundRoute {
 			{
 				searchParams: {
 					...query,
+					storage: 'temp',
 					// Ensure a part of the URL is unique so we can still
 					// reload the temporary site even if its configuration
 					// hasn't changed.
+					random: Math.random().toString(36).substring(2, 15),
+				},
+				hash: config.hash,
+			},
+			'replace'
+		);
+	}
+	static newSite(
+		config: {
+			query?: QueryAPIParams;
+			hash?: string;
+		} = {},
+		baseUrl: string = window.location.href
+	) {
+		const query =
+			(config.query as Record<string, string | undefined>) || {};
+		return updateUrl(
+			baseUrl,
+			{
+				searchParams: {
+					...query,
 					random: Math.random().toString(36).substring(2, 15),
 				},
 				hash: config.hash,
@@ -138,6 +168,13 @@ export function isSaveDisabledByQueryParam(): boolean {
 	return (
 		new URL(document.location.href).searchParams.get('can-save') === 'no'
 	);
+}
+
+/**
+ * Checks if the URL explicitly asks for a temporary Playground.
+ */
+export function isTemporaryStorageRequested(url = document.location.href) {
+	return new URL(url).searchParams.get('storage') === 'temp';
 }
 
 /**
