@@ -1,5 +1,6 @@
 import {
 	getPhpIniEntries,
+	__private__dont__use,
 	PHP,
 	PHPProcessManager,
 	sandboxedSpawnHandlerFactory,
@@ -613,6 +614,76 @@ phpLoaderOptions.forEach((options) => {
 		});
 
 		describe('popen()', () => {
+			const itWithRebuiltProcessOutputRuntime =
+				phpVersion === '8.3' ? it : it.skip;
+
+			itWithRebuiltProcessOutputRuntime(
+				'closes read-mode process output streams',
+				async () => {
+					const openPopenOutputCount = () =>
+						(php as any)[__private__dont__use].FS.streams
+							.filter(Boolean)
+							.filter(
+								(stream: any) =>
+									stream.path === '/tmp/popen_output'
+							).length;
+					const before = openPopenOutputCount();
+
+					const popenResult = await php.run({
+						code: `<?php
+					for ($i = 0; $i < 100; $i++) {
+						$fp = popen("echo WordPress", "r");
+						fread($fp, 1024);
+						pclose($fp);
+					}
+					echo "popen-done";
+					`,
+					});
+					expect(popenResult.text).toEqual('popen-done');
+					expect(openPopenOutputCount()).toBe(before);
+
+					const execResult = await php.run({
+						code: `<?php
+
+					for ($i = 0; $i < 100; $i++) {
+						exec("echo WordPress", $output, $exit_code);
+						$output = [];
+					}
+					echo "exec-done";
+					`,
+					});
+					expect(execResult.text).toEqual('exec-done');
+					expect(openPopenOutputCount()).toBe(before);
+
+					const shellExecResult = await php.run({
+						code: `<?php
+
+					for ($i = 0; $i < 100; $i++) {
+						shell_exec("echo WordPress");
+					}
+					echo "shell-done";
+					`,
+					});
+					expect(shellExecResult.text).toEqual('shell-done');
+					expect(openPopenOutputCount()).toBe(before);
+
+					const systemResult = await php.run({
+						code: `<?php
+
+					for ($i = 0; $i < 100; $i++) {
+						ob_start();
+						system("echo WordPress", $exit_code);
+						ob_end_clean();
+					}
+					echo "done";
+					`,
+					});
+
+					expect(systemResult.text).toEqual('done');
+					expect(openPopenOutputCount()).toBe(before);
+				}
+			);
+
 			it('popen("echo", "r")', async () => {
 				const result = await php.run({
 					code: `<?php

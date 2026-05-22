@@ -688,7 +688,7 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 		goto err;
 	}
 
-	stream = php_stream_fopen_from_pipe(fp, "rb");
+	stream = php_stream_fopen_from_file(fp, "rb");
 
 	buf = (char *)emalloc(EXEC_INPUT_BUF);
 	buflen = EXEC_INPUT_BUF;

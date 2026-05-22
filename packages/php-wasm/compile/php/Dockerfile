@@ -459,6 +459,10 @@ RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; i
 # the process inside PHP_FUNCTION(popen).
 RUN /root/replace.sh 's/#define VCWD_POPEN.+/#define VCWD_POPEN(command, type) wasm_popen(command,type)/g' /root/php-src/Zend/zend_virtual_cwd.h
 RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/php-src/Zend/zend_virtual_cwd.h
+# wasm_popen() buffers read-mode output to a temporary regular file, so the PHP
+# stream must close it with fclose() semantics instead of pclose() semantics.
+RUN perl -0pi -e "s/stream = php_stream_fopen_from_pipe\\(fp, mode\\);/stream = (*posix_mode == 'r') ? php_stream_fopen_from_file(fp, mode) : php_stream_fopen_from_pipe(fp, mode);/g" /root/php-src/ext/standard/file.c
+RUN perl -0pi -e 's/stream = php_stream_fopen_from_pipe\(in, "rb"\);/stream = php_stream_fopen_from_file(in, "rb");/g' /root/php-src/ext/standard/exec.c
 
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
