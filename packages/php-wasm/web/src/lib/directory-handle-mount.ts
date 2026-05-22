@@ -46,8 +46,12 @@ export type SyncProgress = {
 	files: number;
 	/** The number of all files that need to be synced. */
 	total: number;
+	/** The current stage of the initial sync. */
+	phase?: 'copying' | 'flushing';
 };
-export type SyncProgressCallback = (progress: SyncProgress) => void;
+export type SyncProgressCallback = (
+	progress: SyncProgress
+) => void | Promise<void>;
 
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
@@ -74,17 +78,40 @@ export function createDirectoryHandleMountHandler(
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			return mount.unmount;
 		} else {
-			await copyMemfsToOpfs(
-				FS,
-				handle,
-				vfsMountPoint,
-				options.initialSync.onProgress
-			);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			let lastProgress: SyncProgress | undefined;
+			try {
+				await copyMemfsToOpfs(
+					FS,
+					handle,
+					vfsMountPoint,
+					async (progress) => {
+						lastProgress = {
+							...progress,
+							phase: 'copying',
+						};
+						await options.initialSync.onProgress?.(lastProgress);
+					}
+				);
+				await options.initialSync.onProgress?.({
+					files: lastProgress?.total ?? 0,
+					total: lastProgress?.total ?? 0,
+					phase: 'flushing',
+				});
+				void mount.flush().catch((error) => {
+					logger.error(error);
+				});
+			} catch (error) {
+				await mount.unmount();
+				throw error;
+			}
+			return mount.unmount;
 		}
-		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
-		options.onMount?.(mount);
-		return mount.unmount;
 	};
 }
 
@@ -195,6 +222,10 @@ export async function copyMemfsToOpfs(
 	// so we report progress. Throttle the progress callback to avoid flooding
 	// the main thread with excessive updates.
 	let numFilesCompleted = 0;
+	await onProgress?.({
+		files: numFilesCompleted,
+		total: filesToCreate.length,
+	});
 	const throttledProgressCallback = onProgress && throttle(onProgress, 100);
 
 	// Limit max concurrent writes because Safari may otherwise encounter
@@ -240,6 +271,11 @@ export async function copyMemfsToOpfs(
 		// to a conflict with writes from the earlier attempt.
 		await Promise.allSettled(concurrentWrites);
 	}
+	throttledProgressCallback?.cancel();
+	await onProgress?.({
+		files: filesToCreate.length,
+		total: filesToCreate.length,
+	});
 }
 
 function isMemfsDir(FS: Emscripten.RootFS, path: string) {
@@ -532,15 +568,21 @@ async function resolveParent(
 	return handle as any;
 }
 
+type CancelableThrottledFunction<T extends (...args: any[]) => any> = T & {
+	cancel(): void;
+};
+
 function throttle<T extends (...args: any[]) => any>(
 	fn: T,
 	debounceMs: number
-): T {
+): CancelableThrottledFunction<T> {
 	let lastCallTime = 0;
 	let timeoutId: ReturnType<typeof setTimeout> | undefined;
 	let pendingArgs: Parameters<T> | undefined;
 
-	return function throttledCallback(...args: Parameters<T>) {
+	const throttledCallback = function throttledCallback(
+		...args: Parameters<T>
+	) {
 		pendingArgs = args;
 
 		const timeSinceLastCall = Date.now() - lastCallTime;
@@ -552,5 +594,15 @@ function throttle<T extends (...args: any[]) => any>(
 				fn(...pendingArgs!);
 			}, delay);
 		}
-	} as T;
+	} as CancelableThrottledFunction<T>;
+
+	throttledCallback.cancel = () => {
+		if (timeoutId !== undefined) {
+			clearTimeout(timeoutId);
+		}
+		timeoutId = undefined;
+		pendingArgs = undefined;
+	};
+
+	return throttledCallback;
 }

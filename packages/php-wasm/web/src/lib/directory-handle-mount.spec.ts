@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { __private__dont__use, type PHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { journalFSEventsToOpfs } from './directory-handle-mount';
+import {
+	copyMemfsToOpfs,
+	createDirectoryHandleMountHandler,
+	journalFSEventsToOpfs,
+} from './directory-handle-mount';
 
 class MemoryFileHandle {
 	kind = 'file' as const;
@@ -355,9 +359,151 @@ describe('journalFSEventsToOpfs', () => {
 	});
 });
 
+describe('createDirectoryHandleMountHandler', () => {
+	it('flushes changes made while the initial MEMFS to OPFS sync is still running', async () => {
+		let changedDuringInitialSync = false;
+		let mount: { flush(): Promise<void> } | undefined;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			if (changedDuringInitialSync) {
+				return;
+			}
+			changedDuringInitialSync = true;
+			files.set('/wordpress/database.sqlite', encode('changed'));
+			FS.write({ path: '/wordpress/database.sqlite' });
+		});
+		files.set('/wordpress/database.sqlite', encode('initial'));
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+				},
+				onMount: (createdMount) => {
+					mount = createdMount;
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+		await mount!.flush();
+
+		expect(decode(opfsRoot.files.get('database.sqlite')!.bytes)).toBe(
+			'changed'
+		);
+	});
+
+	it('does not block the initial MEMFS to OPFS sync on the final flush', async () => {
+		let mount: { flush(): Promise<void> } | undefined;
+		let changedDuringInitialSync = false;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			if (changedDuringInitialSync) {
+				return;
+			}
+			changedDuringInitialSync = true;
+			FS.write({ path: '/wordpress/database.sqlite' });
+		});
+		files.set('/wordpress/database.sqlite', encode('initial'));
+		const releaseSemaphore = await php.semaphore.acquire();
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+				},
+				onMount: (createdMount) => {
+					mount = createdMount;
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+		releaseSemaphore();
+		await mount!.flush();
+
+		expect(decode(opfsRoot.files.get('database.sqlite')!.bytes)).toBe(
+			'initial'
+		);
+	});
+
+	it('reports a flushing phase after the initial MEMFS to OPFS copy', async () => {
+		const progressEvents: Array<{
+			files: number;
+			total: number;
+			phase?: 'copying' | 'flushing';
+		}> = [];
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		files.set('/wordpress/database.sqlite', encode('initial'));
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+					onProgress: (progress) => {
+						progressEvents.push(progress);
+					},
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+
+		expect(progressEvents[0]).toEqual({
+			files: 0,
+			total: 1,
+			phase: 'copying',
+		});
+		expect(progressEvents).toContainEqual({
+			files: 1,
+			total: 1,
+			phase: 'flushing',
+		});
+	});
+
+	it('does not emit stale copy progress after the final progress event', async () => {
+		vi.useFakeTimers();
+
+		try {
+			const progressEvents: Array<{ files: number; total: number }> = [];
+			const { FS, files } = createFakePhp();
+			const opfsRoot = new MemoryDirectoryHandle('root');
+			FS.readdir.mockReturnValue(['.', '..', 'first.txt', 'second.txt']);
+			files.set('/wordpress/first.txt', encode('first'));
+			files.set('/wordpress/second.txt', encode('second'));
+
+			await copyMemfsToOpfs(
+				FS as any,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress',
+				(progress) => {
+					progressEvents.push(progress);
+				}
+			);
+
+			const progressEventCount = progressEvents.length;
+			await vi.advanceTimersByTimeAsync(1000);
+
+			expect(progressEvents).toHaveLength(progressEventCount);
+			expect(progressEvents.at(-1)).toEqual({
+				files: 2,
+				total: 2,
+			});
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});
+
 function createFakePhp() {
 	const files = new Map<string, Uint8Array>();
 	const FS = {
+		mkdirTree: vi.fn(),
+		readdir: vi.fn(() => ['.', '..', 'database.sqlite']),
 		write: vi.fn(),
 		truncate: vi.fn(),
 		unlink: vi.fn(),
