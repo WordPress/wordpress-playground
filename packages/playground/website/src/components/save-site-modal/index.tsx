@@ -279,6 +279,14 @@ export function SaveSiteModal() {
 		!selectionIsAvailable ||
 		!hasDirectoryAccess ||
 		isSaving;
+	const savingProgressLabel =
+		savingProgress &&
+		savingProgress.total > 0 &&
+		savingProgress.files >= savingProgress.total
+			? 'Finalizing save...'
+			: savingProgress
+				? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
+				: 'Preparing to save...';
 
 	const handleRequestClose = () => {
 		if (!isSaving) {
@@ -304,7 +312,8 @@ export function SaveSiteModal() {
 			>
 				<p style={{ margin: 0, color: '#1e1e1e' }}>
 					This Playground is temporary and will be lost when you
-					refresh or close this page. Save it to keep your work.
+					refresh or close this page. Save it to keep your work and
+					find it later in Your Playgrounds.
 				</p>
 				<TextControl
 					label="Playground name"
@@ -385,9 +394,7 @@ export function SaveSiteModal() {
 							style={{ width: '100%', height: 24 }}
 						></progress>
 						<p style={{ ...helpTextStyle, marginTop: 4 }}>
-							{savingProgress
-								? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
-								: 'Preparing to save...'}
+							{savingProgressLabel}
 						</p>
 					</div>
 				)}

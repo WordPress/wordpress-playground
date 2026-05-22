@@ -619,13 +619,15 @@ test.describe('Database panel', () => {
 
 // Test saving playgrounds by default and when the "can-save" URL parameter is set to "no".
 test.describe('Save Status Indicator', () => {
-	test('should show "Unsaved Playground" status for temporary playgrounds', async ({
+	test('should show "Unsaved" status for temporary playgrounds', async ({
 		website,
 	}) => {
-		await website.goto('./');
+		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsClosed();
 
-		const indicator = website.page.getByText('Unsaved Playground');
+		const indicator = website.page.getByRole('button', {
+			name: 'Unsaved',
+		});
 		await expect(indicator).toBeVisible();
 		await expect(indicator).toHaveCount(1);
 	});
@@ -633,7 +635,7 @@ test.describe('Save Status Indicator', () => {
 	test('should see save playground message in the Site Manager', async ({
 		website,
 	}) => {
-		await website.goto('./');
+		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
 
 		const indicator = website.page.getByText(
@@ -644,13 +646,15 @@ test.describe('Save Status Indicator', () => {
 		await expect(indicator).toHaveCount(1);
 	});
 
-	test('should not show "Unsaved Playground" status when "can-save=no" is set', async ({
+	test('should not show "Unsaved" status when "can-save=no" is set', async ({
 		website,
 	}) => {
 		await website.goto('./?can-save=no');
 		await website.ensureSiteManagerIsClosed();
 
-		const indicator = website.page.getByText('Unsaved Playground');
+		const indicator = website.page.getByRole('button', {
+			name: 'Unsaved',
+		});
 		await expect(indicator).toHaveCount(0);
 	});
 
