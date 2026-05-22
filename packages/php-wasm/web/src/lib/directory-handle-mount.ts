@@ -99,12 +99,15 @@ export function createDirectoryHandleMountHandler(
 					}
 				);
 				await options.initialSync.onProgress?.({
-					files: lastProgress?.total ?? 0,
+					files: lastProgress?.files ?? 0,
 					total: lastProgress?.total ?? 0,
 					phase: 'flushing',
 				});
 				void mount.flush().catch((error) => {
-					logger.error(error);
+					logger.error('OPFS flush failed after initial sync', {
+						error,
+						vfsMountPoint,
+					});
 				});
 			} catch (error) {
 				await mount.unmount();
@@ -591,7 +594,15 @@ function throttle<T extends (...args: any[]) => any>(
 			timeoutId = setTimeout(() => {
 				timeoutId = undefined;
 				lastCallTime = Date.now();
-				fn(...pendingArgs!);
+				const args = pendingArgs!;
+				pendingArgs = undefined;
+				try {
+					void Promise.resolve(fn(...args)).catch(
+						logThrottledProgressCallbackError
+					);
+				} catch (error) {
+					logThrottledProgressCallbackError(error);
+				}
 			}, delay);
 		}
 	} as CancelableThrottledFunction<T>;
@@ -605,4 +616,8 @@ function throttle<T extends (...args: any[]) => any>(
 	};
 
 	return throttledCallback;
+}
+
+function logThrottledProgressCallbackError(error: unknown) {
+	logger.error('Throttled progress callback failed', { error });
 }

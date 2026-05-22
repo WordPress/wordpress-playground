@@ -465,6 +465,55 @@ describe('createDirectoryHandleMountHandler', () => {
 		});
 	});
 
+	it('handles rejected async throttled progress callbacks', async () => {
+		vi.useFakeTimers();
+		const loggerError = vi
+			.spyOn(logger, 'error')
+			.mockImplementation(() => {});
+
+		try {
+			const progressError = new Error('progress failed');
+			const releaseWrite = deferred<void>();
+			let writeCount = 0;
+			const { FS, files } = createFakePhp();
+			const opfsRoot = new MemoryDirectoryHandle('root', () => {
+				writeCount++;
+				if (writeCount === 2) {
+					return releaseWrite.promise;
+				}
+				return undefined;
+			});
+			FS.readdir.mockReturnValue(['.', '..', 'first.txt', 'second.txt']);
+			files.set('/wordpress/first.txt', encode('first'));
+			files.set('/wordpress/second.txt', encode('second'));
+
+			const copyPromise = copyMemfsToOpfs(
+				FS as any,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress',
+				async (progress) => {
+					if (progress.files > 0 && progress.files < progress.total) {
+						throw progressError;
+					}
+				}
+			);
+
+			await vi.advanceTimersByTimeAsync(100);
+			expect(loggerError).toHaveBeenCalledWith(
+				'Throttled progress callback failed',
+				{
+					error: progressError,
+				}
+			);
+
+			releaseWrite.resolve();
+			await copyPromise;
+		} finally {
+			loggerError.mockRestore();
+			vi.useRealTimers();
+		}
+	});
+
 	it('does not emit stale copy progress after the final progress event', async () => {
 		vi.useFakeTimers();
 
