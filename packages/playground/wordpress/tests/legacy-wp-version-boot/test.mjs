@@ -21,69 +21,14 @@
  * Requires the dev server to be running on port 5400
  * (started by the CI job or manually via `npm run dev`).
  *
- * Usage: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
+ * Usage: node packages/playground/wordpress/tests/legacy-wp-version-boot/test.mjs
  */
 import { chromium } from 'playwright';
-
-// Matrix of (WordPress, PHP) combinations to test.
-// Versions that were never released: 1.1, 1.3, 1.4, 2.4.
-// The web worker normalizes bare versions automatically (1.5 → 1.5.2,
-// 2.0 → 2.0.11, etc.) and resolves them to wordpress.org downloads.
-// Modern WP (5.0–6.2) is paired with PHP 7.4 because it's the newest
-// PHP the legacy SQLite driver supports and is far enough from the
-// PHP 5.2 leg to make regressions obvious.
-const WP_VERSIONS = [
-	// Mid-modern WordPress (PHP 7.4).
-	{ wp: '6.2', php: '7.4' },
-	{ wp: '6.1', php: '7.4' },
-	{ wp: '6.0', php: '7.4' },
-	{ wp: '5.9', php: '7.4' },
-	{ wp: '5.8', php: '7.4' },
-	{ wp: '5.7', php: '7.4' },
-	{ wp: '5.6', php: '7.4' },
-	{ wp: '5.5', php: '7.4' },
-	{ wp: '5.4', php: '7.4' },
-	{ wp: '5.3', php: '7.4' },
-	{ wp: '5.2', php: '7.4' },
-	{ wp: '5.1', php: '7.4' },
-	{ wp: '5.0', php: '7.4' },
-	// Legacy WordPress on PHP 5.2 WASM.
-	{ wp: '4.9', php: '5.2' },
-	{ wp: '4.8', php: '5.2' },
-	{ wp: '4.7', php: '5.2' },
-	{ wp: '4.6', php: '5.2' },
-	{ wp: '4.5', php: '5.2' },
-	{ wp: '4.4', php: '5.2' },
-	{ wp: '4.3', php: '5.2' },
-	{ wp: '4.2', php: '5.2' },
-	{ wp: '4.1', php: '5.2' },
-	{ wp: '4.0', php: '5.2' },
-	{ wp: '3.9', php: '5.2' },
-	{ wp: '3.8', php: '5.2' },
-	{ wp: '3.7', php: '5.2' },
-	{ wp: '3.6', php: '5.2' },
-	{ wp: '3.5', php: '5.2' },
-	{ wp: '3.4', php: '5.2' },
-	{ wp: '3.3', php: '5.2' },
-	{ wp: '3.2', php: '5.2' },
-	{ wp: '3.1', php: '5.2' },
-	{ wp: '3.0', php: '5.2' },
-	{ wp: '2.9', php: '5.2' },
-	{ wp: '2.8', php: '5.2' },
-	{ wp: '2.7', php: '5.2' },
-	{ wp: '2.6', php: '5.2' },
-	{ wp: '2.5', php: '5.2' },
-	{ wp: '2.3', php: '5.2' },
-	{ wp: '2.2', php: '5.2' },
-	{ wp: '2.1', php: '5.2' },
-	{ wp: '2.0', php: '5.2' },
-	{ wp: '1.5', php: '5.2' },
-	{ wp: '1.2', php: '5.2' },
-	{ wp: '1.0', php: '5.2' },
-];
+import { getLegacyWordPressVersionMatrix } from './matrix.mjs';
 
 const PORT = 5400;
 const TIMEOUT_S = 120;
+const PLUGIN_ACTIVATION_TIMEOUT_S = 60;
 const results = [];
 
 /**
@@ -259,7 +204,7 @@ async function waitForPluginActivation(
 	page,
 	previousFrameUrl,
 	previousBody,
-	timeoutSeconds = 60
+	timeoutSeconds = PLUGIN_ACTIVATION_TIMEOUT_S
 ) {
 	const deadline = Date.now() + timeoutSeconds * 1000;
 	while (Date.now() < deadline) {
@@ -273,18 +218,71 @@ async function waitForPluginActivation(
 				const changed =
 					frame.url() !== previousFrameUrl || body !== previousBody;
 				if (!changed) continue;
-				if (
-					body.includes('Plugin activated') ||
-					body.includes('Deactivate') ||
-					body.includes('Are you sure') ||
-					findPHPError(body)
-				) {
+				if (isPluginActivationTerminalBody(body)) {
 					return { body, frame };
 				}
 			} catch {}
 		}
 	}
 	return null;
+}
+
+function getPluginActivationStatus(body) {
+	const error = findPHPError(body);
+	const ok = isPluginActivationComplete(body);
+	const bad = body.includes('Are you sure');
+	if (error) {
+		return { status: 'ERROR', detail: error };
+	}
+	if (ok) {
+		return { status: 'OK' };
+	}
+	return {
+		status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
+		detail: summarizeBody(body),
+	};
+}
+
+function getPluginActivationTimeoutStatus(
+	beforeUrl,
+	latestFrame,
+	consoleErrors,
+	consoleStartIndex,
+	timeoutSeconds = PLUGIN_ACTIVATION_TIMEOUT_S
+) {
+	const recentErrors = consoleErrors.slice(consoleStartIndex).slice(-3);
+	const detail = [
+		`timed out after ${timeoutSeconds}s`,
+		`before URL: ${beforeUrl}`,
+		latestFrame ? `latest URL: ${latestFrame.frame.url()}` : null,
+		recentErrors.length
+			? `recent console errors: ${recentErrors.join(' | ')}`
+			: null,
+	]
+		.filter(Boolean)
+		.join('; ');
+
+	return {
+		status: 'TIMEOUT',
+		detail,
+		body: latestFrame?.body,
+	};
+}
+
+function isPluginActivationTerminalBody(body) {
+	return (
+		isPluginActivationComplete(body) ||
+		body.includes('Are you sure') ||
+		!!findPHPError(body)
+	);
+}
+
+function isPluginActivationComplete(body) {
+	return body.includes('Plugin activated') || body.includes('Deactivate');
+}
+
+function summarizeBody(body) {
+	return body.slice(0, 120).replace(/\n/g, ' ');
 }
 
 /**
@@ -325,12 +323,7 @@ function hasAdminIndicator(body) {
 const NEW_POST_URL_VERSIONS = new Set(['1.0', '1.2', '1.5', '2.0']);
 
 // Optional filter for local runs: WP_ONLY=6.2,6.1,5.9 to test a subset.
-const WP_ONLY = process.env.WP_ONLY
-	? new Set(process.env.WP_ONLY.split(',').map((s) => s.trim()))
-	: null;
-const MATRIX = WP_ONLY
-	? WP_VERSIONS.filter(({ wp }) => WP_ONLY.has(wp))
-	: WP_VERSIONS;
+const MATRIX = getLegacyWordPressVersionMatrix();
 
 /**
  * Captures browser console errors so timeout failures can report context.
@@ -674,6 +667,7 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 5: Plugin activation ---
 		if (adminStatus && adminStatus.status === 'OK') {
 			try {
+				const consoleStartIndex = consoleErrors.length;
 				const wp4 = await navigateViaUrlBar(
 					page,
 					'/wp-admin/plugins.php',
@@ -727,29 +721,38 @@ for (const { wp, php } of MATRIX) {
 							prevFrameUrl,
 							bodyBeforeActivation
 						);
-						if (!wp4b) {
-							pluginStatus = { status: 'TIMEOUT' };
+						let finalFrame = wp4b;
+						if (!finalFrame) {
+							finalFrame = await navigateViaUrlBar(
+								page,
+								`/wp-admin/plugins.php?playground-plugin-check=${Date.now()}`,
+								30
+							);
+						}
+						if (
+							finalFrame &&
+							!isPluginActivationTerminalBody(finalFrame.body)
+						) {
+							const settled = await waitForWPFrame(page, 30, {
+								contentPredicate:
+									isPluginActivationTerminalBody,
+							});
+							finalFrame = settled || finalFrame;
+						}
+						if (
+							!finalFrame ||
+							!isPluginActivationTerminalBody(finalFrame.body)
+						) {
+							pluginStatus = getPluginActivationTimeoutStatus(
+								prevFrameUrl,
+								finalFrame,
+								consoleErrors,
+								consoleStartIndex
+							);
 						} else {
-							const error = findPHPError(wp4b.body);
-							const ok =
-								wp4b.body.includes('Plugin activated') ||
-								wp4b.body.includes('Deactivate');
-							const bad = wp4b.body.includes('Are you sure');
-							if (error) {
-								pluginStatus = {
-									status: 'ERROR',
-									detail: error,
-								};
-							} else if (ok) {
-								pluginStatus = { status: 'OK' };
-							} else {
-								pluginStatus = {
-									status: bad ? 'NONCE_FAIL' : 'UNKNOWN',
-									detail: wp4b.body
-										.slice(0, 120)
-										.replace(/\n/g, ' '),
-								};
-							}
+							pluginStatus = getPluginActivationStatus(
+								finalFrame.body
+							);
 						}
 					} else {
 						pluginStatus = {
