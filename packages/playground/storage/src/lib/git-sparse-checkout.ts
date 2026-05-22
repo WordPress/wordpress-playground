@@ -1,15 +1,16 @@
 import {
 	indexPack,
 	init,
-	listServerRefs,
 	readObject,
 	type CommitObject,
-	type GitHttpRequest,
-	type HttpClient,
-	type ServerRef,
 	type TreeEntry,
 	type TreeObject,
 } from 'isomorphic-git';
+import { Buffer as BufferPolyfill } from 'buffer';
+
+if (typeof globalThis.Buffer === 'undefined') {
+	globalThis.Buffer = BufferPolyfill;
+}
 
 /**
  * Custom error class for git authentication failures.
@@ -106,9 +107,6 @@ export type GitFileTree = GitFileTreeFile | GitFileTreeFolder;
 
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
 const WORKDIR = '/repo';
-const gitHttp: HttpClient = {
-	request: requestWithFetch,
-};
 
 export async function sparseCheckout(
 	repoUrl: string,
@@ -181,7 +179,8 @@ export async function sparseCheckout(
 export async function listGitFiles(
 	repoUrl: string,
 	commitHash: string,
-	additionalHeaders: GitAdditionalHeaders = {}
+	additionalHeaders: GitAdditionalHeaders = {},
+	path = ''
 ): Promise<GitFileTree[]> {
 	const treesPack = await fetchWithoutBlobs(
 		repoUrl,
@@ -189,7 +188,23 @@ export async function listGitFiles(
 		additionalHeaders
 	);
 	const rootTree = await resolveRootTree(treesPack, commitHash);
-	return gitTreeToFileTree(treesPack, rootTree);
+	const normalizedPath = path.replace(/^\/+|\/+$/g, '');
+	if (!normalizedPath) {
+		return gitTreeToFileTree(treesPack, rootTree);
+	}
+	const entry = await resolveTreeEntry(treesPack, rootTree, normalizedPath);
+	if (entry.type === 'blob') {
+		return [
+			{
+				name: entry.path,
+				type: 'file',
+			},
+		];
+	}
+	return gitTreeToFileTree(
+		treesPack,
+		await readParsedObject<TreeObject>(treesPack, entry.oid, 'tree')
+	);
 }
 
 /**
@@ -230,14 +245,49 @@ export async function listGitRefs(
 	fullyQualifiedBranchPrefix: string,
 	additionalHeaders: GitAdditionalHeaders = {}
 ) {
-	const refs = await listRemoteRefs(
-		repoUrl,
-		fullyQualifiedBranchPrefix,
-		additionalHeaders
-	);
+	const body = concatUint8Arrays([
+		pktLine('command=ls-refs\n'),
+		pktLine('agent=git/2.37.3\n'),
+		pktLine('object-format=sha1\n'),
+		delimPkt(),
+		pktLine('peel\n'),
+		pktLine(`ref-prefix ${fullyQualifiedBranchPrefix}\n`),
+		flushPkt(),
+	]);
+	const response = await fetch(`${repoUrl}/git-upload-pack`, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/x-git-upload-pack-advertisement',
+			'content-type': 'application/x-git-upload-pack-request',
+			'Content-Length': `${body.byteLength}`,
+			'Git-Protocol': 'version=2',
+			...additionalHeaders,
+		},
+		body: BufferPolyfill.from(body),
+	});
+
+	if (!response.ok) {
+		throw mapGitHttpStatus(
+			repoUrl,
+			response.status,
+			response.statusText,
+			'refs'
+		);
+	}
+
 	const result: Record<string, string> = {};
-	for (const ref of refs) {
-		result[ref.ref] = ref.peeled ?? ref.oid;
+	for (const line of parseGitResponseLines(
+		await collectAsyncIterable(getResponseBody(response))
+	)) {
+		const [oid, ref, ...attrs] = line.split(' ');
+		let peeled: string | undefined;
+		for (const attr of attrs) {
+			const [name, value] = attr.split(':');
+			if (name === 'peeled') {
+				peeled = value;
+			}
+		}
+		result[ref] = peeled ?? oid;
 	}
 	return result;
 }
@@ -342,25 +392,6 @@ async function fetchRefOid(
 	return null;
 }
 
-async function listRemoteRefs(
-	repoUrl: string,
-	prefix: string,
-	additionalHeaders: GitAdditionalHeaders
-): Promise<ServerRef[]> {
-	try {
-		return await listServerRefs({
-			http: gitHttp,
-			url: repoUrl,
-			headers: additionalHeaders,
-			prefix,
-			peelTags: true,
-			protocolVersion: 2,
-		});
-	} catch (error) {
-		throw mapGitHttpError(error, repoUrl, 'refs');
-	}
-}
-
 async function fetchWithoutBlobs(
 	repoUrl: string,
 	commitHash: string,
@@ -406,7 +437,7 @@ async function fetchAndIndexPack({
 			'Content-Length': `${body.byteLength}`,
 			...additionalHeaders,
 		},
-		body,
+		body: BufferPolyfill.from(body),
 	});
 
 	if (!response.ok) {
@@ -418,11 +449,19 @@ async function fetchAndIndexPack({
 		);
 	}
 
-	const packfile = parseUploadPackResponse(
-		new Uint8Array(await response.arrayBuffer())
+	const uploadPackResponse = await collectAsyncIterable(
+		getResponseBody(response)
 	);
+	const packfile = parseUploadPackResponse(uploadPackResponse);
 	if (packfile.length === 0) {
-		throw new Error('Git upload-pack response did not contain a packfile.');
+		const responsePreview = decodeUtf8(uploadPackResponse.subarray(0, 120));
+		throw new Error(
+			`Git upload-pack response did not contain a packfile (${response.status} ${response.statusText}, ${uploadPackResponse.byteLength} bytes).${
+				responsePreview
+					? ` Response starts with: ${responsePreview}`
+					: ''
+			}`
+		);
 	}
 
 	const fs = new MemoryFsClient();
@@ -632,6 +671,7 @@ function createTreeFetchRequest(commitHash: string): Uint8Array {
 		pktLine('deepen 1\n'),
 		flushPkt(),
 		pktLine('done\n'),
+		pktLine('done\n'),
 	]);
 }
 
@@ -673,8 +713,15 @@ function parseUploadPackResponse(response: Uint8Array): Uint8Array {
 		const payloadLength = lineLength - 4;
 		const payload = response.subarray(offset, offset + payloadLength);
 		offset += payloadLength;
-		if (payload.length === 0 || decodeUtf8(payload) === 'NAK\n') {
+		const payloadText =
+			payload[0] === 1 || payload[0] === 2 || payload[0] === 3
+				? ''
+				: decodeUtf8(payload);
+		if (payload.length === 0 || payloadText === 'NAK\n') {
 			continue;
+		}
+		if (payloadText.startsWith('ERR ')) {
+			throw new Error(payloadText.trim());
 		}
 
 		const sideband = payload[0];
@@ -705,29 +752,40 @@ function flushPkt(): Uint8Array {
 	return new TextEncoder().encode('0000');
 }
 
-async function requestWithFetch({
-	url,
-	method = 'GET',
-	headers = {},
-	body,
-}: GitHttpRequest) {
-	const response = await fetch(url, {
-		method,
-		headers,
-		body: body ? await collectAsyncIterable(body) : undefined,
-	});
-	const responseHeaders: Record<string, string> = {};
-	response.headers?.forEach?.((value, key) => {
-		responseHeaders[key] = value;
-	});
-	return {
-		url: response.url,
-		method,
-		statusCode: response.status,
-		statusMessage: response.statusText,
-		headers: responseHeaders,
-		body: getResponseBody(response),
-	};
+function delimPkt(): Uint8Array {
+	return new TextEncoder().encode('0001');
+}
+
+function parseGitResponseLines(response: Uint8Array): string[] {
+	const lines: string[] = [];
+	let offset = 0;
+	while (offset + 4 <= response.length) {
+		const lineLength = Number.parseInt(
+			decodeAscii(response.subarray(offset, offset + 4)),
+			16
+		);
+		offset += 4;
+		if (!Number.isFinite(lineLength)) {
+			throw new Error('Invalid Git pkt-line response.');
+		}
+		if (lineLength === 0) {
+			break;
+		}
+		if (lineLength === 1) {
+			continue;
+		}
+		if (lineLength < 4) {
+			throw new Error('Invalid Git pkt-line response.');
+		}
+		const payloadLength = lineLength - 4;
+		lines.push(
+			decodeUtf8(
+				response.subarray(offset, offset + payloadLength)
+			).replace(/\n$/, '')
+		);
+		offset += payloadLength;
+	}
+	return lines;
 }
 
 async function collectAsyncIterable(
@@ -781,23 +839,6 @@ async function* emptyAsyncIterator() {
 	// Empty async generator.
 }
 
-function mapGitHttpError(
-	error: unknown,
-	repoUrl: string,
-	action: 'refs' | 'objects'
-) {
-	const status = getGitHttpErrorStatus(error);
-	if (status) {
-		return mapGitHttpStatus(
-			repoUrl,
-			status.statusCode,
-			status.statusMessage,
-			action
-		);
-	}
-	return error;
-}
-
 function mapGitHttpStatus(
 	repoUrl: string,
 	status: number,
@@ -810,37 +851,6 @@ function mapGitHttpStatus(
 	return new Error(
 		`Failed to fetch git ${action} from ${repoUrl}: ${status} ${statusText}`
 	);
-}
-
-function getGitHttpErrorStatus(error: unknown):
-	| {
-			statusCode: number;
-			statusMessage: string;
-	  }
-	| undefined {
-	if (
-		error &&
-		typeof error === 'object' &&
-		'data' in error &&
-		error.data &&
-		typeof error.data === 'object' &&
-		'statusCode' in error.data
-	) {
-		const data = error.data as {
-			statusCode?: unknown;
-			statusMessage?: unknown;
-		};
-		if (typeof data.statusCode === 'number') {
-			return {
-				statusCode: data.statusCode,
-				statusMessage:
-					typeof data.statusMessage === 'string'
-						? data.statusMessage
-						: '',
-			};
-		}
-	}
-	return undefined;
 }
 
 async function sha1(value: Uint8Array) {

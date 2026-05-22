@@ -5,7 +5,7 @@ import {
 } from '@php-wasm/progress';
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
-import { randomFilename } from '@php-wasm/util';
+import { joinPaths, randomFilename } from '@php-wasm/util';
 import {
 	GitAuthenticationError,
 	listDescendantFiles,
@@ -774,17 +774,20 @@ export class GitDirectoryResource extends Resource<Directory> {
 				},
 				additionalHeaders
 			);
-			const allFiles = await listGitFiles(
-				repoUrl,
-				commitHash,
-				additionalHeaders
-			);
-
 			const requestedPath = (this.reference.path ?? '').replace(
 				/^\/+/,
 				''
 			);
-			const filesToClone = listDescendantFiles(allFiles, requestedPath);
+			const allFiles = await listGitFiles(
+				repoUrl,
+				commitHash,
+				additionalHeaders,
+				requestedPath
+			);
+			const filesToClone = listDescendantFiles(allFiles, '').map(
+				(path) =>
+					requestedPath ? joinPaths(requestedPath, path) : path
+			);
 			const checkout = await sparseCheckout(
 				repoUrl,
 				commitHash,

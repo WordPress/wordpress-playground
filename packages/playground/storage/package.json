@@ -36,6 +36,7 @@
 	"type": "module",
 	"types": "index.d.ts",
 	"dependencies": {
+		"buffer": "^6.0.3",
 		"isomorphic-git": "1.37.6",
 		"pako": "^1.0.10"
 	}
