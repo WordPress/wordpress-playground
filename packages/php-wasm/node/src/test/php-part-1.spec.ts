@@ -614,19 +614,31 @@ phpLoaderOptions.forEach((options) => {
 		});
 
 		describe('popen()', () => {
-			const itWithRebuiltProcessOutputRuntime =
-				phpVersion === '8.3' ? it : it.skip;
+			const itWithRebuiltProcessOutputRuntime = phpVersion.startsWith(
+				'8.3'
+			)
+				? it
+				: it.skip;
 
 			itWithRebuiltProcessOutputRuntime(
 				'closes read-mode process output streams',
 				async () => {
-					const openPopenOutputCount = () =>
-						(php as any)[__private__dont__use].FS.streams
+					const openPopenOutputCount = () => {
+						const streams = (php as any)[__private__dont__use]?.FS
+							?.streams;
+						if (!Array.isArray(streams)) {
+							throw new Error(
+								'Expected php runtime internals to expose FS.streams for the popen stream leak regression test.'
+							);
+						}
+
+						return streams
 							.filter(Boolean)
 							.filter(
 								(stream: any) =>
 									stream.path === '/tmp/popen_output'
 							).length;
+					};
 					const before = openPopenOutputCount();
 
 					const popenResult = await php.run({
