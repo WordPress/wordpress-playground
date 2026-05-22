@@ -1,34 +1,15 @@
-/* eslint-disable comment-length/limit-multi-line-comments */
-
-/*
- * Import internal data parsers and structures from isomorphic-git. These
- * exports are not available in the npm version of isomorphic-git, which is why
- * we use one from the git repository.
- *
- * This file heavily relies on isomorphic-git internals to parse Git data formats
- * such as PACK, trees, deltas, etc.
- */
-import './isomorphic-git.d.ts';
-import { GitPktLine } from 'isomorphic-git/src/models/GitPktLine.js';
-import { GitTree } from 'isomorphic-git/src/models/GitTree.js';
-import { GitAnnotatedTag } from 'isomorphic-git/src/models/GitAnnotatedTag.js';
-import { GitCommit } from 'isomorphic-git/src/models/GitCommit.js';
-import { GitPackIndex } from 'isomorphic-git/src/models/GitPackIndex.js';
-import { collect } from 'isomorphic-git/src/internal-apis.js';
-import { parseUploadPackResponse } from 'isomorphic-git/src/wire/parseUploadPackResponse.js';
-import { ObjectTypeError } from 'isomorphic-git/src/errors/ObjectTypeError.js';
-import { Buffer as BufferPolyfill } from 'buffer';
-
-/**
- * Polyfills the Buffer class in the browser.
- *
- * We need it because isomorphic-git uses Buffer internally. The isomorphic-git version
- * released via npm shipes a Buffer implementation, but we're using a version cloned from
- * the git repository which assumes a global Buffer is available.
- */
-if (typeof globalThis.Buffer === 'undefined') {
-	globalThis.Buffer = BufferPolyfill;
-}
+import {
+	indexPack,
+	init,
+	listServerRefs,
+	readObject,
+	type CommitObject,
+	type GitHttpRequest,
+	type HttpClient,
+	type ServerRef,
+	type TreeEntry,
+	type TreeObject,
+} from 'isomorphic-git';
 
 /**
  * Custom error class for git authentication failures.
@@ -54,8 +35,8 @@ export type GitAdditionalHeaders = Record<string, string>;
  * It uses the git protocol over HTTP to fetch the files. It only uses
  * three HTTP requests regardless of the number of paths requested.
  *
- * @param repoUrl The URL of the git repository.
- * @param fullyQualifiedBranchName The full name of the branch to fetch from (e.g., 'refs/heads/main').
+ * @param repoUrl The URL of the Git repository.
+ * @param commitHash The commit hash to fetch from.
  * @param filesPaths An array of all the file paths to fetch from the repository. Does **not** accept
  *                   patterns, wildcards, directory paths. All files must be explicitly listed.
  * @returns The requested files and packfiles required to recreate the Git objects locally.
@@ -80,95 +61,16 @@ export type SparseCheckoutResult = {
 	fileOids?: Record<string, string>;
 };
 
-export async function sparseCheckout(
-	repoUrl: string,
-	commitHash: string,
-	filesPaths: string[],
-	options?: {
-		withObjects?: boolean;
-		additionalHeaders?: GitAdditionalHeaders;
-	}
-): Promise<SparseCheckoutResult> {
-	const additionalHeaders = options?.additionalHeaders || {};
-	const treesPack = await fetchWithoutBlobs(
-		repoUrl,
-		commitHash,
-		additionalHeaders
-	);
-	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
-
-	const blobOids = filesPaths.map((path) => objects[path].oid);
-	const blobsPack =
-		blobOids.length > 0
-			? await fetchObjects(repoUrl, blobOids, additionalHeaders)
-			: null;
-
-	const fetchedPaths: Record<string, any> = {};
-	await Promise.all(
-		filesPaths.map(async (path) => {
-			if (!blobsPack) {
-				return;
-			}
-			fetchedPaths[path] = await extractGitObjectFromIdx(
-				blobsPack.idx,
-				objects[path].oid
-			);
-		})
-	);
-
-	/**
-	 * Short-circuit if the consumer doesn't need additional details about
-	 * the Git objects.
-	 */
-	if (!options?.withObjects) {
-		return { files: fetchedPaths };
-	}
-
-	const packfiles: SparseCheckoutPackfile[] = [];
-	const treesIndex = await treesPack.idx.toBuffer();
-	packfiles.push({
-		name: `pack-${treesPack.idx.packfileSha}`,
-		pack: treesPack.packfile,
-		index: toUint8Array(treesIndex),
-		promisor: treesPack.promisor,
-	});
-
-	if (blobsPack) {
-		const blobsIndex = await blobsPack.idx.toBuffer();
-		packfiles.push({
-			name: `pack-${blobsPack.idx.packfileSha}`,
-			pack: blobsPack.packfile,
-			index: toUint8Array(blobsIndex),
-			promisor: blobsPack.promisor,
-		});
-	}
-
-	const fileOids: Record<string, string> = {};
-	for (const path of filesPaths) {
-		fileOids[path] = objects[path].oid;
-	}
-
-	return {
-		files: fetchedPaths,
-		packfiles,
-		objects: [
-			...(await collectLooseObjects(treesPack)),
-			...(await collectLooseObjects(blobsPack)),
-		],
-		fileOids,
-	};
-}
-
-export type GitFileTreeFile = {
+type IndexedPack = {
+	fs: MemoryFsClient;
+	dir: string;
+	packfilePath: string;
+	indexPath: string;
 	name: string;
-	type: 'file';
+	packfile: Uint8Array;
+	oids: string[];
+	promisor: boolean;
 };
-export type GitFileTreeFolder = {
-	name: string;
-	type: 'folder';
-	children: GitFileTree[];
-};
-export type GitFileTree = GitFileTreeFile | GitFileTreeFolder;
 
 /**
  * A Git ref in a human-readable format. Could be a single string,
@@ -191,7 +93,81 @@ type ParsedGitRef = {
 	resolvedOid?: string;
 };
 
+export type GitFileTreeFile = {
+	name: string;
+	type: 'file';
+};
+export type GitFileTreeFolder = {
+	name: string;
+	type: 'folder';
+	children: GitFileTree[];
+};
+export type GitFileTree = GitFileTreeFile | GitFileTreeFolder;
+
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
+const WORKDIR = '/repo';
+const gitHttp: HttpClient = {
+	request: requestWithFetch,
+};
+
+export async function sparseCheckout(
+	repoUrl: string,
+	commitHash: string,
+	filesPaths: string[],
+	options?: {
+		withObjects?: boolean;
+		additionalHeaders?: GitAdditionalHeaders;
+	}
+): Promise<SparseCheckoutResult> {
+	const additionalHeaders = options?.additionalHeaders || {};
+	const treesPack = await fetchWithoutBlobs(
+		repoUrl,
+		commitHash,
+		additionalHeaders
+	);
+	const objects = await resolveObjects(treesPack, commitHash, filesPaths);
+	const blobOids = filesPaths.map((path) => objects[path].oid);
+	const blobsPack =
+		blobOids.length > 0
+			? await fetchObjects(repoUrl, blobOids, additionalHeaders)
+			: null;
+
+	const fetchedPaths: Record<string, any> = {};
+	await Promise.all(
+		filesPaths.map(async (path) => {
+			if (!blobsPack) {
+				return;
+			}
+			fetchedPaths[path] = await readGitObjectContent(
+				blobsPack,
+				objects[path].oid,
+				'blob'
+			);
+		})
+	);
+
+	if (!options?.withObjects) {
+		return { files: fetchedPaths };
+	}
+
+	const fileOids: Record<string, string> = {};
+	for (const path of filesPaths) {
+		fileOids[path] = objects[path].oid;
+	}
+
+	return {
+		files: fetchedPaths,
+		packfiles: [
+			await getSparseCheckoutPackfile(treesPack),
+			...(blobsPack ? [await getSparseCheckoutPackfile(blobsPack)] : []),
+		],
+		objects: [
+			...(await collectLooseObjects(treesPack)),
+			...(await collectLooseObjects(blobsPack)),
+		],
+		fileOids,
+	};
+}
 
 /**
  * Lists all files in a git repository.
@@ -212,12 +188,8 @@ export async function listGitFiles(
 		commitHash,
 		additionalHeaders
 	);
-	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
-	if (!rootTree?.object) {
-		return [];
-	}
-
-	return gitTreeToFileTree(rootTree);
+	const rootTree = await resolveRootTree(treesPack, commitHash);
+	return gitTreeToFileTree(treesPack, rootTree);
 }
 
 /**
@@ -232,7 +204,7 @@ export async function resolveCommitHash(
 	ref: GitRef,
 	additionalHeaders: GitAdditionalHeaders = {}
 ) {
-	const parsed = await parseGitRef(repoUrl, ref);
+	const parsed = await parseGitRef(repoUrl, ref, additionalHeaders);
 	if (parsed.resolvedOid) {
 		return parsed.resolvedOid;
 	}
@@ -244,33 +216,13 @@ export async function resolveCommitHash(
 	return oid;
 }
 
-function gitTreeToFileTree(tree: GitTree): GitFileTree[] {
-	return tree.object
-		.map((branch) => {
-			if (branch.type === 'blob') {
-				return {
-					name: branch.path,
-					type: 'file',
-				} as GitFileTreeFile;
-			} else if (branch.type === 'tree' && branch.object) {
-				return {
-					name: branch.path,
-					type: 'folder',
-					children: gitTreeToFileTree(branch as any as GitTree),
-				} as GitFileTreeFolder;
-			}
-			return undefined;
-		})
-		.filter((entry) => !!entry?.name) as GitFileTree[];
-}
-
 /**
  * Retrieves a list of refs from a git repository.
  *
  * See https://git-scm.com/book/en/v2/Git-Internals-Git-References for more information.
  *
- * @param repoUrl The URL of the git repository. For example: https://github.com/WordPress/gutenberg.git
- * @param fullyQualifiedBranchPrefix The prefix of the refs to fetch. For example: refs/heads/my-feature-branch
+ * @param repoUrl The URL of the Git repository.
+ * @param fullyQualifiedBranchPrefix The prefix of the refs to fetch.
  * @returns A map of refs to their corresponding commit hashes.
  */
 export async function listGitRefs(
@@ -278,79 +230,22 @@ export async function listGitRefs(
 	fullyQualifiedBranchPrefix: string,
 	additionalHeaders: GitAdditionalHeaders = {}
 ) {
-	const packbuffer = Buffer.from(
-		(await collect([
-			GitPktLine.encode(`command=ls-refs\n`),
-			GitPktLine.encode(`agent=git/2.37.3\n`),
-			GitPktLine.encode(`object-format=sha1\n`),
-			GitPktLine.delim(),
-			GitPktLine.encode(`peel\n`),
-			GitPktLine.encode(`ref-prefix ${fullyQualifiedBranchPrefix}\n`),
-			GitPktLine.flush(),
-		])) as any
+	const refs = await listRemoteRefs(
+		repoUrl,
+		fullyQualifiedBranchPrefix,
+		additionalHeaders
 	);
-
-	const response = await fetch(repoUrl + '/git-upload-pack', {
-		method: 'POST',
-		headers: {
-			Accept: 'application/x-git-upload-pack-advertisement',
-			'content-type': 'application/x-git-upload-pack-request',
-			'Content-Length': `${packbuffer.length}`,
-			'Git-Protocol': 'version=2',
-			...additionalHeaders,
-		},
-		body: packbuffer as any,
-	});
-
-	if (!response.ok) {
-		if (response.status === 401 || response.status === 403) {
-			throw new GitAuthenticationError(repoUrl, response.status);
-		}
-		throw new Error(
-			`Failed to fetch git refs from ${repoUrl}: ${response.status} ${response.statusText}`
-		);
+	const result: Record<string, string> = {};
+	for (const ref of refs) {
+		result[ref.ref] = ref.peeled ?? ref.oid;
 	}
-
-	const refs: Record<string, string> = {};
-	for await (const line of parseGitResponseLines(response)) {
-		const spaceAt = line.indexOf(' ');
-		const ref = line.slice(0, spaceAt);
-		/**
-		 * Git protocol may return a line such as:
-		 *
-		 * 41d27ca5d6df1e7826c7fa297398159857ea2d60 refs/tags/v0.1.28 peeled:883860eacc7c37377f772a26919e700749020e4c
-		 *
-		 * This means:
-		 *
-		 * * A tag with a name `v0.1.28`
-		 * * The tag is an object with an oid `883860eacc7c37377f772a26919e700749020e4c`
-		 * * The tag points to a commit with an oid `41d27ca5d6df1e7826c7fa297398159857ea2d60`
-		 *
-		 * nameBuffer is everything after the first space. Let's extract the ref name
-		 * itself, that is refs/tags/v0.1.28.
-		 */
-		const nameBuffer = line.slice(spaceAt + 1, line.length - 1);
-		const name = nameBuffer.split(' ')[0];
-		refs[name] = ref;
-	}
-	return refs;
+	return result;
 }
 
-/**
- * Turns a user-provided ref in a convenient format, such as 'main' or
- * '1234567890abcdef1234567890abcdef12345678' into a more structured
- * format that tells us about the nature of the ref, e.g.
- *
- * * { kind: 'refname', refname: 'refs/heads/main' }
- * * { kind: 'commit', refname: '1234567890abcdef1234567890abcdef12345678' }.
- *
- * @param repoUrl
- * @param ref
- * @returns
- */
 async function parseGitRef(
 	repoUrl: string,
-	ref: GitRef
+	ref: GitRef,
+	additionalHeaders: GitAdditionalHeaders
 ): Promise<ParsedGitRef> {
 	const type = ref.type ?? 'infer';
 	switch (type) {
@@ -398,7 +293,11 @@ async function parseGitRef(
 			}
 
 			const branchRef = `refs/heads/${trimmed}`;
-			const branchOid = await fetchRefOid(repoUrl, branchRef);
+			const branchOid = await fetchRefOid(
+				repoUrl,
+				branchRef,
+				additionalHeaders
+			);
 			if (branchOid) {
 				return {
 					kind: 'refname',
@@ -408,7 +307,11 @@ async function parseGitRef(
 			}
 
 			const tagRef = `refs/tags/${trimmed}`;
-			const tagOid = await fetchRefOid(repoUrl, tagRef);
+			const tagOid = await fetchRefOid(
+				repoUrl,
+				tagRef,
+				additionalHeaders
+			);
 			if (tagOid) {
 				return {
 					kind: 'refname',
@@ -426,7 +329,7 @@ async function parseGitRef(
 async function fetchRefOid(
 	repoUrl: string,
 	refname: string,
-	additionalHeaders?: GitAdditionalHeaders
+	additionalHeaders: GitAdditionalHeaders
 ) {
 	const refs = await listGitRefs(repoUrl, refname, additionalHeaders);
 	const candidates = [refname, `${refname}^{}`];
@@ -439,307 +342,430 @@ async function fetchRefOid(
 	return null;
 }
 
+async function listRemoteRefs(
+	repoUrl: string,
+	prefix: string,
+	additionalHeaders: GitAdditionalHeaders
+): Promise<ServerRef[]> {
+	try {
+		return await listServerRefs({
+			http: gitHttp,
+			url: repoUrl,
+			headers: additionalHeaders,
+			prefix,
+			peelTags: true,
+			protocolVersion: 2,
+		});
+	} catch (error) {
+		throw mapGitHttpError(error, repoUrl, 'refs');
+	}
+}
+
 async function fetchWithoutBlobs(
 	repoUrl: string,
 	commitHash: string,
-	additionalHeaders?: Record<string, string>
-) {
-	const packbuffer = Buffer.from(
-		(await collect([
-			GitPktLine.encode(
-				`want ${commitHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 filter \n`
-			),
-			GitPktLine.encode(`filter blob:none\n`),
-			GitPktLine.encode(`shallow ${commitHash}\n`),
-			GitPktLine.encode(`deepen 1\n`),
-			GitPktLine.flush(),
-			GitPktLine.encode(`done\n`),
-			GitPktLine.encode(`done\n`),
-		])) as any
-	);
+	additionalHeaders: GitAdditionalHeaders
+): Promise<IndexedPack> {
+	return fetchAndIndexPack({
+		repoUrl,
+		additionalHeaders,
+		body: createTreeFetchRequest(commitHash),
+		promisor: true,
+	});
+}
 
-	const response = await fetch(repoUrl + '/git-upload-pack', {
+async function fetchObjects(
+	repoUrl: string,
+	objectHashes: string[],
+	additionalHeaders: GitAdditionalHeaders
+): Promise<IndexedPack> {
+	return fetchAndIndexPack({
+		repoUrl,
+		additionalHeaders,
+		body: createObjectFetchRequest(objectHashes),
+		promisor: false,
+	});
+}
+
+async function fetchAndIndexPack({
+	repoUrl,
+	additionalHeaders,
+	body,
+	promisor,
+}: {
+	repoUrl: string;
+	additionalHeaders: GitAdditionalHeaders;
+	body: Uint8Array;
+	promisor: boolean;
+}): Promise<IndexedPack> {
+	const response = await fetch(`${repoUrl}/git-upload-pack`, {
 		method: 'POST',
 		headers: {
 			Accept: 'application/x-git-upload-pack-advertisement',
 			'content-type': 'application/x-git-upload-pack-request',
-			'Content-Length': `${packbuffer.length}`,
+			'Content-Length': `${body.byteLength}`,
 			...additionalHeaders,
 		},
-		body: packbuffer as any,
+		body,
 	});
 
 	if (!response.ok) {
-		if (response.status === 401 || response.status === 403) {
-			throw new GitAuthenticationError(repoUrl, response.status);
-		}
-		throw new Error(
-			`Failed to fetch git objects from ${repoUrl}: ${response.status} ${response.statusText}`
+		throw mapGitHttpStatus(
+			repoUrl,
+			response.status,
+			response.statusText,
+			'objects'
 		);
 	}
 
-	const iterator = streamToIterator(response.body!);
-	const parsed = await parseUploadPackResponse(iterator);
-	const packfile = Buffer.from((await collect(parsed.packfile)) as any);
-	const idx = await GitPackIndex.fromPack({
-		pack: packfile,
+	const packfile = parseUploadPackResponse(
+		new Uint8Array(await response.arrayBuffer())
+	);
+	if (packfile.length === 0) {
+		throw new Error('Git upload-pack response did not contain a packfile.');
+	}
+
+	const fs = new MemoryFsClient();
+	await init({ fs: fs as any, dir: WORKDIR, defaultBranch: 'trunk' });
+
+	const name = `pack-${await sha1(packfile)}`;
+	const packfilePath = `.git/objects/pack/${name}.pack`;
+	const indexPath = `.git/objects/pack/${name}.idx`;
+	await fs.promises.writeFile(`${WORKDIR}/${packfilePath}`, packfile);
+	const { oids } = await indexPack({
+		fs: fs as any,
+		dir: WORKDIR,
+		filepath: packfilePath,
 	});
-	const originalRead = idx.read as any;
-	idx.read = async function ({ oid, ...rest }: { oid: string }) {
-		const result = await originalRead.call(this, { oid, ...rest });
-		result.oid = oid;
-		return result;
-	};
+
 	return {
-		idx,
-		packfile: toUint8Array(packfile),
-		promisor: true,
+		fs,
+		dir: WORKDIR,
+		name,
+		packfilePath,
+		indexPath,
+		packfile,
+		oids,
+		promisor,
 	};
 }
 
-async function resolveAllObjects(idx: GitPackIndex, commitHash: string) {
-	const commit = await idx.read({
-		oid: commitHash,
-	});
-	readObject(commit);
+async function resolveObjects(
+	pack: IndexedPack,
+	commitHash: string,
+	paths: string[]
+) {
+	const rootTree = await resolveRootTree(pack, commitHash);
+	const resolvedOids: Record<string, TreeEntry> = {};
 
-	const rootItem = await idx.read({ oid: commit.object.tree });
-	const items = [rootItem];
-	while (items.length > 0) {
-		const tree = items.pop();
-		const readItem = await idx.read({ oid: tree.oid });
-		readObject(readItem);
-		tree.object = readItem.object;
-		if (readItem.type === 'tree') {
-			for (const subitem of readItem.object) {
-				if (subitem.type === 'tree') {
-					items.push(subitem);
-				}
-			}
+	for (const path of paths) {
+		const entry = await resolveTreeEntry(pack, rootTree, path);
+		if (entry.type !== 'blob') {
+			throw new Error(`Expected ${path} to resolve to a Git blob.`);
 		}
+		resolvedOids[path] = entry;
 	}
-	return rootItem;
+	return resolvedOids;
+}
+
+async function resolveRootTree(pack: IndexedPack, commitHash: string) {
+	const commit = await readParsedObject<CommitObject>(
+		pack,
+		commitHash,
+		'commit'
+	);
+	return readParsedObject<TreeObject>(pack, commit.tree, 'tree');
+}
+
+async function resolveTreeEntry(
+	pack: IndexedPack,
+	rootTree: TreeObject,
+	filepath: string
+): Promise<TreeEntry> {
+	let currentTree = rootTree;
+	const segments = filepath.split('/');
+
+	for (let i = 0; i < segments.length; i++) {
+		const segment = segments[i];
+		const entry = currentTree.find((item) => item.path === segment);
+		if (!entry) {
+			throw new Error(`Path not found in the repo: ${filepath}`);
+		}
+		const isLastSegment = i === segments.length - 1;
+		if (isLastSegment) {
+			return entry;
+		}
+		if (entry.type !== 'tree') {
+			throw new Error(`Path not found in the repo: ${filepath}`);
+		}
+		currentTree = await readParsedObject<TreeObject>(
+			pack,
+			entry.oid,
+			'tree'
+		);
+	}
+
+	throw new Error(`Path not found in the repo: ${filepath}`);
+}
+
+async function gitTreeToFileTree(
+	pack: IndexedPack,
+	tree: TreeObject
+): Promise<GitFileTree[]> {
+	return Promise.all(
+		tree.map(async (branch) => {
+			if (branch.type === 'blob') {
+				return {
+					name: branch.path,
+					type: 'file',
+				} as GitFileTreeFile;
+			}
+			if (branch.type === 'tree') {
+				return {
+					name: branch.path,
+					type: 'folder',
+					children: await gitTreeToFileTree(
+						pack,
+						await readParsedObject<TreeObject>(
+							pack,
+							branch.oid,
+							'tree'
+						)
+					),
+				} as GitFileTreeFolder;
+			}
+			return undefined;
+		})
+	).then(
+		(entries) => entries.filter((entry) => !!entry?.name) as GitFileTree[]
+	);
+}
+
+async function readParsedObject<T>(
+	pack: IndexedPack,
+	oid: string,
+	expectedType: 'commit' | 'tree'
+): Promise<T> {
+	const result = await readObject({
+		fs: pack.fs as any,
+		dir: pack.dir,
+		oid,
+		format: 'parsed',
+	});
+	if (result.type !== expectedType) {
+		throw new Error(
+			`Expected ${oid} to be a ${expectedType}, got ${result.type}.`
+		);
+	}
+	return result.object as T;
+}
+
+async function readGitObjectContent(
+	pack: IndexedPack,
+	oid: string,
+	expectedType?: SparseCheckoutObject['type']
+): Promise<Uint8Array> {
+	const result = await readObject({
+		fs: pack.fs as any,
+		dir: pack.dir,
+		oid,
+		format: 'content',
+	});
+	if (expectedType && result.type !== expectedType) {
+		throw new Error(
+			`Expected ${oid} to be a ${expectedType}, got ${result.type}.`
+		);
+	}
+	return toUint8Array(result.object as Uint8Array);
+}
+
+async function getSparseCheckoutPackfile(
+	pack: IndexedPack
+): Promise<SparseCheckoutPackfile> {
+	const index = await pack.fs.promises.readFile(
+		`${WORKDIR}/${pack.indexPath}`
+	);
+	return {
+		name: pack.name,
+		pack: pack.packfile,
+		index:
+			typeof index === 'string'
+				? new TextEncoder().encode(index)
+				: toUint8Array(index),
+		promisor: pack.promisor,
+	};
 }
 
 async function collectLooseObjects(
-	pack?: {
-		idx: GitPackIndex;
-		packfile: Uint8Array;
-		promisor?: boolean;
-	} | null
+	pack?: IndexedPack | null
 ): Promise<SparseCheckoutObject[]> {
 	if (!pack) {
 		return [];
 	}
 	const results: SparseCheckoutObject[] = [];
-	const seen = new Set<string>();
-	for (const oid of pack.idx.hashes ?? []) {
-		if (seen.has(oid)) {
+	for (const oid of pack.oids) {
+		const result = await readObject({
+			fs: pack.fs as any,
+			dir: pack.dir,
+			oid,
+			format: 'content',
+		});
+		if (!['blob', 'tree', 'commit', 'tag'].includes(result.type)) {
 			continue;
 		}
-		const offset = pack.idx.offsets.get(oid);
-		if (offset === undefined) {
-			continue;
-		}
-		const { type, object } = await pack.idx.readSlice({ start: offset });
-		if (type === 'ofs_delta' || type === 'ref_delta') {
-			continue;
-		}
-		if (!object) {
-			continue;
-		}
-		seen.add(oid);
 		results.push({
 			oid,
-			type: type as SparseCheckoutObject['type'],
-			body: toUint8Array(object as Uint8Array),
+			type: result.type as SparseCheckoutObject['type'],
+			body: toUint8Array(result.object as Uint8Array),
 		});
 	}
 	return results;
 }
 
-async function resolveObjects(
-	idx: GitPackIndex,
-	commitHash: string,
-	paths: string[]
-) {
-	const commit = await idx.read({
-		oid: commitHash,
-	});
-	readObject(commit);
-
-	const rootTree = await idx.read({ oid: commit.object.tree });
-	readObject(rootTree);
-
-	// Resolve refs to fetch
-	const resolvedOids: Record<string, any> = {};
-	for (const path of paths) {
-		let currentObject = rootTree;
-		const segments = path.split('/');
-		for (const segment of segments) {
-			if (currentObject.type !== 'tree') {
-				throw new Error(`Path not found in the repo: ${path}`);
-			}
-
-			let found = false;
-			for (const item of currentObject.object) {
-				if (item.path === segment) {
-					try {
-						currentObject = await idx.read({ oid: item.oid });
-						readObject(currentObject);
-					} catch {
-						currentObject = item;
-					}
-					found = true;
-					break;
-				}
-			}
-			if (!found) {
-				throw new Error(`Path not found in the repo: ${path}`);
-			}
-		}
-		resolvedOids[path] = currentObject;
-	}
-	return resolvedOids;
+function createTreeFetchRequest(commitHash: string): Uint8Array {
+	return concatUint8Arrays([
+		pktLine(
+			`want ${commitHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 filter \n`
+		),
+		pktLine('filter blob:none\n'),
+		pktLine(`shallow ${commitHash}\n`),
+		pktLine('deepen 1\n'),
+		flushPkt(),
+		pktLine('done\n'),
+	]);
 }
 
-// Request oid for each resolvedRef
-async function fetchObjects(
-	url: string,
-	objectHashes: string[],
-	additionalHeaders?: Record<string, string>
-) {
-	const packbuffer = Buffer.from(
-		(await collect([
-			...objectHashes.map((objectHash) =>
-				GitPktLine.encode(
-					`want ${objectHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 \n`
-				)
-			),
-			GitPktLine.flush(),
-			GitPktLine.encode(`done\n`),
-		])) as any
-	);
+function createObjectFetchRequest(objectHashes: string[]): Uint8Array {
+	return concatUint8Arrays([
+		...objectHashes.map((objectHash) =>
+			pktLine(
+				`want ${objectHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 \n`
+			)
+		),
+		flushPkt(),
+		pktLine('done\n'),
+	]);
+}
 
-	const response = await fetch(url + '/git-upload-pack', {
-		method: 'POST',
-		headers: {
-			Accept: 'application/x-git-upload-pack-advertisement',
-			'content-type': 'application/x-git-upload-pack-request',
-			'Content-Length': `${packbuffer.length}`,
-			...additionalHeaders,
-		},
-		body: packbuffer as any,
-	});
+function parseUploadPackResponse(response: Uint8Array): Uint8Array {
+	const packChunks: Uint8Array[] = [];
+	let offset = 0;
 
-	if (!response.ok) {
-		if (response.status === 401 || response.status === 403) {
-			throw new GitAuthenticationError(url, response.status);
-		}
-		throw new Error(
-			`Failed to fetch git objects from ${url}: ${response.status} ${response.statusText}`
+	while (offset + 4 <= response.length) {
+		const lineLength = Number.parseInt(
+			decodeAscii(response.subarray(offset, offset + 4)),
+			16
 		);
+		offset += 4;
+		if (!Number.isFinite(lineLength)) {
+			throw new Error('Invalid Git pkt-line response.');
+		}
+		if (lineLength === 0 || lineLength === 1) {
+			continue;
+		}
+		if (lineLength === 2) {
+			break;
+		}
+		if (lineLength < 4) {
+			throw new Error('Invalid Git pkt-line response.');
+		}
+
+		const payloadLength = lineLength - 4;
+		const payload = response.subarray(offset, offset + payloadLength);
+		offset += payloadLength;
+		if (payload.length === 0 || decodeUtf8(payload) === 'NAK\n') {
+			continue;
+		}
+
+		const sideband = payload[0];
+		if (sideband === 1) {
+			packChunks.push(payload.subarray(1));
+		} else if (sideband === 2) {
+			continue;
+		} else if (sideband === 3) {
+			throw new Error(decodeUtf8(payload.subarray(1)));
+		} else if (decodeAscii(payload.subarray(0, 4)) === 'PACK') {
+			packChunks.push(payload);
+		}
 	}
 
-	const iterator = streamToIterator(response.body!);
-	const parsed = await parseUploadPackResponse(iterator);
-	const packfile = Buffer.from((await collect(parsed.packfile)) as any);
-	if (packfile.byteLength === 0) {
-		const idx = await GitPackIndex.fromPack({
-			pack: packfile,
-		});
-		return {
-			idx,
-			packfile: new Uint8Array(),
-			promisor: false,
-		};
-	}
-	const idx = await GitPackIndex.fromPack({
-		pack: packfile,
+	return concatUint8Arrays(packChunks);
+}
+
+function pktLine(value: string | Uint8Array): Uint8Array {
+	const payload =
+		typeof value === 'string' ? new TextEncoder().encode(value) : value;
+	const header = new TextEncoder().encode(
+		(payload.length + 4).toString(16).padStart(4, '0')
+	);
+	return concatUint8Arrays([header, payload]);
+}
+
+function flushPkt(): Uint8Array {
+	return new TextEncoder().encode('0000');
+}
+
+async function requestWithFetch({
+	url,
+	method = 'GET',
+	headers = {},
+	body,
+}: GitHttpRequest) {
+	const response = await fetch(url, {
+		method,
+		headers,
+		body: body ? await collectAsyncIterable(body) : undefined,
+	});
+	const responseHeaders: Record<string, string> = {};
+	response.headers?.forEach?.((value, key) => {
+		responseHeaders[key] = value;
 	});
 	return {
-		idx,
-		packfile: toUint8Array(packfile),
-		promisor: false,
+		url: response.url,
+		method,
+		statusCode: response.status,
+		statusMessage: response.statusText,
+		headers: responseHeaders,
+		body: getResponseBody(response),
 	};
 }
 
-async function extractGitObjectFromIdx(idx: GitPackIndex, objectHash: string) {
-	const tree = await idx.read({ oid: objectHash });
-	readObject(tree);
-
-	if (tree.type === 'blob') {
-		return tree.object;
+async function collectAsyncIterable(
+	iterable: AsyncIterable<Uint8Array>
+): Promise<Uint8Array> {
+	const chunks: Uint8Array[] = [];
+	for await (const chunk of iterable) {
+		chunks.push(chunk);
 	}
-
-	const files: Record<string, any> = {};
-	for (const { path, oid, type } of tree.object) {
-		if (type === 'blob') {
-			const object = await idx.read({ oid });
-			readObject(object);
-			files[path] = object.object;
-		} else if (type === 'tree') {
-			files[path] = await extractGitObjectFromIdx(idx, oid);
-		}
-	}
-	return files;
+	return concatUint8Arrays(chunks);
 }
 
-function readObject(result: any) {
-	if (!(result.object instanceof Buffer)) {
-		return;
+function getResponseBody(
+	response: Response
+): AsyncIterableIterator<Uint8Array> {
+	if (response.body) {
+		return streamToAsyncIterator(response.body);
 	}
-	switch (result.type) {
-		case 'commit':
-			result.object = GitCommit.from(result.object).parse();
-			break;
-		case 'tree':
-			result.object = (GitTree.from(result.object) as any).entries();
-			break;
-		case 'blob':
-			result.object = new Uint8Array(result.object);
-			result.format = 'content';
-			break;
-		case 'tag':
-			result.object = GitAnnotatedTag.from(result.object).parse();
-			break;
-		default:
-			throw new ObjectTypeError(
-				result.oid,
-				result.type,
-				'blob|commit|tag|tree'
-			);
+	if (!response.arrayBuffer) {
+		return emptyAsyncIterator();
 	}
+	return arrayBufferToAsyncIterator(response.arrayBuffer());
 }
 
-async function* parseGitResponseLines(response: Response) {
-	const text = await response.text();
-	let at = 0;
-
-	while (at <= text.length) {
-		const lineLength = parseInt(text.substring(at, at + 4), 16);
-		if (lineLength === 0) {
-			break;
-		}
-		const line = text.substring(at + 4, at + lineLength);
-		yield line;
-		at += lineLength;
-	}
-}
-
-function streamToIterator(stream: any) {
-	// Use native async iteration if it's available.
-	if (stream[Symbol.asyncIterator]) {
-		return stream;
-	}
+function streamToAsyncIterator(
+	stream: ReadableStream<Uint8Array>
+): AsyncIterableIterator<Uint8Array> {
 	const reader = stream.getReader();
 	return {
-		next() {
-			return reader.read();
+		async next() {
+			const result = await reader.read();
+			return result.done
+				? { done: true, value: undefined }
+				: { done: false, value: result.value };
 		},
 		return() {
 			reader.releaseLock();
-			return {};
+			return Promise.resolve({ done: true, value: undefined });
 		},
 		[Symbol.asyncIterator]() {
 			return this;
@@ -747,9 +773,290 @@ function streamToIterator(stream: any) {
 	};
 }
 
-function toUint8Array(buffer: Uint8Array | Buffer) {
-	if (buffer instanceof Uint8Array) {
-		return Uint8Array.from(buffer);
+async function* arrayBufferToAsyncIterator(arrayBuffer: Promise<ArrayBuffer>) {
+	yield new Uint8Array(await arrayBuffer);
+}
+
+async function* emptyAsyncIterator() {
+	// Empty async generator.
+}
+
+function mapGitHttpError(
+	error: unknown,
+	repoUrl: string,
+	action: 'refs' | 'objects'
+) {
+	const status = getGitHttpErrorStatus(error);
+	if (status) {
+		return mapGitHttpStatus(
+			repoUrl,
+			status.statusCode,
+			status.statusMessage,
+			action
+		);
 	}
-	return Uint8Array.from(buffer);
+	return error;
+}
+
+function mapGitHttpStatus(
+	repoUrl: string,
+	status: number,
+	statusText: string,
+	action: 'refs' | 'objects'
+) {
+	if (status === 401 || status === 403) {
+		return new GitAuthenticationError(repoUrl, status);
+	}
+	return new Error(
+		`Failed to fetch git ${action} from ${repoUrl}: ${status} ${statusText}`
+	);
+}
+
+function getGitHttpErrorStatus(error: unknown):
+	| {
+			statusCode: number;
+			statusMessage: string;
+	  }
+	| undefined {
+	if (
+		error &&
+		typeof error === 'object' &&
+		'data' in error &&
+		error.data &&
+		typeof error.data === 'object' &&
+		'statusCode' in error.data
+	) {
+		const data = error.data as {
+			statusCode?: unknown;
+			statusMessage?: unknown;
+		};
+		if (typeof data.statusCode === 'number') {
+			return {
+				statusCode: data.statusCode,
+				statusMessage:
+					typeof data.statusMessage === 'string'
+						? data.statusMessage
+						: '',
+			};
+		}
+	}
+	return undefined;
+}
+
+async function sha1(value: Uint8Array) {
+	const hash = await crypto.subtle.digest('SHA-1', value);
+	return Array.from(new Uint8Array(hash), (byte) =>
+		byte.toString(16).padStart(2, '0')
+	).join('');
+}
+
+function toUint8Array(value: Uint8Array) {
+	return Uint8Array.from(value);
+}
+
+function concatUint8Arrays(arrays: Uint8Array[]) {
+	const length = arrays.reduce((sum, array) => sum + array.length, 0);
+	const result = new Uint8Array(length);
+	let offset = 0;
+	for (const array of arrays) {
+		result.set(array, offset);
+		offset += array.length;
+	}
+	return result;
+}
+
+function decodeAscii(value: Uint8Array) {
+	return Array.from(value, (byte) => String.fromCharCode(byte)).join('');
+}
+
+function decodeUtf8(value: Uint8Array) {
+	return new TextDecoder().decode(value);
+}
+
+type MemoryStats = {
+	size: number;
+	mode: number;
+	isFile(): boolean;
+	isDirectory(): boolean;
+	isSymbolicLink(): boolean;
+};
+
+class MemoryFsClient {
+	private files = new Map<string, Uint8Array>();
+	private directories = new Set<string>(['/']);
+
+	promises = {
+		readFile: this.readFile.bind(this),
+		writeFile: this.writeFile.bind(this),
+		unlink: this.unlink.bind(this),
+		readdir: this.readdir.bind(this),
+		mkdir: this.mkdir.bind(this),
+		rmdir: this.rmdir.bind(this),
+		stat: this.stat.bind(this),
+		lstat: this.lstat.bind(this),
+		readlink: this.readlink.bind(this),
+		symlink: this.symlink.bind(this),
+	};
+
+	async readFile(filepath: string, options?: any) {
+		const normalized = this.normalize(filepath);
+		const data = this.files.get(normalized);
+		if (!data) {
+			throw createFsError('ENOENT', normalized);
+		}
+		const copy = Uint8Array.from(data);
+		const encoding =
+			typeof options === 'string' ? options : options?.encoding;
+		return encoding ? new TextDecoder().decode(copy) : copy;
+	}
+
+	async writeFile(filepath: string, data: string | Uint8Array) {
+		const normalized = this.normalize(filepath);
+		this.mkdirParents(this.dirname(normalized));
+		this.files.set(
+			normalized,
+			typeof data === 'string'
+				? new TextEncoder().encode(data)
+				: Uint8Array.from(data)
+		);
+	}
+
+	async unlink(filepath: string) {
+		const normalized = this.normalize(filepath);
+		if (!this.files.delete(normalized)) {
+			throw createFsError('ENOENT', normalized);
+		}
+	}
+
+	async readdir(dirpath: string, options?: any) {
+		const normalized = this.normalize(dirpath);
+		if (!this.directories.has(normalized)) {
+			throw createFsError('ENOENT', normalized);
+		}
+		const names = new Set<string>();
+		const prefix = normalized === '/' ? '/' : `${normalized}/`;
+		for (const directory of this.directories) {
+			if (directory !== normalized && directory.startsWith(prefix)) {
+				names.add(directory.slice(prefix.length).split('/')[0]);
+			}
+		}
+		for (const filepath of this.files.keys()) {
+			if (filepath.startsWith(prefix)) {
+				names.add(filepath.slice(prefix.length).split('/')[0]);
+			}
+		}
+		const sortedNames = Array.from(names).sort();
+		if (options?.withFileTypes) {
+			return sortedNames.map((name) =>
+				this.createDirent(`${prefix}${name}`, name)
+			);
+		}
+		return sortedNames;
+	}
+
+	async mkdir(dirpath: string) {
+		this.mkdirParents(this.normalize(dirpath));
+	}
+
+	async rmdir(dirpath: string) {
+		const normalized = this.normalize(dirpath);
+		if (normalized === '/') {
+			throw createFsError('EBUSY', normalized);
+		}
+		const prefix = `${normalized}/`;
+		for (const directory of this.directories) {
+			if (directory.startsWith(prefix)) {
+				throw createFsError('ENOTEMPTY', normalized);
+			}
+		}
+		for (const filepath of this.files.keys()) {
+			if (filepath.startsWith(prefix)) {
+				throw createFsError('ENOTEMPTY', normalized);
+			}
+		}
+		this.directories.delete(normalized);
+	}
+
+	async stat(filepath: string): Promise<MemoryStats> {
+		return this.getStats(filepath);
+	}
+
+	async lstat(filepath: string): Promise<MemoryStats> {
+		return this.getStats(filepath);
+	}
+
+	async readlink(filepath: string) {
+		throw createFsError('EINVAL', this.normalize(filepath));
+	}
+
+	async symlink(_target: string, filepath: string) {
+		throw createFsError('ENOSYS', this.normalize(filepath));
+	}
+
+	private getStats(filepath: string): MemoryStats {
+		const normalized = this.normalize(filepath);
+		const file = this.files.get(normalized);
+		if (file) {
+			return createStats(file.length, true);
+		}
+		if (this.directories.has(normalized)) {
+			return createStats(0, false);
+		}
+		throw createFsError('ENOENT', normalized);
+	}
+
+	private createDirent(filepath: string, name: string) {
+		const normalized = this.normalize(filepath);
+		const isDirectory = this.directories.has(normalized);
+		return {
+			name,
+			isFile: () => !isDirectory,
+			isDirectory: () => isDirectory,
+			isSymbolicLink: () => false,
+		};
+	}
+
+	private mkdirParents(dirpath: string) {
+		let current = '/';
+		for (const segment of dirpath.split('/').filter(Boolean)) {
+			current = current === '/' ? `/${segment}` : `${current}/${segment}`;
+			this.directories.add(current);
+		}
+	}
+
+	private dirname(filepath: string) {
+		const normalized = this.normalize(filepath);
+		const index = normalized.lastIndexOf('/');
+		return index <= 0 ? '/' : normalized.slice(0, index);
+	}
+
+	private normalize(filepath: string) {
+		const absolute = filepath.startsWith('/') ? filepath : `/${filepath}`;
+		const parts: string[] = [];
+		for (const part of absolute.split('/')) {
+			if (!part || part === '.') {
+				continue;
+			}
+			if (part === '..') {
+				parts.pop();
+			} else {
+				parts.push(part);
+			}
+		}
+		return `/${parts.join('/')}`;
+	}
+}
+
+function createStats(size: number, isFile: boolean): MemoryStats {
+	return {
+		size,
+		mode: isFile ? 0o100644 : 0o040755,
+		isFile: () => isFile,
+		isDirectory: () => !isFile,
+		isSymbolicLink: () => false,
+	};
+}
+
+function createFsError(code: string, filepath: string) {
+	return Object.assign(new Error(`${code}: ${filepath}`), { code });
 }
