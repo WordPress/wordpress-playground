@@ -1250,12 +1250,25 @@ echo get_option('blogname');
 		await expect(popoverDescription).toHaveCount(0);
 		await indicator.click();
 		await expect(popoverDescription).toBeVisible();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
-		await expect(
-			website.page.getByRole('dialog', { name: 'Save Playground' })
-		).toBeVisible();
+		const storePermanentlyButton = website.page.getByRole('button', {
+			name: 'Store permanently',
+		});
+		const canStorePermanently = await website.page.evaluate(async () => {
+			try {
+				await navigator.storage.getDirectory();
+				return true;
+			} catch {
+				return Boolean((window as any).showDirectoryPicker);
+			}
+		});
+		if (canStorePermanently) {
+			await storePermanentlyButton.click();
+			await expect(
+				website.page.getByRole('dialog', { name: 'Save Playground' })
+			).toBeVisible();
+		} else {
+			await expect(storePermanentlyButton).toHaveCount(0);
+		}
 		expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
 			'temp'
 		);
