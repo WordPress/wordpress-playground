@@ -42,12 +42,18 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	});
 
 	const url = new URL(await playground.absoluteUrl);
-	if (url.port !== '') {
-		let errorMessage = `The current host is ${url.host}, but WordPress multisites do not support custom ports.`;
-		if (url.hostname === 'localhost') {
-			errorMessage += ` For development, you can set up a playground.test domain using the instructions at https://wordpress.github.io/wordpress-playground/contributing/code.`;
-		}
-		throw new Error(errorMessage);
+	// WP multisite only sees what $_SERVER values the Playground host
+	// sets (HTTP_HOST is forced to url.hostname below); the port in the
+	// iframe URL never reaches PHP. On loopback hosts the port is
+	// always a dev-server artifact, so reject only public hosts.
+	const isLoopback =
+		url.hostname === 'localhost' ||
+		url.hostname === '127.0.0.1' ||
+		url.hostname === '[::1]';
+	if (url.port !== '' && !isLoopback) {
+		throw new Error(
+			`The current host is ${url.host}, but WordPress multisites do not support custom ports.`
+		);
 	}
 	const sitePath = url.pathname.replace(/\/$/, '') + '/';
 	const siteUrl = `${url.protocol}//${url.hostname}${sitePath}`;

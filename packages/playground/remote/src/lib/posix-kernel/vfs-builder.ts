@@ -954,6 +954,24 @@ if ($scopePath !== '') {
     }
 }
 
+// WP subdir multisite: \`/<slug>/wp-(admin|content|includes)/…\` and
+// \`/<slug>/<file>.php\` rewrite the FILE lookup to the unslugged path
+// while REQUEST_URI keeps its /<slug>/ prefix so WP's ms-load.php can
+// dispatch to the right subsite. Mirrors the .htaccess rules WP
+// generates for subdirectory multisite installs.
+if (!is_file($file) && !is_dir($file)) {
+    if (preg_match(
+        '#^/[_0-9a-zA-Z-]+/(wp-(?:admin|content|includes)(?:/.*)?|[^/]+\\.php)$#',
+        $uri,
+        $m
+    )) {
+        $alt = $docRoot . '/' . $m[1];
+        if (is_file($alt)) {
+            $file = $alt;
+        }
+    }
+}
+
 if ($uri !== '/' && is_file($file)) {
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
     if (isset($staticTypes[$ext])) {
@@ -1018,6 +1036,12 @@ if (isset($_SERVER['HTTP_X_PLAYGROUND_ABSOLUTE_URL'])) {
 
 define('WP_HTTP_BLOCK_EXTERNAL', true);
 define('DISABLE_WP_CRON', true);
+
+/* That's all, stop editing! Happy publishing. */
+// ^ Marker line: wp-cli's \`core multisite-convert\` inserts MULTISITE,
+//   SUBDOMAIN_INSTALL, DOMAIN_CURRENT_SITE, etc. immediately above it.
+//   Without the marker, wp-cli falls back to appending after
+//   wp-settings.php is required, so the constants never run.
 
 if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', __DIR__ . '/' );
