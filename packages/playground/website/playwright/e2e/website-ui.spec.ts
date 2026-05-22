@@ -1,5 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
+import type { Page } from '@playwright/test';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -9,10 +10,70 @@ import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/sup
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 
+/**
+ * Returns a setup URL that cannot accidentally reuse another test's autosave.
+ */
+function getUniqueSavedPlaygroundSetupUrl(
+	label: string,
+	params: Record<string, string> = {}
+) {
+	const searchParams = new URLSearchParams({
+		name: `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+		...params,
+	});
+	return `./?${searchParams}`;
+}
+
+/**
+ * Runs PHP and flushes OPFS before assertions that depend on persisted changes.
+ */
+async function runPHPAndFlushOpfs(page: Page, code: string) {
+	await expect
+		.poll(
+			() =>
+				page.evaluate(async (phpCode: string) => {
+					try {
+						const playground = (window as any).playground;
+						await playground.run({ code: phpCode });
+						await playground.flushOpfs('/wordpress');
+						return 'ok';
+					} catch (error) {
+						return String(
+							error instanceof Error ? error.message : error
+						);
+					}
+				}, code),
+			{ timeout: 120000 }
+		)
+		.toBe('ok');
+}
+
+function updateBlogNameCode(blogName: string) {
+	return `<?php
+require_once '/wordpress/wp-load.php';
+update_option('blogname', ${JSON.stringify(blogName)});
+	`;
+}
+
+/**
+ * Returns the active site exposed by the site-management browser API.
+ */
+async function getActivePlaygroundSite(page: Page) {
+	return page.evaluate(() =>
+		(window as any).playgroundSites
+			.list()
+			.find((site: any) => site.isActive)
+	);
+}
+
+function escapeRegExp(text: string) {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
-	await website.goto('./?url=/wp-admin/');
+	await website.goto('./?storage=temp&url=/wp-admin/');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
@@ -27,7 +88,7 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 		browserName === 'webkit',
 		'This test is flaky in WebKit. It seems like a GitHub CI issue rather than an actual flakiness since it is reliable locally.'
 	);
-	await website.goto('./?url=/wp-admin');
+	await website.goto('./?storage=temp&url=/wp-admin');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
@@ -36,7 +97,7 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 
 SupportedPHPVersions.forEach(async (version) => {
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
-		await website.goto(`./`);
+		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
 		await website.page.getByLabel('PHP version').selectOption(version);
 		await website.page
@@ -58,7 +119,7 @@ Object.keys(MinifiedWordPressVersions)
 		test(`should switch WordPress version to ${version}`, async ({
 			website,
 		}) => {
-			await website.goto('./');
+			await website.goto('./?storage=temp');
 			await website.ensureSiteManagerIsOpen();
 			await website.page
 				.getByLabel('WordPress version')
@@ -76,7 +137,7 @@ Object.keys(MinifiedWordPressVersions)
 	});
 
 test('should display networking as active by default', async ({ website }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 	await website.ensureSiteManagerIsOpen();
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
@@ -84,13 +145,13 @@ test('should display networking as active by default', async ({ website }) => {
 test('should display networking as active when networking is enabled', async ({
 	website,
 }) => {
-	await website.goto('./?networking=yes');
+	await website.goto('./?storage=temp&networking=yes');
 	await website.ensureSiteManagerIsOpen();
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
 test('should enable networking when requested', async ({ website }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByLabel('Network access').check();
@@ -102,7 +163,7 @@ test('should enable networking when requested', async ({ website }) => {
 });
 
 test('should disable networking when requested', async ({ website }) => {
-	await website.goto('./?networking=yes');
+	await website.goto('./?storage=temp&networking=yes');
 
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByLabel('Network access').uncheck();
@@ -128,7 +189,7 @@ test('should display PHP output even when a fatal error is hit', async ({
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(`./?storage=temp#${JSON.stringify(blueprint)}`);
 
 	await expect(wordpress.locator('body')).toContainText(
 		'This is a fatal error'
@@ -139,9 +200,16 @@ test('should keep query arguments when updating settings', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?url=/wp-admin/&php=8.0&wp=6.6');
+	await website.goto(
+		'./?storage=temp&url=/wp-admin/&php=8.0&wp=6.6&networking=no'
+	);
 
-	expect(website.page.url()).toContain('?url=%2Fwp-admin%2F&php=8.0&wp=6.6');
+	const initialParams = new URL(website.page.url()).searchParams;
+	expect(initialParams.get('storage')).toBe('temp');
+	expect(initialParams.get('url')).toBe('/wp-admin/');
+	expect(initialParams.get('php')).toBe('8.0');
+	expect(initialParams.get('wp')).toBe('6.6');
+	expect(initialParams.get('networking')).toBe('no');
 	expect(
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
@@ -151,9 +219,12 @@ test('should keep query arguments when updating settings', async ({
 	await website.page.getByText('Apply Settings & Reset Playground').click();
 	await website.waitForNestedIframes();
 
-	expect(website.page.url()).toMatch(
-		'?url=%2Fwp-admin%2F&php=8.0&wp=6.6&networking=yes'
-	);
+	const updatedParams = new URL(website.page.url()).searchParams;
+	expect(updatedParams.get('storage')).toBe('temp');
+	expect(updatedParams.get('url')).toBe('/wp-admin/');
+	expect(updatedParams.get('php')).toBe('8.0');
+	expect(updatedParams.get('wp')).toBe('6.6');
+	expect(updatedParams.get('networking')).toBe('yes');
 	expect(
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
@@ -163,7 +234,7 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	website,
 	wordpress,
 }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	// Open site manager
 	await website.ensureSiteManagerIsOpen();
@@ -243,7 +314,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	website,
 	wordpress,
 }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	// Open site manager
 	await website.ensureSiteManagerIsOpen();
@@ -331,7 +402,7 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	// Grant clipboard permissions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 
 	// Open site manager
 	await website.ensureSiteManagerIsOpen();
@@ -377,7 +448,8 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 			Uint8Array.from(atob(base64Part), (c) => c.charCodeAt(0))
 		)
 	);
-	expect(decodedBlueprint).toHaveProperty('landingPage');
+	expect(decodedBlueprint).toHaveProperty('steps');
+	expect(Array.isArray(decodedBlueprint.steps)).toBe(true);
 });
 
 test('should make every Site Manager tab reachable on mobile', async ({
@@ -416,7 +488,7 @@ test('should make every Site Manager tab reachable on mobile', async ({
 
 test.describe('Database panel', () => {
 	test.beforeEach(async ({ website }) => {
-		await website.goto('./');
+		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
 
 		// Navigate to Database tab
@@ -607,7 +679,7 @@ test.describe('Database panel', () => {
 			.getByRole('link', { name: 'SQL' })
 			.click();
 		await newPage.waitForLoadState();
-		await newPage.locator('.CodeMirror').click();
+		await newPage.locator('.CodeMirror.cm-s-default').click();
 		await newPage.keyboard.type('SHOW TABLES');
 		await newPage.getByRole('button', { name: 'Go' }).click();
 		await newPage.waitForLoadState();
@@ -617,9 +689,591 @@ test.describe('Database panel', () => {
 	});
 });
 
-// Test saving playgrounds by default and when the "can-save" URL parameter is set to "no".
-test.describe('Save Status Indicator', () => {
-	test('should show "Unsaved" status for temporary playgrounds', async ({
+// Test browser-saved Playgrounds by default and explicit temporary opt-outs.
+test.describe('Default Playground storage', () => {
+	test.describe.configure({ mode: 'serial' });
+
+	test('should create and finish autosaving a Playground from the root URL', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.page.addInitScript(() => {
+			(window as any).__saveStatusSamples = [];
+			let installed = false;
+			const sampleStatus = () => {
+				const statusButton = [
+					...document.querySelectorAll('[role="status"], button'),
+				].find((node) => {
+					const label = (node.textContent || '').trim();
+					return (
+						label === 'Autosaving' ||
+						label === 'Saving' ||
+						label === 'Autosaved' ||
+						label === 'Saved Playground' ||
+						label === 'Unsaved'
+					);
+				});
+				if (!statusButton) {
+					return;
+				}
+				(window as any).__saveStatusSamples.push({
+					text: (statusButton.textContent || '').trim(),
+					ariaLabel: statusButton.getAttribute('aria-label'),
+					color: getComputedStyle(statusButton).color,
+				});
+			};
+			const installObserver = () => {
+				if (installed) {
+					return;
+				}
+				if (!document.documentElement) {
+					requestAnimationFrame(installObserver);
+					return;
+				}
+				installed = true;
+				new MutationObserver(sampleStatus).observe(
+					document.documentElement,
+					{
+						attributes: true,
+						characterData: true,
+						childList: true,
+						subtree: true,
+					}
+				);
+				window.setInterval(sampleStatus, 25);
+				sampleStatus();
+			};
+			installObserver();
+		});
+		await website.page.goto('./');
+		await expect(
+			website.page.getByRole('button', { name: /Site Manager/ })
+		).toBeVisible();
+		await website.ensureSiteManagerIsClosed();
+
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({
+			timeout: 120000,
+		});
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
+		);
+		await expect(
+			website.page.getByText(/Autosaving|Finalizing autosave/)
+		).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved' })
+		).toHaveCount(0);
+		const saveStatusSamples = await website.page.evaluate(() =>
+			((window as any).__saveStatusSamples || []).filter(
+				(
+					sample: {
+						text: string;
+						ariaLabel: string | null;
+						color: string;
+					},
+					index: number,
+					all: {
+						text: string;
+						ariaLabel: string | null;
+						color: string;
+					}[]
+				) => {
+					const previous = all[index - 1];
+					return (
+						!previous ||
+						previous.text !== sample.text ||
+						previous.ariaLabel !== sample.ariaLabel ||
+						previous.color !== sample.color
+					);
+				}
+			)
+		);
+		const autosavingIndex = saveStatusSamples.findIndex(
+			({ text }) => text === 'Autosaving'
+		);
+		const autosavedIndex = saveStatusSamples.findIndex(
+			({ text }) => text === 'Autosaved'
+		);
+		expect(autosavingIndex).toBeGreaterThan(-1);
+		expect(autosavedIndex).toBeGreaterThan(autosavingIndex);
+		expect(
+			saveStatusSamples.some(({ ariaLabel }) =>
+				/^Autosaving [1-9]\d*%$/.test(ariaLabel ?? '')
+			)
+		).toBe(true);
+	});
+
+	test('should show intent-driven creation actions in the overlay', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('creation-actions')
+		);
+		const siteSlugBeforeGitHubImport = new URL(
+			website.page.url()
+		).searchParams.get('site-slug');
+		await website.openSavedPlaygroundsOverlay();
+		await expect(
+			website.page.getByRole('button', { name: 'New Playground' })
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Preview a WordPress PR',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Preview a Gutenberg PR',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Import from GitHub' })
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Open a Blueprint URL',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Import a .zip' })
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved Playground' })
+		).toHaveCount(0);
+
+		await website.page
+			.getByRole('button', { name: 'Import from GitHub' })
+			.click();
+		await expect(
+			website.page.getByRole('dialog', { name: 'Import from GitHub' })
+		).toBeVisible();
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			siteSlugBeforeGitHubImport
+		);
+	});
+
+	test('should treat New Playground as an explicit fresh start', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('explicit-new'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const firstSite = await getActivePlaygroundSite(website.page);
+
+		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.getByRole('button', { name: 'New Playground' })
+			.click();
+		const overlay = website.page
+			.locator('[class*="overlay"]')
+			.filter({ hasText: 'Playground' });
+		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: firstSite.slug });
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const firstBlankSite = await getActivePlaygroundSite(website.page);
+
+		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.getByRole('button', { name: 'New Playground' })
+			.click();
+		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: firstBlankSite.slug });
+		await expect(
+			website.page.getByText('Recent autosave available')
+		).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+
+		await website.openSavedPlaygroundsOverlay();
+		await website.page.evaluate(() => {
+			(window as any).__siteSwitchStatusSamples = [];
+			const sampleStatus = () => {
+				const status = [
+					...document.querySelectorAll('[role="status"], button'),
+				]
+					.map((node) => (node.textContent || '').trim())
+					.find((text) =>
+						[
+							'Autosaving',
+							'Saving',
+							'Autosaved',
+							'Saved Playground',
+							'Unsaved',
+						].includes(text)
+					);
+				if (status) {
+					(window as any).__siteSwitchStatusSamples.push(status);
+				}
+			};
+			const observer = new MutationObserver(sampleStatus);
+			observer.observe(document.documentElement, {
+				attributes: true,
+				characterData: true,
+				childList: true,
+				subtree: true,
+			});
+			(window as any).__siteSwitchStatusObserver = observer;
+			(window as any).__siteSwitchStatusInterval = window.setInterval(
+				sampleStatus,
+				25
+			);
+			sampleStatus();
+		});
+		await website.page
+			.getByRole('button', {
+				name: new RegExp(`^${escapeRegExp(firstSite.name)}`),
+			})
+			.click();
+		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.toMatchObject({ slug: firstSite.slug });
+		const switchStatusSamples = await website.page.evaluate(() => {
+			window.clearInterval((window as any).__siteSwitchStatusInterval);
+			(window as any).__siteSwitchStatusObserver?.disconnect();
+			return (window as any).__siteSwitchStatusSamples;
+		});
+		expect(switchStatusSamples).not.toContain('Autosaving');
+	});
+
+	test('should show autosave browser storage details in the Site Manager by default', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('storage-details'));
+		await website.ensureSiteManagerIsOpen();
+
+		await expect(
+			website.page.getByText('Autosaved in this browser')
+		).toBeVisible();
+		await expect(
+			website.page.getByText(
+				'Removed after 5 newer autosaves unless saved.'
+			)
+		).toBeVisible();
+		const siteInfoPanel = website.page.locator(
+			'section[class*="site-info-panel"]'
+		);
+		await expect(
+			siteInfoPanel.getByRole('button', { name: 'Store permanently' })
+		).toBeVisible();
+		await expect(
+			website.page.getByText(
+				'This is an Unsaved Playground. Your changes will be lost on page refresh.'
+			)
+		).toHaveCount(0);
+	});
+
+	test('should promote a default autosaved Playground when kept', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('promote'));
+		await website.ensureSiteManagerIsClosed();
+		const statusButton = website.page.getByRole('button', {
+			name: 'Autosaved',
+		});
+		await expect(statusButton).toBeVisible({ timeout: 120000 });
+		await statusButton.click();
+		await website.page
+			.getByRole('button', { name: 'Store permanently' })
+			.click();
+
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => {
+					const sites = (window as any).playgroundSites.list();
+					return sites.find((site: any) => site.isActive)
+						?.persistence;
+				})
+			)
+			.toBe('explicit');
+		await expect(
+			website.page.getByText(/Autosaved|Autosaving|Finalizing autosave/)
+		).toHaveCount(0);
+		await expect(
+			website.page.getByText(/Saved Playground|Saving|Finalizing save/)
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toHaveCount(0);
+	});
+
+	test('should persist WordPress changes after refreshing the default Playground', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('restore'));
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
+		);
+
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+
+		const expectedBlogName = `Saved Playground ${Date.now()}`;
+		await runPHPAndFlushOpfs(
+			website.page,
+			updateBlogNameCode(expectedBlogName)
+		);
+
+		await website.page.reload();
+		await expect(
+			website.page.getByText('Recent autosave available')
+		).toBeVisible();
+		await expect(
+			website.page.getByText(
+				/Another Playground was created .* from the same URL\./
+			)
+		).toBeVisible();
+		await website.waitForNestedIframes();
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved' })
+		).toBeVisible();
+		await website.page
+			.getByRole('button', { name: 'Restore Autosave' })
+			.click();
+		await website.waitForNestedIframes();
+		await expect
+			.poll(() =>
+				new URL(website.page.url()).searchParams.get('site-slug')
+			)
+			.toBeTruthy();
+
+		const blogName = await website.page.evaluate(async () => {
+			const playground = (window as any).playground;
+			const result = await playground.run({
+				code: `<?php
+require_once '/wordpress/wp-load.php';
+echo get_option('blogname');
+`,
+			});
+			return result.text;
+		});
+		expect(blogName).toBe(expectedBlogName);
+	});
+
+	test('should start fresh from a setup URL when an autosave exists', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const setupName = `fresh-${Date.now()}-${Math.random()
+			.toString(36)
+			.slice(2)}`;
+		await website.goto(`./?php=8.3&name=${setupName}&random=first`);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+
+		const firstBlogName = `Restored Playground ${Date.now()}`;
+		await runPHPAndFlushOpfs(
+			website.page,
+			updateBlogNameCode(firstBlogName)
+		);
+
+		await website.page.goto(`./?php=8.3&name=${setupName}&cb=cache-buster`);
+		await expect(
+			website.page.getByText('Recent autosave available')
+		).toBeVisible();
+		await website.waitForNestedIframes();
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved' })
+		).toBeVisible();
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
+		);
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => {
+					const activeSite = (window as any).playgroundSites
+						.list()
+						.find((site: any) => site.isActive);
+					return {
+						storage: activeSite?.storage,
+						persistence: activeSite?.persistence,
+					};
+				})
+			)
+			.toEqual({ storage: 'temporary', persistence: undefined });
+
+		const freshBlogName = await website.page.evaluate(async () => {
+			const playground = (window as any).playground;
+			const result = await playground.run({
+				code: `<?php
+require_once '/wordpress/wp-load.php';
+echo get_option('blogname');
+`,
+			});
+			return result.text;
+		});
+		expect(freshBlogName).not.toBe(firstBlogName);
+
+		const iframeToken = `keep-running-${Date.now()}`;
+		await website.page
+			.locator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.evaluate((iframe: HTMLIFrameElement, token) => {
+				(iframe.contentWindow as any).__playgroundIframeToken = token;
+			}, iframeToken);
+
+		await website.page.evaluate(() => {
+			(window as any).__keepNewStatusSamples = [];
+			const sampleStatus = () => {
+				const status = [
+					...document.querySelectorAll('[role="status"], button'),
+				]
+					.map((node) => (node.textContent || '').trim())
+					.find((text) =>
+						[
+							'Autosaving',
+							'Saving',
+							'Autosaved',
+							'Saved Playground',
+							'Unsaved',
+						].includes(text)
+					);
+				if (status) {
+					(window as any).__keepNewStatusSamples.push(status);
+				}
+			};
+			const observer = new MutationObserver(sampleStatus);
+			observer.observe(document.documentElement, {
+				attributes: true,
+				characterData: true,
+				childList: true,
+				subtree: true,
+			});
+			(window as any).__keepNewStatusObserver = observer;
+			(window as any).__keepNewStatusInterval = window.setInterval(
+				sampleStatus,
+				25
+			);
+			sampleStatus();
+		});
+		await website.page.getByRole('button', { name: 'No, thanks' }).click();
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const keepNewStatusSamples = await website.page.evaluate(() => {
+			window.clearInterval((window as any).__keepNewStatusInterval);
+			(window as any).__keepNewStatusObserver?.disconnect();
+			return (window as any).__keepNewStatusSamples;
+		});
+		expect(keepNewStatusSamples).toContain('Autosaving');
+		expect(keepNewStatusSamples).not.toContain('Saving');
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => {
+					const activeSite = (window as any).playgroundSites
+						.list()
+						.find((site: any) => site.isActive);
+					return {
+						storage: activeSite?.storage,
+						persistence: activeSite?.persistence,
+					};
+				})
+			)
+			.toEqual({ storage: 'opfs', persistence: 'autosave' });
+		await expect
+			.poll(() =>
+				website.page
+					.locator(
+						'#playground-viewport:visible,.playground-viewport:visible'
+					)
+					.evaluate(
+						(iframe: HTMLIFrameElement) =>
+							(iframe.contentWindow as any)
+								.__playgroundIframeToken
+					)
+			)
+			.toBe(iframeToken);
+	});
+
+	test('should fall back to an unsaved Playground when browser storage is unavailable', async ({
+		website,
+	}) => {
+		await website.page.addInitScript(() => {
+			Object.defineProperty(navigator.storage, 'getDirectory', {
+				value: undefined,
+				configurable: true,
+			});
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				value: undefined,
+				configurable: true,
+			});
+		});
+
+		await website.goto('./');
+		await website.ensureSiteManagerIsClosed();
+
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			null
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Unsaved' })
+		).toBeVisible();
+		await website.page.getByRole('button', { name: 'Unsaved' }).click();
+		await expect(
+			website.page.getByRole('button', { name: 'Store permanently' })
+		).toHaveCount(0);
+	});
+
+	test('should show "Unsaved" status for storage=temp Playgrounds', async ({
 		website,
 	}) => {
 		await website.goto('./?storage=temp');
@@ -630,9 +1284,40 @@ test.describe('Save Status Indicator', () => {
 		});
 		await expect(indicator).toBeVisible();
 		await expect(indicator).toHaveCount(1);
+		await indicator.click();
+		const popoverDescription = website.page.getByText(
+			'This Playground is not stored anywhere. Changes are lost when this page is refreshed or closed.'
+		);
+		await expect(popoverDescription).toBeVisible();
+		await indicator.click();
+		await expect(popoverDescription).toHaveCount(0);
+		await indicator.click();
+		await expect(popoverDescription).toBeVisible();
+		const storePermanentlyButton = website.page.getByRole('button', {
+			name: 'Store permanently',
+		});
+		const canStorePermanently = await website.page.evaluate(async () => {
+			try {
+				await navigator.storage.getDirectory();
+				return true;
+			} catch {
+				return Boolean((window as any).showDirectoryPicker);
+			}
+		});
+		if (canStorePermanently) {
+			await storePermanentlyButton.click();
+			await expect(
+				website.page.getByRole('dialog', { name: 'Save Playground' })
+			).toBeVisible();
+		} else {
+			await expect(storePermanentlyButton).toHaveCount(0);
+		}
+		expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
+			'temp'
+		);
 	});
 
-	test('should see save playground message in the Site Manager', async ({
+	test('should see save playground message in the Site Manager for storage=temp Playgrounds', async ({
 		website,
 	}) => {
 		await website.goto('./?storage=temp');
@@ -743,7 +1428,7 @@ test.describe('Save Status Indicator', () => {
 test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not set', async ({
 	website,
 }) => {
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 	const gtmScripts = await website.page
 		.locator('script[src*="googletagmanager.com"]')
 		.count();
