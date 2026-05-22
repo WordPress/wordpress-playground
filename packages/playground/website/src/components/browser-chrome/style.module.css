@@ -36,14 +36,14 @@ body.is-embedded .fake-window-wrapper {
 .content {
 	display: flex;
 	flex-grow: 1;
-	background: #ffffff;
+	background: var(--color-bg-surface);
 }
 
 .toolbar {
 	position: relative;
 	z-index: 5;
 	display: flex;
-	background: #1e2327;
+	background: var(--color-bg-primary);
 	width: 100%;
 	margin: 0 auto;
 	padding: 0 12px;
@@ -68,7 +68,7 @@ body.is-embedded .fake-window-wrapper {
 .toolbar-buttons {
 	display: flex;
 	gap: 0;
-	color: #fff;
+	color: var(--color-text-inverse);
 }
 
 .save-status-slot {
@@ -102,11 +102,11 @@ body.is-embedded .fake-window-wrapper {
 }
 
 .saved-playgrounds-button svg {
-	fill: #fff;
+	fill: var(--color-text-inverse);
 }
 
 .saved-playgrounds-button:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: var(--color-overlay-light);
 	border-radius: 4px;
 }
 

@@ -18,26 +18,26 @@
 }
 
 .saved {
-	color: #86efac;
+	color: var(--color-success);
 }
 
 .saved svg {
-	fill: #86efac;
+	fill: var(--color-success);
 }
 
 .unsaved {
-	color: #fcd34d;
+	color: var(--color-warning);
 }
 
 .unsaved svg {
-	fill: #fcd34d;
+	fill: var(--color-warning);
 }
 
 .saveButton {
 	margin-left: 2px;
 	padding: 4px 10px;
-	background: #fcd34d;
-	color: #1e2327;
+	background: var(--color-warning);
+	color: var(--color-bg-primary);
 	border: none;
 	border-radius: 4px;
 	font-size: 13px;
@@ -48,25 +48,25 @@
 }
 
 .saveButton:hover {
-	background: #fde68a;
+	background: var(--color-warning-light);
 }
 
 .saving {
-	color: #93c5fd;
+	color: var(--color-info);
 }
 
 .error {
-	color: #fca5a5;
+	color: var(--color-error-light);
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
 
 .error:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: var(--color-overlay-light);
 }
 
 .error svg {
-	fill: #fca5a5;
+	fill: var(--color-error-light);
 }
 
 .label {
@@ -77,7 +77,7 @@
 	width: 16px;
 	height: 16px;
 	border: 2px solid rgba(147, 197, 253, 0.3);
-	border-top-color: #93c5fd;
+	border-top-color: var(--color-info);
 	border-radius: 50%;
 	animation: spin 0.8s linear infinite;
 	flex-shrink: 0;

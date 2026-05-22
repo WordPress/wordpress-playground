@@ -1,0 +1,63 @@
+/**
+ * Color Tokens for WordPress Playground Website
+ *
+ * This file contains color CSS custom properties used across
+ * the application. Import this file in styles.css to make
+ * tokens available globally.
+ *
+ * Usage in CSS Modules:
+ *   color: var(--color-text-primary);
+ *   background: var(--color-bg-primary);
+ *
+ * Naming convention: --color-{category}-{variant}
+ */
+
+:root {
+	/* Background Scale (Dark Theme) */
+	--color-bg-primary: #1e2327;
+	--color-bg-secondary: #2c3338;
+	--color-bg-tertiary: #3c4349;
+	--color-bg-hover: #353b41;
+	--color-bg-deep: #252a2e;
+
+	/* Background Scale (Light Theme) */
+	--color-bg-surface: #ffffff;
+	--color-bg-info: #f0f6fc;
+
+	/* Text - Light mode */
+	--color-text-primary: #1e1e1e;
+	--color-text-secondary: #757575;
+	--color-text-muted: #6b7280;
+	--color-text-subtle: #9ca3af;
+
+	/* Text - Dark mode */
+	--color-text-inverse: #ffffff;
+	--color-text-inverse-secondary: #e5e6e6;
+
+	/* Brand & Accent */
+	--color-primary: #3858e9;
+
+	/* WordPress admin colors */
+	--color-wp-admin: #007cba;
+	--color-wp-admin-darker-10: #006ba1;
+	--color-wp-admin-darker-20: #005a87;
+
+	/* Status */
+	--color-success: #86efac;
+	--color-warning: #fcd34d;
+	--color-warning-light: #fde68a;
+	--color-error: #d63638;
+	--color-error-light: #fca5a5;
+	--color-info: #93c5fd;
+
+	/* Borders */
+	--color-border-dark-hover: #4a5258;
+	--color-border-light: #dcdcde;
+
+	/* Selection */
+	--color-selected-bg: #2a3654;
+
+	/* Overlay */
+	--color-overlay-light: rgba(255, 255, 255, 0.1);
+	--color-overlay-dark: rgba(0, 0, 0, 0.1);
+}
