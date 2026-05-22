@@ -24,6 +24,7 @@ export const modalSlugs = {
 	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
 	GITHUB_IMPORT: 'github-import',
+	GITHUB_IMPORT_NEW_SITE: 'github-import-new-site',
 	GITHUB_EXPORT: 'github-export',
 	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
