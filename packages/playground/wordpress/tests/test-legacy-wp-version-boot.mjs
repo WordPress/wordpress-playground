@@ -365,13 +365,16 @@ function shouldRetryFrontPageBoot(consoleErrors) {
 	);
 }
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+	headless: true,
+	executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+});
 
 for (const { wp, php } of MATRIX) {
 	const label = `WP ${wp} (PHP ${php})`;
 	process.stdout.write(`${label}... `);
 
-	const url = `http://127.0.0.1:${PORT}/website-server/?php=${php}&wp=${wp}`;
+	const url = `http://127.0.0.1:${PORT}/website-server/?php=${php}&wp=${wp}&storage=temp`;
 
 	// Isolate every version in a fresh browser context so that OPFS
 	// (where Playground persists site state), IndexedDB, localStorage
