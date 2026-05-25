@@ -117,7 +117,9 @@ Both methods are safe to call on an already-saved site — they return the site'
 Persists the active temporary site to OPFS.
 
 ```typescript
-saveInBrowser(name?: string): Promise<{ slug: string; storage: string }>;
+saveInBrowser(
+	name?: string
+): Promise<{ slug: string; storage: 'opfs' | 'local-fs' }>;
 ```
 
 ### `saveToLocalFileSystem(name?, localFsHandle?)`
@@ -128,7 +130,7 @@ Persists the active temporary site to a directory on disk. Prompts the user to p
 saveToLocalFileSystem(
 	name?: string,
 	localFsHandle?: FileSystemDirectoryHandle
-): Promise<{ slug: string; storage: string }>;
+): Promise<{ slug: string; storage: 'opfs' | 'local-fs' }>;
 ```
 
 ## Modifying a saved site
@@ -148,8 +150,10 @@ rename(newName: string): Promise<void>;
 Changes the PHP version of the active site and reboots it. To pick a PHP version for a fresh site, use `createNewTemporarySite('slug', { phpVersion: '8.4' })` instead.
 
 ```typescript
-setPhpVersion(version: '7.4' | '8.0' | '8.1' | '8.2' | '8.3' | '8.4' | '8.5'): Promise<void>;
+setPhpVersion(version: string): Promise<void>;
 ```
+
+`version` accepts any value from the [`AllPHPVersion`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/universal/src/lib/supported-php-versions.ts) union (currently `'7.4'`, `'8.0'`–`'8.5'`, plus the legacy `'5.2'`). The supported list evolves as PHP releases come and go — see the linked source for the current set.
 
 ### `setNetworking(enabled)`
 
