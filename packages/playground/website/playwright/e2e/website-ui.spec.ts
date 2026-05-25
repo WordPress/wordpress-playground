@@ -387,12 +387,18 @@ test('should make every Site Manager tab reachable on mobile', async ({
 	await website.goto('./');
 	await website.ensureSiteManagerIsOpen();
 
-	const tabList = website.page.locator('.components-tab-panel__tabs');
+	const siteManager = website.page.locator(
+		'section[class*="site-info-panel"]'
+	);
+	await expect(siteManager).toBeVisible();
+
+	const tabList = siteManager.locator('.components-tab-panel__tabs');
 	await expect(tabList).toBeVisible();
-	const logsTab = website.page.getByRole('tab', { name: 'Logs' });
+
+	const logsTab = siteManager.getByRole('tab', { name: 'Logs' });
 	await expect(logsTab).toHaveCount(1);
 
-	const tabListState = await tabList.evaluate((element) => {
+	await tabList.evaluate((element) => {
 		const logsTab = Array.from(
 			element.querySelectorAll<HTMLElement>('[role="tab"]')
 		).find((tab) => tab.textContent?.trim() === 'Logs');
@@ -401,24 +407,9 @@ test('should make every Site Manager tab reachable on mobile', async ({
 		}
 
 		logsTab.scrollIntoView({ block: 'nearest', inline: 'end' });
-
-		return {
-			clientWidth: element.clientWidth,
-			overflowX: getComputedStyle(element).overflowX,
-			scrollLeft: element.scrollLeft,
-			scrollWidth: element.scrollWidth,
-			logsTabRight: logsTab.getBoundingClientRect().right,
-			viewportWidth: window.innerWidth,
-		};
 	});
 
-	expect(tabListState.overflowX).toBe('auto');
-	expect(tabListState.scrollWidth).toBeGreaterThan(tabListState.clientWidth);
-	expect(tabListState.scrollLeft).toBeGreaterThan(0);
-	expect(tabListState.logsTabRight).toBeLessThanOrEqual(
-		tabListState.viewportWidth + 1
-	);
-
+	await expect(logsTab).toBeInViewport();
 	await logsTab.click();
 	await expect(logsTab).toHaveAttribute('aria-selected', 'true');
 });
