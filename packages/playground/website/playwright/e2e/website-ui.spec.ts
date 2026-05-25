@@ -380,6 +380,49 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	expect(decodedBlueprint).toHaveProperty('landingPage');
 });
 
+test('should make every Site Manager tab reachable on mobile', async ({
+	website,
+}) => {
+	await website.page.setViewportSize({ width: 390, height: 844 });
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	const tabList = website.page.locator('.components-tab-panel__tabs');
+	await expect(tabList).toBeVisible();
+	const logsTab = website.page.getByRole('tab', { name: 'Logs' });
+	await expect(logsTab).toHaveCount(1);
+
+	const tabListState = await tabList.evaluate((element) => {
+		const logsTab = Array.from(
+			element.querySelectorAll<HTMLElement>('[role="tab"]')
+		).find((tab) => tab.textContent?.trim() === 'Logs');
+		if (!logsTab) {
+			throw new Error('Logs tab not found');
+		}
+
+		logsTab.scrollIntoView({ block: 'nearest', inline: 'end' });
+
+		return {
+			clientWidth: element.clientWidth,
+			overflowX: getComputedStyle(element).overflowX,
+			scrollLeft: element.scrollLeft,
+			scrollWidth: element.scrollWidth,
+			logsTabRight: logsTab.getBoundingClientRect().right,
+			viewportWidth: window.innerWidth,
+		};
+	});
+
+	expect(tabListState.overflowX).toBe('auto');
+	expect(tabListState.scrollWidth).toBeGreaterThan(tabListState.clientWidth);
+	expect(tabListState.scrollLeft).toBeGreaterThan(0);
+	expect(tabListState.logsTabRight).toBeLessThanOrEqual(
+		tabListState.viewportWidth + 1
+	);
+
+	await logsTab.click();
+	await expect(logsTab).toHaveAttribute('aria-selected', 'true');
+});
+
 test.describe('Database panel', () => {
 	test.beforeEach(async ({ website }) => {
 		await website.goto('./');
