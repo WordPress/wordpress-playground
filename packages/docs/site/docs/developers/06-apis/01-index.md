@@ -93,6 +93,22 @@ Blueprints play a significant role in WordPress Playground, so they have their o
 
 </div>
 
+### Sites API
+
+The Playground website at [playground.wordpress.net](https://playground.wordpress.net) exposes a `window.playgroundSites` object for managing the saved sites in the site manager — listing them, creating new ones, persisting temporary sites to OPFS or local disk, switching between them, and changing PHP version or networking.
+
+```javascript
+await playgroundSites.createNewTemporarySite('demo', { phpVersion: '8.4' });
+await playgroundSites.saveInBrowser('My demo site');
+const client = playgroundSites.getClient();
+```
+
+<div class="callout callout-info">
+
+Check the [Sites API](/developers/apis/sites-api) section for more info.
+
+</div>
+
 ### JavaScript API
 
 The `@wp-playground/client` package provides a JavaScript API you can use to fully control your Playground instance. Here's a simple example of what you can do:
@@ -159,6 +175,7 @@ The following Playground APIs are available in the browser:
 
 - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
 - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
+- [Sites API](/developers/apis/sites-api) lets scripts running on playground.wordpress.net manage saved sites
 - [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
 
 ### In Node.js
