@@ -259,6 +259,46 @@ add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
 
 /**
+ * Asks the embedding Playground shell to reload only the WordPress iframe.
+ */
+function playground_reload_iframe_on_browser_refresh_shortcut() {
+	?>
+	<script>
+		(function () {
+			function isRefreshShortcut(event) {
+				var key = event.key || '';
+				return !event.defaultPrevented &&
+					!event.altKey &&
+					!event.isComposing &&
+					!event.repeat &&
+					key.toLowerCase() === 'r' &&
+					(event.metaKey || event.ctrlKey);
+			}
+
+			window.addEventListener('keydown', function (event) {
+				if (!isRefreshShortcut(event) || window.parent === window) {
+					return;
+				}
+
+				event.preventDefault();
+				event.stopPropagation();
+				window.parent.postMessage(
+					{
+						type: 'relay',
+						relayType: 'playground-refresh'
+					},
+					'*'
+				);
+			}, true);
+		})();
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_reload_iframe_on_browser_refresh_shortcut');
+add_action('admin_head', 'playground_reload_iframe_on_browser_refresh_shortcut');
+add_action('login_head', 'playground_reload_iframe_on_browser_refresh_shortcut');
+
+/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.

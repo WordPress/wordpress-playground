@@ -562,6 +562,7 @@ export async function bootPlaygroundRemote() {
 		phpRemoteApi,
 		phpWorkerApi
 	);
+	setupBrowserRefreshShortcut(() => reloadWordPressFrame(phpRemoteApi));
 
 	/*
 	 * An assertion to make sure Playground Client is compatible
@@ -622,6 +623,48 @@ function detectDocumentIsolationPolicySuport(): Promise<boolean> {
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
+}
+
+function setupBrowserRefreshShortcut(reload: () => Promise<void>) {
+	window.addEventListener(
+		'keydown',
+		(event) => {
+			if (!isBrowserRefreshShortcut(event)) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+			void reload().catch((error) => logger.error(error));
+		},
+		true
+	);
+}
+
+async function reloadWordPressFrame(playground: PHPRemoteApi) {
+	await playground.goTo(await playground.getCurrentURL());
+}
+
+function isBrowserRefreshShortcut(
+	event: Pick<
+		KeyboardEvent,
+		| 'altKey'
+		| 'ctrlKey'
+		| 'defaultPrevented'
+		| 'isComposing'
+		| 'key'
+		| 'metaKey'
+		| 'repeat'
+	>
+): boolean {
+	return (
+		!event.defaultPrevented &&
+		!event.altKey &&
+		!event.isComposing &&
+		!event.repeat &&
+		event.key.toLowerCase() === 'r' &&
+		(event.metaKey || event.ctrlKey)
+	);
 }
 
 /**

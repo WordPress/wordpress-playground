@@ -17,7 +17,10 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import {
+	removeClientInfo,
+	selectClientInfoBySiteSlug,
+} from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import { selectSiteBySlug } from '../../lib/state/redux/slice-sites';
 import {
@@ -42,6 +45,7 @@ import {
 } from './blueprint-install';
 import type { BlueprintInstallPreview } from './blueprint-install';
 import { isAllowedBlueprintUrl } from '../../lib/blueprint-url';
+import { useBrowserRefreshShortcut } from '../../lib/hooks/use-browser-refresh-shortcut';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -854,6 +858,9 @@ export const JustViewport = function JustViewport({
 	const internalIframeRef = useRef<HTMLIFrameElement>(null);
 	const iframeRef = externalIframeRef || internalIframeRef;
 	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug))!;
+	const clientInfo = useAppSelector((state) =>
+		selectClientInfoBySiteSlug(state, siteSlug)
+	);
 
 	const dispatch = useAppDispatch();
 	const runtimeConfigString = JSON.stringify(
@@ -885,6 +892,11 @@ export const JustViewport = function JustViewport({
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);
 	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
 	const showOverlay = error && activeSiteSlug === siteSlug;
+	useBrowserRefreshShortcut({
+		client: clientInfo?.client,
+		enabled: activeSiteSlug === siteSlug,
+		iframeRef,
+	});
 
 	return (
 		<>
