@@ -15,7 +15,7 @@ import {
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { dirname, normalizePath } from '@php-wasm/util';
+import { dirname, joinPaths, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
 	MAX_INLINE_FILE_BYTES,
@@ -257,24 +257,19 @@ function getParentPathChain(path: string, root: string) {
 	const normalizedPath = normalizePath(path);
 	const normalizedRoot = normalizePath(root);
 	const parts = normalizedPath.split('/').filter(Boolean);
-	const parentParts = parts.slice(0, -1);
-	const chain: string[] = [];
-	const hasLeadingSlash = normalizedPath.startsWith('/');
-	let currentPath = hasLeadingSlash ? '' : '.';
+	const isAbsolutePath = normalizedPath.startsWith('/');
 
-	for (const part of parentParts) {
-		if (!currentPath || currentPath === '.') {
-			currentPath = hasLeadingSlash ? `/${part}` : part;
-		} else {
-			currentPath = `${currentPath}/${part}`;
-		}
-		if (
-			currentPath === normalizedRoot ||
-			currentPath.startsWith(`${normalizedRoot}/`)
-		) {
-			chain.push(currentPath);
-		}
-	}
-
-	return chain;
+	return parts
+		.slice(0, -1)
+		.map((_, index) => {
+			const parentParts = parts.slice(0, index + 1);
+			return isAbsolutePath
+				? joinPaths('/', ...parentParts)
+				: joinPaths(...parentParts);
+		})
+		.filter(
+			(parentPath) =>
+				parentPath === normalizedRoot ||
+				parentPath.startsWith(`${normalizedRoot}/`)
+		);
 }

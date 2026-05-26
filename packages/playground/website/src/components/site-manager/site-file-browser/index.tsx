@@ -71,6 +71,12 @@ export function SiteFileBrowser({
 	);
 }
 
+/**
+ * Resolves the file browser startup target from the `filebrowser` URL query.
+ *
+ * Invalid query values are returned as notices so the editor can show feedback
+ * without falling back to the default `wp-config.php` file.
+ */
 function resolveInitialTarget(
 	documentRoot: string,
 	fileBrowserQuery: FileBrowserQuery | null
