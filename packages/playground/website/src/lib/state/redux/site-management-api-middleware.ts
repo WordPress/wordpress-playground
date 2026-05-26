@@ -11,8 +11,13 @@ import {
 	setOPFSSitesLoadingState,
 	updateSiteMetadata,
 	removeSite,
+	preserveSite,
 	setTemporarySiteSpec,
 	deriveSiteNameFromSlug,
+	getSitePublicPersistence,
+	isAutosavedSite,
+	type SitePersistence,
+	type SiteStorageType,
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
@@ -28,6 +33,9 @@ export interface SiteSettings {
 	multisite?: boolean;
 }
 
+type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
+type SaveSiteResult = { slug: string; storage: SiteStorageType };
+
 /**
  * API for listing, renaming, saving, and opening Playground
  * sites. Used by the MCP bridge, the `window.playgroundSites`
@@ -42,7 +50,8 @@ export interface PlaygroundSitesAPI {
 	list(): Array<{
 		slug: string;
 		name: string;
-		storage: string;
+		storage: PublicSiteStorageType;
+		persistence?: SitePersistence;
 		isActive: boolean;
 	}>;
 
@@ -64,18 +73,39 @@ export interface PlaygroundSitesAPI {
 	rename(newName: string): Promise<void>;
 
 	/**
-	 * Persists the active temporary site to OPFS.
+	 * Saves the active Playground in browser storage when it is temporary.
 	 *
-	 * @param name Optional display name for the saved site.
+	 * Temporary sites are persisted to OPFS. Existing autosaves are marked as
+	 * explicitly saved and returned without changing storage backends.
+	 *
+	 * @param name Optional display name for a temporary site being saved.
 	 * @returns The site's slug and storage type.
 	 * @throws When no site is selected or saving fails.
 	 */
-	saveInBrowser(name?: string): Promise<{ slug: string; storage: string }>;
+	saveInBrowser(name?: string): Promise<SaveSiteResult>;
 
 	/**
-	 * Persists the active temporary site to a local directory.
+	 * Keeps an autosaved Playground as a saved Playground.
 	 *
-	 * @param name Optional display name for the saved site.
+	 * This is a metadata-only lifecycle change. It turns an autosaved stored
+	 * Playground into an explicit save so autosave pruning and restore prompts
+	 * no longer treat it as disposable. It does not copy files, change the
+	 * storage backend, rename the Playground, or reboot it. Already-explicit
+	 * stored Playgrounds are left explicit.
+	 *
+	 * @param siteSlug Optional slug. Uses the active site when omitted.
+	 * @throws When no site is selected, the slug is unknown, or the site is
+	 *   temporary.
+	 */
+	keep(siteSlug?: string): Promise<void>;
+
+	/**
+	 * Saves the active Playground to a local directory when it is temporary.
+	 *
+	 * Existing saved sites are returned without changing storage backends.
+	 * Existing autosaves are marked as explicitly saved first.
+	 *
+	 * @param name Optional display name for a temporary site being saved.
 	 * @param localFsHandle Directory handle. When omitted the
 	 *   browser prompts the user to pick one.
 	 * @returns The site's slug and storage type.
@@ -84,7 +114,7 @@ export interface PlaygroundSitesAPI {
 	saveToLocalFileSystem(
 		name?: string,
 		localFsHandle?: FileSystemDirectoryHandle
-	): Promise<{ slug: string; storage: string }>;
+	): Promise<SaveSiteResult>;
 
 	/**
 	 * Changes the PHP version for the active site and reboots it.
@@ -155,10 +185,6 @@ export function createSitesAPI(
 			const state = getState();
 			const allSites = selectAllSites(state);
 			const active = selectActiveSite(state);
-			/**
-			 * We rename storage "none" to "temporary" in the API because the name temporary
-			 * is more descriptive of the actual behavior of these sites.
-			 */
 			return allSites.map((s) => ({
 				slug: s.slug,
 				name: s.metadata.name,
@@ -166,6 +192,7 @@ export function createSitesAPI(
 					s.metadata.storage === 'none'
 						? 'temporary'
 						: s.metadata.storage,
+				persistence: getSitePublicPersistence(s),
 				isActive: s.slug === active?.slug,
 			}));
 		},
@@ -191,7 +218,7 @@ export function createSitesAPI(
 			await dispatch(
 				updateSiteMetadata({
 					slug: site.slug,
-					changes: { name: newName },
+					changes: { name: newName, persistence: 'explicit' },
 				})
 			);
 		},
@@ -202,6 +229,9 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			if (site.metadata.storage !== 'none') {
+				if (isAutosavedSite(site)) {
+					await dispatch(preserveSite(site.slug));
+				}
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 			await dispatch(
@@ -215,6 +245,18 @@ export function createSitesAPI(
 			return { slug: site.slug, storage };
 		},
 
+		async keep(siteSlug?: string) {
+			const site = siteSlug
+				? selectSiteBySlug(getState(), siteSlug)
+				: selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No site selected');
+			}
+			// "Keeping" an autosave only changes lifecycle metadata. The
+			// filesystem stays in the same storage backend.
+			await dispatch(preserveSite(site.slug));
+		},
+
 		async saveToLocalFileSystem(
 			name?: string,
 			localFsHandle?: FileSystemDirectoryHandle
@@ -224,6 +266,9 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			if (site.metadata.storage !== 'none') {
+				if (isAutosavedSite(site)) {
+					await dispatch(preserveSite(site.slug));
+				}
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 			await dispatch(
