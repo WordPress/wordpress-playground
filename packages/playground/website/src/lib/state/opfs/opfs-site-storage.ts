@@ -8,8 +8,8 @@
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
 import type { SiteMetadata } from '../redux/slice-sites';
 import type { SiteInfo } from '../redux/slice-sites';
-import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { joinPaths } from '@php-wasm/util';
 import {
 	type ExtraLibrary,
 	type PHPConstants,
@@ -17,9 +17,20 @@ import {
 } from '@wp-playground/blueprints';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { loadPersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
+import {
+	loadPersistedBlueprintBundle,
+	loadPersistedBlueprintBundleFromPath,
+} from './opfs-blueprint-bundle-storage';
+import {
+	OPFS_SITES_ROOT_PATH,
+	getCandidateDirectoryNamesForSlug,
+	getDirectoryNameForSlug,
+} from './opfs-site-path';
+export {
+	getDirectoryNameForSlug,
+	getDirectoryPathForSlug,
+} from './opfs-site-path';
 
-const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
 
@@ -45,7 +56,7 @@ export interface StoredSiteMetadata extends SiteMetadata {
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
 	opfsSitesRoot = await navigator.storage.getDirectory();
-	for (const path of ROOT_PATH.replace(/^\//, '').split('/')) {
+	for (const path of OPFS_SITES_ROOT_PATH.replace(/^\//, '').split('/')) {
 		opfsSitesRoot = await opfsSitesRoot.getDirectoryHandle(path, {
 			create: true,
 		});
@@ -62,30 +73,28 @@ class OpfsSiteStorage {
 
 	async create(slug: string, metadata: SiteMetadata): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
-		if (await opfsChildExists(this.root, newSiteDirName)) {
-			const dir = await this.root.getDirectoryHandle(newSiteDirName);
-			if (await opfsChildExists(dir, SITE_METADATA_FILENAME)) {
-				throw new Error(`Site with slug '${slug}' already exists.`);
-			}
+		const existingSiteDirName = await this.findExistingSiteDirName(slug);
+		if (existingSiteDirName) {
+			throw new Error(`Site with slug '${slug}' already exists.`);
 		}
 
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
 		});
 		await opfsWriteFile(
-			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			getSiteMetadataPath(newSiteDirName),
 			await metadataToStoredFormat(slug, metadata)
 		);
 	}
 
 	async update(slug: string, metadata: SiteMetadata): Promise<void> {
-		const newSiteDirName = getDirectoryNameForSlug(slug);
-		if (!(await opfsChildExists(this.root, newSiteDirName))) {
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
 
 		await opfsWriteFile(
-			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			getSiteMetadataPath(siteDirName),
 			await metadataToStoredFormat(slug, metadata)
 		);
 	}
@@ -112,7 +121,11 @@ class OpfsSiteStorage {
 	}
 
 	async read(slug: string): Promise<SiteInfo | undefined> {
-		return await this.readSite(getDirectoryNameForSlug(slug));
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
+			return undefined;
+		}
+		return await this.readSite(siteDirName);
 	}
 
 	private async readSite(siteDirName: string) {
@@ -135,12 +148,20 @@ class OpfsSiteStorage {
 		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
 		//         to the site files import flow.
 		const siteInfo = storedFormatToMetadata(await file.text());
+		const sitePath = joinPaths(OPFS_SITES_ROOT_PATH, siteDirectory.name);
+		const isLegacyDirectoryName =
+			siteDirectory.name !== getDirectoryNameForSlug(siteInfo.slug);
+		if (isLegacyDirectoryName) {
+			(siteInfo.metadata as any)[legacyOpfsPathSymbol] = sitePath;
+		}
+
 		// If the blueprint source points to the bundle directory, load from there.
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
 			try {
-				siteInfo.metadata.originalBlueprint =
-					await loadPersistedBlueprintBundle(siteInfo.slug);
+				siteInfo.metadata.originalBlueprint = isLegacyDirectoryName
+					? await loadPersistedBlueprintBundleFromPath(sitePath)
+					: await loadPersistedBlueprintBundle(siteInfo.slug);
 			} catch (error) {
 				logger.error(
 					`Failed to load blueprint bundle for site ${siteInfo.slug}`,
@@ -154,8 +175,35 @@ class OpfsSiteStorage {
 	}
 
 	async delete(slug: string): Promise<void> {
-		const siteDirName = getDirectoryNameForSlug(slug);
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
+			throw new Error(`Site with slug '${slug}' does not exist.`);
+		}
 		await this.root.removeEntry(siteDirName, { recursive: true });
+	}
+
+	/**
+	 * Finds the directory containing a persisted site's metadata.
+	 *
+	 * A failed save can leave behind an encoded directory without
+	 * `wp-runtime.json`. That partial directory must not hide a legacy directory
+	 * that still contains the saved site for the same slug.
+	 */
+	private async findExistingSiteDirName(slug: string) {
+		for (const siteDirName of getCandidateDirectoryNamesForSlug(slug)) {
+			const siteDirectory = await getDirectoryHandleIfExists(
+				this.root,
+				siteDirName
+			);
+			if (
+				siteDirectory &&
+				(await opfsFileExists(siteDirectory, SITE_METADATA_FILENAME))
+			) {
+				return siteDirName;
+			}
+		}
+
+		return undefined;
 	}
 }
 
@@ -165,12 +213,8 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 
 export const isOpfsAvailable = !!opfsSiteStorage;
 
-export function getDirectoryPathForSlug(slug: string) {
-	return joinPaths(ROOT_PATH, getDirectoryNameForSlug(slug));
-}
-
-export function getDirectoryNameForSlug(slug: string) {
-	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');
+function getSiteMetadataPath(siteDirName: string) {
+	return joinPaths(OPFS_SITES_ROOT_PATH, siteDirName, SITE_METADATA_FILENAME);
 }
 
 async function metadataToStoredFormat(
@@ -250,21 +294,35 @@ function storedFormatToMetadata(data: string) {
 	};
 }
 
-async function opfsChildExists(
+async function getDirectoryHandleIfExists(
 	handle: FileSystemDirectoryHandle,
 	name: string
 ) {
 	try {
-		await handle.getDirectoryHandle(name);
+		return await handle.getDirectoryHandle(name);
+	} catch (error) {
+		if (isMissingOpfsEntry(error)) {
+			return undefined;
+		}
+		throw error;
+	}
+}
+
+async function opfsFileExists(handle: FileSystemDirectoryHandle, name: string) {
+	try {
+		await handle.getFileHandle(name);
 		return true;
-	} catch {
-		try {
-			await handle.getFileHandle(name);
-			return true;
-		} catch {
+	} catch (error) {
+		if (isMissingOpfsEntry(error)) {
 			return false;
 		}
+		throw error;
 	}
+}
+
+function isMissingOpfsEntry(error: unknown) {
+	const name = (error as DOMException | undefined)?.name;
+	return name === 'NotFoundError' || name === 'TypeMismatchError';
 }
 
 export async function deleteDirectory(path: string) {

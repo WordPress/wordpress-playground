@@ -25,6 +25,7 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -112,9 +113,6 @@ export const getSitesLoadingState = (state: {
 	sites: ReturnType<typeof sitesSlice.reducer>;
 }) => state.sites.opfsSitesLoadingState;
 
-export function deriveSlugFromSiteName(name: string) {
-	return name.toLowerCase().replaceAll(' ', '-');
-}
 export function deriveSiteNameFromSlug(slug: string) {
 	return slug
 		.replaceAll('-', ' ')
@@ -252,13 +250,13 @@ export function removeSite(slug: string) {
  */
 export function setTemporarySiteSpec(
 	siteName: string,
-	playgroundUrlWithQueryApiArgs: URL
+	playgroundUrlWithQueryApiArgs: URL,
+	preferredSlug?: string
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = deriveSlugFromSiteName(siteName);
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
 				playgroundUrlWithQueryApiArgs.searchParams
@@ -333,6 +331,17 @@ export function setTemporarySiteSpec(
 				return currentTemporarySite;
 			}
 		}
+
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(siteName),
+			{
+				// Temporary sites are removed before the new one is added, so they
+				// should not force the replacement site to take a numeric suffix.
+				unavailableSlugs: selectAllSites(getState())
+					.filter((site) => site.metadata.storage !== 'none')
+					.map((site) => site.slug),
+			}
+		);
 
 		const sites = getState().sites.entities;
 
