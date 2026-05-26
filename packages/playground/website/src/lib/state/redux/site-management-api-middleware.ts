@@ -207,55 +207,52 @@ export function createSitesAPI(
 		},
 
 		async isReady() {
-			const state = getState();
-			const site = selectActiveSite(state);
-			if (!site) {
-				throw new Error('No active site selected');
-			}
-			const existingError = selectActiveSiteError(state);
-			if (existingError) {
-				const details = selectActiveSiteErrorDetails(state);
-				throw new Error(siteErrorMessage(existingError, details));
-			}
-			let client = selectClientBySiteSlug(state, site.slug);
-			if (!client) {
-				client = await new Promise<PlaygroundClient>(
-					(resolve, reject) => {
+			// Wait until the store reaches a "settled" state for the active
+			// site: either a client has been added for it, or boot failed
+			// with an error. This also covers the early window after
+			// `window.playgroundSites` is exposed but before
+			// `EnsurePlaygroundSiteIsSelected` has had a chance to set an
+			// active site — we simply wait for one to appear.
+			const isSettled = (state: PlaygroundReduxState) => {
+				const site = selectActiveSite(state);
+				if (!site) {
+					return false;
+				}
+				if (selectActiveSiteError(state)) {
+					return true;
+				}
+				return Boolean(selectClientBySiteSlug(state, site.slug));
+			};
+
+			let settledState = getState();
+			if (!isSettled(settledState)) {
+				settledState = await new Promise<PlaygroundReduxState>(
+					(resolve) => {
 						const unsubscribe = startListening({
-							predicate: (action) =>
-								(addClientInfo.match(action) &&
-									action.payload.siteSlug === site.slug) ||
-								setActiveSiteError.match(action),
-							effect: (action, listenerApi) => {
+							predicate: (_action, currentState) =>
+								isSettled(currentState),
+							effect: (_action, listenerApi) => {
 								unsubscribe();
-								if (setActiveSiteError.match(action)) {
-									reject(
-										new Error(
-											siteErrorMessage(
-												action.payload.error,
-												action.payload.details
-											)
-										)
-									);
-									return;
-								}
-								const c = selectClientBySiteSlug(
-									listenerApi.getState(),
-									site.slug
-								);
-								if (c) {
-									resolve(c);
-								} else {
-									reject(
-										new Error(
-											'Client unavailable after boot.'
-										)
-									);
-								}
+								resolve(listenerApi.getState());
 							},
 						});
 					}
 				);
+			}
+
+			const error = selectActiveSiteError(settledState);
+			if (error) {
+				throw new Error(
+					siteErrorMessage(
+						error,
+						selectActiveSiteErrorDetails(settledState)
+					)
+				);
+			}
+			const site = selectActiveSite(settledState)!;
+			const client = selectClientBySiteSlug(settledState, site.slug);
+			if (!client) {
+				throw new Error('Client unavailable after boot.');
 			}
 			await client.isReady();
 		},
