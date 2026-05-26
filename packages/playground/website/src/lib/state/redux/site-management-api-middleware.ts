@@ -2,7 +2,14 @@ import { useMemo } from 'react';
 import { useStore } from 'react-redux';
 import { createListenerMiddleware } from '@reduxjs/toolkit';
 import type { PlaygroundReduxState, PlaygroundDispatch } from './store';
-import { selectActiveSite, setActiveSite, useAppDispatch } from './store';
+import {
+	selectActiveSite,
+	selectActiveSiteError,
+	selectActiveSiteErrorDetails,
+	setActiveSite,
+	useAppDispatch,
+} from './store';
+import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
 import { addClientInfo } from './slice-clients';
 import {
@@ -55,6 +62,15 @@ export interface PlaygroundSitesAPI {
 	getClient(): PlaygroundClient | undefined;
 
 	/**
+	 * Resolves once the active site is fully booted and its
+	 * PlaygroundClient is ready for API calls. Mirrors the
+	 * `isReady()` method on the PlaygroundClient itself.
+	 *
+	 * @throws When no site is selected or the site fails to boot.
+	 */
+	isReady(): Promise<void>;
+
+	/**
 	 * Renames the active site.
 	 *
 	 * @param newName The new display name.
@@ -70,7 +86,9 @@ export interface PlaygroundSitesAPI {
 	 * @returns The site's slug and storage type.
 	 * @throws When no site is selected or saving fails.
 	 */
-	saveInBrowser(name?: string): Promise<{ slug: string; storage: string }>;
+	saveInBrowser(
+		name?: string
+	): Promise<{ slug: string; storage: 'opfs' | 'local-fs' }>;
 
 	/**
 	 * Persists the active temporary site to a local directory.
@@ -84,7 +102,7 @@ export interface PlaygroundSitesAPI {
 	saveToLocalFileSystem(
 		name?: string,
 		localFsHandle?: FileSystemDirectoryHandle
-	): Promise<{ slug: string; storage: string }>;
+	): Promise<{ slug: string; storage: 'opfs' | 'local-fs' }>;
 
 	/**
 	 * Changes the PHP version for the active site and reboots it.
@@ -146,6 +164,16 @@ declare global {
 	}
 }
 
+function siteErrorMessage(
+	error: SiteError,
+	details: SerializedSiteErrorDetails | undefined
+): string {
+	if (typeof details === 'string') {
+		return details;
+	}
+	return details?.message ?? error;
+}
+
 export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
@@ -176,6 +204,60 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			return selectClientBySiteSlug(getState(), site.slug);
+		},
+
+		async isReady() {
+			const state = getState();
+			const site = selectActiveSite(state);
+			if (!site) {
+				throw new Error('No active site selected');
+			}
+			const existingError = selectActiveSiteError(state);
+			if (existingError) {
+				const details = selectActiveSiteErrorDetails(state);
+				throw new Error(siteErrorMessage(existingError, details));
+			}
+			let client = selectClientBySiteSlug(state, site.slug);
+			if (!client) {
+				client = await new Promise<PlaygroundClient>(
+					(resolve, reject) => {
+						const unsubscribe = startListening({
+							predicate: (action) =>
+								(addClientInfo.match(action) &&
+									action.payload.siteSlug === site.slug) ||
+								setActiveSiteError.match(action),
+							effect: (action, listenerApi) => {
+								unsubscribe();
+								if (setActiveSiteError.match(action)) {
+									reject(
+										new Error(
+											siteErrorMessage(
+												action.payload.error,
+												action.payload.details
+											)
+										)
+									);
+									return;
+								}
+								const c = selectClientBySiteSlug(
+									listenerApi.getState(),
+									site.slug
+								);
+								if (c) {
+									resolve(c);
+								} else {
+									reject(
+										new Error(
+											'Client unavailable after boot.'
+										)
+									);
+								}
+							},
+						});
+					}
+				);
+			}
+			await client.isReady();
 		},
 
 		async rename(newName: string) {
@@ -211,7 +293,12 @@ export function createSitesAPI(
 				})
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
-			const storage = updatedSite?.metadata.storage ?? 'none';
+			const storage = updatedSite?.metadata.storage;
+			if (storage !== 'opfs' && storage !== 'local-fs') {
+				throw new Error(
+					`Site ${site.slug} was not persisted (storage: ${storage}).`
+				);
+			}
 			return { slug: site.slug, storage };
 		},
 
@@ -234,7 +321,12 @@ export function createSitesAPI(
 				})
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
-			const storage = updatedSite?.metadata.storage ?? 'none';
+			const storage = updatedSite?.metadata.storage;
+			if (storage !== 'opfs' && storage !== 'local-fs') {
+				throw new Error(
+					`Site ${site.slug} was not persisted (storage: ${storage}).`
+				);
+			}
 			return { slug: site.slug, storage };
 		},
 
@@ -319,13 +411,14 @@ export function createSitesAPI(
 					effect: (action) => {
 						unsubscribe();
 						if (setActiveSiteError.match(action)) {
-							const details = action.payload.details;
-							const message =
-								typeof details === 'string'
-									? details
-									: (details?.message ??
-										action.payload.error);
-							reject(new Error(message));
+							reject(
+								new Error(
+									siteErrorMessage(
+										action.payload.error,
+										action.payload.details
+									)
+								)
+							);
 						} else {
 							resolve();
 						}

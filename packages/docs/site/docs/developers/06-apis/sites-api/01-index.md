@@ -14,20 +14,25 @@ The Sites API ships with the Playground website application, not with the `@wp-p
 
 ## Wait until the API is ready
 
-`window.playgroundSites` is not assigned during initial page load. Poll for `getClient()` to know when it's safe to call:
+`window.playgroundSites` is not assigned during initial page load. Once it appears, call `isReady()` to wait for the active site to finish booting:
 
 ```javascript
 await new Promise((resolve) => {
 	const id = setInterval(() => {
-		if (window.playgroundSites?.getClient()) {
+		if (window.playgroundSites) {
 			clearInterval(id);
 			resolve();
 		}
 	}, 50);
 });
+await window.playgroundSites.isReady();
 ```
 
-Once the active site has booted, `getClient()` returns a `PlaygroundClient` and the rest of the API is ready.
+`isReady()` resolves once the active site's `PlaygroundClient` is ready for API calls — mirroring the [`isReady()` method](/developers/apis/javascript-api/playground-api-client) on the client itself. It rejects if the site fails to boot.
+
+```typescript
+isReady(): Promise<void>;
+```
 
 ## Quick start
 
