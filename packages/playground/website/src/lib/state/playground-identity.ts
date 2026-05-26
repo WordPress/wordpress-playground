@@ -1,4 +1,5 @@
-import type { SiteInfo } from '../redux/slice-sites';
+import type { RuntimeConfiguration } from '@wp-playground/blueprints';
+import type { SiteInfo } from './redux/slice-sites';
 
 const SETUP_QUERY_PARAMS = new Set([
 	'blueprint',
@@ -48,6 +49,20 @@ export function getAutosaveFingerprintFromSite(site: SiteInfo) {
 			hash: site.originalUrlParams?.hash,
 		})
 	);
+}
+
+/**
+ * Returns the persisted-site runtime fingerprint used to decide whether the
+ * mounted iframe can keep running.
+ *
+ * Unlike the autosave setup fingerprint, this does not describe the original
+ * setup URL. It only tracks runtime options passed into an already selected
+ * site's boot process.
+ */
+export function getRuntimeBootFingerprint(
+	runtimeConfiguration: RuntimeConfiguration
+) {
+	return JSON.stringify(runtimeConfiguration);
 }
 
 /**
