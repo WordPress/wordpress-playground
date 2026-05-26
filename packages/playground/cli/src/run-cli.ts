@@ -786,12 +786,25 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			if (debug) {
 				printDebugDetails(e);
 			} else {
-				const messageChain = [];
+				const messageChain: string[] = [];
+				const seenErrors = new Set<Error>();
 				let currentError: Error | undefined = e;
-				do {
+				for (let depth = 0; currentError && depth < 20; depth++) {
+					if (seenErrors.has(currentError)) {
+						messageChain.push('[Circular error cause]');
+						currentError = undefined;
+						break;
+					}
+					seenErrors.add(currentError);
 					messageChain.push(describeError(currentError));
-					currentError = currentError.cause as Error;
-				} while (currentError instanceof Error);
+					currentError =
+						currentError.cause instanceof Error
+							? currentError.cause
+							: undefined;
+				}
+				if (currentError) {
+					messageChain.push('[Error cause chain truncated]');
+				}
 				console.error(
 					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 				);
@@ -813,10 +826,7 @@ function describeError(error: unknown): string {
 		if (error.message) {
 			return error.message;
 		}
-		if (error.cause !== undefined) {
-			return describeError(error.cause);
-		}
-		const parts = [];
+		const parts: string[] = [];
 		if (error.name && error.name !== 'Error') {
 			parts.push(error.name);
 		}
