@@ -32,6 +32,7 @@ import {
 	type AutosavedSitesPruneOptions,
 	type SitePersistence,
 } from './site-lifecycle';
+import { getAutosaveFingerprintFromURL } from '../playground-identity';
 export {
 	MAX_AUTOSAVED_SITES,
 	SitePersistenceTypes,
@@ -48,13 +49,16 @@ export type {
 	SitePersistence,
 } from './site-lifecycle';
 
+const DEFAULT_BLUEPRINT =
+	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
+
 /**
  * The Site model used to represent a site within Playground.
  */
 export interface SiteInfo {
 	slug: string;
 	originalUrlParams?: {
-		searchParams?: Record<string, string>;
+		searchParams?: Record<string, string | string[]>;
 		hash?: string;
 	};
 	metadata: SiteMetadata;
@@ -240,6 +244,9 @@ export function updateSite({
 /**
  * Creates a new stored site in OPFS and in the redux state.
  *
+ * The OPFS metadata write must succeed before Redux is updated. Otherwise the
+ * UI would list a saved Playground that cannot survive a reload.
+ *
  * @param siteInfo The site info to add.
  */
 export function addSite(siteInfo: SiteInfo) {
@@ -252,7 +259,12 @@ export function addSite(siteInfo: SiteInfo) {
 				'Cannot add a temporary site. Use setTemporarySiteSpec instead.'
 			);
 		}
-		await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot add a saved Playground because browser storage is not available.'
+			);
+		}
+		await opfsSiteStorage.create(siteInfo.slug, siteInfo.metadata);
 		dispatch(sitesSlice.actions.addSite(siteInfo));
 	};
 }
@@ -312,7 +324,6 @@ export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
 
 /**
  * Creates or reuses a temporary Playground in the redux state.
- *
  */
 export function setTemporarySiteSpec(
 	siteName: string,
@@ -323,12 +334,9 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const newSiteUrlParams = {
-			searchParams: parseSearchParams(
-				playgroundUrlWithQueryApiArgs.searchParams
-			),
-			hash: playgroundUrlWithQueryApiArgs.hash,
-		};
+		const newSiteUrlParams = getOriginalUrlParams(
+			playgroundUrlWithQueryApiArgs
+		);
 
 		const showTemporarySiteError = (params: {
 			error: SiteError;
@@ -343,6 +351,9 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
+					sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
+						playgroundUrlWithQueryApiArgs
+					),
 					originalBlueprint: {},
 					originalBlueprintSource: {
 						type: 'none',
@@ -418,15 +429,11 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		// Then create a new temporary site
-		const defaultBlueprint =
-			'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
-
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
 			resolvedBlueprint = await resolveBlueprintFromURL(
 				playgroundUrlWithQueryApiArgs,
-				defaultBlueprint
+				DEFAULT_BLUEPRINT
 			);
 		} catch (e) {
 			logger.error(
@@ -449,17 +456,10 @@ export function setTemporarySiteSpec(
 		}
 
 		try {
-			const reflection = await BlueprintReflection.create(
-				resolvedBlueprint.blueprint
+			resolvedBlueprint = await prepareResolvedBlueprint(
+				resolvedBlueprint,
+				playgroundUrlWithQueryApiArgs
 			);
-			if (reflection.getVersion() === 1) {
-				resolvedBlueprint.blueprint = await applyQueryOverrides(
-					resolvedBlueprint.blueprint,
-					playgroundUrlWithQueryApiArgs.searchParams
-				);
-			}
-
-			// Compute the runtime configuration based on the resolved Blueprint:
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
@@ -468,6 +468,9 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
+					sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
+						playgroundUrlWithQueryApiArgs
+					),
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
 					runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -492,8 +495,128 @@ export function setTemporarySiteSpec(
 	};
 }
 
+/**
+ * Creates the metadata record for a new OPFS-backed Playground.
+ *
+ * This intentionally overlaps with `setTemporarySiteSpec`: both capture the
+ * setup URL, resolve the Blueprint, and derive the runtime configuration.
+ * Stored sites diverge after that by writing OPFS metadata immediately, keeping
+ * more than one site record, and marking the first file sync as pending. Boot
+ * then uses the same setup URL to install WordPress in MEMFS before copying the
+ * initialized files into OPFS.
+ */
+export function setStoredSiteSpec(
+	siteName: string,
+	playgroundUrlWithQueryApiArgs: URL,
+	preferredSlug?: string,
+	options: {
+		/**
+		 * Whether the stored site is an autosave or an explicit user save.
+		 */
+		persistence?: SitePersistence;
+	} = {}
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(siteName),
+			{ unavailableSlugs: selectSiteSlugs(getState()) }
+		);
+		const originalUrlParams = getOriginalUrlParams(
+			playgroundUrlWithQueryApiArgs
+		);
+
+		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
+			playgroundUrlWithQueryApiArgs
+		);
+		const now = Date.now();
+		const newSiteInfo: SiteInfo = {
+			slug: siteSlug,
+			originalUrlParams,
+			metadata: {
+				name: siteName,
+				id: crypto.randomUUID(),
+				whenCreated: now,
+				whenLastUsed: now,
+				persistence: options.persistence ?? 'explicit',
+				storage: 'opfs' as const,
+				initialOpfsSyncPending: true,
+				sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
+					playgroundUrlWithQueryApiArgs
+				),
+				originalBlueprint: resolvedBlueprint.blueprint,
+				originalBlueprintSource: resolvedBlueprint.source!,
+				runtimeConfiguration: await resolveRuntimeConfiguration(
+					resolvedBlueprint.blueprint
+				)!,
+			},
+		};
+
+		await dispatch(addSite(newSiteInfo));
+		return newSiteInfo;
+	};
+}
+
+/**
+ * Resolves the Blueprint that should initialize a site created from a URL.
+ *
+ * A URL without Blueprint-specific query args still needs a default Blueprint,
+ * so saved-site creation uses the same welcome Blueprint fallback as temporary
+ * site creation.
+ */
+async function resolveSiteBlueprintFromUrl(playgroundUrlWithQueryApiArgs: URL) {
+	const resolvedBlueprint = await resolveBlueprintFromURL(
+		playgroundUrlWithQueryApiArgs,
+		DEFAULT_BLUEPRINT
+	);
+	return prepareResolvedBlueprint(
+		resolvedBlueprint,
+		playgroundUrlWithQueryApiArgs
+	);
+}
+
+/**
+ * Applies URL query overrides before storing Blueprint v1 declarations.
+ *
+ * `resolveBlueprintFromURL()` loads the Blueprint source, but runtime query
+ * params such as `php`, `wp`, and `networking` still need to be folded into v1
+ * Blueprints so the stored site boots from the same setup the URL requested.
+ */
+async function prepareResolvedBlueprint(
+	resolvedBlueprint: ResolvedBlueprint,
+	playgroundUrlWithQueryApiArgs: URL
+) {
+	const reflection = await BlueprintReflection.create(
+		resolvedBlueprint.blueprint
+	);
+	if (reflection.getVersion() === 1) {
+		resolvedBlueprint.blueprint = await applyQueryOverrides(
+			resolvedBlueprint.blueprint,
+			playgroundUrlWithQueryApiArgs.searchParams
+		);
+	}
+	return resolvedBlueprint;
+}
+
+/**
+ * Returns URL parts saved with a site so it can recreate its setup URL.
+ *
+ * Repeated query params stay as arrays because setup params such as `plugin`
+ * and `php-extension` can appear more than once.
+ */
+function getOriginalUrlParams(
+	url: URL
+): NonNullable<SiteInfo['originalUrlParams']> {
+	return {
+		searchParams: parseSearchParams(url.searchParams),
+		hash: url.hash,
+	};
+}
+
 function parseSearchParams(searchParams: URLSearchParams) {
-	const params: Record<string, any> = {};
+	const params: Record<string, string | string[]> = {};
 	for (const key of searchParams.keys()) {
 		const value = searchParams.getAll(key);
 		params[key] = value.length > 1 ? value : value[0];
@@ -544,6 +667,20 @@ export interface SiteMetadata {
 	 * Stable fingerprint of the setup URL that created this site, when known.
 	 */
 	sourceSetupUrlFingerprint?: string;
+	/**
+	 * Indicates that an OPFS-backed site still needs its first MEMFS-to-OPFS
+	 * file sync.
+	 *
+	 * Sites created with `setStoredSiteSpec` start with metadata only. Their
+	 * first boot must run from the setup URL, then copy initialized files into
+	 * OPFS and clear this flag after a successful sync.
+	 */
+	initialOpfsSyncPending?: boolean;
+	/**
+	 * PHP constants discovered from the running Playground and persisted so
+	 * they can be replayed after reload without changing the live boot config.
+	 */
+	playgroundDefinedConstants?: RuntimeConfiguration['constants'];
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;

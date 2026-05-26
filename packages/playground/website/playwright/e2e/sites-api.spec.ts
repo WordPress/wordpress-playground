@@ -20,7 +20,9 @@ test('playgroundSites.list() returns the active site', async ({ website }) => {
 	const active = sites.find((s: any) => s.isActive);
 	expect(active).toBeTruthy();
 	expect(active.slug).toBeTruthy();
-	expect(active.storage).toBe('temporary');
+	// Storage-specific behavior is covered below. This test only checks that
+	// the list exposes the active Playground through the public API shape.
+	expect(['opfs', 'local-fs', 'temporary']).toContain(active.storage);
 });
 
 test('playgroundSites.saveInBrowser() persists a temporary site', async ({
@@ -32,7 +34,7 @@ test('playgroundSites.saveInBrowser() persists a temporary site', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto('./?storage=temp');
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -42,6 +44,87 @@ test('playgroundSites.saveInBrowser() persists a temporary site', async ({
 	);
 	expect(result.slug).toBeTruthy();
 	expect(result.storage).toBe('opfs');
+});
+
+test('playgroundSites.autosaveTemporarySite() persists without disrupting the tab', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto('./?storage=temp');
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+
+	const result = await website.page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const beforeUrl = window.location.href;
+		const beforeClient = api.getClient();
+		const beforeActive = api.list().find((s: any) => s.isActive);
+		const saveResult = await api.autosaveTemporarySite();
+		const afterActive = api.list().find((s: any) => s.isActive);
+		return {
+			beforeSlug: beforeActive?.slug,
+			saveResult,
+			afterActive,
+			sameClient: beforeClient === api.getClient(),
+			sameUrl: window.location.href === beforeUrl,
+		};
+	});
+
+	// Autosave should promote the active temporary site to browser storage
+	// without changing the visible URL or replacing the running Playground.
+	expect(result.saveResult.slug).toBe(result.beforeSlug);
+	expect(result.saveResult.storage).toBe('opfs');
+	expect(result.afterActive.storage).toBe('opfs');
+	expect(result.afterActive.persistence).toBe('autosave');
+	expect(result.sameClient).toBe(true);
+	expect(result.sameUrl).toBe(true);
+});
+
+test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by default', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto('./?storage=temp');
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+
+	const result = await website.page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const beforeUrl = window.location.href;
+		const slug = await api.createNewSavedSite(
+			'api-created-site',
+			{ phpVersion: '8.3' },
+			{ updateUrl: false }
+		);
+		const active = api.list().find((s: any) => s.isActive);
+		return {
+			slug,
+			active,
+			sameUrl: window.location.href === beforeUrl,
+			hasClient: api.getClient() != null,
+		};
+	});
+
+	// The new API creates a saved site record, boots it, and marks it as an
+	// explicit save unless the caller opts into autosave persistence.
+	expect(result.slug).toBe('api-created-site');
+	expect(result.active.slug).toBe('api-created-site');
+	expect(result.active.storage).toBe('opfs');
+	expect(result.active.persistence).toBe('explicit');
+	expect(result.hasClient).toBe(true);
+	expect(result.sameUrl).toBe(true);
 });
 
 test('playgroundSites.rename() renames a saved site', async ({
@@ -60,8 +143,8 @@ test('playgroundSites.rename() renames a saved site', async ({
 
 	const newName = await website.page.evaluate(async () => {
 		const api = (window as any).playgroundSites;
-		await api.saveInBrowser();
 		const name = 'Renamed Via API';
+		await api.saveInBrowser();
 		await api.rename(name);
 		const sites = api.list();
 		const active = sites.find((s: any) => s.isActive);

@@ -18,8 +18,10 @@ import {
 	setOPFSSitesLoadingState,
 	updateSiteMetadata,
 	removeSite,
+	pruneAutosavedSites,
 	preserveSite,
 	setTemporarySiteSpec,
+	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
 	getSitePublicPersistence,
 	isAutosavedSite,
@@ -31,6 +33,8 @@ import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
+import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import { getSetupUrlFromUrl } from '../playground-identity';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -93,6 +97,8 @@ export function createSitesAPI(
 			const state = getState();
 			const allSites = selectAllSites(state);
 			const active = selectActiveSite(state);
+			// Keep the Redux-only "none" sentinel out of the public API;
+			// callers should see the user-facing "temporary" storage state.
 			return allSites.map((s) => ({
 				slug: s.slug,
 				name: s.metadata.name,
@@ -227,6 +233,53 @@ export function createSitesAPI(
 				persistTemporarySite(site.slug, 'opfs', {
 					siteName: name,
 					skipRenameModal: true,
+					updateUrl: true,
+				})
+			);
+			const updatedSite = selectSiteBySlug(getState(), site.slug);
+			const storage = updatedSite?.metadata.storage ?? 'none';
+			return { slug: site.slug, storage };
+		},
+
+		/**
+		 * Autosaves a temporary Playground into browser storage.
+		 *
+		 * Autosave keeps the current browser URL unchanged unless the caller
+		 * asks to route to the new stored site.
+		 *
+		 * @param siteSlug Optional slug. Uses the active site when omitted.
+		 * @param options Optional URL update and pruning behavior.
+		 * @returns The site's slug and storage type.
+		 */
+		async autosaveTemporarySite(
+			siteSlug?: string,
+			options: {
+				updateUrl?: boolean;
+				excludeFromPruning?: string[];
+			} = {}
+		): Promise<SaveSiteResult> {
+			const site = siteSlug
+				? selectSiteBySlug(getState(), siteSlug)
+				: selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No site selected');
+			}
+			if (site.metadata.storage !== 'none') {
+				return { slug: site.slug, storage: site.metadata.storage };
+			}
+			await dispatch(
+				persistTemporarySite(site.slug, 'opfs', {
+					skipRenameModal: true,
+					persistence: 'autosave',
+					updateUrl: options.updateUrl ?? false,
+				})
+			);
+			await dispatch(
+				pruneAutosavedSites({
+					excludeSlugs: [
+						site.slug,
+						...(options.excludeFromPruning ?? []),
+					],
 				})
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
@@ -295,6 +348,7 @@ export function createSitesAPI(
 					siteName: name,
 					localFsHandle,
 					skipRenameModal: true,
+					updateUrl: true,
 				})
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
@@ -389,9 +443,13 @@ export function createSitesAPI(
 		 * Switches to a different site and boots it.
 		 *
 		 * @param siteSlug The slug of the site to activate.
+		 * @param options Optional activation behavior.
 		 * @throws When the site is not found or fails to boot.
 		 */
-		async setActiveSite(siteSlug: string): Promise<void> {
+		async setActiveSite(
+			siteSlug: string,
+			options: { updateUrl?: boolean } = {}
+		): Promise<void> {
 			const state = getState();
 			const site = selectSiteBySlug(state, siteSlug);
 			if (!site) {
@@ -427,7 +485,7 @@ export function createSitesAPI(
 					},
 				});
 			});
-			dispatch(setActiveSite(siteSlug));
+			dispatch(setActiveSite(siteSlug, options));
 			await bootPromise;
 		},
 
@@ -446,38 +504,111 @@ export function createSitesAPI(
 			const siteName = requestedSiteSlug
 				? deriveSiteNameFromSlug(requestedSiteSlug)
 				: randomSiteName();
-			const url = new URL(window.location.href);
-			if (settings) {
-				if (settings.phpVersion !== undefined) {
-					url.searchParams.set('php', settings.phpVersion);
-				}
-				if (settings.wpVersion !== undefined) {
-					url.searchParams.set('wp', settings.wpVersion);
-				}
-				if (settings.networking !== undefined) {
-					url.searchParams.set(
-						'networking',
-						settings.networking ? 'yes' : 'no'
-					);
-				}
-				if (settings.language !== undefined) {
-					url.searchParams.set('language', settings.language);
-				}
-				if (settings.multisite !== undefined) {
-					url.searchParams.set(
-						'multisite',
-						settings.multisite ? 'yes' : 'no'
-					);
-				}
-			}
+			const url = getSetupUrlForNewSite(settings);
 			const newSiteInfo = await dispatch(
 				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
 			);
 			await api.setActiveSite(newSiteInfo.slug);
 			return newSiteInfo.slug;
 		},
+
+		/**
+		 * Creates a new browser-stored site and boots it.
+		 *
+		 * The site starts as an explicit save unless the caller marks it as an
+		 * autosave. First boot creates the WordPress files from the setup URL,
+		 * then stores that initialized filesystem in OPFS for later boots.
+		 *
+		 * @param requestedSiteSlug Optional slug hint. A random name is
+		 *   generated when omitted.
+		 * @param settings Optional site settings.
+		 * @param options Optional persistence, routing, and pruning behavior.
+		 * @returns The new site's slug.
+		 */
+		async createNewSavedSite(
+			requestedSiteSlug?: string,
+			settings?: SiteSettings,
+			options: {
+				persistence?: SitePersistence;
+				updateUrl?: boolean;
+				excludeFromPruning?: string[];
+			} = {}
+		): Promise<string> {
+			if (!opfsSiteStorage) {
+				throw new Error(
+					'Cannot create a saved Playground because browser storage is not available.'
+				);
+			}
+			const siteName = requestedSiteSlug
+				? deriveSiteNameFromSlug(requestedSiteSlug)
+				: randomSiteName();
+			const url = getSetupUrlForNewSite(settings, {
+				onlySetupParams: true,
+			});
+			const newSiteInfo = await dispatch(
+				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+					persistence: options.persistence ?? 'explicit',
+				})
+			);
+			await api.setActiveSite(newSiteInfo.slug, {
+				updateUrl: options.updateUrl,
+			});
+			await dispatch(
+				pruneAutosavedSites({
+					excludeSlugs: [
+						newSiteInfo.slug,
+						...(options.excludeFromPruning ?? []),
+					],
+				})
+			);
+			return newSiteInfo.slug;
+		},
 	};
 	return api;
+}
+
+/**
+ * Returns the setup URL for creating a new site.
+ *
+ * Temporary sites keep the current query string for backwards compatibility.
+ * Saved sites keep only setup params so routing, UI, and lifecycle params do
+ * not leak into persisted metadata. Both paths use the same `SiteSettings`
+ * mapping so new settings have one query representation.
+ */
+function getSetupUrlForNewSite(
+	settings?: SiteSettings,
+	options: {
+		onlySetupParams?: boolean;
+	} = {}
+) {
+	const currentUrl = new URL(window.location.href);
+	const url = options.onlySetupParams
+		? getSetupUrlFromUrl(currentUrl)
+		: currentUrl;
+	if (settings) {
+		if (settings.phpVersion !== undefined) {
+			url.searchParams.set('php', settings.phpVersion);
+		}
+		if (settings.wpVersion !== undefined) {
+			url.searchParams.set('wp', settings.wpVersion);
+		}
+		if (settings.networking !== undefined) {
+			url.searchParams.set(
+				'networking',
+				settings.networking ? 'yes' : 'no'
+			);
+		}
+		if (settings.language !== undefined) {
+			url.searchParams.set('language', settings.language);
+		}
+		if (settings.multisite !== undefined) {
+			url.searchParams.set(
+				'multisite',
+				settings.multisite ? 'yes' : 'no'
+			);
+		}
+	}
+	return url;
 }
 
 /**

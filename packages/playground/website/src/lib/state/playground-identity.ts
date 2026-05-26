@@ -1,26 +1,36 @@
 import type { RuntimeConfiguration } from '@wp-playground/blueprints';
 import type { SiteInfo } from './redux/slice-sites';
+import type { QueryAPIParams } from './url/router';
 
-const SETUP_QUERY_PARAMS = new Set([
-	'blueprint',
-	'blueprint-url',
-	'core-pr',
-	'gutenberg-branch',
-	'gutenberg-pr',
-	'import-content',
-	'import-site',
-	'import-wxr',
-	'language',
-	'login',
-	'multisite',
-	'name',
-	'networking',
-	'php',
-	'plugin',
-	'theme',
-	'url',
-	'wp',
-]);
+// Query API params that do not affect Playground setup must be named here.
+// This makes typechecking fail when a new query param is added without
+// classifying it as either setup-affecting or setup-irrelevant.
+type NonSetupQueryParam = 'page-title';
+type SetupQueryParam = Exclude<keyof QueryAPIParams, NonSetupQueryParam>;
+
+const SETUP_QUERY_PARAM_KEYS = Object.keys({
+	blueprint: true,
+	'blueprint-url': true,
+	'core-pr': true,
+	'gutenberg-branch': true,
+	'gutenberg-pr': true,
+	'import-content': true,
+	'import-site': true,
+	'import-wxr': true,
+	language: true,
+	login: true,
+	multisite: true,
+	name: true,
+	networking: true,
+	php: true,
+	'php-extension': true,
+	plugin: true,
+	theme: true,
+	url: true,
+	wp: true,
+} satisfies Record<SetupQueryParam, true>) as SetupQueryParam[];
+
+const SETUP_QUERY_PARAMS = new Set<string>(SETUP_QUERY_PARAM_KEYS);
 
 /**
  * Returns a stable cache key for matching autosaves to setup URLs.
@@ -33,6 +43,25 @@ export function getAutosaveFingerprintFromURL(url: URL) {
 		searchParams: url.searchParams,
 		hash: url.hash,
 	});
+}
+
+/**
+ * Returns a URL containing only query parameters that define Playground setup.
+ *
+ * New saved sites use this so routing, UI, and lifecycle query parameters from
+ * the current page do not leak into persisted site metadata. Keeping this on
+ * the same setup-param list as autosave fingerprints gives future setup query
+ * params one place to register.
+ */
+export function getSetupUrlFromUrl(url: URL) {
+	const setupUrl = new URL(url.href);
+	setupUrl.search = '';
+	for (const [key, value] of url.searchParams.entries()) {
+		if (SETUP_QUERY_PARAMS.has(key)) {
+			setupUrl.searchParams.append(key, value);
+		}
+	}
+	return setupUrl;
 }
 
 /**

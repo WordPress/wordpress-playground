@@ -4,6 +4,7 @@ import {
 	getAutosaveFingerprintFromURL,
 	getAutosaveFingerprintFromSite,
 	getRuntimeBootFingerprint,
+	getSetupUrlFromUrl,
 } from './playground-identity';
 
 describe('getAutosaveFingerprintFromURL', () => {
@@ -96,6 +97,22 @@ describe('getAutosaveFingerprintFromURL', () => {
 					'https://playground.test/?theme=twentytwentyfive&plugin=b&plugin=a'
 				)
 			)
+		);
+	});
+});
+
+describe('getSetupUrlFromUrl', () => {
+	it('keeps setup query params and drops routing and UI params', () => {
+		const setupUrl = getSetupUrlFromUrl(
+			new URL(
+				'https://playground.test/?php=8.3&php-extension=https://example.com/ext.json&plugin=a&plugin=b' +
+					'&site-slug=demo&storage=temp&random=abc&modal=save-site' +
+					'&can-save=no#blueprint'
+			)
+		);
+
+		expect(setupUrl.toString()).toBe(
+			'https://playground.test/?php=8.3&php-extension=https%3A%2F%2Fexample.com%2Fext.json&plugin=a&plugin=b#blueprint'
 		);
 	});
 });
