@@ -1055,7 +1055,15 @@ add_filter('pre_wp_mail', '__return_false');
 add_filter('pre_http_request', function($pre, $args, $url) {
     return new WP_Error('http_disabled', 'HTTP requests disabled in Wasm');
 }, 10, 3);
-if (!defined('DISALLOW_FILE_MODS')) define('DISALLOW_FILE_MODS', true);
+add_filter('plugins_api_result', function ($res) {
+    if ($res instanceof WP_Error) {
+        $res = new WP_Error(
+            'plugins_api_failed',
+            'Network access is an experimental, opt-in feature'
+        );
+    }
+    return $res;
+});
 `;
 
 // Paths track what's extracted in `extractZipIntoVfs` below: the
