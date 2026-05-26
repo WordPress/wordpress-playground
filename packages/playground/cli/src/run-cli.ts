@@ -717,19 +717,21 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
 		if (!isLegacyPhpForDebug) {
 			if (!hasDebugDefine('WP_DEBUG')) {
-				define['WP_DEBUG'] = 'true';
+				defineBool['WP_DEBUG'] = true;
 			}
 			if (!hasDebugDefine('WP_DEBUG_LOG')) {
-				define['WP_DEBUG_LOG'] = 'true';
+				defineBool['WP_DEBUG_LOG'] = true;
 			}
 			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
-				define['WP_DEBUG_DISPLAY'] = 'false';
+				defineBool['WP_DEBUG_DISPLAY'] = false;
 			}
 		}
 
 		const cliArgs = {
 			...args,
 			define,
+			'define-bool': defineBool,
+			'define-number': defineNumber,
 			command,
 			mount: [
 				...((args['mount'] as Mount[]) || []),
@@ -787,7 +789,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				const messageChain = [];
 				let currentError: Error | undefined = e;
 				do {
-					messageChain.push(currentError.message);
+					messageChain.push(describeError(currentError));
 					currentError = currentError.cause as Error;
 				} while (currentError instanceof Error);
 				console.error(
@@ -808,7 +810,27 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
  */
 function describeError(error: unknown): string {
 	if (error instanceof Error) {
-		return error.message;
+		if (error.message) {
+			return error.message;
+		}
+		if (error.cause !== undefined) {
+			return describeError(error.cause);
+		}
+		const parts = [];
+		if (error.name && error.name !== 'Error') {
+			parts.push(error.name);
+		}
+		const obj = error as Error & Record<string, unknown>;
+		if (obj['errno'] !== undefined) {
+			parts.push(`errno: ${obj['errno']}`);
+		}
+		if (obj['code'] !== undefined) {
+			parts.push(`code: ${obj['code']}`);
+		}
+		if (parts.length > 0) {
+			return parts.join(' — ');
+		}
+		return error.stack || String(error);
 	}
 	if (error && typeof error === 'object') {
 		// Comlink-serialized errors arrive as plain objects like
