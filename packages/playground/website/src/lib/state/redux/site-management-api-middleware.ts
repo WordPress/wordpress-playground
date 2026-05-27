@@ -458,7 +458,7 @@ export function createSitesAPI(
 				}
 			}
 			const newSiteInfo = await dispatch(
-				setTemporarySiteSpec(siteName, url)
+				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
 			);
 			await api.setActiveSite(newSiteInfo.slug);
 			return newSiteInfo.slug;
