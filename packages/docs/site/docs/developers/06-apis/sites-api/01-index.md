@@ -6,28 +6,11 @@ description: Manage Playground sites from JavaScript — list, create, persist, 
 
 The Sites API is a JavaScript API exposed by [playground.wordpress.net](https://playground.wordpress.net) for managing the saved WordPress sites in the site manager sidebar. Use it to list and switch between sites, spin up a new temporary site with a specific PHP or WordPress version, persist a temporary site to OPFS or the local filesystem, or change PHP version and networking on a saved site.
 
-The API is reached via the `window.playgroundSites` global.
+The API is reached via the `window.playgroundSites` global. Note that `window.playgroundSites` is not assigned during initial page load — wait for it to appear, then call [`isReady()`](#isready) before making any API calls.
 
 :::info
 The Sites API ships with the Playground website application, not with the `@wp-playground/client` library. It is exposed on the top-level page (`/`), not on `/remote.html`. If you embed Playground via `startPlaygroundWeb` into your own page, your iframe won't expose `window.playgroundSites` to the parent — use the [JavaScript API](/developers/apis/javascript-api/) for direct control instead.
 :::
-
-## Wait until the API is ready
-
-`window.playgroundSites` is not assigned during initial page load. Poll for `getClient()` to know when it's safe to call:
-
-```javascript
-await new Promise((resolve) => {
-	const id = setInterval(() => {
-		if (window.playgroundSites?.getClient()) {
-			clearInterval(id);
-			resolve();
-		}
-	}, 50);
-});
-```
-
-Once the active site has booted, `getClient()` returns a `PlaygroundClient` and the rest of the API is ready.
 
 ## Quick start
 
@@ -106,6 +89,28 @@ Returns the [`PlaygroundClient`](/developers/apis/javascript-api/playground-api-
 
 ```typescript
 getClient(): PlaygroundClient | undefined;
+```
+
+### `isReady()`
+
+Resolves once the active site is fully booted and its `PlaygroundClient` is ready for API calls — mirroring the [`isReady()` method](/developers/apis/javascript-api/playground-api-client) on the client itself. Rejects if the site fails to boot.
+
+For scripts that run before the page has finished loading, wait for `window.playgroundSites` to appear first:
+
+```javascript
+await new Promise((resolve) => {
+	const id = setInterval(() => {
+		if (window.playgroundSites) {
+			clearInterval(id);
+			resolve();
+		}
+	}, 50);
+});
+await window.playgroundSites.isReady();
+```
+
+```typescript
+isReady(): Promise<void>;
 ```
 
 ## Persisting a temporary site
