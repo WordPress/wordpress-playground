@@ -115,3 +115,73 @@ Arguably the most powerful property, `steps` allows you to configure the Playgro
 	]
 }
 ```
+
+## Common property placement mistakes
+
+Blueprint validation errors often come from putting a valid property in the
+wrong object.
+
+### Activate a plugin or theme
+
+`activate` belongs inside `options`, not inside `pluginData`, `themeData`, or
+directly on the step.
+
+```json
+{
+	"step": "installPlugin",
+	"pluginData": {
+		"resource": "wordpress.org/plugins",
+		"slug": "gutenberg"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+### Install plugins with the shorthand
+
+The `plugins` shorthand is a top-level Blueprint property. Do not put it inside
+`preferredVersions`.
+
+```json
+{
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"plugins": ["gutenberg"]
+}
+```
+
+### Use one plugin install shape
+
+For an `installPlugin` step, use `pluginData`. Do not mix `pluginData` with
+older examples or custom objects such as `pluginZipFile`.
+
+```json
+{
+	"step": "installPlugin",
+	"pluginData": {
+		"resource": "wordpress.org/plugins",
+		"slug": "woocommerce"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+The `wordpress.org/plugins` resource needs a separate `slug`. Do not write the
+slug into the `resource` value, such as `"wordpress.org/plugins/woocommerce"`.
+
+### Keep `preferredVersions` limited to versions
+
+`preferredVersions` only accepts `php` and `wp`. Use `features` for networking,
+`plugins` or `installPlugin` for plugins, and `steps` for ordered setup tasks.
+
+### Use explicit steps when order matters
+
+Shorthands such as `plugins`, `login`, `siteOptions`, and `constants` are
+expanded before the `steps` array. If one action must happen before another,
+write both actions as explicit steps in the order you need.
