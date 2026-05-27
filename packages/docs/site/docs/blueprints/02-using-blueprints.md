@@ -81,6 +81,21 @@ Playground also supports Base64-encoded Blueprints. Base64 is useful when a plat
 
 To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 
+#### URIError: URI malformed
+
+If a Playground link fails with `URIError: URI malformed`, the encoded
+Blueprint fragment is usually malformed. Common causes include an invalid `%`
+escape, a fragment that was encoded twice, or JSON pasted into the URL without
+encoding.
+
+Rebuild the link from the original Blueprint object and encode it once:
+
+```js
+const playgroundUrl = `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(blueprint))}`;
+```
+
+If another tool changes URL fragments, use a Base64-encoded Blueprint instead.
+
 :::tip
 In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
 
@@ -110,6 +125,15 @@ Note that the Blueprint must be publicly accessible and served with [the correct
 ```
 Access-Control-Allow-Origin: *
 ```
+
+When a Blueprint URL fails with `BlueprintFetchError`, check these details:
+
+- The URL must return a JSON file or a Blueprint ZIP bundle, not an HTML page.
+- GitHub URLs should use `raw.githubusercontent.com`, not `github.com/.../blob/...`.
+- GitLab URLs should use the raw file URL, not a `/-/blob/` page.
+- The file must be reachable without login, cookies, VPN access, or a temporary browser session.
+- Draft releases, expired CI artifacts, and temporary tunnel URLs can stop working even if the Blueprint was valid earlier.
+- If you host the file yourself, configure CORS so `https://playground.wordpress.net` can fetch it.
 
 #### Blueprint Bundles
 
