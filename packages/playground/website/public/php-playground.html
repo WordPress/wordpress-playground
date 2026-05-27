@@ -517,6 +517,21 @@
 		</div>
 
 		<script>
+			const php86Version = '8.6';
+			const phpMasterVersion = 'master';
+
+			function getPhpPlaygroundVersion(version) {
+				return version === phpMasterVersion ? php86Version : version;
+			}
+
+			function getPhpRuntimeVersion(version) {
+				return version === php86Version ? phpMasterVersion : version;
+			}
+
+			function getPhpVersionLabel(version) {
+				return version === php86Version ? '8.6 (development)' : version;
+			}
+
 			// Function to restore code, PHP version, and WordPress version from URL fragment
 			function loadStateFromURL() {
 				const fragment = window.location.hash.slice(1); // Remove #
@@ -527,7 +542,8 @@
 							const state = JSON.parse(decoded);
 							return {
 								code: state.code || null,
-								phpVersion: state.php || null,
+								phpVersion:
+									getPhpPlaygroundVersion(state.php) || null,
 								wpVersion: state.wp || null,
 							};
 						} catch (e) {
@@ -540,7 +556,12 @@
 						}
 					}
 				}
-				return { code: null, phpVersion: null, wpVersion: null };
+				const query = new URLSearchParams(window.location.search);
+				return {
+					code: null,
+					phpVersion: getPhpPlaygroundVersion(query.get('php')),
+					wpVersion: query.get('wp'),
+				};
 			}
 
 			/**
@@ -704,10 +725,9 @@
 				defaultHighlightStyle,
 			} from 'https://esm.sh/@codemirror/language';
 			import { php } from 'https://esm.sh/@codemirror/lang-php';
-			import {
-				startPlaygroundWeb,
-				SupportedPHPVersionsList,
-			} from 'https://playground.wordpress.net/client/index.js';
+
+			const { startPlaygroundWeb, SupportedPHPVersionsList } =
+				await importPlaygroundClient();
 
 			const editorEl = document.getElementById('editor');
 			const phpCompartment = new Compartment();
@@ -722,10 +742,10 @@
 
 			// Populate PHP version select options from SupportedPHPVersionsList
 			phpVersionSelect.innerHTML = ''; // Clear existing options
-			['master', ...SupportedPHPVersionsList].forEach((version) => {
+			[php86Version, ...SupportedPHPVersionsList].forEach((version) => {
 				const option = document.createElement('option');
 				option.value = version;
-				option.textContent = version;
+				option.textContent = getPhpVersionLabel(version);
 				phpVersionSelect.appendChild(option);
 			});
 
@@ -857,14 +877,14 @@ var_dump($html_processor->get_tag());
 
 			async function bootPlayground(phpVersion, wpVersion) {
 				// Point the iframe at the appropriate PHP and WordPress versions using the Query API
-				previewIframe.src = `https://playground.wordpress.net/remote.html`;
+				previewIframe.src = getPlaygroundRemoteUrl();
 				client = await startPlaygroundWeb({
 					iframe: previewIframe,
 					remoteUrl: previewIframe.src,
 					blueprint: {
 						preferredVersions: {
 							wp: wpVersion,
-							php: phpVersion,
+							php: getPhpRuntimeVersion(phpVersion),
 						},
 					},
 				});
@@ -897,6 +917,23 @@ var_dump($html_processor->get_tag());
 				// Sync current versions after boot to avoid unnecessary reboots on first run
 				currentPhpVersion = phpVersionSelect.value;
 				currentWpVersion = wpVersionSelect.value;
+			}
+
+			async function importPlaygroundClient() {
+				try {
+					return await import(
+						new URL('./client/index.js', window.location.href).href
+					);
+				} catch (e) {
+					return await import('https://playground.wordpress.net/client/index.js');
+				}
+			}
+
+			function getPlaygroundRemoteUrl() {
+				if (window.location.pathname.startsWith('/website-server/')) {
+					return `${window.location.origin}/remote.html`;
+				}
+				return new URL('./remote.html', window.location.href).href;
 			}
 
 			async function executeCode() {
@@ -957,7 +994,8 @@ var_dump($html_processor->get_tag());
 					phpVersionFromURL !== phpVersionSelect.value
 				) {
 					// Update PHP version selector
-					phpVersionSelect.value = phpVersionFromURL;
+					phpVersionSelect.value =
+						getPhpPlaygroundVersion(phpVersionFromURL);
 				}
 
 				if (

@@ -4,10 +4,10 @@ import {
 	type PayloadAction,
 } from '@reduxjs/toolkit';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { SupportedPHPVersionsList } from '@wp-playground/client';
 
 import { DEFAULT_CODE } from './constants';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { getPHPPlaygroundVersion, PHPPlaygroundVersions } from './php-versions';
 
 export type BootStatus = 'idle' | 'booting' | 'ready' | 'error';
 
@@ -31,7 +31,7 @@ const initialState: PlaygroundState = {
 	currentPath: null,
 	phpVersion: RecommendedPHPVersion,
 	wpVersion: 'latest',
-	phpVersions: SupportedPHPVersionsList,
+	phpVersions: PHPPlaygroundVersions,
 	wpVersions: [],
 	bootStatus: 'idle',
 	bootError: null,
@@ -89,7 +89,9 @@ const playgroundSlice = createSlice({
 		) {
 			state.code = action.payload.code;
 			if (action.payload.phpVersion) {
-				state.phpVersion = action.payload.phpVersion;
+				state.phpVersion =
+					getPHPPlaygroundVersion(action.payload.phpVersion) ??
+					state.phpVersion;
 			}
 			if (action.payload.wpVersion) {
 				state.wpVersion = action.payload.wpVersion;
