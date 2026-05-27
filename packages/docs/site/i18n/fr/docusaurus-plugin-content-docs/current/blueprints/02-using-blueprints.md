@@ -1,25 +1,20 @@
 ---
 title: Utiliser les Blueprints
 slug: /blueprints/using-blueprints
-description: Découvrez les différentes façons d’utiliser les Blueprints, notamment avec un fragment d’URL, un paramètre de requête, des paquets et l’API JavaScript.
+description: Découvrez les différentes façons d’utiliser les Blueprints, notamment avec un fragment d’URL, un paramètre de requête, des bundles et l’API JavaScript.
 ---
 
-<!--
-title: Using Blueprints
-description: Discover the different ways to use Blueprints, including via URL fragment, query parameter, bundles, and the JavaScript API.
--->
+<!-- title: Using Blueprints -->
 
-<!--
-# Using Blueprints
--->
+<!-- description: Discover the different ways to use Blueprints, including via URL fragment, query parameter, bundles, and the JavaScript API. -->
+
+<!-- # Using Blueprints -->
 
 # Utiliser les Blueprints
 
-<!--
-You can use Blueprints in one of the following ways:
--->
+<!-- You can use Blueprints in one of the following ways: -->
 
-Vous pouvez utiliser les Blueprints de l’une des façons suivantes :
+Vous pouvez utiliser les Blueprints de l’une des manières suivantes :
 
 <!--
 - By passing them as a URL fragment to the Playground.
@@ -30,26 +25,23 @@ Vous pouvez utiliser les Blueprints de l’une des façons suivantes :
 
 - En les passant comme fragment d’URL au Playground.
 - En les chargeant depuis une URL avec le paramètre `blueprint-url`.
-- En utilisant des paquets Blueprint (fichiers ZIP ou répertoires).
+- En utilisant des bundles de Blueprint (fichiers ZIP ou répertoires).
 - En utilisant l’API JavaScript.
 
-<!--
-## URL Fragment
--->
+<!-- ## URL Fragment -->
 
-## Fragment d’URL {#url-fragment}
+## Fragment d’URL
 
-<!--
-The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`.
--->
+<!-- The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`. -->
 
-La façon la plus simple de commencer à utiliser les Blueprints est d’en coller un dans le « fragment » d’URL du site WordPress Playground, par exemple `https://playground.wordpress.net/#{"preferredVersions...`.
+La façon la plus simple de commencer avec les Blueprints consiste à en coller
+un dans le "fragment" de l’URL sur le site WordPress Playground, par exemple
+`https://playground.wordpress.net/#{"preferredVersions...`.
 
-<!--
-For example, to create a Playground with specific versions of WordPress and PHP you would use the following Blueprint:
--->
+<!-- For example, to create a Playground with specific versions of WordPress and PHP you would use the following Blueprint: -->
 
-Par exemple, pour créer un Playground avec des versions spécifiques de WordPress et de PHP, vous utiliseriez le Blueprint suivant :
+Par exemple, pour créer un Playground avec des versions précises de WordPress
+et de PHP, vous utiliseriez le Blueprint suivant :
 
 ```json
 {
@@ -66,18 +58,19 @@ And then you would go to
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}`.
 -->
 
-Vous iriez ensuite à
+Puis vous iriez sur
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}`.
 
-:::tip
-
 <!--
+:::tip
 In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
 Example:
 -->
 
-En JavaScript, vous pouvez obtenir une version compacte de n’importe quel JSON de Blueprint avec [`JSON.stringify`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) et [`JSON.parse`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse).
-Exemple :
+:::tip
+En JavaScript, vous pouvez obtenir une version compacte de n’importe quel JSON
+de Blueprint avec [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) et [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
+Exemple :
 
 ```js
 const blueprintJson = `{
@@ -94,11 +87,11 @@ const playgroundUrl = `https://playground.wordpress.net/#${encodedBlueprint}`;
 
 :::
 
-<!--
-You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you:
--->
+<!-- You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you: -->
 
-Vous n’aurez pas besoin de coller de liens pour suivre. Nous utiliserons des exemples de code avec un bouton « Essayer » qui exécutera automatiquement les exemples pour vous :
+Vous n’aurez pas à coller de liens pour suivre. Nous utiliserons des exemples
+de code avec un bouton "Try it out" qui exécutera automatiquement les exemples
+pour vous :
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
@@ -109,17 +102,15 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 	}
 }} />
 
-<!--
-### Encoded Blueprint fragments
--->
+<!-- ### Encoded Blueprint fragments -->
 
 ### Fragments de Blueprint encodés
 
-<!--
-When you create Playground links from JavaScript or automation tools, encode the minified JSON once with `encodeURIComponent()` and append it after `#`:
--->
+<!-- When you create Playground links from JavaScript or automation tools, encode the minified JSON once with `encodeURIComponent()` and append it after `#`: -->
 
-Lorsque vous créez des liens Playground depuis JavaScript ou des outils d’automatisation, encodez le JSON minifié une seule fois avec `encodeURIComponent()` et ajoutez-le après `#` :
+Lorsque vous créez des liens Playground depuis JavaScript ou des outils
+d’automatisation, encodez une seule fois le JSON minifié avec
+`encodeURIComponent()` et ajoutez-le après `#` :
 
 ```js
 const blueprint = {
@@ -132,29 +123,60 @@ const blueprint = {
 const playgroundUrl = `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(blueprint))}`;
 ```
 
-<!--
-Playground also supports Base64-encoded Blueprints. Base64 is useful when a platform modifies JSON fragments or when you want a compact, copyable link. For example, that's the above Blueprint in Base64 format: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
--->
+<!-- Playground also supports Base64-encoded Blueprints. Base64 is useful when a platform modifies JSON fragments or when you want a compact, copyable link. For example, that's the above Blueprint in Base64 format: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`. -->
 
-Playground prend également en charge les Blueprints encodés en Base64. Base64 est utile lorsqu’une plateforme modifie les fragments JSON ou lorsque vous voulez un lien compact et facile à copier. Par exemple, voici le Blueprint ci-dessus au format Base64 : `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
+Playground prend aussi en charge les Blueprints encodés en Base64. Base64 est
+utile lorsqu’une plateforme modifie les fragments JSON ou lorsque vous voulez
+un lien compact et facile à copier. Par exemple, voici le Blueprint ci-dessus au
+format Base64 : `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
 
-<!--
-To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
--->
+<!-- To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19 -->
 
 Pour l’exécuter, allez sur https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 
-:::tip
+<!-- #### URIError: URI malformed -->
+
+#### URIError: URI malformed
 
 <!--
-In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
-
-Example:
+If a Playground link fails with `URIError: URI malformed`, the encoded
+Blueprint fragment is usually malformed. Common causes include an invalid `%`
+escape, a fragment that was encoded twice, or JSON pasted into the URL without
+encoding.
 -->
 
-En JavaScript, vous pouvez convertir n’importe quel JSON de Blueprint au [format Base64](https://developer.mozilla.org/fr/docs/Glossary/Base64#javascript_support) avec la fonction globale `btoa()`.
+Si un lien Playground échoue avec `URIError: URI malformed`, le fragment de
+Blueprint encodé est généralement mal formé. Les causes courantes incluent un
+échappement `%` invalide, un fragment encodé deux fois ou du JSON collé dans
+l’URL sans encodage.
 
-Exemple :
+<!-- Rebuild the link from the original Blueprint object and encode it once: -->
+
+Reconstruisez le lien depuis l’objet Blueprint d’origine et encodez-le une seule
+fois :
+
+```js
+const playgroundUrl = `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(blueprint))}`;
+```
+
+<!-- If another tool changes URL fragments, use a Base64-encoded Blueprint instead. -->
+
+Si un autre outil modifie les fragments d’URL, utilisez plutôt un Blueprint
+encodé en Base64.
+
+<!--
+:::tip
+In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
+-->
+
+:::tip
+En JavaScript, vous pouvez obtenir n’importe quel JSON de Blueprint au
+[format Base64](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support)
+avec la fonction globale `btoa()`.
+
+<!-- Example: -->
+
+Exemple :
 
 ```js
 const blueprintJson = `{
@@ -169,55 +191,72 @@ const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi
 
 :::
 
-<!--
-### Load Blueprint from a URL
--->
+<!-- ### Load Blueprint from a URL -->
 
 ### Charger un Blueprint depuis une URL
 
-<!--
-When your Blueprint gets too wieldy, you can load it via the `?blueprint-url` query parameter in the URL, like this:
--->
+<!-- When your Blueprint gets too wieldy, you can load it via the `?blueprint-url` query parameter in the URL, like this: -->
 
-Lorsque votre Blueprint devient trop difficile à gérer, vous pouvez le charger avec le paramètre de requête `?blueprint-url` dans l’URL, comme ceci :
+Quand votre Blueprint devient trop volumineux, vous pouvez le charger avec le
+paramètre de requête `?blueprint-url` dans l’URL, comme ceci :
+
+<!-- [https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/adamziel/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/adamziel/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json) -->
 
 [https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/adamziel/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/adamziel/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json)
 
-<!--
-Note that the Blueprint must be publicly accessible and served with [the correct `Access-Control-Allow-Origin` header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin):
--->
+<!-- Note that the Blueprint must be publicly accessible and served with [the correct `Access-Control-Allow-Origin` header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin): -->
 
-Notez que le Blueprint doit être accessible publiquement et servi avec [le bon en-tête `Access-Control-Allow-Origin`](https://developer.mozilla.org/fr/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin) :
+Notez que le Blueprint doit être accessible publiquement et servi avec le
+[bon en-tête `Access-Control-Allow-Origin`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin) :
 
 ```
 Access-Control-Allow-Origin: *
 ```
 
-<!--
-#### Blueprint Bundles
--->
+<!-- When a Blueprint URL fails with `BlueprintFetchError`, check these details: -->
 
-#### Paquets Blueprint
-
-<!--
-The `?blueprint-url` parameter now also supports Blueprint bundles in ZIP format. A Blueprint bundle is a ZIP file that contains a `blueprint.json` file at the root level, along with any additional resources referenced by the Blueprint.
--->
-
-Le paramètre `?blueprint-url` prend désormais aussi en charge les paquets Blueprint au format ZIP. Un paquet Blueprint est un fichier ZIP qui contient un fichier `blueprint.json` à la racine, ainsi que toutes les ressources supplémentaires référencées par le Blueprint.
+Lorsqu’une URL de Blueprint échoue avec `BlueprintFetchError`, vérifiez ces
+points :
 
 <!--
-For example, you can load a Blueprint bundle like this:
+- The URL must return a JSON file or a Blueprint ZIP bundle, not an HTML page.
+- GitHub URLs should use `raw.githubusercontent.com`, not `github.com/.../blob/...`.
+- GitLab URLs should use the raw file URL, not a `/-/blob/` page.
+- The file must be reachable without login, cookies, VPN access, or a temporary browser session.
+- Draft releases, expired CI artifacts, and temporary tunnel URLs can stop working even if the Blueprint was valid earlier.
+- If you host the file yourself, configure CORS so `https://playground.wordpress.net` can fetch it.
 -->
 
-Par exemple, vous pouvez charger un paquet Blueprint comme ceci :
+- L’URL doit renvoyer un fichier JSON ou un bundle ZIP de Blueprint, pas une page HTML.
+- Les URL GitHub doivent utiliser `raw.githubusercontent.com`, pas `github.com/.../blob/...`.
+- Les URL GitLab doivent utiliser l’URL du fichier brut, pas une page `/-/blob/`.
+- Le fichier doit être accessible sans connexion, cookies, VPN ni session temporaire du navigateur.
+- Les releases en brouillon, les artifacts CI expirés et les URL temporaires de tunnel peuvent cesser de fonctionner même si le Blueprint était valide auparavant.
+- Si vous hébergez le fichier vous-même, configurez CORS pour que `https://playground.wordpress.net` puisse le récupérer.
+
+<!-- #### Blueprint Bundles -->
+
+#### Bundles de Blueprint
+
+<!-- The `?blueprint-url` parameter now also supports Blueprint bundles in ZIP format. A Blueprint bundle is a ZIP file that contains a `blueprint.json` file at the root level, along with any additional resources referenced by the Blueprint. -->
+
+Le paramètre `?blueprint-url` prend maintenant aussi en charge les bundles de
+Blueprint au format ZIP. Un bundle de Blueprint est un fichier ZIP qui contient
+un fichier `blueprint.json` à la racine, avec les ressources supplémentaires
+référencées par le Blueprint.
+
+<!-- For example, you can load a Blueprint bundle like this: -->
+
+Par exemple, vous pouvez charger un bundle de Blueprint comme ceci :
+
+<!-- [https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip](https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip) -->
 
 [https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip](https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip)
 
-<!--
-When using a Blueprint bundle, you can reference bundled resources using the `bundled` resource type:
--->
+<!-- When using a Blueprint bundle, you can reference bundled resources using the `bundled` resource type: -->
 
-Lorsque vous utilisez un paquet Blueprint, vous pouvez référencer les ressources incluses avec le type de ressource `bundled` :
+Lorsque vous utilisez un bundle de Blueprint, vous pouvez référencer les
+ressources incluses avec le type de ressource `bundled` :
 
 ```json
 {
@@ -235,23 +274,20 @@ Lorsque vous utilisez un paquet Blueprint, vous pouvez référencer les ressourc
 }
 ```
 
-<!--
-For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation.
--->
+<!-- For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation. -->
 
-Pour en savoir plus sur les paquets Blueprint, consultez la documentation [Paquets Blueprint](/blueprints/bundles).
+Pour plus d’informations sur les bundles de Blueprint, consultez la
+documentation des [Bundles de Blueprint](/blueprints/bundles).
 
-<!--
-## JavaScript API
--->
+<!-- ## JavaScript API -->
 
-## API JavaScript {#javascript-api}
+## API JavaScript
 
-<!--
-You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen:
--->
+<!-- You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen: -->
 
-Vous pouvez aussi utiliser les Blueprints avec l’API JavaScript grâce à la fonction `startPlaygroundWeb()` du paquet `@wp-playground/client`. Voici un petit exemple autonome que vous pouvez exécuter sur JSFiddle ou CodePen :
+Vous pouvez aussi utiliser les Blueprints avec l’API JavaScript grâce à la
+fonction `startPlaygroundWeb()` du paquet `@wp-playground/client`. Voici un
+petit exemple autonome que vous pouvez exécuter sur JSFiddle ou CodePen :
 
 ```html
 <iframe id="wp-playground" style="width: 1200px; height: 800px"></iframe>
