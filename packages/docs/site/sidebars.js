@@ -23,6 +23,7 @@ const sidebars = {
 			items: [
 				'main/quick-start-guide',
 				'main/web-instance',
+				'main/troubleshooting',
 				{
 					type: 'category',
 					label: 'About Playground',
