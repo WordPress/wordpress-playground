@@ -9,7 +9,7 @@ import {
 	withResolvedPHPExtensions,
 	resolvePHPExtension,
 	isLegacyPHPVersion,
-	isPHPMasterVersion,
+	isPHPNextVersion,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 
@@ -96,10 +96,10 @@ async function resolveRuntimePHPWebExtension(
 		);
 	}
 
-	if (isPHPMasterVersion(version)) {
+	if (isPHPNextVersion(version)) {
 		// PHP extension side modules must be built against the same ABI as
-		// the main module. The PHP master publisher only ships main modules.
-		throw new Error('Extensions are not available for PHP master.');
+		// the main module. The PHP next publisher only ships main modules.
+		throw new Error('Extensions are not available for PHP next.');
 	}
 
 	/*

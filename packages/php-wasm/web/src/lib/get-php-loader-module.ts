@@ -1,6 +1,6 @@
 import type { PHPLoaderModule, AllPHPVersion } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { getPHPMasterModule } from './get-php-master-module';
+import { getPHPNextModule } from './get-php-next-module';
 
 export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
 
@@ -21,8 +21,8 @@ export async function getPHPLoaderModule(
 	asyncMode: PHPWasmAsyncMode = 'asyncify'
 ): Promise<PHPLoaderModule> {
 	switch (version) {
-		case 'master':
-			return (await getPHPMasterModule()).getPHPLoaderModule(asyncMode);
+		case 'next':
+			return (await getPHPNextModule()).getPHPLoaderModule(asyncMode);
 		case '8.5':
 			// @ts-ignore
 			return (await import('@php-wasm/web-8-5')).getPHPLoaderModule();

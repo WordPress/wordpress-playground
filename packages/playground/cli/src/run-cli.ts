@@ -48,7 +48,7 @@ import type { XdebugOptions } from '@php-wasm/node';
 import {
 	AllPHPVersions,
 	isLegacyPHPVersion,
-	isPHPMasterVersion,
+	isPHPNextVersion,
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -101,7 +101,7 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 export type WorkerType = 'v1' | 'v2';
 
 const PlaygroundCLIPHPVersions = AllPHPVersions.filter(
-	(version) => !isPHPMasterVersion(version)
+	(version) => !isPHPNextVersion(version)
 );
 
 /**

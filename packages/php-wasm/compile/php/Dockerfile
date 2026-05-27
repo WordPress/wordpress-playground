@@ -9,7 +9,7 @@ ENV PATH="/root/lib/bin:${PATH}"
 ARG PHP_VERSION
 
 # The git ref to clone from php-src. Release builds use php-$PHP_VERSION tags;
-# master builds use php-src master or another active development ref.
+# next builds use php-src development refs.
 ARG PHP_REF
 
 # Whether to build the opcache extension. The .m4 file is patched before the main
@@ -312,7 +312,7 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 	fi
 
 # Download and prepare imagick extension if needed (PHP 7.4+)
-# Use version 3.7.0 for PHP 7.x, master for PHP 8.x
+# Use version 3.7.0 for PHP 7.x, development branch for PHP 8.x
 RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
 		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			IMAGICK_BRANCH="3.7.0"; \

@@ -6,7 +6,7 @@
 		<title>PHP 8.6 feature preview in WordPress Playground</title>
 		<meta
 			name="description"
-			content="Try selected PHP 8.6 features in the browser with WordPress Playground and PHP master WebAssembly builds."
+			content="Try selected PHP 8.6 features in the browser with WordPress Playground and PHP next WebAssembly builds."
 		/>
 		<style>
 			:root {
@@ -169,16 +169,16 @@
 	<body>
 		<header class="hero">
 			<div class="wrap">
-				<p class="eyebrow">WordPress Playground + PHP master</p>
+				<p class="eyebrow">WordPress Playground + PHP next</p>
 				<h1>Preview PHP 8.6 in your browser</h1>
 				<p class="lede">
-					These examples run on Playground's PHP <code>master</code>
+					These examples run on Playground's PHP <code>next</code>
 					WebAssembly build. Click Run to verify the output in the
 					same browser tab, without installing PHP locally.
 				</p>
 				<div class="actions">
-					<a class="button" href="./?php=master&wp=latest">
-						Open WordPress on PHP master
+					<a class="button" href="./?php=next&wp=latest">
+						Open WordPress on PHP next
 					</a>
 					<a
 						class="button secondary"
@@ -190,7 +190,7 @@
 				<p class="notice">
 					PHP 8.6 is still under development. This page focuses on
 					features that are already available in the current
-					<code>php-src</code> master build used by Playground.
+					<code>php-src</code> development build used by Playground.
 				</p>
 			</div>
 		</header>
@@ -203,7 +203,7 @@
 					ratings, or layout values must stay between a lower and
 					upper bound.
 				</p>
-				<php-snippet php="master" wp="none" name="clamp.php" readonly>
+				<php-snippet php="next" wp="none" name="clamp.php" readonly>
 					<script type="application/x-php">
 						<?php
 						foreach ([-15, 42, 130] as $score) {
@@ -226,7 +226,7 @@
 					<code>Descending</code> cases.
 				</p>
 				<php-snippet
-					php="master"
+					php="next"
 					wp="none"
 					name="sort-direction.php"
 					readonly
@@ -263,7 +263,7 @@
 					<code>isPublic()</code> cannot express.
 				</p>
 				<php-snippet
-					php="master"
+					php="next"
 					wp="none"
 					name="reflection-access.php"
 					readonly
@@ -307,7 +307,7 @@
 					care about.
 				</p>
 				<php-snippet
-					php="master"
+					php="next"
 					wp="none"
 					name="debuggable-enum.php"
 					readonly
@@ -346,7 +346,7 @@
 					<code>rtrim()</code>, and <code>chop()</code>.
 				</p>
 				<php-snippet
-					php="master"
+					php="next"
 					wp="none"
 					name="trim-form-feed.php"
 					readonly
@@ -408,7 +408,7 @@
 
 		<footer>
 			<div class="wrap">
-				The snippets use <code>php="master"</code> and
+				The snippets use <code>php="next"</code> and
 				<code>wp="none"</code> so they boot the PHP runtime only.
 			</div>
 		</footer>

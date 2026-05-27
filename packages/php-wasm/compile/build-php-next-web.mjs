@@ -4,22 +4,22 @@ import path from 'path';
 import { spawn } from 'child_process';
 
 const projectRoot = path.resolve(import.meta.dirname, '../../..');
-const phpRef = process.env.PHP_MASTER_REF || 'master';
+const phpRef = process.env.PHP_NEXT_REF || (await fetchPHPDefaultBranch());
 const outputDir = path.resolve(
 	projectRoot,
-	process.env.PHP_MASTER_OUTPUT_DIR ||
-		'packages/playground/website/public/php-master'
+	process.env.PHP_NEXT_OUTPUT_DIR ||
+		'packages/playground/website/public/php-next'
 );
 const phpVersion =
-	process.env.PHP_MASTER_VERSION || (await fetchPHPVersion(phpRef));
-const modes = (process.env.PHP_MASTER_MODES || 'jspi,asyncify')
+	process.env.PHP_NEXT_VERSION || (await fetchPHPVersion(phpRef));
+const modes = (process.env.PHP_NEXT_MODES || 'jspi,asyncify')
 	.split(',')
 	.map((mode) => mode.trim())
 	.filter(Boolean);
 if (modes.length === 0) {
-	throw new Error('PHP_MASTER_MODES must list at least one build mode.');
+	throw new Error('PHP_NEXT_MODES must list at least one build mode.');
 }
-const append = process.env.PHP_MASTER_APPEND === 'yes';
+const append = process.env.PHP_NEXT_APPEND === 'yes';
 const [major, minor] = phpVersion.split('.');
 const loaderFilename = `php_${major}_${minor}.js`;
 
@@ -29,7 +29,7 @@ if (!major || !minor) {
 	);
 }
 
-console.log(`Building PHP master ${phpVersion} from php-src ref ${phpRef}`);
+console.log(`Building PHP next ${phpVersion} from php-src ref ${phpRef}`);
 console.log(`Writing assets to ${outputDir}`);
 
 if (!append) {
@@ -43,7 +43,7 @@ for (const mode of modes) {
 	} else if (mode === 'asyncify') {
 		await buildMode('asyncify', []);
 	} else {
-		throw new Error(`Unsupported PHP master build mode: ${mode}`);
+		throw new Error(`Unsupported PHP next build mode: ${mode}`);
 	}
 }
 
@@ -51,7 +51,7 @@ for (const mode of modes) {
 	patchBrowserLoader(path.join(outputDir, mode, loaderFilename));
 }
 
-writeMasterIndex();
+writeNextIndex();
 writeManifest();
 writeReadme();
 
@@ -83,17 +83,17 @@ function patchBrowserLoader(loaderPath) {
 	fs.writeFileSync(loaderPath, patched);
 }
 
-function writeMasterIndex() {
+function writeNextIndex() {
 	fs.writeFileSync(
 		path.join(outputDir, 'index.js'),
-		`export const phpMasterVersion = ${JSON.stringify(phpVersion)};\n` +
-			`export const phpMasterRef = ${JSON.stringify(phpRef)};\n` +
+		`export const phpNextVersion = ${JSON.stringify(phpVersion)};\n` +
+			`export const phpNextRef = ${JSON.stringify(phpRef)};\n` +
 			`const availableModes = ${JSON.stringify(modes)};\n` +
 			`function selectMode(asyncMode) {\n` +
 			`\tif (availableModes.includes(asyncMode)) {\n` +
 			`\t\treturn asyncMode;\n` +
 			`\t}\n` +
-			`\tthrow new Error(\`PHP master build mode \\${asyncMode} is not available.\`);\n` +
+			`\tthrow new Error(\`PHP next build mode \${asyncMode} is not available.\`);\n` +
 			`}\n` +
 			`export async function getPHPLoaderModule(asyncMode = 'asyncify') {\n` +
 			`\tconst mode = selectMode(asyncMode);\n` +
@@ -124,13 +124,25 @@ function writeManifest() {
 function writeReadme() {
 	fs.writeFileSync(
 		path.join(outputDir, 'README.md'),
-		`# PHP master WebAssembly builds\n\n` +
+		`# PHP next WebAssembly builds\n\n` +
 			`Generated from php-src ref \`${phpRef}\` at PHP version ` +
 			`\`${phpVersion}\` for modes: ${modes.join(', ')}.\n\n` +
 			`These artifacts are published from the ` +
-			`\`refresh-php-master.yml\` workflow and consumed by ` +
+			`\`refresh-php-next.yml\` workflow and consumed by ` +
 			`playground.wordpress.net.\n`
 	);
+}
+
+async function fetchPHPDefaultBranch() {
+	const repository = JSON.parse(
+		await fetchText('https://api.github.com/repos/php/php-src', {
+			'User-Agent': 'wordpress-playground',
+		})
+	);
+	if (!repository.default_branch) {
+		throw new Error('Could not find the php-src default branch');
+	}
+	return repository.default_branch;
 }
 
 async function fetchPHPVersion(ref) {
@@ -156,10 +168,10 @@ async function fetchPHPVersion(ref) {
 	return requiredParts.join('.') + (values.PHP_EXTRA_VERSION || '');
 }
 
-function fetchText(url) {
+function fetchText(url, headers = {}) {
 	return new Promise((resolve, reject) => {
 		https
-			.get(url, (response) => {
+			.get(url, { headers }, (response) => {
 				if (response.statusCode !== 200) {
 					reject(
 						new Error(

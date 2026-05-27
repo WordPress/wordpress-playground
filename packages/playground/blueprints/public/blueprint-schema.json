@@ -203,7 +203,7 @@
 		"AllPHPVersion": {
 			"anyOf": [
 				{
-					"$ref": "#/definitions/PHPMasterVersion"
+					"$ref": "#/definitions/PHPNextVersion"
 				},
 				{
 					"$ref": "#/definitions/SupportedPHPVersion"
@@ -213,9 +213,9 @@
 				}
 			]
 		},
-		"PHPMasterVersion": {
+		"PHPNextVersion": {
 			"type": "string",
-			"const": "master"
+			"const": "next"
 		},
 		"SupportedPHPVersion": {
 			"type": "string",

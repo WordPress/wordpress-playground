@@ -1,8 +1,5 @@
 import type { AllPHPVersion } from '@php-wasm/universal';
-import {
-	PHPMasterVersion,
-	SupportedPHPVersionsList,
-} from '@php-wasm/universal';
+import { PHPNextVersion, SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
 import { useEffect, useMemo, useState } from 'react';
@@ -114,7 +111,7 @@ export function UnconnectedSiteSettingsForm({
 		// locked older WP), reset to the recommended default so the
 		// dropdown doesn't render a value that isn't in its options.
 		if (
-			current !== PHPMasterVersion &&
+			current !== PHPNextVersion &&
 			!(SupportedPHPVersionsList as readonly string[]).includes(current)
 		) {
 			setValue('phpVersion', RecommendedPHPVersion as AllPHPVersion);
@@ -170,8 +167,8 @@ export function UnconnectedSiteSettingsForm({
 		}
 		return [
 			{
-				label: 'PHP Master',
-				value: PHPMasterVersion,
+				label: 'PHP Next',
+				value: PHPNextVersion,
 			},
 			...SupportedPHPVersionsList.map((version) => ({
 				label: `PHP ${version}`,

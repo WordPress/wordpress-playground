@@ -7,7 +7,7 @@ import type { PlaygroundClient } from '@wp-playground/client';
 
 import { DEFAULT_CODE } from './constants';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { getPHPPlaygroundVersion, PHPPlaygroundVersions } from './php-versions';
+import { PHPPlaygroundVersions } from './php-versions';
 
 export type BootStatus = 'idle' | 'booting' | 'ready' | 'error';
 
@@ -89,9 +89,7 @@ const playgroundSlice = createSlice({
 		) {
 			state.code = action.payload.code;
 			if (action.payload.phpVersion) {
-				state.phpVersion =
-					getPHPPlaygroundVersion(action.payload.phpVersion) ??
-					state.phpVersion;
+				state.phpVersion = action.payload.phpVersion;
 			}
 			if (action.payload.wpVersion) {
 				state.wpVersion = action.payload.wpVersion;

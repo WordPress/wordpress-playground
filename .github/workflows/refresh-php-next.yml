@@ -1,17 +1,17 @@
-name: 'Refresh PHP Master'
+name: 'Refresh PHP Next'
 
 on:
     workflow_dispatch:
         inputs:
             php_ref:
-                description: 'php-src ref to build (defaults to php-src master)'
+                description: 'php-src ref to build (defaults to php-src development branch)'
                 required: false
-    # Refresh PHP master binaries every day at 6am UTC.
+    # Refresh PHP next binaries every day at 6am UTC.
     schedule:
         - cron: '0 6 * * *'
 
 concurrency:
-    group: refresh-php-master
+    group: refresh-php-next
 
 # Disable permissions for all available scopes by default.
 # Any needed permissions should be configured at the job level.
@@ -37,7 +37,7 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 240
         permissions:
-            contents: write # Required to push the refreshed PHP master branch.
+            contents: write # Required to push the refreshed PHP next branch.
             actions: write # Required to trigger the deploy-website workflow.
         environment:
             name: wordpress-assets
@@ -54,28 +54,28 @@ jobs:
                   # The build uses JSPI which is supported in Node.js 23+.
                   # Let's pick 24 as an LTS release.
                   node-version: 24
-            - name: Build PHP master binaries
+            - name: Build PHP next binaries
               shell: bash
               env:
-                  PHP_MASTER_REF: ${{ github.event.inputs.php_ref }}
-              run: npm run recompile:php:web:master
-            - name: Publish PHP master binaries branch
+                  PHP_NEXT_REF: ${{ github.event.inputs.php_ref }}
+              run: npm run recompile:php:web:next
+            - name: Publish PHP next binaries branch
               shell: bash
               run: |
                   set -euo pipefail
-                  branch="php-master-builds"
+                  branch="php-next-builds"
                   publish_dir="$(mktemp -d)"
                   trap 'rm -rf "$publish_dir"' EXIT
-                  cp -a packages/playground/website/public/php-master/. "$publish_dir/"
+                  cp -a packages/playground/website/public/php-next/. "$publish_dir/"
 
-                  git switch --orphan php-master-publish
+                  git switch --orphan php-next-publish
                   git rm -rf . || true
                   git clean -fdx
                   cp -a "$publish_dir/." .
                   git add -A
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git commit -m "Refresh PHP master builds"
+                  git commit -m "Refresh PHP next builds"
                   git push --force origin HEAD:"$branch"
             - name: Deploy website
               uses: benc-uk/workflow-dispatch@v1

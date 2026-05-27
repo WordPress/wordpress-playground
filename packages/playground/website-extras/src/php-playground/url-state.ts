@@ -1,5 +1,4 @@
 import { DEFAULT_CODE } from './constants';
-import { getPHPPlaygroundVersion } from './php-versions';
 
 export type PlaygroundUrlState = {
 	code?: string;
@@ -33,7 +32,7 @@ export const loadStateFromURL = () => {
 		const query = new URLSearchParams(window.location.search);
 		return {
 			code: DEFAULT_CODE,
-			phpVersion: getPHPPlaygroundVersion(query.get('php') ?? undefined),
+			phpVersion: query.get('php') ?? undefined,
 			wpVersion: query.get('wp') ?? undefined,
 		};
 	}
@@ -49,7 +48,7 @@ export const loadStateFromURL = () => {
 		const state = JSON.parse(decoded) as PlaygroundUrlState;
 		return {
 			code: state.code ?? DEFAULT_CODE,
-			phpVersion: getPHPPlaygroundVersion(state.php),
+			phpVersion: state.php,
 			wpVersion: state.wp,
 		};
 	} catch {

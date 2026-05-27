@@ -19,7 +19,7 @@ import { setCurrentPath } from '../store';
 import { loadStateFromURL, saveStateToURL } from '../url-state';
 import { playgroundRuntime } from '../runtime';
 import { logger } from '@php-wasm/logger';
-import { getPHPRuntimeVersion } from '../php-versions';
+import type { AllPHPVersion } from '@php-wasm/universal';
 
 export const PlaygroundManager = () => {
 	const dispatch = useAppDispatch();
@@ -125,7 +125,7 @@ export const PlaygroundManager = () => {
 					blueprint: {
 						preferredVersions: {
 							wp: wpVersionRef.current,
-							php: getPHPRuntimeVersion(phpVersionRef.current),
+							php: phpVersionRef.current as AllPHPVersion,
 						},
 					},
 				});

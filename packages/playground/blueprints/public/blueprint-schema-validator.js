@@ -173,12 +173,12 @@ const schema11 = {
 		},
 		AllPHPVersion: {
 			anyOf: [
-				{ $ref: '#/definitions/PHPMasterVersion' },
+				{ $ref: '#/definitions/PHPNextVersion' },
 				{ $ref: '#/definitions/SupportedPHPVersion' },
 				{ $ref: '#/definitions/LegacyPHPVersion' },
 			],
 		},
-		PHPMasterVersion: { type: 'string', const: 'master' },
+		PHPNextVersion: { type: 'string', const: 'next' },
 		SupportedPHPVersion: {
 			type: 'string',
 			enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'],
@@ -1595,12 +1595,12 @@ const schema13 = {
 };
 const schema14 = {
 	anyOf: [
-		{ $ref: '#/definitions/PHPMasterVersion' },
+		{ $ref: '#/definitions/PHPNextVersion' },
 		{ $ref: '#/definitions/SupportedPHPVersion' },
 		{ $ref: '#/definitions/LegacyPHPVersion' },
 	],
 };
-const schema15 = { type: 'string', const: 'master' };
+const schema15 = { type: 'string', const: 'next' };
 const schema16 = {
 	type: 'string',
 	enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'],
@@ -1618,7 +1618,7 @@ function validate13(
 	if (typeof data !== 'string') {
 		const err0 = {
 			instancePath,
-			schemaPath: '#/definitions/PHPMasterVersion/type',
+			schemaPath: '#/definitions/PHPNextVersion/type',
 			keyword: 'type',
 			params: { type: 'string' },
 			message: 'must be string',
@@ -1630,12 +1630,12 @@ function validate13(
 		}
 		errors++;
 	}
-	if ('master' !== data) {
+	if ('next' !== data) {
 		const err1 = {
 			instancePath,
-			schemaPath: '#/definitions/PHPMasterVersion/const',
+			schemaPath: '#/definitions/PHPNextVersion/const',
 			keyword: 'const',
-			params: { allowedValue: 'master' },
+			params: { allowedValue: 'next' },
 			message: 'must be equal to constant',
 		};
 		if (vErrors === null) {
