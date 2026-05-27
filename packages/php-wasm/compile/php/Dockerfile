@@ -2262,7 +2262,9 @@ RUN set -eux; \
 		echo 'sched_yield'; \
 		echo 'writev'; \
 		if [ "$PHP_VERSION_MAJOR" -ge 8 ]; then \
+			echo '_call_user_function_impl'; \
 			echo 'zend_array_count'; \
+			echo 'zend_declare_class_constant_ex'; \
 			echo 'zend_declare_property'; \
 			echo 'zend_do_implement_interface'; \
 			echo 'zend_hash_get_current_key_zval_ex'; \
@@ -2270,6 +2272,7 @@ RUN set -eux; \
 			echo 'zend_is_iterable'; \
 			echo 'zend_lookup_class_ex'; \
 			echo 'zend_objects_new'; \
+			echo 'zend_register_internal_class_ex'; \
 			echo 'zend_register_internal_interface'; \
 			echo 'zend_std_get_properties'; \
 			echo 'zend_std_has_property'; \
