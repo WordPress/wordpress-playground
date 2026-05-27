@@ -9,7 +9,7 @@ ENV PATH="/root/lib/bin:${PATH}"
 ARG PHP_VERSION
 
 # The git ref to clone from php-src. Release builds use php-$PHP_VERSION tags;
-# nightly builds use active PHP-* branches.
+# master builds use php-src master or another active development ref.
 ARG PHP_REF
 
 # Whether to build the opcache extension. The .m4 file is patched before the main

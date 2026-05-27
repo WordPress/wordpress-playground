@@ -16,10 +16,8 @@ export async function getIntlExtensionModule(
 	asyncMode: PHPWasmAsyncMode = 'asyncify'
 ): Promise<any> {
 	switch (version) {
-		case 'nightly':
-			return (await getPHPNightlyModule()).getIntlExtensionPath(
-				asyncMode
-			);
+		case 'master':
+			return (await getPhpMasterModule()).getIntlExtensionPath(asyncMode);
 		case '8.5':
 			// @ts-ignore
 			return (await import('@php-wasm/web-8-5')).getIntlExtensionPath();
@@ -45,26 +43,26 @@ export async function getIntlExtensionModule(
 	throw new Error(`Unsupported PHP version ${version}`);
 }
 
-async function getPHPNightlyModule(): Promise<{
+async function getPhpMasterModule(): Promise<{
 	getIntlExtensionPath(asyncMode: PHPWasmAsyncMode): Promise<string>;
 }> {
-	const urls = getPHPNightlyModuleUrls();
+	const urls = getPhpMasterModuleUrls();
 	let cause: unknown;
-	for (const nightlyModuleUrl of urls) {
+	for (const masterModuleUrl of urls) {
 		try {
-			return await import(/* @vite-ignore */ nightlyModuleUrl);
+			return await import(/* @vite-ignore */ masterModuleUrl);
 		} catch (error) {
 			cause = error;
 		}
 	}
 	throw new Error(
-		'PHP nightly assets are missing. Run `npm run sync:php-nightly` ' +
-			'before using PHP nightly locally.',
+		'PHP master assets are missing. Run `npm run sync:php-master` ' +
+			'before using PHP master locally.',
 		{ cause }
 	);
 }
 
-function getPHPNightlyModuleUrls() {
+function getPhpMasterModuleUrls() {
 	const origin = globalThis.location?.origin || '';
 	const pathname = globalThis.location?.pathname || '/';
 	const basePath = pathname.startsWith('/website-server/')
@@ -72,9 +70,9 @@ function getPHPNightlyModuleUrls() {
 		: '/';
 	return Array.from(
 		new Set([
-			`${origin}${basePath}php-nightly/index.js`,
-			`${origin}/website-server/php-nightly/index.js`,
-			`${origin}/php-nightly/index.js`,
+			`${origin}${basePath}php-master/index.js`,
+			`${origin}/website-server/php-master/index.js`,
+			`${origin}/php-master/index.js`,
 		])
 	);
 }

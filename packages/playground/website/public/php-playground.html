@@ -724,7 +724,7 @@
 
 			// Populate PHP version select options from SupportedPHPVersionsList
 			phpVersionSelect.innerHTML = ''; // Clear existing options
-			['nightly', ...SupportedPHPVersionsList].forEach((version) => {
+			['master', ...SupportedPHPVersionsList].forEach((version) => {
 				const option = document.createElement('option');
 				option.value = version;
 				option.textContent = version;

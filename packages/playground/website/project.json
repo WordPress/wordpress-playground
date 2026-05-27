@@ -55,7 +55,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/sync-php-nightly-assets.mjs --optional --if-missing",
+					"node packages/php-wasm/compile/sync-php-master-assets.mjs --optional --if-missing",
 					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
@@ -82,10 +82,10 @@
 				}
 			}
 		},
-		"sync-php-nightly-assets": {
+		"sync-php-master-assets": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node packages/php-wasm/compile/sync-php-nightly-assets.mjs --optional --if-missing",
+				"command": "node packages/php-wasm/compile/sync-php-master-assets.mjs --optional --if-missing",
 				"parallel": false
 			}
 		},

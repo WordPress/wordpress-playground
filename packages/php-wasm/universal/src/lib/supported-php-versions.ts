@@ -1,5 +1,5 @@
-export const NightlyPHPVersion = 'nightly';
-export type NightlyPHPVersion = typeof NightlyPHPVersion;
+export const PhpMasterVersion = 'master';
+export type PhpMasterVersion = typeof PhpMasterVersion;
 
 export const SupportedPHPVersions = [
 	'8.5',
@@ -18,12 +18,12 @@ export const LegacyPHPVersions = ['5.2'] as const;
 export type LegacyPHPVersion = (typeof LegacyPHPVersions)[number];
 
 /**
- * Type guard for the PHP nightly build pseudo-version.
+ * Type guard for the PHP master build pseudo-version.
  */
-export function isNightlyPHPVersion(
+export function isPhpMasterVersion(
 	version: string | undefined
-): version is NightlyPHPVersion {
-	return version === NightlyPHPVersion;
+): version is PhpMasterVersion {
+	return version === PhpMasterVersion;
 }
 
 /**
@@ -38,11 +38,11 @@ export function isLegacyPHPVersion(
 }
 
 export const AllPHPVersions = [
-	NightlyPHPVersion,
+	PhpMasterVersion,
 	...SupportedPHPVersions,
 	...LegacyPHPVersions,
 ] as const;
 export type AllPHPVersion =
-	| NightlyPHPVersion
+	| PhpMasterVersion
 	| SupportedPHPVersion
 	| LegacyPHPVersion;

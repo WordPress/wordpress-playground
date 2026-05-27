@@ -4,19 +4,19 @@ import path from 'path';
 import { spawn } from 'child_process';
 
 const projectRoot = path.resolve(import.meta.dirname, '../../..');
-const phpRef = process.env.PHP_NIGHTLY_REF || 'master';
+const phpRef = process.env.PHP_MASTER_REF || 'master';
 const outputDir = path.resolve(
 	projectRoot,
-	process.env.PHP_NIGHTLY_OUTPUT_DIR ||
-		'packages/playground/website/public/php-nightly'
+	process.env.PHP_MASTER_OUTPUT_DIR ||
+		'packages/playground/website/public/php-master'
 );
 const phpVersion =
-	process.env.PHP_NIGHTLY_VERSION || (await fetchPHPVersion(phpRef));
-const modes = (process.env.PHP_NIGHTLY_MODES || 'jspi,asyncify')
+	process.env.PHP_MASTER_VERSION || (await fetchPHPVersion(phpRef));
+const modes = (process.env.PHP_MASTER_MODES || 'jspi,asyncify')
 	.split(',')
 	.map((mode) => mode.trim())
 	.filter(Boolean);
-const append = process.env.PHP_NIGHTLY_APPEND === 'yes';
+const append = process.env.PHP_MASTER_APPEND === 'yes';
 const [major, minor] = phpVersion.split('.');
 const loaderFilename = `php_${major}_${minor}.js`;
 
@@ -26,7 +26,7 @@ if (!major || !minor) {
 	);
 }
 
-console.log(`Building PHP nightly ${phpVersion} from php-src ref ${phpRef}`);
+console.log(`Building PHP master ${phpVersion} from php-src ref ${phpRef}`);
 console.log(`Writing assets to ${outputDir}`);
 
 if (!append) {
@@ -40,7 +40,7 @@ for (const mode of modes) {
 	} else if (mode === 'asyncify') {
 		await buildMode('asyncify', []);
 	} else {
-		throw new Error(`Unsupported PHP nightly build mode: ${mode}`);
+		throw new Error(`Unsupported PHP master build mode: ${mode}`);
 	}
 }
 
@@ -48,7 +48,7 @@ for (const mode of modes) {
 	patchBrowserLoader(path.join(outputDir, mode, loaderFilename));
 }
 
-writeNightlyIndex();
+writeMasterIndex();
 writeManifest();
 writeReadme();
 
@@ -80,11 +80,11 @@ function patchBrowserLoader(loaderPath) {
 	fs.writeFileSync(loaderPath, patched);
 }
 
-function writeNightlyIndex() {
+function writeMasterIndex() {
 	fs.writeFileSync(
 		path.join(outputDir, 'index.js'),
-		`export const phpNightlyVersion = ${JSON.stringify(phpVersion)};\n` +
-			`export const phpNightlyRef = ${JSON.stringify(phpRef)};\n` +
+		`export const phpMasterVersion = ${JSON.stringify(phpVersion)};\n` +
+			`export const phpMasterRef = ${JSON.stringify(phpRef)};\n` +
 			`const availableModes = ${JSON.stringify(modes)};\n` +
 			`function selectMode(asyncMode) {\n` +
 			`\treturn availableModes.includes(asyncMode) ? asyncMode : availableModes[0];\n` +
@@ -125,11 +125,11 @@ function writeManifest() {
 function writeReadme() {
 	fs.writeFileSync(
 		path.join(outputDir, 'README.md'),
-		`# PHP nightly WebAssembly builds\n\n` +
+		`# PHP master WebAssembly builds\n\n` +
 			`Generated from php-src ref \`${phpRef}\` at PHP version ` +
 			`\`${phpVersion}\` for modes: ${modes.join(', ')}.\n\n` +
 			`These artifacts are published from the ` +
-			`\`refresh-php-nightly.yml\` workflow and consumed by ` +
+			`\`refresh-php-master.yml\` workflow and consumed by ` +
 			`playground.wordpress.net.\n`
 	);
 }

@@ -1,4 +1,4 @@
-name: 'Refresh PHP Nightly'
+name: 'Refresh PHP Master'
 
 on:
     workflow_dispatch:
@@ -6,12 +6,12 @@ on:
             php_ref:
                 description: 'php-src ref to build (defaults to php-src master)'
                 required: false
-    # Refresh PHP nightly binaries every day at 6am UTC.
+    # Refresh PHP master binaries every day at 6am UTC.
     schedule:
         - cron: '0 6 * * *'
 
 concurrency:
-    group: refresh-php-nightly
+    group: refresh-php-master
 
 # Disable permissions for all available scopes by default.
 # Any needed permissions should be configured at the job level.
@@ -37,7 +37,7 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 240
         permissions:
-            contents: write # Required to push the refreshed PHP nightly branch.
+            contents: write # Required to push the refreshed PHP master branch.
             actions: write # Required to trigger the deploy-website workflow.
         environment:
             name: wordpress-assets
@@ -54,27 +54,27 @@ jobs:
                   # The build uses JSPI which is supported in Node.js 23+.
                   # Let's pick 24 as an LTS release.
                   node-version: 24
-            - name: Build PHP nightly binaries
+            - name: Build PHP master binaries
               shell: bash
               env:
-                  PHP_NIGHTLY_REF: ${{ github.event.inputs.php_ref }}
-              run: npm run recompile:php:web:nightly
-            - name: Publish PHP nightly binaries branch
+                  PHP_MASTER_REF: ${{ github.event.inputs.php_ref }}
+              run: npm run recompile:php:web:master
+            - name: Publish PHP master binaries branch
               shell: bash
               run: |
                   set -euo pipefail
-                  branch="php-nightly-builds"
+                  branch="php-master-builds"
                   publish_dir="$(mktemp -d)"
-                  cp -a packages/playground/website/public/php-nightly/. "$publish_dir/"
+                  cp -a packages/playground/website/public/php-master/. "$publish_dir/"
 
-                  git switch --orphan php-nightly-publish
+                  git switch --orphan php-master-publish
                   git rm -rf . || true
                   git clean -fdx
                   cp -a "$publish_dir/." .
                   git add -A
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git commit -m "Refresh PHP nightly builds"
+                  git commit -m "Refresh PHP master builds"
                   git push --force origin HEAD:"$branch"
             - name: Deploy website
               uses: benc-uk/workflow-dispatch@v1

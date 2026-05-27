@@ -173,12 +173,12 @@ const schema11 = {
 		},
 		AllPHPVersion: {
 			anyOf: [
-				{ $ref: '#/definitions/NightlyPHPVersion' },
+				{ $ref: '#/definitions/PhpMasterVersion' },
 				{ $ref: '#/definitions/SupportedPHPVersion' },
 				{ $ref: '#/definitions/LegacyPHPVersion' },
 			],
 		},
-		NightlyPHPVersion: { type: 'string', const: 'nightly' },
+		PhpMasterVersion: { type: 'string', const: 'master' },
 		SupportedPHPVersion: {
 			type: 'string',
 			enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'],
@@ -1595,12 +1595,12 @@ const schema13 = {
 };
 const schema14 = {
 	anyOf: [
-		{ $ref: '#/definitions/NightlyPHPVersion' },
+		{ $ref: '#/definitions/PhpMasterVersion' },
 		{ $ref: '#/definitions/SupportedPHPVersion' },
 		{ $ref: '#/definitions/LegacyPHPVersion' },
 	],
 };
-const schema15 = { type: 'string', const: 'nightly' };
+const schema15 = { type: 'string', const: 'master' };
 const schema16 = {
 	type: 'string',
 	enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'],
@@ -1618,7 +1618,7 @@ function validate13(
 	if (typeof data !== 'string') {
 		const err0 = {
 			instancePath,
-			schemaPath: '#/definitions/NightlyPHPVersion/type',
+			schemaPath: '#/definitions/PhpMasterVersion/type',
 			keyword: 'type',
 			params: { type: 'string' },
 			message: 'must be string',
@@ -1630,12 +1630,12 @@ function validate13(
 		}
 		errors++;
 	}
-	if ('nightly' !== data) {
+	if ('master' !== data) {
 		const err1 = {
 			instancePath,
-			schemaPath: '#/definitions/NightlyPHPVersion/const',
+			schemaPath: '#/definitions/PhpMasterVersion/const',
 			keyword: 'const',
-			params: { allowedValue: 'nightly' },
+			params: { allowedValue: 'master' },
 			message: 'must be equal to constant',
 		};
 		if (vErrors === null) {

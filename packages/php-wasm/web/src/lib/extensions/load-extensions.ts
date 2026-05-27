@@ -9,7 +9,7 @@ import {
 	withResolvedPHPExtensions,
 	resolvePHPExtension,
 	isLegacyPHPVersion,
-	isNightlyPHPVersion,
+	isPhpMasterVersion,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 
@@ -109,9 +109,9 @@ async function resolveRuntimePHPWebExtension(
 				'External PHP extensions require JSPI. Asyncify is only supported for PHP.wasm bundled extensions.'
 			);
 		}
-		if (isNightlyPHPVersion(version)) {
+		if (isPhpMasterVersion(version)) {
 			throw new Error(
-				'External PHP extensions are not available for PHP nightly.'
+				'External PHP extensions are not available for PHP master.'
 			);
 		}
 		return await resolvePHPExtension({
