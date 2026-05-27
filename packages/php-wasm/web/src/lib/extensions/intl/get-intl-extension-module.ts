@@ -1,6 +1,5 @@
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import type { AllPHPVersion } from '@php-wasm/universal';
-import type { PHPWasmAsyncMode } from '../../get-php-loader-module';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 /**
  * Returns the path to the intl extension for the specified PHP version.
@@ -12,12 +11,9 @@ import type { PHPWasmAsyncMode } from '../../get-php-loader-module';
  * - etc.
  */
 export async function getIntlExtensionModule(
-	version: AllPHPVersion = LatestSupportedPHPVersion,
-	asyncMode: PHPWasmAsyncMode = 'asyncify'
+	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
 	switch (version) {
-		case 'master':
-			return (await getPhpMasterModule()).getIntlExtensionPath(asyncMode);
 		case '8.5':
 			// @ts-ignore
 			return (await import('@php-wasm/web-8-5')).getIntlExtensionPath();
@@ -41,38 +37,4 @@ export async function getIntlExtensionModule(
 			return (await import('@php-wasm/web-7-4')).getIntlExtensionPath();
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
-}
-
-async function getPhpMasterModule(): Promise<{
-	getIntlExtensionPath(asyncMode: PHPWasmAsyncMode): Promise<string>;
-}> {
-	const urls = getPhpMasterModuleUrls();
-	let cause: unknown;
-	for (const masterModuleUrl of urls) {
-		try {
-			return await import(/* @vite-ignore */ masterModuleUrl);
-		} catch (error) {
-			cause = error;
-		}
-	}
-	throw new Error(
-		'PHP master assets are missing. Run `npm run sync:php-master` ' +
-			'before using PHP master locally.',
-		{ cause }
-	);
-}
-
-function getPhpMasterModuleUrls() {
-	const origin = globalThis.location?.origin || '';
-	const pathname = globalThis.location?.pathname || '/';
-	const basePath = pathname.startsWith('/website-server/')
-		? '/website-server/'
-		: '/';
-	return Array.from(
-		new Set([
-			`${origin}${basePath}php-master/index.js`,
-			`${origin}/website-server/php-master/index.js`,
-			`${origin}/php-master/index.js`,
-		])
-	);
 }

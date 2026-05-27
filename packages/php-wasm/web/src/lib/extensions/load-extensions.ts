@@ -9,7 +9,7 @@ import {
 	withResolvedPHPExtensions,
 	resolvePHPExtension,
 	isLegacyPHPVersion,
-	isPhpMasterVersion,
+	isPHPMasterVersion,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 
@@ -96,6 +96,12 @@ async function resolveRuntimePHPWebExtension(
 		);
 	}
 
+	if (isPHPMasterVersion(version)) {
+		// PHP extension side modules must be built against the same ABI as
+		// the main module. The PHP master publisher only ships main modules.
+		throw new Error('Extensions are not available for PHP master.');
+	}
+
 	/*
 	 * External extension requests always carry a `source`. Built-in web
 	 * extension requests are either strings or `{ name }` objects. This shape
@@ -107,11 +113,6 @@ async function resolveRuntimePHPWebExtension(
 		if (asyncMode === 'asyncify') {
 			throw new Error(
 				'External PHP extensions require JSPI. Asyncify is only supported for PHP.wasm bundled extensions.'
-			);
-		}
-		if (isPhpMasterVersion(version)) {
-			throw new Error(
-				'External PHP extensions are not available for PHP master.'
 			);
 		}
 		return await resolvePHPExtension({
@@ -126,7 +127,7 @@ async function resolveRuntimePHPWebExtension(
 	}
 	const memoizedFetch = createMemoizedFetch(fetch);
 
-	const extensionPath = await getIntlExtensionModule(version, asyncMode);
+	const extensionPath = await getIntlExtensionModule(version);
 	// @ts-ignore
 	const dataPath = (await import('./intl/shared/icu.dat')).default;
 

@@ -31,7 +31,7 @@ try {
 	fs.mkdirSync(targetDir, { recursive: true });
 	run('sh', [
 		'-c',
-		`git archive ${remoteRef} | tar -x -C ${shellQuote(targetDir)}`,
+		`git archive ${shellQuote(remoteRef)} | tar -x -C ${shellQuote(targetDir)}`,
 	]);
 	console.log(`Synced PHP master assets into ${targetDir}`);
 } catch (error) {

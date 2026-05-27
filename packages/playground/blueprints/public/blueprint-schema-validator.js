@@ -173,12 +173,12 @@ const schema11 = {
 		},
 		AllPHPVersion: {
 			anyOf: [
-				{ $ref: '#/definitions/PhpMasterVersion' },
+				{ $ref: '#/definitions/PHPMasterVersion' },
 				{ $ref: '#/definitions/SupportedPHPVersion' },
 				{ $ref: '#/definitions/LegacyPHPVersion' },
 			],
 		},
-		PhpMasterVersion: { type: 'string', const: 'master' },
+		PHPMasterVersion: { type: 'string', const: 'master' },
 		SupportedPHPVersion: {
 			type: 'string',
 			enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'],
@@ -1595,7 +1595,7 @@ const schema13 = {
 };
 const schema14 = {
 	anyOf: [
-		{ $ref: '#/definitions/PhpMasterVersion' },
+		{ $ref: '#/definitions/PHPMasterVersion' },
 		{ $ref: '#/definitions/SupportedPHPVersion' },
 		{ $ref: '#/definitions/LegacyPHPVersion' },
 	],
@@ -1618,7 +1618,7 @@ function validate13(
 	if (typeof data !== 'string') {
 		const err0 = {
 			instancePath,
-			schemaPath: '#/definitions/PhpMasterVersion/type',
+			schemaPath: '#/definitions/PHPMasterVersion/type',
 			keyword: 'type',
 			params: { type: 'string' },
 			message: 'must be string',
@@ -1633,7 +1633,7 @@ function validate13(
 	if ('master' !== data) {
 		const err1 = {
 			instancePath,
-			schemaPath: '#/definitions/PhpMasterVersion/const',
+			schemaPath: '#/definitions/PHPMasterVersion/const',
 			keyword: 'const',
 			params: { allowedValue: 'master' },
 			message: 'must be equal to constant',

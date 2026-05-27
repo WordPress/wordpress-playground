@@ -1,6 +1,6 @@
 import type { AllPHPVersion } from '@php-wasm/universal';
 import {
-	PhpMasterVersion,
+	PHPMasterVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import css from './style.module.css';
@@ -114,7 +114,7 @@ export function UnconnectedSiteSettingsForm({
 		// locked older WP), reset to the recommended default so the
 		// dropdown doesn't render a value that isn't in its options.
 		if (
-			current !== PhpMasterVersion &&
+			current !== PHPMasterVersion &&
 			!(SupportedPHPVersionsList as readonly string[]).includes(current)
 		) {
 			setValue('phpVersion', RecommendedPHPVersion as AllPHPVersion);
@@ -171,7 +171,7 @@ export function UnconnectedSiteSettingsForm({
 		return [
 			{
 				label: 'PHP Master',
-				value: PhpMasterVersion,
+				value: PHPMasterVersion,
 			},
 			...SupportedPHPVersionsList.map((version) => ({
 				label: `PHP ${version}`,

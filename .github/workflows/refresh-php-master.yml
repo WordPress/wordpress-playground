@@ -65,6 +65,7 @@ jobs:
                   set -euo pipefail
                   branch="php-master-builds"
                   publish_dir="$(mktemp -d)"
+                  trap 'rm -rf "$publish_dir"' EXIT
                   cp -a packages/playground/website/public/php-master/. "$publish_dir/"
 
                   git switch --orphan php-master-publish

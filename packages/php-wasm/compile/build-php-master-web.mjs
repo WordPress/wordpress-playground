@@ -16,6 +16,9 @@ const modes = (process.env.PHP_MASTER_MODES || 'jspi,asyncify')
 	.split(',')
 	.map((mode) => mode.trim())
 	.filter(Boolean);
+if (modes.length === 0) {
+	throw new Error('PHP_MASTER_MODES must list at least one build mode.');
+}
 const append = process.env.PHP_MASTER_APPEND === 'yes';
 const [major, minor] = phpVersion.split('.');
 const loaderFilename = `php_${major}_${minor}.js`;
@@ -87,20 +90,16 @@ function writeMasterIndex() {
 			`export const phpMasterRef = ${JSON.stringify(phpRef)};\n` +
 			`const availableModes = ${JSON.stringify(modes)};\n` +
 			`function selectMode(asyncMode) {\n` +
-			`\treturn availableModes.includes(asyncMode) ? asyncMode : availableModes[0];\n` +
+			`\tif (availableModes.includes(asyncMode)) {\n` +
+			`\t\treturn asyncMode;\n` +
+			`\t}\n` +
+			`\tthrow new Error(\`PHP master build mode \\${asyncMode} is not available.\`);\n` +
 			`}\n` +
 			`export async function getPHPLoaderModule(asyncMode = 'asyncify') {\n` +
 			`\tconst mode = selectMode(asyncMode);\n` +
 			`\treturn mode === 'jspi'\n` +
 			`\t\t? await import('./jspi/${loaderFilename}')\n` +
 			`\t\t: await import('./asyncify/${loaderFilename}');\n` +
-			`}\n` +
-			`export async function getIntlExtensionPath(asyncMode = 'asyncify') {\n` +
-			`\tconst mode = selectMode(asyncMode);\n` +
-			`\treturn new URL(\n` +
-			`\t\t\`./\${mode}/extensions/intl/intl.so\`,\n` +
-			`\t\timport.meta.url\n` +
-			`\t).href;\n` +
 			`}\n`
 	);
 }
@@ -144,13 +143,17 @@ async function fetchPHPVersion(ref) {
 			([, name, value]) => [name, value.trim().replace(/^"|"$/g, '')]
 		)
 	);
-	return (
-		[
-			values.PHP_MAJOR_VERSION,
-			values.PHP_MINOR_VERSION,
-			values.PHP_RELEASE_VERSION,
-		].join('.') + (values.PHP_EXTRA_VERSION || '')
-	);
+	const requiredParts = [
+		values.PHP_MAJOR_VERSION,
+		values.PHP_MINOR_VERSION,
+		values.PHP_RELEASE_VERSION,
+	];
+	if (requiredParts.some((part) => part === undefined)) {
+		throw new Error(
+			`Could not parse the PHP version from php-src ref ${ref}`
+		);
+	}
+	return requiredParts.join('.') + (values.PHP_EXTRA_VERSION || '');
 }
 
 function fetchText(url) {

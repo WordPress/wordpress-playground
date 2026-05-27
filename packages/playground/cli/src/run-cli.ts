@@ -48,6 +48,7 @@ import type { XdebugOptions } from '@php-wasm/node';
 import {
 	AllPHPVersions,
 	isLegacyPHPVersion,
+	isPHPMasterVersion,
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -99,6 +100,10 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
 
+const PlaygroundCLIPHPVersions = AllPHPVersions.filter(
+	(version) => !isPHPMasterVersion(version)
+);
+
 /**
  * Parse the CLI args and run the appropriate command.
  *
@@ -120,7 +125,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: AllPHPVersions,
+				choices: PlaygroundCLIPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -403,7 +408,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: AllPHPVersions,
+				choices: PlaygroundCLIPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',

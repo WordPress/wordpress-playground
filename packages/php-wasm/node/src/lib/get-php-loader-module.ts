@@ -1,4 +1,7 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import {
+	LatestSupportedPHPVersion,
+	isPHPMasterVersion,
+} from '@php-wasm/universal';
 import type { AllPHPVersion, PHPLoaderModule } from '@php-wasm/universal';
 
 /**
@@ -16,6 +19,12 @@ import type { AllPHPVersion, PHPLoaderModule } from '@php-wasm/universal';
 export async function getPHPLoaderModule(
 	version: AllPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
+	if (isPHPMasterVersion(version)) {
+		throw new Error(
+			'PHP master is only available in the web runtime for now.'
+		);
+	}
+
 	try {
 		switch (version) {
 			case '8.5':

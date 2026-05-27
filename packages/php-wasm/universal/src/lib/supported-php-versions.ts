@@ -1,5 +1,5 @@
-export const PhpMasterVersion = 'master';
-export type PhpMasterVersion = typeof PhpMasterVersion;
+export const PHPMasterVersion = 'master';
+export type PHPMasterVersion = typeof PHPMasterVersion;
 
 export const SupportedPHPVersions = [
 	'8.5',
@@ -20,10 +20,10 @@ export type LegacyPHPVersion = (typeof LegacyPHPVersions)[number];
 /**
  * Type guard for the PHP master build pseudo-version.
  */
-export function isPhpMasterVersion(
+export function isPHPMasterVersion(
 	version: string | undefined
-): version is PhpMasterVersion {
-	return version === PhpMasterVersion;
+): version is PHPMasterVersion {
+	return version === PHPMasterVersion;
 }
 
 /**
@@ -38,11 +38,11 @@ export function isLegacyPHPVersion(
 }
 
 export const AllPHPVersions = [
-	PhpMasterVersion,
+	PHPMasterVersion,
 	...SupportedPHPVersions,
 	...LegacyPHPVersions,
 ] as const;
 export type AllPHPVersion =
-	| PhpMasterVersion
+	| PHPMasterVersion
 	| SupportedPHPVersion
 	| LegacyPHPVersion;
