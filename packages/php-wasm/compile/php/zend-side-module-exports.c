@@ -115,7 +115,9 @@ playground_side_module_function _playground_zend_side_module_function_exports[] 
 	(playground_side_module_function)sched_yield,
 	(playground_side_module_function)writev,
 #if PHP_VERSION_ID >= 80000
+	(playground_side_module_function)_call_user_function_impl,
 	(playground_side_module_function)zend_array_count,
+	(playground_side_module_function)zend_declare_class_constant_ex,
 	(playground_side_module_function)zend_declare_property,
 	(playground_side_module_function)zend_do_implement_interface,
 	(playground_side_module_function)zend_hash_get_current_key_zval_ex,
@@ -123,6 +125,7 @@ playground_side_module_function _playground_zend_side_module_function_exports[] 
 	(playground_side_module_function)zend_is_iterable,
 	(playground_side_module_function)zend_lookup_class_ex,
 	(playground_side_module_function)zend_objects_new,
+	(playground_side_module_function)zend_register_internal_class_ex,
 	(playground_side_module_function)zend_register_internal_interface,
 	(playground_side_module_function)zend_std_get_properties,
 	(playground_side_module_function)zend_std_has_property,
