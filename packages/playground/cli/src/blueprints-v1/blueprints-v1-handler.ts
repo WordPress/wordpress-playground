@@ -15,7 +15,10 @@ import {
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
-import { resolveWordPressRelease } from '@wp-playground/wordpress';
+import {
+	type WordPressBootResult,
+	resolveWordPressRelease,
+} from '@wp-playground/wordpress';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -64,7 +67,7 @@ export class BlueprintsV1Handler {
 	async bootWordPress(
 		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
-	) {
+	): Promise<WordPressBootResult> {
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
 		let preinstalledWpContentPath: string | undefined = undefined;
@@ -134,7 +137,7 @@ export class BlueprintsV1Handler {
 		);
 
 		// TODO: Fix this type issue that requires the cast to unknown
-		await (
+		const bootResult = await (
 			playground as unknown as PlaygroundCliBlueprintV1Worker
 		).bootWordPress(
 			{
@@ -148,6 +151,7 @@ export class BlueprintsV1Handler {
 				sqliteIntegrationPluginZip:
 					await sqliteIntegrationPluginZip?.arrayBuffer(),
 				constants: mergeDefinedConstants(this.args),
+				installOptions: this.args.installOptions,
 			},
 			workerPostInstallMountsPort
 		);
@@ -169,7 +173,7 @@ export class BlueprintsV1Handler {
 			);
 		}
 
-		return playground;
+		return bootResult;
 	}
 
 	async bootRequestHandler({

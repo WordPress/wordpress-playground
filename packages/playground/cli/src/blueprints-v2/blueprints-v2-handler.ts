@@ -1,4 +1,5 @@
 import type { Pooled, SupportedPHPVersion } from '@php-wasm/universal';
+import type { WordPressBootResult } from '@wp-playground/wordpress';
 import { consumeAPI, type RemoteAPI } from '@php-wasm/universal';
 import type {
 	PlaygroundCliBlueprintV2Worker,
@@ -48,7 +49,7 @@ export class BlueprintsV2Handler {
 	async bootWordPress(
 		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
-	) {
+	): Promise<WordPressBootResult> {
 		const workerBootArgs = {
 			command: this.args.command,
 			siteUrl: this.siteUrl,
@@ -60,7 +61,7 @@ export class BlueprintsV2Handler {
 		await (
 			playground as unknown as PlaygroundCliBlueprintV2Worker
 		).bootWordPress(workerBootArgs, workerPostInstallMountsPort);
-		return playground;
+		return { adminCredentialsApplied: false };
 	}
 
 	async bootRequestHandler({

@@ -152,6 +152,29 @@ export type WordPressInstallMode =
 	| 'install-from-existing-files-if-needed'
 	| 'do-not-attempt-installing';
 
+export interface WordPressInstallOptions {
+	siteTitle?: string;
+	adminUsername?: string;
+	adminPassword?: string;
+	adminEmail?: string;
+}
+
+export interface WordPressBootResult {
+	adminCredentialsApplied: boolean;
+}
+
+const bootResults = new WeakMap<PHPRequestHandler, WordPressBootResult>();
+
+export function getWordPressBootResult(
+	requestHandler: PHPRequestHandler
+): WordPressBootResult {
+	return (
+		bootResults.get(requestHandler) ?? {
+			adminCredentialsApplied: false,
+		}
+	);
+}
+
 export interface BootWordPressOptions {
 	/** PHP version string (e.g. '8.3', '5.2'). */
 	phpVersion?: string;
@@ -202,6 +225,8 @@ export interface BootWordPressOptions {
 	 * and WP_SITEURL constants in WordPress.
 	 */
 	siteUrl: string;
+	/** Values to pass to the standard WordPress installer. */
+	installOptions?: WordPressInstallOptions;
 }
 
 /**
@@ -277,6 +302,9 @@ export async function bootWordPress(
 	const installationMode =
 		options['wordpressInstallMode'] ?? 'download-and-install';
 	const hasCustomDatabasePath = !!options.dataSqlPath;
+	let bootResult: WordPressBootResult = {
+		adminCredentialsApplied: false,
+	};
 
 	if (
 		['download-and-install', 'install-from-existing-files'].includes(
@@ -290,7 +318,16 @@ export async function bootWordPress(
 		});
 		// Install WordPress if it's not installed.
 		try {
-			await installWordPress(php);
+			const finalizeResult = await installWordPress(
+				php,
+				options.installOptions
+			);
+			bootResult = {
+				adminCredentialsApplied: finalizeResult.adminCredentialsApplied,
+			};
+			if (!finalizeResult.databaseConnected && !hasCustomDatabasePath) {
+				throwDatabaseConnectionError(php, requestHandler);
+			}
 		} catch (error) {
 			// If installation failed, check if it's a database issue
 			// to provide a more specific error message (but skip if user provided custom DB path)
@@ -299,10 +336,6 @@ export async function bootWordPress(
 			}
 			// If we get here, the database is valid but installation failed for another reason
 			throw error;
-		}
-		// Validate the database connection after installation (skip if user provided custom DB path)
-		if (!hasCustomDatabasePath) {
-			await assertValidDatabaseConnection(requestHandler);
 		}
 	} else if ('install-from-existing-files-if-needed' === installationMode) {
 		// Check database prerequisites before attempting installation
@@ -313,7 +346,20 @@ export async function bootWordPress(
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			try {
-				await installWordPress(php);
+				const finalizeResult = await installWordPress(
+					php,
+					options.installOptions
+				);
+				bootResult = {
+					adminCredentialsApplied:
+						finalizeResult.adminCredentialsApplied,
+				};
+				if (
+					!finalizeResult.databaseConnected &&
+					!hasCustomDatabasePath
+				) {
+					throwDatabaseConnectionError(php, requestHandler);
+				}
 			} catch (error) {
 				// If installation failed, check if it's a database issue
 				// to provide a more specific error message (but skip if user provided custom DB path)
@@ -323,13 +369,22 @@ export async function bootWordPress(
 				// If we get here, the database is valid but installation failed for another reason
 				throw error;
 			}
-		}
-		// Validate the database connection after installation (skip if user provided custom DB path)
-		if (!hasCustomDatabasePath) {
-			await assertValidDatabaseConnection(requestHandler);
+		} else {
+			const finalizeResult = await finalizeWordPressBoot(
+				php,
+				options.installOptions,
+				{ setPermalinks: false }
+			);
+			bootResult = {
+				adminCredentialsApplied: finalizeResult.adminCredentialsApplied,
+			};
+			if (!finalizeResult.databaseConnected && !hasCustomDatabasePath) {
+				throwDatabaseConnectionError(php, requestHandler);
+			}
 		}
 	}
 
+	bootResults.set(requestHandler, bootResult);
 	return requestHandler;
 }
 
@@ -343,6 +398,13 @@ async function assertValidDatabaseConnection(
 		return;
 	}
 
+	throwDatabaseConnectionError(php, requestHandler);
+}
+
+function throwDatabaseConnectionError(
+	php: PHP,
+	requestHandler: PHPRequestHandler
+): never {
 	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
 		// The core SQLite integration has been installed, but the database connection is not valid.
 		throw new Error('Error connecting to the SQLite database.');
@@ -539,7 +601,24 @@ export async function isWordPressInstalled(php: PHP) {
  * Without them, the installer may take 60 seconds,
  * 300 seconds, or even more to complete.
  */
-async function installWordPress(php: PHP) {
+async function installWordPress(
+	php: PHP,
+	installOptions?: WordPressInstallOptions
+) {
+	const adminPassword = installOptions?.adminPassword ?? 'password';
+	const requestBody = new URLSearchParams({
+		language: 'en',
+		prefix: 'wp_',
+		weblog_title: installOptions?.siteTitle ?? 'My WordPress Website',
+		user_name: installOptions?.adminUsername ?? 'admin',
+		admin_password: adminPassword,
+		// The installation wizard demands typing the same password twice
+		admin_password2: adminPassword,
+		Submit: 'Install WordPress',
+		pw_weak: '1',
+		admin_email: installOptions?.adminEmail ?? 'admin@localhost.com',
+	});
+	const installerStartedAt = performance.now();
 	const response = await withPHPIniValues(
 		php,
 		{
@@ -550,22 +629,32 @@ async function installWordPress(php: PHP) {
 			await php.request({
 				url: '/wp-admin/install.php?step=2',
 				method: 'POST',
-				body: {
-					language: 'en',
-					prefix: 'wp_',
-					weblog_title: 'My WordPress Website',
-					user_name: 'admin',
-					admin_password: 'password',
-					// The installation wizard demands typing the same password twice
-					admin_password2: 'password',
-					Submit: 'Install WordPress',
-					pw_weak: '1',
-					admin_email: 'admin@localhost.com',
+				headers: {
+					'content-type': 'application/x-www-form-urlencoded',
 				},
+				body: new TextEncoder().encode(requestBody.toString()),
 			})
 	);
+	logger.debug(
+		`WordPress installer request completed in ${(
+			performance.now() - installerStartedAt
+		).toFixed(2)}ms`
+	);
 
-	if (!(await isWordPressInstalled(php))) {
+	const finalizationStartedAt = performance.now();
+	const finalizeResult = await finalizeWordPressBoot(php, installOptions, {
+		setPermalinks: true,
+	});
+
+	logger.debug(
+		`WordPress boot finalization completed in ${(
+			performance.now() - finalizationStartedAt
+		).toFixed(2)}ms; adminCredentialsApplied=${
+			finalizeResult.adminCredentialsApplied
+		}`
+	);
+
+	if (!finalizeResult.installed) {
 		throw new Error(
 			`Failed to install WordPress – installer responded with "${response.text?.substring(
 				0,
@@ -574,36 +663,11 @@ async function installWordPress(php: PHP) {
 		);
 	}
 
-	const defaultedToPrettyPermalinks = await php.run({
-		code: `<?php
-			ob_start();
-			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-			if (!file_exists($wp_load)) {
-				echo '0';
-				exit;
-			}
-			require $wp_load;
-			$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
-			$option_result = update_option(
-				'permalink_structure',
-				$nice_permalinks
-			);
-			ob_clean();
-			if ( get_option( 'permalink_structure' ) === $nice_permalinks ) {
-				echo '1';
-			} else {
-				echo '0';
-			}
-			ob_end_flush();
-		`,
-		env: {
-			DOCUMENT_ROOT: php.documentRoot,
-		},
-	});
-
-	if (defaultedToPrettyPermalinks.text !== '1') {
+	if (!finalizeResult.permalinks) {
 		logger.warn('Failed to default to pretty permalinks after WP install.');
 	}
+
+	return finalizeResult;
 }
 
 export function getFileNotFoundActionForWordPress(
@@ -616,6 +680,183 @@ export function getFileNotFoundActionForWordPress(
 		type: 'internal-redirect',
 		uri: '/index.php',
 	};
+}
+
+interface WordPressBootFinalizationResult extends WordPressBootResult {
+	installed: boolean;
+	permalinks: boolean;
+	databaseConnected: boolean;
+}
+
+async function finalizeWordPressBoot(
+	php: PHP,
+	installOptions: WordPressInstallOptions | undefined,
+	options: { setPermalinks: boolean }
+): Promise<WordPressBootFinalizationResult> {
+	const result = await php.run({
+		code: `<?php
+			ob_start();
+			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+			if (!file_exists($wp_load)) {
+				ob_clean();
+				echo json_encode(array(
+					'installed' => false,
+					'permalinks' => false,
+					'databaseConnected' => false,
+					'adminCredentialsApplied' => false,
+				));
+				exit;
+			}
+
+			require $wp_load;
+
+			$installed = is_blog_installed();
+			$permalinks = false;
+			$database_connected = false;
+			$admin_credentials_applied = false;
+
+			if ($installed) {
+				$install_options = json_decode(
+					getenv('PLAYGROUND_WORDPRESS_INSTALL_OPTIONS') ?: '{}',
+					true
+				);
+				$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
+				if (getenv('PLAYGROUND_SET_PERMALINKS') === '1') {
+					if (
+						is_array($install_options) &&
+						isset($install_options['siteTitle'])
+					) {
+						update_option('blogname', $install_options['siteTitle']);
+					}
+					update_option('permalink_structure', $nice_permalinks);
+				}
+				$permalinks = get_option('permalink_structure') === $nice_permalinks;
+				$database_connected = $wpdb->check_connection(false);
+				if (is_array($install_options)) {
+					$admin_credentials_applied =
+						playground_apply_admin_credentials($install_options);
+				}
+			}
+
+			ob_clean();
+			echo json_encode(array(
+				'installed' => (bool) $installed,
+				'permalinks' => (bool) $permalinks,
+				'databaseConnected' => (bool) $database_connected,
+				'adminCredentialsApplied' => (bool) $admin_credentials_applied,
+			));
+			ob_end_flush();
+
+			function playground_apply_admin_credentials($install_options) {
+				$has_username = isset($install_options['adminUsername']);
+				$has_password = isset($install_options['adminPassword']);
+				$has_email = isset($install_options['adminEmail']);
+				if (!$has_username && !$has_password && !$has_email) {
+					return false;
+				}
+
+				$username = $has_username
+					? sanitize_user($install_options['adminUsername'], true)
+					: 'admin';
+				$user = get_user_by('login', $username);
+				if (
+					!$user &&
+					$has_username &&
+					getenv('PLAYGROUND_ALLOW_ADMIN_INSERT') === '1'
+				) {
+					$user_id = wp_insert_user(array(
+						'user_login' => $username,
+						'user_pass' => $has_password
+							? $install_options['adminPassword']
+							: wp_generate_password(),
+						'user_email' => $has_email
+							? $install_options['adminEmail']
+							: $username . '@localhost.com',
+						'role' => 'administrator',
+					));
+					if (!is_wp_error($user_id)) {
+						$user = get_user_by('id', $user_id);
+					}
+				}
+				if (!$user && $username !== 'admin') {
+					$user = get_user_by('login', 'admin');
+				}
+				if (!$user && $has_email) {
+					$user = get_user_by('email', $install_options['adminEmail']);
+				}
+				if (!$user) {
+					return false;
+				}
+
+				if ($has_password) {
+					wp_set_password($install_options['adminPassword'], $user->ID);
+				}
+
+				$user_data = array('ID' => $user->ID);
+				if ($has_email) {
+					$user_data['user_email'] = $install_options['adminEmail'];
+				}
+				if ($has_username && $user->user_login !== $username) {
+					$user_data['user_login'] = $username;
+					$user_data['user_nicename'] = $username;
+					$user_data['display_name'] = $username;
+				}
+
+				if (count($user_data) > 1) {
+					$update_result = wp_update_user($user_data);
+					if (is_wp_error($update_result)) {
+						return false;
+					}
+				}
+
+				$updated_user = get_user_by('id', $user->ID);
+				if (!$updated_user) {
+					return false;
+				}
+				if ($has_username && $updated_user->user_login !== $username) {
+					return false;
+				}
+				if (
+					$has_email &&
+					$updated_user->user_email !== $install_options['adminEmail']
+				) {
+					return false;
+				}
+				if (
+					$has_password &&
+					!wp_check_password(
+						$install_options['adminPassword'],
+						$updated_user->user_pass,
+						$updated_user->ID
+					)
+				) {
+					return false;
+				}
+
+				return true;
+			}
+		`,
+		env: {
+			DOCUMENT_ROOT: php.documentRoot,
+			PLAYGROUND_SET_PERMALINKS: options.setPermalinks ? '1' : '0',
+			PLAYGROUND_ALLOW_ADMIN_INSERT: options.setPermalinks ? '1' : '0',
+			PLAYGROUND_WORDPRESS_INSTALL_OPTIONS: JSON.stringify(
+				installOptions ?? {}
+			),
+		},
+	});
+
+	try {
+		return JSON.parse(result.text);
+	} catch (error) {
+		throw new Error(
+			`Failed to finalize WordPress boot – received "${result.text?.substring(
+				0,
+				100
+			)}"`,
+			{ cause: error }
+		);
+	}
 }
 
 async function isDatabaseConnectionValid(php: PHP) {

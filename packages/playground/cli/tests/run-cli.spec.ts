@@ -169,6 +169,55 @@ describe.each(blueprintVersions)(
 			expect(text).toContain('http://127.0.0.1:9500');
 		});
 
+		test('should expose boot result after multi-worker install credentials', async () => {
+			const adminPassword = 'cli-boot-secret';
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				workers: 2,
+				studioInstallOptions: {
+					weblogTitle: 'CLI Install Options',
+					adminUsername: 'cliadmin',
+					adminPassword,
+					adminEmail: 'cliadmin@example.com',
+				},
+			});
+
+			expect(cliServer.wordpressBootResult).toEqual({
+				adminCredentialsApplied: true,
+			});
+			expect(JSON.stringify(cliServer.wordpressBootResult)).not.toContain(
+				adminPassword
+			);
+			expect(cliServer[internalsKeyForTesting].workerThreadCount).toBe(2);
+
+			await cliServer.playground.writeFile(
+				'/wordpress/check-cli-admin.php',
+				`<?php
+						require_once '/wordpress/wp-load.php';
+						$user = get_user_by('login', 'cliadmin');
+						echo json_encode(array(
+							'blogname' => get_option('blogname'),
+							'email' => $user ? $user->user_email : null,
+							'passwordMatches' => $user
+								? wp_check_password('${adminPassword}', $user->user_pass, $user->ID)
+								: false,
+						));
+					`
+			);
+			const response = await fetch(
+				new URL('/check-cli-admin.php', cliServer.serverUrl)
+			);
+			const details = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(details).toEqual({
+				blogname: 'CLI Install Options',
+				email: 'cliadmin@example.com',
+				passwordMatches: true,
+			});
+		}, 120_000);
+
 		test('should set WordPress version', async () => {
 			const { MinifiedWordPressVersionsList } =
 				await import('@wp-playground/wordpress-builds');
@@ -196,10 +245,11 @@ describe.each(blueprintVersions)(
 			expect(text).toContain(oldestSupportedVersion);
 		});
 
-		test('should run blueprint', async () => {
+		test('should run blueprint after secondary workers boot', async () => {
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
+				workers: 2,
 				blueprint: {
 					steps: [
 						{
@@ -211,11 +261,22 @@ describe.each(blueprintVersions)(
 					],
 				},
 			});
+
+			expect(cliServer[internalsKeyForTesting].bootedWorkerCount()).toBe(
+				2
+			);
+
 			const homeUrl = new URL('/', cliServer.serverUrl);
-			const response = await fetch(homeUrl);
-			expect(response.status).toBe(200);
-			const text = await response.text();
-			expect(text).toContain('<title>My Blog Name</title>');
+			const responses = await Promise.all([
+				fetch(homeUrl),
+				fetch(homeUrl),
+				fetch(homeUrl),
+			]);
+			for (const response of responses) {
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain('<title>My Blog Name</title>');
+			}
 		});
 
 		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({

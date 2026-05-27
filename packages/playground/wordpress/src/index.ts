@@ -12,11 +12,14 @@ export {
 	bootWordPress,
 	bootWordPressAndRequestHandler,
 	bootRequestHandler,
+	getWordPressBootResult,
 	getFileNotFoundActionForWordPress,
 } from './boot';
 export type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
+	WordPressBootResult,
+	WordPressInstallOptions,
 	WordPressInstallMode,
 } from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './wp-config';

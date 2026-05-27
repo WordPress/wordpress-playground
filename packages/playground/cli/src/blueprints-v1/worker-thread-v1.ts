@@ -14,6 +14,8 @@ import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	type WordPressInstallMode,
+	type WordPressInstallOptions,
+	getWordPressBootResult,
 	bootRequestHandler,
 	bootWordPress,
 } from '@wp-playground/wordpress';
@@ -37,6 +39,7 @@ export type WorkerBootWordPressOptions = {
 	 * PHP constants to define via php.defineConstant().
 	 */
 	constants?: Record<string, string | number | boolean>;
+	installOptions?: WordPressInstallOptions;
 };
 
 interface WorkerBootRequestHandlerOptions {
@@ -106,10 +109,12 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			sqliteIntegrationPluginZip,
 			dataSqlPath,
 			constants,
+			installOptions,
 		} = options;
 
 		try {
-			await bootWordPress(this.__internal_getRequestHandler()!, {
+			const requestHandler = this.__internal_getRequestHandler()!;
+			await bootWordPress(requestHandler, {
 				siteUrl,
 				phpVersion,
 				wordpressInstallMode,
@@ -137,7 +142,9 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				dataSqlPath,
 				constants,
+				installOptions,
 			});
+			const bootResult = getWordPressBootResult(requestHandler);
 
 			// Notify all workers to apply post-install mounts.
 			const postInstall = consumeAPI<{
@@ -147,6 +154,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			postInstall[releaseApiProxy]();
 
 			setApiReady();
+			return bootResult;
 		} catch (e) {
 			setAPIError(e as Error);
 			throw e;

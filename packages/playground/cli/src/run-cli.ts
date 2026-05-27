@@ -20,6 +20,7 @@ import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
+	CompiledBlueprintV1,
 } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
@@ -65,7 +66,11 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
-import { type WordPressInstallMode } from '@wp-playground/wordpress';
+import {
+	type WordPressBootResult,
+	type WordPressInstallMode,
+	type WordPressInstallOptions,
+} from '@wp-playground/wordpress';
 import {
 	type Mount,
 	addXdebugIDEConfig,
@@ -911,6 +916,12 @@ export interface RunCLIArgs {
 	workers?: number | 'auto';
 	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
+	installOptions?: WordPressInstallOptionsWithAliases;
+	wordpressInstallOptions?: WordPressInstallOptionsWithAliases;
+	/**
+	 * @deprecated Use installOptions instead. Kept for Studio compatibility.
+	 */
+	studioInstallOptions?: WordPressInstallOptionsWithAliases;
 	/**
 	 * PHP string constants defined via --define flag.
 	 * Set via php.defineConstant(), process-specific only.
@@ -951,10 +962,67 @@ export interface RunCLIArgs {
 	reset?: boolean;
 }
 
+function createMutablePooledProxy<T extends object>(
+	getPool: () => Pooled<T>
+): Pooled<T> {
+	return new Proxy({} as Pooled<T>, {
+		get(_target, prop: string | symbol) {
+			if (prop === 'then') {
+				return undefined;
+			}
+			return new Proxy(function () {}, {
+				apply(_target, _thisArg, args: any[]) {
+					return (getPool() as any)[prop](...args);
+				},
+				get(_target, innerProp) {
+					if (innerProp === 'then') {
+						return (resolve: any, reject: any) =>
+							Promise.resolve((getPool() as any)[prop]).then(
+								resolve,
+								reject
+							);
+					}
+					return undefined;
+				},
+			});
+		},
+	});
+}
+
+function normalizeWordPressInstallOptions(
+	args: RunCLIArgs
+): WordPressInstallOptions | undefined {
+	const options =
+		args.installOptions ??
+		args.wordpressInstallOptions ??
+		args.studioInstallOptions;
+	if (!options) {
+		return undefined;
+	}
+
+	return {
+		siteTitle: options.siteTitle ?? options.weblogTitle,
+		adminUsername: options.adminUsername,
+		adminPassword: options.adminPassword,
+		adminEmail: options.adminEmail,
+	};
+}
+
 // TODO: Maybe we should just be declaring an interface instead of a type union
 export type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
 	| PlaygroundCliBlueprintV2Worker;
+
+type WordPressInstallOptionsWithAliases = WordPressInstallOptions & {
+	/**
+	 * @deprecated Use siteTitle instead.
+	 */
+	weblogTitle?: string;
+};
+
+const defaultWordPressBootResult: WordPressBootResult = {
+	adminCredentialsApplied: false,
+};
 
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
@@ -962,12 +1030,14 @@ export interface RunCLIServer extends AsyncDisposable {
 	playground: Pooled<PlaygroundCliWorker>;
 	server: Server;
 	serverUrl: string;
+	wordpressBootResult: WordPressBootResult;
 
 	[Symbol.asyncDispose](): Promise<void>;
 
 	// Provide some details and helpers for automated testing.
 	[internalsKeyForTesting]: {
 		workerThreadCount: number;
+		bootedWorkerCount: () => number;
 	};
 }
 
@@ -1023,6 +1093,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	if (args.wordpressInstallMode === undefined) {
 		args.wordpressInstallMode = 'download-and-install';
 	}
+
+	args = {
+		...args,
+		installOptions: normalizeWordPressInstallOptions(args),
+	};
 
 	// Keeping the '--quiet' option to preserve backward compatibility
 	if (args.quiet) {
@@ -1507,14 +1582,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			};
 
 			try {
-				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
-				for (
-					let workerIndex = 0;
-					workerIndex < targetWorkerCount;
-					workerIndex++
-				) {
-					const promiseToBoot = spawnWorkerThread(workerType, {
+				const bootWorker = async (
+					workerIndex: number
+				): Promise<[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]> => {
+					const startedAt = performance.now();
+					const spawnResult = await spawnWorkerThread(workerType, {
 						onExit: (exitCode: number) => {
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
@@ -1531,55 +1604,44 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							);
 							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 						},
-					}).then(
-						async (
-							spawnResult: SpawnedWorker
-						): Promise<
-							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
-						> => {
-							// Remember the worker process before booting the Playground
-							// so we can clean it up if there is an error during boot.
-							spawnedWorkers.push(spawnResult);
+					});
+					if (disposing) {
+						await spawnResult.worker.terminate();
+						throw new Error('Playground CLI is disposing.');
+					}
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-							const playgroundApi =
-								await handler.bootRequestHandler({
-									worker: spawnResult,
-									fileLockManagerPort,
-									nativeInternalDirPath,
-								});
+					// Remember the worker process before booting the Playground
+					// so we can clean it up if there is an error during boot.
+					spawnedWorkers.push(spawnResult);
 
-							workerToPlaygroundMap.set(
-								spawnResult,
-								playgroundApi
-							);
+					const fileLockManagerPort =
+						await exposeFileLockManager(fileLockManager);
+					const playgroundApi = await handler.bootRequestHandler({
+						worker: spawnResult,
+						fileLockManagerPort,
+						nativeInternalDirPath,
+					});
 
-							return [spawnResult, playgroundApi];
-						}
+					workerToPlaygroundMap.set(spawnResult, playgroundApi);
+					logger.debug(
+						`Worker ${workerIndex} request handler booted in ${(
+							performance.now() - startedAt
+						).toFixed(2)}ms`
 					);
 
-					promisesToBoot.push(promiseToBoot);
+					return [spawnResult, playgroundApi];
+				};
 
-					// TODO: Remove this workaround after we remove the inherent race
-					// from @wp-playground/wordpress's bootRequestHandler() function.
-					if (workerIndex === 0) {
-						// Wait for the first worker to boot to avoid a race condition
-						// with writing initial PHP files in bootRequestHandler().
-						// This is the race condition:
-						// https://github.com/WordPress/wordpress-playground/blob/e758ee0893d199416a2d740195815234584b1b44/packages/playground/wordpress/src/boot.ts#L416-L426
-						// Multiple workers may detect that .boot-files-written does not exist
-						// and proceed to try to write initial boot files.
-						await promiseToBoot;
-					}
-				}
-
-				await Promise.all(promisesToBoot);
+				await bootWorker(0);
 				playgroundPool = createObjectPoolProxy(
 					spawnedWorkers.map(
 						(spawnedWorker) =>
 							workerToPlaygroundMap.get(spawnedWorker)!
 					)
+				);
+				let wordpressBootResult = defaultWordPressBootResult;
+				const playgroundForReturn = createMutablePooledProxy(
+					() => playgroundPool
 				);
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
@@ -1611,27 +1673,83 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						undefined,
 						mainThreadPostInstallMountsPort
 					);
-					await handler.bootWordPress(
+					const bootWordPressStartedAt = performance.now();
+					wordpressBootResult = await handler.bootWordPress(
 						playgroundPool,
 						workerPostInstallMountsPort
 					);
 					mainThreadPostInstallMountsPort.close();
+					logger.debug(
+						`bootWordPress completed in ${(
+							performance.now() - bootWordPressStartedAt
+						).toFixed(2)}ms`
+					);
 
-					wordPressReady = true;
-
+					let compiledBlueprint: CompiledBlueprintV1 | undefined;
 					if (!args['experimental-blueprints-v2-runner']) {
-						const compiledBlueprint = await (
+						compiledBlueprint = await (
 							handler as BlueprintsV1Handler
 						).compileInputBlueprint(
 							args['additional-blueprint-steps'] || []
 						);
+					}
+					const hasPostBootSteps =
+						!!compiledBlueprint || !!args.phpmyadmin;
 
-						if (compiledBlueprint) {
-							await runBlueprintV1Steps(
-								compiledBlueprint,
-								playgroundPool
-							);
-						}
+					const bootSecondaryWorkers = async () => {
+						const startedAt = performance.now();
+						await Promise.all(
+							Array.from(
+								{ length: targetWorkerCount - 1 },
+								(_, workerIndex) => workerIndex + 1
+							).map(async (workerIndex) => {
+								const [, playground] =
+									await bootWorker(workerIndex);
+								await playground.mountAfterWordPressInstall(
+									args['mount'] || []
+								);
+							})
+						);
+						playgroundPool = createObjectPoolProxy(
+							spawnedWorkers.map(
+								(spawnedWorker) =>
+									workerToPlaygroundMap.get(spawnedWorker)!
+							)
+						);
+						logger.debug(
+							`Secondary workers booted in ${(
+								performance.now() - startedAt
+							).toFixed(2)}ms`
+						);
+					};
+					const secondaryWorkersPromise = bootSecondaryWorkers();
+					if (args.command === 'server' && !hasPostBootSteps) {
+						wordPressReady = true;
+						void secondaryWorkersPromise.catch((error) => {
+							if (!disposing) {
+								logger.error(
+									'Failed to boot secondary workers:',
+									error
+								);
+							}
+						});
+					} else {
+						// Blueprint/phpMyAdmin setup should observe the final worker pool,
+						// and requests should wait until that setup is complete.
+						await secondaryWorkersPromise;
+					}
+
+					if (compiledBlueprint) {
+						const blueprintStartedAt = performance.now();
+						await runBlueprintV1Steps(
+							compiledBlueprint,
+							playgroundPool
+						);
+						logger.debug(
+							`Blueprint v1 steps completed in ${(
+								performance.now() - blueprintStartedAt
+							).toFixed(2)}ms`
+						);
 					}
 
 					// If phpMyAdmin is enabled and not already installed, install it.
@@ -1691,6 +1809,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
 
+				wordPressReady = true;
+
 				if (args.phpmyadmin) {
 					const phpMyAdminPath = path.join(
 						args.phpmyadmin as string,
@@ -1711,12 +1831,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				return {
-					playground: playgroundPool,
+					playground: playgroundForReturn,
 					server,
 					serverUrl,
+					wordpressBootResult,
 					[Symbol.asyncDispose]: disposeCLI,
 					[internalsKeyForTesting]: {
 						workerThreadCount: targetWorkerCount,
+						bootedWorkerCount: () => workerToPlaygroundMap.size,
 					},
 				};
 			} catch (error) {
