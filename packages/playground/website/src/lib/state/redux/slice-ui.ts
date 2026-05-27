@@ -60,21 +60,6 @@ const serializeSiteErrorDetails = (
 	details?: unknown
 ): SerializedSiteErrorDetails | undefined => {
 	if (details instanceof BlueprintStepExecutionError) {
-		// Look for a url property in the cause chain
-		let url: string | undefined;
-		let current: unknown = details.cause;
-		while (current && !url) {
-			if (
-				current &&
-				typeof current === 'object' &&
-				'url' in current &&
-				typeof (current as any).url === 'string'
-			) {
-				url = (current as any).url;
-			}
-			current = current instanceof Error ? current.cause : undefined;
-		}
-
 		return {
 			type: 'blueprint-step-error',
 			stepNumber: details.stepNumber,
@@ -87,7 +72,7 @@ const serializeSiteErrorDetails = (
 					: details.message,
 			name: details.name,
 			stack: details.stack,
-			url,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (details instanceof Error) {
@@ -95,10 +80,7 @@ const serializeSiteErrorDetails = (
 			message: details.message,
 			name: details.name,
 			stack: details.stack,
-			url:
-				'url' in details && typeof details.url === 'string'
-					? details.url
-					: undefined,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (typeof details === 'string') {
@@ -139,6 +121,28 @@ const serializeSiteErrorDetails = (
 		return String(details);
 	}
 };
+
+function findUrlInCauseChain(error: Error): string | undefined {
+	let current: unknown = error;
+	const seen = new Set<Error>();
+	while (current) {
+		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
+		}
+		if (
+			typeof current === 'object' &&
+			'url' in current &&
+			typeof (current as any).url === 'string'
+		) {
+			return (current as any).url;
+		}
+		current = current instanceof Error ? current.cause : undefined;
+	}
+	return undefined;
+}
 
 export interface UIState {
 	activeSite?: {
