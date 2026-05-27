@@ -3,11 +3,13 @@ import type {
 	EmscriptenOptions,
 	ResolvedInstallOptions,
 	ResolvedPHPExtension,
-	SupportedPHPVersion,
+	AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	withResolvedPHPExtensions,
 	resolvePHPExtension,
+	isLegacyPHPVersion,
+	isNightlyPHPVersion,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 
@@ -57,7 +59,7 @@ export type PHPWebExtension =
  * downloads do not block each other.
  */
 export async function withPHPExtensions(
-	version: SupportedPHPVersion,
+	version: AllPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	options: EmscriptenOptions,
 	extensions: PHPWebExtension[] = []
@@ -84,10 +86,16 @@ export async function withPHPExtensions(
  * fetched and staged before PHP reads the generated `intl.ini`.
  */
 async function resolveRuntimePHPWebExtension(
-	version: SupportedPHPVersion,
+	version: AllPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	extension: PHPWebExtension
 ): Promise<ResolvedPHPExtension> {
+	if (isLegacyPHPVersion(version)) {
+		throw new Error(
+			`Extensions are not available for legacy PHP ${version}.`
+		);
+	}
+
 	/*
 	 * External extension requests always carry a `source`. Built-in web
 	 * extension requests are either strings or `{ name }` objects. This shape
@@ -99,6 +107,11 @@ async function resolveRuntimePHPWebExtension(
 		if (asyncMode === 'asyncify') {
 			throw new Error(
 				'External PHP extensions require JSPI. Asyncify is only supported for PHP.wasm bundled extensions.'
+			);
+		}
+		if (isNightlyPHPVersion(version)) {
+			throw new Error(
+				'External PHP extensions are not available for PHP nightly.'
 			);
 		}
 		return await resolvePHPExtension({
@@ -113,7 +126,7 @@ async function resolveRuntimePHPWebExtension(
 	}
 	const memoizedFetch = createMemoizedFetch(fetch);
 
-	const extensionPath = await getIntlExtensionModule(version);
+	const extensionPath = await getIntlExtensionModule(version, asyncMode);
 	// @ts-ignore
 	const dataPath = (await import('./intl/shared/icu.dat')).default;
 

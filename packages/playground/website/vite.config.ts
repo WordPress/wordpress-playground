@@ -123,7 +123,7 @@ export default defineConfig(({ command, mode }) => {
 				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
-				'^[/]((?!website-server).)': {
+				'^[/]((?!website-server|php-nightly).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 					changeOrigin: true,
 				},

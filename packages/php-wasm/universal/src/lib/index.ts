@@ -47,7 +47,9 @@ export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
 	AllPHPVersions,
+	NightlyPHPVersion,
 	isLegacyPHPVersion,
+	isNightlyPHPVersion,
 	LatestSupportedPHPVersion,
 	LegacyPHPVersions,
 	SupportedPHPVersions,

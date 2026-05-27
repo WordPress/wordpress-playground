@@ -55,6 +55,8 @@ npm run format:uncommitted               # Format only uncommitted files
 # PHP Recompilation (see compile-php-wasm skill for details)
 npm run recompile:php:web                # Recompile all PHP versions for web
 npm run recompile:php:node               # Recompile all PHP versions for Node.js
+npm run recompile:php:web:nightly        # Recompile PHP nightly web binaries
+npm run sync:php-nightly                 # Fetch gitignored PHP nightly assets for local dev
 
 # WordPress Builds
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions

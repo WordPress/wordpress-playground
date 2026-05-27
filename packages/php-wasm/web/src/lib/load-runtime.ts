@@ -2,7 +2,6 @@ import type {
 	AllPHPVersion,
 	EmscriptenOptions,
 	PHPLoaderModule,
-	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	createLegacyPhpIniPreRunStep,
@@ -127,7 +126,7 @@ export async function loadWebRuntime(
 
 	if (!isLegacy) {
 		emscriptenOptions = withPHPExtensions(
-			phpVersion as SupportedPHPVersion,
+			phpVersion,
 			phpWasmAsyncMode,
 			await emscriptenOptions,
 			requestedExtensions
@@ -135,7 +134,7 @@ export async function loadWebRuntime(
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([
-		getPHPLoaderModule(phpVersion),
+		getPHPLoaderModule(phpVersion, phpWasmAsyncMode),
 		emscriptenOptions,
 	]);
 

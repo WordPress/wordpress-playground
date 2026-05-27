@@ -1,3 +1,6 @@
+export const NightlyPHPVersion = 'nightly';
+export type NightlyPHPVersion = typeof NightlyPHPVersion;
+
 export const SupportedPHPVersions = [
 	'8.5',
 	'8.4',
@@ -15,6 +18,15 @@ export const LegacyPHPVersions = ['5.2'] as const;
 export type LegacyPHPVersion = (typeof LegacyPHPVersions)[number];
 
 /**
+ * Type guard for the PHP nightly build pseudo-version.
+ */
+export function isNightlyPHPVersion(
+	version: string | undefined
+): version is NightlyPHPVersion {
+	return version === NightlyPHPVersion;
+}
+
+/**
  * Type guard for legacy PHP versions. Lets callers narrow a string
  * to `LegacyPHPVersion` without the `as readonly string[]` cast that
  * would otherwise be required to satisfy `Array.prototype.includes`.
@@ -26,7 +38,11 @@ export function isLegacyPHPVersion(
 }
 
 export const AllPHPVersions = [
+	NightlyPHPVersion,
 	...SupportedPHPVersions,
 	...LegacyPHPVersions,
 ] as const;
-export type AllPHPVersion = SupportedPHPVersion | LegacyPHPVersion;
+export type AllPHPVersion =
+	| NightlyPHPVersion
+	| SupportedPHPVersion
+	| LegacyPHPVersion;

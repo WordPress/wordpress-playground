@@ -1,5 +1,6 @@
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
+import type { PHPWasmAsyncMode } from '../../get-php-loader-module';
 
 /**
  * Returns the path to the intl extension for the specified PHP version.
@@ -11,9 +12,14 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
  * - etc.
  */
 export async function getIntlExtensionModule(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion
+	version: AllPHPVersion = LatestSupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode = 'asyncify'
 ): Promise<any> {
 	switch (version) {
+		case 'nightly':
+			return (await getPHPNightlyModule()).getIntlExtensionPath(
+				asyncMode
+			);
 		case '8.5':
 			// @ts-ignore
 			return (await import('@php-wasm/web-8-5')).getIntlExtensionPath();
@@ -37,4 +43,38 @@ export async function getIntlExtensionModule(
 			return (await import('@php-wasm/web-7-4')).getIntlExtensionPath();
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
+}
+
+async function getPHPNightlyModule(): Promise<{
+	getIntlExtensionPath(asyncMode: PHPWasmAsyncMode): Promise<string>;
+}> {
+	const urls = getPHPNightlyModuleUrls();
+	let cause: unknown;
+	for (const nightlyModuleUrl of urls) {
+		try {
+			return await import(/* @vite-ignore */ nightlyModuleUrl);
+		} catch (error) {
+			cause = error;
+		}
+	}
+	throw new Error(
+		'PHP nightly assets are missing. Run `npm run sync:php-nightly` ' +
+			'before using PHP nightly locally.',
+		{ cause }
+	);
+}
+
+function getPHPNightlyModuleUrls() {
+	const origin = globalThis.location?.origin || '';
+	const pathname = globalThis.location?.pathname || '/';
+	const basePath = pathname.startsWith('/website-server/')
+		? '/website-server/'
+		: '/';
+	return Array.from(
+		new Set([
+			`${origin}${basePath}php-nightly/index.js`,
+			`${origin}/website-server/php-nightly/index.js`,
+			`${origin}/php-nightly/index.js`,
+		])
+	);
 }

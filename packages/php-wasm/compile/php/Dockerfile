@@ -5,22 +5,22 @@ ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
 ENV PATH="/root/lib/bin:${PATH}"
 
 # The PHP version to build.
-# This value must point to an existing branch of the
-# https://github.com/php/php-src.git repository when prefixed
-# with "PHP-".
-# For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
-# but just "7" is invalid because there's no branch PHP-7.
+# This controls version-specific build patches and output filenames.
 ARG PHP_VERSION
+
+# The git ref to clone from php-src. Release builds use php-$PHP_VERSION tags;
+# nightly builds use active PHP-* branches.
+ARG PHP_REF
 
 # Whether to build the opcache extension. The .m4 file is patched before the main
 # ./buildconf script is generated.
 ARG WITH_OPCACHE
 
-# Clone PHP from a tag [ php-$PHP_VERSION ] instead of a branch [ PHP-$PHP_VERSION ]
-RUN git clone https://github.com/php/php-src.git php-src \
-	--branch php-$PHP_VERSION \
-	--single-branch  \
-	--depth 1;
+RUN PHP_REF="${PHP_REF:-php-$PHP_VERSION}" && \
+	git clone https://github.com/php/php-src.git php-src \
+		--branch $PHP_REF \
+		--single-branch \
+		--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
 COPY ./compile/php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage

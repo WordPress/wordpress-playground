@@ -1,0 +1,83 @@
+name: 'Refresh PHP Nightly'
+
+on:
+    workflow_dispatch:
+        inputs:
+            php_ref:
+                description: 'php-src ref to build (defaults to latest supported PHP branch)'
+                required: false
+    # Refresh PHP nightly binaries every day at 6am UTC.
+    schedule:
+        - cron: '0 6 * * *'
+
+concurrency:
+    group: refresh-php-nightly
+
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
+jobs:
+    build_publish_and_deploy:
+        # Only run this workflow on the playground repo, from the trunk branch,
+        # and when triggered by a Playground maintainer.
+        if: >
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.ref == 'refs/heads/trunk' && (
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
+            )
+
+        runs-on: ubuntu-latest
+        timeout-minutes: 240
+        permissions:
+            contents: write # Required to push the refreshed PHP nightly branch.
+            actions: write # Required to trigger the deploy-website workflow.
+        environment:
+            name: wordpress-assets
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  ref: trunk
+                  clean: true
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  # The build uses JSPI which is supported in Node.js 23+.
+                  # Let's pick 24 as an LTS release.
+                  node-version: 24
+            - name: Build PHP nightly binaries
+              shell: bash
+              env:
+                  PHP_NIGHTLY_REF: ${{ github.event.inputs.php_ref }}
+              run: npm run recompile:php:web:nightly
+            - name: Publish PHP nightly binaries branch
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  branch="php-nightly-builds"
+                  publish_dir="$(mktemp -d)"
+                  cp -a packages/playground/website/public/php-nightly/. "$publish_dir/"
+
+                  git switch --orphan php-nightly-publish
+                  git rm -rf . || true
+                  git clean -fdx
+                  cp -a "$publish_dir/." .
+                  git add -A
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git commit -m "Refresh PHP nightly builds"
+                  git push --force origin HEAD:"$branch"
+            - name: Deploy website
+              uses: benc-uk/workflow-dispatch@v1
+              with:
+                  workflow: deploy-website.yml
+                  token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -101,8 +101,9 @@
 			}
 
 			#editor .cm-content {
-				font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
-					Consolas, 'Courier New', monospace;
+				font-family:
+					'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+					'Courier New', monospace;
 			}
 
 			/* Enhanced PHP syntax highlighting */
@@ -246,8 +247,9 @@
 				background: #f5f5f5;
 				padding: 2px 4px;
 				border-radius: 3px;
-				font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
-					Consolas, 'Courier New', monospace;
+				font-family:
+					'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+					'Courier New', monospace;
 				font-size: 14px;
 			}
 
@@ -722,7 +724,7 @@
 
 			// Populate PHP version select options from SupportedPHPVersionsList
 			phpVersionSelect.innerHTML = ''; // Clear existing options
-			SupportedPHPVersionsList.forEach((version) => {
+			['nightly', ...SupportedPHPVersionsList].forEach((version) => {
 				const option = document.createElement('option');
 				option.value = version;
 				option.textContent = version;
