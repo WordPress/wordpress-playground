@@ -94,13 +94,67 @@ The `server` command supports the following optional arguments:
 - `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (same, but skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 - `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 - `--verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug"). Defaults to "normal".
-
 - `--debug`: Print the PHP error log if an error occurs during boot.
 - `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. ⚠️ Warning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.
 - `--workers=<n|auto>`: Number of request-handling worker threads. Pass a positive integer, or `auto` to use one worker per CPU core (minus one). Defaults to `min(6, cpus-1)`. Useful for multi-client workloads (e.g. parallel e2e suites) that need more than 6 in-flight requests.
 - `--experimental-multi-worker`: Deprecated. Use `--workers=<n|auto>` instead. The value of this flag is ignored.
 - `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
 - `--internal-cookie-store`: Enables Playground's internal cookie handling. When active, Playground uses an HttpCookieStore to manage and persist cookies across requests. If disabled, cookies are handled externally, like by a browser in Node.js.
+- `--php-extension=<manifest>`: Load a custom PHP.wasm extension manifest before PHP starts. Accepts local paths, `file:` URLs, and `http(s):` URLs. Can be used multiple times.
+
+### Loading Custom PHP.wasm Extensions
+
+Custom extensions built with `@php-wasm/compile-extension` can be loaded with
+`--php-extension`:
+
+```bash
+npx @wp-playground/cli@latest server \
+	--php=8.4 \
+	--php-extension=./dist/wp_mysql_parser/manifest.json
+```
+
+The manifest selects the `.so` artifact matching the active PHP version and can
+stage sidecar files before PHP starts. External extensions are JSPI-only, so use
+Node.js 23 or newer.
+
+Add runtime settings such as `iniEntries` and `env` directly to the manifest:
+
+```json
+{
+	"name": "spx",
+	"version": "0.1.0",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "spx-php8.4-jspi.so"
+		}
+	],
+	"iniEntries": {
+		"spx.http_enabled": "1"
+	},
+	"env": {
+		"SPX_DATA_DIR": "/internal/shared/spx/data"
+	}
+}
+```
+
+Set `loadWithIniDirective` to `false` when the artifact is a loadable Wasm
+side module that should be staged before PHP starts but should not be registered
+with `extension=` or `zend_extension=` in php.ini:
+
+```json
+{
+	"name": "sqlite_markdown",
+	"version": "0.1.0",
+	"loadWithIniDirective": false,
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "sqlite_markdown-php8.4-jspi.so"
+		}
+	]
+}
+```
 
 ## Need some help with the CLI?
 

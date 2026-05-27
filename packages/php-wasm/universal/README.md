@@ -21,16 +21,15 @@ artifacts for the PHP version matrix:
 	"artifacts": [
 		{
 			"phpVersion": "8.4",
-			"file": "wp_mysql_parser-php8.4-jspi.so",
-			"sha256": "..."
+			"sourcePath": "wp_mysql_parser-php8.4-jspi.so"
 		}
 	]
 }
 ```
 
-`file` may be absolute, or relative to the manifest URL. If you pass an inline
-manifest instead of `manifestUrl`, pass `baseUrl` to choose where relative
-artifact files are resolved from.
+`sourcePath` may be absolute, or relative to the manifest URL. If you pass an
+inline manifest instead of `manifestUrl`, pass `baseUrl` to choose where
+relative artifact files are resolved from.
 
 Asyncify extension loading is reserved for bundled extensions shipped with the
 PHP.wasm packages, such as `intl`, `xdebug`, `redis`, and `memcached`.
@@ -40,7 +39,9 @@ PHP.wasm packages, such as `intl`, `xdebug`, `redis`, and `memcached`.
 `resolvePHPExtension()` turns bytes, a direct artifact URL, or a manifest into a
 `ResolvedPHPExtension`. `withResolvedPHPExtensions()` then augments Emscripten
 options so the extension `.so`, generated `.ini`, sidecar files, and environment
-variables are ready before PHP scans its `.ini` files.
+variables are ready before PHP scans its `.ini` files. When
+`loadWithIniDirective` is `false`, the `.so` and sidecar files are still staged
+but no `.ini` file or `PHP_INI_SCAN_DIR` entry is generated.
 
 ```ts
 import { resolvePHPExtension, withResolvedPHPExtensions } from '@php-wasm/universal';

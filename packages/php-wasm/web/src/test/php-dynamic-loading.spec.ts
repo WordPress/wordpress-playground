@@ -339,6 +339,169 @@ SupportedPHPVersions.forEach((phpVersion) => {
 	});
 });
 
+test.describe('External PHP side modules', () => {
+	const sqliteParserManifestUrl =
+		'https://wordpress.github.io/sqlite-database-integration/' +
+		'wp_mysql_parser-wasm-extension/' +
+		'b31fc53ea599d1a2211b75f4a3486b39e63ce01f/manifest.json';
+	const sqliteMarkdownCommit = '4656cd898cf8430c44e985d0515c2182ffcc5575';
+	const sqliteMarkdownManifestUrl =
+		'https://raw.githubusercontent.com/adamziel/wp-extensions/' +
+		sqliteMarkdownCommit +
+		'/' +
+		'markdown-editor/sqlite-markdown-extension/dist/manifest.json';
+
+	test.beforeEach(async ({ page }) => {
+		page.on('console', (log) => console.log(log.text()));
+
+		await page.goto('/');
+
+		await page.addScriptTag({
+			type: 'module',
+			url: '/src/test/playwright/browser-globals.ts',
+		});
+	});
+
+	test('loads the published SQLite wp_mysql_parser extension', async ({
+		page,
+	}) => {
+		const result = await page.evaluate(async (manifestUrl) => {
+			const php = new window.PHP(
+				await window.loadWebRuntime('8.3', {
+					extensions: [
+						{
+							source: {
+								format: 'manifest',
+								manifestUrl,
+							},
+						},
+					],
+				})
+			);
+
+			const response = await php.runStream({
+				code: `<?php
+					$lexer = new WP_MySQL_Native_Lexer(
+						'SELECT option_name FROM wp_options WHERE option_id = 1',
+						'8.0.0',
+						0
+					);
+					$tokens = 0;
+					while ($lexer->next_token()) {
+						++$tokens;
+					}
+					echo json_encode([
+						'loaded' => extension_loaded('wp_mysql_parser'),
+						'classes' => class_exists('WP_MySQL_Native_Lexer', false)
+							&& class_exists('WP_MySQL_Native_Parser', false),
+						'tokens' => $tokens,
+						'ini' => php_ini_scanned_files(),
+					]);
+				`,
+			});
+
+			php.exit();
+
+			return JSON.parse(await response.stdoutText);
+		}, sqliteParserManifestUrl);
+
+		test.expect(result).toEqual({
+			loaded: true,
+			classes: true,
+			tokens: 9,
+			ini: '/internal/shared/extensions/wp_mysql_parser.ini\n',
+		});
+	});
+
+	test('loads the published SQLite markdown extension', async ({ page }) => {
+		const result = await page.evaluate(async (manifestUrl) => {
+			const php = new window.PHP(
+				await window.loadWebRuntime('8.4', {
+					extensions: [
+						{
+							source: {
+								format: 'manifest',
+								manifestUrl,
+							},
+						},
+					],
+				})
+			);
+
+			const response = await php.runStream({
+				code: `<?php
+					mkdir('/tmp/markdown-root');
+					file_put_contents(
+						'/tmp/markdown-root/1-hello-world.md',
+						implode("\\n", [
+							'---',
+							'post_title = "Hello Markdown"',
+							'post_status = "publish"',
+							'post_type = "page"',
+							'post_date_gmt = "2026-05-16 00:00:00"',
+							'post_modified_gmt = "2026-05-16 00:00:00"',
+							'[[meta]]',
+							'meta_id = 10',
+							'meta_key = "_playground"',
+							'meta_value = "loaded"',
+							'---',
+							'# Hello',
+							'',
+							'Markdown body',
+						])
+					);
+
+					$db = new SQLite3(':memory:');
+					$db->exec(
+						"CREATE VIRTUAL TABLE posts " .
+						"USING markdown_posts(root='/tmp/markdown-root')"
+					);
+					$db->exec(
+						"CREATE VIRTUAL TABLE postmeta " .
+						"USING markdown_postmeta(root='/tmp/markdown-root')"
+					);
+					$post = $db
+						->query(
+							"SELECT ID, post_title, post_name, post_content FROM posts"
+						)
+						->fetchArray(SQLITE3_ASSOC);
+					$meta = $db
+						->query(
+							"SELECT meta_key, meta_value FROM postmeta"
+						)
+						->fetchArray(SQLITE3_ASSOC);
+
+					echo json_encode([
+						'loaded' => extension_loaded('sqlite_markdown'),
+						'post' => $post,
+						'meta' => $meta,
+						'ini' => php_ini_scanned_files(),
+					]);
+				`,
+			});
+
+			php.exit();
+
+			return JSON.parse(await response.stdoutText);
+		}, sqliteMarkdownManifestUrl);
+
+		test.expect(result).toEqual({
+			loaded: true,
+			post: {
+				ID: 1,
+				post_title: 'Hello Markdown',
+				post_name: 'hello-world',
+				post_content: '# Hello\n\nMarkdown body',
+			},
+			meta: {
+				meta_key: '_playground',
+				meta_value: 'loaded',
+			},
+			ini: '/internal/shared/extensions/sqlite_markdown.ini\n',
+		});
+	});
+});
+
 function intlExtensionCheckCode() {
 	return `<?php
 		echo extension_loaded('intl') && class_exists('Collator') ? 'loaded' : 'missing';

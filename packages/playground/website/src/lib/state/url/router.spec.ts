@@ -1,11 +1,12 @@
-import { parseBlueprint } from './router';
+import { parseBlueprint, PlaygroundRoute } from './router';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
+import type { SiteInfo } from '../redux/slice-sites';
 
 const toBase64 = (s: string) =>
 	typeof btoa === 'function'
 		? btoa(s)
 		: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-		  (globalThis as any).Buffer.from(s, 'utf-8').toString('base64');
+			(globalThis as any).Buffer.from(s, 'utf-8').toString('base64');
 
 // `parseBlueprint` reaches into `window.atob` via the existing
 // `decodeBase64ToString` helper. The default vitest environment for this
@@ -13,7 +14,9 @@ const toBase64 = (s: string) =>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const g = globalThis as any;
 if (typeof g.window === 'undefined') {
-	g.window = { atob: (s: string) => Buffer.from(s, 'base64').toString('binary') };
+	g.window = {
+		atob: (s: string) => Buffer.from(s, 'base64').toString('binary'),
+	};
 }
 
 describe('decodeBlueprintHash', () => {
@@ -87,7 +90,9 @@ describe('parseBlueprint', () => {
 	});
 
 	it('throws a descriptive error for invalid JSON and includes the underlying message', () => {
-		expect(() => parseBlueprint('{not json')).toThrow(/Invalid blueprint\./);
+		expect(() => parseBlueprint('{not json')).toThrow(
+			/Invalid blueprint\./
+		);
 		expect(() => parseBlueprint('{not json')).toThrow(
 			/Invalid blueprint\.\s+\S/
 		);
@@ -96,5 +101,57 @@ describe('parseBlueprint', () => {
 	it('hints at double-encoding when the input still contains %XX escapes', () => {
 		const halfDecoded = '{"landingPage"%3A"/"}';
 		expect(() => parseBlueprint(halfDecoded)).toThrow(/double-encoded/);
+	});
+});
+
+describe('PlaygroundRoute site creation routes', () => {
+	it('marks new temporary site URLs with storage=temp', () => {
+		const url = PlaygroundRoute.newTemporarySite(
+			{},
+			'https://playground.test/website-server/'
+		);
+		expect(new URL(url).searchParams.get('storage')).toBe('temp');
+	});
+
+	it('does not mark default new site URLs as temporary', () => {
+		const url = PlaygroundRoute.newSite(
+			{},
+			'https://playground.test/website-server/?storage=temp'
+		);
+		expect(new URL(url).searchParams.get('storage')).toBeNull();
+	});
+
+	it('replaces the current setup when creating a new site URL', () => {
+		const url = new URL(
+			PlaygroundRoute.newSite(
+				{
+					query: { php: '8.3' },
+				},
+				'https://playground.test/website-server/?storage=temp&wp=6.6#old'
+			)
+		);
+
+		expect(url.searchParams.get('php')).toBe('8.3');
+		expect(url.searchParams.get('random')).not.toBeNull();
+		expect(url.searchParams.get('storage')).toBeNull();
+		expect(url.searchParams.get('wp')).toBeNull();
+		expect(url.hash).toBe('');
+	});
+
+	it('preserves Query API version settings when selecting a saved site', () => {
+		const url = PlaygroundRoute.site(
+			{
+				slug: 'saved-site',
+				metadata: {
+					storage: 'opfs',
+				},
+			} as unknown as SiteInfo,
+			'https://playground.test/website-server/?url=/wp-admin/&php=8.0&wp=6.6'
+		);
+		const params = new URL(url).searchParams;
+		expect(params.get('site-slug')).toBe('saved-site');
+		expect(params.get('url')).toBe('/wp-admin/');
+		expect(params.get('php')).toBe('8.0');
+		expect(params.get('wp')).toBe('6.6');
 	});
 });

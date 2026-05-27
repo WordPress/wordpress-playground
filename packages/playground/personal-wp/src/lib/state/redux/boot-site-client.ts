@@ -216,23 +216,28 @@ export function bootSiteClient(
 
 		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
 		// declares it doesn't want WordPress, so honor that even if the
-		// storage layer thinks WP isn't installed yet. Passing `true` here
-		// would conflict with the Blueprint and the handler would throw.
+		// storage layer thinks WP isn't installed yet.
 		const blueprintRequestedNoWordPress =
 			!!blueprint &&
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
 
 		// Check if we're in recovery mode (Health Check troubleshooting).
-		// Recovery mode uses 'do-not-attempt-installing' to skip the
-		// isWordPressInstalled() check that would load WordPress and crash
-		// due to a broken plugin.
+		// In recovery mode, skip the WordPress install check to avoid
+		// loading WordPress before blueprint steps run. The check would
+		// load WordPress and crash due to a broken plugin.
 		const urlBlueprintLandingPage = hasUrlBlueprint
 			? urlBlueprint.blueprint.landingPage
 			: undefined;
 		const isRecoveryMode = urlBlueprintLandingPage?.includes(
 			'health-check-disable-plugin-hash'
 		);
+		const wordpressInstallMode =
+			blueprintRequestedNoWordPress || isRecoveryMode
+				? 'do-not-attempt-installing'
+				: isWordPressInstalled
+					? 'install-from-existing-files-if-needed'
+					: 'download-and-install';
 
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
@@ -246,11 +251,6 @@ export function bootSiteClient(
 					new URLSearchParams(window.location.search).get(
 						'experimental-blueprints-v2-runner'
 					) === 'yes',
-				// In recovery mode, skip the WordPress install check to avoid
-				// loading WordPress before blueprint steps run.
-				wordpressInstallMode: isRecoveryMode
-					? 'do-not-attempt-installing'
-					: undefined,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
@@ -265,12 +265,7 @@ export function bootSiteClient(
 							},
 						]
 					: [],
-				shouldInstallWordPress: blueprintRequestedNoWordPress
-					? false
-					: !isWordPressInstalled,
-				shouldBootWordPress: blueprintRequestedNoWordPress
-					? false
-					: undefined,
+				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 			});
 		} catch (e) {

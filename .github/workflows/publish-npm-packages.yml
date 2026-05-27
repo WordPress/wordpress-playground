@@ -15,9 +15,9 @@ on:
         # Auto-publish every Monday
         - cron: '0 9 * * 1'
 
-permissions:
-    id-token: write
-    contents: write
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
 
 concurrency:
     group: npm-release
@@ -40,6 +40,12 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        # Timeout is set to an hour as Lerna sequentially publishes a large number of packages
+        # and the workflow regularly takes more than 30 minutes to complete.
+        timeout-minutes: 60
+        permissions:
+            id-token: write # Required for OIDC-based npm trusted publishing.
+            contents: write # Required to push the version bump commit and tags.
         environment:
             name: npm
 

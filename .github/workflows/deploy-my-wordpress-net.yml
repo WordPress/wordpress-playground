@@ -9,6 +9,10 @@ on:
 concurrency:
     group: my-wordpress-net-deployment
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     # Check preconditions in a separate job because secrets aren't
     # available in job-level `if` conditions.
@@ -29,6 +33,8 @@ jobs:
                 github.actor == 'ashfame'
             )
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions: {}
         environment:
             name: my-wordpress-net-wp-cloud
         outputs:
@@ -57,6 +63,9 @@ jobs:
         if: needs.check_preconditions.outputs.meets_deploy_preconditions == 'true'
 
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read # Required to clone the repo.
         environment:
             name: my-wordpress-net-wp-cloud
         steps:

@@ -11,7 +11,7 @@ In this section we present a selection of guides that will help you to both work
 
 ## [PHP code snippets and embeds](/guides/php-code-snippets)
 
-Embed runnable PHP snippets in any web page with the `<php-snippet>` web component, or share full PHP examples via the standalone PHP Playground at [`playground.wordpress.net/php-playground.html`](https://playground.wordpress.net/php-playground.html). One script tag, lazy-loaded runtime, shared across every snippet on the page.
+Embed editable, runnable PHP and WordPress examples in any web page with the `<php-snippet>` web component. The guide covers custom Blueprints, expected output, pure-PHP snippets, runtime sharing, and the standalone PHP Playground.
 
 ## [WordPress Playground for Everyone](/guides/playground-for-everyone)
 

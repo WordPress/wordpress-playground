@@ -40,6 +40,7 @@ import {
 	findDownloadErrorInCauseChain,
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -149,20 +150,30 @@ export function bootSiteClient(
 
 		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
 		// declares it doesn't want WordPress, so honor that even if the
-		// storage layer thinks WP isn't installed yet. Passing `true` here
-		// would conflict with the Blueprint and the handler would throw.
+		// storage layer thinks WP isn't installed yet.
 		const blueprintRequestedNoWordPress =
 			!!blueprint &&
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
+		const wordpressInstallMode = blueprintRequestedNoWordPress
+			? 'do-not-attempt-installing'
+			: isWordPressInstalled
+				? 'install-from-existing-files-if-needed'
+				: 'download-and-install';
 
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
+			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
+				site.originalUrlParams?.searchParams?.['php-extension'],
+				document.location.href
+			);
+
 			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				extensions: phpExtensions,
 				experimentalBlueprintsV2Runner:
 					!isWordPressInstalled &&
 					new URLSearchParams(window.location.search).get(
@@ -184,12 +195,7 @@ export function bootSiteClient(
 							},
 						]
 					: [],
-				shouldInstallWordPress: blueprintRequestedNoWordPress
-					? false
-					: !isWordPressInstalled,
-				shouldBootWordPress: blueprintRequestedNoWordPress
-					? false
-					: undefined,
+				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 				pathAliases: [

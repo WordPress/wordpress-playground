@@ -2,8 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 import {
 	fetchBlueprint,
+	getBlueprintInstallPreview,
+	getBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstall,
+	resolveBlueprintForInstallExecution,
+	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
 
 describe('prepareBlueprintForRemoteInstall', () => {
@@ -126,6 +130,142 @@ describe('prepareBlueprintForRemoteInstall', () => {
 			landingPage: '/wp-admin/',
 			steps: [],
 		});
+	});
+
+	it('removes login directives from install execution blueprints', async () => {
+		const installPluginStep = {
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'wordpress.org/plugins',
+				slug: 'friends',
+			},
+		};
+		const expectedDeclaration = {
+			landingPage: '/friends/',
+			steps: [installPluginStep],
+		};
+		stubFetchBlueprint({
+			login: true,
+			landingPage: '/friends/',
+			steps: [
+				{
+					step: 'login',
+					username: 'admin',
+				},
+				installPluginStep,
+			],
+		});
+
+		const { blueprint, declaration } =
+			await resolveBlueprintForInstallExecution(
+				'https://example.com/blueprint.json'
+			);
+		const bundledDeclaration = JSON.parse(
+			await (await blueprint.read('blueprint.json')).text()
+		);
+
+		expect(declaration).toEqual(expectedDeclaration);
+		expect(bundledDeclaration).toEqual(expectedDeclaration);
+	});
+
+	it('builds a blueprint preview for the install dialog', async () => {
+		const blueprint = {
+			meta: {
+				title: 'Friends',
+				description: 'A private social app for WordPress.',
+				author: 'wordpress',
+			},
+			landingPage: '/wp-admin/admin.php?page=friends',
+			steps: [
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'url',
+						url: 'https://example.com/friends.zip',
+					},
+				},
+			],
+		};
+		stubFetchBlueprint(blueprint);
+
+		const preview = await getBlueprintInstallPreview(
+			'https://example.com/blueprint.json'
+		);
+
+		expect(preview).toEqual({
+			title: 'Friends',
+			description: 'A private social app for WordPress.',
+			author: 'wordpress',
+			warnings: [
+				expect.objectContaining({
+					severity: 'warning',
+					title: 'Installs plugin from an external source',
+				}),
+			],
+			json: JSON.stringify(blueprint, null, 2),
+		});
+	});
+
+	it('describes data URL app requests as coming from this page', () => {
+		expect(
+			getBlueprintInstallSource(
+				'data:application/json;base64,eyJzdGVwcyI6W119'
+			)
+		).toEqual({ label: 'this page' });
+	});
+
+	it('falls back to a protocol label for hostless URLs', () => {
+		expect(getBlueprintInstallSource('about:blank')).toEqual({
+			label: 'about source',
+		});
+	});
+
+	it('preserves empty metadata strings in the preview', async () => {
+		const blueprint = {
+			meta: {
+				title: '',
+				description: '',
+				author: '',
+			},
+			steps: [],
+		};
+		stubFetchBlueprint(blueprint);
+
+		await expect(
+			getBlueprintInstallPreview('https://example.com/blueprint.json')
+		).resolves.toEqual({
+			title: '',
+			description: '',
+			author: '',
+			warnings: [],
+			json: JSON.stringify(blueprint, null, 2),
+		});
+	});
+
+	it('skips confirmation for My Apps locations', () => {
+		expect(shouldSkipBlueprintInstallConfirmation('/my-apps/')).toBe(true);
+		expect(shouldSkipBlueprintInstallConfirmation('/my-apps')).toBe(true);
+		expect(
+			shouldSkipBlueprintInstallConfirmation('/my-apps/?category=forms')
+		).toBe(true);
+		expect(
+			shouldSkipBlueprintInstallConfirmation(
+				'https://playground.local/scope:test-site/my-apps/?category=forms'
+			)
+		).toBe(true);
+	});
+
+	it('requires an exact trusted path before skipping confirmation', () => {
+		expect(shouldSkipBlueprintInstallConfirmation('/')).toBe(false);
+		expect(shouldSkipBlueprintInstallConfirmation('/my-apps-copy/')).toBe(
+			false
+		);
+		expect(
+			shouldSkipBlueprintInstallConfirmation(
+				'/wp-admin/admin.php?page=my-apps'
+			)
+		).toBe(false);
+		expect(shouldSkipBlueprintInstallConfirmation(undefined)).toBe(false);
 	});
 });
 

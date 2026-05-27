@@ -93,6 +93,7 @@ export class BlueprintsV2Handler {
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			corsProxyUrl: corsProxy,
+			extensions: this.options.extensions,
 			experimentalBlueprintsV2Runner: true,
 			// Pass the declaration directly – the worker runs the V2 runner.
 			blueprint: blueprint as any,

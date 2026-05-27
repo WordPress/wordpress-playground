@@ -134,10 +134,10 @@ describe('Memcached Extension', () => {
 const createMemcachedPHP = (useBinaryProtocol = false) => `
 	function createMemcached() {
 		$m = new Memcached();
-		// Set timeouts to give WebSocket proxy time to connect
+		// Memcached send/receive timeouts are in microseconds.
 		$m->setOption(Memcached::OPT_CONNECT_TIMEOUT, 5000);
-		$m->setOption(Memcached::OPT_SEND_TIMEOUT, 5000);
-		$m->setOption(Memcached::OPT_RECV_TIMEOUT, 5000);
+		$m->setOption(Memcached::OPT_SEND_TIMEOUT, 5000000);
+		$m->setOption(Memcached::OPT_RECV_TIMEOUT, 5000000);
 		// Blocking mode for more reliable connections in WASM
 		$m->setOption(Memcached::OPT_NO_BLOCK, false);
 		${useBinaryProtocol ? '$m->setOption(Memcached::OPT_BINARY_PROTOCOL, true);' : ''}

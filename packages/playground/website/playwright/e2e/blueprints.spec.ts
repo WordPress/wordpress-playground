@@ -307,7 +307,7 @@ test('wp-cli step should create a post', async ({ website, wordpress }) => {
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(
-		wordpress.locator('body').locator('[aria-label="“Test post” (Edit)"]')
+		wordpress.locator('body').locator('a').filter({ hasText: 'Test post' })
 	).toBeVisible();
 });
 

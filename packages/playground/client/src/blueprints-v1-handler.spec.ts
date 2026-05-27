@@ -80,8 +80,7 @@ describe('BlueprintsV1Handler', () => {
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
-				shouldBootWordPress: false,
-				shouldInstallWordPress: false,
+				wordpressInstallMode: 'do-not-attempt-installing',
 			})
 		);
 		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
@@ -100,47 +99,91 @@ describe('BlueprintsV1Handler', () => {
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
-				shouldBootWordPress: true,
-				shouldInstallWordPress: false,
+				wordpressInstallMode: 'install-from-existing-files-if-needed',
 			})
 		);
 	});
 
-	it('does not install WordPress when boot is explicitly disabled', async () => {
+	it('passes query API PHP extension requests to the runtime', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: true,
+			networking: true,
+		});
 		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
 			iframe,
 			remoteUrl: 'http://example.com/remote.html',
 			blueprint: {},
-			shouldBootWordPress: false,
+			extensions: [
+				{
+					source: {
+						format: 'manifest',
+						manifestUrl:
+							'https://cdn.example.com/spx/manifest.json',
+					},
+				},
+			],
 		});
 
 		await handler.bootPlayground(iframe, createProgressTracker());
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
-				shouldBootWordPress: false,
-				shouldInstallWordPress: false,
+				extensions: [
+					'intl',
+					{
+						source: {
+							format: 'manifest',
+							manifestUrl:
+								'https://cdn.example.com/spx/manifest.json',
+						},
+					},
+				],
 			})
 		);
-		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
 	});
 
-	it('rejects WordPress installation when boot is disabled', async () => {
+	it('does not install WordPress when installation is disabled', async () => {
 		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
 			iframe,
 			remoteUrl: 'http://example.com/remote.html',
 			blueprint: {},
-			shouldBootWordPress: false,
-			shouldInstallWordPress: true,
+			wordpressInstallMode: 'do-not-attempt-installing',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'do-not-attempt-installing',
+			})
+		);
+		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
+	});
+
+	it('rejects WordPress install mode for PHP-only blueprints', async () => {
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {
+				preferredVersions: {
+					php: '8.4',
+					wp: false,
+				},
+			},
+			wordpressInstallMode: 'download-and-install',
 		});
 
 		await expect(
 			handler.bootPlayground(iframe, createProgressTracker())
 		).rejects.toThrow(
-			'Conflicting options: WordPress installation was requested, ' +
-				'but WordPress boot was disabled. Pick one.'
+			'Conflicting options: WordPress was requested, ' +
+				'but the Blueprint sets ' +
+				'`preferredVersions.wp: false`. Pick one.'
 		);
 		expect(mocks.playground.boot).not.toHaveBeenCalled();
 	});
@@ -162,7 +205,7 @@ describe('BlueprintsV1Handler', () => {
 		await expect(
 			handler.bootPlayground(iframe, createProgressTracker())
 		).rejects.toThrow(
-			'Conflicting options: WordPress install or boot was requested, ' +
+			'Conflicting options: WordPress was requested, ' +
 				'but the Blueprint sets ' +
 				'`preferredVersions.wp: false`. Pick one.'
 		);
@@ -181,7 +224,7 @@ describe('BlueprintsV1Handler', () => {
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
-				shouldInstallWordPress: true,
+				wordpressInstallMode: 'download-and-install',
 			})
 		);
 		expect(mocks.playground.prefetchUpdateChecks).toHaveBeenCalledTimes(1);

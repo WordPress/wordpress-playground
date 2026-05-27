@@ -142,6 +142,94 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://127.0.0.1:3000/endpoint');
 	});
 
+	it.each([
+		[
+			'https://api.anthropic.com/v1/messages',
+			{
+				'anthropic-dangerous-direct-browser-access': 'true',
+			},
+		],
+		['https://api.openai.com/v1/responses', {}],
+		[
+			'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+			{},
+		],
+	])(
+		'never proxies known CORS-enabled host %s even if direct fetch fails',
+		async (url, expectedHeaders) => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockRejectedValue(new Error('direct fetch failed'));
+
+			await expect(
+				fetchWithCorsProxy(url, undefined, 'https://proxy.test/?url=')
+			).rejects.toThrow('direct fetch failed');
+
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			const request = fetchMock.mock.calls[0][0] as Request;
+			expect(request.url).toBe(url);
+			for (const [name, value] of Object.entries(expectedHeaders)) {
+				expect(request.headers.get(name)).toBe(value);
+			}
+			if (url !== 'https://api.anthropic.com/v1/messages') {
+				expect(
+					request.headers.has(
+						'anthropic-dangerous-direct-browser-access'
+					)
+				).toBe(false);
+			}
+		}
+	);
+
+	it('does not overwrite caller-provided CORS-enabled host headers', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValue(new Error('direct fetch failed'));
+
+		await expect(
+			fetchWithCorsProxy(
+				'https://api.anthropic.com/v1/messages',
+				{
+					headers: {
+						'anthropic-dangerous-direct-browser-access': 'custom',
+					},
+				},
+				'https://proxy.test/?url='
+			)
+		).rejects.toThrow('direct fetch failed');
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		expect(
+			request.headers.get('anthropic-dangerous-direct-browser-access')
+		).toBe('custom');
+	});
+
+	it('does not treat HTTP URLs as known CORS-enabled hosts', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('direct fetch failed'))
+			.mockResolvedValueOnce(
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+		await fetchWithCorsProxy(
+			'http://api.openai.com/v1/responses',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const initialRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(initialRequest.url).toBe('https://api.openai.com/v1/responses');
+		const proxiedRequest = fetchMock.mock.calls[1][0] as Request;
+		expect(proxiedRequest.url).toBe(
+			'https://proxy.test/?url=https://api.openai.com/v1/responses'
+		);
+	});
+
 	it('does not upgrade localhost HTTP to HTTPS when corsProxyUrl is configured', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')

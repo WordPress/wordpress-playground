@@ -25,6 +25,28 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
+import {
+	getAutosavedSitesToPrune,
+	getSitesSortedByRecency,
+	type AutosavedSitesPruneOptions,
+	type SitePersistence,
+} from './site-lifecycle';
+export {
+	MAX_AUTOSAVED_SITES,
+	SitePersistenceTypes,
+	getAutosavedSitesToPrune,
+	getSiteRecencyTimestamp,
+	getSitesSortedByRecency,
+	getSitePublicPersistence,
+	isAutosavedSite,
+	isExplicitlySavedSite,
+	wasSiteRecentlyInteractedWith,
+} from './site-lifecycle';
+export type {
+	AutosavedSitesPruneOptions,
+	SitePersistence,
+} from './site-lifecycle';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -112,9 +134,6 @@ export const getSitesLoadingState = (state: {
 	sites: ReturnType<typeof sitesSlice.reducer>;
 }) => state.sites.opfsSitesLoadingState;
 
-export function deriveSlugFromSiteName(name: string) {
-	return name.toLowerCase().replaceAll(' ', '-');
-}
 export function deriveSiteNameFromSlug(slug: string) {
 	return slug
 		.replaceAll('-', ' ')
@@ -123,7 +142,7 @@ export function deriveSiteNameFromSlug(slug: string) {
 }
 
 /**
- * Updates the site metadata in the OPFS and in the redux state.
+ * Updates site metadata in redux and, for stored sites, in OPFS.
  */
 export function updateSiteMetadata({
 	slug,
@@ -155,10 +174,38 @@ export function updateSiteMetadata({
 }
 
 /**
- * Updates a site in the OPFS and in the redux state.
+ * Marks a stored Playground as explicitly saved.
  *
- * @param siteInfo The site info to update.
- * @returns
+ * This removes autosaved OPFS Playgrounds from autosave pruning. Temporary
+ * Playgrounds must be saved before they can be preserved.
+ */
+export function preserveSite(slug: string) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const site = selectSiteBySlug(getState(), slug);
+		if (!site) {
+			throw new Error(`Site not found: ${slug}`);
+		}
+		if (site.metadata.storage === 'none') {
+			throw new Error('Cannot preserve a temporary site. Save it first.');
+		}
+		await dispatch(
+			updateSiteMetadata({
+				slug,
+				changes: {
+					persistence: 'explicit',
+				},
+			})
+		);
+	};
+}
+
+/**
+ * Updates a site in redux and, for stored sites, in OPFS.
+ *
+ * The storage backend cannot be changed through this helper.
  */
 export function updateSite({
 	slug,
@@ -191,10 +238,9 @@ export function updateSite({
 }
 
 /**
- * Creates a new site in the OPFS and in the redux state.
+ * Creates a new stored site in OPFS and in the redux state.
  *
  * @param siteInfo The site info to add.
- * @returns
  */
 export function addSite(siteInfo: SiteInfo) {
 	return async (
@@ -212,10 +258,9 @@ export function addSite(siteInfo: SiteInfo) {
 }
 
 /**
- * Removes a site from the OPFS and from the redux state.
+ * Removes a stored site from OPFS and from the redux state.
  *
- * @param siteInfo The site info to remove.
- * @returns
+ * Temporary sites are rejected because they only exist in redux state.
  */
 export function removeSite(slug: string) {
 	return async (
@@ -245,20 +290,39 @@ export function removeSite(slug: string) {
 }
 
 /**
- * Creates a new site in the OPFS and in the redux state.
+ * Removes autosaved Playgrounds beyond the retention limit.
  *
- * @param siteInfo The site info to add.
- * @returns
+ * Explicitly saved Playgrounds are never pruned. `excludeSlugs` protects
+ * specific autosaves for the current prune pass.
+ */
+export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const sitesToPrune = getAutosavedSitesToPrune(
+			selectAllSites(getState()),
+			options
+		);
+		for (const site of sitesToPrune) {
+			await dispatch(removeSite(site.slug));
+		}
+	};
+}
+
+/**
+ * Creates or reuses a temporary Playground in the redux state.
+ *
  */
 export function setTemporarySiteSpec(
 	siteName: string,
-	playgroundUrlWithQueryApiArgs: URL
+	playgroundUrlWithQueryApiArgs: URL,
+	preferredSlug?: string
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = deriveSlugFromSiteName(siteName);
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
 				playgroundUrlWithQueryApiArgs.searchParams
@@ -333,6 +397,17 @@ export function setTemporarySiteSpec(
 				return currentTemporarySite;
 			}
 		}
+
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(siteName),
+			{
+				// Temporary sites are removed before the new one is added, so they
+				// should not force the replacement site to take a numeric suffix.
+				unavailableSlugs: selectAllSites(getState())
+					.filter((site) => site.metadata.storage !== 'none')
+					.map((site) => site.slug),
+			}
+		);
 
 		const sites = getState().sites.entities;
 
@@ -458,10 +533,17 @@ export interface SiteMetadata {
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
-	// TODO: Consider keeping timestamps.
-	//       For a user, timestamps might be useful to disambiguate identically-named sites.
-	//       For playground, we might choose to sort by most recently used.
-	//whenLastLoaded: number;
+	whenLastUsed?: number;
+	/**
+	 * Whether this stored site is an automatic recovery copy or should be
+	 * treated as explicitly saved. Missing means explicit for backwards
+	 * compatibility with existing saved Playgrounds.
+	 */
+	persistence?: SitePersistence;
+	/**
+	 * Stable fingerprint of the setup URL that created this site, when known.
+	 */
+	sourceSetupUrlFingerprint?: string;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
@@ -482,11 +564,7 @@ export const {
 
 export const selectSortedSites = createSelector(
 	[selectAllSites],
-	(sites: SiteInfo[]) =>
-		sites.sort(
-			(a, b) =>
-				(b.metadata.whenCreated || 0) - (a.metadata.whenCreated || 0)
-		)
+	(sites: SiteInfo[]) => getSitesSortedByRecency(sites)
 );
 
 export const selectTemporarySite = createSelector(
