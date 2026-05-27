@@ -4,7 +4,7 @@ on:
     workflow_dispatch:
         inputs:
             php_ref:
-                description: 'php-src ref to build (defaults to latest supported PHP branch)'
+                description: 'php-src ref to build (defaults to php-src master)'
                 required: false
     # Refresh PHP nightly binaries every day at 6am UTC.
     schedule:

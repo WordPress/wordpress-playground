@@ -2,11 +2,9 @@ import fs from 'fs';
 import https from 'https';
 import path from 'path';
 import { spawn } from 'child_process';
-import { phpVersions } from '../supported-php-versions.mjs';
 
 const projectRoot = path.resolve(import.meta.dirname, '../../..');
-const latestSupportedVersion = phpVersions[0].version;
-const phpRef = process.env.PHP_NIGHTLY_REF || `PHP-${latestSupportedVersion}`;
+const phpRef = process.env.PHP_NIGHTLY_REF || 'master';
 const outputDir = path.resolve(
 	projectRoot,
 	process.env.PHP_NIGHTLY_OUTPUT_DIR ||
