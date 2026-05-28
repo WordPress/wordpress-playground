@@ -1,0 +1,76 @@
+name: Build Playground PR preview
+
+on:
+    workflow_dispatch:
+        inputs:
+            pr_number:
+                description: 'Pull request number to build for preview'
+                required: true
+                type: string
+
+concurrency:
+    group: playground-pr-preview-${{ inputs.pr_number }}
+
+permissions: {}
+
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            pr_number: ${{ steps.pr.outputs.pr_number }}
+            head_sha: ${{ steps.pr.outputs.head_sha }}
+            head_repo: ${{ steps.pr.outputs.head_repo }}
+        steps:
+            - name: Validate input
+              shell: bash
+              run: |
+                  if [[ ! "${{ inputs.pr_number }}" =~ ^[0-9]+$ ]]; then
+                    echo "PR number must be numeric." >&2
+                    exit 1
+                  fi
+            - name: Read PR details
+              id: pr
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  PR_NUMBER: ${{ inputs.pr_number }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  pr_json="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid,headRepositoryOwner,headRepository)"
+                  head_sha="$(jq -r '.headRefOid' <<< "$pr_json")"
+                  head_owner="$(jq -r '.headRepositoryOwner.login' <<< "$pr_json")"
+                  head_repo_name="$(jq -r '.headRepository.name' <<< "$pr_json")"
+                  if [[ ! "$head_sha" =~ ^[a-fA-F0-9]{40}$ ]]; then
+                    echo "Unexpected PR head SHA: $head_sha" >&2
+                    exit 1
+                  fi
+                  echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+                  echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+                  echo "head_repo=$head_owner/$head_repo_name" >> "$GITHUB_OUTPUT"
+
+    build:
+        needs: validate
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  repository: ${{ needs.validate.outputs.head_repo }}
+                  ref: ${{ needs.validate.outputs.head_sha }}
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Sync PHP next build assets
+              run: npm run sync:php-next
+            - name: Build Playground website preview
+              run: npx nx build playground-website
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: playground-pr-preview-${{ needs.validate.outputs.pr_number }}-${{ needs.validate.outputs.head_sha }}
+                  path: dist/packages/playground/wasm-wordpress-net
+                  retention-days: 14
