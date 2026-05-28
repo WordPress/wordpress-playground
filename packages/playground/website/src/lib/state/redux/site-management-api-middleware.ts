@@ -48,136 +48,7 @@ type SaveSiteResult = { slug: string; storage: SiteStorageType };
  * sites. Used by the MCP bridge, the `window.playgroundSites`
  * DevTools global, and UI components.
  */
-export interface PlaygroundSitesAPI {
-	/**
-	 * Lists all known sites.
-	 *
-	 * @returns List of site info objects.
-	 */
-	list(): Array<{
-		slug: string;
-		name: string;
-		storage: PublicSiteStorageType;
-		persistence?: SitePersistence;
-		isActive: boolean;
-	}>;
-
-	/**
-	 * Returns the PlaygroundClient for the active site.
-	 *
-	 * @returns The client, or `undefined` if not yet booted.
-	 * @throws When no site is selected.
-	 */
-	getClient(): PlaygroundClient | undefined;
-
-	/**
-	 * Resolves once the active site is fully booted and its
-	 * PlaygroundClient is ready for API calls. Mirrors the
-	 * `isReady()` method on the PlaygroundClient itself.
-	 *
-	 * @throws When no site is selected or the site fails to boot.
-	 */
-	isReady(): Promise<void>;
-
-	/**
-	 * Renames the active site.
-	 *
-	 * @param newName The new display name.
-	 * @throws When no site is selected or the site is
-	 *   temporary.
-	 */
-	rename(newName: string): Promise<void>;
-
-	/**
-	 * Saves the active Playground in browser storage when it is temporary.
-	 *
-	 * Temporary sites are persisted to OPFS. Existing autosaves are marked as
-	 * explicitly saved and returned without changing storage backends.
-	 *
-	 * @param name Optional display name for a temporary site being saved.
-	 * @returns The site's slug and storage type.
-	 * @throws When no site is selected or saving fails.
-	 */
-	saveInBrowser(name?: string): Promise<SaveSiteResult>;
-
-	/**
-	 * Keeps an autosaved Playground as a saved Playground.
-	 *
-	 * This is a metadata-only lifecycle change. It turns an autosaved stored
-	 * Playground into an explicit save so autosave pruning and restore prompts
-	 * no longer treat it as disposable. It does not copy files, change the
-	 * storage backend, rename the Playground, or reboot it. Already-explicit
-	 * stored Playgrounds are left explicit.
-	 *
-	 * @param siteSlug Optional slug. Uses the active site when omitted.
-	 * @throws When no site is selected, the slug is unknown, or the site is
-	 *   temporary.
-	 */
-	keep(siteSlug?: string): Promise<void>;
-
-	/**
-	 * Saves the active Playground to a local directory when it is temporary.
-	 *
-	 * Existing saved sites are returned without changing storage backends.
-	 * Existing autosaves are marked as explicitly saved first.
-	 *
-	 * @param name Optional display name for a temporary site being saved.
-	 * @param localFsHandle Directory handle. When omitted the
-	 *   browser prompts the user to pick one.
-	 * @returns The site's slug and storage type.
-	 * @throws When no site is selected or saving fails.
-	 */
-	saveToLocalFileSystem(
-		name?: string,
-		localFsHandle?: FileSystemDirectoryHandle
-	): Promise<SaveSiteResult>;
-
-	/**
-	 * Changes the PHP version for the active site and reboots it.
-	 *
-	 * @param version The PHP version to use (e.g. `"8.4"`).
-	 * @throws When no site is selected or the site is temporary.
-	 */
-	setPhpVersion(version: AllPHPVersion): Promise<void>;
-
-	/**
-	 * Enables or disables network access for the active site
-	 * and reboots it.
-	 *
-	 * @param enabled Whether networking should be on.
-	 * @throws When no site is selected or the site is temporary.
-	 */
-	setNetworking(enabled: boolean): Promise<void>;
-
-	/**
-	 * Deletes a saved site by slug.
-	 *
-	 * @param siteSlug The slug of the site to delete.
-	 * @throws When the site is not found or the site is temporary.
-	 */
-	delete(siteSlug: string): Promise<void>;
-
-	/**
-	 * Switches to a different site and boots it.
-	 *
-	 * @param siteSlug The slug of the site to activate.
-	 * @throws When the site is not found or fails to boot.
-	 */
-	setActiveSite(siteSlug: string): Promise<void>;
-
-	/**
-	 * Creates a new temporary site and boots it.
-	 *
-	 * @param siteSlug Optional slug hint. A random name is
-	 *   generated when omitted.
-	 * @param settings Optional site settings.
-	 * @returns The new site's slug.
-	 */
-	createNewTemporarySite(
-		siteSlug?: string,
-		settings?: SiteSettings
-	): Promise<string>;
-}
+export type PlaygroundSitesAPI = ReturnType<typeof createSitesAPI>;
 
 export const siteManagementMiddleware = createListenerMiddleware();
 
@@ -205,9 +76,20 @@ function siteErrorMessage(
 export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
-): PlaygroundSitesAPI {
-	const api: PlaygroundSitesAPI = {
-		list() {
+) {
+	const api = {
+		/**
+		 * Lists all known sites.
+		 *
+		 * @returns List of site info objects.
+		 */
+		list(): Array<{
+			slug: string;
+			name: string;
+			storage: PublicSiteStorageType;
+			persistence?: SitePersistence;
+			isActive: boolean;
+		}> {
 			const state = getState();
 			const allSites = selectAllSites(state);
 			const active = selectActiveSite(state);
@@ -223,7 +105,13 @@ export function createSitesAPI(
 			}));
 		},
 
-		getClient() {
+		/**
+		 * Returns the PlaygroundClient for the active site.
+		 *
+		 * @returns The client, or `undefined` if not yet booted.
+		 * @throws When no site is selected.
+		 */
+		getClient(): PlaygroundClient | undefined {
 			const site = selectActiveSite(getState());
 			if (!site) {
 				throw new Error('No active site selected');
@@ -231,7 +119,14 @@ export function createSitesAPI(
 			return selectClientBySiteSlug(getState(), site.slug);
 		},
 
-		async isReady() {
+		/**
+		 * Resolves once the active site is fully booted and its
+		 * PlaygroundClient is ready for API calls. Mirrors the
+		 * `isReady()` method on the PlaygroundClient itself.
+		 *
+		 * @throws When no site is selected or the site fails to boot.
+		 */
+		async isReady(): Promise<void> {
 			// Wait until the store reaches a "settled" state for the active
 			// site: either a client has been added for it, or boot failed
 			// with an error. This also covers the early window after
@@ -282,7 +177,14 @@ export function createSitesAPI(
 			await client.isReady();
 		},
 
-		async rename(newName: string) {
+		/**
+		 * Renames the active site.
+		 *
+		 * @param newName The new display name.
+		 * @throws When no site is selected or the site is
+		 *   temporary.
+		 */
+		async rename(newName: string): Promise<void> {
 			const site = selectActiveSite(getState());
 			if (!site) {
 				throw new Error('No active site selected');
@@ -300,7 +202,17 @@ export function createSitesAPI(
 			);
 		},
 
-		async saveInBrowser(name?: string) {
+		/**
+		 * Saves the active Playground in browser storage when it is temporary.
+		 *
+		 * Temporary sites are persisted to OPFS. Existing autosaves are marked as
+		 * explicitly saved and returned without changing storage backends.
+		 *
+		 * @param name Optional display name for a temporary site being saved.
+		 * @returns The site's slug and storage type.
+		 * @throws When no site is selected or saving fails.
+		 */
+		async saveInBrowser(name?: string): Promise<SaveSiteResult> {
 			const site = selectActiveSite(getState());
 			if (!site) {
 				throw new Error('No active site selected');
@@ -327,7 +239,20 @@ export function createSitesAPI(
 			return { slug: site.slug, storage };
 		},
 
-		async keep(siteSlug?: string) {
+		/**
+		 * Keeps an autosaved Playground as a saved Playground.
+		 *
+		 * This is a metadata-only lifecycle change. It turns an autosaved stored
+		 * Playground into an explicit save so autosave pruning and restore prompts
+		 * no longer treat it as disposable. It does not copy files, change the
+		 * storage backend, rename the Playground, or reboot it. Already-explicit
+		 * stored Playgrounds are left explicit.
+		 *
+		 * @param siteSlug Optional slug. Uses the active site when omitted.
+		 * @throws When no site is selected, the slug is unknown, or the site is
+		 *   temporary.
+		 */
+		async keep(siteSlug?: string): Promise<void> {
 			const site = siteSlug
 				? selectSiteBySlug(getState(), siteSlug)
 				: selectActiveSite(getState());
@@ -339,10 +264,22 @@ export function createSitesAPI(
 			await dispatch(preserveSite(site.slug));
 		},
 
+		/**
+		 * Saves the active Playground to a local directory when it is temporary.
+		 *
+		 * Existing saved sites are returned without changing storage backends.
+		 * Existing autosaves are marked as explicitly saved first.
+		 *
+		 * @param name Optional display name for a temporary site being saved.
+		 * @param localFsHandle Directory handle. When omitted the
+		 *   browser prompts the user to pick one.
+		 * @returns The site's slug and storage type.
+		 * @throws When no site is selected or saving fails.
+		 */
 		async saveToLocalFileSystem(
 			name?: string,
 			localFsHandle?: FileSystemDirectoryHandle
-		) {
+		): Promise<SaveSiteResult> {
 			const site = selectActiveSite(getState());
 			if (!site) {
 				throw new Error('No active site selected');
@@ -370,7 +307,13 @@ export function createSitesAPI(
 			return { slug: site.slug, storage };
 		},
 
-		async setPhpVersion(version: AllPHPVersion) {
+		/**
+		 * Changes the PHP version for the active site and reboots it.
+		 *
+		 * @param version The PHP version to use (e.g. `"8.4"`).
+		 * @throws When no site is selected or the site is temporary.
+		 */
+		async setPhpVersion(version: AllPHPVersion): Promise<void> {
 			const site = selectActiveSite(getState());
 			if (!site) {
 				throw new Error('No active site selected');
@@ -393,7 +336,14 @@ export function createSitesAPI(
 			);
 		},
 
-		async setNetworking(enabled: boolean) {
+		/**
+		 * Enables or disables network access for the active site
+		 * and reboots it.
+		 *
+		 * @param enabled Whether networking should be on.
+		 * @throws When no site is selected or the site is temporary.
+		 */
+		async setNetworking(enabled: boolean): Promise<void> {
 			const site = selectActiveSite(getState());
 			if (!site) {
 				throw new Error('No active site selected');
@@ -416,7 +366,13 @@ export function createSitesAPI(
 			);
 		},
 
-		async delete(siteSlug: string) {
+		/**
+		 * Deletes a saved site by slug.
+		 *
+		 * @param siteSlug The slug of the site to delete.
+		 * @throws When the site is not found or the site is temporary.
+		 */
+		async delete(siteSlug: string): Promise<void> {
 			const site = selectSiteBySlug(getState(), siteSlug);
 			if (!site) {
 				throw new Error(`Site not found: ${siteSlug}`);
@@ -429,7 +385,13 @@ export function createSitesAPI(
 			await dispatch(removeSite(siteSlug));
 		},
 
-		async setActiveSite(siteSlug: string) {
+		/**
+		 * Switches to a different site and boots it.
+		 *
+		 * @param siteSlug The slug of the site to activate.
+		 * @throws When the site is not found or fails to boot.
+		 */
+		async setActiveSite(siteSlug: string): Promise<void> {
 			const state = getState();
 			const site = selectSiteBySlug(state, siteSlug);
 			if (!site) {
@@ -469,10 +431,18 @@ export function createSitesAPI(
 			await bootPromise;
 		},
 
+		/**
+		 * Creates a new temporary site and boots it.
+		 *
+		 * @param siteSlug Optional slug hint. A random name is
+		 *   generated when omitted.
+		 * @param settings Optional site settings.
+		 * @returns The new site's slug.
+		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
 			settings?: SiteSettings
-		) {
+		): Promise<string> {
 			const siteName = requestedSiteSlug
 				? deriveSiteNameFromSlug(requestedSiteSlug)
 				: randomSiteName();
