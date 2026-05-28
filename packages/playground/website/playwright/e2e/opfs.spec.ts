@@ -22,10 +22,11 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 test.describe.configure({ mode: 'serial' });
 
 /**
- * Returns a setup URL that must create a temporary Playground for this test.
+ * Returns a URL that opts this test out of default browser storage.
  *
- * The random value keeps the setup fingerprint distinct from any saved site
- * another serial OPFS test may have created earlier in the same browser.
+ * `storage=temp` is what makes the site temporary. The random value keeps
+ * repeated navigations from reusing a temporary site created earlier in this
+ * serial OPFS test file.
  */
 function getTemporaryPlaygroundUrl(hash = '') {
 	return `./?storage=temp&random=${Math.random().toString(36).slice(2)}${hash}`;

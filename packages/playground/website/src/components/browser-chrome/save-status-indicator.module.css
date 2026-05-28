@@ -112,6 +112,14 @@
 	white-space: normal;
 }
 
+.popover-error {
+	color: #b32d2e;
+	font-size: 13px;
+	line-height: 1.45;
+	margin: 0;
+	white-space: normal;
+}
+
 .primary-action {
 	align-items: center;
 	background: #3858e9;

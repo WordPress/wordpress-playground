@@ -33,8 +33,8 @@ import { getRelativeDate } from '../../lib/get-relative-date';
  *
  * It has two routing modes:
  * * When `site-slug` is provided, it loads that site or creates it if missing.
- * * When `site-slug` is missing, it creates a new site using the Query API and Blueprint API
- *   data sourced from the current URL.
+ * * When `site-slug` is missing, it starts from the current setup URL and
+ *   creates an autosaved site unless the URL or browser requires a temporary one.
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
@@ -54,9 +54,10 @@ export function EnsurePlaygroundSiteIsSelected({
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);
+	const isSavingDisabled = isSaveDisabledByQueryParam();
 	const shouldUseTemporarySite =
 		url.searchParams.get('storage') === 'temp' ||
-		isSaveDisabledByQueryParam() ||
+		isSavingDisabled ||
 		!opfsSiteStorage;
 	const requestedClientInfo = useAppSelector(
 		(state) =>
@@ -69,9 +70,13 @@ export function EnsurePlaygroundSiteIsSelected({
 		site: SiteInfo;
 		setupUrlFingerprint: string;
 	}>();
-	const [freshSetupFingerprints, setFreshSetupFingerprints] = useState<
-		string[]
-	>([]);
+	const [
+		declinedAutosaveRestoreFingerprints,
+		setDeclinedAutosaveRestoreFingerprints,
+	] = useState<string[]>([]);
+	const [autosaveNudgeError, setAutosaveNudgeError] = useState<string>();
+	const [isAutosaveNudgeActionPending, setIsAutosaveNudgeActionPending] =
+		useState(false);
 	const currentSetupUrlFingerprint = useMemo(
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
@@ -100,6 +105,7 @@ export function EnsurePlaygroundSiteIsSelected({
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {
 				setAutosaveNudge(undefined);
+				setAutosaveNudgeError(undefined);
 			}
 
 			// Don't create a new temporary site until the site listing settles.
@@ -124,7 +130,7 @@ export function EnsurePlaygroundSiteIsSelected({
 						await sitesAPI.createNewTemporarySite(
 							requestedSiteSlug
 						);
-						if (!isSaveDisabledByQueryParam()) {
+						if (!isSavingDisabled) {
 							setNeedMissingSitePromptForSlug(requestedSiteSlug);
 						}
 					} else {
@@ -178,7 +184,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				if (
 					matchingAutosave &&
 					isInitialPageLoadUrl &&
-					!freshSetupFingerprints.includes(
+					!declinedAutosaveRestoreFingerprints.includes(
 						currentSetupUrlFingerprint
 					) &&
 					wasSiteRecentlyInteractedWith(matchingAutosave)
@@ -207,12 +213,16 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 
 		ensureSiteIsSelected();
+		// Site and client state are outputs of this effect, not triggers.
+		// Re-running while `createNewSavedSite()` is between the OPFS metadata
+		// write and the iframe boot can mistake that half-created autosave for
+		// a restore candidate and create a second temporary site.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
+		declinedAutosaveRestoreFingerprints,
 		url.href,
 		requestedSiteSlug,
 		siteListingStatus,
-		freshSetupFingerprints,
 	]);
 
 	useEffect(() => {
@@ -244,23 +254,54 @@ export function EnsurePlaygroundSiteIsSelected({
 			{autosaveNudge && (
 				<RestoreAutosaveNudge
 					site={autosaveNudge.site}
-					onRestore={() => {
-						void sitesAPI.setActiveSite(autosaveNudge.site.slug);
-						setAutosaveNudge(undefined);
+					error={autosaveNudgeError}
+					isBusy={isAutosaveNudgeActionPending}
+					onRestore={async () => {
+						setAutosaveNudgeError(undefined);
+						setIsAutosaveNudgeActionPending(true);
+						try {
+							await sitesAPI.setActiveSite(
+								autosaveNudge.site.slug
+							);
+							setAutosaveNudge(undefined);
+						} catch (error) {
+							logger.error(
+								'Error restoring autosaved Playground.',
+								error
+							);
+							setAutosaveNudgeError(
+								'Could not restore the autosave. Try again or keep the new Playground.'
+							);
+						} finally {
+							setIsAutosaveNudgeActionPending(false);
+						}
 					}}
-					onKeepNew={() => {
-						// The user explicitly declined restore for this setup URL.
-						// Remember that choice so the temporary site can be
-						// autosaved without immediately showing the same nudge.
-						setFreshSetupFingerprints((fingerprints) => [
-							...fingerprints,
-							autosaveNudge.setupUrlFingerprint,
-						]);
-						void sitesAPI.autosaveTemporarySite(undefined, {
-							updateUrl: false,
-							excludeFromPruning: [autosaveNudge.site.slug],
-						});
-						setAutosaveNudge(undefined);
+					onKeepNew={async () => {
+						setAutosaveNudgeError(undefined);
+						setIsAutosaveNudgeActionPending(true);
+						try {
+							await sitesAPI.autosaveTemporarySite(undefined, {
+								updateUrl: false,
+								excludeFromPruning: [autosaveNudge.site.slug],
+							});
+							setDeclinedAutosaveRestoreFingerprints(
+								(fingerprints) => [
+									...fingerprints,
+									autosaveNudge.setupUrlFingerprint,
+								]
+							);
+							setAutosaveNudge(undefined);
+						} catch (error) {
+							logger.error(
+								'Error autosaving the new Playground after declining restore.',
+								error
+							);
+							setAutosaveNudgeError(
+								'Could not keep the new Playground. Please try again.'
+							);
+						} finally {
+							setIsAutosaveNudgeActionPending(false);
+						}
 					}}
 				/>
 			)}
@@ -273,14 +314,18 @@ export function EnsurePlaygroundSiteIsSelected({
  */
 function RestoreAutosaveNudge({
 	site,
+	error,
+	isBusy,
 	onRestore,
 	onKeepNew,
 }: {
 	site: SiteInfo;
-	onRestore: () => void;
-	onKeepNew: () => void;
+	error?: string;
+	isBusy: boolean;
+	onRestore: () => Promise<void>;
+	onKeepNew: () => Promise<void>;
 }) {
-	const createdAt = new Date((site.metadata.whenCreated ?? Date.now()) - 2);
+	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
 
 	return (
 		<aside className={css.nudge} aria-label="Recent autosaved Playground">
@@ -290,12 +335,17 @@ function RestoreAutosaveNudge({
 					Another Playground was created {getRelativeDate(createdAt)}{' '}
 					from the same URL.
 				</div>
+				{error && <div className={css.error}>{error}</div>}
 			</div>
 			<div className={css.actions}>
-				<Button variant="primary" onClick={onRestore}>
+				<Button variant="primary" onClick={onRestore} disabled={isBusy}>
 					Restore Autosave
 				</Button>
-				<Button variant="tertiary" onClick={onKeepNew}>
+				<Button
+					variant="tertiary"
+					onClick={onKeepNew}
+					disabled={isBusy}
+				>
 					No, thanks
 				</Button>
 			</div>

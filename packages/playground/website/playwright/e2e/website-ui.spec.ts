@@ -669,6 +669,75 @@ test.describe('Save Status Indicator', () => {
 		);
 		await expect(indicator).toHaveCount(0);
 	});
+
+	test('should keep a Playground saved after saving from the restore nudge state', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		// `random` is intentionally ignored by autosave fingerprints. `name`
+		// is a setup param, so it isolates this test's autosave without
+		// changing the default WordPress boot.
+		const setupUrl = `./?name=restore-nudge-${Date.now()}`;
+		await website.goto(setupUrl);
+		await website.page.waitForFunction(() => {
+			const api = (window as any).playgroundSites;
+			const activeSite = api?.list().find((site: any) => site.isActive);
+			return (
+				activeSite?.storage === 'opfs' &&
+				activeSite?.persistence === 'autosave'
+			);
+		});
+
+		await website.goto(setupUrl);
+		await expect(
+			website.page.getByText('Recent autosave available')
+		).toBeVisible();
+
+		// Regression: saving the temporary Playground before answering the
+		// restore nudge must not be undone when the nudge is dismissed.
+		await website.page.getByRole('button', { name: 'Unsaved' }).click();
+		await website.page
+			.getByRole('button', { name: 'Store permanently' })
+			.click();
+
+		const saveDialog = website.page.getByRole('dialog', {
+			name: 'Save Playground',
+		});
+		await expect(saveDialog).toBeVisible();
+		await saveDialog.getByRole('button', { name: 'Save' }).click();
+		await expect(saveDialog).not.toBeVisible({ timeout: 120000 });
+		await website.page.waitForFunction(() => {
+			const api = (window as any).playgroundSites;
+			const activeSite = api?.list().find((site: any) => site.isActive);
+			return (
+				activeSite?.storage === 'opfs' &&
+				activeSite?.persistence === 'explicit'
+			);
+		});
+
+		const keepNewButton = website.page.getByRole('button', {
+			name: 'No, thanks',
+		});
+		// Saving may route directly to the saved Playground and clear the
+		// nudge. If it stays visible, dismissing it must not undo the save.
+		if (await keepNewButton.isVisible()) {
+			await keepNewButton.click();
+		}
+		await expect(
+			website.page.getByText('Recent autosave available')
+		).toHaveCount(0);
+		await expect(website.page.getByText('Saved Playground')).toBeVisible();
+		await website.page.waitForFunction(() => {
+			const api = (window as any).playgroundSites;
+			const activeSite = api?.list().find((site: any) => site.isActive);
+			return activeSite?.persistence === 'explicit';
+		});
+	});
 });
 
 test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not set', async ({

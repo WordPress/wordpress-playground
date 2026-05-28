@@ -10,84 +10,28 @@ import {
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Icon, Popover } from '@wordpress/components';
 import { backup, check, cautionFilled } from '@wordpress/icons';
+import { logger } from '@php-wasm/logger';
 import {
 	isAutosavedSite,
-	preserveSite,
+	MAX_AUTOSAVED_SITES,
 	type SiteInfo,
 } from '../../lib/state/redux/slice-sites';
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 
 type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
-
-/**
- * Returns the status shown by the save indicator for the active Playground.
- */
-function getSaveStatus(
-	site: SiteInfo | undefined,
-	clientInfo: ClientInfo | undefined
-): SaveStatus | undefined {
-	if (!site) {
-		return undefined;
-	}
-	const opfsSync = clientInfo?.opfsSync;
-	const isAutosaved = isAutosavedSite(site);
-	if (opfsSync?.status === 'error') {
-		return 'error';
-	}
-	if (
-		opfsSync?.status === 'syncing' ||
-		(!clientInfo && site.metadata.initialOpfsSyncPending)
-	) {
-		return 'saving';
-	}
-	const storage = site?.metadata.storage;
-	if (storage === 'none' || !storage) {
-		return 'unsaved';
-	}
-	if (isAutosaved) {
-		return 'autosaved';
-	}
-	return 'saved';
-}
-
-/**
- * Returns the in-progress label for the save indicator.
- */
-function getSyncLabel({
-	site,
-	opfsSync,
-}: {
-	site: SiteInfo | undefined;
-	opfsSync: OpfsSync | undefined;
-}) {
-	return opfsSync?.operation === 'autosave' ||
-		(site &&
-			(isAutosavedSite(site) || site.metadata.initialOpfsSyncPending))
-		? 'Autosaving'
-		: 'Saving';
-}
-
-/**
- * Returns a bounded integer percentage for OPFS sync progress.
- */
-function getProgressPercent(
-	progress: Extract<OpfsSync, { status: 'syncing' }>['progress']
-) {
-	if (!progress || progress.total <= 0) {
-		return 0;
-	}
-	return Math.min(100, Math.round((progress.files / progress.total) * 100));
-}
 
 export function SaveStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const statusButtonRef = useRef<HTMLButtonElement>(null);
 	const suppressNextTriggerClickRef = useRef(false);
 	const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+	const [popoverError, setPopoverError] = useState<string>();
 
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(activeSite, clientInfo);
@@ -97,14 +41,25 @@ export function SaveStatusIndicator() {
 		isOpfsAvailable || localFsAvailability === 'available';
 
 	const handleSaveClick = () => {
+		setPopoverError(undefined);
 		setIsPopoverOpen(false);
 		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
 	};
 
-	const handleKeepClick = () => {
-		setIsPopoverOpen(false);
-		if (activeSite) {
-			void dispatch(preserveSite(activeSite.slug));
+	const handleKeepClick = async () => {
+		if (!activeSite) {
+			return;
+		}
+		setPopoverError(undefined);
+		try {
+			await sitesAPI.keep(activeSite.slug);
+			setIsPopoverOpen(false);
+		} catch (error) {
+			logger.error(
+				'Error storing autosaved Playground permanently.',
+				error
+			);
+			setPopoverError('Could not store permanently. Please try again.');
 		}
 	};
 
@@ -119,6 +74,7 @@ export function SaveStatusIndicator() {
 		event.preventDefault();
 		event.stopPropagation();
 		suppressNextTriggerClickRef.current = true;
+		setPopoverError(undefined);
 		setIsPopoverOpen(false);
 	};
 
@@ -128,6 +84,7 @@ export function SaveStatusIndicator() {
 			suppressNextTriggerClickRef.current = false;
 			return;
 		}
+		setPopoverError(undefined);
 		setIsPopoverOpen((isOpen) => !isOpen);
 	};
 
@@ -174,10 +131,15 @@ export function SaveStatusIndicator() {
 							<div className={css.popoverTitle}>Autosaved</div>
 							<p className={css.popoverDescription}>
 								This Playground is saved in this browser with
-								your recent autosaves. It will be deleted after
-								5 newer autosaves unless you store it
-								permanently.
+								your recent autosaves. It will be deleted after{' '}
+								{MAX_AUTOSAVED_SITES} newer autosaves unless you
+								store it permanently.
 							</p>
+							{popoverError && (
+								<p className={css.popoverError}>
+									{popoverError}
+								</p>
+							)}
 							<button
 								className={css.primaryAction}
 								onClick={handleKeepClick}
@@ -238,7 +200,6 @@ export function SaveStatusIndicator() {
 		);
 	}
 
-	// Unsaved - temporary playground that will be lost on refresh
 	return (
 		<>
 			<button
@@ -284,4 +245,68 @@ export function SaveStatusIndicator() {
 			)}
 		</>
 	);
+}
+
+/**
+ * Collapses site storage and OPFS sync state into one browser-chrome status.
+ *
+ * A newly-created OPFS site has saved metadata before its iframe client exists,
+ * so `initialOpfsSyncPending` must still render as an in-progress save.
+ */
+function getSaveStatus(
+	site: SiteInfo | undefined,
+	clientInfo: ClientInfo | undefined
+): SaveStatus | undefined {
+	if (!site) {
+		return undefined;
+	}
+	const opfsSync = clientInfo?.opfsSync;
+	const isAutosaved = isAutosavedSite(site);
+	if (opfsSync?.status === 'error') {
+		return 'error';
+	}
+	if (
+		opfsSync?.status === 'syncing' ||
+		(!clientInfo && site.metadata.initialOpfsSyncPending)
+	) {
+		return 'saving';
+	}
+	const storage = site?.metadata.storage;
+	if (storage === 'none' || !storage) {
+		return 'unsaved';
+	}
+	if (isAutosaved) {
+		return 'autosaved';
+	}
+	return 'saved';
+}
+
+/**
+ * Uses the sync operation when it is known, then falls back to site lifecycle.
+ *
+ * `initialOpfsSyncPending` alone is not enough to mean "autosaving": explicit
+ * browser saves also do their first MEMFS-to-OPFS sync after boot.
+ */
+function getSyncLabel({
+	site,
+	opfsSync,
+}: {
+	site: SiteInfo | undefined;
+	opfsSync: OpfsSync | undefined;
+}) {
+	return opfsSync?.operation === 'autosave' || (site && isAutosavedSite(site))
+		? 'Autosaving'
+		: 'Saving';
+}
+
+/**
+ * Turns OPFS file-count progress into the bounded percentage used by the ring.
+ */
+function getProgressPercent(
+	progress: Extract<OpfsSync, { status: 'syncing' }>['progress']
+) {
+	if (!progress || progress.total <= 0) {
+		return 0;
+	}
+	return Math.min(100, Math.round((progress.files / progress.total) * 100));
 }

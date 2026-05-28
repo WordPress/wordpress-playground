@@ -32,6 +32,13 @@
 	line-height: 17px;
 }
 
+.error {
+	margin-top: 6px;
+	color: #b32d2e;
+	font-size: 12px;
+	line-height: 17px;
+}
+
 .actions {
 	display: flex;
 	flex: 0 0 auto;

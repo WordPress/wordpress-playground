@@ -217,6 +217,14 @@
 	flex-shrink: 0;
 }
 
+.siteInfoHeaderError {
+	color: #b32d2e;
+	flex-basis: 100%;
+	font-size: 13px;
+	line-height: 18px;
+	text-align: right;
+}
+
 .siteInfoRenameButton {
 	padding: 2px !important;
 	min-height: 24px;
