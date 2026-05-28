@@ -55,11 +55,49 @@ For example, the following code embeds a Playground with a preinstalled Gutenber
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
 ```
 
+## Loading PHP.wasm extensions
+
+Use `php-extension` to load an external PHP.wasm extension manifest before PHP
+starts. This is useful for demos that need native extension performance, such
+as the SQLite Database Integration plugin's `wp_mysql_parser` extension. You do
+not need custom JavaScript for this — the Query API turns each parameter into a
+runtime extension request before Playground boots.
+
+```text
+https://playground.wordpress.net/?php=8.5&php-extension=https://wordpress.github.io/sqlite-database-integration/wp_mysql_parser-wasm-extension/latest/manifest.json
+```
+
+Use `/latest/manifest.json` for a quick demo. Use a pinned manifest from the
+extension release page when you need a stable URL for tests or documentation.
+
+You can repeat `php-extension` to load multiple manifests:
+
+```text
+https://playground.wordpress.net/?php-extension=https://example.com/one/manifest.json&php-extension=https://example.com/two/manifest.json
+```
+
+The parameter accepts absolute, root-relative, and page-relative manifest URLs:
+
+```text
+?php-extension=https://cdn.example.com/wp_mysql_parser/manifest.json
+?php-extension=/extensions/wp_mysql_parser/manifest.json
+?php-extension=./extensions/wp_mysql_parser/manifest.json
+```
+
+Relative values are resolved against the current Playground page URL. The
+manifest URL must use HTTP(S) once resolved. `file:` URLs are rejected in the
+browser. For local CLI workflows, use
+the [`--php-extension` flag](/developers/local-development/wp-playground-cli#loading-phpwasm-extensions)
+instead.
+
 <div class="callout callout-info">
 
 **CORS policy**
 
-To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
+To import files from a URL, such as a site zip package or PHP extension
+manifest and `.so` artifact, they must be served with the
+`Access-Control-Allow-Origin` header set. For reference, see:
+[Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 
 </div>
 

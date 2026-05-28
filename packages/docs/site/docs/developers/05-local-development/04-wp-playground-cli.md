@@ -264,10 +264,45 @@ The `server` command supports the following optional arguments:
 - `--internal-cookie-store`: Enable internal cookie handling. When enabled, Playground will manage cookies internally using an HttpCookieStore that persists cookies across requests. When disabled, cookies are handled externally (e.g., by a browser in Node.js environments). Defaults to false.
 - `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
 - `--xdebug`: Enable Xdebug. Defaults to false.
+- `--php-extension=<manifest>`: Load a PHP.wasm extension manifest before PHP starts. Accepts local paths, `file:` URLs, and HTTP(S) URLs. Can be used multiple times.
 - `--experimental-devtools`: Enable experimental browser development tools. Defaults to false.
 - `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code (`vscode`) and PhpStorm (`phpstorm`).
 - `--workers=<n|auto>`: Number of request-handling worker threads. Pass a positive integer, or `auto` to use one worker per CPU core (minus one). Defaults to `min(6, cpus-1)`. Useful for multi-client workloads (e.g. parallel e2e suites) that need more than 6 in-flight requests.
 - `--experimental-multi-worker=<number>`: Deprecated. Use `--workers=<n|auto>` instead. The value of this flag is ignored.
+
+### Loading PHP.wasm extensions
+
+Playground CLI can load external PHP.wasm extensions before PHP starts. Pass a
+manifest produced by `@php-wasm/compile-extension`, or a published manifest such
+as the SQLite Database Integration native parser:
+
+```bash
+npx @wp-playground/cli@latest server \
+	--php=8.5 \
+	--php-extension=https://wordpress.github.io/sqlite-database-integration/wp_mysql_parser-wasm-extension/latest/manifest.json \
+	--blueprint=https://wordpress.github.io/sqlite-database-integration/blueprint.json
+```
+
+For local development, point the flag at a local manifest:
+
+```bash
+npx @wp-playground/cli@latest server \
+	--php=8.5 \
+	--php-extension=./dist/wp_mysql_parser/manifest.json
+```
+
+`--php-extension` is repeatable. The manifest selects the `.so` artifact
+matching the active PHP version and can also stage sidecar files, `.ini`
+settings, and environment variables before startup.
+
+External extensions are JSPI side modules. If your Node.js build does not expose
+JSPI, the CLI rejects the extension request during startup. Use a Node.js build
+with JSPI support when testing custom extensions locally.
+
+See [Loading PHP extensions](/developers/apis/javascript-api/php-extensions)
+and
+[Building PHP extensions](/developers/apis/javascript-api/build-php-extensions)
+for manifest format, compiler helpers, and dependency notes.
 
 <div class="callout callout-warning">
 
