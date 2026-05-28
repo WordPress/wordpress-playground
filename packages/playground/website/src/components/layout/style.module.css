@@ -91,6 +91,7 @@ body {
 
 .site-view {
 	position: relative;
+	box-sizing: border-box;
 	flex: 1 1 auto;
 	min-width: var(--site-view-min-width);
 	height: 100dvh;
@@ -143,6 +144,10 @@ body {
 			100vw - (2 * var(--site-manager-border-width)) -
 				var(--site-manager-site-list-width)
 		);
+	}
+	.site-manager-wrapper + .site-view {
+		border-top-width: var(--site-manager-border-width);
+		border-left-width: var(--site-manager-border-width);
 	}
 	.site-manager-wrapper-exit-active + .site-view {
 		display: block;
