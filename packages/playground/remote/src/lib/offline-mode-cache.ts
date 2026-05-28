@@ -109,13 +109,17 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
  * file and contain JavaScript, CSS, and other assets required to load the
  * site without making any network requests.
  */
-export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
+export async function cacheOfflineModeAssetsForCurrentRelease(
+	basePath = '/'
+): Promise<any> {
 	// Get the cache manifest and add all the files to the cache
 	const manifestResponse = await fetchFresh(
-		'/assets-required-for-offline-mode.json'
+		`${basePath}assets-required-for-offline-mode.json`
 	);
 	const requiredOfflineAssetUrls = await manifestResponse.json();
-	const urlsToCache = ['/', ...requiredOfflineAssetUrls];
+	const urlsToCache = ['/', ...requiredOfflineAssetUrls].map((url) =>
+		basePath === '/' ? url : `${basePath}${url.replace(/^\//, '')}`
+	);
 	const websiteRequests = urlsToCache.map(
 		/**
 		 * Ensure the response is not coming from HTTP cache.

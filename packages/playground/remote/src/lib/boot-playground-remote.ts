@@ -26,6 +26,10 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
+import {
+	getPlaygroundPrPreviewServiceWorkerUrl,
+	playgroundPrPreviewServiceWorkerPath,
+} from './playground-pr-preview';
 
 // Select worker runtime (v1 or v2) based on query parameter
 // @ts-ignore
@@ -47,7 +51,11 @@ function getWorkerUrl(): string {
 	return new URL(selected, origin) + '';
 }
 
-export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
+export const serviceWorkerUrl = getPlaygroundPrPreviewServiceWorkerUrl(
+	serviceWorkerPath,
+	origin,
+	document.location.href
+);
 
 // Prevent Vite from hot-reloading this file – it would
 // cause bootPlaygroundRemote() to register another web worker
@@ -89,7 +97,9 @@ export async function bootPlaygroundRemote() {
 	}
 
 	const registration = await sw.register(serviceWorkerUrl + '', {
-		type: 'module',
+		...(serviceWorkerUrl.pathname === playgroundPrPreviewServiceWorkerPath
+			? {}
+			: { type: 'module' as const }),
 		// Always bypass HTTP cache when fetching the new Service Worker script:
 		updateViaCache: 'none',
 	});

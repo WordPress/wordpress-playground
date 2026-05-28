@@ -125,6 +125,15 @@ import {
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
+import {
+	getPlaygroundPrPreviewFromUrl,
+	mapToPlaygroundPrPreviewUrl,
+	shouldBypassPlaygroundPrPreview,
+	shouldMapToPlaygroundPrPreview,
+} from './src/lib/playground-pr-preview';
+
+const playgroundPrPreview = getPlaygroundPrPreviewFromUrl(self.location.href);
+const playgroundPrPreviewClientIds = new Set<string>();
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -192,7 +201,9 @@ self.addEventListener('activate', function (event) {
 
 		if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
-			cacheOfflineModeAssetsForCurrentRelease();
+			cacheOfflineModeAssetsForCurrentRelease(
+				playgroundPrPreview?.basePath
+			);
 		}
 	}
 	event.waitUntil(doActivate());
@@ -207,6 +218,10 @@ self.addEventListener('fetch', (event) => {
 
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
+		return;
+	}
+
+	if (shouldBypassPlaygroundPrPreview(url)) {
 		return;
 	}
 
@@ -293,7 +308,12 @@ self.addEventListener('fetch', (event) => {
 		}
 	}
 
-	if (!shouldCacheUrl(new URL(event.request.url))) {
+	const effectiveUrl = getEffectiveStaticAssetUrl(event, url, referrerUrl);
+	if (!effectiveUrl) {
+		return;
+	}
+
+	if (!shouldCacheUrl(effectiveUrl)) {
 		/**
 		 * It's safe to use the regular `fetch` function here.
 		 *
@@ -305,6 +325,11 @@ self.addEventListener('fetch', (event) => {
 		 */
 		return;
 	}
+
+	const effectiveRequest =
+		effectiveUrl.href === url.href
+			? Promise.resolve(event.request)
+			: cloneRequest(event.request, { url: effectiveUrl });
 
 	/**
 	 * Always fetch the fresh version of `/remote.html` and `/` from the network.
@@ -335,13 +360,67 @@ self.addEventListener('fetch', (event) => {
 	 * details.
 	 */
 	if (url.pathname === '/remote.html' || url.pathname === '/') {
-		event.respondWith(networkFirstFetch(event.request));
+		event.respondWith(effectiveRequest.then(networkFirstFetch));
 		return;
 	}
 
 	// Use cache first strategy to serve regular static assets.
-	return event.respondWith(cacheFirstFetch(event.request));
+	return event.respondWith(effectiveRequest.then(cacheFirstFetch));
 });
+
+function getEffectiveStaticAssetUrl(
+	event: FetchEvent,
+	url: URL,
+	referrerUrl?: URL
+): URL | undefined {
+	if (!playgroundPrPreview || url.origin !== self.location.origin) {
+		return url;
+	}
+
+	if (isPreviewNavigationRequest(event.request)) {
+		const clientId = event.resultingClientId || event.clientId;
+		if (isPlaygroundPrPreviewUrl(url)) {
+			if (clientId) {
+				playgroundPrPreviewClientIds.add(clientId);
+			}
+			return mapStaticAssetToPlaygroundPrPreview(url);
+		}
+
+		if (clientId) {
+			playgroundPrPreviewClientIds.delete(clientId);
+		}
+		return url;
+	}
+
+	const isPreviewClient =
+		!!event.clientId && playgroundPrPreviewClientIds.has(event.clientId);
+	const hasPreviewReferrer =
+		!!referrerUrl && isPlaygroundPrPreviewUrl(referrerUrl);
+	if (!isPreviewClient && !hasPreviewReferrer) {
+		return url;
+	}
+
+	return mapStaticAssetToPlaygroundPrPreview(url);
+}
+
+function mapStaticAssetToPlaygroundPrPreview(url: URL): URL | undefined {
+	if (!playgroundPrPreview || !shouldMapToPlaygroundPrPreview(url)) {
+		return undefined;
+	}
+
+	return mapToPlaygroundPrPreviewUrl(url, playgroundPrPreview);
+}
+
+function isPreviewNavigationRequest(request: Request) {
+	return request.mode === 'navigate';
+}
+
+function isPlaygroundPrPreviewUrl(url: URL) {
+	return (
+		url.searchParams.get('playground-pr') === playgroundPrPreview?.pr &&
+		url.searchParams.get('playground-pr-sha') === playgroundPrPreview?.sha
+	);
+}
 
 /**
  * A request to a PHP Worker Thread or to a regular static asset,
@@ -382,8 +461,10 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		) {
 			resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 		}
+		const staticAssetUrl =
+			mapStaticAssetToPlaygroundPrPreview(resolvedUrl) || resolvedUrl;
 		const request = await cloneRequest(event.request, {
-			url: resolvedUrl,
+			url: staticAssetUrl,
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies
 			credentials: 'omit',

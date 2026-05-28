@@ -38,6 +38,11 @@ function playground_handle_request() {
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
 
+	if ( playground_is_pr_preview_request( $original_requested_path ) ) {
+		playground_handle_pr_preview_request( $original_requested_path );
+		die();
+	}
+
 	//
 	// REWRITES
 	//
@@ -316,14 +321,7 @@ function playground_maybe_set_environment( $requested_path ) {
 	}
 
 	if ( str_ends_with( $requested_path, 'plugin-proxy.php' ) ) {
-		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
-		__atomic_env_define( 'DB_PASSWORD' );
-		$secrets = new Atomic_Persistent_Data;
-		if ( isset( $secrets->GITHUB_TOKEN ) ) {
-			putenv( "GITHUB_TOKEN={$secrets->GITHUB_TOKEN}" );
-		} else {
-			error_log( 'PLAYGROUND: Missing secrets for plugin-proxy.php' );
-		}
+		playground_maybe_set_github_token_environment( 'plugin-proxy.php' );
 
 		return true;
 	}
@@ -347,10 +345,384 @@ function playground_maybe_set_environment( $requested_path ) {
 	return false;
 }
 
+function playground_maybe_set_github_token_environment( $context ) {
+	if ( getenv( 'GITHUB_TOKEN' ) ) {
+		return true;
+	}
+
+	if ( ! function_exists( '__atomic_env_define' ) || ! class_exists( 'Atomic_Persistent_Data' ) ) {
+		error_log( "PLAYGROUND: Missing GitHub token environment helpers for $context" );
+		return false;
+	}
+
+	// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+	__atomic_env_define( 'DB_PASSWORD' );
+	$secrets = new Atomic_Persistent_Data;
+	if ( isset( $secrets->GITHUB_TOKEN ) ) {
+		putenv( "GITHUB_TOKEN={$secrets->GITHUB_TOKEN}" );
+		return true;
+	}
+
+	error_log( "PLAYGROUND: Missing secrets for $context" );
+	return false;
+}
+
+function playground_is_pr_preview_request( $requested_path ) {
+	return preg_match( '#^/pr-previews/\d+/(current\.json|[a-f0-9]{7,40}(/.*)?)$#i', $requested_path );
+}
+
+function playground_handle_pr_preview_request( $requested_path ) {
+	playground_maybe_set_github_token_environment( 'Playground PR preview' );
+
+	$match = array();
+	if ( preg_match( '#^/pr-previews/(?<pr>\d+)/current\.json$#', $requested_path, $match ) ) {
+		playground_send_pr_preview_current_json( $match['pr'] );
+		return;
+	}
+
+	if (
+		! preg_match(
+			'#^/pr-previews/(?<pr>\d+)/(?<sha>[a-f0-9]{7,40})(?<path>/.*)?$#i',
+			$requested_path,
+			$match
+		)
+	) {
+		http_response_code( 404 );
+		return;
+	}
+
+	$path = isset( $match['path'] ) && '' !== $match['path'] ? $match['path'] : '/';
+	playground_send_pr_preview_file( $match['pr'], strtolower( $match['sha'] ), $path );
+}
+
+function playground_send_pr_preview_current_json( $pr_number ) {
+	$head_sha = playground_get_pr_preview_head_sha( $pr_number );
+	$artifact = playground_get_pr_preview_artifact( $pr_number, $head_sha );
+
+	header( 'Content-Type: application/json' );
+	header( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );
+	echo json_encode(
+		array(
+			'pr' => $pr_number,
+			'sha' => $head_sha,
+			'artifactName' => $artifact->name,
+			'basePath' => "/pr-previews/$pr_number/$head_sha/",
+		)
+	);
+}
+
+function playground_send_pr_preview_file( $pr_number, $sha, $requested_file ) {
+	$artifact = playground_get_pr_preview_artifact( $pr_number, $sha );
+	$artifact_root = playground_get_pr_preview_artifact_root( $artifact );
+
+	$relative_file = ltrim( $requested_file, '/' );
+	if ( '' === $relative_file ) {
+		$relative_file = 'index.html';
+	}
+	if ( str_contains( $relative_file, '..' ) || str_starts_with( $relative_file, '/' ) ) {
+		http_response_code( 400 );
+		echo 'Invalid PR preview path';
+		return;
+	}
+
+	$resolved_path = realpath( $artifact_root . '/' . $relative_file );
+	if ( is_dir( $resolved_path ) ) {
+		$resolved_path = playground_resolve_to_index_file( $resolved_path );
+	}
+
+	if ( false === $resolved_path || ! str_starts_with( $resolved_path, $artifact_root . '/' ) ) {
+		http_response_code( 404 );
+		echo 'PR preview file not found';
+		return;
+	}
+
+	playground_send_pr_preview_static_file( $resolved_path, $requested_file );
+}
+
+
+function playground_pr_preview_json_error( $status, $error, $extra = array() ) {
+	http_response_code( $status );
+	header( 'Content-Type: application/json' );
+	die( json_encode( array_merge( array( 'error' => $error ), $extra ) ) );
+}
+
+function playground_get_pr_preview_head_sha( $pr_number ) {
+	$response = playground_github_api_request(
+		"https://api.github.com/repos/WordPress/wordpress-playground/pulls/$pr_number"
+	);
+	if ( empty( $response->head->sha ) || ! preg_match( '/^[a-f0-9]{40}$/i', $response->head->sha ) ) {
+		playground_pr_preview_json_error( 404, 'invalid_pr_number' );
+	}
+	return strtolower( $response->head->sha );
+}
+
+function playground_get_pr_preview_artifact( $pr_number, $sha ) {
+	$artifact_name = "playground-pr-preview-$pr_number-$sha";
+	$response = playground_github_api_request(
+		'https://api.github.com/repos/WordPress/wordpress-playground/actions/artifacts?name=' .
+			rawurlencode( $artifact_name )
+	);
+
+	if ( empty( $response->artifacts ) ) {
+		playground_pr_preview_json_error(
+			404,
+			'artifact_not_found',
+			array( 'artifactName' => $artifact_name )
+		);
+	}
+
+	foreach ( $response->artifacts as $artifact ) {
+		if ( $artifact_name === $artifact->name && empty( $artifact->expired ) ) {
+			return $artifact;
+		}
+	}
+
+	playground_pr_preview_json_error( 404, 'artifact_expired' );
+}
+
+function playground_get_pr_preview_artifact_root( $artifact ) {
+	$cache_dir = playground_get_pr_preview_cache_dir();
+	$extract_dir = "$cache_dir/extracted/{$artifact->id}";
+	$marker_file = "$extract_dir/.playground-artifact-ready";
+
+	if ( file_exists( $marker_file ) ) {
+		return playground_find_pr_preview_artifact_root( $extract_dir );
+	}
+
+	if ( ! class_exists( 'ZipArchive' ) ) {
+		playground_pr_preview_json_error( 500, 'zip_extension_missing' );
+	}
+
+	$zip_file = "$cache_dir/downloads/{$artifact->id}.zip";
+	if ( ! file_exists( $zip_file ) ) {
+		playground_download_pr_preview_artifact( $artifact, $zip_file );
+	}
+
+	$tmp_extract_dir = "$extract_dir.tmp." . getmypid();
+	playground_delete_directory( $tmp_extract_dir );
+	mkdir( $tmp_extract_dir, 0777, true );
+	playground_extract_zip_safely( $zip_file, $tmp_extract_dir );
+	rename( $tmp_extract_dir, $extract_dir );
+	touch( $marker_file );
+
+	return playground_find_pr_preview_artifact_root( $extract_dir );
+}
+
+function playground_get_pr_preview_cache_dir() {
+	$cache_dir = sys_get_temp_dir() . '/playground-pr-previews';
+	if ( ! is_dir( "$cache_dir/downloads" ) ) {
+		mkdir( "$cache_dir/downloads", 0777, true );
+	}
+	if ( ! is_dir( "$cache_dir/extracted" ) ) {
+		mkdir( "$cache_dir/extracted", 0777, true );
+	}
+	return $cache_dir;
+}
+
+function playground_download_pr_preview_artifact( $artifact, $zip_file ) {
+	$response = playground_github_api_request( $artifact->archive_download_url, false, false );
+	$download_url = playground_find_header( $response['headers'], 'location' );
+	if ( ! $download_url ) {
+		playground_pr_preview_json_error( 502, 'artifact_redirect_not_present' );
+	}
+
+	$tmp_file = "$zip_file.tmp." . getmypid();
+	$fp = fopen( $tmp_file, 'w' );
+	$ch = curl_init( $download_url );
+	curl_setopt_array(
+		$ch,
+		array(
+			CURLOPT_FILE => $fp,
+			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_FAILONERROR => true,
+			CURLOPT_CONNECTTIMEOUT => 30,
+		)
+	);
+	$ok = curl_exec( $ch );
+	$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+	curl_close( $ch );
+	fclose( $fp );
+
+	if ( ! $ok || $http_code < 200 || $http_code >= 300 ) {
+		@unlink( $tmp_file );
+		playground_pr_preview_json_error( 502, 'artifact_download_failed' );
+	}
+
+	rename( $tmp_file, $zip_file );
+}
+
+function playground_extract_zip_safely( $zip_file, $target_dir ) {
+	$zip = new ZipArchive();
+	if ( true !== $zip->open( $zip_file ) ) {
+		playground_pr_preview_json_error( 502, 'artifact_zip_invalid' );
+	}
+
+	for ( $i = 0; $i < $zip->numFiles; $i++ ) {
+		$name = $zip->getNameIndex( $i );
+		if ( str_ends_with( $name, '/' ) ) {
+			continue;
+		}
+		if ( str_starts_with( $name, '/' ) || str_contains( $name, '..' ) ) {
+			continue;
+		}
+
+		$target_file = "$target_dir/$name";
+		$target_parent = dirname( $target_file );
+		if ( ! is_dir( $target_parent ) ) {
+			mkdir( $target_parent, 0777, true );
+		}
+
+		copy( "zip://$zip_file#$name", $target_file );
+	}
+
+	$zip->close();
+}
+
+function playground_find_pr_preview_artifact_root( $extract_dir ) {
+	$candidates = array(
+		$extract_dir,
+		"$extract_dir/wasm-wordpress-net",
+		"$extract_dir/dist/packages/playground/wasm-wordpress-net",
+	);
+	foreach ( $candidates as $candidate ) {
+		if ( file_exists( "$candidate/sw.js" ) && file_exists( "$candidate/remote.html" ) ) {
+			return realpath( $candidate );
+		}
+	}
+
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $extract_dir, FilesystemIterator::SKIP_DOTS )
+	);
+	foreach ( $iterator as $file ) {
+		if ( 'sw.js' !== $file->getFilename() ) {
+			continue;
+		}
+		$candidate = dirname( $file->getPathname() );
+		if ( file_exists( "$candidate/remote.html" ) ) {
+			return realpath( $candidate );
+		}
+	}
+
+	playground_pr_preview_json_error( 502, 'artifact_missing_website_build' );
+}
+
+function playground_send_pr_preview_static_file( $resolved_path, $requested_file ) {
+	$filename = basename( $resolved_path );
+	$extension = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
+
+	if ( file_exists( __DIR__ . '/mime-types.php' ) ) {
+		require __DIR__ . '/mime-types.php';
+		if ( isset( $mime_types[ $extension ] ) ) {
+			header( "Content-Type: {$mime_types[$extension]}" );
+		}
+	} else {
+		$fallback_mime_types = array(
+			'css' => 'text/css',
+			'html' => 'text/html',
+			'js' => 'application/javascript',
+			'json' => 'application/json',
+			'wasm' => 'application/wasm',
+		);
+		if ( isset( $fallback_mime_types[ $extension ] ) ) {
+			header( "Content-Type: {$fallback_mime_types[$extension]}" );
+		}
+	}
+
+	$custom_response_headers = playground_get_custom_response_headers(
+		'/pr-previews/1/abcdef1/' . ltrim( $requested_file, '/' )
+	);
+	if ( ! empty( $custom_response_headers ) ) {
+		foreach ( $custom_response_headers as $custom_header ) {
+			header( $custom_header );
+		}
+	}
+	if ( 'sw.js' !== $filename && 'current.json' !== $filename ) {
+		header( 'Cache-Control: public, max-age=31536000, immutable' );
+	}
+
+	if ( 'HEAD' !== $_SERVER['REQUEST_METHOD'] ) {
+		readfile( $resolved_path );
+	}
+}
+
+function playground_github_api_request( $url, $decode = true, $follow_location = true ) {
+	$token = getenv( 'GITHUB_TOKEN' );
+	if ( ! $token ) {
+		playground_pr_preview_json_error( 500, 'github_token_missing' );
+	}
+
+	$ch = curl_init( $url );
+	curl_setopt_array(
+		$ch,
+		array(
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_FOLLOWLOCATION => $follow_location,
+			CURLOPT_HTTPHEADER => array(
+				'Accept: application/vnd.github+json',
+				'Authorization: Bearer ' . $token,
+				'User-Agent: WordPress Playground PR preview',
+				'X-GitHub-Api-Version: 2022-11-28',
+			),
+			CURLOPT_HEADER => true,
+			CURLOPT_CONNECTTIMEOUT => 30,
+		)
+	);
+	$response = curl_exec( $ch );
+	$header_size = curl_getinfo( $ch, CURLINFO_HEADER_SIZE );
+	$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+	curl_close( $ch );
+
+	if ( false === $response || $http_code < 200 || $http_code >= 400 ) {
+		playground_pr_preview_json_error( 502, 'github_request_failed' );
+	}
+
+	$headers = explode( "\r\n", trim( substr( $response, 0, $header_size ) ) );
+	$body = substr( $response, $header_size );
+	return array(
+		'body' => $decode ? json_decode( $body ) : $body,
+		'headers' => $headers,
+	)[$decode ? 'body' : null] ?? array( 'body' => $body, 'headers' => $headers );
+}
+
+function playground_find_header( $headers, $name ) {
+	$name = strtolower( $name );
+	foreach ( $headers as $header ) {
+		if ( ! str_contains( $header, ':' ) ) {
+			continue;
+		}
+		$header_name = strtolower( substr( $header, 0, strpos( $header, ':' ) ) );
+		if ( $name === $header_name ) {
+			return trim( substr( $header, strpos( $header, ':' ) + 1 ) );
+		}
+	}
+	return null;
+}
+
+function playground_delete_directory( $dir ) {
+	if ( ! is_dir( $dir ) ) {
+		return;
+	}
+	$files = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ),
+		RecursiveIteratorIterator::CHILD_FIRST
+	);
+	foreach ( $files as $fileinfo ) {
+		$fileinfo->isDir() ? rmdir( $fileinfo->getRealPath() ) : unlink( $fileinfo->getRealPath() );
+	}
+	rmdir( $dir );
+}
+
 function playground_get_custom_response_headers( $requested_path ) {
 	$filename = basename( $requested_path );
 
-	if ( 'iframe-worker.html' === $filename ) {
+	if ( preg_match( '#^/pr-previews/\d+/[a-f0-9]{7,40}/sw\.js$#i', $requested_path ) ) {
+		return array(
+			'Service-Worker-Allowed: /',
+			'Cache-Control: max-age=0, no-cache, no-store, must-revalidate',
+		);
+	} elseif ( preg_match( '#^/pr-previews/\d+/current\.json$#', $requested_path ) ) {
+		return array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );
+	} elseif ( 'iframe-worker.html' === $filename ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
 		// Disable compression so zip file can be read piece by piece

@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/cors-proxy-config.php';
+require __DIR__ . '/custom-redirects-lib.php';
 
 function assert_equal($expected, $actual, $message='') {
 	if ($expected !== $actual) {
@@ -65,5 +66,30 @@ assert_throws(
         );
     }
 );
+
+$preview_sw_headers = playground_get_custom_response_headers(
+    '/pr-previews/123/abcdef1234567890abcdef1234567890abcdef12/sw.js'
+);
+assert_equal(
+    1,
+    playground_is_pr_preview_request('/pr-previews/123/current.json'),
+    'PR preview current.json should be handled by the artifact proxy'
+);
+assert_equal(
+    1,
+    playground_is_pr_preview_request('/pr-previews/123/abcdef1/assets/index.js'),
+    'PR preview assets should be handled by the artifact proxy'
+);
+assert_equal(
+    true,
+    in_array('Service-Worker-Allowed: /', $preview_sw_headers, true),
+    'PR preview service worker must be allowed to control the root scope'
+);
+assert_equal(
+    array('Cache-Control: max-age=0, no-cache, no-store, must-revalidate'),
+    playground_get_custom_response_headers('/pr-previews/123/current.json'),
+    'PR preview current.json must not be cached'
+);
+
 
 echo 'All tests passed';
