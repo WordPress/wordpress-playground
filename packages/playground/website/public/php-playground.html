@@ -906,7 +906,7 @@ var_dump($html_processor->get_tag());
 						e
 					);
 				}
-				await client.isReady();
+				await waitForPlaygroundReady(client);
 				await client.writeFile('/wordpress/code.php', startingCode);
 				await client.goTo('/code.php'); // Blank document
 				// Sync current versions after boot to avoid unnecessary reboots on first run
@@ -934,6 +934,13 @@ var_dump($html_processor->get_tag());
 					return `${window.location.origin}/remote.html`;
 				}
 				return new URL('./remote.html', window.location.href).href;
+			}
+
+			function waitForPlaygroundReady(client) {
+				if (typeof client.isReady === 'function') {
+					return client.isReady();
+				}
+				return client.isReady;
 			}
 
 			async function executeCode() {

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { spawnSync } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 
 const projectRoot = path.resolve(import.meta.dirname, '../../..');
 const args = new Set(process.argv.slice(2));
@@ -29,10 +29,7 @@ try {
 	]);
 	fs.rmSync(targetDir, { recursive: true, force: true });
 	fs.mkdirSync(targetDir, { recursive: true });
-	run('sh', [
-		'-c',
-		`git archive ${shellQuote(remoteRef)} | tar -x -C ${shellQuote(targetDir)}`,
-	]);
+	await extractGitArchive(remoteRef, targetDir);
 	console.log(`Synced PHP next assets into ${targetDir}`);
 } catch (error) {
 	if (optional) {
@@ -42,17 +39,60 @@ try {
 	throw error;
 }
 
+function extractGitArchive(ref, outputDir) {
+	console.log(`Running git archive ${ref} | tar -x -C ${outputDir} ...`);
+	return new Promise((resolve, reject) => {
+		const git = spawn('git', ['archive', ref], {
+			cwd: projectRoot,
+			stdio: ['ignore', 'pipe', 'inherit'],
+		});
+		const tar = spawn('tar', ['-x', '-C', outputDir], {
+			cwd: projectRoot,
+			stdio: ['pipe', 'inherit', 'inherit'],
+		});
+		let gitClosed = false;
+		let tarClosed = false;
+
+		const maybeResolve = () => {
+			if (gitClosed && tarClosed) {
+				resolve();
+			}
+		};
+
+		git.stdout.pipe(tar.stdin);
+		git.on('error', reject);
+		tar.on('error', reject);
+		git.on('close', (code) => {
+			gitClosed = true;
+			if (code !== 0) {
+				reject(new Error(`git archive exited with code ${code}`));
+			} else {
+				maybeResolve();
+			}
+		});
+		tar.on('close', (code) => {
+			tarClosed = true;
+			if (code !== 0) {
+				reject(new Error(`tar exited with code ${code}`));
+			} else {
+				maybeResolve();
+			}
+		});
+	});
+}
+
 function run(command, commandArgs) {
 	console.log('Running', command, commandArgs.join(' '), '...');
 	const result = spawnSync(command, commandArgs, {
 		cwd: projectRoot,
 		stdio: 'inherit',
 	});
+	if (result.error) {
+		throw new Error(`${command} failed to start: ${result.error.message}`, {
+			cause: result.error,
+		});
+	}
 	if (result.status !== 0) {
 		throw new Error(`${command} exited with code ${result.status}`);
 	}
-}
-
-function shellQuote(value) {
-	return `'${value.replaceAll("'", `'"'"'`)}'`;
 }

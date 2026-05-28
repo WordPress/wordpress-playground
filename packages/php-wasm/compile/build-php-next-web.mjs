@@ -194,6 +194,7 @@ function asyncSpawn(command, args, options) {
 	console.log('Running', command, args.join(' '), '...');
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, options);
+		child.on('error', reject);
 		child.on('close', (code) => {
 			if (code === 0) {
 				resolve(code);
