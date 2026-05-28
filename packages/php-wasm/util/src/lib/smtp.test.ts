@@ -7,8 +7,8 @@ import {
 	type SmtpSinkOptions,
 } from './smtp';
 
-const enc = new TextEncoder();
-const dec = new TextDecoder();
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 /**
  * Spins up a fake SMTP server (the "sink") connected to an in-memory
@@ -34,12 +34,12 @@ function createClient(opts?: SmtpSinkOptions) {
 	/** Read the next chunk the server sent (e.g. a response line). */
 	async function read(): Promise<string> {
 		const { value } = await reader.read();
-		return value ? dec.decode(value) : '';
+		return value ? decoder.decode(value) : '';
 	}
 
 	/** Send raw bytes to the server (no CRLF added). */
 	async function write(s: string) {
-		await writer.write(enc.encode(s));
+		await writer.write(encoder.encode(s));
 	}
 
 	return {
@@ -121,17 +121,26 @@ describe('SmtpSink – EHLO', () => {
 		expect(joined).toMatch(/PIPELINING/);
 	});
 
-	it('advertises AUTH when mechs are configured', async () => {
+	it('advertises AUTH when mechanisms are configured', async () => {
 		// RFC 4954 §3: the AUTH EHLO keyword is advertised with a
 		// space-separated list of available SASL mechanism names as
 		// its parameter.
 		const client = createClient({
-			auth: { mechs: ['PLAIN', 'LOGIN'] },
+			auth: { mechanisms: ['PLAIN', 'LOGIN'] },
 		});
 		await client.read();
 		const lines = await ehlo(client);
 		const joined = lines.join('\n');
 		expect(joined).toMatch(/AUTH PLAIN LOGIN/);
+	});
+
+	it('supports the deprecated AUTH mechs option alias', async () => {
+		const client = createClient({
+			auth: { mechs: ['PLAIN'] },
+		});
+		await client.read();
+		const lines = await ehlo(client);
+		expect(lines.join('\n')).toMatch(/AUTH PLAIN/);
 	});
 
 	it('does not advertise STARTTLS', async () => {
@@ -149,7 +158,7 @@ describe('SmtpSink – EHLO', () => {
 		// RFC 5321 §4.1.1.1: HELO is the legacy non-extended greeting,
 		// so it must NOT advertise ESMTP extensions.
 		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
+			auth: { mechanisms: ['PLAIN'] },
 		});
 		await client.read();
 		await client.write('HELO localhost\r\n');
@@ -230,13 +239,13 @@ describe('SmtpSink – AUTH PLAIN', () => {
 		// SASL message: [authzid] UTF8NUL authcid UTF8NUL passwd).
 		// Success returns 235.
 		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
+			auth: { mechanisms: ['PLAIN'] },
 		});
 		await client.read();
 		await ehlo(client);
 		// PLAIN: \0username\0password in base64
-		const creds = btoa('\0user\0pass');
-		await client.write(`AUTH PLAIN ${creds}\r\n`);
+		const credentials = btoa('\0user\0pass');
+		await client.write(`AUTH PLAIN ${credentials}\r\n`);
 		const resp = await client.read();
 		expect(resp).toMatch(/^235 /);
 	});
@@ -246,15 +255,15 @@ describe('SmtpSink – AUTH PLAIN', () => {
 		// issues "334 " with an empty challenge and the client follows
 		// up with the SASL response on its own line.
 		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
+			auth: { mechanisms: ['PLAIN'] },
 		});
 		await client.read();
 		await ehlo(client);
 		await client.write('AUTH PLAIN\r\n');
 		const challenge = await client.read();
 		expect(challenge).toMatch(/^334 /);
-		const creds = btoa('\0user\0pass');
-		await client.write(`${creds}\r\n`);
+		const credentials = btoa('\0user\0pass');
+		await client.write(`${credentials}\r\n`);
 		const resp = await client.read();
 		expect(resp).toMatch(/^235 /);
 	});
@@ -264,15 +273,15 @@ describe('SmtpSink – AUTH PLAIN', () => {
 		// Authentication credentials invalid".
 		const client = createClient({
 			auth: {
-				mechs: ['PLAIN'],
-				validator: async (_mech, { username, password }) =>
+				mechanisms: ['PLAIN'],
+				validator: async (_mechanism, { username, password }) =>
 					username === 'admin' && password === 'secret',
 			},
 		});
 		await client.read();
 		await ehlo(client);
-		const creds = btoa('\0wrong\0creds');
-		await client.write(`AUTH PLAIN ${creds}\r\n`);
+		const credentials = btoa('\0wrong\0creds');
+		await client.write(`AUTH PLAIN ${credentials}\r\n`);
 		const resp = await client.read();
 		expect(resp).toMatch(/^535 /);
 	});
@@ -281,7 +290,7 @@ describe('SmtpSink – AUTH PLAIN', () => {
 		// RFC 4954 §4: a single "*" sent in place of a SASL response
 		// cancels the AUTH exchange; the server returns 501.
 		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
+			auth: { mechanisms: ['PLAIN'] },
 		});
 		await client.read();
 		await ehlo(client);
@@ -300,7 +309,7 @@ describe('SmtpSink – AUTH LOGIN', () => {
 		// then base64("Password:") via 334 challenges, then 235 on
 		// success per RFC 4954 §4.
 		const client = createClient({
-			auth: { mechs: ['LOGIN'] },
+			auth: { mechanisms: ['LOGIN'] },
 		});
 		await client.read();
 		await ehlo(client);
@@ -321,7 +330,7 @@ describe('SmtpSink – AUTH LOGIN', () => {
 		// username, so the server skips straight to the password
 		// challenge.
 		const client = createClient({
-			auth: { mechs: ['LOGIN'] },
+			auth: { mechanisms: ['LOGIN'] },
 		});
 		await client.read();
 		await ehlo(client);
@@ -337,7 +346,7 @@ describe('SmtpSink – AUTH LOGIN', () => {
 		// RFC 4954 §6: failed authentication exchange returns 535.
 		const client = createClient({
 			auth: {
-				mechs: ['LOGIN'],
+				mechanisms: ['LOGIN'],
 				validator: async () => false,
 			},
 		});
@@ -358,7 +367,7 @@ describe('SmtpSink – AUTH edge cases', () => {
 		// RFC 4954 §4: AUTH command requires a mechanism argument;
 		// the server replies 501 on syntax errors.
 		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
+			auth: { mechanisms: ['PLAIN'] },
 		});
 		await client.read();
 		await ehlo(client);
@@ -371,14 +380,14 @@ describe('SmtpSink – AUTH edge cases', () => {
 		// RFC 4954 §4: after a successful AUTH, further AUTH commands
 		// in the same session must be rejected with 503.
 		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
+			auth: { mechanisms: ['PLAIN'] },
 		});
 		await client.read();
 		await ehlo(client);
-		const creds = btoa('\0u\0p');
-		await client.write(`AUTH PLAIN ${creds}\r\n`);
+		const credentials = btoa('\0u\0p');
+		await client.write(`AUTH PLAIN ${credentials}\r\n`);
 		await client.read();
-		await client.write(`AUTH PLAIN ${creds}\r\n`);
+		await client.write(`AUTH PLAIN ${credentials}\r\n`);
 		const resp = await client.read();
 		expect(resp).toMatch(/^503 /);
 	});
@@ -387,7 +396,7 @@ describe('SmtpSink – AUTH edge cases', () => {
 		// RFC 4954 §4: a SASL mechanism the server doesn't support
 		// produces "504 5.5.4 Unrecognized authentication type".
 		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
+			auth: { mechanisms: ['PLAIN'] },
 		});
 		await client.read();
 		await ehlo(client);
@@ -402,7 +411,7 @@ describe('SmtpSink – AUTH edge cases', () => {
 		// QUIT when server policy requires authentication and the
 		// session is not yet authenticated.
 		const client = createClient({
-			auth: { mechs: ['PLAIN'], requireAuth: true },
+			auth: { mechanisms: ['PLAIN'], requireAuth: true },
 		});
 		await client.read();
 		await ehlo(client);
@@ -435,7 +444,7 @@ describe('SmtpSink – command edge cases', () => {
 
 	it('mid-session EHLO clears the envelope (RFC 5321 §4.1.4)', async () => {
 		// Regression: previously EHLO only set state='idle' without
-		// clearing buffers, leaking mailFrom/rcpts across sessions.
+		// clearing buffers, leaking mailFrom/recipientPaths across sessions.
 		const client = createClient();
 		await client.read();
 		await ehlo(client);
@@ -455,7 +464,7 @@ describe('SmtpSink – command edge cases', () => {
 		// line including the command word and the <CRLF> is 512
 		// octets." Outside of DATA mode the sink must refuse an
 		// un-terminated tail that has already exceeded that limit
-		// instead of growing lineBuf without bound.
+		// instead of growing lineBuffer without bound.
 		const client = createClient();
 		await client.read();
 		// 600 bytes of garbage with no CRLF — comfortably over 512
@@ -539,7 +548,7 @@ describe('SmtpSink – command edge cases', () => {
 
 	it.each(['EXPN', 'HELP', 'TURN'])(
 		'recognized but unimplemented command %s returns 502',
-		async (cmd) => {
+		async (command) => {
 			// RFC 5321 §4.2.4: a recognized but unimplemented command
 			// produces 502 "Command not implemented". EXPN and HELP
 			// are optional per §4.1.1.7 / §4.1.1.8; TURN is the
@@ -549,7 +558,7 @@ describe('SmtpSink – command edge cases', () => {
 			const client = createClient();
 			await client.read();
 			await ehlo(client);
-			await client.write(`${cmd}\r\n`);
+			await client.write(`${command}\r\n`);
 			expect(await client.read()).toMatch(/^502 /);
 		}
 	);
@@ -901,6 +910,35 @@ describe('parseMessage', () => {
 		expect(result.subject).toBe('Hello World');
 	});
 
+	it('decodes adjacent RFC 2047 encoded words with emoji', () => {
+		// RFC 2047 §6.2: linear white space between adjacent
+		// encoded-words is ignored. The second encoded-word is the UTF-8
+		// byte sequence for 🚀.
+		const encoded = '=?utf-8?B?SGVsbG8g?= =?utf-8?B?8J+agA==?=';
+		const raw = `Subject: ${encoded}\r\n\r\nBody.\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.subject).toBe('Hello 🚀');
+	});
+
+	it('leaves invalid RFC 2047 encoded words unchanged', () => {
+		// Invalid encoded-words should not make the small helper throw;
+		// keeping the original header value is more useful to callers.
+		const encoded = '=?utf-8?B?!!!!?=';
+		const raw = `Subject: ${encoded}\r\n\r\nBody.\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.subject).toBe(encoded);
+	});
+
+	it('preserves UTF-8 text body without transfer encoding', () => {
+		const raw =
+			'Subject: UTF-8 body\r\n' +
+			'Content-Type: text/plain; charset=utf-8\r\n' +
+			'\r\n' +
+			'Hello 🚀\r\n';
+		const result = parseMessage(raw, '', []);
+		expect(result.text).toContain('Hello 🚀');
+	});
+
 	it('decodes quoted-printable body', () => {
 		// RFC 2045 §6.7: quoted-printable encodes non-ASCII octets as
 		// "=XX" hex escapes; the receiver reverses the escape using
@@ -913,6 +951,17 @@ describe('parseMessage', () => {
 			'Hello =C3=A9 world\r\n';
 		const result = parseMessage(raw, '', []);
 		expect(result.text).toContain('Hello é world');
+	});
+
+	it('decodes quoted-printable UTF-8 emoji body', () => {
+		const raw =
+			'Subject: QP emoji\r\n' +
+			'Content-Type: text/plain; charset=utf-8\r\n' +
+			'Content-Transfer-Encoding: quoted-printable\r\n' +
+			'\r\n' +
+			'Hello =F0=9F=9A=80\r\n';
+		const result = parseMessage(raw, '', []);
+		expect(result.text).toContain('Hello 🚀');
 	});
 
 	it('decodes base64 body', () => {

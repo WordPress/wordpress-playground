@@ -1,4 +1,6 @@
 import { createSpawnHandler } from './create-spawn-handler';
+import { concatUint8Arrays } from './concat-uint8-arrays';
+import { splitShellCommand } from './split-shell-command';
 import { parseMessage } from './smtp';
 import type { CaughtMessage } from './smtp';
 
@@ -12,9 +14,17 @@ import type { CaughtMessage } from './smtp';
  * and this handler relies on that — it always extracts recipients from the
  * headers rather than from command-line arguments.
  *
+ * The envelope sender is read from sendmail's `-f` flag. Both `-f
+ * sender@example.com` and `-fsender@example.com` are supported.
+ *
+ * The full message is buffered in memory before parsing so headers, MIME
+ * boundaries, and text encodings can be inspected together. Messages larger
+ * than `maxSize`, including large attachments, are rejected.
+ *
  * Any command whose binary basename is `sendmail` is matched. Other
  * commands are forwarded to `fallbackSpawnHandler` if provided, otherwise
- * they throw.
+ * they throw. The fallback lets callers combine this mail interceptor with
+ * their existing spawn handler for unrelated commands.
  */
 const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10 MB, same as SmtpSink
 
@@ -42,15 +52,15 @@ export function createSendmailSpawnHandler(
 			}
 
 			const chunks: Uint8Array[] = [];
-			let totalLen = 0;
+			let totalLength = 0;
 			let overflow = false;
 			const stdinDone = new Promise<void>((resolve) => {
 				processApi.childProcess.stdin.on('finish', resolve);
 			});
 			processApi.on('stdin', (data: Uint8Array) => {
 				if (overflow) return;
-				totalLen += data.length;
-				if (totalLen > maxSize) {
+				totalLength += data.length;
+				if (totalLength > maxSize) {
 					overflow = true;
 					chunks.length = 0;
 					return;
@@ -68,22 +78,19 @@ export function createSendmailSpawnHandler(
 				return;
 			}
 
-			const all = new Uint8Array(totalLen);
-			let offset = 0;
-			for (const c of chunks) {
-				all.set(c, offset);
-				offset += c.length;
-			}
-			const rawText = new TextDecoder().decode(all);
+			const rawMessageBytes = concatUint8Arrays(chunks);
+			const rawText = new TextDecoder().decode(rawMessageBytes);
 
 			if (!rawText.trim()) {
 				processApi.exit(0);
 				return;
 			}
 
-			// Normalize line endings to CRLF for the email parsers
+			// MIME and SMTP parsers split on CRLF, so normalize PHP's stdin.
 			const raw = rawText.replace(/\r?\n/g, '\r\n');
 
+			// parseMessage does the expensive MIME/header work once we know
+			// the sendmail process has received a complete message.
 			const parsed = parseMessage(raw, envelopeSender, []);
 
 			const message: CaughtMessage = {
@@ -108,11 +115,13 @@ export function createSendmailSpawnHandler(
 		argsArray: string[] = [],
 		options: any = {}
 	) {
-		const cmdStr = Array.isArray(command)
-			? command[0]
-			: typeof command === 'string'
-				? command.split(/\s+/)[0]
-				: '';
+		const cmdStr = argsArray.length
+			? (command as string)
+			: Array.isArray(command)
+				? command[0]
+				: typeof command === 'string'
+					? (splitShellCommand(command)[0] ?? '')
+					: '';
 		const bin = cmdStr.split('/').pop() || '';
 		if (bin !== 'sendmail') {
 			if (fallbackSpawnHandler) {

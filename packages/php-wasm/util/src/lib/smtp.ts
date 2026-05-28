@@ -1,8 +1,22 @@
+/**
+ * A pair of byte streams representing one endpoint of a bidirectional
+ * connection.
+ *
+ * Data flow is intentionally from the endpoint owner's point of view:
+ *
+ * - bytes read from `readable` were written by the peer
+ * - bytes written to `writable` become readable by the peer
+ *
+ * `makeLoopbackPair()` returns two connected endpoints with opposite flow.
+ */
 export type ByteDuplex = {
 	readable: ReadableStream<Uint8Array>;
 	writable: WritableStream<Uint8Array>;
 };
 
+/**
+ * Message captured by `SmtpSink` after a complete SMTP DATA transaction.
+ */
 export type CaughtMessage = {
 	receivedAt: string;
 	from: string;
@@ -14,25 +28,51 @@ export type CaughtMessage = {
 	rawSize: number;
 };
 
-type SaslMech = 'PLAIN' | 'LOGIN';
+/**
+ * SASL authentication mechanisms implemented by this test SMTP sink.
+ */
+export type SaslMechanism = 'PLAIN' | 'LOGIN';
 
-// Server identifier used in the 220 greeting and as the Domain
-// token in the EHLO/HELO 250 response (RFC 5321 §4.1.1.1 ABNF
-// requires the first token after "250"/"250-" to be a Domain).
+// Server identifier used in the 220 greeting and as the Domain token in the
+// EHLO/HELO 250 response. RFC 5321 §4.1.1.1 requires that token to be a Domain:
+// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.1
+//
+// This sink is an in-process endpoint, not the public Playground service, so a
+// real-looking name such as playground.wordpress.net would imply DNS/TLS
+// identity it does not have. "localhost" is the safe identifier for loopback and
+// test-only SMTP sessions.
 const SERVER_NAME = 'localhost';
 
+/**
+ * Validates credentials provided through SMTP AUTH.
+ */
 export type AuthValidator = (
-	mech: SaslMech,
-	cred: { username: string; password: string }
+	mechanism: SaslMechanism,
+	credentials: { username: string; password: string }
 ) => boolean | Promise<boolean>;
 
+/**
+ * Configuration for `SmtpSink`.
+ */
 export type SmtpSinkOptions = {
+	/**
+	 * Maximum accepted message size in octets. Advertised as the RFC 1870
+	 * SIZE fixed maximum, not as the current message's actual size.
+	 *
+	 * https://www.rfc-editor.org/rfc/rfc1870.html#section-3
+	 */
 	maxSize?: number;
 	auth?: {
-		mechs?: SaslMech[]; // which mechanisms to offer
-		advertise?: boolean; // show AUTH on EHLO
-		requireAuth?: boolean; // 530 before MAIL/RCPT unless authenticated
-		validator?: AuthValidator; // check creds; default accepts anything
+		/** SASL mechanisms to offer. */
+		mechanisms?: SaslMechanism[];
+		/** Deprecated alias for `mechanisms`. */
+		mechs?: SaslMechanism[];
+		/** Whether to show AUTH in the EHLO extension list. */
+		advertise?: boolean;
+		/** Whether MAIL/RCPT require successful AUTH first. */
+		requireAuth?: boolean;
+		/** Credential validator. The default accepts any credentials. */
+		validator?: AuthValidator;
 	};
 };
 
@@ -41,32 +81,37 @@ export type SmtpSinkOptions = {
  * each fully-received message.
  */
 export class SmtpSink {
-	private enc = new TextEncoder();
-	private dec = new TextDecoder();
-	private lineBuf = '';
+	private encoder = new TextEncoder();
+	private decoder = new TextDecoder();
+	private lineBuffer = '';
 	private dataMode = false;
 	private dataLines: string[] = [];
 	private dataBytes = 0;
 	private mailFrom: string | null = null;
-	private rcpts: string[] = [];
+	private recipientPaths: string[] = [];
 	private writer: WritableStreamDefaultWriter<Uint8Array>;
 	private reader: ReadableStreamDefaultReader<Uint8Array>;
 	private closed = false;
 	private readonly maxSize: number;
 
-	// sequencing so replies stay in order
-	private seq: Promise<void> = Promise.resolve();
+	// Commands may trigger async AUTH validators. Queue handlers so SMTP replies
+	// are written in the same order as the CRLF-terminated commands arrived.
+	private writeQueue: Promise<void> = Promise.resolve();
 
 	// AUTH policy
 	private authAdvertise: boolean;
-	private authMechs: SaslMech[];
+	private authMechanisms: SaslMechanism[];
 	private authRequire: boolean;
 	private authValidator: AuthValidator;
 	private authenticated = false;
 	private authPending = false;
 	private authState:
-		| { mech: 'PLAIN'; stage: 'waitInitial' }
-		| { mech: 'LOGIN'; stage: 'username' | 'password'; username?: string }
+		| { mechanism: 'PLAIN'; stage: 'waitInitial' }
+		| {
+				mechanism: 'LOGIN';
+				stage: 'username' | 'password';
+				username?: string;
+		  }
 		| null = null;
 
 	private onEmail: (m: CaughtMessage) => void;
@@ -81,18 +126,23 @@ export class SmtpSink {
 		this.reader = duplex.readable.getReader();
 		this.maxSize = opts.maxSize ?? 10 * 1024 * 1024;
 
-		this.authMechs = opts.auth?.mechs ?? [];
-		this.authAdvertise = opts.auth?.advertise ?? this.authMechs.length > 0;
+		this.authMechanisms = opts.auth?.mechanisms ?? opts.auth?.mechs ?? [];
+		this.authAdvertise =
+			opts.auth?.advertise ?? this.authMechanisms.length > 0;
 		this.authRequire = opts.auth?.requireAuth ?? false;
 		this.authValidator = opts.auth?.validator ?? (async () => true);
 	}
 
+	/**
+	 * Starts reading SMTP commands from the duplex until QUIT, stream close,
+	 * or protocol rejection closes the sink.
+	 */
 	async start(): Promise<void> {
 		await this.reply(220, `${SERVER_NAME} ESMTP ready`);
 		for (;;) {
-			const r = await this.reader.read();
-			if (r.done) break;
-			this.consumeChunk(r.value);
+			const readResult = await this.reader.read();
+			if (readResult.done) break;
+			this.consumeChunk(readResult.value);
 			if (this.closed) break;
 		}
 		// Wait for all enqueued handlers to finish before closing
@@ -100,7 +150,7 @@ export class SmtpSink {
 		// reader gets done immediately, but enqueued handlers
 		// (like handleDataLine(".") which delivers the email) may
 		// still be pending in the promise chain.
-		await this.seq;
+		await this.writeQueue;
 		await this.close();
 	}
 
@@ -111,16 +161,19 @@ export class SmtpSink {
 	}
 
 	private consumeChunk(chunk: Uint8Array) {
-		const text = this.dec.decode(chunk, { stream: true });
-		this.lineBuf += text;
+		const text = this.decoder.decode(chunk, { stream: true });
+		this.lineBuffer += text;
 
 		for (;;) {
-			const idx = this.lineBuf.indexOf('\r\n');
-			if (idx < 0) break;
-			const line = this.lineBuf.slice(0, idx);
-			this.lineBuf = this.lineBuf.slice(idx + 2);
+			// SMTP is line-oriented and commands/data lines are terminated with
+			// CRLF, not bare LF:
+			// https://www.rfc-editor.org/rfc/rfc5321.html#section-2.3.8
+			const crlfIndex = this.lineBuffer.indexOf('\r\n');
+			if (crlfIndex < 0) break;
+			const line = this.lineBuffer.slice(0, crlfIndex);
+			this.lineBuffer = this.lineBuffer.slice(crlfIndex + 2);
 
-			this.enqueue(async () => {
+			this.queueHandler(async () => {
 				if (this.dataMode) {
 					await this.handleDataLine(line);
 				} else if (this.authPending) {
@@ -134,51 +187,61 @@ export class SmtpSink {
 
 		// RFC 5321 §4.5.3.1.4: command lines (incl. CRLF) ≤ 512
 		// octets. §4.5.3.1.6: text lines (incl. CRLF) ≤ 1000 octets.
-		// If the un-terminated tail of lineBuf has already grown past
+		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.4
+		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.6
+		// If the un-terminated tail of lineBuffer has already grown past
 		// the limit that applies to the current mode, the peer is
 		// malformed (or hostile); refuse it and drop the session
-		// rather than letting lineBuf grow without bound.
+		// rather than letting lineBuffer grow without bound.
 		const maxLineLen = this.dataMode ? 1000 : 512;
-		if (this.lineBuf.length > maxLineLen) {
-			this.lineBuf = '';
-			this.enqueue(async () => {
+		if (this.lineBuffer.length > maxLineLen) {
+			this.lineBuffer = '';
+			this.queueHandler(async () => {
 				await this.reply(500, 'line too long');
 				await this.close();
 			});
 		}
 	}
 
-	private enqueue(fn: () => Promise<void>) {
-		this.seq = this.seq.then(fn);
+	private queueHandler(handler: () => Promise<void>) {
+		this.writeQueue = this.writeQueue.then(handler);
 	}
 
 	private async handleCommand(rawLine: string) {
 		const line = rawLine.trimEnd();
-		const sp = line.indexOf(' ');
-		const cmd = (sp < 0 ? line : line.slice(0, sp)).toUpperCase();
-		const arg = sp < 0 ? '' : line.slice(sp + 1);
+		const commandSeparator = line.indexOf(' ');
+		const command = (
+			commandSeparator < 0 ? line : line.slice(0, commandSeparator)
+		).toUpperCase();
+		const commandArgument =
+			commandSeparator < 0 ? '' : line.slice(commandSeparator + 1);
 
-		switch (cmd) {
+		switch (command) {
 			case 'EHLO':
 			case 'HELO': {
 				// RFC 5321 §4.1.1.1 ABNF: both `helo` and `ehlo`
 				// require a Domain (or address-literal for EHLO)
 				// argument; an empty argument is a syntax error.
-				if (!arg.trim()) {
-					await this.reply(501, `syntax: ${cmd} <domain>`);
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.1
+				if (!commandArgument.trim()) {
+					await this.reply(501, `syntax: ${command} <domain>`);
 					break;
 				}
 				// RFC 5321 §4.1.4: a successful EHLO/HELO issued mid-
 				// session MUST clear all buffers and reset state exactly
 				// as RSET would. Auth state is preserved (RFC 4954 §4).
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.4
 				this.resetEnvelope();
-				if (cmd === 'HELO') {
+				if (command === 'HELO') {
 					// RFC 5321 §4.1.1.1 ABNF:
 					//   ehlo-ok-rsp = "250" SP Domain [ SP ehlo-greet ]
 					// HELO uses the same single-line form. The first
 					// token after the reply code MUST be the server's
 					// Domain, optionally followed by free-form text.
-					await this.reply(250, `${SERVER_NAME} Hello ${arg}`);
+					await this.reply(
+						250,
+						`${SERVER_NAME} Hello ${commandArgument}`
+					);
 					break;
 				}
 				// RFC 5321 §4.1.1.1 ABNF for the multi-line response:
@@ -187,15 +250,21 @@ export class SmtpSink {
 				//   "250" SP ehlo-line CRLF
 				// The first line therefore starts with the server's
 				// Domain, never with free-form text.
-				const ext: string[] = [];
-				if (this.authAdvertise && this.authMechs.length) {
-					const list = this.authMechs.join(' ');
-					ext.push(`AUTH ${list}`, `AUTH=${list}`);
+				const extensions: string[] = [];
+				if (this.authAdvertise && this.authMechanisms.length) {
+					const authMechanismList = this.authMechanisms.join(' ');
+					extensions.push(
+						`AUTH ${authMechanismList}`,
+						`AUTH=${authMechanismList}`
+					);
 				}
-				ext.push(`SIZE ${this.maxSize}`, 'PIPELINING');
+				// RFC 1870 §3: SIZE parameter is the maximum message size the
+				// server will accept, not the size of a message in progress.
+				// https://www.rfc-editor.org/rfc/rfc1870.html#section-3
+				extensions.push(`SIZE ${this.maxSize}`, 'PIPELINING');
 				await this.replyMulti(250, [
-					`${SERVER_NAME} Hello ${arg}`,
-					...ext,
+					`${SERVER_NAME} Hello ${commandArgument}`,
+					...extensions,
 				]);
 				break;
 			}
@@ -207,15 +276,22 @@ export class SmtpSink {
 				// "Command not implemented" if a client tries it
 				// anyway. Clients that need TLS should be configured
 				// for plain SMTP against this sink.
+				// RFC 3207 defines STARTTLS for SMTP:
+				// https://www.rfc-editor.org/rfc/rfc3207.html
 				await this.reply(502, 'Command not implemented');
 				break;
 			}
 
 			case 'AUTH': {
-				const [mechRaw, initialRaw] = arg.split(/\s+/, 2);
-				const mech = (mechRaw || '').toUpperCase() as SaslMech;
+				// RFC 4954 §4 extends SMTP with the AUTH command.
+				// https://www.rfc-editor.org/rfc/rfc4954.html#section-4
+				const [mechanismRaw, initialResponseRaw] =
+					commandArgument.split(/\s+/, 2);
+				const mechanism = (
+					mechanismRaw || ''
+				).toUpperCase() as SaslMechanism;
 
-				if (!mech) {
+				if (!mechanism) {
 					await this.reply(
 						501,
 						'syntax: AUTH mechanism [initial-response]'
@@ -227,43 +303,49 @@ export class SmtpSink {
 					break;
 				}
 
-				if (!this.authMechs.includes(mech)) {
+				if (!this.authMechanisms.includes(mechanism)) {
 					await this.reply(504, 'Unrecognized authentication type');
 					break;
 				}
 
-				if (mech === 'PLAIN') {
-					const init = normalizeInitial(initialRaw);
-					if (init == null) {
+				if (mechanism === 'PLAIN') {
+					const initialResponse =
+						getAuthInitialResponse(initialResponseRaw);
+					if (initialResponse == null) {
 						this.authPending = true;
 						this.authState = {
-							mech: 'PLAIN',
+							mechanism: 'PLAIN',
 							stage: 'waitInitial',
 						};
 						await this.reply(334, ''); // empty challenge
 					} else {
-						const ok = await this.handleAuthPlain(init);
-						await this.finishAuth(ok);
+						const isValid =
+							await this.handleAuthPlain(initialResponse);
+						await this.finishAuth(isValid);
 					}
 					break;
 				}
 
-				if (mech === 'LOGIN') {
-					const init = normalizeInitial(initialRaw);
-					if (init != null) {
-						// initial response is username
-						const username = b64DecodeText(init);
+				if (mechanism === 'LOGIN') {
+					const initialResponse =
+						getAuthInitialResponse(initialResponseRaw);
+					if (initialResponse != null) {
+						// The initial response is the username for AUTH LOGIN.
+						const username = decodeBase64Text(initialResponse);
 						this.authPending = true;
 						this.authState = {
-							mech: 'LOGIN',
+							mechanism: 'LOGIN',
 							stage: 'password',
 							username,
 						};
-						await this.reply(334, b64('Password:'));
+						await this.reply(334, encodeBase64Text('Password:'));
 					} else {
 						this.authPending = true;
-						this.authState = { mech: 'LOGIN', stage: 'username' };
-						await this.reply(334, b64('Username:'));
+						this.authState = {
+							mechanism: 'LOGIN',
+							stage: 'username',
+						};
+						await this.reply(334, encodeBase64Text('Username:'));
 					}
 					break;
 				}
@@ -281,13 +363,14 @@ export class SmtpSink {
 				// reverse-path MUST be enclosed in angle brackets (or
 				// be the literal `<>` for the null reverse-path,
 				// §4.5.5).
-				const path = parseEnvelopeArg(arg, 'FROM');
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-3.3
+				const path = parseEnvelopeArg(commandArgument, 'FROM');
 				if (path === null) {
 					await this.reply(501, 'syntax: MAIL FROM:<addr>');
 					break;
 				}
 				this.mailFrom = path;
-				this.rcpts = [];
+				this.recipientPaths = [];
 				await this.reply(250, 'OK');
 				break;
 			}
@@ -300,7 +383,8 @@ export class SmtpSink {
 				// RFC 5321 §3.3 + §4.1.1.3: the syntax is exactly
 				// `RCPT TO:<forward-path>`. Same no-space, mandatory-
 				// brackets rule as MAIL FROM.
-				const path = parseEnvelopeArg(arg, 'TO');
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.3
+				const path = parseEnvelopeArg(commandArgument, 'TO');
 				if (path === null) {
 					await this.reply(501, 'syntax: RCPT TO:<addr>');
 					break;
@@ -312,13 +396,19 @@ export class SmtpSink {
 					await this.reply(503, 'need MAIL FROM first');
 					break;
 				}
-				this.rcpts.push(path);
+				this.recipientPaths.push(path);
 				await this.reply(250, 'Accepted');
 				break;
 			}
 
 			case 'DATA': {
-				if (this.mailFrom === null || this.rcpts.length === 0) {
+				// RFC 5321 §3.3: DATA begins mail content after a valid
+				// MAIL/RCPT envelope and is terminated by <CRLF>.<CRLF>.
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-3.3
+				if (
+					this.mailFrom === null ||
+					this.recipientPaths.length === 0
+				) {
 					await this.reply(503, 'need MAIL/RCPT first');
 					break;
 				}
@@ -377,7 +467,7 @@ export class SmtpSink {
 			const { headers, subject, text, from, to } = parseMessage(
 				raw,
 				this.mailFrom ?? '',
-				this.rcpts
+				this.recipientPaths
 			);
 			const message: CaughtMessage = {
 				receivedAt: new Date().toISOString(),
@@ -398,7 +488,10 @@ export class SmtpSink {
 		}
 
 		const actual = line.startsWith('..') ? line.slice(1) : line;
-		this.dataBytes += this.enc.encode(actual).byteLength + 2;
+		// RFC 5321 §4.5.2 transparency: clients dot-stuff body lines that
+		// start with "." so they cannot be mistaken for end-of-data.
+		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2
+		this.dataBytes += this.encoder.encode(actual).byteLength + 2;
 		if (this.dataBytes <= this.maxSize) {
 			this.dataLines.push(actual);
 		}
@@ -416,35 +509,39 @@ export class SmtpSink {
 			return;
 		}
 
-		if (this.authState.mech === 'PLAIN') {
-			const ok = await this.handleAuthPlain(line.trim());
-			await this.finishAuth(ok);
+		if (this.authState.mechanism === 'PLAIN') {
+			const isValid = await this.handleAuthPlain(line.trim());
+			await this.finishAuth(isValid);
 			return;
 		}
 
-		if (this.authState.mech === 'LOGIN') {
+		if (this.authState.mechanism === 'LOGIN') {
 			if (this.authState.stage === 'username') {
-				const username = b64DecodeText(line.trim());
-				this.authState = { mech: 'LOGIN', stage: 'password', username };
-				await this.reply(334, b64('Password:'));
+				const username = decodeBase64Text(line.trim());
+				this.authState = {
+					mechanism: 'LOGIN',
+					stage: 'password',
+					username,
+				};
+				await this.reply(334, encodeBase64Text('Password:'));
 				return;
 			}
 			if (this.authState.stage === 'password') {
-				const password = b64DecodeText(line.trim());
-				const ok = await this.authValidator('LOGIN', {
+				const password = decodeBase64Text(line.trim());
+				const isValid = await this.authValidator('LOGIN', {
 					username: this.authState.username || '',
 					password,
 				});
-				await this.finishAuth(ok);
+				await this.finishAuth(isValid);
 				return;
 			}
 		}
 	}
 
-	private async handleAuthPlain(initialB64: string): Promise<boolean> {
+	private async handleAuthPlain(initialBase64: string): Promise<boolean> {
 		let decoded = '';
 		try {
-			decoded = atob(initialB64);
+			decoded = atob(initialBase64);
 		} catch {
 			return false;
 		}
@@ -464,10 +561,10 @@ export class SmtpSink {
 		return await this.authValidator('PLAIN', { username, password });
 	}
 
-	private async finishAuth(ok: boolean) {
+	private async finishAuth(isValid: boolean) {
 		this.authPending = false;
 		this.authState = null;
-		if (ok) {
+		if (isValid) {
 			this.authenticated = true;
 			await this.reply(235, 'Authentication succeeded');
 		} else {
@@ -477,21 +574,23 @@ export class SmtpSink {
 
 	private resetEnvelope() {
 		this.mailFrom = null;
-		this.rcpts = [];
+		this.recipientPaths = [];
 		this.dataMode = false;
 		this.dataLines = [];
 		this.dataBytes = 0;
 	}
 
 	private async reply(code: number, text: string) {
-		await this.writer.write(this.enc.encode(`${code} ${text}\r\n`));
+		await this.writer.write(this.encoder.encode(`${code} ${text}\r\n`));
 	}
 	private async replyMulti(code: number, lines: string[]) {
 		for (let i = 0; i < lines.length - 1; i++) {
-			await this.writer.write(this.enc.encode(`${code}-${lines[i]}\r\n`));
+			await this.writer.write(
+				this.encoder.encode(`${code}-${lines[i]}\r\n`)
+			);
 		}
 		await this.writer.write(
-			this.enc.encode(`${code} ${lines[lines.length - 1]}\r\n`)
+			this.encoder.encode(`${code} ${lines[lines.length - 1]}\r\n`)
 		);
 	}
 }
@@ -510,21 +609,21 @@ export class SmtpSink {
  *     from the closing `>` by a single space (RFC 1870, RFC 4954)
  */
 export function parseEnvelopeArg(
-	arg: string,
+	commandArgument: string,
 	keyword: 'FROM' | 'TO'
 ): string | null {
 	const prefix = `${keyword}:<`;
-	if (arg.length < prefix.length + 1) return null;
-	if (arg.slice(0, prefix.length).toUpperCase() !== prefix) {
+	if (commandArgument.length < prefix.length + 1) return null;
+	if (commandArgument.slice(0, prefix.length).toUpperCase() !== prefix) {
 		return null;
 	}
-	const close = arg.indexOf('>', prefix.length);
+	const close = commandArgument.indexOf('>', prefix.length);
 	if (close < 0) return null;
 	// Anything past the closing bracket must either be empty or
 	// begin with a single space introducing ESMTP parameters.
-	const tail = arg.slice(close + 1);
+	const tail = commandArgument.slice(close + 1);
 	if (tail !== '' && !tail.startsWith(' ')) return null;
-	return arg.slice(prefix.length, close);
+	return commandArgument.slice(prefix.length, close);
 }
 
 /**
@@ -532,168 +631,238 @@ export function parseEnvelopeArg(
  * Handles a mix of "Name <addr>" and bare "addr" entries.
  */
 export function extractAddresses(value: string): string[] {
-	const out: string[] = [];
+	const addresses: string[] = [];
 	for (const part of value.split(',')) {
 		const trimmed = part.trim();
 		if (!trimmed) continue;
 		const angle = trimmed.match(/<([^>]+)>/);
 		if (angle) {
-			out.push(angle[1].trim());
+			addresses.push(angle[1].trim());
 		} else if (trimmed.includes('@')) {
-			out.push(trimmed);
+			addresses.push(trimmed);
 		}
 	}
-	return out;
+	return addresses;
 }
 
-export function unfoldHeaders(hdr: string): string {
-	return hdr.replace(/\r\n([ \t]+)/g, ' ');
+/**
+ * Removes RFC 5322 folded-header line breaks.
+ *
+ * https://www.rfc-editor.org/rfc/rfc5322.html#section-2.2.3
+ */
+export function unfoldHeaders(headerBlock: string): string {
+	return headerBlock.replace(/\r\n([ \t]+)/g, ' ');
 }
+
+/**
+ * Splits an RFC 5322 message into header and body sections at the first empty
+ * CRLF line.
+ *
+ * https://www.rfc-editor.org/rfc/rfc5322.html#section-2.1
+ */
 export function splitHeaderBody(raw: string): {
 	headerRaw: string;
 	bodyRaw: string;
 } {
-	const idx = raw.indexOf('\r\n\r\n');
-	if (idx < 0) return { headerRaw: raw, bodyRaw: '' };
-	return { headerRaw: raw.slice(0, idx), bodyRaw: raw.slice(idx + 4) };
+	const separatorIndex = raw.indexOf('\r\n\r\n');
+	if (separatorIndex < 0) return { headerRaw: raw, bodyRaw: '' };
+	return {
+		headerRaw: raw.slice(0, separatorIndex),
+		bodyRaw: raw.slice(separatorIndex + 4),
+	};
 }
+
+/**
+ * Parses unfolded RFC 5322 header fields into a lower-case name/value map.
+ */
 export function parseHeaderLines(headerRaw: string): Record<string, string> {
-	const out: Record<string, string> = {};
+	const headers: Record<string, string> = {};
 	const unfolded = unfoldHeaders(headerRaw);
 	const lines = unfolded.split('\r\n');
 	for (const line of lines) {
-		const i = line.indexOf(':');
-		if (i <= 0) continue;
-		const name = line.slice(0, i).toLowerCase();
-		const val = line.slice(i + 1).trim();
-		out[name] = (out[name] ? out[name] + ', ' : '') + val;
+		const separatorIndex = line.indexOf(':');
+		if (separatorIndex <= 0) continue;
+		const name = line.slice(0, separatorIndex).toLowerCase();
+		const value = line.slice(separatorIndex + 1).trim();
+		headers[name] = (headers[name] ? headers[name] + ', ' : '') + value;
 	}
-	return out;
+	return headers;
 }
-function decodeRfc2047(s: string): string {
-	return s.replace(
+
+function decodeRfc2047EncodedWords(headerValue: string): string {
+	// RFC 2047 encoded-words may appear next to each other with only linear
+	// white space between them; that white space is ignored when decoding.
+	// https://www.rfc-editor.org/rfc/rfc2047.html#section-6.2
+	const adjacentEncodedWordsCollapsed = headerValue.replace(
+		/(=\?[^?]+\?[BbQq]\?[^?]+\?=)[ \t\r\n]+(?==\?[^?]+\?[BbQq]\?[^?]+\?=)/g,
+		'$1'
+	);
+	return adjacentEncodedWordsCollapsed.replace(
 		/=\?([^?]+)\?([BbQq])\?([^?]+)\?=/g,
-		(_m, cs, enc, data) => {
-			const charset = String(cs);
-			const kind = String(enc).toUpperCase();
+		(encodedWord, charsetRaw, encodingRaw, encodedText) => {
+			const charset = String(charsetRaw);
+			const encoding = String(encodingRaw).toUpperCase();
 			let bytes: Uint8Array;
-			if (kind === 'B') {
-				const bin = atob(String(data));
-				const arr = new Uint8Array(bin.length);
-				for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-				bytes = arr;
-			} else {
-				let txt = String(data).replace(/_/g, ' ');
-				txt = txt.replace(/=([0-9A-Fa-f]{2})/g, (_m, h) =>
-					String.fromCharCode(parseInt(h, 16))
-				);
-				bytes = new Uint8Array([...txt].map((c) => c.charCodeAt(0)));
-			}
 			try {
-				return new TextDecoder(normalizeCharset(charset)).decode(bytes);
+				if (encoding === 'B') {
+					bytes = decodeBase64ToBytes(String(encodedText));
+				} else {
+					bytes = decodeRfc2047QEncodedWord(String(encodedText));
+				}
 			} catch {
-				return new TextDecoder().decode(bytes);
+				return encodedWord;
 			}
+			return decodeBytes(bytes, charset);
 		}
 	);
 }
-function normalizeCharset(cs: string): string {
-	cs = cs.toLowerCase();
-	return cs === 'utf8' ? 'utf-8' : cs;
+
+function decodeRfc2047QEncodedWord(encodedText: string): Uint8Array {
+	const binaryText = encodedText
+		.replace(/_/g, ' ')
+		.replace(/=([0-9A-Fa-f]{2})/g, (_match, hexByte) =>
+			String.fromCharCode(parseInt(hexByte, 16))
+		);
+	return new Uint8Array([...binaryText].map((char) => char.charCodeAt(0)));
 }
-function qpDecodeToBytes(s: string): Uint8Array {
-	s = s.replace(/=\r\n/g, '');
-	const out: number[] = [];
-	for (let i = 0; i < s.length; i++) {
-		const ch = s[i];
-		if (ch === '=' && i + 2 < s.length) {
-			const h = s.slice(i + 1, i + 3);
-			if (/^[0-9A-Fa-f]{2}$/.test(h)) {
-				out.push(parseInt(h, 16));
+
+function getTextDecoderEncodingLabel(charset: string): string {
+	const normalizedCharset = charset.toLowerCase();
+	return normalizedCharset === 'utf8' ? 'utf-8' : normalizedCharset;
+}
+
+function decodeBytes(bytes: Uint8Array, charset: string): string {
+	try {
+		return new TextDecoder(getTextDecoderEncodingLabel(charset)).decode(
+			bytes
+		);
+	} catch {
+		return new TextDecoder().decode(bytes);
+	}
+}
+
+function decodeQuotedPrintableToBytes(content: string): Uint8Array {
+	const softLineBreaksRemoved = content.replace(/=\r\n/g, '');
+	const bytes: number[] = [];
+	for (let i = 0; i < softLineBreaksRemoved.length; i++) {
+		const char = softLineBreaksRemoved[i];
+		if (char === '=' && i + 2 < softLineBreaksRemoved.length) {
+			const hexByte = softLineBreaksRemoved.slice(i + 1, i + 3);
+			if (/^[0-9A-Fa-f]{2}$/.test(hexByte)) {
+				bytes.push(parseInt(hexByte, 16));
 				i += 2;
 				continue;
 			}
 		}
-		out.push(ch.charCodeAt(0));
+		bytes.push(char.charCodeAt(0));
 	}
-	return new Uint8Array(out);
+	return new Uint8Array(bytes);
 }
-function b64DecodeToBytes(s: string): Uint8Array {
-	const bin = atob(s.replace(/\s+/g, ''));
-	const out = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-	return out;
+
+function decodeBase64ToBytes(content: string): Uint8Array {
+	const binary = atob(content.replace(/\s+/g, ''));
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+	return bytes;
 }
-function b64DecodeText(s: string): string {
-	const bytes = b64DecodeToBytes(s);
+
+function decodeBase64Text(content: string): string {
+	const bytes = decodeBase64ToBytes(content);
 	return new TextDecoder().decode(bytes);
 }
-function b64(s: string): string {
-	return btoa(s);
+
+function encodeBase64Text(content: string): string {
+	return btoa(content);
 }
-function stripQuotes(s: string): string {
-	const m = s.match(/^"(.*)"$/);
-	return m ? m[1] : s;
+
+function stripQuotes(value: string): string {
+	const match = value.match(/^"(.*)"$/);
+	return match ? match[1] : value;
 }
-function getParam(h: string, name: string): string | null {
-	const re = new RegExp(`;\\s*${name}=([^;]+)`, 'i');
-	const m = h.match(re);
-	return m ? stripQuotes(m[1]) : null;
+
+function getHeaderParameter(headerValue: string, name: string): string | null {
+	const parameterPattern = new RegExp(`;\\s*${name}=([^;]+)`, 'i');
+	const match = headerValue.match(parameterPattern);
+	return match ? stripQuotes(match[1]) : null;
 }
 function pickTextPlainFromMultipart(
 	body: string,
 	boundary: string
 ): { headers: Record<string, string>; content: string } | null {
-	const b = `--${boundary}`;
-	const end = `--${boundary}--`;
+	// RFC 2046 §5.1 defines multipart boundary delimiter lines.
+	// https://www.rfc-editor.org/rfc/rfc2046.html#section-5.1
+	const boundaryDelimiter = `--${boundary}`;
+	const closingBoundaryDelimiter = `--${boundary}--`;
 	const lines = body.split('\r\n');
-	let cur: string[] = [];
+	let currentPartLines: string[] = [];
 	const parts: string[] = [];
 	let inPart = false;
 	for (const line of lines) {
-		if (line === b) {
-			if (inPart && cur.length) parts.push(cur.join('\r\n'));
+		if (line === boundaryDelimiter) {
+			if (inPart && currentPartLines.length) {
+				parts.push(currentPartLines.join('\r\n'));
+			}
 			inPart = true;
-			cur = [];
-		} else if (line === end) {
-			if (inPart && cur.length) parts.push(cur.join('\r\n'));
+			currentPartLines = [];
+		} else if (line === closingBoundaryDelimiter) {
+			if (inPart && currentPartLines.length) {
+				parts.push(currentPartLines.join('\r\n'));
+			}
 			inPart = false;
 			break;
 		} else if (inPart) {
-			cur.push(line);
+			currentPartLines.push(line);
 		}
 	}
-	if (inPart && cur.length) parts.push(cur.join('\r\n'));
-	for (const p of parts) {
-		const { headerRaw, bodyRaw } = splitHeaderBody(p);
-		const ph = parseHeaderLines(headerRaw);
-		const ct = (ph['content-type'] || 'text/plain').toLowerCase();
-		if (ct.startsWith('text/plain'))
-			return { headers: ph, content: bodyRaw };
+	if (inPart && currentPartLines.length) {
+		parts.push(currentPartLines.join('\r\n'));
+	}
+	for (const part of parts) {
+		const { headerRaw, bodyRaw } = splitHeaderBody(part);
+		const partHeaders = parseHeaderLines(headerRaw);
+		const contentType = (
+			partHeaders['content-type'] || 'text/plain'
+		).toLowerCase();
+		if (contentType.startsWith('text/plain')) {
+			return { headers: partHeaders, content: bodyRaw };
+		}
 	}
 	return null;
 }
+
 function decodeBody(
-	cte: string | undefined,
+	contentTransferEncoding: string | undefined,
 	charset: string | undefined,
 	content: string
 ): string {
-	cte = (cte || '').toLowerCase();
-	const cs = normalizeCharset(charset || 'utf-8');
-	let bytes: Uint8Array;
-	if (cte === 'base64') bytes = b64DecodeToBytes(content);
-	else if (cte === 'quoted-printable') bytes = qpDecodeToBytes(content);
-	else bytes = new Uint8Array([...content].map((c) => c.charCodeAt(0)));
-	try {
-		return new TextDecoder(cs).decode(bytes);
-	} catch {
-		return new TextDecoder().decode(bytes);
+	const normalizedContentTransferEncoding = (
+		contentTransferEncoding || ''
+	).toLowerCase();
+	if (
+		normalizedContentTransferEncoding !== 'base64' &&
+		normalizedContentTransferEncoding !== 'quoted-printable'
+	) {
+		return content;
 	}
+	const bytes =
+		normalizedContentTransferEncoding === 'base64'
+			? decodeBase64ToBytes(content)
+			: decodeQuotedPrintableToBytes(content);
+	return decodeBytes(bytes, charset || 'utf-8');
 }
+
+/**
+ * Parses the message content received after SMTP DATA into convenient fields.
+ *
+ * This is intentionally a small RFC 5322/MIME helper for the SMTP sink, not a
+ * full mail user-agent parser. It handles the header/body split, folded
+ * headers, RFC 2047 encoded words, common text transfer encodings, and the
+ * first text/plain part in multipart messages.
+ */
 export function parseMessage(
 	raw: string,
 	fallbackFrom: string,
-	fallbackRcpts: string[]
+	fallbackRecipients: string[]
 ): {
 	headers: Record<string, string>;
 	subject: string;
@@ -704,61 +873,85 @@ export function parseMessage(
 	const { headerRaw, bodyRaw } = splitHeaderBody(raw);
 	const headers = parseHeaderLines(headerRaw);
 	const subject = headers['subject']
-		? decodeRfc2047(headers['subject'])
+		? decodeRfc2047EncodedWords(headers['subject'])
 		: '(no subject)';
 	const from = headers['from']
-		? decodeRfc2047(headers['from'])
+		? decodeRfc2047EncodedWords(headers['from'])
 		: fallbackFrom;
 
 	const recipientParts: string[] = [];
-	for (const hdr of ['to', 'cc', 'bcc']) {
-		if (headers[hdr]) {
-			recipientParts.push(decodeRfc2047(headers[hdr]));
+	for (const headerName of ['to', 'cc', 'bcc']) {
+		if (headers[headerName]) {
+			recipientParts.push(decodeRfc2047EncodedWords(headers[headerName]));
 		}
 	}
 	const to =
 		recipientParts.length > 0
 			? recipientParts.join(', ')
-			: fallbackRcpts.join(', ');
+			: fallbackRecipients.join(', ');
 
 	let text: string | undefined;
-	const ct = (headers['content-type'] || 'text/plain').toLowerCase();
-	if (ct.startsWith('multipart/')) {
-		const boundary = getParam(headers['content-type'], 'boundary');
+	const contentType = (headers['content-type'] || 'text/plain').toLowerCase();
+	if (contentType.startsWith('multipart/')) {
+		const boundary = getHeaderParameter(
+			headers['content-type'],
+			'boundary'
+		);
 		if (boundary) {
 			const part = pickTextPlainFromMultipart(bodyRaw, boundary);
 			if (part) {
-				const pcte = (
+				const partContentTransferEncoding = (
 					part.headers['content-transfer-encoding'] || ''
 				).toLowerCase();
-				const pcharset =
-					getParam(part.headers['content-type'] || '', 'charset') ||
-					'utf-8';
-				text = decodeBody(pcte, pcharset, part.content);
+				const partCharset =
+					getHeaderParameter(
+						part.headers['content-type'] || '',
+						'charset'
+					) || 'utf-8';
+				text = decodeBody(
+					partContentTransferEncoding,
+					partCharset,
+					part.content
+				);
 			}
 		}
-	} else if (ct.startsWith('text/plain')) {
-		const cte = (headers['content-transfer-encoding'] || '').toLowerCase();
+	} else if (contentType.startsWith('text/plain')) {
+		const contentTransferEncoding = (
+			headers['content-transfer-encoding'] || ''
+		).toLowerCase();
 		const charset =
-			getParam(headers['content-type'] || '', 'charset') || 'utf-8';
-		text = decodeBody(cte, charset, bodyRaw);
+			getHeaderParameter(headers['content-type'] || '', 'charset') ||
+			'utf-8';
+		text = decodeBody(contentTransferEncoding, charset, bodyRaw);
 	} else {
 		text = bodyRaw;
 	}
 	return { headers, subject, text, from, to };
 }
 
+/**
+ * Creates two connected in-memory `ByteDuplex` endpoints.
+ *
+ * Bytes written to the first endpoint's `writable` are read from the second
+ * endpoint's `readable`, and vice versa.
+ */
 export function makeLoopbackPair(): [ByteDuplex, ByteDuplex] {
-	const a2b = new TransformStream<Uint8Array, Uint8Array>();
-	const b2a = new TransformStream<Uint8Array, Uint8Array>();
-	const a: ByteDuplex = { readable: b2a.readable, writable: a2b.writable };
-	const b: ByteDuplex = { readable: a2b.readable, writable: b2a.writable };
-	return [a, b];
+	const firstToSecond = new TransformStream<Uint8Array, Uint8Array>();
+	const secondToFirst = new TransformStream<Uint8Array, Uint8Array>();
+	const first: ByteDuplex = {
+		readable: secondToFirst.readable,
+		writable: firstToSecond.writable,
+	};
+	const second: ByteDuplex = {
+		readable: firstToSecond.readable,
+		writable: secondToFirst.writable,
+	};
+	return [first, second];
 }
 
-function normalizeInitial(x?: string): string | null {
-	if (!x) return null;
-	const t = x.trim();
-	if (t === '' || t === '=') return null;
-	return t;
+function getAuthInitialResponse(response?: string): string | null {
+	if (!response) return null;
+	const trimmed = response.trim();
+	if (trimmed === '' || trimmed === '=') return null;
+	return trimmed;
 }
