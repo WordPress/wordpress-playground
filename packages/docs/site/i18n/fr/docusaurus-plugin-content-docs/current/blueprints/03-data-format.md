@@ -1,8 +1,8 @@
 ---
 sidebar_position: 1
-title: Formato de dados do Blueprint
+title: Format des données Blueprint
 slug: /blueprints/data-format
-description: Uma visão geral do formato de dados do Blueprint. Aprenda sobre propriedades importantes como landingPage, preferredVersions e steps.
+description: Vue d’ensemble du format de données Blueprint. Découvrez les propriétés clés comme landingPage, preferredVersions et steps.
 ---
 
 <!-- title: Blueprint data Format -->
@@ -11,17 +11,17 @@ description: Uma visão geral do formato de dados do Blueprint. Aprenda sobre pr
 
 <!-- # Blueprint data format -->
 
-# Formato de dados do Blueprint
+# Format des données Blueprint
 
 <!-- A Blueprint JSON file can have many different properties that will be used to define your Playground instance. The most important properties are detailed below. -->
 
-Um arquivo JSON de Blueprint pode ter várias propriedades diferentes que serão
-usadas para definir sua instância do Playground. As propriedades mais
-importantes são detalhadas abaixo.
+Un fichier JSON de Blueprint peut contenir de nombreuses propriétés différentes
+qui seront utilisées pour définir votre instance Playground. Les propriétés les
+plus importantes sont détaillées ci-dessous.
 
 <!-- Here's an example that uses many of them: -->
 
-Este é um exemplo que usa várias delas:
+Voici un exemple qui en utilise plusieurs :
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
@@ -45,15 +45,15 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <!-- ## JSON schema -->
 
-## Esquema JSON
+## Schéma JSON
 
 <!-- JSON files can be tedious to write and easy to get wrong. To help with that, Playground provides a [JSON schema](https://playground.wordpress.net/blueprint-schema.json) file that you can use to get auto-completion and validation in your editor. Just set the `$schema` property to the following: -->
 
-Arquivos JSON podem ser tediosos de escrever e fáceis de errar. Para ajudar
-com isso, o Playground fornece um arquivo de
-[esquema JSON](https://playground.wordpress.net/blueprint-schema.json) que você
-pode usar para ter preenchimento automático e validação no editor. Basta definir
-a propriedade `$schema` assim:
+Les fichiers JSON peuvent être fastidieux à écrire et il est facile de s’y
+tromper. Pour vous aider, Playground fournit un fichier
+[schéma JSON](https://playground.wordpress.net/blueprint-schema.json) que vous
+pouvez utiliser pour obtenir l’autocomplétion et la validation dans votre
+éditeur. Définissez simplement la propriété `$schema` comme suit :
 
 ```js
 {
@@ -63,15 +63,15 @@ a propriedade `$schema` assim:
 
 <!-- ## Landing page -->
 
-## Página inicial
+## Page d’arrivée
 
 <!-- The `landingPage` property tells Playground which URL to navigate to after the Blueprint has been run. This is a great tool, especially when creating theme or plugin demos. Often, you will want to start Playground in the Site Editor or have a specific post open in the Post Editor. Make sure you use a relative path. -->
 
-A propriedade `landingPage` informa ao Playground para qual URL navegar depois
-que o Blueprint for executado. Ela é uma ótima ferramenta, especialmente ao
-criar demonstrações de temas ou plugins. Muitas vezes, você vai querer iniciar
-o Playground no Editor do site ou abrir um post específico no Editor de posts.
-Use sempre um caminho relativo.
+La propriété `landingPage` indique à Playground vers quelle URL naviguer après
+l’exécution du Blueprint. C’est un excellent outil, en particulier lors de la
+création de démos de thèmes ou d’extensions. Souvent, vous voudrez démarrer
+Playground dans l’éditeur de site ou ouvrir un article précis dans l’éditeur
+d’articles. Assurez-vous d’utiliser un chemin relatif.
 
 ```js
 {
@@ -81,20 +81,20 @@ Use sempre um caminho relativo.
 
 <!-- ## Preferred versions -->
 
-## Versões preferenciais
+## Versions préférées
 
 <!-- The `preferredVersions` property declares your preferred PHP and WordPress versions. It can contain the following properties: -->
 
-A propriedade `preferredVersions` declara suas versões preferenciais do PHP e
-do WordPress. Ela pode conter as seguintes propriedades:
+La propriété `preferredVersions` déclare vos versions préférées de PHP et de
+WordPress. Elle peut contenir les propriétés suivantes :
 
 <!--
 - `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, or `latest`. Minor versions like `7.4.1` are not supported.
 - `wp` (string): Loads the specified WordPress version. Accepts the last seven major WordPress versions. As of April 28, 2026, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8`, or `6.9`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
 -->
 
-- `php` (string): Carrega a versão especificada do PHP. Aceita `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` ou `latest`. Versões menores como `7.4.1` não são compatíveis.
-- `wp` (string): Carrega a versão especificada do WordPress. Aceita as últimas sete versões principais do WordPress. Em 28 de abril de 2026, são `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8` ou `6.9`. Você também pode usar os valores genéricos `latest`, `beta` ou `nightly` (alias `trunk`). `beta` resolve para a versão Beta ou Release Candidate mais recente de um ciclo de lançamento ativo; `nightly`/`trunk` é criado diretamente a partir do branch de desenvolvimento do WordPress.
+- `php` (string) : charge la version PHP indiquée. Accepte `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` ou `latest`. Les versions mineures comme `7.4.1` ne sont pas prises en charge.
+- `wp` (string) : charge la version WordPress indiquée. Accepte les sept dernières versions majeures de WordPress. Au 28 avril 2026, il s’agit de `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8` ou `6.9`. Vous pouvez aussi utiliser les valeurs génériques `latest`, `beta` ou `nightly` (alias `trunk`). `beta` correspond à la bêta ou Release Candidate la plus récente d’un cycle de publication actif ; `nightly`/`trunk` est construit directement depuis la branche de développement de WordPress.
 
 ```js
 {
@@ -107,16 +107,17 @@ do WordPress. Ela pode conter as seguintes propriedades:
 
 <!-- ## Features -->
 
-## Recursos
+## Fonctionnalités
 
 <!-- You can use the `features` property to turn on or off certain features of the Playground instance. It can contain the following properties: -->
 
-Você pode usar a propriedade `features` para ativar ou desativar determinados
-recursos da instância do Playground. Ela pode conter as seguintes propriedades:
+Vous pouvez utiliser la propriété `features` pour activer ou désactiver
+certaines fonctionnalités de l’instance Playground. Elle peut contenir les
+propriétés suivantes :
 
 <!-- - `networking`: Defaults to `true`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead. You will need this property enabled if you want the user to be able to install plugins or themes. -->
 
-- `networking`: O padrão é `true`. Ativa ou desativa o suporte a rede no Playground. Se ativado, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) e funções semelhantes do WordPress usarão `fetch()` para fazer requisições HTTP. Se desativado, elas falharão imediatamente. Você precisará ativar essa propriedade se quiser que a pessoa usuária possa instalar plugins ou temas.
+- `networking` : vaut `true` par défaut. Active ou désactive la prise en charge réseau de Playground. Si elle est activée, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) et les fonctions WordPress similaires utiliseront réellement `fetch()` pour effectuer des requêtes HTTP. Si elle est désactivée, elles échoueront immédiatement. Cette propriété doit être activée si vous voulez que l’utilisateur puisse installer des extensions ou des thèmes.
 
 ```js
 {
@@ -128,16 +129,16 @@ recursos da instância do Playground. Ela pode conter as seguintes propriedades:
 
 <!-- ## Extra libraries -->
 
-## Bibliotecas extras
+## Bibliothèques supplémentaires
 
 <!-- You can preload extra libraries into the Playground instance. The following libraries are supported: -->
 
-Você pode pré-carregar bibliotecas extras na instância do Playground. As
-seguintes bibliotecas são compatíveis:
+Vous pouvez précharger des bibliothèques supplémentaires dans l’instance
+Playground. Les bibliothèques suivantes sont prises en charge :
 
 <!-- - `wp-cli`: Enables WP-CLI support for Playground. If included, WP-CLI will be installed during boot. If not included, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps. -->
 
-- `wp-cli`: Ativa o suporte a WP-CLI no Playground. Se incluída, a WP-CLI será instalada durante a inicialização. Se não for incluída, você receberá uma mensagem de erro ao tentar executar comandos WP-CLI usando a API JS. A WP-CLI será instalada por padrão se o Blueprint contiver qualquer etapa `wp-cli`.
+- `wp-cli` : active la prise en charge de WP-CLI pour Playground. Si elle est incluse, WP-CLI sera installé pendant le démarrage. Si elle n’est pas incluse, vous obtiendrez un message d’erreur en essayant d’exécuter des commandes WP-CLI avec l’API JS. WP-CLI sera installé par défaut si le Blueprint contient des étapes `wp-cli`.
 
 ```js
 {
@@ -147,15 +148,15 @@ seguintes bibliotecas são compatíveis:
 
 <!-- ## Steps -->
 
-## Etapas
+## Étapes
 
 <!-- Arguably the most powerful property, `steps` allows you to configure the Playground instance with preinstalled themes, plugins, demo content, and more. The following example logs the user in with a dedicated username and password. It then installs and activates the Gutenberg plugin. [Learn more about steps](/blueprints/steps). -->
 
-Provavelmente a propriedade mais poderosa, `steps` permite configurar a
-instância do Playground com temas, plugins, conteúdo de demonstração e muito
-mais pré-instalados. O exemplo a seguir autentica o usuário com um nome de
-usuário e senha dedicados. Em seguida, instala e ativa o plugin Gutenberg.
-[Saiba mais sobre etapas](/blueprints/steps).
+Sans doute la propriété la plus puissante, `steps` vous permet de configurer
+l’instance Playground avec des thèmes, des extensions, du contenu de démo
+préinstallés, et plus encore. L’exemple suivant connecte l’utilisateur avec un
+nom d’utilisateur et un mot de passe dédiés. Il installe et active ensuite
+l’extension Gutenberg. [En savoir plus sur les étapes](/blueprints/steps).
 
 ```js
 {
@@ -178,27 +179,27 @@ usuário e senha dedicados. Em seguida, instala e ativa o plugin Gutenberg.
 
 <!-- ## Common property placement mistakes -->
 
-## Erros comuns de posicionamento de propriedades
+## Erreurs courantes de placement des propriétés
 
 <!--
 Blueprint validation errors often come from putting a valid property in the
 wrong object.
 -->
 
-Erros de validação de Blueprint geralmente acontecem quando uma propriedade
-válida é colocada no objeto errado.
+Les erreurs de validation de Blueprint viennent souvent d’une propriété valide
+placée dans le mauvais objet.
 
 <!-- ### Activate a plugin or theme -->
 
-### Ativar um plugin ou tema
+### Activer une extension ou un thème
 
 <!--
 `activate` belongs inside `options`, not inside `pluginData`, `themeData`, or
 directly on the step.
 -->
 
-`activate` deve ficar dentro de `options`, não dentro de `pluginData`,
-`themeData` nem diretamente na etapa.
+`activate` doit se trouver dans `options`, pas dans `pluginData`, `themeData` ni
+directement sur l’étape.
 
 ```json
 {
@@ -215,15 +216,15 @@ directly on the step.
 
 <!-- ### Install plugins with the shorthand -->
 
-### Instalar plugins com o atalho
+### Installer des extensions avec le raccourci
 
 <!--
 The `plugins` shorthand is a top-level Blueprint property. Do not put it inside
 `preferredVersions`.
 -->
 
-O atalho `plugins` é uma propriedade de nível superior do Blueprint. Não o
-coloque dentro de `preferredVersions`.
+Le raccourci `plugins` est une propriété de premier niveau du Blueprint. Ne le
+placez pas dans `preferredVersions`.
 
 ```json
 {
@@ -237,15 +238,16 @@ coloque dentro de `preferredVersions`.
 
 <!-- ### Use one plugin install shape -->
 
-### Usar um único formato de instalação de plugin
+### Utiliser une seule forme d’installation d’extension
 
 <!--
 For an `installPlugin` step, use `pluginData`. Do not mix `pluginData` with
 older examples or custom objects such as `pluginZipFile`.
 -->
 
-Para uma etapa `installPlugin`, use `pluginData`. Não misture `pluginData` com
-exemplos antigos ou objetos personalizados como `pluginZipFile`.
+Pour une étape `installPlugin`, utilisez `pluginData`. Ne mélangez pas
+`pluginData` avec d’anciens exemples ou des objets personnalisés comme
+`pluginZipFile`.
 
 ```json
 {
@@ -265,25 +267,25 @@ The `wordpress.org/plugins` resource needs a separate `slug`. Do not write the
 slug into the `resource` value, such as `"wordpress.org/plugins/woocommerce"`.
 -->
 
-O recurso `wordpress.org/plugins` precisa de um `slug` separado. Não escreva o
-slug no valor de `resource`, como `"wordpress.org/plugins/woocommerce"`.
+La ressource `wordpress.org/plugins` nécessite un `slug` séparé. N’écrivez pas
+le slug dans la valeur `resource`, comme `"wordpress.org/plugins/woocommerce"`.
 
 <!-- ### Keep `preferredVersions` limited to versions -->
 
-### Manter `preferredVersions` limitado a versões
+### Limiter `preferredVersions` aux versions
 
 <!--
 `preferredVersions` only accepts `php` and `wp`. Use `features` for networking,
 `plugins` or `installPlugin` for plugins, and `steps` for ordered setup tasks.
 -->
 
-`preferredVersions` aceita somente `php` e `wp`. Use `features` para rede,
-`plugins` ou `installPlugin` para plugins, e `steps` para tarefas de
-configuração ordenadas.
+`preferredVersions` accepte uniquement `php` et `wp`. Utilisez `features` pour
+le réseau, `plugins` ou `installPlugin` pour les extensions, et `steps` pour les
+tâches de configuration ordonnées.
 
 <!-- ### Use explicit steps when order matters -->
 
-### Usar etapas explícitas quando a ordem importa
+### Utiliser des étapes explicites lorsque l’ordre compte
 
 <!--
 Shorthands such as `plugins`, `login`, `siteOptions`, and `constants` are
@@ -291,6 +293,7 @@ expanded before the `steps` array. If one action must happen before another,
 write both actions as explicit steps in the order you need.
 -->
 
-Atalhos como `plugins`, `login`, `siteOptions` e `constants` são expandidos
-antes do array `steps`. Se uma ação precisa acontecer antes de outra, escreva
-ambas como etapas explícitas na ordem necessária.
+Les raccourcis comme `plugins`, `login`, `siteOptions` et `constants` sont
+développés avant le tableau `steps`. Si une action doit avoir lieu avant une
+autre, écrivez les deux actions sous forme d’étapes explicites dans l’ordre
+nécessaire.

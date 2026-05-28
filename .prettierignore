@@ -15,3 +15,4 @@ __pycache__
 .nx
 .vscode
 rollup.d.ts
+/packages/playground/website/public/php-next

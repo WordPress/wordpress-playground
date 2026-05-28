@@ -68,7 +68,9 @@
 		"recompile:php:node:asyncify:8.0": "nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=8.0 ",
 		"recompile:php:node:asyncify:7.4": "nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=7.4 ",
 		"recompile:php:node:asyncify:7.3": "nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=7.3 ",
-		"recompile:php:node:asyncify:7.2": "nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=7.2 "
+		"recompile:php:node:asyncify:7.2": "nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=7.2 ",
+		"recompile:php:web:next": "node packages/php-wasm/compile/build-php-next-web.mjs",
+		"sync:php-next": "node packages/php-wasm/compile/sync-php-next-assets.mjs"
 	},
 	"private": true,
 	"dependencies": {

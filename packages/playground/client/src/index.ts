@@ -20,6 +20,7 @@ export type {
 export type { WordPressInstallMode } from '@wp-playground/wordpress';
 export {
 	setPhpIniEntries,
+	PHPNextVersion,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,

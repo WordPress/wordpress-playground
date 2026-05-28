@@ -2,7 +2,14 @@ import { useMemo } from 'react';
 import { useStore } from 'react-redux';
 import { createListenerMiddleware } from '@reduxjs/toolkit';
 import type { PlaygroundReduxState, PlaygroundDispatch } from './store';
-import { selectActiveSite, setActiveSite, useAppDispatch } from './store';
+import {
+	selectActiveSite,
+	selectActiveSiteError,
+	selectActiveSiteErrorDetails,
+	setActiveSite,
+	useAppDispatch,
+} from './store';
+import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
 import { addClientInfo } from './slice-clients';
 import {
@@ -62,6 +69,15 @@ export interface PlaygroundSitesAPI {
 	 * @throws When no site is selected.
 	 */
 	getClient(): PlaygroundClient | undefined;
+
+	/**
+	 * Resolves once the active site is fully booted and its
+	 * PlaygroundClient is ready for API calls. Mirrors the
+	 * `isReady()` method on the PlaygroundClient itself.
+	 *
+	 * @throws When no site is selected or the site fails to boot.
+	 */
+	isReady(): Promise<void>;
 
 	/**
 	 * Renames the active site.
@@ -176,6 +192,16 @@ declare global {
 	}
 }
 
+function siteErrorMessage(
+	error: SiteError,
+	details: SerializedSiteErrorDetails | undefined
+): string {
+	if (typeof details === 'string') {
+		return details;
+	}
+	return details?.message ?? error;
+}
+
 export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
@@ -203,6 +229,57 @@ export function createSitesAPI(
 				throw new Error('No active site selected');
 			}
 			return selectClientBySiteSlug(getState(), site.slug);
+		},
+
+		async isReady() {
+			// Wait until the store reaches a "settled" state for the active
+			// site: either a client has been added for it, or boot failed
+			// with an error. This also covers the early window after
+			// `window.playgroundSites` is exposed but before
+			// `EnsurePlaygroundSiteIsSelected` has had a chance to set an
+			// active site — we simply wait for one to appear.
+			const isSettled = (state: PlaygroundReduxState) => {
+				const site = selectActiveSite(state);
+				if (!site) {
+					return false;
+				}
+				if (selectActiveSiteError(state)) {
+					return true;
+				}
+				return Boolean(selectClientBySiteSlug(state, site.slug));
+			};
+
+			let settledState = getState();
+			if (!isSettled(settledState)) {
+				settledState = await new Promise<PlaygroundReduxState>(
+					(resolve) => {
+						const unsubscribe = startListening({
+							predicate: (_action, currentState) =>
+								isSettled(currentState),
+							effect: (_action, listenerApi) => {
+								unsubscribe();
+								resolve(listenerApi.getState());
+							},
+						});
+					}
+				);
+			}
+
+			const error = selectActiveSiteError(settledState);
+			if (error) {
+				throw new Error(
+					siteErrorMessage(
+						error,
+						selectActiveSiteErrorDetails(settledState)
+					)
+				);
+			}
+			const site = selectActiveSite(settledState)!;
+			const client = selectClientBySiteSlug(settledState, site.slug);
+			if (!client) {
+				throw new Error('Client unavailable after boot.');
+			}
+			await client.isReady();
 		},
 
 		async rename(newName: string) {
@@ -241,7 +318,12 @@ export function createSitesAPI(
 				})
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
-			const storage = updatedSite?.metadata.storage ?? 'none';
+			const storage = updatedSite?.metadata.storage;
+			if (storage !== 'opfs' && storage !== 'local-fs') {
+				throw new Error(
+					`Site ${site.slug} was not persisted (storage: ${storage}).`
+				);
+			}
 			return { slug: site.slug, storage };
 		},
 
@@ -279,7 +361,12 @@ export function createSitesAPI(
 				})
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
-			const storage = updatedSite?.metadata.storage ?? 'none';
+			const storage = updatedSite?.metadata.storage;
+			if (storage !== 'opfs' && storage !== 'local-fs') {
+				throw new Error(
+					`Site ${site.slug} was not persisted (storage: ${storage}).`
+				);
+			}
 			return { slug: site.slug, storage };
 		},
 
@@ -364,13 +451,14 @@ export function createSitesAPI(
 					effect: (action) => {
 						unsubscribe();
 						if (setActiveSiteError.match(action)) {
-							const details = action.payload.details;
-							const message =
-								typeof details === 'string'
-									? details
-									: (details?.message ??
-										action.payload.error);
-							reject(new Error(message));
+							reject(
+								new Error(
+									siteErrorMessage(
+										action.payload.error,
+										action.payload.details
+									)
+								)
+							);
 						} else {
 							resolve();
 						}

@@ -52,8 +52,38 @@ test('should show download error modal when a resource download fails', async ({
 	const body = page.getByText('usually caused by a network problem');
 	await expect(body).toBeVisible();
 
+	const failedFile = page.getByRole('link', {
+		name:
+			'https://downloads.wordpress.org/plugin/' +
+			'hello-dolly.latest-stable.zip',
+	});
+	await expect(failedFile).toBeVisible();
+
 	const reloadButton = page.getByRole('button', {
 		name: 'Reload page',
 	});
 	await expect(reloadButton).toBeVisible();
+});
+
+test('should say when the Blueprint file could not be downloaded', async ({
+	page,
+}) => {
+	const blueprintUrl = 'https://example.com/missing-blueprint.json';
+	await page.addInitScript((urlToFail) => {
+		const originalFetch = window.fetch;
+		window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+			const url = input instanceof Request ? input.url : String(input);
+			if (url === urlToFail) {
+				return Promise.reject(new TypeError('Failed to fetch'));
+			}
+			return originalFetch.call(this, input, init);
+		} as typeof fetch;
+	}, blueprintUrl);
+
+	await page.goto(`./?blueprint-url=${encodeURIComponent(blueprintUrl)}`);
+
+	await expect(
+		page.getByText('Blueprint could not be downloaded')
+	).toBeVisible();
+	await expect(page.getByRole('link', { name: blueprintUrl })).toBeVisible();
 });

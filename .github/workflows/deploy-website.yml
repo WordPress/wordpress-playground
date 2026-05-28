@@ -76,6 +76,8 @@ jobs:
                   # Allow deploying a specific ref for folks who want to pin a specific version.
                   ref: ${{ vars.GIT_REF_TO_DEPLOY }}
             - uses: ./.github/actions/prepare-playground
+            - name: Sync PHP next build assets
+              run: npm run sync:php-next
             - run: npx nx build playground-website
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}

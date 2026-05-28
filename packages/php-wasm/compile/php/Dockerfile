@@ -5,22 +5,22 @@ ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
 ENV PATH="/root/lib/bin:${PATH}"
 
 # The PHP version to build.
-# This value must point to an existing branch of the
-# https://github.com/php/php-src.git repository when prefixed
-# with "PHP-".
-# For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
-# but just "7" is invalid because there's no branch PHP-7.
+# This controls version-specific build patches and output filenames.
 ARG PHP_VERSION
+
+# The git ref to clone from php-src. Release builds use php-$PHP_VERSION tags;
+# next builds use php-src development refs.
+ARG PHP_REF
 
 # Whether to build the opcache extension. The .m4 file is patched before the main
 # ./buildconf script is generated.
 ARG WITH_OPCACHE
 
-# Clone PHP from a tag [ php-$PHP_VERSION ] instead of a branch [ PHP-$PHP_VERSION ]
-RUN git clone https://github.com/php/php-src.git php-src \
-	--branch php-$PHP_VERSION \
-	--single-branch  \
-	--depth 1;
+RUN PHP_REF="${PHP_REF:-php-$PHP_VERSION}" && \
+	git clone https://github.com/php/php-src.git php-src \
+		--branch $PHP_REF \
+		--single-branch \
+		--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
 COPY ./compile/php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
@@ -287,16 +287,20 @@ RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 COPY ./compile/php/php*.patch /root/
 COPY ./compile/php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
-	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	PHP_PATCH_VERSION="${PHP_VERSION:0:3}" && \
+	if ! compgen -G "/root/php${PHP_PATCH_VERSION}*.patch" > /dev/null; then \
+		PHP_PATCH_VERSION="8.5"; \
+	fi && \
+	git apply --no-index /root/php${PHP_PATCH_VERSION}*.patch -v && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
-	if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
+	if [[ "$PHP_PATCH_VERSION" < '8.3' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-up-to-8.2.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.3' ]]; then \
+	elif [[ "$PHP_PATCH_VERSION" == '8.3' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.4' ]]; then \
+	elif [[ "$PHP_PATCH_VERSION" == '8.4' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.5' ]]; then \
+	elif [[ "$PHP_PATCH_VERSION" == '8.5' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.5.patch -v; \
 	fi && \
 	touch php-src/patched
@@ -308,8 +312,9 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 	fi
 
 # Download and prepare imagick extension if needed (PHP 7.4+)
-# Use version 3.7.0 for PHP 7.x, master for PHP 8.x
-RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
+# Use version 3.7.0 for PHP 7.x, development branch for PHP 8.x
+RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
+		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			IMAGICK_BRANCH="3.7.0"; \
 		else \
 			IMAGICK_BRANCH="master"; \
@@ -331,7 +336,8 @@ RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			./buildconf --force; \
 		fi && \
 		echo -n ' --with-imagick=/root/lib --with-imagick-config=/root/lib/bin/wasm32-unknown-emscripten-MagickWand-config ' >> /root/.php-configure-flags && \
-		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources
+		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources; \
+	fi
 
 # Disable phar.php generation for all builds (WASM binaries can't execute during build)
 # This must run after buildconf but before configure

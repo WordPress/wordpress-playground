@@ -23,6 +23,7 @@ const sidebars = {
 			items: [
 				'main/quick-start-guide',
 				'main/web-instance',
+				'main/troubleshooting',
 				{
 					type: 'category',
 					label: 'About Playground',
@@ -170,6 +171,7 @@ const sidebars = {
 					},
 					items: [
 						'developers/apis/query-api/index',
+						'developers/apis/sites-api/index',
 						{
 							type: 'category',
 							label: 'Javascript API',

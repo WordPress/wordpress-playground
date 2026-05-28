@@ -84,3 +84,77 @@ test('playgroundSites.getClient() returns a playground client', async ({
 	});
 	expect(hasClient).toBe(true);
 });
+
+test('playgroundSites.isReady() resolves once the active site is ready', async ({
+	website,
+}) => {
+	await website.goto('./');
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites)
+	);
+
+	const ready = await website.page.evaluate(async () => {
+		await (window as any).playgroundSites.isReady();
+		// After isReady() resolves, getClient() must return a usable client.
+		const client = (window as any).playgroundSites.getClient();
+		return client != null;
+	});
+	expect(ready).toBe(true);
+});
+
+test('playgroundSites.isReady() waits when the client is not in the store yet', async ({
+	page,
+}) => {
+	// Install a setter on window.playgroundSites BEFORE the app runs.
+	// The setter captures the moment of exposure and snapshots the client
+	// state so we can prove the test really hit the "not yet ready" path.
+	await page.addInitScript(() => {
+		let api: any;
+		Object.defineProperty(window, 'playgroundSites', {
+			configurable: true,
+			get() {
+				return api;
+			},
+			set(v) {
+				api = v;
+				let clientAtExposure: unknown = 'missing';
+				try {
+					clientAtExposure = v?.getClient();
+				} catch (e) {
+					clientAtExposure = `THREW:${(e as Error).message}`;
+				}
+				(window as any).__sitesApiExposure = {
+					hadClientAtExposure:
+						clientAtExposure != null &&
+						typeof clientAtExposure !== 'string',
+					exposureSnapshot: String(clientAtExposure),
+				};
+			},
+		});
+	});
+	await page.goto('./');
+	await page.waitForFunction(() => Boolean((window as any).playgroundSites));
+
+	const result = await page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const exposure = (window as any).__sitesApiExposure;
+		const t0 = performance.now();
+		await api.isReady();
+		const isReadyMs = performance.now() - t0;
+		const clientAfter = api.getClient();
+		return {
+			hadClientAtExposure: exposure?.hadClientAtExposure,
+			exposureSnapshot: exposure?.exposureSnapshot,
+			isReadyMs,
+			hasClientAfter: clientAfter != null,
+		};
+	});
+
+	// The test is only meaningful if we actually caught the unready window.
+	expect(result.hadClientAtExposure).toBe(false);
+	// After isReady() resolves, the client must be present.
+	expect(result.hasClientAfter).toBe(true);
+	// And isReady() must not have returned instantly — it had to wait for
+	// the boot to finish.
+	expect(result.isReadyMs).toBeGreaterThan(50);
+});

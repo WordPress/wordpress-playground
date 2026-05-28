@@ -845,8 +845,8 @@ class PhpSnippet extends HTMLElement {
 		const script = this.querySelector(
 			'script[type="application/x-php"], script[type="text/x-php"], script[type="text/php"]'
 		);
-		if (script) return script.textContent || '';
-		return this.textContent || '';
+		if (script) return dedentLeading(script.textContent || '');
+		return dedentLeading(this.textContent || '');
 	}
 
 	_render() {
