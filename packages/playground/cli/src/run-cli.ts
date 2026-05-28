@@ -26,7 +26,7 @@ import {
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import fs, { existsSync, mkdirSync, readdirSync, rmdirSync } from 'fs';
+import fs, { existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
 import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
@@ -1878,7 +1878,7 @@ function expandStartCommandArgs(
 
 		if (existsSync(hostPath) && (args['reset'] as boolean)) {
 			cliOutput.print('Resetting site...');
-			rmdirSync(hostPath, { recursive: true });
+			rmSync(hostPath, { recursive: true, force: true });
 		}
 		mkdirSync(hostPath, { recursive: true });
 		newArgs['mount-before-install'] = [
