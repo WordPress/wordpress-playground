@@ -4,6 +4,7 @@ import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { importWordPressFiles } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
@@ -180,6 +181,7 @@ function BackupSection() {
 		setIsRestoring(true);
 		try {
 			await importWordPressFiles(playground, { wordPressFilesZip: file });
+			await flushWordPressMount(playground);
 			await playground.goTo('/');
 			window.location.reload();
 		} catch (error) {
@@ -308,6 +310,13 @@ function BackupSection() {
 			)}
 		</div>
 	);
+}
+
+async function flushWordPressMount(playground: PlaygroundClient) {
+	const documentRoot = await playground.documentRoot;
+	if (await playground.hasOpfsMount(documentRoot)) {
+		await playground.flushOpfs(documentRoot);
+	}
 }
 
 // ── Recovery & Reset ──────────────────────────────────────────
