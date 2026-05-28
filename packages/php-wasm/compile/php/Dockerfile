@@ -2529,6 +2529,12 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=[^;]*;/ENVIRONMENT_IS_$1=RuntimeName==="$1";/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+	# Allow runtimes to provide already-compiled dynamic side modules.
+		# Emscripten's loader already accepts WebAssembly.Module objects in
+		# loadWebAssemblyModule(). This hook exposes that path without monkeypatching
+		# the global WebAssembly constructors.
+		/root/replace.sh 's/var preloadedWasm\s*=\s*\{\};/var preloadedWasm = Module["preloadedWasm"] || {};/g' /root/output/php.js; \
+		/root/replace-across-lines.sh 's/var preloaded = preloadedWasm\[libName\];\s*if \(preloaded\) \{\s*return flags\.loadAsync \? Promise\.resolve\(preloaded\) : preloaded;\s*\}/var preloaded = preloadedWasm[libName];\n    if (preloaded) {\n      if (preloaded instanceof WebAssembly.Module) {\n        return loadWebAssemblyModule(preloaded, flags, libName, localScope, handle);\n      }\n      return flags.loadAsync ? Promise.resolve(preloaded) : preloaded;\n    }/s' /root/output/php.js; \
 	# Provide the JSPI longjmp tag for web side modules.
 		# Existing web JSPI binaries do not export __c_longjmp, so the dynamic
 		# linker would otherwise synthesize a JS function stub for a tag import.

@@ -46,7 +46,12 @@ import {
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import {
+	MessageChannel,
+	type MessagePort,
+	parentPort,
+	workerData,
+} from 'worker_threads';
 import { type RunCLIArgs, spawnWorkerThread } from '../run-cli';
 import type {
 	PhpIniOptions,
@@ -466,6 +471,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				createPhpRuntime: async () => {
 					return await loadNodeRuntime(phpVersion, {
 						fileLockManager: this.fileLockManager!,
+						precompiledWasmModule: (workerData as any)
+							?.precompiledWasmModule,
+						precompiledSideModules: (workerData as any)
+							?.precompiledSideModules,
 						emscriptenOptions: {
 							processId,
 							trace: trace ? tracePhpWasm : undefined,

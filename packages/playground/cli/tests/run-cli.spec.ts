@@ -196,10 +196,11 @@ describe.each(blueprintVersions)(
 			expect(text).toContain(oldestSupportedVersion);
 		});
 
-		test('should run blueprint', async () => {
+		test('should run blueprint after secondary workers boot', async () => {
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
+				workers: 2,
 				blueprint: {
 					steps: [
 						{
@@ -211,11 +212,22 @@ describe.each(blueprintVersions)(
 					],
 				},
 			});
+
+			expect(cliServer[internalsKeyForTesting].bootedWorkerCount()).toBe(
+				2
+			);
+
 			const homeUrl = new URL('/', cliServer.serverUrl);
-			const response = await fetch(homeUrl);
-			expect(response.status).toBe(200);
-			const text = await response.text();
-			expect(text).toContain('<title>My Blog Name</title>');
+			const responses = await Promise.all([
+				fetch(homeUrl),
+				fetch(homeUrl),
+				fetch(homeUrl),
+			]);
+			for (const response of responses) {
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain('<title>My Blog Name</title>');
+			}
 		});
 
 		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({

@@ -14,7 +14,7 @@ import {
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
 import fs from 'fs';
-import { getPHPLoaderModule } from '.';
+import { getPHPLoaderModule } from './get-php-loader-module';
 import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
 import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
@@ -55,7 +55,21 @@ export interface PHPLoaderOptions {
 	withMemcached?: boolean;
 }
 
+export interface PrecompiledPHPSideModule {
+	soPath: string;
+	module: WebAssembly.Module;
+}
+
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	/**
+	 * A precompiled main PHP WebAssembly module. Supplying this avoids
+	 * reading and compiling the same .wasm file in every Node.js worker.
+	 */
+	precompiledWasmModule?: WebAssembly.Module;
+	/**
+	 * Precompiled dynamic PHP extension side modules, keyed by their bytes.
+	 */
+	precompiledSideModules?: PrecompiledPHPSideModule[];
 	/**
 	 * A file lock manager to coordinate file locks between
 	 * multiple php-wasm instances and other OS processes.
@@ -377,10 +391,54 @@ export async function loadNodeRuntime(
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
 
-	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+	if (options.precompiledWasmModule) {
+		emscriptenOptions = {
+			...emscriptenOptions,
+			instantiateWasm(imports, receiveInstance) {
+				Promise.resolve()
+					.then(
+						() =>
+							new WebAssembly.Instance(
+								options.precompiledWasmModule!,
+								imports
+							)
+					)
+					.then((instance) => {
+						receiveInstance(
+							instance,
+							options.precompiledWasmModule!
+						);
+					});
+				return {};
+			},
+		};
+	}
 
+	if (options.precompiledSideModules?.length) {
+		emscriptenOptions = {
+			...emscriptenOptions,
+			preloadedWasm: Object.fromEntries(
+				options.precompiledSideModules.map(({ soPath, module }) => [
+					soPath,
+					module,
+				])
+			),
+		};
+	}
+
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
 	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
 	return runtimeId;
+}
+
+export async function compileNodeRuntimeWasmModule(
+	phpVersion: AllPHPVersion
+): Promise<WebAssembly.Module> {
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+	const wasmBytes = await fs.promises.readFile(
+		phpLoaderModule.dependencyFilename
+	);
+	return await WebAssembly.compile(wasmBytes);
 }
 
 /**

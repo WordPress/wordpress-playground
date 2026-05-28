@@ -7,6 +7,7 @@ import {
 	type PathAlias,
 	type RemoteAPI,
 	type AllPHPVersion,
+	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -20,6 +21,7 @@ import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
+	CompiledBlueprintV1,
 } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
@@ -28,7 +30,11 @@ import {
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import fs, { existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
 import type { Server } from 'http';
-import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
+import {
+	MessageChannel as NodeMessageChannel,
+	Worker,
+	workerData,
+} from 'worker_threads';
 // @ts-ignore
 import {
 	expandAutoMounts,
@@ -43,7 +49,12 @@ import {
 import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import type { XdebugOptions } from '@php-wasm/node';
+import {
+	compileNodeRuntimeWasmModule,
+	compilePHPExtensionWasmModules,
+	type PrecompiledPHPSideModule,
+	type XdebugOptions,
+} from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
 	AllPHPVersions,
@@ -84,6 +95,7 @@ import {
 	PHPMYADMIN_INSTALL_PATH,
 } from '@wp-playground/tools';
 import { jspi } from 'wasm-feature-detect';
+import { cliExtensionArgsToExtensionsArray } from './php-extensions';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -973,7 +985,35 @@ export interface RunCLIServer extends AsyncDisposable {
 	// Provide some details and helpers for automated testing.
 	[internalsKeyForTesting]: {
 		workerThreadCount: number;
+		bootedWorkerCount: () => number;
 	};
+}
+
+function createMutablePooledProxy<T extends object>(
+	getPool: () => Pooled<T>
+): Pooled<T> {
+	return new Proxy({} as Pooled<T>, {
+		get(_target, prop: string | symbol) {
+			if (prop === 'then') {
+				return undefined;
+			}
+			return new Proxy(function () {}, {
+				apply(_target, _thisArg, args: any[]) {
+					return (getPool() as any)[prop](...args);
+				},
+				get(_target, innerProp) {
+					if (innerProp === 'then') {
+						return (resolve: any, reject: any) =>
+							Promise.resolve((getPool() as any)[prop]).then(
+								resolve,
+								reject
+							);
+					}
+					return undefined;
+				},
+			});
+		},
+	});
 }
 
 // These overloads are declared for convenience so runCLI() can return
@@ -1107,6 +1147,64 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				typeof args.blueprint === 'string' ? args.blueprint : undefined,
 		});
 	}
+
+	const shouldShareWasmModule =
+		process.env['PLAYGROUND_CLI_SHARE_WASM_MODULE'] === '1';
+	let precompiledWasmModulePromise: Promise<WebAssembly.Module> | undefined;
+	let precompiledSideModulesPromise:
+		| Promise<PrecompiledPHPSideModule[]>
+		| undefined;
+	const getPrecompiledWasmModule = () => {
+		if (!shouldShareWasmModule) {
+			return undefined;
+		}
+		if (!precompiledWasmModulePromise) {
+			const startedAt = performance.now();
+			precompiledWasmModulePromise = compileNodeRuntimeWasmModule(
+				args.php || RecommendedPHPVersion
+			).then((module) => {
+				logger.debug(
+					`Compiled shared PHP WASM module in ${(
+						performance.now() - startedAt
+					).toFixed(2)}ms`
+				);
+				return module;
+			});
+		}
+		return precompiledWasmModulePromise;
+	};
+	const getPrecompiledSideModules = () => {
+		if (!shouldShareWasmModule) {
+			return undefined;
+		}
+		if (!precompiledSideModulesPromise) {
+			const startedAt = performance.now();
+			const extensions = cliExtensionArgsToExtensionsArray(args);
+			if (!extensions.length) {
+				precompiledSideModulesPromise = Promise.resolve([]);
+				return precompiledSideModulesPromise;
+			}
+			precompiledSideModulesPromise = jspi()
+				.then((hasJspi) =>
+					compilePHPExtensionWasmModules(
+						(args.php ||
+							RecommendedPHPVersion) as SupportedPHPVersion,
+						hasJspi ? 'jspi' : 'asyncify',
+						extensions
+					)
+				)
+				.then((modules) => {
+					logger.debug(
+						`Compiled ${modules.length} shared PHP extension WASM ` +
+							`module(s) in ${(
+								performance.now() - startedAt
+							).toFixed(2)}ms`
+					);
+					return modules;
+				});
+		}
+		return precompiledSideModulesPromise;
+	};
 
 	const selectedPort = args.command === 'server' ? (args.port ?? 9400) : 0;
 
@@ -1512,14 +1610,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			};
 
 			try {
-				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
-				for (
-					let workerIndex = 0;
-					workerIndex < targetWorkerCount;
-					workerIndex++
-				) {
-					const promiseToBoot = spawnWorkerThread(workerType, {
+				const bootWorker = async (
+					workerIndex: number,
+					options: {
+						precompiledWasmModule?: WebAssembly.Module;
+						precompiledSideModules?: PrecompiledPHPSideModule[];
+					} = {}
+				): Promise<[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]> => {
+					const startedAt = performance.now();
+					const spawnResult = await spawnWorkerThread(workerType, {
+						precompiledWasmModule: options.precompiledWasmModule,
+						precompiledSideModules: options.precompiledSideModules,
 						onExit: (exitCode: number) => {
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
@@ -1536,55 +1638,43 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							);
 							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 						},
-					}).then(
-						async (
-							spawnResult: SpawnedWorker
-						): Promise<
-							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
-						> => {
-							// Remember the worker process before booting the Playground
-							// so we can clean it up if there is an error during boot.
-							spawnedWorkers.push(spawnResult);
+					});
+					if (disposing) {
+						await spawnResult.worker.terminate();
+						throw new Error('Playground CLI is disposing.');
+					}
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-							const playgroundApi =
-								await handler.bootRequestHandler({
-									worker: spawnResult,
-									fileLockManagerPort,
-									nativeInternalDirPath,
-								});
+					// Remember the worker process before booting the Playground
+					// so we can clean it up if there is an error during boot.
+					spawnedWorkers.push(spawnResult);
 
-							workerToPlaygroundMap.set(
-								spawnResult,
-								playgroundApi
-							);
+					const fileLockManagerPort =
+						await exposeFileLockManager(fileLockManager);
+					const playgroundApi = await handler.bootRequestHandler({
+						worker: spawnResult,
+						fileLockManagerPort,
+						nativeInternalDirPath,
+					});
 
-							return [spawnResult, playgroundApi];
-						}
+					workerToPlaygroundMap.set(spawnResult, playgroundApi);
+					logger.debug(
+						`Worker ${workerIndex} request handler booted in ${(
+							performance.now() - startedAt
+						).toFixed(2)}ms`
 					);
 
-					promisesToBoot.push(promiseToBoot);
+					return [spawnResult, playgroundApi];
+				};
 
-					// TODO: Remove this workaround after we remove the inherent race
-					// from @wp-playground/wordpress's bootRequestHandler() function.
-					if (workerIndex === 0) {
-						// Wait for the first worker to boot to avoid a race condition
-						// with writing initial PHP files in bootRequestHandler().
-						// This is the race condition:
-						// https://github.com/WordPress/wordpress-playground/blob/e758ee0893d199416a2d740195815234584b1b44/packages/playground/wordpress/src/boot.ts#L416-L426
-						// Multiple workers may detect that .boot-files-written does not exist
-						// and proceed to try to write initial boot files.
-						await promiseToBoot;
-					}
-				}
-
-				await Promise.all(promisesToBoot);
+				await bootWorker(0);
 				playgroundPool = createObjectPoolProxy(
 					spawnedWorkers.map(
 						(spawnedWorker) =>
 							workerToPlaygroundMap.get(spawnedWorker)!
 					)
+				);
+				const playgroundForReturn = createMutablePooledProxy(
+					() => playgroundPool
 				);
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
@@ -1616,27 +1706,96 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						undefined,
 						mainThreadPostInstallMountsPort
 					);
+					const bootWordPressStartedAt = performance.now();
 					await handler.bootWordPress(
 						playgroundPool,
 						workerPostInstallMountsPort
 					);
 					mainThreadPostInstallMountsPort.close();
+					logger.debug(
+						`bootWordPress completed in ${(
+							performance.now() - bootWordPressStartedAt
+						).toFixed(2)}ms`
+					);
 
-					wordPressReady = true;
-
+					let compiledBlueprint: CompiledBlueprintV1 | undefined;
 					if (!args['experimental-blueprints-v2-runner']) {
-						const compiledBlueprint = await (
+						compiledBlueprint = await (
 							handler as BlueprintsV1Handler
 						).compileInputBlueprint(
 							args['additional-blueprint-steps'] || []
 						);
+					}
+					const hasPostBootSteps =
+						!!compiledBlueprint || !!args.phpmyadmin;
 
-						if (compiledBlueprint) {
-							await runBlueprintV1Steps(
-								compiledBlueprint,
-								playgroundPool
-							);
-						}
+					const bootSecondaryWorkers = async () => {
+						const startedAt = performance.now();
+						const [secondaryWasmModule, secondarySideModules] =
+							await Promise.all([
+								getPrecompiledWasmModule(),
+								getPrecompiledSideModules(),
+							]);
+						await Promise.all(
+							Array.from(
+								{ length: targetWorkerCount - 1 },
+								(_, workerIndex) => workerIndex + 1
+							).map(async (workerIndex) => {
+								const [, playground] = await bootWorker(
+									workerIndex,
+									{
+										precompiledWasmModule:
+											secondaryWasmModule,
+										precompiledSideModules:
+											secondarySideModules,
+									}
+								);
+								await playground.mountAfterWordPressInstall(
+									args['mount'] || []
+								);
+							})
+						);
+						playgroundPool = createObjectPoolProxy(
+							spawnedWorkers.map(
+								(spawnedWorker) =>
+									workerToPlaygroundMap.get(spawnedWorker)!
+							)
+						);
+						logger.debug(
+							`Secondary workers booted in ${(
+								performance.now() - startedAt
+							).toFixed(2)}ms`
+						);
+					};
+					if (args.command === 'server' && !hasPostBootSteps) {
+						wordPressReady = true;
+						setTimeout(() => {
+							void bootSecondaryWorkers().catch((error) => {
+								if (!disposing) {
+									logger.error(
+										'Failed to boot secondary workers:',
+										error
+									);
+								}
+							});
+						}, 0);
+					} else {
+						// Blueprint/phpMyAdmin setup should observe the final worker pool,
+						// and requests should wait until that setup is complete.
+						await bootSecondaryWorkers();
+					}
+
+					if (compiledBlueprint) {
+						const blueprintStartedAt = performance.now();
+						await runBlueprintV1Steps(
+							compiledBlueprint,
+							playgroundPool
+						);
+						logger.debug(
+							`Blueprint v1 steps completed in ${(
+								performance.now() - blueprintStartedAt
+							).toFixed(2)}ms`
+						);
 					}
 
 					// If phpMyAdmin is enabled and not already installed, install it.
@@ -1696,6 +1855,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
 
+				wordPressReady = true;
+
 				if (args.phpmyadmin) {
 					const phpMyAdminPath = path.join(
 						args.phpmyadmin as string,
@@ -1716,12 +1877,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				return {
-					playground: playgroundPool,
+					playground: playgroundForReturn,
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
 					[internalsKeyForTesting]: {
 						workerThreadCount: targetWorkerCount,
+						bootedWorkerCount: () => workerToPlaygroundMap.size,
 					},
 				};
 			} catch (error) {
@@ -1944,7 +2106,15 @@ export type SpawnedWorker = {
  */
 export function spawnWorkerThread(
 	workerType: 'v1' | 'v2',
-	{ onExit }: { onExit?: (code: number) => void } = {}
+	{
+		onExit,
+		precompiledWasmModule = (workerData as any)?.precompiledWasmModule,
+		precompiledSideModules = (workerData as any)?.precompiledSideModules,
+	}: {
+		onExit?: (code: number) => void;
+		precompiledWasmModule?: WebAssembly.Module;
+		precompiledSideModules?: PrecompiledPHPSideModule[];
+	} = {}
 ) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
@@ -1960,10 +2130,20 @@ export function spawnWorkerThread(
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
 	let worker: Worker;
+	const workerOptions =
+		precompiledWasmModule || precompiledSideModules
+			? { workerData: { precompiledWasmModule, precompiledSideModules } }
+			: undefined;
 	if (workerType === 'v1') {
-		worker = new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
+		worker = new Worker(
+			new URL(__WORKER_V1_URL__, import.meta.url),
+			workerOptions
+		);
 	} else {
-		worker = new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
+		worker = new Worker(
+			new URL(__WORKER_V2_URL__, import.meta.url),
+			workerOptions
+		);
 	}
 
 	return new Promise<SpawnedWorker>((resolve, reject) => {

@@ -1324,7 +1324,7 @@ export function init(RuntimeName, PHPLoader) {
 		preloadPlugins.push(wasmPlugin);
 	};
 
-	var preloadedWasm = {};
+	var preloadedWasm = Module["preloadedWasm"] || {};
 
 	var PATH = {
 		isAbs: (path) => path.charAt(0) === '/',
@@ -4794,8 +4794,29 @@ export function init(RuntimeName, PHPLoader) {
 		function getExports() {
 			// lookup preloaded cache first
 			var preloaded = preloadedWasm[libName];
+
 			if (preloaded) {
+
+				if (preloaded instanceof WebAssembly.Module) {
+
+					return loadWebAssemblyModule(
+
+						preloaded,
+
+						flags,
+
+						libName,
+
+						localScope,
+
+						handle
+
+					);
+
+				}
+
 				return flags.loadAsync ? Promise.resolve(preloaded) : preloaded;
+
 			}
 			// module not preloaded - load lib data and create new module from it
 			if (flags.loadAsync) {

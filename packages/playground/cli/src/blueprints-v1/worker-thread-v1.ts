@@ -18,7 +18,12 @@ import {
 	bootWordPress,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import {
+	MessageChannel,
+	type MessagePort,
+	parentPort,
+	workerData,
+} from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
@@ -239,6 +244,10 @@ function createPhpRuntimeFactory(
 			options.phpVersion || RecommendedPHPVersion,
 			{
 				fileLockManager,
+				precompiledWasmModule: (workerData as any)
+					?.precompiledWasmModule,
+				precompiledSideModules: (workerData as any)
+					?.precompiledSideModules,
 				emscriptenOptions: {
 					processId: options.processId,
 					trace: options.trace ? tracePhpWasm : undefined,

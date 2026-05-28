@@ -102,12 +102,42 @@ export async function withPHPExtensions(
 		return options;
 	}
 
-	const resolvedExtensions = await Promise.all(
+	const resolvedExtensions = await resolveRuntimePHPExtensions(
+		version,
+		asyncMode,
+		extensions
+	);
+	return withResolvedPHPExtensions(options, resolvedExtensions);
+}
+
+export async function resolveRuntimePHPExtensions(
+	version: SupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode,
+	extensions: PHPExtension[] = []
+): Promise<ResolvedPHPExtension[]> {
+	return await Promise.all(
 		extensions.map((extension) =>
 			resolveRuntimePHPExtension(version, asyncMode, extension)
 		)
 	);
-	return withResolvedPHPExtensions(options, resolvedExtensions);
+}
+
+export async function compilePHPExtensionWasmModules(
+	version: SupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode,
+	extensions: PHPExtension[] = []
+) {
+	const resolvedExtensions = await resolveRuntimePHPExtensions(
+		version,
+		asyncMode,
+		extensions
+	);
+	return await Promise.all(
+		resolvedExtensions.map(async ({ soPath, soBytes }) => ({
+			soPath,
+			module: await WebAssembly.compile(soBytes),
+		}))
+	);
 }
 
 /**
