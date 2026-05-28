@@ -46,7 +46,7 @@ import { ContentTypes } from './tls/1_2/types';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { ChunkedDecoderStream } from './chunked-decoder';
 import type { EmscriptenOptions } from '@php-wasm/universal';
-import { concatUint8Arrays, WebSocketShim } from '@php-wasm/util';
+import { concatUint8Arrays } from '@php-wasm/util';
 
 export type TCPOverFetchOptions = {
 	CAroot: GeneratedCertificate;
@@ -99,9 +99,19 @@ export interface TCPOverFetchWebsocketOptions {
 	corsProxyUrl?: string;
 }
 
-export class TCPOverFetchWebsocket extends WebSocketShim {
+export class TCPOverFetchWebsocket {
+	CONNECTING = 0;
+	OPEN = 1;
+	CLOSING = 2;
+	CLOSED = 3;
+	readyState = this.CONNECTING;
+	binaryType = 'blob';
+	bufferedAmount = 0;
+	extensions = '';
+	protocol = 'ws';
 	host = '';
 	port = 0;
+	listeners = new Map<string, any>();
 	CAroot?: GeneratedCertificate;
 	corsProxyUrl?: string;
 
@@ -111,6 +121,7 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 	fetchInitiated = false;
 	bufferedBytesFromClient: Uint8Array = new Uint8Array(0);
 
+	url: string;
 	options: string[];
 
 	constructor(
@@ -122,13 +133,13 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 			outputType = 'messages',
 		}: TCPOverFetchWebsocketOptions = {}
 	) {
-		super(url);
-		this.protocol = 'ws';
+		this.url = url;
 		this.options = options;
 
 		const wsUrl = new URL(url);
 		this.host = wsUrl.searchParams.get('host')!;
 		this.port = parseInt(wsUrl.searchParams.get('port')!, 10);
+		this.binaryType = 'arraybuffer';
 
 		this.corsProxyUrl = corsProxyUrl;
 		this.CAroot = CAroot;
@@ -141,13 +152,13 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 							 * Emscripten expects the message event to be emitted
 							 * so let's emit it.
 							 */
-							this.emitMessage(chunk);
+							this.emit('message', { data: chunk });
 						},
 						abort: () => {
 							// We don't know what went wrong and the browser
 							// won't tell us much either, so let's just pretend
 							// the server is unreachable.
-							this.emitError(new Error('ECONNREFUSED'));
+							this.emit('error', new Error('ECONNREFUSED'));
 							this.close();
 						},
 						close: () => {
@@ -161,14 +172,73 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 					// via the 'error' event.
 				});
 		}
-		this.emitOpen();
+		this.readyState = this.OPEN;
+		this.emit('open');
 	}
+
+	on(eventName: string, callback: (e: any) => void) {
+		this.addEventListener(eventName, callback);
+	}
+
+	once(eventName: string, callback: (e: any) => void) {
+		const wrapper = (e: any) => {
+			callback(e);
+			this.removeEventListener(eventName, wrapper);
+		};
+		this.addEventListener(eventName, wrapper);
+	}
+
+	addEventListener(eventName: string, callback: (e: any) => void) {
+		if (!this.listeners.has(eventName)) {
+			this.listeners.set(eventName, new Set());
+		}
+		this.listeners.get(eventName).add(callback);
+	}
+
+	removeListener(eventName: string, callback: (e: any) => void) {
+		this.removeEventListener(eventName, callback);
+	}
+
+	removeEventListener(eventName: string, callback: (e: any) => void) {
+		const listeners = this.listeners.get(eventName);
+		if (listeners) {
+			listeners.delete(callback);
+		}
+	}
+
+	emit(eventName: string, data: any = {}) {
+		if (eventName === 'message') {
+			this.onmessage(data);
+		} else if (eventName === 'close') {
+			this.onclose(data);
+		} else if (eventName === 'error') {
+			this.onerror(data);
+		} else if (eventName === 'open') {
+			this.onopen(data);
+		}
+		const listeners = this.listeners.get(eventName);
+		if (listeners) {
+			for (const listener of listeners) {
+				listener(data);
+			}
+		}
+	}
+
+	// Default event handlers that can be overridden by the user
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	onclose(data: any) {}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	onerror(data: any) {}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	onmessage(data: any) {}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	onopen(data: any) {}
 
 	/**
 	 * Emscripten calls this method whenever the WASM module
 	 * writes bytes to the TCP socket.
 	 */
-	override send(data: ArrayBuffer | Uint8Array | string) {
+	send(data: ArrayBuffer | Uint8Array | string) {
 		if (
 			this.readyState === this.CLOSING ||
 			this.readyState === this.CLOSED
@@ -201,7 +271,7 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 				// let's wait for more.
 				return;
 			case 'other':
-				this.emitError(new Error('Unsupported protocol'));
+				this.emit('error', new Error('Unsupported protocol'));
 				this.close();
 				break;
 			case 'tls':
@@ -331,9 +401,7 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 		}
 	}
 
-	override close() {
-		if (this.readyState >= this.CLOSING) return;
-		this.readyState = this.CLOSING;
+	close() {
 		/**
 		 * Workaround a PHP.wasm issue – if the WebSocket is
 		 * closed asynchronously after the last chunk is received,
@@ -346,8 +414,11 @@ export class TCPOverFetchWebsocket extends WebSocketShim {
 		 * Either way, sending an empty data chunk before closing
 		 * the WebSocket resolves the problem.
 		 */
-		this.emitMessage(new Uint8Array(0));
-		this.emitClose();
+		this.emit('message', { data: new Uint8Array(0) });
+
+		this.readyState = this.CLOSING;
+		this.emit('close');
+		this.readyState = this.CLOSED;
 	}
 }
 

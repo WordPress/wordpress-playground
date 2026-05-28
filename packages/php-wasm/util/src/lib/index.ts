@@ -24,7 +24,6 @@ export {
 } from './base64';
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
-export { WebSocketShim } from './websocket-shim';
 export { SmtpSinkWebSocket } from './smtp-sink-websocket';
 export * from './php-vars';
 export * from './smtp';
