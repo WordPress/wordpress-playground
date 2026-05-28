@@ -54,6 +54,37 @@ export default defineConfig(async (env: ConfigEnv): Promise<UserConfig> => {
 				'Cross-Origin-Opener-Policy': 'same-origin',
 				'Cross-Origin-Embedder-Policy': 'credentialless',
 			},
+			proxy: {
+				...(resolved.server?.proxy ?? {}),
+				/*
+				 * Override the base `/cors-proxy` rule to also accept the
+				 * kernel worker's hardcoded dev shape
+				 * (`/cors-proxy?url=<encoded>`, baked into
+				 * `wasm-posix-kernel/examples/browser/lib/
+				 * kernel-worker-entry.ts:299`). Without this, every
+				 * outbound HTTPS request from kernel-resident PHP
+				 * (file_get_contents, etc.) returns 404 from
+				 * `cors-proxy.php`, which makes
+				 * `blueprints.spec.ts:704/746/822` fail.
+				 */
+				'/cors-proxy': {
+					target: 'http://127.0.0.1:5263',
+					changeOrigin: true,
+					rewrite: (path: string) => {
+						const kandeloPrefix = '/cors-proxy?url=';
+						if (path.startsWith(kandeloPrefix)) {
+							const encoded = path.slice(kandeloPrefix.length);
+							return (
+								'/cors-proxy.php?' + decodeURIComponent(encoded)
+							);
+						}
+						return path.replace(
+							/^\/cors-proxy\/\?/,
+							'/cors-proxy.php?'
+						);
+					},
+				},
+			},
 		},
 	};
 });

@@ -149,12 +149,36 @@ function aliasRemoteHtmlPlugin(): Plugin {
 	};
 }
 
+/**
+ * Serve the `@wp-playground/client` source at `/client/index.js` so
+ * `<php-snippet>` embeds load it without a built `dist/client/`.
+ */
+function aliasClientIndexPlugin(): Plugin {
+	const clientIndex = resolve(__dirname, '../client/src/index.ts');
+	return {
+		name: 'wasm-posix-kernel-client-index-alias',
+		configureServer(server) {
+			server.middlewares.use((req, _res, next) => {
+				const raw = req.url || '';
+				const queryIdx = raw.indexOf('?');
+				const pathname = queryIdx === -1 ? raw : raw.slice(0, queryIdx);
+				if (pathname === '/client/index.js') {
+					const query = queryIdx === -1 ? '' : raw.slice(queryIdx);
+					req.url = '/@fs' + clientIndex + query;
+				}
+				next();
+			});
+		},
+	};
+}
+
 const plugins = [
 	viteTsConfigPaths({
 		root: '../../../',
 	}),
 	resolveKernelBinariesPlugin(),
 	aliasRemoteHtmlPlugin(),
+	aliasClientIndexPlugin(),
 	buildVersionPlugin('remote-config'),
 ];
 
@@ -237,9 +261,35 @@ export default defineConfig(() => {
 				'Service-Worker-Allowed': '/',
 			},
 			proxy: {
+				/*
+				 * The kernel worker (origin = this remote dev server)
+				 * issues outbound HTTPS through its TLS-MITM backend,
+				 * which fetches `/cors-proxy?url=<encoded>` relative to
+				 * the worker — see
+				 * `wasm-posix-kernel/examples/browser/lib/
+				 * kernel-worker-entry.ts:299`. The base `/cors-proxy`
+				 * proxy here would forward unchanged and `cors-proxy.php`
+				 * would 404 that shape; mirror the rewrite from
+				 * `packages/playground/website/vite.posix-kernel.config.ts`
+				 * so `blueprints.spec.ts:704/822` (HTTPS via
+				 * `file_get_contents`) actually reach the proxy.
+				 */
 				'/cors-proxy': {
 					target: 'http://127.0.0.1:5263',
 					changeOrigin: true,
+					rewrite: (path: string) => {
+						const kandeloPrefix = '/cors-proxy?url=';
+						if (path.startsWith(kandeloPrefix)) {
+							const encoded = path.slice(kandeloPrefix.length);
+							return (
+								'/cors-proxy.php?' + decodeURIComponent(encoded)
+							);
+						}
+						return path.replace(
+							/^\/cors-proxy\/\?/,
+							'/cors-proxy.php?'
+						);
+					},
 				},
 			},
 			fs: {

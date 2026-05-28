@@ -40,6 +40,7 @@
  */
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
+import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	PHPResponse,
 	StreamedPHPResponse,
@@ -48,6 +49,7 @@ import {
 import { removeURLScope, setURLScope } from '@php-wasm/scopes';
 import { logger } from '@php-wasm/logger';
 import type { MessageListener } from '@php-wasm/universal';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 
 import { bootKernelWordPress, type KernelBootResult } from './boot';
 import { prepareWordPressZips } from './prepare-wordpress';
@@ -56,6 +58,7 @@ import { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
 import { CookieJar } from './cookie-jar';
 import type { HttpRequest, HttpResponse } from './host-bridge';
+import type { MountDescriptor } from '../playground-worker-endpoint';
 import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
@@ -112,9 +115,8 @@ type LimitedPHPApiMethod = (typeof LIMITED_PHP_API_METHODS)[number];
 /**
  * Boot options accepted by the kernel-mode worker. We only consume a
  * subset of the classic `WorkerBootOptions` because the kernel-mode
- * handler doesn't take a PHP version, mounts, blueprints or
- * networking flags yet — the first cut stands up a default WordPress
- * install.
+ * handler doesn't take a PHP version, mounts or blueprints yet — the
+ * first cut stands up a default WordPress install.
  */
 export interface KernelWorkerBootOptions {
 	scope: string;
@@ -131,6 +133,24 @@ export interface KernelWorkerBootOptions {
 	 */
 	shouldBootWordPress?: boolean;
 	shouldInstallWordPress?: boolean;
+	/**
+	 * Mirror of classic mode's `WorkerBootOptions.withNetworking` —
+	 * forwarded by `playground.boot({...withNetworking})` from the
+	 * iframe client. When `false`, php-fpm's pool config disables
+	 * `allow_url_fopen` and disables `curl_exec` / `curl_multi_exec`
+	 * (the same surface classic mode flips off via php.ini). The
+	 * kernel worker's TLS-MITM backend always routes outbound traffic
+	 * through the Vite CORS proxy in dev, so the only gate that
+	 * actually blocks a request is `allow_url_fopen=0` inside PHP itself.
+	 * Default `true`.
+	 */
+	withNetworking?: boolean;
+	/**
+	 * Mounts to apply during boot. Only `opfs-to-memfs` mounts are
+	 * processed here; `memfs-to-opfs` mounts are initiated later by
+	 * the host via {@link mountOpfs}.
+	 */
+	mounts?: Array<MountDescriptor>;
 }
 
 /**
@@ -169,6 +189,21 @@ export class KernelPlaygroundWorkerEndpoint {
 	 * cookie persistence to the browser. See `cookie-jar.ts`.
 	 */
 	private readonly cookieJar = new CookieJar();
+	/**
+	 * Live {@link KernelLimitedPHPApi} bound after boot. Held as a field
+	 * (in addition to the methods Comlink-bound onto `this` via
+	 * {@link bindApiMethods}) so {@link mountOpfs} can drive its own VFS
+	 * walk without going through the Comlink-exposed surface.
+	 */
+	private api: KernelLimitedPHPApi | undefined;
+	/**
+	 * Mountpoints that have already received a one-shot OPFS snapshot.
+	 * Kernel-mode `mountOpfs` is not a continuous mirror — it walks the
+	 * VFS once and writes the bytes out — so the only state we track is
+	 * "this mountpoint already exists." `unmountOpfs` drops the entry so
+	 * a later mount with the same name succeeds.
+	 */
+	private readonly opfsMounts = new Set<string>();
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		this.downloadMonitor = monitor;
@@ -210,6 +245,10 @@ export class KernelPlaygroundWorkerEndpoint {
 				'KernelPlaygroundWorkerEndpoint.requestStreamed: kernel is not booted.'
 			);
 		}
+		// Iframe navs bypass KernelLimitedPHPApi.request, so unawaited
+		// defineConstant writes (login.ts:43) can still be mid-flight
+		// when the auto-login mu-plugin reads the store.
+		await this.api?.flushPendingDefines();
 
 		// Two URL transforms before the request hits the bridge:
 		//   1. Strip the scope (`/scope:xxx/…`) so kernel-resident
@@ -359,6 +398,81 @@ export class KernelPlaygroundWorkerEndpoint {
 		/* no-op for the first cut */
 	}
 
+	/**
+	 * One-shot sync between the kernel VFS subtree at `options.mountpoint`
+	 * and the OPFS directory `options.device`. `memfs-to-opfs` snapshots
+	 * VFS → OPFS (save); `opfs-to-memfs` overlays OPFS → VFS (restore).
+	 * No continuous journaling — the kernel owns the VFS and exposes
+	 * no MEMFS hooks; saves are re-invoked whenever the user clicks
+	 * "Save site locally".
+	 */
+	async mountOpfs(
+		options: MountDescriptor,
+		onProgress?: SyncProgressCallback
+	): Promise<void> {
+		if (!this.api) {
+			throw new Error(
+				'KernelPlaygroundWorkerEndpoint.mountOpfs: called before ' +
+					'kernel boot completed. Await `isReady()` first.'
+			);
+		}
+		if (this.opfsMounts.has(options.mountpoint)) {
+			throw new Error(
+				`OPFS mount already exists at "${options.mountpoint}".`
+			);
+		}
+
+		const opfsRoot = await directoryHandleFromMountDevice(options.device);
+		if (options.initialSyncDirection === 'memfs-to-opfs') {
+			await snapshotVfsToOpfs(
+				this.api,
+				options.mountpoint,
+				opfsRoot,
+				onProgress
+			);
+		} else if (options.initialSyncDirection === 'opfs-to-memfs') {
+			await loadOpfsIntoVfs(
+				this.api,
+				options.mountpoint,
+				opfsRoot,
+				onProgress
+			);
+		} else {
+			throw new Error(
+				`KernelPlaygroundWorkerEndpoint.mountOpfs: unsupported ` +
+					`initialSyncDirection '${options.initialSyncDirection}'.`
+			);
+		}
+		this.opfsMounts.add(options.mountpoint);
+	}
+
+	/**
+	 * Kernel-mode OPFS is a one-shot snapshot rather than a continuous
+	 * journal, so there is no buffered state to flush. The method exists
+	 * to match the classic-mode API surface the website / blueprint
+	 * runner consume — calling it without a prior `mountOpfs` is a
+	 * programming error and surfaces a clear message.
+	 */
+	async flushOpfs(mountpoint: string): Promise<void> {
+		if (!this.opfsMounts.has(mountpoint)) {
+			throw new Error(`No OPFS mount found at "${mountpoint}".`);
+		}
+		/* No journal to flush — see docstring. */
+	}
+
+	/**
+	 * Drop the mountpoint from the tracked set. Symmetrical with
+	 * `mountOpfs` so the caller can re-mount at the same path; the
+	 * underlying OPFS directory is left alone (the persisted snapshot
+	 * survives unmount).
+	 */
+	async unmountOpfs(mountpoint: string): Promise<void> {
+		if (!this.opfsMounts.has(mountpoint)) {
+			throw new Error(`No OPFS mount found at "${mountpoint}".`);
+		}
+		this.opfsMounts.delete(mountpoint);
+	}
+
 	async getMinifiedWordPressVersions() {
 		return {
 			all: MinifiedWordPressVersions,
@@ -490,6 +604,7 @@ export class KernelPlaygroundWorkerEndpoint {
 			sqliteZipBytes,
 			wpZipStripLeadingDir,
 			wpStaticZipBytes,
+			withNetworking: options.withNetworking !== false,
 			onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
 		});
 
@@ -526,6 +641,15 @@ export class KernelPlaygroundWorkerEndpoint {
 			cookieJar: this.cookieJar,
 		});
 		this.bindApiMethods(api);
+		this.api = api;
+
+		// Restore saved sites before the install probe so it sees a
+		// fully-installed WordPress and short-circuits.
+		for (const mount of options.mounts ?? []) {
+			if (mount.initialSyncDirection === 'opfs-to-memfs') {
+				await this.mountOpfs(mount);
+			}
+		}
 
 		if (installWordPress) {
 			logger.debug(
@@ -583,6 +707,303 @@ export class KernelPlaygroundWorkerEndpoint {
 			(this as Record<LimitedPHPApiMethod, unknown>)[name] =
 				method.bind(api);
 		}
+	}
+}
+
+/**
+ * Walk the kernel VFS subtree rooted at `vfsRoot` and write every file
+ * found there into OPFS, mirroring the directory structure.
+ *
+ * Implementation: spawn `php` **once** with a `RecursiveDirectoryIterator`
+ * script that streams a packed binary dump of every regular file to
+ * stdout, then parse and replay the dump into OPFS. A previous version
+ * of this used per-file `coreutils ls` / `test` / `cat` spawns, but
+ * stock WordPress has ~10k files → ~30k `kernel.spawn()` calls, which
+ * OOM'd the kernel worker with `WebAssembly.Memory(): could not
+ * allocate memory` long before the walk completed. Collapsing to a
+ * single PHP spawn keeps the wasm-process count at 1.
+ *
+ * Wire format (per file, repeated):
+ *
+ *   uint32 LE  path length
+ *   bytes      path (relative to {@link vfsRoot}, forward slashes)
+ *   uint32 LE  data length
+ *   bytes      file contents
+ *
+ * The header carries the total entry count up front so the progress
+ * callback can report a meaningful `total`.
+ */
+async function snapshotVfsToOpfs(
+	api: KernelLimitedPHPApi,
+	vfsRoot: string,
+	opfsRoot: FileSystemDirectoryHandle,
+	onProgress?: SyncProgressCallback
+): Promise<void> {
+	const dumpResult = await api.run({
+		code: buildVfsDumpScript(vfsRoot),
+	});
+	if (dumpResult.exitCode !== 0) {
+		throw new Error(
+			`snapshotVfsToOpfs: php exited with status ${dumpResult.exitCode}. ` +
+				`stderr: ${dumpResult.errors}`
+		);
+	}
+
+	const dump = dumpResult.bytes;
+	const view = new DataView(dump.buffer, dump.byteOffset, dump.byteLength);
+	const textDecoder = new TextDecoder('utf-8');
+
+	let offset = 0;
+	const total = view.getUint32(offset, true);
+	offset += 4;
+
+	onProgress?.({ files: 0, total });
+
+	let synced = 0;
+	for (let i = 0; i < total; i++) {
+		const pathLen = view.getUint32(offset, true);
+		offset += 4;
+		const pathBytes = dump.subarray(offset, offset + pathLen);
+		offset += pathLen;
+		const dataLen = view.getUint32(offset, true);
+		offset += 4;
+		const data = dump.subarray(offset, offset + dataLen);
+		offset += dataLen;
+
+		const relPath = textDecoder.decode(pathBytes);
+		const opfsPath = relPath.split('/').filter((p) => p.length > 0);
+		await writeOpfsFile(opfsRoot, opfsPath, data);
+		synced++;
+		onProgress?.({ files: synced, total });
+	}
+}
+
+/**
+ * Build the PHP-CLI script the kernel worker spawns to enumerate and
+ * dump the VFS subtree. The script:
+ *
+ *   1. Walks `vfsRoot` with `RecursiveDirectoryIterator`
+ *      (`SKIP_DOTS | UNIX_PATHS`) and collects regular-file paths.
+ *   2. Writes a `uint32 LE` count, then `[pathlen, path, datalen, data]`
+ *      records to `php://stdout`. Paths are made relative to `vfsRoot`
+ *      and use forward slashes — the JS side rebuilds the directory
+ *      tree from the path components.
+ *
+ * `set_time_limit(0)` and `memory_limit = -1` keep PHP from killing
+ * itself mid-walk on a stock WP install (default memory_limit is 128M;
+ * file_get_contents on a large file plus output buffering can exceed
+ * that). Errors from individual files are suppressed with `@` so a
+ * single unreadable file doesn't abort the whole snapshot.
+ */
+function buildVfsDumpScript(vfsRoot: string): string {
+	const rootLiteral = phpLiteralString(vfsRoot);
+	return `
+		ini_set('memory_limit', '-1');
+		set_time_limit(0);
+		$root = ${rootLiteral};
+		$rootLen = strlen($root) + 1;
+		$it = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator(
+				$root,
+				FilesystemIterator::SKIP_DOTS |
+					FilesystemIterator::UNIX_PATHS
+			),
+			RecursiveIteratorIterator::LEAVES_ONLY
+		);
+		$files = [];
+		foreach ($it as $info) {
+			if ($info->isFile()) {
+				$files[] = $info->getPathname();
+			}
+		}
+		$out = fopen('php://stdout', 'wb');
+		fwrite($out, pack('V', count($files)));
+		foreach ($files as $path) {
+			$rel = substr($path, $rootLen);
+			$data = @file_get_contents($path);
+			if ($data === false) {
+				$data = '';
+			}
+			fwrite($out, pack('V', strlen($rel)));
+			fwrite($out, $rel);
+			fwrite($out, pack('V', strlen($data)));
+			fwrite($out, $data);
+		}
+		fflush($out);
+	`;
+}
+
+function phpLiteralString(value: string): string {
+	return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+/**
+ * Reverse of {@link snapshotVfsToOpfs}: pack every OPFS file into the
+ * same wire stream the dump path emits and pipe it to a single `php`
+ * spawn that writes the records into `vfsRoot`. Single-spawn for the
+ * OOM reason {@link snapshotVfsToOpfs} documents.
+ */
+async function loadOpfsIntoVfs(
+	api: KernelLimitedPHPApi,
+	vfsRoot: string,
+	opfsRoot: FileSystemDirectoryHandle,
+	onProgress?: SyncProgressCallback
+): Promise<void> {
+	const entries: Array<{ relPath: string; data: Uint8Array }> = [];
+	await collectOpfsFiles(opfsRoot, [], entries);
+	const total = entries.length;
+	onProgress?.({ files: 0, total });
+
+	if (total === 0) {
+		return;
+	}
+
+	const wireStream = encodeVfsLoadStream(entries);
+	const loadResult = await api.run({
+		code: buildVfsLoadScript(vfsRoot),
+		body: wireStream,
+	});
+	if (loadResult.exitCode !== 0) {
+		throw new Error(
+			`loadOpfsIntoVfs: php exited with status ${loadResult.exitCode}. ` +
+				`stderr: ${loadResult.errors}`
+		);
+	}
+
+	onProgress?.({ files: total, total });
+}
+
+async function collectOpfsFiles(
+	dir: FileSystemDirectoryHandle,
+	pathParts: string[],
+	out: Array<{ relPath: string; data: Uint8Array }>
+): Promise<void> {
+	for await (const [name, handle] of dir.entries()) {
+		const childPath = [...pathParts, name];
+		if (handle.kind === 'directory') {
+			await collectOpfsFiles(handle, childPath, out);
+		} else {
+			const file = await handle.getFile();
+			const data = new Uint8Array(await file.arrayBuffer());
+			out.push({ relPath: childPath.join('/'), data });
+		}
+	}
+}
+
+function encodeVfsLoadStream(
+	entries: Array<{ relPath: string; data: Uint8Array }>
+): Uint8Array {
+	const textEncoder = new TextEncoder();
+	const encodedPaths = entries.map((e) => textEncoder.encode(e.relPath));
+
+	let totalBytes = 4;
+	for (let i = 0; i < entries.length; i++) {
+		totalBytes += 4 + encodedPaths[i].byteLength;
+		totalBytes += 4 + entries[i].data.byteLength;
+	}
+
+	const buffer = new Uint8Array(totalBytes);
+	const view = new DataView(buffer.buffer);
+	let offset = 0;
+	view.setUint32(offset, entries.length, true);
+	offset += 4;
+	for (let i = 0; i < entries.length; i++) {
+		const pathBytes = encodedPaths[i];
+		view.setUint32(offset, pathBytes.byteLength, true);
+		offset += 4;
+		buffer.set(pathBytes, offset);
+		offset += pathBytes.byteLength;
+		const data = entries[i].data;
+		view.setUint32(offset, data.byteLength, true);
+		offset += 4;
+		buffer.set(data, offset);
+		offset += data.byteLength;
+	}
+	return buffer;
+}
+
+/**
+ * Mirror of {@link buildVfsDumpScript}: read the wire stream from
+ * STDIN and replay it under `vfsRoot`. `read_exact` loops `fread`
+ * because pipe reads aren't guaranteed to return the requested length
+ * in one call — without it, a >8KB file would truncate and the next
+ * length prefix would land out of alignment.
+ */
+function buildVfsLoadScript(vfsRoot: string): string {
+	const rootLiteral = phpLiteralString(vfsRoot);
+	return `
+		ini_set('memory_limit', '-1');
+		set_time_limit(0);
+		$root = ${rootLiteral};
+		$in = fopen('php://stdin', 'rb');
+		$read_exact = function ($stream, $len) {
+			$buf = '';
+			while ($len > 0) {
+				$chunk = fread($stream, $len);
+				if ($chunk === false || $chunk === '') {
+					return false;
+				}
+				$buf .= $chunk;
+				$len -= strlen($chunk);
+			}
+			return $buf;
+		};
+		$header = $read_exact($in, 4);
+		if ($header === false) {
+			fwrite(STDERR, "load: short read on header\\n");
+			exit(2);
+		}
+		$count = unpack('V', $header)[1];
+		for ($i = 0; $i < $count; $i++) {
+			$pathLen = unpack('V', $read_exact($in, 4))[1];
+			$rel = $read_exact($in, $pathLen);
+			$dataLen = unpack('V', $read_exact($in, 4))[1];
+			$data = $dataLen > 0 ? $read_exact($in, $dataLen) : '';
+			if ($rel === false || $data === false) {
+				fwrite(STDERR, "load: short read at record $i\\n");
+				exit(3);
+			}
+			$absPath = $root . '/' . $rel;
+			@mkdir(dirname($absPath), 0777, true);
+			@file_put_contents($absPath, $data);
+		}
+	`;
+}
+
+async function writeOpfsFile(
+	opfsRoot: FileSystemDirectoryHandle,
+	path: string[],
+	data: Uint8Array
+): Promise<void> {
+	let dir = opfsRoot;
+	for (let i = 0; i < path.length - 1; i++) {
+		dir = await dir.getDirectoryHandle(path[i], { create: true });
+	}
+	const fileHandle = await dir.getFileHandle(path[path.length - 1], {
+		create: true,
+	});
+	// Same fork as `directory-handle-mount.ts:265` — Chrome/Firefox get
+	// `createWritable`, Safari (and other workers without it) fall back
+	// to the synchronous access handle. The `await`s are no-ops on the
+	// sync-access path but keep the call sites uniform.
+	const opfsFile = fileHandle as unknown as {
+		createWritable?: () => Promise<unknown>;
+		createSyncAccessHandle?: () => Promise<unknown>;
+	};
+	const writer = (
+		opfsFile.createWritable !== undefined
+			? await opfsFile.createWritable()
+			: await opfsFile.createSyncAccessHandle!()
+	) as {
+		truncate(size: number): unknown;
+		write(buffer: Uint8Array): unknown;
+		close(): unknown;
+	};
+	try {
+		await writer.truncate(0);
+		await writer.write(data);
+	} finally {
+		await writer.close();
 	}
 }
 

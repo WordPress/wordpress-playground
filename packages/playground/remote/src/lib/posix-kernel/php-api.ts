@@ -85,6 +85,7 @@ export class KernelLimitedPHPApi {
 		VFS_DOCUMENT_ROOT,
 		'wp-content/mu-plugins/0-playground-defines.json'
 	);
+	private definesWriteChain: Promise<void> = Promise.resolve();
 
 	constructor(options: KernelLimitedPHPApiOptions) {
 		this.absoluteUrl = options.absoluteUrl;
@@ -172,7 +173,17 @@ export class KernelLimitedPHPApi {
 		value: string | number | boolean | null
 	): Promise<void> {
 		this.constants.set(key, value);
-		await this.regenerateDefinesPlugin();
+		// Serialize regenerateDefinesPlugin writes so back-to-back
+		// unawaited calls (e.g. blueprints/src/lib/steps/login.ts:43)
+		// can't leave the older value on disk.
+		this.definesWriteChain = this.definesWriteChain.then(() =>
+			this.regenerateDefinesPlugin()
+		);
+		await this.definesWriteChain;
+	}
+
+	async flushPendingDefines(): Promise<void> {
+		await this.definesWriteChain;
 	}
 
 	async run(request: PHPRunOptions): Promise<PHPResponse> {

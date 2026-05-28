@@ -24,6 +24,7 @@
  */
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
+import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
 	exposeAPI,
@@ -38,6 +39,7 @@ import serviceWorkerPath from '../../../service-worker.ts?worker&url';
 import kernelWorkerUrl from './playground-worker-endpoint.ts?worker&url';
 
 import type { KernelPlaygroundWorkerEndpoint } from './playground-worker-endpoint';
+import type { MountDescriptor } from '../playground-worker-endpoint';
 
 const origin = new URL('/', (import.meta || {}).url).origin;
 const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -184,6 +186,26 @@ export async function bootPlaygroundRemote() {
 		},
 		async removeEventListener(event: any, listener: any) {
 			return await kernelWorkerApi.removeEventListener(event, listener);
+		},
+		// Explicit wrappers around the worker's OPFS methods. Same
+		// rationale as `onMessage`/`mountOpfs` on the classic boot path
+		// (see `../boot-playground-remote.ts:366-408`): without the
+		// wrapper, the iframe-side proxy's fall-through path tries to
+		// `Worker.postMessage` the `onProgress` function directly,
+		// failing with `DataCloneError`. Calling the worker proxy from
+		// this explicit method lets Comlink's `FUNCTION` transfer
+		// handler serialize the callback through a `MessageChannel`.
+		async mountOpfs(
+			options: MountDescriptor,
+			onProgress?: SyncProgressCallback
+		) {
+			return await kernelWorkerApi.mountOpfs(options, onProgress);
+		},
+		async flushOpfs(mountpoint: string) {
+			return await kernelWorkerApi.flushOpfs(mountpoint);
+		},
+		async unmountOpfs(mountpoint: string) {
+			return await kernelWorkerApi.unmountOpfs(mountpoint);
 		},
 		async boot(options: any) {
 			await kernelWorkerApi.boot(options);

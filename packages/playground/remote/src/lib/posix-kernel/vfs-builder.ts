@@ -85,6 +85,14 @@ export interface BuildVfsImageOptions {
 	 * RemovedFromMinifiedBuild`). Omit for upstream full releases.
 	 */
 	wpStaticZipBytes?: Uint8Array;
+	/**
+	 * When `false`, php-fpm's pool config disables `allow_url_fopen`
+	 * and the `curl_exec` / `curl_multi_exec` functions — mirroring
+	 * the php.ini gate classic mode flips in
+	 * `playground-worker-endpoint.ts:200` when networking is off.
+	 * Default `true`.
+	 */
+	withNetworking?: boolean;
 	/** Status callback (download progress, populate steps). */
 	onStatus?: (message: string) => void;
 }
@@ -106,7 +114,7 @@ export async function buildVfsImage(
 	populatePreloadFiles(fs);
 	populateShellSymlinks(fs);
 	populateNginxConfig(fs);
-	populatePhpFpmConfig(fs);
+	populatePhpFpmConfig(fs, options.withNetworking !== false);
 
 	// php-api.ts chdirs here and the FPM router includes `${DOCROOT}/index.php`,
 	// so the doc root must exist even in PHP-only mode.
@@ -337,6 +345,30 @@ if (isset($_SERVER['REQUEST_URI'])) {
 }
 `
 	);
+
+	// Lifted from the `0-playground-defines.php` mu-plugin so constants
+	// also apply to non-WordPress PHP entry points (the mu-plugin only
+	// fires from wp-settings.php).
+	writeVfsFile(
+		fs,
+		'/internal/shared/preload/playground-defines.php',
+		`<?php
+$store = '/var/www/html/wp-content/mu-plugins/0-playground-defines.json';
+if (!file_exists($store)) {
+    return;
+}
+$entries = json_decode((string) file_get_contents($store), true);
+if (!is_array($entries)) {
+    return;
+}
+foreach ($entries as $name => $value) {
+    if (defined($name)) {
+        continue;
+    }
+    define($name, $value);
+}
+`
+	);
 }
 
 /**
@@ -381,13 +413,19 @@ function populateNginxConfig(fs: MemoryFileSystem): void {
  * the demo's: serve static files directly, resolve directory URLs to
  * `index.php`, otherwise fall back to `index.php` (front-controller).
  */
-function populatePhpFpmConfig(fs: MemoryFileSystem): void {
+function populatePhpFpmConfig(
+	fs: MemoryFileSystem,
+	withNetworking: boolean
+): void {
 	ensureDirRecursive(fs, '/etc/php-fpm.d');
 	ensureDirRecursive(fs, '/var/log');
 	ensureDirRecursive(fs, '/tmp/nginx_fastcgi_temp');
 	ensureDirRecursive(fs, '/var/www');
 
-	writeVfsFile(fs, '/etc/php-fpm.conf', PHP_FPM_CONF);
+	const conf = withNetworking
+		? PHP_FPM_CONF
+		: PHP_FPM_CONF + PHP_FPM_NETWORKING_DISABLED_OVERRIDES;
+	writeVfsFile(fs, '/etc/php-fpm.conf', conf);
 	writeVfsFile(fs, '/var/www/fpm-router.php', FPM_ROUTER_PHP);
 }
 
@@ -884,6 +922,21 @@ request_slowlog_trace_depth = 0
 php_admin_value[auto_prepend_file] = /internal/shared/auto_prepend_file.php
 `;
 
+/**
+ * Appended to {@link PHP_FPM_CONF} when the kernel is booted with
+ * `withNetworking: false`. Mirrors the php.ini surface classic mode
+ * flips off in `playground-worker-endpoint.ts` (lines 200-208):
+ * `allow_url_fopen = 0` is what surfaces the
+ * "https:// wrapper is disabled in the server configuration" notice
+ * that `blueprints.spec.ts:746` asserts on, and the disabled
+ * `curl_exec` / `curl_multi_exec` mirror `networkingDisabledFunctions`
+ * from `packages/playground/remote/src/lib/disabled-functions.ts`.
+ */
+const PHP_FPM_NETWORKING_DISABLED_OVERRIDES = `
+php_admin_value[allow_url_fopen] = 0
+php_admin_value[disable_functions] = curl_exec,curl_multi_exec
+`;
+
 const FPM_ROUTER_PHP = `<?php
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 $docRoot = $_SERVER['DOCUMENT_ROOT'];
@@ -1013,9 +1066,18 @@ define('NONCE_SALT',       'wasm-posix-kernel-dev');
 
 $table_prefix = 'wp_';
 
-define('WP_DEBUG', true);
-define('WP_DEBUG_LOG', true);
-define('WP_DEBUG_DISPLAY', false);
+// Guards so the playground-defines auto-prepend wins when a blueprint
+// overrides these; otherwise the redefine warning is printed and breaks
+// header()-based redirects.
+if (!defined('WP_DEBUG')) {
+    define('WP_DEBUG', true);
+}
+if (!defined('WP_DEBUG_LOG')) {
+    define('WP_DEBUG_LOG', true);
+}
+if (!defined('WP_DEBUG_DISPLAY')) {
+    define('WP_DEBUG_DISPLAY', false);
+}
 @ini_set('display_errors', '0');
 
 // Every browser-side request (and the install probe) carries an

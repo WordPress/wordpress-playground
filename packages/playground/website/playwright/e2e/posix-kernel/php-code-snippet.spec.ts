@@ -13,7 +13,6 @@ import type { Page } from '@playwright/test';
  */
 
 const DEMO_URL = './php-code-snippet-demo.html';
-const CLIENT_INDEX_SOURCE = `${process.cwd()}/packages/playground/client/src/index.ts`;
 const TOOLKIT_AUTOLOAD_SOURCE = `${process.cwd()}/packages/playground/website/public/php-toolkit-autoload.txt`;
 const pageErrors = new WeakMap<Page, string[]>();
 
@@ -23,6 +22,18 @@ test.describe('php-code-snippet embed', () => {
 		pageErrors.set(page, errors);
 		page.on('pageerror', (error) => {
 			errors.push(error.message);
+		});
+
+		// COEP-isolated kernel-mode website can't embed the cross-origin
+		// CDN runtime — point every <php-snippet> at the same-origin
+		// dev server.
+		await page.addInitScript(() => {
+			const origin = window.location.origin;
+			document.addEventListener('DOMContentLoaded', () => {
+				for (const el of document.querySelectorAll('php-snippet')) {
+					el.setAttribute('playground-origin', origin);
+				}
+			});
 		});
 	});
 
@@ -114,16 +125,6 @@ test.describe('php-code-snippet embed', () => {
 		const first = page.locator('php-snippet').nth(0);
 		const second = page.locator('php-snippet').nth(1);
 		const third = page.locator('php-snippet').nth(2);
-
-		await ensurePlaygroundClientIsServed(page);
-		await page.locator('php-snippet').evaluateAll((snippets) => {
-			for (const snippet of snippets) {
-				snippet.setAttribute(
-					'playground-origin',
-					window.location.origin
-				);
-			}
-		});
 
 		// Boot the runtime via the first snippet.
 		await first.locator('.run').click();
@@ -222,11 +223,7 @@ test.describe('php-code-snippet embed', () => {
 		const snippet = page.locator('php-snippet[name="quickstart.php"]');
 
 		await expect(snippet).toBeVisible();
-		await ensurePlaygroundClientIsServed(page);
 		await ensureToolkitAutoloadIsServed(page);
-		await snippet.evaluate((element) => {
-			element.setAttribute('playground-origin', window.location.origin);
-		});
 		// The snippet ships with an expected-output script that pre-fills the
 		// output panel. Wait for the real run to execute by watching the
 		// progress bar appear and then disappear.
@@ -338,20 +335,6 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(1);
 	});
 });
-
-async function ensurePlaygroundClientIsServed(page: Page) {
-	const clientUrl = new URL('/client/index.js', page.url()).href;
-	const response = await page.request.get(clientUrl);
-	if (response.ok()) {
-		return;
-	}
-
-	const sourceUrl = new URL(`/@fs${CLIENT_INDEX_SOURCE}`, page.url()).href;
-	await page.route(clientUrl, async (route) => {
-		const response = await page.request.get(sourceUrl);
-		await route.fulfill({ response });
-	});
-}
 
 async function ensureToolkitAutoloadIsServed(page: Page) {
 	const autoloadUrl = new URL('/php-toolkit-autoload.txt', page.url()).href;
