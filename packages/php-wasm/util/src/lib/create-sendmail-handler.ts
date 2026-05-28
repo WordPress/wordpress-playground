@@ -14,8 +14,8 @@ import type { CaughtMessage } from './smtp';
  * and this handler relies on that — it always extracts recipients from the
  * headers rather than from command-line arguments.
  *
- * The envelope sender is read from sendmail's `-f` flag. Both `-f
- * sender@example.com` and `-fsender@example.com` are supported.
+ * The envelope sender is read from sendmail's `-f` flag. Both forms are
+ * supported: `-f sender@example.com` and `-fsender@example.com`.
  *
  * The full message is buffered in memory before parsing so headers, MIME
  * boundaries, and text encodings can be inspected together. Messages larger
@@ -86,11 +86,12 @@ export function createSendmailSpawnHandler(
 				return;
 			}
 
-			// MIME and SMTP parsers split on CRLF, so normalize PHP's stdin.
+			// PHP mail/sendmail input may use LF-only lines. Normalize to
+			// RFC 5322's CRLF form before the MIME helpers split headers/body.
 			const raw = rawText.replace(/\r?\n/g, '\r\n');
 
-			// parseMessage does the expensive MIME/header work once we know
-			// the sendmail process has received a complete message.
+			// Parse folded headers, MIME boundaries, and transfer encodings only
+			// after sendmail has received the complete stdin payload.
 			const parsed = parseMessage(raw, envelopeSender, []);
 
 			const message: CaughtMessage = {
@@ -125,6 +126,8 @@ export function createSendmailSpawnHandler(
 		const bin = cmdStr.split('/').pop() || '';
 		if (bin !== 'sendmail') {
 			if (fallbackSpawnHandler) {
+				// Preserve the caller's normal process spawning for anything
+				// unrelated to email while the mail interceptor is installed.
 				return fallbackSpawnHandler(command, argsArray, options);
 			}
 			throw new Error(

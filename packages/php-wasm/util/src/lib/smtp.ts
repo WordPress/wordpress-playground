@@ -209,6 +209,8 @@ export class SmtpSink {
 
 	private async handleCommand(rawLine: string) {
 		const line = rawLine.trimEnd();
+		// SMTP command lines use protocol ABNF, not shell quoting. Splitting at
+		// the first space preserves the rest for command-specific RFC parsing.
 		const commandSeparator = line.indexOf(' ');
 		const command = (
 			commandSeparator < 0 ? line : line.slice(0, commandSeparator)
@@ -274,10 +276,12 @@ export class SmtpSink {
 				// so there is nothing to encrypt. STARTTLS is never
 				// advertised in EHLO and is always refused with 502
 				// "Command not implemented" if a client tries it
-				// anyway. Clients that need TLS should be configured
-				// for plain SMTP against this sink.
+				// anyway. Clients that require STARTTLS, such as PHPMailer with
+				// ENCRYPTION_STARTTLS, must be configured for plain SMTP here.
 				// RFC 3207 defines STARTTLS for SMTP:
 				// https://www.rfc-editor.org/rfc/rfc3207.html
+				// PHPMailer exposes STARTTLS as ENCRYPTION_STARTTLS:
+				// https://github.com/PHPMailer/PHPMailer/blob/master/src/PHPMailer.php
 				await this.reply(502, 'Command not implemented');
 				break;
 			}
