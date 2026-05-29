@@ -17,9 +17,9 @@ import {
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
-import { setupPostMessageRelay } from '@php-wasm/web';
+import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
-import type { PlaygroundClient } from '@wp-playground/remote';
+import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import {
 	setActiveModal,
@@ -27,7 +27,11 @@ import {
 	setGitHubAuthRepoUrl,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectSiteBySlug } from './slice-sites';
+import {
+	isAutosavedSite,
+	selectSiteBySlug,
+	updateSiteMetadata,
+} from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -142,7 +146,10 @@ export function bootSiteClient(
 				},
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
-				constants: site.metadata.runtimeConfiguration.constants,
+				constants: {
+					...site.metadata.runtimeConfiguration.constants,
+					...site.metadata.playgroundDefinedConstants,
+				},
 			};
 		} else {
 			blueprint = site.metadata.originalBlueprint;
@@ -152,7 +159,7 @@ export function bootSiteClient(
 		// declares it doesn't want WordPress, so honor that even if the
 		// storage layer thinks WP isn't installed yet.
 		const blueprintRequestedNoWordPress =
-			!!blueprint &&
+			blueprint &&
 			!isBlueprintBundle(blueprint) &&
 			blueprint.preferredVersions?.wp === false;
 		const wordpressInstallMode = blueprintRequestedNoWordPress
@@ -160,6 +167,30 @@ export function bootSiteClient(
 			: isWordPressInstalled
 				? 'install-from-existing-files-if-needed'
 				: 'download-and-install';
+
+		/**
+		 * On the first boot, we must allow WordPress installation in MEMFS
+		 * so it can get synchronized to OPFS on Save or Autosave.
+		 * Only then, on subsequent boots, we can synchronize WordPress files
+		 * back from OPFS to MEMFS.
+		 */
+		const isFirstOpfsBoot =
+			site.metadata.initialOpfsSyncPending === true &&
+			site.metadata.storage === 'opfs' &&
+			!isWordPressInstalled;
+		const mounts: MountDescriptor[] = [];
+		let mountDescriptorForInitialOpfsSync: typeof mountDescriptor =
+			undefined;
+		if (mountDescriptor) {
+			if (isFirstOpfsBoot) {
+				mountDescriptorForInitialOpfsSync = mountDescriptor;
+			} else {
+				mounts.push({
+					...mountDescriptor,
+					initialSyncDirection: 'opfs-to-memfs',
+				});
+			}
+		}
 
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
@@ -187,14 +218,7 @@ export function bootSiteClient(
 				},
 				// Log Blueprint events
 				onBlueprintValidated: logBlueprintEvents,
-				mounts: mountDescriptor
-					? [
-							{
-								...mountDescriptor,
-								initialSyncDirection: 'opfs-to-memfs',
-							},
-						]
-					: [],
+				mounts,
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
@@ -290,19 +314,77 @@ export function bootSiteClient(
 		if (signal.aborted || !playground) {
 			return;
 		}
+		const connectedPlayground = playground as PlaygroundClient;
 
 		setupPostMessageRelay(iframe, document.location.origin);
 
+		const syncOperation = isAutosavedSite(site) ? 'autosave' : 'save';
 		dispatch(
 			addClientInfo({
 				siteSlug: site.slug,
 				url: '/',
-				client: playground,
+				client: connectedPlayground,
 				opfsMountDescriptor: mountDescriptor,
+				opfsSync: mountDescriptorForInitialOpfsSync
+					? {
+							status: 'syncing',
+							operation: syncOperation,
+						}
+					: undefined,
 			})
 		);
+		// `initialOpfsSyncPending` is a recovery flag, not the source of truth.
+		// If OPFS already contains WordPress files, the initial sync either
+		// completed earlier or is no longer needed. Clear the stale flag so
+		// future boots mount OPFS normally.
+		const hasStaleInitialOpfsSyncPendingFlag =
+			site.metadata.initialOpfsSyncPending === true &&
+			site.metadata.storage === 'opfs' &&
+			isWordPressInstalled;
 
-		(playground as PlaygroundClient).onNavigation((url) => {
+		if (mountDescriptorForInitialOpfsSync) {
+			void syncInitialOpfsFilesInBackground({
+				playground: connectedPlayground,
+				mountDescriptor: mountDescriptorForInitialOpfsSync,
+				siteSlug: site.slug,
+				operation: syncOperation,
+				dispatch,
+			});
+		} else {
+			try {
+				const metadataChanges = {
+					...(site.metadata.storage !== 'none'
+						? { whenLastUsed: Date.now() }
+						: {}),
+					...(hasStaleInitialOpfsSyncPendingFlag
+						? { initialOpfsSyncPending: false }
+						: {}),
+				};
+				if (Object.keys(metadataChanges).length > 0) {
+					await dispatch(
+						updateSiteMetadata({
+							slug: site.slug,
+							changes: metadataChanges,
+						})
+					);
+				}
+			} catch (error) {
+				logger.error('Error updating Playground metadata', error);
+				dispatch(
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: syncOperation,
+							},
+						},
+					})
+				);
+			}
+		}
+
+		connectedPlayground.onNavigation((url) => {
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
@@ -315,6 +397,88 @@ export function bootSiteClient(
 
 		signal.onabort = null;
 	};
+}
+
+/**
+ * Copies files created during a saved site's first boot from MEMFS into OPFS.
+ *
+ * The iframe is already usable when this runs. Redux keeps showing sync
+ * progress until the copy succeeds, then future boots can mount OPFS normally.
+ */
+async function syncInitialOpfsFilesInBackground({
+	playground,
+	mountDescriptor,
+	siteSlug,
+	operation,
+	dispatch,
+}: {
+	playground: PlaygroundClient;
+	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
+	siteSlug: string;
+	operation: 'save' | 'autosave';
+	dispatch: PlaygroundDispatch;
+}) {
+	let shouldReportProgress = true;
+	try {
+		await playground.mountOpfs(
+			{
+				...mountDescriptor,
+				initialSyncDirection: 'memfs-to-opfs',
+			},
+			(progress: SyncProgress) => {
+				if (!shouldReportProgress) {
+					return;
+				}
+				dispatch(
+					updateClientInfo({
+						siteSlug,
+						changes: {
+							opfsSync: {
+								status: 'syncing',
+								progress,
+								operation,
+							},
+						},
+					})
+				);
+			}
+		);
+		await dispatch(
+			updateSiteMetadata({
+				slug: siteSlug,
+				changes: {
+					initialOpfsSyncPending: false,
+					whenLastUsed: Date.now(),
+				},
+			})
+		);
+		dispatch(
+			updateClientInfo({
+				siteSlug,
+				changes: {
+					opfsSync: undefined,
+				},
+			})
+		);
+	} catch (error: unknown) {
+		logger.error('Error syncing saved Playground to OPFS', error);
+		dispatch(
+			updateClientInfo({
+				siteSlug,
+				changes: {
+					opfsSync: {
+						status: 'error',
+						operation,
+					},
+				},
+			})
+		);
+		return;
+	} finally {
+		// Progress is reported from a worker. Once the sync settles, ignore any
+		// queued progress message so it cannot overwrite the final UI state.
+		shouldReportProgress = false;
+	}
 }
 
 /**

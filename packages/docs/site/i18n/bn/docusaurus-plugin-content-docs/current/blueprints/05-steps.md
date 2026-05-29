@@ -44,29 +44,33 @@ The following step-related topics are addressed on dedicated pages included in t
 -   [Resources References](/blueprints/steps/resources) allow you use external files in Blueprints.
 -->
 
--   [রিসোর্স রেফারেন্স](/blueprints/steps/resources) আপনাকে ব্লুপ্রিন্টে এক্সটার্নাল ফাইল ব্যবহার করতে দেয়।
+- [রিসোর্স রেফারেন্স](/blueprints/steps/resources) আপনাকে ব্লুপ্রিন্টে এক্সটার্নাল ফাইল ব্যবহার করতে দেয়।
 
 <!--
 -   Some steps have a shorthand version. Check the [Shorthands](/blueprints/steps/shorthands) section for more information about them.
 -->
 
--   কিছু স্টেপের একটি শর্টহ্যান্ড সংস্করণ রয়েছে। এগুলো সম্পর্কে আরও তথ্যের জন্য [শর্টহ্যান্ডস](/blueprints/steps/shorthands) সেকশনটি দেখুন।
+- কিছু স্টেপের একটি শর্টহ্যান্ড সংস্করণ রয়েছে। এগুলো সম্পর্কে আরও তথ্যের জন্য [শর্টহ্যান্ডস](/blueprints/steps/shorthands) সেকশনটি দেখুন।
 
 <!--
 -   For each step listed below, you'll find both a "Blueprint API" and a "Function API". Refer to the [API Consistency](/blueprints/steps/api-consistency) page for further details.
 -->
 
--   নিচে তালিকাভুক্ত প্রতিটি স্টেপের জন্য, আপনি একটি "Blueprint API" এবং একটি "Function API" উভয়ই পাবেন। আরও বিস্তারিত জানতে [API কনসিস্টেন্সি](/blueprints/steps/api-consistency) পেজটি দেখুন।
+- নিচে তালিকাভুক্ত প্রতিটি স্টেপের জন্য, আপনি একটি "Blueprint API" এবং একটি "Function API" উভয়ই পাবেন। আরও বিস্তারিত জানতে [API কনসিস্টেন্সি](/blueprints/steps/api-consistency) পেজটি দেখুন।
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!
-:::
+
+</div>
 -->
 
-:::পরামর্শ
+<div class="callout callout-tip">
+
 [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড স্টেপ লাইব্রেরি](https://akirk.github.io/playground-step-library/#) টুলটি ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের জন্য একটি ব্লুপ্রিন্ট তৈরি করতে স্টেপগুলো ড্র্যাগ বা ক্লিক করার একটি ভিজ্যুয়াল ইন্টারফেস প্রদান করে। আপনি [নিজের স্টেপও তৈরি করতে পারেন](https://github.com/akirk/playground-step-library/#contributing)!
-:::
+
+</div>
 
 ---
 

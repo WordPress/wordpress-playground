@@ -31,9 +31,9 @@ WordPress Playground is your place to build, test, and launch:
 
 WordPress Playground é um local para construir, testar e Lançamento:
 
--   [Construir](/about/build): WordPress Playground pode ajudar você a construir produtos com WordPress. Utilize isto onde funcionar melhor, seja no naevgador, Node.js, aplicações móveis, VS Code, ou em qualquer outro lugar.
--   [Test](/about/test): Atualize o seu processo de QA com o WordPress Playground. Rapidamente teste seus plugins ou temas, teste num sandbox privado e crie pull requests da sua instância Playground WordPress para qualquer repositório.
--   [Lançamento](/about/launch): Use o Playgroud WordPress para demostrar o seu produto, permitir que os usuários o experimentem ao vivo ou lançá-lo na App Store com zero tempo de espera.
+- [Construir](/about/build): WordPress Playground pode ajudar você a construir produtos com WordPress. Utilize isto onde funcionar melhor, seja no naevgador, Node.js, aplicações móveis, VS Code, ou em qualquer outro lugar.
+- [Test](/about/test): Atualize o seu processo de QA com o WordPress Playground. Rapidamente teste seus plugins ou temas, teste num sandbox privado e crie pull requests da sua instância Playground WordPress para qualquer repositório.
+- [Lançamento](/about/launch): Use o Playgroud WordPress para demostrar o seu produto, permitir que os usuários o experimentem ao vivo ou lançá-lo na App Store com zero tempo de espera.
 
 <!--
 ## Why WordPress Playground?
@@ -92,14 +92,18 @@ Overall, WordPress Playground provides a risk-free environment for beginners to 
 No geral, o WordPress Playground oferece um ambiente livre de riscos para iniciantes aprenderem e terem experiência prática com o WordPress. Ele ajuda você a ganhar confiança e conhecimento antes de fazer alterações no seu site ao vivo.
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Confira a [seção de guias](/guides) para aprender mais sobre como aproveitar o WordPress Playground para testar seus temas e plugins e criar conteúdo dinamicamente.
-:::
+
+</div>
 
 <!--
 ## How does WordPress Playground work?

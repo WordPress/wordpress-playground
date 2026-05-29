@@ -4,9 +4,13 @@ slug: /developers/local-development/wp-now
 orphan: true
 ---
 
-:::caution Package deprecated
+<div class="callout callout-warning">
+
+**Package deprecated**
+
 The NPM package @wp-now/wp-now is deprecated and won't receive updates in the future. To use a command-line tool in your developer workflow, use the NPM package `@wp-playground/cli`.
-:::
+
+</div>
 
 # wp-now NPM package
 

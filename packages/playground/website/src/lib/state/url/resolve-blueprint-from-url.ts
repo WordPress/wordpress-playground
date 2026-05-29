@@ -12,9 +12,9 @@ import {
 import { OpfsFilesystemBackend } from '@wp-playground/storage';
 import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
-import { RecommendedPHPVersion } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
+import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
 
 export { decodeBlueprintHash };
 
@@ -243,12 +243,12 @@ function applyQueryOverridesToDeclaration(
 	if (!blueprint.preferredVersions) {
 		blueprint.preferredVersions = {} as any;
 	}
+	blueprint.preferredVersions!.wp =
+		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 	blueprint.preferredVersions!.php =
 		(query.get('php') as any) ||
 		blueprint.preferredVersions!.php ||
-		RecommendedPHPVersion;
-	blueprint.preferredVersions!.wp =
-		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
+		getDefaultPhpVersionForWordPress(blueprint.preferredVersions!.wp);
 
 	// Features
 	if (!blueprint.features) {

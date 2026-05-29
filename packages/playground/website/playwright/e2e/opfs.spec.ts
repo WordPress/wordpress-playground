@@ -22,6 +22,17 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 test.describe.configure({ mode: 'serial' });
 
 /**
+ * Returns a URL that opts this test out of default browser storage.
+ *
+ * `storage=temp` is what makes the site temporary. The random value keeps
+ * repeated navigations from reusing a temporary site created earlier in this
+ * serial OPFS test file.
+ */
+function getTemporaryPlaygroundUrl(hash = '') {
+	return `./?storage=temp&random=${Math.random().toString(36).slice(2)}${hash}`;
+}
+
+/**
  * Helper function to handle the save site modal flow
  */
 async function saveSiteViaModal(
@@ -32,6 +43,10 @@ async function saveSiteViaModal(
 	}
 ) {
 	const { customName, storageType = 'opfs' } = options || {};
+
+	// The site manager remembers the last selected tab. The save notice only
+	// lives on the Settings tab, so select it before looking for the button.
+	await page.getByRole('tab', { name: 'Settings' }).click();
 
 	// Click the "Save site locally" button in the temporary site notice to open the modal.
 	// This button is in the site manager panel and triggers the save flow via SitePersistButton.
@@ -77,12 +92,13 @@ test('should switch between sites', async ({ website, browserName }) => {
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 
 	await website.ensureSiteManagerIsOpen();
 
 	// Save the temporary site using the modal
-	await saveSiteViaModal(website.page);
+	const firstSiteName = 'Switching Test Site';
+	await saveSiteViaModal(website.page, { customName: firstSiteName });
 
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
 		'Unsaved Playground',
@@ -91,19 +107,46 @@ test('should switch between sites', async ({ website, browserName }) => {
 			timeout: 90000,
 		}
 	);
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		firstSiteName
+	);
 
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Click on Temporary Playground in the overlay's site list
+	// Start another saved Playground, then switch back to the first one.
+	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.waitForNestedIframes();
+	await website.ensureSiteManagerIsOpen();
+
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		firstSiteName
+	);
+	await expect(
+		website.page.getByText('Autosaved in this browser')
+	).toBeVisible({ timeout: 120000 });
+	await expect
+		.poll(() =>
+			website.page.evaluate(() => {
+				const activeSite = (window as any).playgroundSites
+					.list()
+					.find((site: any) => site.isActive);
+				return activeSite
+					? `${activeSite.storage}:${activeSite.persistence}`
+					: null;
+			})
+		)
+		.toBe('opfs:autosave');
+
+	await website.openSavedPlaygroundsOverlay();
 	await website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' })
+		.filter({ hasText: firstSiteName })
 		.click();
+	await website.ensureSiteManagerIsOpen();
 
-	// The overlay closes and site manager opens with the selected site
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground'
+		firstSiteName
 	);
 });
 
@@ -129,7 +172,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
 
 	await website.ensureSiteManagerIsOpen();
 
@@ -153,11 +198,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Switch to Temporary Playground
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' })
-		.click();
+	// Create another Playground, then switch back.
+	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.waitForNestedIframes();
 
 	// Open the overlay again to switch back to the stored site
 	await website.openSavedPlaygroundsOverlay();
@@ -180,7 +223,7 @@ test('should rename a saved Playground and persist after reload', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Save the temporary site to OPFS so rename is available
@@ -238,7 +281,7 @@ test('should show save site modal with correct elements', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Click the Save button in the site manager panel
@@ -282,7 +325,7 @@ test('should close save site modal without saving', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
@@ -328,7 +371,7 @@ test('should have playground name input text selected by default', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
@@ -363,7 +406,7 @@ test('should save site with custom name', async ({ website, browserName }) => {
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	const customName = 'My Custom Playground Name';
@@ -396,7 +439,7 @@ test('should not persist save site modal through page refresh', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
@@ -433,7 +476,7 @@ test('should display OPFS storage option as selected by default', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
@@ -455,7 +498,7 @@ test('should display OPFS storage option as selected by default', async ({
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('should import ZIP into temporary site when a saved site exists', async ({
+test('should import ZIP into a new saved site when a saved site exists', async ({
 	website,
 	wordpress,
 	browserName,
@@ -477,7 +520,9 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
 
 	// Verify the marker is present
 	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
@@ -518,11 +563,13 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 		buffer: zipBuffer,
 	});
 
-	// The import should switch us to a temporary playground.
-	// Wait for the site title to show "Temporary Playground"
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground',
+	// The import should switch us to a new saved Playground by default.
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		savedSiteName,
 		{ timeout: 30000 }
+	);
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Unsaved Playground'
 	);
 
 	// Now verify the saved site still has the original content.
@@ -533,16 +580,17 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: savedSiteName })
 		.click();
+	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
-	// by the ZIP import (which went to a temporary site instead)
+	// by the ZIP import (which went to a new saved site instead)
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		savedSiteName,
 		{ timeout: 30000 }
 	);
 });
 
-test('should create temporary site when importing ZIP while on a saved site with no existing temporary site', async ({
+test('should create a saved site when importing ZIP while on a saved site with no existing temporary site', async ({
 	website,
 	wordpress,
 	browserName,
@@ -564,7 +612,9 @@ test('should create temporary site when importing ZIP while on a saved site with
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
 	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
 
 	await website.ensureSiteManagerIsOpen();
@@ -598,14 +648,10 @@ test('should create temporary site when importing ZIP while on a saved site with
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 
-	// Verify there's no "Temporary Playground" in the list initially
-	// (the temporary site row should show but clicking it would create one)
-	const tempPlaygroundRow = website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' });
-
-	// The row exists but it's for creating a new temporary playground
-	await expect(tempPlaygroundRow).toBeVisible();
+	const importZipButton = website.page.getByRole('button', {
+		name: 'Import a .zip',
+	});
+	await expect(importZipButton).toBeVisible();
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
@@ -628,11 +674,13 @@ test('should create temporary site when importing ZIP while on a saved site with
 		buffer: zipBuffer,
 	});
 
-	// The import should trigger creation of a new temporary site.
-	// Wait for the site title to show "Temporary Playground"
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground',
+	// The import should trigger creation of a new saved site by default.
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		savedSiteName,
 		{ timeout: 30000 }
+	);
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Unsaved Playground'
 	);
 
 	// Verify the saved site is still intact by switching to it
@@ -642,9 +690,10 @@ test('should create temporary site when importing ZIP while on a saved site with
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: savedSiteName })
 		.click();
+	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
-	// by the ZIP import (which went to a temporary site instead)
+	// by the ZIP import (which went to a new saved site instead)
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		savedSiteName,
 		{ timeout: 30000 }
@@ -670,9 +719,10 @@ test.describe('Missing site modal', () => {
 		// Clear all storage to ensure clean state
 		await context.clearCookies();
 
-		// Use a unique slug that definitely doesn't exist
+		// Use a unique temporary slug so the missing-site prompt is expected.
+		// Missing saved-site URLs create a new autosaved site by default.
 		const uniqueSlug = `missing-modal-test-${Date.now()}`;
-		await website.goto(`./?site-slug=${uniqueSlug}`);
+		await website.goto(`./?storage=temp&site-slug=${uniqueSlug}`);
 
 		// The modal should appear early, even before WordPress fully loads
 		await expect(
@@ -697,7 +747,7 @@ test.describe('Missing site modal', () => {
 		await context.clearCookies();
 
 		const uniqueSlug = `dismiss-modal-test-${Date.now()}`;
-		await website.goto(`./?site-slug=${uniqueSlug}`);
+		await website.goto(`./?storage=temp&site-slug=${uniqueSlug}`);
 
 		// Wait for modal
 		const dialog = website.page.getByRole('dialog', {

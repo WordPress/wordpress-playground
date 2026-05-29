@@ -30,11 +30,13 @@ If you need low-level control over the underlying WebAssembly PHP build, take a 
 </div>
 
 <!--
-:::info **API reference**
+<div class="callout callout-info">
+
+**API reference**
 
 Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases.
 
-:::
+</div>
 -->
 
 import PHPWASMNode from '@php-wasm/node/\README.md';

@@ -31,15 +31,14 @@ export function TemporarySiteSettingsForm({
 	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
 		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
 		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
+		const language = searchParams.language;
+		const multisite = searchParams.multisite;
 		return {
 			phpVersion: runtimeConf?.phpVersion as any,
 			wpVersion: runtimeConf?.wpVersion as any,
 			withNetworking: runtimeConf?.networking,
-			language: 'language' in searchParams ? searchParams.language : '',
-			multisite:
-				'multisite' in searchParams
-					? searchParams.multisite === 'yes'
-					: false,
+			language: typeof language === 'string' ? language : '',
+			multisite: multisite === 'yes',
 		};
 	}, [siteInfo]);
 

@@ -61,7 +61,7 @@ export function getSiteErrorView(
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
 		case 'resource-download-failed':
-			return resourceDownloadFailedView();
+			return resourceDownloadFailedView(context);
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);
@@ -145,7 +145,7 @@ function blueprintFetchFailedView({
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	const blueprintUrl = getBlueprintSourceUrl(site);
 	return {
-		title: 'Blueprint could not be loaded',
+		title: 'Blueprint could not be downloaded',
 		isDeveloperError: true,
 		detailSummaryOverride: 'Network error details',
 		body: (
@@ -298,20 +298,30 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
  * then falls back to pattern matching in the error message.
  */
 function extractTargetUrl(errorDetails: unknown): string | undefined {
-	if (!errorDetails || typeof errorDetails !== 'object') {
+	if (!errorDetails) {
 		return undefined;
 	}
 
-	const details = errorDetails as Record<string, unknown>;
+	if (typeof errorDetails === 'string') {
+		return extractTargetUrlFromMessage(errorDetails);
+	}
+
+	if (typeof errorDetails !== 'object') {
+		return undefined;
+	}
 
 	// Prefer the structured url property if available
+	const details = errorDetails as Record<string, unknown>;
 	if (typeof details.url === 'string' && details.url) {
 		return details.url;
 	}
 
 	// Fall back to pattern matching in the message for backwards compatibility
 	const message = (details.rawMessage || details.message || '') as string;
+	return extractTargetUrlFromMessage(message);
+}
 
+function extractTargetUrlFromMessage(message: string): string | undefined {
 	// "Could not fetch {url}" from FirewallInterferenceError
 	const fetchMatch = message.match(/Could not fetch ([^\s]+)/);
 	if (fetchMatch) {
@@ -468,7 +478,10 @@ function networkFirewallInterferenceView({
 	};
 }
 
-function resourceDownloadFailedView(): SiteErrorViewConfig {
+function resourceDownloadFailedView({
+	errorDetails,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	const targetUrl = extractTargetUrl(errorDetails);
 	return {
 		title: 'Could not download required files',
 		isDeveloperError: false,
@@ -481,6 +494,19 @@ function resourceDownloadFailedView(): SiteErrorViewConfig {
 					Playground could not download one or more files it needs to
 					run. This is usually caused by a network problem.
 				</p>
+				{targetUrl ? (
+					<p>
+						Failed file:{' '}
+						<a
+							className={css.errorLink}
+							href={targetUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{targetUrl}
+						</a>
+					</p>
+				) : null}
 				<ul className={css.errorList}>
 					<li>Check your internet connection and try again.</li>
 					<li>

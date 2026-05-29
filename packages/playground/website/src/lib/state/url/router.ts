@@ -6,10 +6,11 @@ export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
 }
 
-interface QueryAPIParams {
+export interface QueryAPIParams {
 	name?: string;
 	wp?: string;
 	php?: string;
+	'php-extension'?: string[];
 	language?: string;
 	multisite?: 'yes' | 'no';
 	networking?: 'yes' | 'no';
@@ -17,6 +18,9 @@ interface QueryAPIParams {
 	login?: 'yes' | 'no';
 	plugin?: string[];
 	blueprint?: string;
+	'core-pr'?: string;
+	'gutenberg-branch'?: string;
+	'gutenberg-pr'?: string;
 	'import-site'?: string;
 	'import-wxr'?: string;
 	'import-content'?: string;

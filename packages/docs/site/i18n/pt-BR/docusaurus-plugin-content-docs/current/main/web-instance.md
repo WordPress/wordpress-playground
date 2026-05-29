@@ -173,17 +173,19 @@ Este painel mostra todas as formas de lançar o WordPress Playground: importar a
 O Painel de Lançamento também lista mais de 40 blueprints da Galeria de Blueprints e seus Playgrounds Salvos.
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 O site em https://playground.wordpress.net está lá para apoiar a comunidade, mas não há garantias de que continuará funcionando se o tráfego crescer significativamente.
 
 Se você precisa de certa disponibilidade, deve [hospedar seu próprio WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>

@@ -1866,10 +1866,10 @@ describe('other run-cli behaviors', () => {
 
 		test('should override WP_DEBUG constants via --define-bool', async () => {
 			// Confirm default values before confirming they can be overridden.
-			const defaultConstantss = await getConstants([]);
-			expect(defaultConstantss.WP_DEBUG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
 
 			const constants = await getConstants([
 				'--define-bool',
@@ -1889,10 +1889,10 @@ describe('other run-cli behaviors', () => {
 
 		test('should override WP_DEBUG constants via --define-number', async () => {
 			// Confirm default values before confirming they can be overridden.
-			const defaultConstantss = await getConstants([]);
-			expect(defaultConstantss.WP_DEBUG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
 
 			const constants = await getConstants([
 				'--define-number',
@@ -1912,10 +1912,10 @@ describe('other run-cli behaviors', () => {
 
 		test('should override WP_DEBUG constants via --define', async () => {
 			// Confirm default values before confirming they can be overridden.
-			const defaultConstantss = await getConstants([]);
-			expect(defaultConstantss.WP_DEBUG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
 
 			const constants = await getConstants([
 				'--define',

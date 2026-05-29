@@ -173,10 +173,12 @@ const schema11 = {
 		},
 		AllPHPVersion: {
 			anyOf: [
+				{ $ref: '#/definitions/PHPNextVersion' },
 				{ $ref: '#/definitions/SupportedPHPVersion' },
 				{ $ref: '#/definitions/LegacyPHPVersion' },
 			],
 		},
+		PHPNextVersion: { type: 'string', const: 'next' },
 		SupportedPHPVersion: {
 			type: 'string',
 			enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'],
@@ -1576,8 +1578,8 @@ const schema12 = {
 	description:
 		'The Blueprint declaration, typically stored in a blueprint.json file.',
 };
-const schema17 = { type: 'string', const: 'wp-cli' };
-const schema18 = {
+const schema18 = { type: 'string', const: 'wp-cli' };
+const schema19 = {
 	type: 'object',
 	additionalProperties: { type: ['string', 'boolean', 'number'] },
 };
@@ -1593,15 +1595,17 @@ const schema13 = {
 };
 const schema14 = {
 	anyOf: [
+		{ $ref: '#/definitions/PHPNextVersion' },
 		{ $ref: '#/definitions/SupportedPHPVersion' },
 		{ $ref: '#/definitions/LegacyPHPVersion' },
 	],
 };
-const schema15 = {
+const schema15 = { type: 'string', const: 'next' };
+const schema16 = {
 	type: 'string',
 	enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'],
 };
-const schema16 = { type: 'string', enum: ['5.2'] };
+const schema17 = { type: 'string', enum: ['5.2'] };
 function validate13(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
@@ -1614,7 +1618,7 @@ function validate13(
 	if (typeof data !== 'string') {
 		const err0 = {
 			instancePath,
-			schemaPath: '#/definitions/SupportedPHPVersion/type',
+			schemaPath: '#/definitions/PHPNextVersion/type',
 			keyword: 'type',
 			params: { type: 'string' },
 			message: 'must be string',
@@ -1626,23 +1630,13 @@ function validate13(
 		}
 		errors++;
 	}
-	if (
-		!(
-			data === '8.5' ||
-			data === '8.4' ||
-			data === '8.3' ||
-			data === '8.2' ||
-			data === '8.1' ||
-			data === '8.0' ||
-			data === '7.4'
-		)
-	) {
+	if ('next' !== data) {
 		const err1 = {
 			instancePath,
-			schemaPath: '#/definitions/SupportedPHPVersion/enum',
-			keyword: 'enum',
-			params: { allowedValues: schema15.enum },
-			message: 'must be equal to one of the allowed values',
+			schemaPath: '#/definitions/PHPNextVersion/const',
+			keyword: 'const',
+			params: { allowedValue: 'next' },
+			message: 'must be equal to constant',
 		};
 		if (vErrors === null) {
 			vErrors = [err1];
@@ -1658,7 +1652,7 @@ function validate13(
 		if (typeof data !== 'string') {
 			const err2 = {
 				instancePath,
-				schemaPath: '#/definitions/LegacyPHPVersion/type',
+				schemaPath: '#/definitions/SupportedPHPVersion/type',
 				keyword: 'type',
 				params: { type: 'string' },
 				message: 'must be string',
@@ -1670,10 +1664,20 @@ function validate13(
 			}
 			errors++;
 		}
-		if (!(data === '5.2')) {
+		if (
+			!(
+				data === '8.5' ||
+				data === '8.4' ||
+				data === '8.3' ||
+				data === '8.2' ||
+				data === '8.1' ||
+				data === '8.0' ||
+				data === '7.4'
+			)
+		) {
 			const err3 = {
 				instancePath,
-				schemaPath: '#/definitions/LegacyPHPVersion/enum',
+				schemaPath: '#/definitions/SupportedPHPVersion/enum',
 				keyword: 'enum',
 				params: { allowedValues: schema16.enum },
 				message: 'must be equal to one of the allowed values',
@@ -1687,9 +1691,44 @@ function validate13(
 		}
 		var _valid0 = _errs4 === errors;
 		valid0 = valid0 || _valid0;
+		if (!valid0) {
+			const _errs7 = errors;
+			if (typeof data !== 'string') {
+				const err4 = {
+					instancePath,
+					schemaPath: '#/definitions/LegacyPHPVersion/type',
+					keyword: 'type',
+					params: { type: 'string' },
+					message: 'must be string',
+				};
+				if (vErrors === null) {
+					vErrors = [err4];
+				} else {
+					vErrors.push(err4);
+				}
+				errors++;
+			}
+			if (!(data === '5.2')) {
+				const err5 = {
+					instancePath,
+					schemaPath: '#/definitions/LegacyPHPVersion/enum',
+					keyword: 'enum',
+					params: { allowedValues: schema17.enum },
+					message: 'must be equal to one of the allowed values',
+				};
+				if (vErrors === null) {
+					vErrors = [err5];
+				} else {
+					vErrors.push(err5);
+				}
+				errors++;
+			}
+			var _valid0 = _errs7 === errors;
+			valid0 = valid0 || _valid0;
+		}
 	}
 	if (!valid0) {
-		const err4 = {
+		const err6 = {
 			instancePath,
 			schemaPath: '#/anyOf',
 			keyword: 'anyOf',
@@ -1697,9 +1736,9 @@ function validate13(
 			message: 'must match a schema in anyOf',
 		};
 		if (vErrors === null) {
-			vErrors = [err4];
+			vErrors = [err6];
 		} else {
-			vErrors.push(err4);
+			vErrors.push(err6);
 		}
 		errors++;
 		validate13.errors = vErrors;
@@ -1841,7 +1880,7 @@ function validate12(
 	validate12.errors = vErrors;
 	return errors === 0;
 }
-const schema19 = {
+const schema20 = {
 	anyOf: [
 		{ $ref: '#/definitions/VFSReference' },
 		{ $ref: '#/definitions/LiteralReference' },
@@ -1852,7 +1891,7 @@ const schema19 = {
 		{ $ref: '#/definitions/ZipWrapperReference' },
 	],
 };
-const schema20 = {
+const schema21 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -1869,7 +1908,7 @@ const schema20 = {
 	required: ['resource', 'path'],
 	additionalProperties: false,
 };
-const schema21 = {
+const schema22 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -1911,7 +1950,7 @@ const schema21 = {
 	required: ['resource', 'name', 'contents'],
 	additionalProperties: false,
 };
-const schema22 = {
+const schema23 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -1928,7 +1967,7 @@ const schema22 = {
 	required: ['resource', 'slug'],
 	additionalProperties: false,
 };
-const schema23 = {
+const schema24 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -1945,7 +1984,7 @@ const schema23 = {
 	required: ['resource', 'slug'],
 	additionalProperties: false,
 };
-const schema24 = {
+const schema25 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -1962,7 +2001,7 @@ const schema24 = {
 	required: ['resource', 'url'],
 	additionalProperties: false,
 };
-const schema25 = {
+const schema26 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -1978,7 +2017,7 @@ const schema25 = {
 	required: ['resource', 'path'],
 	additionalProperties: false,
 };
-const schema26 = {
+const schema27 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -2003,13 +2042,13 @@ const schema26 = {
 	additionalProperties: false,
 };
 const wrapper0 = { validate: validate16 };
-const schema27 = {
+const schema28 = {
 	anyOf: [
 		{ $ref: '#/definitions/GitDirectoryReference' },
 		{ $ref: '#/definitions/DirectoryLiteralReference' },
 	],
 };
-const schema28 = {
+const schema29 = {
 	type: 'object',
 	properties: {
 		resource: {
@@ -2042,7 +2081,7 @@ const schema28 = {
 	required: ['resource', 'url', 'ref'],
 	additionalProperties: false,
 };
-const schema29 = {
+const schema30 = {
 	type: 'string',
 	enum: ['branch', 'tag', 'commit', 'refname'],
 };
@@ -2202,7 +2241,7 @@ function validate19(
 												keyword: 'enum',
 												params: {
 													allowedValues:
-														schema29.enum,
+														schema30.enum,
 												},
 												message:
 													'must be equal to one of the allowed values',
@@ -2286,7 +2325,7 @@ function validate19(
 	validate19.errors = vErrors;
 	return errors === 0;
 }
-const schema30 = {
+const schema31 = {
 	type: 'object',
 	additionalProperties: false,
 	properties: {
@@ -2300,7 +2339,7 @@ const schema30 = {
 	},
 	required: ['files', 'name', 'resource'],
 };
-const schema31 = {
+const schema32 = {
 	type: 'object',
 	additionalProperties: {
 		anyOf: [
@@ -2362,7 +2401,7 @@ function validate22(
 							schemaPath: '#/additionalProperties/anyOf/1/type',
 							keyword: 'type',
 							params: {
-								type: schema31.additionalProperties.anyOf[1]
+								type: schema32.additionalProperties.anyOf[1]
 									.type,
 							},
 							message: 'must be object,string',
@@ -4416,7 +4455,7 @@ function validate16(
 	validate16.errors = vErrors;
 	return errors === 0;
 }
-const schema32 = {
+const schema33 = {
 	type: 'object',
 	discriminator: { propertyName: 'step' },
 	required: ['step'],
@@ -5153,7 +5192,7 @@ const schema32 = {
 		},
 	],
 };
-const schema33 = {
+const schema34 = {
 	type: 'object',
 	properties: {
 		activate: {
@@ -5168,7 +5207,7 @@ const schema33 = {
 	},
 	additionalProperties: false,
 };
-const schema34 = {
+const schema35 = {
 	type: 'object',
 	properties: {
 		activate: {
@@ -5188,7 +5227,7 @@ const schema34 = {
 	},
 	additionalProperties: false,
 };
-const schema41 = {
+const schema42 = {
 	type: 'object',
 	properties: {
 		adminUsername: { type: 'string' },
@@ -5196,7 +5235,7 @@ const schema41 = {
 	},
 	additionalProperties: false,
 };
-const schema35 = {
+const schema36 = {
 	type: 'object',
 	properties: {
 		method: {
@@ -5293,11 +5332,11 @@ const schema35 = {
 	required: ['url'],
 	additionalProperties: false,
 };
-const schema36 = {
+const schema37 = {
 	type: 'string',
 	enum: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
 };
-const schema37 = { type: 'object', additionalProperties: { type: 'string' } };
+const schema38 = { type: 'object', additionalProperties: { type: 'string' } };
 function validate37(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
@@ -5375,7 +5414,7 @@ function validate37(
 									instancePath: instancePath + '/method',
 									schemaPath: '#/definitions/HTTPMethod/enum',
 									keyword: 'enum',
-									params: { allowedValues: schema36.enum },
+									params: { allowedValues: schema37.enum },
 									message:
 										'must be equal to one of the allowed values',
 								},
@@ -7479,7 +7518,7 @@ function validate37(
 	validate37.errors = vErrors;
 	return errors === 0;
 }
-const schema38 = {
+const schema39 = {
 	type: 'object',
 	properties: {
 		relativeUri: {
@@ -7556,7 +7595,7 @@ function validate39(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			const _errs1 = errors;
 			for (const key0 in data) {
-				if (!func2.call(schema38.properties, key0)) {
+				if (!func2.call(schema39.properties, key0)) {
 					validate39.errors = [
 						{
 							instancePath,
@@ -7666,7 +7705,7 @@ function validate39(
 												'#/definitions/HTTPMethod/enum',
 											keyword: 'enum',
 											params: {
-												allowedValues: schema36.enum,
+												allowedValues: schema37.enum,
 											},
 											message:
 												'must be equal to one of the allowed values',
@@ -9942,7 +9981,7 @@ function validate28(
 																			'enum',
 																		params: {
 																			allowedValues:
-																				schema32
+																				schema33
 																					.oneOf[3]
 																					.properties
 																					.method
@@ -10950,7 +10989,7 @@ function validate28(
 																			'enum',
 																		params: {
 																			allowedValues:
-																				schema32
+																				schema33
 																					.oneOf[6]
 																					.properties
 																					.importer
@@ -11885,7 +11924,7 @@ function validate28(
 															keyword: 'enum',
 															params: {
 																allowedValues:
-																	schema32
+																	schema33
 																		.oneOf[9]
 																		.properties
 																		.ifAlreadyInstalled
@@ -12551,7 +12590,7 @@ function validate28(
 															keyword: 'enum',
 															params: {
 																allowedValues:
-																	schema32
+																	schema33
 																		.oneOf[10]
 																		.properties
 																		.ifAlreadyInstalled
@@ -21110,7 +21149,7 @@ function validate11(
 																		keyword:
 																			'type',
 																		params: {
-																			type: schema18
+																			type: schema19
 																				.additionalProperties
 																				.type,
 																		},

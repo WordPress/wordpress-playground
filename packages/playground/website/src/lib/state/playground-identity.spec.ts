@@ -1,8 +1,11 @@
-import type { SiteInfo } from '../redux/slice-sites';
+import type { RuntimeConfiguration } from '@wp-playground/blueprints';
+import type { SiteInfo } from './redux/slice-sites';
 import {
 	getAutosaveFingerprintFromURL,
 	getAutosaveFingerprintFromSite,
-} from './setup-url';
+	getRuntimeBootFingerprint,
+	getSetupUrlFromUrl,
+} from './playground-identity';
 
 describe('getAutosaveFingerprintFromURL', () => {
 	it('ignores runtime, UI, and cache-busting parameters', () => {
@@ -94,6 +97,89 @@ describe('getAutosaveFingerprintFromURL', () => {
 					'https://playground.test/?theme=twentytwentyfive&plugin=b&plugin=a'
 				)
 			)
+		);
+	});
+});
+
+describe('getSetupUrlFromUrl', () => {
+	it('keeps setup query params and drops routing and UI params', () => {
+		const setupUrl = getSetupUrlFromUrl(
+			new URL(
+				'https://playground.test/?php=8.3&php-extension=https://example.com/ext.json&plugin=a&plugin=b' +
+					'&site-slug=demo&storage=temp&random=abc&modal=save-site' +
+					'&can-save=no#blueprint'
+			)
+		);
+
+		expect(setupUrl.toString()).toBe(
+			'https://playground.test/?php=8.3&php-extension=https%3A%2F%2Fexample.com%2Fext.json&plugin=a&plugin=b#blueprint'
+		);
+	});
+});
+
+describe('getRuntimeBootFingerprint', () => {
+	const runtimeConfiguration: RuntimeConfiguration = {
+		phpVersion: '8.3',
+		wpVersion: '6.8',
+		intl: false,
+		networking: false,
+		extraLibraries: [],
+		constants: {},
+	};
+
+	it('changes when iframe boot settings change', () => {
+		expect(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				phpVersion: '8.3',
+			})
+		).not.toBe(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				phpVersion: '8.4',
+			})
+		);
+
+		expect(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				networking: false,
+			})
+		).not.toBe(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				networking: true,
+			})
+		);
+
+		expect(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				extraLibraries: [],
+			})
+		).not.toBe(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				extraLibraries: ['wp-cli'],
+			})
+		);
+	});
+
+	it('changes when PHP constants change', () => {
+		expect(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				constants: {
+					WP_DEBUG: true,
+				},
+			})
+		).not.toBe(
+			getRuntimeBootFingerprint({
+				...runtimeConfiguration,
+				constants: {
+					SITE_URL: 'https://playground.test',
+				},
+			})
 		);
 	});
 });

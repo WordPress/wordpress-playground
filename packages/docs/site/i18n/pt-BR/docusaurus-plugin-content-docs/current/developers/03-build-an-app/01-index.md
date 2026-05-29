@@ -32,13 +32,15 @@ O Playground pode ser incorporado no seu site usando a tag HTML `<iframe>` da se
 
 Cada visitante receberá sua própria instância privada do WordPress gratuitamente. Você pode então personalizá-la usando uma das [APIs do Playground](/developers/apis/).
 
-:::caution Careful with the demo site
+<div class="callout callout-warning">
+
+**Careful with the demo site**
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
-:::
+</div>
 
 <!-- ## Control the embedded website -->
 
@@ -146,9 +148,11 @@ Você pode visualizar código do repositório de duas maneiras: diretamente com 
 
 No código acima, será instalado um plugin de um repositório localizado na `url`, e a referência para encontrar o branch é `refType`; neste caso, será usado `refname`, mas também pode ser usado `branch`, `tag` e `commit`.
 
-:::tip
+<div class="callout callout-tip">
+
 Você pode automatizar esse processo usando a [Ação do GitHub para gerar links de pré-visualização](/guides/github-action-pr-preview), o que ajudará a agilizar o processo.
-:::
+
+</div>
 
 <!-- Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html). -->
 

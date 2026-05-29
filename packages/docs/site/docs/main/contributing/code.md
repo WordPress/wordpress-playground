@@ -46,7 +46,9 @@ npm run dev
 
 Playground will open in a new browser tab and refresh automatically with each change.
 
-:::tip Troubleshooting: File watcher limit on Linux
+<div class="callout callout-tip">
+
+**Troubleshooting: File watcher limit on Linux**
 
 On Linux, you might see an error like `ENOSPC: System limit for number of file watchers reached` when running `npm run dev`. This happens because the Playground repository has more files than the default system limit allows to watch.
 
@@ -65,7 +67,7 @@ sudo sysctl -p
 
 Then try `npm run dev` again. This is a common issue on Debian, Ubuntu, and other Linux distributions.
 
-:::
+</div>
 
 When your'e ready, commit the changes and submit a Pull Request.
 

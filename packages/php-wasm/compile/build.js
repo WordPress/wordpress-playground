@@ -156,6 +156,11 @@ const argParser = yargs(process.argv.slice(2))
 			description: 'The PHP version to build',
 			required: true,
 		},
+		PHP_REF: {
+			type: 'string',
+			description:
+				'The php-src git ref to clone. Defaults to the php-$PHP_VERSION tag.',
+		},
 		['output-dir']: {
 			type: 'string',
 			description:
@@ -287,7 +292,11 @@ await cleanupOldMinorVersions();
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
 
-const phpVersionForDockerfile = getArg('PHP_VERSION').replace('PHP_VERSION=', '');
+const phpVersionForDockerfile = getArg('PHP_VERSION').replace(
+	'PHP_VERSION=',
+	''
+);
+const phpRef = args.PHP_REF || `php-${phpVersionForDockerfile}`;
 const dockerfile = phpVersionForDockerfile.startsWith('5.2')
 	? 'php/Dockerfile-5-2'
 	: 'php/Dockerfile';
@@ -303,6 +312,8 @@ await asyncSpawn(
 		'--progress=plain',
 		'--build-arg',
 		getArg('PHP_VERSION'),
+		'--build-arg',
+		`PHP_REF=${phpRef}`,
 		'--build-arg',
 		`OPENSSL_VERSION=${args.WITH_OPENSSL_VERSION || '1.1.0h'}`,
 		'--build-arg',

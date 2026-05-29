@@ -22,6 +22,26 @@ To find out more about each step, refer directly to the [Dockerfile](https://git
 
 To build all PHP versions, run `nx recompile-php:all php-wasm-web` (or `php-wasm-node`) in the repository root. You'll find the output files in `packages/php-wasm/php-web/public`. To build a specific version, run `nx recompile-php:all php-wasm-node --PHP_VERSION=8.0 --WITH_JSPI=yes` (and repeat with `--WITH_JSPI=no`).
 
+### PHP next builds
+
+Playground can also run the next PHP version from the php-src development branch in the web runtime. These builds are published separately from the main repository because the generated WebAssembly files are large and change often.
+
+The nightly refresh workflow builds the php-src development branch, writes the web artifacts to the gitignored `packages/playground/website/public/php-next/` directory, and publishes the result to the `php-next-builds` branch. Website deploys and the local dev server sync that branch before serving `?php=next`.
+
+To refresh the local copy manually, run:
+
+```sh
+npm run sync:php-next
+```
+
+To rebuild the web artifacts locally from the php-src development branch, run:
+
+```sh
+npm run recompile:php:web:next
+```
+
+`php=next` currently ships web main modules only. Matching extension side modules and Playground CLI support are separate follow-up work.
+
 ### PHP extensions
 
 PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/Dockerfile).

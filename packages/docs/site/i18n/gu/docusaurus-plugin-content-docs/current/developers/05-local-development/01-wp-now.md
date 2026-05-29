@@ -3,14 +3,22 @@ title: wp-now
 slug: /developers/local-development/wp-now
 ---
 
-:::caution પેકેજ ડિપ્રિકેટેડ (deprecated) છે
+<div class="callout callout-warning">
+
+**પેકેજ ડિપ્રિકેટેડ (deprecated) છે**
+
 NPM પેકેજ @wp-now/wp-now ડિપ્રિકેટેડ (deprecated) છે, ભવિષ્યમાં અપડેટ્સ પ્રાપ્ત થશે નહીં. તમારા ડેવલપર ફ્લો પર કમાન્ડ-લાઇન ટૂલનો ઉપયોગ કરવા માટે, NPM પેકેજ `@wp-playground/cli` નો ઉપયોગ કરો.
-:::
+
+</div>
 
 <!--
-:::caution Package deprecated
+<div class="callout callout-warning">
+
+**Package deprecated**
+
 The NPM package @wp-now/wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.
-:::
+
+</div>
 -->
 
 # wp-now NPM પેકેજ
@@ -56,11 +64,13 @@ Key Features:
 </div>
 
 <!--
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 `wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
-:::
+</div>
 -->
 
 ## પ્લગઇન અથવા થીમ ડિરેક્ટરીમાં wp-now લોન્ચ કરો.
