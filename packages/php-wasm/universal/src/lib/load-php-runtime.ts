@@ -2,18 +2,36 @@ import { logger } from '@php-wasm/logger';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 
 const RuntimeId = Symbol('RuntimeId');
-const RuntimeRegistryKey = Symbol.for('@php-wasm/universal.loadedRuntimes');
-const runtimeRegistry = ((
-	globalThis as typeof globalThis & {
-		[RuntimeRegistryKey]?: {
-			loadedRuntimes: Map<number, PHPRuntime>;
-			lastRuntimeId: number;
-		};
-	}
-)[RuntimeRegistryKey] ??= {
+const RuntimeRegistryKey = Symbol.for('@php-wasm/universal@3.loadedRuntimes');
+type RuntimeRegistry = {
+	loadedRuntimes: Map<number, PHPRuntime>;
+	lastRuntimeId: number;
+};
+
+const createRuntimeRegistry = (): RuntimeRegistry => ({
 	loadedRuntimes: new Map<number, PHPRuntime>(),
 	lastRuntimeId: 0,
 });
+
+function isRuntimeRegistry(value: unknown): value is RuntimeRegistry {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'loadedRuntimes' in value &&
+		value.loadedRuntimes instanceof Map &&
+		'lastRuntimeId' in value &&
+		Number.isSafeInteger(value.lastRuntimeId)
+	);
+}
+
+const runtimeRegistryGlobal = globalThis as typeof globalThis & {
+	[RuntimeRegistryKey]?: unknown;
+};
+const runtimeRegistry = isRuntimeRegistry(
+	runtimeRegistryGlobal[RuntimeRegistryKey]
+)
+	? runtimeRegistryGlobal[RuntimeRegistryKey]
+	: (runtimeRegistryGlobal[RuntimeRegistryKey] = createRuntimeRegistry());
 const loadedRuntimes = runtimeRegistry.loadedRuntimes;
 
 /**
