@@ -185,16 +185,27 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Renames the active site.
+		 * Renames a stored site.
+		 *
+		 * Defaults to the active site for callers that rename the current
+		 * Playground. UI that opens a rename modal from a site list must pass
+		 * the target slug because the listed site may not be active.
 		 *
 		 * @param newName The new display name.
-		 * @throws When no site is selected or the site is
+		 * @param siteSlug Optional slug. Uses the active site when omitted.
+		 * @throws When no site is selected, the slug is unknown, or the site is
 		 *   temporary.
 		 */
-		async rename(newName: string): Promise<void> {
-			const site = selectActiveSite(getState());
+		async rename(newName: string, siteSlug?: string): Promise<void> {
+			const site = siteSlug
+				? selectSiteBySlug(getState(), siteSlug)
+				: selectActiveSite(getState());
 			if (!site) {
-				throw new Error('No active site selected');
+				throw new Error(
+					siteSlug
+						? `Site not found: ${siteSlug}`
+						: 'No site selected'
+				);
 			}
 			if (site.metadata.storage === 'none') {
 				throw new Error(
@@ -204,7 +215,7 @@ export function createSitesAPI(
 			await dispatch(
 				updateSiteMetadata({
 					slug: site.slug,
-					changes: { name: newName, persistence: 'explicit' },
+					changes: { name: newName },
 				})
 			);
 		},

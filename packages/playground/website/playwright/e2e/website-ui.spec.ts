@@ -865,6 +865,86 @@ test.describe('Default Playground storage', () => {
 		);
 	});
 
+	test('should rename an inactive autosaved Playground without keeping it', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('rename-autosave'));
+		const setup = await website.page.evaluate(async () => {
+			const api = (window as any).playgroundSites;
+			await api.isReady();
+			const suffix = Date.now().toString(36);
+			const targetSlug = `rename-target-${suffix}`;
+			const activeSlug = `rename-active-${suffix}`;
+			await api.createNewSavedSite(targetSlug, undefined, {
+				persistence: 'autosave',
+				updateUrl: false,
+			});
+			await api.createNewSavedSite(activeSlug, undefined, {
+				persistence: 'autosave',
+				updateUrl: false,
+				excludeFromPruning: [targetSlug],
+			});
+			const sites = api.list();
+			const target = sites.find((site: any) => site.slug === targetSlug);
+			const active = sites.find((site: any) => site.slug === activeSlug);
+			return {
+				targetSlug,
+				targetName: target.name,
+				activeSlug,
+				activeName: active.name,
+			};
+		});
+
+		await website.openSavedPlaygroundsOverlay();
+		const targetRow = website.page
+			.locator('[class*="siteRow"]')
+			.filter({ hasText: setup.targetName })
+			.first();
+		await targetRow.getByRole('button', { name: 'Site actions' }).click();
+		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
+
+		const dialog = website.page.getByRole('dialog', {
+			name: 'Rename Playground',
+		});
+		const newName = `Renamed Recovery ${Date.now()}`;
+		await expect(
+			dialog.getByRole('textbox', { name: /name/i })
+		).toHaveValue(setup.targetName);
+		await dialog.getByRole('textbox', { name: /name/i }).fill(newName);
+		await dialog.getByRole('button', { name: 'Rename' }).click();
+		await expect(dialog).not.toBeVisible();
+
+		const sitesAfterRename = await website.page.evaluate(
+			({ targetSlug, activeSlug }) => {
+				const sites = (window as any).playgroundSites.list();
+				return {
+					target: sites.find((site: any) => site.slug === targetSlug),
+					active: sites.find((site: any) => site.slug === activeSlug),
+				};
+			},
+			{
+				targetSlug: setup.targetSlug,
+				activeSlug: setup.activeSlug,
+			}
+		);
+		expect(sitesAfterRename.target).toMatchObject({
+			name: newName,
+			persistence: 'autosave',
+			isActive: false,
+		});
+		expect(sitesAfterRename.active).toMatchObject({
+			name: setup.activeName,
+			persistence: 'autosave',
+			isActive: true,
+		});
+	});
+
 	test('should treat New Playground as an explicit fresh start', async ({
 		website,
 		browserName,
