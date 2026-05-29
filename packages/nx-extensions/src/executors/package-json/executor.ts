@@ -277,6 +277,12 @@ function getMonorepoDependencies(
 		if (packageJson.private) {
 			continue;
 		}
+		if (
+			context.projectName.startsWith('php-wasm-node-') &&
+			packageJson.name === '@php-wasm/universal'
+		) {
+			continue;
+		}
 
 		monorepoDeps.push({
 			name: packageJson.name,

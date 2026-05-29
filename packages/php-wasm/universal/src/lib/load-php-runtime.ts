@@ -2,8 +2,19 @@ import { logger } from '@php-wasm/logger';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 
 const RuntimeId = Symbol('RuntimeId');
-const loadedRuntimes: Map<number, PHPRuntime> = new Map();
-let lastRuntimeId = 0;
+const RuntimeRegistryKey = Symbol.for('@php-wasm/universal.loadedRuntimes');
+const runtimeRegistry = ((
+	globalThis as typeof globalThis & {
+		[RuntimeRegistryKey]?: {
+			loadedRuntimes: Map<number, PHPRuntime>;
+			lastRuntimeId: number;
+		};
+	}
+)[RuntimeRegistryKey] ??= {
+	loadedRuntimes: new Map<number, PHPRuntime>(),
+	lastRuntimeId: 0,
+});
+const loadedRuntimes = runtimeRegistry.loadedRuntimes;
 
 /**
  * Loads the PHP runtime with the given arguments and data dependencies.
@@ -163,7 +174,7 @@ export async function loadPHPRuntime(
 		PHPRuntime.phpWasmAsyncMode = phpWasmAsyncMode;
 	}
 
-	const id = ++lastRuntimeId;
+	const id = ++runtimeRegistry.lastRuntimeId;
 
 	// TODO: Ask @adamziel why this is here.
 	// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- why is this here?
