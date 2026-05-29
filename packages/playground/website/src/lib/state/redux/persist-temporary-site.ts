@@ -25,12 +25,11 @@ import type { SiteStorageType } from './slice-sites';
 import { setActiveModal } from './slice-ui';
 
 /**
- * Persists a running temporary Playground into a durable storage backend.
+ * Copies the running Playground into a durable storage backend.
  *
- * The active iframe is the source of truth for the filesystem, so this copies
- * MEMFS into OPFS or a picked local directory before changing the site metadata.
- * Autosave callers can keep the URL and iframe stable while still recording the
- * persisted metadata needed for restore.
+ * Temporary sites need a new storage record before the copy starts. Autosaved
+ * sites already have one, so saving them to a local directory only remounts the
+ * running filesystem and updates the existing metadata after the copy succeeds.
  */
 export function persistTemporarySite(
 	siteSlug: string,
@@ -70,28 +69,33 @@ export function persistTemporarySite(
 			siteInfo = selectSiteBySlug(getState(), siteSlug)!;
 		}
 
-		try {
-			const existingSiteInfo = await opfsSiteStorage?.read(siteInfo.slug);
-			if (existingSiteInfo?.metadata.storage === 'none') {
-				// It is likely we are dealing with the remnants of a failed save
-				// of a temporary site to OPFS. Let's clean up an try again.
-				await opfsSiteStorage?.delete(siteInfo.slug);
+		const isTemporarySite = siteInfo.metadata.storage === 'none';
+		if (isTemporarySite) {
+			try {
+				const existingSiteInfo = await opfsSiteStorage?.read(
+					siteInfo.slug
+				);
+				if (existingSiteInfo?.metadata.storage === 'none') {
+					// It is likely we are dealing with the remnants of a failed save
+					// of a temporary site to OPFS. Let's clean up and try again.
+					await opfsSiteStorage?.delete(siteInfo.slug);
+				}
+			} catch (error: any) {
+				if (error?.name === 'NotFoundError') {
+					// No failed temporary-site placeholder exists, so this save can
+					// continue with a fresh OPFS record.
+				} else {
+					throw error;
+				}
 			}
-		} catch (error: any) {
-			if (error?.name === 'NotFoundError') {
-				// No failed temporary-site placeholder exists, so this save can
-				// continue with a fresh OPFS record.
-			} else {
-				throw error;
-			}
+			await opfsSiteStorage?.create(siteInfo.slug, {
+				...siteInfo.metadata,
+				// The placeholder stays marked as temporary until the copy
+				// succeeds, so a later save can recognize and clean up a failed
+				// attempt.
+				storage: 'none',
+			});
 		}
-		await opfsSiteStorage?.create(siteInfo.slug, {
-			...siteInfo.metadata,
-			// Start with storage type of 'none' to represent a temporary site
-			// that the site is being saved. This will help us distinguish
-			// between successful and failed saves.
-			storage: 'none',
-		});
 
 		// Persist the blueprint bundle if available.
 		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
@@ -187,6 +191,19 @@ export function persistTemporarySite(
 			})
 		);
 		try {
+			/**
+			 * Autosaved browser sites already mount OPFS at `/wordpress`.
+			 * We need to unmount it before we can mount a local directory at `/wordpress`.
+			 *
+			 * That works, because all the files we need are available in MEMFS despite the prior
+			 * OPFS mount. The OPFS mount doesn't replace the MEMFS `/wordpress` directory.
+			 * Instead, it attaches a filesystem journal to periodically rewrite all the operations to
+			 * the right OPFS location. Therefore, the files are in MEMFS and are ready to be copied
+			 * to the local filesystem.
+			 */
+			if (await playground.hasOpfsMount(mountDescriptor.mountpoint)) {
+				await playground.unmountOpfs(mountDescriptor.mountpoint);
+			}
 			await playground.mountOpfs(
 				{
 					...mountDescriptor,

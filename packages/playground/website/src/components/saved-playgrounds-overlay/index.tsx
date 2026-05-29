@@ -9,7 +9,6 @@ import {
 import { moreVertical, plus, upload, link } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
-import { useDispatch } from 'react-redux';
 import { useState, useEffect, useRef } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { importWordPressFiles } from '@wp-playground/client';
@@ -19,7 +18,6 @@ import {
 	useAppSelector,
 	useAppDispatch,
 } from '../../lib/state/redux/store';
-import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
@@ -35,6 +33,7 @@ import {
 	setSiteManagerSection,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
+	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
@@ -103,7 +102,6 @@ export function SavedPlaygroundsOverlay({
 	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const modalDispatch: PlaygroundDispatch = useDispatch();
 	const sitesAPI = useSitesAPI();
 	const playground = usePlaygroundClient();
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
@@ -257,19 +255,21 @@ export function SavedPlaygroundsOverlay({
 
 	const handleDeleteSite = (site: SiteInfo, closeMenu: () => void) => {
 		dispatch(setSiteSlugToDelete(site.slug));
-		modalDispatch(setActiveModal(modalSlugs.DELETE_SITE));
+		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
 		closeMenu();
 	};
 
 	const handleRenameSite = (site: SiteInfo, closeMenu: () => void) => {
 		dispatch(setSiteSlugToRename(site.slug));
-		modalDispatch(setActiveModal(modalSlugs.RENAME_SITE));
+		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
 		closeMenu();
 	};
 
-	const handleKeepSite = async (site: SiteInfo, closeMenu?: () => void) => {
-		await sitesAPI.keep(site.slug);
+	const openSaveModalForSite = (site: SiteInfo, closeMenu?: () => void) => {
+		dispatch(setSiteSlugToSave(site.slug));
+		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
 		closeMenu?.();
+		onClose();
 	};
 
 	const getStoredSiteDetails = (site: SiteInfo) => {
@@ -326,7 +326,7 @@ export function SavedPlaygroundsOverlay({
 			title: 'Preview a WordPress PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
-				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
+				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
 			},
 			disabled: offline,
 		},
@@ -335,7 +335,7 @@ export function SavedPlaygroundsOverlay({
 			title: 'Preview a Gutenberg PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
-				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
+				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
 			},
 			disabled: offline,
 		},
@@ -344,7 +344,7 @@ export function SavedPlaygroundsOverlay({
 			title: 'Import from GitHub',
 			iconComponent: GitHubIcon,
 			onClick: () => {
-				modalDispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
+				dispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
 			},
 			disabled: offline,
 		},
@@ -353,7 +353,7 @@ export function SavedPlaygroundsOverlay({
 			title: 'Open a Blueprint URL',
 			icon: link,
 			onClick: () => {
-				modalDispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
+				dispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
 			},
 			disabled: offline,
 		},
@@ -428,7 +428,7 @@ export function SavedPlaygroundsOverlay({
 						<button
 							type="button"
 							className={css.keepButton}
-							onClick={() => handleKeepSite(site)}
+							onClick={() => openSaveModalForSite(site)}
 							title="Store this Playground permanently so it is not pruned from recent autosaves."
 						>
 							Store permanently
@@ -448,7 +448,10 @@ export function SavedPlaygroundsOverlay({
 									{isAutosave && (
 										<MenuItem
 											onClick={() =>
-												handleKeepSite(site, closeMenu)
+												openSaveModalForSite(
+													site,
+													closeMenu
+												)
 											}
 										>
 											Store permanently

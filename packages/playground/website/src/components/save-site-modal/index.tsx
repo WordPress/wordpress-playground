@@ -15,11 +15,17 @@ import {
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	setActiveModal,
+	setSiteSlugToSave,
+} from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
-import type { SiteStorageType } from '../../lib/state/redux/slice-sites';
+import {
+	isAutosavedSite,
+	type SiteStorageType,
+} from '../../lib/state/redux/slice-sites';
 import { logger } from '@php-wasm/logger';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 
@@ -34,18 +40,23 @@ const helpTextStyle: CSSProperties = {
 export function SaveSiteModal() {
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
+	const siteSlugToSave = useAppSelector((state) => state.ui.siteSlugToSave);
+	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
+	// The modal may be opened from an inactive autosave in Your Playgrounds.
+	const targetSiteSlug = siteSlugToSave ?? activeSiteSlug;
 	const site = useAppSelector((state) =>
-		state.ui.activeSite?.slug
-			? state.sites.entities[state.ui.activeSite.slug]
-			: undefined
+		targetSiteSlug ? state.sites.entities[targetSiteSlug] : undefined
 	);
 	const clientInfo = useAppSelector((state) =>
-		state.ui.activeSite?.slug
-			? selectClientInfoBySiteSlug(state, state.ui.activeSite.slug)
+		targetSiteSlug
+			? selectClientInfoBySiteSlug(state, targetSiteSlug)
 			: undefined
 	);
 
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
+	const targetIsActive = !!site && site.slug === activeSiteSlug;
+	const localIsAvailable =
+		targetIsActive && localFsAvailability === 'available';
 
 	const initialName = useMemo(() => site?.metadata?.name ?? '', [site]);
 	const [name, setName] = useState(initialName);
@@ -54,7 +65,7 @@ export function SaveSiteModal() {
 			if (isOpfsAvailable) {
 				return 'opfs';
 			}
-			if (localFsAvailability === 'available') {
+			if (localIsAvailable) {
 				return 'local-fs';
 			}
 			return 'opfs';
@@ -68,10 +79,15 @@ export function SaveSiteModal() {
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const nameInputRef = useRef<HTMLInputElement>(null);
+	const nameSiteSlugRef = useRef<string>();
 
 	useEffect(() => {
+		if (nameSiteSlugRef.current === site?.slug) {
+			return;
+		}
+		nameSiteSlugRef.current = site?.slug;
 		setName(initialName);
-	}, [initialName]);
+	}, [initialName, site?.slug]);
 
 	useEffect(() => {
 		// Select the text in the name input when the modal is shown
@@ -89,23 +105,20 @@ export function SaveSiteModal() {
 	}, []);
 
 	useEffect(() => {
-		if (
-			selectedStorage === 'local-fs' &&
-			localFsAvailability !== 'available'
-		) {
+		if (selectedStorage === 'local-fs' && !localIsAvailable) {
 			setSelectedStorage('opfs');
 		}
-	}, [selectedStorage, localFsAvailability]);
+	}, [selectedStorage, localIsAvailable]);
 
 	useEffect(() => {
 		if (
 			selectedStorage === 'opfs' &&
 			!isOpfsAvailable &&
-			localFsAvailability === 'available'
+			localIsAvailable
 		) {
 			setSelectedStorage('local-fs');
 		}
-	}, [selectedStorage, localFsAvailability]);
+	}, [selectedStorage, localIsAvailable]);
 
 	useEffect(() => {
 		setDirectoryHandle(null);
@@ -119,29 +132,29 @@ export function SaveSiteModal() {
 	const savingProgress =
 		saveProgress?.status === 'syncing' ? saveProgress.progress : undefined;
 
-	// Close modal when save completes successfully
-	useEffect(() => {
-		if (
-			isSubmitting &&
-			saveProgress?.status !== 'syncing' &&
-			saveProgress?.status !== 'error' &&
-			site?.metadata?.storage !== 'none'
-		) {
-			dispatch(setActiveModal(null));
-		}
-	}, [isSubmitting, saveProgress?.status, site?.metadata?.storage, dispatch]);
+	const isAutosaved = site && isAutosavedSite(site);
+	const canSaveSite =
+		site && (site.metadata.storage === 'none' || isAutosaved);
+	const closeModal = () => {
+		dispatch(setActiveModal(null));
+		dispatch(setSiteSlugToSave(undefined));
+	};
 
-	if (!site || site.metadata.storage !== 'none') {
+	useEffect(() => {
+		if (site && canSaveSite) {
+			return;
+		}
+		dispatch(setActiveModal(null));
+		dispatch(setSiteSlugToSave(undefined));
+	}, [canSaveSite, dispatch, site]);
+
+	if (!site || !canSaveSite) {
 		return null;
 	}
 
-	const closeModal = () => {
-		dispatch(setActiveModal(null));
-	};
-
-	const localIsAvailable = localFsAvailability === 'available';
-	const localUnavailableMessage =
-		localFsAvailability === 'not-available'
+	const localUnavailableMessage = !targetIsActive
+		? 'Open this Playground to save it to a local directory'
+		: localFsAvailability === 'not-available'
 			? 'Not available in this browser'
 			: 'Not available on this site';
 
@@ -234,8 +247,16 @@ export function SaveSiteModal() {
 			setSubmitError(null);
 
 			if (selectedStorage === 'local-fs') {
+				if (!targetIsActive) {
+					setDirectoryError(
+						'Open this Playground to save it to a local directory.'
+					);
+					setIsSubmitting(false);
+					return;
+				}
 				if (!directoryHandle) {
 					setDirectoryError('Choose a directory to continue.');
+					setIsSubmitting(false);
 					return;
 				}
 				const permission = await ensureWriteAccess(directoryHandle);
@@ -244,6 +265,7 @@ export function SaveSiteModal() {
 					setDirectoryError(
 						'Allow Playground to edit that directory in the browser prompt to continue.'
 					);
+					setIsSubmitting(false);
 					return;
 				}
 				await sitesAPI.saveToLocalFileSystem(
@@ -251,10 +273,14 @@ export function SaveSiteModal() {
 					directoryHandle
 				);
 			} else {
-				await sitesAPI.saveInBrowser(trimmedName);
+				if (isAutosaved) {
+					await sitesAPI.keep(site.slug, trimmedName);
+				} else {
+					await sitesAPI.saveInBrowser(trimmedName);
+				}
 			}
 
-			// Don't close modal here - useEffect will close it when save completes
+			closeModal();
 		} catch (error) {
 			logger.error(error);
 			setSubmitError(
@@ -311,9 +337,9 @@ export function SaveSiteModal() {
 				autoComplete="off"
 			>
 				<p style={{ margin: 0, color: '#1e1e1e' }}>
-					This Playground is temporary and will be lost when you
-					refresh or close this page. Save it to keep your work and
-					find it later in Your Playgrounds.
+					{isAutosaved
+						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
+						: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
 				</p>
 				<TextControl
 					label="Playground name"

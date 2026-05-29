@@ -7,10 +7,13 @@ import {
 	useActiveSite,
 	useAppDispatch,
 } from '../../lib/state/redux/store';
-import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	modalSlugs,
+	setActiveModal,
+	setSiteSlugToSave,
+} from '../../lib/state/redux/slice-ui';
 import { Icon, Popover } from '@wordpress/components';
 import { backup, check, cautionFilled } from '@wordpress/icons';
-import { logger } from '@php-wasm/logger';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -19,7 +22,6 @@ import {
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
-import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 
 type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
 
@@ -27,11 +29,9 @@ export function SaveStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const sitesAPI = useSitesAPI();
 	const statusButtonRef = useRef<HTMLButtonElement>(null);
 	const suppressNextTriggerClickRef = useRef(false);
 	const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-	const [popoverError, setPopoverError] = useState<string>();
 
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(activeSite, clientInfo);
@@ -40,27 +40,10 @@ export function SaveStatusIndicator() {
 	const canStorePermanently =
 		isOpfsAvailable || localFsAvailability === 'available';
 
-	const handleSaveClick = () => {
-		setPopoverError(undefined);
+	const openSaveModal = () => {
 		setIsPopoverOpen(false);
+		dispatch(setSiteSlugToSave(activeSite?.slug));
 		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
-	};
-
-	const handleKeepClick = async () => {
-		if (!activeSite) {
-			return;
-		}
-		setPopoverError(undefined);
-		try {
-			await sitesAPI.keep(activeSite.slug);
-			setIsPopoverOpen(false);
-		} catch (error) {
-			logger.error(
-				'Error storing autosaved Playground permanently.',
-				error
-			);
-			setPopoverError('Could not store permanently. Please try again.');
-		}
 	};
 
 	const handleTriggerMouseDown = (
@@ -74,7 +57,6 @@ export function SaveStatusIndicator() {
 		event.preventDefault();
 		event.stopPropagation();
 		suppressNextTriggerClickRef.current = true;
-		setPopoverError(undefined);
 		setIsPopoverOpen(false);
 	};
 
@@ -84,7 +66,6 @@ export function SaveStatusIndicator() {
 			suppressNextTriggerClickRef.current = false;
 			return;
 		}
-		setPopoverError(undefined);
 		setIsPopoverOpen((isOpen) => !isOpen);
 	};
 
@@ -133,16 +114,11 @@ export function SaveStatusIndicator() {
 								This Playground is saved in this browser with
 								your recent autosaves. It will be deleted after{' '}
 								{MAX_AUTOSAVED_SITES} newer autosaves unless you
-								store it permanently.
+								store it in this browser or a local directory.
 							</p>
-							{popoverError && (
-								<p className={css.popoverError}>
-									{popoverError}
-								</p>
-							)}
 							<button
 								className={css.primaryAction}
-								onClick={handleKeepClick}
+								onClick={openSaveModal}
 								type="button"
 							>
 								Store permanently
@@ -187,7 +163,7 @@ export function SaveStatusIndicator() {
 		return (
 			<button
 				className={classNames(css.indicator, css.error)}
-				onClick={handleSaveClick}
+				onClick={openSaveModal}
 				type="button"
 			>
 				<Icon icon={cautionFilled} size={18} />
@@ -234,7 +210,7 @@ export function SaveStatusIndicator() {
 						{canStorePermanently && (
 							<button
 								className={css.primaryAction}
-								onClick={handleSaveClick}
+								onClick={openSaveModal}
 								type="button"
 							>
 								Store permanently
