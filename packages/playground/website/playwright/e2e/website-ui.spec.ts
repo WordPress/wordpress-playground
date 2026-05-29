@@ -1440,6 +1440,42 @@ echo get_option('blogname');
 		await expect(indicator).toHaveCount(0);
 	});
 
+	test('should not show autosave status in seamless mode', async ({
+		website,
+	}) => {
+		await website.page.goto('./?mode=seamless');
+		await expect(
+			website.page.locator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+		).toBeVisible();
+
+		await expect(
+			website.page.getByRole('button', { name: /Autosaved|Unsaved/ })
+		).toHaveCount(0);
+	});
+
+	test('should not show autosave status when embedded in an iframe', async ({
+		website,
+	}, testInfo) => {
+		const embeddedUrl = new URL(
+			`./?name=embedded-${Date.now()}`,
+			String(testInfo.project.use.baseURL)
+		).href;
+		await website.page.setContent(
+			`<iframe title="Embedded Playground test" src="${embeddedUrl}"></iframe>`
+		);
+
+		const playgroundFrame = website.page.frameLocator(
+			'iframe[title="Embedded Playground test"]'
+		);
+		await expect(playgroundFrame.locator('body')).toBeVisible();
+
+		await expect(
+			playgroundFrame.getByRole('button', { name: /Autosaved|Unsaved/ })
+		).toHaveCount(0);
+	});
+
 	test('should keep a Playground saved after saving from the restore nudge state', async ({
 		website,
 		browserName,

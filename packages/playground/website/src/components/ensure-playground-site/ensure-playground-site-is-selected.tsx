@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@wordpress/components';
 import css from './restore-autosave-nudge.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
-import { isSaveDisabledByQueryParam } from '../../lib/state/url/router';
+import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
@@ -34,7 +34,7 @@ import { getRelativeDate } from '../../lib/get-relative-date';
  * It has two routing modes:
  * * When `site-slug` is provided, it loads that site or creates it if missing.
  * * When `site-slug` is missing, it starts from the current setup URL and
- *   creates an autosaved site unless the URL or browser requires a temporary one.
+ *   creates an autosaved site unless the shell requires a temporary one.
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
@@ -54,7 +54,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);
-	const isSavingDisabled = isSaveDisabledByQueryParam();
+	const isSavingDisabled = isSiteSavingDisabled(url);
 	const shouldUseTemporarySite =
 		url.searchParams.get('storage') === 'temp' ||
 		isSavingDisabled ||
@@ -119,8 +119,8 @@ export function EnsurePlaygroundSiteIsSelected({
 			// If the site slug is provided, try to load the site.
 			if (requestedSiteSlug) {
 				// If the site does not exist, create it. Saved browser
-				// storage is the default unless the URL explicitly asks for
-				// a temporary site or saving is unavailable.
+				// storage is the default unless this shell should not offer
+				// saving.
 				if (!requestedSiteObject) {
 					logger.log(
 						'The requested site was not found. Creating a new site.'

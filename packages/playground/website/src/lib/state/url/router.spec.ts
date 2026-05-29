@@ -1,4 +1,4 @@
-import { parseBlueprint, PlaygroundRoute } from './router';
+import { parseBlueprint, PlaygroundRoute, isSiteSavingDisabled } from './router';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import type { SiteInfo } from '../redux/slice-sites';
 
@@ -153,5 +153,66 @@ describe('PlaygroundRoute site creation routes', () => {
 		expect(params.get('url')).toBe('/wp-admin/');
 		expect(params.get('php')).toBe('8.0');
 		expect(params.get('wp')).toBe('6.6');
+	});
+});
+
+describe('isSiteSavingDisabled', () => {
+	const topWindow = {};
+	const regularWindow = {
+		self: topWindow,
+		top: topWindow,
+	} as unknown as Window;
+	const embeddedWindow = { self: {}, top: topWindow } as unknown as Window;
+
+	it('allows saving by default', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/'),
+				regularWindow
+			)
+		).toBe(false);
+	});
+
+	it('disables saving when can-save=no', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/?can-save=no'),
+				regularWindow
+			)
+		).toBe(true);
+	});
+
+	it('disables saving in seamless mode', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/?mode=seamless'),
+				regularWindow
+			)
+		).toBe(true);
+	});
+
+	it('disables saving when embedded in another iframe', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/'),
+				embeddedWindow
+			)
+		).toBe(true);
+	});
+
+	it('treats inaccessible iframe parents as embedded', () => {
+		const crossOriginWindow = {
+			self: {},
+			get top() {
+				throw new Error('Cross-origin parent');
+			},
+		} as unknown as Window;
+
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/'),
+				crossOriginWindow
+			)
+		).toBe(true);
 	});
 });

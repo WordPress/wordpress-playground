@@ -192,14 +192,25 @@ export class PlaygroundRoute {
 }
 
 /**
- * Checks if the URL has a query parameter that disables saving.
- *
- * @returns {boolean} True if saving is disabled by the query parameter, false otherwise.
+ * Checks if the current Playground shell should offer browser saving.
  */
-export function isSaveDisabledByQueryParam(): boolean {
+export function isSiteSavingDisabled(
+	url: URL = new URL(document.location.href),
+	win: Window = window
+): boolean {
 	return (
-		new URL(document.location.href).searchParams.get('can-save') === 'no'
+		url.searchParams.get('can-save') === 'no' ||
+		url.searchParams.get('mode') === 'seamless' ||
+		isEmbeddedInAnIframe(win)
 	);
+}
+
+function isEmbeddedInAnIframe(win: Window): boolean {
+	try {
+		return win.self !== win.top;
+	} catch {
+		return true;
+	}
 }
 
 /**

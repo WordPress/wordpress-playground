@@ -22,7 +22,7 @@ import {
 	type OverlayViewMode,
 } from '../saved-playgrounds-overlay';
 import { SaveStatusIndicator } from './save-status-indicator';
-import { isSaveDisabledByQueryParam } from '../../lib/state/url/router';
+import { isSiteSavingDisabled } from '../../lib/state/url/router';
 
 const query = new URL(document.location.href).searchParams;
 const overlayParam = query.get('overlay');
@@ -93,7 +93,7 @@ export default function BrowserChrome({
 						/>
 					</div>
 
-					{!isSaveDisabledByQueryParam() && <SaveStatusIndicator />}
+					{!isSiteSavingDisabled() && <SaveStatusIndicator />}
 
 					<div className={css.toolbarButtons}>
 						<Button
