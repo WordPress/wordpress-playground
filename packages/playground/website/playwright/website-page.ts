@@ -69,9 +69,12 @@ export class WebsitePage {
 		).not.toBeVisible();
 	}
 
+	/**
+	 * Opens the Your Playgrounds overlay and waits for its content to render.
+	 */
 	async openSavedPlaygroundsOverlay() {
 		await this.page
-			.getByRole('button', { name: 'Saved Playgrounds' })
+			.getByRole('button', { name: 'Your Playgrounds' })
 			.click();
 		await expect(
 			this.page

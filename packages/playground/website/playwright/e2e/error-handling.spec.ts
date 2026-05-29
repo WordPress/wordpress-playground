@@ -44,7 +44,7 @@ test('should show download error modal when a resource download fails', async ({
 	// fetches the zip from downloads.wordpress.org via the CORS
 	// proxy, triggering the resource-download-failed error through
 	// the normal pipeline.
-	await page.goto('./?plugin=hello-dolly');
+	await page.goto('./?storage=temp&plugin=hello-dolly');
 
 	const title = page.getByText('Could not download required files');
 	await expect(title).toBeVisible();

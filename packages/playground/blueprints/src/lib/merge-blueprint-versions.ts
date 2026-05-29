@@ -15,12 +15,22 @@ export type BlueprintVersionOverrides = {
 };
 
 /**
+ * Resolves the default PHP version when neither an override nor the
+ * Blueprint declares one. The website uses this to infer a PHP version
+ * compatible with the resolved WordPress version (e.g. forcing 5.2 for
+ * WP < 5, or 7.4 for WP 5.0–6.2). When omitted, `RecommendedPHPVersion`
+ * is used unconditionally.
+ */
+export type ResolveDefaultPhpVersion = (wpVersion: string) => string;
+
+/**
  * Returns a new Blueprint declaration whose `preferredVersions` reflect
  * the standard precedence rule used by both the website and the CLI:
  *
- *     external override (query/flag) > blueprint's preferredVersions > hardcoded default
+ *     external override (query/flag) > blueprint's preferredVersions > default
  *
- * Defaults are `RecommendedPHPVersion` for PHP and `'latest'` for WordPress.
+ * Defaults are `'latest'` for WordPress, and `RecommendedPHPVersion` for PHP
+ * unless `resolveDefaultPhp` is provided.
  *
  * If the input Blueprint opts out of WordPress entirely via
  * `preferredVersions.wp === false` (a "PHP-only" Blueprint), the input is
@@ -30,20 +40,25 @@ export type BlueprintVersionOverrides = {
  */
 export function mergeBlueprintVersions(
 	blueprint: BlueprintV1Declaration,
-	overrides: BlueprintVersionOverrides
+	overrides: BlueprintVersionOverrides,
+	resolveDefaultPhp?: ResolveDefaultPhpVersion
 ): BlueprintV1Declaration {
 	if (blueprint.preferredVersions?.wp === false) {
 		return blueprint;
 	}
 
 	const existing = blueprint.preferredVersions;
+	const wp = overrides.wp || existing?.wp || 'latest';
+	const phpDefault = resolveDefaultPhp
+		? resolveDefaultPhp(wp)
+		: RecommendedPHPVersion;
 	return {
 		...blueprint,
 		preferredVersions: {
-			php: (overrides.php || existing?.php || RecommendedPHPVersion) as
+			php: (overrides.php || existing?.php || phpDefault) as
 				| BlueprintPHPVersion
 				| 'latest',
-			wp: overrides.wp || existing?.wp || 'latest',
+			wp,
 		},
 	};
 }

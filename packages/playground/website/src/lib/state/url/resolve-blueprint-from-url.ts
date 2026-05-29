@@ -15,6 +15,7 @@ import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
+import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
 
 export { decodeBlueprintHash };
 
@@ -236,10 +237,14 @@ function applyQueryOverridesToDeclaration(
 	if (blueprint.preferredVersions?.wp === false) {
 		return blueprint;
 	}
-	blueprint = mergeBlueprintVersions(blueprint, {
-		php: query.get('php') ?? undefined,
-		wp: query.get('wp') ?? undefined,
-	});
+	blueprint = mergeBlueprintVersions(
+		blueprint,
+		{
+			php: query.get('php') ?? undefined,
+			wp: query.get('wp') ?? undefined,
+		},
+		getDefaultPhpVersionForWordPress
+	);
 
 	// Features
 	if (!blueprint.features) {

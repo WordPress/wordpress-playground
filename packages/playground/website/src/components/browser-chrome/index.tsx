@@ -98,7 +98,7 @@ export default function BrowserChrome({
 					<div className={css.toolbarButtons}>
 						<Button
 							variant="browser-chrome"
-							aria-label="Saved Playgrounds"
+							aria-label="Your Playgrounds"
 							onClick={() => setIsPlaygroundsOverlayOpen(true)}
 							aria-expanded={isPlaygroundsOverlayOpen}
 							className={css.savedPlaygroundsButton}

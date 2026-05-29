@@ -153,6 +153,10 @@ export interface UIState {
 	activeModal: string | null;
 	siteSlugToRename?: string;
 	siteSlugToDelete?: string;
+	/**
+	 * Site the save modal operates on. Defaults to the active site when unset.
+	 */
+	siteSlugToSave?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -281,6 +285,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToDelete = action.payload;
 		},
+		setSiteSlugToSave: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToSave = action.payload;
+		},
 	},
 });
 
@@ -327,6 +337,7 @@ export const {
 	setSiteManagerSection,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
+	setSiteSlugToSave,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

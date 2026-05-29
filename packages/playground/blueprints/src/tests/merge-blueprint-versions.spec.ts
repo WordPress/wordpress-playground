@@ -87,6 +87,32 @@ describe('mergeBlueprintVersions', () => {
 		expect(blueprint).toEqual(snapshot);
 	});
 
+	it('uses resolveDefaultPhp to derive the PHP default from the resolved WP version', () => {
+		const result = mergeBlueprintVersions(
+			{ preferredVersions: { wp: '5.5' } } as BlueprintV1Declaration,
+			{},
+			(wp) => (parseFloat(wp) < 6.3 ? '7.4' : '8.3')
+		);
+		expect(result.preferredVersions).toEqual({ php: '7.4', wp: '5.5' });
+	});
+
+	it('skips resolveDefaultPhp when an override or blueprint already specifies PHP', () => {
+		const resolver = (_wp: string) => '7.4';
+		const blueprint: BlueprintV1Declaration = {
+			preferredVersions: { php: '8.2', wp: '5.5' },
+		};
+		expect(
+			mergeBlueprintVersions(blueprint, {}, resolver).preferredVersions
+		).toEqual({ php: '8.2', wp: '5.5' });
+		expect(
+			mergeBlueprintVersions(
+				{ preferredVersions: { wp: '5.5' } } as BlueprintV1Declaration,
+				{ php: '8.4' },
+				resolver
+			).preferredVersions
+		).toEqual({ php: '8.4', wp: '5.5' });
+	});
+
 	it('preserves unrelated blueprint fields', () => {
 		const blueprint: BlueprintV1Declaration = {
 			landingPage: '/wp-admin/',
