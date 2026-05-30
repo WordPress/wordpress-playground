@@ -368,6 +368,11 @@ await asyncSpawn(
 		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
 		'--build-arg',
+		// Keep web builds at the existing 64MB. Node builds can grow
+		// memory and the Studio profile passed at 16.5MB, so 32MB keeps
+		// the measured win with headroom for broader CLI workloads.
+		`INITIAL_MEMORY=${platform === 'node' ? '32MB' : '64MB'}`,
+		'--build-arg',
 		getArg('WITH_JSPI'),
 		'--build-arg',
 		getArg('WITH_OPCACHE'),

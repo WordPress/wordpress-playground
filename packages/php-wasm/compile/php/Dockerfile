@@ -132,6 +132,9 @@ ARG WITH_IMAGICK
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
 
+# Initial WebAssembly memory for the PHP main module.
+ARG INITIAL_MEMORY=64MB
+
 RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.emcc-php-wasm-sources && \
@@ -2420,7 +2423,7 @@ RUN set -euxo pipefail; \
 	-s EXPORTED_FUNCTIONS="@/root/.exported-functions" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
-	-s INITIAL_MEMORY=64MB \
+	-s INITIAL_MEMORY=${INITIAL_MEMORY} \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s STACK_SIZE="$STACK_SIZE" \
 	-s ASSERTIONS=0 \
