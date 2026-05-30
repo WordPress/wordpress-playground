@@ -21,7 +21,7 @@ import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
-import { spawnWorkerThread } from '../run-cli';
+import { spawnWorkerThread } from '../spawn-worker-thread';
 
 import type { Mount } from '@php-wasm/cli-util';
 
