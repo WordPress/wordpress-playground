@@ -1,4 +1,7 @@
-import { createObjectPoolProxy } from '../lib/object-pool-proxy';
+import {
+	createLazyObjectPoolProxy,
+	createObjectPoolProxy,
+} from '../lib/object-pool-proxy';
 
 describe('createPoolProxy', () => {
 	it('throws if no instances are provided', () => {
@@ -248,5 +251,41 @@ describe('createPoolProxy', () => {
 		const second = await proxy.value;
 
 		expect([first, second].sort()).toEqual(['a', 'b']);
+	});
+	it('creates lazy instances only when the ready instances are busy', async () => {
+		let releaseFirst!: () => void;
+		const first = {
+			run: vi.fn(
+				() =>
+					new Promise<string>((resolve) => {
+						releaseFirst = () => resolve('first');
+					})
+			),
+		};
+		const second = {
+			run: vi.fn(async () => 'second'),
+		};
+		const createInstance = vi.fn(async () => second);
+		const proxy = createLazyObjectPoolProxy([first], createInstance, 2);
+
+		const firstResult = proxy.run();
+		const secondResult = proxy.run();
+
+		expect(createInstance).toHaveBeenCalledTimes(1);
+		expect(await secondResult).toBe('second');
+		releaseFirst();
+		expect(await firstResult).toBe('first');
+	});
+
+	it('rejects lazy pools whose maximum is below the ready instance count', () => {
+		expect(() =>
+			createLazyObjectPoolProxy(
+				[{ run: vi.fn() }],
+				async () => ({
+					run: vi.fn(),
+				}),
+				0
+			)
+		).toThrow('maxInstances cannot be smaller than initialInstances');
 	});
 });

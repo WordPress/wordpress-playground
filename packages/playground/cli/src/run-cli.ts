@@ -1,7 +1,7 @@
 import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import { ProcessIdAllocator } from '@php-wasm/universal';
 import {
-	createObjectPoolProxy,
+	createLazyObjectPoolProxy,
 	type Pooled,
 	type PHPRequest,
 	type PathAlias,
@@ -1544,14 +1544,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			};
 
 			try {
-				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
-				for (
-					let workerIndex = 0;
-					workerIndex < targetWorkerCount;
-					workerIndex++
-				) {
-					const promiseToBoot = spawnWorkerThread(workerType, {
+				let nextWorkerIndex = 0;
+				const bootWorker = async (): Promise<
+					RemoteAPI<PlaygroundCliWorker>
+				> => {
+					const workerIndex = nextWorkerIndex++;
+					const spawnResult = await spawnWorkerThread(workerType, {
 						onExit: (exitCode: number) => {
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
@@ -1568,55 +1567,39 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							);
 							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 						},
-					}).then(
-						async (
-							spawnResult: SpawnedWorker
-						): Promise<
-							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
-						> => {
-							// Remember the worker process before booting the Playground
-							// so we can clean it up if there is an error during boot.
-							spawnedWorkers.push(spawnResult);
+					});
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-							const playgroundApi =
-								await handler.bootRequestHandler({
-									worker: spawnResult,
-									fileLockManagerPort,
-									nativeInternalDirPath,
-								});
+					// Remember the worker process before booting the Playground
+					// so we can clean it up if there is an error during boot.
+					spawnedWorkers.push(spawnResult);
 
-							workerToPlaygroundMap.set(
-								spawnResult,
-								playgroundApi
-							);
+					const fileLockManagerPort =
+						await exposeFileLockManager(fileLockManager);
+					const playgroundApi = await handler.bootRequestHandler({
+						worker: spawnResult,
+						fileLockManagerPort,
+						nativeInternalDirPath,
+					});
 
-							return [spawnResult, playgroundApi];
-						}
-					);
-
-					promisesToBoot.push(promiseToBoot);
-
-					// TODO: Remove this workaround after we remove the inherent race
-					// from @wp-playground/wordpress's bootRequestHandler() function.
-					if (workerIndex === 0) {
-						// Wait for the first worker to boot to avoid a race condition
-						// with writing initial PHP files in bootRequestHandler().
-						// This is the race condition:
-						// https://github.com/WordPress/wordpress-playground/blob/e758ee0893d199416a2d740195815234584b1b44/packages/playground/wordpress/src/boot.ts#L416-L426
-						// Multiple workers may detect that .boot-files-written does not exist
-						// and proceed to try to write initial boot files.
-						await promiseToBoot;
+					if (wordPressReady && workerType === 'v1') {
+						await playgroundApi.mountAfterWordPressInstall(
+							args['mount'] || []
+						);
 					}
-				}
 
-				await Promise.all(promisesToBoot);
-				playgroundPool = createObjectPoolProxy(
-					spawnedWorkers.map(
-						(spawnedWorker) =>
-							workerToPlaygroundMap.get(spawnedWorker)!
-					)
+					workerToPlaygroundMap.set(spawnResult, playgroundApi);
+
+					return playgroundApi;
+				};
+
+				// Boot only the first request worker up front. This preserves
+				// the existing single-writer WordPress boot behavior while
+				// leaving the rest of --workers as lazy capacity.
+				const firstPlayground = await bootWorker();
+				playgroundPool = createLazyObjectPoolProxy(
+					[firstPlayground],
+					bootWorker,
+					targetWorkerCount
 				);
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
@@ -1726,7 +1709,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				cliOutput.finishProgress();
-				cliOutput.printReady(serverUrl, targetWorkerCount);
+				cliOutput.printReady(serverUrl, targetWorkerCount, {
+					capacity: true,
+				});
 
 				if (args.phpmyadmin) {
 					const phpMyAdminPath = path.join(

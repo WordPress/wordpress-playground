@@ -48,14 +48,14 @@ export function createObjectPoolProxy<T extends object>(
 	const freeInstances: T[] = [...instances];
 	const waitQueue: Array<(instance: T) => void> = [];
 
-	function acquire(): Promise<T> {
+	function acquire(): Promise<AcquiredInstance<T>> {
 		const free = freeInstances.shift();
 		if (free !== undefined) {
-			return Promise.resolve(free);
+			return Promise.resolve(wrapAcquiredInstance(free, release));
 		}
 		return new Promise<T>((resolve) => {
 			waitQueue.push(resolve);
-		});
+		}).then((instance) => wrapAcquiredInstance(instance, release));
 	}
 
 	function release(instance: T): void {
@@ -67,19 +67,91 @@ export function createObjectPoolProxy<T extends object>(
 		}
 	}
 
+	return createObjectPoolProxyFromAcquire(acquire);
+}
+
+/**
+ * Creates a pool proxy that starts with a small ready set and creates more
+ * instances only when all ready instances are already checked out.
+ */
+export function createLazyObjectPoolProxy<T extends object>(
+	initialInstances: T[],
+	createInstance: () => Promise<T>,
+	maxInstances: number
+): Pooled<T> {
+	if (initialInstances.length === 0) {
+		throw new Error('At least one instance is required');
+	}
+	if (maxInstances < initialInstances.length) {
+		throw new Error('maxInstances cannot be smaller than initialInstances');
+	}
+
+	const freeInstances: T[] = [...initialInstances];
+	const waitQueue: Array<(instance: T) => void> = [];
+	let instanceCount = initialInstances.length;
+
+	async function acquire(): Promise<AcquiredInstance<T>> {
+		const free = freeInstances.shift();
+		if (free !== undefined) {
+			return wrapAcquiredInstance(free, release);
+		}
+		if (instanceCount < maxInstances) {
+			instanceCount++;
+			try {
+				return wrapAcquiredInstance(await createInstance(), release);
+			} catch (e) {
+				instanceCount--;
+				throw e;
+			}
+		}
+		return new Promise<T>((resolve) => {
+			waitQueue.push(resolve);
+		}).then((instance) => wrapAcquiredInstance(instance, release));
+	}
+
+	function release(instance: T): void {
+		const waiter = waitQueue.shift();
+		if (waiter) {
+			waiter(instance);
+		} else {
+			freeInstances.push(instance);
+		}
+	}
+
+	return createObjectPoolProxyFromAcquire(acquire);
+}
+
+type AcquiredInstance<T extends object> = {
+	instance: T;
+	release: () => void;
+};
+
+function wrapAcquiredInstance<T extends object>(
+	instance: T,
+	release: (instance: T) => void
+): AcquiredInstance<T> {
+	return {
+		instance,
+		release: () => release(instance),
+	};
+}
+
+function createObjectPoolProxyFromAcquire<T extends object>(
+	acquire: () => Promise<AcquiredInstance<T>>
+): Pooled<T> {
 	function withInstance<R>(fn: (instance: T) => R | Promise<R>): Promise<R> {
-		return acquire().then((instance) => {
+		return acquire().then(({ instance, release }) => {
 			const releaseWhenComplete = (value: R): R => {
 				// `.finished` means this is a streamed response class.
 				// Keep the instance checked out until streaming settles.
 				const finished = (value as any)?.finished;
 				if (finished && typeof finished.then === 'function') {
 					Promise.resolve(finished).then(
-						() => release(instance),
-						() => release(instance)
+						() => release(),
+						() => release()
 					);
 				} else {
-					release(instance);
+					release();
 				}
 				return value;
 			};
@@ -88,14 +160,14 @@ export function createObjectPoolProxy<T extends object>(
 			try {
 				result = fn(instance);
 			} catch (e) {
-				release(instance);
+				release();
 				throw e;
 			}
 			if (result != null && typeof (result as any).then === 'function') {
 				return (result as Promise<R>).then(
 					(val) => releaseWhenComplete(val),
 					(err) => {
-						release(instance);
+						release();
 						throw err;
 					}
 				);

@@ -219,12 +219,19 @@ export class CLIOutput extends BaseCLIOutput {
 	 * Note: The exact wording "WordPress is running on" is checked by
 	 * CI tests, so changes to this string will break test assertions.
 	 */
-	printReady(url: string, workerCount: number): void {
+	printReady(
+		url: string,
+		workerCount: number,
+		{ capacity = false }: { capacity?: boolean } = {}
+	): void {
 		if (this.isQuiet) return;
 
 		const workerLabel = workerCount === 1 ? 'worker' : 'workers';
+		const workerDescription = capacity
+			? `${workerCount} ${workerLabel} capacity`
+			: `${workerCount} ${workerLabel}`;
 		this.writeStream.write(
-			`\n${this.green('Ready!')} WordPress is running on ${this.bold(url)} ${this.dim(`(${workerCount} ${workerLabel})`)}\n\n`
+			`\n${this.green('Ready!')} WordPress is running on ${this.bold(url)} ${this.dim(`(${workerDescription})`)}\n\n`
 		);
 	}
 
