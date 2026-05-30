@@ -310,7 +310,21 @@ export async function bootWordPress(
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
-		if (!(await isWordPressInstalled(php))) {
+		let bootStatus: WordPressBootStatus;
+		try {
+			bootStatus = await getWordPressBootStatus(php, {
+				checkDatabaseConnection: !hasCustomDatabasePath,
+			});
+		} catch (error) {
+			if (
+				!hasCustomDatabasePath &&
+				error instanceof UnexpectedWordPressBootStatusError
+			) {
+				await throwDatabaseConnectionError(requestHandler, php);
+			}
+			throw error;
+		}
+		if (!bootStatus.isWordPressInstalled) {
 			// Install WordPress if it's not installed.
 			try {
 				await installWordPress(php);
@@ -323,10 +337,15 @@ export async function bootWordPress(
 				// If we get here, the database is valid but installation failed for another reason
 				throw error;
 			}
-		}
-		// Validate the database connection after installation (skip if user provided custom DB path)
-		if (!hasCustomDatabasePath) {
-			await assertValidDatabaseConnection(requestHandler);
+			// Validate the database connection after installation (skip if user provided custom DB path)
+			if (!hasCustomDatabasePath) {
+				await assertValidDatabaseConnection(requestHandler);
+			}
+		} else if (
+			!hasCustomDatabasePath &&
+			!bootStatus.isDatabaseConnectionValid
+		) {
+			await throwDatabaseConnectionError(requestHandler);
 		}
 	}
 
@@ -338,10 +357,27 @@ async function assertValidDatabaseConnection(
 ) {
 	const php = await requestHandler.getPrimaryPhp();
 	// Check if the database connection (MySQL or SQLite) is up and running.
-	const validConnection = await isDatabaseConnectionValid(php);
+	let validConnection: boolean;
+	try {
+		validConnection = await isDatabaseConnectionValid(php);
+	} catch (error) {
+		if (error instanceof UnexpectedWordPressBootStatusError) {
+			await throwDatabaseConnectionError(requestHandler, php);
+		}
+		throw error;
+	}
 	if (validConnection) {
 		return;
 	}
+
+	await throwDatabaseConnectionError(requestHandler, php);
+}
+
+async function throwDatabaseConnectionError(
+	requestHandler: PHPRequestHandler,
+	php?: PHP
+) {
+	php ??= await requestHandler.getPrimaryPhp();
 
 	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
 		// The core SQLite integration has been installed, but the database connection is not valid.
@@ -509,24 +545,67 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
  * @returns True if WordPress is installed, false otherwise.
  */
 export async function isWordPressInstalled(php: PHP) {
+	return (
+		await getWordPressBootStatus(php, { checkDatabaseConnection: false })
+	).isWordPressInstalled;
+}
+
+type WordPressBootStatus = {
+	isWordPressInstalled: boolean;
+	isDatabaseConnectionValid: boolean;
+};
+
+class UnexpectedWordPressBootStatusError extends Error {}
+
+async function getWordPressBootStatus(
+	php: PHP,
+	{ checkDatabaseConnection }: { checkDatabaseConnection: boolean }
+): Promise<WordPressBootStatus> {
 	const result = await php.run({
 		code: `<?php
 			ob_start();
 			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
 			if (!file_exists($wp_load)) {
-				echo '-1';
+				echo "-1\\n-1";
 				exit;
 			}
 			require $wp_load;
+			$is_installed = is_blog_installed();
 			ob_clean();
-			echo is_blog_installed() ? '1' : '0';
+			echo $is_installed ? '1' : '0';
+			echo "\\n";
+			if (getenv('CHECK_DATABASE_CONNECTION') === '1' && $is_installed) {
+				echo $wpdb->check_connection(false) ? '1' : '0';
+			} else {
+				echo '-1';
+			}
 			ob_end_flush();
 		`,
 		env: {
+			CHECK_DATABASE_CONNECTION: checkDatabaseConnection ? '1' : '0',
 			DOCUMENT_ROOT: php.documentRoot,
 		},
 	});
-	return result.text === '1';
+
+	const bootStatusResponse = result.text?.trim() ?? '';
+	const bootStatusFlags = bootStatusResponse.split('\n');
+	const [isWordPressInstalled, isDatabaseConnectionValid] = bootStatusFlags;
+	if (
+		bootStatusFlags.length !== 2 ||
+		!['-1', '0', '1'].includes(isWordPressInstalled) ||
+		!['-1', '0', '1'].includes(isDatabaseConnectionValid)
+	) {
+		throw new UnexpectedWordPressBootStatusError(
+			`Unexpected WordPress boot status response: ${JSON.stringify(
+				bootStatusResponse.slice(0, 100)
+			)}`
+		);
+	}
+
+	return {
+		isWordPressInstalled: isWordPressInstalled === '1',
+		isDatabaseConnectionValid: isDatabaseConnectionValid === '1',
+	};
 }
 
 /**
@@ -619,22 +698,7 @@ export function getFileNotFoundActionForWordPress(
 }
 
 async function isDatabaseConnectionValid(php: PHP) {
-	const result = await php.run({
-		code: `<?php
-			ob_start();
-			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-			if (!file_exists($wp_load)) {
-				echo '-1';
-				exit;
-			}
-			require $wp_load;
-			ob_clean();
-			echo $wpdb->check_connection( false ) ? '1' : '0';
-			ob_end_flush();
-		`,
-		env: {
-			DOCUMENT_ROOT: php.documentRoot,
-		},
-	});
-	return result.text === '1';
+	return (
+		await getWordPressBootStatus(php, { checkDatabaseConnection: true })
+	).isDatabaseConnectionValid;
 }
