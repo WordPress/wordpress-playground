@@ -1546,12 +1546,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			try {
 				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
+				const precompiledWasmModule = await compilePHPWasmModule(
+					args.php || RecommendedPHPVersion
+				);
+				const workerData = { precompiledWasmModule };
 				for (
 					let workerIndex = 0;
 					workerIndex < targetWorkerCount;
 					workerIndex++
 				) {
 					const promiseToBoot = spawnWorkerThread(workerType, {
+						workerData,
 						onExit: (exitCode: number) => {
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
@@ -1840,6 +1845,22 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	return server;
 }
 
+async function compilePHPWasmModule(
+	phpVersion: AllPHPVersion
+): Promise<WebAssembly.Module> {
+	const { getPHPLoaderModule } = await import('@php-wasm/node');
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+	if (!phpLoaderModule.dependencyFilename) {
+		throw new Error(
+			`Cannot precompile PHP ${phpVersion}: wasm dependency filename is missing.`
+		);
+	}
+	const wasmBytes = await fs.promises.readFile(
+		phpLoaderModule.dependencyFilename
+	);
+	return await WebAssembly.compile(wasmBytes);
+}
+
 /**
  * Transforms CLI args for the `start` command into the `server` command arguments.
  *
@@ -1963,6 +1984,10 @@ export type SpawnedWorker = {
 	phpPort: NodeMessagePort;
 };
 
+export type PlaygroundCliWorkerData = {
+	precompiledWasmModule?: WebAssembly.Module;
+};
+
 /**
  * A statically analyzable function that spawns a worker thread of a given type.
  *
@@ -1976,7 +2001,13 @@ export type SpawnedWorker = {
  */
 export function spawnWorkerThread(
 	workerType: 'v1' | 'v2',
-	{ onExit }: { onExit?: (code: number) => void } = {}
+	{
+		onExit,
+		workerData,
+	}: {
+		onExit?: (code: number) => void;
+		workerData?: PlaygroundCliWorkerData;
+	} = {}
 ) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
@@ -1992,10 +2023,17 @@ export function spawnWorkerThread(
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
 	let worker: Worker;
+	const workerOptions = workerData === undefined ? undefined : { workerData };
 	if (workerType === 'v1') {
-		worker = new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
+		worker = new Worker(
+			new URL(__WORKER_V1_URL__, import.meta.url),
+			workerOptions
+		);
 	} else {
-		worker = new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
+		worker = new Worker(
+			new URL(__WORKER_V2_URL__, import.meta.url),
+			workerOptions
+		);
 	}
 
 	return new Promise<SpawnedWorker>((resolve, reject) => {

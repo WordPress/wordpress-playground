@@ -57,6 +57,12 @@ export interface PHPLoaderOptions {
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	/**
+	 * Precompiled PHP WebAssembly module. When provided, the runtime can skip
+	 * compiling the same PHP binary again inside this Node.js process.
+	 */
+	precompiledWasmModule?: WebAssembly.Module;
+
+	/**
 	 * A file lock manager to coordinate file locks between
 	 * multiple php-wasm instances and other OS processes.
 	 */
@@ -357,6 +363,23 @@ export async function loadNodeRuntime(
 			phpRuntime.FS.root.mount.opts.root = '.';
 		},
 	};
+
+	if (options.precompiledWasmModule) {
+		if (emscriptenOptions.instantiateWasm) {
+			throw new Error(
+				'precompiledWasmModule cannot be used with a custom instantiateWasm option.'
+			);
+		}
+		const precompiledWasmModule = options.precompiledWasmModule;
+		emscriptenOptions.instantiateWasm = (imports, receiveInstance) => {
+			WebAssembly.instantiate(precompiledWasmModule, imports).then(
+				(instance) => {
+					receiveInstance(instance, precompiledWasmModule);
+				}
+			);
+			return undefined;
+		};
+	}
 
 	if (isLegacy && requestedExtensions.length) {
 		throw new Error(

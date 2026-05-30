@@ -46,14 +46,25 @@ import {
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import { type RunCLIArgs, spawnWorkerThread } from '../run-cli';
+import {
+	MessageChannel,
+	type MessagePort,
+	parentPort,
+	workerData,
+} from 'worker_threads';
+import {
+	type PlaygroundCliWorkerData,
+	type RunCLIArgs,
+	spawnWorkerThread,
+} from '../run-cli';
 import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
 } from '@wp-playground/wordpress';
 import { shouldRenderProgress } from '../utils/progress';
 import type { Mount } from '@php-wasm/cli-util';
+
+const playgroundCliWorkerData = (workerData ?? {}) as PlaygroundCliWorkerData;
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -466,6 +477,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				createPhpRuntime: async () => {
 					return await loadNodeRuntime(phpVersion, {
 						fileLockManager: this.fileLockManager!,
+						precompiledWasmModule:
+							playgroundCliWorkerData.precompiledWasmModule,
 						emscriptenOptions: {
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
@@ -567,7 +580,9 @@ async function createPHPWorker(
 	Omit<SecondaryWorkerBootArgs, 'processId'>,
 	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
 ) {
-	const spawnedWorker = await spawnWorkerThread('v2');
+	const spawnedWorker = await spawnWorkerThread('v2', {
+		workerData: playgroundCliWorkerData,
+	});
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(
 		spawnedWorker.phpPort
