@@ -1,17 +1,20 @@
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import type {
+	Emscripten,
 	EmscriptenOptions,
 	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
-	withResolvedPHPExtensions,
+	PHP_EXTENSIONS_DIR,
+	installPHPExtensionFilesSync,
 	resolvePHPExtension,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import fs from 'fs';
 import path from 'path';
+import { dirname, joinPaths } from '@php-wasm/util';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 import { getMemcachedExtensionModule } from './memcached/get-memcached-extension-module';
 import { getRedisExtensionModule } from './redis/get-redis-extension-module';
@@ -107,7 +110,156 @@ export async function withPHPExtensions(
 			resolveRuntimePHPExtension(version, asyncMode, extension)
 		)
 	);
-	return withResolvedPHPExtensions(options, resolvedExtensions);
+	return withResolvedNodePHPExtensions(options, resolvedExtensions);
+}
+
+interface NodeFilesystemPHPExtension {
+	soPath: string;
+	soHostPath: string;
+	iniPath?: string;
+	iniContent?: string;
+	extraFiles?: ResolvedInstallOptions['extraFiles'];
+	env?: Record<string, string>;
+	extensionDir: string;
+}
+
+type ResolvedNodePHPExtension =
+	| ResolvedPHPExtension
+	| NodeFilesystemPHPExtension;
+
+function withResolvedNodePHPExtensions(
+	options: EmscriptenOptions,
+	extensions: ResolvedNodePHPExtension[]
+): EmscriptenOptions {
+	if (!extensions.length) {
+		return options;
+	}
+	const env = { ...options.ENV };
+	for (const extension of extensions) {
+		Object.assign(env, extension.env);
+		if (!extension.iniPath) {
+			continue;
+		}
+		const paths = env['PHP_INI_SCAN_DIR']?.split(':') ?? [];
+		if (!paths.includes(extension.extensionDir)) {
+			paths.push(extension.extensionDir);
+			env['PHP_INI_SCAN_DIR'] = paths.join(':');
+		}
+	}
+	const preRun = options['preRun'] ?? [];
+	return {
+		...options,
+		ENV: env,
+		['preRun']: [
+			...preRun,
+			(phpRuntime: { FS: any }) => {
+				for (const extension of extensions) {
+					if ('soBytes' in extension) {
+						installPHPExtensionFilesSync(phpRuntime.FS, extension);
+					} else {
+						installNodeFilesystemExtensionFilesSync(
+							phpRuntime.FS,
+							extension
+						);
+					}
+				}
+			},
+		],
+	};
+}
+
+function createNodeFilesystemExtension(options: {
+	name: BuiltInPHPExtensionName;
+	hostPath: string;
+	loadWithIniDirective?: 'extension' | 'zend_extension';
+	iniEntries?: Record<string, string>;
+	extraFiles?: ResolvedInstallOptions['extraFiles'];
+	env?: Record<string, string>;
+}): NodeFilesystemPHPExtension {
+	const extensionDir = PHP_EXTENSIONS_DIR;
+	const soPath = joinPaths(extensionDir, `${options.name}.so`);
+	return {
+		soPath,
+		soHostPath: options.hostPath,
+		iniPath: joinPaths(extensionDir, `${options.name}.ini`),
+		iniContent: createExtensionIniContent({
+			directive: options.loadWithIniDirective ?? 'extension',
+			soPath,
+			iniEntries: options.iniEntries,
+		}),
+		extraFiles: options.extraFiles,
+		env: options.env,
+		extensionDir,
+	};
+}
+
+function createExtensionIniContent(options: {
+	directive: 'extension' | 'zend_extension';
+	soPath: string;
+	iniEntries?: Record<string, string>;
+}): string {
+	const lines = [`${options.directive}=${options.soPath}`];
+	for (const [key, value] of Object.entries(options.iniEntries ?? {})) {
+		lines.push(`${key}=${value}`);
+	}
+	return lines.join('\n');
+}
+
+function installNodeFilesystemExtensionFilesSync(
+	FS: Emscripten.RootFS,
+	extension: NodeFilesystemPHPExtension
+) {
+	mountHostFile(FS, extension.soHostPath, extension.soPath);
+	if (extension.iniPath && extension.iniContent !== undefined) {
+		mkdirIfMissing(FS, dirname(extension.iniPath));
+		FS.writeFile(extension.iniPath, extension.iniContent);
+	}
+	if (extension.extraFiles) {
+		const { directories = [], files } = extension.extraFiles;
+		for (const directory of directories) {
+			mkdirIfMissing(FS, directory);
+		}
+		for (const [path, content] of Object.entries(files)) {
+			mkdirIfMissing(FS, dirname(path));
+			FS.writeFile(path, content);
+		}
+	}
+}
+
+function mountHostFile(
+	FS: Emscripten.RootFS,
+	hostPath: string,
+	vfsPath: string
+) {
+	mkdirIfMissing(FS, dirname(vfsPath));
+	if (!fileExists(FS, vfsPath)) {
+		// Emscripten's mount point must exist before NODEFS can replace it.
+		FS.writeFile(vfsPath, '');
+	}
+	FS.mount(
+		FS.filesystems['NODEFS'],
+		{ root: fs.realpathSync(hostPath) },
+		vfsPath
+	);
+}
+
+function mkdirIfMissing(FS: Emscripten.RootFS, path: string) {
+	if (!fileExists(FS, path)) {
+		FS.mkdirTree(path);
+	}
+}
+
+function fileExists(FS: Emscripten.RootFS, path: string): boolean {
+	try {
+		FS.lookupPath(path);
+		return true;
+	} catch (e) {
+		const error = e as Emscripten.FS.ErrnoError;
+		if (error.errno === 44) {
+			return false;
+		}
+		throw e;
+	}
 }
 
 /**
@@ -134,7 +286,7 @@ async function resolveRuntimePHPExtension(
 	version: SupportedPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	extension: PHPExtension
-): Promise<ResolvedPHPExtension> {
+): Promise<ResolvedNodePHPExtension> {
 	/*
 	 * External extension requests always carry a `source`. Built-in extension
 	 * requests are either strings or `{ name }` objects. This shape check lets
@@ -161,32 +313,24 @@ async function resolveRuntimePHPExtension(
 	switch (builtIn.name) {
 		case 'intl': {
 			const extensionPath = await getIntlExtensionModule(version);
-			const soBytes = new Uint8Array(fs.readFileSync(extensionPath));
-
 			const dataName = 'icu.dat';
 			const moduleDir =
 				typeof __dirname !== 'undefined'
 					? __dirname
 					: import.meta.dirname;
-			const ICUData = fs.readFileSync(
-				resolveIntlDataPath(moduleDir, dataName)
-			);
-
-			return await resolvePHPExtension({
-				source: {
-					format: 'so',
-					name: 'intl',
-					bytes: soBytes,
-				},
-				phpVersion: version,
+			const dataPath = resolveIntlDataPath(moduleDir, dataName);
+			return createNodeFilesystemExtension({
+				name: 'intl',
+				hostPath: extensionPath,
 				env: {
 					ICU_DATA: '/internal/shared',
 				},
 				extraFiles: {
 					files: {
+						// Keep ICU data in MEMFS so PROXYFS callers can share it.
 						// The Intl extension looks for the hard-coded ICU data name.
 						'/internal/shared/icudt74l.dat': new Uint8Array(
-							ICUData
+							fs.readFileSync(dataPath)
 						),
 					},
 				},
@@ -194,48 +338,38 @@ async function resolveRuntimePHPExtension(
 		}
 		case 'redis': {
 			const extensionPath = await getRedisExtensionModule(version);
-			return await resolvePHPExtension({
-				source: {
-					format: 'so',
-					name: 'redis',
-					bytes: new Uint8Array(fs.readFileSync(extensionPath)),
-				},
-				phpVersion: version,
+			return createNodeFilesystemExtension({
+				name: 'redis',
+				hostPath: extensionPath,
 			});
 		}
 		case 'memcached': {
 			const extensionPath = await getMemcachedExtensionModule(version);
-			return await resolvePHPExtension({
-				source: {
-					format: 'so',
-					name: 'memcached',
-					bytes: new Uint8Array(fs.readFileSync(extensionPath)),
-				},
-				phpVersion: version,
+			return createNodeFilesystemExtension({
+				name: 'memcached',
+				hostPath: extensionPath,
 			});
 		}
 		case 'xdebug': {
 			const xdebugOptions = builtIn.options ?? {};
-			const filePath = await getXdebugExtensionModule(version);
 			const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
+			const extensionPath = await getXdebugExtensionModule(version);
+			const iniEntries = {
+				'xdebug.mode': 'debug,develop',
+				'xdebug.start_with_request': 'yes',
+				'xdebug.idekey': `"${ideKey}"`,
+				// Path mapping is only available starting from Xdebug 3.5,
+				// which is used by PHP 8.5+. Previous versions ignore it.
+				'xdebug.path_mapping': 'yes',
+			};
+			const extraFiles = resolveXdebugExtraFiles(version, xdebugOptions);
 
-			return await resolvePHPExtension({
-				source: {
-					format: 'so',
-					name: 'xdebug',
-					bytes: new Uint8Array(fs.readFileSync(filePath)),
-				},
-				phpVersion: version,
+			return createNodeFilesystemExtension({
+				name: 'xdebug',
+				hostPath: extensionPath,
 				loadWithIniDirective: 'zend_extension',
-				iniEntries: {
-					'xdebug.mode': 'debug,develop',
-					'xdebug.start_with_request': 'yes',
-					'xdebug.idekey': `"${ideKey}"`,
-					// Path mapping is only available starting from Xdebug 3.5,
-					// which is used by PHP 8.5+. Previous versions ignore it.
-					'xdebug.path_mapping': 'yes',
-				},
-				extraFiles: resolveXdebugExtraFiles(version, xdebugOptions),
+				iniEntries,
+				extraFiles,
 			});
 		}
 		default:
