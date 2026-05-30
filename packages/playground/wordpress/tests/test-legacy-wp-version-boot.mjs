@@ -2,18 +2,19 @@
  * Tests that legacy and mid-modern WordPress versions boot
  * successfully through Playground's wordpress.org download path:
  *
- *   - WP 1.0 – 4.9 on PHP 5.2 (legacy SQLite driver)
+ *   - WP 0.7 – 4.9 on PHP 5.2 (legacy SQLite driver)
  *   - WP 5.0 – 6.2 on PHP 7.4 (modern SQLite driver)
  *
  * Pre-built bundled WP (6.3+) has its own coverage elsewhere.
  *
- * Each version is exercised through five phases:
+ * Each version is exercised through six phases:
  *
  *   1. Front page loads with "Hello world!"
- *   2. wp-admin dashboard loads (auto-login works)
- *   3. Clicking a post title loads the single post (pretty permalinks)
+ *   2. Clicking a post title loads the single post (pretty permalinks)
+ *   3. wp-admin dashboard loads (auto-login works)
  *   4. Creating a new post page loads (nonces work)
  *   5. Activating a plugin works (Hello Dolly)
+ *   6. Logging out disables automatic re-login where tested
  *
  * All failures are hard errors: the job should honestly reflect the
  * state of legacy WordPress support.
@@ -80,6 +81,7 @@ const WP_VERSIONS = [
 	{ wp: '1.5', php: '5.2' },
 	{ wp: '1.2', php: '5.2' },
 	{ wp: '1.0', php: '5.2' },
+	{ wp: '0.7', php: '5.2' },
 ];
 
 const PORT = 5400;
@@ -129,8 +131,11 @@ async function waitForWPFrame(page, timeoutSeconds, opts = {}) {
  * if found, null otherwise. The returned string is not truncated —
  * callers decide how much to display.
  */
-function findPHPError(body) {
+function findPHPError(body, { includeWarnings = false } = {}) {
 	const errorPatterns = ['Parse error', 'Fatal error', 'database error'];
+	if (includeWarnings) {
+		errorPatterns.push('Warning:');
+	}
 	for (const pattern of errorPatterns) {
 		if (body.includes(pattern)) {
 			const line = body
@@ -317,12 +322,21 @@ function hasAdminIndicator(body) {
 	return ADMIN_INDICATORS.some((ind) => body.includes(ind));
 }
 
-// WP < 2.5 uses post.php for new posts; 2.5+ uses post-new.php.
-// WP 1.0-2.0 render the "new post" form via wp-admin/post.php's
-// default case. WP 2.1 introduced wp-admin/post-new.php and made
-// post.php redirect to edit.php, so the new-post form lives at
-// post-new.php from 2.1 onward (just like modern WordPress).
+/**
+ * Checks whether body text contains the b2-era login form.
+ */
+function hasB2LoginForm(body) {
+	return body.includes('Login:') && body.includes('Password:');
+}
+
+// WP < 2.5 uses older entry points for new posts; 2.5+ uses post-new.php.
+// WP 0.7 renders the form from b2edit.php. WP 1.0-2.0 render it via
+// wp-admin/post.php's default case. WP 2.1 introduced wp-admin/post-new.php.
+const NEW_POST_URL_BY_VERSION = new Map([['0.7', '/wp-admin/b2edit.php']]);
+const ADMIN_AUTO_LOGIN_URL_BY_VERSION = new Map([['0.7', '/b2login.php']]);
 const NEW_POST_URL_VERSIONS = new Set(['1.0', '1.2', '1.5', '2.0']);
+const NO_PLUGIN_SUPPORT_VERSIONS = new Set(['0.7']);
+const LOGOUT_SUPPORT_VERSIONS = new Set(['0.7']);
 
 // Optional filter for local runs: WP_ONLY=6.2,6.1,5.9 to test a subset.
 const WP_ONLY = process.env.WP_ONLY
@@ -371,6 +385,10 @@ const browser = await chromium.launch({
 });
 
 for (const { wp, php } of MATRIX) {
+	// Treat PHP warnings as hard errors only for WP 0.7: it's the newest,
+	// most fragile target where any warning likely signals a broken shim.
+	// Older versions emit benign deprecation/notice noise we don't fail on.
+	const includePHPWarnings = wp === '0.7';
 	const label = `WP ${wp} (PHP ${php})`;
 	process.stdout.write(`${label}... `);
 
@@ -391,6 +409,7 @@ for (const { wp, php } of MATRIX) {
 	let postStatus = null;
 	let newPostStatus = null;
 	let pluginStatus = null;
+	let logoutStatus = null;
 
 	try {
 		await page.goto(url, {
@@ -421,7 +440,9 @@ for (const { wp, php } of MATRIX) {
 				detail: lastError,
 			};
 		} else {
-			const error = findPHPError(wp1.body);
+			const error = findPHPError(wp1.body, {
+				includeWarnings: includePHPWarnings,
+			});
 			if (error) {
 				frontStatus = {
 					status: 'ERROR',
@@ -512,6 +533,8 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 3: Admin dashboard (auto-login) ---
 		if (frontStatus.status === 'OK' || frontStatus.status === 'PARTIAL') {
 			try {
+				const adminAutoLoginUrl =
+					ADMIN_AUTO_LOGIN_URL_BY_VERSION.get(wp) ?? '/wp-admin/';
 				// Retry once on timeout — modern WP admin occasionally
 				// hangs the first /wp-admin/ load on shared CI runners
 				// (see the long-standing admin-phase flake across runs
@@ -519,19 +542,21 @@ for (const { wp, php } of MATRIX) {
 				// URL bar almost always unblocks it.
 				let wp2 = await navigateViaUrlBar(
 					page,
-					'/wp-admin/',
+					adminAutoLoginUrl,
 					TIMEOUT_S
 				);
 				if (!wp2) {
 					wp2 = await navigateViaUrlBar(
 						page,
-						'/wp-admin/',
+						adminAutoLoginUrl,
 						TIMEOUT_S
 					);
 				}
 				if (
 					wp2 &&
-					!findPHPError(wp2.body) &&
+					!findPHPError(wp2.body, {
+						includeWarnings: includePHPWarnings,
+					}) &&
 					!hasAdminIndicator(wp2.body)
 				) {
 					const settled = await waitForWPFrame(page, 30, {
@@ -544,7 +569,9 @@ for (const { wp, php } of MATRIX) {
 				if (!wp2) {
 					adminStatus = { status: 'TIMEOUT' };
 				} else {
-					const error = findPHPError(wp2.body);
+					const error = findPHPError(wp2.body, {
+						includeWarnings: includePHPWarnings,
+					});
 					if (error) {
 						adminStatus = {
 							status: 'ERROR',
@@ -585,9 +612,11 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 4: New post page (nonce check) ---
 		if (adminStatus && adminStatus.status === 'OK') {
 			try {
-				const newPostPath = NEW_POST_URL_VERSIONS.has(wp)
-					? '/wp-admin/post.php'
-					: '/wp-admin/post-new.php';
+				const newPostPath =
+					NEW_POST_URL_BY_VERSION.get(wp) ??
+					(NEW_POST_URL_VERSIONS.has(wp)
+						? '/wp-admin/post.php'
+						: '/wp-admin/post-new.php');
 				const consoleStartIndex = consoleErrors.length;
 				const wp3 = await navigateViaUrlBar(page, newPostPath, 30);
 				if (!wp3) {
@@ -611,7 +640,13 @@ for (const { wp, php } of MATRIX) {
 						.innerText({ timeout: 2000 })
 						.catch(() => wp3.body);
 
-					const error = findPHPError(bodyText) || findPHPError(html);
+					const error =
+						findPHPError(bodyText, {
+							includeWarnings: includePHPWarnings,
+						}) ||
+						findPHPError(html, {
+							includeWarnings: includePHPWarnings,
+						});
 
 					const bad =
 						bodyText.includes('Are you sure') ||
@@ -675,7 +710,12 @@ for (const { wp, php } of MATRIX) {
 		}
 
 		// --- Phase 5: Plugin activation ---
-		if (adminStatus && adminStatus.status === 'OK') {
+		if (NO_PLUGIN_SUPPORT_VERSIONS.has(wp)) {
+			pluginStatus = {
+				status: 'SKIP',
+				detail: 'plugins predate this WordPress release',
+			};
+		} else if (adminStatus && adminStatus.status === 'OK') {
 			try {
 				const wp4 = await navigateViaUrlBar(
 					page,
@@ -767,6 +807,75 @@ for (const { wp, php } of MATRIX) {
 		} else {
 			pluginStatus = { status: 'SKIP', detail: 'admin failed' };
 		}
+
+		// --- Phase 6: Logout guard ---
+		if (!LOGOUT_SUPPORT_VERSIONS.has(wp)) {
+			logoutStatus = {
+				status: 'SKIP',
+				detail: 'logout guard not tested for this version',
+			};
+		} else if (adminStatus && adminStatus.status === 'OK') {
+			try {
+				const wp5 = await navigateViaUrlBar(
+					page,
+					'/b2login.php?action=logout',
+					30
+				);
+				if (!wp5) {
+					logoutStatus = { status: 'TIMEOUT' };
+				} else {
+					const error = findPHPError(wp5.body, {
+						includeWarnings: includePHPWarnings,
+					});
+					const wrongPassword = wp5.body.includes(
+						'Error: wrong login/password'
+					);
+					if (error) {
+						logoutStatus = {
+							status: 'ERROR',
+							detail: error,
+							body: wp5.body,
+						};
+					} else if (
+						!hasB2LoginForm(wp5.body) ||
+						wrongPassword ||
+						hasAdminIndicator(wp5.body)
+					) {
+						logoutStatus = {
+							status: 'UNKNOWN',
+							detail: wp5.body.slice(0, 120).replace(/\n/g, ' '),
+							body: wp5.body,
+						};
+					} else {
+						const guardedAdmin = await navigateViaUrlBar(
+							page,
+							'/wp-admin/',
+							30
+						);
+						if (
+							guardedAdmin &&
+							hasB2LoginForm(guardedAdmin.body) &&
+							!hasAdminIndicator(guardedAdmin.body)
+						) {
+							logoutStatus = { status: 'OK' };
+						} else {
+							logoutStatus = {
+								status: guardedAdmin ? 'UNKNOWN' : 'TIMEOUT',
+								detail:
+									guardedAdmin?.body
+										.slice(0, 120)
+										.replace(/\n/g, ' ') || '',
+								body: guardedAdmin?.body,
+							};
+						}
+					}
+				}
+			} catch (e) {
+				logoutStatus = { status: 'CRASH', detail: e.message };
+			}
+		} else {
+			logoutStatus = { status: 'SKIP', detail: 'admin failed' };
+		}
 	} catch (e) {
 		frontStatus = {
 			status: 'CRASH',
@@ -776,6 +885,7 @@ for (const { wp, php } of MATRIX) {
 		postStatus = { status: 'SKIP', detail: 'boot crashed' };
 		newPostStatus = { status: 'SKIP', detail: 'boot crashed' };
 		pluginStatus = { status: 'SKIP', detail: 'boot crashed' };
+		logoutStatus = { status: 'SKIP', detail: 'boot crashed' };
 	}
 
 	const icon = (s) =>
@@ -786,6 +896,7 @@ for (const { wp, php } of MATRIX) {
 		`admin:${icon(adminStatus)}`,
 		`newpost:${icon(newPostStatus)}`,
 		`plugin:${icon(pluginStatus)}`,
+		`logout:${icon(logoutStatus)}`,
 	];
 	console.log(parts.join(' '));
 
@@ -797,6 +908,7 @@ for (const { wp, php } of MATRIX) {
 		admin: adminStatus,
 		newPost: newPostStatus,
 		plugin: pluginStatus,
+		logout: logoutStatus,
 	});
 	await page.close();
 	await context.close();
@@ -804,7 +916,7 @@ for (const { wp, php } of MATRIX) {
 
 await browser.close();
 
-const PHASES = ['front', 'post', 'admin', 'newPost', 'plugin'];
+const PHASES = ['front', 'post', 'admin', 'newPost', 'plugin', 'logout'];
 
 function isPass(status) {
 	return status.status === 'OK' || status.status === 'PARTIAL';

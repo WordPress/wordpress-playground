@@ -63,6 +63,8 @@ export const OlderWordPressVersions = [
 	'1.5',
 	'1.2',
 	'1.0',
+	// WP 0.7 is served by wordpress.org as the 0.71-gold archive.
+	'0.7',
 ] as const;
 
 export type OlderWordPressVersion = (typeof OlderWordPressVersions)[number];
