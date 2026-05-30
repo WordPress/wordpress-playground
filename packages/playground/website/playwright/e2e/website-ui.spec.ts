@@ -1462,6 +1462,7 @@ echo get_option('blogname');
 			`./?name=embedded-${Date.now()}`,
 			String(testInfo.project.use.baseURL)
 		).href;
+		await website.page.goto('./', { waitUntil: 'domcontentloaded' });
 		await website.page.setContent(
 			`<iframe title="Embedded Playground test" src="${embeddedUrl}"></iframe>`
 		);
@@ -1469,7 +1470,9 @@ echo get_option('blogname');
 		const playgroundFrame = website.page.frameLocator(
 			'iframe[title="Embedded Playground test"]'
 		);
-		await expect(playgroundFrame.locator('body')).toBeVisible();
+		await expect(
+			playgroundFrame.getByRole('button', { name: /Site Manager/ })
+		).toBeVisible();
 
 		await expect(
 			playgroundFrame.getByRole('button', { name: /Autosaved|Unsaved/ })

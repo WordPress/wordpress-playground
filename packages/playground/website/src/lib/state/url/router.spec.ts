@@ -1,4 +1,8 @@
-import { parseBlueprint, PlaygroundRoute, isSiteSavingDisabled } from './router';
+import {
+	parseBlueprint,
+	PlaygroundRoute,
+	isSiteSavingDisabled,
+} from './router';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import type { SiteInfo } from '../redux/slice-sites';
 
@@ -158,11 +162,16 @@ describe('PlaygroundRoute site creation routes', () => {
 
 describe('isSiteSavingDisabled', () => {
 	const topWindow = {};
-	const regularWindow = {
-		self: topWindow,
-		top: topWindow,
-	} as unknown as Window;
-	const embeddedWindow = { self: {}, top: topWindow } as unknown as Window;
+	const regularWindow = {} as unknown as Window;
+	Object.defineProperties(regularWindow, {
+		self: { value: regularWindow },
+		top: { value: regularWindow },
+	});
+	const embeddedWindow = {} as unknown as Window;
+	Object.defineProperties(embeddedWindow, {
+		self: { value: embeddedWindow },
+		top: { value: topWindow },
+	});
 
 	it('allows saving by default', () => {
 		expect(

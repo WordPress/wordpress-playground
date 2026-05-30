@@ -27,6 +27,7 @@ import { isSiteSavingDisabled } from '../../lib/state/url/router';
 const query = new URL(document.location.href).searchParams;
 const overlayParam = query.get('overlay');
 const shouldOpenOverlay = overlayParam !== null;
+const isSavingDisabled = isSiteSavingDisabled();
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -93,7 +94,7 @@ export default function BrowserChrome({
 						/>
 					</div>
 
-					{!isSiteSavingDisabled() && <SaveStatusIndicator />}
+					{!isSavingDisabled && <SaveStatusIndicator />}
 
 					<div className={css.toolbarButtons}>
 						<Button
