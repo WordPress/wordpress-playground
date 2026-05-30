@@ -57,7 +57,10 @@ export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
 
 export const USE_OPCACHE = true;
-const OPCACHE_FILE_FOLDER = '/internal/shared/opcache';
+// Studio profiling showed 32/6 keeps warm OPcache hits while avoiding
+// the extra growth caused by the previous 64/8 arena.
+const OPCACHE_MEMORY_CONSUMPTION = 32;
+const OPCACHE_INTERNED_STRINGS_BUFFER = 6;
 
 type MountObject = {
 	mountHandler: MountHandler;
@@ -277,14 +280,14 @@ export class PHP implements Disposable {
 						'opcache.enable = 1',
 						'opcache.enable_cli = 1',
 						'opcache.jit = 0',
-						'opcache.interned_strings_buffer = 8',
+						`opcache.interned_strings_buffer = ${OPCACHE_INTERNED_STRINGS_BUFFER}`,
 						'opcache.max_accelerated_files = 1000',
-						'opcache.memory_consumption = 64',
+						`opcache.memory_consumption = ${OPCACHE_MEMORY_CONSUMPTION}`,
 						'opcache.max_wasted_percentage = 5',
-						'opcache.file_cache = ' + OPCACHE_FILE_FOLDER,
-						// Always enable the file cache.
-						'opcache.file_cache_only = 1',
-						'opcache.file_cache_consistency_checks = 1',
+						// Use live OPcache memory instead of the serialized file cache.
+						'opcache.file_cache =',
+						'opcache.file_cache_only = 0',
+						'opcache.file_cache_consistency_checks = 0',
 					]
 				: [];
 
@@ -302,10 +305,6 @@ export class PHP implements Disposable {
 					'opcache.file_cache_consistency_checks = 1'
 				);
 			}*/
-
-			if (!this.fileExists(OPCACHE_FILE_FOLDER)) {
-				this.mkdir(OPCACHE_FILE_FOLDER);
-			}
 
 			this.writeFile(
 				PHP_INI_PATH,

@@ -91,6 +91,9 @@ RUN if [ "$WITH_OPCACHE" = "yes" ]; \
 		fi; \
 		# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
 		/root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
+		# The wasm SAPI is request-oriented like cli-server, but PHP upstream does not
+		# know about it. Without this, OPcache registers functions but never starts.
+		perl -0pi -e 's/"ngx-php",\s*\n\s*NULL/"ngx-php",\n\t\t"wasm",\n\t\tNULL/' /root/php-src/ext/opcache/ZendAccelerator.c; \
 		# Add the opcache_module.c to the list of files to build for PHP < 8.5.0.
 		# PHP 8.5 made OPcache a non-optional part of PHP https://wiki.php.net/rfc/make_opcache_required
 		if [[ "${PHP_VERSION:0:1}" -lt "8" || ("${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -le "4") ]]; then \
