@@ -378,6 +378,12 @@ await asyncSpawn(
 );
 /* eslint-enable prettier/prettier */
 
+const copyTerminfoCommand =
+	getArg('WITH_CLI_SAPI') === 'yes'
+		? ' && cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
+		: '';
+const restoreOutputOwnershipCommand = getRestoreOutputOwnershipCommand();
+
 // Extract the PHP WASM module
 await asyncSpawn(
 	'docker',
@@ -393,14 +399,33 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`cp -rf /root/output/* /output && mkdir -p /output/terminfo/x ${
-			getArg('WITH_CLI_SAPI') === 'yes'
-				? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
-				: ''
-		}`,
+		`cp -rf /root/output/* /output && ` +
+			`mkdir -p /output/terminfo/x` +
+			copyTerminfoCommand +
+			restoreOutputOwnershipCommand,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
+
+/**
+ * build.js copies artifacts from a root Docker container. On Linux, those
+ * bind-mounted files become root-owned on the host. Restore them to the host
+ * owner so later Node steps and local cleanups can edit generated artifacts.
+ */
+function getRestoreOutputOwnershipCommand() {
+	if (
+		typeof process.getuid !== 'function' ||
+		typeof process.getgid !== 'function'
+	) {
+		return '';
+	}
+	const uid = process.getuid();
+	const gid = process.getgid();
+	if (uid === 0) {
+		return '';
+	}
+	return ` && chown -R ${uid}:${gid} /output`;
+}
 
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');
