@@ -2,25 +2,36 @@ import { createServer } from 'net';
 import type { WebSocketServer } from 'ws';
 import { WebSocket } from 'ws';
 import { debugLog } from './utils';
+import type { AddressInfo } from 'net';
 function log(...args: any[]) {
 	debugLog('[TCP Server]', ...args);
 }
 
 export function addTCPServerToWebSocketServerClass(
-	wsListenPort: number,
 	WSServer: typeof WebSocketServer
 ): any {
 	return class PHPWasmWebSocketServer extends WSServer {
 		constructor(options: any, callback: any) {
 			const requestedPort = options.port;
-			options.port = wsListenPort;
-			listenTCPToWSProxy({
-				tcpListenPort: requestedPort,
-				wsConnectPort: wsListenPort,
-			});
+			options.port = 0;
 			super(options, callback);
+			this.once('listening', () => {
+				listenTCPToWSProxy({
+					tcpListenPort: requestedPort,
+					wsConnectPort: getServerPort(this),
+				});
+			});
 		}
 	};
+}
+
+function getServerPort(server: WebSocketServer): number {
+	const address = server.address();
+	if (address === null || typeof address === 'string') {
+		throw new Error('WebSocket server address is not available');
+	}
+
+	return (address as AddressInfo).port;
 }
 
 export interface InboundTcpToWsProxyOptions {
