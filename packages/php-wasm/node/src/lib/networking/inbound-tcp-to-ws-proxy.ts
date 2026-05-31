@@ -22,7 +22,7 @@ export function addTCPServerToWebSocketServerClass(
 						tcpListenPort: requestedPort,
 						wsConnectPort: getServerPort(this),
 					},
-					callback
+					() => callback?.call(this)
 				);
 			});
 		}
@@ -31,9 +31,13 @@ export function addTCPServerToWebSocketServerClass(
 			const tcpToWsProxyServer = this.tcpToWsProxyServer;
 			this.tcpToWsProxyServer = undefined;
 
-			if (tcpToWsProxyServer?.listening) {
-				tcpToWsProxyServer.close();
-			}
+			tcpToWsProxyServer?.close(
+				(error: NodeJS.ErrnoException | undefined) => {
+					if (error?.code !== 'ERR_SERVER_NOT_RUNNING') {
+						log('TCP server close error', error);
+					}
+				}
+			);
 
 			return super.close(callback);
 		}

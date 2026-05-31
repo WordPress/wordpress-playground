@@ -105,7 +105,9 @@ describe('networking port allocation', () => {
 		const DecoratedServer = addTCPServerToWebSocketServerClass(
 			StubWebSocketServer as any
 		);
-		const onListening = vi.fn();
+		const onListening = vi.fn(function (this: unknown) {
+			expect(this).toBe(websocketServer);
+		});
 		const websocketServer = new DecoratedServer(
 			{ port: 12345 },
 			onListening
