@@ -43,7 +43,7 @@ The screenshots below use translation files as examples, but the same GitHub con
 3. If GitHub asks you to fork the repository, follow the prompt. This creates a copy under your GitHub account.
 4. Make your changes in the editor.
 
-![Editing a documentation file in GitHub](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
+![Editing a documentation file in GitHub](/img/contributing/editing-translations.webp)
 
 GitHub's web editor is best for small, focused changes. If your update is large or needs local preview, use the local workflow in [Documentation contributions](/contributing/documentation).
 
@@ -54,7 +54,7 @@ GitHub's web editor is best for small, focused changes. If your update is large 
 3. Enter the file name. You can create folders by typing the folder name followed by `/`.
 4. Add the page content.
 
-![Creating a new documentation file in GitHub](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
+![Creating a new documentation file in GitHub](/img/contributing/adding-file-github-ui.webp)
 
 For new English documentation pages, add front matter at the top of the file:
 
@@ -72,7 +72,7 @@ For new translated pages, mirror the English file path in the matching language 
 
 Before submitting, use the **Preview** tab in GitHub to check the formatting.
 
-![Editing content in the GitHub web editor](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
+![Editing content in the GitHub web editor](/img/contributing/editor-github-ui.webp)
 
 Look for:
 
