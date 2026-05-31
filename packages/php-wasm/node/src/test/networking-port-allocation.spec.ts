@@ -45,9 +45,11 @@ describe('networking port allocation', () => {
 	it('binds the inbound websocket proxy directly on an automatic port', async () => {
 		class StubWebSocketServer extends EventTarget {
 			private readonly port = 43210;
+			public options: { port: number };
 
-			constructor(public options: { port: number }) {
+			constructor(options: { port: number }) {
 				super();
+				this.options = options;
 				process.nextTick(() =>
 					this.dispatchEvent(new Event('listening'))
 				);
