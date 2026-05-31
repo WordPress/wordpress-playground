@@ -73,6 +73,7 @@ const sidebars = {
 						'main/contributing/contributor-badge',
 						'main/contributing/contributor-day-table-lead',
 						'main/contributing/documentation',
+						'main/contributing/github-ui',
 						'main/contributing/translations',
 					],
 				},

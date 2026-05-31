@@ -18,6 +18,8 @@ If you feel up to it, write the content in the issue description, and the projec
 
 Would you like to see the documentation in your language? Check the [Translation section](/contributing/translations).
 
+If you want to make a small documentation change without setting up a local development environment, see [Contribute with the GitHub web interface](/contributing/github-ui).
+
 ### Forking the repo, edit files locally and opening Pull Requests
 
 If you are familiar with markdown, you can [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the `wordpress-playground` repo and propose changes and new documentation pages by submitting a Pull Request.
@@ -29,19 +31,9 @@ The documentation files (`.md` files) are stored in Playground's GitHub reposito
 
 ### Edit in the browser
 
-If logged in GitHub, you can also edit existing files (or add new ones) and submit a PR directly from the GitHub UI:
+You can edit existing files or add new documentation pages directly from the GitHub website. This approach does not require Git, a terminal, or a local development environment.
 
-1. Find the page you'd like to edit or the directory of the chapter you'd like to add a new page to.
-2. Click the **Add Files** button to add a new file, or click on an existing file and then click the pencil icon to edit it.
-3. GitHub will ask you to fork the repository and create a new branch with your changes.
-4. An editor will open where you can make the changes.
-5. When you're done, click the **Commit Changes** button and submit a Pull Request.
-
-That's it! You've just contributed to the WordPress Playground documentation.
-
-This approach means you don't need to clone the repository, set up a local development environment, or run any commands.
-
-The downside is that you won't be able to preview your changes. Keep reading to learn how to review your changes before submitting a Pull Request.
+For the full step-by-step workflow, see [Contribute with the GitHub web interface](/contributing/github-ui).
 
 ### Local preview
 

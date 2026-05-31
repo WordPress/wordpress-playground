@@ -10,7 +10,7 @@ Help make WordPress Playground accessible to a global audience by translating it
 
 <div class="callout callout-info">
 
-For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
+For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute). To make changes directly in GitHub, see [Contribute with the GitHub web interface](/contributing/github-ui).
 
 </div>
 
