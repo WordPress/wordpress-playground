@@ -17,6 +17,122 @@ describe('Blueprint step importWxr', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
 
+	const createWxr = ({
+		siteTitle,
+		authorLogin,
+		authorEmail,
+		postTitle,
+		postSlug,
+		postId,
+	}: {
+		siteTitle: string;
+		authorLogin: string;
+		authorEmail: string;
+		postTitle: string;
+		postSlug: string;
+		postId: number;
+	}) => `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>${siteTitle}</title>
+	<link>https://old.example</link>
+	<description>WXR option coverage</description>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://old.example</wp:base_site_url>
+	<wp:base_blog_url>https://old.example</wp:base_blog_url>
+	<wp:author>
+		<wp:author_id>${postId}</wp:author_id>
+		<wp:author_login><![CDATA[${authorLogin}]]></wp:author_login>
+		<wp:author_email><![CDATA[${authorEmail}]]></wp:author_email>
+		<wp:author_display_name><![CDATA[${authorLogin} Display]]></wp:author_display_name>
+		<wp:author_first_name><![CDATA[Remote]]></wp:author_first_name>
+		<wp:author_last_name><![CDATA[Author]]></wp:author_last_name>
+	</wp:author>
+	<item>
+		<title>${postTitle}</title>
+		<link>https://old.example/${postSlug}/</link>
+		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[${authorLogin}]]></dc:creator>
+		<guid isPermaLink="false">https://old.example/?p=${postId}</guid>
+		<description></description>
+		<content:encoded><![CDATA[<p>Visit https://old.example/page</p>]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>${postId}</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[open]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[${postSlug}]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[source_url]]></wp:meta_key>
+			<wp:meta_value><![CDATA[https://old.example/meta]]></wp:meta_value>
+		</wp:postmeta>
+		<wp:comment>
+			<wp:comment_id>${postId}</wp:comment_id>
+			<wp:comment_author><![CDATA[Commenter]]></wp:comment_author>
+			<wp:comment_author_email><![CDATA[commenter@example.com]]></wp:comment_author_email>
+			<wp:comment_author_url><![CDATA[https://old.example/commenter]]></wp:comment_author_url>
+			<wp:comment_author_IP><![CDATA[]]></wp:comment_author_IP>
+			<wp:comment_date><![CDATA[2025-01-01 00:00:00]]></wp:comment_date>
+			<wp:comment_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:comment_date_gmt>
+			<wp:comment_content><![CDATA[Comment https://old.example/comment]]></wp:comment_content>
+			<wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+			<wp:comment_type><![CDATA[]]></wp:comment_type>
+			<wp:comment_parent>0</wp:comment_parent>
+			<wp:comment_user_id>0</wp:comment_user_id>
+		</wp:comment>
+	</item>
+</channel>
+</rss>`;
+
+	const inspectImportedPost = async (postSlug: string) => {
+		const result = await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+
+			$posts = get_posts([
+				'name' => getenv('POST_SLUG'),
+				'post_type' => 'post',
+				'post_status' => 'any',
+				'numberposts' => 1,
+			]);
+			$post = $posts ? $posts[0] : null;
+			$author = $post ? get_user_by('ID', $post->post_author) : null;
+			$comments = $post ? get_comments(['post_id' => $post->ID]) : [];
+			$comment = $comments ? $comments[0] : null;
+
+			echo json_encode([
+				'post_found' => !empty($post),
+				'post_content' => $post ? $post->post_content : null,
+				'author_login' => $author ? $author->user_login : null,
+				'source_url' => $post ? get_post_meta($post->ID, 'source_url', true) : null,
+				'comment_count' => count($comments),
+				'comment_author_url' => $comment ? $comment->comment_author_url : null,
+				'comment_content' => $comment ? $comment->comment_content : null,
+				'blogname' => get_option('blogname'),
+			]);
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+				POST_SLUG: postSlug,
+			},
+		});
+		return result.json;
+	};
+
 	const checkTemplateImportResults = async () => {
 		return await php.run({
 			code: `<?php
@@ -257,6 +373,232 @@ describe('Blueprint step importWxr', () => {
 <!-- /wp:paragraph -->`;
 
 			expect(json.post_content).toEqual(expectedPostContent);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should honor WXR URL, author map, user, comment, and site option controls',
+		async () => {
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			wp_create_user('mapped_user', 'password', 'mapped@example.com');
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			const file = new File(
+				[
+					createWxr({
+						siteTitle: 'Mapped Import Site',
+						authorLogin: 'remote_mapped_author',
+						authorEmail: 'remote-mapped@example.com',
+						postTitle: 'Mapped Import Post',
+						postSlug: 'mapped-import-post',
+						postId: 501,
+					}),
+				],
+				'import.wxr'
+			);
+
+			await importWxr(php, {
+				file,
+				urlMap: {
+					'https://old.example': 'https://new.example',
+				},
+				authorsMode: 'map',
+				authorsMap: {
+					remote_mapped_author: 'mapped_user',
+				},
+				importComments: true,
+				importUsers: false,
+				importSiteOptions: true,
+			});
+
+			const imported = await inspectImportedPost('mapped-import-post');
+			const remoteUserExists = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((bool) username_exists('remote_mapped_author'));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(imported.post_found).toBe(true);
+			expect(imported.author_login).toBe('mapped_user');
+			expect(remoteUserExists.json).toBe(false);
+			expect(imported.blogname).toBe('Mapped Import Site');
+			expect(imported.post_content).toContain('https://new.example/page');
+			expect(imported.source_url).toBe('https://new.example/meta');
+			expect(imported.comment_count).toBe(1);
+			expect(imported.comment_author_url).toBe(
+				'https://new.example/commenter'
+			);
+			expect(imported.comment_content).toContain(
+				'https://new.example/comment'
+			);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should skip WXR comments, users, and site options when disabled',
+		async () => {
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			update_option('blogname', 'Original Site Name');
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			const file = new File(
+				[
+					createWxr({
+						siteTitle: 'Skipped Import Site',
+						authorLogin: 'remote_skipped_author',
+						authorEmail: 'remote-skipped@example.com',
+						postTitle: 'Skipped Import Post',
+						postSlug: 'skipped-import-post',
+						postId: 601,
+					}),
+				],
+				'import.wxr'
+			);
+
+			await importWxr(php, {
+				file,
+				authorsMode: 'default-author',
+				importComments: false,
+				importUsers: false,
+				importSiteOptions: false,
+			});
+
+			const imported = await inspectImportedPost('skipped-import-post');
+			const remoteUserExists = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((bool) username_exists('remote_skipped_author'));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(imported.post_found).toBe(true);
+			expect(imported.author_login).toBe('admin');
+			expect(remoteUserExists.json).toBe(false);
+			expect(imported.blogname).toBe('Original Site Name');
+			expect(imported.comment_count).toBe(0);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should create and assign WXR authors in create mode when user import is disabled',
+		async () => {
+			const file = new File(
+				[
+					createWxr({
+						siteTitle: 'Imported User Site',
+						authorLogin: 'remote_imported_author',
+						authorEmail: 'remote-imported@example.com',
+						postTitle: 'Imported User Post',
+						postSlug: 'imported-user-post',
+						postId: 701,
+					}),
+				],
+				'import.wxr'
+			);
+
+			await importWxr(php, {
+				file,
+				authorsMode: 'create',
+				importComments: false,
+				importUsers: false,
+				importSiteOptions: false,
+			});
+
+			const imported = await inspectImportedPost('imported-user-post');
+			const remoteUserExists = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((bool) username_exists('remote_imported_author'));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(imported.post_found).toBe(true);
+			expect(imported.author_login).toBe('remote_imported_author');
+			expect(remoteUserExists.json).toBe(true);
+			expect(imported.comment_count).toBe(0);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should import multiple WXR files in one site without helper redeclaration failures',
+		async () => {
+			const firstFile = new File(
+				[
+					createWxr({
+						siteTitle: 'First Import Site',
+						authorLogin: 'remote_repeat_one',
+						authorEmail: 'remote-repeat-one@example.com',
+						postTitle: 'First Repeated Import Post',
+						postSlug: 'first-repeated-import-post',
+						postId: 801,
+					}),
+				],
+				'first.wxr'
+			);
+			const secondFile = new File(
+				[
+					createWxr({
+						siteTitle: 'Second Import Site',
+						authorLogin: 'remote_repeat_two',
+						authorEmail: 'remote-repeat-two@example.com',
+						postTitle: 'Second Repeated Import Post',
+						postSlug: 'second-repeated-import-post',
+						postId: 802,
+					}),
+				],
+				'second.wxr'
+			);
+
+			await importWxr(php, {
+				file: firstFile,
+				authorsMode: 'default-author',
+				importComments: false,
+				importUsers: false,
+				importSiteOptions: false,
+			});
+			await importWxr(php, {
+				file: secondFile,
+				authorsMode: 'default-author',
+				importComments: false,
+				importUsers: false,
+				importSiteOptions: false,
+			});
+
+			const firstImported = await inspectImportedPost(
+				'first-repeated-import-post'
+			);
+			const secondImported = await inspectImportedPost(
+				'second-repeated-import-post'
+			);
+
+			expect(firstImported.post_found).toBe(true);
+			expect(secondImported.post_found).toBe(true);
 		},
 		{ timeout: 30_000 }
 	);

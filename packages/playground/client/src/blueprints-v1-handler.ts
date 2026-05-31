@@ -13,6 +13,7 @@ import {
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
+import type { BlueprintV1 } from '@wp-playground/blueprints';
 
 export class BlueprintsV1Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -71,7 +72,8 @@ export class BlueprintsV1Handler {
 		// the two disagree, refuse to silently pick a winner.
 		const declarativeOptOut =
 			!isBlueprintBundle(blueprint) &&
-			blueprint.preferredVersions?.wp === false;
+			(blueprint as any).version !== 2 &&
+			(blueprint as any).preferredVersions?.wp === false;
 		const resolvedWordPressInstallMode: WordPressInstallMode =
 			wordpressInstallMode ??
 			(declarativeOptOut
@@ -112,13 +114,16 @@ export class BlueprintsV1Handler {
 
 		const reflection = await BlueprintReflection.create(blueprint);
 		if (reflection.getVersion() === 1) {
-			const compiled = await compileBlueprintV1(blueprint, {
-				progress: executionProgress,
-				onStepCompleted: onBlueprintStepCompleted,
-				onBlueprintValidated,
-				corsProxy,
-				gitAdditionalHeadersCallback,
-			});
+			const compiled = await compileBlueprintV1(
+				blueprint as BlueprintV1,
+				{
+					progress: executionProgress,
+					onStepCompleted: onBlueprintStepCompleted,
+					onBlueprintValidated: onBlueprintValidated as any,
+					corsProxy,
+					gitAdditionalHeadersCallback,
+				}
+			);
 			await runBlueprintV1Steps(compiled, playground);
 		}
 

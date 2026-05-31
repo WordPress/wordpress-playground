@@ -1,9 +1,41 @@
-import type { Pooled, SupportedPHPVersion } from '@php-wasm/universal';
-import { consumeAPI, type RemoteAPI } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
+import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
+import {
+	consumeAPI,
+	isLegacyPHPVersion,
+	type Pooled,
+	type UniversalPHP,
+} from '@php-wasm/universal';
 import type {
-	PlaygroundCliBlueprintV2Worker,
-	SecondaryWorkerBootArgs,
-} from './worker-thread-v2';
+	BlueprintBundle,
+	BlueprintV1Declaration,
+	BlueprintV2Declaration,
+} from '@wp-playground/blueprints';
+import {
+	BlueprintReflection,
+	compileBlueprintV2,
+	hasBlueprintV2WordPressZipReference,
+	isBlueprintBundle,
+	resolveBlueprintV2WordPressSource,
+	resolveRuntimeConfiguration,
+	runBlueprintV2Steps,
+	upgradeBlueprintV1ToV2,
+} from '@wp-playground/blueprints';
+import { zipDirectory } from '@wp-playground/common';
+import fs from 'fs';
+import path from 'path';
+import {
+	resolveWordPressRelease,
+	type WordPressInstallMode,
+} from '@wp-playground/wordpress';
+import { StreamedFile } from '@php-wasm/stream-compression';
+import {
+	CACHE_FOLDER,
+	cachedDownload,
+	fetchSqliteIntegration,
+	readAsFile,
+} from '../blueprints-v1/download';
+import type { PlaygroundCliBlueprintV1Worker } from '../blueprints-v1/worker-thread-v1';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
 	type PlaygroundCliWorker,
@@ -16,14 +48,10 @@ import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
 
 /**
- * Boots Playground CLI workers using Blueprint version 2.
- *
- * Progress tracking, downloads, steps, and all other features are
- * implemented in PHP and orchestrated by the worker thread.
+ * Boots Playground CLI workers using the native TypeScript Blueprint v2
+ * compiler and step runtime.
  */
 export class BlueprintsV2Handler {
-	private phpVersion: SupportedPHPVersion;
-
 	private siteUrl: string;
 	private args: RunCLIArgs;
 	private cliOutput: CLIOutput;
@@ -37,29 +65,131 @@ export class BlueprintsV2Handler {
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
-		this.phpVersion = args.php as SupportedPHPVersion;
 		this.cliOutput = options.cliOutput;
 	}
 
 	getWorkerType(): WorkerType {
-		return 'v2';
+		return 'v1';
 	}
 
 	async bootWordPress(
 		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
-		const workerBootArgs = {
-			command: this.args.command,
-			siteUrl: this.siteUrl,
-			blueprint: this.args.blueprint!,
-			workerPostInstallMountsPort,
-		};
+		let wpDetails: any = undefined;
+		let wordPressZip: any = undefined;
+		let preinstalledWpContentPath: string | undefined = undefined;
+		const legacyBlueprintSkipsWordPress =
+			await blueprintRequestsNoWordPress(this.args.blueprint);
+		const wordpressInstallMode = resolveV2WordPressInstallMode(
+			this.args,
+			legacyBlueprintSkipsWordPress
+		);
+		const effectiveBlueprint = await this.getEffectiveBlueprint();
+		const runtimeConfiguration =
+			await resolveRuntimeConfiguration(effectiveBlueprint);
+		if (
+			(await hasBlueprintV2WordPressZipReference(effectiveBlueprint)) &&
+			wordpressInstallMode !== 'download-and-install'
+		) {
+			throw new Error(
+				'Blueprint v2 wordpressVersion ZIP references can only be used when creating a new site.'
+			);
+		}
+		const wordpressSource =
+			await resolveBlueprintV2WordPressSource(effectiveBlueprint);
+		if (wordpressInstallMode === 'download-and-install') {
+			const monitor = new EmscriptenDownloadMonitor();
+			let progressReached100 = false;
+			monitor.addEventListener('progress', ((
+				e: CustomEvent<ProgressEvent & { finished: boolean }>
+			) => {
+				if (progressReached100) {
+					return;
+				}
+				const { loaded, total } = e.detail;
+				const percentProgress = Math.floor(
+					Math.min(100, (100 * loaded) / total)
+				);
+				progressReached100 = percentProgress === 100;
+				this.cliOutput.updateProgress(
+					'Downloading WordPress',
+					percentProgress
+				);
+			}) as any);
 
-		// TODO: Fix this type issue that requires the cast to unknown
+			if (wordpressSource.wordPressZip) {
+				wordPressZip = wordpressSource.wordPressZip;
+			} else {
+				wpDetails = await resolveWordPressRelease(
+					runtimeConfiguration.wpVersion
+				);
+				preinstalledWpContentPath = path.join(
+					CACHE_FOLDER,
+					`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+				);
+				wordPressZip = fs.existsSync(preinstalledWpContentPath)
+					? readAsFile(preinstalledWpContentPath)
+					: await cachedDownload(
+							wpDetails.releaseUrl,
+							`${wpDetails.version}.zip`,
+							monitor
+						);
+				logger.debug(
+					`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+				);
+			}
+		}
+
+		let sqliteIntegrationPluginZip;
+		if (this.args.skipSqliteSetup) {
+			logger.debug(`Skipping SQLite integration plugin setup...`);
+			sqliteIntegrationPluginZip = undefined;
+		} else {
+			this.cliOutput.updateProgress('Preparing SQLite database');
+			const isLegacyPhp = isLegacyPHPVersion(
+				runtimeConfiguration.phpVersion
+			);
+			const sqliteVersion = isLegacyPhp ? 'v3.0.0-rc.3-php52' : 'trunk';
+			sqliteIntegrationPluginZip =
+				await fetchSqliteIntegration(sqliteVersion);
+		}
+
+		this.cliOutput.updateProgress('Booting WordPress');
+
 		await (
-			playground as unknown as PlaygroundCliBlueprintV2Worker
-		).bootWordPress(workerBootArgs, workerPostInstallMountsPort);
+			playground as unknown as PlaygroundCliBlueprintV1Worker
+		).bootWordPress(
+			{
+				phpVersion: runtimeConfiguration.phpVersion,
+				wpVersion: wordpressSource.wpVersion,
+				siteUrl: this.siteUrl,
+				wordpressInstallMode,
+				networking: runtimeConfiguration.networking,
+				wordPressZip:
+					wordPressZip && (await wordPressZip.arrayBuffer()),
+				sqliteIntegrationPluginZip:
+					await sqliteIntegrationPluginZip?.arrayBuffer(),
+				constants: mergeDefinedConstants(this.args),
+			},
+			workerPostInstallMountsPort
+		);
+
+		if (
+			preinstalledWpContentPath &&
+			!this.args['mount-before-install'] &&
+			!fs.existsSync(preinstalledWpContentPath)
+		) {
+			this.cliOutput.updateProgress('Caching WordPress for next boot');
+			fs.writeFileSync(
+				preinstalledWpContentPath,
+				(await zipDirectory(
+					playground as unknown as UniversalPHP,
+					'/wordpress'
+				))!
+			);
+		}
+
 		return playground;
 	}
 
@@ -72,26 +202,227 @@ export class BlueprintsV2Handler {
 		fileLockManagerPort: NodeMessagePort;
 		nativeInternalDirPath: string;
 	}) {
-		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
-			consumeAPI(worker.phpPort);
+		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
+			worker.phpPort
+		);
 
+		await playground.isConnected();
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			await this.getEffectiveBlueprint()
+		);
 		await playground.useFileLockManager(fileLockManagerPort);
-
-		const workerBootArgs: SecondaryWorkerBootArgs = {
-			...this.args,
-			phpVersion: this.phpVersion,
+		await playground.bootRequestHandler({
+			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
-			processId: worker.processId,
-			trace: this.args.verbosity === 'debug',
-			extensions: cliExtensionArgsToExtensionsArray(this.args),
-			nativeInternalDirPath,
+			networking: runtimeConfiguration.networking,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
-			constants: mergeDefinedConstants(this.args),
-		};
-
-		await playground.bootWorker(workerBootArgs);
-
+			processId: worker.processId,
+			followSymlinks: this.args.followSymlinks === true,
+			trace: this.args.experimentalTrace === true,
+			extensions: cliExtensionArgsToExtensionsArray(
+				filterExtensionArgsForPHPVersion(
+					this.args,
+					runtimeConfiguration.phpVersion
+				)
+			),
+			nativeInternalDirPath,
+			pathAliases: this.args.pathAliases,
+		});
+		await playground.isReady();
 		return playground;
 	}
+
+	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
+		const blueprint = await this.getEffectiveBlueprint(
+			additionalBlueprintSteps
+		);
+
+		const tracker = new ProgressTracker();
+		let lastCaption = '';
+		let progressReached100 = false;
+		tracker.addEventListener('progress', (e: any) => {
+			if (progressReached100) {
+				return;
+			}
+			progressReached100 = e.detail.progress === 100;
+			const progressInteger = Math.floor(e.detail.progress);
+			lastCaption =
+				e.detail.caption || lastCaption || 'Running Blueprint';
+			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
+		});
+
+		return await compileBlueprintV2(blueprint, {
+			progress: tracker,
+		});
+	}
+
+	private async getEffectiveBlueprint(additionalBlueprintSteps: any[] = []) {
+		const resolvedBlueprint =
+			this.args.blueprint || ({ version: 2 } as BlueprintV2Declaration);
+		if (isBlueprintBundle(resolvedBlueprint)) {
+			const reflection = await BlueprintReflection.create(
+				resolvedBlueprint as BlueprintBundle
+			);
+			const declaration = applyCliOptionsToBlueprint(
+				reflection.getDeclaration() as
+					| BlueprintV1Declaration
+					| BlueprintV2Declaration,
+				this.args,
+				additionalBlueprintSteps
+			);
+			return withBlueprintDeclaration(
+				resolvedBlueprint as BlueprintBundle,
+				declaration
+			);
+		}
+
+		return applyCliOptionsToBlueprint(
+			resolvedBlueprint as BlueprintV1Declaration | BlueprintV2Declaration,
+			this.args,
+			additionalBlueprintSteps
+		);
+	}
 }
+
+function applyCliOptionsToBlueprint(
+	resolvedBlueprint: BlueprintV1Declaration | BlueprintV2Declaration,
+	args: RunCLIArgs,
+	additionalBlueprintSteps: any[] = []
+) {
+	const blueprint =
+		(resolvedBlueprint as any).version === 2
+			? ({ ...(resolvedBlueprint as BlueprintV2Declaration) } as any)
+			: (upgradeBlueprintV1ToV2(
+					resolvedBlueprint as BlueprintV1Declaration
+				) as any);
+
+	if (args.php && cliOptionWasProvided(args, 'php')) {
+		blueprint.phpVersion = args.php;
+	}
+	if (args.wp && cliOptionWasProvided(args, 'wp')) {
+		blueprint.wordpressVersion = args.wp;
+	}
+	if (args.login) {
+		blueprint.applicationOptions = {
+			...(blueprint.applicationOptions || {}),
+			'wordpress-playground': {
+				...(blueprint.applicationOptions?.[
+					'wordpress-playground'
+				] || {}),
+				login: true,
+			},
+		};
+	}
+	if (additionalBlueprintSteps.length > 0) {
+		blueprint.additionalStepsAfterExecution = [
+			...(blueprint.additionalStepsAfterExecution || []),
+			...normalizeAdditionalBlueprintSteps(additionalBlueprintSteps),
+		];
+	}
+	return blueprint as BlueprintV2Declaration;
+}
+
+function withBlueprintDeclaration(
+	bundle: BlueprintBundle,
+	declaration: BlueprintV2Declaration
+): BlueprintBundle {
+	return {
+		...bundle,
+		read: async (filePath: string) => {
+			const normalizedPath = filePath.replace(/^\.?\//, '');
+			if (normalizedPath !== 'blueprint.json') {
+				return bundle.read(filePath);
+			}
+			const bytes = new TextEncoder().encode(JSON.stringify(declaration));
+			return StreamedFile.fromArrayBuffer(bytes, 'blueprint.json', {
+				type: 'application/json',
+				filesize: bytes.byteLength,
+			});
+		},
+	};
+}
+
+function resolveV2WordPressInstallMode(
+	args: RunCLIArgs,
+	legacyBlueprintSkipsWordPress = false
+): WordPressInstallMode {
+	if (legacyBlueprintSkipsWordPress) {
+		if (args.mode && args.mode !== 'mount-only') {
+			throw new Error(
+				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
+			);
+		}
+		if (
+			!args.mode &&
+			args.wordpressInstallMode &&
+			args.wordpressInstallMode !== 'do-not-attempt-installing'
+		) {
+			throw new Error(
+				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
+			);
+		}
+		return 'do-not-attempt-installing';
+	}
+	switch (args.mode) {
+		case 'apply-to-existing-site':
+			return 'install-from-existing-files-if-needed';
+		case 'mount-only':
+			return 'do-not-attempt-installing';
+		case 'create-new-site':
+			return 'download-and-install';
+	}
+	return args.wordpressInstallMode || 'download-and-install';
+}
+
+async function blueprintRequestsNoWordPress(
+	blueprint: RunCLIArgs['blueprint']
+) {
+	if (!blueprint) {
+		return false;
+	}
+	const reflection = await BlueprintReflection.create(blueprint as any);
+	return (
+		reflection.getVersion() === 1 &&
+		(reflection.getDeclaration() as any).preferredVersions?.wp === false
+	);
+}
+
+function normalizeAdditionalBlueprintSteps(steps: any[]) {
+	return steps.flatMap((step) => {
+		if (step?.step === 'activateTheme' && step.themeFolderName) {
+			return [
+				{
+					step: 'activateTheme',
+					themeDirectoryName: step.themeFolderName,
+				},
+			];
+		}
+		return [step];
+	});
+}
+
+function cliOptionWasProvided(args: RunCLIArgs, option: 'php' | 'wp') {
+	if (args.cliProvidedOptions) {
+		return args.cliProvidedOptions[option] === true;
+	}
+	return args[option] !== undefined;
+}
+
+function filterExtensionArgsForPHPVersion(
+	args: RunCLIArgs,
+	phpVersion: string | undefined
+): RunCLIArgs {
+	if (!isLegacyPHPVersion(phpVersion)) {
+		return args;
+	}
+	return {
+		...args,
+		intl: false,
+		redis: false,
+		memcached: false,
+		xdebug: false,
+	};
+}
+
+export { runBlueprintV2Steps };

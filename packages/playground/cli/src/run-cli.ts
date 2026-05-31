@@ -24,6 +24,7 @@ import type {
 } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
+	BlueprintReflection,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -217,7 +218,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe:
 					'Control how Playground prepares WordPress before booting.',
 				type: 'string',
-				default: 'download-and-install',
+				defaultDescription: 'download-and-install',
 				choices: [
 					'download-and-install',
 					'install-from-existing-files',
@@ -335,9 +336,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			},
 			mode: {
 				describe:
-					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
+					'Blueprints v2 runner mode to use.',
 				type: 'string',
-				choices: ['create-new-site', 'apply-to-existing-site'],
+				choices: [
+					'create-new-site',
+					'apply-to-existing-site',
+					'mount-only',
+				],
 				// Remove the "hidden" flag once Blueprint V2 is fully supported
 				hidden: true,
 			},
@@ -627,23 +632,18 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				}
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
-					// TODO: Remove this once we have reworked the Blueprints v2 runner.
-					throw new Error(
-						'Blueprints v2 are temporarily disabled while we rework their runtime implementation.'
-					);
-
 					if (args['mode'] !== undefined) {
 						if (args['wordpress-install-mode'] !== undefined) {
 							throw new Error(
 								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
 							);
 						}
-						if ('skip-sqlite-setup' in args) {
+						if (hasCliOption(argsToParse, 'skip-sqlite-setup')) {
 							throw new Error(
 								'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
 							);
 						}
-						if (args['auto-mount'] !== undefined) {
+						if (hasCliOption(argsToParse, 'auto-mount')) {
 							throw new Error(
 								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
 							);
@@ -654,9 +654,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 							args['wordpress-install-mode'] ===
 							'do-not-attempt-installing'
 						) {
-							args['mode'] = 'apply-to-existing-site';
-						} else {
-							args['mode'] = 'create-new-site';
+							args['mode'] = 'mount-only';
 						}
 					}
 
@@ -672,12 +670,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 
 					args['allow'] = allow;
-				} else {
-					if (args['mode'] !== undefined) {
-						throw new Error(
-							'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
-						);
-					}
 				}
 
 				return true;
@@ -739,6 +731,19 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			'define-bool': defineBool,
 			'define-number': defineNumber,
 			command,
+			cliProvidedOptions: {
+				php: hasCliOption(argsToParse, 'php'),
+				wp: hasCliOption(argsToParse, 'wp'),
+				mode: hasCliOption(argsToParse, 'mode'),
+				wordpressInstallMode:
+					hasCliOption(argsToParse, 'wordpress-install-mode') ||
+					hasCliOption(argsToParse, 'skip-wordpress-install'),
+				skipSqliteSetup: hasCliOption(
+					argsToParse,
+					'skip-sqlite-setup'
+				),
+				autoMount: hasCliOption(argsToParse, 'auto-mount'),
+			},
 			mount: [
 				...((args['mount'] as Mount[]) || []),
 				...((args['mount-dir'] as Mount[]) || []),
@@ -799,6 +804,66 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		}
 		process.exit(1);
 	}
+}
+
+function hasCliOption(argsToParse: string[], optionName: string) {
+	return argsToParse.some(
+		(arg) => arg === `--${optionName}` || arg.startsWith(`--${optionName}=`)
+	);
+}
+
+/**
+ * Describe an error for display. Handles Error instances, Comlink-serialized
+ * plain objects (which lose their Error prototype during worker thread
+ * transfer), and arbitrary values.
+ */
+function describeError(error: unknown): string {
+	if (error instanceof Error) {
+		if (error.message) {
+			return error.message;
+		}
+		const parts: string[] = [];
+		if (error.name && error.name !== 'Error') {
+			parts.push(error.name);
+		}
+		const obj = error as Error & Record<string, unknown>;
+		if (obj['errno'] !== undefined) {
+			parts.push(`errno: ${obj['errno']}`);
+		}
+		if (obj['code'] !== undefined) {
+			parts.push(`code: ${obj['code']}`);
+		}
+		if (parts.length > 0) {
+			return parts.join(' — ');
+		}
+		return error.stack || String(error);
+	}
+	if (error && typeof error === 'object') {
+		// Comlink-serialized errors arrive as plain objects like
+		// { name: 'ErrnoError', errno: 20 } with no .message.
+		const parts = [];
+		const obj = error as Record<string, unknown>;
+		if (obj['name']) {
+			parts.push(String(obj['name']));
+		}
+		if (obj['message']) {
+			parts.push(String(obj['message']));
+		}
+		if (obj['errno'] !== undefined) {
+			parts.push(`errno: ${obj['errno']}`);
+		}
+		if (parts.length > 0) {
+			return parts.join(' — ');
+		}
+		// Last resort: JSON-serialize the object so we at least see
+		// what fields it has.
+		try {
+			return JSON.stringify(error);
+		} catch {
+			return String(error);
+		}
+	}
+	return String(error);
 }
 
 function getMountForVfsPath(
@@ -874,6 +939,14 @@ export interface RunCLIArgs {
 	workers?: number | 'auto';
 	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
+	cliProvidedOptions?: {
+		php?: boolean;
+		wp?: boolean;
+		mode?: boolean;
+		wordpressInstallMode?: boolean;
+		skipSqliteSetup?: boolean;
+		autoMount?: boolean;
+	};
 	/**
 	 * PHP string constants defined via --define flag.
 	 * Set via php.defineConstant(), process-specific only.
@@ -941,6 +1014,73 @@ export interface RunCLIServer extends AsyncDisposable {
 // Re-export merge functions from defines.ts
 export { mergeDefinedConstants } from './defines';
 
+type BlueprintV2ArgOrigins = {
+	mode: boolean;
+	wordpressInstallMode: boolean;
+	skipSqliteSetup: boolean;
+	autoMount: boolean;
+};
+
+function getBlueprintV2ArgOrigins(args: RunCLIArgs): BlueprintV2ArgOrigins {
+	return {
+		mode: args.cliProvidedOptions?.mode ?? (args.mode !== undefined),
+		wordpressInstallMode:
+			args.cliProvidedOptions?.wordpressInstallMode ??
+			(args.wordpressInstallMode !== undefined),
+		skipSqliteSetup:
+			args.cliProvidedOptions?.skipSqliteSetup ??
+			(args.skipSqliteSetup === true),
+		autoMount:
+			args.cliProvidedOptions?.autoMount ??
+			(args.autoMount !== undefined && args.autoMount !== false),
+	};
+}
+
+async function shouldUseBlueprintsV2Handler(
+	args: RunCLIArgs,
+	argOrigins: BlueprintV2ArgOrigins
+) {
+	if (args['experimental-blueprints-v2-runner']) {
+		return true;
+	}
+	if (argOrigins.mode) {
+		return true;
+	}
+	if (!args.blueprint) {
+		return false;
+	}
+	const reflection = await BlueprintReflection.create(args.blueprint);
+	return reflection.getVersion() === 2;
+}
+
+function validateAndNormalizeBlueprintsV2Args(
+	args: RunCLIArgs,
+	argOrigins: BlueprintV2ArgOrigins
+) {
+	if (argOrigins.mode) {
+		if (argOrigins.wordpressInstallMode) {
+			throw new Error(
+				'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
+			);
+		}
+		if (argOrigins.skipSqliteSetup) {
+			throw new Error(
+				'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
+			);
+		}
+		if (argOrigins.autoMount) {
+			throw new Error(
+				'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+			);
+		}
+		return;
+	}
+
+	if (args.wordpressInstallMode === 'do-not-attempt-installing') {
+		args.mode = 'mount-only';
+	}
+}
+
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' | 'php' }
 ): Promise<void>;
@@ -952,6 +1092,7 @@ export async function runCLI(
 ): Promise<RunCLIServer>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
+	const blueprintV2ArgOrigins = getBlueprintV2ArgOrigins(args);
 	let playgroundPool: Pooled<PlaygroundCliWorker>;
 	const cookieStore = args.internalCookieStore
 		? new HttpCookieStore()
@@ -1421,8 +1562,25 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			}
 
+			if (typeof args.blueprint === 'string') {
+				args.blueprint = await resolveBlueprint({
+					sourceString: args.blueprint,
+					blueprintMayReadAdjacentFiles:
+						args['blueprint-may-read-adjacent-files'] === true,
+				});
+			}
+
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
-			if (args['experimental-blueprints-v2-runner']) {
+			const useBlueprintsV2Handler =
+				await shouldUseBlueprintsV2Handler(
+					args,
+					blueprintV2ArgOrigins
+				);
+			if (useBlueprintsV2Handler) {
+				validateAndNormalizeBlueprintsV2Args(
+					args,
+					blueprintV2ArgOrigins
+				);
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
 					cliOutput,
@@ -1432,14 +1590,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					siteUrl,
 					cliOutput,
 				});
-
-				if (typeof args.blueprint === 'string') {
-					args.blueprint = await resolveBlueprint({
-						sourceString: args.blueprint,
-						blueprintMayReadAdjacentFiles:
-							args['blueprint-may-read-adjacent-files'] === true,
-					});
-				}
 			}
 
 			// Remember whether we are already disposing so we can avoid:
@@ -1582,19 +1732,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					wordPressReady = true;
 
-					if (!args['experimental-blueprints-v2-runner']) {
-						const compiledBlueprint = await (
-							handler as BlueprintsV1Handler
-						).compileInputBlueprint(
+					const compiledBlueprint =
+						await handler.compileInputBlueprint(
 							args['additional-blueprint-steps'] || []
 						);
 
-						if (compiledBlueprint) {
-							await runBlueprintV1Steps(
-								compiledBlueprint,
-								playgroundPool
-							);
-						}
+					if (compiledBlueprint) {
+						await runBlueprintV1Steps(
+							compiledBlueprint,
+							playgroundPool
+						);
 					}
 
 					// If phpMyAdmin is enabled and not already installed, install it.

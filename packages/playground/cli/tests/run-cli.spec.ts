@@ -10,10 +10,8 @@ import {
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { promisify } from 'node:util';
-import { exec } from 'node:child_process';
 import {
 	copyFileSync,
 	mkdirSync,
@@ -26,6 +24,7 @@ import {
 	rmSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { decodeZip } from '@php-wasm/stream-compression';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { type Log, logger } from '@php-wasm/logger';
 
@@ -216,6 +215,175 @@ describe.each(blueprintVersions)(
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain('<title>My Blog Name</title>');
+		});
+
+		test('should route v2 blueprints to the native v2 handler without the experimental flag', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: {
+					version: 2,
+					additionalStepsAfterExecution: [
+						{
+							step: 'writeFiles',
+							files: {
+								'/routed-v2.txt': {
+									filename: 'routed-v2.txt',
+									content: 'native-v2',
+								},
+							},
+						},
+					],
+				},
+			});
+
+			await expect(
+				cliServer.playground.readFileAsText(
+					'/wordpress/routed-v2.txt'
+				)
+			).resolves.toBe('native-v2');
+		});
+
+		test('should route --mode to the native v2 handler without the experimental flag', async () => {
+			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+				code?: number | string | null
+			) => {
+				throw new Error(`process.exit unexpectedly called with "${code}"`);
+			}) as any);
+
+			try {
+				await using cliResult = await parseOptionsAndRunCLI([
+					'server',
+					'--mode=mount-only',
+					'--verbosity=quiet',
+					'--port=0',
+				]);
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+				expect(
+					await cliServer.playground.fileExists(
+						'/wordpress/wp-load.php'
+					)
+				).toBe(false);
+			} finally {
+				exitSpy.mockRestore();
+			}
+		});
+
+		test('should accept --mode with the experimental v2 flag when legacy options are omitted', async () => {
+			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+				code?: number | string | null
+			) => {
+				throw new Error(`process.exit unexpectedly called with "${code}"`);
+			}) as any);
+
+			try {
+				await using cliResult = await parseOptionsAndRunCLI([
+					'server',
+					'--experimental-blueprints-v2-runner',
+					'--mode=mount-only',
+					'--verbosity=quiet',
+					'--port=0',
+				]);
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+				expect(
+					await cliServer.playground.fileExists(
+						'/wordpress/wp-load.php'
+					)
+				).toBe(false);
+			} finally {
+				exitSpy.mockRestore();
+			}
+		});
+
+		test('should preserve legacy existing-site install mode with the experimental v2 flag', async () => {
+			const fetchMock = vi.fn(async () => {
+				throw new Error('Unexpected WordPress ZIP fetch');
+			});
+			vi.stubGlobal('fetch', fetchMock);
+			const stdoutChunks: string[] = [];
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation((chunk: any) => {
+					stdoutChunks.push(
+						typeof chunk === 'string'
+							? chunk
+							: new TextDecoder().decode(chunk)
+					);
+					return true;
+				});
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((code?: number | string | null) => {
+					throw new Error(`process.exit(${code})`);
+				});
+
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--experimental-blueprints-v2-runner',
+						'--wordpress-install-mode=install-from-existing-files-if-needed',
+						'--wp=https://example.com/wordpress.zip',
+						'--skip-sqlite-setup',
+						'--verbosity=quiet',
+						'--port=0',
+					])
+				).rejects.toThrow('process.exit(1)');
+				expect(stdoutChunks.join('')).toContain(
+					'Blueprint v2 wordpressVersion ZIP references can only be used when creating a new site.'
+				);
+				expect(exitSpy).toHaveBeenCalledWith(1);
+				expect(fetchMock).not.toHaveBeenCalled();
+			} finally {
+				stdoutSpy.mockRestore();
+				exitSpy.mockRestore();
+				vi.unstubAllGlobals();
+			}
+		});
+
+		test('should reject --mode with legacy install options without the experimental flag', async () => {
+			const stdoutChunks: string[] = [];
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation((chunk: any) => {
+					stdoutChunks.push(
+						typeof chunk === 'string'
+							? chunk
+							: new TextDecoder().decode(chunk)
+					);
+					return true;
+				});
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((code?: number | string | null) => {
+					throw new Error(`process.exit(${code})`);
+				});
+
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--mode=mount-only',
+						'--wordpress-install-mode=do-not-attempt-installing',
+						'--verbosity=quiet',
+						'--port=0',
+					])
+				).rejects.toThrow('process.exit(1)');
+				expect(stdoutChunks.join('')).toContain(
+					'The --wordpress-install-mode option cannot be used with the --mode option.'
+				);
+				expect(exitSpy).toHaveBeenCalledWith(1);
+			} finally {
+				stdoutSpy.mockRestore();
+				consoleErrorSpy.mockRestore();
+				exitSpy.mockRestore();
+			}
 		});
 
 		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({
@@ -676,7 +844,7 @@ describe.each(blueprintVersions)(
 					zipPath,
 					new Uint8Array(await zip.arrayBuffer())
 				);
-				await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
+				await extractZip(zipPath, tmpDir);
 
 				const checksum = await getDirectoryChecksum(tmpDir);
 
@@ -1458,9 +1626,10 @@ describe('other run-cli behaviors', () => {
 					);
 					req.on('error', reject);
 					req.end();
-				}
-			);
-			expect(res.statusCode).toBe(302);
+	}
+);
+
+				expect(res.statusCode).toBe(302);
 			expect(res.headers['set-cookie']).toContain(
 				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
 			);
@@ -2223,3 +2392,16 @@ describe('resolveWorkerCount', () => {
 		});
 	});
 });
+
+async function extractZip(zipPath: string, extractTo: string) {
+	const zipStream = decodeZip(new Blob([await readFile(zipPath)]).stream());
+	for await (const file of zipStream) {
+		const target = path.join(extractTo, file.name);
+		if (file.type === 'directory' || file.name.endsWith('/')) {
+			await mkdir(target, { recursive: true });
+			continue;
+		}
+		await mkdir(path.dirname(target), { recursive: true });
+		await writeFile(target, new Uint8Array(await file.arrayBuffer()));
+	}
+}

@@ -66,6 +66,27 @@ export type {
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
+export {
+	blueprintV2ToBlueprintV1,
+	compileBlueprintV2,
+	createBlueprintV2ExecutionPlan,
+	getBlueprintV2Declaration,
+	hasBlueprintV2WordPressZipReference,
+	resolveBlueprintV2RuntimeConfiguration,
+	resolveBlueprintV2WordPressSource,
+	runBlueprintV2Steps,
+	upgradeBlueprintV1ToV2,
+	validateBlueprintV2,
+	InvalidBlueprintV2Error,
+	UnsupportedBlueprintV2FeatureError,
+} from './lib/v2/compile';
+export type {
+	BlueprintV2ValidationError,
+	BlueprintV2ValidationResult,
+	CompileBlueprintV2Options,
+	CompiledBlueprintV2,
+	ResolvedBlueprintV2WordPressSource,
+} from './lib/v2/compile';
 
 export {
 	resolveRemoteBlueprint,

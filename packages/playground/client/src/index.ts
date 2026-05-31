@@ -29,10 +29,11 @@ export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
 import type {
-	BlueprintV1,
-	BlueprintV1Declaration,
+	Blueprint,
+	BlueprintDeclaration,
 	OnStepCompleted,
 } from '@wp-playground/blueprints';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
@@ -49,17 +50,19 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	blueprint?: BlueprintV1;
+	blueprint?: Blueprint;
 	/**
 	 * PHP extensions to install before the runtime starts.
 	 */
 	extensions?: PHPWebExtension[];
 	/**
-	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
+	 * Run the supplied Blueprint through the native TypeScript v2 compiler,
+	 * upgrading v1 declarations when needed. Version 2 Blueprints use this
+	 * path automatically.
 	 */
 	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
-	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
+	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
 	 * steps are run.
@@ -152,9 +155,9 @@ export async function startPlaygroundWeb(
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
-		'blueprints-runner': options.experimentalBlueprintsV2Runner
-			? 'v2'
-			: 'v1',
+		// The TypeScript runner executes both Blueprint v1 and v2 steps from
+		// the client package, so it can use the standard remote worker.
+		'blueprints-runner': 'v1',
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
@@ -163,7 +166,9 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	const handler = options.experimentalBlueprintsV2Runner
+	const blueprintVersion = await getBlueprintVersion(options.blueprint || {});
+	const handler =
+		options.experimentalBlueprintsV2Runner || blueprintVersion === 2
 		? new BlueprintsV2Handler(options)
 		: new BlueprintsV1Handler(options);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
@@ -171,6 +176,11 @@ export async function startPlaygroundWeb(
 	progressTracker.finish();
 
 	return playground;
+}
+
+async function getBlueprintVersion(blueprint: Blueprint) {
+	const reflection = await BlueprintReflection.create(blueprint);
+	return reflection.getVersion();
 }
 
 /**

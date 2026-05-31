@@ -4,6 +4,11 @@ import { installPlugin } from '../../lib/steps/install-plugin';
 import { phpVar } from '@php-wasm/util';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
+import {
+	getSqliteDriverModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 
 async function zipFiles(
 	php: PHP,
@@ -118,6 +123,75 @@ describe('Blueprint step installPlugin', () => {
 		const pluginFilePath = `${pluginsPath}/test-plugin.php`;
 		expect(php.fileExists(pluginFilePath)).toBe(true);
 		expect(php.readFileAsText(pluginFilePath)).toBe(rawPluginContent);
+	});
+
+	it('should skip installation errors when onError is skip-plugin', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: new File(['not a plugin'], 'not-a-plugin.txt'),
+				options: {
+					onError: 'skip-plugin',
+				},
+			})
+		).resolves.toBeUndefined();
+	});
+
+	it('should expose activationOptions during plugin activation', async () => {
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		const wpPhp = await handler.getPrimaryPhp();
+
+		try {
+			await installPlugin(wpPhp, {
+				pluginData: await zipFiles(wpPhp, zipFileName, {
+					[`${pluginName}/index.php`]: `<?php
+/**
+ * Plugin Name: Test Plugin
+ */
+register_activation_hook(__FILE__, function() {
+	update_option(
+		'blueprint_activation_seen',
+		get_option('blueprint_activation_' . plugin_basename(__FILE__))
+	);
+});
+`,
+				}),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: true,
+					activationOptions: {
+						storeCity: 'Wroclaw',
+						enabled: true,
+					},
+				},
+			});
+
+			const response = await wpPhp.run({
+				code: `<?php
+require '/wordpress/wp-load.php';
+echo json_encode(array(
+	'seen' => get_option('blueprint_activation_seen'),
+	'cleanup' => get_option('blueprint_activation_test-plugin/index.php', 'missing'),
+));
+`,
+			});
+
+			expect(JSON.parse(response.text)).toEqual({
+				seen: {
+					storeCity: 'Wroclaw',
+					enabled: true,
+				},
+				cleanup: 'missing',
+			});
+		} finally {
+			wpPhp.exit();
+			await handler[Symbol.asyncDispose]();
+		}
 	});
 
 	it('should install a plugin using the deprecated pluginZipFile option', async () => {

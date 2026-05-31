@@ -35,6 +35,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		scope,
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
+		wordPressZip,
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
@@ -44,9 +45,22 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		wordpressInstallMode,
 		corsProxyUrl,
 		pathAliases,
+		experimentalBlueprintsV2Runner,
+		blueprint,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
+		}
+		if (
+			experimentalBlueprintsV2Runner ||
+			(typeof blueprint === 'object' &&
+				blueprint !== null &&
+				'version' in blueprint &&
+				blueprint.version === 2)
+		) {
+			throw new Error(
+				'The legacy remote Blueprint v2 worker is no longer supported. Use the TypeScript Blueprint v2 client handler on the standard worker.'
+			);
 		}
 		if (corsProxyUrl === undefined) {
 			corsProxyUrl = defaultCorsProxyUrl as any;
@@ -87,7 +101,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			const wpDetails = getWordPressModuleDetails(wpVersion);
 			let wordPressRequest: Promise<Response> | null = null;
-			if (resolvedWordPressInstallMode === 'download-and-install') {
+			if (
+				resolvedWordPressInstallMode === 'download-and-install' &&
+				!wordPressZip
+			) {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
 						.monitorFetch(
@@ -220,9 +237,16 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// client is low on disk space. Blobs tend to be stored as temporary files,
 				// array buffers tend to be stored in memory.
 				// @see https://github.com/WordPress/wordpress-playground/issues/2769
-				wordPressZip: wordPressRequest
-					?.then((r) => r.arrayBuffer())
-					.then((b) => new File([b], 'wp.zip')),
+				wordPressZip:
+					resolvedWordPressInstallMode === 'download-and-install'
+						? wordPressRequest
+							? wordPressRequest
+									.then((r) => r.arrayBuffer())
+									.then((b) => new File([b], 'wp.zip'))
+							: wordPressZip
+								? new File([wordPressZip], 'wp.zip')
+								: undefined
+						: undefined,
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'sqlite.zip')),

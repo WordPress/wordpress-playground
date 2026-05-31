@@ -63,6 +63,10 @@ export interface InstallThemeOptions {
 	 * The name of the folder to install the theme to. Defaults to guessing from themeData
 	 */
 	targetFolderName?: string;
+	/**
+	 * Human-readable theme name for the progress caption.
+	 */
+	humanReadableName?: string;
 }
 
 /**
@@ -90,12 +94,13 @@ export const installTheme: StepHandler<
 		'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderName = '';
 	let assetNiceName = '';
+	const progressName = () => options.humanReadableName || assetNiceName;
 	if (themeData instanceof File) {
 		// @TODO: Consider validating whether this is a zip file?
 		const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
 		assetNiceName = zipNameToHumanName(zipFileName);
 
-		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
+		progress?.tracker.setCaption(`Installing the ${progressName()} theme`);
 		const assetResult = await installAsset(playground, {
 			ifAlreadyInstalled,
 			zipFile: themeData,
@@ -107,7 +112,7 @@ export const installTheme: StepHandler<
 		assetNiceName = themeData.name;
 		assetFolderName = targetFolderName || assetNiceName;
 
-		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
+		progress?.tracker.setCaption(`Installing the ${progressName()} theme`);
 		const themeDirectoryPath = joinPaths(
 			await playground.documentRoot,
 			'wp-content',

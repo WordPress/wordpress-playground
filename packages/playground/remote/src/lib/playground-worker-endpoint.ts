@@ -70,6 +70,7 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
+	wordPressZip?: ArrayBuffer;
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;

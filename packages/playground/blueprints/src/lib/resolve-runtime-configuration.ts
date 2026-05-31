@@ -1,8 +1,12 @@
-import { RecommendedPHPVersion } from '@wp-playground/common';
 import { BlueprintReflection } from './reflection';
 import type { Blueprint, RuntimeConfiguration } from './types';
 import { compileBlueprintV1 } from './v1/compile';
 import type { BlueprintV1 } from './v1/types';
+import {
+	resolveBlueprintV2RuntimeConfiguration,
+	upgradeBlueprintV1ToV2,
+} from './v2/compile';
+import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 
 export async function resolveRuntimeConfiguration(
 	blueprint: Blueprint
@@ -31,14 +35,12 @@ export async function resolveRuntimeConfiguration(
 			constants: {},
 		};
 	} else {
-		// @TODO: actually compute the runtime configuration based on the resolved Blueprint v2
-		return {
-			phpVersion: RecommendedPHPVersion,
-			wpVersion: 'latest',
-			intl: false,
-			networking: true,
-			constants: {},
-			extraLibraries: [],
-		};
+		const declaration =
+			reflection.getDeclaration() as BlueprintV2Declaration;
+		return resolveBlueprintV2RuntimeConfiguration(
+			declaration.version === 2
+				? declaration
+				: upgradeBlueprintV1ToV2(declaration as any)
+		);
 	}
 }

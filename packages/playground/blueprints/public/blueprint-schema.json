@@ -721,6 +721,49 @@
 							"$ref": "#/definitions/FileReference",
 							"description": "The file to import"
 						},
+						"fetchAttachments": {
+							"type": "boolean",
+							"description": "Whether to fetch and import attachment files referenced by the WXR file."
+						},
+						"rewriteUrls": {
+							"type": "boolean",
+							"description": "Whether to rewrite imported URLs to the current site URL."
+						},
+						"urlMap": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Explicit URL replacements to apply to imported content, metadata, and comments."
+						},
+						"authorsMode": {
+							"type": "string",
+							"enum": ["create", "default-author", "map"],
+							"description": "How to map WXR authors that do not exist in the target site."
+						},
+						"defaultAuthorUsername": {
+							"type": "string",
+							"description": "The local username used when authorsMode is \"default-author\"."
+						},
+						"authorsMap": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Remote author login to local username/email mappings."
+						},
+						"importComments": {
+							"type": "boolean",
+							"description": "Whether to import comments from the WXR file."
+						},
+						"importUsers": {
+							"type": "boolean",
+							"description": "Whether to import users from the WXR file."
+						},
+						"importSiteOptions": {
+							"type": "boolean",
+							"description": "Whether to import site options from the WXR file."
+						},
 						"importer": {
 							"type": "string",
 							"enum": ["data-liberation", "default"],
@@ -1486,9 +1529,23 @@
 					"type": "boolean",
 					"description": "Whether to activate the plugin after installing it."
 				},
+				"activationOptions": {
+					"type": "object",
+					"additionalProperties": {},
+					"description": "Parameters to expose to the plugin during its activation hook."
+				},
+				"onError": {
+					"type": "string",
+					"enum": ["skip-plugin", "throw"],
+					"description": "Whether installation/activation failures should abort the Blueprint."
+				},
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the plugin to. Defaults to guessing from pluginData"
+				},
+				"humanReadableName": {
+					"type": "string",
+					"description": "Human-readable plugin name for the progress caption."
 				}
 			},
 			"additionalProperties": false
@@ -1507,6 +1564,10 @@
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the theme to. Defaults to guessing from themeData"
+				},
+				"humanReadableName": {
+					"type": "string",
+					"description": "Human-readable theme name for the progress caption."
 				}
 			},
 			"additionalProperties": false
