@@ -1,8 +1,7 @@
-import { createServer } from 'net';
+import { createServer, type Server } from 'net';
 import type { WebSocketServer } from 'ws';
 import { WebSocket } from 'ws';
-import { debugLog } from './utils';
-import type { AddressInfo } from 'net';
+import { debugLog, getServerPort } from './utils';
 function log(...args: any[]) {
 	debugLog('[TCP Server]', ...args);
 }
@@ -11,27 +10,34 @@ export function addTCPServerToWebSocketServerClass(
 	WSServer: typeof WebSocketServer
 ): any {
 	return class PHPWasmWebSocketServer extends WSServer {
+		private tcpToWsProxyServer?: Server;
+
 		constructor(options: any, callback: any) {
 			const requestedPort = options.port;
 			options.port = 0;
-			super(options, callback);
+			super(options, undefined);
 			this.once('listening', () => {
-				listenTCPToWSProxy({
-					tcpListenPort: requestedPort,
-					wsConnectPort: getServerPort(this),
-				});
+				this.tcpToWsProxyServer = listenTCPToWSProxy(
+					{
+						tcpListenPort: requestedPort,
+						wsConnectPort: getServerPort(this),
+					},
+					callback
+				);
 			});
 		}
+
+		override close(callback?: (err?: Error) => void) {
+			const tcpToWsProxyServer = this.tcpToWsProxyServer;
+			this.tcpToWsProxyServer = undefined;
+
+			if (tcpToWsProxyServer?.listening) {
+				tcpToWsProxyServer.close();
+			}
+
+			return super.close(callback);
+		}
 	};
-}
-
-function getServerPort(server: WebSocketServer): number {
-	const address = server.address();
-	if (address === null || typeof address === 'string') {
-		throw new Error('WebSocket server address is not available');
-	}
-
-	return (address as AddressInfo).port;
 }
 
 export interface InboundTcpToWsProxyOptions {
@@ -39,7 +45,10 @@ export interface InboundTcpToWsProxyOptions {
 	wsConnectHost?: string;
 	wsConnectPort: number;
 }
-export function listenTCPToWSProxy(options: InboundTcpToWsProxyOptions) {
+export function listenTCPToWSProxy(
+	options: InboundTcpToWsProxyOptions,
+	onListening?: () => void
+) {
 	options = {
 		wsConnectHost: '127.0.0.1',
 		...options,
@@ -98,5 +107,7 @@ export function listenTCPToWSProxy(options: InboundTcpToWsProxyOptions) {
 	});
 	server.listen(tcpListenPort, function () {
 		log('TCP server listening');
+		onListening?.();
 	});
+	return server;
 }

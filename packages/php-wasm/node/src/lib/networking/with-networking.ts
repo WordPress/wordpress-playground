@@ -2,9 +2,9 @@ import type { EmscriptenOptions } from '@php-wasm/universal';
 import {
 	initOutboundWebsocketProxyServer,
 	addSocketOptionsSupportToWebSocketClass,
-	getServerPort,
 } from './outbound-ws-to-tcp-proxy';
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
+import { getServerPort } from './utils';
 
 export async function withNetworking(
 	phpModuleArgs: EmscriptenOptions = {}

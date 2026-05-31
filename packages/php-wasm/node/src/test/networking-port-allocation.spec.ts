@@ -3,6 +3,7 @@ import net from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { withNetworking } from '../lib/networking/with-networking';
 import { addTCPServerToWebSocketServerClass } from '../lib/networking/inbound-tcp-to-ws-proxy';
+import { getServerPort } from '../lib/networking/utils';
 
 describe('networking port allocation', () => {
 	afterEach(() => {
@@ -27,14 +28,14 @@ describe('networking port allocation', () => {
 			emscriptenOptions.outboundNetworkProxyServer as http.Server;
 
 		try {
-			expect(listenCalls).toContainEqual(
-				expect.arrayContaining([0, '127.0.0.1'])
-			);
+			expect(listenCalls).toContainEqual([
+				0,
+				'127.0.0.1',
+				expect.any(Function),
+			]);
 			expect(
 				emscriptenOptions['websocket']?.url(null, 'example.com', '80')
-			).toContain(
-				`127.0.0.1:${(server.address() as { port: number }).port}`
-			);
+			).toContain(`127.0.0.1:${getServerPort(server)}`);
 			expect(listenSpy).toHaveBeenCalled();
 		} finally {
 			await new Promise((resolve) => server.close(resolve));
@@ -56,6 +57,10 @@ describe('networking port allocation', () => {
 				this.addEventListener(event, callback, { once: true });
 			}
 
+			close(callback?: () => void) {
+				callback?.();
+			}
+
 			address() {
 				return {
 					address: '127.0.0.1',
@@ -65,6 +70,7 @@ describe('networking port allocation', () => {
 			}
 		}
 
+		let closeCalled = false;
 		const listenCalls: unknown[][] = [];
 		const listenSpy = vi
 			.spyOn(net.Server.prototype, 'listen')
@@ -73,22 +79,51 @@ describe('networking port allocation', () => {
 				...args: Parameters<typeof net.Server.prototype.listen>
 			) {
 				listenCalls.push(args);
+				Object.defineProperty(this, 'listening', {
+					value: true,
+					configurable: true,
+				});
+				process.nextTick(() => {
+					const callback = [...args]
+						.reverse()
+						.find(
+							(arg): arg is () => void =>
+								typeof arg === 'function'
+						);
+					callback?.();
+					this.emit('listening');
+				});
+				return this;
+			});
+		const closeSpy = vi
+			.spyOn(net.Server.prototype, 'close')
+			.mockImplementation(function (this: net.Server) {
+				closeCalled = true;
 				return this;
 			});
 
 		const DecoratedServer = addTCPServerToWebSocketServerClass(
 			StubWebSocketServer as any
 		);
-		const websocketServer = new DecoratedServer({ port: 12345 }, () => {});
+		const onListening = vi.fn();
+		const websocketServer = new DecoratedServer(
+			{ port: 12345 },
+			onListening
+		);
 
+		await new Promise((resolve) => process.nextTick(resolve));
 		await new Promise((resolve) => process.nextTick(resolve));
 
 		try {
 			expect(websocketServer.options.port).toBe(0);
-			expect(listenCalls).toContainEqual(expect.arrayContaining([12345]));
+			expect(listenCalls).toContainEqual([12345, expect.any(Function)]);
+			expect(onListening).toHaveBeenCalledOnce();
+			websocketServer.close();
+			expect(closeCalled).toBe(true);
 			expect(listenSpy).toHaveBeenCalled();
 		} finally {
 			listenSpy.mockRestore();
+			closeSpy.mockRestore();
 		}
 	});
 });

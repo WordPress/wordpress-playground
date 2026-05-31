@@ -12,7 +12,6 @@ import * as http from 'http';
 import * as net from 'net';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils';
-import type { AddressInfo } from 'net';
 
 function log(...args: any[]) {
 	debugLog('[WS Server]', ...args);
@@ -131,15 +130,6 @@ export function initOutboundWebsocketProxyServer(
 			resolve(webServer);
 		});
 	});
-}
-
-export function getServerPort(server: http.Server): number {
-	const address = server.address();
-	if (address === null || typeof address === 'string') {
-		throw new Error('WebSocket proxy server address is not available');
-	}
-
-	return (address as AddressInfo).port;
 }
 
 // Handle new WebSocket client
