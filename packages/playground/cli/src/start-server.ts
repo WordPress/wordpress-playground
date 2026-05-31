@@ -11,6 +11,7 @@ import type { RunCLIServer } from './run-cli';
 import { logger } from '@php-wasm/logger';
 
 const exec = promisify(execCb);
+const AUTOMATIC_PORT_BIND_RETRIES = 5;
 
 export interface ServerOptions {
 	port: number;
@@ -39,20 +40,7 @@ export async function startServer(
 ): Promise<RunCLIServer | void> {
 	const app = express();
 
-	const server = await new Promise<
-		Server<typeof IncomingMessage, typeof ServerResponse>
-	>((resolve, reject) => {
-		const server = app
-			.listen(options.port, () => {
-				const address = server.address();
-				if (address === null || typeof address === 'string') {
-					reject(new Error('Server address is not available'));
-				} else {
-					resolve(server);
-				}
-			})
-			.once('error', reject);
-	});
+	const server = await listenOnPort(app, options.port);
 
 	app.use('/', async (req, res) => {
 		try {
@@ -85,6 +73,59 @@ export async function startServer(
 	}
 
 	return await options.onBind(server, port);
+}
+
+async function listenOnPort(
+	app: express.Express,
+	port: number
+): Promise<Server<typeof IncomingMessage, typeof ServerResponse>> {
+	let remainingRetries = port === 0 ? AUTOMATIC_PORT_BIND_RETRIES : 0;
+
+	while (true) {
+		try {
+			return await listenOnce(app, port);
+		} catch (error) {
+			if (!isPortInUseError(error) || remainingRetries <= 0) {
+				throw error;
+			}
+
+			remainingRetries--;
+		}
+	}
+}
+
+function listenOnce(
+	app: express.Express,
+	port: number
+): Promise<Server<typeof IncomingMessage, typeof ServerResponse>> {
+	return new Promise((resolve, reject) => {
+		const server = app.listen(port);
+		const onError = (error: Error) => {
+			server.off('listening', onListening);
+			reject(error);
+		};
+		const onListening = () => {
+			server.off('error', onError);
+			const address = server.address();
+			if (address === null || typeof address === 'string') {
+				reject(new Error('Server address is not available'));
+			} else {
+				resolve(server);
+			}
+		};
+
+		server.once('error', onError);
+		server.once('listening', onListening);
+	});
+}
+
+function isPortInUseError(error: unknown): boolean {
+	return (
+		error !== null &&
+		typeof error === 'object' &&
+		'code' in error &&
+		error.code === 'EADDRINUSE'
+	);
 }
 
 /**
