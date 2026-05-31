@@ -1829,9 +1829,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 			return response;
 		},
-	}).catch((error) => {
-		cliOutput.printError(describeError(error));
-		process.exit(1);
 	});
 
 	if (server && args.command === 'start' && !args.skipBrowser) {
