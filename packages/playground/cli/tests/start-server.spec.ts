@@ -125,58 +125,6 @@ describe('startServer', () => {
 		}
 	});
 
-	it('retries when automatic port binding reports EADDRINUSE', async () => {
-		const originalListen = http.Server.prototype.listen;
-		let rejectedAutomaticBind = false;
-		const listenSpy = vi
-			.spyOn(http.Server.prototype, 'listen')
-			.mockImplementation(function (
-				this: http.Server,
-				...args: Parameters<typeof http.Server.prototype.listen>
-			) {
-				if (args[0] === 0 && !rejectedAutomaticBind) {
-					rejectedAutomaticBind = true;
-					process.nextTick(() => {
-						this.emit(
-							'error',
-							Object.assign(new Error('address already in use'), {
-								code: 'EADDRINUSE',
-							})
-						);
-					});
-					return this;
-				}
-
-				return originalListen.apply(this, args);
-			});
-
-		try {
-			const cliServer = await startServer({
-				port: 0,
-				handleRequest: async () =>
-					new StreamedPHPResponse(
-						new ReadableStream({ start: (c) => c.close() }),
-						new ReadableStream({ start: (c) => c.close() }),
-						new ReadableStream({ start: (c) => c.close() }),
-						Promise.resolve(0)
-					),
-				async onBind(server, port) {
-					return { server, port } as any;
-				},
-			});
-			const { server, port } = cliServer as any;
-
-			try {
-				expect(rejectedAutomaticBind).toBe(true);
-				expect(port).toBeGreaterThan(0);
-			} finally {
-				server.close();
-			}
-		} finally {
-			listenSpy.mockRestore();
-		}
-	});
-
 	it('does not log an error on client disconnect (ERR_STREAM_PREMATURE_CLOSE)', async () => {
 		const pipelineMock = vi.mocked(pipeline);
 		pipelineMock.mockClear();

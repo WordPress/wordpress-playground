@@ -2,6 +2,7 @@ import type { EmscriptenOptions } from '@php-wasm/universal';
 import {
 	initOutboundWebsocketProxyServer,
 	addSocketOptionsSupportToWebSocketClass,
+	getServerPort,
 } from './outbound-ws-to-tcp-proxy';
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
 import { findFreePorts } from './utils';
@@ -9,12 +10,11 @@ import { findFreePorts } from './utils';
 export async function withNetworking(
 	phpModuleArgs: EmscriptenOptions = {}
 ): Promise<EmscriptenOptions> {
-	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
-		await findFreePorts(2);
+	const [inboundProxyWsServerPort] = await findFreePorts(1);
 
-	const outboundNetworkProxyServer = await initOutboundWebsocketProxyServer(
-		outboundProxyWsServerPort
-	);
+	const outboundNetworkProxyServer =
+		await initOutboundWebsocketProxyServer(0);
+	const outboundProxyWsServerPort = getServerPort(outboundNetworkProxyServer);
 
 	return {
 		...phpModuleArgs,

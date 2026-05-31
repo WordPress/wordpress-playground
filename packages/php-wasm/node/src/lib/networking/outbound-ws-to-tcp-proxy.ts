@@ -12,6 +12,7 @@ import * as http from 'http';
 import * as net from 'net';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils';
+import type { AddressInfo } from 'net';
 
 function log(...args: any[]) {
 	debugLog('[WS Server]', ...args);
@@ -121,13 +122,24 @@ export function initOutboundWebsocketProxyServer(
 		);
 		response.end();
 	});
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
+		webServer.once('error', reject);
 		webServer.listen(listenPort, listenHost, function () {
+			webServer.off('error', reject);
 			const wsServer = new WebSocketServer({ server: webServer });
 			wsServer.on('connection', onWsConnect);
 			resolve(webServer);
 		});
 	});
+}
+
+export function getServerPort(server: http.Server): number {
+	const address = server.address();
+	if (address === null || typeof address === 'string') {
+		throw new Error('WebSocket proxy server address is not available');
+	}
+
+	return (address as AddressInfo).port;
 }
 
 // Handle new WebSocket client
