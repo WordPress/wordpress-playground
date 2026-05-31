@@ -6,7 +6,7 @@ import {
 	MenuGroup,
 	MenuItem,
 } from '@wordpress/components';
-import { moreVertical, plus, upload, link } from '@wordpress/icons';
+import { moreVertical, plus, upload, link, code } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useState, useEffect, useRef } from 'react';
@@ -34,7 +34,9 @@ import {
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
+	remountSiteInfoPanel,
 } from '../../lib/state/redux/slice-ui';
+import { setSiteLastTab } from '../site-manager/site-info-panel';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
@@ -92,6 +94,9 @@ export function SavedPlaygroundsOverlay({
 	initialViewMode = 'main',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
+	const siteManagerIsOpen = useAppSelector(
+		(state) => state.ui.siteManagerIsOpen
+	);
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
@@ -363,6 +368,23 @@ export function SavedPlaygroundsOverlay({
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
+			},
+			disabled: false,
+		},
+		{
+			id: 'blueprint-editor',
+			title: 'Blueprint editor',
+			icon: code,
+			onClick: () => {
+				if (activeSite) {
+					setSiteLastTab(activeSite.slug, 'blueprint');
+				}
+				if (siteManagerIsOpen) {
+					dispatch(remountSiteInfoPanel());
+				}
+				dispatch(setSiteManagerOpen(true));
+				dispatch(setSiteManagerSection('site-details'));
+				onClose();
 			},
 			disabled: false,
 		},

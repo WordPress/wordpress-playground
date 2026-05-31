@@ -65,7 +65,7 @@ function getSiteLastTab(siteSlug: string): string | null {
 	}
 }
 
-function setSiteLastTab(siteSlug: string, tabName: string): void {
+export function setSiteLastTab(siteSlug: string, tabName: string): void {
 	try {
 		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
 		const tabs = stored ? JSON.parse(stored) : {};

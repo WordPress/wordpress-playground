@@ -24,6 +24,9 @@ export const SiteManager = forwardRef<
 	const activeSiteManagerSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
 	);
+	const siteInfoPanelKey = useAppSelector(
+		(state) => state.ui.siteInfoPanelKey
+	);
 
 	// Load saved width from localStorage or use default
 	const [siteInfoWidth, setSiteInfoWidth] = useState<number>(() => {
@@ -74,7 +77,7 @@ export const SiteManager = forwardRef<
 			activePanel = activeSite ? (
 				fullScreenSections ? (
 					<SiteInfoPanel
-						key={activeSite?.slug}
+						key={`${activeSite?.slug}-${siteInfoPanelKey}`}
 						className={css.siteManagerSiteInfo}
 						site={activeSite}
 						mobileUi={fullScreenSections}
@@ -101,6 +104,7 @@ export const SiteManager = forwardRef<
 						}}
 					>
 						<SiteInfoPanel
+							key={`${activeSite?.slug}-${siteInfoPanelKey}`}
 							className={css.siteManagerSiteInfo}
 							site={activeSite}
 							mobileUi={fullScreenSections}
