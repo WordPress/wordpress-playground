@@ -51,6 +51,10 @@ export default defineConfig(({ command, mode }) => {
 		'PERSONAL_WP_USAGE_STATS_ENDPOINT' in process.env
 			? process.env.PERSONAL_WP_USAGE_STATS_ENDPOINT
 			: undefined;
+	const personalWpUsageStatsHost =
+		'PERSONAL_WP_USAGE_STATS_HOST' in process.env
+			? process.env.PERSONAL_WP_USAGE_STATS_HOST
+			: 'my.wordpress.net';
 
 	return {
 		root: __dirname,
@@ -120,7 +124,8 @@ export default defineConfig(({ command, mode }) => {
 			virtualModule({
 				name: 'personal-wp-usage-stats',
 				content: `
-				export const personalWpUsageStatsEndpoint = ${JSON.stringify(personalWpUsageStatsEndpoint || undefined)};`,
+				export const personalWpUsageStatsEndpoint = ${JSON.stringify(personalWpUsageStatsEndpoint || undefined)};
+				export const personalWpUsageStatsHost = ${JSON.stringify(personalWpUsageStatsHost || undefined)};`,
 			}),
 			virtualModule({
 				name: 'website-defaults',

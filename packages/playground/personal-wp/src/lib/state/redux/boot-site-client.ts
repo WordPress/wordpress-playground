@@ -32,6 +32,7 @@ import {
 	selectBlueprintResolvedFromUrl,
 	setBlueprintResolvedFromUrl,
 } from './slice-sites';
+import type { SiteMetadata } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import {
@@ -43,9 +44,12 @@ import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
 import {
+	getUsageStatsDate,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
+	isUsageStatsAllowedOnCurrentHost,
 	logPersonalWpEvent,
+	shouldLogReturningVisitUsageStats,
 } from '../../personalwp/usage-stats';
 
 export interface BootSiteClientOptions {
@@ -378,7 +382,7 @@ export function bootSiteClient(
 		});
 
 		const bootCompletedAt = Date.now();
-		logBootUsageStats({
+		const usageStatsMetadata = logBootUsageStats({
 			site,
 			hasUrlBlueprint,
 			urlBlueprint: hasUrlBlueprint ? urlBlueprint.blueprint : undefined,
@@ -392,6 +396,7 @@ export function bootSiteClient(
 					slug: site.slug,
 					metadata: {
 						lastAccessDate: bootCompletedAt,
+						...usageStatsMetadata,
 					},
 				})
 			);
@@ -433,23 +438,33 @@ function logBootUsageStats({
 	isWordPressInstalled: boolean;
 	wordpressInstallMode: string;
 	bootCompletedAt: number;
-}): void {
-	if (!site || site.metadata.storage === 'none') {
-		return;
+}): BootUsageStatsMetadata {
+	if (
+		!site ||
+		site.metadata.storage === 'none' ||
+		!isUsageStatsAllowedOnCurrentHost()
+	) {
+		return {};
 	}
 
 	const siteProperties = getSiteUsageStatsProperties(
 		site.metadata,
 		bootCompletedAt
 	);
+	const metadata: BootUsageStatsMetadata = {};
 	if (wordpressInstallMode === 'download-and-install') {
 		logPersonalWpEvent('wordpress_installed', {
 			...siteProperties,
 			original_blueprint_source:
 				site.metadata.originalBlueprintSource.type,
 		});
-	} else if (isWordPressInstalled) {
+	} else if (
+		isWordPressInstalled &&
+		shouldLogReturningVisitUsageStats(site.metadata, bootCompletedAt)
+	) {
 		logPersonalWpEvent('returning_visit', siteProperties);
+		metadata.lastUsageStatsReturningVisitDate =
+			getUsageStatsDate(bootCompletedAt);
 	}
 
 	if (hasUrlBlueprint && urlBlueprint) {
@@ -459,7 +474,14 @@ function logBootUsageStats({
 			...getBlueprintUsageStatsProperties(urlBlueprint),
 		});
 	}
+
+	return metadata;
 }
+
+type BootUsageStatsMetadata = Pick<
+	SiteMetadata,
+	'lastUsageStatsReturningVisitDate'
+>;
 
 function bootDependentModeClient({
 	siteSlug,

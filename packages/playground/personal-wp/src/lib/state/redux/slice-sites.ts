@@ -550,6 +550,11 @@ export interface SiteMetadata {
 	 * Timestamp of the last time this site was accessed.
 	 */
 	lastAccessDate?: number;
+
+	/**
+	 * UTC date of the last returning-visit usage stats event for this site.
+	 */
+	lastUsageStatsReturningVisitDate?: string;
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =

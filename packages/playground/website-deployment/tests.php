@@ -3,6 +3,7 @@
 require __DIR__ . '/cors-proxy-config.php';
 require __DIR__ . '/custom-redirects-lib.php';
 require __DIR__ . '/mywp-event.php';
+require __DIR__ . '/mywp-event-dashboard.php';
 
 function assert_equal($expected, $actual, $message='') {
 	if ($expected !== $actual) {
@@ -75,6 +76,15 @@ assert_equal(
     'My WordPress event endpoint should not be edge cached'
 );
 
+$mywp_event_dashboard_headers = playground_get_custom_response_headers(
+    '/mywp-event-dashboard.php'
+);
+assert_equal(
+    true,
+    in_array( 'Cache-Control: no-store', $mywp_event_dashboard_headers, true ),
+    'My WordPress event dashboard should not be edge cached'
+);
+
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';
 assert_equal(
     true,
@@ -88,6 +98,20 @@ assert_equal(
     mywp_event_is_allowed_host(),
     'My WordPress event endpoint should reject other hosts'
 );
+
+$_SERVER['MYWP_EVENT_ALLOWED_HOSTS'] = 'staging.example.test,my.wordpress.net';
+$_SERVER['HTTP_HOST'] = 'staging.example.test';
+assert_equal(
+    true,
+    mywp_event_is_allowed_host(),
+    'My WordPress event endpoint should accept configured staging hosts'
+);
+assert_equal(
+    true,
+    mywp_event_dashboard_is_allowed_host(),
+    'My WordPress event dashboard should accept configured staging hosts'
+);
+unset( $_SERVER['MYWP_EVENT_ALLOWED_HOSTS'] );
 
 $_SERVER['HTTP_ORIGIN'] = 'https://my.wordpress.net';
 assert_equal(
@@ -120,6 +144,19 @@ assert_equal(
 
 unset( $_SERVER['HTTP_REFERER'] );
 
+$_SERVER['MYWP_DB_HOST'] = 'mysql.example.test';
+assert_equal(
+    'mysql.example.test',
+    mywp_event_get_db_config_value( 'HOST' ),
+    'Event endpoint should read nginx FastCGI params from $_SERVER'
+);
+assert_equal(
+    'mysql.example.test',
+    mywp_event_dashboard_get_db_config_value( 'HOST' ),
+    'Event dashboard should read nginx FastCGI params from $_SERVER'
+);
+unset( $_SERVER['MYWP_DB_HOST'] );
+
 assert_equal(
     'v4:127.0.0.1',
     mywp_event_normalize_remote_ip( '127.0.0.1' ),
@@ -132,6 +169,110 @@ assert_equal(
         '2607:B4C0:AAAA:BBBB:CCCC:DDDD:EEEE:FFFF'
     ),
     'IPv6 event rate-limit key should use the /64 subnet'
+);
+
+assert_equal(
+    'akirk,other-user',
+    implode(
+        ',',
+        mywp_event_dashboard_parse_allowed_users(
+            ' akirk, Other-User invalid_user @bad '
+        )
+    ),
+    'Dashboard auth should parse safe GitHub logins only'
+);
+
+assert_equal(
+    true,
+    mywp_event_dashboard_is_allowed_github_user(
+        'AKIRK',
+        array( 'akirk', 'other-user' )
+    ),
+    'Dashboard auth should compare GitHub logins case-insensitively'
+);
+
+$dashboard_payload = mywp_event_dashboard_create_session_payload(
+    'AKIRK',
+    2000
+);
+$dashboard_signature = mywp_event_dashboard_sign(
+    $dashboard_payload,
+    'cookie-secret'
+);
+assert_equal(
+    'akirk',
+    mywp_event_dashboard_validate_session_cookie(
+        array(
+            MYWP_EVENT_DASHBOARD_SESSION_COOKIE => $dashboard_payload,
+            MYWP_EVENT_DASHBOARD_SESSION_SIG_COOKIE => $dashboard_signature,
+        ),
+        'cookie-secret',
+        array( 'akirk' ),
+        1000
+    ),
+    'Dashboard auth should accept a valid signed session cookie'
+);
+
+assert_equal(
+    false,
+    mywp_event_dashboard_validate_session_cookie(
+        array(
+            MYWP_EVENT_DASHBOARD_SESSION_COOKIE => $dashboard_payload,
+            MYWP_EVENT_DASHBOARD_SESSION_SIG_COOKIE => 'bad-signature',
+        ),
+        'cookie-secret',
+        array( 'akirk' ),
+        1000
+    ),
+    'Dashboard auth should reject a bad session signature'
+);
+
+assert_equal(
+    false,
+    mywp_event_dashboard_validate_session_cookie(
+        array(
+            MYWP_EVENT_DASHBOARD_SESSION_COOKIE => $dashboard_payload,
+            MYWP_EVENT_DASHBOARD_SESSION_SIG_COOKIE => $dashboard_signature,
+        ),
+        'cookie-secret',
+        array( 'other-user' ),
+        1000
+    ),
+    'Dashboard auth should enforce the current user allowlist'
+);
+
+$dashboard_metric_sections = mywp_event_dashboard_metric_sections();
+assert_equal(
+    'returning_visit:extra_library_count_bucket',
+    implode(
+        ',',
+        mywp_event_dashboard_other_metric_names(
+            array(
+                'event',
+                'blueprint_installed:plugin_slug',
+                'returning_visit:extra_library_count_bucket',
+            ),
+            $dashboard_metric_sections
+        )
+    ),
+    'Dashboard should keep legacy metrics out of the main sections'
+);
+
+assert_equal(
+    4,
+    mywp_event_dashboard_event_count(
+        array(
+            'event' => array(
+                array(
+                    'name' => 'event',
+                    'value' => 'returning_visit',
+                    'views' => 4,
+                ),
+            ),
+        ),
+        'returning_visit'
+    ),
+    'Dashboard should read event totals from the aggregate event rows'
 );
 
 $event_bumps = mywp_event_collect_stat_bumps( array(
@@ -177,14 +318,28 @@ assert_equal(
     false,
     in_array(
         array(
-            'name' => 'blueprint_installed:step',
-            'value' => 'privateStepName',
+            'name' => 'blueprint_installed:php_version',
+            'value' => '8.4',
             'views' => 1,
         ),
         $event_bumps,
         true
     ),
-    'Unrecognized blueprint step should not be counted'
+    'Runtime version should not be counted'
+);
+
+assert_equal(
+    false,
+    in_array(
+        array(
+            'name' => 'blueprint_installed:step',
+            'value' => 'installPlugin',
+            'views' => 1,
+        ),
+        $event_bumps,
+        true
+    ),
+    'Blueprint steps should not be counted'
 );
 
 assert_equal(

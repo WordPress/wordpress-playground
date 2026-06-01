@@ -6,8 +6,10 @@ import {
 	getBlueprintIdFromUrl,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
+	getUsageStatsDate,
 	isUsageStatsAllowedOnCurrentHost,
 	logPersonalWpEvent,
+	shouldLogReturningVisitUsageStats,
 } from './usage-stats';
 
 describe('Personal WP usage stats', () => {
@@ -127,17 +129,33 @@ describe('Personal WP usage stats', () => {
 			storage: 'opfs',
 			site_age_bucket: '8-30-days',
 			previous_visit_age_bucket: '1-7-days',
-			php_version: '8.4',
-			wp_version: 'latest',
-			intl: true,
-			networking: false,
-			extra_library_count: 1,
-			constant_count: 1,
 		});
 		expect(JSON.stringify(properties)).not.toContain('Private Client Site');
 		expect(JSON.stringify(properties)).not.toContain(
 			'site-id-that-must-not-be-reported'
 		);
+	});
+
+	it('deduplicates returning visits by UTC day in local metadata', () => {
+		const now = Date.UTC(2026, 4, 28, 23, 30);
+		const metadata = {
+			storage: 'opfs',
+			whenCreated: now - 30 * 24 * 60 * 60 * 1000,
+			lastAccessDate: now - 24 * 60 * 60 * 1000,
+		} as SiteMetadata;
+
+		expect(getUsageStatsDate(now)).toBe('2026-05-28');
+		expect(shouldLogReturningVisitUsageStats(metadata, now)).toBe(true);
+
+		metadata.lastUsageStatsReturningVisitDate = '2026-05-28';
+		expect(shouldLogReturningVisitUsageStats(metadata, now)).toBe(false);
+
+		expect(
+			shouldLogReturningVisitUsageStats(
+				metadata,
+				Date.UTC(2026, 4, 29, 0, 1)
+			)
+		).toBe(true);
 	});
 
 	it('summarizes blueprint details without full URLs or content fields', () => {
@@ -192,22 +210,6 @@ describe('Personal WP usage stats', () => {
 		expect(properties).toEqual({
 			blueprint_source: 'external-url',
 			plugin_slugs: ['friends', 'unknown'],
-			has_landing_page: true,
-			has_login: true,
-			step_count: 5,
-			step_counts: {
-				installPlugin: 2,
-				writeFile: 1,
-				unknown: 1,
-				installTheme: 1,
-			},
-			resource_counts: {
-				'wordpress.org/plugins': 1,
-				url: 1,
-				literal: 1,
-				unknown: 1,
-				'wordpress.org/themes': 1,
-			},
 		});
 
 		const serialized = JSON.stringify(properties);
@@ -306,7 +308,7 @@ describe('Personal WP usage stats', () => {
 		).toBe('ai-assistant');
 		expect(
 			getBlueprintIdFromUrl(
-				'file:///home/alex/blueprints/apps/personal-crm.json'
+				'file:///Users/example/blueprints/apps/personal-crm.json'
 			)
 		).toBe('personal-crm');
 		expect(

@@ -22,6 +22,7 @@ cp ~/website-deployment/custom-redirects.php ~/website-update/
 cp ~/website-deployment/cors-proxy-config.php ~/website-update/
 if [ "${ENABLE_MYWP_EVENT_STATS:-}" = "true" ]; then
     cp ~/website-deployment/mywp-event.php ~/website-update/
+    cp ~/website-deployment/mywp-event-dashboard.php ~/website-update/
 fi
 
 # Generate mime-types.php from mime-types.json in case the PHP can be opcached

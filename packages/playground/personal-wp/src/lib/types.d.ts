@@ -10,6 +10,7 @@ declare module 'virtual:cors-proxy-url' {
 
 declare module 'virtual:personal-wp-usage-stats' {
 	export const personalWpUsageStatsEndpoint: string | undefined;
+	export const personalWpUsageStatsHost: string | undefined;
 }
 
 declare module 'virtual:website-defaults' {

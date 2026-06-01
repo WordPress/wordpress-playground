@@ -37,32 +37,6 @@ const MYWP_EVENT_ALLOWED_PLUGIN_SLUGS = array(
 	'wordopedia',
 );
 
-const MYWP_EVENT_ALLOWED_STEPS = array(
-	'activatePlugin',
-	'activateTheme',
-	'defineSiteUrl',
-	'defineWpConfigConsts',
-	'enableMultisite',
-	'importWordPressFiles',
-	'importWxr',
-	'installPlugin',
-	'installTheme',
-	'login',
-	'runPHP',
-	'runPHPWithOptions',
-	'setSiteLanguage',
-	'writeFile',
-);
-
-const MYWP_EVENT_ALLOWED_RESOURCES = array(
-	'bundled',
-	'git:directory',
-	'literal',
-	'url',
-	'wordpress.org/plugins',
-	'wordpress.org/themes',
-);
-
 if ( 'cli' !== php_sapi_name() ) {
 	mywp_event_handle_request();
 }
@@ -181,13 +155,56 @@ function mywp_event_is_allowed_request_origin() {
 }
 
 function mywp_event_is_my_wordpress_host( $host ) {
-	return preg_match( '/^my\.wordpress\.net(:\d+)?$/i', $host );
+	$normalized_host = mywp_event_normalize_host( $host );
+	return (
+		$normalized_host &&
+		in_array( $normalized_host, mywp_event_get_allowed_hosts(), true )
+	);
+}
+
+function mywp_event_get_allowed_hosts() {
+	$raw_hosts = mywp_event_get_config_value( 'MYWP_EVENT_ALLOWED_HOSTS' )
+		?: 'my.wordpress.net';
+	$hosts = preg_split( '/[\s,]+/', strtolower( trim( $raw_hosts ) ) );
+	$allowed_hosts = array();
+	foreach ( $hosts as $host ) {
+		$normalized_host = mywp_event_normalize_host( $host );
+		if ( $normalized_host ) {
+			$allowed_hosts[] = $normalized_host;
+		}
+	}
+	return array_values( array_unique( $allowed_hosts ) );
+}
+
+function mywp_event_normalize_host( $host ) {
+	if ( ! is_string( $host ) ) {
+		return false;
+	}
+
+	$match = array();
+	if ( ! preg_match( '/^([a-z0-9.-]+)(?::\d+)?$/i', $host, $match ) ) {
+		return false;
+	}
+
+	return strtolower( $match[1] );
 }
 
 function mywp_event_connect_db() {
-	foreach ( array( 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME' ) as $constant ) {
-		if ( ! defined( $constant ) ) {
-			error_log( "MYWP event logging: $constant is missing" );
+	$db_host = mywp_event_get_db_config_value( 'HOST' );
+	$db_user = mywp_event_get_db_config_value( 'USER' );
+	$db_password = mywp_event_get_db_config_value( 'PASSWORD' );
+	$db_name = mywp_event_get_db_config_value( 'NAME' );
+
+	foreach (
+		array(
+			'MYWP_DB_HOST' => $db_host,
+			'MYWP_DB_USER' => $db_user,
+			'MYWP_DB_PASSWORD' => $db_password,
+			'MYWP_DB_NAME' => $db_name,
+		) as $name => $value
+	) {
+		if ( ! is_string( $value ) || '' === $value ) {
+			error_log( "MYWP event logging: $name is missing" );
 			return false;
 		}
 	}
@@ -200,10 +217,10 @@ function mywp_event_connect_db() {
 	if (
 		! mysqli_real_connect(
 			$dbh,
-			DB_HOST,
-			DB_USER,
-			DB_PASSWORD,
-			DB_NAME
+			$db_host,
+			$db_user,
+			$db_password,
+			$db_name
 		)
 	) {
 		error_log( 'MYWP event logging: failed to connect to MySQL' );
@@ -255,22 +272,6 @@ function mywp_event_collect_stat_bumps( $payload ) {
 		'previous_visit_age_bucket',
 		$properties,
 		mywp_event_age_buckets()
-	);
-	mywp_event_add_version_property( $bumps, $event, 'php_version', $properties );
-	mywp_event_add_version_property( $bumps, $event, 'wp_version', $properties );
-	mywp_event_add_boolean_property( $bumps, $event, 'intl', $properties );
-	mywp_event_add_boolean_property( $bumps, $event, 'networking', $properties );
-	mywp_event_add_count_bucket_property(
-		$bumps,
-		$event,
-		'extra_library_count',
-		$properties
-	);
-	mywp_event_add_count_bucket_property(
-		$bumps,
-		$event,
-		'constant_count',
-		$properties
 	);
 
 	if ( 'wordpress_installed' === $event ) {
@@ -334,36 +335,6 @@ function mywp_event_add_blueprint_bumps( &$bumps, $properties ) {
 		$properties,
 		MYWP_EVENT_ALLOWED_APP_BLUEPRINT_IDS
 	);
-	mywp_event_add_boolean_property(
-		$bumps,
-		'blueprint_installed',
-		'has_landing_page',
-		$properties
-	);
-	mywp_event_add_boolean_property(
-		$bumps,
-		'blueprint_installed',
-		'has_login',
-		$properties
-	);
-	mywp_event_add_count_bucket_property(
-		$bumps,
-		'blueprint_installed',
-		'step_count',
-		$properties
-	);
-	mywp_event_add_count_map_bumps(
-		$bumps,
-		'blueprint_installed:step',
-		$properties['step_counts'] ?? null,
-		MYWP_EVENT_ALLOWED_STEPS
-	);
-	mywp_event_add_count_map_bumps(
-		$bumps,
-		'blueprint_installed:resource',
-		$properties['resource_counts'] ?? null,
-		MYWP_EVENT_ALLOWED_RESOURCES
-	);
 	mywp_event_add_list_bumps(
 		$bumps,
 		'blueprint_installed:plugin_slug',
@@ -382,56 +353,6 @@ function mywp_event_add_allowed_property(
 	$value = $properties[ $property ] ?? null;
 	if ( in_array( $value, $allowed_values, true ) ) {
 		mywp_event_add_bump( $bumps, "$event:$property", $value );
-	}
-}
-
-function mywp_event_add_version_property( &$bumps, $event, $property, $properties ) {
-	$value = $properties[ $property ] ?? null;
-	if (
-		is_string( $value ) &&
-		preg_match( '/^[a-z0-9.-]{1,32}$/', $value )
-	) {
-		mywp_event_add_bump( $bumps, "$event:$property", $value );
-	}
-}
-
-function mywp_event_add_boolean_property( &$bumps, $event, $property, $properties ) {
-	if ( isset( $properties[ $property ] ) && is_bool( $properties[ $property ] ) ) {
-		mywp_event_add_bump(
-			$bumps,
-			"$event:$property",
-			$properties[ $property ] ? 'yes' : 'no'
-		);
-	}
-}
-
-function mywp_event_add_count_bucket_property(
-	&$bumps,
-	$event,
-	$property,
-	$properties
-) {
-	$value = $properties[ $property ] ?? null;
-	if ( is_int( $value ) || is_float( $value ) ) {
-		mywp_event_add_bump(
-			$bumps,
-			"$event:{$property}_bucket",
-			mywp_event_count_bucket( $value )
-		);
-	}
-}
-
-function mywp_event_add_count_map_bumps( &$bumps, $name, $counts, $allowed_values ) {
-	if ( ! is_array( $counts ) ) {
-		return;
-	}
-
-	foreach ( $counts as $value => $count ) {
-		if ( ! in_array( $value, $allowed_values, true ) ) {
-			continue;
-		}
-		$views = min( max( (int) $count, 1 ), 50 );
-		mywp_event_add_bump( $bumps, $name, $value, $views );
 	}
 }
 
@@ -481,23 +402,6 @@ function mywp_event_age_buckets() {
 		'31-90-days',
 		'over-90-days',
 	);
-}
-
-function mywp_event_count_bucket( $value ) {
-	$value = max( 0, (int) $value );
-	if ( 0 === $value ) {
-		return '0';
-	}
-	if ( 1 === $value ) {
-		return '1';
-	}
-	if ( $value <= 3 ) {
-		return '2-3';
-	}
-	if ( $value <= 10 ) {
-		return '4-10';
-	}
-	return 'over-10';
 }
 
 function mywp_event_sync_bump_extra( $dbh, $name, $value, $num, $today, $hour ) {
@@ -640,10 +544,33 @@ function mywp_event_get_remote_key() {
 		return false;
 	}
 
-	$secret = defined( 'DB_PASSWORD' ) ? DB_PASSWORD : '';
+	$secret = mywp_event_get_db_config_value( 'PASSWORD' ) ?: '';
 	return $secret
 		? hash_hmac( 'sha256', $normalized, $secret )
 		: hash( 'sha256', $normalized );
+}
+
+function mywp_event_get_db_config_value( $name ) {
+	return mywp_event_get_config_value( "MYWP_DB_$name" )
+		?: mywp_event_get_config_value( "DB_$name" );
+}
+
+function mywp_event_get_config_value( $name ) {
+	$value = getenv( $name );
+	if ( is_string( $value ) && '' !== $value ) {
+		return $value;
+	}
+
+	if ( isset( $_SERVER[ $name ] ) && is_string( $_SERVER[ $name ] ) && '' !== $_SERVER[ $name ] ) {
+		return $_SERVER[ $name ];
+	}
+
+	if ( defined( $name ) ) {
+		$value = constant( $name );
+		return is_string( $value ) && '' !== $value ? $value : null;
+	}
+
+	return null;
 }
 
 function mywp_event_normalize_remote_ip( $remote_ip ) {

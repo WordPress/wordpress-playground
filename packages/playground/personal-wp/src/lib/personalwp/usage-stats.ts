@@ -1,10 +1,10 @@
-import type {
-	BlueprintV1Declaration,
-	RuntimeConfiguration,
-} from '@wp-playground/blueprints';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { buildVersion } from '../config';
 import type { SiteMetadata } from '../state/redux/slice-sites';
-import { personalWpUsageStatsEndpoint } from 'virtual:personal-wp-usage-stats';
+import {
+	personalWpUsageStatsEndpoint,
+	personalWpUsageStatsHost,
+} from 'virtual:personal-wp-usage-stats';
 
 type JsonValue =
 	| string
@@ -48,29 +48,13 @@ type BlueprintSourceClass =
 	| 'other-url'
 	| 'invalid-url';
 
-type RuntimeUsageStatsProperties = {
-	php_version: string;
-	wp_version: string;
-	intl: boolean;
-	networking: boolean;
-	extra_library_count: number;
-	constant_count: number;
-};
-
 type BlueprintUsageStatsProperties = {
 	blueprint_source?: BlueprintSourceClass;
 	blueprint_id?: string;
 	plugin_slugs?: string[];
-	has_landing_page: boolean;
-	has_login: boolean;
-	step_count: number;
-	step_counts: Record<string, number>;
-	resource_counts: Record<string, number>;
 };
 
 const EVENT_SCHEMA = 'personal-wp-event/v1';
-const SAFE_STEP_NAME = /^[A-Za-z0-9_.:-]{1,64}$/;
-const SAFE_RESOURCE_NAME = /^[A-Za-z0-9_.:/-]{1,80}$/;
 const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
 const MAX_PLUGIN_SLUGS = 10;
 const UNKNOWN_PLUGIN_SLUG = 'unknown';
@@ -103,7 +87,7 @@ const APP_BLUEPRINT_PATHS = [
 	/(?:^|\/)blueprints\/apps\/([a-z0-9][a-z0-9-]{0,100})\.json$/,
 	/(?:^|\/)blueprints\/([a-z0-9][a-z0-9-]{0,100})\/blueprint\.json$/,
 ];
-const USAGE_STATS_HOST = 'my.wordpress.net';
+const USAGE_STATS_HOST = personalWpUsageStatsHost || 'my.wordpress.net';
 
 export function logPersonalWpEvent(
 	event: PersonalWpUsageStatsEvent,
@@ -160,8 +144,18 @@ export function getSiteUsageStatsProperties(
 		storage: metadata.storage,
 		site_age_bucket: getAgeBucket(metadata.whenCreated, now),
 		previous_visit_age_bucket: getAgeBucket(metadata.lastAccessDate, now),
-		...getRuntimeUsageStatsProperties(metadata.runtimeConfiguration),
 	};
+}
+
+export function shouldLogReturningVisitUsageStats(
+	metadata: SiteMetadata,
+	now = Date.now()
+): boolean {
+	return metadata.lastUsageStatsReturningVisitDate !== getUsageStatsDate(now);
+}
+
+export function getUsageStatsDate(timestamp: number): string {
+	return new Date(timestamp).toISOString().slice(0, 10);
 }
 
 export function getBlueprintUsageStatsProperties(
@@ -171,24 +165,9 @@ export function getBlueprintUsageStatsProperties(
 	const steps = ((blueprint.steps || []) as unknown[]).filter(
 		isBlueprintStep
 	);
-	const stepNames = steps.map((step) => step.step);
-	const resourceCounts: Record<string, number> = {};
 	const pluginSlugs = getBlueprintPluginSlugs(blueprint, steps);
 
-	for (const step of steps) {
-		collectResources(step, resourceCounts);
-	}
-
-	const properties: BlueprintUsageStatsProperties = {
-		has_landing_page:
-			typeof blueprint.landingPage === 'string' &&
-			blueprint.landingPage.length > 0,
-		has_login:
-			!!blueprint.login || steps.some((step) => step.step === 'login'),
-		step_count: stepNames.length,
-		step_counts: countSafeValues(stepNames, SAFE_STEP_NAME, 'unknown'),
-		resource_counts: resourceCounts,
-	};
+	const properties: BlueprintUsageStatsProperties = {};
 
 	if (pluginSlugs.length > 0) {
 		properties.plugin_slugs = pluginSlugs;
@@ -256,20 +235,6 @@ export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
 	return 'external-url';
 }
 
-function getRuntimeUsageStatsProperties(
-	runtimeConfiguration: RuntimeConfiguration
-): RuntimeUsageStatsProperties {
-	return {
-		php_version: String(runtimeConfiguration.phpVersion),
-		wp_version: String(runtimeConfiguration.wpVersion),
-		intl: !!runtimeConfiguration.intl,
-		networking: !!runtimeConfiguration.networking,
-		extra_library_count: runtimeConfiguration.extraLibraries?.length ?? 0,
-		constant_count: Object.keys(runtimeConfiguration.constants || {})
-			.length,
-	};
-}
-
 function getAgeBucket(timestamp: number | undefined, now: number): string {
 	if (!timestamp) {
 		return 'unknown';
@@ -302,28 +267,6 @@ function isBlueprintStep(
 		'step' in step &&
 		typeof (step as { step?: unknown }).step === 'string'
 	);
-}
-
-function collectResources(
-	value: unknown,
-	resourceCounts: Record<string, number>
-): void {
-	if (!value || typeof value !== 'object') {
-		return;
-	}
-	if (
-		'resource' in value &&
-		typeof (value as { resource?: unknown }).resource === 'string'
-	) {
-		const resource = (value as { resource: string }).resource;
-		incrementCount(
-			resourceCounts,
-			SAFE_RESOURCE_NAME.test(resource) ? resource : 'unknown'
-		);
-	}
-	for (const nestedValue of Object.values(value)) {
-		collectResources(nestedValue, resourceCounts);
-	}
 }
 
 function getBlueprintPluginSlugs(
@@ -476,20 +419,4 @@ function getStringProperty(
 ): string | undefined {
 	const propertyValue = value[property];
 	return typeof propertyValue === 'string' ? propertyValue : undefined;
-}
-
-function countSafeValues(
-	values: string[],
-	pattern: RegExp,
-	fallback: string
-): Record<string, number> {
-	const counts: Record<string, number> = {};
-	for (const value of values) {
-		incrementCount(counts, pattern.test(value) ? value : fallback);
-	}
-	return counts;
-}
-
-function incrementCount(counts: Record<string, number>, key: string): void {
-	counts[key] = (counts[key] || 0) + 1;
 }
