@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+import * as ts from 'typescript';
 import schema from '../../../public/blueprint-schema.json';
 import validateBlueprintDeclaration from '../../../public/blueprint-schema-validator';
 import packageJson from '../../../package.json';
 import { validateBlueprintV2 } from '../../lib/v2/compile';
+
+const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../public');
 
 describe('public Blueprint schema', () => {
 	it('publishes a combined v1/v2 BlueprintDeclaration schema', () => {
@@ -224,4 +229,44 @@ describe('public Blueprint schema', () => {
 			'./public/blueprint-v1-schema-validator.js'
 		);
 	});
+
+	it('publishes valid TypeScript declarations for standalone validators', () => {
+		const declarationPaths = [
+			resolve(publicDir, 'blueprint-schema-validator.d.ts'),
+			resolve(publicDir, 'blueprint-v1-schema-validator.d.ts'),
+		];
+		const program = ts.createProgram(declarationPaths, {
+			noEmit: true,
+			skipLibCheck: true,
+			target: ts.ScriptTarget.ES2020,
+			module: ts.ModuleKind.NodeNext,
+			moduleResolution: ts.ModuleResolutionKind.NodeNext,
+		});
+		const diagnostics = ts
+			.getPreEmitDiagnostics(program)
+			.filter(
+				(diagnostic) =>
+					diagnostic.file &&
+					declarationPaths.includes(diagnostic.file.fileName)
+			)
+			.map(formatTypeScriptDiagnostic);
+
+		expect(diagnostics).toEqual([]);
+	});
 });
+
+function formatTypeScriptDiagnostic(diagnostic: ts.Diagnostic) {
+	const message = ts.flattenDiagnosticMessageText(
+		diagnostic.messageText,
+		'\n'
+	);
+	if (!diagnostic.file) {
+		return message;
+	}
+	const position = diagnostic.file.getLineAndCharacterOfPosition(
+		diagnostic.start ?? 0
+	);
+	return `${diagnostic.file.fileName}:${position.line + 1}:${
+		position.character + 1
+	} ${message}`;
+}
