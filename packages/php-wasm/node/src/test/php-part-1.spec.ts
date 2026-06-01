@@ -693,6 +693,21 @@ phpLoaderOptions.forEach((options) => {
 
 					expect(systemResult.text).toEqual('done');
 					expect(openPopenOutputCount()).toBe(before);
+
+					const passthruResult = await php.run({
+						code: `<?php
+
+					for ($i = 0; $i < 100; $i++) {
+						ob_start();
+						passthru("echo WordPress", $exit_code);
+						ob_end_clean();
+					}
+					echo "passthru-done";
+					`,
+					});
+
+					expect(passthruResult.text).toEqual('passthru-done');
+					expect(openPopenOutputCount()).toBe(before);
 				}
 			);
 
