@@ -465,6 +465,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
 			},
+			'mount-dir': sharedOptions['mount-dir'],
 			reset: {
 				describe:
 					'Deletes the stored site directory and starts a new site from scratch.',
@@ -473,7 +474,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			},
 			'auto-mount': {
 				describe:
-					'Automatically detect project type (plugin, theme, wp-content, or WordPress) and mount accordingly. Use --no-auto-mount to disable and --mount to manually specify mounts instead.',
+					'Automatically detect project type (plugin, theme, wp-content, or WordPress) and mount accordingly. Use --no-auto-mount to disable and --mount or --mount-dir to manually specify mounts instead.',
 				type: 'boolean',
 				default: true,
 			},
