@@ -1,5 +1,6 @@
 // @ts-ignore
 import css from './style.module.css';
+import DOMPurify from 'dompurify';
 
 export interface ProgressBarOptions {
 	caption?: string;
@@ -48,7 +49,15 @@ class ProgressBar {
 		this.welcomeElement = document.createElement('div');
 		this.welcomeElement.classList.add(css['welcomeContent']);
 		this.welcomeElement.textContent = '';
-		const fragment = sanitizeWelcomeHtml(html);
+		const fragment = DOMPurify.sanitize(html, {
+			ALLOWED_TAGS: allowedWelcomeTags,
+			ALLOWED_ATTR: allowedWelcomeAttributes,
+			ALLOW_DATA_ATTR: false,
+			RETURN_DOM_FRAGMENT: true,
+		});
+		for (const link of Array.from(fragment.querySelectorAll('a'))) {
+			link.setAttribute('rel', 'noopener noreferrer');
+		}
 		for (const node of Array.from(fragment.childNodes)) {
 			this.welcomeElement.appendChild(node);
 		}
@@ -185,104 +194,27 @@ class ProgressBar {
 	}
 }
 
-const allowedWelcomeTags = new Set([
-	'A',
-	'B',
-	'BLOCKQUOTE',
-	'BR',
-	'CODE',
-	'DIV',
-	'EM',
-	'H1',
-	'H2',
-	'H3',
-	'HR',
-	'I',
-	'LI',
-	'OL',
-	'P',
-	'PRE',
-	'SPAN',
-	'STRONG',
-	'UL',
-]);
-const blockedWelcomeTags = new Set([
-	'EMBED',
-	'IFRAME',
-	'MATH',
-	'OBJECT',
-	'SCRIPT',
-	'STYLE',
-	'SVG',
-	'TEMPLATE',
-]);
-const allowedWelcomeAttributes = new Map([
-	['A', new Set(['href', 'rel', 'target', 'title'])],
-]);
-
-function sanitizeWelcomeHtml(html: string) {
-	const doc = new DOMParser().parseFromString(html, 'text/html');
-	const fragment = document.createDocumentFragment();
-	for (const node of Array.from(doc.body.childNodes)) {
-		fragment.appendChild(sanitizeWelcomeNode(node));
-	}
-	return fragment;
-}
-
-function sanitizeWelcomeNode(node: Node): Node {
-	if (node.nodeType === Node.TEXT_NODE) {
-		return document.createTextNode(node.textContent || '');
-	}
-	if (node.nodeType !== Node.ELEMENT_NODE) {
-		return document.createTextNode('');
-	}
-
-	const element = node as Element;
-	if (!allowedWelcomeTags.has(element.tagName)) {
-		const fragment = document.createDocumentFragment();
-		if (blockedWelcomeTags.has(element.tagName)) {
-			return fragment;
-		}
-		for (const child of Array.from(element.childNodes)) {
-			fragment.appendChild(sanitizeWelcomeNode(child));
-		}
-		return fragment;
-	}
-
-	const sanitized = document.createElement(element.tagName.toLowerCase());
-	copyAllowedWelcomeAttributes(element, sanitized);
-	for (const child of Array.from(element.childNodes)) {
-		sanitized.appendChild(sanitizeWelcomeNode(child));
-	}
-	return sanitized;
-}
-
-function copyAllowedWelcomeAttributes(source: Element, target: Element) {
-	const allowedAttributes = allowedWelcomeAttributes.get(source.tagName);
-	if (!allowedAttributes) {
-		return;
-	}
-	for (const { name, value } of Array.from(source.attributes)) {
-		if (!allowedAttributes.has(name.toLowerCase())) {
-			continue;
-		}
-		if (name.toLowerCase() === 'href' && !isSafeWelcomeUrl(value)) {
-			continue;
-		}
-		target.setAttribute(name, value);
-	}
-	if (source.tagName === 'A') {
-		target.setAttribute('rel', 'noopener noreferrer');
-	}
-}
-
-function isSafeWelcomeUrl(url: string) {
-	try {
-		const parsed = new URL(url, document.location.href);
-		return ['http:', 'https:', 'mailto:'].includes(parsed.protocol);
-	} catch {
-		return false;
-	}
-}
+const allowedWelcomeTags = [
+	'a',
+	'b',
+	'blockquote',
+	'br',
+	'code',
+	'div',
+	'em',
+	'h1',
+	'h2',
+	'h3',
+	'hr',
+	'i',
+	'li',
+	'ol',
+	'p',
+	'pre',
+	'span',
+	'strong',
+	'ul',
+];
+const allowedWelcomeAttributes = ['href', 'rel', 'target', 'title'];
 
 export default ProgressBar;
