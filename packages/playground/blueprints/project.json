@@ -16,7 +16,8 @@
 					"cp packages/playground/blueprints/README.md dist/packages/playground/blueprints",
 					"mkdir -p dist/packages/playground/blueprints/public",
 					"cp packages/playground/blueprints/public/blueprint-schema.json packages/playground/blueprints/public/blueprint-schema-validator.js packages/playground/blueprints/public/blueprint-schema-validator.d.ts packages/playground/blueprints/public/blueprint-v1-schema-validator.js packages/playground/blueprints/public/blueprint-v1-schema-validator.d.ts dist/packages/playground/blueprints/public"
-				]
+				],
+				"parallel": false
 			},
 			"dependsOn": ["build:package-json"]
 		},
