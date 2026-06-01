@@ -20,7 +20,8 @@ import {
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
-import type { ProgressDetails } from '@php-wasm/progress';
+import { ProgressTracker } from '@php-wasm/progress';
+import type { ProgressDetails, ProgressTrackerEvent } from '@php-wasm/progress';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import { setActiveSiteError } from './slice-ui';
@@ -248,6 +249,19 @@ export function bootSiteClient(
 					: 'download-and-install';
 
 		let playground: PlaygroundClient | undefined = undefined;
+		const progressTracker = new ProgressTracker();
+		progressTracker.addEventListener(
+			'progress',
+			(event: ProgressTrackerEvent) => {
+				onProgress?.({
+					progress: event.detail.progress,
+					caption: event.detail.caption,
+				});
+			}
+		);
+		progressTracker.addEventListener('done', () => {
+			onReady?.();
+		});
 		try {
 			await startPlaygroundWeb({
 				iframe: iframe!,
@@ -255,8 +269,7 @@ export function bootSiteClient(
 				scope: site.slug,
 				blueprint,
 				disableProgressBar: true,
-				onProgress,
-				onReady,
+				progressTracker,
 				experimentalBlueprintsV2Runner:
 					!isWordPressInstalled &&
 					new URLSearchParams(window.location.search).get(
