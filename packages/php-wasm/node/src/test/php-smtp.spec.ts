@@ -17,7 +17,7 @@ describe.each(phpVersions)('PHP %s – SMTP sink', (phpVersion) => {
 		php = new PHP(
 			await loadNodeRuntime(phpVersion as any, {
 				withSMTPSink: {
-					port: 25,
+					smtpPort: 25,
 					onEmail: (m: CaughtMessage) => emails.push(m),
 				},
 			})
