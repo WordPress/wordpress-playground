@@ -563,7 +563,8 @@ function getCardStageCss(): string {
 	return `
   @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap');
 
-  :root {
+  :host,
+  .stage {
     color-scheme: light dark;
     --bg: light-dark(#ffffff, #18181a);
     --bg-warm: light-dark(#f6f7f7, #242427);
