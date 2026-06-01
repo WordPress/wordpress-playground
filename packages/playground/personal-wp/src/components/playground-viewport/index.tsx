@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { RefObject } from 'react';
+import type { KeyboardEvent, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
 	compileBlueprintV1,
@@ -100,6 +100,22 @@ function iconStyle(theme: IconTheme): string {
 	return `background:light-dark(${t.lightBg},${t.darkBg});color:light-dark(${t.lightColor},${t.darkColor})`;
 }
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
+}
+
+function getPublicAssetUrl(path: string): string {
+	const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+		? import.meta.env.BASE_URL
+		: `${import.meta.env.BASE_URL}/`;
+	return `${baseUrl}${path.replace(/^\//, '')}`;
+}
+
 const NEW_USER_CARDS: Array<{
 	icon: string;
 	theme: IconTheme;
@@ -123,7 +139,7 @@ const NEW_USER_CARDS: Array<{
 		icon: '★',
 		theme: 'green',
 		label: 'Reading list',
-		sub: 'save &amp; revisit',
+		sub: 'save & revisit',
 		detailLabel: '3 saved',
 		detail: `
         <div class="reading-item"><span class="dot">●</span><div><div class="title">What is digital sovereignty?</div><div class="meta">Owning your tools, not renting them</div></div></div>
@@ -398,7 +414,7 @@ function getWelcomeHtml(): string {
 
 function getWhatsNewHtml(): string {
 	const { tips, changelog } = welcomeStrings;
-	const tip = tips[Math.floor(Math.random() * tips.length)];
+	const tip = escapeHtml(tips[Math.floor(Math.random() * tips.length)]);
 
 	const cards: Array<{
 		icon: string;
@@ -473,9 +489,9 @@ function getWhatsNewHtml(): string {
 			const v = variants[i % variants.length];
 			return {
 				...v,
-				label: entry.title,
+				label: escapeHtml(entry.title),
 				sub: "what's new",
-				detail: entry.text,
+				detail: escapeHtml(entry.text),
 			};
 		}),
 	];
@@ -560,8 +576,36 @@ function getWhatsNewHtml(): string {
 }
 
 function getCardStageCss(): string {
+	const interFontUrl = getPublicAssetUrl('fonts/inter-latin.woff2');
+	const ebGaramondFontUrl = getPublicAssetUrl(
+		'fonts/eb-garamond-latin-normal.woff2'
+	);
+	const ebGaramondItalicFontUrl = getPublicAssetUrl(
+		'fonts/eb-garamond-latin-italic.woff2'
+	);
+
 	return `
-  @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap');
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url('${interFontUrl}') format('woff2');
+  }
+  @font-face {
+    font-family: 'EB Garamond';
+    font-style: normal;
+    font-weight: 400 500;
+    font-display: swap;
+    src: url('${ebGaramondFontUrl}') format('woff2');
+  }
+  @font-face {
+    font-family: 'EB Garamond';
+    font-style: italic;
+    font-weight: 400 500;
+    font-display: swap;
+    src: url('${ebGaramondItalicFontUrl}') format('woff2');
+  }
 
   :host,
   .stage {
@@ -1316,11 +1360,19 @@ function LoadingScreen({
 	showReadyButton: boolean;
 	onStart: () => void;
 }) {
+	const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (event.key !== 'Enter' && event.key !== ' ') {
+			return;
+		}
+		onInteract();
+	};
+
 	return (
 		<div
 			className={css.loadingScreen}
+			tabIndex={0}
 			onClick={onInteract}
-			onKeyDown={onInteract}
+			onKeyDown={handleKeyDown}
 			onPointerDown={onInteract}
 			onTouchStart={onInteract}
 			onWheel={onInteract}
@@ -1353,12 +1405,28 @@ const LoadingScreenHtml = memo(function LoadingScreenHtml({
 		}
 		const shadowRoot =
 			host.shadowRoot ?? host.attachShadow({ mode: 'open' });
-		shadowRoot.innerHTML = html;
+		shadowRoot.replaceChildren(...getSanitizedLoadingScreenNodes(html));
 		renderedHtmlRef.current = html;
 	}, [html]);
 
 	return <div ref={hostRef} className={css.loadingScreenHtml} />;
 });
+
+function getSanitizedLoadingScreenNodes(html: string): Node[] {
+	const doc = new DOMParser().parseFromString(html, 'text/html');
+	doc.querySelectorAll('script, iframe, object, embed').forEach((node) => {
+		node.remove();
+	});
+	doc.body.querySelectorAll('*').forEach((node) => {
+		for (const attribute of Array.from(node.attributes)) {
+			const name = attribute.name.toLowerCase();
+			if (name.startsWith('on') || name === 'srcdoc') {
+				node.removeAttribute(attribute.name);
+			}
+		}
+	});
+	return Array.from(doc.body.childNodes);
+}
 
 function LoadingProgress({
 	progress,
@@ -1378,7 +1446,8 @@ function LoadingProgress({
 			aria-valuemin={0}
 			aria-valuemax={100}
 			aria-valuenow={Math.round(progressValue)}
-			aria-label={progress.caption}
+			aria-valuetext={progress.caption}
+			aria-label="Loading WordPress"
 		>
 			{showReadyButton ? (
 				<button className={css.loadingReadyButton} onClick={onStart}>
@@ -1386,7 +1455,10 @@ function LoadingProgress({
 				</button>
 			) : (
 				<>
-					<div className={css.loadingProgressCaption}>
+					<div
+						className={css.loadingProgressCaption}
+						aria-live="polite"
+					>
 						{progress.caption}
 					</div>
 					<div className={css.loadingProgressTrack}>
@@ -1900,6 +1972,9 @@ export const JustViewport = function JustViewport({
 				className={classNames('playground-viewport', css.fullSize, {
 					[css.viewportLoading]: isLoading,
 				})}
+				aria-hidden={isLoading}
+				tabIndex={isLoading ? -1 : undefined}
+				{...(isLoading ? { inert: '' } : {})}
 				ref={iframeRef}
 			/>
 			{showOverlay ? (

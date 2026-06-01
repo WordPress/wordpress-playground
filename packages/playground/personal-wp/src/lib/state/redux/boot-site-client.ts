@@ -174,8 +174,8 @@ export function bootSiteClient(
 					getState,
 					signal,
 					mainTabStatus: tabInfo.mainTabStatus || 'missing',
+					onReady,
 				});
-				onReady?.();
 				logger.info(
 					'Playground running in dependent mode - using the main tab worker'
 				);
@@ -401,6 +401,7 @@ function bootDependentModeClient({
 	getState,
 	signal,
 	mainTabStatus,
+	onReady,
 }: {
 	siteSlug: string;
 	iframe: HTMLIFrameElement;
@@ -408,6 +409,7 @@ function bootDependentModeClient({
 	getState: () => PlaygroundReduxState;
 	signal: AbortSignal;
 	mainTabStatus: 'connected' | 'booting' | 'missing';
+	onReady?: () => void;
 }): void {
 	const remoteUrl = getRemoteUrl();
 	const scopedSiteUrl = `/scope:${encodeURIComponent(siteSlug)}/`;
@@ -438,6 +440,9 @@ function bootDependentModeClient({
 				changes: { url },
 			})
 		);
+	};
+	const markIframeReady = () => {
+		onReady?.();
 	};
 
 	const existingClient = selectClientInfoBySiteSlug(getState(), siteSlug);
@@ -477,9 +482,13 @@ function bootDependentModeClient({
 	);
 
 	iframe.addEventListener('load', updateUrlFromIframe);
+	iframe.addEventListener('load', markIframeReady, { once: true });
 	signal.addEventListener(
 		'abort',
-		() => iframe.removeEventListener('load', updateUrlFromIframe),
+		() => {
+			iframe.removeEventListener('load', updateUrlFromIframe);
+			iframe.removeEventListener('load', markIframeReady);
+		},
 		{ once: true }
 	);
 
