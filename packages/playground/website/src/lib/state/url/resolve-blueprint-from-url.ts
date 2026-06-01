@@ -1,11 +1,13 @@
 import type {
 	BlueprintV1Declaration,
+	BlueprintDeclaration,
 	BlueprintBundle,
 	StepDefinition,
 	BlueprintV1,
+	BlueprintV2Declaration,
 } from '@wp-playground/client';
 import {
-	getBlueprintDeclaration,
+	BlueprintReflection,
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
@@ -32,7 +34,7 @@ export type BlueprintSource =
 	  };
 
 export type ResolvedBlueprint = {
-	blueprint: BlueprintV1;
+	blueprint: BlueprintV1 | BlueprintV2Declaration | BlueprintBundle;
 	source: BlueprintSource;
 };
 
@@ -132,8 +134,8 @@ export async function resolveBlueprintFromURL(
 		// via the hash fragment (#{...}) or via the `blueprint-url` query param.
 		return {
 			blueprint: {
-				plugins: query.getAll('plugin'),
 				steps: [
+					...createQueryPluginInstallSteps(query.getAll('plugin')),
 					importWxrQueryArg &&
 						/^(http(s?)):\/\//i.test(importWxrQueryArg) &&
 						({
@@ -176,16 +178,66 @@ export async function resolveBlueprintFromURL(
 	}
 }
 
+function createQueryPluginInstallSteps(plugins: string[]): StepDefinition[] {
+	return plugins.map(
+		(plugin) =>
+			({
+				step: 'installPlugin',
+				pluginData: createPluginDataReference(plugin),
+				options: {
+					activate: true,
+					onError: 'skip-plugin',
+				},
+			}) as StepDefinition
+	);
+}
+
+function createPluginDataReference(plugin: string) {
+	const normalizedPlugin = plugin.trim().replace(/\/+$/, '');
+	if (isGitRepoUrl(normalizedPlugin)) {
+		return {
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: normalizedPlugin,
+				ref: 'HEAD',
+			},
+		};
+	}
+	if (normalizedPlugin.startsWith('https://')) {
+		return {
+			resource: 'url',
+			url: normalizedPlugin,
+		};
+	}
+	return {
+		resource: 'wordpress.org/plugins',
+		slug: plugin,
+	};
+}
+
+function isGitRepoUrl(url: string): boolean {
+	if (/^https:\/\/.+\.git$/.test(url)) {
+		return true;
+	}
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(url)) {
+		return true;
+	}
+	return /^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(url);
+}
+
 export async function applyQueryOverrides(
-	blueprint: BlueprintV1Declaration | BlueprintBundle,
+	blueprint: BlueprintDeclaration | BlueprintBundle,
 	query: URLSearchParams
-): Promise<BlueprintV1Declaration | BlueprintBundle> {
+): Promise<BlueprintDeclaration | BlueprintBundle> {
 	/**
 	 * Allow overriding PHP and WordPress versions defined in a Blueprint
 	 * via query params.
 	 */
 	if (isBlueprintBundle(blueprint)) {
-		let blueprintObject = await getBlueprintDeclaration(blueprint);
+		const reflection = await BlueprintReflection.create(blueprint);
+		let blueprintObject =
+			reflection.getDeclaration() as BlueprintDeclaration;
 		blueprintObject = applyQueryOverridesToDeclaration(
 			blueprintObject,
 			query
@@ -202,6 +254,22 @@ export async function applyQueryOverrides(
 }
 
 function applyQueryOverridesToDeclaration(
+	blueprint: BlueprintDeclaration,
+	query: URLSearchParams
+): BlueprintDeclaration {
+	if ((blueprint as BlueprintV2Declaration).version === 2) {
+		return applyQueryOverridesToV2Declaration(
+			blueprint as BlueprintV2Declaration,
+			query
+		);
+	}
+	return applyQueryOverridesToV1Declaration(
+		blueprint as BlueprintV1Declaration,
+		query
+	);
+}
+
+function applyQueryOverridesToV1Declaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
 ): BlueprintV1Declaration {
@@ -304,11 +372,8 @@ function applyQueryOverridesToDeclaration(
 	}
 
 	// Handle Gutenberg PR or branch preview
-	const gutenbergRef =
-		query.get('gutenberg-pr') || query.get('gutenberg-branch');
-	if (gutenbergRef) {
-		const refType = query.has('gutenberg-pr') ? 'pr' : 'branch';
-		const refLabel = query.has('gutenberg-pr') ? 'PR' : 'branch';
+	const gutenbergArtifact = getGutenbergArtifactDetails(query);
+	if (gutenbergArtifact) {
 		blueprint.steps = blueprint.steps || [];
 		blueprint.steps.unshift(
 			{
@@ -320,8 +385,8 @@ function applyQueryOverridesToDeclaration(
 				path: '/tmp/gutenberg/artifact.zip',
 				data: {
 					resource: 'url',
-					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&${refType}=${gutenbergRef}`,
-					caption: `Downloading Gutenberg ${refLabel} ${gutenbergRef}`,
+					url: gutenbergArtifact.proxyPath,
+					caption: `Downloading Gutenberg ${gutenbergArtifact.refLabel} ${gutenbergArtifact.ref}`,
 				},
 			},
 			/**
@@ -352,4 +417,232 @@ function applyQueryOverridesToDeclaration(
 	}
 
 	return blueprint;
+}
+
+function applyQueryOverridesToV2Declaration(
+	blueprint: BlueprintV2Declaration,
+	query: URLSearchParams
+): BlueprintV2Declaration {
+	const next = {
+		...blueprint,
+		applicationOptions: blueprint.applicationOptions
+			? { ...blueprint.applicationOptions }
+			: undefined,
+		additionalStepsAfterExecution: [
+			...(blueprint.additionalStepsAfterExecution || []),
+		],
+	} as BlueprintV2Declaration;
+	const playgroundOptions = ensureV2PlaygroundApplicationOptions(next);
+
+	if (query.get('wp')) {
+		next.wordpressVersion = query.get('wp') as any;
+	}
+	if (query.get('php')) {
+		next.phpVersion = query.get('php') as any;
+	}
+	if (query.get('networking')) {
+		playgroundOptions.networkAccess = query.get('networking') === 'yes';
+	}
+	if (query.get('language')) {
+		appendV2StepIfMissing(next, 'setSiteLanguage', {
+			step: 'setSiteLanguage',
+			language: query.get('language')!,
+		});
+	}
+	if (query.get('multisite') === 'yes') {
+		appendV2StepIfMissing(next, 'enableMultisite', {
+			step: 'enableMultisite',
+		});
+	}
+	playgroundOptions.login = query.get('login') !== 'no';
+	if (query.get('url')) {
+		playgroundOptions.landingPage = query.get('url')!;
+	}
+	if (next.wordpressVersion === '6.3') {
+		prependV2StepIfMissing(next, 'defineConstants', {
+			step: 'defineConstants',
+			constants: {
+				WP_DEVELOPMENT_MODE: 'all',
+			},
+		});
+	}
+
+	const coreRef = query.get('core-pr');
+	if (coreRef) {
+		const artifactName = `wordpress-build-${coreRef}`;
+		next.wordpressVersion = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`;
+	}
+
+	const gutenbergArtifact = getGutenbergArtifactDetails(query);
+	if (gutenbergArtifact) {
+		prependV2StepsIfMissing(
+			next,
+			(step) =>
+				step?.step === 'runPHP' &&
+				step?.code?.filename === 'install-gutenberg.php',
+			[
+				{
+					step: 'runPHP',
+					code: {
+						filename: 'install-gutenberg.php',
+						content: createGutenbergInstallerPHP(gutenbergArtifact),
+					},
+				},
+			]
+		);
+	}
+
+	return next;
+}
+
+type GutenbergArtifactDetails = {
+	ref: string;
+	refType: 'pr' | 'branch';
+	refLabel: 'PR' | 'branch';
+	proxyPath: string;
+	proxyUrl: string;
+};
+
+function getGutenbergArtifactDetails(
+	query: URLSearchParams
+): GutenbergArtifactDetails | undefined {
+	const ref = query.get('gutenberg-pr') || query.get('gutenberg-branch');
+	if (!ref) {
+		return undefined;
+	}
+	const refType = query.has('gutenberg-pr') ? 'pr' : 'branch';
+	const refLabel = query.has('gutenberg-pr') ? 'PR' : 'branch';
+	const proxyPath =
+		'/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin' +
+		`&${refType}=${encodeURIComponent(ref)}`;
+	return {
+		ref,
+		refType,
+		refLabel,
+		proxyPath,
+		proxyUrl: `https://playground.wordpress.net${proxyPath}`,
+	};
+}
+
+function createGutenbergInstallerPHP({
+	ref,
+	refLabel,
+	proxyUrl,
+}: GutenbergArtifactDetails) {
+	return `<?php
+require_once '/wordpress/wp-load.php';
+require_once ABSPATH . 'wp-admin/includes/file.php';
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+WP_Filesystem();
+
+$artifact_url = ${JSON.stringify(proxyUrl)};
+$artifact_label = ${JSON.stringify(`Gutenberg ${refLabel} ${ref}`)};
+$artifact_zip = download_url($artifact_url);
+if (is_wp_error($artifact_zip)) {
+	throw new Exception('Could not download ' . $artifact_label . ': ' . $artifact_zip->get_error_message());
+}
+
+$workdir = trailingslashit(get_temp_dir()) . 'playground-gutenberg-' . wp_generate_uuid4();
+if (!wp_mkdir_p($workdir)) {
+	@unlink($artifact_zip);
+	throw new Exception('Could not create a temporary directory for ' . $artifact_label . '.');
+}
+
+$unzipped = unzip_file($artifact_zip, $workdir);
+@unlink($artifact_zip);
+if (is_wp_error($unzipped)) {
+	throw new Exception('Could not extract ' . $artifact_label . ': ' . $unzipped->get_error_message());
+}
+
+$plugin_zip = $workdir . '/gutenberg.zip';
+if (!file_exists($plugin_zip)) {
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator($workdir, FilesystemIterator::SKIP_DOTS)
+	);
+	foreach ($iterator as $file) {
+		if ($file->getFilename() === 'gutenberg.zip') {
+			$plugin_zip = $file->getPathname();
+			break;
+		}
+	}
+}
+if (!file_exists($plugin_zip)) {
+	throw new Exception('Could not find gutenberg.zip inside the ' . $artifact_label . ' artifact.');
+}
+
+$skin = new Automatic_Upgrader_Skin();
+$upgrader = new Plugin_Upgrader($skin);
+$installed = $upgrader->install($plugin_zip);
+if (is_wp_error($installed)) {
+	throw new Exception('Could not install ' . $artifact_label . ': ' . $installed->get_error_message());
+}
+if ($installed === false) {
+	$errors = $skin->get_errors();
+	$message = is_wp_error($errors) && $errors->has_errors() ? $errors->get_error_message() : 'unknown installer error';
+	throw new Exception('Could not install ' . $artifact_label . ': ' . $message);
+}
+
+$activated = activate_plugin('gutenberg/gutenberg.php');
+if (is_wp_error($activated)) {
+	throw new Exception('Could not activate ' . $artifact_label . ': ' . $activated->get_error_message());
+}
+`;
+}
+
+function ensureV2PlaygroundApplicationOptions(
+	blueprint: BlueprintV2Declaration
+) {
+	const applicationOptions = {
+		...(blueprint.applicationOptions || {}),
+	} as NonNullable<BlueprintV2Declaration['applicationOptions']>;
+	const playgroundOptions = {
+		...(applicationOptions['wordpress-playground'] || {}),
+	};
+	applicationOptions['wordpress-playground'] = playgroundOptions;
+	blueprint.applicationOptions = applicationOptions;
+	return playgroundOptions;
+}
+
+function appendV2StepIfMissing(
+	blueprint: BlueprintV2Declaration,
+	stepName: string,
+	step: Record<string, unknown>
+) {
+	if (
+		!blueprint.additionalStepsAfterExecution?.some(
+			(existingStep: any) => existingStep?.step === stepName
+		)
+	) {
+		blueprint.additionalStepsAfterExecution = [
+			...(blueprint.additionalStepsAfterExecution || []),
+			step as any,
+		];
+	}
+}
+
+function prependV2StepIfMissing(
+	blueprint: BlueprintV2Declaration,
+	stepName: string,
+	step: Record<string, unknown>
+) {
+	prependV2StepsIfMissing(
+		blueprint,
+		(existingStep) => existingStep?.step === stepName,
+		[step]
+	);
+}
+
+function prependV2StepsIfMissing(
+	blueprint: BlueprintV2Declaration,
+	matchesExistingStep: (step: any) => boolean,
+	steps: Record<string, unknown>[]
+) {
+	if (!blueprint.additionalStepsAfterExecution?.some(matchesExistingStep)) {
+		blueprint.additionalStepsAfterExecution = [
+			...(steps as any[]),
+			...(blueprint.additionalStepsAfterExecution || []),
+		];
+	}
 }

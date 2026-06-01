@@ -335,8 +335,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				hidden: true,
 			},
 			mode: {
-				describe:
-					'Blueprints v2 runner mode to use.',
+				describe: 'Blueprints v2 runner mode to use.',
 				type: 'string',
 				choices: [
 					'create-new-site',
@@ -713,15 +712,19 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const phpVersionForDebug = (args['php'] ||
 			RecommendedPHPVersion) as AllPHPVersion;
 		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
+		const defaultedDebugConstants: string[] = [];
 		if (!isLegacyPhpForDebug) {
 			if (!hasDebugDefine('WP_DEBUG')) {
 				defineBool['WP_DEBUG'] = true;
+				defaultedDebugConstants.push('WP_DEBUG');
 			}
 			if (!hasDebugDefine('WP_DEBUG_LOG')) {
 				defineBool['WP_DEBUG_LOG'] = true;
+				defaultedDebugConstants.push('WP_DEBUG_LOG');
 			}
 			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
 				defineBool['WP_DEBUG_DISPLAY'] = false;
+				defaultedDebugConstants.push('WP_DEBUG_DISPLAY');
 			}
 		}
 
@@ -730,18 +733,17 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			define,
 			'define-bool': defineBool,
 			'define-number': defineNumber,
+			defaultedDebugConstants,
 			command,
 			cliProvidedOptions: {
 				php: hasCliOption(argsToParse, 'php'),
 				wp: hasCliOption(argsToParse, 'wp'),
+				login: hasCliOption(argsToParse, 'login'),
 				mode: hasCliOption(argsToParse, 'mode'),
 				wordpressInstallMode:
 					hasCliOption(argsToParse, 'wordpress-install-mode') ||
 					hasCliOption(argsToParse, 'skip-wordpress-install'),
-				skipSqliteSetup: hasCliOption(
-					argsToParse,
-					'skip-sqlite-setup'
-				),
+				skipSqliteSetup: hasCliOption(argsToParse, 'skip-sqlite-setup'),
 				autoMount: hasCliOption(argsToParse, 'auto-mount'),
 			},
 			mount: [
@@ -808,7 +810,10 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 function hasCliOption(argsToParse: string[], optionName: string) {
 	return argsToParse.some(
-		(arg) => arg === `--${optionName}` || arg.startsWith(`--${optionName}=`)
+		(arg) =>
+			arg === `--${optionName}` ||
+			arg.startsWith(`--${optionName}=`) ||
+			arg === `--no-${optionName}`
 	);
 }
 
@@ -942,6 +947,7 @@ export interface RunCLIArgs {
 	cliProvidedOptions?: {
 		php?: boolean;
 		wp?: boolean;
+		login?: boolean;
 		mode?: boolean;
 		wordpressInstallMode?: boolean;
 		skipSqliteSetup?: boolean;
@@ -962,6 +968,7 @@ export interface RunCLIArgs {
 	 * Set via php.defineConstant(), process-specific only.
 	 */
 	'define-number'?: Record<string, number>;
+	defaultedDebugConstants?: string[];
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -1023,13 +1030,13 @@ type BlueprintV2ArgOrigins = {
 
 function getBlueprintV2ArgOrigins(args: RunCLIArgs): BlueprintV2ArgOrigins {
 	return {
-		mode: args.cliProvidedOptions?.mode ?? (args.mode !== undefined),
+		mode: args.cliProvidedOptions?.mode ?? args.mode !== undefined,
 		wordpressInstallMode:
 			args.cliProvidedOptions?.wordpressInstallMode ??
-			(args.wordpressInstallMode !== undefined),
+			args.wordpressInstallMode !== undefined,
 		skipSqliteSetup:
 			args.cliProvidedOptions?.skipSqliteSetup ??
-			(args.skipSqliteSetup === true),
+			args.skipSqliteSetup === true,
 		autoMount:
 			args.cliProvidedOptions?.autoMount ??
 			(args.autoMount !== undefined && args.autoMount !== false),
@@ -1571,11 +1578,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			}
 
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
-			const useBlueprintsV2Handler =
-				await shouldUseBlueprintsV2Handler(
-					args,
-					blueprintV2ArgOrigins
-				);
+			const useBlueprintsV2Handler = await shouldUseBlueprintsV2Handler(
+				args,
+				blueprintV2ArgOrigins
+			);
 			if (useBlueprintsV2Handler) {
 				validateAndNormalizeBlueprintsV2Args(
 					args,

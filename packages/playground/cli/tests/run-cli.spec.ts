@@ -239,9 +239,7 @@ describe.each(blueprintVersions)(
 			});
 
 			await expect(
-				cliServer.playground.readFileAsText(
-					'/wordpress/routed-v2.txt'
-				)
+				cliServer.playground.readFileAsText('/wordpress/routed-v2.txt')
 			).resolves.toBe('native-v2');
 		});
 
@@ -249,7 +247,9 @@ describe.each(blueprintVersions)(
 			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
 				code?: number | string | null
 			) => {
-				throw new Error(`process.exit unexpectedly called with "${code}"`);
+				throw new Error(
+					`process.exit unexpectedly called with "${code}"`
+				);
 			}) as any);
 
 			try {
@@ -275,7 +275,9 @@ describe.each(blueprintVersions)(
 			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
 				code?: number | string | null
 			) => {
-				throw new Error(`process.exit unexpectedly called with "${code}"`);
+				throw new Error(
+					`process.exit unexpectedly called with "${code}"`
+				);
 			}) as any);
 
 			try {
@@ -609,8 +611,7 @@ describe.each(blueprintVersions)(
 			}
 		});
 
-		if (version === 2) {
-			// @TODO: Test modes
+		describe('native Blueprint v2 modes', () => {
 			test('should support --mode=create-new-site', async () => {
 				const tmpDir = await mkdtemp(
 					path.join(tmpdir(), 'playground-test-')
@@ -714,7 +715,7 @@ describe.each(blueprintVersions)(
 				const wpContentDirPath = path.join(tmpDir, 'wp-content');
 				expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(true);
 			}, 60000);
-		}
+		});
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 
@@ -1626,10 +1627,10 @@ describe('other run-cli behaviors', () => {
 					);
 					req.on('error', reject);
 					req.end();
-	}
-);
+				}
+			);
 
-				expect(res.statusCode).toBe(302);
+			expect(res.statusCode).toBe(302);
 			expect(res.headers['set-cookie']).toContain(
 				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
 			);
@@ -2394,9 +2395,18 @@ describe('resolveWorkerCount', () => {
 });
 
 async function extractZip(zipPath: string, extractTo: string) {
+	const extractRoot = path.resolve(extractTo);
 	const zipStream = decodeZip(new Blob([await readFile(zipPath)]).stream());
 	for await (const file of zipStream) {
-		const target = path.join(extractTo, file.name);
+		const target = path.resolve(extractRoot, file.name);
+		if (
+			target !== extractRoot &&
+			!target.startsWith(`${extractRoot}${path.sep}`)
+		) {
+			throw new Error(
+				`Refusing to extract ZIP entry outside target: ${file.name}`
+			);
+		}
 		if (file.type === 'directory' || file.name.endsWith('/')) {
 			await mkdir(target, { recursive: true });
 			continue;

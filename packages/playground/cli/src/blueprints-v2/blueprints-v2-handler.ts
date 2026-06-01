@@ -170,14 +170,17 @@ export class BlueprintsV2Handler {
 					wordPressZip && (await wordPressZip.arrayBuffer()),
 				sqliteIntegrationPluginZip:
 					await sqliteIntegrationPluginZip?.arrayBuffer(),
-				constants: mergeDefinedConstants(this.args),
+				constants: mergeDefinedConstantsForPHPVersion(
+					this.args,
+					runtimeConfiguration.phpVersion
+				),
 			},
 			workerPostInstallMountsPort
 		);
 
 		if (
 			preinstalledWpContentPath &&
-			!this.args['mount-before-install'] &&
+			!this.args['mount-before-install']?.length &&
 			!fs.existsSync(preinstalledWpContentPath)
 		) {
 			this.cliOutput.updateProgress('Caching WordPress for next boot');
@@ -278,7 +281,9 @@ export class BlueprintsV2Handler {
 		}
 
 		return applyCliOptionsToBlueprint(
-			resolvedBlueprint as BlueprintV1Declaration | BlueprintV2Declaration,
+			resolvedBlueprint as
+				| BlueprintV1Declaration
+				| BlueprintV2Declaration,
 			this.args,
 			additionalBlueprintSteps
 		);
@@ -303,14 +308,13 @@ function applyCliOptionsToBlueprint(
 	if (args.wp && cliOptionWasProvided(args, 'wp')) {
 		blueprint.wordpressVersion = args.wp;
 	}
-	if (args.login) {
+	if (cliOptionWasProvided(args, 'login')) {
 		blueprint.applicationOptions = {
 			...(blueprint.applicationOptions || {}),
 			'wordpress-playground': {
-				...(blueprint.applicationOptions?.[
-					'wordpress-playground'
-				] || {}),
-				login: true,
+				...(blueprint.applicationOptions?.['wordpress-playground'] ||
+					{}),
+				login: args.login === true,
 			},
 		};
 	}
@@ -402,7 +406,10 @@ function normalizeAdditionalBlueprintSteps(steps: any[]) {
 	});
 }
 
-function cliOptionWasProvided(args: RunCLIArgs, option: 'php' | 'wp') {
+function cliOptionWasProvided(
+	args: RunCLIArgs,
+	option: 'php' | 'wp' | 'login'
+) {
 	if (args.cliProvidedOptions) {
 		return args.cliProvidedOptions[option] === true;
 	}
@@ -426,3 +433,19 @@ function filterExtensionArgsForPHPVersion(
 }
 
 export { runBlueprintV2Steps };
+
+function mergeDefinedConstantsForPHPVersion(
+	args: RunCLIArgs,
+	phpVersion: string | undefined
+) {
+	const defineBool = { ...(args['define-bool'] || {}) };
+	if (isLegacyPHPVersion(phpVersion)) {
+		for (const name of args.defaultedDebugConstants || []) {
+			delete defineBool[name];
+		}
+	}
+	return mergeDefinedConstants({
+		...args,
+		'define-bool': defineBool,
+	});
+}

@@ -1,6 +1,9 @@
-import type { BlueprintV1 } from '@wp-playground/blueprints';
+import type {
+	Blueprint,
+	BlueprintDeclaration,
+} from '@wp-playground/blueprints';
 import {
-	getBlueprintDeclaration,
+	BlueprintReflection,
 	isStepDefinition,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
@@ -47,7 +50,9 @@ export const logTrackingEvent = (
  * Log Blueprint events
  * @param blueprint The Blueprint
  */
-export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
+export const logBlueprintEvents = async (
+	blueprint: Blueprint | BlueprintDeclaration
+) => {
 	/**
 	 * Log the names of provided Blueprint steps.
 	 * Only the names (e.g. "runPhp" or "login") are logged. Step options like
@@ -55,8 +60,15 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 	 *
 	 * For installPlugin and installTheme, the plugin/theme slug is logged.
 	 */
-	const blueprintDeclaration = await getBlueprintDeclaration(blueprint);
-	if (blueprintDeclaration.steps) {
+	const blueprintDeclaration =
+		'version' in blueprint || 'steps' in blueprint
+			? blueprint
+			: (await BlueprintReflection.create(blueprint)).getDeclaration();
+	if ((blueprintDeclaration as any).version === 2) {
+		logBlueprintV2Events(blueprintDeclaration as any);
+		return;
+	}
+	if ('steps' in blueprintDeclaration && blueprintDeclaration.steps) {
 		for (const step of blueprintDeclaration.steps) {
 			if (!isStepDefinition(step)) {
 				continue;
@@ -82,3 +94,104 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 		}
 	}
 };
+
+function logBlueprintV2Events(blueprint: any) {
+	if (Array.isArray(blueprint.plugins)) {
+		for (const plugin of blueprint.plugins) {
+			logV2InstallAsset('installPlugin', plugin, 'plugin');
+		}
+	}
+	if (Array.isArray(blueprint.themes)) {
+		for (const theme of blueprint.themes) {
+			logV2InstallAsset('installTheme', theme, 'theme');
+		}
+	}
+	if (blueprint.activeTheme) {
+		logV2InstallAsset('installTheme', blueprint.activeTheme, 'theme');
+	}
+	if (Array.isArray(blueprint.content) && blueprint.content.length > 0) {
+		logTrackingEvent('step', { step: 'importContent' });
+	}
+	if (Array.isArray(blueprint.media) && blueprint.media.length > 0) {
+		logTrackingEvent('step', { step: 'importMedia' });
+	}
+	if (blueprint.fonts) {
+		logTrackingEvent('step', { step: 'installFonts' });
+	}
+	for (const step of blueprint.additionalStepsAfterExecution || []) {
+		if (
+			!step ||
+			typeof step !== 'object' ||
+			typeof step.step !== 'string'
+		) {
+			continue;
+		}
+		logTrackingEvent('step', { step: step.step });
+		if (step.step === 'installPlugin') {
+			logV2InstallAsset('installPlugin', step, 'plugin');
+		} else if (step.step === 'installTheme') {
+			logV2InstallAsset('installTheme', step, 'theme');
+		}
+	}
+}
+
+function logV2InstallAsset(
+	event: 'installPlugin' | 'installTheme',
+	definition: any,
+	slugKey: 'plugin' | 'theme'
+) {
+	const source =
+		definition && typeof definition === 'object' && 'source' in definition
+			? definition.source
+			: definition;
+	const data: Record<string, string> = {
+		resource: getV2DataReferenceResource(source, slugKey),
+	};
+	const slug = getV2DirectorySlug(source);
+	if (slug) {
+		data[slugKey] = slug;
+	}
+	logTrackingEvent('step', {
+		step: event === 'installPlugin' ? 'installPlugin' : 'installTheme',
+	});
+	logTrackingEvent(event, data);
+}
+
+function getV2DataReferenceResource(source: any, slugKey: 'plugin' | 'theme') {
+	if (typeof source === 'string') {
+		if (source.startsWith('http://') || source.startsWith('https://')) {
+			return 'url';
+		}
+		if (source.startsWith('/') || source.startsWith('./')) {
+			return 'bundled';
+		}
+		return `wordpress.org/${slugKey}s`;
+	}
+	if (source && typeof source === 'object') {
+		if ('gitRepository' in source) {
+			return 'git:directory';
+		}
+		if ('directoryName' in source) {
+			return 'literal:directory';
+		}
+		if ('filename' in source) {
+			return 'literal';
+		}
+	}
+	return 'unknown';
+}
+
+function getV2DirectorySlug(source: any) {
+	if (typeof source !== 'string') {
+		return undefined;
+	}
+	if (
+		source.startsWith('http://') ||
+		source.startsWith('https://') ||
+		source.startsWith('/') ||
+		source.startsWith('./')
+	) {
+		return undefined;
+	}
+	return source.split('@')[0];
+}

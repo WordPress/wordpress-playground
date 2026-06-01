@@ -6,6 +6,13 @@
 			"import": "./index.js",
 			"require": "./index.cjs"
 		},
+		"./public/blueprint-schema.json": "./public/blueprint-schema.json",
+		"./public/blueprint-schema-validator.js": {
+			"import": "./public/blueprint-schema-validator.js"
+		},
+		"./public/blueprint-v1-schema-validator.js": {
+			"import": "./public/blueprint-v1-schema-validator.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"repository": {

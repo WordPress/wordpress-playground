@@ -9,6 +9,8 @@ import { joinPaths } from '@php-wasm/util';
 import { writeFiles, type UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 
+const ACTIVATION_OPTIONS_PAYLOAD_PREFIX = 'PLAYGROUND_ACTIVATION_OPTIONS:';
+
 /**
  * @inheritDoc installPlugin
  * @hasRunnableExample
@@ -283,18 +285,18 @@ $options = json_decode(getenv('ACTIVATION_OPTIONS'), true);
 if (!is_array($options)) {
 	$options = array();
 }
-$option_name = 'blueprint_activation_' . plugin_basename($plugin_file);
-update_option($option_name, $options);
-ob_end_clean();
-echo json_encode(array('optionName' => $option_name));
-`,
+	$option_name = 'blueprint_activation_' . plugin_basename($plugin_file);
+	update_option($option_name, $options);
+	ob_end_clean();
+	echo '${ACTIVATION_OPTIONS_PAYLOAD_PREFIX}' . json_encode(array('optionName' => $option_name));
+	`,
 		env: {
 			DOCROOT: docroot,
 			PLUGIN_PATH: pluginPath,
 			ACTIVATION_OPTIONS: JSON.stringify(activationOptions),
 		},
 	});
-	const payload = parseLastJsonObject(result.text);
+	const payload = parseActivationOptionsPayload(result.text);
 	if (payload?.['error']) {
 		throw new Error(String(payload['error']));
 	}
@@ -320,10 +322,19 @@ delete_option(getenv('OPTION_NAME'));
 	});
 }
 
-function parseLastJsonObject(text: string | undefined) {
-	const match = (text || '').trim().match(/\{[\s\S]*\}$/);
-	if (!match) {
+function parseActivationOptionsPayload(text: string | undefined) {
+	const output = text || '';
+	const payloadIndex = output.lastIndexOf(ACTIVATION_OPTIONS_PAYLOAD_PREFIX);
+	if (payloadIndex === -1) {
 		return undefined;
 	}
-	return JSON.parse(match[0]) as Record<string, unknown>;
+	const payload = output
+		.slice(payloadIndex + ACTIVATION_OPTIONS_PAYLOAD_PREFIX.length)
+		.trimStart()
+		.split(/\r?\n/, 1)[0]
+		.trim();
+	if (!payload) {
+		return undefined;
+	}
+	return JSON.parse(payload) as Record<string, unknown>;
 }

@@ -22,6 +22,37 @@ test('Base64-encoded Blueprints should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
+test('Blueprint v2 declarations boot through the website', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint = {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': {
+				landingPage: '/v2-smoke.php',
+			},
+		},
+		additionalStepsAfterExecution: [
+			{
+				step: 'writeFiles',
+				files: {
+					'/wordpress/v2-smoke.php': {
+						filename: 'v2-smoke.php',
+						content: '<?php echo "Native Blueprint v2";',
+					},
+				},
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`/#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'Native Blueprint v2'
+	);
+});
+
 test('spawning less should work', async ({ website, wordpress }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/less.php',

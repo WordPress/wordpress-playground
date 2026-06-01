@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { BlueprintsV2Handler } from '../src/blueprints-v2/blueprints-v2-handler';
 import type { RunCLIArgs } from '../src/run-cli';
 import type { CLIOutput } from '../src/cli-output';
-import type { BlueprintBundle, BlueprintV2Declaration } from '@wp-playground/blueprints';
+import type {
+	BlueprintBundle,
+	BlueprintV2Declaration,
+} from '@wp-playground/blueprints';
 import { fetchSqliteIntegration } from '../src/blueprints-v1/download';
 
 vi.mock('../src/blueprints-v1/download', async (importOriginal) => {
@@ -118,6 +121,88 @@ describe('BlueprintsV2Handler', () => {
 			version: 2,
 			phpVersion: '7.4',
 			wordpressVersion: '6.4',
+		});
+	});
+
+	test('does not treat parsed CLI login defaults as v2 login overrides', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				login: false,
+				cliProvidedOptions: {
+					login: false,
+				},
+				blueprint: {
+					version: 2,
+					applicationOptions: {
+						'wordpress-playground': {
+							login: true,
+						},
+					},
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+
+		const compiled = await handler.compileInputBlueprint([]);
+
+		expect(compiled.declaration).toMatchObject({
+			applicationOptions: {
+				'wordpress-playground': {
+					login: true,
+				},
+			},
+		});
+	});
+
+	test('applies explicit --login and --no-login overrides to v2 declarations', async () => {
+		const createHandler = (login: boolean) =>
+			new BlueprintsV2Handler(
+				{
+					command: 'server',
+					login,
+					cliProvidedOptions: {
+						login: true,
+					},
+					blueprint: {
+						version: 2,
+						applicationOptions: {
+							'wordpress-playground': {
+								login: !login,
+							},
+						},
+					},
+				} as RunCLIArgs,
+				{
+					siteUrl: 'http://127.0.0.1:9400',
+					cliOutput,
+				}
+			);
+
+		await expect(
+			createHandler(true).compileInputBlueprint([])
+		).resolves.toMatchObject({
+			declaration: {
+				applicationOptions: {
+					'wordpress-playground': {
+						login: true,
+					},
+				},
+			},
+		});
+		await expect(
+			createHandler(false).compileInputBlueprint([])
+		).resolves.toMatchObject({
+			declaration: {
+				applicationOptions: {
+					'wordpress-playground': {
+						login: false,
+					},
+				},
+			},
 		});
 	});
 
@@ -359,8 +444,7 @@ describe('BlueprintsV2Handler', () => {
 					skipSqliteSetup: true,
 					blueprint: {
 						version: 2,
-						wordpressVersion:
-							'https://example.com/wordpress.zip',
+						wordpressVersion: 'https://example.com/wordpress.zip',
 					},
 				} as RunCLIArgs,
 				{

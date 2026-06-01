@@ -161,6 +161,7 @@ export function bootSiteClient(
 		const blueprintRequestedNoWordPress =
 			blueprint &&
 			!isBlueprintBundle(blueprint) &&
+			'preferredVersions' in blueprint &&
 			blueprint.preferredVersions?.wp === false;
 		const wordpressInstallMode = blueprintRequestedNoWordPress
 			? 'do-not-attempt-installing'

@@ -41,6 +41,36 @@ JSON files can be tedious to write and easy to get wrong. To help with that, Pla
 }
 ```
 
+The public schema accepts both Blueprint v1 declarations and Blueprint v2
+declarations. Blueprint v2 declarations include `"version": 2` and use
+properties such as `applicationOptions`, `phpVersion`, `wordpressVersion`,
+`plugins`, `themes`, `content`, `media`, and
+`additionalStepsAfterExecution`.
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"version": 2,
+	"applicationOptions": {
+		"wordpress-playground": {
+			"landingPage": "/wp-admin/"
+		}
+	},
+	"plugins": ["gutenberg"],
+	"additionalStepsAfterExecution": [
+		{
+			"step": "writeFiles",
+			"files": {
+				"/wordpress/hello.php": {
+					"filename": "hello.php",
+					"content": "<?php echo 'Hello from Blueprint v2';"
+				}
+			}
+		}
+	]
+}
+```
+
 ## Landing page
 
 The `landingPage` property tells Playground which URL to navigate to after the Blueprint has been run. This is a great tool, especially when creating theme or plugin demos. Often, you will want to start Playground in the Site Editor or have a specific post open in the Post Editor. Make sure you use a relative path.

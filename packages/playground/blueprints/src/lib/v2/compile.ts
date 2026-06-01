@@ -1,5 +1,5 @@
 import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
-import { AllPHPVersions } from '@php-wasm/universal';
+import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	compileBlueprintV1,
@@ -343,6 +343,10 @@ export function upgradeBlueprintV1ToV2(
 		version: 2,
 	};
 	const steps: V2Step[] = [];
+
+	if (v1.preferredVersions?.wp === false) {
+		assertV1BlueprintWithoutWordPressCanUpgrade(v1);
+	}
 
 	if ((v1 as any)['$schema']) {
 		v2['$schema'] = (v1 as any)['$schema'];
@@ -1033,9 +1037,7 @@ function createFontSteps(fonts: Record<string, any>): any[] {
 		const collection = cloneJson(definition);
 		collection['slug'] = slug;
 		collection['name'] = collection['name'] || humanizeSlug(slug);
-		collection['font_families'] = (
-			collection['font_families'] || []
-		).map(
+		collection['font_families'] = (collection['font_families'] || []).map(
 			(family: JsonObject, familyIndex: number) => {
 				const nextFamily = cloneJson(family);
 				const settings = {
@@ -1907,7 +1909,7 @@ function convertV1ResourceToV2Reference(resource: any): any {
 	}
 }
 
-function migrateV1StepToV2(step: JsonObject): V2Step[] | undefined {
+function migrateV1StepToV2(step: JsonObject): V2Step[] {
 	switch (step['step']) {
 		case 'activatePlugin':
 			return [
@@ -1940,23 +1942,44 @@ function migrateV1StepToV2(step: JsonObject): V2Step[] | undefined {
 					constants: step['consts'],
 				},
 			];
+		case 'defineSiteUrl':
+			return [
+				{
+					step: 'defineConstants',
+					constants: {
+						WP_HOME: step['siteUrl'],
+						WP_SITEURL: step['siteUrl'],
+					},
+				},
+			];
 		case 'enableMultisite':
 			return [{ step: 'enableMultisite' }];
 		case 'importWxr':
-		case 'importFile':
+		case 'importFile': {
+			const wxrContent: JsonObject = {
+				type: 'wxr',
+				source: convertV1ResourceToV2Reference(step['file']),
+				staticAssets:
+					step['fetchAttachments'] === false ? 'hotlink' : 'fetch',
+				urlsMode:
+					step['rewriteUrls'] === false ? 'preserve' : 'rewrite',
+				authorsMode: step['authorsMode'] || 'default-author',
+				defaultAuthorUsername: step['defaultAuthorUsername'] || 'admin',
+				authorsMap: step['authorsMap'] || {},
+				importUsers: step['importUsers'] ?? false,
+				importComments: step['importComments'] ?? true,
+				importSiteOptions: step['importSiteOptions'] ?? false,
+			};
+			if (step['urlMap']) {
+				wxrContent['urlsMap'] = step['urlMap'];
+			}
 			return [
 				{
 					step: 'importContent',
-					content: [
-						{
-							type: 'wxr',
-							source: convertV1ResourceToV2Reference(
-								step['file']
-							),
-						},
-					],
+					content: [wxrContent],
 				},
 			];
+		}
 		case 'importThemeStarterContent':
 			return [
 				{
@@ -1972,7 +1995,10 @@ function migrateV1StepToV2(step: JsonObject): V2Step[] | undefined {
 						step['pluginData'] ?? step['pluginZipFile']
 					),
 					active: step['options']?.activate,
+					activationOptions: step['options']?.activationOptions,
+					onError: step['options']?.onError,
 					targetDirectoryName: step['options']?.targetFolderName,
+					humanReadableName: step['options']?.humanReadableName,
 				},
 			];
 		case 'installTheme':
@@ -1985,6 +2011,7 @@ function migrateV1StepToV2(step: JsonObject): V2Step[] | undefined {
 					active: step['options']?.activate,
 					importStarterContent: step['options']?.importStarterContent,
 					targetDirectoryName: step['options']?.targetFolderName,
+					humanReadableName: step['options']?.humanReadableName,
 				},
 			];
 		case 'mkdir':
@@ -2016,15 +2043,25 @@ function migrateV1StepToV2(step: JsonObject): V2Step[] | undefined {
 					},
 				},
 			];
+		case 'runPHPWithOptions':
+			return [
+				{
+					step: 'runPHP',
+					code: {
+						filename: 'script.php',
+						content: step['options']?.code,
+					},
+					...(step['options']?.env
+						? { env: step['options'].env }
+						: {}),
+				},
+			];
 		case 'runSQL':
 		case 'runSql':
 			return [
 				{
 					step: 'runSQL',
-					source: {
-						filename: 'script.sql',
-						content: step['sql'],
-					},
+					source: convertV1ResourceToV2Reference(step['sql']),
 				},
 			];
 		case 'setSiteLanguage':
@@ -2121,7 +2158,60 @@ foreach ($meta as $name => $value) {
 		case 'wp-cli':
 			return [{ step: 'wp-cli', command: step['command'] }];
 		default:
-			return undefined;
+			throw new UnsupportedBlueprintV2FeatureError(
+				`/steps/${String(step['step'] || 'unknown')}`,
+				`v1 step "${String(
+					step['step']
+				)}" cannot be represented as a Blueprint v2 step`
+			);
+	}
+}
+
+const V1_WORDPRESS_ONLY_FEATURES = new Set([
+	'installPlugin',
+	'installTheme',
+	'activatePlugin',
+	'activateTheme',
+	'login',
+	'setSiteOptions',
+	'updateUserMeta',
+	'importWxr',
+	'importFile',
+	'importWordPressFiles',
+	'enableMultisite',
+	'wp-cli',
+	'resetData',
+]);
+
+function assertV1BlueprintWithoutWordPressCanUpgrade(
+	blueprint: BlueprintV1Declaration
+) {
+	const offenders: string[] = [];
+	if (blueprint.plugins?.length) {
+		offenders.push('plugins');
+	}
+	if (blueprint.siteOptions) {
+		offenders.push('siteOptions');
+	}
+	if (blueprint.login) {
+		offenders.push('login');
+	}
+	if (blueprint.extraLibraries?.includes('wp-cli')) {
+		offenders.push("extraLibraries includes 'wp-cli'");
+	}
+	const badSteps = (blueprint.steps || [])
+		.filter((step) => !!step && typeof step === 'object' && 'step' in step)
+		.map((step) => String((step as any).step))
+		.filter((name) => V1_WORDPRESS_ONLY_FEATURES.has(name));
+	if (badSteps.length) {
+		offenders.push(`steps: ${[...new Set(badSteps)].join(', ')}`);
+	}
+	if (offenders.length) {
+		throw new InvalidBlueprintV2Error(
+			`Blueprint has \`preferredVersions.wp: false\` but uses ` +
+				`WordPress-only features: ${offenders.join('; ')}. Remove ` +
+				`these or drop \`preferredVersions.wp: false\`.`
+		);
 	}
 }
 
@@ -2279,7 +2369,11 @@ function validateV2StepFieldTypes(
 			return;
 		case 'cp':
 		case 'mv':
-			validatePlaygroundPath(step['fromPath'], `${path}/fromPath`, errors);
+			validatePlaygroundPath(
+				step['fromPath'],
+				`${path}/fromPath`,
+				errors
+			);
 			validatePlaygroundPath(step['toPath'], `${path}/toPath`, errors);
 			return;
 		case 'defineConstants':
@@ -2326,11 +2420,11 @@ function validateV2StepFieldTypes(
 			validatePlaygroundPath(step['path'], `${path}/path`, errors);
 			return;
 		case 'runPHP':
-			validateDataReference(step['code'], `${path}/code`, errors);
+			validateFileDataReference(step['code'], `${path}/code`, errors);
 			validateStringRecord(step['env'], `${path}/env`, errors);
 			return;
 		case 'runSQL':
-			validateDataReference(step['source'], `${path}/source`, errors);
+			validateFileDataReference(step['source'], `${path}/source`, errors);
 			return;
 		case 'setSiteLanguage':
 			validateString(step['language'], `${path}/language`, errors);
@@ -2339,7 +2433,11 @@ function validateV2StepFieldTypes(
 			validateObject(step['options'], `${path}/options`, errors);
 			return;
 		case 'unzip':
-			validateDataReference(step['zipFile'], `${path}/zipFile`, errors);
+			validateFileDataReference(
+				step['zipFile'],
+				`${path}/zipFile`,
+				errors
+			);
 			validatePlaygroundPath(
 				step['extractToPath'],
 				`${path}/extractToPath`,
@@ -2497,10 +2595,18 @@ function validateLoginOption(
 		errors.push({ path, message: 'must be a boolean or login object' });
 		return;
 	}
-	validateAllowedProperties(value, path, new Set(['username', 'password']), errors);
+	validateAllowedProperties(
+		value,
+		path,
+		new Set(['username', 'password']),
+		errors
+	);
 	for (const field of ['username', 'password']) {
 		if (value[field] === undefined) {
-			errors.push({ path, message: `must have required property "${field}"` });
+			errors.push({
+				path,
+				message: `must have required property "${field}"`,
+			});
 		}
 		validateString(value[field], `${path}/${field}`, errors);
 	}
@@ -2542,7 +2648,10 @@ function validateUserDefinition(
 	);
 	for (const field of ['username', 'email', 'role', 'meta']) {
 		if (value[field] === undefined) {
-			errors.push({ path, message: `must have required property "${field}"` });
+			errors.push({
+				path,
+				message: `must have required property "${field}"`,
+			});
 		}
 	}
 	validateString(value['username'], `${path}/username`, errors);
@@ -2560,10 +2669,18 @@ function validateRoleDefinition(
 		errors.push({ path, message: 'must be an object' });
 		return;
 	}
-	validateAllowedProperties(value, path, new Set(['name', 'capabilities']), errors);
+	validateAllowedProperties(
+		value,
+		path,
+		new Set(['name', 'capabilities']),
+		errors
+	);
 	for (const field of ['name', 'capabilities']) {
 		if (value[field] === undefined) {
-			errors.push({ path, message: `must have required property "${field}"` });
+			errors.push({
+				path,
+				message: `must have required property "${field}"`,
+			});
 		}
 	}
 	validateString(value['name'], `${path}/name`, errors);
@@ -2595,7 +2712,7 @@ function validatePluginDefinition(
 			allowDirectorySlug: true,
 		});
 		validateOptionalBoolean(value['active'], `${path}/active`, errors);
-		validateOptionalString(
+		validateOptionalPathSegment(
 			value['targetDirectoryName'],
 			`${path}/targetDirectoryName`,
 			errors
@@ -2653,7 +2770,7 @@ function validateThemeDefinition(
 			`${path}/importStarterContent`,
 			errors
 		);
-		validateOptionalString(
+		validateOptionalPathSegment(
 			value['targetDirectoryName'],
 			`${path}/targetDirectoryName`,
 			errors
@@ -2730,10 +2847,10 @@ function validateContentDefinition(
 	);
 	if (Array.isArray(value['source'])) {
 		value['source'].forEach((source: any, index: number) =>
-			validateDataReference(source, `${path}/source/${index}`, errors)
+			validateFileDataReference(source, `${path}/source/${index}`, errors)
 		);
 	} else {
-		validateDataReference(value['source'], `${path}/source`, errors);
+		validateFileDataReference(value['source'], `${path}/source`, errors);
 	}
 	if (
 		value['type'] === 'wxr' &&
@@ -2771,7 +2888,10 @@ function validateContentDefinition(
 		]) {
 			validateOptionalBoolean(value[field], `${path}/${field}`, errors);
 		}
-		if (value['authorsMode'] === 'map' && value['authorsMap'] === undefined) {
+		if (
+			value['authorsMode'] === 'map' &&
+			value['authorsMap'] === undefined
+		) {
 			errors.push({
 				path,
 				message: 'must have required property "authorsMap"',
@@ -2801,7 +2921,7 @@ function validatePostsSourceItem(
 	errors: BlueprintV2ValidationError[]
 ) {
 	if (typeof value === 'string' || isV2DataReferenceObjectLike(value)) {
-		validateDataReference(value, path, errors);
+		validateFileDataReference(value, path, errors);
 		return;
 	}
 	validateWordPressPost(value, path, errors);
@@ -2939,13 +3059,13 @@ function validateMediaDefinition(
 			new Set(['source', 'title', 'description', 'alt', 'caption']),
 			errors
 		);
-		validateDataReference(value['source'], `${path}/source`, errors);
+		validateFileDataReference(value['source'], `${path}/source`, errors);
 		for (const field of ['title', 'description', 'alt', 'caption']) {
 			validateOptionalString(value[field], `${path}/${field}`, errors);
 		}
 		return;
 	}
-	validateDataReference(value, path, errors);
+	validateFileDataReference(value, path, errors);
 }
 
 function validatePostTypes(
@@ -2987,7 +3107,10 @@ function validateFontCollection(
 	errors: BlueprintV2ValidationError[]
 ) {
 	if (!isPlainObject(value)) {
-		errors.push({ path, message: 'must be a data reference or font collection' });
+		errors.push({
+			path,
+			message: 'must be a data reference or font collection',
+		});
 		return;
 	}
 	validateAllowedProperties(
@@ -2998,7 +3121,10 @@ function validateFontCollection(
 	);
 	validateOptionalString(value['$schema'], `${path}/$schema`, errors);
 	if (value['font_families'] === undefined) {
-		errors.push({ path, message: 'must have required property "font_families"' });
+		errors.push({
+			path,
+			message: 'must have required property "font_families"',
+		});
 		return;
 	}
 	validateArray(
@@ -3056,13 +3182,19 @@ function validateFontFamilySettings(
 	);
 	for (const field of ['name', 'slug', 'fontFamily']) {
 		if (value[field] === undefined) {
-			errors.push({ path, message: `must have required property "${field}"` });
+			errors.push({
+				path,
+				message: `must have required property "${field}"`,
+			});
 		}
 		validateString(value[field], `${path}/${field}`, errors);
 	}
 	validateOptionalString(value['preview'], `${path}/preview`, errors);
-	validateArray(value['fontFace'], `${path}/fontFace`, errors, (face, facePath) =>
-		validateFontFace(face, facePath, errors)
+	validateArray(
+		value['fontFace'],
+		`${path}/fontFace`,
+		errors,
+		(face, facePath) => validateFontFace(face, facePath, errors)
 	);
 }
 
@@ -3099,7 +3231,10 @@ function validateFontFace(
 	);
 	for (const field of ['fontFamily', 'src']) {
 		if (value[field] === undefined) {
-			errors.push({ path, message: `must have required property "${field}"` });
+			errors.push({
+				path,
+				message: `must have required property "${field}"`,
+			});
 		}
 	}
 	validateOptionalString(value['preview'], `${path}/preview`, errors);
@@ -3110,7 +3245,10 @@ function validateFontFace(
 		typeof value['fontWeight'] !== 'string' &&
 		typeof value['fontWeight'] !== 'number'
 	) {
-		errors.push({ path: `${path}/fontWeight`, message: 'must be a string or number' });
+		errors.push({
+			path: `${path}/fontWeight`,
+			message: 'must be a string or number',
+		});
 	}
 	if (
 		value['fontDisplay'] !== undefined &&
@@ -3120,7 +3258,8 @@ function validateFontFace(
 	) {
 		errors.push({
 			path: `${path}/fontDisplay`,
-			message: 'must be "auto", "block", "fallback", "swap", or "optional"',
+			message:
+				'must be "auto", "block", "fallback", "swap", or "optional"',
 		});
 	}
 	validateFontFaceSource(value['src'], `${path}/src`, errors);
@@ -3222,6 +3361,7 @@ function validateDataReference(
 			}
 		}
 		validateString(value['filename'], `${path}/filename`, errors);
+		validatePathSegment(value['filename'], `${path}/filename`, errors);
 		validateString(value['content'], `${path}/content`, errors);
 		return;
 	}
@@ -3241,6 +3381,11 @@ function validateDataReference(
 			}
 		}
 		validateString(value['directoryName'], `${path}/directoryName`, errors);
+		validatePathSegment(
+			value['directoryName'],
+			`${path}/directoryName`,
+			errors
+		);
 		validateInlineDirectoryFiles(value['files'], `${path}/files`, errors);
 		return;
 	}
@@ -3281,6 +3426,20 @@ function validateDataReference(
 	errors.push({ path, message: 'must be a data reference' });
 }
 
+function validateFileDataReference(
+	value: any,
+	path: string,
+	errors: BlueprintV2ValidationError[]
+) {
+	validateDataReference(value, path, errors);
+	if (isInlineDirectory(value) || isGitPath(value)) {
+		errors.push({
+			path,
+			message: 'must reference a file, not a directory',
+		});
+	}
+}
+
 function validateInlineDirectoryFiles(
 	value: any,
 	path: string,
@@ -3308,7 +3467,7 @@ function validateInlineDirectoryFiles(
 				new Set(['directoryName', 'files']),
 				errors
 			);
-			validateOptionalString(
+			validateOptionalPathSegment(
 				item['directoryName'],
 				`${itemPath}/directoryName`,
 				errors
@@ -3497,6 +3656,16 @@ function validatePathSegment(
 			path,
 			message: 'must not contain parent directory segments',
 		});
+	}
+}
+
+function validateOptionalPathSegment(
+	value: any,
+	path: string,
+	errors: BlueprintV2ValidationError[]
+) {
+	if (value !== undefined) {
+		validatePathSegment(value, path, errors);
 	}
 }
 
@@ -3791,6 +3960,9 @@ function normalizeSupportedPHPVersion(
 	if (version === 'next') {
 		return version as AllPHPVersion;
 	}
+	if (version === 'latest') {
+		return LatestSupportedPHPVersion as AllPHPVersion;
+	}
 	const normalized = version.split('.').slice(0, 2).join('.');
 	if (AllPHPVersions.includes(normalized as any)) {
 		return normalized as AllPHPVersion;
@@ -3921,7 +4093,12 @@ function migrateV1Path(path: string): string {
 }
 
 function isHttpUrl(value: string) {
-	return value.startsWith('http://') || value.startsWith('https://');
+	try {
+		const url = new URL(value);
+		return url.protocol === 'http:' || url.protocol === 'https:';
+	} catch {
+		return false;
+	}
 }
 
 function isDirectorySlug(value: string) {
@@ -3944,7 +4121,9 @@ function hasParentDirectorySegment(path: string) {
 }
 
 function pathContainsParentDirectorySegment(path: string) {
-	const vfsPath = path.startsWith('site:') ? path.slice('site:'.length) : path;
+	const vfsPath = path.startsWith('site:')
+		? path.slice('site:'.length)
+		: path;
 	return hasParentDirectorySegment(vfsPath.replace(/\\/g, '/'));
 }
 
@@ -4121,7 +4300,9 @@ function escapeJsonPointer(pathSegment: string) {
 }
 
 function humanizeSlug(slug: string) {
-	return slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+	return slug
+		.replace(/[-_]+/g, ' ')
+		.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function cloneJson<T>(value: T): T {

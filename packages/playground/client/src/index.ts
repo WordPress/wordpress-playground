@@ -166,11 +166,11 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	const blueprintVersion = await getBlueprintVersion(options.blueprint || {});
+	const blueprintVersion = await getBlueprintVersion(options.blueprint);
 	const handler =
 		options.experimentalBlueprintsV2Runner || blueprintVersion === 2
-		? new BlueprintsV2Handler(options)
-		: new BlueprintsV1Handler(options);
+			? new BlueprintsV2Handler(options)
+			: new BlueprintsV1Handler(options);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();
@@ -178,7 +178,18 @@ export async function startPlaygroundWeb(
 	return playground;
 }
 
-async function getBlueprintVersion(blueprint: Blueprint) {
+async function getBlueprintVersion(blueprint: Blueprint | undefined) {
+	if (!blueprint) {
+		return 1;
+	}
+	if (
+		typeof blueprint === 'object' &&
+		!('read' in blueprint) &&
+		'version' in blueprint &&
+		typeof blueprint.version === 'number'
+	) {
+		return blueprint.version;
+	}
 	const reflection = await BlueprintReflection.create(blueprint);
 	return reflection.getVersion();
 }

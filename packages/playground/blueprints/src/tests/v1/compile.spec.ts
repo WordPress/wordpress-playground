@@ -154,6 +154,27 @@ describe('Blueprints', () => {
 		);
 
 		describe('Invalid Blueprints should not pass validation', () => {
+			test('Blueprint v2 declarations', () => {
+				const invalidBlueprint = {
+					version: 2,
+				};
+				const validationResult = validateBlueprint(invalidBlueprint);
+				expect(validationResult.valid).toBe(false);
+				if (!validationResult.valid) {
+					expect(validationResult.errors).toEqual(
+						expect.arrayContaining([
+							expect.objectContaining({
+								instancePath: '',
+								keyword: 'additionalProperties',
+								params: {
+									additionalProperty: 'version',
+								},
+							}),
+						])
+					);
+				}
+			});
+
 			test('extra properties', () => {
 				const invalidBlueprint = {
 					invalidProperty: 'foo',

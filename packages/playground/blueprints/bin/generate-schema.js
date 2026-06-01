@@ -4,18 +4,15 @@ import Ajv from 'ajv';
 import ajvStandaloneCode from 'ajv/dist/standalone/index.js';
 import prettier from 'prettier';
 
-/** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
-const config = {
-	path: 'packages/playground/blueprints/src/rollup.d.ts',
-	tsconfig: './tsconfig.base.json',
-	type: 'BlueprintV1Declaration',
-	skipTypeCheck: true,
-};
-
-const output_path =
+const declarationPath = 'packages/playground/blueprints/src/rollup.d.ts';
+const tsconfig = './tsconfig.base.json';
+const publicSchemaPath =
 	'packages/playground/blueprints/public/blueprint-schema.json';
-const validator_output_path =
+const publicValidatorPath =
 	'packages/playground/blueprints/public/blueprint-schema-validator.js';
+const v1ValidatorPath =
+	'packages/playground/blueprints/public/blueprint-v1-schema-validator.js';
+const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
 
 const maxRetries = 2;
 async function exponentialBackoff(callback, retries = 0, delay = 1000) {
@@ -30,62 +27,296 @@ async function exponentialBackoff(callback, retries = 0, delay = 1000) {
 	}
 }
 
-/**
- * Schema creation sometimes fails in CI, most likely
- * due to a race condition. Let's retry a few times before
- * giving up.
- *
- * @see https://github.com/WordPress/wordpress-playground/issues/789
- */
-const schema = await exponentialBackoff(() =>
-	tsj.createGenerator(config).createSchema(config.type)
-);
+async function createSchema(type) {
+	/** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
+	const config = {
+		path: declarationPath,
+		tsconfig,
+		type,
+		skipTypeCheck: true,
+	};
 
-schema.$schema = 'http://json-schema.org/schema';
-schema.definitions.BlueprintV1Declaration.properties.$schema = {
-	type: 'string',
-};
+	/**
+	 * Schema creation sometimes fails in CI, most likely
+	 * due to a race condition. Let's retry a few times before
+	 * giving up.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/789
+	 */
+	const schema = await exponentialBackoff(() =>
+		tsj.createGenerator(config).createSchema(config.type)
+	);
+	schema.$schema = 'http://json-schema.org/schema';
+	patchSchema(schema);
+	return schema;
+}
 
-// Use a discriminator to help the Ajv JSON schema validator
-// provide more useful error messages with respect to StepDefinition.
-// Without a discriminator, it will validate each invalid step
-// against all possible `anyOf` entries, which is not helpful.
-Object.assign(schema.definitions.StepDefinition, {
-	type: 'object',
-	discriminator: { propertyName: 'step' },
-	required: ['step'],
-});
-schema.definitions.StepDefinition.oneOf =
-	schema.definitions.StepDefinition.anyOf;
-delete schema.definitions.StepDefinition.anyOf;
+function patchSchema(schema) {
+	if (schema.definitions?.BlueprintV1Declaration?.properties) {
+		schema.definitions.BlueprintV1Declaration.properties.$schema = {
+			type: 'string',
+		};
+	}
+	patchV2Schema(schema);
+	if (schema.definitions?.BlueprintDeclaration?.anyOf) {
+		schema.definitions.BlueprintDeclaration.oneOf =
+			schema.definitions.BlueprintDeclaration.anyOf;
+		delete schema.definitions.BlueprintDeclaration.anyOf;
+	}
+	if (schema.definitions?.StepDefinition?.anyOf) {
+		Object.assign(schema.definitions.StepDefinition, {
+			type: 'object',
+			discriminator: { propertyName: 'step' },
+			required: ['step'],
+		});
+		schema.definitions.StepDefinition.oneOf =
+			schema.definitions.StepDefinition.anyOf;
+		delete schema.definitions.StepDefinition.anyOf;
+	}
+}
 
-const rawSchemaString = JSON.stringify(schema, null, 2)
-	// Naively remove TypeScript generics <T> from the schema:
-	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
-	.replaceAll(/<[a-zA-Z]+>/g, '');
+function patchV2Schema(schema) {
+	const definitions = schema.definitions;
+	if (!definitions) {
+		return;
+	}
+	const noParentPathPattern =
+		'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
+	const executionContextPathPattern =
+		'^(?:\\./|/)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
+	const pathSegmentPattern = '^(?!\\.\\.$)[^/\\\\]*$';
+	if (definitions['DataSources.URLReference']) {
+		Object.assign(definitions['DataSources.URLReference'], {
+			type: 'string',
+			pattern: '^https?://\\S+$',
+		});
+	}
+	if (definitions['DataSources.ExecutionContextPath']) {
+		Object.assign(definitions['DataSources.ExecutionContextPath'], {
+			type: 'string',
+			pattern: executionContextPathPattern,
+		});
+	}
+	if (definitions['DataSources.SimpleVersionExpression']) {
+		Object.assign(definitions['DataSources.SimpleVersionExpression'], {
+			type: 'string',
+			pattern: '^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$',
+		});
+	}
+	if (definitions['DataSources.PHPVersion']) {
+		Object.assign(definitions['DataSources.PHPVersion'], {
+			type: 'string',
+			pattern: '^(?:latest|next|\\d+\\.\\d+(?:\\.\\d+)?)$',
+		});
+		delete definitions['DataSources.PHPVersion'].$ref;
+	}
+	if (definitions['DataSources.WordPressVersion']) {
+		Object.assign(definitions['DataSources.WordPressVersion'], {
+			type: 'string',
+			pattern:
+				'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$',
+		});
+		delete definitions['DataSources.WordPressVersion'].anyOf;
+	}
+	patchV2TopLevelBlueprint(definitions['V2Schema.BlueprintV2']);
+	for (const definitionName of [
+		'DataSources.InlineFile',
+		'DataSources.InlineDirectory',
+	]) {
+		const definition = definitions[definitionName];
+		const propertyName =
+			definitionName === 'DataSources.InlineFile'
+				? 'filename'
+				: 'directoryName';
+		if (definition?.properties?.[propertyName]) {
+			Object.assign(definition.properties[propertyName], {
+				type: 'string',
+				pattern: pathSegmentPattern,
+			});
+		}
+	}
+	for (const definition of Object.values(definitions)) {
+		patchTargetDirectoryNames(definition, pathSegmentPattern);
+		patchNoParentPathProperties(definition, noParentPathPattern);
+		patchFileMapPropertyNames(definition, noParentPathPattern);
+		patchUrlMaps(definition);
+	}
+}
 
-// Use prettier to make the generated text more readable
-// and to avoid differing with the files formatted by pre-commit hook.
-const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
-const formattedSchemaString = await prettier.format(rawSchemaString, {
-	...prettierConfig,
-	parser: 'json',
-});
+function patchV2TopLevelBlueprint(blueprint) {
+	if (!blueprint?.properties) {
+		return;
+	}
+	if (blueprint.properties.siteOptions) {
+		blueprint.properties.siteOptions.not = {
+			required: ['siteUrl'],
+		};
+	}
+	if (blueprint.properties.wordpressVersion) {
+		blueprint.properties.wordpressVersion.anyOf = [
+			{ $ref: '#/definitions/DataSources.WordPressVersion' },
+			{
+				allOf: [
+					{ $ref: '#/definitions/DataSources.URLReference' },
+					{ type: 'string', pattern: '\\.zip(?:[?#]\\S*)?$' },
+				],
+			},
+			{
+				allOf: [
+					{ $ref: '#/definitions/DataSources.ExecutionContextPath' },
+					{ type: 'string', pattern: '\\.zip$' },
+				],
+			},
+			{
+				allOf: [
+					{ $ref: '#/definitions/DataSources.InlineFile' },
+					{
+						type: 'object',
+						properties: {
+							filename: {
+								type: 'string',
+								pattern: '\\.zip$',
+							},
+						},
+					},
+				],
+			},
+			{ $ref: '#/definitions/DataSources.InlineDirectory' },
+			{ $ref: '#/definitions/DataSources.GitPath' },
+			{
+				type: 'object',
+				properties: {
+					min: { $ref: '#/definitions/DataSources.WordPressVersion' },
+					max: { $ref: '#/definitions/DataSources.WordPressVersion' },
+					preferred: {
+						$ref: '#/definitions/DataSources.WordPressVersion',
+						default: 'latest',
+					},
+					recommended: {
+						$ref: '#/definitions/DataSources.WordPressVersion',
+						default: 'latest',
+					},
+				},
+				required: ['min'],
+				additionalProperties: false,
+			},
+		];
+	}
+}
 
-fs.writeFileSync(output_path, formattedSchemaString);
+function patchTargetDirectoryNames(node, pathSegmentPattern) {
+	if (!node || typeof node !== 'object') {
+		return;
+	}
+	if (node.properties?.targetDirectoryName) {
+		Object.assign(node.properties.targetDirectoryName, {
+			type: 'string',
+			pattern: pathSegmentPattern,
+		});
+	}
+	for (const value of Object.values(node)) {
+		if (value && typeof value === 'object') {
+			patchTargetDirectoryNames(value, pathSegmentPattern);
+		}
+	}
+}
 
-const ajv = new Ajv({
-	discriminator: true,
-	code: {
-		source: true,
-		esm: true,
-	},
-});
-const validate = ajv.compile(schema);
-const rawValidationCode = ajvStandaloneCode(ajv, validate);
+function patchNoParentPathProperties(node, noParentPathPattern) {
+	if (!node || typeof node !== 'object') {
+		return;
+	}
+	for (const propertyName of [
+		'path',
+		'fromPath',
+		'toPath',
+		'extractToPath',
+		'pathInRepository',
+	]) {
+		if (node.properties?.[propertyName]) {
+			Object.assign(node.properties[propertyName], {
+				type: 'string',
+				pattern: noParentPathPattern,
+			});
+		}
+	}
+	for (const value of Object.values(node)) {
+		if (value && typeof value === 'object') {
+			patchNoParentPathProperties(value, noParentPathPattern);
+		}
+	}
+}
 
-const formattedValidationCode = await prettier.format(rawValidationCode, {
-	...prettierConfig,
-	parser: 'babel',
-});
-fs.writeFileSync(validator_output_path, formattedValidationCode);
+function patchFileMapPropertyNames(node, noParentPathPattern) {
+	if (!node || typeof node !== 'object') {
+		return;
+	}
+	if (node.properties?.files?.additionalProperties) {
+		node.properties.files.propertyNames = {
+			pattern: noParentPathPattern,
+		};
+	}
+	for (const value of Object.values(node)) {
+		if (value && typeof value === 'object') {
+			patchFileMapPropertyNames(value, noParentPathPattern);
+		}
+	}
+}
+
+function patchUrlMaps(node) {
+	if (!node || typeof node !== 'object') {
+		return;
+	}
+	if (node.properties?.urlsMap) {
+		node.properties.urlsMap.propertyNames = {
+			$ref: '#/definitions/DataSources.URLReference',
+		};
+	}
+	for (const value of Object.values(node)) {
+		if (value && typeof value === 'object') {
+			patchUrlMaps(value);
+		}
+	}
+}
+
+async function writeFormattedJson(path, schema) {
+	const rawSchemaString = JSON.stringify(schema, null, 2)
+		// Naively remove TypeScript generics <T> from the schema:
+		.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
+		.replaceAll(/<[a-zA-Z]+>/g, '');
+
+	fs.writeFileSync(
+		path,
+		await prettier.format(rawSchemaString, {
+			...prettierConfig,
+			parser: 'json',
+		})
+	);
+}
+
+async function writeStandaloneValidator(path, schema) {
+	const ajv = new Ajv({
+		discriminator: true,
+		allowUnionTypes: true,
+		code: {
+			source: true,
+			esm: true,
+		},
+	});
+	const validate = ajv.compile(schema);
+	const rawValidationCode = ajvStandaloneCode(ajv, validate);
+
+	fs.writeFileSync(
+		path,
+		await prettier.format(rawValidationCode, {
+			...prettierConfig,
+			parser: 'babel',
+		})
+	);
+}
+
+const publicSchema = await createSchema('BlueprintDeclaration');
+await writeFormattedJson(publicSchemaPath, publicSchema);
+await writeStandaloneValidator(publicValidatorPath, publicSchema);
+
+const v1Schema = await createSchema('BlueprintV1Declaration');
+await writeStandaloneValidator(v1ValidatorPath, v1Schema);

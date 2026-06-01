@@ -141,6 +141,18 @@ CLI command loading a blueprint:
 npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
 
+Blueprint v2 files are routed to the native TypeScript v2 runner automatically.
+Use `--mode` with v2 Blueprints when you need to control how the WordPress files
+are prepared:
+
+```bash
+npx @wp-playground/cli@latest server --blueprint=./blueprint-v2.json --mode=create-new-site
+```
+
+The supported v2 modes are `create-new-site`, `apply-to-existing-site`, and
+`mount-only`. Runtime options passed on the command line, such as `--php`,
+`--wp`, and `--login`, are merged into the Blueprint setup when possible.
+
 ### Mounting folders manually
 
 Some projects have a specific structure that requires a custom configuration; for example, your repository contains all the files in the `/wp-content/` folder. So in this scenario, you can specify to the Playground CLI that it will mount your project from that folder using the `--mount` flag.

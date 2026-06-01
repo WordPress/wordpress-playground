@@ -186,6 +186,10 @@ export namespace V2Schema {
 					 * @default "latest"
 					 */
 					preferred?: DataSources.WordPressVersion;
+					/**
+					 * @default "latest"
+					 */
+					recommended?: DataSources.WordPressVersion;
 			  };
 
 		/**
@@ -447,15 +451,17 @@ export namespace V2Schema {
 	};
 
 	type ContentDefinition =
-		| ({
+		| {
 				type: 'mysql-dump';
-				source: DataSources.DataReference | DataSources.DataReference[];
-		  } & URLMappingConfig)
+				source:
+					| DataSources.FileDataReference
+					| DataSources.FileDataReference[];
+		  }
 		| ({
 				type: 'posts';
 				source:
-					| DataSources.DataReference
-					| DataSources.DataReference[]
+					| DataSources.FileDataReference
+					| DataSources.FileDataReference[]
 					| WordPressPost
 					| WordPressPost[];
 		  } & URLMappingConfig)
@@ -483,7 +489,7 @@ export namespace V2Schema {
 		 */
 		| ({
 				type: 'wxr';
-				source: DataSources.DataReference;
+				source: DataSources.FileDataReference;
 
 				/**
 				 * Static assets handling.
@@ -552,9 +558,9 @@ export namespace V2Schema {
 		  } & URLMappingConfig);
 
 	type MediaDefinition =
-		| DataSources.DataReference
+		| DataSources.FileDataReference
 		| {
-				source: DataSources.DataReference;
+				source: DataSources.FileDataReference;
 				title?: string;
 				description?: string;
 				alt?: string;
@@ -712,8 +718,8 @@ export namespace V2Schema {
 		humanReadableName?: string;
 	};
 
-	type RemoteUsername = 'string';
-	type LocalUsername = 'string';
+	type RemoteUsername = string;
+	type LocalUsername = string;
 
 	/**
 	 * WordPress register_post_type() arguments representation. {{{
@@ -1523,7 +1529,7 @@ export namespace V2Schema {
 		/**
 		 * The PHP file to execute.
 		 */
-		code: DataSources.DataReference;
+		code: DataSources.FileDataReference;
 		/**
 		 * Environment variables to set for this run.
 		 */
@@ -1532,7 +1538,7 @@ export namespace V2Schema {
 
 	type RunSQLStep = {
 		step: 'runSQL';
-		source: DataSources.DataReference;
+		source: DataSources.FileDataReference;
 	};
 
 	/**
@@ -1564,7 +1570,7 @@ export namespace V2Schema {
 		/**
 		 * The zip file resource to extract.
 		 */
-		zipFile: DataSources.DataReference;
+		zipFile: DataSources.FileDataReference;
 		/**
 		 * The path to extract the zip file to inside the virtual filesystem.
 		 */

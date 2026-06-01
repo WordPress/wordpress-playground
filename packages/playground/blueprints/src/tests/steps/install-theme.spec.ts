@@ -172,6 +172,7 @@ describe('Blueprint step installTheme', () => {
 			const zip = await php.readFileAsBuffer(unexpectedZipFilePath);
 			php.unlink(unexpectedZipFilePath);
 
+			// @ts-expect-error themeZipFile is deprecated but still supported at runtime.
 			await installTheme(php, {
 				themeZipFile: new File([zip], unexpectedZipFileName),
 				ifAlreadyInstalled: 'overwrite',

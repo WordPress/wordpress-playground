@@ -112,6 +112,14 @@ export namespace DataSources {
 		| GitPath;
 
 	/**
+	 * A data reference that must resolve to a single file.
+	 */
+	export type FileDataReference =
+		| URLReference
+		| ExecutionContextPath
+		| InlineFile;
+
+	/**
 	 * }}}
 	 */
 

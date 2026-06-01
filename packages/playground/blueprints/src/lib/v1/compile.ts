@@ -36,7 +36,7 @@ const keyedStepHandlers = {
  * `dts-bundle-generator` utility we use for type rollyps does not support
  * watching for changes.
  */
-import blueprintValidator from '../../../public/blueprint-schema-validator';
+import blueprintValidator from '../../../public/blueprint-v1-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
 
@@ -854,9 +854,7 @@ function isGitRepoUrl(url: string): boolean {
 		return true;
 	}
 	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (
-		/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)
-	) {
+	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)) {
 		return true;
 	}
 	return false;
