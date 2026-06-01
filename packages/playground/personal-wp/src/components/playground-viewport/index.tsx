@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
@@ -1289,10 +1289,26 @@ function LoadingScreen({
 	html: string;
 	progress: ProgressDetails;
 }) {
+	return (
+		<div className={css.loadingScreen}>
+			<LoadingScreenHtml html={html} />
+			<LoadingProgress progress={progress} />
+		</div>
+	);
+}
+
+const LoadingScreenHtml = memo(function LoadingScreenHtml({
+	html,
+}: {
+	html: string;
+}) {
 	const hostRef = useRef<HTMLDivElement>(null);
-	const progressValue = Math.max(0, Math.min(100, progress.progress));
+	const renderedHtmlRef = useRef<string | null>(null);
 
 	useEffect(() => {
+		if (renderedHtmlRef.current === html) {
+			return;
+		}
 		const host = hostRef.current;
 		if (!host) {
 			return;
@@ -1300,28 +1316,30 @@ function LoadingScreen({
 		const shadowRoot =
 			host.shadowRoot ?? host.attachShadow({ mode: 'open' });
 		shadowRoot.innerHTML = html;
+		renderedHtmlRef.current = html;
 	}, [html]);
 
+	return <div ref={hostRef} className={css.loadingScreenHtml} />;
+});
+
+function LoadingProgress({ progress }: { progress: ProgressDetails }) {
+	const progressValue = Math.max(0, Math.min(100, progress.progress));
+
 	return (
-		<div className={css.loadingScreen}>
-			<div ref={hostRef} className={css.loadingScreenHtml} />
-			<div
-				className={css.loadingProgress}
-				role="progressbar"
-				aria-valuemin={0}
-				aria-valuemax={100}
-				aria-valuenow={Math.round(progressValue)}
-				aria-label={progress.caption}
-			>
-				<div className={css.loadingProgressCaption}>
-					{progress.caption}
-				</div>
-				<div className={css.loadingProgressTrack}>
-					<div
-						className={css.loadingProgressBar}
-						style={{ width: `${progressValue}%` }}
-					/>
-				</div>
+		<div
+			className={css.loadingProgress}
+			role="progressbar"
+			aria-valuemin={0}
+			aria-valuemax={100}
+			aria-valuenow={Math.round(progressValue)}
+			aria-label={progress.caption}
+		>
+			<div className={css.loadingProgressCaption}>{progress.caption}</div>
+			<div className={css.loadingProgressTrack}>
+				<div
+					className={css.loadingProgressBar}
+					style={{ width: `${progressValue}%` }}
+				/>
 			</div>
 		</div>
 	);
