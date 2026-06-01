@@ -10,6 +10,7 @@ const MYWP_EVENT_DASHBOARD_ALLOWED_RANGES = array( 7, 30, 90 );
 const MYWP_EVENT_DASHBOARD_ALLOWED_GRANULARITIES = array( 'day', 'hour' );
 const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
 const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
+const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
 
 if ( 'cli' !== php_sapi_name() ) {
 	mywp_event_dashboard_handle_request();
@@ -690,11 +691,7 @@ function mywp_event_dashboard_group_rows( $rows ) {
 function mywp_event_dashboard_render( $stats, $current_user ) {
 	$groups = mywp_event_dashboard_group_rows( $stats['rows'] );
 	$metric_definitions = mywp_event_dashboard_metric_definitions();
-	$metric_sections = mywp_event_dashboard_metric_sections();
-	$other_metric_names = mywp_event_dashboard_other_metric_names(
-		array_keys( $groups ),
-		$metric_sections
-	);
+	$current_area = mywp_event_dashboard_get_current_area( $groups );
 	?>
 	<!doctype html>
 	<html lang="en">
@@ -756,15 +753,33 @@ function mywp_event_dashboard_render( $stats, $current_user ) {
 				flex-wrap: wrap;
 			}
 			.controls a,
-			.controls span {
+			.control-option {
 				border: 1px solid var(--border);
 				border-radius: 4px;
 				padding: 6px 10px;
 				text-decoration: none;
 			}
-			.controls span {
+			.control-option {
 				background: var(--text);
 				color: #fff;
+			}
+			.control-group {
+				display: flex;
+				gap: 8px;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+			.control-label {
+				color: var(--muted);
+				font-weight: 600;
+			}
+			.area-controls {
+				justify-content: flex-start;
+				align-items: flex-start;
+			}
+			.area-controls a,
+			.area-controls .control-option {
+				overflow-wrap: anywhere;
 			}
 			.grid {
 				display: grid;
@@ -879,22 +894,12 @@ function mywp_event_dashboard_render( $stats, $current_user ) {
 			.legend span:nth-child(3) i {
 				background: var(--accent-3);
 			}
-			.notice {
-				border-left: 4px solid var(--accent);
-			}
 			.metric {
 				margin-bottom: 16px;
 			}
 			.kpi-detail {
 				margin-top: 8px;
 				color: var(--muted);
-			}
-			details.legacy-metrics summary {
-				cursor: pointer;
-				font-weight: 600;
-			}
-			details.legacy-metrics > p {
-				margin-top: 8px;
 			}
 			@media (max-width: 700px) {
 				header,
@@ -926,95 +931,392 @@ function mywp_event_dashboard_render( $stats, $current_user ) {
 			</div>
 		</header>
 		<main>
-			<section class="panel notice">
-				<h2>Privacy Boundary</h2>
-				<p>
-					This dashboard reads only aggregate counters from
-					<code>mywp_event_stats_daily</code> and
-					<code>mywp_event_stats_hourly</code>. It does not show raw
-					events, IP addresses, site identifiers, site names, full URLs,
-					request bodies, or GitHub tokens.
-				</p>
-			</section>
-
 			<section class="controls" aria-label="Dashboard filters">
-				<div>
+				<div class="control-group">
+					<span class="control-label">Range</span>
 					<?php foreach ( MYWP_EVENT_DASHBOARD_ALLOWED_RANGES as $range ) : ?>
 						<?php if ( $range === $stats['range'] ) : ?>
-							<span><?php echo (int) $range; ?> days</span>
+							<span class="control-option"><?php echo (int) $range; ?> days</span>
 						<?php else : ?>
-							<a href="<?php echo mywp_event_dashboard_h( mywp_event_dashboard_filter_url( $range, $stats['granularity'] ) ); ?>"><?php echo (int) $range; ?> days</a>
+							<a href="<?php echo mywp_event_dashboard_h( mywp_event_dashboard_filter_url( $range, $stats['granularity'], $current_area ) ); ?>"><?php echo (int) $range; ?> days</a>
 						<?php endif; ?>
 					<?php endforeach; ?>
 				</div>
-				<div>
+				<div class="control-group">
+					<span class="control-label">Granularity</span>
 					<?php foreach ( MYWP_EVENT_DASHBOARD_ALLOWED_GRANULARITIES as $granularity ) : ?>
 						<?php if ( $granularity === $stats['granularity'] ) : ?>
-							<span><?php echo mywp_event_dashboard_h( $granularity ); ?></span>
+							<span class="control-option"><?php echo mywp_event_dashboard_h( $granularity ); ?></span>
 						<?php else : ?>
-							<a href="<?php echo mywp_event_dashboard_h( mywp_event_dashboard_filter_url( $stats['range'], $granularity ) ); ?>"><?php echo mywp_event_dashboard_h( $granularity ); ?></a>
+							<a href="<?php echo mywp_event_dashboard_h( mywp_event_dashboard_filter_url( $stats['range'], $granularity, $current_area ) ); ?>"><?php echo mywp_event_dashboard_h( $granularity ); ?></a>
 						<?php endif; ?>
 					<?php endforeach; ?>
 				</div>
 			</section>
 
-			<section class="dashboard-section" aria-label="Overview">
-				<div class="section-heading">
-					<h2>Overview</h2>
-					<p class="muted">
-						Selected range since <?php echo mywp_event_dashboard_h( $stats['since'] ); ?>.
-					</p>
-				</div>
-				<?php mywp_event_dashboard_render_overview_cards( $groups ); ?>
-			</section>
-
-			<section class="panel dashboard-section">
-				<div class="section-heading">
-					<h2>Event Trend</h2>
-					<p class="muted">Daily or hourly aggregate event counts.</p>
-				</div>
-				<?php mywp_event_dashboard_render_timeline( $stats['timeline'] ); ?>
-			</section>
-
-			<section class="panel dashboard-section">
-				<div class="section-heading">
-					<h2>Blueprint Plugin Slug Trend</h2>
-					<p class="muted">Blueprint installs segmented by plugin slug.</p>
-				</div>
-				<?php mywp_event_dashboard_render_timeline( $stats['blueprint_plugin_slug_timeline'] ); ?>
-			</section>
-
-			<?php foreach ( $metric_sections as $section_title => $section ) : ?>
-				<?php mywp_event_dashboard_render_metric_section(
-					$section_title,
-					$section['description'],
-					$section['metrics'],
+			<section class="controls area-controls dashboard-section" aria-label="Dashboard area">
+				<?php mywp_event_dashboard_render_area_controls(
+					$stats,
 					$groups,
-					$metric_definitions
+					$current_area
 				); ?>
-			<?php endforeach; ?>
+			</section>
 
-			<?php if ( ! empty( $other_metric_names ) ) : ?>
-				<details class="legacy-metrics dashboard-section">
-					<summary>Other Metrics</summary>
-					<p class="muted">
-						Older or unexpected aggregate counters kept separate from the main view.
-					</p>
-					<section class="grid">
-						<?php foreach ( $other_metric_names as $metric_name ) : ?>
-							<?php if ( empty( $groups[ $metric_name ] ) ) { continue; } ?>
-							<div class="panel metric">
-								<h2><?php echo mywp_event_dashboard_h( $metric_definitions[ $metric_name ] ?? $metric_name ); ?></h2>
-								<?php mywp_event_dashboard_render_metric_table( $groups[ $metric_name ] ); ?>
-							</div>
-						<?php endforeach; ?>
-					</section>
-				</details>
-			<?php endif; ?>
+			<?php mywp_event_dashboard_render_area(
+				$stats,
+				$groups,
+				$current_area,
+				$metric_definitions
+			); ?>
 		</main>
 	</body>
 	</html>
 	<?php
+}
+
+function mywp_event_dashboard_get_current_area( $groups ) {
+	$area = $_GET['area'] ?? 'overview';
+	if ( ! is_string( $area ) ) {
+		return mywp_event_dashboard_area( 'overview' );
+	}
+
+	if ( 'plugin' === $area ) {
+		$plugin_slug = $_GET['plugin_slug'] ?? '';
+		if ( mywp_event_dashboard_is_safe_plugin_slug( $plugin_slug ) ) {
+			return mywp_event_dashboard_area( 'plugin', $plugin_slug );
+		}
+		return mywp_event_dashboard_area( 'overview' );
+	}
+
+	if (
+		in_array(
+			$area,
+			array(
+				'overview',
+				'new-installs',
+				'returning-visitors',
+				'blueprint-installs',
+			),
+			true
+		)
+	) {
+		return mywp_event_dashboard_area( $area );
+	}
+
+	return mywp_event_dashboard_area( 'overview' );
+}
+
+function mywp_event_dashboard_area( $type, $plugin_slug = null ) {
+	$labels = array(
+		'overview' => 'Overview',
+		'new-installs' => 'New installs',
+		'returning-visitors' => 'Returning visitors',
+		'blueprint-installs' => 'Blueprint installs',
+		'plugin' => 'Plugin',
+	);
+
+	return array(
+		'type' => $type,
+		'plugin_slug' => $plugin_slug,
+		'label' => $labels[ $type ] ?? 'Overview',
+	);
+}
+
+function mywp_event_dashboard_is_safe_plugin_slug( $plugin_slug ) {
+	return is_string( $plugin_slug ) &&
+		1 === preg_match(
+			MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN,
+			$plugin_slug
+		);
+}
+
+function mywp_event_dashboard_render_area_controls(
+	$stats,
+	$groups,
+	$current_area
+) {
+	$areas = array(
+		mywp_event_dashboard_area( 'overview' ),
+		mywp_event_dashboard_area( 'new-installs' ),
+		mywp_event_dashboard_area( 'returning-visitors' ),
+		mywp_event_dashboard_area( 'blueprint-installs' ),
+	);
+	$plugin_slug_rows = mywp_event_dashboard_plugin_slug_rows( $groups );
+	?>
+	<div class="control-group">
+		<span class="control-label">Area</span>
+		<?php foreach ( $areas as $area ) : ?>
+			<?php mywp_event_dashboard_render_area_control(
+				$stats,
+				$current_area,
+				$area,
+				$area['label']
+			); ?>
+		<?php endforeach; ?>
+	</div>
+	<?php if ( ! empty( $plugin_slug_rows ) ) : ?>
+		<div class="control-group">
+			<span class="control-label">Plugin</span>
+			<?php foreach ( $plugin_slug_rows as $row ) : ?>
+				<?php
+				$area = mywp_event_dashboard_area( 'plugin', $row['value'] );
+				mywp_event_dashboard_render_area_control(
+					$stats,
+					$current_area,
+					$area,
+					$row['value']
+				);
+				?>
+			<?php endforeach; ?>
+		</div>
+	<?php endif; ?>
+	<?php
+}
+
+function mywp_event_dashboard_plugin_slug_rows( $groups ) {
+	return array_values(
+		array_filter(
+			$groups['blueprint_installed:plugin_slug'] ?? array(),
+			function ( $row ) {
+				return mywp_event_dashboard_is_safe_plugin_slug(
+					$row['value'] ?? null
+				);
+			}
+		)
+	);
+}
+
+function mywp_event_dashboard_render_area_control(
+	$stats,
+	$current_area,
+	$area,
+	$label
+) {
+	if ( mywp_event_dashboard_is_current_area( $current_area, $area ) ) {
+		echo '<span class="control-option">' .
+			mywp_event_dashboard_h( $label ) .
+			'</span>';
+		return;
+	}
+
+	echo '<a href="' .
+		mywp_event_dashboard_h(
+			mywp_event_dashboard_filter_url(
+				$stats['range'],
+				$stats['granularity'],
+				$area
+			)
+		) .
+		'">' .
+		mywp_event_dashboard_h( $label ) .
+		'</a>';
+}
+
+function mywp_event_dashboard_is_current_area( $current_area, $area ) {
+	return ( $current_area['type'] ?? null ) === ( $area['type'] ?? null ) &&
+		( $current_area['plugin_slug'] ?? null ) ===
+			( $area['plugin_slug'] ?? null );
+}
+
+function mywp_event_dashboard_render_area(
+	$stats,
+	$groups,
+	$current_area,
+	$metric_definitions
+) {
+	switch ( $current_area['type'] ) {
+		case 'new-installs':
+			mywp_event_dashboard_render_event_area(
+				'New installs',
+				'First-use events for new Personal WP sites.',
+				'wordpress_installed',
+				array(
+					'wordpress_installed:original_blueprint_source',
+					'wordpress_installed:site_age_bucket',
+					'wordpress_installed:previous_visit_age_bucket',
+				),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'returning-visitors':
+			mywp_event_dashboard_render_event_area(
+				'Returning visitors',
+				'Visits to existing Personal WP sites.',
+				'returning_visit',
+				array(
+					'returning_visit:previous_visit_age_bucket',
+					'returning_visit:site_age_bucket',
+				),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'blueprint-installs':
+			mywp_event_dashboard_render_event_area(
+				'Blueprint installs',
+				'Blueprint install events and their aggregate dimensions.',
+				'blueprint_installed',
+				array(
+					'blueprint_installed:plugin_slug',
+					'blueprint_installed:trigger',
+					'blueprint_installed:request_source',
+					'blueprint_installed:blueprint_source',
+				),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'plugin':
+			mywp_event_dashboard_render_plugin_area(
+				$stats,
+				$groups,
+				$current_area['plugin_slug']
+			);
+			return;
+
+		case 'overview':
+		default:
+			mywp_event_dashboard_render_overview_area( $stats, $groups );
+			return;
+	}
+}
+
+function mywp_event_dashboard_render_overview_area( $stats, $groups ) {
+	?>
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Overview</h2>
+			<p class="muted">High-level aggregate event totals for the selected range.</p>
+		</div>
+		<?php mywp_event_dashboard_render_overview_cards( $groups ); ?>
+	</section>
+
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Event trend</h2>
+			<p class="muted">New installs, returning visits, and blueprint installs over time.</p>
+		</div>
+		<div class="panel">
+			<?php mywp_event_dashboard_render_timeline( $stats['timeline'] ); ?>
+		</div>
+	</section>
+	<?php
+}
+
+function mywp_event_dashboard_render_event_area(
+	$title,
+	$description,
+	$event,
+	$metric_names,
+	$stats,
+	$groups,
+	$metric_definitions
+) {
+	$count = mywp_event_dashboard_event_count( $groups, $event );
+	$total_views = mywp_event_dashboard_sum_views( $groups['event'] ?? array() );
+	$timeline = mywp_event_dashboard_filter_timeline_values(
+		$stats['timeline'],
+		array( $event )
+	);
+	?>
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2><?php echo mywp_event_dashboard_h( $title ); ?></h2>
+			<p class="muted"><?php echo mywp_event_dashboard_h( $description ); ?></p>
+		</div>
+		<div class="grid">
+			<div class="panel">
+				<div class="muted"><?php echo mywp_event_dashboard_h( $title ); ?></div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $count ); ?></div>
+				<div class="kpi-detail">
+					<?php echo mywp_event_dashboard_percent( $count, $total_views ); ?> of all events
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2><?php echo mywp_event_dashboard_h( $title ); ?> trend</h2>
+		</div>
+		<div class="panel">
+			<?php mywp_event_dashboard_render_timeline( $timeline ); ?>
+		</div>
+	</section>
+
+	<?php mywp_event_dashboard_render_metric_section(
+		$title . ' details',
+		'Aggregate dimensions captured for this event type.',
+		$metric_names,
+		$groups,
+		$metric_definitions
+	); ?>
+	<?php
+}
+
+function mywp_event_dashboard_render_plugin_area( $stats, $groups, $plugin_slug ) {
+	$count = mywp_event_dashboard_metric_value_count(
+		$groups,
+		'blueprint_installed:plugin_slug',
+		$plugin_slug
+	);
+	$timeline = mywp_event_dashboard_filter_timeline_values(
+		$stats['blueprint_plugin_slug_timeline'],
+		array( $plugin_slug )
+	);
+	?>
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Plugin: <code><?php echo mywp_event_dashboard_h( $plugin_slug ); ?></code></h2>
+			<p class="muted">Blueprint install events that reported this plugin slug.</p>
+		</div>
+		<div class="grid">
+			<div class="panel">
+				<div class="muted">Blueprint installs</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $count ); ?></div>
+				<div class="kpi-detail">For this plugin slug in the selected range</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Plugin install trend</h2>
+		</div>
+		<div class="panel">
+			<?php mywp_event_dashboard_render_timeline( $timeline ); ?>
+		</div>
+	</section>
+	<?php
+}
+
+function mywp_event_dashboard_filter_timeline_values( $rows, $values ) {
+	$values = array_flip( $values );
+	return array_values(
+		array_filter(
+			$rows,
+			function ( $row ) use ( $values ) {
+				return isset( $values[ $row['value'] ] );
+			}
+		)
+	);
+}
+
+function mywp_event_dashboard_metric_value_count( $groups, $metric_name, $value ) {
+	foreach ( $groups[ $metric_name ] ?? array() as $row ) {
+		if ( $value === $row['value'] ) {
+			return $row['views'];
+		}
+	}
+
+	return 0;
 }
 
 function mywp_event_dashboard_render_overview_cards( $groups ) {
@@ -1226,6 +1528,8 @@ function mywp_event_dashboard_metric_sections() {
 			'description' => 'Signals that explain new-site and returning-site usage.',
 			'metrics' => array(
 				'wordpress_installed:original_blueprint_source',
+				'wordpress_installed:site_age_bucket',
+				'wordpress_installed:previous_visit_age_bucket',
 				'returning_visit:previous_visit_age_bucket',
 				'returning_visit:site_age_bucket',
 			),
@@ -1323,13 +1627,23 @@ function mywp_event_dashboard_metric_definitions() {
 	);
 }
 
-function mywp_event_dashboard_filter_url( $range, $granularity ) {
-	return MYWP_EVENT_DASHBOARD_PATH . '?' . http_build_query(
-		array(
-			'range' => $range,
-			'granularity' => $granularity,
-		)
+function mywp_event_dashboard_filter_url( $range, $granularity, $area = null ) {
+	$params = array(
+		'range' => $range,
+		'granularity' => $granularity,
 	);
+	if ( is_array( $area ) && ( $area['type'] ?? 'overview' ) !== 'overview' ) {
+		$params['area'] = $area['type'];
+	}
+	if (
+		is_array( $area ) &&
+		( $area['type'] ?? null ) === 'plugin' &&
+		mywp_event_dashboard_is_safe_plugin_slug( $area['plugin_slug'] ?? null )
+	) {
+		$params['plugin_slug'] = $area['plugin_slug'];
+	}
+
+	return MYWP_EVENT_DASHBOARD_PATH . '?' . http_build_query( $params );
 }
 
 function mywp_event_dashboard_number( $value ) {

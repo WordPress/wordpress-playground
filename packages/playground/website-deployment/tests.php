@@ -305,6 +305,120 @@ assert_equal(
     'Dashboard should read event totals from the aggregate event rows'
 );
 
+$mywp_event_get_snapshot = $_GET;
+
+$_GET = array(
+    'area' => 'plugin',
+    'plugin_slug' => 'friends',
+);
+$current_dashboard_area = mywp_event_dashboard_get_current_area( array() );
+assert_equal(
+    'plugin',
+    $current_dashboard_area['type'],
+    'Dashboard should select the plugin area'
+);
+assert_equal(
+    'friends',
+    $current_dashboard_area['plugin_slug'],
+    'Dashboard should keep the selected plugin slug'
+);
+
+$dashboard_plugin_slug_rows = mywp_event_dashboard_plugin_slug_rows(
+    array(
+        'blueprint_installed:plugin_slug' => array(
+            array(
+                'name' => 'blueprint_installed:plugin_slug',
+                'value' => 'friends',
+                'views' => 7,
+            ),
+            array(
+                'name' => 'blueprint_installed:plugin_slug',
+                'value' => 'Unsafe Slug',
+                'views' => 3,
+            ),
+        ),
+    )
+);
+assert_equal(
+    1,
+    count( $dashboard_plugin_slug_rows ),
+    'Dashboard plugin area controls should skip unsafe slugs'
+);
+assert_equal(
+    'friends',
+    $dashboard_plugin_slug_rows[0]['value'],
+    'Dashboard plugin area controls should keep safe slugs'
+);
+
+$_GET = array(
+    'area' => 'plugin',
+    'plugin_slug' => 'Unsafe Slug',
+);
+assert_equal(
+    'overview',
+    mywp_event_dashboard_get_current_area( array() )['type'],
+    'Dashboard should reject unsafe plugin slugs'
+);
+
+$_GET = $mywp_event_get_snapshot;
+
+assert_equal(
+    '/mywp-event-dashboard.php?range=90&granularity=hour&area=plugin&plugin_slug=friends',
+    mywp_event_dashboard_filter_url(
+        90,
+        'hour',
+        array(
+            'type' => 'plugin',
+            'plugin_slug' => 'friends',
+        )
+    ),
+    'Dashboard filter URLs should preserve the selected plugin area'
+);
+
+assert_equal(
+    7,
+    mywp_event_dashboard_metric_value_count(
+        array(
+            'blueprint_installed:plugin_slug' => array(
+                array(
+                    'name' => 'blueprint_installed:plugin_slug',
+                    'value' => 'friends',
+                    'views' => 7,
+                ),
+            ),
+        ),
+        'blueprint_installed:plugin_slug',
+        'friends'
+    ),
+    'Dashboard should count a selected metric value'
+);
+
+$dashboard_filtered_timeline = mywp_event_dashboard_filter_timeline_values(
+    array(
+        array(
+            'period' => '2026-06-01',
+            'value' => 'friends',
+            'views' => 7,
+        ),
+        array(
+            'period' => '2026-06-01',
+            'value' => 'new-reader',
+            'views' => 3,
+        ),
+    ),
+    array( 'friends' )
+);
+assert_equal(
+    1,
+    count( $dashboard_filtered_timeline ),
+    'Dashboard should filter timelines to the selected area'
+);
+assert_equal(
+    'friends',
+    $dashboard_filtered_timeline[0]['value'],
+    'Dashboard should keep the selected timeline value'
+);
+
 $event_bumps = mywp_event_collect_stat_bumps( array(
     'schema' => 'personal-wp-event/v1',
     'app' => 'personal-wp',
