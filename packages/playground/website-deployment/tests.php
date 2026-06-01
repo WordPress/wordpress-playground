@@ -85,6 +85,8 @@ assert_equal(
     'My WordPress event dashboard should not be edge cached'
 );
 
+$mywp_event_server_snapshot = $_SERVER;
+
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';
 assert_equal(
     true,
@@ -112,6 +114,14 @@ assert_equal(
     'My WordPress event dashboard should accept configured staging hosts'
 );
 unset( $_SERVER['MYWP_EVENT_ALLOWED_HOSTS'] );
+
+$_SERVER['HTTP_HOST'] = 'my.wordpress.net';
+unset( $_SERVER['HTTP_ORIGIN'], $_SERVER['HTTP_REFERER'] );
+assert_equal(
+    false,
+    mywp_event_is_allowed_request_origin(),
+    'My WordPress event endpoint should reject headerless direct requests'
+);
 
 $_SERVER['HTTP_ORIGIN'] = 'https://my.wordpress.net';
 assert_equal(
@@ -156,6 +166,25 @@ assert_equal(
     'Event dashboard should read nginx FastCGI params from $_SERVER'
 );
 unset( $_SERVER['MYWP_DB_HOST'] );
+
+$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.10';
+$remote_key_with_spoofed_forwarded_for = mywp_event_get_remote_key();
+unset( $_SERVER['HTTP_X_FORWARDED_FOR'] );
+assert_equal(
+    $remote_key_with_spoofed_forwarded_for,
+    mywp_event_get_remote_key(),
+    'Event rate-limit key should ignore spoofable X-Forwarded-For values'
+);
+
+$_SERVER['HTTP_HOST'] = 'my.wordpress.net:8443';
+assert_equal(
+    'https://my.wordpress.net/mywp-event-dashboard.php',
+    mywp_event_dashboard_get_callback_url(),
+    'Dashboard OAuth callback should use the normalized host without a port'
+);
+
+$_SERVER = $mywp_event_server_snapshot;
 
 assert_equal(
     'v4:127.0.0.1',

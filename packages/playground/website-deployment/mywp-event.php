@@ -137,10 +137,12 @@ function mywp_event_is_allowed_host() {
 }
 
 function mywp_event_is_allowed_request_origin() {
+	$has_request_origin = false;
 	foreach ( array( 'HTTP_ORIGIN', 'HTTP_REFERER' ) as $header_name ) {
 		if ( empty( $_SERVER[ $header_name ] ) ) {
 			continue;
 		}
+		$has_request_origin = true;
 
 		$host = parse_url( $_SERVER[ $header_name ], PHP_URL_HOST );
 		if (
@@ -151,7 +153,7 @@ function mywp_event_is_allowed_request_origin() {
 		}
 	}
 
-	return true;
+	return $has_request_origin;
 }
 
 function mywp_event_is_my_wordpress_host( $host ) {
@@ -501,13 +503,25 @@ function mywp_event_obtain_rate_limit_token( $dbh ) {
 			) AS tokens
 		FROM config LEFT OUTER JOIN bucket USING (remote_key)
 		ON DUPLICATE KEY UPDATE
-			capacity = VALUES(capacity),
-			fill_rate_per_minute = VALUES(fill_rate_per_minute),
-			tokens = VALUES(tokens),
+			capacity = IF(
+				bucket.available_tokens > 0,
+				VALUES(capacity),
+				mywp_event_rate_limiting.capacity
+			),
+			fill_rate_per_minute = IF(
+				bucket.available_tokens > 0,
+				VALUES(fill_rate_per_minute),
+				mywp_event_rate_limiting.fill_rate_per_minute
+			),
+			tokens = IF(
+				bucket.available_tokens > 0,
+				VALUES(tokens),
+				mywp_event_rate_limiting.tokens
+			),
 			updated_at = IF(
-				bucket.available_tokens = 0 AND bucket.previous_tokens = 0,
-				bucket.previous_updated_at,
-				NOW()
+				bucket.available_tokens > 0,
+				NOW(),
+				mywp_event_rate_limiting.updated_at
 			)
 		SQL;
 
@@ -536,8 +550,7 @@ function mywp_event_obtain_rate_limit_token( $dbh ) {
 }
 
 function mywp_event_get_remote_key() {
-	$remote_ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
-	$remote_ip = trim( explode( ',', $remote_ip )[0] );
+	$remote_ip = $_SERVER['REMOTE_ADDR'] ?? '';
 	$normalized = mywp_event_normalize_remote_ip( $remote_ip );
 	if ( false === $normalized ) {
 		error_log( 'MYWP event logging: invalid remote IP' );

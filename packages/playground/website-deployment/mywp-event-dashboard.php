@@ -8,6 +8,8 @@ const MYWP_EVENT_DASHBOARD_STATE_TTL = 600;
 const MYWP_EVENT_DASHBOARD_PATH = '/mywp-event-dashboard.php';
 const MYWP_EVENT_DASHBOARD_ALLOWED_RANGES = array( 7, 30, 90 );
 const MYWP_EVENT_DASHBOARD_ALLOWED_GRANULARITIES = array( 'day', 'hour' );
+const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
+const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 
 if ( 'cli' !== php_sapi_name() ) {
 	mywp_event_dashboard_handle_request();
@@ -345,6 +347,7 @@ function mywp_event_dashboard_request_github_access_token( $config, $code ) {
 		)
 	);
 	curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
+	mywp_event_dashboard_set_github_curl_timeouts( $curl );
 	curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Accept: application/json' ) );
 	curl_setopt( $curl, CURLOPT_USERAGENT, 'WordPress Playground' );
 	$raw_response = curl_exec( $curl );
@@ -366,6 +369,7 @@ function mywp_event_dashboard_request_github_access_token( $config, $code ) {
 function mywp_event_dashboard_request_github_login( $access_token ) {
 	$curl = curl_init( 'https://api.github.com/user' );
 	curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
+	mywp_event_dashboard_set_github_curl_timeouts( $curl );
 	curl_setopt(
 		$curl,
 		CURLOPT_HTTPHEADER,
@@ -391,8 +395,17 @@ function mywp_event_dashboard_request_github_login( $access_token ) {
 		: false;
 }
 
+function mywp_event_dashboard_set_github_curl_timeouts( $curl ) {
+	curl_setopt(
+		$curl,
+		CURLOPT_CONNECTTIMEOUT,
+		MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT
+	);
+	curl_setopt( $curl, CURLOPT_TIMEOUT, MYWP_EVENT_DASHBOARD_CURL_TIMEOUT );
+}
+
 function mywp_event_dashboard_get_callback_url() {
-	$host = $_SERVER['HTTP_HOST'] ?? '';
+	$host = mywp_event_dashboard_normalize_host( $_SERVER['HTTP_HOST'] ?? '' );
 	return 'https://' . $host . MYWP_EVENT_DASHBOARD_PATH;
 }
 
