@@ -1583,6 +1583,11 @@
 					"type": "boolean",
 					"description": "Whether to import the theme's starter content after installing it."
 				},
+				"onError": {
+					"type": "string",
+					"enum": ["skip-theme", "throw"],
+					"description": "Whether installation/activation failures should abort the Blueprint."
+				},
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the theme to. Defaults to guessing from themeData"
@@ -2028,15 +2033,7 @@
 							"$ref": "#/definitions/DataSources.WordPressVersion"
 						},
 						{
-							"allOf": [
-								{
-									"$ref": "#/definitions/DataSources.URLReference"
-								},
-								{
-									"type": "string",
-									"pattern": "\\.zip(?:[?#]\\S*)?$"
-								}
-							]
+							"$ref": "#/definitions/DataSources.URLReference"
 						},
 						{
 							"allOf": [
@@ -2150,6 +2147,12 @@
 									"description": "An explicit directory name within wp-content/themes to install the theme at. If not provided, it will be inferred from the theme source.",
 									"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
 								},
+								"onError": {
+									"type": "string",
+									"enum": ["skip-theme", "throw"],
+									"description": "Sometimes it's fine when a theme fails to install.",
+									"default": "throw"
+								},
 								"humanReadableName": {
 									"type": "string",
 									"description": "Human-readable name of the theme for the progress bar.\n\nFor example, with the following Blueprint:\n\n```json {     \"themes\": [         {             \"source\": \"https://github.com/Automattic/adventurer/archive/refs/heads/beta.zip\",             \"humanReadableName\": \"Adventurer\"         }     ] } ```\n\nThe progress bar will show \"Installing Adventurer theme\" instead of \"Installing https://github.com/Automattic/adventurer/archive/refs/heads/beta.zip\"."
@@ -2192,6 +2195,12 @@
 										"type": "string",
 										"description": "An explicit directory name within wp-content/themes to install the theme at. If not provided, it will be inferred from the theme source.",
 										"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+									},
+									"onError": {
+										"type": "string",
+										"enum": ["skip-theme", "throw"],
+										"description": "Sometimes it's fine when a theme fails to install.",
+										"default": "throw"
 									},
 									"humanReadableName": {
 										"type": "string",
@@ -2249,13 +2258,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 													}
 												}
 											]
@@ -2666,13 +2675,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																	"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																	"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																}
 															}
 														]
@@ -2706,7 +2715,7 @@
 					"additionalProperties": {
 						"anyOf": [
 							{
-								"$ref": "#/definitions/DataSources.DataReference"
+								"$ref": "#/definitions/DataSources.FontFileDataReference"
 							},
 							{
 								"type": "object",
@@ -2777,12 +2786,12 @@
 																	"src": {
 																		"anyOf": [
 																			{
-																				"$ref": "#/definitions/DataSources.DataReference"
+																				"$ref": "#/definitions/DataSources.FontFileDataReference"
 																			},
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/DataSources.DataReference"
+																					"$ref": "#/definitions/DataSources.FontFileDataReference"
 																				}
 																			}
 																		],
@@ -3079,13 +3088,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																		"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																		"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																	}
 																}
 															]
@@ -3220,13 +3229,13 @@
 																	{
 																		"type": "array",
 																		"items": {
-																			"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																			"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																		}
 																	},
 																	{
 																		"type": "object",
 																		"additionalProperties": {
-																			"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																			"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																		}
 																	}
 																]
@@ -3274,7 +3283,17 @@
 										"const": "wxr"
 									},
 									"source": {
-										"$ref": "#/definitions/DataSources.FileDataReference"
+										"anyOf": [
+											{
+												"$ref": "#/definitions/DataSources.FileDataReference"
+											},
+											{
+												"type": "array",
+												"items": {
+													"$ref": "#/definitions/DataSources.FileDataReference"
+												}
+											}
+										]
 									},
 									"staticAssets": {
 										"type": "string",
@@ -3659,13 +3678,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																							"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																							"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																						}
 																					}
 																				]
@@ -3802,13 +3821,13 @@
 																						{
 																							"type": "array",
 																							"items": {
-																								"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																								"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																							}
 																						},
 																						{
 																							"type": "object",
 																							"additionalProperties": {
-																								"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+																								"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 																							}
 																						}
 																					]
@@ -3864,7 +3883,17 @@
 															"const": "wxr"
 														},
 														"source": {
-															"$ref": "#/definitions/DataSources.FileDataReference"
+															"anyOf": [
+																{
+																	"$ref": "#/definitions/DataSources.FileDataReference"
+																},
+																{
+																	"type": "array",
+																	"items": {
+																		"$ref": "#/definitions/DataSources.FileDataReference"
+																	}
+																}
+															]
 														},
 														"staticAssets": {
 															"type": "string",
@@ -4019,13 +4048,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 													}
 												}
 											]
@@ -4076,6 +4105,12 @@
 										"type": "string",
 										"description": "An explicit directory name within wp-content/themes to install the theme at. If not provided, it will be inferred from the theme source.",
 										"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+									},
+									"onError": {
+										"type": "string",
+										"enum": ["skip-theme", "throw"],
+										"description": "Sometimes it's fine when a theme fails to install.",
+										"default": "throw"
 									},
 									"humanReadableName": {
 										"type": "string",
@@ -4231,13 +4266,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 													}
 												}
 											]
@@ -4327,9 +4362,9 @@
 			"pattern": "^(?:\\./|/)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 		},
 		"DataSources.WordPressVersion": {
-			"description": "WordPress version, e.g. \"6.4\", \"6.4.3\", \"6.8-RC1\", or \"6.7-beta2\".\n\nThese refer to slugs of specific WordPress releases as listed in the first table column on https://wordpress.org/download/releases/.\n\nThe WordPressVersion type is only meaningful in the top-level `wordpressVersion` property.",
+			"description": "WordPress version, e.g. \"latest\", \"beta\", \"trunk\", \"6.4\", \"6.4.3\", \"6.8-RC1\", or \"6.7-beta2\".\n\nThese refer to slugs of specific WordPress releases as listed in the first table column on https://wordpress.org/download/releases/.\n\nThe WordPressVersion type is only meaningful in the top-level `wordpressVersion` property.",
 			"type": "string",
-			"pattern": "^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$"
+			"pattern": "^(?:latest|beta|trunk|nightly|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$"
 		},
 		"DataSources.SimpleVersionExpression": {
 			"type": "string",
@@ -4425,32 +4460,20 @@
 			"pattern": "^(?:latest|next|\\d+\\.\\d+(?:\\.\\d+)?)$"
 		},
 		"DataSources.ThemeDirectoryReference": {
-			"anyOf": [
-				{
-					"$ref": "#/definitions/DataSources.Slug"
-				},
-				{
-					"type": "string"
-				}
-			],
-			"description": "Theme directory reference, e.g. \"twentytwentythree\", \"adventurer@4.6.0\", or \"twentytwentyfour@latest\".\n\nThese refer to specific theme slugs in the WordPress.org theme repository.\n\nFor example, a reference to \"adventurer\" means the Adventurer theme as seen on https://wordpress.org/themes/adventurer/.\n\nThese references are only meaningful in:\n\n* The top-level `themes` array\n* The `installTheme` imperative step"
+			"description": "Theme directory reference, e.g. \"twentytwentythree\", \"adventurer@4.6.0\", or \"twentytwentyfour@latest\".\n\nThese refer to specific theme slugs in the WordPress.org theme repository.\n\nFor example, a reference to \"adventurer\" means the Adventurer theme as seen on https://wordpress.org/themes/adventurer/.\n\nThese references are only meaningful in:\n\n* The top-level `themes` array\n* The `installTheme` imperative step",
+			"type": "string",
+			"pattern": "^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$"
 		},
 		"DataSources.Slug": {
 			"type": "string",
 			"description": "A slug is a string matching the following regex:\n\n``` ^[a-zA-Z0-9_-]+$ ```\n\nThis constraint may be expressed in TypeScript, but it would come at the expense of readability. This document will thus alias the general `string` type to `Slug`. Every reference to the `Slug` type should be treated as a string matching the above regex."
 		},
 		"DataSources.PluginDirectoryReference": {
-			"anyOf": [
-				{
-					"$ref": "#/definitions/DataSources.Slug"
-				},
-				{
-					"type": "string"
-				}
-			],
-			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
+			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step",
+			"type": "string",
+			"pattern": "^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$"
 		},
-		"alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469": {
+		"alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4464,13 +4487,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+						"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-140766-140860-1337903113-96864-140874-1337903113-96830-140874-1337903113-0-154469"
+						"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
 					}
 				}
 			]
@@ -4488,6 +4511,48 @@
 				}
 			],
 			"description": "A data reference that must resolve to a single file."
+		},
+		"DataSources.FontFileDataReference": {
+			"anyOf": [
+				{
+					"allOf": [
+						{
+							"$ref": "#/definitions/DataSources.URLReference"
+						},
+						{
+							"type": "string",
+							"pattern": "\\.(?:woff2|woff|ttf|otf)(?:[?#]\\S*)?$"
+						}
+					]
+				},
+				{
+					"allOf": [
+						{
+							"$ref": "#/definitions/DataSources.ExecutionContextPath"
+						},
+						{
+							"type": "string",
+							"pattern": "\\.(?:woff2|woff|ttf|otf)(?:[?#]\\S*)?$"
+						}
+					]
+				},
+				{
+					"allOf": [
+						{
+							"$ref": "#/definitions/DataSources.InlineFile"
+						},
+						{
+							"type": "object",
+							"properties": {
+								"filename": {
+									"type": "string",
+									"pattern": "\\.(?:woff2|woff|ttf|otf)(?:[?#]\\S*)?$"
+								}
+							}
+						}
+					]
+				}
+			]
 		}
 	}
 }

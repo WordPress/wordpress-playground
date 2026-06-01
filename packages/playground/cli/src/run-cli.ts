@@ -637,11 +637,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
 							);
 						}
-						if (hasCliOption(argsToParse, 'skip-sqlite-setup')) {
-							throw new Error(
-								'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
-							);
-						}
 						if (hasCliOption(argsToParse, 'auto-mount')) {
 							throw new Error(
 								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
@@ -1068,11 +1063,6 @@ function validateAndNormalizeBlueprintsV2Args(
 		if (argOrigins.wordpressInstallMode) {
 			throw new Error(
 				'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
-			);
-		}
-		if (argOrigins.skipSqliteSetup) {
-			throw new Error(
-				'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
 			);
 		}
 		if (argOrigins.autoMount) {
@@ -1626,6 +1616,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			};
 
 			try {
+				const compiledInputBlueprint =
+					await handler.compileInputBlueprint(
+						args['additional-blueprint-steps'] || []
+					);
 				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
 				for (
@@ -1738,14 +1732,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					wordPressReady = true;
 
-					const compiledBlueprint =
-						await handler.compileInputBlueprint(
-							args['additional-blueprint-steps'] || []
-						);
-
-					if (compiledBlueprint) {
+					if (compiledInputBlueprint) {
 						await runBlueprintV1Steps(
-							compiledBlueprint,
+							compiledInputBlueprint,
 							playgroundPool
 						);
 					}

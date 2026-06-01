@@ -14,6 +14,7 @@ import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
+	InvalidBlueprintV2Error,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
@@ -252,7 +253,10 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
-			} else if (e instanceof InvalidBlueprintError) {
+			} else if (
+				e instanceof InvalidBlueprintError ||
+				e instanceof InvalidBlueprintV2Error
+			) {
 				dispatch(
 					setActiveSiteError({
 						error: 'blueprint-validation-failed',

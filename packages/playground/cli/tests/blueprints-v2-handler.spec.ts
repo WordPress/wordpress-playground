@@ -158,6 +158,69 @@ describe('BlueprintsV2Handler', () => {
 		});
 	});
 
+	test('applies start command default login when v2 declaration has no login opinion', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'start',
+				login: true,
+				cliProvidedOptions: {
+					login: false,
+				},
+				blueprint: {
+					version: 2,
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+
+		const compiled = await handler.compileInputBlueprint([]);
+
+		expect(compiled.declaration).toMatchObject({
+			applicationOptions: {
+				'wordpress-playground': {
+					login: true,
+				},
+			},
+		});
+	});
+
+	test('preserves v2 login intent over start command default login', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'start',
+				login: true,
+				cliProvidedOptions: {
+					login: false,
+				},
+				blueprint: {
+					version: 2,
+					applicationOptions: {
+						'wordpress-playground': {
+							login: false,
+						},
+					},
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+
+		const compiled = await handler.compileInputBlueprint([]);
+
+		expect(compiled.declaration).toMatchObject({
+			applicationOptions: {
+				'wordpress-playground': {
+					login: false,
+				},
+			},
+		});
+	});
+
 	test('applies explicit --login and --no-login overrides to v2 declarations', async () => {
 		const createHandler = (login: boolean) =>
 			new BlueprintsV2Handler(
@@ -300,6 +363,33 @@ describe('BlueprintsV2Handler', () => {
 		expect(playground.bootWordPress).toHaveBeenCalledWith(
 			expect.objectContaining({
 				wordpressInstallMode: 'do-not-attempt-installing',
+			}),
+			expect.anything()
+		);
+	});
+
+	test('skips SQLite setup in v2 mount-only mode', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				mode: 'mount-only',
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(fetchSqliteIntegration).not.toHaveBeenCalled();
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'do-not-attempt-installing',
+				sqliteIntegrationPluginZip: undefined,
 			}),
 			expect.anything()
 		);

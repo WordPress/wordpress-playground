@@ -55,9 +55,9 @@ For example, the following code embeds a Playground with a preinstalled Gutenber
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
 ```
 
-If multiple `plugin` parameters are provided, Playground attempts each plugin
-install independently. An invalid plugin slug is skipped so later plugins still
-install.
+If multiple `plugin` or `theme` parameters are provided, Playground attempts
+each install independently. An invalid slug is skipped so later plugins or
+themes still install.
 
 Query parameters such as `php`, `wp`, `login`, `url`, `networking`, `language`,
 and `multisite` are also applied to Blueprints loaded through `blueprint-url` or

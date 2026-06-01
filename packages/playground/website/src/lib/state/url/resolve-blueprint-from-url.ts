@@ -165,6 +165,7 @@ export async function resolveBlueprintFromURL(
 								options: {
 									// Activate only the last theme in the list.
 									activate: index === themes.length - 1,
+									onError: 'skip-theme',
 								},
 								progress: { weight: 2 },
 							}) as StepDefinition
@@ -454,7 +455,9 @@ function applyQueryOverridesToV2Declaration(
 			step: 'enableMultisite',
 		});
 	}
-	playgroundOptions.login = query.get('login') !== 'no';
+	if (query.has('login')) {
+		playgroundOptions.login = query.get('login') !== 'no';
+	}
 	if (query.get('url')) {
 		playgroundOptions.landingPage = query.get('url')!;
 	}
@@ -470,11 +473,16 @@ function applyQueryOverridesToV2Declaration(
 	const coreRef = query.get('core-pr');
 	if (coreRef) {
 		const artifactName = `wordpress-build-${coreRef}`;
-		next.wordpressVersion = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`;
+		next.wordpressVersion = resolveAgainstPlaygroundOrigin(
+			`/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`
+		) as any;
 	}
 
 	const gutenbergArtifact = getGutenbergArtifactDetails(query);
 	if (gutenbergArtifact) {
+		if (!query.has('networking')) {
+			playgroundOptions.networkAccess = true;
+		}
 		prependV2StepsIfMissing(
 			next,
 			(step) =>
@@ -520,8 +528,16 @@ function getGutenbergArtifactDetails(
 		refType,
 		refLabel,
 		proxyPath,
-		proxyUrl: `https://playground.wordpress.net${proxyPath}`,
+		proxyUrl: resolveAgainstPlaygroundOrigin(proxyPath),
 	};
+}
+
+function resolveAgainstPlaygroundOrigin(path: string) {
+	const origin =
+		typeof globalThis.location !== 'undefined'
+			? globalThis.location.origin
+			: 'https://playground.wordpress.net';
+	return new URL(path, origin).toString();
 }
 
 function createGutenbergInstallerPHP({

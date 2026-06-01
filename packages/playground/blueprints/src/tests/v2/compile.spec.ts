@@ -5,6 +5,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import {
 	getSqliteDriverModule,
 	getWordPressModule,
+	LatestMinifiedWordPressVersion,
 } from '@wp-playground/wordpress-builds';
 import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import {
@@ -992,6 +993,35 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				wordpressVersion: 'https://example.com/wordpress.zip',
 			} as BlueprintV2Declaration).wpVersion
 		).toBe('https://example.com/wordpress.zip');
+		expect(
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				wordpressVersion:
+					'https://example.com/plugin-proxy.php?artifact=wordpress-build-123',
+			} as BlueprintV2Declaration).wpVersion
+		).toBe(
+			'https://example.com/plugin-proxy.php?artifact=wordpress-build-123'
+		);
+	});
+
+	it('accepts WordPress release channel aliases in runtime configuration', () => {
+		for (const wordpressVersion of ['beta', 'trunk', 'nightly'] as const) {
+			expect(
+				resolveBlueprintV2RuntimeConfiguration({
+					version: 2,
+					wordpressVersion,
+				} as BlueprintV2Declaration).wpVersion
+			).toBe(wordpressVersion);
+		}
+		expect(
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					preferred: 'beta',
+				},
+			} as BlueprintV2Declaration).wpVersion
+		).toBe('beta');
 	});
 
 	it('resolves WordPress ZIP URLs through the data-reference resolver', async () => {
@@ -1108,21 +1138,6 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		expect(
 			validateBlueprintV2({
 				version: 2,
-				wordpressVersion: 'https://example.com/wordpress.tar.gz',
-			})
-		).toEqual({
-			valid: false,
-			errors: [
-				{
-					path: '/wordpressVersion',
-					message: 'must reference a WordPress ZIP file',
-				},
-			],
-		});
-
-		expect(
-			validateBlueprintV2({
-				version: 2,
 				wordpressVersion: {
 					preferred: '6.5',
 				},
@@ -1170,6 +1185,27 @@ describe('Blueprint v2 TypeScript compiler', () => {
 			constants: { SCRIPT_DEBUG: true },
 			extraLibraries: ['wp-cli'],
 		});
+	});
+
+	it('resolves WordPress version constraints to the latest bundled compatible version', () => {
+		expect(
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+				},
+			} as BlueprintV2Declaration).wpVersion
+		).toBe(LatestMinifiedWordPressVersion);
+
+		expect(
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					max: '6.8',
+				},
+			} as BlueprintV2Declaration).wpVersion
+		).toBe('6.8');
 	});
 
 	it('defaults v2 network access to false', () => {
@@ -1280,6 +1316,12 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				},
 			],
 		});
+
+		expect(
+			upgradeBlueprintV1ToV2({
+				login: false,
+			}).applicationOptions?.['wordpress-playground']?.login
+		).toBe(false);
 	});
 
 	it('preserves v1 install asset options during v2 migration', () => {
@@ -1310,6 +1352,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					options: {
 						activate: false,
 						importStarterContent: true,
+						onError: 'skip-theme',
 						targetFolderName: 'tt5-dev',
 						humanReadableName: 'Twenty Twenty-Five Dev',
 					},
@@ -1334,6 +1377,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				source: 'twentytwentyfive',
 				active: false,
 				importStarterContent: true,
+				onError: 'skip-theme',
 				targetDirectoryName: 'tt5-dev',
 				humanReadableName: 'Twenty Twenty-Five Dev',
 			},
@@ -1749,6 +1793,41 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		await expect(compileBlueprintV2(blueprint)).resolves.toMatchObject({
 			declaration: blueprint,
 		});
+
+		const arraySourcesPlan = createBlueprintV2ExecutionPlan({
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: [
+						{
+							filename: 'first.xml',
+							content: '<rss></rss>',
+						},
+						{
+							filename: 'second.xml',
+							content: '<rss></rss>',
+						},
+					],
+				},
+			],
+		} as BlueprintV2Declaration);
+		expect(arraySourcesPlan).toMatchObject([
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'literal',
+					name: 'first.xml',
+				},
+			},
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'literal',
+					name: 'second.xml',
+				},
+			},
+		]);
 
 		const result = validateBlueprintV2({
 			version: 2,

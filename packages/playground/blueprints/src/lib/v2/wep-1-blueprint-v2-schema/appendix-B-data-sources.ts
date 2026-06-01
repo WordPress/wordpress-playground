@@ -186,7 +186,8 @@ export namespace DataSources {
 		| `${Slug}@${SimpleVersionExpression}`;
 
 	/**
-	 * WordPress version, e.g. "6.4", "6.4.3", "6.8-RC1", or "6.7-beta2".
+	 * WordPress version, e.g. "latest", "beta", "trunk", "6.4",
+	 * "6.4.3", "6.8-RC1", or "6.7-beta2".
 	 *
 	 * These refer to slugs of specific WordPress releases as listed in
 	 * the first table column on https://wordpress.org/download/releases/.
@@ -195,6 +196,9 @@ export namespace DataSources {
 	 * `wordpressVersion` property.
 	 */
 	export type WordPressVersion =
+		| 'beta'
+		| 'trunk'
+		| 'nightly'
 		| SimpleVersionExpression
 		| `${SimpleVersionExpression}-${WordPressVersionSuffix}`;
 

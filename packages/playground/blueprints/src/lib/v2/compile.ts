@@ -374,7 +374,7 @@ export function upgradeBlueprintV1ToV2(
 	if (v1.landingPage) {
 		applicationOptions['landingPage'] = v1.landingPage;
 	}
-	if (v1.login) {
+	if (v1.login !== undefined) {
 		applicationOptions['login'] = v1.login;
 	}
 	applicationOptions['networkAccess'] = v1.features?.networking ?? true;
@@ -686,6 +686,9 @@ function createInstallPluginStep(plugin: any): any {
 			...(definition['targetDirectoryName']
 				? { targetFolderName: definition['targetDirectoryName'] }
 				: {}),
+			...(definition['onError']
+				? { onError: definition['onError'] }
+				: {}),
 			...(definition['humanReadableName']
 				? { humanReadableName: definition['humanReadableName'] }
 				: {}),
@@ -827,23 +830,31 @@ function createImportContentSteps(content: any[], basePath: string): any[] {
 				`Invalid Blueprint v2: ${itemPath}/type must be "mysql-dump", "posts", or "wxr".`
 			);
 		}
-		steps.push({
-			step: 'importWxr',
-			file: convertV2FileDataReferenceToV1(
-				item['source'],
-				`${itemPath}/source`,
-				'WXR content'
-			),
-			fetchAttachments: item['staticAssets'] !== 'hotlink',
-			rewriteUrls: item['urlsMode'] !== 'preserve',
-			urlMap: item['urlsMap'] || {},
-			authorsMode: item['authorsMode'] || 'create',
-			defaultAuthorUsername: item['defaultAuthorUsername'],
-			authorsMap: item['authorsMap'] || {},
-			importUsers: item['importUsers'] ?? false,
-			importComments: item['importComments'] ?? false,
-			importSiteOptions: item['importSiteOptions'] ?? false,
-		});
+		const sources = Array.isArray(item['source'])
+			? item['source']
+			: [item['source']];
+		for (const [sourceIndex, source] of sources.entries()) {
+			const sourcePath = Array.isArray(item['source'])
+				? `${itemPath}/source/${sourceIndex}`
+				: `${itemPath}/source`;
+			steps.push({
+				step: 'importWxr',
+				file: convertV2FileDataReferenceToV1(
+					source,
+					sourcePath,
+					'WXR content'
+				),
+				fetchAttachments: item['staticAssets'] !== 'hotlink',
+				rewriteUrls: item['urlsMode'] !== 'preserve',
+				urlMap: item['urlsMap'] || {},
+				authorsMode: item['authorsMode'] || 'create',
+				defaultAuthorUsername: item['defaultAuthorUsername'],
+				authorsMap: item['authorsMap'] || {},
+				importUsers: item['importUsers'] ?? false,
+				importComments: item['importComments'] ?? false,
+				importSiteOptions: item['importSiteOptions'] ?? false,
+			});
+		}
 	}
 	return steps;
 }
@@ -2011,6 +2022,7 @@ function migrateV1StepToV2(step: JsonObject): V2Step[] {
 					active: step['options']?.activate,
 					importStarterContent: step['options']?.importStarterContent,
 					targetDirectoryName: step['options']?.targetFolderName,
+					onError: step['options']?.onError,
 					humanReadableName: step['options']?.humanReadableName,
 				},
 			];
@@ -2758,6 +2770,7 @@ function validateThemeDefinition(
 				...(options.allowActive ? ['active'] : []),
 				'importStarterContent',
 				'targetDirectoryName',
+				'onError',
 				'humanReadableName',
 			]),
 			errors
@@ -2775,6 +2788,16 @@ function validateThemeDefinition(
 			`${path}/targetDirectoryName`,
 			errors
 		);
+		if (
+			value['onError'] !== undefined &&
+			value['onError'] !== 'skip-theme' &&
+			value['onError'] !== 'throw'
+		) {
+			errors.push({
+				path: `${path}/onError`,
+				message: 'must be "skip-theme" or "throw"',
+			});
+		}
 		validateOptionalString(
 			value['humanReadableName'],
 			`${path}/humanReadableName`,
@@ -3862,7 +3885,6 @@ function resolveV2WordPressVersion(
 	}
 	if (typeof version === 'string') {
 		if (isHttpUrl(version)) {
-			assertWordPressZipReference(version, '/wordpressVersion');
 			return version;
 		}
 		if (isExecutionContextPath(version)) {
@@ -3927,7 +3949,14 @@ function resolveV2WordPressVersion(
 			'/wordpressVersion/preferred: must satisfy the min/max constraint'
 		);
 	}
-	return preferred || max || min || 'latest';
+	if (preferred !== undefined) {
+		return preferred;
+	}
+	return resolveLatestSupportedWordPressVersionMatchingConstraint({
+		min,
+		max,
+		path: '/wordpressVersion',
+	});
 }
 
 function getWordPressZipDataReference(
@@ -3952,6 +3981,16 @@ const SUPPORTED_NUMERIC_PHP_VERSIONS = (AllPHPVersions as readonly string[])
 	.filter((version) => version !== 'next')
 	.sort((a, b) => comparePHPVersions(b, a)) as AllPHPVersion[];
 const DEFAULT_BLUEPRINT_V2_PHP_VERSION = '8.0' as AllPHPVersion;
+const SUPPORTED_WORDPRESS_VERSION_CONSTRAINT_CHOICES = [
+	'7.0',
+	'6.9',
+	'6.8',
+	'6.7',
+	'6.6',
+	'6.5',
+	'6.4',
+	'6.3',
+];
 
 function normalizeSupportedPHPVersion(
 	version: string,
@@ -3987,13 +4026,38 @@ function comparePHPVersions(a: string, b: string) {
 
 function assertValidWordPressVersion(version: string, path: string) {
 	if (
-		version !== 'latest' &&
+		!['latest', 'beta', 'trunk', 'nightly'].includes(version) &&
 		!/^\d+\.\d+(?:\.\d+)?(?:-(?:beta\d+|RC\d+|rc\d+))?$/.test(version)
 	) {
 		throw new InvalidBlueprintV2Error(
 			`${path}: invalid WordPress version "${version}"`
 		);
 	}
+}
+
+function resolveLatestSupportedWordPressVersionMatchingConstraint({
+	min,
+	max,
+	path,
+}: {
+	min: string;
+	max?: string;
+	path: string;
+}) {
+	const matchingVersion = SUPPORTED_WORDPRESS_VERSION_CONSTRAINT_CHOICES.find(
+		(version) => {
+			if (compareVersionLike(version, min) < 0) {
+				return false;
+			}
+			return max === undefined || compareVersionLike(version, max) <= 0;
+		}
+	);
+	if (matchingVersion) {
+		return matchingVersion;
+	}
+	throw new InvalidBlueprintV2Error(
+		`${path}: no bundled WordPress version satisfies the min/max constraint`
+	);
 }
 
 function assertAllowedFontFilename(filename: string, path: string) {
@@ -4034,7 +4098,7 @@ function compareVersionLike(a: string, b: string) {
 }
 
 function parseVersionLike(version: string): [number, number, number, number] {
-	if (version === 'latest') {
+	if (['latest', 'beta', 'trunk', 'nightly'].includes(version)) {
 		return [Number.POSITIVE_INFINITY, 0, 0, 0];
 	}
 	const match = version.match(

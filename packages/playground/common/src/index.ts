@@ -55,6 +55,18 @@ export const unzipFile = async (
             if ($res === TRUE) {
 				for ($i = 0; $i < $zip->numFiles; $i++) {
 					$filename = $zip->getNameIndex($i);
+					if ($filename === false) {
+						throw new Exception("Could not read ZIP entry name at index " . $i);
+					}
+					$normalizedFilename = str_replace('\\\\', '/', $filename);
+					if (
+						$normalizedFilename === '' ||
+						substr($normalizedFilename, 0, 1) === '/' ||
+						preg_match('/^[A-Za-z]:/', $normalizedFilename) ||
+						preg_match('#(?:^|/)\\.\\.(?:/|$)#', $normalizedFilename)
+					) {
+						throw new Exception("Unsafe ZIP entry path: " . $filename);
+					}
 					$fileinfo = pathinfo($filename);
 					$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
 					// Check if file exists and $overwriteFiles is false

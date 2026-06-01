@@ -12,6 +12,7 @@ import {
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
+	InvalidBlueprintV2Error,
 	BlueprintFetchError,
 	type BlueprintV1,
 	type BlueprintV2Declaration,
@@ -510,7 +511,8 @@ export function setTemporarySiteSpec(
 				e
 			);
 			const errorType =
-				e instanceof InvalidBlueprintError
+				e instanceof InvalidBlueprintError ||
+				e instanceof InvalidBlueprintV2Error
 					? 'blueprint-validation-failed'
 					: 'site-boot-failed';
 			return showTemporarySiteError({ error: errorType, details: e });

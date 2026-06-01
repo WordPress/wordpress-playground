@@ -65,6 +65,53 @@ describe('resolveBlueprintFromURL', () => {
 		});
 	});
 
+	it('allows query API theme installs to fail without skipping later themes', async () => {
+		const result = await resolveBlueprintFromURL(
+			new URL(
+				'https://playground.test/?theme=pendant&theme=inexistant&theme=disco'
+			)
+		);
+
+		expect(result.source).toEqual({ type: 'none' });
+		expect(result.blueprint).toMatchObject({
+			steps: [
+				{
+					step: 'installTheme',
+					themeData: {
+						resource: 'wordpress.org/themes',
+						slug: 'pendant',
+					},
+					options: {
+						activate: false,
+						onError: 'skip-theme',
+					},
+				},
+				{
+					step: 'installTheme',
+					themeData: {
+						resource: 'wordpress.org/themes',
+						slug: 'inexistant',
+					},
+					options: {
+						activate: false,
+						onError: 'skip-theme',
+					},
+				},
+				{
+					step: 'installTheme',
+					themeData: {
+						resource: 'wordpress.org/themes',
+						slug: 'disco',
+					},
+					options: {
+						activate: true,
+						onError: 'skip-theme',
+					},
+				},
+			],
+		});
+	});
+
 	it('applies Query API platform overrides to Blueprint v2 declarations', async () => {
 		const result = await applyQueryOverrides(
 			{
@@ -111,6 +158,63 @@ describe('resolveBlueprintFromURL', () => {
 		});
 	});
 
+	it('preserves Blueprint v2 login intent when the login query parameter is absent', async () => {
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+					applicationOptions: {
+						'wordpress-playground': {
+							login: false,
+						},
+					},
+				},
+				new URLSearchParams('php=8.2')
+			)
+		).resolves.toMatchObject({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					login: false,
+				},
+			},
+		});
+
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+					applicationOptions: {
+						'wordpress-playground': {
+							login: false,
+						},
+					},
+				},
+				new URLSearchParams('login=yes')
+			)
+		).resolves.toMatchObject({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					login: true,
+				},
+			},
+		});
+	});
+
+	it('applies core PR previews to Blueprint v2 declarations', async () => {
+		const result = await applyQueryOverrides(
+			{ version: 2 },
+			new URLSearchParams('core-pr=12345')
+		);
+
+		expect(result).toMatchObject({
+			version: 2,
+			wordpressVersion:
+				'https://playground.test/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-12345&pr=12345',
+		});
+	});
+
 	it('applies Gutenberg Query API previews to Blueprint v2 declarations', async () => {
 		const result = await applyQueryOverrides(
 			{
@@ -127,6 +231,11 @@ describe('resolveBlueprintFromURL', () => {
 
 		expect(result).toMatchObject({
 			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					networkAccess: true,
+				},
+			},
 			additionalStepsAfterExecution: [
 				{
 					step: 'runPHP',
@@ -143,7 +252,7 @@ describe('resolveBlueprintFromURL', () => {
 		expect(
 			(result as any).additionalStepsAfterExecution[0].code.content
 		).toContain(
-			'https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=gutenberg'
+			'https://playground.test/plugin-proxy.php?org=WordPress&repo=gutenberg'
 		);
 		expect(
 			(result as any).additionalStepsAfterExecution[0].code.content

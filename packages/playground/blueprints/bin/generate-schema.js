@@ -85,6 +85,9 @@ function patchV2Schema(schema) {
 	const executionContextPathPattern =
 		'^(?:\\./|/)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
 	const pathSegmentPattern = '^(?!\\.\\.$)[^/\\\\]*$';
+	const directorySlugPattern =
+		'^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$';
+	const fontFilePattern = '\\.(?:woff2|woff|ttf|otf)(?:[?#]\\S*)?$';
 	if (definitions['DataSources.URLReference']) {
 		Object.assign(definitions['DataSources.URLReference'], {
 			type: 'string',
@@ -114,11 +117,56 @@ function patchV2Schema(schema) {
 		Object.assign(definitions['DataSources.WordPressVersion'], {
 			type: 'string',
 			pattern:
-				'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$',
+				'^(?:latest|beta|trunk|nightly|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$',
 		});
 		delete definitions['DataSources.WordPressVersion'].anyOf;
 	}
+	for (const definitionName of [
+		'DataSources.PluginDirectoryReference',
+		'DataSources.ThemeDirectoryReference',
+	]) {
+		if (definitions[definitionName]) {
+			Object.assign(definitions[definitionName], {
+				type: 'string',
+				pattern: directorySlugPattern,
+			});
+			delete definitions[definitionName].anyOf;
+		}
+	}
+	definitions['DataSources.FontFileDataReference'] = {
+		anyOf: [
+			{
+				allOf: [
+					{ $ref: '#/definitions/DataSources.URLReference' },
+					{ type: 'string', pattern: fontFilePattern },
+				],
+			},
+			{
+				allOf: [
+					{
+						$ref: '#/definitions/DataSources.ExecutionContextPath',
+					},
+					{ type: 'string', pattern: fontFilePattern },
+				],
+			},
+			{
+				allOf: [
+					{ $ref: '#/definitions/DataSources.InlineFile' },
+					{
+						type: 'object',
+						properties: {
+							filename: {
+								type: 'string',
+								pattern: fontFilePattern,
+							},
+						},
+					},
+				],
+			},
+		],
+	};
 	patchV2TopLevelBlueprint(definitions['V2Schema.BlueprintV2']);
+	patchFontSourceReferences(definitions['V2Schema.BlueprintV2']);
 	for (const definitionName of [
 		'DataSources.InlineFile',
 		'DataSources.InlineDirectory',
@@ -156,10 +204,7 @@ function patchV2TopLevelBlueprint(blueprint) {
 		blueprint.properties.wordpressVersion.anyOf = [
 			{ $ref: '#/definitions/DataSources.WordPressVersion' },
 			{
-				allOf: [
-					{ $ref: '#/definitions/DataSources.URLReference' },
-					{ type: 'string', pattern: '\\.zip(?:[?#]\\S*)?$' },
-				],
+				$ref: '#/definitions/DataSources.URLReference',
 			},
 			{
 				allOf: [
@@ -201,6 +246,35 @@ function patchV2TopLevelBlueprint(blueprint) {
 				additionalProperties: false,
 			},
 		];
+	}
+}
+
+function patchFontSourceReferences(node) {
+	if (!node || typeof node !== 'object') {
+		return;
+	}
+	if (node.properties?.fonts?.additionalProperties?.anyOf) {
+		node.properties.fonts.additionalProperties.anyOf[0] = {
+			$ref: '#/definitions/DataSources.FontFileDataReference',
+		};
+	}
+	if (node.properties?.src?.anyOf) {
+		node.properties.src.anyOf = [
+			{
+				$ref: '#/definitions/DataSources.FontFileDataReference',
+			},
+			{
+				type: 'array',
+				items: {
+					$ref: '#/definitions/DataSources.FontFileDataReference',
+				},
+			},
+		];
+	}
+	for (const value of Object.values(node)) {
+		if (value && typeof value === 'object') {
+			patchFontSourceReferences(value);
+		}
 	}
 }
 

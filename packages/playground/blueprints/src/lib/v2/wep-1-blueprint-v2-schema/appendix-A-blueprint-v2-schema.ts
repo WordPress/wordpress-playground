@@ -489,7 +489,9 @@ export namespace V2Schema {
 		 */
 		| ({
 				type: 'wxr';
-				source: DataSources.FileDataReference;
+				source:
+					| DataSources.FileDataReference
+					| DataSources.FileDataReference[];
 
 				/**
 				 * Static assets handling.
@@ -696,6 +698,12 @@ export namespace V2Schema {
 		 * If not provided, it will be inferred from the theme source.
 		 */
 		targetDirectoryName?: string;
+		/**
+		 * Sometimes it's fine when a theme fails to install.
+		 *
+		 * @default "throw"
+		 */
+		onError?: 'skip-theme' | 'throw';
 		/**
 		 * Human-readable name of the theme for the progress bar.
 		 *

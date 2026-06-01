@@ -142,7 +142,10 @@ export class BlueprintsV2Handler {
 		}
 
 		let sqliteIntegrationPluginZip;
-		if (this.args.skipSqliteSetup) {
+		if (
+			this.args.skipSqliteSetup ||
+			wordpressInstallMode === 'do-not-attempt-installing'
+		) {
 			logger.debug(`Skipping SQLite integration plugin setup...`);
 			sqliteIntegrationPluginZip = undefined;
 		} else {
@@ -308,12 +311,17 @@ function applyCliOptionsToBlueprint(
 	if (args.wp && cliOptionWasProvided(args, 'wp')) {
 		blueprint.wordpressVersion = args.wp;
 	}
-	if (cliOptionWasProvided(args, 'login')) {
+	const playgroundOptions =
+		blueprint.applicationOptions?.['wordpress-playground'];
+	const shouldApplyDefaultStartLogin =
+		args.command === 'start' &&
+		args.login === true &&
+		playgroundOptions?.login === undefined;
+	if (cliOptionWasProvided(args, 'login') || shouldApplyDefaultStartLogin) {
 		blueprint.applicationOptions = {
 			...(blueprint.applicationOptions || {}),
 			'wordpress-playground': {
-				...(blueprint.applicationOptions?.['wordpress-playground'] ||
-					{}),
+				...(playgroundOptions || {}),
 				login: args.login === true,
 			},
 		};

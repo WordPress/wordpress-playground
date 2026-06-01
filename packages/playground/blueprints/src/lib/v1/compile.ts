@@ -731,9 +731,9 @@ function compileStep<S extends StepDefinition>(
 				}
 			);
 		} catch (error) {
-			if (shouldSkipInstallPluginError(step)) {
+			if (shouldSkipInstallAssetError(step)) {
 				logger.warn(
-					`Skipping plugin installation after failure: ${
+					`Skipping ${step.step === 'installTheme' ? 'theme' : 'plugin'} installation after failure: ${
 						error instanceof Error ? error.message : String(error)
 					}`
 				);
@@ -762,10 +762,12 @@ function compileStep<S extends StepDefinition>(
 	return { run, step, resources };
 }
 
-function shouldSkipInstallPluginError(step: StepDefinition) {
+function shouldSkipInstallAssetError(step: StepDefinition) {
 	return (
-		step.step === 'installPlugin' &&
-		(step as any).options?.onError === 'skip-plugin'
+		(step.step === 'installPlugin' &&
+			(step as any).options?.onError === 'skip-plugin') ||
+		(step.step === 'installTheme' &&
+			(step as any).options?.onError === 'skip-theme')
 	);
 }
 

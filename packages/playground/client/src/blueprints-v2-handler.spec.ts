@@ -49,7 +49,10 @@ describe('BlueprintsV2Handler', () => {
 		mocks.playground.isConnected.mockResolvedValue(undefined);
 		mocks.playground.isReady.mockResolvedValue(undefined);
 		mocks.playground.onDownloadProgress.mockResolvedValue(undefined);
-		mocks.compileBlueprintV2.mockResolvedValue({ compiled: true });
+		mocks.compileBlueprintV2.mockImplementation(async (blueprint) => ({
+			compiled: true,
+			declaration: blueprint,
+		}));
 		mocks.hasBlueprintV2WordPressZipReference.mockResolvedValue(false);
 		mocks.runBlueprintV2Steps.mockResolvedValue(undefined);
 		mocks.resolveRuntimeConfiguration.mockResolvedValue({
@@ -123,7 +126,7 @@ describe('BlueprintsV2Handler', () => {
 			})
 		);
 		expect(mocks.runBlueprintV2Steps).toHaveBeenCalledWith(
-			{ compiled: true },
+			expect.objectContaining({ compiled: true }),
 			mocks.playground
 		);
 		expect(onClientConnected).toHaveBeenCalledWith(mocks.playground);

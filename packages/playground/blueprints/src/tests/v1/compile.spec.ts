@@ -80,6 +80,42 @@ describe('Blueprints', () => {
 		);
 	});
 
+	it('should continue after skipped theme resource download errors', async () => {
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('', { status: 404 }));
+		try {
+			await runBlueprintV1Steps(
+				await compileBlueprintV1({
+					steps: [
+						{
+							step: 'installTheme',
+							themeData: {
+								resource: 'wordpress.org/themes',
+								slug: 'missing-theme',
+							},
+							options: {
+								onError: 'skip-theme',
+							},
+						},
+						{
+							step: 'writeFile',
+							path: '/after-theme-skip.txt',
+							data: 'next step ran',
+						},
+					],
+				}),
+				php
+			);
+		} finally {
+			fetchSpy.mockRestore();
+		}
+
+		expect(php.readFileAsText('/after-theme-skip.txt')).toBe(
+			'next step ran'
+		);
+	});
+
 	it('should define the consts in a json and auto load the defined constants', async () => {
 		// Define the constants to be tested
 		const consts = {

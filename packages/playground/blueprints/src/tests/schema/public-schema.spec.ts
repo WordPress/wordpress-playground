@@ -110,6 +110,14 @@ describe('public Blueprint schema', () => {
 			},
 			{
 				version: 2,
+				plugins: ['bad/slug'],
+			},
+			{
+				version: 2,
+				themes: ['bad/slug'],
+			},
+			{
+				version: 2,
 				blueprintMeta: {
 					homepage: 'https://',
 				},
@@ -137,7 +145,17 @@ describe('public Blueprint schema', () => {
 			},
 			{
 				version: 2,
-				wordpressVersion: 'https://example.com/wordpress.tar.gz',
+				fonts: {
+					bad: 'https://example.com/font.txt',
+				},
+			},
+			{
+				version: 2,
+				wordpressVersion: '6.7-beta',
+			},
+			{
+				version: 2,
+				wordpressVersion: '6.8-RC',
 			},
 			{
 				version: 2,
@@ -216,6 +234,43 @@ describe('public Blueprint schema', () => {
 
 		expect(validateBlueprintV2(blueprint).valid).toBe(true);
 		expect(validateBlueprintDeclaration(blueprint)).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				wordpressVersion: 'beta',
+			})
+		).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				wordpressVersion: 'trunk',
+			})
+		).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				wordpressVersion: 'nightly',
+			})
+		).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				wordpressVersion: '6.8-RC1',
+			})
+		).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				wordpressVersion: '6.7-beta2',
+			})
+		).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				wordpressVersion:
+					'https://playground.test/plugin-proxy.php?artifact=wordpress-build-123',
+			})
+		).toBe(true);
 	});
 
 	it('exports documented public schema and validator files', () => {

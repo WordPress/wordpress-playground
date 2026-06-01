@@ -38,7 +38,7 @@ describe('Blueprint step installTheme', () => {
 		zipFilePath = `${themesPath}/${zipFileName}`;
 
 		await php.run({
-			code: `<?php $zip = new ZipArchive(); $zip->open("${zipFilePath}", ZIPARCHIVE::CREATE); $zip->addFile("/${themeName}/index.php"); $zip->close();`,
+			code: `<?php $zip = new ZipArchive(); $zip->open("${zipFilePath}", ZIPARCHIVE::CREATE); $zip->addFile("/${themeName}/index.php", "${themeName}/index.php"); $zip->close();`,
 		});
 
 		php.rmdir(`/${themeName}`);
@@ -98,6 +98,18 @@ describe('Blueprint step installTheme', () => {
 		});
 		expect(php.listFiles(themesPath)).toContain('test-theme');
 		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
+	});
+
+	it('should skip installation errors when onError is skip-theme', async () => {
+		await installTheme(php, {
+			themeData: new File(['not a zip'], 'broken-theme.zip'),
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				onError: 'skip-theme',
+			},
+		});
+
+		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(false);
 	});
 
 	describe('ifAlreadyInstalled option', () => {
@@ -166,7 +178,7 @@ describe('Blueprint step installTheme', () => {
 			await php.run({
 				code: `<?php $zip = new ZipArchive();
 							$zip->open(${phpVar(unexpectedZipFilePath)}, ZIPARCHIVE::CREATE);
-							$zip->addFromString("/unexpected-path/index.php","/**\n * Theme Name: Test Theme");
+							$zip->addFromString("unexpected-path/index.php","/**\n * Theme Name: Test Theme");
 							$zip->close();`,
 			});
 			const zip = await php.readFileAsBuffer(unexpectedZipFilePath);
