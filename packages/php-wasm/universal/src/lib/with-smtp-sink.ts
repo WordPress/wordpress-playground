@@ -25,31 +25,44 @@ export type WithSmtpSinkOptions = {
  *      destination port matches `options.smtpPort` and routes them through
  *      an in-process SmtpSink.
  *
- * This uses the same WebSocket URL that the networking bridge would normally
- * hand to tcp-over-fetch or the Node TCP proxy. The query parameter is called
- * `port` because it is part of that internal bridge URL, but its value is the
- * TCP destination port that PHP tried to reach.
+ * ## Where the `port` query parameter comes from
+ *
+ * When PHP opens a TCP socket, Emscripten intercepts it and calls the
+ * `EmscriptenOptions.websocket.url(_, host, port)` factory to build a
+ * WebSocket URL. Each runtime provides its own factory:
+ *
+ *   - Web:  `@php-wasm/web` → `tcp-over-fetch-websocket.ts`
+ *             produces `ws://playground.internal/?host=<h>&port=<p>`
+ *   - Node: `@php-wasm/node` → `networking/with-networking.ts`
+ *             produces `ws://127.0.0.1:<proxy>/?host=<h>&port=<p>`
+ *
+ * The `port` query parameter is therefore the raw TCP destination port PHP
+ * tried to reach — it is set by the runtime, not by this decorator. Its name
+ * is generic because the same URL format is reused for every outbound TCP
+ * connection (SMTP, MySQL, or any future protocol).
+ *
+ * This decorator reads `searchParams.get('port')` and compares it to
+ * `smtpPort`. When they match, the connection is handed to `SmtpSinkWebSocket`
+ * instead of going to the network; all other ports are forwarded to the next
+ * decorator (or the real WebSocket constructor) unchanged.
  *
  * Merges into the provided `emscriptenOptions`, chaining the websocket
  * decorator and using any existing `spawnProcess` as a fallback for
  * non-sendmail commands.
- *
- * Works in both Web and Node runtimes since both hooks are part of the
- * shared EmscriptenOptions surface.
  */
 export function withSMTPSink(
 	{ smtpPort, onEmail }: WithSmtpSinkOptions,
 	emscriptenOptions: EmscriptenOptions = {}
 ): EmscriptenOptions {
 	// TODO: Provide a way for the Playground website to read received messages.
-	const previousWs = emscriptenOptions['websocket'] || {};
-	const previousDecorator = previousWs.decorator as
+	const previousWebSocketOptions = emscriptenOptions['websocket'] || {};
+	const previousDecorator = previousWebSocketOptions.decorator as
 		| ((Base: any) => any)
 		| undefined;
 
 	const smtpDecorator = (BaseWebSocketConstructor: any) => {
 		return class SMTPDecoratedWebSocket extends BaseWebSocketConstructor {
-			constructor(url: string, wsOptions?: any) {
+			constructor(url: string, webSocketOptions?: any) {
 				let requestedTcpDestinationPort = -1;
 				try {
 					const websocketUrl = new URL(url);
@@ -69,7 +82,7 @@ export function withSMTPSink(
 					return new SmtpSinkWebSocket(url, onEmail) as any;
 				}
 
-				super(url, wsOptions);
+				super(url, webSocketOptions);
 			}
 		};
 	};
@@ -81,12 +94,13 @@ export function withSMTPSink(
 			emscriptenOptions['spawnProcess']
 		),
 		websocket: {
-			...previousWs,
-			decorator: (Base: any) => {
-				const AfterPrev = previousDecorator
-					? previousDecorator(Base)
-					: Base;
-				return smtpDecorator(AfterPrev);
+			...previousWebSocketOptions,
+			decorator: (BaseWebSocketConstructor: any) => {
+				const WebSocketConstructorWithPreviousDecorator =
+					previousDecorator
+						? previousDecorator(BaseWebSocketConstructor)
+						: BaseWebSocketConstructor;
+				return smtpDecorator(WebSocketConstructorWithPreviousDecorator);
 			},
 		},
 	};

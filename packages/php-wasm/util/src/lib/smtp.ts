@@ -1,3 +1,9 @@
+import {
+	decodeBase64ToString,
+	decodeBase64ToUint8Array,
+	encodeStringAsBase64,
+} from './base64';
+
 /**
  * A pair of byte streams representing one endpoint of a bidirectional
  * connection.
@@ -65,8 +71,6 @@ export type SmtpSinkOptions = {
 	auth?: {
 		/** SASL mechanisms to offer. */
 		mechanisms?: SaslMechanism[];
-		/** Deprecated alias for `mechanisms`. */
-		mechs?: SaslMechanism[];
 		/** Whether to show AUTH in the EHLO extension list. */
 		advertise?: boolean;
 		/** Whether MAIL/RCPT require successful AUTH first. */
@@ -114,23 +118,23 @@ export class SmtpSink {
 		  }
 		| null = null;
 
-	private onEmail: (m: CaughtMessage) => void;
+	private onEmail: (message: CaughtMessage) => void;
 
 	constructor(
 		duplex: ByteDuplex,
-		onEmail: (m: CaughtMessage) => void,
-		opts: SmtpSinkOptions = {}
+		onEmail: (message: CaughtMessage) => void,
+		options: SmtpSinkOptions = {}
 	) {
 		this.onEmail = onEmail;
 		this.writer = duplex.writable.getWriter();
 		this.reader = duplex.readable.getReader();
-		this.maxSize = opts.maxSize ?? 10 * 1024 * 1024;
+		this.maxSize = options.maxSize ?? 10 * 1024 * 1024;
 
-		this.authMechanisms = opts.auth?.mechanisms ?? opts.auth?.mechs ?? [];
+		this.authMechanisms = options.auth?.mechanisms ?? [];
 		this.authAdvertise =
-			opts.auth?.advertise ?? this.authMechanisms.length > 0;
-		this.authRequire = opts.auth?.requireAuth ?? false;
-		this.authValidator = opts.auth?.validator ?? (async () => true);
+			options.auth?.advertise ?? this.authMechanisms.length > 0;
+		this.authRequire = options.auth?.requireAuth ?? false;
+		this.authValidator = options.auth?.validator ?? (async () => true);
 	}
 
 	/**
@@ -138,8 +142,10 @@ export class SmtpSink {
 	 * or protocol rejection closes the sink.
 	 */
 	async start(): Promise<void> {
+		// RFC 5321 §4.3.2: the server sends 220 before accepting commands.
+		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.3.2
 		await this.reply(220, `${SERVER_NAME} ESMTP ready`);
-		for (;;) {
+		while (true) {
 			const readResult = await this.reader.read();
 			if (readResult.done) break;
 			this.consumeChunk(readResult.value);
@@ -164,7 +170,7 @@ export class SmtpSink {
 		const text = this.decoder.decode(chunk, { stream: true });
 		this.lineBuffer += text;
 
-		for (;;) {
+		while (true) {
 			// SMTP is line-oriented and commands/data lines are terminated with
 			// CRLF, not bare LF:
 			// https://www.rfc-editor.org/rfc/rfc5321.html#section-2.3.8
@@ -189,10 +195,11 @@ export class SmtpSink {
 		// octets. §4.5.3.1.6: text lines (incl. CRLF) ≤ 1000 octets.
 		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.4
 		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.6
-		// If the un-terminated tail of lineBuffer has already grown past
-		// the limit that applies to the current mode, the peer is
-		// malformed (or hostile); refuse it and drop the session
-		// rather than letting lineBuffer grow without bound.
+		// DATA mode uses the 1000-octet text-line limit. Command mode, including
+		// AUTH continuation responses, uses the 512-octet command-line limit.
+		// If the un-terminated tail of lineBuffer grows past that limit, the
+		// peer is malformed (or hostile); refuse it and drop the session rather
+		// than letting lineBuffer grow without bound.
 		const maxLineLen = this.dataMode ? 1000 : 512;
 		if (this.lineBuffer.length > maxLineLen) {
 			this.lineBuffer = '';
@@ -424,15 +431,21 @@ export class SmtpSink {
 			}
 
 			case 'RSET':
+				// RFC 5321 §4.1.1.5: abort the current mail transaction.
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.5
 				this.resetEnvelope();
 				await this.reply(250, 'OK');
 				break;
 
 			case 'NOOP':
+				// RFC 5321 §4.1.1.9: NOOP has no effect except returning OK.
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.9
 				await this.reply(250, 'OK');
 				break;
 
 			case 'VRFY':
+				// RFC 5321 §3.5.3: 252 means we cannot verify, but will accept mail.
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-3.5.3
 				await this.reply(
 					252,
 					'Cannot VRFY user, but will accept message'
@@ -440,6 +453,8 @@ export class SmtpSink {
 				break;
 
 			case 'QUIT':
+				// RFC 5321 §4.1.1.10: successful QUIT returns 221, then closes.
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.10
 				await this.reply(221, 'Bye');
 				await this.close();
 				break;
@@ -447,10 +462,14 @@ export class SmtpSink {
 			case 'EXPN':
 			case 'HELP':
 			case 'TURN':
+				// RFC 5321 §4.2.4: 502 means recognized but not implemented.
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2.4
 				await this.reply(502, 'Command not implemented');
 				break;
 
 			default:
+				// RFC 5321 §4.2.4: 500 means the command was not recognized.
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2.4
 				await this.reply(500, 'command not recognized');
 				break;
 		}
@@ -463,6 +482,7 @@ export class SmtpSink {
 				// RFC 1870 §6.3: when the size overflow is discovered
 				// mid-stream, the 552 reply must come *after* the
 				// end-of-data marker. Anything else desyncs the session.
+				// https://www.rfc-editor.org/rfc/rfc1870.html#section-6.3
 				await this.reply(552, 'message size exceeds fixed limit');
 				this.resetEnvelope();
 				return;
@@ -545,7 +565,7 @@ export class SmtpSink {
 	private async handleAuthPlain(initialBase64: string): Promise<boolean> {
 		let decoded = '';
 		try {
-			decoded = atob(initialBase64);
+			decoded = decodeBase64ToString(initialBase64);
 		} catch {
 			return false;
 		}
@@ -585,9 +605,13 @@ export class SmtpSink {
 	}
 
 	private async reply(code: number, text: string) {
+		// RFC 5321 §4.2: a single-line reply is "<code> <text><CRLF>".
+		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2
 		await this.writer.write(this.encoder.encode(`${code} ${text}\r\n`));
 	}
 	private async replyMulti(code: number, lines: string[]) {
+		// RFC 5321 §4.2: multi-line replies use "-" until the final SP line.
+		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2
 		for (let i = 0; i < lines.length - 1; i++) {
 			await this.writer.write(
 				this.encoder.encode(`${code}-${lines[i]}\r\n`)
@@ -611,6 +635,13 @@ export class SmtpSink {
  *     `<>` for the null reverse-path (§4.5.5)
  *   - any ESMTP Mail-parameters that follow MUST be separated
  *     from the closing `>` by a single space (RFC 1870, RFC 4954)
+ *
+ * https://www.rfc-editor.org/rfc/rfc5321.html#section-3.3
+ * https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.2
+ * https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.3
+ * https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.5
+ * https://www.rfc-editor.org/rfc/rfc1870.html#section-5
+ * https://www.rfc-editor.org/rfc/rfc4954.html#section-5
  */
 export function parseEnvelopeArg(
 	commandArgument: string,
@@ -708,8 +739,13 @@ function decodeRfc2047EncodedWords(headerValue: string): string {
 			const encoding = String(encodingRaw).toUpperCase();
 			let bytes: Uint8Array;
 			try {
+				// RFC 2047 encoded-words are 7-bit transfer syntaxes for the
+				// original octets in the declared charset. For UTF-16 words,
+				// those octets can include NUL and surrogate-pair bytes; only
+				// after reconstructing them should TextDecoder decode `charset`.
+				// https://www.rfc-editor.org/rfc/rfc2047.html#section-2
 				if (encoding === 'B') {
-					bytes = decodeBase64ToBytes(String(encodedText));
+					bytes = decodeBase64ToUint8Array(String(encodedText));
 				} else {
 					bytes = decodeRfc2047QEncodedWord(String(encodedText));
 				}
@@ -722,6 +758,10 @@ function decodeRfc2047EncodedWords(headerValue: string): string {
 }
 
 function decodeRfc2047QEncodedWord(encodedText: string): Uint8Array {
+	// RFC 2047 Q-encoding is byte-oriented. "_" is byte 0x20, and "=XX"
+	// injects one raw octet. The byte stream is decoded later using the
+	// encoded-word charset, so do not treat these as JS characters yet.
+	// https://www.rfc-editor.org/rfc/rfc2047.html#section-4.2
 	const binaryText = encodedText
 		.replace(/_/g, ' ')
 		.replace(/=([0-9A-Fa-f]{2})/g, (_match, hexByte) =>
@@ -730,16 +770,15 @@ function decodeRfc2047QEncodedWord(encodedText: string): Uint8Array {
 	return new Uint8Array([...binaryText].map((char) => char.charCodeAt(0)));
 }
 
-function getTextDecoderEncodingLabel(charset: string): string {
-	const normalizedCharset = charset.toLowerCase();
-	return normalizedCharset === 'utf8' ? 'utf-8' : normalizedCharset;
-}
-
 function decodeBytes(bytes: Uint8Array, charset: string): string {
+	const normalizedCharset = charset.toLowerCase();
+	const textDecoderEncodingLabel =
+		normalizedCharset === 'utf8' ? 'utf-8' : normalizedCharset;
 	try {
-		return new TextDecoder(getTextDecoderEncodingLabel(charset)).decode(
-			bytes
-		);
+		// TextDecoder performs charset decoding and replacement-character
+		// handling for malformed byte sequences. Unsupported charset labels
+		// fall back to the default UTF-8 decoder below.
+		return new TextDecoder(textDecoderEncodingLabel).decode(bytes);
 	} catch {
 		return new TextDecoder().decode(bytes);
 	}
@@ -763,20 +802,12 @@ function decodeQuotedPrintableToBytes(content: string): Uint8Array {
 	return new Uint8Array(bytes);
 }
 
-function decodeBase64ToBytes(content: string): Uint8Array {
-	const binary = atob(content.replace(/\s+/g, ''));
-	const bytes = new Uint8Array(binary.length);
-	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-	return bytes;
-}
-
 function decodeBase64Text(content: string): string {
-	const bytes = decodeBase64ToBytes(content);
-	return new TextDecoder().decode(bytes);
+	return decodeBase64ToString(content);
 }
 
 function encodeBase64Text(content: string): string {
-	return btoa(content);
+	return encodeStringAsBase64(content);
 }
 
 function stripQuotes(value: string): string {
@@ -850,7 +881,7 @@ function decodeBody(
 	}
 	const bytes =
 		normalizedContentTransferEncoding === 'base64'
-			? decodeBase64ToBytes(content)
+			? decodeBase64ToUint8Array(content)
 			: decodeQuotedPrintableToBytes(content);
 	return decodeBytes(bytes, charset || 'utf-8');
 }

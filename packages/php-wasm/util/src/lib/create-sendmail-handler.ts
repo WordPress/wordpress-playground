@@ -1,5 +1,4 @@
 import { createSpawnHandler } from './create-spawn-handler';
-import { concatUint8Arrays } from './concat-uint8-arrays';
 import { splitShellCommand } from './split-shell-command';
 import { parseMessage } from './smtp';
 import type { CaughtMessage } from './smtp';
@@ -25,6 +24,13 @@ import type { CaughtMessage } from './smtp';
  * commands are forwarded to `fallbackSpawnHandler` if provided, otherwise
  * they throw. The fallback lets callers combine this mail interceptor with
  * their existing spawn handler for unrelated commands.
+ *
+ * @param onEmail - Called once per successfully parsed message.
+ * @param fallbackSpawnHandler - Receives any non-sendmail command. Omit to
+ *   throw on unrecognized commands instead.
+ * @param options.maxSize - Maximum accepted message size in bytes.
+ *   Defaults to 10 MB. Messages exceeding this limit are rejected with
+ *   exit code 1 and a diagnostic written to stderr.
  */
 const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10 MB, same as SmtpSink
 
@@ -39,38 +45,28 @@ export function createSendmailSpawnHandler(
 ) {
 	const sendmailHandler = createSpawnHandler(
 		async function (command, processApi) {
+			// Parse -f: supports `-f sender@domain.com` and `-fsender@domain.com`
 			let envelopeSender = '';
-			for (let i = 1; i < command.length; i++) {
-				if (command[i] === '-f' && i + 1 < command.length) {
-					envelopeSender = command[++i];
-				} else if (
-					command[i].startsWith('-f') &&
-					command[i].length > 2
+			for (
+				let commandIndex = 1;
+				commandIndex < command.length;
+				commandIndex++
+			) {
+				if (
+					command[commandIndex] === '-f' &&
+					commandIndex + 1 < command.length
 				) {
-					envelopeSender = command[i].slice(2);
+					envelopeSender = command[++commandIndex];
+				} else if (
+					command[commandIndex].startsWith('-f') &&
+					command[commandIndex].length > 2
+				) {
+					envelopeSender = command[commandIndex].slice(2);
 				}
 			}
 
-			const chunks: Uint8Array[] = [];
-			let totalLength = 0;
-			let overflow = false;
-			const stdinDone = new Promise<void>((resolve) => {
-				processApi.childProcess.stdin.on('finish', resolve);
-			});
-			processApi.on('stdin', (data: Uint8Array) => {
-				if (overflow) return;
-				totalLength += data.length;
-				if (totalLength > maxSize) {
-					overflow = true;
-					chunks.length = 0;
-					return;
-				}
-				chunks.push(data.slice());
-			});
-
-			await stdinDone;
-
-			if (overflow) {
+			const stdin = await processApi.readStdin({ maxSize });
+			if (stdin.exceededMaxSize) {
 				processApi.stderr(
 					`sendmail: message exceeds maximum size (${maxSize} bytes)\n`
 				);
@@ -78,16 +74,20 @@ export function createSendmailSpawnHandler(
 				return;
 			}
 
-			const rawMessageBytes = concatUint8Arrays(chunks);
-			const rawText = new TextDecoder().decode(rawMessageBytes);
+			const rawText = new TextDecoder().decode(stdin.bytes);
 
 			if (!rawText.trim()) {
 				processApi.exit(0);
 				return;
 			}
 
-			// PHP mail/sendmail input may use LF-only lines. Normalize to
-			// RFC 5322's CRLF form before the MIME helpers split headers/body.
+			// PHP 7 pipes LF-only to sendmail. PHP 8 changed the default to
+			// CRLF even on Unix to fix RFC non-compliance:
+			// https://bugs.php.net/47983
+			// Since Playground supports PHP 7.4–8.5, both line endings can
+			// arrive here. Our parseMessage helpers expect RFC 5322 canonical
+			// CRLF, so normalize before parsing:
+			// https://www.rfc-editor.org/rfc/rfc5322#section-2.1
 			const raw = rawText.replace(/\r?\n/g, '\r\n');
 
 			// Parse folded headers, MIME boundaries, and transfer encodings only

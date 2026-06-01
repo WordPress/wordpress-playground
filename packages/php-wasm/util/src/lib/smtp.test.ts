@@ -6,6 +6,7 @@ import {
 	type CaughtMessage,
 	type SmtpSinkOptions,
 } from './smtp';
+import { encodeUint8ArrayAsBase64 } from './base64';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -19,13 +20,13 @@ const decoder = new TextDecoder();
  * - `messages` collects every email the sink accepted.
  * - The sink starts listening immediately.
  */
-function createClient(opts?: SmtpSinkOptions) {
+function createClient(options?: SmtpSinkOptions) {
 	const [duplexClient, duplexServer] = makeLoopbackPair();
 	const messages: CaughtMessage[] = [];
 	const sink = new SmtpSink(
 		duplexServer,
-		(m: CaughtMessage) => messages.push(m),
-		opts
+		(message: CaughtMessage) => messages.push(message),
+		options
 	);
 	void sink.start();
 	const writer = duplexClient.writable.getWriter();
@@ -57,7 +58,7 @@ async function ehlo(
 ): Promise<string[]> {
 	await client.write(`EHLO ${hostname}\r\n`);
 	const lines: string[] = [];
-	for (;;) {
+	while (true) {
 		const resp = await client.read();
 		lines.push(resp);
 		if (/^250 /m.test(resp)) break;
@@ -132,15 +133,6 @@ describe('SmtpSink – EHLO', () => {
 		const lines = await ehlo(client);
 		const joined = lines.join('\n');
 		expect(joined).toMatch(/AUTH PLAIN LOGIN/);
-	});
-
-	it('supports the deprecated AUTH mechs option alias', async () => {
-		const client = createClient({
-			auth: { mechs: ['PLAIN'] },
-		});
-		await client.read();
-		const lines = await ehlo(client);
-		expect(lines.join('\n')).toMatch(/AUTH PLAIN/);
 	});
 
 	it('does not advertise STARTTLS', async () => {
@@ -920,6 +912,40 @@ describe('parseMessage', () => {
 		expect(result.subject).toBe('Hello 🚀');
 	});
 
+	it('decodes RFC 2047 base64 UTF-16BE subject', () => {
+		// RFC 2047 B-encoding carries the raw bytes of the declared
+		// charset. These are UTF-16BE bytes for "Hi 🚀", including the
+		// D83D DE80 surrogate pair.
+		const bytes = new Uint8Array([
+			0x00, 0x48, 0x00, 0x69, 0x00, 0x20, 0xd8, 0x3d, 0xde, 0x80,
+		]);
+		const encoded = `=?utf-16be?B?${encodeUint8ArrayAsBase64(bytes)}?=`;
+		const raw = `Subject: ${encoded}\r\n\r\nBody.\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.subject).toBe('Hi 🚀');
+	});
+
+	it('decodes RFC 2047 Q-encoded UTF-16LE subject', () => {
+		// Q-encoding is still byte transport, not character escaping.
+		// This spells UTF-16LE bytes for "Hi 🚀": 48 00 69 00 20 00
+		// 3D D8 80 DE. "_" contributes byte 0x20 before the following =00.
+		const encoded = '=?utf-16le?Q?H=00i=00_=00=3D=D8=80=DE?=';
+		const raw = `Subject: ${encoded}\r\n\r\nBody.\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.subject).toBe('Hi 🚀');
+	});
+
+	it('replaces invalid UTF-8 code points in RFC 2047 subjects', () => {
+		// ED A0 80 is the UTF-8 byte sequence for the surrogate U+D800.
+		// Surrogates are not valid Unicode scalar values, so TextDecoder
+		// emits replacement characters instead of throwing.
+		const bytes = new Uint8Array([0xed, 0xa0, 0x80]);
+		const encoded = `=?utf-8?B?${encodeUint8ArrayAsBase64(bytes)}?=`;
+		const raw = `Subject: ${encoded}\r\n\r\nBody.\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.subject).toBe('\uFFFD\uFFFD\uFFFD');
+	});
+
 	it('leaves invalid RFC 2047 encoded words unchanged', () => {
 		// Invalid encoded-words should not make the small helper throw;
 		// keeping the original header value is more useful to callers.
@@ -962,6 +988,20 @@ describe('parseMessage', () => {
 			'Hello =F0=9F=9A=80\r\n';
 		const result = parseMessage(raw, '', []);
 		expect(result.text).toContain('Hello 🚀');
+	});
+
+	it('replaces malformed UTF-8 in transfer-encoded bodies', () => {
+		// C0 AF is an overlong UTF-8 encoding for "/". Overlong
+		// encodings are invalid, so the UTF-8 decoder returns U+FFFD.
+		const raw =
+			'Subject: Invalid UTF-8 body\r\n' +
+			'Content-Type: text/plain; charset=utf-8\r\n' +
+			'Content-Transfer-Encoding: base64\r\n' +
+			'\r\n' +
+			encodeUint8ArrayAsBase64(new Uint8Array([0xc0, 0xaf])) +
+			'\r\n';
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('\uFFFD\uFFFD');
 	});
 
 	it('decodes base64 body', () => {

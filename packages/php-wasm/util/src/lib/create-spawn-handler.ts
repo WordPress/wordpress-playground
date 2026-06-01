@@ -1,8 +1,18 @@
 import { EventEmitterPolyfill } from './event-emitter-polyfill';
+import { concatUint8Arrays } from './concat-uint8-arrays';
 import { splitShellCommand } from './split-shell-command';
 import { WritablePolyfill, type WriteCallback } from './writable-polyfill';
 
 type Listener = (...args: any[]) => any;
+
+export type StdinBytesReadResult = {
+	bytes: Uint8Array;
+	exceededMaxSize: boolean;
+};
+
+export type ReadStdinOptions = {
+	maxSize?: number;
+};
 
 export interface ProcessOptions {
 	cwd?: string;
@@ -13,8 +23,9 @@ export interface ProcessOptions {
  * Usage:
  * ```ts
  * php.setSpawnHandler(
- *   createSpawnHandler(function (command, processApi) {
- *     console.log(processApi.flushStdin());
+ *   createSpawnHandler(async function (command, processApi) {
+ *     const stdin = await processApi.readStdin();
+ *     console.log(new TextDecoder().decode(stdin.bytes));
  *     processApi.stdout('/\n/tmp\n/home');
  *	   processApi.exit(0);
  *   })
@@ -114,6 +125,47 @@ export class ProcessApi extends EventEmitterPolyfill {
 		if (!this.childProcess.stdin.ended) {
 			this.childProcess.stdin.end();
 		}
+	}
+	/**
+	 * Reads all stdin bytes written to this process.
+	 *
+	 * If `maxSize` is exceeded, the remaining stdin is still drained so the
+	 * process can exit cleanly, but buffered bytes are discarded.
+	 */
+	async readStdin({
+		maxSize = Infinity,
+	}: ReadStdinOptions = {}): Promise<StdinBytesReadResult> {
+		const chunks: Uint8Array[] = [];
+		let totalLength = 0;
+		let exceededMaxSize = false;
+
+		const stdinDone = this.childProcess.stdin.ended
+			? Promise.resolve()
+			: new Promise<void>((resolve) => {
+					this.childProcess.stdin.on('finish', resolve);
+				});
+
+		this.on('stdin', (data: Uint8Array) => {
+			if (exceededMaxSize) {
+				return;
+			}
+			totalLength += data.length;
+			if (totalLength > maxSize) {
+				exceededMaxSize = true;
+				chunks.length = 0;
+				return;
+			}
+			// Need to clone the data buffer as it's reused by PHP and the next
+			// data chunk will overwrite the previous one.
+			chunks.push(data.slice());
+		});
+
+		await stdinDone;
+
+		return {
+			bytes: concatUint8Arrays(chunks),
+			exceededMaxSize,
+		};
 	}
 	stdout(data: string | ArrayBuffer) {
 		this.childProcess.stdout.write(data);
