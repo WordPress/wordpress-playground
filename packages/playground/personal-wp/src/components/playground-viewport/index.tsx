@@ -41,12 +41,22 @@ import Button from '../button';
 import {
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
+	getTrustedBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstallExecution,
 	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
 import type { BlueprintInstallPreview } from './blueprint-install';
 import { isAllowedBlueprintUrl } from '../../lib/blueprint-url';
+import {
+	getBlueprintUsageStatsProperties,
+	getSiteUsageStatsProperties,
+	logPersonalWpEvent,
+} from '../../lib/personalwp/usage-stats';
+import type {
+	BlueprintInstallUsageStatsRequestSource,
+	BlueprintInstallUsageStatsTrigger,
+} from '../../lib/personalwp/usage-stats';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -1110,6 +1120,22 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					setBlueprintInstallStatus('Opening app\u2026');
 					await playground.goTo(declaration.landingPage);
 				}
+				if (site?.metadata.storage !== 'none') {
+					logPersonalWpEvent('blueprint_installed', {
+						...getSiteUsageStatsProperties(site.metadata),
+						trigger: options.usageStatsTrigger ?? 'app-request',
+						...(options.usageStatsRequestSource
+							? {
+									request_source:
+										options.usageStatsRequestSource,
+								}
+							: {}),
+						...getBlueprintUsageStatsProperties(
+							declaration,
+							blueprintUrl
+						),
+					});
+				}
 			} catch (e) {
 				logger.error('Failed to apply blueprint:', e);
 				setBlueprintInstallStatus('Installation failed');
@@ -1128,11 +1154,15 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			playground,
 			scheduleInstallBannerReset,
 			setBlueprintInstallStatus,
+			site,
 		]
 	);
 
 	const applyBlueprintInMainTab = useCallback(
-		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
+		async (
+			blueprintUrl: string,
+			options: ApplyBlueprintInMainTabOptions = {}
+		): Promise<InstallBlueprintResult> => {
 			clearInstallBannerResetTimeout();
 			try {
 				setBlueprintInstallStatus('Installing app\u2026');
@@ -1142,7 +1172,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				);
 				const result = await requestRemoteBlueprintInstall(
 					siteSlug,
-					install.blueprintUrl
+					install.blueprintUrl,
+					{
+						usageStatsRequestSource:
+							options.usageStatsRequestSource,
+					}
 				);
 				if (result.status === 'error') {
 					setBlueprintInstallStatus('Installation failed');
@@ -1215,9 +1249,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		if (!hasLocalRuntimeClient) {
 			return;
 		}
-		setInstallBlueprintRequestCallback((blueprintUrl) =>
+		setInstallBlueprintRequestCallback((blueprintUrl, options) =>
 			applyBlueprint(blueprintUrl, {
 				allowNavigation: false,
+				usageStatsTrigger: 'dependent-tab-request',
+				usageStatsRequestSource: options?.usageStatsRequestSource,
 			})
 		);
 		void markMainTabReady();
@@ -1300,6 +1336,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			iframeRef.current,
 			url
 		);
+		const usageStatsRequestSource =
+			getUsageStatsRequestSourceForInstallMessage(
+				event,
+				iframeRef.current,
+				url
+			);
 		if (
 			!skipConfirmation &&
 			!(await requestBlueprintInstallConfirmation(blueprintUrl))
@@ -1316,8 +1358,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			blueprintUrl,
 			requestId,
 			...(installLocally
-				? await applyBlueprint(blueprintUrl)
-				: await applyBlueprintInMainTab(blueprintUrl)),
+				? await applyBlueprint(blueprintUrl, {
+						usageStatsRequestSource,
+					})
+				: await applyBlueprintInMainTab(blueprintUrl, {
+						usageStatsRequestSource,
+					})),
 		});
 	}
 
@@ -1805,6 +1851,12 @@ type BlueprintInstallPreviewState =
 
 type ApplyBlueprintOptions = {
 	allowNavigation?: boolean;
+	usageStatsTrigger?: Exclude<BlueprintInstallUsageStatsTrigger, 'url'>;
+	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
+};
+
+type ApplyBlueprintInMainTabOptions = {
+	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
 };
 
 type InstallBlueprintResult = {
@@ -1882,6 +1934,24 @@ function shouldSkipConfirmationForInstallMessage(
 		getWindowLocation(iframe?.contentWindow),
 		currentUrl,
 	].some(shouldSkipBlueprintInstallConfirmation);
+}
+
+function getUsageStatsRequestSourceForInstallMessage(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null,
+	currentUrl: string | undefined
+): BlueprintInstallUsageStatsRequestSource | undefined {
+	for (const location of [
+		getWindowLocation(event.source),
+		getWindowLocation(iframe?.contentWindow),
+		currentUrl,
+	]) {
+		const source = getTrustedBlueprintInstallSource(location);
+		if (source) {
+			return source;
+		}
+	}
+	return undefined;
 }
 
 function getWindowLocation(

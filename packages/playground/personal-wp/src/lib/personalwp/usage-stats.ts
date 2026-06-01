@@ -1,0 +1,495 @@
+import type {
+	BlueprintV1Declaration,
+	RuntimeConfiguration,
+} from '@wp-playground/blueprints';
+import { buildVersion } from '../config';
+import type { SiteMetadata } from '../state/redux/slice-sites';
+import { personalWpUsageStatsEndpoint } from 'virtual:personal-wp-usage-stats';
+
+type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| { [key: string]: JsonValue };
+
+export type PersonalWpUsageStatsEvent =
+	| 'wordpress_installed'
+	| 'returning_visit'
+	| 'blueprint_installed';
+
+export type PersonalWpUsageStatsProperties = Record<string, JsonValue>;
+export type BlueprintInstallUsageStatsTrigger =
+	| 'app-request'
+	| 'dependent-tab-request'
+	| 'url';
+export type BlueprintInstallUsageStatsRequestSource = 'my-apps';
+
+export type PersonalWpUsageStatsPayload = {
+	schema: 'personal-wp-event/v1';
+	app: 'personal-wp';
+	build: string;
+	event: PersonalWpUsageStatsEvent;
+	properties: PersonalWpUsageStatsProperties;
+};
+
+export type PersonalWpUsageStatsOptions = {
+	endpoint?: string;
+	fetchImpl?: typeof fetch;
+};
+
+type BlueprintSourceClass =
+	| 'same-origin'
+	| 'wordpress-org'
+	| 'github'
+	| 'data-url'
+	| 'external-url'
+	| 'other-url'
+	| 'invalid-url';
+
+type RuntimeUsageStatsProperties = {
+	php_version: string;
+	wp_version: string;
+	intl: boolean;
+	networking: boolean;
+	extra_library_count: number;
+	constant_count: number;
+};
+
+type BlueprintUsageStatsProperties = {
+	blueprint_source?: BlueprintSourceClass;
+	blueprint_id?: string;
+	plugin_slugs?: string[];
+	has_landing_page: boolean;
+	has_login: boolean;
+	step_count: number;
+	step_counts: Record<string, number>;
+	resource_counts: Record<string, number>;
+};
+
+const EVENT_SCHEMA = 'personal-wp-event/v1';
+const SAFE_STEP_NAME = /^[A-Za-z0-9_.:-]{1,64}$/;
+const SAFE_RESOURCE_NAME = /^[A-Za-z0-9_.:/-]{1,80}$/;
+const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
+const MAX_PLUGIN_SLUGS = 10;
+const UNKNOWN_PLUGIN_SLUG = 'unknown';
+const APP_BLUEPRINT_IDS = new Set([
+	'ai-assistant',
+	'chat-to-blog',
+	'cookbook',
+	'memex',
+	'personal-crm',
+	'post-collection',
+	'rss-reader',
+	'wordcamp-companion',
+	'wordopedia',
+]);
+const APP_PLUGIN_SLUGS = new Set([
+	'ai-assistant',
+	'chat-to-blog',
+	'cookbook',
+	'friends',
+	'keeping-contact',
+	'memex',
+	'personal-crm',
+	'post-collection',
+	'send-to-e-reader',
+	UNKNOWN_PLUGIN_SLUG,
+	'wordcamp-companion',
+	'wordopedia',
+]);
+const APP_BLUEPRINT_PATHS = [
+	/(?:^|\/)blueprints\/apps\/([a-z0-9][a-z0-9-]{0,100})\.json$/,
+	/(?:^|\/)blueprints\/([a-z0-9][a-z0-9-]{0,100})\/blueprint\.json$/,
+];
+const USAGE_STATS_HOST = 'my.wordpress.net';
+
+export function logPersonalWpEvent(
+	event: PersonalWpUsageStatsEvent,
+	properties: PersonalWpUsageStatsProperties = {},
+	options: PersonalWpUsageStatsOptions = {}
+): void {
+	const endpoint = options.endpoint ?? personalWpUsageStatsEndpoint;
+	if (!endpoint || !isUsageStatsAllowedOnCurrentHost()) {
+		return;
+	}
+
+	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+	if (!fetchImpl) {
+		return;
+	}
+
+	const payload = createPersonalWpUsageStatsPayload(event, properties);
+	void fetchImpl(endpoint, {
+		method: 'POST',
+		body: JSON.stringify(payload),
+		headers: {
+			'content-type': 'text/plain;charset=UTF-8',
+		},
+		credentials: 'omit',
+		keepalive: true,
+		mode: 'no-cors',
+	}).catch(() => {
+		// Logging is best-effort and must never affect the local WordPress app.
+	});
+}
+
+export function isUsageStatsAllowedOnCurrentHost(): boolean {
+	return globalThis.location?.hostname === USAGE_STATS_HOST;
+}
+
+export function createPersonalWpUsageStatsPayload(
+	event: PersonalWpUsageStatsEvent,
+	properties: PersonalWpUsageStatsProperties
+): PersonalWpUsageStatsPayload {
+	return {
+		schema: EVENT_SCHEMA,
+		app: 'personal-wp',
+		build: buildVersion,
+		event,
+		properties,
+	};
+}
+
+export function getSiteUsageStatsProperties(
+	metadata: SiteMetadata,
+	now = Date.now()
+): PersonalWpUsageStatsProperties {
+	return {
+		storage: metadata.storage,
+		site_age_bucket: getAgeBucket(metadata.whenCreated, now),
+		previous_visit_age_bucket: getAgeBucket(metadata.lastAccessDate, now),
+		...getRuntimeUsageStatsProperties(metadata.runtimeConfiguration),
+	};
+}
+
+export function getBlueprintUsageStatsProperties(
+	blueprint: BlueprintV1Declaration,
+	blueprintUrl?: string
+): BlueprintUsageStatsProperties {
+	const steps = ((blueprint.steps || []) as unknown[]).filter(
+		isBlueprintStep
+	);
+	const stepNames = steps.map((step) => step.step);
+	const resourceCounts: Record<string, number> = {};
+	const pluginSlugs = getBlueprintPluginSlugs(blueprint, steps);
+
+	for (const step of steps) {
+		collectResources(step, resourceCounts);
+	}
+
+	const properties: BlueprintUsageStatsProperties = {
+		has_landing_page:
+			typeof blueprint.landingPage === 'string' &&
+			blueprint.landingPage.length > 0,
+		has_login:
+			!!blueprint.login || steps.some((step) => step.step === 'login'),
+		step_count: stepNames.length,
+		step_counts: countSafeValues(stepNames, SAFE_STEP_NAME, 'unknown'),
+		resource_counts: resourceCounts,
+	};
+
+	if (pluginSlugs.length > 0) {
+		properties.plugin_slugs = pluginSlugs;
+	}
+
+	if (blueprintUrl) {
+		properties.blueprint_source = classifyBlueprintUrl(blueprintUrl);
+		const blueprintId = getBlueprintIdFromUrl(blueprintUrl);
+		if (blueprintId) {
+			properties.blueprint_id = blueprintId;
+		}
+	}
+
+	return properties;
+}
+
+export function getBlueprintIdFromUrl(url: string): string | undefined {
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(url, globalThis.location?.href);
+	} catch {
+		return;
+	}
+
+	for (const pathPattern of APP_BLUEPRINT_PATHS) {
+		const match = parsedUrl.pathname.match(pathPattern);
+		const blueprintId = match?.[1];
+		if (blueprintId && APP_BLUEPRINT_IDS.has(blueprintId)) {
+			return blueprintId;
+		}
+	}
+
+	return undefined;
+}
+
+export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(url, globalThis.location?.href);
+	} catch {
+		return 'invalid-url';
+	}
+
+	if (parsedUrl.protocol === 'data:') {
+		return 'data-url';
+	}
+	if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+		return 'other-url';
+	}
+	if (parsedUrl.origin === globalThis.location?.origin) {
+		return 'same-origin';
+	}
+
+	const host = parsedUrl.hostname.toLowerCase();
+	if (host === 'wordpress.org' || host.endsWith('.wordpress.org')) {
+		return 'wordpress-org';
+	}
+	if (
+		host === 'github.com' ||
+		host.endsWith('.github.com') ||
+		host === 'raw.githubusercontent.com'
+	) {
+		return 'github';
+	}
+	return 'external-url';
+}
+
+function getRuntimeUsageStatsProperties(
+	runtimeConfiguration: RuntimeConfiguration
+): RuntimeUsageStatsProperties {
+	return {
+		php_version: String(runtimeConfiguration.phpVersion),
+		wp_version: String(runtimeConfiguration.wpVersion),
+		intl: !!runtimeConfiguration.intl,
+		networking: !!runtimeConfiguration.networking,
+		extra_library_count: runtimeConfiguration.extraLibraries?.length ?? 0,
+		constant_count: Object.keys(runtimeConfiguration.constants || {})
+			.length,
+	};
+}
+
+function getAgeBucket(timestamp: number | undefined, now: number): string {
+	if (!timestamp) {
+		return 'unknown';
+	}
+	const ageDays = Math.max(
+		0,
+		Math.floor((now - timestamp) / (24 * 60 * 60 * 1000))
+	);
+	if (ageDays === 0) {
+		return 'same-day';
+	}
+	if (ageDays <= 7) {
+		return '1-7-days';
+	}
+	if (ageDays <= 30) {
+		return '8-30-days';
+	}
+	if (ageDays <= 90) {
+		return '31-90-days';
+	}
+	return 'over-90-days';
+}
+
+function isBlueprintStep(
+	step: unknown
+): step is { step: string; [key: string]: unknown } {
+	return (
+		!!step &&
+		typeof step === 'object' &&
+		'step' in step &&
+		typeof (step as { step?: unknown }).step === 'string'
+	);
+}
+
+function collectResources(
+	value: unknown,
+	resourceCounts: Record<string, number>
+): void {
+	if (!value || typeof value !== 'object') {
+		return;
+	}
+	if (
+		'resource' in value &&
+		typeof (value as { resource?: unknown }).resource === 'string'
+	) {
+		const resource = (value as { resource: string }).resource;
+		incrementCount(
+			resourceCounts,
+			SAFE_RESOURCE_NAME.test(resource) ? resource : 'unknown'
+		);
+	}
+	for (const nestedValue of Object.values(value)) {
+		collectResources(nestedValue, resourceCounts);
+	}
+}
+
+function getBlueprintPluginSlugs(
+	blueprint: BlueprintV1Declaration,
+	steps: Array<{ step: string; [key: string]: unknown }>
+): string[] {
+	const slugs: string[] = [];
+	const plugins = (blueprint as { plugins?: unknown }).plugins;
+	if (Array.isArray(plugins)) {
+		for (const plugin of plugins) {
+			if (typeof plugin === 'string' && !addPluginSlug(slugs, plugin)) {
+				addUnknownPluginSlug(slugs);
+			}
+		}
+	}
+
+	for (const step of steps) {
+		if (step.step !== 'installPlugin') {
+			continue;
+		}
+		const pluginSlug = getInstallPluginStepSlug(step);
+		if (!pluginSlug || !addPluginSlug(slugs, pluginSlug)) {
+			addUnknownPluginSlug(slugs);
+		}
+	}
+
+	return slugs;
+}
+
+function getInstallPluginStepSlug(step: {
+	step: string;
+	[key: string]: unknown;
+}): string | undefined {
+	const options = getRecordProperty(step, 'options');
+	const targetFolderName =
+		options && getStringProperty(options, 'targetFolderName');
+	if (targetFolderName) {
+		const slug = normalizePluginSlug(targetFolderName);
+		if (slug) {
+			return slug;
+		}
+	}
+
+	for (const resource of getPluginResourceObjects(step)) {
+		const resourceType = getStringProperty(resource, 'resource');
+		if (resourceType === 'wordpress.org/plugins') {
+			const slug = getStringProperty(resource, 'slug');
+			if (slug) {
+				const normalizedSlug = normalizePluginSlug(slug);
+				if (normalizedSlug) {
+					return normalizedSlug;
+				}
+			}
+		}
+
+		const url = getStringProperty(resource, 'url');
+		if (url) {
+			const githubSlug = getPluginSlugFromGithubUrl(url);
+			if (githubSlug) {
+				return githubSlug;
+			}
+		}
+	}
+
+	return undefined;
+}
+
+function getPluginResourceObjects(step: {
+	step: string;
+	[key: string]: unknown;
+}): Array<Record<string, unknown>> {
+	const resources: Array<Record<string, unknown>> = [];
+	for (const property of ['pluginData', 'pluginZipFile']) {
+		const value = getRecordProperty(step, property);
+		if (value) {
+			resources.push(value);
+		}
+	}
+	return resources;
+}
+
+function getPluginSlugFromGithubUrl(url: string): string | undefined {
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(url);
+	} catch {
+		return;
+	}
+
+	const host = parsedUrl.hostname.toLowerCase();
+	if (
+		host !== 'github.com' &&
+		host !== 'www.github.com' &&
+		host !== 'raw.githubusercontent.com'
+	) {
+		return;
+	}
+
+	const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
+	if (pathParts.length < 2) {
+		return;
+	}
+
+	return normalizePluginSlug(pathParts[1]);
+}
+
+function addPluginSlug(slugs: string[], value: string): boolean {
+	if (slugs.length >= MAX_PLUGIN_SLUGS) {
+		return false;
+	}
+
+	const slug = normalizePluginSlug(value);
+	if (slug && APP_PLUGIN_SLUGS.has(slug) && !slugs.includes(slug)) {
+		slugs.push(slug);
+		return true;
+	}
+	return slug ? APP_PLUGIN_SLUGS.has(slug) : false;
+}
+
+function addUnknownPluginSlug(slugs: string[]): void {
+	addPluginSlug(slugs, UNKNOWN_PLUGIN_SLUG);
+}
+
+function normalizePluginSlug(value: string): string | undefined {
+	const slug = value
+		.trim()
+		.replace(/\.git$/i, '')
+		.toLowerCase();
+	return SAFE_PLUGIN_SLUG.test(slug) ? slug : undefined;
+}
+
+function getRecordProperty(
+	value: Record<string, unknown>,
+	property: string
+): Record<string, unknown> | undefined {
+	const propertyValue = value[property];
+	if (
+		propertyValue &&
+		typeof propertyValue === 'object' &&
+		!Array.isArray(propertyValue)
+	) {
+		return propertyValue as Record<string, unknown>;
+	}
+	return undefined;
+}
+
+function getStringProperty(
+	value: Record<string, unknown>,
+	property: string
+): string | undefined {
+	const propertyValue = value[property];
+	return typeof propertyValue === 'string' ? propertyValue : undefined;
+}
+
+function countSafeValues(
+	values: string[],
+	pattern: RegExp,
+	fallback: string
+): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const value of values) {
+		incrementCount(counts, pattern.test(value) ? value : fallback);
+	}
+	return counts;
+}
+
+function incrementCount(counts: Record<string, number>, key: string): void {
+	counts[key] = (counts[key] || 0) + 1;
+}

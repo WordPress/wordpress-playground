@@ -78,6 +78,7 @@ jobs:
               run: npx nx build playground-personal-wp
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
+                  PERSONAL_WP_USAGE_STATS_ENDPOINT: https://my.wordpress.net/mywp-event.php
             - run: tar -czf my-wordpress-net.tar.gz dist/packages/playground/my-wordpress-net
             - uses: actions/upload-artifact@v4
               with:
@@ -109,4 +110,4 @@ jobs:
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_MY_WORDPRESS_NET_USER }}@${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST }} \
-                    -tt -C '~/website-deployment/apply-update.sh'
+                    -tt -C 'ENABLE_MYWP_EVENT_STATS=true ~/website-deployment/apply-update.sh'

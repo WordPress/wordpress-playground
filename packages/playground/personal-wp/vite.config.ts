@@ -47,6 +47,10 @@ export default defineConfig(({ command, mode }) => {
 
 	const defaultBlueprintUrl =
 		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/blueprint.json';
+	const personalWpUsageStatsEndpoint =
+		'PERSONAL_WP_USAGE_STATS_ENDPOINT' in process.env
+			? process.env.PERSONAL_WP_USAGE_STATS_ENDPOINT
+			: undefined;
 
 	return {
 		root: __dirname,
@@ -112,6 +116,11 @@ export default defineConfig(({ command, mode }) => {
 				name: 'cors-proxy-url',
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
+			}),
+			virtualModule({
+				name: 'personal-wp-usage-stats',
+				content: `
+				export const personalWpUsageStatsEndpoint = ${JSON.stringify(personalWpUsageStatsEndpoint || undefined)};`,
 			}),
 			virtualModule({
 				name: 'website-defaults',

@@ -8,6 +8,10 @@ declare module 'virtual:cors-proxy-url' {
 	export const corsProxyUrl: string;
 }
 
+declare module 'virtual:personal-wp-usage-stats' {
+	export const personalWpUsageStatsEndpoint: string | undefined;
+}
+
 declare module 'virtual:website-defaults' {
 	export const defaultBlueprintUrl: string | undefined;
 	export const defaultStorageType: 'none' | 'opfs' | 'local-fs';
