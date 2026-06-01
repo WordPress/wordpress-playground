@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
@@ -905,8 +905,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
 	const hasActiveSiteError = activeSiteError && activeSiteSlug === siteSlug;
 
-	const loadingScreenHtml =
-		isReturningUser && !forceWelcome ? getWhatsNewHtml() : getWelcomeHtml();
+	const loadingScreenHtml = useMemo(
+		() =>
+			isReturningUser && !forceWelcome
+				? getWhatsNewHtml()
+				: getWelcomeHtml(),
+		[forceWelcome, isReturningUser, siteSlug]
+	);
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
 		string | null
