@@ -11,6 +11,7 @@
 	   the visible area on mobile Safari as its address bar shows
 	   and hides — 100% (= large viewport) otherwise leaves the
 	   last content hidden behind the retracted chrome. */
+	height: 100vh;
 	height: 100dvh;
 	justify-content: center;
 	align-items: center;

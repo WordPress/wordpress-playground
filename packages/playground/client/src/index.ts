@@ -213,12 +213,13 @@ export async function startPlaygroundWeb(
 	await loadIframe(iframe, remoteUrl);
 
 	if (options.welcomeHtml) {
+		const targetOrigin = new URL(remoteUrl).origin;
 		iframe.contentWindow?.postMessage(
 			{
 				type: 'set-welcome-html',
 				html: options.welcomeHtml,
 			},
-			'*'
+			targetOrigin
 		);
 	}
 

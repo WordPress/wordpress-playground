@@ -73,9 +73,11 @@ export async function bootPlaygroundRemote() {
 
 		// Listen for welcome HTML sent by the parent via postMessage
 		// (avoids passing HTML through URL query params).
+		const expectedParentOrigin = getExpectedParentOrigin();
 		window.addEventListener('message', (event) => {
 			if (
 				event.source === window.parent &&
+				event.origin === expectedParentOrigin &&
 				event.data?.type === 'set-welcome-html' &&
 				typeof event.data.html === 'string'
 			) {
@@ -721,6 +723,17 @@ async function captureSiteThumbnailFromWordPress({
 		iframe.addEventListener('load', onLoad, { once: true });
 		document.body.append(iframe);
 	});
+}
+
+function getExpectedParentOrigin() {
+	if (!document.referrer) {
+		return undefined;
+	}
+	try {
+		return new URL(document.referrer).origin;
+	} catch {
+		return undefined;
+	}
 }
 
 /**

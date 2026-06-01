@@ -48,11 +48,9 @@ class ProgressBar {
 		this.welcomeElement = document.createElement('div');
 		this.welcomeElement.classList.add(css['welcomeContent']);
 		this.welcomeElement.textContent = '';
-		// Parse the HTML string safely: only allow known
-		// tags and strip scripts / event handlers.
-		const doc = new DOMParser().parseFromString(html, 'text/html');
-		for (const node of Array.from(doc.body.childNodes)) {
-			this.welcomeElement.appendChild(document.importNode(node, true));
+		const fragment = sanitizeWelcomeHtml(html);
+		for (const node of Array.from(fragment.childNodes)) {
+			this.welcomeElement.appendChild(node);
 		}
 		// Insert welcome content before the progress section
 		this.element.insertBefore(this.welcomeElement, this.progressSection);
@@ -184,6 +182,106 @@ class ProgressBar {
 
 		wrapper.appendChild(progressBar);
 		return wrapper;
+	}
+}
+
+const allowedWelcomeTags = new Set([
+	'A',
+	'B',
+	'BLOCKQUOTE',
+	'BR',
+	'CODE',
+	'DIV',
+	'EM',
+	'H1',
+	'H2',
+	'H3',
+	'HR',
+	'I',
+	'LI',
+	'OL',
+	'P',
+	'PRE',
+	'SPAN',
+	'STRONG',
+	'UL',
+]);
+const blockedWelcomeTags = new Set([
+	'EMBED',
+	'IFRAME',
+	'MATH',
+	'OBJECT',
+	'SCRIPT',
+	'STYLE',
+	'SVG',
+	'TEMPLATE',
+]);
+const allowedWelcomeAttributes = new Map([
+	['A', new Set(['href', 'rel', 'target', 'title'])],
+]);
+
+function sanitizeWelcomeHtml(html: string) {
+	const doc = new DOMParser().parseFromString(html, 'text/html');
+	const fragment = document.createDocumentFragment();
+	for (const node of Array.from(doc.body.childNodes)) {
+		fragment.appendChild(sanitizeWelcomeNode(node));
+	}
+	return fragment;
+}
+
+function sanitizeWelcomeNode(node: Node): Node {
+	if (node.nodeType === Node.TEXT_NODE) {
+		return document.createTextNode(node.textContent || '');
+	}
+	if (node.nodeType !== Node.ELEMENT_NODE) {
+		return document.createTextNode('');
+	}
+
+	const element = node as Element;
+	if (!allowedWelcomeTags.has(element.tagName)) {
+		const fragment = document.createDocumentFragment();
+		if (blockedWelcomeTags.has(element.tagName)) {
+			return fragment;
+		}
+		for (const child of Array.from(element.childNodes)) {
+			fragment.appendChild(sanitizeWelcomeNode(child));
+		}
+		return fragment;
+	}
+
+	const sanitized = document.createElement(element.tagName.toLowerCase());
+	copyAllowedWelcomeAttributes(element, sanitized);
+	for (const child of Array.from(element.childNodes)) {
+		sanitized.appendChild(sanitizeWelcomeNode(child));
+	}
+	return sanitized;
+}
+
+function copyAllowedWelcomeAttributes(source: Element, target: Element) {
+	const allowedAttributes = allowedWelcomeAttributes.get(source.tagName);
+	if (!allowedAttributes) {
+		return;
+	}
+	for (const { name, value } of Array.from(source.attributes)) {
+		if (!allowedAttributes.has(name.toLowerCase())) {
+			continue;
+		}
+		if (name.toLowerCase() === 'href' && !isSafeWelcomeUrl(value)) {
+			continue;
+		}
+		target.setAttribute(name, value);
+	}
+	if (source.tagName === 'A') {
+		target.setAttribute('rel', 'noopener noreferrer');
+	}
+}
+
+function isSafeWelcomeUrl(url: string) {
+	try {
+		const parsed = new URL(url, document.location.href);
+		return ['http:', 'https:', 'mailto:'].includes(parsed.protocol);
+	} catch {
+		return false;
 	}
 }
 
