@@ -8,7 +8,7 @@ import { defineWpConfigConsts } from '../../lib/steps/define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { expect, describe, it, beforeEach, test } from 'vitest';
+import { expect, describe, it, beforeEach, test, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { ZipFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
@@ -41,6 +41,42 @@ describe('Blueprints', () => {
 		expect(php.fileExists('/index.php')).toBe(true);
 		expect(php.readFileAsText('/index.php')).toBe(
 			`<?php echo 'Hello World';`
+		);
+	});
+
+	it('should continue after skipped plugin resource download errors', async () => {
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('', { status: 404 }));
+		try {
+			await runBlueprintV1Steps(
+				await compileBlueprintV1({
+					steps: [
+						{
+							step: 'installPlugin',
+							pluginData: {
+								resource: 'wordpress.org/plugins',
+								slug: 'missing-plugin',
+							},
+							options: {
+								onError: 'skip-plugin',
+							},
+						},
+						{
+							step: 'writeFile',
+							path: '/after-plugin-skip.txt',
+							data: 'next step ran',
+						},
+					],
+				}),
+				php
+			);
+		} finally {
+			fetchSpy.mockRestore();
+		}
+
+		expect(php.readFileAsText('/after-plugin-skip.txt')).toBe(
+			'next step ran'
 		);
 	});
 

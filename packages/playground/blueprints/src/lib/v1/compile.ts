@@ -730,6 +730,16 @@ function compileStep<S extends StepDefinition>(
 					initialCaption: step.progress?.caption,
 				}
 			);
+		} catch (error) {
+			if (shouldSkipInstallPluginError(step)) {
+				logger.warn(
+					`Skipping plugin installation after failure: ${
+						error instanceof Error ? error.message : String(error)
+					}`
+				);
+				return;
+			}
+			throw error;
 		} finally {
 			stepProgress.finish();
 		}
@@ -750,6 +760,13 @@ function compileStep<S extends StepDefinition>(
 	}
 
 	return { run, step, resources };
+}
+
+function shouldSkipInstallPluginError(step: StepDefinition) {
+	return (
+		step.step === 'installPlugin' &&
+		(step as any).options?.onError === 'skip-plugin'
+	);
 }
 
 /**
