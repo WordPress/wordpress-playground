@@ -107,6 +107,7 @@ export const zipDirectory = async (
 			if ($res !== TRUE) {
 				throw new Exception('Failed to create ZIP');
 			}
+			$zipRoot = rtrim($directoryPath, '/\\\\');
 			$files = new RecursiveIteratorIterator(
 				new RecursiveDirectoryIterator($directoryPath)
 			);
@@ -115,7 +116,8 @@ export const zipDirectory = async (
 				if (is_dir($file)) {
 					continue;
 				}
-				$zip->addFile($file, substr($file, strlen($directoryPath)));
+				$entryName = ltrim(substr($file, strlen($zipRoot)), '/\\\\');
+				$zip->addFile($file, $entryName);
 			}
 			$zip->close();
 			chmod($outputPath, 0777);
