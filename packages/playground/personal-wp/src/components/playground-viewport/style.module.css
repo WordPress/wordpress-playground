@@ -84,6 +84,23 @@
 	transition: width 0.2s ease;
 }
 
+.loading-ready-button {
+	width: 100%;
+	padding: 8px 12px;
+	border: 0;
+	border-radius: 6px;
+	background: #3858e9;
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	line-height: 1.3;
+	cursor: pointer;
+}
+
+.loading-ready-button:hover {
+	background: #2145e6;
+}
+
 @media (prefers-color-scheme: dark) {
 	.loading-screen {
 		background: #111;

@@ -672,6 +672,7 @@ function getCardStageCss(): string {
     cursor: pointer;
     display: block;
     background: var(--card-bg);
+    border: 1px solid var(--thread);
     border-radius: 14px;
     box-shadow: 0 1px 2px var(--shadow-sm), 0 8px 24px var(--shadow-md);
     overflow: hidden;
@@ -877,6 +878,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const dispatch = useAppDispatch();
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const [isBooting, setIsBooting] = useState(true);
+	const [isBootReady, setIsBootReady] = useState(false);
+	const [loadingInteracted, setLoadingInteracted] = useState(false);
 	const [bootProgress, setBootProgress] = useState<ProgressDetails>(
 		getInitialBootProgress
 	);
@@ -947,6 +950,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 
 	useEffect(() => {
 		setIsBooting(true);
+		setIsBootReady(false);
+		setLoadingInteracted(false);
 		setBootProgress(getInitialBootProgress());
 	}, [siteSlug, runtimeConfigString]);
 
@@ -955,8 +960,20 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	}, []);
 
 	const handleBootReady = useCallback(() => {
-		setIsBooting(false);
+		setIsBootReady(true);
 	}, []);
+
+	const handleLoadingInteract = useCallback(() => {
+		setLoadingInteracted(true);
+	}, []);
+
+	const showReadyButton = isBootReady && loadingInteracted;
+
+	useEffect(() => {
+		if (isBootReady && !loadingInteracted) {
+			setIsBooting(false);
+		}
+	}, [isBootReady, loadingInteracted]);
 
 	const requestBlueprintInstallConfirmation = useCallback(
 		(blueprintUrl: string): Promise<boolean> => {
@@ -1245,6 +1262,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				<LoadingScreen
 					html={loadingScreenHtml}
 					progress={bootProgress}
+					onInteract={handleLoadingInteract}
+					showReadyButton={showReadyButton}
+					onStart={() => setIsBooting(false)}
 				/>
 			) : null}
 			<MainTabRecoveryNotice
@@ -1286,14 +1306,31 @@ function getInitialBootProgress(): ProgressDetails {
 function LoadingScreen({
 	html,
 	progress,
+	onInteract,
+	showReadyButton,
+	onStart,
 }: {
 	html: string;
 	progress: ProgressDetails;
+	onInteract: () => void;
+	showReadyButton: boolean;
+	onStart: () => void;
 }) {
 	return (
-		<div className={css.loadingScreen}>
+		<div
+			className={css.loadingScreen}
+			onClick={onInteract}
+			onKeyDown={onInteract}
+			onPointerDown={onInteract}
+			onTouchStart={onInteract}
+			onWheel={onInteract}
+		>
 			<LoadingScreenHtml html={html} />
-			<LoadingProgress progress={progress} />
+			<LoadingProgress
+				progress={progress}
+				showReadyButton={showReadyButton}
+				onStart={onStart}
+			/>
 		</div>
 	);
 }
@@ -1323,7 +1360,15 @@ const LoadingScreenHtml = memo(function LoadingScreenHtml({
 	return <div ref={hostRef} className={css.loadingScreenHtml} />;
 });
 
-function LoadingProgress({ progress }: { progress: ProgressDetails }) {
+function LoadingProgress({
+	progress,
+	showReadyButton,
+	onStart,
+}: {
+	progress: ProgressDetails;
+	showReadyButton: boolean;
+	onStart: () => void;
+}) {
 	const progressValue = Math.max(0, Math.min(100, progress.progress));
 
 	return (
@@ -1335,13 +1380,23 @@ function LoadingProgress({ progress }: { progress: ProgressDetails }) {
 			aria-valuenow={Math.round(progressValue)}
 			aria-label={progress.caption}
 		>
-			<div className={css.loadingProgressCaption}>{progress.caption}</div>
-			<div className={css.loadingProgressTrack}>
-				<div
-					className={css.loadingProgressBar}
-					style={{ width: `${progressValue}%` }}
-				/>
-			</div>
+			{showReadyButton ? (
+				<button className={css.loadingReadyButton} onClick={onStart}>
+					WordPress is ready - click to start
+				</button>
+			) : (
+				<>
+					<div className={css.loadingProgressCaption}>
+						{progress.caption}
+					</div>
+					<div className={css.loadingProgressTrack}>
+						<div
+							className={css.loadingProgressBar}
+							style={{ width: `${progressValue}%` }}
+						/>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
