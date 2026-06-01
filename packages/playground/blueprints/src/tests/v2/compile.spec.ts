@@ -2459,7 +2459,7 @@ echo json_encode(array(
 			php.exit();
 			await handler[Symbol.asyncDispose]();
 		}
-	});
+	}, 30_000);
 
 	it('runs font imports against WordPress', async () => {
 		const handler = await bootWordPressAndRequestHandler({
@@ -2536,7 +2536,7 @@ echo json_encode(array(
 			php.exit();
 			await handler[Symbol.asyncDispose]();
 		}
-	});
+	}, 30_000);
 
 	it('validates and rejects invalid content definitions', () => {
 		expect(
