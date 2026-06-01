@@ -40,47 +40,6 @@ Here's the shortest example of how to use the JavaScript API in a HTML page:
 </script>
 ```
 
-## Custom loading screens
-
-By default, `remote.html` shows a progress bar while Playground boots. To use a custom welcome screen, render it in your parent page and keep the Playground iframe hidden until loading finishes:
-
-```html
-<section id="loading-screen">
-	<p id="loading-text">Preparing WordPress</p>
-	<progress id="loading-bar" max="100" value="0"></progress>
-</section>
-<iframe id="wp" hidden></iframe>
-<script type="module">
-	import { ProgressTracker, startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
-
-	const loadingScreen = document.getElementById('loading-screen');
-	const loadingText = document.getElementById('loading-text');
-	const loadingBar = document.getElementById('loading-bar');
-	const iframe = document.getElementById('wp');
-	const progressTracker = new ProgressTracker();
-
-	progressTracker.addEventListener('progress', (event) => {
-		const { progress, caption } = event.detail;
-		loadingText.textContent = caption;
-		loadingBar.value = progress;
-	});
-
-	progressTracker.addEventListener('done', () => {
-		loadingScreen.hidden = true;
-		iframe.hidden = false;
-	});
-
-	const client = await startPlaygroundWeb({
-		iframe,
-		remoteUrl: `https://playground.wordpress.net/remote.html`,
-		progressTracker,
-		disableProgressBar: true,
-	});
-</script>
-```
-
-Custom welcome HTML should live in the parent page, not inside the Playground remote iframe. This keeps the remote progress UI generic while giving each embedding app full control over its loading screen markup, styles, and interactions. The `progressTracker` and `disableProgressBar` options existed before this change; this pattern is the supported alternative to injecting welcome HTML into the remote progress overlay.
-
 <div class="callout callout-info">
 
 **/remote.html is a special URL**

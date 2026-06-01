@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ProgressTracker } from '@php-wasm/progress';
-import type { ProgressTrackerEvent } from '@php-wasm/progress';
+import type { ProgressTracker } from '@php-wasm/progress';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 
 const mocks = vi.hoisted(() => {
@@ -119,58 +118,6 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV2Handler).toHaveBeenCalledTimes(1);
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
-	});
-});
-
-describe('startPlaygroundWeb loading progress', () => {
-	afterEach(() => {
-		vi.clearAllMocks();
-	});
-
-	it('reports loading progress through the provided tracker', async () => {
-		const playground = { connected: true };
-		const progressTracker = new ProgressTracker();
-		const progressEvents: Array<{ progress: number; caption: string }> = [];
-		const onDone = vi.fn();
-		progressTracker.addEventListener(
-			'progress',
-			(event: ProgressTrackerEvent) => {
-				progressEvents.push({
-					progress: event.detail.progress,
-					caption: event.detail.caption,
-				});
-			}
-		);
-		progressTracker.addEventListener('done', onDone);
-		mocks.BlueprintsV1Handler.mockImplementation(() => ({
-			bootPlayground: mocks.bootPlaygroundV1,
-		}));
-		mocks.bootPlaygroundV1.mockImplementation(async () => {
-			progressTracker.set(35);
-			return playground;
-		});
-
-		await expect(
-			startPlaygroundWeb({
-				iframe: createIframe(),
-				remoteUrl: 'http://localhost/remote.html',
-				progressTracker,
-			})
-		).resolves.toBe(playground);
-
-		expect(progressEvents).toContainEqual({
-			progress: 0,
-			caption: 'Preparing WordPress',
-		});
-		expect(progressEvents).toContainEqual({
-			progress: 35,
-			caption: 'Preparing WordPress',
-		});
-		expect(progressEvents[progressEvents.length - 1]).toEqual({
-			progress: 100,
-			caption: 'Preparing WordPress',
-		});
-		expect(onDone).toHaveBeenCalled();
 	});
 });
 

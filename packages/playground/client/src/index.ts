@@ -25,7 +25,6 @@ export {
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
-export { ProgressTracker } from '@php-wasm/progress';
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor, SiteThumbnail };
 

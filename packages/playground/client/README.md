@@ -53,43 +53,6 @@ const zip = await api.exportSavedSiteAsZip('my-site', {
 
 The optional `excludePatterns` use gitignore semantics: matching paths are excluded, later patterns take precedence, and a leading `!` re-includes a path. When `excludePatterns` is omitted, the ZIP contains the complete saved site.
 
-## Custom loading screens
-
-The Playground iframe includes a default progress bar while it boots. Apps that need a branded welcome or loading screen should render that UI outside the iframe and use a `ProgressTracker` to keep it in sync with Playground boot progress:
-
-```js
-import { ProgressTracker, startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
-
-const loadingScreen = document.getElementById('loading-screen');
-const loadingText = document.getElementById('loading-text');
-const loadingBar = document.getElementById('loading-bar');
-const iframe = document.getElementById('wp');
-
-iframe.hidden = true;
-
-const progressTracker = new ProgressTracker();
-
-progressTracker.addEventListener('progress', (event) => {
-	const { progress, caption } = event.detail;
-	loadingText.textContent = caption;
-	loadingBar.value = progress;
-});
-
-progressTracker.addEventListener('done', () => {
-	loadingScreen.hidden = true;
-	iframe.hidden = false;
-});
-
-const client = await startPlaygroundWeb({
-	iframe,
-	remoteUrl: `https://playground.wordpress.net/remote.html`,
-	progressTracker,
-	disableProgressBar: true,
-});
-```
-
-This replaces embedding custom welcome HTML inside the remote progress overlay. Keeping the welcome screen in the parent page gives each app full control over its markup, styling, and interaction model without coupling it to the Playground iframe UI. The `progressTracker` and `disableProgressBar` options existed before this change; this pattern is the supported alternative to injecting welcome HTML into the remote progress overlay.
-
 ## npm package
 
 The npm package exists for projects that want to install `@wp-playground/client` through a package manager, bundle it with their application, or use its TypeScript declarations locally.
