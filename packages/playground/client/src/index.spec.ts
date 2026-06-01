@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProgressTracker } from '@php-wasm/progress';
 
 const mocks = vi.hoisted(() => {
+	vi.stubGlobal('location', { origin: 'http://localhost' });
 	return {
 		v1BootPlayground: vi.fn(),
 		v2BootPlayground: vi.fn(),
@@ -18,15 +19,14 @@ vi.mock('./blueprints-v2-handler', () => ({
 	BlueprintsV2Handler: mocks.BlueprintsV2Handler,
 }));
 
+import { startPlaygroundWeb } from './index';
+
 describe('startPlaygroundWeb', () => {
 	afterEach(() => {
 		vi.clearAllMocks();
-		vi.unstubAllGlobals();
-		vi.resetModules();
 	});
 
 	it('routes v2 declarations through the native v2 handler by default', async () => {
-		vi.stubGlobal('location', { origin: 'http://localhost' });
 		const playground = { connected: true };
 		mocks.BlueprintsV1Handler.mockImplementation(() => ({
 			bootPlayground: mocks.v1BootPlayground,
@@ -35,7 +35,6 @@ describe('startPlaygroundWeb', () => {
 			bootPlayground: mocks.v2BootPlayground,
 		}));
 		mocks.v2BootPlayground.mockResolvedValue(playground);
-		const { startPlaygroundWeb } = await import('./index');
 		const iframe = createIframe();
 
 		await expect(

@@ -1,18 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-const g = globalThis as any;
-if (typeof g.window === 'undefined') {
-	g.window = {};
-}
-g.window.self = g.window;
-g.window.top = g.window;
-g.location = new URL('https://playground.test/');
-g.window.location = g.location;
+vi.hoisted(() => {
+	const g = globalThis as any;
+	if (typeof g.window === 'undefined') {
+		g.window = {};
+	}
+	g.window.self = g.window;
+	g.window.top = g.window;
+	g.location = new URL('https://playground.test/');
+	g.window.location = g.location;
+});
+
+// eslint-disable-next-line import/first
+import {
+	applyQueryOverrides,
+	resolveBlueprintFromURL,
+} from './resolve-blueprint-from-url';
 
 describe('resolveBlueprintFromURL', () => {
 	it('allows query API plugin installs to fail without skipping later plugins', async () => {
-		const { resolveBlueprintFromURL } =
-			await import('./resolve-blueprint-from-url');
 		const result = await resolveBlueprintFromURL(
 			new URL(
 				'https://playground.test/?plugin=activitypub&plugin=inexistant&plugin=biscotti'
@@ -60,8 +66,6 @@ describe('resolveBlueprintFromURL', () => {
 	});
 
 	it('applies Query API platform overrides to Blueprint v2 declarations', async () => {
-		const { applyQueryOverrides } =
-			await import('./resolve-blueprint-from-url');
 		const result = await applyQueryOverrides(
 			{
 				version: 2,
@@ -108,8 +112,6 @@ describe('resolveBlueprintFromURL', () => {
 	});
 
 	it('applies Gutenberg Query API previews to Blueprint v2 declarations', async () => {
-		const { applyQueryOverrides } =
-			await import('./resolve-blueprint-from-url');
 		const result = await applyQueryOverrides(
 			{
 				version: 2,
