@@ -573,6 +573,14 @@ function mywp_event_dashboard_load_stats( $dbh, $range, $granularity ) {
 			$since,
 			'day' === $granularity ? '%Y-%m-%d' : '%Y-%m-%d %H:00'
 		),
+		'blueprint_plugin_slug_timeline' => mywp_event_dashboard_query_metric_timeline(
+			$dbh,
+			$table,
+			$time_column,
+			$since,
+			'day' === $granularity ? '%Y-%m-%d' : '%Y-%m-%d %H:00',
+			'blueprint_installed:plugin_slug'
+		),
 	);
 }
 
@@ -618,12 +626,30 @@ function mywp_event_dashboard_query_event_timeline(
 	$since,
 	$period_format
 ) {
+	return mywp_event_dashboard_query_metric_timeline(
+		$dbh,
+		$table,
+		$time_column,
+		$since,
+		$period_format,
+		'event'
+	);
+}
+
+function mywp_event_dashboard_query_metric_timeline(
+	$dbh,
+	$table,
+	$time_column,
+	$since,
+	$period_format,
+	$metric_name
+) {
 	$query = "
 		SELECT DATE_FORMAT(`$time_column`, '$period_format') AS `period`,
 			`value`,
 			SUM(`views`) AS `views`
 		FROM `$table`
-		WHERE `$time_column` >= ? AND `name` = 'event'
+		WHERE `$time_column` >= ? AND `name` = ?
 		GROUP BY `period`, `value`
 		ORDER BY `period` ASC, `value` ASC
 	";
@@ -632,7 +658,7 @@ function mywp_event_dashboard_query_event_timeline(
 		return array();
 	}
 
-	mysqli_stmt_bind_param( $statement, 's', $since );
+	mysqli_stmt_bind_param( $statement, 'ss', $since, $metric_name );
 	mysqli_stmt_execute( $statement );
 	mysqli_stmt_bind_result( $statement, $period, $value, $views );
 
@@ -950,6 +976,14 @@ function mywp_event_dashboard_render( $stats, $current_user ) {
 				<?php mywp_event_dashboard_render_timeline( $stats['timeline'] ); ?>
 			</section>
 
+			<section class="panel dashboard-section">
+				<div class="section-heading">
+					<h2>Blueprint Plugin Slug Trend</h2>
+					<p class="muted">Blueprint installs segmented by plugin slug.</p>
+				</div>
+				<?php mywp_event_dashboard_render_timeline( $stats['blueprint_plugin_slug_timeline'] ); ?>
+			</section>
+
 			<?php foreach ( $metric_sections as $section_title => $section ) : ?>
 				<?php mywp_event_dashboard_render_metric_section(
 					$section_title,
@@ -1192,10 +1226,8 @@ function mywp_event_dashboard_metric_sections() {
 			'description' => 'Signals that explain new-site and returning-site usage.',
 			'metrics' => array(
 				'wordpress_installed:original_blueprint_source',
-				'wordpress_installed:storage',
 				'returning_visit:previous_visit_age_bucket',
 				'returning_visit:site_age_bucket',
-				'returning_visit:storage',
 			),
 		),
 		'Blueprint Installs' => array(
@@ -1249,7 +1281,21 @@ function mywp_event_dashboard_event_color( $event ) {
 		'blueprint_installed' => '#b26200',
 	);
 
-	return $colors[ $event ] ?? '#646970';
+	if ( isset( $colors[ $event ] ) ) {
+		return $colors[ $event ];
+	}
+
+	$palette = array(
+		'#0a7a69',
+		'#3858e9',
+		'#b26200',
+		'#8a2424',
+		'#5b5fc7',
+		'#008a20',
+		'#6c3b00',
+		'#007cba',
+	);
+	return $palette[ abs( crc32( $event ) ) % count( $palette ) ];
 }
 
 function mywp_event_dashboard_event_label( $event ) {
@@ -1265,11 +1311,9 @@ function mywp_event_dashboard_event_label( $event ) {
 function mywp_event_dashboard_metric_definitions() {
 	return array(
 		'event' => 'Events',
-		'wordpress_installed:storage' => 'New Installs: Storage',
 		'wordpress_installed:site_age_bucket' => 'New Installs: Site Age',
 		'wordpress_installed:previous_visit_age_bucket' => 'New Installs: Previous Visit Age',
 		'wordpress_installed:original_blueprint_source' => 'New Installs: Original Blueprint Source',
-		'returning_visit:storage' => 'Returning Visits: Storage',
 		'returning_visit:site_age_bucket' => 'Returning Visits: Site Age',
 		'returning_visit:previous_visit_age_bucket' => 'Returning Visits: Previous Visit Age',
 		'blueprint_installed:trigger' => 'Blueprint Installs: Trigger',

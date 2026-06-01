@@ -272,7 +272,7 @@ assert_equal(
 
 $dashboard_metric_sections = mywp_event_dashboard_metric_sections();
 assert_equal(
-    'returning_visit:extra_library_count_bucket',
+    'returning_visit:extra_library_count_bucket,returning_visit:storage',
     implode(
         ',',
         mywp_event_dashboard_other_metric_names(
@@ -280,11 +280,12 @@ assert_equal(
                 'event',
                 'blueprint_installed:plugin_slug',
                 'returning_visit:extra_library_count_bucket',
+                'returning_visit:storage',
             ),
             $dashboard_metric_sections
         )
     ),
-    'Dashboard should keep legacy metrics out of the main sections'
+    'Dashboard should keep legacy and removed metrics out of the main sections'
 );
 
 assert_equal(
@@ -328,6 +329,20 @@ $event_bumps = mywp_event_collect_stat_bumps( array(
         ),
     ),
 ) );
+
+assert_equal(
+    false,
+    in_array(
+        array(
+            'name' => 'blueprint_installed:storage',
+            'value' => 'opfs',
+            'views' => 1,
+        ),
+        $event_bumps,
+        true
+    ),
+    'Storage backend should not be counted'
+);
 
 assert_equal(
     false,

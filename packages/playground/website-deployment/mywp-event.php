@@ -232,13 +232,6 @@ function mywp_event_collect_stat_bumps( $payload ) {
 	mywp_event_add_allowed_property(
 		$bumps,
 		$event,
-		'storage',
-		$properties,
-		array( 'opfs', 'local-fs' )
-	);
-	mywp_event_add_allowed_property(
-		$bumps,
-		$event,
 		'site_age_bucket',
 		$properties,
 		mywp_event_age_buckets()

@@ -115,7 +115,6 @@ export function getSiteUsageStatsProperties(
 	now = Date.now()
 ): PersonalWpUsageStatsProperties {
 	return {
-		storage: metadata.storage,
 		site_age_bucket: getAgeBucket(metadata.whenCreated, now),
 		previous_visit_age_bucket: getAgeBucket(metadata.lastAccessDate, now),
 	};

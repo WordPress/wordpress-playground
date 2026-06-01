@@ -25,7 +25,7 @@ describe('Personal WP usage stats', () => {
 		logPersonalWpEvent(
 			'returning_visit',
 			{
-				storage: 'opfs',
+				site_age_bucket: '8-30-days',
 			},
 			{
 				endpoint: 'https://usage-stats.example.test/events',
@@ -50,7 +50,7 @@ describe('Personal WP usage stats', () => {
 			app: 'personal-wp',
 			event: 'returning_visit',
 			properties: {
-				storage: 'opfs',
+				site_age_bucket: '8-30-days',
 			},
 		});
 	});
@@ -125,7 +125,6 @@ describe('Personal WP usage stats', () => {
 		const properties = getSiteUsageStatsProperties(metadata, now);
 
 		expect(properties).toEqual({
-			storage: 'opfs',
 			site_age_bucket: '8-30-days',
 			previous_visit_age_bucket: '1-7-days',
 		});
