@@ -41,6 +41,7 @@ import type {
 } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
+import type { ProgressDetails, ProgressTrackerEvent } from '@php-wasm/progress';
 import type {
 	MountDescriptor,
 	PlaygroundClient,
@@ -61,6 +62,16 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
+	/**
+	 * Called whenever the loading progress changes. Use this to render
+	 * a custom progress UI outside of the Playground iframe.
+	 */
+	onProgress?: (progress: ProgressDetails) => void;
+	/**
+	 * Called after Playground finishes booting and blueprint execution.
+	 * Use this to hide a custom outer loading UI and reveal the iframe.
+	 */
+	onReady?: () => void;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
@@ -120,14 +131,6 @@ export interface StartPlaygroundOptions {
 	 * Defaults to the latest development version.
 	 */
 	sqliteDriverVersion?: string;
-	/**
-	 * HTML to show alongside the progress bar during loading.
-	 * When provided, the progress overlay shows this content
-	 * above the progress indicator. On user interaction the
-	 * content collapses and the progress shrinks to a corner
-	 * pill, then becomes a "ready" button when loading finishes.
-	 */
-	welcomeHtml?: string;
 	/**
 	 * How to handle WordPress installation.
 	 * Defaults to `download-and-install`.
@@ -197,6 +200,12 @@ export async function startPlaygroundWeb(
 	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(
 		options.blueprint
 	);
+	const onProgressListener = options.onProgress
+		? (event: ProgressTrackerEvent) => options.onProgress?.(event.detail)
+		: undefined;
+	if (onProgressListener) {
+		progressTracker.addEventListener('progress', onProgressListener);
+	}
 
 	const remoteUrlWithoutLegacyRunner = new URL(remoteUrl, remoteOrigin);
 	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
@@ -212,25 +221,24 @@ export async function startPlaygroundWeb(
 
 	await loadIframe(iframe, remoteUrl);
 
-	if (options.welcomeHtml) {
-		const targetOrigin = new URL(remoteUrl).origin;
-		iframe.contentWindow?.postMessage(
-			{
-				type: 'set-welcome-html',
-				html: options.welcomeHtml,
-			},
-			targetOrigin
-		);
-	}
-
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
 		: new BlueprintsV1Handler(options as StartPlaygroundOptions);
-	const playground = await handler.bootPlayground(iframe, progressTracker);
+	try {
+		const playground = await handler.bootPlayground(
+			iframe,
+			progressTracker
+		);
 
-	progressTracker.finish();
+		progressTracker.finish();
+		options.onReady?.();
 
-	return playground;
+		return playground;
+	} finally {
+		if (onProgressListener) {
+			progressTracker.removeEventListener('progress', onProgressListener);
+		}
+	}
 }
 
 /**

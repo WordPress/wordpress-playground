@@ -1,6 +1,5 @@
 // @ts-ignore
 import css from './style.module.css';
-import DOMPurify from 'dompurify';
 
 export interface ProgressBarOptions {
 	caption?: string;
@@ -13,75 +12,21 @@ class ProgressBar {
 	element: HTMLDivElement;
 	captionElement: HTMLHeadingElement;
 	statusElement: HTMLDivElement;
-	welcomeElement: HTMLDivElement | null = null;
-	progressSection: HTMLDivElement;
 	caption = 'Preparing WordPress';
 	progress = 0;
 	isIndefinite = false;
 	visible = true;
-	private minimized = false;
 
 	constructor(options: ProgressBarOptions = {}) {
 		this.element = document.createElement('div');
-
-		this.progressSection = document.createElement('div');
-		this.progressSection.classList.add(css['progressSection']);
 		this.captionElement = document.createElement('h1');
 		this.statusElement = document.createElement('div');
 		this.statusElement.setAttribute('role', 'status');
 		this.statusElement.setAttribute('aria-live', 'polite');
 		this.statusElement.setAttribute('aria-atomic', 'true');
-		this.progressSection.appendChild(this.captionElement);
-		this.progressSection.appendChild(this.statusElement);
-		this.element.appendChild(this.progressSection);
-
+		this.element.appendChild(this.captionElement);
+		this.element.appendChild(this.statusElement);
 		this.setOptions(options);
-	}
-
-	/**
-	 * Injects welcome HTML above the progress section.
-	 * Must be called before the progress bar is destroyed.
-	 */
-	setWelcomeHtml(html: string) {
-		if (this.welcomeElement) {
-			return;
-		}
-		this.welcomeElement = document.createElement('div');
-		this.welcomeElement.classList.add(css['welcomeContent']);
-		this.welcomeElement.textContent = '';
-		const fragment = DOMPurify.sanitize(html, {
-			ALLOWED_TAGS: allowedWelcomeTags,
-			ALLOWED_ATTR: allowedWelcomeAttributes,
-			ALLOW_DATA_ATTR: false,
-			RETURN_DOM_FRAGMENT: true,
-		});
-		for (const link of Array.from(fragment.querySelectorAll('a'))) {
-			link.setAttribute('rel', 'noopener noreferrer');
-		}
-		for (const node of Array.from(fragment.childNodes)) {
-			this.welcomeElement.appendChild(node);
-		}
-		// Insert welcome content before the progress section
-		this.element.insertBefore(this.welcomeElement, this.progressSection);
-		this.element.classList.add(css['overlayWithWelcome']);
-
-		// Listen on the overlay (the actual scroll container and
-		// the element that always sits under the pointer, including
-		// the centered progress pill). Scroll events don't bubble
-		// and don't fire on non-scrolling elements, so the listener
-		// has to live here, not on welcomeElement.
-		//
-		// We also listen for wheel/touchstart/keydown: during WASM
-		// boot the main thread can stall, and these "pre-scroll"
-		// signals queue up and fire as soon as the thread breathes —
-		// minimizing as soon as the user expresses any intent.
-		const onInteract = () => this.minimize();
-		const passive = { passive: true } as AddEventListenerOptions;
-		this.element.addEventListener('scroll', onInteract, passive);
-		this.element.addEventListener('wheel', onInteract, passive);
-		this.element.addEventListener('touchstart', onInteract, passive);
-		this.element.addEventListener('click', onInteract);
-		this.element.addEventListener('keydown', onInteract);
 	}
 
 	setOptions(options: ProgressBarOptions) {
@@ -101,35 +46,7 @@ class ProgressBar {
 		this.updateElement();
 	}
 
-	minimize() {
-		if (this.minimized) {
-			return;
-		}
-		this.minimized = true;
-		// Only move the progress section into a corner pill —
-		// the welcome content stays visible and scrollable.
-		this.progressSection.classList.add(css['progressSectionMinimized']);
-	}
-
 	destroy() {
-		if (this.welcomeElement && this.minimized) {
-			// User already interacted — replace the progress
-			// pill with a "ready" button in the corner.
-			this.progressSection.innerHTML = '';
-			const readyButton = document.createElement('button');
-			readyButton.className = css['readyButton'];
-			readyButton.textContent =
-				'\u2713 WordPress is ready \u2014 click to start';
-			readyButton.addEventListener('click', () => {
-				this.element.classList.add(css['isHidden']);
-				setTimeout(() => {
-					this.element.remove();
-				}, 500);
-			});
-			this.progressSection.appendChild(readyButton);
-			return;
-		}
-		// No interaction — dismiss everything immediately.
 		this.setOptions({
 			visible: false,
 		});
@@ -141,9 +58,6 @@ class ProgressBar {
 	updateElement() {
 		this.element.className = '';
 		this.element.classList.add(css['overlay']);
-		if (this.welcomeElement) {
-			this.element.classList.add(css['overlayWithWelcome']);
-		}
 
 		if (!this.visible) {
 			this.element.classList.add(css['isHidden']);
@@ -156,17 +70,17 @@ class ProgressBar {
 		this.statusElement.classList.add(css['visuallyHidden']);
 		this.statusElement.textContent = this.caption;
 
-		const progressBarWrapper = this.progressSection.querySelector(
+		const progressBarWrapper = this.element.querySelector(
 			`.${css['wrapper']}`
 		);
 		if (progressBarWrapper) {
-			this.progressSection.removeChild(progressBarWrapper);
+			this.element.removeChild(progressBarWrapper);
 		}
 
 		if (this.isIndefinite) {
-			this.progressSection.appendChild(this.createProgressIndefinite());
+			this.element.appendChild(this.createProgressIndefinite());
 		} else {
-			this.progressSection.appendChild(this.createProgress());
+			this.element.appendChild(this.createProgress());
 		}
 	}
 
@@ -193,28 +107,5 @@ class ProgressBar {
 		return wrapper;
 	}
 }
-
-const allowedWelcomeTags = [
-	'a',
-	'b',
-	'blockquote',
-	'br',
-	'code',
-	'div',
-	'em',
-	'h1',
-	'h2',
-	'h3',
-	'hr',
-	'i',
-	'li',
-	'ol',
-	'p',
-	'pre',
-	'span',
-	'strong',
-	'ul',
-];
-const allowedWelcomeAttributes = ['href', 'rel', 'target', 'title'];
 
 export default ProgressBar;

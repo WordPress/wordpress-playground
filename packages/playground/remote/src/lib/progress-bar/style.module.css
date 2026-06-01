@@ -7,12 +7,7 @@
 	display: flex;
 	flex-direction: column;
 	width: 100%;
-	/* Use dynamic viewport height so the scroll container tracks
-	   the visible area on mobile Safari as its address bar shows
-	   and hides — 100% (= large viewport) otherwise leaves the
-	   last content hidden behind the retracted chrome. */
-	height: 100vh;
-	height: 100dvh;
+	height: 100%;
 	justify-content: center;
 	align-items: center;
 	box-sizing: border-box;
@@ -22,181 +17,9 @@
 	transition: opacity ease-in 0.25s;
 }
 
-/* When welcome content is present, the overlay becomes
-   a scrollable container. The welcome content flows
-   normally and the progress section stays fixed in the
-   center, partially blocking the view so the user has
-   to scroll past it — giving us a clear interaction
-   signal. Override justify-content: with overflow, the
-   default center alignment pushes the top of tall content
-   above the scroll origin, where it cannot be reached. */
-.overlay-with-welcome {
-	overflow-y: auto;
-	justify-content: flex-start;
-}
-
 .overlay.is-hidden {
 	opacity: 0;
 	pointer-events: none;
-}
-
-/* Welcome content area — normal flow, scrolls behind
-   the fixed-center progress section. Typography matches
-   the wordpress.org visual identity: Inter for body/UI,
-   EB Garamond for headings, Blueberry (#3858e9) accent.
-   See https://make.wordpress.org/design/ */
-.welcome-content {
-	width: 100%;
-	max-width: 680px;
-	margin: 0 auto;
-	/* Bottom padding clears the minimized progress pill (bottom: 16px,
-	   ~44px tall, plus shadow) once the user has scrolled — otherwise
-	   the last line of content sits behind it, especially on mobile
-	   where content spans the full width. */
-	padding: 32px 24px 96px;
-	font-family:
-		'Inter',
-		-apple-system,
-		BlinkMacSystemFont,
-		'Segoe UI',
-		Roboto,
-		sans-serif;
-}
-
-.welcome-content h1 {
-	font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-	font-size: 2rem;
-	font-weight: 400;
-	line-height: 1.2;
-	color: #1e1e1e;
-	margin: 0 0 8px 0;
-}
-
-.welcome-content h2 {
-	font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-	font-size: 1.4rem;
-	font-weight: 400;
-	line-height: 1.3;
-	color: #1e1e1e;
-	margin: 28px 0 10px 0;
-}
-
-.welcome-content p {
-	font-size: 0.95rem;
-	line-height: 1.7;
-	color: #1e1e1e;
-	margin: 0 0 20px 0;
-}
-
-.welcome-content p.subtitle {
-	color: #656a71;
-	margin: 0 0 24px 0;
-}
-
-.welcome-content ul {
-	font-size: 0.9rem;
-	line-height: 1.6;
-	color: #1e1e1e;
-	padding-left: 20px;
-	margin: 0 0 8px 0;
-}
-
-.welcome-content ul li {
-	margin-bottom: 8px;
-}
-
-/* Use :global so the raw class name in the injected
-   welcomeHtml string matches — CSS modules would
-   otherwise hash .tip-box and break the selector. */
-.welcome-content :global(.tip-box) {
-	padding: 16px 20px;
-	border-radius: 12px;
-	font-size: 0.9rem;
-	line-height: 1.5;
-	color: #1e1e1e;
-	margin-top: 20px;
-	background-color: #eff2ff;
-}
-
-/* Progress section — caption + bar */
-.progress-section {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding: 16px 32px;
-	transition:
-		top 0.3s ease,
-		left 0.3s ease,
-		right 0.3s ease,
-		bottom 0.3s ease,
-		transform 0.3s ease,
-		padding 0.3s ease,
-		border-radius 0.3s ease,
-		box-shadow 0.3s ease;
-}
-
-/* When welcome content is present, fix the progress section
-   in the center of the viewport so it partially blocks the
-   welcome text. The user must scroll past it to read,
-   giving us a clear interaction signal. */
-.overlay-with-welcome .progress-section {
-	position: fixed;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	background: #fff;
-	border-radius: 16px;
-	box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
-	border: 1px solid #e0e0e0;
-	z-index: 6;
-}
-
-.overlay-with-welcome .progress-section-minimized {
-	top: auto;
-	left: auto;
-	bottom: 16px;
-	right: 16px;
-	transform: none;
-	border-radius: 24px;
-	padding: 10px 20px;
-	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-}
-
-.progress-section-minimized .caption {
-	font-size: 0.85rem;
-}
-
-.progress-section-minimized .wrapper {
-	width: 120px;
-	max-width: none;
-}
-
-/* Ready button shown after loading completes.
-   Blueberry (#3858e9) is the wordpress.org brand blue. */
-.ready-button {
-	pointer-events: auto;
-	display: block;
-	padding: 10px 24px;
-	background: #3858e9;
-	color: #fff;
-	border: none;
-	border-radius: 24px;
-	font-family:
-		'Inter',
-		-apple-system,
-		BlinkMacSystemFont,
-		'Segoe UI',
-		Roboto,
-		sans-serif;
-	font-size: 0.9rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: background 0.15s ease;
-	white-space: nowrap;
-}
-
-.ready-button:hover {
-	background: #2a44c4;
 }
 
 .wrapper {
@@ -316,35 +139,6 @@
 	.overlay {
 		background: #1e1e1e;
 		color: #fff;
-	}
-
-	.welcome-content h1,
-	.welcome-content h2 {
-		color: #fff;
-	}
-
-	.welcome-content p,
-	.welcome-content ul {
-		color: #ccc;
-	}
-
-	.welcome-content :global(.tip-box) {
-		background-color: #2a3a4a;
-		color: #e0e0e0;
-	}
-
-	.caption {
-		color: #fff;
-	}
-
-	.overlay-with-welcome .progress-section-minimized {
-		background: #2c2c2c;
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-	}
-
-	.overlay-with-welcome .progress-section {
-		background: #1e1e1e;
-		border-color: #444;
 	}
 
 	.wrapper {
