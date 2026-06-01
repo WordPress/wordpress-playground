@@ -5,7 +5,7 @@ import {
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
-import { ProgressTracker } from '@php-wasm/progress';
+import { ProgressTracker, type ProgressDetails } from '@php-wasm/progress';
 import { logger } from '@php-wasm/logger';
 
 import css from './style.module.css';
@@ -875,6 +875,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug));
 	const dispatch = useAppDispatch();
 	const iframeRef = useRef<HTMLIFrameElement>(null);
+	const [isBooting, setIsBooting] = useState(true);
+	const [bootProgress, setBootProgress] = useState<ProgressDetails>(
+		getInitialBootProgress
+	);
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
@@ -894,8 +898,14 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const forceWelcome = new URLSearchParams(window.location.search).has(
 		'welcome'
 	);
+	const runtimeConfigString = JSON.stringify(
+		site?.metadata.runtimeConfiguration
+	);
+	const activeSiteError = useAppSelector(selectActiveSiteError);
+	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
+	const hasActiveSiteError = activeSiteError && activeSiteSlug === siteSlug;
 
-	const welcomeHtml =
+	const loadingScreenHtml =
 		isReturningUser && !forceWelcome ? getWhatsNewHtml() : getWelcomeHtml();
 
 	const [installingBlueprint, setInstallingBlueprint] = useState<
@@ -928,6 +938,19 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	useEffect(() => {
 		return clearInstallBannerResetTimeout;
 	}, [clearInstallBannerResetTimeout]);
+
+	useEffect(() => {
+		setIsBooting(true);
+		setBootProgress(getInitialBootProgress());
+	}, [siteSlug, runtimeConfigString]);
+
+	const handleBootProgress = useCallback((progress: ProgressDetails) => {
+		setBootProgress(progress);
+	}, []);
+
+	const handleBootReady = useCallback(() => {
+		setIsBooting(false);
+	}, []);
 
 	const requestBlueprintInstallConfirmation = useCallback(
 		(blueprintUrl: string): Promise<boolean> => {
@@ -1208,8 +1231,16 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			<JustViewport
 				siteSlug={siteSlug}
 				iframeRef={iframeRef}
-				welcomeHtml={welcomeHtml}
+				isLoading={isBooting}
+				onBootProgress={handleBootProgress}
+				onBootReady={handleBootReady}
 			/>
+			{isBooting && !hasActiveSiteError ? (
+				<LoadingScreen
+					html={loadingScreenHtml}
+					progress={bootProgress}
+				/>
+			) : null}
 			<MainTabRecoveryNotice
 				isDependentMode={isDependentMode}
 				mainTabStatus={mainTabStatus}
@@ -1234,6 +1265,58 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				>
 					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
+			</div>
+		</div>
+	);
+}
+
+function getInitialBootProgress(): ProgressDetails {
+	return {
+		progress: 0,
+		caption: 'Preparing WordPress',
+	};
+}
+
+function LoadingScreen({
+	html,
+	progress,
+}: {
+	html: string;
+	progress: ProgressDetails;
+}) {
+	const hostRef = useRef<HTMLDivElement>(null);
+	const progressValue = Math.max(0, Math.min(100, progress.progress));
+
+	useEffect(() => {
+		const host = hostRef.current;
+		if (!host) {
+			return;
+		}
+		const shadowRoot =
+			host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+		shadowRoot.innerHTML = html;
+	}, [html]);
+
+	return (
+		<div className={css.loadingScreen}>
+			<div ref={hostRef} className={css.loadingScreenHtml} />
+			<div
+				className={css.loadingProgress}
+				role="progressbar"
+				aria-valuemin={0}
+				aria-valuemax={100}
+				aria-valuenow={Math.round(progressValue)}
+				aria-label={progress.caption}
+			>
+				<div className={css.loadingProgressCaption}>
+					{progress.caption}
+				</div>
+				<div className={css.loadingProgressTrack}>
+					<div
+						className={css.loadingProgressBar}
+						style={{ width: `${progressValue}%` }}
+					/>
+				</div>
 			</div>
 		</div>
 	);
@@ -1683,11 +1766,15 @@ function getErrorMessage(error: unknown): string {
 export const JustViewport = function JustViewport({
 	siteSlug,
 	iframeRef: externalIframeRef,
-	welcomeHtml,
+	isLoading = false,
+	onBootProgress,
+	onBootReady,
 }: {
 	siteSlug: string;
 	iframeRef?: RefObject<HTMLIFrameElement>;
-	welcomeHtml?: string;
+	isLoading?: boolean;
+	onBootProgress?: (progress: ProgressDetails) => void;
+	onBootReady?: () => void;
 }) {
 	const internalIframeRef = useRef<HTMLIFrameElement>(null);
 	const iframeRef = externalIframeRef || internalIframeRef;
@@ -1709,7 +1796,8 @@ export const JustViewport = function JustViewport({
 				signal: abortController.signal,
 				clearUrlAfterBlueprintApplied: true,
 				autoLogin: true,
-				welcomeHtml,
+				onProgress: onBootProgress,
+				onReady: onBootReady,
 			})
 		);
 
@@ -1730,7 +1818,9 @@ export const JustViewport = function JustViewport({
 			<iframe
 				key={siteSlug}
 				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
-				className={classNames('playground-viewport', css.fullSize)}
+				className={classNames('playground-viewport', css.fullSize, {
+					[css.viewportLoading]: isLoading,
+				})}
 				ref={iframeRef}
 			/>
 			{showOverlay ? (

@@ -20,6 +20,7 @@ import {
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
+import type { ProgressDetails } from '@php-wasm/progress';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import { setActiveSiteError } from './slice-ui';
@@ -47,8 +48,10 @@ export interface BootSiteClientOptions {
 	clearUrlAfterBlueprintApplied?: boolean;
 	/** Auto-login when WordPress is already installed */
 	autoLogin?: boolean;
-	/** HTML to display alongside the progress bar during boot */
-	welcomeHtml?: string;
+	/** Receive boot progress events from the Playground client */
+	onProgress?: (progress: ProgressDetails) => void;
+	/** Called when the iframe is ready to be shown */
+	onReady?: () => void;
 }
 
 export function bootSiteClient(
@@ -60,7 +63,8 @@ export function bootSiteClient(
 		signal,
 		clearUrlAfterBlueprintApplied = false,
 		autoLogin = false,
-		welcomeHtml,
+		onProgress,
+		onReady,
 	} = options;
 
 	return async (
@@ -170,6 +174,7 @@ export function bootSiteClient(
 					signal,
 					mainTabStatus: tabInfo.mainTabStatus || 'missing',
 				});
+				onReady?.();
 				logger.info(
 					'Playground running in dependent mode - using the main tab worker'
 				);
@@ -249,7 +254,9 @@ export function bootSiteClient(
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
-				welcomeHtml,
+				disableProgressBar: true,
+				onProgress,
+				onReady,
 				experimentalBlueprintsV2Runner:
 					!isWordPressInstalled &&
 					new URLSearchParams(window.location.search).get(
