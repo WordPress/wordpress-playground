@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProgressTracker } from '@php-wasm/progress';
+import type { ProgressTrackerEvent } from '@php-wasm/progress';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 
 const mocks = vi.hoisted(() => {
@@ -121,16 +122,26 @@ describe('startPlaygroundWeb', () => {
 	});
 });
 
-describe('startPlaygroundWeb loading hooks', () => {
+describe('startPlaygroundWeb loading progress', () => {
 	afterEach(() => {
 		vi.clearAllMocks();
 	});
 
-	it('reports progress and ready state to outer loading UIs', async () => {
+	it('reports loading progress through the provided tracker', async () => {
 		const playground = { connected: true };
 		const progressTracker = new ProgressTracker();
-		const onProgress = vi.fn();
-		const onReady = vi.fn();
+		const progressEvents: Array<{ progress: number; caption: string }> = [];
+		const onDone = vi.fn();
+		progressTracker.addEventListener(
+			'progress',
+			(event: ProgressTrackerEvent) => {
+				progressEvents.push({
+					progress: event.detail.progress,
+					caption: event.detail.caption,
+				});
+			}
+		);
+		progressTracker.addEventListener('done', onDone);
 		mocks.BlueprintsV1Handler.mockImplementation(() => ({
 			bootPlayground: mocks.bootPlaygroundV1,
 		}));
@@ -144,45 +155,22 @@ describe('startPlaygroundWeb loading hooks', () => {
 				iframe: createIframe(),
 				remoteUrl: 'http://localhost/remote.html',
 				progressTracker,
-				onProgress,
-				onReady,
 			})
 		).resolves.toBe(playground);
 
-		expect(onProgress).toHaveBeenCalledWith({
+		expect(progressEvents).toContainEqual({
 			progress: 0,
 			caption: 'Preparing WordPress',
 		});
-		expect(onProgress).toHaveBeenCalledWith({
+		expect(progressEvents).toContainEqual({
 			progress: 35,
 			caption: 'Preparing WordPress',
 		});
-		expect(onProgress).toHaveBeenLastCalledWith({
+		expect(progressEvents[progressEvents.length - 1]).toEqual({
 			progress: 100,
 			caption: 'Preparing WordPress',
 		});
-		expect(onReady).toHaveBeenCalledTimes(1);
-	});
-
-	it('removes the progress listener after booting', async () => {
-		const progressTracker = new ProgressTracker();
-		const onProgress = vi.fn();
-		mocks.BlueprintsV1Handler.mockImplementation(() => ({
-			bootPlayground: mocks.bootPlaygroundV1,
-		}));
-		mocks.bootPlaygroundV1.mockResolvedValue({ connected: true });
-
-		await startPlaygroundWeb({
-			iframe: createIframe(),
-			remoteUrl: 'http://localhost/remote.html',
-			progressTracker,
-			onProgress,
-		});
-		onProgress.mockClear();
-
-		progressTracker.set(50);
-
-		expect(onProgress).not.toHaveBeenCalled();
+		expect(onDone).toHaveBeenCalled();
 	});
 });
 

@@ -25,6 +25,7 @@ export {
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
+export { ProgressTracker } from '@php-wasm/progress';
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor, SiteThumbnail };
 
@@ -41,7 +42,6 @@ import type {
 } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
-import type { ProgressDetails, ProgressTrackerEvent } from '@php-wasm/progress';
 import type {
 	MountDescriptor,
 	PlaygroundClient,
@@ -62,16 +62,6 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	/**
-	 * Called whenever the loading progress changes. Use this to render
-	 * a custom progress UI outside of the Playground iframe.
-	 */
-	onProgress?: (progress: ProgressDetails) => void;
-	/**
-	 * Called after Playground finishes booting and blueprint execution.
-	 * Use this to hide a custom outer loading UI and reveal the iframe.
-	 */
-	onReady?: () => void;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
@@ -200,16 +190,6 @@ export async function startPlaygroundWeb(
 	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(
 		options.blueprint
 	);
-	const onProgressListener = options.onProgress
-		? (event: ProgressTrackerEvent) =>
-				options.onProgress?.({
-					progress: event.detail.progress,
-					caption: event.detail.caption,
-				})
-		: undefined;
-	if (onProgressListener) {
-		progressTracker.addEventListener('progress', onProgressListener);
-	}
 
 	const remoteUrlWithoutLegacyRunner = new URL(remoteUrl, remoteOrigin);
 	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
@@ -228,21 +208,11 @@ export async function startPlaygroundWeb(
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
 		: new BlueprintsV1Handler(options as StartPlaygroundOptions);
-	try {
-		const playground = await handler.bootPlayground(
-			iframe,
-			progressTracker
-		);
+	const playground = await handler.bootPlayground(iframe, progressTracker);
 
-		progressTracker.finish();
-		options.onReady?.();
+	progressTracker.finish();
 
-		return playground;
-	} finally {
-		if (onProgressListener) {
-			progressTracker.removeEventListener('progress', onProgressListener);
-		}
-	}
+	return playground;
 }
 
 /**
