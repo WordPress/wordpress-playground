@@ -50,43 +50,17 @@ type BlueprintSourceClass =
 
 type BlueprintUsageStatsProperties = {
 	blueprint_source?: BlueprintSourceClass;
-	blueprint_id?: string;
 	plugin_slugs?: string[];
+};
+
+type BlueprintUsageStatsOptions = {
+	requestSource?: BlueprintInstallUsageStatsRequestSource;
 };
 
 const EVENT_SCHEMA = 'personal-wp-event/v1';
 const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
 const MAX_PLUGIN_SLUGS = 10;
 const UNKNOWN_PLUGIN_SLUG = 'unknown';
-const APP_BLUEPRINT_IDS = new Set([
-	'ai-assistant',
-	'chat-to-blog',
-	'cookbook',
-	'memex',
-	'personal-crm',
-	'post-collection',
-	'rss-reader',
-	'wordcamp-companion',
-	'wordopedia',
-]);
-const APP_PLUGIN_SLUGS = new Set([
-	'ai-assistant',
-	'chat-to-blog',
-	'cookbook',
-	'friends',
-	'keeping-contact',
-	'memex',
-	'personal-crm',
-	'post-collection',
-	'send-to-e-reader',
-	UNKNOWN_PLUGIN_SLUG,
-	'wordcamp-companion',
-	'wordopedia',
-]);
-const APP_BLUEPRINT_PATHS = [
-	/(?:^|\/)blueprints\/apps\/([a-z0-9][a-z0-9-]{0,100})\.json$/,
-	/(?:^|\/)blueprints\/([a-z0-9][a-z0-9-]{0,100})\/blueprint\.json$/,
-];
 const USAGE_STATS_HOST = personalWpUsageStatsHost || 'my.wordpress.net';
 
 export function logPersonalWpEvent(
@@ -160,12 +134,16 @@ export function getUsageStatsDate(timestamp: number): string {
 
 export function getBlueprintUsageStatsProperties(
 	blueprint: BlueprintV1Declaration,
-	blueprintUrl?: string
+	blueprintUrl?: string,
+	options: BlueprintUsageStatsOptions = {}
 ): BlueprintUsageStatsProperties {
 	const steps = ((blueprint.steps || []) as unknown[]).filter(
 		isBlueprintStep
 	);
-	const pluginSlugs = getBlueprintPluginSlugs(blueprint, steps);
+	const shouldReportAppDetails = options.requestSource === 'my-apps';
+	const pluginSlugs = shouldReportAppDetails
+		? getBlueprintPluginSlugs(blueprint, steps)
+		: [];
 
 	const properties: BlueprintUsageStatsProperties = {};
 
@@ -175,32 +153,9 @@ export function getBlueprintUsageStatsProperties(
 
 	if (blueprintUrl) {
 		properties.blueprint_source = classifyBlueprintUrl(blueprintUrl);
-		const blueprintId = getBlueprintIdFromUrl(blueprintUrl);
-		if (blueprintId) {
-			properties.blueprint_id = blueprintId;
-		}
 	}
 
 	return properties;
-}
-
-export function getBlueprintIdFromUrl(url: string): string | undefined {
-	let parsedUrl: URL;
-	try {
-		parsedUrl = new URL(url, globalThis.location?.href);
-	} catch {
-		return;
-	}
-
-	for (const pathPattern of APP_BLUEPRINT_PATHS) {
-		const match = parsedUrl.pathname.match(pathPattern);
-		const blueprintId = match?.[1];
-		if (blueprintId && APP_BLUEPRINT_IDS.has(blueprintId)) {
-			return blueprintId;
-		}
-	}
-
-	return undefined;
 }
 
 export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
@@ -379,11 +334,11 @@ function addPluginSlug(slugs: string[], value: string): boolean {
 	}
 
 	const slug = normalizePluginSlug(value);
-	if (slug && APP_PLUGIN_SLUGS.has(slug) && !slugs.includes(slug)) {
+	if (slug && !slugs.includes(slug)) {
 		slugs.push(slug);
 		return true;
 	}
-	return slug ? APP_PLUGIN_SLUGS.has(slug) : false;
+	return !!slug;
 }
 
 function addUnknownPluginSlug(slugs: string[]): void {

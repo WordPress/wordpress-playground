@@ -3,38 +3,13 @@
 const MYWP_EVENT_MAX_BODY_BYTES = 8192;
 const MYWP_EVENT_RATE_LIMIT_CAPACITY = 300;
 const MYWP_EVENT_RATE_LIMIT_FILL_RATE_PER_MINUTE = 120;
+const MYWP_EVENT_MAX_PLUGIN_SLUGS = 10;
+const MYWP_EVENT_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
 
 const MYWP_EVENT_ALLOWED_EVENTS = array(
 	'wordpress_installed',
 	'returning_visit',
 	'blueprint_installed',
-);
-
-const MYWP_EVENT_ALLOWED_APP_BLUEPRINT_IDS = array(
-	'ai-assistant',
-	'chat-to-blog',
-	'cookbook',
-	'memex',
-	'personal-crm',
-	'post-collection',
-	'rss-reader',
-	'wordcamp-companion',
-	'wordopedia',
-);
-
-const MYWP_EVENT_ALLOWED_PLUGIN_SLUGS = array(
-	'ai-assistant',
-	'chat-to-blog',
-	'cookbook',
-	'friends',
-	'keeping-contact',
-	'memex',
-	'personal-crm',
-	'post-collection',
-	'send-to-e-reader',
-	'unknown',
-	'wordcamp-companion',
-	'wordopedia',
 );
 
 if ( 'cli' !== php_sapi_name() ) {
@@ -330,18 +305,12 @@ function mywp_event_add_blueprint_bumps( &$bumps, $properties ) {
 			'wordpress-org',
 		)
 	);
-	mywp_event_add_allowed_property(
-		$bumps,
-		'blueprint_installed',
-		'blueprint_id',
-		$properties,
-		MYWP_EVENT_ALLOWED_APP_BLUEPRINT_IDS
-	);
-	mywp_event_add_list_bumps(
+	mywp_event_add_safe_list_bumps(
 		$bumps,
 		'blueprint_installed:plugin_slug',
 		$properties['plugin_slugs'] ?? null,
-		MYWP_EVENT_ALLOWED_PLUGIN_SLUGS
+		MYWP_EVENT_SAFE_PLUGIN_SLUG_PATTERN,
+		MYWP_EVENT_MAX_PLUGIN_SLUGS
 	);
 }
 
@@ -358,7 +327,13 @@ function mywp_event_add_allowed_property(
 	}
 }
 
-function mywp_event_add_list_bumps( &$bumps, $name, $values, $allowed_values ) {
+function mywp_event_add_safe_list_bumps(
+	&$bumps,
+	$name,
+	$values,
+	$pattern,
+	$max_values
+) {
 	if ( ! is_array( $values ) ) {
 		return;
 	}
@@ -367,7 +342,7 @@ function mywp_event_add_list_bumps( &$bumps, $name, $values, $allowed_values ) {
 	foreach ( $values as $value ) {
 		if (
 			! is_string( $value ) ||
-			! in_array( $value, $allowed_values, true ) ||
+			! preg_match( $pattern, $value ) ||
 			isset( $seen[ $value ] )
 		) {
 			continue;
@@ -375,6 +350,9 @@ function mywp_event_add_list_bumps( &$bumps, $name, $values, $allowed_values ) {
 
 		$seen[ $value ] = true;
 		mywp_event_add_bump( $bumps, $name, $value );
+		if ( count( $seen ) >= $max_values ) {
+			return;
+		}
 	}
 }
 

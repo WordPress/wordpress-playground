@@ -312,7 +312,6 @@ $event_bumps = mywp_event_collect_stat_bumps( array(
         'storage' => 'opfs',
         'php_version' => '8.4',
         'wp_version' => 'latest',
-        'blueprint_id' => 'rss-reader',
         'trigger' => 'app-request',
         'request_source' => 'my-apps',
         'step_count' => 2,
@@ -323,25 +322,12 @@ $event_bumps = mywp_event_collect_stat_bumps( array(
         'plugin_slugs' => array(
             'friends',
             'unknown',
-            'attacker-controlled-id',
+            'new-reader',
+            'Attacker Controlled ID',
             'friends',
         ),
     ),
 ) );
-
-assert_equal(
-    true,
-    in_array(
-        array(
-            'name' => 'blueprint_installed:blueprint_id',
-            'value' => 'rss-reader',
-            'views' => 1,
-        ),
-        $event_bumps,
-        true
-    ),
-    'Allowed app blueprint ID was not counted'
-);
 
 assert_equal(
     false,
@@ -386,17 +372,31 @@ assert_equal(
 );
 
 assert_equal(
-    false,
+    true,
     in_array(
         array(
             'name' => 'blueprint_installed:plugin_slug',
-            'value' => 'attacker-controlled-id',
+            'value' => 'new-reader',
             'views' => 1,
         ),
         $event_bumps,
         true
     ),
-    'Unrecognized plugin slug should not be counted'
+    'Safe plugin slug was not counted'
+);
+
+assert_equal(
+    false,
+    in_array(
+        array(
+            'name' => 'blueprint_installed:plugin_slug',
+            'value' => 'Attacker Controlled ID',
+            'views' => 1,
+        ),
+        $event_bumps,
+        true
+    ),
+    'Unsafe plugin slug should not be counted'
 );
 
 assert_equal(
@@ -425,27 +425,6 @@ assert_equal(
         true
     ),
     'Allowed request source was not counted'
-);
-
-assert_equal(
-    false,
-	in_array(
-		array(
-			'name' => 'blueprint_installed:blueprint_id',
-			'value' => 'attacker-controlled-id',
-			'views' => 1,
-		),
-		mywp_event_collect_stat_bumps( array(
-			'schema' => 'personal-wp-event/v1',
-			'app' => 'personal-wp',
-			'event' => 'blueprint_installed',
-			'properties' => array(
-				'blueprint_id' => 'attacker-controlled-id',
-			),
-		) ),
-		true
-	),
-    'Unrecognized blueprint ID should not be counted'
 );
 
 assert_equal(

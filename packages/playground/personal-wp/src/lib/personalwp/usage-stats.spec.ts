@@ -3,7 +3,6 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { SiteMetadata } from '../state/redux/slice-sites';
 import {
 	classifyBlueprintUrl,
-	getBlueprintIdFromUrl,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
 	getUsageStatsDate,
@@ -209,7 +208,6 @@ describe('Personal WP usage stats', () => {
 
 		expect(properties).toEqual({
 			blueprint_source: 'external-url',
-			plugin_slugs: ['friends', 'unknown'],
 		});
 
 		const serialized = JSON.stringify(properties);
@@ -222,48 +220,52 @@ describe('Personal WP usage stats', () => {
 	});
 
 	it('reports only safe plugin slugs from app blueprint plugin installs', () => {
-		const properties = getBlueprintUsageStatsProperties({
-			steps: [
-				{
-					step: 'installPlugin',
-					pluginData: {
-						resource: 'git:directory',
-						url: 'https://github.com/akirk/ai-assistant',
+		const properties = getBlueprintUsageStatsProperties(
+			{
+				steps: [
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'git:directory',
+							url: 'https://github.com/akirk/ai-assistant',
+						},
+						options: {
+							targetFolderName: 'ai-assistant',
+						},
 					},
-					options: {
-						targetFolderName: 'ai-assistant',
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'wordpress.org/plugins',
+							slug: 'friends',
+						},
 					},
-				},
-				{
-					step: 'installPlugin',
-					pluginData: {
-						resource: 'wordpress.org/plugins',
-						slug: 'friends',
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'git:directory',
+							url: 'https://github.com/akirk/send-to-e-reader.git',
+						},
 					},
-				},
-				{
-					step: 'installPlugin',
-					pluginData: {
-						resource: 'git:directory',
-						url: 'https://github.com/akirk/send-to-e-reader.git',
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'git:directory',
+							url: 'https://private.example.test/private-plugin',
+						},
 					},
-				},
-				{
-					step: 'installPlugin',
-					pluginData: {
-						resource: 'git:directory',
-						url: 'https://private.example.test/private-plugin',
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'wordpress.org/plugins',
+							slug: 'Invalid Plugin Name',
+						},
 					},
-				},
-				{
-					step: 'installPlugin',
-					pluginData: {
-						resource: 'wordpress.org/plugins',
-						slug: 'Invalid Plugin Name',
-					},
-				},
-			],
-		} as unknown as BlueprintV1Declaration);
+				],
+			} as unknown as BlueprintV1Declaration,
+			'/blueprints/apps/ai-assistant.json',
+			{ requestSource: 'my-apps' }
+		);
 
 		expect(properties.plugin_slugs).toEqual([
 			'ai-assistant',
@@ -294,41 +296,23 @@ describe('Personal WP usage stats', () => {
 		expect(classifyBlueprintUrl('http://[invalid')).toBe('invalid-url');
 	});
 
-	it('reports app blueprint identifiers from the allowlisted path shape', () => {
+	it('does not report blueprint identifiers', () => {
 		vi.stubGlobal('location', {
 			href: 'https://playground.wordpress.net/',
 			origin: 'https://playground.wordpress.net',
 		});
 
-		expect(getBlueprintIdFromUrl('/blueprints/apps/rss-reader.json')).toBe(
-			'rss-reader'
-		);
-		expect(
-			getBlueprintIdFromUrl('/blueprints/ai-assistant/blueprint.json')
-		).toBe('ai-assistant');
-		expect(
-			getBlueprintIdFromUrl(
-				'file:///Users/example/blueprints/apps/personal-crm.json'
-			)
-		).toBe('personal-crm');
-		expect(
-			getBlueprintIdFromUrl('/blueprints/apps/Invalid Name.json')
-		).toBeUndefined();
-		expect(
-			getBlueprintIdFromUrl('/blueprints/private-client/blueprint.json')
-		).toBeUndefined();
-		expect(
-			getBlueprintIdFromUrl('/private/apps/rss-reader.json')
-		).toBeUndefined();
-
 		const properties = getBlueprintUsageStatsProperties(
 			{
 				steps: [],
 			},
-			'/blueprints/chat-to-blog/blueprint.json?token=secret'
+			'/blueprints/chat-to-blog/blueprint.json?token=secret',
+			{ requestSource: 'my-apps' }
 		);
 
-		expect(properties.blueprint_id).toBe('chat-to-blog');
+		expect(properties).toEqual({
+			blueprint_source: 'same-origin',
+		});
 		expect(JSON.stringify(properties)).not.toContain('token=secret');
 	});
 });

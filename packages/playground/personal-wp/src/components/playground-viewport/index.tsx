@@ -1132,7 +1132,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 							: {}),
 						...getBlueprintUsageStatsProperties(
 							declaration,
-							blueprintUrl
+							blueprintUrl,
+							{
+								requestSource: options.usageStatsRequestSource,
+							}
 						),
 					});
 				}

@@ -1199,9 +1199,8 @@ function mywp_event_dashboard_metric_sections() {
 			),
 		),
 		'Blueprint Installs' => array(
-			'description' => 'Which blueprint paths and plugin buckets are being installed.',
+			'description' => 'Which blueprint sources and plugin buckets are being installed.',
 			'metrics' => array(
-				'blueprint_installed:blueprint_id',
 				'blueprint_installed:plugin_slug',
 				'blueprint_installed:trigger',
 				'blueprint_installed:request_source',
@@ -1276,7 +1275,6 @@ function mywp_event_dashboard_metric_definitions() {
 		'blueprint_installed:trigger' => 'Blueprint Installs: Trigger',
 		'blueprint_installed:request_source' => 'Blueprint Installs: Request Source',
 		'blueprint_installed:blueprint_source' => 'Blueprint Installs: Source Class',
-		'blueprint_installed:blueprint_id' => 'Blueprint Installs: Blueprint ID',
 		'blueprint_installed:plugin_slug' => 'Blueprint Installs: Plugin Slug',
 	);
 }
