@@ -2072,17 +2072,17 @@
 							"type": "object",
 							"properties": {
 								"min": {
-									"$ref": "#/definitions/DataSources.WordPressVersion"
+									"$ref": "#/definitions/DataSources.WordPressVersionConstraintVersion"
 								},
 								"max": {
-									"$ref": "#/definitions/DataSources.WordPressVersion"
+									"$ref": "#/definitions/DataSources.WordPressVersionConstraintVersion"
 								},
 								"preferred": {
-									"$ref": "#/definitions/DataSources.WordPressVersion",
+									"$ref": "#/definitions/DataSources.WordPressVersionPreferredVersion",
 									"default": "latest"
 								},
 								"recommended": {
-									"$ref": "#/definitions/DataSources.WordPressVersion",
+									"$ref": "#/definitions/DataSources.WordPressVersionPreferredVersion",
 									"default": "latest"
 								}
 							},
@@ -2102,13 +2102,13 @@
 							"type": "object",
 							"properties": {
 								"min": {
-									"$ref": "#/definitions/DataSources.PHPVersion"
+									"$ref": "#/definitions/DataSources.PHPVersionConstraintVersion"
 								},
 								"recommended": {
-									"$ref": "#/definitions/DataSources.PHPVersion"
+									"$ref": "#/definitions/DataSources.PHPVersionConstraintVersion"
 								},
 								"max": {
-									"$ref": "#/definitions/DataSources.PHPVersion"
+									"$ref": "#/definitions/DataSources.PHPVersionConstraintVersion"
 								}
 							},
 							"additionalProperties": false
@@ -2145,7 +2145,7 @@
 								"targetDirectoryName": {
 									"type": "string",
 									"description": "An explicit directory name within wp-content/themes to install the theme at. If not provided, it will be inferred from the theme source.",
-									"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+									"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 								},
 								"onError": {
 									"type": "string",
@@ -2194,7 +2194,7 @@
 									"targetDirectoryName": {
 										"type": "string",
 										"description": "An explicit directory name within wp-content/themes to install the theme at. If not provided, it will be inferred from the theme source.",
-										"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+										"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 									},
 									"onError": {
 										"type": "string",
@@ -2212,7 +2212,7 @@
 							}
 						]
 					},
-					"description": "Installed themes to install without activating them.\n\nExample:\n\n```json themes: [     \"stylish-press-theme\",     \"adventurer@4.6.0\",     {         \"source\": \"https://github.com/richtabor/kanso/archive/refs/heads/main.zip\",         \"id\": \"kanso\"     } ] ```"
+					"description": "Installed themes to install without activating them.\n\nExample:\n\n```json {     \"version\": 2,     \"themes\": [         \"stylish-press-theme\",         \"adventurer@4.6.0\",         {             \"source\": \"https://github.com/richtabor/kanso/archive/refs/heads/main.zip\",             \"targetDirectoryName\": \"kanso\"         }     ] } ```"
 				},
 				"plugins": {
 					"type": "array",
@@ -2258,13 +2258,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 													}
 												}
 											]
@@ -2274,7 +2274,7 @@
 									"targetDirectoryName": {
 										"type": "string",
 										"description": "An explicit directory name within wp-content/plugins to install the plugin at. If not provided, it will be inferred from the plugin source.",
-										"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+										"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 									},
 									"onError": {
 										"type": "string",
@@ -2292,14 +2292,14 @@
 							}
 						]
 					},
-					"description": "A list of plugins to install and activate.\n\nExample:\n\n```json plugins: [     \"jetpack\",     \"akismet@6.4.3\",     \"./query-monitor.php\",     \"./code-block.zip\",     {         \"source\": \"https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip\",         \"active\": false     } ]"
+					"description": "A list of plugins to install and activate.\n\nExample:\n\n```json {     \"version\": 2,     \"plugins\": [         \"jetpack\",         \"akismet@6.4.3\",         \"./query-monitor.php\",         \"./code-block.zip\",         {             \"source\": \"https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip\",             \"active\": false         }     ] } ```"
 				},
 				"muPlugins": {
 					"type": "array",
 					"items": {
 						"$ref": "#/definitions/DataSources.DataReference"
 					},
-					"description": "A list of mu-plugins to install.\n\nExample:\n\n```json muPlugins: [     {         \"file\": {             \"filename\": \"addFilter-0.php\",             \"content\": \"<?php add_action( 'requests-requests.before_request', function( &$url ) {\\n$url = 'https://playground.wordpress.net/cors-proxy.php?' . $url;\\n} );\"         }     } ] ```"
+					"description": "A list of mu-plugins to install.\n\nExample:\n\n```json {     \"version\": 2,     \"muPlugins\": [         {             \"filename\": \"addFilter-0.php\",             \"content\": \"<?php add_action( 'requests-requests.before_request', function( &$url ) {\\n$url = 'https://playground.wordpress.net/cors-proxy.php?' . $url;\\n} );\"         }     ] } ```"
 				},
 				"postTypes": {
 					"type": "object",
@@ -2675,13 +2675,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																	"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																	"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																}
 															}
 														]
@@ -3088,13 +3088,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																		"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																		"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																	}
 																}
 															]
@@ -3229,13 +3229,13 @@
 																	{
 																		"type": "array",
 																		"items": {
-																			"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																			"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																		}
 																	},
 																	{
 																		"type": "object",
 																		"additionalProperties": {
-																			"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																			"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																		}
 																	}
 																]
@@ -3262,6 +3262,17 @@
 								"type": "object",
 								"additionalProperties": false,
 								"properties": {
+									"authorsMode": {
+										"type": "string",
+										"const": "map",
+										"description": "Map remote authors to existing local authors."
+									},
+									"authorsMap": {
+										"type": "object",
+										"additionalProperties": {
+											"type": "string"
+										}
+									},
 									"urlsMode": {
 										"type": "string",
 										"enum": ["rewrite", "preserve"],
@@ -3301,28 +3312,93 @@
 										"description": "Static assets handling.\n\nPossible values:\n\n* \"fetch\" – Fetch the static assets and save them to the local filesystem.\n* \"hotlink\" – Hotlink the static assets from the remote site.",
 										"default": "\"fetch\"."
 									},
-									"authorsMode": {
-										"type": "string",
-										"enum": [
-											"create",
-											"default-author",
-											"map"
-										],
-										"description": "How to handle authors that don't exist on the current site.\n\nPossible values:\n\n* \"create\" – Create a new author.\n* \"default-author\" – Use the default author.\n* \"map\" – Map the author to an existing author on the current site.",
-										"default": "\"create\"."
-									},
 									"defaultAuthorUsername": {
 										"type": "string",
 										"description": "The default author to use when `mode` is \"default-author\".",
 										"default": "\"admin\"."
 									},
+									"importUsers": {
+										"type": "boolean",
+										"description": "Whether to import users from the remote site.",
+										"default": "false."
+									},
+									"importComments": {
+										"type": "boolean",
+										"description": "Whether to import comments from the remote site.",
+										"default": "false."
+									},
+									"importSiteOptions": {
+										"type": "boolean",
+										"description": "Whether to import site settings from the remote site.",
+										"default": "false."
+									}
+								},
+								"required": [
+									"authorsMap",
+									"authorsMode",
+									"source",
+									"type"
+								]
+							},
+							{
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"authorsMode": {
+										"type": "string",
+										"enum": ["create", "default-author"],
+										"description": "How to handle authors that don't exist on the current site.\n\nPossible values:\n\n* \"create\" – Create a new author.\n* \"default-author\" – Use the default author.",
+										"default": "\"create\"."
+									},
 									"authorsMap": {
 										"type": "object",
 										"additionalProperties": {
 											"type": "string"
+										}
+									},
+									"urlsMode": {
+										"type": "string",
+										"enum": ["rewrite", "preserve"],
+										"description": "Whether to rewrite the hrefs in the remote site's content URLs in the WXR file from the remote site domain to the current site domain's (and path etc).\n\nPossible values:\n\n* \"rewrite\" – Rewrite the hrefs to the current site domain's (and path etc).\n* \"preserve\" – Preserve the hrefs as they are.",
+										"default": "\"rewrite\"."
+									},
+									"urlsMap": {
+										"type": "object",
+										"additionalProperties": {
+											"$ref": "#/definitions/DataSources.URLReference"
 										},
-										"description": "Map post authors from the remote site to the current site.\n\nWhen not provided, the importer will attempt to match the authors by username, email, or name.\n\nRequired when `authorsMode` is \"map\".",
-										"default": "undefined."
+										"description": "A mapping of base URLs to rewrite.",
+										"propertyNames": {
+											"$ref": "#/definitions/DataSources.URLReference"
+										}
+									},
+									"type": {
+										"type": "string",
+										"const": "wxr"
+									},
+									"source": {
+										"anyOf": [
+											{
+												"$ref": "#/definitions/DataSources.FileDataReference"
+											},
+											{
+												"type": "array",
+												"items": {
+													"$ref": "#/definitions/DataSources.FileDataReference"
+												}
+											}
+										]
+									},
+									"staticAssets": {
+										"type": "string",
+										"enum": ["fetch", "hotlink"],
+										"description": "Static assets handling.\n\nPossible values:\n\n* \"fetch\" – Fetch the static assets and save them to the local filesystem.\n* \"hotlink\" – Hotlink the static assets from the remote site.",
+										"default": "\"fetch\"."
+									},
+									"defaultAuthorUsername": {
+										"type": "string",
+										"description": "The default author to use when `mode` is \"default-author\".",
+										"default": "\"admin\"."
 									},
 									"importUsers": {
 										"type": "boolean",
@@ -3678,13 +3754,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																							"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																							"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																						}
 																					}
 																				]
@@ -3821,13 +3897,13 @@
 																						{
 																							"type": "array",
 																							"items": {
-																								"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																								"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																							}
 																						},
 																						{
 																							"type": "object",
 																							"additionalProperties": {
-																								"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+																								"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 																							}
 																						}
 																					]
@@ -3859,6 +3935,17 @@
 													"type": "object",
 													"additionalProperties": false,
 													"properties": {
+														"authorsMode": {
+															"type": "string",
+															"const": "map",
+															"description": "Map remote authors to existing local authors."
+														},
+														"authorsMap": {
+															"type": "object",
+															"additionalProperties": {
+																"type": "string"
+															}
+														},
 														"urlsMode": {
 															"type": "string",
 															"enum": [
@@ -3904,28 +3991,102 @@
 															"description": "Static assets handling.\n\nPossible values:\n\n* \"fetch\" – Fetch the static assets and save them to the local filesystem.\n* \"hotlink\" – Hotlink the static assets from the remote site.",
 															"default": "\"fetch\"."
 														},
-														"authorsMode": {
-															"type": "string",
-															"enum": [
-																"create",
-																"default-author",
-																"map"
-															],
-															"description": "How to handle authors that don't exist on the current site.\n\nPossible values:\n\n* \"create\" – Create a new author.\n* \"default-author\" – Use the default author.\n* \"map\" – Map the author to an existing author on the current site.",
-															"default": "\"create\"."
-														},
 														"defaultAuthorUsername": {
 															"type": "string",
 															"description": "The default author to use when `mode` is \"default-author\".",
 															"default": "\"admin\"."
 														},
+														"importUsers": {
+															"type": "boolean",
+															"description": "Whether to import users from the remote site.",
+															"default": "false."
+														},
+														"importComments": {
+															"type": "boolean",
+															"description": "Whether to import comments from the remote site.",
+															"default": "false."
+														},
+														"importSiteOptions": {
+															"type": "boolean",
+															"description": "Whether to import site settings from the remote site.",
+															"default": "false."
+														}
+													},
+													"required": [
+														"authorsMap",
+														"authorsMode",
+														"source",
+														"type"
+													]
+												},
+												{
+													"type": "object",
+													"additionalProperties": false,
+													"properties": {
+														"authorsMode": {
+															"type": "string",
+															"enum": [
+																"create",
+																"default-author"
+															],
+															"description": "How to handle authors that don't exist on the current site.\n\nPossible values:\n\n* \"create\" – Create a new author.\n* \"default-author\" – Use the default author.",
+															"default": "\"create\"."
+														},
 														"authorsMap": {
 															"type": "object",
 															"additionalProperties": {
 																"type": "string"
+															}
+														},
+														"urlsMode": {
+															"type": "string",
+															"enum": [
+																"rewrite",
+																"preserve"
+															],
+															"description": "Whether to rewrite the hrefs in the remote site's content URLs in the WXR file from the remote site domain to the current site domain's (and path etc).\n\nPossible values:\n\n* \"rewrite\" – Rewrite the hrefs to the current site domain's (and path etc).\n* \"preserve\" – Preserve the hrefs as they are.",
+															"default": "\"rewrite\"."
+														},
+														"urlsMap": {
+															"type": "object",
+															"additionalProperties": {
+																"$ref": "#/definitions/DataSources.URLReference"
 															},
-															"description": "Map post authors from the remote site to the current site.\n\nWhen not provided, the importer will attempt to match the authors by username, email, or name.\n\nRequired when `authorsMode` is \"map\".",
-															"default": "undefined."
+															"description": "A mapping of base URLs to rewrite.",
+															"propertyNames": {
+																"$ref": "#/definitions/DataSources.URLReference"
+															}
+														},
+														"type": {
+															"type": "string",
+															"const": "wxr"
+														},
+														"source": {
+															"anyOf": [
+																{
+																	"$ref": "#/definitions/DataSources.FileDataReference"
+																},
+																{
+																	"type": "array",
+																	"items": {
+																		"$ref": "#/definitions/DataSources.FileDataReference"
+																	}
+																}
+															]
+														},
+														"staticAssets": {
+															"type": "string",
+															"enum": [
+																"fetch",
+																"hotlink"
+															],
+															"description": "Static assets handling.\n\nPossible values:\n\n* \"fetch\" – Fetch the static assets and save them to the local filesystem.\n* \"hotlink\" – Hotlink the static assets from the remote site.",
+															"default": "\"fetch\"."
+														},
+														"defaultAuthorUsername": {
+															"type": "string",
+															"description": "The default author to use when `mode` is \"default-author\".",
+															"default": "\"admin\"."
 														},
 														"importUsers": {
 															"type": "boolean",
@@ -4048,13 +4209,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 													}
 												}
 											]
@@ -4064,7 +4225,7 @@
 									"targetDirectoryName": {
 										"type": "string",
 										"description": "An explicit directory name within wp-content/plugins to install the plugin at. If not provided, it will be inferred from the plugin source.",
-										"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+										"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 									},
 									"onError": {
 										"type": "string",
@@ -4104,7 +4265,7 @@
 									"targetDirectoryName": {
 										"type": "string",
 										"description": "An explicit directory name within wp-content/themes to install the theme at. If not provided, it will be inferred from the theme source.",
-										"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+										"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 									},
 									"onError": {
 										"type": "string",
@@ -4266,13 +4427,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 													}
 												}
 											]
@@ -4359,7 +4520,7 @@
 		"DataSources.ExecutionContextPath": {
 			"type": "string",
 			"description": "A reference to a file in the Blueprint Execution Context – see the main proposal document for more context.\n\nThe path must start with either ./ or / to distinguish it from a plugin or theme slug. Regardless of the prefix (./ or /), the path is relative to the Blueprint Execution Context root:\n\n* Relative paths (./) are relative to the location of blueprint.json file.\n* Absolute paths (/) are chrooted at the Blueprint Execution Context root which is   still the directory where blueprint.json is located.\n\nIt is not possible to escape the Blueprint Execution Context via \"../\" sequences.",
-			"pattern": "^(?:\\./|/)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+			"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$))(?:\\./|/).*$"
 		},
 		"DataSources.WordPressVersion": {
 			"description": "WordPress version, e.g. \"latest\", \"beta\", \"trunk\", \"6.4\", \"6.4.3\", \"6.8-RC1\", or \"6.7-beta2\".\n\nThese refer to slugs of specific WordPress releases as listed in the first table column on https://wordpress.org/download/releases/.\n\nThe WordPressVersion type is only meaningful in the top-level `wordpressVersion` property.",
@@ -4395,7 +4556,7 @@
 			"properties": {
 				"filename": {
 					"type": "string",
-					"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+					"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 				},
 				"content": {
 					"type": "string"
@@ -4410,7 +4571,7 @@
 			"properties": {
 				"directoryName": {
 					"type": "string",
-					"pattern": "^(?!\\.\\.$)[^/\\\\]*$"
+					"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 				},
 				"files": {
 					"type": "object",
@@ -4420,18 +4581,41 @@
 								"type": "string"
 							},
 							{
-								"$ref": "#/definitions/DataSources.InlineDirectory"
+								"$ref": "#/definitions/DataSources.NestedInlineDirectory"
 							}
 						]
 					},
 					"propertyNames": {
-						"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+						"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
 					}
 				}
 			},
 			"required": ["directoryName", "files"],
 			"additionalProperties": false,
 			"description": "A directory that is inlined within the Blueprint JSON document.\n\nExample:\n\n```json {     \"directoryName\": \"my-directory\",     \"files\": {         \"index.php\": \"<?php echo 'Hello, world!'; ?>\",         \"my-sub-directory\": {             \"files\": {                 \"index.php\": \"<?php echo 'Hello, world!'; ?>\"             }         }     } } ```"
+		},
+		"DataSources.NestedInlineDirectory": {
+			"type": "object",
+			"properties": {
+				"files": {
+					"type": "object",
+					"additionalProperties": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"$ref": "#/definitions/DataSources.NestedInlineDirectory"
+							}
+						]
+					},
+					"propertyNames": {
+						"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
+					}
+				}
+			},
+			"required": ["files"],
+			"additionalProperties": false
 		},
 		"DataSources.GitPath": {
 			"type": "object",
@@ -4454,10 +4638,35 @@
 			"additionalProperties": false,
 			"description": "A reference to a remote git repository."
 		},
+		"DataSources.WordPressVersionConstraintVersion": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?$"
+		},
+		"DataSources.ComparableVersionExpression": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+(?:\\.\\d+)?$"
+		},
+		"DataSources.WordPressVersionPreferredVersion": {
+			"type": "string",
+			"pattern": "^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$"
+		},
 		"DataSources.PHPVersion": {
-			"description": "PHP version, e.g. \"8.1\" or \"8.1.3\".\n\nThese refer to PHP versions as listed in https://www.php.net/releases/.\n\nThe PHPVersion type is only meaningful in the top-level `phpVersion` property.",
+			"anyOf": [
+				{
+					"$ref": "#/definitions/DataSources.SimpleVersionExpression"
+				},
+				{
+					"type": "string",
+					"const": "next"
+				}
+			],
+			"description": "PHP version, e.g. \"8.1\", \"8.1.3\", or \"next\".\n\nThese refer to PHP versions as listed in https://www.php.net/releases/. `next` previews the php-src development branch and is currently supported by the web runtime only.\n\nThe PHPVersion type is only meaningful in the top-level `phpVersion` property.",
 			"type": "string",
 			"pattern": "^(?:latest|next|\\d+\\.\\d+(?:\\.\\d+)?)$"
+		},
+		"DataSources.PHPVersionConstraintVersion": {
+			"type": "string",
+			"pattern": "^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$"
 		},
 		"DataSources.ThemeDirectoryReference": {
 			"description": "Theme directory reference, e.g. \"twentytwentythree\", \"adventurer@4.6.0\", or \"twentytwentyfour@latest\".\n\nThese refer to specific theme slugs in the WordPress.org theme repository.\n\nFor example, a reference to \"adventurer\" means the Adventurer theme as seen on https://wordpress.org/themes/adventurer/.\n\nThese references are only meaningful in:\n\n* The top-level `themes` array\n* The `installTheme` imperative step",
@@ -4473,7 +4682,7 @@
 			"type": "string",
 			"pattern": "^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$"
 		},
-		"alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814": {
+		"alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4487,13 +4696,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+						"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-141111-141205-1337903113-97044-141219-1337903113-97010-141219-1337903113-0-154814"
+						"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
 					}
 				}
 			]

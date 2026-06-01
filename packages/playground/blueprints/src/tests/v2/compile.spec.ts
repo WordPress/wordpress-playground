@@ -323,13 +323,27 @@ describe('Blueprint v2 TypeScript compiler', () => {
 			version: 2,
 			muPlugins: [
 				{
+					filename: '',
+					content: '<?php',
+				},
+				{
 					filename: '../escape.php',
 					content: '<?php',
+				},
+				{
+					directoryName: '.',
+					files: {
+						'index.php': '<?php',
+					},
 				},
 				{
 					directoryName: 'nested/escape',
 					files: {
 						'index.php': '<?php',
+						'': '<?php',
+						'.': '<?php',
+						'nested/escape.php': '<?php',
+						'nested\\escape.php': '<?php',
 						nested: {
 							directoryName: '..',
 							files: {
@@ -343,6 +357,10 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				{
 					source: 'akismet',
 					targetDirectoryName: '../plugins',
+				},
+				{
+					source: 'akismet',
+					targetDirectoryName: '',
 				},
 			],
 			themes: [
@@ -366,15 +384,43 @@ describe('Blueprint v2 TypeScript compiler', () => {
 						message: 'must be a directory name, not a path',
 					},
 					{
-						path: '/muPlugins/1/directoryName',
+						path: '/muPlugins/1/filename',
 						message: 'must be a directory name, not a path',
 					},
 					{
-						path: '/muPlugins/1/files/nested/directoryName',
+						path: '/muPlugins/2/directoryName',
 						message: 'must be a directory name, not a path',
+					},
+					{
+						path: '/muPlugins/3/directoryName',
+						message: 'must be a directory name, not a path',
+					},
+					{
+						path: '/muPlugins/3/files/',
+						message: 'must be a file or directory name, not a path',
+					},
+					{
+						path: '/muPlugins/3/files/.',
+						message: 'must be a file or directory name, not a path',
+					},
+					{
+						path: '/muPlugins/3/files/nested~1escape.php',
+						message: 'must be a file or directory name, not a path',
+					},
+					{
+						path: '/muPlugins/3/files/nested\\escape.php',
+						message: 'must be a file or directory name, not a path',
+					},
+					{
+						path: '/muPlugins/3/files/nested',
+						message: 'has unexpected property "directoryName"',
 					},
 					{
 						path: '/plugins/0/targetDirectoryName',
+						message: 'must be a directory name, not a path',
+					},
+					{
+						path: '/plugins/1/targetDirectoryName',
 						message: 'must be a directory name, not a path',
 					},
 					{
@@ -384,6 +430,35 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					{
 						path: '/activeTheme/targetDirectoryName',
 						message: 'must be a directory name, not a path',
+					},
+				])
+			);
+		}
+	});
+
+	it('rejects non-scalar defineConstants values', () => {
+		const result = validateBlueprintV2({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'defineConstants',
+					constants: {
+						GOOD: 'yes',
+						BAD: {
+							nested: true,
+						},
+					},
+				},
+			],
+		});
+
+		expect(result.valid).toBe(false);
+		if (!result.valid) {
+			expect(result.errors).toEqual(
+				expect.arrayContaining([
+					{
+						path: '/additionalStepsAfterExecution/0/constants/BAD',
+						message: 'must be a string, number, or boolean',
 					},
 				])
 			);
@@ -574,6 +649,48 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		}
 	});
 
+	it('accepts public Blueprint v2 schema examples for theme, mu-plugin, and WXR shapes', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				activeTheme: {
+					source: 'https://github.com/richtabor/kanso/archive/refs/heads/main.zip',
+					targetDirectoryName: 'kanso',
+					importStarterContent: true,
+				},
+				themes: [
+					'stylish-press-theme',
+					'adventurer@4.6.0',
+					{
+						source: 'https://github.com/richtabor/kanso/archive/refs/heads/main.zip',
+						targetDirectoryName: 'kanso',
+					},
+				],
+				muPlugins: [
+					{
+						filename: 'addFilter-0.php',
+						content:
+							"<?php add_action( 'requests-requests.before_request', function( &$url ) { $url = 'https://playground.wordpress.net/cors-proxy.php?' . $url; } );",
+					},
+				],
+				content: [
+					{
+						type: 'wxr',
+						source: 'https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr',
+					},
+					{
+						type: 'wxr',
+						source: 'https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr',
+						urlsMode: 'rewrite',
+						staticAssets: 'hotlink',
+						importUsers: false,
+						importComments: false,
+					},
+				],
+			})
+		).toEqual({ valid: true });
+	});
+
 	it('creates a PHP-toolkit-compatible execution plan order', () => {
 		const plan = createBlueprintV2ExecutionPlan({
 			version: 2,
@@ -666,7 +783,6 @@ describe('Blueprint v2 TypeScript compiler', () => {
 							files: {
 								'index.php': '<?php',
 								inc: {
-									directoryName: 'inc',
 									files: {
 										'bootstrap.php': '<?php',
 									},
@@ -781,6 +897,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					source: 'twentytwentyfive',
 					importStarterContent: true,
 					targetDirectoryName: 'tt5-dev',
+					onError: 'skip-theme',
 					humanReadableName: 'Twenty Twenty-Five Dev',
 				},
 			],
@@ -797,7 +914,37 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					activate: false,
 					importStarterContent: true,
 					targetFolderName: 'tt5-dev',
+					onError: 'skip-theme',
 					humanReadableName: 'Twenty Twenty-Five Dev',
+				},
+			},
+		]);
+	});
+
+	it('passes additional installTheme onError through to the v1 step', () => {
+		const blueprint = {
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'installTheme',
+					source: 'twentytwentyfive',
+					active: true,
+					onError: 'skip-theme',
+				},
+			],
+		} as BlueprintV2Declaration;
+
+		expect(validateBlueprintV2(blueprint).valid).toBe(true);
+		expect(createBlueprintV2ExecutionPlan(blueprint)).toMatchObject([
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'wordpress.org/themes',
+					slug: 'twentytwentyfive',
+				},
+				options: {
+					activate: true,
+					onError: 'skip-theme',
 				},
 			},
 		]);
@@ -1013,15 +1160,6 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				} as BlueprintV2Declaration).wpVersion
 			).toBe(wordpressVersion);
 		}
-		expect(
-			resolveBlueprintV2RuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.3',
-					preferred: 'beta',
-				},
-			} as BlueprintV2Declaration).wpVersion
-		).toBe('beta');
 	});
 
 	it('resolves WordPress ZIP URLs through the data-reference resolver', async () => {
@@ -1206,6 +1344,28 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				},
 			} as BlueprintV2Declaration).wpVersion
 		).toBe('6.8');
+
+		expect(
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					max: '6.8',
+					recommended: 'latest',
+				},
+			} as BlueprintV2Declaration).wpVersion
+		).toBe('6.8');
+
+		expect(
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					max: '6.8',
+					preferred: 'latest',
+				},
+			} as BlueprintV2Declaration).wpVersion
+		).toBe('6.8');
 	});
 
 	it('defaults v2 network access to false', () => {
@@ -1236,6 +1396,13 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				},
 			} as BlueprintV2Declaration).phpVersion
 		).toBe(LatestSupportedPHPVersion);
+
+		expect(
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				phpVersion: 'next',
+			} as BlueprintV2Declaration).phpVersion
+		).toBe('next');
 	});
 
 	it('throws on runtime version constraints Playground cannot satisfy', () => {
@@ -1250,8 +1417,47 @@ describe('Blueprint v2 TypeScript compiler', () => {
 			resolveBlueprintV2RuntimeConfiguration({
 				version: 2,
 				phpVersion: {
+					min: 'next',
+				},
+			} as unknown as BlueprintV2Declaration)
+		).toThrow(InvalidBlueprintV2Error);
+
+		expect(() =>
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				phpVersion: {
+					recommended: 'next',
+				},
+			} as unknown as BlueprintV2Declaration)
+		).toThrow(InvalidBlueprintV2Error);
+
+		expect(() =>
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				phpVersion: {
 					min: '8.4',
 					max: '8.2',
+				},
+			} as unknown as BlueprintV2Declaration)
+		).toThrow(InvalidBlueprintV2Error);
+
+		for (const wordpressVersion of ['beta', 'trunk', 'nightly'] as const) {
+			expect(() =>
+				resolveBlueprintV2RuntimeConfiguration({
+					version: 2,
+					wordpressVersion: {
+						min: wordpressVersion,
+					},
+				} as unknown as BlueprintV2Declaration)
+			).toThrow(InvalidBlueprintV2Error);
+		}
+
+		expect(() =>
+			resolveBlueprintV2RuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					recommended: 'trunk',
 				},
 			} as unknown as BlueprintV2Declaration)
 		).toThrow(InvalidBlueprintV2Error);
@@ -1278,6 +1484,10 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				},
 			],
 			steps: [
+				{
+					step: 'login',
+					username: 'editor',
+				},
 				{
 					step: 'writeFile',
 					path: '/wordpress/demo.php',
@@ -1306,6 +1516,12 @@ describe('Blueprint v2 TypeScript compiler', () => {
 			plugins: ['akismet'],
 			additionalStepsAfterExecution: [
 				{
+					step: 'defineConstants',
+					constants: {
+						PLAYGROUND_AUTO_LOGIN_AS_USER: 'editor',
+					},
+				},
+				{
 					step: 'writeFiles',
 					files: {
 						'/demo.php': {
@@ -1322,6 +1538,54 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				login: false,
 			}).applicationOptions?.['wordpress-playground']?.login
 		).toBe(false);
+	});
+
+	it('preserves v1 login step username semantics during v2 migration', () => {
+		expect(
+			upgradeBlueprintV1ToV2({
+				steps: [
+					{
+						step: 'login',
+					},
+				],
+			}).additionalStepsAfterExecution
+		).toEqual([
+			{
+				step: 'defineConstants',
+				constants: {
+					PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+				},
+			},
+		]);
+
+		expect(
+			upgradeBlueprintV1ToV2({
+				steps: [
+					{
+						step: 'login',
+						username: '',
+					},
+				],
+			}).additionalStepsAfterExecution
+		).toEqual([
+			{
+				step: 'defineConstants',
+				constants: {
+					PLAYGROUND_AUTO_LOGIN_AS_USER: '',
+				},
+			},
+		]);
+
+		expect(() =>
+			upgradeBlueprintV1ToV2({
+				steps: [
+					{
+						step: 'login',
+						username: 123,
+					} as any,
+				],
+			})
+		).toThrow('/steps/login/username: must be a string');
 	});
 
 	it('preserves v1 install asset options during v2 migration', () => {
@@ -1875,8 +2139,8 @@ describe('Blueprint v2 TypeScript compiler', () => {
 							post_status: 'publish',
 						},
 						{
-							title: 'About Us',
-							content:
+							post_title: 'About Us',
+							post_content:
 								'<p>Visit https://old-site.com/contact</p>',
 							post_type: 'page',
 							post_parent_name: 'Parent Page',
@@ -1885,7 +2149,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 							tax_input: {
 								genre: ['fiction'],
 							},
-							meta: {
+							meta_input: {
 								seo_title: 'About',
 							},
 							page_template: 'templates/full-width.php',
@@ -2021,6 +2285,14 @@ describe('Blueprint v2 TypeScript compiler', () => {
 							},
 							meta_input: 'bad',
 						},
+						{
+							title: 'Alias title',
+							content: 'Alias content',
+							meta: {
+								seo_title: 'Alias',
+							},
+							extra: true,
+						},
 					],
 					urlsMode: 'invalid',
 					urlsMap: {
@@ -2062,6 +2334,26 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					{
 						path: '/content/0/source/0/meta_input',
 						message: 'must be an object',
+					},
+					{
+						path: '/content/0/source/1',
+						message: 'has unexpected property "title"',
+					},
+					{
+						path: '/content/0/source/1',
+						message: 'has unexpected property "content"',
+					},
+					{
+						path: '/content/0/source/1',
+						message: 'has unexpected property "meta"',
+					},
+					{
+						path: '/content/0/source/1',
+						message: 'has unexpected property "extra"',
+					},
+					{
+						path: '/content/0/source/1',
+						message: 'must have required property "post_title"',
 					},
 					{
 						path: '/content/0/urlsMode',

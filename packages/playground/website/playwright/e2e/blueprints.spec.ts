@@ -53,6 +53,45 @@ test('Blueprint v2 declarations boot through the website', async ({
 	);
 });
 
+test('Blueprint v2 Query API defaults log the user in', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint = {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': {
+				landingPage: '/wp-admin/',
+			},
+		},
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`./?storage=temp#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('Blueprint v2 explicit login=false is preserved by Query API defaults', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint = {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': {
+				landingPage: '/wp-admin/',
+				login: false,
+			},
+		},
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`./?storage=temp#${encodedBlueprint}`);
+	await expect(wordpress.locator('input[type="submit"]')).toContainText(
+		'Log In'
+	);
+});
+
 test('spawning less should work', async ({ website, wordpress }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/less.php',

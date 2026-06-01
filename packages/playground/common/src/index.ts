@@ -30,21 +30,24 @@ export const unzipFile = async (
 	 * calls.
 	 */
 	const tmpPath = `/tmp/file-${Math.random()}.zip`;
-	if (zipPath instanceof File) {
-		const zipFile = zipPath;
-		zipPath = tmpPath;
-		await php.writeFile(
+	let shouldCleanupTmpPath = false;
+	try {
+		if (zipPath instanceof File) {
+			const zipFile = zipPath;
+			zipPath = tmpPath;
+			shouldCleanupTmpPath = true;
+			await php.writeFile(
+				zipPath,
+				new Uint8Array(await zipFile.arrayBuffer())
+			);
+		}
+		const js = phpVars({
 			zipPath,
-			new Uint8Array(await zipFile.arrayBuffer())
-		);
-	}
-	const js = phpVars({
-		zipPath,
-		extractToPath,
-		overwriteFiles,
-	});
-	await php.run({
-		code: `<?php
+			extractToPath,
+			overwriteFiles,
+		});
+		await php.run({
+			code: `<?php
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
         {
             if (!is_dir($extractTo)) {
@@ -53,29 +56,36 @@ export const unzipFile = async (
             $zip = new ZipArchive;
             $res = $zip->open($zipPath);
             if ($res === TRUE) {
-				for ($i = 0; $i < $zip->numFiles; $i++) {
-					$filename = $zip->getNameIndex($i);
-					if ($filename === false) {
-						throw new Exception("Could not read ZIP entry name at index " . $i);
+				try {
+					$filenames = array();
+					for ($i = 0; $i < $zip->numFiles; $i++) {
+						$filename = $zip->getNameIndex($i);
+						if ($filename === false) {
+							throw new Exception("Could not read ZIP entry name at index " . $i);
+						}
+						$normalizedFilename = str_replace('\\\\', '/', $filename);
+						if (
+							$normalizedFilename === '' ||
+							substr($normalizedFilename, 0, 1) === '/' ||
+							preg_match('/^[A-Za-z]:/', $normalizedFilename) ||
+							preg_match('#(?:^|/)\\.\\.(?:/|$)#', $normalizedFilename)
+						) {
+							throw new Exception("Unsafe ZIP entry path: " . $filename);
+						}
+						$filenames[] = $filename;
 					}
-					$normalizedFilename = str_replace('\\\\', '/', $filename);
-					if (
-						$normalizedFilename === '' ||
-						substr($normalizedFilename, 0, 1) === '/' ||
-						preg_match('/^[A-Za-z]:/', $normalizedFilename) ||
-						preg_match('#(?:^|/)\\.\\.(?:/|$)#', $normalizedFilename)
-					) {
-						throw new Exception("Unsafe ZIP entry path: " . $filename);
+					foreach ($filenames as $filename) {
+						$fileinfo = pathinfo($filename);
+						$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
+						// Check if file exists and $overwriteFiles is false
+						if (!file_exists($extractFilePath) || $overwriteFiles) {
+							// Extract file
+							$zip->extractTo($extractTo, $filename);
+						}
 					}
-					$fileinfo = pathinfo($filename);
-					$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
-					// Check if file exists and $overwriteFiles is false
-					if (!file_exists($extractFilePath) || $overwriteFiles) {
-						// Extract file
-						$zip->extractTo($extractTo, $filename);
-					}
+				} finally {
+					$zip->close();
 				}
-				$zip->close();
 				chmod($extractTo, 0777);
             } else {
                 $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
@@ -84,9 +94,17 @@ export const unzipFile = async (
         }
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
         `,
-	});
-	if (await php.fileExists(tmpPath)) {
-		await php.unlink(tmpPath);
+		});
+	} finally {
+		if (shouldCleanupTmpPath) {
+			try {
+				if (await php.fileExists(tmpPath)) {
+					await php.unlink(tmpPath);
+				}
+			} catch {
+				// Ignore cleanup failures so they do not mask the original unzip error.
+			}
+		}
 	}
 };
 

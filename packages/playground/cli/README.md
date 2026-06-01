@@ -163,6 +163,7 @@ The `server` command supports these common optional arguments. Run `npx @wp-play
 - `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path" "/vfs/path"`.
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
+- `--mode=<create-new-site|apply-to-existing-site|mount-only>`: Select how Blueprint v2 prepares or mounts the site.
 - `--login`: Automatically log the user in as an administrator.
 - `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (same, but skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 - `--skip-sqlite-setup`: Do not set up the SQLite database integration.
@@ -248,7 +249,7 @@ Blueprint is a JSON file where you can pre-define the initial state of your Word
 	"steps": [
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "wordpress.org/plugins",
 				"slug": "gutenberg"
 			},

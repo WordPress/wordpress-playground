@@ -15,6 +15,7 @@ import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
+import { GENERATED_GUTENBERG_INSTALLER_MARKER } from '../../gutenberg-preview';
 
 export { decodeBlueprintHash };
 
@@ -437,12 +438,22 @@ function applyQueryOverridesToV2Declaration(
 
 	if (query.get('wp')) {
 		next.wordpressVersion = query.get('wp') as any;
+	} else if (next.wordpressVersion === undefined) {
+		next.wordpressVersion = 'latest';
 	}
 	if (query.get('php')) {
 		next.phpVersion = query.get('php') as any;
+	} else if (next.phpVersion === undefined) {
+		next.phpVersion = getDefaultPhpVersionForWordPress(
+			typeof next.wordpressVersion === 'string'
+				? next.wordpressVersion
+				: undefined
+		);
 	}
-	if (query.get('networking')) {
+	if (query.has('networking')) {
 		playgroundOptions.networkAccess = query.get('networking') === 'yes';
+	} else if (playgroundOptions.networkAccess === undefined) {
+		playgroundOptions.networkAccess = true;
 	}
 	if (query.get('language')) {
 		appendV2StepIfMissing(next, 'setSiteLanguage', {
@@ -455,7 +466,7 @@ function applyQueryOverridesToV2Declaration(
 			step: 'enableMultisite',
 		});
 	}
-	if (query.has('login')) {
+	if (query.has('login') || playgroundOptions.login === undefined) {
 		playgroundOptions.login = query.get('login') !== 'no';
 	}
 	if (query.get('url')) {
@@ -487,13 +498,16 @@ function applyQueryOverridesToV2Declaration(
 			next,
 			(step) =>
 				step?.step === 'runPHP' &&
-				step?.code?.filename === 'install-gutenberg.php',
+				step?.env?.[GENERATED_GUTENBERG_INSTALLER_MARKER] === '1',
 			[
 				{
 					step: 'runPHP',
 					code: {
 						filename: 'install-gutenberg.php',
 						content: createGutenbergInstallerPHP(gutenbergArtifact),
+					},
+					env: {
+						[GENERATED_GUTENBERG_INSTALLER_MARKER]: '1',
 					},
 				},
 			]

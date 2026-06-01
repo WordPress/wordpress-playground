@@ -7,6 +7,7 @@ import {
 	isStepDefinition,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
+import { GENERATED_GUTENBERG_INSTALLER_MARKER } from './gutenberg-preview';
 /**
  * Declare the global window.gtag function
  */
@@ -126,13 +127,28 @@ function logBlueprintV2Events(blueprint: any) {
 		) {
 			continue;
 		}
-		logTrackingEvent('step', { step: step.step });
 		if (step.step === 'installPlugin') {
 			logV2InstallAsset('installPlugin', step, 'plugin');
 		} else if (step.step === 'installTheme') {
 			logV2InstallAsset('installTheme', step, 'theme');
+		} else if (isGeneratedGutenbergInstallerStep(step)) {
+			logTrackingEvent('step', { step: step.step });
+			logTrackingEvent('step', { step: 'installPlugin' });
+			logTrackingEvent('installPlugin', {
+				resource: 'vfs',
+				plugin: 'gutenberg',
+			});
+		} else {
+			logTrackingEvent('step', { step: step.step });
 		}
 	}
+}
+
+function isGeneratedGutenbergInstallerStep(step: any) {
+	return (
+		step?.step === 'runPHP' &&
+		step?.env?.[GENERATED_GUTENBERG_INSTALLER_MARKER] === '1'
+	);
 }
 
 function logV2InstallAsset(
@@ -143,7 +159,17 @@ function logV2InstallAsset(
 	const source =
 		definition && typeof definition === 'object' && 'source' in definition
 			? definition.source
-			: definition;
+			: definition &&
+				  typeof definition === 'object' &&
+				  slugKey === 'plugin' &&
+				  'pluginData' in definition
+				? definition.pluginData
+				: definition &&
+					  typeof definition === 'object' &&
+					  slugKey === 'theme' &&
+					  'themeData' in definition
+					? definition.themeData
+					: definition;
 	const data: Record<string, string> = {
 		resource: getV2DataReferenceResource(source, slugKey),
 	};
@@ -168,6 +194,9 @@ function getV2DataReferenceResource(source: any, slugKey: 'plugin' | 'theme') {
 		return `wordpress.org/${slugKey}s`;
 	}
 	if (source && typeof source === 'object') {
+		if (typeof source.resource === 'string') {
+			return source.resource;
+		}
 		if ('gitRepository' in source) {
 			return 'git:directory';
 		}
@@ -182,6 +211,13 @@ function getV2DataReferenceResource(source: any, slugKey: 'plugin' | 'theme') {
 }
 
 function getV2DirectorySlug(source: any) {
+	if (
+		source &&
+		typeof source === 'object' &&
+		typeof source.slug === 'string'
+	) {
+		return source.slug;
+	}
 	if (typeof source !== 'string') {
 		return undefined;
 	}

@@ -7,7 +7,10 @@ import validateBlueprintDeclaration from '../../../public/blueprint-schema-valid
 import packageJson from '../../../package.json';
 import { validateBlueprintV2 } from '../../lib/v2/compile';
 
-const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../public');
+const publicDir = resolve(
+	dirname(fileURLToPath(import.meta.url)),
+	'../../../public'
+);
 
 describe('public Blueprint schema', () => {
 	it('publishes a combined v1/v2 BlueprintDeclaration schema', () => {
@@ -47,6 +50,97 @@ describe('public Blueprint schema', () => {
 		).toBe(true);
 	});
 
+	it('accepts public Blueprint v2 schema example shapes', () => {
+		for (const blueprint of [
+			{
+				version: 2,
+				activeTheme: {
+					source: 'https://github.com/richtabor/kanso/archive/refs/heads/main.zip',
+					targetDirectoryName: 'kanso',
+					importStarterContent: true,
+				},
+			},
+			{
+				version: 2,
+				themes: [
+					'stylish-press-theme',
+					'adventurer@4.6.0',
+					{
+						source: 'https://github.com/richtabor/kanso/archive/refs/heads/main.zip',
+						targetDirectoryName: 'kanso',
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					'jetpack',
+					'akismet@6.4.3',
+					'./query-monitor.php',
+					'./code-block.zip',
+					{
+						source: 'https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip',
+						active: false,
+					},
+				],
+			},
+			{
+				version: 2,
+				muPlugins: [
+					{
+						filename: 'addFilter-0.php',
+						content:
+							"<?php add_action( 'requests-requests.before_request', function( &$url ) { $url = 'https://playground.wordpress.net/cors-proxy.php?' . $url; } );",
+					},
+				],
+			},
+			{
+				version: 2,
+				content: [
+					{
+						type: 'wxr',
+						source: 'https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr',
+					},
+					{
+						type: 'wxr',
+						source: 'https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr',
+						urlsMode: 'rewrite',
+						staticAssets: 'hotlink',
+						importUsers: false,
+						importComments: false,
+					},
+				],
+			},
+		]) {
+			expect(validateBlueprintV2(blueprint).valid).toBe(true);
+			expect(validateBlueprintDeclaration(blueprint)).toBe(true);
+		}
+	});
+
+	it('matches runtime validation for nested inline directory data references', () => {
+		const blueprint = {
+			version: 2,
+			plugins: [
+				{
+					source: {
+						directoryName: 'demo-plugin',
+						files: {
+							'demo-plugin.php': '<?php',
+							assets: {
+								files: {
+									'readme.txt': 'Nested directory',
+								},
+							},
+						},
+					},
+				},
+			],
+		};
+
+		expect(validateBlueprintV2(blueprint).valid).toBe(true);
+		expect(validateBlueprintDeclaration(blueprint)).toBe(true);
+	});
+
 	it('rejects declarations that mix v1-only and v2-only fields', () => {
 		expect(
 			validateBlueprintDeclaration({
@@ -61,6 +155,18 @@ describe('public Blueprint schema', () => {
 			{
 				version: 2,
 				media: ['not-a-url-or-path'],
+			},
+			{
+				version: 2,
+				media: ['./../secret.png'],
+			},
+			{
+				version: 2,
+				media: ['/../secret.png'],
+			},
+			{
+				version: 2,
+				media: ['./..\\secret.png'],
 			},
 			{
 				version: 2,
@@ -105,6 +211,24 @@ describe('public Blueprint schema', () => {
 					{
 						source: 'akismet',
 						targetDirectoryName: '../plugins',
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: 'akismet',
+						targetDirectoryName: '',
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: 'akismet',
+						targetDirectoryName: '.',
 					},
 				],
 			},
@@ -174,10 +298,52 @@ describe('public Blueprint schema', () => {
 			},
 			{
 				version: 2,
+				content: [
+					{
+						type: 'wxr',
+						source: {
+							filename: 'content.xml',
+							content: '<rss />',
+						},
+						authorsMode: 'map',
+					},
+				],
+			},
+			{
+				version: 2,
+				content: [
+					{
+						type: 'posts',
+						source: {
+							title: 'Alias title',
+							content: 'Alias content',
+							meta: {
+								seo_title: 'Alias',
+							},
+							extra: true,
+						},
+					},
+				],
+			},
+			{
+				version: 2,
 				additionalStepsAfterExecution: [
 					{
 						step: 'mkdir',
 						path: 'site:../escape',
+					},
+				],
+			},
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'defineConstants',
+						constants: {
+							BAD: {
+								nested: true,
+							},
+						},
 					},
 				],
 			},
@@ -201,6 +367,34 @@ describe('public Blueprint schema', () => {
 					{
 						step: 'writeFiles',
 						files: {
+							'/wordpress/empty.php': {
+								filename: '',
+								content: '<?php',
+							},
+						},
+					},
+				],
+			},
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'writeFiles',
+						files: {
+							'/wordpress/dot.php': {
+								filename: '.',
+								content: '<?php',
+							},
+						},
+					},
+				],
+			},
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'writeFiles',
+						files: {
 							'/wordpress/wp-content/plugins/demo': {
 								directoryName: 'demo',
 								files: {
@@ -210,6 +404,94 @@ describe('public Blueprint schema', () => {
 						},
 					},
 				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: {
+							directoryName: 'demo',
+							files: {
+								'': '<?php',
+							},
+						},
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: {
+							directoryName: 'demo',
+							files: {
+								'.': '<?php',
+							},
+						},
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: {
+							directoryName: 'demo',
+							files: {
+								'nested/path.php': '<?php',
+							},
+						},
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: {
+							directoryName: 'demo',
+							files: {
+								nested: {
+									directoryName: 'ignored',
+									files: {
+										'index.php': '<?php',
+									},
+								},
+							},
+						},
+					},
+				],
+			},
+			{
+				version: 2,
+				phpVersion: {
+					min: 'next',
+				},
+			},
+			{
+				version: 2,
+				phpVersion: {
+					recommended: 'next',
+				},
+			},
+			{
+				version: 2,
+				wordpressVersion: {
+					min: 'trunk',
+				},
+			},
+			{
+				version: 2,
+				wordpressVersion: {
+					min: 'nightly',
+				},
+			},
+			{
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					recommended: 'beta',
+				},
 			},
 		]) {
 			expect(validateBlueprintV2(blueprint).valid).toBe(false);
@@ -234,6 +516,26 @@ describe('public Blueprint schema', () => {
 
 		expect(validateBlueprintV2(blueprint).valid).toBe(true);
 		expect(validateBlueprintDeclaration(blueprint)).toBe(true);
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					max: '6.8',
+					recommended: 'latest',
+				},
+			}).valid
+		).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.3',
+					max: '6.8',
+					recommended: 'latest',
+				},
+			})
+		).toBe(true);
 		expect(
 			validateBlueprintDeclaration({
 				version: 2,
@@ -262,6 +564,12 @@ describe('public Blueprint schema', () => {
 			validateBlueprintDeclaration({
 				version: 2,
 				wordpressVersion: '6.7-beta2',
+			})
+		).toBe(true);
+		expect(
+			validateBlueprintDeclaration({
+				version: 2,
+				phpVersion: 'next',
 			})
 		).toBe(true);
 		expect(

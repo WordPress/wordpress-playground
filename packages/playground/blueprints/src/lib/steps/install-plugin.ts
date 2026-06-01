@@ -336,5 +336,9 @@ function parseActivationOptionsPayload(text: string | undefined) {
 	if (!payload) {
 		return undefined;
 	}
-	return JSON.parse(payload) as Record<string, unknown>;
+	try {
+		return JSON.parse(payload) as Record<string, unknown>;
+	} catch {
+		throw new Error('Could not parse plugin activation options payload.');
+	}
 }

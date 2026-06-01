@@ -60,10 +60,14 @@ export async function resolveBlueprint({
 
 	const extension = path.extname(blueprintPath);
 	switch (extension) {
-		case '.zip':
-			return ZipFilesystem.fromArrayBuffer(
-				fs.readFileSync(blueprintPath).buffer as ArrayBuffer
+		case '.zip': {
+			const buffer = fs.readFileSync(blueprintPath);
+			const arrayBuffer = buffer.buffer.slice(
+				buffer.byteOffset,
+				buffer.byteOffset + buffer.byteLength
 			);
+			return ZipFilesystem.fromArrayBuffer(arrayBuffer);
+		}
 		case '.json': {
 			const blueprintText = fs.readFileSync(blueprintPath, 'utf-8');
 			try {

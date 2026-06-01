@@ -18,10 +18,9 @@ import {
 	isBlueprintBundle,
 	resolveBlueprintV2WordPressSource,
 	resolveRuntimeConfiguration,
-	runBlueprintV2Steps,
 	upgradeBlueprintV1ToV2,
 } from '@wp-playground/blueprints';
-import { zipDirectory } from '@wp-playground/common';
+import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -88,6 +87,7 @@ export class BlueprintsV2Handler {
 		const effectiveBlueprint = await this.getEffectiveBlueprint();
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(effectiveBlueprint);
+		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		if (
 			(await hasBlueprintV2WordPressZipReference(effectiveBlueprint)) &&
 			wordpressInstallMode !== 'download-and-install'
@@ -216,6 +216,7 @@ export class BlueprintsV2Handler {
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
 			await this.getEffectiveBlueprint()
 		);
+		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootRequestHandler({
 			phpVersion: runtimeConfiguration.phpVersion,
@@ -293,6 +294,14 @@ export class BlueprintsV2Handler {
 	}
 }
 
+function assertCliSupportedPHPVersion(phpVersion: string) {
+	if (phpVersion === 'next') {
+		throw new Error(
+			'Blueprint v2 phpVersion "next" is supported by the web runtime only and cannot be used by Playground CLI. Choose a stable PHP version such as 8.3.'
+		);
+	}
+}
+
 function applyCliOptionsToBlueprint(
 	resolvedBlueprint: BlueprintV1Declaration | BlueprintV2Declaration,
 	args: RunCLIArgs,
@@ -307,14 +316,18 @@ function applyCliOptionsToBlueprint(
 
 	if (args.php && cliOptionWasProvided(args, 'php')) {
 		blueprint.phpVersion = args.php;
+	} else if (blueprint.phpVersion === undefined) {
+		blueprint.phpVersion = args.php || RecommendedPHPVersion;
 	}
 	if (args.wp && cliOptionWasProvided(args, 'wp')) {
 		blueprint.wordpressVersion = args.wp;
+	} else if (blueprint.wordpressVersion === undefined) {
+		blueprint.wordpressVersion = args.wp || 'latest';
 	}
 	const playgroundOptions =
 		blueprint.applicationOptions?.['wordpress-playground'];
 	const shouldApplyDefaultStartLogin =
-		args.command === 'start' &&
+		(args.originalCommand || args.command) === 'start' &&
 		args.login === true &&
 		playgroundOptions?.login === undefined;
 	if (cliOptionWasProvided(args, 'login') || shouldApplyDefaultStartLogin) {
@@ -440,7 +453,7 @@ function filterExtensionArgsForPHPVersion(
 	};
 }
 
-export { runBlueprintV2Steps };
+export { runBlueprintV2Steps } from '@wp-playground/blueprints';
 
 function mergeDefinedConstantsForPHPVersion(
 	args: RunCLIArgs,

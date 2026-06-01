@@ -1,6 +1,8 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import { exec } from 'child_process';
+import type * as ChildProcess from 'child_process';
 import {
 	runCLI,
 	parseOptionsAndRunCLI,
@@ -27,6 +29,19 @@ import { createHash } from 'node:crypto';
 import { decodeZip } from '@php-wasm/stream-compression';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { type Log, logger } from '@php-wasm/logger';
+
+vi.mock('child_process', async (importOriginal) => {
+	const actual = await importOriginal<typeof ChildProcess>();
+	return {
+		...actual,
+		exec: vi.fn((_command, callback) => {
+			if (typeof callback === 'function') {
+				callback(null as any, '' as any, '' as any);
+			}
+			return {} as any;
+		}),
+	};
+});
 
 const blueprintVersions = [
 	{
@@ -1134,6 +1149,34 @@ describe('start command', () => {
 		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 	});
 
+	test('should open the browser by default after expanding to the server command', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-start-open-')
+		);
+		const execMock = vi.mocked(exec);
+		execMock.mockClear();
+
+		try {
+			await using cliResult = await parseOptionsAndRunCLI([
+				'start',
+				`--path=${tmpDir}`,
+				'--mode=mount-only',
+				'--mount',
+				`${tmpDir}:/wordpress`,
+				'--quiet',
+				'--port=0',
+			]);
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+			expect(execMock).toHaveBeenCalledWith(
+				expect.stringContaining(cliServer.serverUrl),
+				expect.any(Function)
+			);
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
+
 	test('should persist site in home directory', async () => {
 		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
 		const homeDir = os.homedir();
@@ -1361,6 +1404,72 @@ describe('start command', () => {
 				`/wordpress/wp-content/plugins/${pluginDirName}`
 			);
 			expect(autoMountedPluginExists).toBe(false);
+		} finally {
+			exitSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
+
+	test('should accept Blueprint v2 --mode', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-start-mode-')
+		);
+		const execMock = vi.mocked(exec);
+		execMock.mockClear();
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+			code?: number | string | null
+		) => {
+			throw new Error(`process.exit unexpectedly called with "${code}"`);
+		}) as any);
+
+		try {
+			await using cliResult = await parseOptionsAndRunCLI([
+				'start',
+				`--path=${tmpDir}`,
+				'--mode=mount-only',
+				'--mount',
+				`${tmpDir}:/wordpress`,
+				'--skip-browser',
+				'--quiet',
+				'--port=0',
+			]);
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+			expect(
+				await cliServer.playground.fileExists('/wordpress/wp-load.php')
+			).toBe(false);
+			expect(execMock).not.toHaveBeenCalled();
+		} finally {
+			exitSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
+
+	test('rejects create-new-site mode for auto-detected WordPress directories', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-start-existing-wp-')
+		);
+		const wordpressDir = path.join(tmpDir, 'wordpress');
+		mkdirSync(path.join(wordpressDir, 'wp-admin'), { recursive: true });
+		mkdirSync(path.join(wordpressDir, 'wp-content'), { recursive: true });
+		mkdirSync(path.join(wordpressDir, 'wp-includes'), { recursive: true });
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+			code?: number | string | null
+		) => {
+			throw new Error(`process.exit(${code})`);
+		}) as any);
+
+		try {
+			await expect(
+				parseOptionsAndRunCLI([
+					'start',
+					`--path=${wordpressDir}`,
+					'--mode=create-new-site',
+					'--skip-browser',
+					'--quiet',
+					'--port=0',
+				])
+			).rejects.toThrow('process.exit(1)');
 		} finally {
 			exitSpy.mockRestore();
 			rmSync(tmpDir, { recursive: true, force: true });
@@ -1638,6 +1747,33 @@ describe('other run-cli behaviors', () => {
 	});
 
 	describe('phpMyAdmin CLI argument validation', () => {
+		test('should reject invalid WordPress version slugs before startup', async () => {
+			const stderrChunks: string[] = [];
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation((...args: any[]) => {
+					stderrChunks.push(args.map(String).join(' '));
+				});
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((code?: number | string | null) => {
+					throw new Error(`process.exit(${code})`);
+				});
+
+			try {
+				await expect(
+					parseOptionsAndRunCLI(['server', '--wp=brazil'])
+				).rejects.toThrow('process.exit(1)');
+				expect(stderrChunks.join('\n')).toContain(
+					'Unrecognized WordPress version'
+				);
+				expect(exitSpy).toHaveBeenCalledWith(1);
+			} finally {
+				consoleSpy.mockRestore();
+				exitSpy.mockRestore();
+			}
+		});
+
 		test('should reject --phpmyadmin with --skip-sqlite-setup', async () => {
 			// Suppress console.error during this test since yargs outputs to stderr
 			const consoleSpy = vi

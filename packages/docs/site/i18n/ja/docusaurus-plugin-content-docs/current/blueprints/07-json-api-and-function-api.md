@@ -29,11 +29,15 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 <div class="callout callout-info">
 
-**ブループリント バージョン 2**
+**Blueprints バージョン 2**
 
-チームは、Blueprints を TypeScript ライブラリから PHP ライブラリに移行する方法を検討しています。これにより、Playground、ホストされたサイト、ローカル環境など、あらゆる WordPress 環境で Blueprints を実行できるようになります。
+Blueprint v2 の宣言は Playground の Web アプリ、client パッケージ、CLI でサポートされています。
+バージョン 2 は JSON 宣言モデルを維持しつつ、WordPress のセットアップを
+`plugins`、`themes`、`content`、`media` などの上位セクションへ移し、
+`additionalStepsAfterExecution` で追加ステップも指定できます。
 
-提案されている [新しい仕様](https://github.com/WordPress/blueprints-library/issues/6) については、別の [GitHub リポジトリ](https://github.com/WordPress/blueprints-library/) で議論されています。ぜひご参加ください（GitHub リポジトリまたは [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack チャンネルで）。次世代の Playground の策定にご協力ください。
+公開されている [Blueprint JSON schema](https://playground.wordpress.net/blueprint-schema.json)
+は v1 と v2 の両方の宣言を検証します。v2 を使うには `"version": 2` を設定してください。
 
 </div>
 
@@ -42,9 +46,9 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 **Blueprints version 2**
 
-The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup.
+Blueprint v2 declarations are supported by the Playground web app, client package, and CLI. Version 2 keeps the JSON declaration model but moves WordPress setup into higher-level sections such as `plugins`, `themes`, `content`, and `media`, with escape hatches in `additionalStepsAfterExecution`.
 
-The proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) is discussed on a separate [GitHub repository](https://github.com/WordPress/blueprints-library/), and you’re more than welcome to join (there or on the [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) and help shape the next generation of Playground.
+The public Blueprint JSON schema validates both v1 and v2 declarations. To opt into v2, set `"version": 2`.
 
 </div>
 -->

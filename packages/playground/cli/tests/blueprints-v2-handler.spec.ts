@@ -124,6 +124,35 @@ describe('BlueprintsV2Handler', () => {
 		});
 	});
 
+	test('applies CLI runtime defaults to v2 declarations when omitted', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				php: '8.3',
+				wp: 'latest',
+				cliProvidedOptions: {
+					php: false,
+					wp: false,
+				},
+				blueprint: {
+					version: 2,
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+
+		const compiled = await handler.compileInputBlueprint([]);
+
+		expect(compiled.declaration).toMatchObject({
+			version: 2,
+			phpVersion: '8.3',
+			wordpressVersion: 'latest',
+		});
+	});
+
 	test('does not treat parsed CLI login defaults as v2 login overrides', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
@@ -161,7 +190,8 @@ describe('BlueprintsV2Handler', () => {
 	test('applies start command default login when v2 declaration has no login opinion', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
-				command: 'start',
+				command: 'server',
+				originalCommand: 'start',
 				login: true,
 				cliProvidedOptions: {
 					login: false,
@@ -190,7 +220,8 @@ describe('BlueprintsV2Handler', () => {
 	test('preserves v2 login intent over start command default login', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
-				command: 'start',
+				command: 'server',
+				originalCommand: 'start',
 				login: true,
 				cliProvidedOptions: {
 					login: false,
@@ -493,6 +524,42 @@ describe('BlueprintsV2Handler', () => {
 		expect(new TextDecoder().decode(bootOptions.wordPressZip)).toBe('zip');
 	});
 
+	test('passes bundled wordpressVersion ZIP references to the worker boot', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				skipSqliteSetup: true,
+				blueprint: createBundle(
+					{
+						version: 2,
+						wordpressVersion: './wordpress.zip',
+					},
+					{
+						'wordpress.zip': 'bundled-wordpress',
+					}
+				),
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		const bootOptions = playground.bootWordPress.mock.calls[0][0];
+		expect(bootOptions).toMatchObject({
+			wpVersion: 'custom-wordpress',
+			wordpressInstallMode: 'download-and-install',
+		});
+		expect(new TextDecoder().decode(bootOptions.wordPressZip)).toBe(
+			'bundled-wordpress'
+		);
+	});
+
 	test('rejects wordpressVersion ZIP references outside create-new-site mode', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
@@ -592,15 +659,46 @@ describe('BlueprintsV2Handler', () => {
 			expect.anything()
 		);
 	});
+
+	test('rejects web-only phpVersion next before booting the Node runtime', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				blueprint: {
+					version: 2,
+					phpVersion: 'next',
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await expect(
+			handler.bootWordPress(playground as any, {} as any)
+		).rejects.toThrow(/web runtime only/);
+		expect(playground.bootWordPress).not.toHaveBeenCalled();
+	});
 });
 
-function createBundle(blueprint: BlueprintV2Declaration): BlueprintBundle {
+function createBundle(
+	blueprint: BlueprintV2Declaration,
+	files: Record<string, string> = {}
+): BlueprintBundle {
 	return {
 		read: vi.fn(async (filePath: string) => {
-			if (filePath.replace(/^\.?\//, '') !== 'blueprint.json') {
-				throw new Error(`Unexpected bundled file: ${filePath}`);
+			const normalizedPath = filePath.replace(/^\.?\//, '');
+			if (normalizedPath === 'blueprint.json') {
+				return new File([JSON.stringify(blueprint)], 'blueprint.json');
 			}
-			return new File([JSON.stringify(blueprint)], 'blueprint.json');
+			if (normalizedPath in files) {
+				return new File([files[normalizedPath]], normalizedPath);
+			}
+			throw new Error(`Unexpected bundled file: ${filePath}`);
 		}),
 	} as unknown as BlueprintBundle;
 }

@@ -154,6 +154,39 @@ describe('BlueprintsV2Handler', () => {
 		expect(mocks.resolveBlueprintV2WordPressSource).not.toHaveBeenCalled();
 	});
 
+	it('uses the original bundle when resolving custom WordPress ZIP sources', async () => {
+		const iframe = createIframe();
+		const bundle = {
+			read: vi.fn(),
+		};
+		const compiledDeclaration = {
+			version: 2,
+			wordpressVersion: './wordpress.zip',
+		};
+		mocks.compileBlueprintV2.mockResolvedValue({
+			compiled: true,
+			declaration: compiledDeclaration,
+		});
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: bundle as any,
+			corsProxy: 'https://cors.example.test/proxy',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.resolveRuntimeConfiguration).toHaveBeenCalledWith(
+			compiledDeclaration
+		);
+		expect(mocks.resolveBlueprintV2WordPressSource).toHaveBeenCalledWith(
+			bundle,
+			expect.objectContaining({
+				corsProxy: 'https://cors.example.test/proxy',
+			})
+		);
+	});
+
 	it('preserves v1 preferredVersions.wp false when using the native v2 path', async () => {
 		const iframe = createIframe();
 		const blueprint = {

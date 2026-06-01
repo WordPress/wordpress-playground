@@ -182,8 +182,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			vfsPath: '/wordpress',
 			autoMounted: true,
 		});
-		// @TODO: If overriding another mode, throw an error or print a warning.
-		newArgs.mode = 'apply-to-existing-site';
+		const explicitMode =
+			newArgs.cliProvidedOptions?.mode ?? newArgs.mode !== undefined;
+		if (!explicitMode) {
+			newArgs.mode = 'apply-to-existing-site';
+		}
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
 		if (!newArgs.wordpressInstallMode) {
 			newArgs.wordpressInstallMode =

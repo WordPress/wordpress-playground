@@ -180,16 +180,16 @@ export namespace V2Schema {
 			| DataSources.WordPressVersion
 			| DataSources.DataReference
 			| {
-					min: DataSources.WordPressVersion;
-					max?: DataSources.WordPressVersion;
+					min: DataSources.WordPressVersionConstraintVersion;
+					max?: DataSources.WordPressVersionConstraintVersion;
 					/**
 					 * @default "latest"
 					 */
-					preferred?: DataSources.WordPressVersion;
+					preferred?: DataSources.WordPressVersionPreferredVersion;
 					/**
 					 * @default "latest"
 					 */
-					recommended?: DataSources.WordPressVersion;
+					recommended?: DataSources.WordPressVersionPreferredVersion;
 			  };
 
 		/**
@@ -208,9 +208,9 @@ export namespace V2Schema {
 		phpVersion?:
 			| DataSources.PHPVersion
 			| {
-					min?: DataSources.PHPVersion;
-					recommended?: DataSources.PHPVersion;
-					max?: DataSources.PHPVersion;
+					min?: DataSources.PHPVersionConstraintVersion;
+					recommended?: DataSources.PHPVersionConstraintVersion;
+					max?: DataSources.PHPVersionConstraintVersion;
 			  };
 
 		/**
@@ -225,9 +225,13 @@ export namespace V2Schema {
 		 * @example `"activeTheme": "adventurer@4.6.0"`
 		 * @example
 		 * ```json
-		 * "activeTheme": {
-		 *     "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *     "id": "kanso"
+		 * {
+		 *     "version": 2,
+		 *     "activeTheme": {
+		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *         "targetDirectoryName": "kanso",
+		 *         "importStarterContent": true
+		 *     }
 		 * }
 		 * ```
 		 */
@@ -239,14 +243,17 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * themes: [
-		 *     "stylish-press-theme",
-		 *     "adventurer@4.6.0",
-		 *     {
-		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *         "id": "kanso"
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "themes": [
+		 *         "stylish-press-theme",
+		 *         "adventurer@4.6.0",
+		 *         {
+		 *             "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *             "targetDirectoryName": "kanso"
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
 		themes?: ThemeDefinition[];
@@ -257,16 +264,20 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * plugins: [
-		 *     "jetpack",
-		 *     "akismet@6.4.3",
-		 *     "./query-monitor.php",
-		 *     "./code-block.zip",
-		 *     {
-		 *         "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
-		 *         "active": false
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "plugins": [
+		 *         "jetpack",
+		 *         "akismet@6.4.3",
+		 *         "./query-monitor.php",
+		 *         "./code-block.zip",
+		 *         {
+		 *             "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
+		 *             "active": false
+		 *         }
+		 *     ]
+		 * }
+		 * ```
 		 */
 		plugins?: PluginDefinition[];
 
@@ -276,14 +287,15 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * muPlugins: [
-		 *     {
-		 *         "file": {
+		 * {
+		 *     "version": 2,
+		 *     "muPlugins": [
+		 *         {
 		 *             "filename": "addFilter-0.php",
 		 *             "content": "<?php add_action( 'requests-requests.before_request', function( &$url ) {\n$url = 'https://playground.wordpress.net/cors-proxy.php?' . $url;\n} );"
 		 *         }
-		 *     }
-		 * ]
+		 *     ]
+		 * }
 		 * ```
 		 */
 		muPlugins?: Array<DataSources.DataReference>;
@@ -471,93 +483,96 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * content: [
-		 *     {
-		 *         "type": "wxr",
-		 *         "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
-		 *     },
-		 *     {
-		 *         "type": "wxr",
-		 *         "url": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
-		 *         "rewriteUrls": true,
-		 *         "fetchStaticAssets": false,
-		 *         "users": false,
-		 *         "comments": false,
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "content": [
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
+		 *         },
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
+		 *             "urlsMode": "rewrite",
+		 *             "staticAssets": "hotlink",
+		 *             "importUsers": false,
+		 *             "importComments": false
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
-		| ({
-				type: 'wxr';
-				source:
-					| DataSources.FileDataReference
-					| DataSources.FileDataReference[];
+		| WXRContentDefinition;
 
-				/**
-				 * Static assets handling.
-				 *
-				 * Possible values:
-				 *
-				 * * "fetch" – Fetch the static assets and save them to the local filesystem.
-				 * * "hotlink" – Hotlink the static assets from the remote site.
-				 *
-				 * @default "fetch".
-				 */
-				staticAssets?: 'fetch' | 'hotlink';
+	type WXRContentDefinition = WXRContentBase &
+		(
+			| {
+					/**
+					 * Map remote authors to existing local authors.
+					 */
+					authorsMode: 'map';
+					authorsMap: Record<RemoteUsername, LocalUsername>;
+			  }
+			| {
+					/**
+					 * How to handle authors that don't exist on the current site.
+					 *
+					 * Possible values:
+					 *
+					 * * "create" – Create a new author.
+					 * * "default-author" – Use the default author.
+					 *
+					 * @default "create".
+					 */
+					authorsMode?: 'create' | 'default-author';
+					authorsMap?: Record<RemoteUsername, LocalUsername>;
+			  }
+		);
 
-				/**
-				 * How to handle authors that don't exist on the current site.
-				 *
-				 * Possible values:
-				 *
-				 * * "create" – Create a new author.
-				 * * "default-author" – Use the default author.
-				 * * "map" – Map the author to an existing author on the current site.
-				 *
-				 * @default "create".
-				 */
-				authorsMode?: 'create' | 'default-author' | 'map';
+	type WXRContentBase = {
+		type: 'wxr';
+		source: DataSources.FileDataReference | DataSources.FileDataReference[];
 
-				/**
-				 * The default author to use when `mode` is "default-author".
-				 *
-				 * @default "admin".
-				 */
-				defaultAuthorUsername?: string;
+		/**
+		 * Static assets handling.
+		 *
+		 * Possible values:
+		 *
+		 * * "fetch" – Fetch the static assets and save them to the local filesystem.
+		 * * "hotlink" – Hotlink the static assets from the remote site.
+		 *
+		 * @default "fetch".
+		 */
+		staticAssets?: 'fetch' | 'hotlink';
 
-				/**
-				 * Map post authors from the remote site to the current site.
-				 *
-				 * When not provided, the importer will attempt to match the authors by
-				 * username, email, or name.
-				 *
-				 * Required when `authorsMode` is "map".
-				 *
-				 * @default undefined.
-				 */
-				authorsMap?: Record<RemoteUsername, LocalUsername>;
+		/**
+		 * The default author to use when `mode` is "default-author".
+		 *
+		 * @default "admin".
+		 */
+		defaultAuthorUsername?: string;
 
-				/**
-				 * Whether to import users from the remote site.
-				 *
-				 * @default false.
-				 */
-				importUsers?: boolean;
+		/**
+		 * Whether to import users from the remote site.
+		 *
+		 * @default false.
+		 */
+		importUsers?: boolean;
 
-				/**
-				 * Whether to import comments from the remote site.
-				 *
-				 * @default false.
-				 */
-				importComments?: boolean;
+		/**
+		 * Whether to import comments from the remote site.
+		 *
+		 * @default false.
+		 */
+		importComments?: boolean;
 
-				/**
-				 * Whether to import site settings from the remote site.
-				 *
-				 * @default false.
-				 */
-				importSiteOptions?: boolean;
-		  } & URLMappingConfig);
+		/**
+		 * Whether to import site settings from the remote site.
+		 *
+		 * @default false.
+		 */
+		importSiteOptions?: boolean;
+	} & URLMappingConfig;
 
 	type MediaDefinition =
 		| DataSources.FileDataReference

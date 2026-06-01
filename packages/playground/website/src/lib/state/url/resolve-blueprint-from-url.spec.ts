@@ -16,6 +16,8 @@ import {
 	applyQueryOverrides,
 	resolveBlueprintFromURL,
 } from './resolve-blueprint-from-url';
+// eslint-disable-next-line import/first
+import { GENERATED_GUTENBERG_INSTALLER_MARKER } from '../../gutenberg-preview';
 
 describe('resolveBlueprintFromURL', () => {
 	it('allows query API plugin installs to fail without skipping later plugins', async () => {
@@ -158,7 +160,23 @@ describe('resolveBlueprintFromURL', () => {
 		});
 	});
 
-	it('preserves Blueprint v2 login intent when the login query parameter is absent', async () => {
+	it('defaults Blueprint v2 login while preserving explicit Blueprint login intent', async () => {
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+				},
+				new URLSearchParams('php=8.2')
+			)
+		).resolves.toMatchObject({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					login: true,
+				},
+			},
+		});
+
 		await expect(
 			applyQueryOverrides(
 				{
@@ -202,6 +220,81 @@ describe('resolveBlueprintFromURL', () => {
 		});
 	});
 
+	it('defaults Blueprint v2 networking while preserving explicit Blueprint networking intent', async () => {
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+				},
+				new URLSearchParams('')
+			)
+		).resolves.toMatchObject({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					networkAccess: true,
+				},
+			},
+		});
+
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+					applicationOptions: {
+						'wordpress-playground': {
+							networkAccess: false,
+						},
+					},
+				},
+				new URLSearchParams('')
+			)
+		).resolves.toMatchObject({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					networkAccess: false,
+				},
+			},
+		});
+
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+					applicationOptions: {
+						'wordpress-playground': {
+							networkAccess: true,
+						},
+					},
+				},
+				new URLSearchParams('networking=no')
+			)
+		).resolves.toMatchObject({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					networkAccess: false,
+				},
+			},
+		});
+	});
+
+	it('applies Query API runtime defaults to Blueprint v2 declarations', async () => {
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+				},
+				new URLSearchParams('')
+			)
+		).resolves.toMatchObject({
+			version: 2,
+			phpVersion: '8.3',
+			wordpressVersion: 'latest',
+		});
+	});
+
 	it('applies core PR previews to Blueprint v2 declarations', async () => {
 		const result = await applyQueryOverrides(
 			{ version: 2 },
@@ -241,6 +334,9 @@ describe('resolveBlueprintFromURL', () => {
 					step: 'runPHP',
 					code: {
 						filename: 'install-gutenberg.php',
+					},
+					env: {
+						[GENERATED_GUTENBERG_INSTALLER_MARKER]: '1',
 					},
 				},
 				{

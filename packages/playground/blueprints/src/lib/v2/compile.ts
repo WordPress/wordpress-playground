@@ -44,7 +44,6 @@ type V2DataReference =
 			path?: string;
 	  };
 type V2InlineDirectory = {
-	directoryName?: string;
 	files: Record<string, string | V2InlineDirectory>;
 };
 
@@ -399,6 +398,10 @@ export function upgradeBlueprintV1ToV2(
 			continue;
 		}
 		const step = stepMaybe as JsonObject;
+		if (step['step'] === 'login') {
+			steps.push(...migrateV1LoginStepToV2(step));
+			continue;
+		}
 		const migrated = migrateV1StepToV2(step);
 		if (migrated) {
 			steps.push(...migrated);
@@ -686,9 +689,6 @@ function createInstallPluginStep(plugin: any): any {
 			...(definition['targetDirectoryName']
 				? { targetFolderName: definition['targetDirectoryName'] }
 				: {}),
-			...(definition['onError']
-				? { onError: definition['onError'] }
-				: {}),
 			...(definition['humanReadableName']
 				? { humanReadableName: definition['humanReadableName'] }
 				: {}),
@@ -713,6 +713,9 @@ function createInstallThemeStep(theme: any, active: boolean): any {
 			importStarterContent: definition['importStarterContent'] ?? false,
 			...(definition['targetDirectoryName']
 				? { targetFolderName: definition['targetDirectoryName'] }
+				: {}),
+			...(definition['onError']
+				? { onError: definition['onError'] }
 				: {}),
 			...(definition['humanReadableName']
 				? { humanReadableName: definition['humanReadableName'] }
@@ -925,29 +928,7 @@ function createImportPostsSteps(item: any, itemPath: string): any[] {
 }
 
 function normalizePostDefinitionForImport(post: JsonObject): JsonObject {
-	const normalized = { ...post };
-	if (
-		normalized['post_title'] === undefined &&
-		typeof normalized['title'] === 'string'
-	) {
-		normalized['post_title'] = normalized['title'];
-	}
-	if (
-		normalized['post_content'] === undefined &&
-		typeof normalized['content'] === 'string'
-	) {
-		normalized['post_content'] = normalized['content'];
-	}
-	if (
-		normalized['meta_input'] === undefined &&
-		isPlainObject(normalized['meta'])
-	) {
-		normalized['meta_input'] = normalized['meta'];
-	}
-	delete normalized['title'];
-	delete normalized['content'];
-	delete normalized['meta'];
-	return normalized;
+	return { ...post };
 }
 
 function createImportMediaSteps(media: any[], basePath: string): any[] {
@@ -2179,6 +2160,26 @@ foreach ($meta as $name => $value) {
 	}
 }
 
+function migrateV1LoginStepToV2(step: JsonObject): V2Step[] {
+	let username = 'admin';
+	if (step['username'] !== undefined) {
+		if (typeof step['username'] !== 'string') {
+			throw new InvalidBlueprintV2Error(
+				'/steps/login/username: must be a string'
+			);
+		}
+		username = step['username'];
+	}
+	return [
+		{
+			step: 'defineConstants',
+			constants: {
+				PLAYGROUND_AUTO_LOGIN_AS_USER: username,
+			},
+		},
+	];
+}
+
 const V1_WORDPRESS_ONLY_FEATURES = new Set([
 	'installPlugin',
 	'installTheme',
@@ -2389,7 +2390,7 @@ function validateV2StepFieldTypes(
 			validatePlaygroundPath(step['toPath'], `${path}/toPath`, errors);
 			return;
 		case 'defineConstants':
-			validateObject(step['constants'], `${path}/constants`, errors);
+			validateConstants(step['constants'], `${path}/constants`, errors);
 			return;
 		case 'importContent':
 			validateArray(
@@ -2963,16 +2964,40 @@ function validateWordPressPost(
 		return;
 	}
 
+	validateAllowedProperties(
+		value,
+		path,
+		new Set([
+			'post_author',
+			'post_date',
+			'post_content',
+			'post_title',
+			'post_excerpt',
+			'post_status',
+			'post_type',
+			'comment_status',
+			'post_password',
+			'post_name',
+			'post_parent_name',
+			'menu_order',
+			'post_mime_type',
+			'guid',
+			'post_category',
+			'post_tags',
+			'tax_input',
+			'meta_input',
+			'page_template',
+		]),
+		errors
+	);
 	const hasPostTitle = value['post_title'] !== undefined;
-	const hasTitleAlias = value['title'] !== undefined;
-	if (!hasPostTitle && !hasTitleAlias) {
+	if (!hasPostTitle) {
 		errors.push({
 			path,
 			message: 'must have required property "post_title"',
 		});
 	}
 	validateOptionalString(value['post_title'], `${path}/post_title`, errors);
-	validateOptionalString(value['title'], `${path}/title`, errors);
 	validateOptionalNumber(value['post_author'], `${path}/post_author`, errors);
 	validateOptionalString(value['post_date'], `${path}/post_date`, errors);
 	validateOptionalString(
@@ -2980,7 +3005,6 @@ function validateWordPressPost(
 		`${path}/post_content`,
 		errors
 	);
-	validateOptionalString(value['content'], `${path}/content`, errors);
 	validateOptionalString(
 		value['post_excerpt'],
 		`${path}/post_excerpt`,
@@ -3018,7 +3042,6 @@ function validateWordPressPost(
 	validateStringArray(value['post_tags'], `${path}/post_tags`, errors);
 	validateTaxInput(value['tax_input'], `${path}/tax_input`, errors);
 	validateObjectIfDefined(value['meta_input'], `${path}/meta_input`, errors);
-	validateObjectIfDefined(value['meta'], `${path}/meta`, errors);
 
 	if (
 		value['post_status'] !== undefined &&
@@ -3470,14 +3493,13 @@ function validateInlineDirectoryFiles(
 ) {
 	validateRecord(value, path, errors, (item, itemPath) => {
 		const filePath = itemPath.split('/').pop() || '';
-		if (
-			pathContainsParentDirectorySegment(
-				filePath.replace(/~1/g, '/').replace(/~0/g, '~')
-			)
-		) {
+		const decodedFilePath = filePath
+			.replace(/~1/g, '/')
+			.replace(/~0/g, '~');
+		if (!isValidPathSegment(decodedFilePath)) {
 			errors.push({
 				path: itemPath,
-				message: 'must not contain parent directory segments',
+				message: 'must be a file or directory name, not a path',
 			});
 		}
 		if (typeof item === 'string') {
@@ -3487,12 +3509,7 @@ function validateInlineDirectoryFiles(
 			validateAllowedProperties(
 				item,
 				itemPath,
-				new Set(['directoryName', 'files']),
-				errors
-			);
-			validateOptionalPathSegment(
-				item['directoryName'],
-				`${itemPath}/directoryName`,
+				new Set(['files']),
 				errors
 			);
 			if (item['files'] === undefined) {
@@ -3667,7 +3684,7 @@ function validatePathSegment(
 	if (typeof value !== 'string') {
 		return;
 	}
-	if (value.includes('/') || value.includes('\\') || value === '..') {
+	if (!isValidPathSegment(value)) {
 		errors.push({
 			path,
 			message: 'must be a directory name, not a path',
@@ -3680,6 +3697,16 @@ function validatePathSegment(
 			message: 'must not contain parent directory segments',
 		});
 	}
+}
+
+function isValidPathSegment(value: string) {
+	return (
+		value !== '' &&
+		value !== '.' &&
+		value !== '..' &&
+		!value.includes('/') &&
+		!value.includes('\\')
+	);
 }
 
 function validateOptionalPathSegment(
@@ -3837,13 +3864,13 @@ function resolveV2PHPVersion(
 		);
 	}
 	const min = version.min
-		? normalizeSupportedPHPVersion(version.min, '/phpVersion/min')
+		? normalizeSupportedPHPVersionConstraint(version.min, '/phpVersion/min')
 		: undefined;
 	const max = version.max
-		? normalizeSupportedPHPVersion(version.max, '/phpVersion/max')
+		? normalizeSupportedPHPVersionConstraint(version.max, '/phpVersion/max')
 		: undefined;
 	const recommended = version.recommended
-		? normalizeSupportedPHPVersion(
+		? normalizeSupportedPHPVersionConstraint(
 				version.recommended,
 				'/phpVersion/recommended'
 			)
@@ -3916,20 +3943,33 @@ function resolveV2WordPressVersion(
 	}
 	const min = constraint['min'];
 	const max = constraint['max'];
-	const preferred = constraint['preferred'] || constraint['recommended'];
+	const preferredKey =
+		constraint['preferred'] !== undefined ? 'preferred' : 'recommended';
+	const preferred =
+		preferredKey === undefined ? undefined : constraint[preferredKey];
 	if (min === undefined) {
 		throw new InvalidBlueprintV2Error(
 			'/wordpressVersion: must have required property "min"'
 		);
 	}
 	if (min !== undefined) {
-		assertValidWordPressVersion(min, '/wordpressVersion/min');
+		assertValidWordPressConstraintVersion(min, '/wordpressVersion/min');
 	}
 	if (max !== undefined) {
-		assertValidWordPressVersion(max, '/wordpressVersion/max');
+		assertValidWordPressConstraintVersion(max, '/wordpressVersion/max');
 	}
 	if (preferred !== undefined) {
-		assertValidWordPressVersion(preferred, '/wordpressVersion/preferred');
+		assertValidWordPressPreferredVersion(
+			preferred,
+			`/wordpressVersion/${preferredKey}`
+		);
+	}
+	if (preferred === 'latest') {
+		return resolveLatestSupportedWordPressVersionMatchingConstraint({
+			min,
+			max,
+			path: '/wordpressVersion',
+		});
 	}
 	if (
 		min !== undefined &&
@@ -3946,7 +3986,7 @@ function resolveV2WordPressVersion(
 			(max !== undefined && compareVersionLike(preferred, max) > 0))
 	) {
 		throw new InvalidBlueprintV2Error(
-			'/wordpressVersion/preferred: must satisfy the min/max constraint'
+			`/wordpressVersion/${preferredKey}: must satisfy the min/max constraint`
 		);
 	}
 	if (preferred !== undefined) {
@@ -4011,6 +4051,18 @@ function normalizeSupportedPHPVersion(
 	);
 }
 
+function normalizeSupportedPHPVersionConstraint(
+	version: string,
+	path: string
+): AllPHPVersion {
+	if (version === 'next') {
+		throw new InvalidBlueprintV2Error(
+			`${path}: "next" can only be used as a top-level phpVersion string`
+		);
+	}
+	return normalizeSupportedPHPVersion(version, path);
+}
+
 function comparePHPVersions(a: string, b: string) {
 	if (a === b) {
 		return 0;
@@ -4031,6 +4083,24 @@ function assertValidWordPressVersion(version: string, path: string) {
 	) {
 		throw new InvalidBlueprintV2Error(
 			`${path}: invalid WordPress version "${version}"`
+		);
+	}
+}
+
+function assertValidWordPressConstraintVersion(version: string, path: string) {
+	assertValidWordPressVersion(version, path);
+	if (['latest', 'beta', 'trunk', 'nightly'].includes(version)) {
+		throw new InvalidBlueprintV2Error(
+			`${path}: must be a comparable WordPress version`
+		);
+	}
+}
+
+function assertValidWordPressPreferredVersion(version: string, path: string) {
+	assertValidWordPressVersion(version, path);
+	if (['beta', 'trunk', 'nightly'].includes(version)) {
+		throw new InvalidBlueprintV2Error(
+			`${path}: must be "latest" or a comparable WordPress version`
 		);
 	}
 }
@@ -4172,7 +4242,9 @@ function isDirectorySlug(value: string) {
 function isExecutionContextPath(value: string) {
 	return (
 		(value.startsWith('./') || value.startsWith('/')) &&
-		!hasParentDirectorySegment(normalizeExecutionContextPath(value))
+		!pathContainsParentDirectorySegment(
+			normalizeExecutionContextPath(value)
+		)
 	);
 }
 
@@ -4461,6 +4533,7 @@ const V2_STEP_ALLOWED_PROPERTIES: Record<string, Set<string>> = {
 		'active',
 		'importStarterContent',
 		'targetDirectoryName',
+		'onError',
 		'humanReadableName',
 	]),
 	mkdir: new Set(['step', 'path']),

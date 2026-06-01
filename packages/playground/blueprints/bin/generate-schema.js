@@ -80,11 +80,10 @@ function patchV2Schema(schema) {
 	if (!definitions) {
 		return;
 	}
-	const noParentPathPattern =
-		'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
+	const noParentPathPattern = '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
 	const executionContextPathPattern =
-		'^(?:\\./|/)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
-	const pathSegmentPattern = '^(?!\\.\\.$)[^/\\\\]*$';
+		'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$))(?:\\./|/).*$';
+	const pathSegmentPattern = '^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$';
 	const directorySlugPattern =
 		'^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$';
 	const fontFilePattern = '\\.(?:woff2|woff|ttf|otf)(?:[?#]\\S*)?$';
@@ -106,12 +105,25 @@ function patchV2Schema(schema) {
 			pattern: '^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$',
 		});
 	}
+	if (definitions['DataSources.ComparableVersionExpression']) {
+		Object.assign(definitions['DataSources.ComparableVersionExpression'], {
+			type: 'string',
+			pattern: '^\\d+\\.\\d+(?:\\.\\d+)?$',
+		});
+	}
 	if (definitions['DataSources.PHPVersion']) {
 		Object.assign(definitions['DataSources.PHPVersion'], {
 			type: 'string',
 			pattern: '^(?:latest|next|\\d+\\.\\d+(?:\\.\\d+)?)$',
 		});
 		delete definitions['DataSources.PHPVersion'].$ref;
+	}
+	if (definitions['DataSources.PHPVersionConstraintVersion']) {
+		Object.assign(definitions['DataSources.PHPVersionConstraintVersion'], {
+			type: 'string',
+			pattern: '^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$',
+		});
+		delete definitions['DataSources.PHPVersionConstraintVersion'].$ref;
 	}
 	if (definitions['DataSources.WordPressVersion']) {
 		Object.assign(definitions['DataSources.WordPressVersion'], {
@@ -120,6 +132,30 @@ function patchV2Schema(schema) {
 				'^(?:latest|beta|trunk|nightly|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$',
 		});
 		delete definitions['DataSources.WordPressVersion'].anyOf;
+	}
+	if (definitions['DataSources.WordPressVersionConstraintVersion']) {
+		Object.assign(
+			definitions['DataSources.WordPressVersionConstraintVersion'],
+			{
+				type: 'string',
+				pattern:
+					'^\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?$',
+			}
+		);
+		delete definitions['DataSources.WordPressVersionConstraintVersion']
+			.anyOf;
+	}
+	if (definitions['DataSources.WordPressVersionPreferredVersion']) {
+		Object.assign(
+			definitions['DataSources.WordPressVersionPreferredVersion'],
+			{
+				type: 'string',
+				pattern:
+					'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$',
+			}
+		);
+		delete definitions['DataSources.WordPressVersionPreferredVersion']
+			.anyOf;
 	}
 	for (const definitionName of [
 		'DataSources.PluginDirectoryReference',
@@ -170,6 +206,7 @@ function patchV2Schema(schema) {
 	for (const definitionName of [
 		'DataSources.InlineFile',
 		'DataSources.InlineDirectory',
+		'DataSources.NestedInlineDirectory',
 	]) {
 		const definition = definitions[definitionName];
 		const propertyName =
@@ -189,6 +226,7 @@ function patchV2Schema(schema) {
 		patchFileMapPropertyNames(definition, noParentPathPattern);
 		patchUrlMaps(definition);
 	}
+	patchInlineDirectoryFileNames(definitions, pathSegmentPattern);
 }
 
 function patchV2TopLevelBlueprint(blueprint) {
@@ -231,14 +269,18 @@ function patchV2TopLevelBlueprint(blueprint) {
 			{
 				type: 'object',
 				properties: {
-					min: { $ref: '#/definitions/DataSources.WordPressVersion' },
-					max: { $ref: '#/definitions/DataSources.WordPressVersion' },
+					min: {
+						$ref: '#/definitions/DataSources.WordPressVersionConstraintVersion',
+					},
+					max: {
+						$ref: '#/definitions/DataSources.WordPressVersionConstraintVersion',
+					},
 					preferred: {
-						$ref: '#/definitions/DataSources.WordPressVersion',
+						$ref: '#/definitions/DataSources.WordPressVersionPreferredVersion',
 						default: 'latest',
 					},
 					recommended: {
-						$ref: '#/definitions/DataSources.WordPressVersion',
+						$ref: '#/definitions/DataSources.WordPressVersionPreferredVersion',
 						default: 'latest',
 					},
 				},
@@ -332,6 +374,20 @@ function patchFileMapPropertyNames(node, noParentPathPattern) {
 	for (const value of Object.values(node)) {
 		if (value && typeof value === 'object') {
 			patchFileMapPropertyNames(value, noParentPathPattern);
+		}
+	}
+}
+
+function patchInlineDirectoryFileNames(definitions, pathSegmentPattern) {
+	for (const definitionName of [
+		'DataSources.InlineDirectory',
+		'DataSources.NestedInlineDirectory',
+	]) {
+		const definition = definitions[definitionName];
+		if (definition?.properties?.files?.additionalProperties) {
+			definition.properties.files.propertyNames = {
+				pattern: pathSegmentPattern,
+			};
 		}
 	}
 }

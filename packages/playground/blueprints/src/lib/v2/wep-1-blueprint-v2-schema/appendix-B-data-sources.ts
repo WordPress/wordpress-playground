@@ -74,7 +74,11 @@ export namespace DataSources {
 	 */
 	export type InlineDirectory = {
 		directoryName: string;
-		files: Record<string, InlineFileContent | InlineDirectory>;
+		files: Record<string, InlineFileContent | NestedInlineDirectory>;
+	};
+
+	export type NestedInlineDirectory = {
+		files: Record<string, InlineFileContent | NestedInlineDirectory>;
 	};
 
 	/**
@@ -148,7 +152,17 @@ export namespace DataSources {
 		| 'latest'
 		| `${number}.${number}`
 		| `${number}.${number}.${number}`;
+	export type ComparableVersionExpression =
+		| `${number}.${number}`
+		| `${number}.${number}.${number}`;
 	export type WordPressVersionSuffix = `beta${number}` | `rc${number}`;
+	export type WordPressVersionConstraintVersion =
+		| ComparableVersionExpression
+		| `${ComparableVersionExpression}-${WordPressVersionSuffix}`;
+	export type WordPressVersionPreferredVersion =
+		| 'latest'
+		| WordPressVersionConstraintVersion;
+	export type PHPVersionConstraintVersion = SimpleVersionExpression;
 	/** }}} Helper types */
 
 	/**
@@ -203,14 +217,16 @@ export namespace DataSources {
 		| `${SimpleVersionExpression}-${WordPressVersionSuffix}`;
 
 	/**
-	 * PHP version, e.g. "8.1" or "8.1.3".
+	 * PHP version, e.g. "8.1", "8.1.3", or "next".
 	 *
 	 * These refer to PHP versions as listed in https://www.php.net/releases/.
+	 * `next` previews the php-src development branch and is currently
+	 * supported by the web runtime only.
 	 *
 	 * The PHPVersion type is only meaningful in the top-level
 	 * `phpVersion` property.
 	 */
-	export type PHPVersion = SimpleVersionExpression;
+	export type PHPVersion = SimpleVersionExpression | 'next';
 
 	/**
 	 * A path within the built WordPress site, relative to the WordPress root

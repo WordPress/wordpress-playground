@@ -55,8 +55,8 @@ Ang `landingPage` property ay nagsasabi sa Playground kung aling URL ang dapat p
 
 Ang `preferredVersions` property ay nagde-declare ng iyong preferred na PHP at WordPress versions. Maaari itong maglalaman ng sumusunod na properties:
 
-- `php` (string): Naglo-load ng specified na PHP version. Tumatanggap ng `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, o `latest`. Ang mga minor versions tulad ng `7.4.1` ay hindi supported.
-- `wp` (string): Naglo-load ng specified na WordPress version. Tumatanggap ng huling anim na major WordPress versions. Simula September 1, 2025, iyon ay `6.3`, `6.4`, `6.5`, `6.6`, `6.7` o `6.8`. Maaari mo ring gamitin ang generic values na `latest`, `nightly`, o `beta`. Para gumamit ng pre-release version ng WordPress, ang `beta` ay maglo-load ng latest beta o release candidate versions ng isang release cycle (Beta o RC).
+- `php` (string): Naglo-load ng specified na PHP version. Tumatanggap ng `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `latest`, o `next`. Ang mga minor versions tulad ng `7.4.1` ay hindi supported.
+- `wp` (string): Naglo-load ng specified na WordPress version. Tumatanggap ng supported na WordPress release lines mula `6.3` hanggang `7.0`. Maaari mo ring gamitin ang generic values na `latest`, `nightly`, o `beta`. Para gumamit ng pre-release version ng WordPress, ang `beta` ay maglo-load ng latest beta o release candidate versions ng isang release cycle (Beta o RC).
 
 ```js
 {

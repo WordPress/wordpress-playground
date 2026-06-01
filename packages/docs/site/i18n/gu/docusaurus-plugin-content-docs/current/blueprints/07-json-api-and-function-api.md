@@ -30,11 +30,15 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 <div class="callout callout-info">
 
-**બ્લુપ્રિન્ટ્સ વર્ઝન 2**
+**Blueprints વર્ઝન 2**
 
-ટીમ બ્લુપ્રિન્ટ્સને ટાઇપસ્ક્રિપ્ટ(TypeScript) લાઇબ્રેરીમાંથી PHP લાઇબ્રેરીમાં કેવી રીતે રૂપાંતરિત કરવું તે શોધી રહી છે. આનાથી લોકો કોઈપણ વર્ડપ્રેસ વાતાવરણમાં બ્લુપ્રિન્ટ્સ ચલાવી શકશે: પ્લેગ્રાઉન્ડ, હોસ્ટ કરેલી સાઇટ અથવા સ્થાનિક સેટઅપ.
+Blueprint v2 ઘોષણાઓ Playground વેબ એપ, client પેકેજ અને CLI દ્વારા સપોર્ટેડ છે.
+વર્ઝન 2 JSON declaration model જાળવે છે, પરંતુ WordPress setup ને `plugins`,
+`themes`, `content` અને `media` જેવા higher-level વિભાગોમાં મૂવે છે, અને
+`additionalStepsAfterExecution` માં વધારાના સ્ટેપ્સ માટે જગ્યા આપે છે.
 
-પ્રસ્તાવિત [નવું સ્પષ્ટીકરણ](https://github.com/WordPress/blueprints-library/issues/6) અલગથી ચર્ચા કરવામાં આવી છે [ગિટહબ ભંડાર](https://github.com/WordPress/blueprints-library/) , અને તમારું જોડાવા માટે ખૂબ સ્વાગત છે (ત્યાં અથવા [#playground] પર(https://wordpress.slack.com/archives/C04EWKGDJ0K) સ્લેક ચેનલ) અને પ્લેગ્રાઉન્ડની આગામી પેઢીને આકાર આપવામાં મદદ કરે છે.
+જાહેર [Blueprint JSON schema](https://playground.wordpress.net/blueprint-schema.json)
+v1 અને v2 બંને ઘોષણાઓ validate કરે છે. v2 માટે `"version": 2` સેટ કરો.
 
 </div>
 
@@ -43,9 +47,9 @@ You can use Blueprints both with the web and the node.js versions of WordPress P
 
 **Blueprints version 2**
 
-The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup.
+Blueprint v2 declarations are supported by the Playground web app, client package, and CLI. Version 2 keeps the JSON declaration model but moves WordPress setup into higher-level sections such as `plugins`, `themes`, `content`, and `media`, with escape hatches in `additionalStepsAfterExecution`.
 
-The proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) is discussed on a separate [GitHub repository](https://github.com/WordPress/blueprints-library/), and you’re more than welcome to join (there or on the [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) and help shape the next generation of Playground.
+The public Blueprint JSON schema validates both v1 and v2 declarations. To opt into v2, set `"version": 2`.
 
 </div>
 -->
