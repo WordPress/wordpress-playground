@@ -53,6 +53,41 @@ const zip = await api.exportSavedSiteAsZip('my-site', {
 
 The optional `excludePatterns` use gitignore semantics: matching paths are excluded, later patterns take precedence, and a leading `!` re-includes a path. When `excludePatterns` is omitted, the ZIP contains the complete saved site.
 
+## Custom loading screens
+
+The Playground iframe includes a default progress bar while it boots. Apps that
+need a branded welcome or loading screen should render that UI outside the
+iframe and use the client hooks to keep it in sync with Playground boot
+progress:
+
+```js
+const loadingScreen = document.getElementById('loading-screen');
+const loadingText = document.getElementById('loading-text');
+const loadingBar = document.getElementById('loading-bar');
+const iframe = document.getElementById('wp');
+
+iframe.hidden = true;
+
+const client = await startPlaygroundWeb({
+	iframe,
+	remoteUrl: `https://playground.wordpress.net/remote.html`,
+	disableProgressBar: true,
+	onProgress({ progress, caption }) {
+		loadingText.textContent = caption;
+		loadingBar.value = progress;
+	},
+	onReady() {
+		loadingScreen.hidden = true;
+		iframe.hidden = false;
+	},
+});
+```
+
+This replaces embedding custom welcome HTML inside the remote progress overlay.
+Keeping the welcome screen in the parent page gives each app full control over
+its markup, styling, and interaction model without coupling it to the
+Playground iframe UI.
+
 ## npm package
 
 The npm package exists for projects that want to install `@wp-playground/client` through a package manager, bundle it with their application, or use its TypeScript declarations locally.

@@ -201,7 +201,11 @@ export async function startPlaygroundWeb(
 		options.blueprint
 	);
 	const onProgressListener = options.onProgress
-		? (event: ProgressTrackerEvent) => options.onProgress?.(event.detail)
+		? (event: ProgressTrackerEvent) =>
+				options.onProgress?.({
+					progress: event.detail.progress,
+					caption: event.detail.caption,
+				})
 		: undefined;
 	if (onProgressListener) {
 		progressTracker.addEventListener('progress', onProgressListener);

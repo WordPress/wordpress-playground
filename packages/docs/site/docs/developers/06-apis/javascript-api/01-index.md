@@ -40,6 +40,47 @@ Here's the shortest example of how to use the JavaScript API in a HTML page:
 </script>
 ```
 
+## Custom loading screens
+
+By default, `remote.html` shows a progress bar while Playground boots. To use a
+custom welcome screen, render it in your parent page and keep the Playground
+iframe hidden until loading finishes:
+
+```html
+<section id="loading-screen">
+	<p id="loading-text">Preparing WordPress</p>
+	<progress id="loading-bar" max="100" value="0"></progress>
+</section>
+<iframe id="wp" hidden></iframe>
+<script type="module">
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
+
+	const loadingScreen = document.getElementById('loading-screen');
+	const loadingText = document.getElementById('loading-text');
+	const loadingBar = document.getElementById('loading-bar');
+	const iframe = document.getElementById('wp');
+
+	const client = await startPlaygroundWeb({
+		iframe,
+		remoteUrl: `https://playground.wordpress.net/remote.html`,
+		disableProgressBar: true,
+		onProgress({ progress, caption }) {
+			loadingText.textContent = caption;
+			loadingBar.value = progress;
+		},
+		onReady() {
+			loadingScreen.hidden = true;
+			iframe.hidden = false;
+		},
+	});
+</script>
+```
+
+Custom welcome HTML should live in the parent page, not inside the Playground
+remote iframe. This keeps the remote progress UI generic while giving each
+embedding app full control over its loading screen markup, styles, and
+interactions.
+
 <div class="callout callout-info">
 
 **/remote.html is a special URL**

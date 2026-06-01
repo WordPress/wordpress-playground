@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ProgressTracker } from '@php-wasm/progress';
+import { ProgressTracker } from '@php-wasm/progress';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 
 const mocks = vi.hoisted(() => {
@@ -118,6 +118,71 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV2Handler).toHaveBeenCalledTimes(1);
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
+	});
+});
+
+describe('startPlaygroundWeb loading hooks', () => {
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('reports progress and ready state to outer loading UIs', async () => {
+		const playground = { connected: true };
+		const progressTracker = new ProgressTracker();
+		const onProgress = vi.fn();
+		const onReady = vi.fn();
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		mocks.bootPlaygroundV1.mockImplementation(async () => {
+			progressTracker.set(35);
+			return playground;
+		});
+
+		await expect(
+			startPlaygroundWeb({
+				iframe: createIframe(),
+				remoteUrl: 'http://localhost/remote.html',
+				progressTracker,
+				onProgress,
+				onReady,
+			})
+		).resolves.toBe(playground);
+
+		expect(onProgress).toHaveBeenCalledWith({
+			progress: 0,
+			caption: 'Preparing WordPress',
+		});
+		expect(onProgress).toHaveBeenCalledWith({
+			progress: 35,
+			caption: 'Preparing WordPress',
+		});
+		expect(onProgress).toHaveBeenLastCalledWith({
+			progress: 100,
+			caption: 'Preparing WordPress',
+		});
+		expect(onReady).toHaveBeenCalledTimes(1);
+	});
+
+	it('removes the progress listener after booting', async () => {
+		const progressTracker = new ProgressTracker();
+		const onProgress = vi.fn();
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		mocks.bootPlaygroundV1.mockResolvedValue({ connected: true });
+
+		await startPlaygroundWeb({
+			iframe: createIframe(),
+			remoteUrl: 'http://localhost/remote.html',
+			progressTracker,
+			onProgress,
+		});
+		onProgress.mockClear();
+
+		progressTracker.set(50);
+
+		expect(onProgress).not.toHaveBeenCalled();
 	});
 });
 
