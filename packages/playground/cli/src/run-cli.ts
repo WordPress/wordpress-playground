@@ -66,6 +66,8 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
+import type { KernelLimitedPHPApi } from './posix-kernel/php-api';
+import { PosixKernelHandler } from './posix-kernel/posix-kernel-handler';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	type Mount,
@@ -330,6 +332,16 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 				// Remove the "hidden" flag once Blueprint V2 is fully supported
+				hidden: true,
+			},
+			'experimental-posix-kernel': {
+				describe:
+					'Run WordPress under nginx + PHP-FPM hosted by ' +
+					'wasm-posix-kernel instead of PHP.wasm. Requires a ' +
+					'wasm-posix-kernel checkout; set ' +
+					'WASM_POSIX_KERNEL_DIR to its absolute path.',
+				type: 'boolean',
+				default: false,
 				hidden: true,
 			},
 			mode: {
@@ -782,7 +794,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				process.off('SIGTERM', cleanUpCliAndExit);
 				await cliServer[Symbol.asyncDispose]();
 			},
-			[internalsKeyForTesting]: { cliServer },
+			// The escape hatch is only reachable from classic-mode tests;
+			// --experimental-posix-kernel callers use runCLI() directly.
+			[internalsKeyForTesting]: {
+				cliServer: cliServer as RunCLIServer,
+			},
 		};
 	} catch (e) {
 		console.error(e);
@@ -945,6 +961,7 @@ export interface RunCLIArgs {
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
+	'experimental-posix-kernel'?: boolean;
 	workers?: number | 'auto';
 	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
@@ -1008,6 +1025,18 @@ export interface RunCLIServer extends AsyncDisposable {
 	};
 }
 
+/**
+ * Server returned when `--experimental-posix-kernel` is on. The
+ * kernel-resident nginx is the front door, so there's no Node
+ * `http.Server` and no `PHPWorker` pool to expose — only the URL,
+ * a kernel-resident `LimitedPHPApi` shim, and a teardown handle.
+ */
+export interface PosixKernelRunCliServer extends AsyncDisposable {
+	serverUrl: string;
+	playground: KernelLimitedPHPApi;
+	[Symbol.asyncDispose](): Promise<void>;
+}
+
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
@@ -1022,10 +1051,23 @@ export async function runCLI(
 	args: RunCLIArgs & { command: 'start' }
 ): Promise<RunCLIServer>;
 export async function runCLI(
+	args: RunCLIArgs & {
+		command: 'server';
+		'experimental-posix-kernel': true;
+	}
+): Promise<PosixKernelRunCliServer>;
+export async function runCLI(
 	args: RunCLIArgs & { command: 'server' }
 ): Promise<RunCLIServer>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
+export async function runCLI(
+	args: RunCLIArgs
+): Promise<RunCLIServer | PosixKernelRunCliServer | void>;
+export async function runCLI(
+	args: RunCLIArgs
+): Promise<RunCLIServer | PosixKernelRunCliServer | void> {
+	if (args['experimental-posix-kernel']) {
+		return await runCLIWithPosixKernel(args);
+	}
 	let playgroundPool: Pooled<PlaygroundCliWorker>;
 	const cookieStore = args.internalCookieStore
 		? new HttpCookieStore()
@@ -2088,6 +2130,59 @@ function openInBrowser(url: string): void {
 			logger.debug(`Could not open browser: ${error.message}`);
 		}
 	});
+}
+
+/**
+ * Boot WordPress under wasm-posix-kernel (nginx + PHP-FPM). Bypasses
+ * the Express server and PHP.wasm worker pool entirely. Only the
+ * `server` command is supported, and PHP.wasm-only flags
+ * (xdebug, redis, memcached) are rejected.
+ */
+async function runCLIWithPosixKernel(
+	args: RunCLIArgs
+): Promise<PosixKernelRunCliServer> {
+	if (args.command !== 'server') {
+		throw new Error(
+			'--experimental-posix-kernel currently only supports the "server" command.'
+		);
+	}
+
+	for (const flag of ['xdebug', 'redis', 'memcached'] as const) {
+		if (args[flag]) {
+			throw new Error(
+				`--${flag} is not supported with --experimental-posix-kernel yet.`
+			);
+		}
+	}
+
+	const cliOutput = new CLIOutput({
+		verbosity: args.verbosity || 'normal',
+	});
+	const handler = new PosixKernelHandler(args, { cliOutput });
+
+	if (typeof args.blueprint === 'string') {
+		args.blueprint = await resolveBlueprint({
+			sourceString: args.blueprint,
+			blueprintMayReadAdjacentFiles:
+				args['blueprint-may-read-adjacent-files'] === true,
+		});
+	}
+
+	const { serverUrl, api, dispose } = await handler.bootWordPress();
+	try {
+		await handler.runBlueprint(api);
+	} catch (e) {
+		await dispose();
+		throw e;
+	}
+
+	cliOutput.print(`WordPress is ready at ${serverUrl}`);
+
+	return {
+		serverUrl,
+		playground: api,
+		[Symbol.asyncDispose]: dispose,
+	};
 }
 
 async function zipSite(

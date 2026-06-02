@@ -1,3 +1,7 @@
 [submodule "isomorphic-git"]
     path="isomorphic-git"
     url=https://github.com/adamziel/isomorphic-git.git
+[submodule "wasm-posix-kernel"]
+	path = wasm-posix-kernel
+	url = https://github.com/mho22/wasm-posix-kernel.git
+	branch = playground-cli-experimental-posix-kernel-with-artifacts

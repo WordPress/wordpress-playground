@@ -12,6 +12,7 @@
 		"changelog": "bun ./packages/meta/bin/update-changelog.ts",
 		"deploy:docs": "gh-pages -d dist/docs/build -t true",
 		"dev": "nx dev playground-website",
+		"dev:experimental-posix-kernel": "nx dev-experimental-posix-kernel playground-website",
 		"format": "nx format",
 		"format:uncommitted": "nx format --fix --parallel --uncommitted",
 		"lint": "nx run-many --all --target=lint",

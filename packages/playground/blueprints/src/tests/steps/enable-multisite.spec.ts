@@ -89,4 +89,26 @@ describe('Blueprint step enableMultisite', () => {
 			expect(response.text).toContain('Network Admin');
 		});
 	});
+
+	describe('custom-port handling', () => {
+		it('accepts loopback URLs that carry a custom port', async () => {
+			const { php } = await doBootWordPress({
+				absoluteUrl: 'http://127.0.0.1:5400/scope:42/',
+			});
+			await enableMultisite(php, {});
+			const result = await php.run({
+				code: `<?php echo defined('WP_ALLOW_MULTISITE') ? '1' : '0';`,
+			});
+			expect(result.text).toEqual('1');
+		});
+
+		it('rejects non-loopback URLs that carry a custom port', async () => {
+			const { php } = await doBootWordPress({
+				absoluteUrl: 'http://example.com:8080/',
+			});
+			await expect(enableMultisite(php, {})).rejects.toThrow(
+				/custom ports/
+			);
+		});
+	});
 });

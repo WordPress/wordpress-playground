@@ -65,6 +65,20 @@
 				"color": true
 			}
 		},
+		"dev-experimental-posix-kernel": {
+			"executor": "nx:run-commands",
+			"continuous": true,
+			"options": {
+				"commands": [
+					"nx run playground-php-cors-proxy:start",
+					"nx run playground-remote:dev-experimental-posix-kernel",
+					"nx dev playground-website-extras --configuration=development-for-website",
+					"sleep 1; vite --config packages/playground/website/vite.posix-kernel.config.ts"
+				],
+				"parallel": true,
+				"color": true
+			}
+		},
 		"dev:standalone": {
 			"executor": "@nx/vite:dev-server",
 			"defaultConfiguration": "development",
@@ -179,6 +193,15 @@
 			"options": {
 				"commands": [
 					"npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
+				],
+				"parallel": false
+			}
+		},
+		"e2e:playwright:posix-kernel": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright/playwright.posix-kernel.config.ts"
 				],
 				"parallel": false
 			}
