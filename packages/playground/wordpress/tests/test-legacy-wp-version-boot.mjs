@@ -262,11 +262,11 @@ async function navigateViaUrlBar(page, path, timeoutSeconds = 60) {
  */
 async function waitForPluginActivation(
 	page,
-	previousFrameUrl,
-	previousBody,
-	timeoutSeconds = 60
+	{ previousFrameUrl, previousBody, pluginFile },
+	timeoutSeconds = TIMEOUT_S
 ) {
 	const deadline = Date.now() + timeoutSeconds * 1000;
+	let lastSeen = null;
 	while (Date.now() < deadline) {
 		await page.waitForTimeout(500);
 		for (const frame of page.frames()) {
@@ -275,12 +275,21 @@ async function waitForPluginActivation(
 				const body = await frame
 					.locator('body')
 					.innerText({ timeout: 2000 });
+				lastSeen = { body, frame, frameUrl: frame.url() };
+				const outcome = await readPluginActivationOutcome(
+					frame,
+					body,
+					pluginFile
+				);
+				if (outcome) {
+					return { body, frame, outcome };
+				}
 				const changed =
 					frame.url() !== previousFrameUrl || body !== previousBody;
 				if (!changed) continue;
 				if (
 					body.includes('Plugin activated') ||
-					body.includes('Deactivate') ||
+					(!pluginFile && body.includes('Deactivate')) ||
 					body.includes('Are you sure') ||
 					findPHPError(body)
 				) {
@@ -289,7 +298,69 @@ async function waitForPluginActivation(
 			} catch {}
 		}
 	}
-	return null;
+	return lastSeen ? { ...lastSeen, timedOut: true } : null;
+}
+
+/**
+ * Checks whether the plugins page has reached a conclusive post-activation
+ * state.
+ */
+async function readPluginActivationOutcome(frame, body, pluginFile) {
+	if (findPHPError(body)) return 'error';
+	if (body.includes('Are you sure')) return 'nonce';
+	if (body.includes('Plugin activated')) return 'activated';
+	if (pluginFile) {
+		const hasTargetDeactivateLink = await hasPluginActionLink(
+			frame,
+			pluginFile,
+			'deactivate'
+		);
+		return hasTargetDeactivateLink ? 'activated' : null;
+	}
+	return body.includes('Deactivate') ? 'activated' : null;
+}
+
+async function hasPluginActionLink(frame, pluginFile, action) {
+	for (const pluginFileVariant of [
+		pluginFile,
+		encodeURIComponent(pluginFile),
+	]) {
+		const selector = `a[href*="action=${action}"][href*="${escapeCssAttributeValue(
+			pluginFileVariant
+		)}"]`;
+		if ((await frame.locator(selector).count()) > 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function escapeCssAttributeValue(value) {
+	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function getPluginFileFromActivationHref(href) {
+	if (!href) return null;
+	try {
+		const url = new URL(href, 'http://playground.test/');
+		return url.searchParams.get('plugin');
+	} catch {
+		return null;
+	}
+}
+
+function getPluginActivationTimeoutDetail(result) {
+	if (!result) return '';
+	const details = [];
+	if (result.frameUrl) {
+		details.push(`last URL: ${result.frameUrl}`);
+	}
+	if (result.body) {
+		details.push(
+			`last body: ${result.body.slice(0, 160).replace(/\s+/g, ' ')}`
+		);
+	}
+	return details.join('; ');
 }
 
 /**
@@ -764,20 +835,32 @@ for (const { wp, php } of MATRIX) {
 							.innerText({ timeout: 2000 })
 							.catch(() => wp4.body);
 						const prevFrameUrl = wp4.frame.url();
-						await activateLink.click({ timeout: 5000 });
-						const wp4b = await waitForPluginActivation(
-							page,
-							prevFrameUrl,
-							bodyBeforeActivation
+						const pluginFile = getPluginFileFromActivationHref(
+							await activateLink
+								.getAttribute('href')
+								.catch(() => null)
 						);
-						if (!wp4b) {
-							pluginStatus = { status: 'TIMEOUT' };
+						await activateLink.click({ timeout: 5000 });
+						const wp4b = await waitForPluginActivation(page, {
+							previousFrameUrl: prevFrameUrl,
+							previousBody: bodyBeforeActivation,
+							pluginFile,
+						});
+						if (!wp4b || wp4b.timedOut) {
+							pluginStatus = {
+								status: 'TIMEOUT',
+								detail: getPluginActivationTimeoutDetail(wp4b),
+							};
 						} else {
 							const error = findPHPError(wp4b.body);
 							const ok =
+								wp4b.outcome === 'activated' ||
 								wp4b.body.includes('Plugin activated') ||
-								wp4b.body.includes('Deactivate');
-							const bad = wp4b.body.includes('Are you sure');
+								(!pluginFile &&
+									wp4b.body.includes('Deactivate'));
+							const bad =
+								wp4b.outcome === 'nonce' ||
+								wp4b.body.includes('Are you sure');
 							if (error) {
 								pluginStatus = {
 									status: 'ERROR',
