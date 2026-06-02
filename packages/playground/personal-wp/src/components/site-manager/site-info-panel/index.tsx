@@ -469,7 +469,7 @@ function AboutTab({ siteSlug }: { siteSlug: string }) {
 function DependentTabToolsNotice() {
 	return (
 		<div className={css.dependentTabToolsNotice}>
-			<h4>Runtime-only tools</h4>
+			<h4>Runtime-only: backups, recovery, reset</h4>
 			<p>
 				This tab can view, navigate, and install apps. Backups,
 				recovery, and reset controls need the tab running the WordPress
