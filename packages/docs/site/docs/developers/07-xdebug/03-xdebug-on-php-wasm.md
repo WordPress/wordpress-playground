@@ -14,7 +14,7 @@ PHP WASM CLI debugs any PHP code—you don't need WordPress. This works for all 
 
 You need an IDE that supports Xdebug and its configuration file.
 
--   **A configuration file:** For example, `.vscode/launch.json` for VS Code-based IDEs, or a Run/Debug Configuration created via **Run ▸ Edit Configurations…** in PhpStorm
+-   **A configuration file:** For example, `.vscode/launch.json` for VS Code-based IDEs and `.idea/workspace.xml` for PhpStorm
 -   **VS Code / Cursor:** We recommend the official [PHP Debug extension](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
 -   **PhpStorm:** supports Xdebug natively.
 
