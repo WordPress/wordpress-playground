@@ -38,13 +38,13 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 		this.requestedWordPressVersion = wpVersion;
 
 		try {
-			const knownRemoteAssetPaths = new Set<string>();
+			this.knownRemoteAssetPaths = new Set<string>();
 			const siteUrl = this.computeSiteUrl(scope);
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,
 				corsProxyUrl,
-				knownRemoteAssetPaths,
+				knownRemoteAssetPaths: this.knownRemoteAssetPaths,
 				extensions,
 				withNetworking,
 				phpVersion: phpVersion!,
@@ -74,7 +74,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 			await this.finalizeAfterBoot(
 				requestHandler,
 				withNetworking,
-				knownRemoteAssetPaths
+				this.knownRemoteAssetPaths
 			);
 			setApiReady();
 		} catch (e) {

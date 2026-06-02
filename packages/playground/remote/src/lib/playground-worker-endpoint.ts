@@ -125,6 +125,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
+	protected knownRemoteAssetPaths = new Set<string>();
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
@@ -388,10 +389,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (primaryPhp.isFile(remoteAssetListPath)) {
 			const remoteAssetPaths = primaryPhp
 				.readFileAsText(remoteAssetListPath)
-				.split('\n');
-			remoteAssetPaths.forEach((wpRelativePath: string) =>
-				knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath))
-			);
+				.split('\n')
+				.filter(Boolean);
+			remoteAssetPaths.forEach((wpRelativePath: string) => {
+				knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath));
+			});
 		}
 
 		this.__internal_setRequestHandler(requestHandler);
@@ -426,6 +428,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			staticAssetsDirectory: this.loadedWordPressVersion
 				? wpVersionToStaticAssetsDirectory(this.loadedWordPressVersion)
 				: undefined,
+			remoteAssetPaths: Array.from(this.knownRemoteAssetPaths),
 		};
 	}
 

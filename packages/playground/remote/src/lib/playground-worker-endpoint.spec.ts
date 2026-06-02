@@ -276,6 +276,20 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
+
+	it('reports known remote WordPress asset paths', async () => {
+		const endpoint = await createEndpoint({});
+		endpoint.loadedWordPressVersion = '6.8';
+		endpoint.knownRemoteAssetPaths = new Set([
+			'/wp-includes/js/dist/editor.min.js',
+		]);
+
+		await expect(endpoint.getWordPressModuleDetails()).resolves.toEqual(
+			expect.objectContaining({
+				remoteAssetPaths: ['/wp-includes/js/dist/editor.min.js'],
+			})
+		);
+	});
 });
 
 async function createEndpoint(
@@ -300,6 +314,11 @@ async function createEndpoint(
 		}): Promise<void>;
 		flushOpfs(mountpoint: string): Promise<void>;
 		unmountOpfs(mountpoint: string): Promise<void>;
+		getWordPressModuleDetails(): Promise<{
+			remoteAssetPaths: string[];
+		}>;
+		loadedWordPressVersion?: string;
+		knownRemoteAssetPaths: Set<string>;
 		opfsMounts: typeof opfsMounts;
 		unmounts: typeof unmounts;
 	};

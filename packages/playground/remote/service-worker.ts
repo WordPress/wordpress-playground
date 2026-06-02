@@ -116,6 +116,10 @@ import {
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
+import {
+	resolveKnownRemoteAssetUrl,
+	type WPModuleDetails,
+} from './src/lib/known-remote-asset';
 
 import {
 	cacheFirstFetch,
@@ -387,6 +391,15 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		return emptyHtml(scope);
 	}
 
+	const knownRemoteAssetResponse = await serveKnownRemoteAsset(
+		event,
+		scope,
+		unscopedUrl
+	);
+	if (knownRemoteAssetResponse) {
+		return knownRemoteAssetResponse;
+	}
+
 	const workerResponse = await convertFetchEventToPHPRequest(event);
 
 	if (
@@ -431,22 +444,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		 * request to the remote server as it is and let WordPress manage its
 		 * own HTTP caching.
 		 */
-		return fetch(request).catch((e) => {
-			if (e?.name === 'TypeError') {
-				// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
-				// happen on playground.wordpress.net. Let's add a randomized
-				// delay and retry once
-				return new Promise((resolve) => {
-					setTimeout(
-						() => resolve(fetch(request)),
-						Math.random() * 1500
-					);
-				}) as Promise<Response>;
-			}
-
-			// Otherwise let's just re-throw the error
-			throw e;
-		});
+		return fetchRemoteStaticAsset(request);
 	}
 
 	// Path the block-editor.js file to ensure the site editor's iframe
@@ -473,6 +471,41 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	}
 
 	return workerResponse;
+}
+
+async function serveKnownRemoteAsset(
+	event: FetchEvent,
+	scope: string,
+	unscopedUrl: URL
+) {
+	if (!['GET', 'HEAD'].includes(event.request.method)) {
+		return undefined;
+	}
+	const details = await getScopedWpDetails(scope);
+	const remoteAssetUrl = resolveKnownRemoteAssetUrl(unscopedUrl, details);
+	if (!remoteAssetUrl) {
+		return undefined;
+	}
+	const request = await cloneRequest(event.request, {
+		url: remoteAssetUrl,
+		credentials: 'omit',
+	});
+	return fetchRemoteStaticAsset(request);
+}
+
+function fetchRemoteStaticAsset(request: Request) {
+	return fetch(request).catch((e) => {
+		if (e?.name === 'TypeError') {
+			// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
+			// happen on playground.wordpress.net. Let's add a randomized
+			// delay and retry once
+			return new Promise((resolve) => {
+				setTimeout(() => resolve(fetch(request)), Math.random() * 1500);
+			}) as Promise<Response>;
+		}
+
+		throw e;
+	});
 }
 
 reportServiceWorkerMetrics(self);
@@ -594,10 +627,6 @@ function emptyHtml(scope: string) {
 		}
 	);
 }
-
-type WPModuleDetails = {
-	staticAssetsDirectory?: string;
-};
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
 async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
