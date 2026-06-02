@@ -46,6 +46,11 @@ type V2DataReference =
 type V2InlineDirectory = {
 	files: Record<string, string | V2InlineDirectory>;
 };
+type UpgradedV1RuntimeConfiguration = Partial<
+	Pick<RuntimeConfiguration, 'extraLibraries' | 'intl'>
+>;
+
+const upgradedV1RuntimeConfiguration = Symbol('upgradedV1RuntimeConfiguration');
 
 export type BlueprintV2ValidationError = {
 	path: string;
@@ -251,12 +256,19 @@ export function resolveBlueprintV2RuntimeConfiguration(
 	blueprint: BlueprintV2Declaration
 ): RuntimeConfiguration {
 	const playgroundOptions = getPlaygroundApplicationOptions(blueprint);
+	const v1RuntimeConfiguration = getUpgradedV1RuntimeConfiguration(blueprint);
+	const extraLibraries = new Set(
+		v1RuntimeConfiguration?.extraLibraries || []
+	);
+	if (blueprintRequiresWpCli(blueprint)) {
+		extraLibraries.add('wp-cli');
+	}
 	return {
 		phpVersion: resolveV2PHPVersion(blueprint.phpVersion),
 		wpVersion: resolveV2WordPressVersion(blueprint.wordpressVersion),
-		intl: false,
+		intl: v1RuntimeConfiguration?.intl ?? false,
 		networking: playgroundOptions?.networkAccess ?? false,
-		extraLibraries: blueprintRequiresWpCli(blueprint) ? ['wp-cli'] : [],
+		extraLibraries: [...extraLibraries],
 		constants: blueprint.constants || {},
 	};
 }
@@ -412,7 +424,23 @@ export function upgradeBlueprintV1ToV2(
 		v2['additionalStepsAfterExecution'] = steps;
 	}
 
-	return v2 as BlueprintV2Declaration;
+	const runtimeConfiguration: UpgradedV1RuntimeConfiguration = {};
+	if (v1.features?.intl !== undefined) {
+		runtimeConfiguration.intl = v1.features.intl;
+	}
+	if (v1.extraLibraries?.length) {
+		runtimeConfiguration.extraLibraries = [...v1.extraLibraries];
+	}
+
+	const upgraded = v2 as BlueprintV2Declaration;
+	if (Object.keys(runtimeConfiguration).length > 0) {
+		Object.defineProperty(upgraded, upgradedV1RuntimeConfiguration, {
+			value: runtimeConfiguration,
+			enumerable: false,
+		});
+	}
+
+	return upgraded;
 }
 
 export function blueprintV2ToBlueprintV1(
@@ -3860,6 +3888,12 @@ function getPlaygroundApplicationOptions(blueprint: BlueprintV2Declaration):
 	  }
 	| undefined {
 	return (blueprint as any).applicationOptions?.['wordpress-playground'];
+}
+
+function getUpgradedV1RuntimeConfiguration(
+	blueprint: BlueprintV2Declaration
+): UpgradedV1RuntimeConfiguration | undefined {
+	return (blueprint as any)[upgradedV1RuntimeConfiguration];
 }
 
 function resolveV2PHPVersion(

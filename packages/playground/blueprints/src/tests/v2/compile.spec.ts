@@ -1367,6 +1367,38 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		});
 	});
 
+	it('preserves v1 runtime-only features during v2 migration', () => {
+		const migrated = upgradeBlueprintV1ToV2({
+			features: {
+				intl: true,
+				networking: false,
+			},
+			extraLibraries: ['wp-cli'],
+		} as BlueprintV1Declaration);
+
+		expect(validateBlueprintV2(migrated)).toEqual({ valid: true });
+		expect(JSON.parse(JSON.stringify(migrated))).toEqual({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					networkAccess: false,
+				},
+			},
+		});
+		expect(resolveBlueprintV2RuntimeConfiguration(migrated)).toMatchObject({
+			intl: true,
+			networking: false,
+			extraLibraries: ['wp-cli'],
+		});
+		expect(blueprintV2ToBlueprintV1(migrated)).toMatchObject({
+			features: {
+				intl: true,
+				networking: false,
+			},
+			extraLibraries: ['wp-cli'],
+		});
+	});
+
 	it('resolves WordPress version constraints to the latest bundled compatible version', () => {
 		expect(
 			resolveBlueprintV2RuntimeConfiguration({
