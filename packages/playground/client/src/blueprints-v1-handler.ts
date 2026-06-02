@@ -154,9 +154,11 @@ type WordPressInstallMode = NonNullable<
  * produce NaN, which Number.isFinite rejects — those fall
  * through to enabling prefetch (correct for dev builds).
  *
- * Prefetch only makes sense when WordPress is actually installed.
- * In PHP-only mode (`preferredVersions.wp: false`), wp-load.php
- * doesn't exist and the prefetch crashes the runtime.
+ * Prefetch only makes sense when WordPress is actually installed because
+ * prefetchUpdateChecks() executes PHP that requires wp-load.php and calls
+ * WordPress update-check APIs. In PHP-only mode
+ * (`preferredVersions.wp: false`), wp-load.php doesn't exist and the prefetch
+ * crashes the runtime.
  *
  * @see https://github.com/WordPress/wordpress-playground/pull/2295
  */
@@ -187,13 +189,16 @@ function isWpAdminLandingPage(blueprint: StartPlaygroundOptions['blueprint']) {
 		return false;
 	}
 	try {
-		return new URL(
-			blueprint.landingPage,
-			'http://playground.local'
-		).pathname.startsWith('/wp-admin');
+		return isWpAdminPath(
+			new URL(blueprint.landingPage, 'http://playground.local').pathname
+		);
 	} catch {
-		return blueprint.landingPage.startsWith('/wp-admin');
+		return isWpAdminPath(blueprint.landingPage.split(/[?#]/, 1)[0]);
 	}
+}
+
+function isWpAdminPath(pathname: string) {
+	return pathname === '/wp-admin' || pathname.startsWith('/wp-admin/');
 }
 
 /**
@@ -209,12 +214,23 @@ function scheduleUpdateChecksPrefetch(playground: PlaygroundClient) {
 			logger.warn('Failed to prefetch WordPress update checks', error);
 		});
 	};
-	const requestIdleCallback = (globalThis as any).requestIdleCallback as
-		| ((callback: () => void, options?: { timeout: number }) => void)
-		| undefined;
+	const requestIdleCallback = getRequestIdleCallback();
 	if (requestIdleCallback) {
 		requestIdleCallback(prefetch, { timeout: 5000 });
 	} else {
 		setTimeout(prefetch, 0);
 	}
+}
+
+type RequestIdleCallback = (
+	callback: (deadline: IdleDeadline) => void,
+	options?: IdleRequestOptions
+) => number;
+
+function getRequestIdleCallback() {
+	return (
+		globalThis as typeof globalThis & {
+			requestIdleCallback?: RequestIdleCallback;
+		}
+	).requestIdleCallback;
 }

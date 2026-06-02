@@ -68,6 +68,7 @@ describe('BlueprintsV1Handler', () => {
 	});
 
 	afterEach(() => {
+		vi.unstubAllGlobals();
 		vi.useRealTimers();
 	});
 
@@ -230,6 +231,7 @@ describe('BlueprintsV1Handler', () => {
 			networking: true,
 		});
 		vi.useFakeTimers();
+		vi.stubGlobal('requestIdleCallback', undefined);
 		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
 			iframe,
@@ -244,6 +246,34 @@ describe('BlueprintsV1Handler', () => {
 				wordpressInstallMode: 'download-and-install',
 			})
 		);
+		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
+
+		await vi.runAllTimersAsync();
+
+		expect(mocks.playground.prefetchUpdateChecks).toHaveBeenCalledTimes(1);
+		vi.useRealTimers();
+	});
+
+	it('does not treat wp-admin-prefixed frontend paths as admin landings', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+		});
+		vi.useFakeTimers();
+		vi.stubGlobal('requestIdleCallback', undefined);
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {
+				landingPage: '/wp-adminer',
+			},
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
 		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
 
 		await vi.runAllTimersAsync();
