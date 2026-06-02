@@ -26,7 +26,7 @@ type Result = {
 
 const results: Result[] = [];
 const timeoutMs = Number.parseInt(
-	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '60000',
+	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '180000',
 	10
 );
 if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {

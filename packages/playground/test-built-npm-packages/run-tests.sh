@@ -14,6 +14,9 @@
 # Environment variables:
 #   VERSION           Override the package version (defaults to timestamp)
 #   PORT              Override the server port (defaults to 9934)
+#   PER_PHP_TEST_TIMEOUT_MS
+#                     Override the per-PHP ESM test process timeout
+#                     (defaults to 180000)
 #
 
 set -e
