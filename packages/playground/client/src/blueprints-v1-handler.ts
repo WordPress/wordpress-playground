@@ -117,33 +117,17 @@ export class BlueprintsV1Handler {
 			await runBlueprintV1Steps(compiled, playground);
 		}
 
-		/**
-		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
-		 * Skip for old WordPress versions — the functions called by prefetch
-		 * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
-		 * on legacy WP, and the resulting PHP errors create noise. WP 5.0
-		 * (Gutenberg 1.0) also crashes the runtime with exit code 255 inside
-		 * prefetchUpdateChecks when using the modern SQLite driver, so extend
-		 * the skip range up to (but not including) WP 5.1.
-		 *
-		 * parseFloat extracts the major version from strings like "6.8",
-		 * "4.9.26", etc. Non-numeric values like "nightly" or "trunk"
-		 * produce NaN, which Number.isFinite rejects — those fall
-		 * through to enabling prefetch (correct for dev builds).
-		 *
-		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
-		 */
-		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
-		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
-		// Prefetch only makes sense when WordPress is actually installed.
-		// In PHP-only mode (`preferredVersions.wp: false`), wp-load.php
-		// doesn't exist and the prefetch crashes the runtime.
 		if (
-			runtimeConfiguration.networking &&
-			!isLegacyWpVersion &&
-			resolvedWordPressInstallMode === 'download-and-install'
+			shouldPrefetchUpdateChecks(
+				runtimeConfiguration,
+				resolvedWordPressInstallMode
+			)
 		) {
-			await playground.prefetchUpdateChecks();
+			if (isWpAdminLandingPage(blueprint)) {
+				await playground.prefetchUpdateChecks();
+			} else {
+				scheduleUpdateChecksPrefetch(playground);
+			}
 		}
 
 		return playground;
@@ -153,3 +137,49 @@ export class BlueprintsV1Handler {
 type WordPressInstallMode = NonNullable<
 	StartPlaygroundOptions['wordpressInstallMode']
 >;
+
+function shouldPrefetchUpdateChecks(
+	runtimeConfiguration: Awaited<
+		ReturnType<typeof resolveRuntimeConfiguration>
+	>,
+	wordpressInstallMode: WordPressInstallMode
+) {
+	// WP <5.1 lacks or crashes inside functions used by prefetchUpdateChecks().
+	const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
+	const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
+	return (
+		runtimeConfiguration.networking &&
+		!isLegacyWpVersion &&
+		wordpressInstallMode === 'download-and-install'
+	);
+}
+
+function isWpAdminLandingPage(blueprint: StartPlaygroundOptions['blueprint']) {
+	if (!blueprint || isBlueprintBundle(blueprint) || !blueprint.landingPage) {
+		return false;
+	}
+	try {
+		return new URL(
+			blueprint.landingPage,
+			'http://playground.local'
+		).pathname.startsWith('/wp-admin');
+	} catch {
+		return blueprint.landingPage.startsWith('/wp-admin');
+	}
+}
+
+function scheduleUpdateChecksPrefetch(playground: PlaygroundClient) {
+	const prefetch = () => {
+		playground.prefetchUpdateChecks().catch((error) => {
+			logger.warn('Failed to prefetch WordPress update checks', error);
+		});
+	};
+	const requestIdleCallback = (globalThis as any).requestIdleCallback as
+		| ((callback: () => void, options?: { timeout: number }) => void)
+		| undefined;
+	if (requestIdleCallback) {
+		requestIdleCallback(prefetch, { timeout: 5000 });
+	} else {
+		setTimeout(prefetch, 0);
+	}
+}
