@@ -15,7 +15,7 @@ export function splitShellCommand(command: string) {
 	let quote = '';
 
 	const parts: string[] = [];
-	let currentPart = '';
+	let currentPart: string | null = null;
 	for (let i = 0; i < command.length; i++) {
 		const char = command[i];
 		if (char === '\\') {
@@ -25,35 +25,31 @@ export function splitShellCommand(command: string) {
 			if (command[i + 1] === '"' || command[i + 1] === "'") {
 				i++;
 			}
-			currentPart += command[i];
+			currentPart = (currentPart ?? '') + command[i];
 		} else if (mode === MODE_UNQUOTED) {
 			if (char === '"' || char === "'") {
 				mode = MODE_IN_QUOTE;
 				quote = char;
+				currentPart ??= '';
 			} else if (char.match(/\s/)) {
-				if (currentPart.trim().length) {
-					parts.push(currentPart.trim());
+				if (currentPart !== null) {
+					parts.push(currentPart);
 				}
-				currentPart = char;
-			} else if (parts.length && !currentPart) {
-				// We just closed a quote to continue the same
-				// argument with different escaping style, e.g.:
-				// php -r 'require '\''vendor/autoload.php'\''
-				currentPart = parts.pop()! + char;
+				currentPart = null;
 			} else {
-				currentPart += char;
+				currentPart = (currentPart ?? '') + char;
 			}
 		} else if (mode === MODE_IN_QUOTE) {
 			if (char === quote) {
 				mode = MODE_UNQUOTED;
 				quote = '';
 			} else {
-				currentPart += char;
+				currentPart = (currentPart ?? '') + char;
 			}
 		}
 	}
-	if (currentPart) {
-		parts.push(currentPart.trim());
+	if (currentPart !== null) {
+		parts.push(currentPart);
 	}
 	return parts;
 }

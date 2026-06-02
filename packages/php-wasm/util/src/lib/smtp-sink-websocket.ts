@@ -73,9 +73,9 @@ export class SmtpSinkWebSocket {
 	}
 
 	send(data: ArrayBuffer | Uint8Array | string) {
-		// WebSocket send(string) receives a complete JS string, not partial UTF-8 bytes.
-		// Binary SMTP chunks stay as bytes; SmtpSink's streaming decoder handles split
-		// multibyte sequences across writes, so TextEncoderStream is unnecessary here.
+		// WebSocket send(string) always delivers a complete JS string, never a
+		// partial surrogate pair. Binary chunks pass through as-is; multibyte
+		// splits across writes are handled by SmtpSink.consumeChunk().
 		const bytes =
 			typeof data === 'string'
 				? new TextEncoder().encode(data)

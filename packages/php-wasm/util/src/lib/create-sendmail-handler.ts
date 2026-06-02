@@ -45,23 +45,22 @@ export function createSendmailSpawnHandler(
 ) {
 	const sendmailHandler = createSpawnHandler(
 		async function (command, processApi) {
-			// Parse -f: supports `-f sender@domain.com` and `-fsender@domain.com`
+			// Parse -f: supports `-f sender@domain.com` and `-fsender@domain.com`.
+			// A standalone `--` ends option parsing; anything after it is a recipient.
 			let envelopeSender = '';
 			for (
 				let commandIndex = 1;
 				commandIndex < command.length;
 				commandIndex++
 			) {
-				if (
-					command[commandIndex] === '-f' &&
-					commandIndex + 1 < command.length
-				) {
+				const argument = command[commandIndex];
+				if (argument === '--') {
+					break;
+				}
+				if (argument === '-f' && commandIndex + 1 < command.length) {
 					envelopeSender = command[++commandIndex];
-				} else if (
-					command[commandIndex].startsWith('-f') &&
-					command[commandIndex].length > 2
-				) {
-					envelopeSender = command[commandIndex].slice(2);
+				} else if (argument.startsWith('-f') && argument.length > 2) {
+					envelopeSender = argument.slice(2);
 				}
 			}
 

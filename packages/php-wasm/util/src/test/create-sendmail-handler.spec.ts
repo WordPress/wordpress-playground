@@ -48,6 +48,35 @@ describe('createSendmailSpawnHandler', () => {
 		expect(message.from).toBe('sender@example.com');
 	});
 
+	it('preserves an empty -f argument passed in argsArray', async () => {
+		const message = await sendMail(
+			'/usr/sbin/sendmail',
+			[
+				'To: recipient@example.com',
+				'Subject: Empty envelope sender from argsArray',
+				'',
+				'Body',
+			].join('\n'),
+			['-f', '', '-t']
+		);
+
+		expect(message.from).toBe('');
+	});
+
+	it('stops parsing envelope sender options after --', async () => {
+		const message = await sendMail(
+			'/usr/sbin/sendmail -f sender@example.com -- -fignored@example.com',
+			[
+				'To: recipient@example.com',
+				'Subject: End of options',
+				'',
+				'Body',
+			].join('\n')
+		);
+
+		expect(message.from).toBe('sender@example.com');
+	});
+
 	it('rejects messages that exceed maxSize', async () => {
 		const onEmail = vitest.fn();
 		const spawnHandler = createSendmailSpawnHandler(onEmail, undefined, {
@@ -76,13 +105,14 @@ describe('createSendmailSpawnHandler', () => {
 
 async function sendMail(
 	command: string | string[],
-	rawMessage: string
+	rawMessage: string,
+	argsArray: string[] = []
 ): Promise<CaughtMessage> {
 	let caughtMessage: CaughtMessage | undefined;
 	const spawnHandler = createSendmailSpawnHandler((message) => {
 		caughtMessage = message;
 	});
-	const childProcess = spawnHandler(command);
+	const childProcess = spawnHandler(command, argsArray);
 
 	const exitCode = await new Promise<number>((resolve) => {
 		childProcess.on('spawn', () => {
