@@ -278,16 +278,17 @@ export class SmtpSink {
 			}
 
 			case 'STARTTLS': {
-				// The loopback duplex carries no real network traffic
-				// so there is nothing to encrypt. STARTTLS is never
-				// advertised in EHLO and is always refused with 502
-				// "Command not implemented" if a client tries it
-				// anyway. Clients that require STARTTLS, such as PHPMailer with
-				// ENCRYPTION_STARTTLS, must be configured for plain SMTP here.
-				// RFC 3207 defines STARTTLS for SMTP:
-				// https://www.rfc-editor.org/rfc/rfc3207.html
-				// PHPMailer exposes STARTTLS as ENCRYPTION_STARTTLS:
-				// https://github.com/PHPMailer/PHPMailer/blob/master/src/PHPMailer.php
+				// The loopback duplex carries no real network traffic, so
+				// there is nothing to encrypt. STARTTLS is never advertised
+				// in EHLO and is always refused with 502 "Command not
+				// implemented" if a client tries it anyway:
+				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2.4
+				// Clients with strict STARTTLS settings, such as PHPMailer
+				// SMTPSecure=ENCRYPTION_STARTTLS, must be configured for plain
+				// SMTP when talking to this sink. Opportunistic STARTTLS
+				// clients should not try STARTTLS because EHLO omits it.
+				// RFC 3207 §4 defines the STARTTLS command:
+				// https://www.rfc-editor.org/rfc/rfc3207.html#section-4
 				await this.reply(502, 'Command not implemented');
 				break;
 			}
