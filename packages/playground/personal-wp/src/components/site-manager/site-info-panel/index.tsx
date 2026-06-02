@@ -422,9 +422,9 @@ function AboutTab() {
 				device.
 			</p>
 
+			<InstallAppsSection />
 			{!isDependentMode && (
 				<>
-					<InstallAppsSection />
 					<BackupSection />
 					<RecoverySection />
 				</>
@@ -449,11 +449,11 @@ function AboutTab() {
 function DependentTabToolsNotice() {
 	return (
 		<div className={css.dependentTabToolsNotice}>
-			<h4>Tools available in the active tab</h4>
+			<h4>Runtime-only tools</h4>
 			<p>
-				This tab can view and navigate the site. Apps, backups,
-				recovery, and reset controls are shown only in the tab with the
-				active WordPress runtime.
+				This tab can view, navigate, and install apps. Backups,
+				recovery, and reset controls need the tab running the WordPress
+				runtime.
 			</p>
 		</div>
 	);
