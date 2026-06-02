@@ -156,13 +156,31 @@ describe('Blueprints', () => {
 	});
 
 	it('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
-		await runBlueprintV1Steps(
-			await compileBlueprintV1({
-				extraLibraries: ['wp-cli'],
-			}),
-			php
+		const wpCliFixture = fs.readFileSync(
+			path.resolve(__dirname, '../fixtures/wp-cli.phar')
 		);
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(wpCliFixture, {
+				headers: {
+					'content-length': wpCliFixture.byteLength.toString(),
+				},
+			})
+		);
+		try {
+			await runBlueprintV1Steps(
+				await compileBlueprintV1({
+					extraLibraries: ['wp-cli'],
+				}),
+				php
+			);
+		} finally {
+			fetchSpy.mockRestore();
+		}
+
 		expect(php.fileExists('/tmp/wp-cli.phar')).toBe(true);
+		expect(php.readFileAsBuffer('/tmp/wp-cli.phar').byteLength).toBe(
+			wpCliFixture.byteLength
+		);
 	});
 
 	it('should compile and run a zip-based blueprint', async () => {
