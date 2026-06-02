@@ -889,6 +889,48 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		]);
 	});
 
+	it('lowers native v2 Git repository plugin URLs as Git directory zips', () => {
+		const plan = createBlueprintV2ExecutionPlan({
+			version: 2,
+			plugins: ['https://github.com/example/demo-plugin'],
+		} as BlueprintV2Declaration);
+
+		expect(plan).toMatchObject([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'zip',
+					inner: {
+						resource: 'git:directory',
+						url: 'https://github.com/example/demo-plugin',
+						ref: 'HEAD',
+					},
+				},
+			},
+		]);
+	});
+
+	it('preserves v1 Git repository plugin strings during v2 migration', () => {
+		const migrated = upgradeBlueprintV1ToV2({
+			plugins: ['https://gitlab.com/example/group/demo-plugin/'],
+		} as BlueprintV1Declaration);
+		const plan = createBlueprintV2ExecutionPlan(migrated);
+
+		expect(plan).toMatchObject([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'zip',
+					inner: {
+						resource: 'git:directory',
+						url: 'https://gitlab.com/example/group/demo-plugin',
+						ref: 'HEAD',
+					},
+				},
+			},
+		]);
+	});
+
 	it('passes theme target directory and progress name options to installTheme', () => {
 		const plan = createBlueprintV2ExecutionPlan({
 			version: 2,

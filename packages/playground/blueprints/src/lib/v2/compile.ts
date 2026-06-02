@@ -1795,6 +1795,19 @@ function convertV2DataReferenceToV1(
 	context?: 'plugin' | 'theme'
 ): FileReference | DirectoryReference {
 	if (typeof reference === 'string') {
+		if (
+			(context === 'plugin' || context === 'theme') &&
+			isGitRepoUrl(reference)
+		) {
+			return {
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: reference.trim().replace(/\/+$/, ''),
+					ref: 'HEAD',
+				},
+			} as FileReference;
+		}
 		if (isHttpUrl(reference)) {
 			return { resource: 'url', url: reference };
 		}
@@ -4233,6 +4246,20 @@ function isHttpUrl(value: string) {
 	} catch {
 		return false;
 	}
+}
+
+function isGitRepoUrl(url: string): boolean {
+	const normalizedUrl = url.trim().replace(/\/+$/, '');
+	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
+		return true;
+	}
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
+		return true;
+	}
+	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)) {
+		return true;
+	}
+	return false;
 }
 
 function isDirectorySlug(value: string) {

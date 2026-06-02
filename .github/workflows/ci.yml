@@ -555,6 +555,11 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browser
               run: npx playwright install chromium --with-deps
+            - name: Install PHP cURL extension
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y php-curl
+                  php -m | grep -qi '^curl$'
             - name: Start dev server
               run: |
                   npm run dev > /tmp/playground-dev.log 2>&1 &

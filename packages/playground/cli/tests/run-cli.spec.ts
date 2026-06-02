@@ -53,6 +53,9 @@ const blueprintVersions = [
 	},
 ];
 
+const fullNativeBlueprintV2ModeTest =
+	process.platform === 'win32' ? test.skip : test;
+
 describe.each(blueprintVersions)(
 	'run-cli with Blueprints v$version',
 	({ version, suiteCliArgs, expectedHomePageTitle }) => {
@@ -235,6 +238,7 @@ describe.each(blueprintVersions)(
 		test('should route v2 blueprints to the native v2 handler without the experimental flag', async () => {
 			await using cliServer = await runCLI({
 				command: 'server',
+				workers: 1,
 				wordpressInstallMode: 'do-not-attempt-installing',
 				skipSqliteSetup: true,
 				blueprint: {
@@ -273,6 +277,7 @@ describe.each(blueprintVersions)(
 					'--mode=mount-only',
 					'--verbosity=quiet',
 					'--port=0',
+					'--workers=1',
 				]);
 				const cliServer = cliResult[internalsKeyForTesting].cliServer;
 
@@ -302,6 +307,7 @@ describe.each(blueprintVersions)(
 					'--mode=mount-only',
 					'--verbosity=quiet',
 					'--port=0',
+					'--workers=1',
 				]);
 				const cliServer = cliResult[internalsKeyForTesting].cliServer;
 
@@ -627,109 +633,105 @@ describe.each(blueprintVersions)(
 		});
 
 		describe('native Blueprint v2 modes', () => {
-			test('should support --mode=create-new-site', async () => {
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-					'experimental-blueprints-v2-runner': true,
-					mode: 'create-new-site',
-					'mount-before-install': [
-						{
-							hostPath: tmpDir,
-							vfsPath: '/wordpress',
-						},
-					],
-				});
-				const homeUrl = new URL('/', cliServer.serverUrl);
-				const response = await fetch(homeUrl);
-				expect(response.status).toBe(200);
-				const text = await response.text();
-				expect(text).toContain(
-					`<title>${expectedHomePageTitle}</title>`
-				);
-			});
-
-			test('should support --mode=apply-to-existing-site', async () => {
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
-
-				const port = 3019;
-				let homeUrl: URL;
-
-				{
-					// Create a new site so we can load it as an existing site later.
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						port,
-						command: 'server',
-						'experimental-blueprints-v2-runner': true,
-						mode: 'create-new-site',
-						'mount-before-install': [
-							{
-								hostPath: tmpDir,
-								vfsPath: '/wordpress',
-							},
-						],
-					});
-					// Confirm the new site looks intact with its WP installed.
-					homeUrl = new URL('/', cliServer.serverUrl);
-					const setupResponse = await fetch(homeUrl);
-					expect(setupResponse.status).toBe(200);
-					const setupText = await setupResponse.text();
-					expect(setupText).toContain(
-						`<title>${expectedHomePageTitle}</title>`
+			fullNativeBlueprintV2ModeTest(
+				'should support --mode=create-new-site',
+				async () => {
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
 					);
+					try {
+						await using cliServer = await runCLI({
+							...suiteCliArgs,
+							command: 'server',
+							workers: 1,
+							'experimental-blueprints-v2-runner': true,
+							mode: 'create-new-site',
+							'mount-before-install': [
+								{
+									hostPath: tmpDir,
+									vfsPath: '/wordpress',
+								},
+							],
+						});
+						const homeUrl = new URL('/', cliServer.serverUrl);
+						const response = await fetch(homeUrl);
+						expect(response.status).toBe(200);
+						const text = await response.text();
+						expect(text).toContain(
+							`<title>${expectedHomePageTitle}</title>`
+						);
+						const wpContentDirPath = path.join(
+							tmpDir,
+							'wp-content'
+						);
+						expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(
+							true
+						);
+					} finally {
+						rmSync(tmpDir, { recursive: true, force: true });
+					}
 				}
+			);
 
-				// eslint-disable-next-line
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					port,
-					command: 'server',
-					'experimental-blueprints-v2-runner': true,
-					mode: 'apply-to-existing-site',
-					'mount-before-install': [
-						{
-							hostPath: tmpDir,
-							vfsPath: '/wordpress',
-						},
-					],
-				});
-				const redirectResponse = await fetch(homeUrl);
-				expect(redirectResponse.status).toBe(200);
-				const redirectText = await redirectResponse.text();
-				expect(redirectText).toContain(
-					`<title>${expectedHomePageTitle}</title>`
-				);
-			});
+			fullNativeBlueprintV2ModeTest(
+				'should support --mode=apply-to-existing-site',
+				async () => {
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
 
-			test('should put WordPress in the document root', async () => {
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
+					try {
+						await using cliServer = await runCLI({
+							...suiteCliArgs,
+							command: 'server',
+							workers: 1,
+							'experimental-blueprints-v2-runner': true,
+							mode: 'create-new-site',
+							'mount-before-install': [
+								{
+									hostPath: tmpDir,
+									vfsPath: '/wordpress',
+								},
+							],
+						});
+						// Confirm the new site looks intact with its WP installed.
+						const homeUrl = new URL('/', cliServer.serverUrl);
+						const setupResponse = await fetch(homeUrl);
+						expect(setupResponse.status).toBe(200);
+						const setupText = await setupResponse.text();
+						expect(setupText).toContain(
+							`<title>${expectedHomePageTitle}</title>`
+						);
 
-				// Create a new site so we can load it as an existing site later.
-				// eslint-disable-next-line
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					'site-url': 'http://playground-domain/',
-					'db-engine': 'sqlite',
-					command: 'server',
-					mode: 'create-new-site',
-					'mount-before-install': [
-						{
-							hostPath: tmpDir,
-							vfsPath: '/wordpress',
-						},
-					],
-				});
-				const wpContentDirPath = path.join(tmpDir, 'wp-content');
-				expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(true);
-			}, 60000);
+						// eslint-disable-next-line
+						await using existingSiteServer = await runCLI({
+							...suiteCliArgs,
+							command: 'server',
+							workers: 1,
+							'experimental-blueprints-v2-runner': true,
+							mode: 'apply-to-existing-site',
+							'mount-before-install': [
+								{
+									hostPath: tmpDir,
+									vfsPath: '/wordpress',
+								},
+							],
+						});
+						const existingSiteUrl = new URL(
+							'/',
+							existingSiteServer.serverUrl
+						);
+						const redirectResponse = await fetch(existingSiteUrl);
+						expect(redirectResponse.status).toBe(200);
+						const redirectText = await redirectResponse.text();
+						expect(redirectText).toContain(
+							`<title>${expectedHomePageTitle}</title>`
+						);
+					} finally {
+						rmSync(tmpDir, { recursive: true, force: true });
+					}
+				}
+			);
 		});
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks

@@ -83,9 +83,11 @@ export const unzipFile = async (
 							$zip->extractTo($extractTo, $filename);
 						}
 					}
-				} finally {
+				} catch (Exception $e) {
 					$zip->close();
+					throw $e;
 				}
+				$zip->close();
 				chmod($extractTo, 0777);
             } else {
                 $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
