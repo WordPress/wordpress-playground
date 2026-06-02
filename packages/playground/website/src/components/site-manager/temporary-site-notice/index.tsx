@@ -5,6 +5,7 @@ import { useState } from 'react';
 import classNames from 'classnames';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import { useActiveSite } from '../../../lib/state/redux/store';
+import { isSiteSavingDisabled } from '../../../lib/state/url/router';
 
 export function TemporarySiteNotice({
 	isDismissible = false,
@@ -16,20 +17,20 @@ export function TemporarySiteNotice({
 	const [isDismissed, setIsDismissed] = useState(false);
 	const site = useActiveSite()!;
 	const playground = usePlaygroundClient(site.slug);
-	if (isDismissed) {
+	if (isDismissed || isSiteSavingDisabled()) {
 		return null;
 	}
 	return (
 		<Notice
 			className={classNames(css.siteNotice, className)}
-			spokenMessage="This is a temporary Playground. Your changes will be lost on page refresh."
+			spokenMessage="This is an Unsaved Playground. Your changes will be lost on page refresh."
 			status="info"
 			isDismissible={isDismissible}
 			onDismiss={() => setIsDismissed(true)}
 		>
 			<Flex direction="row" gap={2} expanded={true}>
 				<FlexItem>
-					<b>This is a temporary Playground.</b> Your changes will be
+					<b>This is an Unsaved Playground.</b> Your changes will be
 					lost on page refresh.
 				</FlexItem>
 				<FlexItem>

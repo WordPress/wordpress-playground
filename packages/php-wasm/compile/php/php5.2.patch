@@ -1,0 +1,60 @@
+--- a/php-src/ext/standard/file.c
++++ b/php-src/ext/standard/file.c
+@@ -1776,6 +1776,20 @@
+ 			goto safe_to_copy;
+ 			break;
+ 		case 0:
++			// Fix for https://github.com/WordPress/wordpress-playground/issues/54:
++			// Problem: Calling copy() on an empty source file crashes the JavaScript
++			//          runtime.
++			// Solution: Avoid copying empty files. Just create an empty
++			//           destination file and return.
++			if (src_s.sb.st_size == 0) {
++				char *opened_path = NULL;
++				php_stream *stream = php_stream_open_wrapper(dest, "w", REPORT_ERRORS, &opened_path);
++				if (stream) {
++					php_stream_close(stream);
++					return SUCCESS;
++				}
++				return FAILURE;
++			}
+ 			break;
+ 		default: /* failed to stat file, does not exist? */
+ 			return ret;
+--- a/php-src/ext/dom/documenttype.c
++++ b/php-src/ext/dom/documenttype.c
+@@ -215,7 +215,7 @@
+ 		if (buff != NULL) {
+ 			xmlNodeDumpOutput (buff, NULL, (xmlNodePtr) intsubset, 0, 0, NULL);
+ 			xmlOutputBufferFlush(buff);
+-			ZVAL_STRINGL(*retval, buff->buffer->content, buff->buffer->use, 1);
++			ZVAL_STRINGL(*retval, (char *) xmlOutputBufferGetContent(buff), xmlOutputBufferGetSize(buff), 1);
+ 			(void)xmlOutputBufferClose(buff);
+ 			return SUCCESS;
+ 		}
+--- a/php-src/ext/dom/node.c
++++ b/php-src/ext/dom/node.c
+@@ -1950,9 +1950,9 @@
+     if (buf == NULL || ret < 0) {
+         RETVAL_FALSE;
+     } else {
+ 		if (mode == 0) {
+-			ret = buf->buffer->use;
++			ret = xmlOutputBufferGetSize(buf);
+ 			if (ret > 0) {
+-				RETVAL_STRINGL((char *) buf->buffer->content, ret, 1);
++				RETVAL_STRINGL((char *) xmlOutputBufferGetContent(buf), ret, 1);
+ 			} else {
+ 				RETVAL_EMPTY_STRING();
+ 			}
+--- a/php-src/ext/simplexml/simplexml.c
++++ b/php-src/ext/simplexml/simplexml.c
+@@ -1343,7 +1343,7 @@
+
+ 			xmlNodeDumpOutput(outbuf, (xmlDocPtr) sxe->document->ptr, node, 0, 0, ((xmlDocPtr) sxe->document->ptr)->encoding);
+ 			xmlOutputBufferFlush(outbuf);
+-			RETVAL_STRINGL((char *)outbuf->buffer->content, outbuf->buffer->use, 1);
++			RETVAL_STRINGL((char *) xmlOutputBufferGetContent(outbuf), xmlOutputBufferGetSize(outbuf), 1);
+ 			xmlOutputBufferClose(outbuf);
+ 		}
+ 	} else {

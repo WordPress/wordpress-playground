@@ -1,19 +1,116 @@
-import type {
-	SupportedPHPVersion,
-	EmscriptenOptions,
-	PHPRuntime,
+import {
+	type AllPHPVersion,
+	type SupportedPHPVersion,
+	type EmscriptenOptions,
+	type PHPRuntime,
+	type FileLockManager,
+	loadPHPRuntime,
+	FSHelpers,
+	FileLockManagerComposite,
+	createLegacyPhpIniPreRunStep,
+	isLegacyPHPVersion,
+	ProcessIdAllocator,
 } from '@php-wasm/universal';
-import { loadPHPRuntime, FSHelpers } from '@php-wasm/universal';
+import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
+import { bindUserSpace } from './wasm-user-space';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
+import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
+import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
-import { withICUData } from './data/with-icu-data';
-import { joinPaths } from '@php-wasm/util';
+import {
+	withPHPExtensions,
+	type PHPExtension,
+	type XdebugOptions,
+} from './extensions/load-extensions';
+import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
+import { platform } from 'os';
+import { jspi } from 'wasm-feature-detect';
 
 export interface PHPLoaderOptions {
-	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
+	/**
+	 * PHP extensions to install before the runtime starts.
+	 *
+	 * Use built-in names such as `intl`, `xdebug`, `redis`, and `memcached`,
+	 * or pass an external JSPI extension source such as a manifest.
+	 */
+	extensions?: PHPExtension[];
+	/**
+	 * @deprecated Use `extensions: ['xdebug']` or
+	 * `extensions: [{ name: 'xdebug', options }]` instead.
+	 */
+	withXdebug?: boolean | XdebugOptions;
+	/**
+	 * @deprecated Use `extensions: ['intl']` instead.
+	 */
+	withIntl?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['redis']` instead.
+	 */
+	withRedis?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['memcached']` instead.
+	 */
+	withMemcached?: boolean;
 }
+
+export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	/**
+	 * A file lock manager to coordinate file locks between
+	 * multiple php-wasm instances and other OS processes.
+	 */
+	fileLockManager?: FileLockManager;
+	emscriptenOptions?: EmscriptenOptions & {
+		/**
+		 * The process ID for the PHP runtime.
+		 *
+		 * This is used to distinguish between php-wasm processes for the
+		 * purpose of file locking and more informative trace messages.
+		 *
+		 * This ID is optional when running a single php-wasm process.
+		 */
+		processId?: number;
+
+		/**
+		 * Factory called during WASM initialization to create
+		 * user-space syscall implementations (flock, fcntl, etc.)
+		 * for a PHP process. Receives process context (PID,
+		 * constants, errno codes) and returns the bound syscall
+		 * functions.
+		 */
+		bindUserSpace?: (
+			userSpaceContext: WasmUserSpaceContext
+		) => WasmUserSpaceAPI;
+
+		/**
+		 * An optional function to collect trace messages.
+		 *
+		 * @param processId - The process ID of the PHP runtime.
+		 * @param format - A printf-style format string.
+		 * @param args - Arguments to the format string.
+		 */
+		trace?: (processId: number, format: string, ...args: any[]) => void;
+
+		/**
+		 * An optional path used to a real, native directory
+		 * to be mounted as the php-wasm /internal directory.
+		 */
+		nativeInternalDirPath?: string;
+	};
+};
+
+/**
+ * In order to make loadNodeRuntime easier to use in testing,
+ * we provide default processIds for runtimes when none was provided.
+ * !! Do not assign default process IDs in production code.
+ * Otherwise, runtimes in different worker threads might end
+ * up with the same process ID, which could break file locking
+ * and lead to database corruption.
+ */
+const dangerousDefaultProcessIdAllocator = (process.env as any).VITEST
+	? new ProcessIdAllocator()
+	: undefined;
 
 /**
  * Does what load() does, but synchronously returns
@@ -23,10 +120,55 @@ export interface PHPLoaderOptions {
  * @see load
  */
 export async function loadNodeRuntime(
-	phpVersion: SupportedPHPVersion,
-	options: PHPLoaderOptions = {}
+	phpVersion: AllPHPVersion,
+	options: PHPLoaderOptionsForNode = {}
 ) {
-	const emscriptenOptions: EmscriptenOptions = {
+	const processId =
+		options.emscriptenOptions?.processId ??
+		// !! Only assign a default process ID during test.
+		// Otherwise, multiple workers with duplicate process IDs
+		// could break file locking and lead to database corruption.
+		((process.env as any).VITEST
+			? dangerousDefaultProcessIdAllocator!.claim()
+			: undefined);
+
+	const isLegacy = isLegacyPHPVersion(phpVersion);
+	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
+	const requestedExtensions = [...(options.extensions ?? [])];
+
+	/*
+	 * Keep the deprecated `with*` options as aliases for built-in extension
+	 * requests. If callers already requested the same built-in through
+	 * `extensions`, do not add it again.
+	 */
+	if (options.withIntl && !hasBuiltInExtension(requestedExtensions, 'intl')) {
+		requestedExtensions.push('intl');
+	}
+	if (
+		options.withRedis &&
+		!hasBuiltInExtension(requestedExtensions, 'redis')
+	) {
+		requestedExtensions.push('redis');
+	}
+	if (
+		options.withMemcached &&
+		!hasBuiltInExtension(requestedExtensions, 'memcached')
+	) {
+		requestedExtensions.push('memcached');
+	}
+
+	if (
+		options.withXdebug &&
+		!hasBuiltInExtension(requestedExtensions, 'xdebug')
+	) {
+		requestedExtensions.push(
+			typeof options.withXdebug === 'object'
+				? { name: 'xdebug', options: options.withXdebug }
+				: 'xdebug'
+		);
+	}
+
+	let emscriptenOptions: EmscriptenOptions = {
 		/**
 		 * Emscripten default behavior is to kill the process when
 		 * the WASM program calls `exit()`. We want to throw an
@@ -35,7 +177,34 @@ export async function loadNodeRuntime(
 		quit: function (code, error) {
 			throw error;
 		},
+		bindUserSpace: (userSpaceContext: WasmUserSpaceContext) => {
+			const nativeFileLockManager =
+				platform() === 'win32'
+					? new FileLockManagerForWindows()
+					: new FileLockManagerForPosix();
+			const fileLockManager = options.fileLockManager
+				? new FileLockManagerComposite({
+						nativeLockManager: nativeFileLockManager,
+						wasmLockManager: options.fileLockManager,
+					})
+				: nativeFileLockManager;
+			return bindUserSpace({ fileLockManager }, userSpaceContext);
+		},
 		...(options.emscriptenOptions || {}),
+		phpWasmAsyncMode,
+		processId,
+		// For legacy PHP: pre-create php.ini via a preRun step. See
+		// createLegacyPhpIniPreRunStep for why this must run before
+		// the PHP SAPI starts. Merge with any caller-provided preRun
+		// hooks (the spread above may have set them).
+		...(isLegacy
+			? {
+					preRun: [
+						createLegacyPhpIniPreRunStep(),
+						...((options.emscriptenOptions as any)?.preRun ?? []),
+					],
+				}
+			: {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			/**
 			 * When users mount a directory using the `mount` function,
@@ -51,7 +220,7 @@ export async function loadNodeRuntime(
 			 * in the Emscripten's filesystem and mount the OS directory
 			 * to the Emscripten filesystem.
 			 *
-			 * The directory is mounted to the `/internals/symlinks` directory to avoid
+			 * The directory is mounted to the `/internal/symlinks` directory to avoid
 			 * conflicts with existing VFS directories.
 			 * We can set a arbitrary mount path because readlink is the source of truth
 			 * for the path and Emscripten will accept it as if it was the real link path.
@@ -66,22 +235,80 @@ export async function loadNodeRuntime(
 								phpRuntime.FS.filesystems.NODEFS.realPath(node)
 							)
 						);
-					const symlinkPath = joinPaths(
-						`/internals/symlinks`,
-						absoluteSourcePath
+
+					const normalizedPath = toPosixPath(absoluteSourcePath);
+					const symlinkMountPath = joinPaths(
+						`/internal/symlinks`,
+						normalizedPath
 					);
-					if (
-						!FSHelpers.fileExists(phpRuntime.FS, symlinkPath) &&
-						fs.existsSync(absoluteSourcePath)
-					) {
-						phpRuntime.FS.mkdirTree(symlinkPath);
-						phpRuntime.FS.mount(
-							phpRuntime.FS.filesystems.NODEFS,
-							{ root: absoluteSourcePath },
-							symlinkPath
-						);
+					if (fs.existsSync(absoluteSourcePath)) {
+						const sourceStat = fs.statSync(absoluteSourcePath);
+						if (
+							!FSHelpers.fileExists(
+								phpRuntime.FS,
+								symlinkMountPath
+							)
+						) {
+							if (sourceStat.isDirectory()) {
+								phpRuntime.FS.mkdirTree(symlinkMountPath);
+							} else if (sourceStat.isFile()) {
+								phpRuntime.FS.mkdirTree(
+									dirname(symlinkMountPath)
+								);
+								phpRuntime.FS.writeFile(symlinkMountPath, '');
+							} else {
+								throw new Error(
+									'Unsupported file type. PHP-wasm supports only symlinks that link to files, directories, or symlinks.'
+								);
+							}
+						}
+
+						/**
+						 * For file symlinks, mount the parent directory instead
+						 * of just the file. When PHP resolves __DIR__ inside a
+						 * mounted file, it gets the parent path — which would be
+						 * an empty MEMFS directory if only the file were mounted.
+						 * Mounting the parent directory ensures sibling files
+						 * (e.g. wp-includes/version.php next to wp-load.php)
+						 * are accessible.
+						 *
+						 * @TODO: Upward traversal beyond the parent directory
+						 * (e.g. __DIR__ . '/../../') still lands in empty MEMFS
+						 * scaffolding. We need to figure out how to mount enough
+						 * of the host filesystem to support ../../ paths in the
+						 * PHP files brought in through symlinks, without mounting
+						 * the entire host root.
+						 */
+						const mountPath = sourceStat.isFile()
+							? dirname(symlinkMountPath)
+							: symlinkMountPath;
+						const mountRoot = sourceStat.isFile()
+							? dirname(normalizedPath)
+							: absoluteSourcePath;
+
+						const mountNode =
+							phpRuntime.FS.lookupPath(mountPath).node;
+
+						/**
+						 * If another PHP instance has already resolved a symlink
+						 * to the same absolute path, a corresponding mount point
+						 * will exist in the shared filesystem, but we do not know
+						 * whether the target path has been mounted to this PHP's
+						 * VFS. If the VFS node at the mount path has its own path
+						 * as the mount point, we know there is a mount there.
+						 */
+						const isMounted =
+							mountNode.mount.mountpoint === mountPath;
+
+						if (!isMounted) {
+							phpRuntime.FS.mount(
+								phpRuntime.FS.filesystems.NODEFS,
+								{ root: mountRoot },
+								mountPath
+							);
+						}
 					}
-					return symlinkPath;
+					return symlinkMountPath;
 				};
 			}
 
@@ -130,9 +357,48 @@ export async function loadNodeRuntime(
 			phpRuntime.FS.root.mount.opts.root = '.';
 		},
 	};
-	return await loadPHPRuntime(
-		await getPHPLoaderModule(phpVersion),
-		await withNetworking(emscriptenOptions),
-		await withICUData(emscriptenOptions)
-	);
+
+	if (isLegacy && requestedExtensions.length) {
+		throw new Error(
+			`Extensions (xdebug, intl, redis, memcached) are not ` +
+				`available for legacy PHP ${phpVersion}.`
+		);
+	}
+
+	if (!isLegacy) {
+		const modernVersion = phpVersion as SupportedPHPVersion;
+		emscriptenOptions = await withPHPExtensions(
+			modernVersion,
+			phpWasmAsyncMode,
+			emscriptenOptions,
+			requestedExtensions
+		);
+	}
+
+	emscriptenOptions = await withNetworking(emscriptenOptions);
+
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+
+	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
+	return runtimeId;
+}
+
+/**
+ * Checks whether a built-in extension has already been requested.
+ *
+ * This keeps deprecated `with*` flags backwards compatible without installing
+ * the same built-in twice when callers also pass the newer `extensions` array.
+ * External extension sources are ignored because their names are resolved later
+ * from bytes, URLs, or manifests.
+ */
+function hasBuiltInExtension(
+	extensions: PHPExtension[],
+	name: string
+): boolean {
+	return extensions.some((extension) => {
+		if (typeof extension === 'string') {
+			return extension === name;
+		}
+		return !('source' in extension) && extension.name === name;
+	});
 }

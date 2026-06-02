@@ -1,0 +1,103 @@
+.terminalPanel {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.terminalSection {
+	height: 100%;
+	background: #111;
+	color: #fff;
+	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+		'Courier New', monospace;
+	display: flex;
+	flex-direction: column;
+	border-top: 1px solid #333;
+	position: relative;
+}
+
+.terminalSectionCollapsed .terminalPane {
+	display: none;
+}
+
+.terminalPane {
+	box-sizing: border-box;
+	overflow: auto;
+	padding: 8px;
+	flex: 1;
+}
+
+.terminal {
+	width: 100%;
+	height: 100%;
+}
+
+/* Placeholder UI for pre-boot states */
+.placeholderContainer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 12px;
+	color: #666;
+	background: #fafafa;
+	border-top: 1px solid #eee;
+}
+
+.placeholderContent {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+}
+
+.placeholderHeading {
+	font-size: 13px;
+	font-weight: 600;
+	color: #333;
+}
+
+.placeholderSubtext {
+	font-size: 12px;
+	color: #666;
+}
+
+.skeletonList {
+	width: 100%;
+	max-width: 220px;
+	margin-top: 6px;
+}
+
+.skeletonLine {
+	height: 10px;
+	border-radius: 6px;
+	background: linear-gradient(90deg, #ececec, #f5f5f5, #ececec);
+	background-size: 200% 100%;
+	animation: skeletonShimmer 1.2s ease-in-out infinite;
+	margin: 8px 0;
+}
+
+.skeletonLineShort {
+	width: 70%;
+}
+
+@keyframes skeletonShimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+@media (max-width: 768px) {
+	.terminalPane {
+		height: 200px;
+	}
+}
+
+@media (max-width: 480px) {
+	.terminalPane {
+		height: 160px;
+	}
+}

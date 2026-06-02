@@ -2,15 +2,18 @@
 sidebar_position: 8
 title: Examples
 slug: /blueprints/examples
+description: A gallery of practical Blueprint examples for various tasks, such as installing themes, running PHP, and enabling features.
 ---
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 # Blueprints Examples
 
-:::tip
+<div class="callout callout-tip">
+
 Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-:::
+
+</div>
 
 Let's see some cool things you can do with Blueprints.
 
@@ -35,6 +38,36 @@ Let's see some cool things you can do with Blueprints.
 	]
 }} />
 
+## The `meta` object
+
+The optional `meta` object provides descriptive information about your Blueprint. While it doesn't affect how the Blueprint executes, this information is crucial for display purposes in galleries, Blueprint selectors, and integrated tools like [WordPress Studio](https://developer.wordpress.com/studio/) and [Blueprints Gallery](https://wordpress.github.io/blueprints/).
+
+### Properties
+
+| Field             | Type            | Description                                      |
+| :---------------- | :-------------- | :----------------------------------------------- |
+| **`title`**       | `string`        | A short, human-readable name for the Blueprint.  |
+| **`description`** | `string`        | A brief summary explaining the setup.            |
+| **`author`**      | `string`        | The name or handle of the creator.               |
+| **`categories`**  | `array<string>` | Tags used for filtering and grouping Blueprints. |
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Default Playground Setup",
+		"description": "A basic setup for a new WordPress site with the latest versions.",
+		"author": "Playground Team",
+		"categories": ["starter", "default"]
+	},
+	"landingPage": "/wp-admin/",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	}
+}
+```
+
 ## Run custom PHP code
 
 <BlueprintExample
@@ -42,7 +75,7 @@ display={`{
 	"steps": [
 		{
 			"step": "runPHP",
-			"code": "<?php include 'wordpress/wp-load.php'; wp_insert_post(array( 'post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1 )); "
+			"code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array( 'post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1 )); "
 		}
 	]
 }` }
@@ -51,7 +84,7 @@ blueprint={{
 			{
 				"step": "runPHP",
 				"code": `<?php
-include 'wordpress/wp-load.php';
+require_once '/wordpress/wp-load.php';
 wp_insert_post(array(
 'post_title' => 'Post title',
 'post_content' => 'Post content',
@@ -84,6 +117,26 @@ blueprint={{
 			}
 		]
 }} />
+
+## How to work with WP-CLI from the terminal and Playground
+
+You can run WP-CLI commands on a Playground instance either from your terminal or directly within a Blueprint.
+
+To use your terminal, you must first mount the `/wordpress/` directory and ensure the SQLite database integration is configured. This is because Playground's internal database doesn't persist on a mounted site, so you must explicitly install the database plugin via a Blueprint. This allows WP-CLI to recognize the WordPress installation and connect to its database.
+
+<div class="callout callout-info">
+
+If you run WP-CLI commands as steps within your Blueprint file, this manual setup is not needed.
+
+</div>
+
+The following Blueprint snippet handles this setup:
+
+<BlueprintExample blueprint={{
+    "plugins": [ "sqlite-database-integration" ]
+}} />
+
+For a detailed explanation of why this is needed, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section.
 
 ## Showcase a product demo
 
@@ -183,44 +236,26 @@ You can share your own Blueprint examples in [this dedicated wiki](https://githu
 
 ## Load an older WordPress version
 
-Playground only ships with a few recent WordPress releases. If you need to use an older version, this Blueprint can help you: change the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip"` from `5.9.9` to the release you want to load.
+Playground only ships with a few recent WordPress releases. If you need to use an older version, this Blueprint can help you: change the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-6.2.1.zip"` from `6.2.1` to the release you want to load.
 
-**Note:** the oldest supported WordPress version is `5.9.9`, following the SQLite integration plugin.
+**Note:** the oldest supported WordPress version is `6.2.1`, following the SQLite integration plugin.
 
 <BlueprintExample blueprint={{
-    "landingPage": "/wp-admin",
-    "steps": [
-        {
-            "step": "writeFile",
-            "path": "/tmp/wordpress.zip",
-            "data": {
-                "resource": "url",
-                "url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip",
-                "caption": "Downloading the WordPress Release"
-            }
-        },
-        {
-            "step": "importWordPressFiles",
-            "wordPressFilesZip": {
-                "resource": "vfs",
-                "path": "/tmp/wordpress.zip"
-            },
-            "pathInZip": "/wordpress",
-            "progress": {
-                "weight": 20,
-                "caption": "Importing the WordPress release"
-            }
-        },
-        {
-            "step": "runPHP",
-            "code": "<?php $_GET['step'] = 'upgrade_db'; require '/wordpress/wp-admin/upgrade.php'; "
-        },
-        {
-            "step": "login",
-            "username": "admin",
-            "password": "password"
-        }
-    ]
+  "landingPage": "/wp-admin",
+  "preferredVersions": {
+    "wp": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-6.2.1.zip",
+    "php": "8.3"
+  },
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    }
+  ]
 }} />
 
 ## Run WordPress from trunk or a specific commit.
@@ -231,13 +266,13 @@ You can specify the reference in `"url": "https://playground.wordpress.net/plugi
 
 To specify the latest commit of a particular branch, you can change the reference to the branch version number, eg `6.6`. To run a specific commit, you can use the commit hash from [WordPress/WordPress](https://github.com/WordPress/WordPress), eg `7d7a52367dee9925337e7d901886c2e9b21f70b6`.
 
-**Note:** the oldest supported WordPress version is `5.9.9`, following the SQLite integration plugin.
+**Note:** the oldest supported WordPress version is `6.2.1`, following the SQLite integration plugin.
 
 <BlueprintExample blueprint={{
     "landingPage": "/wp-admin",
 	"login" : true,
 	"preferredVersions" : {
-		"php": "8.0",
+		"php": "8.3",
 		"wp": "https://playground.wordpress.net/plugin-proxy.php?build-ref=trunk"
 	}
 }} />
@@ -250,7 +285,7 @@ Here's an example of a Blueprint that uses bundled resources from a Blueprint bu
 {
 	"landingPage": "/",
 	"preferredVersions": {
-		"php": "8.0",
+		"php": "8.3",
 		"wp": "latest"
 	},
 	"steps": [
@@ -284,10 +319,10 @@ Here's an example of a Blueprint that uses bundled resources from a Blueprint bu
 
 This Blueprint bundle would be zip file containing the following files:
 
--   `/blueprint.json` - The blueprint declaration outlined above
--   `/my-theme.zip` - A theme package
--   `/my-plugin.zip` - A plugin package
--   `/assets/custom-page.html` - A custom HTML file
+- `/blueprint.json` - The blueprint declaration outlined above
+- `/my-theme.zip` - A theme package
+- `/my-plugin.zip` - A plugin package
+- `/assets/custom-page.html` - A custom HTML file
 
 You can use this Blueprint bundle by:
 

@@ -1,0 +1,165 @@
+name: Release DevTools Extension
+
+on:
+    workflow_dispatch:
+        inputs:
+            version_bump:
+                description: 'Version bump type'
+                required: true
+                default: 'patch'
+                type: choice
+                options:
+                    - patch
+                    - minor
+                    - major
+
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
+jobs:
+    publish:
+        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
+        if: >
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.ref == 'refs/heads/trunk' && (
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'ashfame' ||
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
+            )
+
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: write # Required to push the new tag and create the GitHub release.
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: trunk
+                  clean: true
+                  fetch-depth: 1
+                  persist-credentials: true
+                  submodules: true
+
+            - name: Configure git
+              run: |
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+            - uses: ./.github/actions/prepare-playground
+
+            # Version Bumping Strategy:
+            #
+            # The extension uses semantic versioning (MAJOR.MINOR.PATCH) with its own
+            # version sequence independent of the main WordPress Playground project.
+            #
+            # Version tags follow the pattern: devtools-extension-vX.Y.Z
+            # This naming clearly indicates these versions are extension-specific.
+            #
+            # How bumping works:
+            # - If no tags exist yet, we start at 0.0.1
+            # - Otherwise, we find the latest tag and increment based on the bump type:
+            #   - patch: 0.0.1 -> 0.0.2 (bug fixes, small changes)
+            #   - minor: 0.0.2 -> 0.1.0 (new features, backwards compatible)
+            #   - major: 0.1.0 -> 1.0.0 (breaking changes)
+            #
+            # The version is stored in Git tags only, not committed to the repository.
+            # The manifest.json version is updated at build time from the computed version.
+            - name: Determine version
+              id: version
+              run: |
+                  # Find the most recent devtools-extension tag, sorted by version number
+                  LATEST_TAG=$(git tag -l 'devtools-extension-v*' --sort=-v:refname | head -n 1)
+
+                  if [ -z "$LATEST_TAG" ]; then
+                      # No existing tags found - this is the first release
+                      NEW_VERSION="0.0.1"
+                  else
+                      # Extract the version number from the tag name
+                      # Example: devtools-extension-v0.0.1 -> 0.0.1
+                      CURRENT_VERSION="${LATEST_TAG#devtools-extension-v}"
+
+                      # Split version string into components
+                      IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+                      # Apply the requested version bump
+                      case "${{ inputs.version_bump }}" in
+                          major)
+                              # Breaking changes: increment major, reset minor and patch
+                              MAJOR=$((MAJOR + 1))
+                              MINOR=0
+                              PATCH=0
+                              ;;
+                          minor)
+                              # New features: increment minor, reset patch
+                              MINOR=$((MINOR + 1))
+                              PATCH=0
+                              ;;
+                          patch)
+                              # Bug fixes: increment patch only
+                              PATCH=$((PATCH + 1))
+                              ;;
+                      esac
+
+                      NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+                  fi
+
+                  echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+                  echo "tag=devtools-extension-v$NEW_VERSION" >> $GITHUB_OUTPUT
+                  echo "New version: $NEW_VERSION"
+
+            - name: Update manifest version
+              run: |
+                  # Update the version in manifest.json
+                  cd packages/playground/devtools-extension
+                  jq '.version = "${{ steps.version.outputs.version }}"' public/manifest.json > tmp.json
+                  mv tmp.json public/manifest.json
+
+            - name: Build extension
+              run: npx nx build playground-devtools-extension
+
+            - name: Package extension
+              run: |
+                  cd dist/packages/playground/devtools-extension
+                  zip -r ../../../../playground-devtools-extension-${{ steps.version.outputs.version }}.zip .
+
+            - name: Create tag
+              run: |
+                  git tag ${{ steps.version.outputs.tag }}
+                  git push origin ${{ steps.version.outputs.tag }}
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ steps.version.outputs.tag }}
+                  name: WordPress Playground DevTools Extension ${{ steps.version.outputs.version }}
+                  body: |
+                      ## WordPress Playground DevTools Extension v${{ steps.version.outputs.version }}
+
+                      A Chrome DevTools extension for inspecting and editing files in WordPress Playground instances.
+
+                      ### Installation
+
+                      1. Download the `playground-devtools-extension-${{ steps.version.outputs.version }}.zip` file
+                      2. Extract it to a folder
+                      3. Open Chrome and go to `chrome://extensions/`
+                      4. Enable "Developer mode" (toggle in top right)
+                      5. Click "Load unpacked" and select the extracted folder
+
+                      ### Usage
+
+                      1. Open a page containing a WordPress Playground instance
+                      2. Open Chrome DevTools (F12)
+                      3. Click on the "Playground" tab
+                      4. Browse and edit files in the Playground instance
+                  files: |
+                      playground-devtools-extension-${{ steps.version.outputs.version }}.zip
+                  draft: false
+                  prerelease: false

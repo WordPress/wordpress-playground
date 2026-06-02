@@ -1,0 +1,26 @@
+{
+	"title": {
+		"message": "વર્ડપ્રેસ પ્લેગ્રાઉન્ડ",
+		"description": "The title in the navbar"
+	},
+	"logo.alt": {
+		"message": "વર્ડપ્રેસ પ્લેગ્રાઉન્ડ",
+		"description": "The alt text of navbar logo"
+	},
+	"item.label.Documentation": {
+		"message": "માર્ગદર્શિકા",
+		"description": "Navbar item with label Documentation"
+	},
+	"item.label.Blueprints": {
+		"message": "બ્લુપ્રિન્ટ્સ",
+		"description": "Navbar item with label Blueprints"
+	},
+	"item.label.Developers": {
+		"message": "ડેવલપર્સ",
+		"description": "Navbar item with label Developers"
+	},
+	"item.label.API Reference": {
+		"message": "API સંદર્ભ",
+		"description": "Navbar item with label API Reference"
+	}
+}

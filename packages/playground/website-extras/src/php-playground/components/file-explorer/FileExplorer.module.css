@@ -1,0 +1,103 @@
+.fileExplorerContainer {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	height: 100%;
+}
+
+.fileExplorerHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 10px;
+	background: #f5f5f5;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.fileExplorerTitle {
+	text-transform: uppercase;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	color: #555;
+}
+
+.fileExplorerActions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.fileExplorerButton {
+	border: 1px solid transparent;
+	background: transparent;
+	padding: 4px 6px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 12px;
+	color: #444;
+	transition: background-color 0.2s ease, color 0.2s ease,
+		border-color 0.2s ease;
+}
+
+.fileExplorerButton:hover {
+	background: #e9e9e9;
+	color: #111;
+	border-color: #d0d0d0;
+}
+
+.fileExplorerButton:disabled {
+	opacity: 0.5;
+	cursor: default;
+	background: transparent;
+	border-color: transparent;
+}
+
+.fileExplorerTree {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 4px 0;
+}
+
+.contextMenu {
+	position: fixed;
+	z-index: 2000;
+	min-width: 180px;
+	background: #ffffff;
+	border: 1px solid #d0d0d0;
+	box-shadow: 0 12px 30px rgba(15, 15, 15, 0.18);
+	border-radius: 6px;
+	padding: 4px 0;
+}
+
+.contextMenuTrigger {
+	position: fixed;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	pointer-events: none;
+	opacity: 0;
+}
+
+.contextMenuButton {
+	display: block;
+	width: 100%;
+	background: transparent;
+	border: none;
+	padding: 8px 16px;
+	text-align: left;
+	font-size: 13px;
+	color: #222;
+	cursor: pointer;
+
+	&.contextMenuButtonDanger {
+		color: #c0312c;
+	}
+}
+
+.contextMenuButton:hover {
+	background: #f0f0f5;
+}

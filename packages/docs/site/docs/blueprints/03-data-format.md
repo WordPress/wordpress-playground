@@ -2,6 +2,7 @@
 sidebar_position: 1
 title: Blueprint data Format
 slug: /blueprints/data-format
+description: An overview of the Blueprint data format. Learn about key properties like landingPage, preferredVersions, and steps.
 ---
 
 # Blueprint data format
@@ -15,7 +16,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 <BlueprintExample blueprint={{
 	"landingPage": "/wp-admin/",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	},
 	"features": {
@@ -54,14 +55,14 @@ The `landingPage` property tells Playground which URL to navigate to after the B
 
 The `preferredVersions` property declares your preferred PHP and WordPress versions. It can contain the following properties:
 
--   `php` (string): Loads the specified PHP version. Accepts `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, or `latest`. Minor versions like `7.4.1` are not supported.
--   `wp` (string): Loads the specified WordPress version. Accepts the last four major WordPress versions. As of June 1, 2024, that's `6.2`, `6.3`, `6.4`, or `6.5`. You can also use the generic values `latest`, `nightly`, or `beta`. To use a pre-release version of WordPress, `beta` will load the latest beta or release candidate versions of a release cycle (Beta or RC).
+- `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `latest`, or `next`. Minor versions like `7.4.1` are not supported. Use `next` to preview the next PHP version from the php-src development branch; it is currently supported by the web runtime only.
+- `wp` (string): Loads the specified WordPress version. Accepts the last seven major WordPress versions. As of April 28, 2026, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8`, or `6.9`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
 
 ```js
 {
 	"preferredVersions": {
-		"php": "8.0",
-		"wp": "6.5"
+		"php": "8.3",
+		"wp": "6.7"
 	},
 }
 ```
@@ -70,12 +71,12 @@ The `preferredVersions` property declares your preferred PHP and WordPress versi
 
 You can use the `features` property to turn on or off certain features of the Playground instance. It can contain the following properties:
 
--   `networking`: Defaults to `false`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead. You will need this property enabled if you want the user to be able to install plugins or themes.
+- `networking`: Defaults to `true`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead. You will need this property enabled if you want the user to be able to install plugins or themes.
 
 ```js
 {
 	"features": {
-		"networking": true
+		"networking": false
 	},
 }
 ```
@@ -84,7 +85,7 @@ You can use the `features` property to turn on or off certain features of the Pl
 
 You can preload extra libraries into the Playground instance. The following libraries are supported:
 
--   `wp-cli`: Enables WP-CLI support for Playground. If included, WP-CLI will be installed during boot. If not included, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps.
+- `wp-cli`: Enables WP-CLI support for Playground. If included, WP-CLI will be installed during boot. If not included, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps.
 
 ```js
 {
@@ -114,3 +115,73 @@ Arguably the most powerful property, `steps` allows you to configure the Playgro
 	]
 }
 ```
+
+## Common property placement mistakes
+
+Blueprint validation errors often come from putting a valid property in the
+wrong object.
+
+### Activate a plugin or theme
+
+`activate` belongs inside `options`, not inside `pluginData`, `themeData`, or
+directly on the step.
+
+```json
+{
+	"step": "installPlugin",
+	"pluginData": {
+		"resource": "wordpress.org/plugins",
+		"slug": "gutenberg"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+### Install plugins with the shorthand
+
+The `plugins` shorthand is a top-level Blueprint property. Do not put it inside
+`preferredVersions`.
+
+```json
+{
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"plugins": ["gutenberg"]
+}
+```
+
+### Use one plugin install shape
+
+For an `installPlugin` step, use `pluginData`. Do not mix `pluginData` with
+older examples or custom objects such as `pluginZipFile`.
+
+```json
+{
+	"step": "installPlugin",
+	"pluginData": {
+		"resource": "wordpress.org/plugins",
+		"slug": "woocommerce"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+The `wordpress.org/plugins` resource needs a separate `slug`. Do not write the
+slug into the `resource` value, such as `"wordpress.org/plugins/woocommerce"`.
+
+### Keep `preferredVersions` limited to versions
+
+`preferredVersions` only accepts `php` and `wp`. Use `features` for networking,
+`plugins` or `installPlugin` for plugins, and `steps` for ordered setup tasks.
+
+### Use explicit steps when order matters
+
+Shorthands such as `plugins`, `login`, `siteOptions`, and `constants` are
+expanded before the `steps` array. If one action must happen before another,
+write both actions as explicit steps in the order you need.

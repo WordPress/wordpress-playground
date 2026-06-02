@@ -1,7 +1,8 @@
 {
 	"typescript.tsdk": "node_modules/typescript/lib",
-	"eslint.validate": [
-		"json"
+	"eslint.useFlatConfig": false,
+	"eslint.workingDirectories": [
+		{ "pattern": "./packages/*/" }
 	],
 	"files.associations": {
 		"*.embeddedhtml": "html",
@@ -34,5 +35,5 @@
 	"git.branchProtection": [
 		"trunk"
 	],
-	"php.version": "7.2"
+	"php.version": "7.4"
 }

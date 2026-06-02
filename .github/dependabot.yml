@@ -1,0 +1,19 @@
+version: 2
+updates:
+    - package-ecosystem: 'npm'
+      directory: '/'
+      schedule:
+          interval: 'daily'
+      exclude-paths:
+          - packages/playground/wordpress-builds/public/**
+          - isomorphic-git/**
+      ignore:
+          # Ignore all non-security updates - only allow security updates for high or critical vulnerabilities
+          - dependency-name: '*'
+            update-types:
+                [
+                    'version-update:semver-major',
+                    'version-update:semver-minor',
+                    'version-update:semver-patch',
+                ]
+      open-pull-requests-limit: 4

@@ -182,6 +182,30 @@ describe('Journal MemFS', () => {
 });
 
 describe('normalizeFilesystemOperations()', () => {
+	it('Normalizes CREATE and WRITE + multiple WRITE file ops to a single WRITE', () => {
+		const expected = [
+			{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+		];
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+	});
 	it('Normalizes CREATE and RENAME to a single CREATE (file)', () => {
 		expect(
 			normalizeFilesystemOperations([
@@ -194,6 +218,49 @@ describe('normalizeFilesystemOperations()', () => {
 				},
 			])
 		).toEqual([{ operation: 'CREATE', path: '/test2', nodeType: 'file' }]);
+	});
+	it('Normalizes CREATE and RENAME with WRITEs to a single WRITE (file)', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
 	});
 	it('Normalizes CREATE and RENAME to a single CREATE (directory)', () => {
 		expect(
@@ -277,6 +344,56 @@ describe('normalizeFilesystemOperations()', () => {
 				},
 			])
 		).toEqual([]);
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'WRITE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'RENAME',
+					path: '/test/file1.txt',
+					toPath: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([]);
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'RENAME',
+					path: '/test/file1.txt',
+					toPath: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'WRITE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([]);
 	});
 	it('Normalizes a more complex scenario', () => {
 		expect(
@@ -335,5 +452,55 @@ describe('normalizeFilesystemOperations()', () => {
 				},
 			])
 		).toEqual([]);
+	});
+	it('Normalizes long rename sequences without overflowing the stack', () => {
+		const renameCount = 350;
+		const journal: FilesystemOperation[] = [];
+		for (let i = 0; i < renameCount; i++) {
+			journal.push({
+				operation: 'CREATE',
+				path: `/file-${i}`,
+				nodeType: 'file',
+			});
+			journal.push({
+				operation: 'RENAME',
+				path: `/file-${i}`,
+				toPath: `/renamed-${i}`,
+				nodeType: 'file',
+			});
+		}
+		const normalized = normalizeFilesystemOperations(journal);
+		expect(normalized).toEqual(
+			Array.from({ length: renameCount }, (_, i) => ({
+				operation: 'CREATE',
+				path: `/renamed-${i}`,
+				nodeType: 'file',
+			}))
+		);
+	});
+	it('Normalizes even a handful of recursive rewrites', () => {
+		const journal: FilesystemOperation[] = [
+			{ operation: 'CREATE', path: '/dir', nodeType: 'directory' },
+			{ operation: 'CREATE', path: '/dir/a', nodeType: 'directory' },
+			{
+				operation: 'RENAME',
+				path: '/dir',
+				toPath: '/dir/a',
+				nodeType: 'directory',
+			},
+			{ operation: 'DELETE', path: '/dir/a', nodeType: 'directory' },
+			{
+				operation: 'RENAME',
+				path: '/dir/a',
+				toPath: '/dir/a/b',
+				nodeType: 'directory',
+			},
+			{ operation: 'DELETE', path: '/dir/a/b', nodeType: 'directory' },
+		];
+		const normalized = normalizeFilesystemOperations([...journal]);
+		expect(normalized).toEqual([
+			{ operation: 'CREATE', path: '/dir/a', nodeType: 'directory' },
+			{ operation: 'CREATE', path: '/dir/a/a', nodeType: 'directory' },
+		]);
 	});
 });

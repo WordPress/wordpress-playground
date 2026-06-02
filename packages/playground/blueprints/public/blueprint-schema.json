@@ -1,8 +1,8 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$ref": "#/definitions/BlueprintDeclaration",
+	"$ref": "#/definitions/BlueprintV1Declaration",
 	"definitions": {
-		"BlueprintDeclaration": {
+		"BlueprintV1Declaration": {
 			"type": "object",
 			"properties": {
 				"landingPage": {
@@ -47,18 +47,30 @@
 						"php": {
 							"anyOf": [
 								{
-									"$ref": "#/definitions/SupportedPHPVersion"
+									"$ref": "#/definitions/BlueprintPHPVersion"
 								},
 								{
 									"type": "string",
 									"const": "latest"
 								}
 							],
-							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used"
+							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
 						},
 						"wp": {
-							"type": "string",
-							"description": "The preferred WordPress version to use. If not specified, the latest supported version will be used"
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "string",
+									"const": "latest"
+								},
+								{
+									"type": "boolean",
+									"const": false
+								}
+							],
+							"description": "The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time."
 						}
 					},
 					"required": ["php", "wp"],
@@ -68,6 +80,10 @@
 				"features": {
 					"type": "object",
 					"properties": {
+						"intl": {
+							"type": "boolean",
+							"description": "Should boot with support for Intl dynamic extension"
+						},
 						"networking": {
 							"type": "boolean",
 							"description": "Should boot with support for network request via wp_safe_remote_get?"
@@ -168,9 +184,46 @@
 			"additionalProperties": false,
 			"description": "The Blueprint declaration, typically stored in a blueprint.json file."
 		},
+		"BlueprintPHPVersion": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/AllPHPVersion"
+				},
+				{
+					"type": "string",
+					"const": "7.2"
+				},
+				{
+					"type": "string",
+					"const": "7.3"
+				}
+			],
+			"description": "PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation."
+		},
+		"AllPHPVersion": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/PHPNextVersion"
+				},
+				{
+					"$ref": "#/definitions/SupportedPHPVersion"
+				},
+				{
+					"$ref": "#/definitions/LegacyPHPVersion"
+				}
+			]
+		},
+		"PHPNextVersion": {
+			"type": "string",
+			"const": "next"
+		},
 		"SupportedPHPVersion": {
 			"type": "string",
-			"enum": ["8.4", "8.3", "8.2", "8.1", "8.0", "7.4", "7.3", "7.2"]
+			"enum": ["8.5", "8.4", "8.3", "8.2", "8.1", "8.0", "7.4"]
+		},
+		"LegacyPHPVersion": {
+			"type": "string",
+			"enum": ["5.2"]
 		},
 		"ExtraLibrary": {
 			"type": "string",
@@ -201,6 +254,9 @@
 				},
 				{
 					"$ref": "#/definitions/BundledReference"
+				},
+				{
+					"$ref": "#/definitions/ZipWrapperReference"
 				}
 			]
 		},
@@ -348,6 +404,111 @@
 			},
 			"required": ["resource", "path"],
 			"additionalProperties": false
+		},
+		"ZipWrapperReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "zip",
+					"description": "Identifies the resource as a ZIP wrapper"
+				},
+				"inner": {
+					"anyOf": [
+						{
+							"$ref": "#/definitions/FileReference"
+						},
+						{
+							"$ref": "#/definitions/DirectoryReference"
+						}
+					],
+					"description": "The inner resource to wrap in a ZIP file"
+				},
+				"name": {
+					"type": "string",
+					"description": "Optional filename for the ZIP (defaults to inner resource name + .zip)"
+				}
+			},
+			"required": ["resource", "inner"],
+			"additionalProperties": false
+		},
+		"DirectoryReference": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/GitDirectoryReference"
+				},
+				{
+					"$ref": "#/definitions/DirectoryLiteralReference"
+				}
+			]
+		},
+		"GitDirectoryReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "git:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"url": {
+					"type": "string",
+					"description": "The URL of the git repository"
+				},
+				"ref": {
+					"type": "string",
+					"description": "The ref (branch, tag, or commit) of the git repository"
+				},
+				"refType": {
+					"$ref": "#/definitions/GitDirectoryRefType",
+					"description": "Explicit hint about the ref type (branch, tag, commit, refname)"
+				},
+				"path": {
+					"type": "string",
+					"description": "The path to the directory in the git repository. Defaults to the repo root."
+				},
+				".git": {
+					"type": "boolean",
+					"description": "When true, include a `.git` directory with Git metadata (experimental)."
+				}
+			},
+			"required": ["resource", "url", "ref"],
+			"additionalProperties": false
+		},
+		"GitDirectoryRefType": {
+			"type": "string",
+			"enum": ["branch", "tag", "commit", "refname"]
+		},
+		"DirectoryLiteralReference": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "literal:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"files": {
+					"$ref": "#/definitions/FileTree"
+				},
+				"name": {
+					"type": "string"
+				}
+			},
+			"required": ["files", "name", "resource"]
+		},
+		"FileTree": {
+			"type": "object",
+			"additionalProperties": {
+				"anyOf": [
+					{
+						"$ref": "#/definitions/FileTree"
+					},
+					{
+						"type": ["object", "string"]
+					}
+				]
+			},
+			"properties": {}
 		},
 		"StepDefinition": {
 			"type": "object",
@@ -562,7 +723,7 @@
 						},
 						"importer": {
 							"type": "string",
-							"enum": ["default"],
+							"enum": ["data-liberation", "default"],
 							"description": "The importer to use. Possible values:\n\n- `default`: The importer from https://github.com/humanmade/WordPress-Importer\n- `data-liberation`: The experimental Data Liberation WXR importer developed at                      https://github.com/WordPress/wordpress-playground/issues/1894\n\nThis option is deprecated. The syntax will not be removed, but once the Data Liberation importer matures, it will become the only supported importer and the `importer` option will be ignored.",
 							"deprecated": true
 						}
@@ -667,7 +828,7 @@
 						},
 						"pluginZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"deprecated": ". Use `pluginData` instead."
+							"deprecated": ". Use 'pluginData' instead."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallPluginOptions",
@@ -715,7 +876,7 @@
 						},
 						"themeZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"deprecated": ". Use `themeData` instead."
+							"deprecated": ". Use 'themeData' instead."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallThemeOptions",
@@ -939,7 +1100,25 @@
 							"description": "The step identifier."
 						},
 						"code": {
-							"type": "string",
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "object",
+									"properties": {
+										"filename": {
+											"type": "string",
+											"description": "This property is ignored during Blueprint v1 execution but exists so the same runPHP step structure can be used for Blueprints v1 and v2."
+										},
+										"content": {
+											"type": "string"
+										}
+									},
+									"required": ["filename", "content"],
+									"additionalProperties": false
+								}
+							],
 							"description": "The PHP code to run."
 						}
 					},
@@ -1224,7 +1403,7 @@
 						},
 						"filesTree": {
 							"$ref": "#/definitions/DirectoryReference",
-							"description": "The data to write"
+							"description": "The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories."
 						}
 					},
 					"required": ["filesTree", "step", "writeToPath"]
@@ -1299,72 +1478,6 @@
 					"required": ["language", "step"]
 				}
 			]
-		},
-		"DirectoryReference": {
-			"anyOf": [
-				{
-					"$ref": "#/definitions/GitDirectoryReference"
-				},
-				{
-					"$ref": "#/definitions/DirectoryLiteralReference"
-				}
-			]
-		},
-		"GitDirectoryReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "git:directory",
-					"description": "Identifies the file resource as a git directory"
-				},
-				"url": {
-					"type": "string",
-					"description": "The URL of the git repository"
-				},
-				"ref": {
-					"type": "string",
-					"description": "The branch of the git repository"
-				},
-				"path": {
-					"type": "string",
-					"description": "The path to the directory in the git repository"
-				}
-			},
-			"required": ["resource", "url", "ref", "path"],
-			"additionalProperties": false
-		},
-		"DirectoryLiteralReference": {
-			"type": "object",
-			"additionalProperties": false,
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "literal:directory",
-					"description": "Identifies the file resource as a git directory"
-				},
-				"files": {
-					"$ref": "#/definitions/FileTree"
-				},
-				"name": {
-					"type": "string"
-				}
-			},
-			"required": ["files", "name", "resource"]
-		},
-		"FileTree": {
-			"type": "object",
-			"additionalProperties": {
-				"anyOf": [
-					{
-						"$ref": "#/definitions/FileTree"
-					},
-					{
-						"type": ["object", "string"]
-					}
-				]
-			},
-			"properties": {}
 		},
 		"InstallPluginOptions": {
 			"type": "object",
@@ -1552,7 +1665,7 @@
 			"properties": {
 				"relativeUri": {
 					"type": "string",
-					"description": "Request path following the domain:port part."
+					"description": "Request path following the domain:port part – after any URL rewriting rules (e.g. apache .htaccess) have been applied."
 				},
 				"scriptPath": {
 					"type": "string",

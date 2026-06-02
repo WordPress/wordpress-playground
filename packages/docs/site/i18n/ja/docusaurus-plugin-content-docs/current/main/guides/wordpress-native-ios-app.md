@@ -1,7 +1,7 @@
 ---
-title: ネイティブ iOS アプリのプレイグラウンド
+title: ネイティブiOSアプリのWordPress Playground
 slug: /guides/wordpress-native-ios-app
-description: ネイティブ iOS アプリの WordPress Playground
+description: Playground を使用した「Blocknotes」のケース スタディに基づいて、ネイティブ iOS アプリ内で WordPress サイトを実行する方法を学びます。
 ---
 
 ## Playground 経由でネイティブ iOS アプリで実際の WordPress サイトを配布するにはどうすればよいでしょうか?

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>WordPress PHP Playground</title>
+		<base href="/" />
+		<meta
+			property="og:image"
+			content="https://playground.wordpress.net/ogimage.png"
+		/>
+		<meta property="og:title" content="WordPress PHP Playground" />
+		<meta
+			property="og:description"
+			content="PHP running in your browser for learning, testing, and developing with WordPress!"
+		/>
+		<meta property="og:url" content="https://playground.wordpress.net/" />
+		<meta
+			name="description"
+			content="PHP running in your browser for learning, testing, and developing with WordPress!"
+		/>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+		<link rel="stylesheet" href="/src/styles.css" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<!-- @TODO: Only load Roboto in non-apple environments where the San Francisco font is unavailable -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+			rel="stylesheet"
+		/>
+		<script
+			async
+			src="https://www.googletagmanager.com/gtag/js?id=G-SVTNFCP8T7"
+		></script>
+		<script>
+			window.dataLayer = window.dataLayer || [];
+			function gtag() {
+				dataLayer.push(arguments);
+			}
+			gtag('js', new Date());
+			gtag('config', 'G-SVTNFCP8T7');
+		</script>
+	</head>
+	<body>
+		<main id="root" aria-label="WordPress PHP Playground">
+			<script>
+				const query = new URLSearchParams(window.location.search);
+				const shouldLazyLoadPlayground =
+					query.has('lazy') ||
+					// Initial API used "start_button" - this preserves compatibility.
+					'1' === query.get('start_button');
+
+				if (shouldLazyLoadPlayground) {
+					const query = new URLSearchParams(window.location.search);
+					query.delete('lazy');
+					query.delete('start_button');
+					const nonLazyUrl = new URL(window.location);
+					nonLazyUrl.search = query.toString();
+
+					const initiator = document.createElement('a');
+					initiator.innerText = 'Run Playground';
+					initiator.setAttribute('id', 'lazy-load-initiator');
+					initiator.setAttribute('href', nonLazyUrl);
+
+					const root = document.getElementById('root');
+					root.classList.add('lazy-loading');
+					root.appendChild(initiator);
+				}
+			</script>
+		</main>
+		<script type="module">
+			if (!shouldLazyLoadPlayground) {
+				import('./src/php-playground/main');
+			}
+		</script>
+	</body>
+</html>

@@ -156,3 +156,49 @@ export function isParentOf(parent: string, child: string) {
 	child = normalizePath(child);
 	return child.startsWith(parent + '/') || child === parent;
 }
+
+/**
+ * Guarantees a path is absolute by prepending `/` if needed.
+ *
+ * Useful when working with user-provided paths that might be relative,
+ * or when you need to normalize edge cases like empty strings.
+ *
+ * For example:
+ *
+ * > ensureAbsolutePath('wp-content/uploads')
+ * '/wp-content/uploads'
+ *
+ * > ensureAbsolutePath('/already/absolute')
+ * '/already/absolute'
+ *
+ * > ensureAbsolutePath('')
+ * '/'
+ *
+ * @param path - The path to make absolute.
+ * @returns An absolute, normalized path starting with `/`.
+ */
+export function ensureAbsolutePath(path: string) {
+	return joinPaths('/', normalizePath(path || '/'));
+}
+
+/**
+ * Converts a native OS path to a POSIX-style path.
+ *
+ * Transformations:
+ * 1. Backslashes → forward slashes
+ * 2. Windows drive letter `C:\` → `/C/` (colons are invalid in
+ *    Emscripten VFS paths and cause ENOTDIR errno 28)
+ *
+ * On POSIX systems this is effectively a no-op.
+ *
+ * @see https://github.com/emscripten-core/emscripten/issues/17829
+ */
+export function toPosixPath(nativePath: string): string {
+	let result = nativePath.replaceAll('\\', '/');
+	// Handle Windows drive letter: C:/ → /C/
+	const driveMatch = result.match(/^([A-Za-z]):\//);
+	if (driveMatch) {
+		result = '/' + driveMatch[1] + result.slice(2);
+	}
+	return result;
+}

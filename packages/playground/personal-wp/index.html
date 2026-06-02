@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>My WordPress</title>
+		<base href="/" />
+		<meta
+			property="og:image"
+			content="https://my.wordpress.net/ogimage-mywp.png"
+		/>
+		<meta property="og:title" content="My WordPress" />
+		<meta
+			property="og:description"
+			content="A free, private WordPress in your browser. A personal app platform for notes, feeds, contacts, memories, and ideas."
+		/>
+		<meta property="og:url" content="https://my.wordpress.net/" />
+		<meta
+			name="description"
+			content="A free, private WordPress in your browser. A personal app platform for notes, feeds, contacts, memories, and ideas."
+		/>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+		<link rel="stylesheet" href="/src/styles.css" />
+		<script>
+			/**
+			 * Dynamically create <link rel="manifest" /> to enable using Playground with
+			 * a Blueprint as an offline progressive web app.
+			 *
+			 * We don't have a static <link rel="manifest" /> element in the initial HTML
+			 * because Safari would just go with it and ignore the dynamic updates made below.
+			 * It has no problem with dynamically created manifest element, though.
+			 *
+			 * If this method ever fails, we'll need to rename index.html to index.php and
+			 * ensure the <link rel="manifest" /> element is shipped in the initial HTML.
+			 */
+
+			/**
+			 * On the local dev server, use the static manifest.json file.
+			 * Outside of the local dev server, use the dynamic manifest that
+			 * passes the query parameters through to the "start_url" property.
+			 */
+			let manifestUrl = '/manifest.json';
+
+			/**
+			 * In production, load a manifest URL that includes the current URL
+			 * as the "start_url" parameter.
+			 */
+			if (window.location.port !== '5401') {
+				const runningAsPWA = window.matchMedia(
+					'(display-mode: standalone)'
+				).matches;
+
+				/**
+				 * If we're running as an installed, offline app, keep referencing the
+				 * same manifest.json file every time.
+				 */
+				if (runningAsPWA) {
+					if (localStorage.getItem('manifestUrl')) {
+						manifestUrl = localStorage.getItem('manifestUrl');
+					}
+				}
+
+				if (!manifestUrl) {
+					manifestUrl = new URL(
+						'/dynamic-manifest.json.php',
+						window.location.href
+					);
+					manifestUrl.search = window.location.search;
+
+					/**
+					 * In PWAs, remember the initial manifest on the first run.
+					 */
+					if (runningAsPWA) {
+						localStorage.setItem(
+							'manifestUrl',
+							manifestUrl.toString()
+						);
+					}
+				}
+			}
+			const newLink = document.createElement('link');
+			newLink.rel = 'manifest';
+			newLink.href = manifestUrl.toString();
+			document.head.appendChild(newLink);
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<!-- @TODO: Only load Roboto in non-apple environments where the San Francisco font is unavailable -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<template id="load-error-fallback">
+			<!-- Use inline styles in case we are having trouble loading other resources -->
+			<div
+				style="
+					max-width: 520px;
+					margin: 80px auto;
+					font-family: system-ui, sans-serif;
+					text-align: center;
+					padding: 0 20px;
+				"
+			>
+				<h1 style="font-size: 1.4rem; margin-bottom: 12px">
+					Could not load Your WordPress
+				</h1>
+				<p style="line-height: 1.5">
+					The application failed to load. This is often caused by a
+					network issue.
+				</p>
+				<p style="line-height: 1.5; margin-top: 8px">
+					Check your internet connection, disable any VPN or ad
+					blocker that might interfere, and try again.
+				</p>
+				<button
+					onclick="location.reload()"
+					style="
+						margin-top: 15px;
+						margin-bottom: 15px;
+						font-size: 20px;
+						padding: 5px 10px;
+						cursor: pointer;
+					"
+				>
+					Try again
+				</button>
+				<p>
+					If the problem persists, please
+					<a
+						href="https://github.com/WordPress/wordpress-playground/issues/new"
+						target="_blank"
+						>report an issue on GitHub</a
+					>.
+				</p>
+			</div>
+		</template>
+		<!--
+			Shown before React loads when an iOS WKWebView (in-app browser) is
+			detected. The detection script below reveals this and skips the
+			React app, since WKWebView lacks the features Playground requires.
+		-->
+		<div id="wkwebview-notice" role="dialog" aria-modal="true">
+			<div class="card">
+				<div class="logo">
+					<span>Your WordPress</span>
+				</div>
+				<h1>Open in your browser</h1>
+				<p>
+					WordPress Playground requires features that are not
+					available in in-app browsers. Please open this page in
+					Safari or your preferred browser to continue.
+				</p>
+				<div class="actions">
+					<a id="wkwebview-safari-link" class="primary" href=""
+						>Open in Safari</a
+					>
+					<button
+						id="wkwebview-copy-btn"
+						class="secondary"
+						type="button"
+					>
+						Copy URL
+					</button>
+				</div>
+				<p class="hint">
+					Copy the URL and paste it in Safari or any other browser.
+				</p>
+			</div>
+		</div>
+
+		<script>
+			/**
+			 * Detects iOS WKWebView (in-app browser) before the React app loads.
+			 * Safari proper includes "Version/" in its UA; WKWebViews don't.
+			 * If detected, reveal the notice above and skip loading the main app.
+			 */
+			(function () {
+				var ua = navigator.userAgent;
+				var isIOS =
+					/iPad|iPhone|iPod/.test(ua) ||
+					(navigator.platform === 'MacIntel' &&
+						navigator.maxTouchPoints > 1 &&
+						/Mobile\//.test(ua));
+				var isWebView =
+					isIOS &&
+					!/Version\//.test(ua) &&
+					!/CriOS\//.test(ua) &&
+					!/FxiOS\//.test(ua);
+
+				if (!isWebView) {
+					return;
+				}
+
+				window.__isWKWebView = true;
+
+				document
+					.getElementById('wkwebview-notice')
+					.classList.add('is-visible');
+
+				let safariLink = document.getElementById(
+					'wkwebview-safari-link'
+				);
+
+				if (/Twitter for iPhone/i.test(ua)) {
+					// This is tested with the X mobile app.
+					safariLink.textContent = 'Share link';
+					safariLink.removeAttribute('href');
+					safariLink.addEventListener('click', function (e) {
+						e.preventDefault();
+						navigator.share({ url: window.location.href });
+					});
+				} else {
+					// The `x-safari-http(s)://` scheme doesn't work in a WKWebView running in iOS simulator
+					// when running http://127.0.0.1:5400/website-server/, the `open-in-safari://` instead works,
+					// but not in other environments.
+					// This is tested with the Linkedin mobile app.
+					// TODO: test with other mobile apps.
+					safariLink.href =
+						'x-safari-https://' +
+						window.location.host +
+						window.location.pathname +
+						window.location.search +
+						window.location.hash;
+				}
+
+				document
+					.getElementById('wkwebview-copy-btn')
+					.addEventListener('click', function () {
+						var btn = this;
+						navigator.clipboard
+							.writeText(window.location.href)
+							.then(function () {
+								var original = btn.textContent;
+								btn.textContent = 'Copied!';
+								setTimeout(function () {
+									btn.textContent = original;
+								}, 2000);
+							});
+					});
+			})();
+		</script>
+
+		<main id="root" aria-label="WordPress Playground">
+			<script>
+				const query = new URLSearchParams(window.location.search);
+				const shouldLazyLoadPlayground =
+					query.has('lazy') ||
+					// Initial API used "start_button" - this preserves compatibility.
+					'1' === query.get('start_button');
+
+				if (shouldLazyLoadPlayground) {
+					const query = new URLSearchParams(window.location.search);
+					query.delete('lazy');
+					query.delete('start_button');
+					const nonLazyUrl = new URL(window.location);
+					nonLazyUrl.search = query.toString();
+
+					const initiator = document.createElement('a');
+					initiator.innerText = 'Run Playground';
+					initiator.setAttribute('id', 'lazy-load-initiator');
+					initiator.setAttribute('href', nonLazyUrl);
+
+					const root = document.getElementById('root');
+					root.classList.add('lazy-loading');
+					root.appendChild(initiator);
+				}
+			</script>
+		</main>
+		<script type="module">
+			if (!shouldLazyLoadPlayground && !window.__isWKWebView) {
+				/**
+				 * Safari sometimes fail to import this script after playground.wordpress.net
+				 * is deployed. The error message is:
+				 *
+				 * ```
+				 * TypeError: Importing a module script failed.
+				 * ```
+				 *
+				 * It is very difficult to debug as Safari does not provide a useful stack trace,
+				 * line numbers, or any further error details. After some hours of debugging, the
+				 * issue was narrowed down to this import() call.
+				 *
+				 * Somehow, when this import() runs, Safari does not even start a network request
+				 * to fetch this script. The Service Worker `fetch` event handler is also not called.
+				 * It just fails on sight. The root cause is unclear. Everything is fine CORS-wise,
+				 * Safari Memory cache seems unlikely since the "network" devtools tab does not display
+				 * any attempts to fetch this script.
+				 *
+				 * Manually clearing Safari cache and reloading the page seems to resolve the issue.
+				 * It's not good enough, but it proves this is related to Safari cache.
+				 *
+				 * Therefore, we're bypassing the cached import by adding a cache busting query parameter
+				 * if the original import fails.
+				 */
+				import('./src/main').catch(async (e) => {
+					console.error('Failed to load main module:', e);
+					try {
+						/**
+						 * I couldn't find another way of baking the actual module URL directly into the
+						 * built file. Basically we're creating a function that calls import(), stringifying it,
+						 * extracting the module URL from the string, and adding a cache busting query parameter
+						 * to that URL before finally importing it.
+						 */
+						const stringifiedImport = (() =>
+							import('./src/main')).toString();
+						const moduleUrlString = stringifiedImport.match(
+							/import\(\s*['"](.+?)['"]\s*\)/
+						)[1];
+						if (moduleUrlString) {
+							const moduleUrl = new URL(
+								moduleUrlString,
+								import.meta.url
+							);
+							moduleUrl.searchParams.set(
+								'_ts',
+								String(Date.now())
+							);
+							return await import(
+								/* @vite-ignore */ moduleUrl.toString()
+							);
+						}
+					} catch {
+						// Fall back to the original error
+					}
+					/**
+					 * If we get here, the app module completely failed to load.
+					 * React is not available, so render a plain HTML
+					 * error message.
+					 */
+					const root = document.getElementById('root');
+					const template = document.getElementById(
+						'load-error-fallback'
+					);
+					root.replaceChildren(template.content.cloneNode(true));
+				});
+			}
+		</script>
+	</body>
+</html>

@@ -2,22 +2,6 @@ export function flipObject(obj: Record<any, any>) {
 	return Object.fromEntries(Object.entries(obj).map(([k, v]) => [v, k]));
 }
 
-export function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-	let totalLength = 0;
-	arrays.forEach((a) => (totalLength += a.length));
-	const result = new Uint8Array(totalLength);
-	let offset = 0;
-	arrays.forEach((a) => {
-		result.set(a, offset);
-		offset += a.length;
-	});
-	return result;
-}
-
-export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
-	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b))).buffer;
-}
-
 export function as2Bytes(value: number): Uint8Array {
 	return new Uint8Array([(value >> 8) & 0xff, value & 0xff]);
 }

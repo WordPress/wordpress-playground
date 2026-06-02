@@ -1,0 +1,46 @@
+import type { PHP } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	getSqliteDriverModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
+import { setSiteOptions } from '../../lib/steps/site-data';
+import type { PHPRequestHandler } from '@php-wasm/universal';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+describe('Blueprint step setSiteOptions()', () => {
+	let php: PHP;
+	let handler: PHPRequestHandler;
+	beforeEach(async () => {
+		handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		php = await handler.getPrimaryPhp();
+	});
+
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
+	it('should set the site option', async () => {
+		await setSiteOptions(php, {
+			options: {
+				blogname: 'My test site!',
+			},
+		});
+		const response = await php.run({
+			code: `<?php
+                require '/wordpress/wp-load.php';
+                echo get_option('blogname');
+			`,
+		});
+		expect(response.text).toBe('My test site!');
+	});
+});

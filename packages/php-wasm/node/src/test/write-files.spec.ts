@@ -12,6 +12,10 @@ describe('writeFiles', () => {
 		php.mkdir('/test');
 	});
 
+	afterEach(async () => {
+		php.exit();
+	});
+
 	it('removes the previous directory contents', async () => {
 		await writeFiles(php, '/test', {});
 		expect(php.listFiles('/test')).toHaveLength(0);

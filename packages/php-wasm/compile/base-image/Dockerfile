@@ -11,6 +11,7 @@ WORKDIR /root
 RUN mkdir lib
 
 RUN set -euxo pipefail;\
+    export DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC; \
     apt-get update; \
     apt-get --no-install-recommends -y install \
     build-essential \
@@ -47,10 +48,16 @@ RUN set -euxo pipefail;\
 #
 # WASM libraries to rebuild live here:
 # https://github.com/WordPress/wordpress-playground/tree/67d916b5eccfe78e26e9c953598cc1a81f316931/packages/php-wasm/compile
+#
+# Version 4.0.19 is required. MAIN_MODULE should not be built as RELOCATABLE.
+# https://github.com/emscripten-core/emscripten/commit/4d16f757adcc801fb3f990ccb6100b747c815650
+#
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install 4.0.5 && \
-    /root/emsdk/emsdk activate 4.0.5
+RUN bash -euxo pipefail <<'EOF'
+    git clone https://github.com/emscripten-core/emsdk.git
+    EMSDK_NOTTY=1 EMSDK_USE_CURL=1 ./emsdk/emsdk install --notty 4.0.19
+    EMSDK_NOTTY=1 /root/emsdk/emsdk activate --notty 4.0.19
+EOF
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 
@@ -66,6 +73,11 @@ COPY ./replace.sh /root/replace.sh
 RUN chmod a+x /root/replace.sh
 COPY ./replace-across-lines.sh /root/replace-across-lines.sh
 RUN chmod a+x /root/replace-across-lines.sh
+
+COPY ./emcc-for-php-wasm.sh /root/emcc-for-php-wasm.sh
+
+# Disable compiler-rt profiling runtime introduced by emscripten 4.0.11 #24160
+RUN /root/replace.sh "s/src_files\s*\+=\s*glob_in_path\(profile_src_dir,\s*'\*\.cpp'\)//g" /root/emsdk/upstream/emscripten/tools/system_libs.py
 
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 #
@@ -85,17 +97,10 @@ RUN chmod a+x /root/replace-across-lines.sh
 #    │  skip those flags when │   │  add these flags when  │
 #    │      calling emcc      │   │    calling emcc        │
 #    └────────────────────────┘   └────────────────────────┘
-RUN cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2 && \
-    cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py && \
-    echo $'#!/bin/bash\n\
-for arg do shift\n\
-    [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\
-    set -- "$@" "$arg" \n\
-done\n\
-# Passing extra flags breaks the version check \n\
-if [[ "$@" == "-v" ]]; then\n\
-    export EMCC_FLAGS=""\n\
-fi\n\
-/root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
+RUN <<EOF
+    set -euo pipefail
+    cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2
+    cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py
+    cp /root/emcc-for-php-wasm.sh /root/emsdk/upstream/emscripten/emcc
     chmod a+x /root/emsdk/upstream/emscripten/emcc
-
+EOF

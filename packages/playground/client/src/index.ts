@@ -2,6 +2,7 @@ export * from '@wp-playground/blueprints';
 
 export type {
 	HTTPMethod,
+	PathAlias,
 	PHPRunOptions,
 	PHPRequest,
 	PHPResponse,
@@ -16,8 +17,10 @@ export type {
 	RmDirOptions,
 	RuntimeType,
 } from '@php-wasm/universal';
+export type { WordPressInstallMode } from '@wp-playground/wordpress';
 export {
 	setPhpIniEntries,
+	PHPNextVersion,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
@@ -25,21 +28,38 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
-import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
-import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
-import { consumeAPI } from '@php-wasm/web';
+import type {
+	BlueprintV1,
+	BlueprintV1Declaration,
+	OnStepCompleted,
+} from '@wp-playground/blueprints';
+import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import { collectPhpLogs, logger } from '@php-wasm/logger';
+import type { PathAlias } from '@php-wasm/universal';
+import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
+import { BlueprintsV1Handler } from './blueprints-v1-handler';
+import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	blueprint?: Blueprint;
+	blueprint?: BlueprintV1;
+	/**
+	 * PHP extensions to install before the runtime starts.
+	 */
+	extensions?: PHPWebExtension[];
+	/**
+	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
+	 */
+	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
+	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
 	 * steps are run.
@@ -54,15 +74,14 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
-	/**
-	 * Called before the blueprint steps are run,
-	 * allows the caller to delay the Blueprint execution
-	 * once the Playground is booted.
-	 *
-	 * @returns
-	 */
-	onBeforeBlueprint?: () => Promise<void>;
 	mounts?: Array<MountDescriptor>;
+	/**
+	 * @deprecated Use `wordpressInstallMode` instead.
+	 *
+	 * Whether to download/install WordPress files. Set this to `false` when
+	 * WordPress files are already available, for example from `mounts` or a
+	 * saved site.
+	 */
 	shouldInstallWordPress?: boolean;
 	/**
 	 * The string prefix used in the site URL served by the currently
@@ -84,10 +103,32 @@ export interface StartPlaygroundOptions {
 	 */
 	corsProxy?: string;
 	/**
+	 * Additional headers to pass to git operations.
+	 * A function that returns headers based on the URL being accessed.
+	 */
+	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
+	/**
 	 * The version of the SQLite driver to use.
 	 * Defaults to the latest development version.
 	 */
 	sqliteDriverVersion?: string;
+	/**
+	 * How to handle WordPress installation.
+	 * Defaults to `download-and-install`.
+	 */
+	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
 }
 
 /**
@@ -97,78 +138,36 @@ export interface StartPlaygroundOptions {
  * @param options Options for loading the playground.
  * @returns A PlaygroundClient instance.
  */
-export async function startPlaygroundWeb({
-	iframe,
-	blueprint,
-	remoteUrl,
-	progressTracker = new ProgressTracker(),
-	disableProgressBar,
-	onBlueprintStepCompleted,
-	onClientConnected = () => {},
-	sapiName,
-	onBeforeBlueprint,
-	mounts,
-	scope,
-	corsProxy,
-	shouldInstallWordPress,
-	sqliteDriverVersion,
-}: StartPlaygroundOptions): Promise<PlaygroundClient> {
+export async function startPlaygroundWeb(
+	options: StartPlaygroundOptions
+): Promise<PlaygroundClient> {
+	const {
+		iframe,
+		progressTracker = new ProgressTracker(),
+		disableProgressBar,
+	} = options;
+	let { remoteUrl } = options;
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
+		'blueprints-runner': options.experimentalBlueprintsV2Runner
+			? 'v2'
+			: 'v1',
 	});
 	progressTracker.setCaption('Preparing WordPress');
-
-	// Set a default blueprint if none is provided.
-	if (!blueprint) {
-		blueprint = {};
-	}
-
-	const compiled = await compileBlueprint(blueprint, {
-		progress: progressTracker.stage(0.5),
-		onStepCompleted: onBlueprintStepCompleted,
-		corsProxy,
-	});
 
 	await new Promise((resolve) => {
 		iframe.src = remoteUrl;
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	// Connect the Comlink API client to the remote worker,
-	// boot the playground, and run the blueprint steps.
-	const playground = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	) as PlaygroundClient;
-	await playground.isConnected();
-	progressTracker.pipe(playground);
-	const downloadPHPandWP = progressTracker.stage();
-	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
-	await playground.boot({
-		mounts,
-		sapiName,
-		scope: scope ?? Math.random().toFixed(16),
-		shouldInstallWordPress,
-		phpVersion: compiled.versions.php,
-		wpVersion: compiled.versions.wp,
-		withNetworking: compiled.features.networking,
-		corsProxyUrl: corsProxy,
-		sqliteDriverVersion,
-	});
-	await playground.isReady();
-	downloadPHPandWP.finish();
+	const handler = options.experimentalBlueprintsV2Runner
+		? new BlueprintsV2Handler(options)
+		: new BlueprintsV1Handler(options);
+	const playground = await handler.bootPlayground(iframe, progressTracker);
 
-	collectPhpLogs(logger, playground);
-	onClientConnected(playground);
-
-	if (onBeforeBlueprint) {
-		await onBeforeBlueprint();
-	}
-
-	await runBlueprintSteps(compiled, playground);
 	progressTracker.finish();
 
 	return playground;
@@ -196,16 +195,28 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 }
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
+const devRemoteOrigin = `http://${remoteDevServerHost}:${remoteDevServerPort}`;
 const validRemoteOrigins = [
 	officialRemoteOrigin,
+	devRemoteOrigin,
+	// An older origin that's still used by some plugins.
+	'https://wasm.wordpress.net',
 	// Allow hosting remote from same origin
 	location.origin,
+	// Allow hosting remote from the same origin as the client library.
+	new URL(import.meta.url).origin,
 	'http://localhost',
+	'http://localhost:5400',
 	'https://localhost',
 	'http://127.0.0.1',
+	'http://127.0.0.1:5400',
 	'https://127.0.0.1',
 	...additionalRemoteOrigins,
 ];
+const remoteOrigin =
+	import.meta.env.MODE == 'development'
+		? devRemoteOrigin
+		: officialRemoteOrigin;
 /**
  * Assert that the remote origin is likely compatible with this client library.
  *
@@ -218,7 +229,7 @@ const validRemoteOrigins = [
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
+	const url = new URL(remoteHtmlUrl, remoteOrigin);
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
@@ -236,7 +247,7 @@ function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
 }
 
 function setQueryParams(url: string, params: Record<string, unknown>) {
-	const urlObject = new URL(url, officialRemoteOrigin);
+	const urlObject = new URL(url, remoteOrigin);
 	const qs = new URLSearchParams(urlObject.search);
 	for (const [key, value] of Object.entries(params)) {
 		if (value !== undefined && value !== null && value !== false) {

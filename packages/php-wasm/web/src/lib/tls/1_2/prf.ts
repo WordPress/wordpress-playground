@@ -1,4 +1,4 @@
-import { concatArrayBuffers } from '../utils';
+import { concatArrayBuffers } from '@php-wasm/util';
 
 /**
  * Implements the TLS 1.2 PRF using HMAC-SHA256.

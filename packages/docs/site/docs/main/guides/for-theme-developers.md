@@ -1,18 +1,18 @@
 ---
-title: Playground for Theme Developers
+title: WordPress Playground for Theme Developers
 slug: /guides/for-theme-developers
-description: WordPress Playground for Theme Developers
+description: A guide for theme developers on using Playground to build, test, and create live demos for their themes with Blueprints.
 ---
 
 The WordPress Playground is an innovative tool that allows theme developers to build, test, and showcase their themes directly in a browser environment.
 
 This guide will show you how to use WordPress Playground to improve your theme development workflow, create live demos to showcase your theme, and simplify the theme review process.
 
-:::info
+<div class="callout callout-info">
 
 Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/launch) your products with WordPress Playground in the [About Playground](/about) section
 
-:::
+</div>
 
 ## Launching a Playground instance with a theme
 
@@ -46,15 +46,15 @@ You can also load any theme from the WordPress themes directory by setting the [
 
 A theme stored in a GitHub repository can also be loaded in a Playground instance with Blueprints.
 
-In the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
+With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.
 
-To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your or theme.
+<div class="callout callout-info">
 
-:::tip
-[GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load themes from GitHub repositories as it allows you to load a theme from a specific branch, a specific directory, a specific commit or a specific PR.
-:::
+Use the [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) to load theme source code from a Git repository. It supports branches, tags, commits, and subdirectories without requiring you to create a ZIP archive first. If your theme needs a build step, publish a built ZIP artifact and install that artifact with a `url` resource instead.
 
-For example the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
+</div>
+
+For example the following `blueprint.json` installs a theme from a GitHub repository:
 
 ```json
 {
@@ -62,8 +62,10 @@ For example the following `blueprint.json` installs a theme from a GitHub reposi
 		{
 			"step": "installTheme",
 			"themeData": {
-				"resource": "url",
-				"url": "https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler"
+				"resource": "git:directory",
+				"url": "https://github.com/Automattic/themes",
+				"ref": "trunk",
+				"path": "assembler"
 			},
 			"options": {
 				"activate": true
@@ -73,7 +75,13 @@ For example the following `blueprint.json` installs a theme from a GitHub reposi
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
+<div class="callout callout-tip">
+
+If your theme is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+
+</div>
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/Automattic/themes%22,%22ref%22:%22trunk%22,%22path%22:%22assembler%22},%22options%22:{%22activate%22:true}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
 
 A blueprint can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
 
@@ -81,23 +89,23 @@ A blueprint can be passed to a Playground instance [in several ways](/blueprints
 
 When providing a link to a WordPress Playground instance with a specific theme activated, you may also want to customize the initial setup for that theme. With Playground's [Blueprints](/blueprints/getting-started) you can load, activate, and configure a theme.
 
-:::tip
+<div class="callout callout-tip">
 
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
--   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
--   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
--   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
+- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+- The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
+- The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
-:::
+</div>
 
 Through properties and [`steps`](/blueprints/steps) in the blueprint, you can configure the initial setup of your theme in the Playground instance.
 
-:::info
+<div class="callout callout-info">
 
 To provide a good demo of your theme via Playground, you may want to load it with default content that highlights the features of your theme. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more about this.
 
-:::
+</div>
 
 ### `resetData`
 
@@ -205,23 +213,24 @@ With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch 
 
 You can also use the [`login`](/blueprints/steps#login) step to launch your Playground instance logged in with any specific user.
 
-:::tip
+<div class="callout callout-tip">
 
 The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
-:::
+
+</div>
 
 ## Theme development
 
 ### Local theme development and testing with Playground
 
-From the root folder of a block theme's code, you can quickly load locally a Playground instance with that theme loaded and activated. You can do that by launching, in a theme directory, the [`wp-now` command](/developers/local-development/wp-now) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
+From the root folder of a block theme's code, you can quickly load locally a Playground instance with that theme loaded and activated. You can do that by launching, in a theme directory, the [`@wp-playground/cli` command](/developers/local-development/wp-playground-cli) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
 
 For example:
 
 ```
 git clone git@github.com:WordPress/community-themes.git
 cd community-themes/blue-note
-npx @wp-now/wp-now start
+npx @wp-playground/cli server --auto-mount
 ```
 
 ### Design your theme using the WordPress UI and save your changes as Pull Requests
@@ -234,8 +243,8 @@ Note that you'll need the [Create Block Theme](https://wordpress.org/plugins/cre
 
 <p></p>
 
-:::tip
+<div class="callout callout-tip">
 
-Check [About Playground > Build > Save changes done on a Block Theme and create GitHub Pull Requests](/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests) for more info.
+Check [About Playground &gt; Build &gt; Save changes done on a Block Theme and create GitHub Pull Requests](/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests) for more info.
 
-:::
+</div>

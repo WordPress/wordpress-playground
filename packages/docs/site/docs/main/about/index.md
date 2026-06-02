@@ -1,6 +1,7 @@
 ---
-title: About Playground
+title: About WordPress Playground
 slug: /about
+description: An overview of WordPress Playground, explaining what it is, why it's useful, and how it runs WordPress in your browser.
 ---
 
 # About WordPress Playground
@@ -11,15 +12,16 @@ slug: /about
 
 WordPress Playground is your place to build, test, and launch:
 
--   [Build](/about/build): WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that's in the browser, Node.js, mobile apps, VS Code, or elsewhere.
--   [Test](/about/test): Upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
--   [Launch](/about/launch): Use WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time.
+- [Build](/about/build): WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that's in the browser, Node.js, mobile apps, VS Code, or elsewhere.
+- [Test](/about/test): Upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
+- [Launch](/about/launch): Use WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time.
 
 ## Why WordPress Playground?
 
 ### Try themes and plugins on the fly
 
-With the WordPress Playground, you can explore any [theme](https://developer.wordpress.org/themes/getting-started/what-is-a-theme/). You can choose from a wide range of themes and see how they look on your site. You can also modify the colors, fonts, layouts, and other visual elements to create a unique design. \
+With WordPress Playground, you can explore any [theme](https://developer.wordpress.org/themes/getting-started/what-is-a-theme/). You can choose from a wide range of themes and see how they look on your site. You can also modify the colors, fonts, layouts, and other visual elements to create a unique design.
+
 In addition to themes, you can experiment with plugins too. With WordPress Playground, you can install and test different plugins to see how they work and what they can do for your site. This allows you to explore and understand the capabilities of WordPress without worrying about breaking anything.
 
 ### Create content on the go
@@ -34,9 +36,11 @@ But hey! You can also connect your Playground instance to a GitHub repo and crea
 
 Overall, WordPress Playground provides a risk-free environment for beginners to learn and get hands-on experience with WordPress. It helps you to gain confidence and knowledge before making changes to your live website.
 
-:::tip
+<div class="callout callout-tip">
+
 Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
-:::
+
+</div>
 
 ## How does WordPress Playground work?
 
@@ -47,8 +51,6 @@ When you first start using WordPress Playground, you'll be provided with a separ
 The WordPress you see when you open Playground in your browser is a WordPress that should function like any WordPress, with [a few limitations](/developers/limitations) and the important exception that it's not a permanent server with an internet address which will limit connections to some third-party services (automation, sharing, analysis, email, backups, etc.) in a persistent way.
 
 The loading screen and progress bar you see on Playground includes both the streaming of those foundational technologies to your browser and configuration steps from [WordPress Blueprints](/blueprints) (see [examples](/blueprints/examples)), so that a full server, WordPress software, Theme & Plugin solutions and configuration instructions can be streamed over-the-wire.
-
-While many WordPress solutions may require internet connectivity to interact with social networks, live feeds, and other internet services, those connections [could be limited in Playground](/developers/architecture/wasm-php-overview#networking-support-varies-between-platforms). However, by enabling network connectivity in the Customize Playground settings modal [(example URL w/ query parameter)](https://playground.wordpress.net/?networking=yes), you can mostly wire up internet connectivity to WordPress in Playground.
 
 ## What makes Playground different from running WordPress on a web server or local desktop app?
 

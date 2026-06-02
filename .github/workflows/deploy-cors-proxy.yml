@@ -6,9 +6,15 @@ on:
 concurrency:
     group: cors-proxy-deployment
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
-    build_and_deploy:
-        # Only run this workflow from the trunk branch and when it's triggered by a maintainer listed below
+    # Check preconditions in a separate job because secrets aren't
+    # available in job-level `if` conditions.
+    check_preconditions:
+        # Only run from the trunk branch when triggered by a maintainer listed below
         # TODO: Can we check for group membership?
         if: >
             github.ref == 'refs/heads/trunk' && (
@@ -20,11 +26,45 @@ jobs:
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
                 github.actor == 'akirk' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions: {}
+        environment:
+            name: cors-proxy-wp-cloud
+        outputs:
+            meets_deploy_preconditions: ${{ steps.check.outputs.meets_deploy_preconditions }}
+        steps:
+            # Confirm deploy secrets are configured. This way, this workflow won't
+            # run on a repo fork by default. It will only run when the fork admin opts
+            # in by configuring the workflow's required secrets.
+            #
+            # Secrets aren't available in job-level `if` conditions,
+            # so we check for them here.
+            - name: Check deploy secrets are configured
+              id: check
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST }}
+              run: |
+                  if [ -z "$DEPLOY_HOST" ]; then
+                    echo "Deploy secrets are not configured. Skipping deployment."
+                    echo "meets_deploy_preconditions=false" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "meets_deploy_preconditions=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+    build_and_deploy:
+        needs: check_preconditions
+        if: needs.check_preconditions.outputs.meets_deploy_preconditions == 'true'
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read # Required to clone the repo.
         environment:
             name: cors-proxy-wp-cloud
         steps:
@@ -44,7 +84,7 @@ jobs:
             - name: Deploy to CORS proxy server
               shell: bash
               env:
-                  CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: ${{ secrets.CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED }}
+                  CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: ${{ vars.CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED }}
               run: |
                   mkdir -p ~/.ssh
                   echo "${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
@@ -73,13 +113,15 @@ jobs:
                     CUSTOM_ORIGINS_PHP="<?php define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', array("
 
                     for origin in $CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED; do
+                      # NOTE: These patterns are not perfect but should be sufficient here.
                       if ! (
-                        [[ $origin =~ ^https?://([a-zA-Z0-9-]+\.)*[a-zA-Z]{2,}$ ]] ||
-                        [[ $origin =~ ^https?://([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] ||
-                        [[ $origin =~ ^https?://^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$ ]]
+                        [[ $origin =~ ^https?:\/\/([a-zA-Z0-9-]+\.)*[a-zA-Z]{2,}(:[[:digit:]]{1,5})?$ ]] ||
+                        [[ $origin =~ ^https?://([0-9]{1,3}\.){3}[0-9]{1,3}(:[[:digit:]]{1,5})?$ ]] ||
+                        [[ $origin =~ ^https?://^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}(:[[:digit:]]{1,5})?$ ]]
                       ); then
                         echo "Unable to use CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED"
                         echo "Invalid origin: '$origin'"
+                        echo "Full contents: '${CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED}'"
                         exit -1;
                       fi
 

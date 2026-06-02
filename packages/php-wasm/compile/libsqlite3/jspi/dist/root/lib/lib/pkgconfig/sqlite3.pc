@@ -1,13 +1,13 @@
 # Package Information for pkg-config
 
-prefix=/root/lib
+prefix=/root/lib/
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include
 
 Name: SQLite
 Description: SQL database engine
-Version: 3.40.1
+Version: 3.51.0
 Libs: -L${libdir} -lsqlite3
-Libs.private: 
+Libs.private:     
 Cflags: -I${includedir}

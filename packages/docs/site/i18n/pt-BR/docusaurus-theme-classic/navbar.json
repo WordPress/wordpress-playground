@@ -1,0 +1,26 @@
+{
+	"title": {
+		"message": "WordPress Playground",
+		"description": "O título na barra de navegação"
+	},
+	"logo.alt": {
+		"message": "WordPress Playground",
+		"description": "O texto alternativo do logo da barra de navegação"
+	},
+	"item.label.Documentation": {
+		"message": "Documentação",
+		"description": "Item da barra de navegação com rótulo Documentação"
+	},
+	"item.label.Blueprints": {
+		"message": "Blueprints",
+		"description": "Item da barra de navegação com rótulo Blueprints"
+	},
+	"item.label.Developers": {
+		"message": "Desenvolvedores",
+		"description": "Item da barra de navegação com rótulo Desenvolvedores"
+	},
+	"item.label.API Reference": {
+		"message": "Referência da API",
+		"description": "Item da barra de navegação com rótulo Referência da API"
+	}
+}

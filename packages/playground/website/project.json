@@ -3,7 +3,8 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/website/src",
 	"projectType": "application",
-	"implicitDependencies": ["playground-remote"],
+	"tags": ["scope:web-client"],
+	"implicitDependencies": ["playground-remote", "playground-website-extras"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -19,6 +20,7 @@
 					"cp -r ./client ./wasm-wordpress-net/",
 					"cp -r ./remote/* ./wasm-wordpress-net/",
 					"cp -r ./website/* ./wasm-wordpress-net/",
+					"cp -r ./website-extras/* ./wasm-wordpress-net/",
 					"cat ./remote/.htaccess ./website/.htaccess > ./wasm-wordpress-net/.htaccess",
 					"curl https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar > wasm-wordpress-net/wp-cli.phar",
 					"cat wasm-wordpress-net/wp-cli.phar | gzip -c -9 > wasm-wordpress-net/wp-cli.phar.gz"
@@ -44,14 +46,19 @@
 					"logLevel": "info"
 				}
 			},
-			"dependsOn": ["^build"]
+			"dependsOn": [
+				"^build",
+				"playground-blueprints:build:blueprint-schema"
+			]
 		},
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"node packages/php-wasm/compile/sync-php-next-assets.mjs --optional --if-missing",
 					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
+					"nx dev playground-website-extras --configuration=development-for-website",
 					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
@@ -75,6 +82,13 @@
 				}
 			}
 		},
+		"sync-php-next-assets": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/php-wasm/compile/sync-php-next-assets.mjs --optional --if-missing",
+				"parallel": false
+			}
+		},
 		"preview": {
 			"executor": "@nx/vite:preview-server",
 			"options": {
@@ -87,8 +101,15 @@
 				}
 			}
 		},
+		"preview:ci-with-proxy": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/run-ci-preview-with-cors-proxy.cjs",
+				"parallel": false
+			}
+		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/website"],
 			"options": {
 				"passWithNoTests": true,
@@ -96,9 +117,10 @@
 			}
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": [
 					"packages/playground/website/**/*.{ts,tsx,js,jsx}"
 				],
@@ -207,6 +229,5 @@
 			},
 			"dependsOn": ["build"]
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

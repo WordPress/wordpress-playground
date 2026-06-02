@@ -1,6 +1,7 @@
 ---
 title: Launch
 slug: /about/launch
+description: Learn how to use Playground to launch products, from embedding interactive demos on websites to creating native mobile apps.
 ---
 
 # Launch
@@ -15,7 +16,7 @@ Read more about this at [How to use WordPress Playground for interactive demos](
 
 Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
 
-The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it direclty in a Playground instance.
+The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
 <iframe width="800" src="https://www.youtube.com/embed/lQzozsoJ3aY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
@@ -29,9 +30,11 @@ This [WordPress Playground block](https://wordpress.org/plugins/interactive-code
 
 With this block you have a straightforward and effective way to create live WordPress environments that can be embedded within your blog posts.
 
-:::info
+<div class="callout callout-info">
+
 For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
-:::
+
+</div>
 
 ## Put a native app running WordPress in the App Store.
 

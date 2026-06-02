@@ -15,7 +15,7 @@ const client = await startPlaygroundWeb({
 	blueprint: {
 		preferredVersions: {
 			wp: '6.3',
-			php: '8.0',
+			php: '8.3',
 		},
 		steps: [
 			{ step: 'login' },

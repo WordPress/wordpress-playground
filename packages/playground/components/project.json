@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/components/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -68,7 +69,7 @@
 			"dependsOn": ["build"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/playground/components"
 			],
@@ -77,10 +78,20 @@
 				"reportsDirectory": "../../../coverage/packages/playground/components"
 			}
 		},
+		"e2e": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/components/e2e/playwright.config.ts"
+				],
+				"parallel": false
+			}
+		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/playground/components/**/*.ts"],
 				"maxWarnings": 0
 			}
@@ -94,6 +105,5 @@
 				]
 			}
 		}
-	},
-	"tags": []
+	}
 }

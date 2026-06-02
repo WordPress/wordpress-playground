@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+    xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+    xmlns:content="http://purl.org/rss/1.0/modules/content/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:wp="http://wordpress.org/export/1.2/">
+
+  <channel>
+    <title>Comprehensive WXR Fixture</title>
+    <link>https://playground.internal/site</link>
+    <description/>
+    <pubDate>Mon, 10 Jun 2024 12:29:10 +0000</pubDate>
+    <language>en-US</language>
+    <wp:wxr_version>1.2</wp:wxr_version>
+    <wp:base_site_url>https://playground.internal/site</wp:base_site_url>
+    <wp:base_blog_url>https://playground.internal/site</wp:base_blog_url>
+
+    <!-- Authors -->
+    <wp:author>
+      <wp:author_id>10</wp:author_id>
+      <wp:author_login><![CDATA[alice]]></wp:author_login>
+      <wp:author_email><![CDATA[alice@example.com]]></wp:author_email>
+      <wp:author_display_name><![CDATA[Alice]]></wp:author_display_name>
+      <wp:author_first_name><![CDATA[Alice]]></wp:author_first_name>
+      <wp:author_last_name><![CDATA[Doe]]></wp:author_last_name>
+    </wp:author>
+    <wp:author>
+      <wp:author_id>11</wp:author_id>
+      <wp:author_login><![CDATA[bob]]></wp:author_login>
+      <wp:author_email><![CDATA[bob@example.com]]></wp:author_email>
+      <wp:author_display_name><![CDATA[Bob]]></wp:author_display_name>
+      <wp:author_first_name><![CDATA[Bob]]></wp:author_first_name>
+      <wp:author_last_name><![CDATA[Smith]]></wp:author_last_name>
+    </wp:author>
+
+    <!-- Terms (categories, tags) -->
+    <wp:category>
+      <wp:term_id>100</wp:term_id>
+      <wp:category_nicename><![CDATA[news]]></wp:category_nicename>
+      <wp:category_parent><![CDATA[]]></wp:category_parent>
+      <wp:cat_name><![CDATA[News]]></wp:cat_name>
+      <wp:category_description><![CDATA[News category]]></wp:category_description>
+    </wp:category>
+    <wp:category>
+      <wp:term_id>101</wp:term_id>
+      <wp:category_nicename><![CDATA[updates]]></wp:category_nicename>
+      <wp:category_parent><![CDATA[news]]></wp:category_parent>
+      <wp:cat_name><![CDATA[Updates]]></wp:cat_name>
+      <wp:category_description><![CDATA[Updates category]]></wp:category_description>
+    </wp:category>
+    <wp:tag>
+      <wp:term_id>110</wp:term_id>
+      <wp:tag_slug><![CDATA[t1]]></wp:tag_slug>
+      <wp:tag_name><![CDATA[T1]]></wp:tag_name>
+      <wp:tag_description><![CDATA[Tag one]]></wp:tag_description>
+    </wp:tag>
+    <wp:tag>
+      <wp:term_id>111</wp:term_id>
+      <wp:tag_slug><![CDATA[t2]]></wp:tag_slug>
+      <wp:tag_name><![CDATA[T2]]></wp:tag_name>
+      <wp:tag_description><![CDATA[Tag two]]></wp:tag_description>
+    </wp:tag>
+
+    <!-- Generator -->
+    <generator>https://wordpress.org/?v=6.5.4</generator>
+
+    <!-- Post with categories, tags, meta and comments -->
+    <item>
+      <title><![CDATA[Comprehensive Post]]></title>
+      <link>https://playground.internal/site/?p=1000</link>
+      <pubDate>Wed, 05 Jun 2024 16:04:48 +0000</pubDate>
+      <dc:creator><![CDATA[alice]]></dc:creator>
+      <guid isPermaLink="false">https://playground.internal/site/?p=1000</guid>
+      <description></description>
+      <content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>This is a comprehensive post body used to validate the importer.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Includes categories, tags and a comment.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+      <excerpt:encoded><![CDATA[An excerpt for comprehensive post]]></excerpt:encoded>
+      <wp:post_id>1000</wp:post_id>
+      <wp:post_date><![CDATA[2024-06-05 16:04:48]]></wp:post_date>
+      <wp:post_date_gmt><![CDATA[2024-06-05 16:04:48]]></wp:post_date_gmt>
+      <wp:comment_status><![CDATA[open]]></wp:comment_status>
+      <wp:ping_status><![CDATA[open]]></wp:ping_status>
+      <wp:post_name><![CDATA[comprehensive-post]]></wp:post_name>
+      <wp:status><![CDATA[publish]]></wp:status>
+      <wp:post_parent>0</wp:post_parent>
+      <wp:menu_order>0</wp:menu_order>
+      <wp:post_type><![CDATA[post]]></wp:post_type>
+      <wp:post_password><![CDATA[]]></wp:post_password>
+      <wp:is_sticky>0</wp:is_sticky>
+      <category domain="category" nicename="news"><![CDATA[News]]></category>
+      <category domain="category" nicename="updates"><![CDATA[Updates]]></category>
+      <category domain="post_tag" nicename="t1"><![CDATA[T1]]></category>
+      <category domain="post_tag" nicename="t2"><![CDATA[T2]]></category>
+      <wp:postmeta>
+        <wp:meta_key><![CDATA[custom_key]]></wp:meta_key>
+        <wp:meta_value><![CDATA[custom_value]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:comment>
+        <wp:comment_id>5000</wp:comment_id>
+        <wp:comment_author><![CDATA[Commenter]]></wp:comment_author>
+        <wp:comment_author_email><![CDATA[commenter@example.com]]></wp:comment_author_email>
+        <wp:comment_author_url></wp:comment_author_url>
+        <wp:comment_author_IP>127.0.0.1</wp:comment_author_IP>
+        <wp:comment_date><![CDATA[2024-06-06 10:00:00]]></wp:comment_date>
+        <wp:comment_date_gmt><![CDATA[2024-06-06 10:00:00]]></wp:comment_date_gmt>
+        <wp:comment_content><![CDATA[Great post!]]></wp:comment_content>
+        <wp:comment_approved>1</wp:comment_approved>
+        <wp:comment_type></wp:comment_type>
+        <wp:comment_parent>0</wp:comment_parent>
+      <wp:comment_user_id>0</wp:comment_user_id>
+      <wp:commentmeta>
+        <wp:meta_key><![CDATA[rating]]></wp:meta_key>
+        <wp:meta_value><![CDATA[5]]></wp:meta_value>
+      </wp:commentmeta>
+      <wp:commentmeta>
+        <wp:meta_key><![CDATA[note]]></wp:meta_key>
+        <wp:meta_value><![CDATA[vip]]></wp:meta_value>
+      </wp:commentmeta>
+      </wp:comment>
+    </item>
+
+    <!-- Page by Bob -->
+    <item>
+      <title><![CDATA[Comprehensive Page]]></title>
+      <link>https://playground.internal/site/?page_id=2000</link>
+      <pubDate>Thu, 06 Jun 2024 12:00:00 +0000</pubDate>
+      <dc:creator><![CDATA[bob]]></dc:creator>
+      <guid isPermaLink="false">https://playground.internal/site/?page_id=2000</guid>
+      <description></description>
+      <content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>This is a comprehensive page.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+      <excerpt:encoded><![CDATA[]]></excerpt:encoded>
+      <wp:post_id>2000</wp:post_id>
+      <wp:post_date><![CDATA[2024-06-06 12:00:00]]></wp:post_date>
+      <wp:post_date_gmt><![CDATA[2024-06-06 12:00:00]]></wp:post_date_gmt>
+      <wp:comment_status><![CDATA[closed]]></wp:comment_status>
+      <wp:ping_status><![CDATA[closed]]></wp:ping_status>
+      <wp:post_name><![CDATA[comprehensive-page]]></wp:post_name>
+      <wp:status><![CDATA[publish]]></wp:status>
+      <wp:post_parent>0</wp:post_parent>
+      <wp:menu_order>0</wp:menu_order>
+      <wp:post_type><![CDATA[page]]></wp:post_type>
+      <wp:post_password><![CDATA[]]></wp:post_password>
+      <wp:is_sticky>0</wp:is_sticky>
+    </item>
+
+  </channel>
+</rss>

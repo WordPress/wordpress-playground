@@ -7,8 +7,8 @@ import type { StepHandler } from '.';
  *
  * <code>
  * {
- * 	    "step": "login",
- * 		"username": "admin",
+ *     "step": "login",
+ *     "username": "admin"
  * }
  * </code>
  */
@@ -39,5 +39,6 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
+	// TODO: Make defineConstant apply to all workers
 	playground.defineConstant('PLAYGROUND_AUTO_LOGIN_AS_USER', username);
 };

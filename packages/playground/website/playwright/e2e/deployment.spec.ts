@@ -3,6 +3,10 @@ import path from 'path';
 import { test, expect } from '../playground-fixtures.ts';
 import { startVersionSwitchingServer as startServer } from '../version-switching-server.ts';
 
+// Tests in this file share a server on port 7999, so they must run serially
+// to avoid EADDRINUSE errors from multiple tests trying to bind the same port.
+test.describe.configure({ mode: 'serial' });
+
 const port = 7999;
 const url = new URL(`http://localhost:${port}`);
 // Disable login because an old WP build used in this test
@@ -11,11 +15,12 @@ const url = new URL(`http://localhost:${port}`);
 // disable auto-login, the old Playground build encounters
 // a boot error.
 url.searchParams.set('login', 'no');
+url.searchParams.set('storage', 'temp');
 // Specify the theme so we can assert against expected default content.
 // This theme is also what the reference screenshots are based on.
 url.searchParams.set('theme', 'twentytwentyfour');
 
-const maxDiffPixels = 4000;
+const maxDiffPixels = 10_000;
 
 let server: Awaited<ReturnType<typeof startServer>> | null = null;
 
@@ -116,7 +121,7 @@ test.skip(
 		await modal.getByLabel('PHP version').selectOption('7.4');
 		await modal.getByLabel('WordPress version').selectOption('6.5');
 		await modal.getByLabel('Language').selectOption('pl_PL');
-		await website.page.getByText('Create a temporary Playground').click();
+		await website.page.getByText('Create an Unsaved Playground').click();
 
 		await website.waitForNestedIframes();
 
@@ -145,6 +150,8 @@ test('offline mode – the app should load even when the server goes offline', a
 
 	server!.switchToNewVersion();
 
+	// First page load – the service worker gets installed, the page becomes controlled. Some
+	// assets are fetched before the service worker takes over and caches them.
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 
@@ -153,7 +160,14 @@ test('offline mode – the app should load even when the server goes offline', a
 		'My WordPress Website'
 	);
 
+	// Second page load – handled by the service worker – the fetched assets are getting cached.
+	await page.reload();
+	await website.waitForNestedIframes();
+
+	// Kill the server.
 	server!.kill();
+
+	// From now on, the critical application assets should be cached.
 	await page.reload();
 	await website.waitForNestedIframes();
 

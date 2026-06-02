@@ -3,8 +3,7 @@ import { details } from '@wordpress/icons';
 
 import { useDispatch } from 'react-redux';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { modalSlugs } from '../layout';
+import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 
 type Props = { onClose: () => void };
 export function ViewLogs({ onClose }: Props) {

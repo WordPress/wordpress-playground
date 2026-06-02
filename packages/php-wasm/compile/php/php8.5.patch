@@ -1,0 +1,39 @@
+diff --git a/php-src/ext/opcache/zend_accelerator_debug.c b/php-src/ext/opcache/zend_accelerator_debug.c
+index b2a3105dc62..f7e328312a8 100644
+--- a/php-src/ext/opcache/zend_accelerator_debug.c
++++ b/php-src/ext/opcache/zend_accelerator_debug.c
+@@ -25,6 +25,9 @@
+ #include <time.h>
+ #ifdef ZEND_WIN32
+ # include <process.h>
++#else
++/* Error: call to undeclared function 'getpid' */
++# include <unistd.h>
+ #endif
+ #include "ZendAccelerator.h"
+
+diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
+index 01f49640e4a..e559b61b0c6 100644
+--- a/php-src/ext/standard/file.c
++++ b/php-src/ext/standard/file.c
+@@ -1459,6 +1459,20 @@ PHPAPI zend_result php_copy_file_ctx(const char *src, const char *dest, int src_
+ 			goto safe_to_copy;
+ 			break;
+ 		case 0:
++			// Fix for https://github.com/WordPress/wordpress-playground/issues/54:
++			// Problem: Calling copy() on an empty source file crashes the JavaScript
++			//          runtime.
++			// Solution: Avoid copying empty files. Just create create an empty
++			//           destination file and return.
++			if (src_s.sb.st_size == 0) {
++				zend_string *opened_path = zend_string_init("", strlen(""), 0);
++				php_stream *stream = php_stream_open_wrapper(dest, "w", REPORT_ERRORS, &opened_path);
++				if (stream) {
++					php_stream_close(stream);
++					return SUCCESS;
++				}
++				return FAILURE;
++			}
+ 			break;
+ 		default: /* failed to stat file, does not exist? */
+ 			return ret;

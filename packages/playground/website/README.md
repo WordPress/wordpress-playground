@@ -1,5 +1,10 @@
 # WordPress Playground website
 
+This package contains the playground.wordpress.net website. Most assets built in this package
+are pre-emptively downloaded and cached in the browser to support the offline mode. If you
+want to add a new, bulky page without increasing the required download size, add it in the
+`playground-website-extras` package instead.
+
 ## Development
 
 ### Tests
@@ -26,6 +31,8 @@ Replace `YOUR-TOKEN` with your [Personal access token](https://github.com/settin
 ## Tracking
 
 The WordPress Playground website uses Google Analytics to track user interactions. We use this data to better understand how Playground is being used. We do not track or store any personal information.
+
+Analytics is only enabled when the `VITE_GOOGLE_ANALYTICS_ID` environment variable is set at build time. When absent, no analytics code is shipped. See `.env.example` for details.
 
 ### Custom tracking events
 

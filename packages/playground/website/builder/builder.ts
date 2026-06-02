@@ -5,6 +5,13 @@ import { startPlaygroundWeb } from '@wp-playground/client';
 import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
+import { decodeBlueprintHash } from '../src/lib/state/url/decode-blueprint-hash';
+
+// Use parent dir of the /builder/ dir, reasoning that it is
+// the web app root. This works for:
+// - https://playground.wordpress.net/builder/builder.html
+// - http://localhost:5400/website-server/builder/builder.html
+const websiteRootUrl = new URL('..', document.location.href);
 
 const deref = (obj, root) => {
 	if (!obj || typeof obj !== 'object' || !('$ref' in obj)) {
@@ -299,9 +306,13 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 
 		debounce = setTimeout(async () => {
 			try {
-				const res = await fetch(
+				// NOTE: We always use playground.wordpress.net for these completions.
+				// The plugin-proxy.php script requires additional secrets to work,
+				// and it less fuss than configuring the secrets in each dev environment.
+				const pluginProxyUrl = new URL(
 					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
 				);
+				const res = await fetch(pluginProxyUrl);
 				const json = await res.json();
 				json?.plugins.forEach((p) => {
 					const doc = new DOMParser().parseFromString(
@@ -352,9 +363,13 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 
 		debounce = setTimeout(async () => {
 			try {
-				const res = await fetch(
+				// NOTE: We always use playground.wordpress.net for these completions.
+				// The plugin-proxy.php script requires additional secrets to work,
+				// and it less fuss than configuring the secrets in each dev environment.
+				const pluginProxyUrl = new URL(
 					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
 				);
+				const res = await fetch(pluginProxyUrl);
 				const json = await res.json();
 				json?.themes.forEach((p) => {
 					const doc = new DOMParser().parseFromString(
@@ -542,7 +557,7 @@ const runBlueprint = async (editor) => {
 		const blueprintCopy = JSON.parse(blueprintString);
 		await startPlaygroundWeb({
 			iframe: playgroundIframe,
-			remoteUrl: `https://playground.wordpress.net/remote.html`,
+			remoteUrl: 'remote.html',
 			blueprint: blueprintCopy,
 			corsProxy: corsProxyUrl,
 		});
@@ -558,7 +573,7 @@ const runBlueprint = async (editor) => {
 };
 
 const loadFromHash = (editor) => {
-	const hash = decodeURI(window.location.hash.substr(1));
+	const hash = decodeBlueprintHash(window.location.hash);
 	try {
 		let json = '';
 		try {
@@ -765,9 +780,10 @@ function onLoaded() {
 		const query = new URLSearchParams();
 
 		query.set('mode', 'seamless');
-		const url =
-			`https://playground.wordpress.net/?${query}#` +
-			JSON.stringify(getCurrentBlueprint(editor));
+		const url = new URL(
+			`?${query}#${JSON.stringify(getCurrentBlueprint(editor))}`,
+			websiteRootUrl
+		);
 		if (prevWin) {
 			prevWin.close();
 		}
@@ -862,11 +878,14 @@ async function initializeBlueprint() {
 		try {
 			const blueprintUrl = new URL(urlParams.get('blueprint-url'));
 			if (blueprintUrl.hostname === 'github.com') {
-				blueprintUrl.pathname = blueprintUrl.pathname.replace(
-					/^\/([^/]+)\/([^/]+)\/blob/,
+				const rewrittenPath = blueprintUrl.pathname.replace(
+					/^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//,
 					'/$1/$2/'
 				);
-				blueprintUrl.hostname = 'raw.githubusercontent.com';
+				if (rewrittenPath !== blueprintUrl.pathname) {
+					blueprintUrl.pathname = rewrittenPath;
+					blueprintUrl.hostname = 'raw.githubusercontent.com';
+				}
 			}
 			console.log('blueprintUrl.toString()', blueprintUrl.toString());
 			const response = await fetch(blueprintUrl.toString());

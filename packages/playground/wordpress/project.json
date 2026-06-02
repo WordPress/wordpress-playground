@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/wordpress/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -61,7 +62,7 @@
 			"dependsOn": ["test:vite"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/playground/wordpress"
 			],
@@ -70,14 +71,22 @@
 				"reportsDirectory": "../../../coverage/packages/playground/wordpress"
 			}
 		},
+		"test-legacy-wp-version-boot": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs"
+				]
+			}
+		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/playground/wordpress/**/*.ts"],
 				"maxWarnings": 0
 			}
 		}
-	},
-	"tags": []
+	}
 }

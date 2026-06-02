@@ -1,10 +1,10 @@
 {
 	"name": "@wp-playground/common",
-	"version": "1.1.0",
+	"version": "3.1.36",
 	"description": "Common exports and utilities for WordPress Playground",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/common/common-playground"
+		"url": "https://github.com/WordPress/wordpress-playground"
 	},
 	"homepage": "https://developer.wordpress.org/playground",
 	"author": "The WordPress contributors",
@@ -21,8 +21,8 @@
 	"module": "./index.js",
 	"types": "index.d.ts",
 	"engines": {
-		"node": ">=20.18.3",
-		"npm": ">=10.1.0"
+		"node": ">=20.10.0",
+		"npm": ">=10.2.3"
 	},
 	"exports": {
 		".": {

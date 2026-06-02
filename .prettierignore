@@ -12,4 +12,7 @@
 __pycache__
 *.timestamp-1678999213403.mjs
 .local
+.nx
 .vscode
+rollup.d.ts
+/packages/playground/website/public/php-next

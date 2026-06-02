@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/util/src",
 	"projectType": "library",
+	"tags": ["scope:independent-from-php-binaries"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -45,15 +46,16 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/php-wasm/util/**/*.ts"],
 				"maxWarnings": 0
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/util"],
 			"options": {
 				"passWithNoTests": true,
@@ -67,6 +69,5 @@
 			},
 			"dependsOn": ["build"]
 		}
-	},
-	"tags": ["scope:independent-from-php-binaries"]
+	}
 }

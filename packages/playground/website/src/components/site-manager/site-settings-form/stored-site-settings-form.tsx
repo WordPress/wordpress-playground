@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import { useAppSelector } from '../../../lib/state/redux/store';
 import css from './style.module.css';
 import {
 	Icon,
@@ -8,12 +8,10 @@ import {
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
 import { info } from '@wordpress/icons';
-import {
-	selectSiteBySlug,
-	updateSiteMetadata,
-} from '../../../lib/state/redux/slice-sites';
+import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import { UnconnectedSiteSettingsForm } from './unconnected-site-settings-form';
+import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
 
 export function StoredSiteSettingsForm({
 	siteSlug,
@@ -25,39 +23,20 @@ export function StoredSiteSettingsForm({
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
-	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const updateSite = async (data: SiteFormData) => {
-		await dispatch(
-			updateSiteMetadata({
-				slug: siteSlug,
-				changes: {
-					runtimeConfiguration: {
-						...siteInfo.metadata.runtimeConfiguration,
-						features: {
-							...siteInfo.metadata.runtimeConfiguration.features,
-							networking: data.withNetworking,
-						},
-						preferredVersions: {
-							...siteInfo.metadata.runtimeConfiguration
-								.preferredVersions,
-							php: data.phpVersion,
-						},
-					},
-				},
-			})
-		);
+		await sitesAPI.setPhpVersion(data.phpVersion);
+		await sitesAPI.setNetworking(data.withNetworking);
 		onSubmit?.();
-		// @TODO: Display a notification "site updated"
 	};
 
 	const defaultValues = useMemo<Partial<SiteFormData>>(
 		() => ({
 			name: siteInfo.metadata.name,
 			// @TODO: Handle an unsupported PHP version coming up here
-			phpVersion: siteInfo.metadata.runtimeConfiguration.preferredVersions
-				.php as any,
-			withNetworking:
-				!!siteInfo.metadata.runtimeConfiguration.features.networking,
+			phpVersion: siteInfo.metadata.runtimeConfiguration
+				.phpVersion as any,
+			withNetworking: !!siteInfo.metadata.runtimeConfiguration.networking,
 		}),
 		[siteInfo]
 	);

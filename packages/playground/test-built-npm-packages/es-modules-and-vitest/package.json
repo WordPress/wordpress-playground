@@ -12,14 +12,19 @@
 	},
 	"license": "ISC",
 	"author": "",
-	"type": "commonjs",
+	"type": "module",
 	"main": "index.js",
 	"scripts": {
-		"test": "vitest"
+		"test": "node --experimental-strip-types --experimental-transform-types ./run-tests.ts",
+		"test:bundle": "node --experimental-strip-types --experimental-transform-types ./bundler-tests/run-bundler-tests.ts"
 	},
 	"devDependencies": {
+		"@php-wasm/node": "^1.2.3",
+		"@php-wasm/universal": "^1.2.3",
+		"@php-wasm/web": "^1.2.3",
 		"@types/node": "^22.14.1",
-		"vitest": "^3.1.1",
-		"@wp-playground/cli": "https://wordpress-playground-packages.atomicsites.blog/packages/v1.0.36/@wp-playground-cli-1.0.36.tar.gz"
+		"@wp-playground/cli": "^1.2.3",
+		"playwright": "1.55.1",
+		"vite": "^5.0.0"
 	}
 }

@@ -6,15 +6,15 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 
 const LatestSupportedWordPressVersion = Object.keys(
 	MinifiedWordPressVersions
-).filter((x) => !['nightly', 'beta'].includes(x))[0];
+).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
 describe('Query API', () => {
 	describe('option `php`', () => {
-		it('should load PHP 8.0 by default', () => {
+		it('should load PHP 8.3 by default', () => {
 			cy.visit('/?url=/phpinfo.php');
 			cy.wordPressDocument()
 				.find('h1')
-				.should('contain', 'PHP Version 8.0');
+				.should('contain', 'PHP Version 8.3');
 		});
 
 		it('should load PHP 7.4 when requested', () => {
@@ -29,7 +29,7 @@ describe('Query API', () => {
 		it('should load WordPress latest by default', () => {
 			cy.visit('/?url=/wp-admin/');
 			const expectedBodyClass =
-				'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
+				'version-' + LatestSupportedWordPressVersion.replace('.', '-');
 			cy.wordPressDocument()
 				.find(`body.${expectedBodyClass}`)
 				.should('exist');
@@ -43,7 +43,7 @@ describe('Query API', () => {
 
 	describe('option `networking`', () => {
 		it('should disable networking when requested', () => {
-			cy.visit('/?url=/wp-admin/plugin-install.php');
+			cy.visit('/?networking=no&url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.notice.error')
 				.should(
@@ -127,14 +127,18 @@ describe('Query API', () => {
 
 	describe('option `login`', () => {
 		it('should log the user in as an admin', () => {
-			cy.visit('/');
+			// Specify initial WP URL because the Playground has changed
+			// its default WP URL in the past.
+			cy.visit('/?url=%2F');
 			cy.wordPressDocument()
 				.its('body')
 				.should('have.class', 'logged-in');
 		});
 
 		it('should not log the user in as an admin when not requested', () => {
-			cy.visit('/?login=no');
+			// Specify initial WP URL because the Playground has changed
+			// its default WP URL in the past.
+			cy.visit('/?login=no&url=%2F');
 			cy.wordPressDocument()
 				.its('body')
 				.should('not.have.class', 'logged-in');
@@ -152,7 +156,9 @@ describe('Query API', () => {
 
 	describe('option `lazy`', () => {
 		it('should defer loading the Playground assets until someone clicks on the "Run" button', () => {
-			cy.visit('/?lazy');
+			// Specify initial WP URL because the Playground has changed
+			// its default WP URL in the past.
+			cy.visit('/?lazy&url=%2F');
 			cy.get('#lazy-load-initiator').should('exist');
 			cy.get('.playground-viewport').should('not.exist');
 

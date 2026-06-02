@@ -3,19 +3,24 @@ import type { PHPRequestHandler } from '@php-wasm/universal';
 export async function getLoadedWordPressVersion(
 	requestHandler: PHPRequestHandler
 ): Promise<string> {
-	const php = await requestHandler.getPrimaryPhp();
-	const result = await php.run({
-		code: `<?php
-			require '${requestHandler.documentRoot}/wp-includes/version.php';
-			echo $wp_version;
-		`,
-	});
+	const { php, reap } =
+		await requestHandler.instanceManager.acquirePHPInstance();
+	try {
+		const result = await php.run({
+			code: `<?php
+				require '${requestHandler.documentRoot}/wp-includes/version.php';
+				echo $wp_version;
+			`,
+		});
 
-	const versionString = result.text;
-	if (!versionString) {
-		throw new Error('Unable to read loaded WordPress version.');
+		const versionString = result.text;
+		if (!versionString) {
+			throw new Error('Unable to read loaded WordPress version.');
+		}
+		return versionStringToLoadedWordPressVersion(versionString);
+	} finally {
+		reap();
 	}
-	return versionStringToLoadedWordPressVersion(versionString);
 }
 
 /**
@@ -39,7 +44,7 @@ export function versionStringToLoadedWordPressVersion(
 ): string {
 	const nightlyPattern = /-(alpha|beta|RC)\d*-\d+$/;
 	if (nightlyPattern.test(wpVersionString)) {
-		return 'nightly';
+		return 'trunk';
 	}
 
 	// TODO: Tighten this to detect specific old beta version, like 6.2-beta.

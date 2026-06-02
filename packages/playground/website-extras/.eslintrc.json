@@ -1,0 +1,65 @@
+{
+	"extends": ["plugin:@nx/react", "../../../.eslintrc.json"],
+	"ignorePatterns": ["!**/*"],
+	"overrides": [
+		{
+			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+			"rules": {
+				"@nx/enforce-module-boundaries": [
+					"error",
+					{
+						"enforceBuildableLibDependency": true,
+						"allow": [
+							"@wp-playground/client",
+							"@wp-playground/sync"
+						],
+						"depConstraints": [
+							{
+								"sourceTag": "*",
+								"notDependOnLibsWithTags": ["scope:web-client"]
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": [
+				"demos/**/*",
+				"cypress/**/*",
+				"builder/**/*",
+				"vite.oauth.ts"
+			],
+			"rules": {
+				"no-console": 0
+			}
+		},
+		{
+			"files": ["playwright/**/*"],
+			"rules": {
+				// This rule was incorrectly considering Playwright API as React hooks.
+				"react-hooks/rules-of-hooks": 0
+			}
+		},
+		{
+			"files": ["*.ts", "*.tsx"],
+			"rules": {}
+		},
+		{
+			"files": ["*.js", "*.jsx"],
+			"rules": {}
+		},
+		{
+			"files": ["*.cy.{ts,js,tsx,jsx}", "cypress/**/*.{ts,js,tsx,jsx}"],
+			"rules": {}
+		},
+		{
+			"files": ["*.cy.{ts,js,tsx,jsx}", "cypress/**/*.{ts,js,tsx,jsx}"],
+			"rules": {}
+		},
+		{
+			"files": ["*.cy.{ts,js,tsx,jsx}", "cypress/**/*.{ts,js,tsx,jsx}"],
+			"rules": {}
+		}
+	]
+}

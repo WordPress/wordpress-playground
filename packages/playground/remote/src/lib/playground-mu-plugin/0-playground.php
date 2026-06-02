@@ -1,4 +1,11 @@
 <?php
+// PHP < 5.3 doesn't support anonymous functions (closures) at all,
+// and WordPress < 3.0 can't handle them as hook callbacks. Skip this
+// mu-plugin entirely for either.
+if (version_compare(PHP_VERSION, '5.3', '<')
+	|| (isset($GLOBALS['wp_version']) && version_compare($GLOBALS['wp_version'], '3.0', '<'))) {
+	return;
+}
 
 /**
  * Add a notice to wp-login.php offering the username and password.
@@ -37,6 +44,75 @@ add_action('admin_head', function () {
 				}
 		</style>';
 });
+
+/**
+ * Opt Playground pages into browser-native cross-document View Transitions.
+ *
+ * This lets the browser keep the outgoing page visible until the incoming page
+ * is ready, without intercepting clicks or emulating navigation.
+ * The rules are intentionally low-specificity and printed early, so themes,
+ * plugins, and user code can override them with ordinary CSS.
+ */
+function playground_enable_view_transitions() {
+	if ( playground_has_wordpress_view_transitions() ) {
+		return;
+	}
+
+	?>
+	<style>
+		@media (prefers-reduced-motion: no-preference) {
+			@view-transition {
+				navigation: auto;
+			}
+
+			::view-transition-group(root),
+			::view-transition-old(root),
+			::view-transition-new(root) {
+				animation-delay: 0s;
+				animation-duration: 0s;
+			}
+
+			::view-transition-old(root),
+			::view-transition-new(root) {
+				mix-blend-mode: normal;
+			}
+		}
+	</style>
+	<?php
+}
+
+/**
+ * Checks whether WordPress already owns View Transitions for this request.
+ *
+ * The Playground fallback avoids named transitions, but it should still step
+ * aside when Core or the feature plugin can define its own root transition.
+ */
+function playground_has_wordpress_view_transitions() {
+	// The standalone View Transitions feature plugin defines these globally.
+	if ( defined( 'VIEW_TRANSITIONS_VERSION' )
+		|| function_exists( 'plvt_load_view_transitions' ) ) {
+		return true;
+	}
+
+	if ( ! function_exists( 'is_admin' ) || ! is_admin() ) {
+		return false;
+	}
+
+	// Core exposes these helpers while its admin View Transitions are available.
+	if ( function_exists( 'wp_get_view_transitions_admin_css' )
+		|| function_exists( 'wp_enqueue_view_transitions_admin_css' ) ) {
+		return true;
+	}
+
+	return function_exists( 'wp_style_is' )
+		&& (
+			wp_style_is( 'wp-view-transitions-admin', 'enqueued' )
+			|| wp_style_is( 'wp-view-transitions-admin', 'done' )
+		);
+}
+add_action( 'wp_head', 'playground_enable_view_transitions', 0 );
+add_action( 'admin_print_styles', 'playground_enable_view_transitions', 0 );
+add_action( 'login_head', 'playground_enable_view_transitions', 0 );
 
 add_action('init', 'networking_disabled');
 function networking_disabled() {
@@ -92,6 +168,97 @@ add_action('admin_print_scripts', function () {
 });
 
 /**
+ * Adds target="_blank" to external links when clicked to open them in a new tab.
+ * This prevents users from loading non-Playground pages inside the Playground iframe.
+ */
+function playground_add_target_blank_to_external_links() {
+	// Only run on frontend and admin pages, not during AJAX requests or CLI
+	if (empty($_SERVER['REQUEST_URI']) || (function_exists('wp_doing_ajax') && wp_doing_ajax()) || (function_exists('wp_doing_cron') && wp_doing_cron())) {
+		return;
+	}
+
+	?>
+	<script>
+		function addTargetBlankToExternalLinks() {
+			function addTargetBlank(a) {
+				const url = new URL(a.href, location);
+				if (url.origin !== location.origin) {
+					a.target = '_blank';
+				}
+			}
+
+			// Set target="_blank" for existing external links – this
+			// covers keyboard navigation.
+			document.querySelectorAll('a[href]').forEach(a => {
+				addTargetBlank(a);
+			});
+
+			// Set target="_blank" for external links when clicked.
+			// This covers links that are added after the page has loaded.
+			document.addEventListener('click', e => {
+				// window, document, SVG Text nodes etc. don't have the `closest` method
+				if ( !e.target?.closest ) {
+					return;
+				}
+				const a = e.target.closest('a[href]');
+				if (!a) return;
+				addTargetBlank(a);
+			});
+
+			// Also handle focus events to cover keyboard navigation on
+			// links that are added after the page has loaded.
+			document.addEventListener('focus', e => {
+				// window, document, SVG Text nodes etc. don't have the `closest` method
+				if ( !e.target?.closest ) {
+					return;
+				}
+				const a = e.target?.closest('a[href]');
+				if (!a) return;
+				addTargetBlank(a);
+			}, true);
+		}
+
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', addTargetBlankToExternalLinks);
+		} else {
+			addTargetBlankToExternalLinks();
+		}
+	</script>
+
+	<?php
+}
+add_action('wp_head', 'playground_add_target_blank_to_external_links');
+add_action('admin_head', 'playground_add_target_blank_to_external_links');
+
+/**
+ * Reports the current URL to the parent frame.
+ *
+ * When Document-Isolation-Policy is enabled, the parent frame can't access
+ * the iframe's location.href due to cross-origin restrictions. This script
+ * posts a message to the parent frame with the current URL so the address
+ * bar can be updated.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/2954
+ */
+function playground_report_url_to_parent() {
+	?>
+	<script>
+		if (window.parent !== window) {
+			window.parent.postMessage(
+				JSON.stringify({
+					type: 'playground-url-change',
+					url: window.location.href
+				}),
+				'*'
+			);
+		}
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_report_url_to_parent');
+add_action('admin_head', 'playground_report_url_to_parent');
+
+/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.
@@ -102,7 +269,7 @@ add_action('admin_print_scripts', function () {
  * * WP_Http_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
-$__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : 'Requests';
+$__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : ( class_exists( 'Requests' ) ? 'Requests' : null );
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
 	/**
@@ -118,7 +285,7 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	 * @see https://core.trac.wordpress.org/ticket/37708
 	 */
 	add_filter('http_api_transports', function() {
-		return [ 'Fetch' ];
+		return array( 'Fetch' );
 	});
 
 	/**
@@ -131,24 +298,50 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	 * @TODO Investigate why.
 	 */
 	add_filter('wp_signature_hosts', function ($hosts) {
-		return [];
+		return array();
 	});
-
-	// add_filter('http_request_host_is_external', function ($arg) {
-	// 	return true;
-	// });
-	add_filter('http_request_host_is_external', '__return_true');
 } else {
 	require(__DIR__ . '/playground-includes/wp_http_dummy.php');
-	$__requests_class::add_transport('Wp_Http_Dummy');
+	if ( $__requests_class ) {
+		$__requests_class::add_transport('Wp_Http_Dummy');
+	}
 
 	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
 		$options['transport'] = 'Wp_Http_Dummy';
 	}, 10, 5 );
 
 	add_filter('http_api_transports', function() {
-		return [ 'Dummy' ];
+		return array( 'Dummy' );
 	});
 }
 
-?>
+/**
+ * Disable the pattern picker modal to prevent iOS Safari memory crashes.
+ * @see https://github.com/WordPress/gutenberg/issues/75019
+ */
+add_action('init', function() {
+	if (defined('PLAYGROUND_ALLOW_PATTERN_PICKER') && PLAYGROUND_ALLOW_PATTERN_PICKER) return;
+	if (!function_exists('get_current_user_id')) return;
+	$user_id = get_current_user_id();
+	if (!$user_id) return;
+
+	$prefs = get_user_meta($user_id, 'wp_persisted_preferences', true) ?: array();
+	if (!isset($prefs['core'])) $prefs['core'] = array();
+	$prefs['core']['enableChoosePatternModal'] = false;
+	update_user_meta($user_id, 'wp_persisted_preferences', $prefs);
+});
+
+/**
+ * Disable the WP Cron.
+ * 
+ * Around WordPress 7.0 beta 1, many wp-cron requests in the Playground started
+ * taking the full 30 seconds to complete. Since we're running PHP on a single
+ * worker, that blocks every other request from running until WP Cron completes.
+ */
+define('DISABLE_WP_CRON', true);
+if(str_ends_with($_SERVER['PHP_SELF'], '/wp-cron.php')) {
+	http_response_code(503);
+	header('Content-Type: text/plain');
+	echo 'WP Cron is temporarily disabled in the Playground.';
+	exit;
+}

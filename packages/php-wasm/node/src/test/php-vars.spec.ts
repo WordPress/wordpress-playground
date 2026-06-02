@@ -15,6 +15,10 @@ describe('phpVar', () => {
 		php = new PHP(await loadNodeRuntime(LatestSupportedPHPVersion));
 	});
 
+	afterEach(async () => {
+		php.exit();
+	});
+
 	const data = [
 		'Hello, World', // Basic string
 		`This is \`Playground's\` "test suite"`, // Different types of quotes

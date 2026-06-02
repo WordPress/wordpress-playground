@@ -12,21 +12,30 @@ import {
 import { SyncLocalFilesButton } from '../sync-local-files-button';
 import { Dropdown, Icon } from '@wordpress/components';
 import { Modal } from '../../components/modal';
-import { cog } from '@wordpress/icons';
+import { cog, category } from '@wordpress/icons';
 import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
+import {
+	SavedPlaygroundsOverlay,
+	type OverlayViewMode,
+} from '../saved-playgrounds-overlay';
+import { SaveStatusIndicator } from './save-status-indicator';
+import { isSiteSavingDisabled } from '../../lib/state/url/router';
+
+const query = new URL(document.location.href).searchParams;
+const overlayParam = query.get('overlay');
+const shouldOpenOverlay = overlayParam !== null;
+const isSavingDisabled = isSiteSavingDisabled();
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
-	hideToolbar?: boolean;
 	className?: string;
 }
 
 export default function BrowserChrome({
 	children,
-	hideToolbar,
 	className,
 }: BrowserChromeProps) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
@@ -34,6 +43,9 @@ export default function BrowserChrome({
 	const showAddressBar = !!clientInfo;
 	const url = clientInfo?.url;
 	const dispatch = useAppDispatch();
+	const siteManagerIsOpen = useAppSelector(
+		(state) => state.ui.siteManagerIsOpen
+	);
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
@@ -43,33 +55,36 @@ export default function BrowserChrome({
 		className
 	);
 	const isMobileUi = useMediaQuery('(max-width: 875px)');
-	const [isModalOpen, setIsModalOpen] = React.useState(false);
-	const onToggle = () => setIsModalOpen(!isModalOpen);
-	const closeModal = () => setIsModalOpen(false);
+	const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
+	const [isPlaygroundsOverlayOpen, setIsPlaygroundsOverlayOpen] =
+		React.useState(shouldOpenOverlay);
+	const [overlayInitialViewMode, setOverlayInitialViewMode] =
+		React.useState<OverlayViewMode>(
+			overlayParam === 'blueprints' ? 'blueprints' : 'main'
+		);
+	const onSettingsToggle = () => setIsSettingsModalOpen(!isSettingsModalOpen);
+	const closeSettingsModal = () => setIsSettingsModalOpen(false);
+	const closePlaygroundsOverlay = () => {
+		setIsPlaygroundsOverlayOpen(false);
+		setOverlayInitialViewMode('main'); // Reset for next manual open
+
+		// Remove overlay parameter from URL so reload doesn't reopen overlay
+		const url = new URL(window.location.href);
+		if (url.searchParams.has('overlay')) {
+			url.searchParams.delete('overlay');
+			window.history.replaceState({}, '', url.toString());
+		}
+	};
 
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={`${css.window} browser-chrome-window`}>
 				<header
-					className={`
-						${css.toolbar}
-						${hideToolbar ? css.toolbarHidden : ''}
-					`}
+					className={classNames(css.toolbar, {
+						[css.withSidebarOpen]: siteManagerIsOpen,
+					})}
 					aria-label="Playground toolbar"
 				>
-					<div className={css.windowControls}>
-						<Button
-							variant="browser-chrome"
-							aria-label="Open Site Manager"
-							className={css.openSiteManagerButton}
-							onClick={() => {
-								dispatch(setSiteManagerOpen(true));
-							}}
-						>
-							<SiteManagerIcon />
-						</Button>
-					</div>
-
 					<div className={addressBarClass}>
 						<AddressBar
 							url={url}
@@ -79,31 +94,65 @@ export default function BrowserChrome({
 						/>
 					</div>
 
+					{!isSavingDisabled && <SaveStatusIndicator />}
+
 					<div className={css.toolbarButtons}>
+						<Button
+							variant="browser-chrome"
+							aria-label="Your Playgrounds"
+							onClick={() => setIsPlaygroundsOverlayOpen(true)}
+							aria-expanded={isPlaygroundsOverlayOpen}
+							className={css.savedPlaygroundsButton}
+						>
+							<Icon icon={category} size={20} />
+						</Button>
+
+						<Button
+							variant="browser-chrome"
+							aria-label={
+								siteManagerIsOpen
+									? 'Close Site Manager'
+									: 'Open Site Manager'
+							}
+							aria-pressed={siteManagerIsOpen}
+							className={classNames(css.openSiteManagerButton, {
+								[css.openSiteManagerButtonActive]:
+									siteManagerIsOpen,
+							})}
+							onClick={() => {
+								dispatch(
+									setSiteManagerOpen(!siteManagerIsOpen)
+								);
+							}}
+						>
+							<SiteManagerIcon
+								sidebarActive={siteManagerIsOpen}
+							/>
+						</Button>
+
 						{isMobileUi ? (
 							<>
 								<Button
 									variant="browser-chrome"
 									aria-label="Edit Playground settings"
-									onClick={onToggle}
-									aria-expanded={isModalOpen}
+									onClick={onSettingsToggle}
+									aria-expanded={isSettingsModalOpen}
 									style={{
-										padding: '0 10px',
 										fill: '#FFF',
 										alignItems: 'center',
 										display: 'flex',
 									}}
 								>
-									<Icon icon={cog} />
+									<Icon icon={cog} size={28} />
 								</Button>
-								{isModalOpen && (
+								{isSettingsModalOpen && (
 									<Modal
 										isFullScreen={true}
 										title="Playground settings"
-										onRequestClose={closeModal}
+										onRequestClose={closeSettingsModal}
 									>
 										<ActiveSiteSettingsForm
-											onSubmit={closeModal}
+											onSubmit={closeSettingsModal}
 										/>
 									</Modal>
 								)}
@@ -120,13 +169,12 @@ export default function BrowserChrome({
 										onClick={onToggle}
 										aria-expanded={isOpen}
 										style={{
-											padding: '0 10px',
 											fill: '#FFF',
 											alignItems: 'center',
 											display: 'flex',
 										}}
 									>
-										<Icon icon={cog} />
+										<Icon icon={cog} size={28} />
 									</Button>
 								)}
 								renderContent={({ onClose }) => (
@@ -156,6 +204,12 @@ export default function BrowserChrome({
 				</header>
 				<div className={css.content}>{children}</div>
 			</div>
+			{isPlaygroundsOverlayOpen && (
+				<SavedPlaygroundsOverlay
+					onClose={closePlaygroundsOverlay}
+					initialViewMode={overlayInitialViewMode}
+				/>
+			)}
 		</div>
 	);
 }

@@ -8,21 +8,21 @@
 
 ## Why is WordPress Playground useful?
 
-WordPress Playground exists to make WordPress instantly accessible for users, learners, extenders, and contributors by building foundational software tools developers can use to create interactive, zero-setup, JavaScript applications with WordPress.
+WordPress Playground exists to make WordPress instantly accessible for users, learners, extenders, and contributors by building foundational software tools developers can use to create interactive, zero-setup JavaScript applications with WordPress.
 
 Playground aims to facilitate:
 
--   Learning WordPress Through Exploration
--   Learning WordPress Development Through Writing Code
--   Instant access to WordPress ecosystem
+- Learning WordPress Through Exploration
+- Learning WordPress Development Through Writing Code
+- Instant access to the WordPress ecosystem
 
-Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525).
+Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525). You can also explore the community-maintained [Awesome WordPress Playground](https://github.com/akirk/awesome-wordpress-playground) list for more resources, tools, and examples.
 
 ## Getting started
 
 WordPress Playground has a [live demo](https://developer.wordpress.org/playground/demo/) available.
 
-You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpress.github.io/wordpress-playground/). **Note the embed is experimental and may break or change without a warning.**
+You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpress.github.io/wordpress-playground/). **Note the embed is experimental and may break or change without warning.**
 
 You can connect to the Playground using the JavaScript client. Here's an example of how to do it in the browser using an `iframe` HTML element and the `startPlaygroundWeb` function from the `@wp-playground/client` package.
 
@@ -68,15 +68,27 @@ You can connect to the Playground using the JavaScript client. Here's an example
 </script>
 ```
 
+## The Playground CLI
+
+For local development and testing, WordPress Playground offers a command-line interface (CLI) tool: [`@wp-playground/cli`](https://www.npmjs.com/package/@wp-playground/cli). This powerful tool simplifies setting up a local WordPress environment, leveraging the capabilities of WordPress Playground to create zero-setup instances. It's useful for developers, as it allows you to quickly spin up a WordPress site directly in your project directory without complex server configurations, and even switch PHP and WordPress versions with simple flags.
+
+The best part? You can run it directly using `npx`, Node.js's package runner. To get started, navigate to your plugin or theme directory and run:
+
+```bash
+cd my-plugin-or-theme-directory
+npx @wp-playground/cli server --auto-mount
+```
+
+The `--auto-mount` flag detects if your project is a plugin or theme, mounting it automatically into the virtual WordPress environment. This provides an instant, isolated WordPress instance for testing your code. For more advanced usage, including manual mounting options and blueprint integration, refer to the [Playground CLI documentation](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground/cli#readme).
+
 ## WordPress Playground Tools
 
 WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are independent applications built on top of WordPress Playground. They are located in a different repository: [WordPress/playground-tools](https://github.com/WordPress/playground-tools).
 
 These tools include:
 
--   [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
--   [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
--   [wp-now](https://github.com/WordPress/playground-tools/tree/trunk/packages/wp-now/#readme) CLI local development environment.
+- [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
+- [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
 
 ## Cloning WordPress Playground repo
 
@@ -104,7 +116,7 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
-And here's a few more interesting CLI commands you can run in this repo:
+And here are a few more interesting CLI commands you can run in this repo:
 
 ```bash
 # Build and run PHP.wasm CLI
@@ -169,14 +181,14 @@ docker run --rm -p 9999:80 -v $(pwd)/dist/packages/playground/wasm-wordpress-net
 
 WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
 
-Here's a few quickstart guides to get you started:
+Here are a few quickstart guides to get you started:
 
--   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
--   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
--   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
--   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
--   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
--   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
+- Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
+- Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
+- Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
+- Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
+- Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
+- Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
 
 ## WordCamp Contributor Day
 
@@ -188,7 +200,7 @@ This experimental software may break or change without a warning. Releasing a st
 
 ## Prior art
 
-WordPress Playground forked the original PHP to WebAssembly build published in https://github.com/oraoto/pib and modified later in https://github.com/seanmorris/php-wasm.
+WordPress Playground forked the original PHP to WebAssembly build published in https://github.com/oraoto/pib, and modified later in https://github.com/seanmorris/php-wasm.
 
 Another strong inspiration was the [Drupal in the browser demo](https://seanmorris.github.io/php-wasm/?autorun=0&persist=0&single-expression=0&code=%253C%253Fphp%250Aini_set%28%27session.save_path%27%252C%2520%27%252Fhome%252Fweb_user%27%29%253B%250A%250A%2524stdErr%2520%253D%2520fopen%28%27php%253A%252F%252Fstderr%27%252C%2520%27w%27%29%253B%250A%2524errors%2520%253D%2520%255B%255D%253B%250A%250Aregister_shutdown_function%28function%28%29%2520use%28%2524stdErr%252C%2520%2526%2524errors%29%257B%250A%2520%2520%2520%2520fwrite%28%2524stdErr%252C%2520json_encode%28%255B%27session_id%27%2520%253D%253E%2520session_id%28%29%255D%29%2520.%2520%2522%255Cn%2522%29%253B%250A%2520%2520%2520%2520fwrite%28%2524stdErr%252C%2520json_encode%28%255B%27headers%27%253D%253Eheaders_list%28%29%255D%29%2520.%2520%2522%255Cn%2522%29%253B%250A%2520%2520%2520%2520fwrite%28%2524stdErr%252C%2520json_encode%28%255B%27errors%27%2520%253D%253E%2520error_get_last%28%29%255D%29%2520.%2520%2522%255Cn%2522%29%253B%250A%257D%29%253B%250A%250Aset_error_handler%28function%28...%2524args%29%2520use%28%2524stdErr%252C%2520%2526%2524errors%29%257B%250A%2509fwrite%28%2524stdErr%252C%2520print_r%28%2524args%252C1%29%29%253B%250A%257D%29%253B%250A%250A%2524docroot%2520%253D%2520%27%252Fpreload%252Fdrupal-7.59%27%253B%250A%2524path%2520%2520%2520%2520%253D%2520%27%252F%27%253B%250A%2524script%2520%2520%253D%2520%27index.php%27%253B%250A%250A%2524_SERVER%255B%27REQUEST_URI%27%255D%2520%2520%2520%2520%2520%253D%2520%2524docroot%2520.%2520%2524path%253B%250A%2524_SERVER%255B%27REMOTE_ADDR%27%255D%2520%2520%2520%2520%2520%253D%2520%27127.0.0.1%27%253B%250A%2524_SERVER%255B%27SERVER_NAME%27%255D%2520%2520%2520%2520%2520%253D%2520%27localhost%27%253B%250A%2524_SERVER%255B%27SERVER_PORT%27%255D%2520%2520%2520%2520%2520%253D%25203333%253B%250A%2524_SERVER%255B%27REQUEST_METHOD%27%255D%2520%2520%253D%2520%27GET%27%253B%250A%2524_SERVER%255B%27SCRIPT_FILENAME%27%255D%2520%253D%2520%2524docroot%2520.%2520%27%252F%27%2520.%2520%2524script%253B%250A%2524_SERVER%255B%27SCRIPT_NAME%27%255D%2520%2520%2520%2520%2520%253D%2520%2524docroot%2520.%2520%27%252F%27%2520.%2520%2524script%253B%250A%2524_SERVER%255B%27PHP_SELF%27%255D%2520%2520%2520%2520%2520%2520%2520%2520%253D%2520%2524docroot%2520.%2520%27%252F%27%2520.%2520%2524script%253B%250A%250Achdir%28%2524docroot%29%253B%250A%250Aob_start%28%29%253B%250A%250Adefine%28%27DRUPAL_ROOT%27%252C%2520getcwd%28%29%29%253B%250A%250Arequire_once%2520DRUPAL_ROOT%2520.%2520%27%252Fincludes%252Fbootstrap.inc%27%253B%250Adrupal_bootstrap%28DRUPAL_BOOTSTRAP_FULL%29%253B%250A%250A%2524uid%2520%2520%2520%2520%2520%253D%25201%253B%250A%2524user%2520%2520%2520%2520%253D%2520user_load%28%2524uid%29%253B%250A%2524account%2520%253D%2520array%28%27uid%27%2520%253D%253E%2520%2524user-%253Euid%29%253B%250Auser_login_submit%28array%28%29%252C%2520%2524account%29%253B%250A%250A%2524itemPath%2520%253D%2520%2524path%253B%250A%2524itemPath%2520%253D%2520preg_replace%28%27%252F%255E%255C%255C%252Fpreload%252F%27%252C%2520%27%27%252C%2520%2524itemPath%29%253B%250A%2524itemPath%2520%253D%2520preg_replace%28%27%252F%255E%255C%255C%252Fdrupal-7.59%252F%27%252C%2520%27%27%252C%2520%2524itemPath%29%253B%250A%2524itemPath%2520%253D%2520preg_replace%28%27%252F%255E%255C%252F%252F%27%252C%2520%27%27%252C%2520%2524itemPath%29%253B%250A%250Aif%28%2524itemPath%29%250A%257B%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520%2524router_item%2520%253D%2520menu_get_item%28%2524itemPath%29%253B%250A%2520%2520%2520%2520%2524router_item%255B%27access_callback%27%255D%2520%253D%2520true%253B%250A%2520%2520%2520%2520%2524router_item%255B%27access%27%255D%2520%253D%2520true%253B%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520if%2520%28%2524router_item%255B%27include_file%27%255D%29%2520%257B%250A%2520%2520%2520%2520%2520%2520require_once%2520DRUPAL_ROOT%2520.%2520%27%252F%27%2520.%2520%2524router_item%255B%27include_file%27%255D%253B%250A%2520%2520%2520%2520%257D%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520%2524page_callback_result%2520%253D%2520call_user_func_array%28%2524router_item%255B%27page_callback%27%255D%252C%2520unserialize%28%2524router_item%255B%27page_arguments%27%255D%29%29%253B%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520drupal_deliver_page%28%2524page_callback_result%29%253B%250A%257D%250Aelse%250A%257B%250A%2520%2520%2520%2520menu_execute_active_handler%28%29%253B%250A%257D&render-as=html) which proved you can run non-trivial PHP software in the browser.
 

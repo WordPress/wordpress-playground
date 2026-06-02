@@ -85,17 +85,23 @@ function playground_handle_request() {
 	//
 	// PATH RESOLUTION
 	//
-	$resolved_path = realpath( __DIR__ . $requested_path );
+	$served_path = $requested_path;
+	$resolved_path = realpath( __DIR__ . $served_path );
 	if ( is_dir( $resolved_path ) ) {
 		$resolved_path = playground_resolve_to_index_file( $resolved_path );
 	}
 
-	if ( false === $resolved_path && ! str_ends_with( $requested_path, '.php' ) ) {
+	if ( false === $resolved_path && ! str_ends_with( $served_path, '.php' ) ) {
 		// Static files that need special treatment are served from a different directory.
-		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $requested_path );
+		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $served_path );
 		if ( is_dir( $resolved_path ) ) {
 			$resolved_path = playground_resolve_to_index_file( $resolved_path );
 		}
+	}
+
+	if ( false === $resolved_path && playground_is_my_wordpress_net_request() ) {
+		$served_path = '/index.html';
+		$resolved_path = playground_resolve_my_wordpress_net_index_fallback();
 	}
 
 	$log( "Resolved '$original_requested_path' to '$resolved_path'." );
@@ -139,7 +145,7 @@ function playground_handle_request() {
 		header( "Content-Type: $content_type" );
 	}
 
-	$custom_response_headers = playground_get_custom_response_headers( $requested_path );
+	$custom_response_headers = playground_get_custom_response_headers( $served_path );
 	if ( ! empty( $custom_response_headers ) ) {
 		foreach ( $custom_response_headers as $custom_header ) {
 			header( $custom_header );
@@ -164,7 +170,7 @@ function playground_handle_request() {
 
 	if ( 'php' === $extension ) {
 		$log( "Running PHP: '$original_requested_path'" );
-		playground_maybe_set_environment( $requested_path );
+		playground_maybe_set_environment( $served_path );
 		// Let the web server continue executing PHP in a complete environment
 	} else {
 		$log( "Reading static file: '$resolved_path'" );
@@ -185,6 +191,28 @@ function playground_maybe_rewrite( $original_requested_path ) {
 	}
 
 	return false;
+}
+
+function playground_is_my_wordpress_net_request() {
+	if ( empty( $_SERVER['HTTP_HOST'] ) ) {
+		return false;
+	}
+
+	if ( ! preg_match( '/^my\.wordpress\.net(:\d+)?$/i', $_SERVER['HTTP_HOST'] ) ) {
+		return false;
+	}
+
+	return true;
+}
+
+function playground_resolve_my_wordpress_net_index_fallback() {
+	$resolved_path = realpath( __DIR__ . '/index.html' );
+	if ( false === $resolved_path ) {
+		// Deployment may move index.html aside so PHP can apply custom cache headers.
+		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php/index.html' );
+	}
+
+	return $resolved_path;
 }
 
 function playground_maybe_redirect( $requested_path ) {

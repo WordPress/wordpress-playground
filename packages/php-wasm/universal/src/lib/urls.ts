@@ -17,6 +17,16 @@ export const DEFAULT_BASE_URL = 'http://example.com';
  * @returns The path, query, and fragment.
  */
 export function toRelativeUrl(url: URL): string {
+	/**
+	 * The origin of an about:blank URL is a string "null". The URL is not
+	 * relative, but there's also nothing we can do to make it "more relative"
+	 * so let's just bale out and return the URL as is.
+	 *
+	 * @see https://html.spec.whatwg.org/multipage/browsers.html#concept-origin (Opaque origins)
+	 */
+	if (url.origin === 'null') {
+		return url.toString();
+	}
 	return url.toString().substring(url.origin.length);
 }
 

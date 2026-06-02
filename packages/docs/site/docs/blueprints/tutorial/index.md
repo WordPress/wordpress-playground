@@ -1,6 +1,6 @@
 ---
 title: Blueprints 101
-description: Entrance to a short course on Blueprints
+description: The landing page for the "Blueprints 101" crash course. This short tutorial covers everything you need to get started.
 hide_table_of_contents: false
 slug: /blueprints/tutorial
 ---
@@ -13,6 +13,8 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 2. [How to load and run Blueprints](/blueprints/tutorial/how-to-load-run-blueprints)
 3. [Build your first Blueprint](/blueprints/tutorial/build-your-first-blueprint)
 
-:::tip
+<div class="callout callout-tip">
+
 If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
-:::
+
+</div>

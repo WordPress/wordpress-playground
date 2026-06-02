@@ -359,6 +359,19 @@ struct sqlite3_api_routines {
   const char *(*db_name)(sqlite3*,int);
   /* Version 3.40.0 and later */
   int (*value_encoding)(sqlite3_value*);
+  /* Version 3.41.0 and later */
+  int (*is_interrupted)(sqlite3*);
+  /* Version 3.43.0 and later */
+  int (*stmt_explain)(sqlite3_stmt*,int);
+  /* Version 3.44.0 and later */
+  void *(*get_clientdata)(sqlite3*,const char*);
+  int (*set_clientdata)(sqlite3*, const char*, void*, void(*)(void*));
+  /* Version 3.50.0 and later */
+  int (*setlk_timeout)(sqlite3*,int,int);
+  /* Version 3.51.0 and later */
+  int (*set_errmsg)(sqlite3*,int,const char*);
+  int (*db_status64)(sqlite3*,int,sqlite3_int64*,sqlite3_int64*,int);
+  
 };
 
 /*
@@ -685,6 +698,18 @@ typedef int (*sqlite3_loadext_entry)(
 #define sqlite3_db_name                sqlite3_api->db_name
 /* Version 3.40.0 and later */
 #define sqlite3_value_encoding         sqlite3_api->value_encoding
+/* Version 3.41.0 and later */
+#define sqlite3_is_interrupted         sqlite3_api->is_interrupted
+/* Version 3.43.0 and later */
+#define sqlite3_stmt_explain           sqlite3_api->stmt_explain
+/* Version 3.44.0 and later */
+#define sqlite3_get_clientdata         sqlite3_api->get_clientdata
+#define sqlite3_set_clientdata         sqlite3_api->set_clientdata
+/* Version 3.50.0 and later */
+#define sqlite3_setlk_timeout          sqlite3_api->setlk_timeout
+/* Version 3.51.0 and later */
+#define sqlite3_set_errmsg             sqlite3_api->set_errmsg
+#define sqlite3_db_status64            sqlite3_api->db_status64
 #endif /* !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION) */
 
 #if !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION)

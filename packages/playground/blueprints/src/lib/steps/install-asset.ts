@@ -1,5 +1,5 @@
 import type { UniversalPHP } from '@php-wasm/universal';
-import { joinPaths, randomString } from '@php-wasm/util';
+import { joinPaths, randomFilename } from '@php-wasm/util';
 import { unzip } from './unzip';
 
 export interface InstallAssetOptions {
@@ -35,7 +35,7 @@ export async function installAsset(
 		targetPath,
 		zipFile,
 		ifAlreadyInstalled = 'overwrite',
-		targetFolderName = ''
+		targetFolderName = '',
 	}: InstallAssetOptions
 ): Promise<{
 	assetFolderPath: string;
@@ -46,7 +46,7 @@ export async function installAsset(
 	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
 
 	const wpContent = joinPaths(await playground.documentRoot, 'wp-content');
-	const tmpDir = joinPaths(wpContent, randomString());
+	const tmpDir = joinPaths(wpContent, randomFilename());
 	const tmpUnzippedFilesPath = joinPaths(tmpDir, 'assets', assetNameGuess);
 
 	if (await playground.fileExists(tmpUnzippedFilesPath)) {
@@ -88,7 +88,7 @@ export async function installAsset(
 		}
 
 		// If a specific slug was requested be used, use that.
-		if ( targetFolderName && targetFolderName.length ) {
+		if (targetFolderName && targetFolderName.length) {
 			assetFolderName = targetFolderName;
 		}
 

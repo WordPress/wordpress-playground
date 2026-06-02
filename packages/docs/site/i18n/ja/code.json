@@ -39,46 +39,7 @@
 		"message": "トップへスクロール",
 		"description": "トップへ戻るボタンのARIAラベル"
 	},
-	"theme.blog.archive.title": {
-		"message": "アーカイブ",
-		"description": "ブログアーカイブページのページとヒーロータイトル"
-	},
-	"theme.blog.archive.description": {
-		"message": "アーカイブ",
-		"description": "ブログアーカイブページのページとヒーローの説明"
-	},
-	"theme.blog.paginator.navAriaLabel": {
-		"message": "ブログリストページのナビゲーション",
-		"description": "ブログのページネーションのARIAラベル"
-	},
-	"theme.blog.paginator.newerEntries": {
-		"message": "新しい記事",
-		"description": "新しいブログ記事のページ（前のページ）へ移動するために使用されるラベル"
-	},
-	"theme.blog.paginator.olderEntries": {
-		"message": "古い記事",
-		"description": "古いブログ記事のページ（次のページ）へ移動するために使用されるラベル"
-	},
-	"theme.blog.post.paginator.navAriaLabel": {
-		"message": "ブログ記事ページのナビゲーション",
-		"description": "ブログ記事のページネーションのARIAラベル"
-	},
-	"theme.blog.post.paginator.newerPost": {
-		"message": "新しい記事",
-		"description": "新しい/前の記事へ移動するためのブログ記事ボタンのラベル"
-	},
-	"theme.blog.post.paginator.olderPost": {
-		"message": "古い記事",
-		"description": "古い/次の記事へ移動するためのブログ記事ボタンのラベル"
-	},
-	"theme.blog.post.plurals": {
-		"message": "1件の記事|{count}件の記事",
-		"description": "\"{count}件の記事\" の複数形ラベル。言語がサポートする限りの複数形（\"|\" で区切る）を使用してください（https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html を参照）"
-	},
-	"theme.blog.tagTitle": {
-		"message": "\"{tagName}\" タグの付いた記事 {nPosts} 件",
-		"description": "ブログタグのページのタイトル"
-	},
+
 	"theme.tags.tagsPageLink": {
 		"message": "すべてのタグを表示",
 		"description": "タグリストページをターゲットとするリンクのラベル"
@@ -174,10 +135,7 @@
 		"message": "閉じる",
 		"description": "お知らせバーの閉じるボタンのARIAラベル"
 	},
-	"theme.blog.sidebar.navAriaLabel": {
-		"message": "ブログの最近の投稿のナビゲーション",
-		"description": "ブログのサイドバーの最近の投稿のARIAラベル"
-	},
+
 	"theme.CodeBlock.copied": {
 		"message": "コピー済み",
 		"description": "コードブロックのコピー済みボタンのラベル"
@@ -210,18 +168,7 @@
 		"message": "このページ内",
 		"description": "折りたたみ可能なTOCコンポーネントのボタンで使用されるラベル"
 	},
-	"theme.blog.post.readMore": {
-		"message": "続きを読む",
-		"description": "完全なブログ記事へのリンクとしてブログ記事の抜粋で使用されるラベル"
-	},
-	"theme.blog.post.readMoreLabel": {
-		"message": "{title} についてもっと読む",
-		"description": "抜粋から完全なブログ記事へのリンクのARIAラベル"
-	},
-	"theme.blog.post.readingTime.plurals": {
-		"message": "1分で読める|{readingTime}分で読める",
-		"description": "\"{readingTime}分で読める\" の複数形ラベル。言語がサポートする限りの複数形（\"|\" で区切る）を使用してください（https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html を参照）"
-	},
+
 	"theme.docs.breadcrumbs.home": {
 		"message": "ホームページ",
 		"description": "パンくずリストのホームページのARIAラベル"

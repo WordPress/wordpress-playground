@@ -1,8 +1,10 @@
 
 // @ts-ignore
-import url_nightly from './wp-nightly.zip?url';
-// @ts-ignore
 import url_beta from './wp-beta.zip?url';
+// @ts-ignore
+import url_7_0 from './wp-7.0.zip?url';
+// @ts-ignore
+import url_6_9 from './wp-6.9.zip?url';
 // @ts-ignore
 import url_6_8 from './wp-6.8.zip?url';
 // @ts-ignore
@@ -22,65 +24,85 @@ import url_6_3 from './wp-6.3.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: number, url: string } {
+export function getWordPressModuleDetails(wpVersion: string = "7.0"): { size: number, url: string } {
 	switch (wpVersion) {
-
-		case 'nightly':
-			/** @ts-ignore */
+		
+		case 'trunk':
 			return {
-				size: 24746055,
-				url: url_nightly,
+				size: 0,
+				url: "https://github.com/WordPress/WordPress/archive/refs/heads/master.zip",
 			};
-
+			
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 24745283,
+				size: 27902020,
 				url: url_beta,
 			};
-
+			
+		case '7.0':
+			/** @ts-ignore */
+			return {
+				size: 27902003,
+				url: url_7_0,
+			};
+			
+		case '6.9':
+			/** @ts-ignore */
+			return {
+				size: 24785963,
+				url: url_6_9,
+			};
+			
 		case '6.8':
 			/** @ts-ignore */
 			return {
-				size: 24745360,
+				size: 24753361,
 				url: url_6_8,
 			};
-
+			
 		case '6.7':
 			/** @ts-ignore */
 			return {
-				size: 24591190,
+				size: 24604297,
 				url: url_6_7,
 			};
-
+			
 		case '6.6':
 			/** @ts-ignore */
 			return {
-				size: 18382652,
+				size: 18395818,
 				url: url_6_6,
 			};
-
+			
 		case '6.5':
 			/** @ts-ignore */
 			return {
-				size: 18453985,
+				size: 18457511,
 				url: url_6_5,
 			};
-
+			
 		case '6.4':
 			/** @ts-ignore */
 			return {
 				size: 18265208,
 				url: url_6_4,
 			};
-
+			
 		case '6.3':
 			/** @ts-ignore */
 			return {
 				size: 3595053,
 				url: url_6_3,
 			};
-
+			
+		
+		case 'nightly':
+			return {
+				size: 0,
+				url: "https://github.com/WordPress/WordPress/archive/refs/heads/master.zip",
+			};
+		
 
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);

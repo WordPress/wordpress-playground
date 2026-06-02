@@ -3,13 +3,13 @@ import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import { join } from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreDataImports from '../ignore-data-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 function validateOrigin(origin: string) {
 	try {
@@ -30,6 +30,7 @@ const additionalRemoteOriginsModulePath = join(
 );
 
 export default defineConfig({
+	root: __dirname,
 	cacheDir: '../../../node_modules/.vite/playground-client',
 	plugins: [
 		viteTsConfigPaths({
@@ -40,9 +41,10 @@ export default defineConfig({
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
 			pathsToAliases: false,
 		}),
-		ignoreWasmImports(),
-		ignoreDataImports(),
-
+		viteIgnoreImports({
+			extensions: ['wasm', 'so', 'dat'],
+		}),
+		...viteGlobalExtensions,
 		// @wp-playground/client doesn't actually use the remote-config virtual
 		// module, @wp-playground/remote package does. @wp-playground/client imports
 		// a few things from @wp-playground/remote and, even though it doesn't

@@ -12,7 +12,7 @@ export interface PHPResponseData {
 	 * Response body. Contains the output from `echo`,
 	 * `print`, inline HTML etc.
 	 */
-	readonly bytes: ArrayBuffer;
+	readonly bytes: Uint8Array;
 
 	/**
 	 * Stderr contents, if any.
@@ -47,6 +47,299 @@ const responseTexts: Record<number, string> = {
 	200: 'OK',
 };
 
+export class StreamedPHPResponse {
+	/**
+	 * Headers stream that doesn't get locked when the consumer
+	 * reads the parsed headers. api.ts transfers the obj.getHeadersStream(),
+	 * and boot-playground-remote.ts copies the streamedResponse.headers.
+	 * Both streams must be readable when the StreamedPHPResponse is transferred
+	 * from the worker thread into the service worker.
+	 */
+	readonly #rawHeadersStream: ReadableStream<Uint8Array>;
+
+	/**
+	 * Headers stream reserved for internal parsing.
+	 */
+	readonly #copiedHeadersStreamForParsing: ReadableStream<Uint8Array>;
+
+	/**
+	 * Response body. Contains the output from `echo`,
+	 * `print`, inline HTML etc.
+	 */
+	readonly stdout: ReadableStream<Uint8Array>;
+
+	/**
+	 * Stderr contents, if any.
+	 */
+	readonly stderr: ReadableStream<Uint8Array>;
+
+	/**
+	 * The exit code of the script. `0` is a success, anything
+	 * else is an error.
+	 */
+	readonly exitCode: Promise<number>;
+
+	private cachedParsedHeaders: Promise<{
+		headers: Record<string, string[]>;
+		httpStatusCode: number;
+	}> | null = null;
+
+	private cachedStdoutBytes: Promise<Uint8Array> | null = null;
+	private cachedStderrText: Promise<string> | null = null;
+
+	constructor(
+		headers: ReadableStream<Uint8Array>,
+		stdout: ReadableStream<Uint8Array>,
+		stderr: ReadableStream<Uint8Array>,
+		exitCode: Promise<number>
+	) {
+		const [forTransport, forParsing] = headers.tee();
+		this.#rawHeadersStream = forTransport;
+		this.#copiedHeadersStreamForParsing = forParsing;
+		this.stdout = stdout;
+		this.stderr = stderr;
+		this.exitCode = exitCode;
+	}
+
+	/**
+	 * Creates a StreamedPHPResponse from a buffered PHPResponse.
+	 * Useful for unifying response handling when both types may be returned.
+	 */
+	static fromPHPResponse(response: PHPResponse): StreamedPHPResponse {
+		// Create a ReadableStream containing the response bytes
+		const stdout = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(response.bytes);
+				controller.close();
+			},
+		});
+
+		// Encode headers into the stream in the JSON format that
+		// parseHeadersStream expects. This is critical for when
+		// the response crosses a worker thread boundary via
+		// Comlink — only the raw headersStream is serialized,
+		// not the parsedHeaders property.
+		const headerLines: string[] = [];
+		for (const [name, values] of Object.entries(response.headers)) {
+			for (const value of values) {
+				headerLines.push(`${name}: ${value}`);
+			}
+		}
+		const headersJson = JSON.stringify({
+			status: response.httpStatusCode,
+			headers: headerLines,
+		});
+		const headersStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode(headersJson));
+				controller.close();
+			},
+		});
+
+		const stderr = new ReadableStream<Uint8Array>({
+			start(controller) {
+				if (response.errors.length > 0) {
+					controller.enqueue(
+						new TextEncoder().encode(response.errors)
+					);
+				}
+				controller.close();
+			},
+		});
+
+		return new StreamedPHPResponse(
+			headersStream,
+			stdout,
+			stderr,
+			Promise.resolve(response.exitCode)
+		);
+	}
+
+	/**
+	 * Creates a StreamedPHPResponse for a given HTTP status code.
+	 * Shorthand for `StreamedPHPResponse.fromPHPResponse(PHPResponse.forHttpCode(...))`.
+	 */
+	static forHttpCode(httpStatusCode: number, text = ''): StreamedPHPResponse {
+		return StreamedPHPResponse.fromPHPResponse(
+			PHPResponse.forHttpCode(httpStatusCode, text)
+		);
+	}
+
+	/**
+	 * Returns the raw headers stream for serialization purposes.
+	 * For parsed headers, use the `headers` property instead.
+	 */
+	getHeadersStream(): ReadableStream<Uint8Array> {
+		return this.#rawHeadersStream;
+	}
+
+	/**
+	 * True if the response is successful (HTTP status code 200-399),
+	 * false otherwise.
+	 */
+	async ok(): Promise<boolean> {
+		try {
+			const statusCode = await this.httpStatusCode;
+			return statusCode >= 200 && statusCode < 400;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Resolves when the response has finished processing – either successfully or not.
+	 */
+	get finished(): Promise<void> {
+		return Promise.allSettled([this.exitCode.finally(() => {})]).then(
+			() => {}
+		);
+	}
+
+	/**
+	 * Resolves once HTTP headers are available.
+	 */
+	get headers(): Promise<Record<string, string[]>> {
+		return this.getParsedHeaders().then((headers) => headers.headers);
+	}
+
+	/**
+	 * Resolves once HTTP status code is available.
+	 */
+	get httpStatusCode(): Promise<number> {
+		return this.getParsedHeaders()
+			.then((headers) => headers.httpStatusCode)
+			.then((result) => {
+				if (result !== undefined) {
+					return result;
+				}
+				// If exit code is 0 or not available yet, fall back to parsed headers
+				return this.getParsedHeaders().then(
+					(headers) => headers.httpStatusCode,
+					() => 200
+				);
+			})
+			.catch(() => 500);
+	}
+
+	/**
+	 * Exposes the stdout bytes as they're produced by the PHP instance
+	 */
+	get stdoutText(): Promise<string> {
+		return this.stdoutBytes.then((bytes) =>
+			new TextDecoder().decode(bytes)
+		);
+	}
+
+	/**
+	 * Exposes the stdout bytes as they're produced by the PHP instance
+	 */
+	get stdoutBytes(): Promise<Uint8Array> {
+		if (!this.cachedStdoutBytes) {
+			this.cachedStdoutBytes = streamToBytes(this.stdout);
+		}
+		return this.cachedStdoutBytes;
+	}
+
+	/**
+	 * Exposes the stderr bytes as they're produced by the PHP instance
+	 */
+	get stderrText(): Promise<string> {
+		if (!this.cachedStderrText) {
+			this.cachedStderrText = streamToText(this.stderr);
+		}
+		return this.cachedStderrText;
+	}
+
+	private async getParsedHeaders() {
+		if (!this.cachedParsedHeaders) {
+			this.cachedParsedHeaders = parseHeadersStream(
+				this.#copiedHeadersStreamForParsing
+			);
+		}
+		return await this.cachedParsedHeaders;
+	}
+}
+
+async function parseHeadersStream(
+	headersStream: ReadableStream<Uint8Array>
+): Promise<{
+	headers: Record<string, string[]>;
+	httpStatusCode: number;
+}> {
+	const headersText = await streamToText(headersStream);
+	let headersData;
+	try {
+		headersData = JSON.parse(headersText);
+	} catch {
+		return { headers: {}, httpStatusCode: 200 };
+	}
+	const headers: PHPResponse['headers'] = {};
+	for (const line of headersData.headers) {
+		// Skip invalid response headers and the last "__terminator__" line.
+		// @TODO: Should we log a warning on an invalid header line?
+		//        What's the typical browser behavior when encountering such a line?
+		if (!line.includes(': ')) {
+			continue;
+		}
+		const colonIndex = line.indexOf(': ');
+		const headerName = line.substring(0, colonIndex).toLowerCase();
+		const headerValue = line.substring(colonIndex + 2);
+		if (!(headerName in headers)) {
+			headers[headerName] = [] as string[];
+		}
+		headers[headerName].push(headerValue);
+	}
+	return {
+		headers,
+		httpStatusCode: headersData.status,
+	};
+}
+
+async function streamToText(
+	stream: ReadableStream<Uint8Array>
+): Promise<string> {
+	const reader = (stream as ReadableStream<BufferSource>)
+		.pipeThrough(new TextDecoderStream())
+		.getReader();
+	const text: string[] = [];
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			return text.join('');
+		}
+		if (value) {
+			text.push(value);
+		}
+	}
+}
+
+async function streamToBytes(
+	stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+	const reader = stream.getReader();
+	const chunks: Uint8Array[] = [];
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			const totalLength = chunks.reduce(
+				(acc, chunk) => acc + chunk.byteLength,
+				0
+			);
+			const result = new Uint8Array(totalLength);
+			let offset = 0;
+			for (const chunk of chunks) {
+				result.set(chunk, offset);
+				offset += chunk.byteLength;
+			}
+			return result;
+		}
+		if (value) {
+			chunks.push(value);
+		}
+	}
+}
+
 /**
  * PHP response. Body is an `ArrayBuffer` because it can
  * contain binary data.
@@ -59,7 +352,7 @@ export class PHPResponse implements PHPResponseData {
 	readonly headers: Record<string, string[]>;
 
 	/** @inheritDoc */
-	readonly bytes: ArrayBuffer;
+	readonly bytes: Uint8Array;
 
 	/** @inheritDoc */
 	readonly errors: string;
@@ -73,7 +366,7 @@ export class PHPResponse implements PHPResponseData {
 	constructor(
 		httpStatusCode: number,
 		headers: Record<string, string[]>,
-		body: ArrayBuffer,
+		body: Uint8Array,
 		errors = '',
 		exitCode = 0
 	) {
@@ -102,6 +395,27 @@ export class PHPResponse implements PHPResponseData {
 			data.errors,
 			data.exitCode
 		);
+	}
+
+	static async fromStreamedResponse(
+		streamedResponse: StreamedPHPResponse
+	): Promise<PHPResponse> {
+		await streamedResponse.finished;
+		return new PHPResponse(
+			await streamedResponse.httpStatusCode,
+			await streamedResponse.headers,
+			await streamedResponse.stdoutBytes,
+			await streamedResponse.stderrText,
+			await streamedResponse.exitCode
+		);
+	}
+
+	/**
+	 * True if the response is successful (HTTP status code 200-399),
+	 * false otherwise.
+	 */
+	ok(): boolean {
+		return this.httpStatusCode >= 200 && this.httpStatusCode < 400;
 	}
 
 	toRawData(): PHPResponseData {

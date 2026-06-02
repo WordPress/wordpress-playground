@@ -1,5 +1,6 @@
 import type { Emscripten } from './emscripten-types';
 import {
+	ErrnoError,
 	getEmscriptenFsError,
 	rethrowFileSystemError,
 } from './rethrow-file-system-error';
@@ -58,7 +59,7 @@ export class FSHelpers {
 	static writeFile(
 		FS: Emscripten.RootFS,
 		path: string,
-		data: string | Uint8Array
+		data: string | Uint8Array | Buffer
 	) {
 		FS.writeFile(path, data);
 	}
@@ -132,6 +133,22 @@ export class FSHelpers {
 		path: string,
 		options: RmDirOptions = { recursive: true }
 	) {
+		/**
+		 * Mount points cannot be removed and will throw a ErrnoError with
+		 * the code 10 (EBUSY).
+		 * To prevent the recursive option from removing internal files before
+		 * failing to remove the mount point, we need to check if the path is a
+		 * mount point and throw an error early.
+		 *
+		 * Because a mountpoint can be a symlink, we should not follow it.
+		 * Otherwise, a mounted sylink would point to the symlinked path,
+		 * instead of the mountpoint.
+		 */
+		const mountPoint = FS.lookupPath(path, { follow: false });
+		if (mountPoint?.node.mount.mountpoint === path) {
+			throw new ErrnoError(10);
+		}
+
 		if (options?.recursive) {
 			FSHelpers.listFiles(FS, path).forEach((file) => {
 				const filePath = `${path}/${file}`;
@@ -141,6 +158,9 @@ export class FSHelpers {
 					FSHelpers.unlink(FS, filePath);
 				}
 			});
+		}
+		if (FS.getPath(FS.lookupPath(path).node) === FS.cwd()) {
+			FS.chdir(joinPaths(FS.cwd(), '..'));
 		}
 		FS.rmdir(path);
 	}
@@ -285,21 +305,39 @@ export class FSHelpers {
 		fromPath: string,
 		toPath: string
 	) {
-		const fromNode = FS.lookupPath(fromPath).node;
-		if (FS.isDir(fromNode.mode)) {
-			FS.mkdirTree(toPath);
-			const filenames = FS.readdir(fromPath).filter(
-				(name: string) => name !== '.' && name !== '..'
-			);
-			for (const filename of filenames) {
-				FSHelpers.copyRecursive(
-					FS,
-					joinPaths(fromPath, filename),
-					joinPaths(toPath, filename)
+		try {
+			const fromNode = FS.lookupPath(fromPath).node;
+			if (FS.isDir(fromNode.mode)) {
+				// Prevent copying directory into itself
+				if (fromPath === toPath || toPath.startsWith(`${fromPath}/`))
+					throw new ErrnoError(28);
+				FS.mkdirTree(toPath);
+				const filenames = FS.readdir(fromPath).filter(
+					(name: string) => name !== '.' && name !== '..'
 				);
+				for (const filename of filenames) {
+					FSHelpers.copyRecursive(
+						FS,
+						joinPaths(fromPath, filename),
+						joinPaths(toPath, filename)
+					);
+				}
+			} else if (FS.isLink(fromNode.mode)) {
+				FS.symlink(FS.readlink(fromPath), toPath);
+			} else {
+				FS.writeFile(toPath, FS.readFile(fromPath));
 			}
-		} else {
-			FS.writeFile(toPath, FS.readFile(fromPath));
+		} catch (e) {
+			const errmsg = getEmscriptenFsError(e);
+			if (!errmsg) {
+				throw e;
+			}
+			throw new Error(
+				`Could not copy ${fromPath} to ${toPath}: ${errmsg}`,
+				{
+					cause: e,
+				}
+			);
 		}
 	}
 }
@@ -341,6 +379,3 @@ FSHelpers.fileExists = rethrowFileSystemError('Could not stat "{path}"')(
 FSHelpers.mkdir = rethrowFileSystemError('Could not create directory "{path}"')(
 	FSHelpers.mkdir
 );
-FSHelpers.copyRecursive = rethrowFileSystemError(
-	'Could not copy files from "{path}"'
-)(FSHelpers.copyRecursive);

@@ -8,12 +8,10 @@ import type { PHPRunOptions } from '@php-wasm/universal';
  *
  * <code>
  * {
- * 		"step": "runPHP",
+ * 		"step": "runPHPWithOptions",
  * 		"options": {
- * 			"code": "<?php echo $_SERVER['CONTENT_TYPE']; ?>",
- * 			"headers": {
- * 				"Content-type": "text/plain"
- * 			}
+ * 			"code": "<?php require_once '/wordpress/wp-load.php'; update_option('blogname', file_get_contents('php://input'));?>",
+ * 			"body": "Site Name Modified by runPHPWithOptions"
  * 		}
  * }
  * </code>

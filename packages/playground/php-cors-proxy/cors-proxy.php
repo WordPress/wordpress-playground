@@ -1,7 +1,7 @@
 <?php
 // Set error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 define('MAX_REQUEST_SIZE', 1 * 1024 * 1024); // 1MB
 define('MAX_RESPONSE_SIZE', 100 * 1024 * 1024); // 100MB
@@ -16,10 +16,18 @@ $server_host = $_SERVER['HTTP_HOST'] ?? '';
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if (should_respond_with_cors_headers($server_host, $origin)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
+    // On the dev server, the browser doesn't send an Origin header
+    // (same-origin request via Vite proxy), so fall back to wildcard.
+    $allow_origin = (is_local_dev_server() && empty($origin)) ? '*' : $origin;
+    header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers');
+    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type');
+    // Identify this response as coming from the legitimate CORS proxy.
+    // Network firewalls may intercept requests and return error responses
+    // without this header, allowing clients to detect interference.
+    header('X-Playground-Cors-Proxy: true');
+    header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header("Allow: GET, POST, OPTIONS");
@@ -116,7 +124,7 @@ function send_response_chunk($data) {
 /**
  * We need to manually chunk the response when running the PHP
  * dev server AND the transfer-encoding header is set to chunked.
- * 
+ *
  * Apache, Nginx, etc. will handle the chunking for us.
  */
 function should_send_as_chunked_response() {
@@ -130,13 +138,34 @@ curl_setopt($ch, CURLOPT_RESOLVE, [
     "$host:443:$resolvedIp"
 ]);
 
+$allHeaders = getallheaders();
+
+// If the browser wrapped Content-Type to prevent PHP from consuming
+// multipart/form-data bodies, extract the original value to restore
+// it for the outgoing request. PHP automatically parses
+// multipart/form-data into $_POST/$_FILES, emptying php://input and
+// making it impossible for the proxy to forward the raw body.
+$originalContentType = null;
+foreach ($allHeaders as $name => $value) {
+    if (strcasecmp($name, 'X-Cors-Proxy-Content-Type') === 0) {
+        // Reject values containing CR/LF to prevent header injection.
+        if (!preg_match('/[\r\n]/', $value)) {
+            $originalContentType = $value;
+        }
+        break;
+    }
+}
+
 $strictly_disallowed_headers = [
     // Cookies represent a relationship between the proxy server
     // and the client, so it is inappropriate to forward them.
     'Cookie',
     // Drop the incoming Host header because it identifies the
     // proxy server, not the target server.
-    'Host'
+    'Host',
+    // Internal header for Content-Type wrapping. Must not be
+    // forwarded to the target server.
+    'X-Cors-Proxy-Content-Type',
 ];
 $headers_requiring_opt_in = [
     // Allow Authorization header to be forwarded only if the client
@@ -147,11 +176,23 @@ $headers_requiring_opt_in = [
 ];
 $curlHeaders = kv_headers_to_curl_format(
     filter_headers_by_name(
-        getallheaders(),
+        $allHeaders,
         $strictly_disallowed_headers,
         $headers_requiring_opt_in,
     )
 );
+
+// If Content-Type was wrapped, replace the placeholder
+// application/octet-stream with the original value so the target
+// server receives the correct Content-Type.
+if ($originalContentType !== null) {
+    $curlHeaders = array_values(array_filter(
+        $curlHeaders,
+        fn($h) => stripos($h, 'Content-Type:') !== 0
+    ));
+    $curlHeaders[] = 'Content-Type: ' . $originalContentType;
+}
+
 curl_setopt(
     $ch,
     CURLOPT_HTTPHEADER,
@@ -187,11 +228,11 @@ curl_setopt(
 
         $len = strlen($header);
         $colonPos = strpos($header, ':');
-        
+
         if ($colonPos === false) {
             return $len;
         }
-        
+
         $name = strtolower(substr($header, 0, $colonPos));
         $value = trim(substr($header, $colonPos + 1));
 
@@ -238,7 +279,12 @@ curl_setopt(
             stripos($header, 'Access-Control-Allow-Origin:') !== 0 &&
             stripos($header, 'Access-Control-Allow-Credentials:') !== 0 &&
             stripos($header, 'Access-Control-Allow-Methods:') !== 0 &&
-            stripos($header, 'Access-Control-Allow-Headers:') !== 0
+            stripos($header, 'Access-Control-Allow-Headers:') !== 0 &&
+            // HSTS headers have consequences for the entire domain. Let's not
+            // allow any remote site to decide on the CORS proxy HSTS policy.
+            // Besides, they won't work with the http-only local dev server.
+            stripos($header, 'Strict-Transport-Security:') !== 0 &&
+            stripos($header, 'Upgrade-Insecure-Requests:') !== 0
         ) {
             header($header, false);
         }
@@ -256,10 +302,43 @@ $requestMethod = $_SERVER['REQUEST_METHOD'];
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $requestMethod);
 
 if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 'OPTIONS') {
-    $input = fopen('php://input', 'r');
-    curl_setopt($ch, CURLOPT_UPLOAD, true);
-    curl_setopt($ch, CURLOPT_INFILE, $input);
-    curl_setopt($ch, CURLOPT_INFILESIZE, $_SERVER['CONTENT_LENGTH']);
+    // php://input is not available for multipart/form-data requests
+    // because PHP parses the body into $_POST and $_FILES, consuming
+    // the input stream. For such requests, we reconstruct the body
+    // using CURLOPT_POSTFIELDS with CURLFile objects for any uploaded
+    // files.
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    if (stripos($contentType, 'multipart/form-data') !== false && (!empty($_POST) || !empty($_FILES))) {
+        $postFields = $_POST;
+        foreach ($_FILES as $name => $fileInfo) {
+            $postFields[$name] = new CURLFile(
+                $fileInfo['tmp_name'],
+                $fileInfo['type'] ?: 'application/octet-stream',
+                $fileInfo['name']
+            );
+        }
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+        // Strip the incoming Content-Type and Content-Length headers.
+        // CURLOPT_POSTFIELDS with an array generates a new multipart
+        // boundary, and we must let PHP curl set its own Content-Type
+        // to match. The original Content-Type from the browser has a
+        // different boundary that doesn't match the reconstructed body.
+        $filteredHeaders = array_values(array_filter(
+            $curlHeaders,
+            fn($h) => stripos($h, 'Content-Type:') !== 0
+                   && stripos($h, 'Content-Length:') !== 0
+        ));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge(
+            $filteredHeaders,
+            ["Host: $host"],
+        ));
+    } else {
+        $input = fopen('php://input', 'r');
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $input);
+        curl_setopt($ch, CURLOPT_INFILESIZE, $_SERVER['CONTENT_LENGTH']);
+    }
 }
 
 // Execute cURL session
@@ -270,7 +349,11 @@ if (!curl_exec($ch)) {
     @$relay_http_code_and_initial_headers_if_not_already_sent();
 }
 // Close cURL session
-curl_close($ch);
+if (version_compare(PHP_VERSION, '8.5', '<')) {
+    // curl_close is deprecated in PHP 8.5 and later.
+    // See https://www.php.net/manual/en/migration85.deprecated.php#migration85.deprecated.curl
+    curl_close($ch);
+}
 
 // Only send chunked transfer encoding footer if we're using chunked encoding.
 // We need to manually send the footer when running in the PHP built-in server

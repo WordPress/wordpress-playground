@@ -1,4 +1,5 @@
 import type { MessageListener } from '@php-wasm/universal';
+import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
@@ -11,29 +12,41 @@ import type {
 	PlaygroundWorkerEndpoint,
 	WorkerBootOptions,
 	MountDescriptor,
-} from './worker-thread';
+} from './playground-worker-endpoint';
 export type { MountDescriptor, WorkerBootOptions };
 import type { WebClientMixin } from './playground-client';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
+
+type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
+
+// @ts-ignore
+import serviceWorkerPath from '../../service-worker.ts?worker&url';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { logger } from '@php-wasm/logger';
+import { PhpWasmError } from '@php-wasm/util';
+import { responseTo } from '@php-wasm/web-service-worker';
+
+// Select worker runtime (v1 or v2) based on query parameter
+// @ts-ignore
+import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
+// @ts-ignore
+import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&url';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
 
-// @ts-ignore
-import moduleWorkerUrl from './worker-thread?worker&url';
+function getWorkerUrl(): string {
+	const runner = new URL(document.location.href).searchParams.get(
+		'blueprints-runner'
+	);
+	const isV2 = runner === 'v2';
+	const selected = isV2 ? workerV2Url : workerV1Url;
+	return new URL(selected, origin) + '';
+}
 
-export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
-
-// @ts-ignore
-import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import type { FilesystemOperation } from '@php-wasm/fs-journal';
-import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
-import { logger } from '@php-wasm/logger';
-import { PhpWasmError } from '@php-wasm/util';
-import { responseTo } from '@php-wasm/web-service-worker';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -93,14 +106,42 @@ export async function bootPlaygroundRemote() {
 		logger.error('Failed to update service worker.', e);
 	}
 
+	/**
+	 * Feature-detect Document-Isolation-Policy support.
+	 *
+	 * Note this is not awaited on purpose. We don't want to delay the entire
+	 * loading pipeline here. This information is only needed before the first
+	 * page load inside the iframe so it's awaited later on in goTo().
+	 *
+	 * See `service-worker.ts` for the full story on why Playground does this.
+	 */
+	const documentIsolationSupportDetected =
+		detectDocumentIsolationPolicySuport().then((isolationSupported) => {
+			navigator.serviceWorker.controller?.postMessage({
+				type: 'document-isolation-policy-support-check',
+				supported: isolationSupported,
+			});
+		});
+
+	const workerUrl = new URL(getWorkerUrl(), origin) + '';
+
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	const phpRemoteApi: WebClientMixin = {
+	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
+		},
+		/**
+		 * Re-expose cli() from this iframe instead of piping through the
+		 * worker proxy. WebKit otherwise receives a Comlink function proxy
+		 * from another Comlink proxy and may dispatch the call to an endpoint
+		 * that has not booted yet.
+		 */
+		async cli(argv, options) {
+			return await phpWorkerApi.cli(argv, options);
 		},
 		async journalFSEvents(root: string, callback) {
 			return phpWorkerApi.journalFSEvents(root, callback);
@@ -126,8 +167,56 @@ export async function bootPlaygroundRemote() {
 			}
 			bar.destroy();
 		},
+
+		/**
+		 * Listens to Playground navigation.
+		 *
+		 * @param fn The function to be called when a navigation event occurs.
+		 */
 		async onNavigation(fn) {
-			// Manage the address bar
+			/**
+			 * Note: We do not manually clear the event listener and the interval set in this function.
+			 *
+			 * This is because we're inside remote.html – a Playground instance-specific iframe.
+			 * When a Playground is stopped the iframe is destroyed and the resources – cleaned up.
+			 * Even if we wanted to clean up these resources manually, it would have to be onbeforeunload.
+			 * We'll let the browser handle that.
+			 */
+
+			let lastPath: string | undefined;
+
+			/**
+			 * Listen for URL change messages from the WordPress iframe.
+			 *
+			 * When Document-Isolation-Policy is enabled, we can't access the
+			 * iframe's location.href due to cross-origin restrictions. Instead,
+			 * a WordPress MU plugin posts a message with the current URL.
+			 *
+			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
+			 */
+			window.addEventListener('message', async (event) => {
+				if (event.source !== wpFrame.contentWindow) {
+					return;
+				}
+				try {
+					const data =
+						typeof event.data === 'string'
+							? JSON.parse(event.data)
+							: event.data;
+					if (data?.type !== 'playground-url-change') {
+						return;
+					}
+					const path = await playground.internalUrlToPath(data.url);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
+				} catch {
+					// Ignore JSON parse errors
+				}
+			});
+
+			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
 				try {
 					/**
@@ -160,7 +249,10 @@ export async function bootPlaygroundRemote() {
 					const path = await playground.internalUrlToPath(
 						contentWindow.location.href
 					);
-					fn(path);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
 				} catch {
 					// @TODO: The above call can fail if the remote iframe
 					// is embedded in StackBlitz, or presumably, any other
@@ -169,8 +261,39 @@ export async function bootPlaygroundRemote() {
 					// so let's ignore it for now and find a correct fix in time.
 				}
 			});
+
+			// Also propagate navigation changes twice a second for any
+			// updates we don't receive via the iframe load event.
+			//
+			// For more details on the challenges related to the load event,
+			// see:
+			//
+			// * https://github.com/WordPress/wordpress-playground/pull/1945
+			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
+			setInterval(async () => {
+				try {
+					let href = '';
+					if (wpFrame.contentWindow) {
+						href = wpFrame.contentWindow.location.href;
+					} else {
+						href = wpFrame.src;
+					}
+					const path = await playground.internalUrlToPath(href);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
+				} catch {
+					// Ignore errors due to CORS or CSP restrictions
+				}
+			}, 500);
 		},
 		async goTo(requestedPath: string) {
+			// We need to know whether the browser supports
+			// Document-Isolation-Policy before the first navigation.
+			await documentIsolationSupportDetected;
+
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
 			}
@@ -190,11 +313,27 @@ export async function bootPlaygroundRemote() {
 			const newUrl = await playground.pathToInternalUrl(requestedPath);
 			const oldUrl = wpFrame.src;
 
+			/**
+			 * Wait until the iframe loads. This prevents cancelled requests when multiple
+			 * `goTo()` calls happen one after another which, in turn, prevents cookies
+			 * generated by those cancelled requests from overriding cookies generated by
+			 * the subsequent request.
+			 *
+			 * @see https://github.com/WordPress/wordpress-playground/issues/3061 for
+			 *      the detailed context.
+			 */
+			const navigationComplete = new Promise<void>((resolve) => {
+				wpFrame.addEventListener('load', () => resolve(), {
+					once: true,
+				});
+			});
+
 			// If the URL is the same, we need to force a reload
 			// because otherwise the iframe will not reload the page.
 			if (newUrl === oldUrl && wpFrame.contentWindow) {
 				try {
 					wpFrame.contentWindow.location.href = newUrl;
+					await navigationComplete;
 					return;
 				} catch {
 					// The above call can fail if we're embedded in an
@@ -202,6 +341,7 @@ export async function bootPlaygroundRemote() {
 				}
 			}
 			wpFrame.src = newUrl;
+			await navigationComplete;
 		},
 		async getCurrentURL() {
 			let url = '';
@@ -253,6 +393,10 @@ export async function bootPlaygroundRemote() {
 			return await phpWorkerApi.mountOpfs(options, onProgress);
 		},
 
+		async flushOpfs(mountpoint: string) {
+			return await phpWorkerApi.flushOpfs(mountpoint);
+		},
+
 		/**
 		 * Ditto for this function.
 		 * @see onMessage
@@ -297,17 +441,52 @@ export async function bootPlaygroundRemote() {
 						return;
 					}
 
-					// Wait for the PHP API client to be set by bootPlaygroundRemote
 					const args = event.data.args || [];
 					const method = event.data
 						.method as keyof PlaygroundWorkerEndpoint;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-					const result = await (phpWorkerApi[method] as Function)(
-						...args
-					);
-					event.source!.postMessage(
-						responseTo(event.data.requestId, result)
-					);
+
+					if (method === 'request') {
+						const streamedResponse = await (
+							phpWorkerApi.requestStreamed as any
+						)(...args);
+						const httpStatusCode =
+							await streamedResponse.httpStatusCode;
+						const headers = await streamedResponse.headers;
+
+						/**
+						 * ReadableStreams are transferable, but cannot be
+						 * transferred to the service worker.
+						 *
+						 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+						 * message when the transfer list contains a ReadableStream.
+						 * The call succeeds and the stream detaches from the sender,
+						 * but the message never arrives at the service worker.
+						 *
+						 * To work around this, we bridge the body stream via a MessagePort.
+						 *
+						 * See:
+						 * * https://github.com/whatwg/streams/issues/1063
+						 * * https://github.com/whatwg/streams/issues/276
+						 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+						 */
+						const bodyPort = streamToPort(streamedResponse.stdout);
+						(event.source! as ServiceWorker).postMessage(
+							responseTo(event.data.requestId, {
+								httpStatusCode,
+								headers,
+								bodyPort,
+							}),
+							[bodyPort]
+						);
+					} else {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+						const result = await (phpWorkerApi[method] as Function)(
+							...args
+						);
+						event.source!.postMessage(
+							responseTo(event.data.requestId, result)
+						);
+					}
 				}
 			);
 			sw.startMessages();
@@ -319,12 +498,6 @@ export async function bootPlaygroundRemote() {
 					wpFrame,
 					getOrigin((await playground.absoluteUrl)!)
 				);
-
-				if (options.withNetworking) {
-					await setupFetchNetworkTransport(phpWorkerApi, {
-						corsProxyUrl: options.corsProxyUrl,
-					});
-				}
 
 				setAPIReady();
 			} catch (e) {
@@ -395,6 +568,56 @@ export async function bootPlaygroundRemote() {
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;
+}
+
+/**
+ * Interacts with the service-worker served HTML document to check
+ * the browser support for Document-Isolation-Policy.
+ *
+ * See `service-worker.ts` for more details.
+ */
+function detectDocumentIsolationPolicySuport(): Promise<boolean> {
+	return new Promise((resolve) => {
+		const testFrame = document.createElement('iframe');
+		testFrame.style.display = 'none';
+		// This file does not exist on the server. It is served by the
+		// service worker.
+		testFrame.src = '/feature-detect/document-isolation-policy.html';
+
+		// From here, we're:
+		// 1. Creating an iframe.
+		// 2. Waiting for a message that confirms support for Document-Isolation-Policy.
+		// 3. If anything goes wrong or we time out, we assume no support.
+		let resolved = false;
+		const cleanup = () => {
+			if (resolved) return;
+			resolved = true;
+			window.removeEventListener('message', messageHandler);
+			clearTimeout(timeoutId);
+			testFrame.remove();
+		};
+
+		const messageHandler = (event: MessageEvent) => {
+			if (event.source !== testFrame.contentWindow) {
+				return;
+			}
+			cleanup();
+			resolve(event.data.supported === true);
+		};
+		window.addEventListener('message', messageHandler);
+
+		const timeoutId = setTimeout(() => {
+			cleanup();
+			resolve(false);
+		}, 1000);
+
+		testFrame.onerror = () => {
+			cleanup();
+			resolve(false);
+		};
+
+		document.body.appendChild(testFrame);
+	});
 }
 
 function getOrigin(url: string) {

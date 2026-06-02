@@ -11,9 +11,12 @@ export default defineConfig({
 		baseURL: 'http://127.0.0.1/',
 	},
 	webServer: {
-		command:
-			'nx run playground-php-cors-proxy:start& npx nx run playground-website:preview:ci',
+		command: 'npx nx run playground-website:preview:ci-with-proxy',
 		url: 'http://127.0.0.1/',
 		reuseExistingServer: false,
+		env: {
+			CORS_PROXY_URL: 'http://127.0.0.1:5263/cors-proxy.php?',
+			DEBUG: 'pw:webserver',
+		},
 	},
 });

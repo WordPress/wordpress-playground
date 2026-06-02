@@ -19,6 +19,13 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	}
 
 	/**
+	 * Strip the Range header if present. Safari sometimes adds Range headers
+	 * to requests, which results in 206 Partial Content responses that can't
+	 * be cached using .put() since they're incomplete responses.
+	 */
+	const requestWithoutRangeHeader = stripRangeHeader(request);
+
+	/**
 	 * Ensure the response is not coming from HTTP cache.
 	 *
 	 * We never want to put a stale asset in CacheStorage as
@@ -26,7 +33,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	 *
 	 * See service-worker.ts for more details.
 	 */
-	const response = await fetchFresh(request);
+	const response = await fetchFresh(requestWithoutRangeHeader);
 	if (response.ok) {
 		/**
 		 * Confirm the current service worker is still active
@@ -34,11 +41,14 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 		 * from a stale worker has no benefits. It only takes
 		 * up space.
 		 */
-		if (isCurrentServiceWorkerActive()) {
+		if (
+			isCurrentServiceWorkerActive() &&
+			['GET', 'HEAD'].includes(request.method)
+		) {
 			// Intentionally do not await writing to the cache so the response
 			// promise can be returned immediately and observed for progress events.
 			// NOTE: This is a race condition for simultaneous requests for the same asset.
-			offlineModeCache.put(request, response.clone());
+			offlineModeCache.put(requestWithoutRangeHeader, response.clone());
 		}
 	}
 
@@ -53,8 +63,22 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 
 	let response: Response | undefined = undefined;
 	try {
+		/**
+		 * Only use either `no-store` or `reload` here or else Playground won't
+		 * load in Safari after a new version is deployed.
+		 *
+		 * Initially, we used `no-cache` here:
+		 * * Chrome and Firefox did not source the /index.html file from the HTTP cache.
+		 * * Safari still sourced the /index.html file from the HTTP cache.
+		 *
+		 * After a new Playground deployment, the stale cached index.html contained
+		 * references to assets that were no longer available on the server.
+		 *
+		 * The `cache: no-store` option actually makes Safari behave as expected, that is
+		 * go to the network without loading the stale HTTP cache response.
+		 */
 		response = await fetch(request, {
-			cache: 'no-cache',
+			cache: 'no-store',
 		});
 	} catch (e) {
 		if (cachedResponse) {
@@ -101,7 +125,11 @@ export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
 		 *
 		 * See service-worker.ts for more details.
 		 */
-		(url: string) => new Request(url, { cache: 'no-cache' })
+		(url: string) =>
+			new Request(url, {
+				// Do not use no-cache here. See the comment in networkFirstFetch() for more details.
+				cache: 'no-store',
+			})
 	);
 	const offlineModeCache = await promisedOfflineModeCache;
 	await offlineModeCache.addAll(websiteRequests);
@@ -150,6 +178,8 @@ export function shouldCacheUrl(url: URL) {
 	if (
 		url.href.startsWith('http://127.0.0.1:5400/') ||
 		url.href.startsWith('http://localhost:5400/') ||
+		url.href.startsWith('http://127.0.0.1:5401/') ||
+		url.href.startsWith('http://localhost:5401/') ||
 		url.href.startsWith('https://playground.test/') ||
 		url.pathname.startsWith('/website-server/')
 	) {
@@ -180,6 +210,26 @@ export function shouldCacheUrl(url: URL) {
 }
 
 /**
+ * Removes the Range header from a request if present.
+ *
+ * Safari sometimes adds Range headers which cause 206 Partial Content responses
+ * that can't be cached using Cache API's .put() method.
+ *
+ * @param request The original request
+ * @returns A new request without the Range header
+ */
+function stripRangeHeader(request: Request): Request {
+	if (!request.headers.has('range')) {
+		return request;
+	}
+
+	const headers = new Headers(request.headers);
+	headers.delete('range');
+
+	return new Request(request, { headers });
+}
+
+/**
  * Fetches a resource and avoids stale responses from browser cache.
  *
  * @param resource The resource to fetch.
@@ -189,7 +239,8 @@ export function shouldCacheUrl(url: URL) {
 function fetchFresh(resource: RequestInfo | URL, init?: RequestInit) {
 	return fetch(resource, {
 		...init,
-		cache: 'no-cache',
+		// Do not use no-cache here. See the comment in networkFirstFetch() for more details.
+		cache: 'no-store',
 	});
 }
 

@@ -3,7 +3,32 @@ import util from 'util';
 import fs from 'fs';
 const rmAsync = util.promisify(fs.rm);
 import { spawn } from 'child_process';
-import { phpVersions } from '../supported-php-versions.mjs';
+import { phpVersions, lastRefreshed } from '../supported-php-versions.mjs';
+
+// Refresh PHP versions if they need updating (if last refreshed more than 24 hours ago)
+const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+const lastRefreshedDate = new Date(lastRefreshed);
+
+if (lastRefreshedDate < twentyFourHoursAgo) {
+	console.log(
+		'📅 PHP versions data is older than 24 hours, checking for updates...'
+	);
+	try {
+		const { updatePHPVersions } = await import('./update-php-versions.mjs');
+		await updatePHPVersions();
+
+		// Reload the supported-php-versions.mjs module to get the updated versions
+		const { phpVersions: updatedPhpVersions } = await import(
+			'../supported-php-versions.mjs?' + Date.now()
+		);
+		// Replace the original phpVersions with the updated ones
+		phpVersions.length = 0;
+		phpVersions.push(...updatedPhpVersions);
+	} catch (error) {
+		console.warn('⚠️  Failed to update PHP versions:', error.message);
+		process.exit(1);
+	}
+}
 
 // yargs parse
 import yargs from 'yargs';
@@ -36,6 +61,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with libxml support',
 		},
+		WITH_SOAP: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with SOAP support',
+		},
 		WITH_LIBZIP: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -65,11 +95,6 @@ const argParser = yargs(process.argv.slice(2))
 			type: 'string',
 			choices: ['yes', 'no'],
 			description: 'Build with mbregex support',
-		},
-		WITH_INTL: {
-			type: 'string',
-			choices: ['yes', 'no'],
-			description: 'Build with intl support',
 		},
 		WITH_CLI_SAPI: {
 			type: 'string',
@@ -121,21 +146,40 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with WebSocket networking proxy support',
 		},
+		WITH_IMAGICK: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with imagick support',
+		},
 		PHP_VERSION: {
 			type: 'string',
 			description: 'The PHP version to build',
 			required: true,
 		},
+		PHP_REF: {
+			type: 'string',
+			description:
+				'The php-src git ref to clone. Defaults to the php-$PHP_VERSION tag.',
+		},
 		['output-dir']: {
 			type: 'string',
-			description: 'The output directory',
-			required: true,
+			description:
+				'The output directory. If not provided, it will be computed from the PHP version and platform.',
 		},
 		WITH_OPENSSL_VERSION: {
 			type: 'string',
 			choices: ['1.1.0h', '1.1.1'],
 			description: 'OpenSSL version to use',
 			default: '1.1.0h',
+		},
+		WITH_OPCACHE: {
+			type: 'string',
+			description: 'Build with OPCache support',
+		},
+		STACK_SIZE: {
+			type: 'string',
+			description: 'The emscripten stack size to use for the build',
+			default: '1MB',
 		},
 	});
 
@@ -144,6 +188,7 @@ const args = argParser.argv;
 const platformDefaults = {
 	all: {
 		PHP_VERSION: '8.0.24',
+		WITH_CLI_SAPI: 'yes',
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
 		WITH_JSPI: 'no',
@@ -151,19 +196,22 @@ const platformDefaults = {
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
+		WITH_SOAP: 'yes',
 		WITH_EXIF: 'yes',
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
-		WITH_INTL: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
+		WITH_OPCACHE: 'yes',
+		WITH_IMAGICK: 'no',
+		STACK_SIZE: '1MB',
 	},
 	web: {},
 	node: {
-		WITH_CLI_SAPI: 'yes',
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
+		WITH_IMAGICK: 'yes',
 	},
 };
 const platform = args.PLATFORM;
@@ -174,10 +222,10 @@ const getArg = (name) => {
 		name in args
 			? args[name]
 			: name in platformDefaults[platform]
-			? platformDefaults[platform][name]
-			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+				? platformDefaults[platform][name]
+				: name in platformDefaults.all
+					? platformDefaults.all[name]
+					: 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
@@ -192,28 +240,88 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
-const outputDir = path.resolve(process.cwd(), args.outputDir);
+
+// Compute output directory if not provided
+function computeOutputDir() {
+	if (args.outputDir) {
+		return path.resolve(process.cwd(), args.outputDir);
+	}
+	// Extract major.minor from the PHP version (e.g., "8.4.16" -> "8-4")
+	const phpVersion = args.PHP_VERSION || '8.3';
+	const [major, minor] = phpVersion.split('.');
+	const versionDir = `${major}-${minor}`;
+	// Check both --JSPI (boolean) and --WITH_JSPI=yes (string from legacy format)
+	const isJspi = args.JSPI || args.WITH_JSPI === 'yes';
+	const jspiOrAsyncify = isJspi ? 'jspi' : 'asyncify';
+	const platformDir = platform === 'node' ? 'node-builds' : 'web-builds';
+	return path.resolve(
+		process.cwd(),
+		`packages/php-wasm/${platformDir}/${versionDir}/${jspiOrAsyncify}`
+	);
+}
+
+const outputDir = computeOutputDir();
+
+// Clean up outdated minor versions in the output directory to avoid shipping
+// multiple binaries for the same major.minor PHP version.
+async function cleanupOldMinorVersions() {
+	if (!fs.existsSync(outputDir)) {
+		return;
+	}
+	const phpVersion = args.PHP_VERSION || '8.3';
+	const [major, minor] = phpVersion.split('.');
+	const versionPrefix = `${major}_${minor}`;
+
+	const entries = fs.readdirSync(outputDir);
+	for (const entry of entries) {
+		// Match files and directories like "8_4_15", "php_8_4.js", etc.
+		// that belong to the same major.minor version
+		if (
+			entry.startsWith(versionPrefix) ||
+			entry.startsWith(`php_${major}_${minor}`)
+		) {
+			const fullPath = path.join(outputDir, entry);
+			console.log(`Removing outdated: ${fullPath}`);
+			await rmAsync(fullPath, { recursive: true, force: true });
+		}
+	}
+}
+
+await cleanupOldMinorVersions();
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
+
+const phpVersionForDockerfile = getArg('PHP_VERSION').replace(
+	'PHP_VERSION=',
+	''
+);
+const phpRef = args.PHP_REF || `php-${phpVersionForDockerfile}`;
+const dockerfile = phpVersionForDockerfile.startsWith('5.2')
+	? 'php/Dockerfile-5-2'
+	: 'php/Dockerfile';
 
 await asyncSpawn(
 	'docker',
 	[
 		'build',
 		'-f',
-		'php/Dockerfile',
-		'.',
+		dockerfile,
+		'..',
 		'--tag=php-wasm',
-		args.DEBUG ? '--progress=plain' : '--progress=auto',
+		'--progress=plain',
 		'--build-arg',
 		getArg('PHP_VERSION'),
+		'--build-arg',
+		`PHP_REF=${phpRef}`,
 		'--build-arg',
 		`OPENSSL_VERSION=${args.WITH_OPENSSL_VERSION || '1.1.0h'}`,
 		'--build-arg',
 		getArg('WITH_FILEINFO'),
 		'--build-arg',
 		getArg('WITH_LIBXML'),
+		'--build-arg',
+		getArg('WITH_SOAP'),
 		'--build-arg',
 		getArg('WITH_LIBZIP'),
 		'--build-arg',
@@ -224,8 +332,6 @@ await asyncSpawn(
 		getArg('WITH_MBSTRING'),
 		'--build-arg',
 		getArg('WITH_MBREGEX'),
-		'--build-arg',
-		getArg('WITH_INTL'),
 		'--build-arg',
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',
@@ -239,9 +345,18 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_SOURCEMAPS'),
 		'--build-arg',
-		`OUTPUT_DIR_FOR_SOURCE_MAP_BASE=${outputDir}`,
+		// Relay output directory so we can create source maps and DWARF debug
+		// info containing correct paths.
+		`OUTPUT_DIR_ON_HOST=${outputDir}`,
 		'--build-arg',
 		getArg('WITH_DEBUG'),
+		// This directory path allows us to set what the DWARF file references
+		// are relative to so step debugging source files works correctly.
+		'--build-arg',
+		`DEBUG_DWARF_COMPILATION_DIR=${path.resolve(
+			import.meta.dirname,
+			'..'
+		)}`,
 		'--build-arg',
 		getArg('WITH_ICONV'),
 		'--build-arg',
@@ -249,13 +364,25 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_WS_NETWORKING_PROXY'),
 		'--build-arg',
+		getArg('WITH_IMAGICK'),
+		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
 		'--build-arg',
 		getArg('WITH_JSPI'),
+		'--build-arg',
+		getArg('WITH_OPCACHE'),
+		'--build-arg',
+		getArg('STACK_SIZE'),
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 /* eslint-enable prettier/prettier */
+
+const copyTerminfoCommand =
+	getArg('WITH_CLI_SAPI') === 'yes'
+		? ' && cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
+		: '';
+const restoreOutputOwnershipCommand = getRestoreOutputOwnershipCommand();
 
 // Extract the PHP WASM module
 await asyncSpawn(
@@ -272,30 +399,33 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`cp -rf /root/output/* /output && mkdir -p /output/terminfo/x ${
-			getArg('WITH_CLI_SAPI') === 'yes'
-				? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
-				: ''
-		}`,
+		`cp -rf /root/output/* /output && ` +
+			`mkdir -p /output/terminfo/x` +
+			copyTerminfoCommand +
+			restoreOutputOwnershipCommand,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
-// Copy data files
-const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
-const publicDir =
-	platform === 'node'
-		? `${path.dirname(outputDir)}/src/lib/data`
-		: `${path.dirname(path.dirname(outputDir))}`;
-if (getArg('WITH_INTL').endsWith('yes')) {
-	await asyncSpawn(
-		'cp',
-		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
-		{ cwd: sourceDir, stdio: 'inherit' }
-	);
+/**
+ * build.js copies artifacts from a root Docker container. On Linux, those
+ * bind-mounted files become root-owned on the host. Restore them to the host
+ * owner so later Node steps and local cleanups can edit generated artifacts.
+ */
+function getRestoreOutputOwnershipCommand() {
+	if (
+		typeof process.getuid !== 'function' ||
+		typeof process.getgid !== 'function'
+	) {
+		return '';
+	}
+	const uid = process.getuid();
+	const gid = process.getgid();
+	if (uid === 0) {
+		return '';
+	}
+	return ` && chown -R ${uid}:${gid} /output`;
 }
-
-const _args = args;
 
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');

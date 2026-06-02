@@ -1,7 +1,16 @@
 ---
 title: wp-now
 slug: /developers/local-development/wp-now
+orphan: true
 ---
+
+<div class="callout callout-warning">
+
+**Package deprecated**
+
+The NPM package @wp-now/wp-now is deprecated and won't receive updates in the future. To use a command-line tool in your developer workflow, use the NPM package `@wp-playground/cli`.
+
+</div>
 
 # wp-now NPM package
 
@@ -9,17 +18,19 @@ slug: /developers/local-development/wp-now
 
 Key Features:
 
--   **Command-line Interface**: Easy to use for developers comfortable with CLI.
--   **Quick Setup**: Set up a local WordPress environment in seconds.
--   **Customizable**: Allows for configuration to suit specific development needs.
+- **Command-line Interface**: Easy to use for developers comfortable with CLI.
+- **Quick Setup**: Set up a local WordPress environment in seconds.
+- **Customizable**: Allows for configuration to suit specific development needs.
 
 [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
 
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 `wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
-:::
+</div>
 
 ## Launch wp-now in a plugin or theme directory
 
@@ -36,7 +47,7 @@ You can also start `wp-now` from any `wp-content` folder. The following example 
 
 ```bash
 cd my-wordpress-folder/wp-content
-npx @wp-now/wp-now start --wp=6.4 --php=8.0 --blueprint=path/to/blueprint.json
+npx @wp-now/wp-now start --wp=6.4 --php=8.3 --blueprint=path/to/blueprint.json
 ```
 
 ## Install wp-now globally

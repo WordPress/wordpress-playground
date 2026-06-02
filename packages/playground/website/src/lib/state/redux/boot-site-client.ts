@@ -3,27 +3,48 @@ import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
 	legacyOpfsPathSymbol,
-	deleteDirectory,
 } from '../opfs/opfs-site-storage';
 import {
 	addClientInfo,
 	removeClientInfo,
 	updateClientInfo,
 } from './slice-clients';
-import { logTrackingEvent } from '../../tracking';
-import type { Blueprint, StepDefinition } from '@wp-playground/blueprints';
-import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
+import {
+	type Blueprint,
+	BlueprintFilesystemRequiredError,
+	InvalidBlueprintError,
+	isBlueprintBundle,
+} from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
-import { setupPostMessageRelay } from '@php-wasm/web';
+import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
-import type { PlaygroundClient } from '@wp-playground/remote';
+import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
-import { setActiveModal, setActiveSiteError } from './slice-ui';
+import {
+	setActiveModal,
+	setActiveSiteError,
+	setGitHubAuthRepoUrl,
+} from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectSiteBySlug } from './slice-sites';
+import {
+	isAutosavedSite,
+	selectSiteBySlug,
+	updateSiteMetadata,
+} from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { modalSlugs } from '../../../components/layout';
+import { modalSlugs } from './slice-ui';
+import {
+	createGitAuthHeaders,
+	shouldShowGitHubAuthModal,
+} from '../../../github/git-auth-helpers';
+import {
+	findFirewallErrorInCauseChain,
+	findDownloadErrorInCauseChain,
+} from './error-utils';
+import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -58,9 +79,10 @@ export function bootSiteClient(
 			} catch (e) {
 				logger.error(e);
 				dispatch(
-					setActiveSiteError(
-						'directory-handle-not-found-in-indexeddb'
-					)
+					setActiveSiteError({
+						error: 'directory-handle-not-found-in-indexeddb',
+						details: e,
+					})
 				);
 				return;
 			}
@@ -83,13 +105,28 @@ export function bootSiteClient(
 				logger.error(e);
 				if (e instanceof DOMException && e.name === 'NotFoundError') {
 					dispatch(
-						setActiveSiteError(
-							'directory-handle-not-found-in-indexeddb'
-						)
+						setActiveSiteError({
+							error: 'directory-handle-not-found-in-indexeddb',
+							details: e,
+						})
 					);
 					return;
 				}
-				dispatch(setActiveSiteError('directory-handle-unknown-error'));
+				if (e instanceof DOMException && e.name === 'NotAllowedError') {
+					dispatch(
+						setActiveSiteError({
+							error: 'directory-handle-permission-denied',
+							details: e,
+						})
+					);
+					return;
+				}
+				dispatch(
+					setActiveSiteError({
+						error: 'directory-handle-unknown-error',
+						details: e,
+					})
+				);
 				return;
 			}
 		}
@@ -98,110 +135,256 @@ export function bootSiteClient(
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
-			blueprint = site.metadata.runtimeConfiguration!;
+			blueprint = {
+				preferredVersions: {
+					php: site.metadata.runtimeConfiguration.phpVersion,
+					wp: site.metadata.runtimeConfiguration.wpVersion,
+				},
+				features: {
+					intl: site.metadata.runtimeConfiguration.intl,
+					networking: site.metadata.runtimeConfiguration.networking,
+				},
+				extraLibraries: site.metadata.runtimeConfiguration
+					.extraLibraries as any[],
+				constants: {
+					...site.metadata.runtimeConfiguration.constants,
+					...site.metadata.playgroundDefinedConstants,
+				},
+			};
 		} else {
 			blueprint = site.metadata.originalBlueprint;
-			const blueprintDeclaration = await getBlueprintDeclaration(
-				blueprint
-			);
-			// Log the names of provided Blueprint's steps.
-			// Only the names (e.g. "runPhp" or "login") are logged. Step options like
-			// code, password, URLs are never sent anywhere.
-			const steps = (blueprintDeclaration?.steps || [])
-				?.filter(
-					(step: any) => !!(typeof step === 'object' && step?.step)
-				)
-				.map((step) => (step as StepDefinition).step);
-			for (const step of steps) {
-				logTrackingEvent('step', { step });
+		}
+
+		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
+		// declares it doesn't want WordPress, so honor that even if the
+		// storage layer thinks WP isn't installed yet.
+		const blueprintRequestedNoWordPress =
+			blueprint &&
+			!isBlueprintBundle(blueprint) &&
+			blueprint.preferredVersions?.wp === false;
+		const wordpressInstallMode = blueprintRequestedNoWordPress
+			? 'do-not-attempt-installing'
+			: isWordPressInstalled
+				? 'install-from-existing-files-if-needed'
+				: 'download-and-install';
+
+		/**
+		 * On the first boot, we must allow WordPress installation in MEMFS
+		 * so it can get synchronized to OPFS on Save or Autosave.
+		 * Only then, on subsequent boots, we can synchronize WordPress files
+		 * back from OPFS to MEMFS.
+		 */
+		const isFirstOpfsBoot =
+			site.metadata.initialOpfsSyncPending === true &&
+			site.metadata.storage === 'opfs' &&
+			!isWordPressInstalled;
+		const mounts: MountDescriptor[] = [];
+		let mountDescriptorForInitialOpfsSync: typeof mountDescriptor =
+			undefined;
+		if (mountDescriptor) {
+			if (isFirstOpfsBoot) {
+				mountDescriptorForInitialOpfsSync = mountDescriptor;
+			} else {
+				mounts.push({
+					...mountDescriptor,
+					initialSyncDirection: 'opfs-to-memfs',
+				});
 			}
 		}
 
-		let playground: PlaygroundClient;
+		let playground: PlaygroundClient | undefined = undefined;
 		try {
-			playground = await startPlaygroundWeb({
+			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
+				site.originalUrlParams?.searchParams?.['php-extension'],
+				document.location.href
+			);
+
+			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				extensions: phpExtensions,
+				experimentalBlueprintsV2Runner:
+					!isWordPressInstalled &&
+					new URLSearchParams(window.location.search).get(
+						'experimental-blueprints-v2-runner'
+					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
-				onClientConnected: (playground) => {
-					(window as any)['playground'] = playground;
+				onClientConnected: (playgroundClient) => {
+					playground = (window as any)['playground'] =
+						playgroundClient;
 				},
-				mounts: mountDescriptor
-					? [
-							{
-								...mountDescriptor,
-								initialSyncDirection: 'opfs-to-memfs',
-							},
-					  ]
-					: [],
-				shouldInstallWordPress: !isWordPressInstalled,
+				// Log Blueprint events
+				onBlueprintValidated: logBlueprintEvents,
+				mounts,
+				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
-			});
-
-			// @TODO: Remove backcompat code after 2024-12-01.
-			if (
-				(site.metadata as any)[legacyOpfsPathSymbol] &&
-				site.metadata.storage === 'opfs' &&
-				mountDescriptor?.device.type === 'opfs'
-			) {
-				const sourcePath = mountDescriptor.device.path;
-				const targetPath = getDirectoryPathForSlug(site.slug);
-				logger.info(
-					`Migrating legacy OPFS site from ${sourcePath} to ${targetPath}`
-				);
-				// Move the legacy site to the new OPFS sites location.
-				mountDescriptor = {
-					device: {
-						type: 'opfs',
-						path: targetPath,
+				gitAdditionalHeadersCallback: createGitAuthHeaders(),
+				pathAliases: [
+					{
+						urlPrefix: '/phpmyadmin',
+						fsPath: PHPMYADMIN_INSTALL_PATH,
 					},
-					mountpoint: '/wordpress',
-				} as const;
-				try {
-					await playground.mountOpfs(
-						{
-							...mountDescriptor,
-							initialSyncDirection: 'memfs-to-opfs',
-						} as const
-						// TODO: show progress indicator?
-					);
-					await deleteDirectory(sourcePath);
-					logger.info(
-						`Completed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
-					);
-				} catch (e) {
-					logger.info(
-						`Failed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
-					);
-					throw e;
-				}
-			}
+				],
+			});
 		} catch (e) {
 			logger.error(e);
-			dispatch(setActiveSiteError('site-boot-failed'));
-			dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
+			logTrackingEvent('error', { source: 'bootSiteClient' });
+
+			const firewallError = findFirewallErrorInCauseChain(e);
+			if (
+				(e as any).name === 'ArtifactExpiredError' ||
+				(e as any).originalErrorClassName === 'ArtifactExpiredError'
+			) {
+				dispatch(
+					setActiveSiteError({
+						error: 'github-artifact-expired',
+						details: e,
+					})
+				);
+			} else if (e instanceof BlueprintFilesystemRequiredError) {
+				dispatch(
+					setActiveSiteError({
+						error: 'blueprint-filesystem-required',
+						details: e,
+					})
+				);
+			} else if (e instanceof InvalidBlueprintError) {
+				dispatch(
+					setActiveSiteError({
+						error: 'blueprint-validation-failed',
+						details: e,
+					})
+				);
+			} else if (firewallError) {
+				dispatch(
+					setActiveSiteError({
+						error: 'network-firewall-interference',
+						details: firewallError,
+					})
+				);
+			} else if (findDownloadErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-download-failed',
+						details: e,
+					})
+				);
+			} else if (
+				(e as any).name === 'GitAuthenticationError' ||
+				(e as any).originalErrorClassName ===
+					'GitAuthenticationError' ||
+				(e as any).cause?.name === 'GitAuthenticationError'
+			) {
+				const repoUrl =
+					(e as any).repoUrl ||
+					(e as any).cause?.repoUrl ||
+					undefined;
+
+				if (shouldShowGitHubAuthModal(repoUrl)) {
+					if (repoUrl) {
+						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					dispatch(
+						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
+					);
+				} else {
+					dispatch(
+						setActiveSiteError({
+							error: 'site-boot-failed',
+							details: e,
+						})
+					);
+					dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
+				}
+			} else {
+				dispatch(
+					setActiveSiteError({
+						error: 'site-boot-failed',
+						details: e,
+					})
+				);
+			}
+			// Don't continue to client setup after an error
 			return;
 		}
 
-		if (signal.aborted) {
+		if (signal.aborted || !playground) {
 			return;
 		}
+		const connectedPlayground = playground as PlaygroundClient;
 
 		setupPostMessageRelay(iframe, document.location.origin);
 
+		const syncOperation = isAutosavedSite(site) ? 'autosave' : 'save';
 		dispatch(
 			addClientInfo({
 				siteSlug: site.slug,
 				url: '/',
-				client: playground,
+				client: connectedPlayground,
 				opfsMountDescriptor: mountDescriptor,
+				opfsSync: mountDescriptorForInitialOpfsSync
+					? {
+							status: 'syncing',
+							operation: syncOperation,
+						}
+					: undefined,
 			})
 		);
+		// `initialOpfsSyncPending` is a recovery flag, not the source of truth.
+		// If OPFS already contains WordPress files, the initial sync either
+		// completed earlier or is no longer needed. Clear the stale flag so
+		// future boots mount OPFS normally.
+		const hasStaleInitialOpfsSyncPendingFlag =
+			site.metadata.initialOpfsSyncPending === true &&
+			site.metadata.storage === 'opfs' &&
+			isWordPressInstalled;
 
-		playground.onNavigation((url) => {
+		if (mountDescriptorForInitialOpfsSync) {
+			void syncInitialOpfsFilesInBackground({
+				playground: connectedPlayground,
+				mountDescriptor: mountDescriptorForInitialOpfsSync,
+				siteSlug: site.slug,
+				operation: syncOperation,
+				dispatch,
+			});
+		} else {
+			try {
+				const metadataChanges = {
+					...(site.metadata.storage !== 'none'
+						? { whenLastUsed: Date.now() }
+						: {}),
+					...(hasStaleInitialOpfsSyncPendingFlag
+						? { initialOpfsSyncPending: false }
+						: {}),
+				};
+				if (Object.keys(metadataChanges).length > 0) {
+					await dispatch(
+						updateSiteMetadata({
+							slug: site.slug,
+							changes: metadataChanges,
+						})
+					);
+				}
+			} catch (error) {
+				logger.error('Error updating Playground metadata', error);
+				dispatch(
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: syncOperation,
+							},
+						},
+					})
+				);
+			}
+		}
+
+		connectedPlayground.onNavigation((url) => {
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
@@ -214,6 +397,88 @@ export function bootSiteClient(
 
 		signal.onabort = null;
 	};
+}
+
+/**
+ * Copies files created during a saved site's first boot from MEMFS into OPFS.
+ *
+ * The iframe is already usable when this runs. Redux keeps showing sync
+ * progress until the copy succeeds, then future boots can mount OPFS normally.
+ */
+async function syncInitialOpfsFilesInBackground({
+	playground,
+	mountDescriptor,
+	siteSlug,
+	operation,
+	dispatch,
+}: {
+	playground: PlaygroundClient;
+	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
+	siteSlug: string;
+	operation: 'save' | 'autosave';
+	dispatch: PlaygroundDispatch;
+}) {
+	let shouldReportProgress = true;
+	try {
+		await playground.mountOpfs(
+			{
+				...mountDescriptor,
+				initialSyncDirection: 'memfs-to-opfs',
+			},
+			(progress: SyncProgress) => {
+				if (!shouldReportProgress) {
+					return;
+				}
+				dispatch(
+					updateClientInfo({
+						siteSlug,
+						changes: {
+							opfsSync: {
+								status: 'syncing',
+								progress,
+								operation,
+							},
+						},
+					})
+				);
+			}
+		);
+		await dispatch(
+			updateSiteMetadata({
+				slug: siteSlug,
+				changes: {
+					initialOpfsSyncPending: false,
+					whenLastUsed: Date.now(),
+				},
+			})
+		);
+		dispatch(
+			updateClientInfo({
+				siteSlug,
+				changes: {
+					opfsSync: undefined,
+				},
+			})
+		);
+	} catch (error: unknown) {
+		logger.error('Error syncing saved Playground to OPFS', error);
+		dispatch(
+			updateClientInfo({
+				siteSlug,
+				changes: {
+					opfsSync: {
+						status: 'error',
+						operation,
+					},
+				},
+			})
+		);
+		return;
+	} finally {
+		// Progress is reported from a worker. Once the sync settles, ignore any
+		// queued progress message so it cannot overwrite the final UI state.
+		shouldReportProgress = false;
+	}
 }
 
 /**

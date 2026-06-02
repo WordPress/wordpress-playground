@@ -1,7 +1,7 @@
 ---
 title: Playground でデモ用のコンテンツを提供する
 slug: /guides/providing-content-for-your-demo
-description: WordPress Playground でデモ用のコンテンツを提供する
+description: Blueprints、WP-CLI、または PHP を使用して Playground デモにコンテンツを追加し、テーマやプラグインを紹介する方法を学びます。
 ---
 
 WordPress Playground で優れたデモを提供するために、プラグインやテーマの機能をわかりやすく示すために、デフォルトのコンテンツを読み込むことをお勧めします。このデフォルトコンテンツには、画像やその他のアセットが含まれる場合があります。
@@ -40,7 +40,8 @@ With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your ow
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L43)
 
-:::info
+<div class="callout callout-info">
+
 インポートしたコンテンツに画像を含めるには、画像を GitHub リポジトリにアップロードし、URL 形式 `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}` を使用して、エクスポートされた `.xml` ファイル内の画像のパスを検索/置換するのが良い方法です。
 
 <!--
@@ -55,7 +56,7 @@ To include images in your imported content, a good approach is to upload the ima
 <!-- /wp:image -->
 ```
 
-:::
+</div>
 
 エクスポートした `.xml` ファイルと参照されているアセット (画像など) を、GitHub リポジトリ内の `blueprint.json` と同じディレクトリにアップロードすることをお勧めします。
 
@@ -236,18 +237,18 @@ You can also use the `wp-cli` step in combination with the `writeFile` step to c
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Use%20wp-cli%20to%20add%20a%20post%20with%20image%22,%22description%22:%22Use%20wp-cli%20to%20create%20a%20post%20from%20text%20file%20with%20block%20markup%20and%20a%20featured%20image%22,%22author%22:%22bph%22,%22categories%22:[%22Content%22,%22wpcli%22]},%22landingPage%22:%22/?p=4%22,%22login%22:true,%22steps%22:[{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/postcontent.md%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/wpcli-post-with-image/postcontent.md%22}},{%22step%22:%22wp-cli%22,%22command%22:%22wp%20post%20create%20--post_title='Welcome%20to%20Playground'%20--post_status='published'%20/wordpress/wp-content/postcontent.md%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/Select-storage-method.png%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/wpcli-post-with-image/Select-storage-method.png%22}},{%22step%22:%22wp-cli%22,%22command%22:%22wp%20media%20import%20wordpress/wp-content/Select-storage-method.png%20--post_id=4%20--title='Select%20your%20storage%20method'%20--featured_image%22}]})
 
-:::tip
+<div class="callout callout-tip">
 
 コンテンツとアイキャッチ画像の関係を示す完全な例を確認するには、[Blueprints ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) の ["wp-cli を使用して画像付きの投稿を追加する"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) の例を確認してください。
 
-:::
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
 
 Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to see the full example showing the connection between the content and the featured image.
 
-:::
+</div>
 -->
 
 ## `runPHP`
@@ -265,10 +266,10 @@ With the [`runPHP` step](https://wordpress.github.io/wordpress-playground/bluepr
 	"steps": [
 		{
 			"step": "runPHP",
-			"code": "<?php require_once 'wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'Simple post from PHP', 'post_content'  => '<!-- wp:paragraph --><p>This is a simple post inserted with wp_insert_post</p><!-- /wp:paragraph -->', 'post_author'   => 1, 'post_status' => 'publish')); ?>"
+			"code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'Simple post from PHP', 'post_content'  => '<!-- wp:paragraph --><p>This is a simple post inserted with wp_insert_post</p><!-- /wp:paragraph -->', 'post_author'   => 1, 'post_status' => 'publish')); ?>"
 		}
 	]
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](<https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20require_once%20'wordpress/wp-load.php';%20wp_insert_post(array('post_title'%20=%3E%20'Simple%20post%20from%20wp_insert_post',%20'post_content'%20%20=%3E%20'%3C!--%20wp:paragraph%20--%3E%3Cp%3EThis%20is%20a%20simple%20post%20inserted%20with%20wp_insert_post%3C/p%3E%3C!--%20/wp:paragraph%20--%3E',%20'post_author'%20%20%20=%3E%201,%20'post_status'%20=%3E%20'publish'));%20?%3E%22}]}>)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](<https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20require_once%20'/wordpress/wp-load.php';%20wp_insert_post(array('post_title'%20=%3E%20'Simple%20post%20from%20wp_insert_post',%20'post_content'%20%20=%3E%20'%3C!--%20wp:paragraph%20--%3E%3Cp%3EThis%20is%20a%20simple%20post%20inserted%20with%20wp_insert_post%3C/p%3E%3C!--%20/wp:paragraph%20--%3E',%20'post_author'%20%20%20=%3E%201,%20'post_status'%20=%3E%20'publish'));%20?%3E%22}]}>)

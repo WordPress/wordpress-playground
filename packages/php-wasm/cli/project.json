@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/cli/src",
 	"projectType": "library",
+	"tags": ["scope:php-wasm-public", "scope:cli"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -45,7 +46,7 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "bun --watch ./packages/php-wasm/cli/src/main.ts",
+				"command": "node --no-warnings --experimental-wasm-stack-switching --experimental-wasm-jspi --loader=./packages/meta/src/node-es-module-loader/loader.mts ./packages/php-wasm/cli/src/main.ts",
 				"tty": true
 			}
 		},
@@ -96,15 +97,16 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/php-wasm/cli/**/*.ts"],
 				"maxWarnings": 0
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/cli"],
 			"options": {
 				"passWithNoTests": true,
@@ -129,6 +131,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-wasm-public"]
+	}
 }

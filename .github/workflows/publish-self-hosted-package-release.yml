@@ -14,10 +14,15 @@ on:
                 required: true
                 default: 'patch'
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     publish:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             github.ref == 'refs/heads/trunk' && (
                 github.actor == 'adamziel' ||
                 github.actor == 'dmsnell' ||
@@ -25,11 +30,18 @@ jobs:
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
                 github.actor == 'ashfame' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        # This workflow is currently disabled. This timeout is set to a high value in anticipation of the workflow
+        # being re-enabled and needing to run through the full deployment process.
+        timeout-minutes: 60
+        permissions:
+            contents: write # Required to clone the repo, push version bump commits, and create tags.
         environment:
             name: self-hosted-packages
         steps:
@@ -39,19 +51,19 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}
             - uses: ./.github/actions/prepare-playground
             # Version bump, release, tag a new version on GitHub
             - name: Bump package versions
               shell: bash
               if: inputs.should_bump_version == true
-              run: npx lerna@6.6.2 version ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose
+              run: npx lerna@9 version ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose
             - name: Set up deployment environment vars
               run: |
                   export LATEST_PACKAGE_VERSION=$(cat packages/php-wasm/universal/package.json | jq -r '.version')

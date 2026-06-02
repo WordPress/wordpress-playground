@@ -1,16 +1,22 @@
 import type {
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
 	BlueprintBundle,
-	Blueprint,
 	StepDefinition,
+	BlueprintV1,
 } from '@wp-playground/client';
 import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
-import { parseBlueprint } from './router';
+import { OpfsFilesystemBackend } from '@wp-playground/storage';
+import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
+import { logger } from '@php-wasm/logger';
+import { decodeBlueprintHash } from './decode-blueprint-hash';
+import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
+
+export { decodeBlueprintHash };
 
 export type BlueprintSource =
 	| {
@@ -18,43 +24,128 @@ export type BlueprintSource =
 			url: string;
 	  }
 	| {
+			type: 'last-autosave';
+	  }
+	| {
 			type: 'inline-string';
 	  }
 	| {
 			type: 'none';
+	  }
+	| {
+			type: 'opfs-site';
 	  };
 
 export type ResolvedBlueprint = {
-	blueprint: Blueprint;
+	blueprint: BlueprintV1;
 	source: BlueprintSource;
 };
 
+const githubBlobOrRawPathPattern = /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//;
+
+function normalizeBlueprintUrl(remoteUrl: string): string {
+	try {
+		const parsedUrl = new URL(remoteUrl);
+		if (parsedUrl.hostname !== 'github.com') {
+			return remoteUrl;
+		}
+		const rewrittenPath = parsedUrl.pathname.replace(
+			githubBlobOrRawPathPattern,
+			'/$1/$2/'
+		);
+		if (rewrittenPath === parsedUrl.pathname) {
+			return remoteUrl;
+		}
+		parsedUrl.pathname = rewrittenPath;
+		parsedUrl.hostname = 'raw.githubusercontent.com';
+		return parsedUrl.toString();
+	} catch {
+		return remoteUrl;
+	}
+}
+
 export async function resolveBlueprintFromURL(
-	url: URL
+	url: URL,
+	defaultBlueprint?: string
 ): Promise<ResolvedBlueprint> {
 	const query = url.searchParams;
-	const fragment = decodeURI(url.hash || '#').substring(1);
+	const fragment = decodeBlueprintHash(url.hash || '#');
 
-	let blueprint: BlueprintDeclaration | BlueprintBundle;
-	let source: BlueprintSource;
-	/*
-	 * Support passing blueprints via query parameter, e.g.:
-	 * ?blueprint-url=https://example.com/blueprint.json
+	/**
+	 * If the URL has no parameters or fragment, and a default blueprint is provided,
+	 * use the default blueprint.
 	 */
-	if (query.has('blueprint-url')) {
-		blueprint = await resolveRemoteBlueprint(query.get('blueprint-url')!);
-		source = {
-			type: 'remote-url',
-			url: query.get('blueprint-url')!,
+	if (
+		window.self === window.top &&
+		!query.size &&
+		!fragment.length &&
+		defaultBlueprint
+	) {
+		return {
+			blueprint: await resolveRemoteBlueprint(defaultBlueprint),
+			source: {
+				type: 'remote-url',
+				url: defaultBlueprint,
+			},
+		};
+	} else if (query.has('blueprint-url')) {
+		if (isMcpServerEnabled()) {
+			throw new Error(
+				`Starting a new Playground from a Blueprint is disabled when the MCP server
+				is active to prevent potential prompt injection vulnerabilities.
+				Please remove the "blueprint-url" query parameter to proceed or
+				disable the MCP server by removing the "mcp=yes" query parameter.`
+			);
+		}
+		/*
+		 * Support passing blueprints via query parameter, e.g.:
+		 * ?blueprint-url=https://example.com/blueprint.json
+		 */
+		const blueprintUrl = normalizeBlueprintUrl(query.get('blueprint-url')!);
+		return {
+			blueprint: await resolveRemoteBlueprint(blueprintUrl),
+			source: {
+				type: 'remote-url',
+				url: blueprintUrl,
+			},
+		};
+	} else if (fragment === 'last-autosave') {
+		let bundle = undefined;
+		try {
+			bundle = await OpfsFilesystemBackend.fromPath(
+				'blueprints/last-edited-bundle',
+				true
+			);
+		} catch (error) {
+			logger.error(
+				'Failed to load the last edited blueprint from OPFS',
+				error
+			);
+		}
+		return {
+			blueprint:
+				bundle ||
+				((await resolveRemoteBlueprint(url.href)) as BlueprintV1),
+			source: { type: 'last-autosave' },
 		};
 	} else if (fragment.length) {
+		if (isMcpServerEnabled()) {
+			throw new Error(
+				`Starting a new Playground from a Blueprint is disabled when the MCP server
+				is active to prevent potential prompt injection vulnerabilities.
+				Please remove the Blueprint hash from your URL or
+				disable the MCP server by removing the "mcp=yes" query parameter.`
+			);
+		}
 		/*
 		 * Support passing blueprints in the URI fragment, e.g.:
 		 * /#{"landingPage": "/?p=4"}
 		 */
-		blueprint = parseBlueprint(fragment);
-		source = {
-			type: 'inline-string',
+		return {
+			blueprint: parseBlueprint(fragment),
+			source: {
+				type: 'inline-string',
+			},
 		};
 	} else {
 		const importWxrQueryArg =
@@ -63,75 +154,101 @@ export async function resolveBlueprintFromURL(
 		// This Blueprint is intentionally missing most query args (like login).
 		// They are added below to ensure they're also applied to Blueprints passed
 		// via the hash fragment (#{...}) or via the `blueprint-url` query param.
-		blueprint = {
-			plugins: query.getAll('plugin'),
-			steps: [
-				importWxrQueryArg &&
-					/^(http(s?)):\/\//i.test(importWxrQueryArg) &&
-					({
-						step: 'importWxr',
-						file: {
-							resource: 'url',
-							url: importWxrQueryArg,
-						},
-					} as StepDefinition),
-				query.get('import-site') &&
-					/^(http(s?)):\/\//i.test(query.get('import-site')!) &&
-					({
-						step: 'importWordPressFiles',
-						wordPressFilesZip: {
-							resource: 'url',
-							url: query.get('import-site')!,
-						},
-					} as StepDefinition),
-				query.get('theme') &&
-					({
-						step: 'installTheme',
-						themeData: {
-							resource: 'wordpress.org/themes',
-							slug: query.get('theme')!,
-						},
-						progress: { weight: 2 },
-					} as StepDefinition),
-			].filter(Boolean),
-		};
-		source = {
-			type: 'none',
+		return {
+			blueprint: {
+				plugins: query.getAll('plugin'),
+				steps: [
+					importWxrQueryArg &&
+						/^(http(s?)):\/\//i.test(importWxrQueryArg) &&
+						({
+							step: 'importWxr',
+							file: {
+								resource: 'url',
+								url: importWxrQueryArg,
+							},
+						} as StepDefinition),
+					query.get('import-site') &&
+						/^(http(s?)):\/\//i.test(query.get('import-site')!) &&
+						({
+							step: 'importWordPressFiles',
+							wordPressFilesZip: {
+								resource: 'url',
+								url: query.get('import-site')!,
+							},
+						} as StepDefinition),
+					...query.getAll('theme').map(
+						(theme, index, themes) =>
+							({
+								step: 'installTheme',
+								themeData: {
+									resource: 'wordpress.org/themes',
+									slug: theme,
+								},
+								options: {
+									// Activate only the last theme in the list.
+									activate: index === themes.length - 1,
+								},
+								progress: { weight: 2 },
+							}) as StepDefinition
+					),
+				].filter(Boolean),
+			},
+			source: {
+				type: 'none',
+			},
 		};
 	}
+}
 
+export async function applyQueryOverrides(
+	blueprint: BlueprintV1Declaration | BlueprintBundle,
+	query: URLSearchParams
+): Promise<BlueprintV1Declaration | BlueprintBundle> {
 	/**
 	 * Allow overriding PHP and WordPress versions defined in a Blueprint
 	 * via query params.
 	 */
 	if (isBlueprintBundle(blueprint)) {
 		let blueprintObject = await getBlueprintDeclaration(blueprint);
-		blueprintObject = applyQueryOverrides(blueprintObject, query);
-		blueprint = new OverlayFilesystem([
+		blueprintObject = applyQueryOverridesToDeclaration(
+			blueprintObject,
+			query
+		);
+		return new OverlayFilesystem([
 			new InMemoryFilesystem({
 				'blueprint.json': JSON.stringify(blueprintObject),
 			}),
 			blueprint,
 		]);
 	} else {
-		blueprint = applyQueryOverrides(blueprint, query);
+		return applyQueryOverridesToDeclaration(blueprint, query);
 	}
-
-	return { blueprint, source };
 }
 
-function applyQueryOverrides(
-	blueprint: BlueprintDeclaration,
+function applyQueryOverridesToDeclaration(
+	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
-): BlueprintDeclaration {
-	// PHP and WordPress versions
+): BlueprintV1Declaration {
+	// PHP-only blueprints opt out of WordPress entirely. Skip the WP-bound
+	// query overrides — adding `login`, `enableMultisite`, etc. would
+	// trip the compile-time guard that rejects WP-only features when
+	// `preferredVersions.wp: false` is set.
+	if (blueprint.preferredVersions?.wp === false) {
+		return blueprint;
+	}
+	/**
+	 * Allow overriding PHP and WordPress versions defined in a Blueprint
+	 * via query params.
+	 */
 	if (!blueprint.preferredVersions) {
 		blueprint.preferredVersions = {} as any;
 	}
-	blueprint.preferredVersions!.php =
-		(query.get('php') as any) || blueprint.preferredVersions!.php || '8.0';
 	blueprint.preferredVersions!.wp =
 		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
+	blueprint.preferredVersions!.php =
+		(query.get('php') as any) ||
+		blueprint.preferredVersions!.php ||
+		getDefaultPhpVersionForWordPress(blueprint.preferredVersions!.wp);
 
 	// Features
 	if (!blueprint.features) {
@@ -139,11 +256,11 @@ function applyQueryOverrides(
 	}
 
 	/**
-	 * Networking is disabled by default, so we only need to enable it
-	 * if the query param is explicitly set to "yes".
+	 * Networking is enabled by default, so we only need to disable it
+	 * if the query param is explicitly set to something other than "yes".
 	 */
-	if (query.get('networking') === 'yes') {
-		blueprint.features['networking'] = true;
+	if (query.get('networking') && query.get('networking') !== 'yes') {
+		blueprint.features['networking'] = false;
 	}
 
 	// Language
@@ -202,32 +319,39 @@ function applyQueryOverrides(
 		});
 	}
 
-	if (query.has('core-pr')) {
-		const prNumber = query.get('core-pr');
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+	// Handle WordPress core PR preview
+	const coreRef = query.get('core-pr');
+	if (coreRef) {
+		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
+		const artifactName = `wordpress-build-${coreRef}`;
+		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`;
 	}
 
-	if (query.has('gutenberg-pr')) {
-		const prNumber = query.get('gutenberg-pr');
+	// Handle Gutenberg PR or branch preview
+	const gutenbergRef =
+		query.get('gutenberg-pr') || query.get('gutenberg-branch');
+	if (gutenbergRef) {
+		const refType = query.has('gutenberg-pr') ? 'pr' : 'branch';
+		const refLabel = query.has('gutenberg-pr') ? 'PR' : 'branch';
 		blueprint.steps = blueprint.steps || [];
 		blueprint.steps.unshift(
 			{
 				step: 'mkdir',
-				path: '/tmp/pr',
+				path: '/tmp/gutenberg',
 			},
 			{
 				step: 'writeFile',
-				path: '/tmp/pr/pr.zip',
+				path: '/tmp/gutenberg/artifact.zip',
 				data: {
 					resource: 'url',
-					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`,
-					caption: `Downloading Gutenberg PR ${prNumber}`,
+					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&${refType}=${gutenbergRef}`,
+					caption: `Downloading Gutenberg ${refLabel} ${gutenbergRef}`,
 				},
 			},
 			/**
 			 * GitHub CI artifacts are doubly zipped:
 			 *
-			 * pr.zip
+			 * artifact.zip
 			 *    gutenberg.zip
 			 *       gutenberg.php
 			 *       ... other files ...
@@ -238,14 +362,14 @@ function applyQueryOverrides(
 			 */
 			{
 				step: 'unzip',
-				zipPath: '/tmp/pr/pr.zip',
-				extractToPath: '/tmp/pr',
+				zipPath: '/tmp/gutenberg/artifact.zip',
+				extractToPath: '/tmp/gutenberg',
 			},
 			{
 				step: 'installPlugin',
 				pluginData: {
 					resource: 'vfs',
-					path: '/tmp/pr/gutenberg.zip',
+					path: '/tmp/gutenberg/gutenberg.zip',
 				},
 			}
 		);

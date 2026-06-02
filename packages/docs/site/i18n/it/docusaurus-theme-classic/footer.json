@@ -1,0 +1,42 @@
+{
+	"link.title.Docs": {
+		"message": "Documentazione",
+		"description": "The title of the footer links column with title=Docs in the footer"
+	},
+	"link.title.Community": {
+		"message": "Community",
+		"description": "The title of the footer links column with title=Community in the footer"
+	},
+	"link.item.label.Documentation": {
+		"message": "Documentazione",
+		"description": "The label of footer link with label=Documentation linking to /"
+	},
+	"link.item.label.Blueprints": {
+		"message": "Blueprint",
+		"description": "The label of footer link with label=Blueprints linking to /blueprints"
+	},
+	"link.item.label.Developers": {
+		"message": "Sviluppatori",
+		"description": "The label of footer link with label=Developers linking to /developers"
+	},
+	"link.item.label.API Reference": {
+		"message": "Riferimento API",
+		"description": "The label of footer link with label=API Reference linking to /api"
+	},
+	"link.item.label.GitHub": {
+		"message": "GitHub",
+		"description": "The label of footer link with label=GitHub linking to https://github.com/WordPress/wordpress-playground"
+	},
+	"link.item.label.#playground on Slack": {
+		"message": "#playground su Slack",
+		"description": "The label of footer link with label=#playground on Slack linking to https://make.wordpress.org/chat"
+	},
+	"copyright": {
+		"message": "Copyright © 2025 WordPress Playground, Inc. Costruito con Docusaurus.",
+		"description": "The footer copyright"
+	},
+	"logo.alt": {
+		"message": "Il Codice è Poesia",
+		"description": "The alt text of footer logo"
+	}
+}

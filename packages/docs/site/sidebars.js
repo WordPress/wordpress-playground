@@ -23,6 +23,7 @@ const sidebars = {
 			items: [
 				'main/quick-start-guide',
 				'main/web-instance',
+				'main/troubleshooting',
 				{
 					type: 'category',
 					label: 'About Playground',
@@ -44,10 +45,17 @@ const sidebars = {
 						id: 'main/guides/index',
 					},
 					items: [
+						'main/guides/php-code-snippets',
+						'main/guides/agent-skill-wp-playground',
 						'main/guides/wordpress-native-ios-app',
 						'main/guides/for-plugin-developers',
 						'main/guides/for-theme-developers',
 						'main/guides/providing-content-for-your-demo',
+						'main/guides/github-action-pr-preview',
+						'main/guides/playground-for-everyone',
+						'main/guides/programmatic-playground-cli',
+						'main/guides/phpunit-testing',
+						'main/guides/e2e-testing-with-playwright',
 					],
 				},
 				{
@@ -59,8 +67,11 @@ const sidebars = {
 					},
 					items: [
 						'main/contributing/code',
+						'main/contributing/releases',
 						'main/contributing/coding-standards',
 						'main/contributing/contributor-day',
+						'main/contributing/contributor-badge',
+						'main/contributing/contributor-day-table-lead',
 						'main/contributing/documentation',
 						'main/contributing/translations',
 					],
@@ -110,7 +121,7 @@ const sidebars = {
 						'blueprints/json-api-and-function-api',
 					],
 				},
-
+				'blueprints/bundles',
 				'blueprints/examples',
 				'blueprints/troubleshoot-and-debug-blueprints',
 			],
@@ -134,9 +145,21 @@ const sidebars = {
 						id: 'developers/local-development/intro',
 					},
 					items: [
-						'developers/local-development/wp-now',
+						'developers/local-development/wp-playground-cli',
 						'developers/local-development/vscode-extension',
 						'developers/local-development/php-wasm-node',
+					],
+				},
+				{
+					type: 'category',
+					label: 'Xdebug on Playground',
+					link: {
+						type: 'doc',
+						id: 'developers/xdebug/introduction',
+					},
+					items: [
+						'developers/xdebug/introduction',
+						'developers/xdebug/getting-started',
 					],
 				},
 				{
@@ -148,6 +171,7 @@ const sidebars = {
 					},
 					items: [
 						'developers/apis/query-api/index',
+						'developers/apis/sites-api/index',
 						{
 							type: 'category',
 							label: 'Javascript API',
@@ -161,6 +185,9 @@ const sidebars = {
 								'developers/apis/javascript-api/blueprint-json-in-api-client',
 								'developers/apis/javascript-api/blueprint-functions-in-api-client',
 								'developers/apis/javascript-api/mount-data',
+								'developers/apis/javascript-api/php-extensions',
+								'developers/apis/javascript-api/build-php-extensions',
+								'developers/apis/javascript-api/php-extension-dependencies',
 							],
 						},
 					],

@@ -1,8 +1,25 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
+import { isLegacyPHPVersion } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
-export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';
-export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
+import { logger } from '@php-wasm/logger';
+import { writeCommonPlatformMuPlugins } from './platform-mu-plugins';
+import { SQLITE_PRELOAD_LOADER_CLASS } from './sqlite-preload-loader';
+import { setupLegacyPlatformLevelMuPlugins } from './legacy-wp/legacy-mu-plugins';
+import { preloadLegacySqliteIntegration } from './legacy-wp/legacy-sqlite-preload';
+
+export {
+	bootWordPress,
+	bootWordPressAndRequestHandler,
+	bootRequestHandler,
+	getFileNotFoundActionForWordPress,
+} from './boot';
+export type {
+	PhpIniOptions,
+	PHPInstanceCreatedHook,
+	WordPressInstallMode,
+} from './boot';
+export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 
 export * from './version-detect';
@@ -15,8 +32,15 @@ export * from './rewrite-rules';
  *
  * @param php
  */
-export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
+export async function setupPlatformLevelMuPlugins(
+	php: UniversalPHP,
+	options: { phpVersion?: string } = {}
+) {
+	if (isLegacyPHPVersion(options.phpVersion)) {
+		return setupLegacyPlatformLevelMuPlugins(php);
+	}
 	await php.mkdir('/internal/shared/mu-plugins');
+
 	await php.writeFile(
 		'/internal/shared/preload/env.php',
 		`<?php
@@ -193,6 +217,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * so we need to reload the page to ensure the cookies are set.
 			 */
 			$redirect_url = $_SERVER['REQUEST_URI'];
+
 			/**
 			 * Intentionally do not use wp_redirect() here. It removes
 			 * %0A and %0D sequences from the URL, which we don't want.
@@ -211,6 +236,28 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		add_action('init', 'playground_auto_login', 1);
 
 		/**
+		 * Use an intermediate redirection step to ensure the login cookies
+		 * are set before we redirecting to the landing page.
+		 *
+		 * /wp-admin/customize.php, and potentially other pages in WordPress,
+		 * run authorization checks before running the init hook. If they're
+		 * set as the landing page of the Blueprint, the user will be redirected
+		 * to wp-login.php?reauth=1 before we have a chance to set the
+		 * authorization cookie.
+		 *
+		 * To avoid this, we redirect to an intermediate page that will
+		 * redirect the user to the landing page.
+		 */
+		function playground_auto_login_redirect_target() {
+			if(strpos($_SERVER['REQUEST_URI'], '?playground-redirection-handler') !== false) {
+				$next = $_GET['next'];
+				header('Location: ' . $next, true, 302);
+				exit;
+			}
+		}
+		add_action('init', 'playground_auto_login_redirect_target', 1);
+
+		/**
 		 * Disable the Site Admin Email Verification Screen for any session started
 		 * via autologin.
 		 */
@@ -223,32 +270,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		`
 	);
 
-	await php.writeFile(
-		'/internal/shared/mu-plugins/0-playground.php',
-		`<?php
-        // Needed because gethostbyname( 'wordpress.org' ) returns
-        // a private network IP address for some reason.
-        add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-            return array(
-                'wordpress.org',
-                'api.wordpress.org',
-                'downloads.wordpress.org',
-            );
-        } );
-
-		// Support pretty permalinks
-        add_filter( 'got_url_rewrite', '__return_true' );
-
-        // Create the fonts directory if missing
-        if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
-            mkdir(WP_CONTENT_DIR . '/fonts');
-        }
-
-        $log_file = WP_CONTENT_DIR . '/debug.log';
-        define('ERROR_LOG_FILE', $log_file);
-        ini_set('error_log', $log_file);
-        ?>`
-	);
+	await writeCommonPlatformMuPlugins(php);
 
 	// Load the error handler before any other PHP file to ensure it
 	// treats all the errors, even those trigerred before mu-plugins
@@ -318,7 +340,9 @@ export async function preloadPhpInfoRoute(
 		'/internal/shared/preload/phpinfo.php',
 		`<?php
     // Render PHPInfo if the requested page is /phpinfo.php
-    if ( ${phpVar(requestPath)} === $_SERVER['REQUEST_URI'] ) {
+    if ( isset($_SERVER['REQUEST_URI']) && ${phpVar(
+		requestPath
+	)} === $_SERVER['REQUEST_URI'] ) {
         phpinfo();
         exit;
     }
@@ -326,10 +350,18 @@ export async function preloadPhpInfoRoute(
 	);
 }
 
+export interface SqliteIntegrationOptions {
+	phpVersion?: string;
+}
+
 export async function preloadSqliteIntegration(
 	php: UniversalPHP,
-	sqliteZip: File
+	sqliteZip: File,
+	options: SqliteIntegrationOptions = {}
 ) {
+	if (isLegacyPHPVersion(options.phpVersion)) {
+		return preloadLegacySqliteIntegration(php, sqliteZip, options);
+	}
 	if (await php.isDir('/tmp/sqlite-database-integration')) {
 		await php.rmdir('/tmp/sqlite-database-integration', {
 			recursive: true,
@@ -346,10 +378,31 @@ export async function preloadSqliteIntegration(
 	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
 
-	// Use the new AST-based SQLite driver.
-	// TODO: Remove this once the new driver is the default; when this is closed:
-	//         https://github.com/WordPress/sqlite-database-integration/issues/195
-	php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+	// WP 5.0–6.1 compat: the SQLite plugin declares
+	// `private $allow_unsafe_unquoted_parameters` on WP_SQLite_DB and
+	// then, from `prepare()`, calls `$this->__get(...)` expecting WP's
+	// wpdb::__get() to return the parent's property. That works on WP
+	// 6.2+ (wpdb declares the same property upstream) but blows up on
+	// older WordPress, where wpdb's __get() runs `return $this->$name;`
+	// from the parent class context and PHP refuses to read a child
+	// class's *private* member — producing a silent fatal Error that
+	// kills install.php and every subsequent request. Widening the
+	// declaration to `protected` lets both class contexts reach it and
+	// leaves behaviour identical on every supported WordPress version.
+	const sqliteDbClassPath = joinPaths(
+		SQLITE_PLUGIN_FOLDER,
+		'wp-includes/sqlite/class-wp-sqlite-db.php'
+	);
+	if (await php.fileExists(sqliteDbClassPath)) {
+		const classSource = await php.readFileAsText(sqliteDbClassPath);
+		const patched = classSource.replace(
+			'private $allow_unsafe_unquoted_parameters',
+			'protected $allow_unsafe_unquoted_parameters'
+		);
+		if (patched !== classSource) {
+			await php.writeFile(sqliteDbClassPath, patched);
+		}
+	}
 
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
@@ -377,74 +430,7 @@ export async function preloadSqliteIntegration(
 	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
-		stopIfDbPhpExists +
-			`<?php
-
-/**
- * Loads the SQLite integration plugin before WordPress is loaded
- * and without creating a drop-in "db.php" file.
- *
- * Technically, it creates a global $wpdb object whose only two
- * purposes are to:
- *
- * * Exist – because the require_wp_db() WordPress function won't
- *           connect to MySQL if $wpdb is already set.
- * * Load the SQLite integration plugin the first time it's used
- *   and replace the global $wpdb reference with the SQLite one.
- *
- * This lets Playground keep the WordPress installation clean and
- * solves dillemas like:
- *
- * * Should we include db.php in Playground exports?
- * * Should we remove db.php from Playground imports?
- * * How should we treat stale db.php from long-lived OPFS sites?
- *
- * @see https://github.com/WordPress/wordpress-playground/discussions/1379 for
- *      more context.
- */
-class Playground_SQLite_Integration_Loader {
-	public function __call($name, $arguments) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
-		}
-		return call_user_func_array(
-			array($GLOBALS['wpdb'], $name),
-			$arguments
-		);
-	}
-	public function __get($name) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
-		}
-		return $GLOBALS['wpdb']->$name;
-	}
-	public function __set($name, $value) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
-		}
-		$GLOBALS['wpdb']->$name = $value;
-	}
-    protected function load_sqlite_integration() {
-        require_once ${phpVar(SQLITE_MUPLUGIN_PATH)};
-    }
-}
-$wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
-
-/**
- * WordPress is capable of using a preloaded global $wpdb. However, if
- * it cannot find the drop-in db.php plugin it still checks whether
- * the mysqli_connect() function exists even though it's not used.
- *
- * What WordPress demands, Playground shall provide.
- */
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
-
-		`
+		buildModernSqlitePreload(stopIfDbPhpExists, SQLITE_MUPLUGIN_PATH)
 	);
 	/**
 	 * Ensure the SQLite integration is loaded and clearly communicate
@@ -459,6 +445,28 @@ if(!function_exists('mysqli_connect')) {
 			var_dump(isset($wpdb));
 			die("SQLite integration not loaded " . get_class($wpdb));
 		}
+		`
+	);
+}
+
+/**
+ * Builds the 0-sqlite.php preload content for modern PHP (7+).
+ * Matches trunk behavior: require_once, simple db.php guard,
+ * minimal mysqli_connect stub.
+ */
+function buildModernSqlitePreload(
+	stopIfDbPhpExists: string,
+	muPluginPath: string
+): string {
+	return (
+		stopIfDbPhpExists +
+		`<?php
+
+${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
+
 		`
 	);
 }
@@ -500,8 +508,8 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	let wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
 		? '/tmp/unzipped-wordpress/wordpress'
 		: php.fileExists('/tmp/unzipped-wordpress/build')
-		? '/tmp/unzipped-wordpress/build'
-		: '/tmp/unzipped-wordpress';
+			? '/tmp/unzipped-wordpress/build'
+			: '/tmp/unzipped-wordpress';
 
 	// Dive one directory deeper if the zip root does not contain the sample
 	// config file. This is relevant when unzipping a zipped branch from the
@@ -523,20 +531,34 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		}
 	}
 
-	if (
-		php.isDir(php.documentRoot) &&
-		isCleanDirContainingSiteMetadata(php.documentRoot, php)
-	) {
-		// We cannot mv the directory over a non-empty directory,
-		// but we can move the children one by one.
-		for (const file of php.listFiles(wpPath)) {
-			const sourcePath = joinPaths(wpPath, file);
-			const targetPath = joinPaths(php.documentRoot, file);
-			php.mv(sourcePath, targetPath);
+	const moveRecursively = (source: string, target: string, php: PHP) => {
+		if (php.isDir(source) && php.isDir(target)) {
+			// We cannot move a directory over another directory,
+			// so we move the children one by one.
+			for (const file of php.listFiles(source)) {
+				const sourcePath = joinPaths(source, file);
+				const targetPath = joinPaths(target, file);
+				moveRecursively(sourcePath, targetPath, php);
+			}
+		} else {
+			if (php.fileExists(target)) {
+				// Refuse to overwrite existing files to avoid the chance of data loss.
+				const wpPath = source.replace(
+					/^\/tmp\/unzipped-wordpress\//,
+					'/'
+				);
+				logger.warn(
+					`Cannot unzip WordPress files at ${target}: ${wpPath} already exists.`
+				);
+				return;
+			}
+			php.mv(source, target);
 		}
+	};
+	moveRecursively(wpPath, php.documentRoot, php);
+	// Remove any directories left because there were existing dirs at the target path.
+	if (php.fileExists(wpPath)) {
 		php.rmdir(wpPath, { recursive: true });
-	} else {
-		php.mv(wpPath, php.documentRoot);
 	}
 
 	if (
@@ -550,23 +572,6 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 			)
 		);
 	}
-}
-
-function isCleanDirContainingSiteMetadata(path: string, php: PHP) {
-	const files = php.listFiles(path);
-	if (files.length === 0) {
-		return true;
-	}
-
-	if (
-		files.length === 1 &&
-		// TODO: use a constant from a site storage package
-		files[0] === 'playground-site-metadata.json'
-	) {
-		return true;
-	}
-
-	return false;
 }
 
 const memoizedFetch = createMemoizedFetch(fetch);
@@ -590,8 +595,13 @@ const memoizedFetch = createMemoizedFetch(fetch);
  * @param versionQuery - The WordPress version query string to resolve.
  * @returns The resolved WordPress release URL and version string.
  */
+const WORDPRESS_TRUNK_ZIP_URL =
+	'https://github.com/WordPress/WordPress/archive/refs/heads/master.zip';
+
 export async function resolveWordPressRelease(versionQuery = 'latest') {
-	if (
+	if (versionQuery === null) {
+		versionQuery = 'latest';
+	} else if (
 		versionQuery.startsWith('https://') ||
 		versionQuery.startsWith('http://')
 	) {
@@ -608,10 +618,10 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 			source: 'inferred',
 		};
 	} else if (versionQuery === 'trunk' || versionQuery === 'nightly') {
+		const cacheBust = new Date().toISOString().split('T')[0];
 		return {
-			releaseUrl:
-				'https://wordpress.org/nightly-builds/wordpress-latest.zip',
-			version: 'nightly-' + new Date().toISOString().split('T')[0],
+			releaseUrl: `${WORDPRESS_TRUNK_ZIP_URL}?ts=${cacheBust}`,
+			version: 'trunk',
 			source: 'inferred',
 		};
 	}
@@ -626,7 +636,11 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 	);
 
 	for (const apiVersion of latestVersions) {
-		if (versionQuery === 'beta' && apiVersion.version.includes('beta')) {
+		if (
+			versionQuery === 'beta' &&
+			(apiVersion.version.includes('beta') ||
+				apiVersion.version.includes('RC'))
+		) {
 			return {
 				releaseUrl: apiVersion.download,
 				version: apiVersion.version,
@@ -634,7 +648,8 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 			};
 		} else if (
 			versionQuery === 'latest' &&
-			!apiVersion.version.includes('beta')
+			!apiVersion.version.includes('beta') &&
+			!apiVersion.version.includes('RC')
 		) {
 			// The first non-beta item in the list is the latest version.
 			return {
@@ -652,6 +667,20 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 				source: 'api',
 			};
 		}
+	}
+
+	/**
+	 * Replace "6.8.0" with "6.8" to support installing the exact "6.8.0" release.
+	 *
+	 * The remote release ZIP file URL for 6.8.0 is `https://wordpress.org/wordpress-6.8.zip`.
+	 * However, we already resolve `6.8` to the latest patch version, so that's not an option.
+	 * Therefore, version "6.8.0" can be resolved by requesting a version string "6.8.0", which
+	 * we then convert to "6.8" to construct the correct remote ZIP file URL.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/2749
+	 */
+	if (versionQuery.match(/^\d+\.\d+\.0$/)) {
+		versionQuery = versionQuery.split('.').slice(0, 2).join('.');
 	}
 
 	return {

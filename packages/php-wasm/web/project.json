@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/web/src",
 	"projectType": "library",
+	"tags": ["scope:php-binaries", "scope:browser-only"],
 	"implicitDependencies": ["php-wasm-compile"],
 	"targets": {
 		"build": {
@@ -16,6 +17,17 @@
 					"cp packages/php-wasm/web/README.md dist/packages/php-wasm/web"
 				]
 			},
+			"dependsOn": ["build:copy-shared"]
+		},
+		"build:copy-shared": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"mkdir -p dist/packages/php-wasm/web/shared",
+					"cp -rf packages/php-wasm/web/src/lib/extensions/intl/shared/* dist/packages/php-wasm/web/shared/"
+				],
+				"parallel": false
+			},
 			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {
@@ -23,7 +35,7 @@
 			"options": {
 				"tsConfig": "packages/php-wasm/web/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/web",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "php-wasm-web:build:bundle"
 			}
 		},
 		"build:bundle": {
@@ -32,6 +44,19 @@
 			"options": {
 				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/web"
+			}
+		},
+		"build:playwright": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"configFile": "packages/php-wasm/web/vite.playwright.config.ts"
+			}
+		},
+		"dev": {
+			"executor": "@nx/vite:dev-server",
+			"options": {
+				"buildTarget": "php-wasm-web:build:playwright"
 			}
 		},
 		"recompile-php:all": {
@@ -48,7 +73,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -57,14 +82,13 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5 --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -73,7 +97,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/asyncify"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web"
 				],
 				"parallel": false
 			}
@@ -82,14 +106,13 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/asyncify"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4"
 				],
 				"parallel": false
 			}
@@ -106,20 +129,34 @@
 			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
 			"dependsOn": ["build"]
 		},
-		"lint": {
-			"executor": "@nx/linter:eslint",
-			"outputs": ["{options.outputFile}"],
-			"options": {
-				"lintFilePatterns": ["packages/php-wasm/web/**/*.ts"],
-				"maxWarnings": 0
-			}
-		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/web"],
 			"options": {
-				"passWithNoTests": true,
-				"reportsDirectory": "../../coverage/packages/php-wasm/web"
+				"reportsDirectory": "../../coverage/packages/php-wasm/web",
+				"testFiles": [
+					"prf.spec.ts",
+					"certificates.spec.ts",
+					"tcp-over-fetch-websocket.spec.ts",
+					"directory-handle-mount.spec.ts"
+				]
+			}
+		},
+		"e2e": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/php-wasm/web/playwright.config.ts"
+				]
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": ["packages/php-wasm/web/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {
@@ -131,6 +168,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-binaries"]
+	}
 }

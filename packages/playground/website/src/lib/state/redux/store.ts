@@ -1,9 +1,11 @@
 import { configureStore, createSelector } from '@reduxjs/toolkit';
-import type { SiteError } from './slice-ui';
+import type { SiteError, SerializedSiteErrorDetails } from './slice-ui';
 import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
 } from './slice-ui';
+import { siteManagementMiddleware } from './site-management-api-middleware';
+import { mcpBridgeMiddleware } from './init-mcp-bridge';
 import type { SiteInfo } from './slice-sites';
 import sitesReducer, {
 	selectSiteBySlug,
@@ -60,9 +62,10 @@ const store = configureStore({
 		clients: clientsReducer,
 	},
 	middleware: (getDefaultMiddleware) =>
-		ignoreSerializableCheck(getDefaultMiddleware).concat(
-			listenToOnlineOfflineEventsMiddleware
-		),
+		ignoreSerializableCheck(getDefaultMiddleware)
+			.concat(listenToOnlineOfflineEventsMiddleware)
+			.concat(siteManagementMiddleware.middleware)
+			.concat(mcpBridgeMiddleware.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
@@ -89,9 +92,17 @@ export const selectActiveSiteError = (
 ): SiteError | undefined =>
 	state.ui.activeSite?.slug ? state.ui.activeSite.error : undefined;
 
+export const selectActiveSiteErrorDetails = (
+	state: PlaygroundReduxState
+): SerializedSiteErrorDetails | undefined =>
+	state.ui.activeSite?.slug ? state.ui.activeSite.errorDetails : undefined;
+
 export const useActiveSite = () => useAppSelector(selectActiveSite);
 
-export const setActiveSite = (slug: string | undefined) => {
+export const setActiveSite = (
+	slug: string | undefined,
+	options: { updateUrl?: boolean } = {}
+) => {
 	return (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -102,7 +113,7 @@ export const setActiveSite = (slug: string | undefined) => {
 			return;
 		}
 		dispatch(__internal_uiSlice.actions.setActiveSite(slug));
-		if (slug) {
+		if (slug && options.updateUrl !== false) {
 			const site = selectSiteBySlug(getState(), slug);
 			redirectTo(PlaygroundRoute.site(site));
 		}

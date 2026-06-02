@@ -79,12 +79,30 @@
 			},
 			"dependsOn": ["build:json"]
 		},
+		"api-e2e": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npm run build:docs",
+					"npx playwright test --config=packages/docs/site/playwright.config.ts --project=chromium"
+				],
+				"parallel": false
+			}
+		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/docs/site/**/*.ts"],
 				"maxWarnings": 0
+			}
+		},
+		"check-orphan-pages": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["node bin/check-orphan-pages.js"],
+				"cwd": "packages/docs/site"
 			}
 		}
 	},

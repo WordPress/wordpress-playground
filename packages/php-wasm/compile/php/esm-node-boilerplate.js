@@ -3,20 +3,13 @@
 // this code in Node.js as an ES module.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
+// Note: The path and url modules are currently needed by code injected by the php-wasm Dockerfile.
+import path from 'path';
 import { fileURLToPath } from 'url';
 
-/**
- * __filename and __dirname are not available in ES modules, so we need to
- * polyfill them to ensure the debug command (npx nx debug playground-cli)
- * works.
- *
- * @see https://nodejs.org/api/esm.html#no-__filename-or-__dirname
- */
-import path from 'path';
-if (typeof __filename === 'undefined') {
-	var __filename = fileURLToPath(import.meta.url);
-}
-if (typeof __dirname === 'undefined') {
-	var __dirname = path.dirname(__filename);
-}
-
+// Determine the current directory path. In CJS mode, __dirname is available.
+// In ESM mode, we derive it from import.meta.url.
+const currentDirPath =
+	typeof __dirname !== 'undefined'
+		? __dirname
+		: path.dirname(fileURLToPath(import.meta.url));

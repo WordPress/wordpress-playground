@@ -25,43 +25,65 @@ const config = {
 	projectName: 'wordpress-playground', // Usually your repo name.
 
 	onBrokenLinks: 'throw',
-	onBrokenMarkdownLinks: 'throw',
+
+	markdown: {
+		hooks: {
+			onBrokenMarkdownLinks: 'throw',
+		},
+	},
 
 	// Even if you don't use internalization, you can use this field to set useful
-	// metadata like html lang. For example, if your site is Chinese, you may want
+	// metadata like HTML lang. For example, if your site is Chinese, you may want
 	// to replace "en" with "zh-Hans".
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es', 'fr', 'ja'],
+		locales: ['en', 'bn', 'es', 'fr', 'ja', 'pt-br', 'tl', 'gu'],
 		localeConfigs: {
 			en: {
 				label: 'English',
 				path: 'en',
+			},
+			bn: {
+				label: 'বাংলা',
+				path: 'bn',
 			},
 			es: {
 				label: 'Español',
 				path: 'es',
 			},
 			fr: {
-				label: 'French',
+				label: 'Français',
 				path: 'fr',
 			},
 			ja: {
-				label: 'Japanese',
+				label: '日本語',
 				path: 'ja',
+			},
+			'pt-br': {
+				label: 'Português (BR)',
+				path: 'pt-BR',
+			},
+			tl: {
+				label: 'Tagalog',
+				path: 'tl',
+			},
+			gu: {
+				label: 'ગુજરાતી',
+				path: 'gu',
 			},
 		},
 	},
 	themes: ['@docusaurus/theme-live-codeblock'],
 	plugins: [
+		'./plugins/docusaurus-dedupe-aliases.js',
 		getDocusaurusPluginTypedocApiConfig(),
 		[
 			'@docusaurus/plugin-ideal-image',
 			{
 				quality: 70,
 				max: 1030, // max resized image's size.
-				min: 640, // min resized image's size. if original is lower, use that size.
+				min: 640, // min resized image's size. If the original is lower, use that size.
 				steps: 2, // the max number of images generated between min and max (inclusive)
 				disableInDev: false,
 			},
@@ -83,6 +105,7 @@ const config = {
 				},
 			},
 		],
+		'./plugins/kapa-ai-plugin.js',
 	],
 
 	presets: [
@@ -101,9 +124,8 @@ const config = {
 						defaultSidebarItemsGenerator,
 						...args
 					}) {
-						const sidebarItems = await defaultSidebarItemsGenerator(
-							args
-						);
+						const sidebarItems =
+							await defaultSidebarItemsGenerator(args);
 						return flattenDirectoriesWithSingleFile(sidebarItems);
 					},
 				},
@@ -117,6 +139,7 @@ const config = {
 	themeConfig:
 		/** @type {import('@docusaurus/preset-classic').ThemeConfig} */
 		({
+			image: 'img/playground-social-logo.png',
 			algolia: {
 				appId: 'EKWQ08DUQS',
 				apiKey: '2fcab4cf2c3596e775de8c4ab1fa065e',
@@ -127,8 +150,8 @@ const config = {
 				title: 'WordPress Playground',
 				logo: {
 					alt: 'WordPress Playground',
-					src: 'img/wordpress.svg',
-					srcDark: 'img/wordpress-dark.svg',
+					src: 'img/playground-logo.svg',
+					srcDark: 'img/playground-logo-dark.svg',
 				},
 				items: [
 					{
@@ -154,21 +177,16 @@ const config = {
 						label: 'API Reference',
 						position: 'left',
 					},
-					// {
-					// 	href: 'https://playground.wordpress.net/gutenberg.html',
-					// 	label: 'Gutenberg PR Previewer',
-					// 	position: 'right',
-					// },
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',
 						className: 'header-github-link',
 						'aria-label': 'GitHub repository',
 					},
-					// {
-					// 	type: 'localeDropdown',
-					// 	position: 'right',
-					// },
+					{
+						type: 'localeDropdown',
+						position: 'right',
+					},
 				],
 			},
 			footer: {
@@ -209,7 +227,7 @@ const config = {
 								href: 'https://github.com/WordPress/wordpress-playground',
 							},
 							{
-								label: '#meta-playground on Slack',
+								label: '#playground on Slack',
 								href: 'https://make.wordpress.org/chat',
 							},
 						],
@@ -243,6 +261,7 @@ function getDocusaurusPluginTypedocApiConfig() {
 
 	const TypeDoc = require('typedoc');
 	const old = TypeDoc.Application.prototype.bootstrap;
+
 	TypeDoc.Application.prototype.bootstrap = function (options) {
 		options.entryPointStrategy = typedoc.entryPointStrategy;
 		options.entryPoints = packages.map((entry) =>
@@ -252,7 +271,7 @@ function getDocusaurusPluginTypedocApiConfig() {
 	};
 
 	return [
-		'docusaurus-plugin-typedoc-api',
+		require.resolve('./plugins/typedoc-api-wrapper.js'),
 		{
 			projectRoot,
 			packages,

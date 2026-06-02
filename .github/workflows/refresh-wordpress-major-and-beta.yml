@@ -11,41 +11,57 @@ on:
     schedule:
         - cron: '*/20 * * * *'
 
+concurrency:
+    group: refresh-wordpress-major-and-beta
+
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     build_wordpress_major_and_beta_push_to_github_and_deploy_website:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             github.ref == 'refs/heads/trunk' && (
                 github.actor == 'adamziel' ||
                 github.actor == 'dmsnell' ||
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         runs-on: ubuntu-latest
         environment:
             name: wordpress-assets
-        concurrency:
-            group: check-version-and-run-build
+        # Be conservative and set _some_ timeout to prevent a hanging
+        # job from blocking the queue of scheduled runs.
+        timeout-minutes: 120
+        permissions:
+            contents: write # Required to clone the repo and push the rebuilt WordPress commit.
+            actions: write  # Required to trigger the deploy-website workflow via workflow_dispatch.
         steps:
             - uses: actions/checkout@v4
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
                   persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
-            - name: 'Install bun'
-              run: |
-                  curl -fsSL https://bun.sh/install | bash
             - uses: ./.github/actions/prepare-playground
+              with:
+                  # The build uses JSPI which is supported in Node.js 23+.
+                  # Let's pick 24 as an LTS release.
+                  node-version: 24
             - name: 'Recompile WordPress'
               id: build
               shell: bash
               env:
                   FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
-              run: PATH="${PATH}:${HOME}/.bun/bin" npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
+              run: npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
             - name: Check for uncommitted changes
               id: changes
               run: |
@@ -75,7 +91,5 @@ jobs:
               if: steps.changes.outputs.COMMIT_CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1
               with:
-                  # TODO: Switch back to build-website.yml before merging to public repo
-                  #workflow: build-website.yml
-                  workflow: deploy-private-website.yml
+                  workflow: deploy-website.yml
                   token: ${{ secrets.GITHUB_TOKEN }}

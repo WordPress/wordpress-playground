@@ -1,0 +1,42 @@
+name: Rehydrate lockfile on Dependabot PRs
+
+on:
+    pull_request:
+        types: [opened, synchronize]
+
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
+jobs:
+    fix-lock:
+        if: github.actor == 'dependabot[bot]'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: write # Required to push the updated lockfile commit back to the branch.
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.head_ref }}
+                  fetch-depth: 0
+
+            - uses: actions/setup-node@v4
+              with:
+                  # Honor the version pinned in package.json -> packageManager
+                  node-version-file: '.nvmrc'
+                  cache: 'npm'
+
+            - name: Show npm version
+              run: npm --version
+
+            - name: Rehydrate workspace links in lockfile
+              run: |
+                  # Update only the lockfile, but with workspaces awareness
+                  npm install --package-lock-only --workspaces --include-workspace-root
+
+            - name: Commit lockfile fix
+              uses: stefanzweifel/git-auto-commit-action@v5
+              with:
+                  commit_message: 'chore: rehydrate workspace links in package-lock for workspaces'
+                  branch: ${{ github.head_ref }}
