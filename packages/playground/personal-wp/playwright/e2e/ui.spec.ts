@@ -30,8 +30,8 @@ test('should show app, backup, and troubleshooting tools', async ({
 		})
 	).toBeVisible();
 	await expect(
-		website.page.getByRole('link', { name: /App Launcher/ })
-	).toHaveAttribute('href', /blueprint-url=data%3Aapplication%2Fjson/);
+		website.page.getByRole('button', { name: /App Launcher/ })
+	).toBeVisible();
 	await expect(
 		website.page.getByRole('heading', { name: 'Backup' })
 	).toBeVisible();

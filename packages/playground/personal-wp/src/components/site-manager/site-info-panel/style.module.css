@@ -308,16 +308,36 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
+	width: 100%;
 	padding: 6px 4px;
+	border: 0;
+	background: transparent;
 	flex: 1;
 	min-width: 0;
 	color: inherit;
+	font: inherit;
+	text-align: left;
 	text-decoration: none;
+	cursor: pointer;
 }
 
 .app-link:hover {
 	color: inherit;
 	text-decoration: none;
+}
+
+.app-link:disabled {
+	cursor: default;
+}
+
+.app-install-status {
+	margin: 6px 4px 0;
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: #f0f6fc;
+	color: #1e1e1e;
+	font-size: 12px;
+	line-height: 1.4;
 }
 
 .app-icon {
