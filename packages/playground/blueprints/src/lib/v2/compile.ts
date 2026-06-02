@@ -51,6 +51,7 @@ type UpgradedV1RuntimeConfiguration = Partial<
 >;
 
 const upgradedV1RuntimeConfiguration = Symbol('upgradedV1RuntimeConfiguration');
+const upgradedV1Declaration = Symbol('upgradedV1Declaration');
 
 export type BlueprintV2ValidationError = {
 	path: string;
@@ -183,7 +184,7 @@ function appendAdditionalV2Steps(
 	blueprint: BlueprintV2Declaration,
 	additionalSteps: V2Step[]
 ): BlueprintV2Declaration {
-	return {
+	const nextBlueprint = {
 		...(blueprint as JsonObject),
 		additionalStepsAfterExecution: [
 			...((blueprint as JsonObject)['additionalStepsAfterExecution'] ||
@@ -191,6 +192,8 @@ function appendAdditionalV2Steps(
 			...additionalSteps,
 		],
 	} as BlueprintV2Declaration;
+	copyUpgradedV1Metadata(blueprint, nextBlueprint);
+	return nextBlueprint;
 }
 
 function isBlueprintBundle(input: any): input is BlueprintBundle {
@@ -202,6 +205,7 @@ export function validateBlueprintV2(
 ): BlueprintV2ValidationResult {
 	const blueprint = blueprintMaybe as JsonObject;
 	const errors: BlueprintV2ValidationError[] = [];
+	const allowV1AbsolutePaths = isUpgradedV1Declaration(blueprintMaybe);
 	if (
 		!blueprint ||
 		typeof blueprint !== 'object' ||
@@ -237,7 +241,12 @@ export function validateBlueprintV2(
 		? blueprint['additionalStepsAfterExecution']
 		: [];
 	for (const [index, step] of additionalSteps.entries()) {
-		validateV2Step(step, `/additionalStepsAfterExecution/${index}`, errors);
+		validateV2Step(
+			step,
+			`/additionalStepsAfterExecution/${index}`,
+			errors,
+			allowV1AbsolutePaths
+		);
 	}
 
 	if (errors.length > 0) {
@@ -429,6 +438,10 @@ export function upgradeBlueprintV1ToV2(
 	}
 
 	const upgraded = v2 as BlueprintV2Declaration;
+	Object.defineProperty(upgraded, upgradedV1Declaration, {
+		value: true,
+		enumerable: false,
+	});
 	if (Object.keys(runtimeConfiguration).length > 0) {
 		Object.defineProperty(upgraded, upgradedV1RuntimeConfiguration, {
 			value: runtimeConfiguration,
@@ -474,6 +487,7 @@ export function createBlueprintV2ExecutionPlan(
 ): any[] {
 	const steps: any[] = [];
 	const source = blueprint as JsonObject;
+	const allowV1AbsolutePaths = isUpgradedV1Declaration(blueprint);
 
 	if (source['constants']) {
 		steps.push({
@@ -559,7 +573,8 @@ export function createBlueprintV2ExecutionPlan(
 		steps.push(
 			...convertV2StepToV1Steps(
 				step,
-				`/additionalStepsAfterExecution/${index}`
+				`/additionalStepsAfterExecution/${index}`,
+				allowV1AbsolutePaths
 			)
 		);
 	}
@@ -569,7 +584,8 @@ export function createBlueprintV2ExecutionPlan(
 
 function convertV2StepToV1Steps(
 	step: V2Step,
-	path = '/additionalStepsAfterExecution'
+	path = '/additionalStepsAfterExecution',
+	allowV1AbsolutePaths = false
 ): any[] {
 	switch (step['step']) {
 		case 'activatePlugin':
@@ -591,8 +607,14 @@ function convertV2StepToV1Steps(
 			return [
 				{
 					step: 'cp',
-					fromPath: toPlaygroundPath(step['fromPath']),
-					toPath: toPlaygroundPath(step['toPath']),
+					fromPath: toPlaygroundPath(
+						step['fromPath'],
+						allowV1AbsolutePaths
+					),
+					toPath: toPlaygroundPath(
+						step['toPath'],
+						allowV1AbsolutePaths
+					),
 				},
 			];
 		case 'defineConstants':
@@ -623,19 +645,40 @@ function convertV2StepToV1Steps(
 		case 'installTheme':
 			return [createInstallThemeStep(step, step['active'] ?? true)];
 		case 'mkdir':
-			return [{ step: 'mkdir', path: toPlaygroundPath(step['path']) }];
+			return [
+				{
+					step: 'mkdir',
+					path: toPlaygroundPath(step['path'], allowV1AbsolutePaths),
+				},
+			];
 		case 'mv':
 			return [
 				{
 					step: 'mv',
-					fromPath: toPlaygroundPath(step['fromPath']),
-					toPath: toPlaygroundPath(step['toPath']),
+					fromPath: toPlaygroundPath(
+						step['fromPath'],
+						allowV1AbsolutePaths
+					),
+					toPath: toPlaygroundPath(
+						step['toPath'],
+						allowV1AbsolutePaths
+					),
 				},
 			];
 		case 'rm':
-			return [{ step: 'rm', path: toPlaygroundPath(step['path']) }];
+			return [
+				{
+					step: 'rm',
+					path: toPlaygroundPath(step['path'], allowV1AbsolutePaths),
+				},
+			];
 		case 'rmdir':
-			return [{ step: 'rmdir', path: toPlaygroundPath(step['path']) }];
+			return [
+				{
+					step: 'rmdir',
+					path: toPlaygroundPath(step['path'], allowV1AbsolutePaths),
+				},
+			];
 		case 'runPHP':
 			return createRunPHPSteps(step, `${path}/code`);
 		case 'runSQL':
@@ -672,7 +715,10 @@ function convertV2StepToV1Steps(
 						`${path}/zipFile`,
 						'unzip.zipFile'
 					),
-					extractToPath: toPlaygroundPath(step['extractToPath']),
+					extractToPath: toPlaygroundPath(
+						step['extractToPath'],
+						allowV1AbsolutePaths
+					),
 				},
 			];
 		case 'wp-cli':
@@ -684,7 +730,11 @@ function convertV2StepToV1Steps(
 				},
 			];
 		case 'writeFiles':
-			return createWriteStepsFromV2Files(step['files'] || {});
+			return createWriteStepsFromV2Files(
+				step['files'] || {},
+				'',
+				allowV1AbsolutePaths
+			);
 		default:
 			assertNeverStep(step.step);
 	}
@@ -803,11 +853,12 @@ function createRunPHPSteps(step: JsonObject, codePath: string) {
 
 function createWriteStepsFromV2Files(
 	files: Record<string, V2DataReference>,
-	basePath = ''
+	basePath = '',
+	allowV1AbsolutePaths = false
 ) {
 	const steps: any[] = [];
 	for (const [targetPath, dataReference] of Object.entries(files)) {
-		const path = toPlaygroundPath(targetPath);
+		const path = toPlaygroundPath(targetPath, allowV1AbsolutePaths);
 		const resource = convertV2DataReferenceToV1(dataReference);
 		if (isV1DirectoryReference(resource)) {
 			steps.push({
@@ -2373,7 +2424,8 @@ function validateV2TopLevelField(
 function validateV2Step(
 	step: any,
 	path: string,
-	errors: BlueprintV2ValidationError[]
+	errors: BlueprintV2ValidationError[],
+	allowV1AbsolutePaths = false
 ) {
 	if (!step || typeof step !== 'object' || Array.isArray(step)) {
 		errors.push({ path, message: 'must be an object' });
@@ -2400,20 +2452,22 @@ function validateV2Step(
 		V2_STEP_ALLOWED_PROPERTIES[step.step],
 		errors
 	);
-	validateV2StepFieldTypes(step, path, errors);
+	validateV2StepFieldTypes(step, path, errors, allowV1AbsolutePaths);
 }
 
 function validateV2StepFieldTypes(
 	step: JsonObject,
 	path: string,
-	errors: BlueprintV2ValidationError[]
+	errors: BlueprintV2ValidationError[],
+	allowV1AbsolutePaths = false
 ) {
 	switch (step['step']) {
 		case 'activatePlugin':
 			validatePlaygroundPath(
 				step['pluginPath'],
 				`${path}/pluginPath`,
-				errors
+				errors,
+				allowV1AbsolutePaths
 			);
 			validateOptionalString(
 				step['humanReadableName'],
@@ -2438,9 +2492,15 @@ function validateV2StepFieldTypes(
 			validatePlaygroundPath(
 				step['fromPath'],
 				`${path}/fromPath`,
-				errors
+				errors,
+				allowV1AbsolutePaths
 			);
-			validatePlaygroundPath(step['toPath'], `${path}/toPath`, errors);
+			validatePlaygroundPath(
+				step['toPath'],
+				`${path}/toPath`,
+				errors,
+				allowV1AbsolutePaths
+			);
 			return;
 		case 'defineConstants':
 			validateConstants(step['constants'], `${path}/constants`, errors);
@@ -2483,7 +2543,12 @@ function validateV2StepFieldTypes(
 		case 'mkdir':
 		case 'rm':
 		case 'rmdir':
-			validatePlaygroundPath(step['path'], `${path}/path`, errors);
+			validatePlaygroundPath(
+				step['path'],
+				`${path}/path`,
+				errors,
+				allowV1AbsolutePaths
+			);
 			return;
 		case 'runPHP':
 			validateFileDataReference(step['code'], `${path}/code`, errors);
@@ -2507,7 +2572,8 @@ function validateV2StepFieldTypes(
 			validatePlaygroundPath(
 				step['extractToPath'],
 				`${path}/extractToPath`,
-				errors
+				errors,
+				allowV1AbsolutePaths
 			);
 			return;
 		case 'wp-cli':
@@ -2531,7 +2597,8 @@ function validateV2StepFieldTypes(
 					validatePlaygroundPath(
 						targetPath,
 						`${path}/files/${escapeJsonPointer(targetPath)}`,
-						errors
+						errors,
+						allowV1AbsolutePaths
 					);
 				}
 			}
@@ -3758,10 +3825,18 @@ function validateString(
 function validatePlaygroundPath(
 	value: any,
 	path: string,
-	errors: BlueprintV2ValidationError[]
+	errors: BlueprintV2ValidationError[],
+	allowV1AbsolutePaths = false
 ) {
 	validateString(value, path, errors);
 	if (typeof value !== 'string') {
+		return;
+	}
+	if (value.startsWith(V1_ABSOLUTE_PATH_PREFIX) && !allowV1AbsolutePaths) {
+		errors.push({
+			path,
+			message: 'must not use internal v1 absolute path markers',
+		});
 		return;
 	}
 	if (pathContainsParentDirectorySegment(value)) {
@@ -3950,6 +4025,29 @@ function getUpgradedV1RuntimeConfiguration(
 	blueprint: BlueprintV2Declaration
 ): UpgradedV1RuntimeConfiguration | undefined {
 	return (blueprint as any)[upgradedV1RuntimeConfiguration];
+}
+
+function copyUpgradedV1Metadata(
+	from: BlueprintV2Declaration,
+	to: BlueprintV2Declaration
+) {
+	if (isUpgradedV1Declaration(from)) {
+		Object.defineProperty(to, upgradedV1Declaration, {
+			value: true,
+			enumerable: false,
+		});
+	}
+	const runtimeConfiguration = getUpgradedV1RuntimeConfiguration(from);
+	if (runtimeConfiguration) {
+		Object.defineProperty(to, upgradedV1RuntimeConfiguration, {
+			value: runtimeConfiguration,
+			enumerable: false,
+		});
+	}
+}
+
+function isUpgradedV1Declaration(blueprint: object) {
+	return (blueprint as any)[upgradedV1Declaration] === true;
 }
 
 function resolveV2PHPVersion(
@@ -4303,11 +4401,16 @@ function blueprintRequiresWpCli(blueprint: BlueprintV2Declaration) {
 
 const V1_ABSOLUTE_PATH_PREFIX = 'v1-absolute:';
 
-function toPlaygroundPath(path: string): string {
+function toPlaygroundPath(path: string, allowV1AbsolutePaths = false): string {
 	if (typeof path !== 'string' || path.length === 0) {
 		return '/wordpress';
 	}
 	if (path.startsWith(V1_ABSOLUTE_PATH_PREFIX)) {
+		if (!allowV1AbsolutePaths) {
+			throw new InvalidBlueprintV2Error(
+				`Invalid Blueprint v2 path "${path}": must not use internal v1 absolute path markers.`
+			);
+		}
 		const v1Path = path.slice(V1_ABSOLUTE_PATH_PREFIX.length);
 		if (pathContainsParentDirectorySegment(v1Path)) {
 			throw new InvalidBlueprintV2Error(

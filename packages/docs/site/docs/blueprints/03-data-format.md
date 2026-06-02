@@ -71,6 +71,26 @@ properties such as `applicationOptions`, `phpVersion`, `wordpressVersion`,
 }
 ```
 
+### Blueprint v2 data sources
+
+Blueprint v2 properties that consume files accept the same data-source shapes
+across the browser, the client API, and the CLI:
+
+- URL strings such as `"https://example.com/plugin.zip"` fetch remote files.
+- Execution-context paths such as `"./assets/file.txt"` or `"/assets/file.txt"`
+  read from the Blueprint bundle or the directory that contains `blueprint.json`.
+- Inline files use `{ "filename": "file.txt", "content": "..." }`.
+- Inline directories use `{ "directoryName": "plugin", "files": { ... } }`.
+- Git directory sources use `{ "gitRepository": "...", "ref": "...", "pathInRepository": "..." }`.
+- `wordpressVersion` may also be a WordPress ZIP URL, inline ZIP, bundled ZIP,
+  inline WordPress directory, or Git directory source.
+
+In the CLI, local execution-context paths are blocked by default. Pass
+`--blueprint-may-read-adjacent-files` only for Blueprints you trust. Query API
+overrides still apply legacy defaults on top of v2 declarations, including
+auto-login, networking, plugin/theme install error skipping, and WXR imports
+under the `admin` user with comment import enabled.
+
 ## Landing page
 
 The `landingPage` property tells Playground which URL to navigate to after the Blueprint has been run. This is a great tool, especially when creating theme or plugin demos. Often, you will want to start Playground in the Site Editor or have a specific post open in the Post Editor. Make sure you use a relative path.

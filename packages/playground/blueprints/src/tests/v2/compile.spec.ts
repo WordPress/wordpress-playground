@@ -1007,6 +1007,31 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		]);
 	});
 
+	it('rejects internal v1 absolute path markers in public v2 declarations', () => {
+		const blueprint = {
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: 'v1-absolute:/tmp/public-marker',
+				},
+			],
+		} as BlueprintV2Declaration;
+
+		expect(validateBlueprintV2(blueprint)).toEqual({
+			valid: false,
+			errors: [
+				{
+					path: '/additionalStepsAfterExecution/0/path',
+					message: 'must not use internal v1 absolute path markers',
+				},
+			],
+		});
+		expect(() => createBlueprintV2ExecutionPlan(blueprint)).toThrow(
+			/must not use internal v1 absolute path markers/
+		);
+	});
+
 	it('passes theme target directory and progress name options to installTheme', () => {
 		const plan = createBlueprintV2ExecutionPlan({
 			version: 2,
@@ -2879,6 +2904,158 @@ echo json_encode(array(
 			expect(result.face_src).toContain(
 				'/wp-content/uploads/fonts/open-sans.woff2'
 			);
+		} finally {
+			php.exit();
+			await handler[Symbol.asyncDispose]();
+		}
+	}, 30_000);
+
+	it('runs role and user declarations against WordPress', async () => {
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		const php = await handler.getPrimaryPhp();
+
+		try {
+			await runBlueprintV2Steps(
+				await compileBlueprintV2({
+					version: 2,
+					roles: [
+						{
+							name: 'reviewer',
+							capabilities: {
+								read: 'true',
+								edit_posts: 'true',
+								delete_posts: 'false',
+							},
+						},
+					],
+					users: [
+						{
+							username: 'reviewer-user',
+							email: 'reviewer@example.com',
+							role: 'reviewer',
+							meta: {
+								first_name: 'Riley',
+								department: 'Editorial',
+							},
+						},
+					],
+				} as BlueprintV2Declaration),
+				php
+			);
+
+			const response = await php.run({
+				code: `<?php
+require '/wordpress/wp-load.php';
+$role = get_role('reviewer');
+$user = get_user_by('login', 'reviewer-user');
+echo json_encode(array(
+	'role_name' => $role ? $role->name : null,
+	'can_read' => $role ? $role->has_cap('read') : false,
+	'can_edit_posts' => $role ? $role->has_cap('edit_posts') : false,
+	'can_delete_posts' => $role ? $role->has_cap('delete_posts') : false,
+	'user_email' => $user ? $user->user_email : null,
+	'user_roles' => $user ? $user->roles : array(),
+	'first_name' => $user ? get_user_meta($user->ID, 'first_name', true) : null,
+	'department' => $user ? get_user_meta($user->ID, 'department', true) : null,
+));
+`,
+			});
+
+			expect(JSON.parse(response.text)).toEqual({
+				role_name: 'reviewer',
+				can_read: true,
+				can_edit_posts: true,
+				can_delete_posts: false,
+				user_email: 'reviewer@example.com',
+				user_roles: ['reviewer'],
+				first_name: 'Riley',
+				department: 'Editorial',
+			});
+		} finally {
+			php.exit();
+			await handler[Symbol.asyncDispose]();
+		}
+	}, 30_000);
+
+	it('runs execution-context post type declarations against WordPress', async () => {
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		const php = await handler.getPrimaryPhp();
+		const requestedPaths: string[] = [];
+
+		try {
+			await runBlueprintV2Steps(
+				await compileBlueprintV2(
+					{
+						version: 2,
+						postTypes: {
+							book: './post-types/book.json',
+						},
+					} as BlueprintV2Declaration,
+					{
+						streamBundledFile: async (path) => {
+							requestedPaths.push(path);
+							return new File(
+								[
+									JSON.stringify({
+										label: 'Books',
+										public: true,
+										show_ui: true,
+										supports: ['title', 'editor'],
+									}),
+								],
+								'book.json',
+								{ type: 'application/json' }
+							) as any;
+						},
+					}
+				),
+				php
+			);
+
+			const response = await php.run({
+				code: `<?php
+require '/wordpress/wp-load.php';
+$post_id = wp_insert_post(array(
+	'post_type' => 'book',
+	'post_title' => 'Blueprint Book',
+	'post_content' => 'Registered by Blueprint v2',
+	'post_status' => 'publish',
+), true);
+$posts = get_posts(array(
+	'post_type' => 'book',
+	'title' => 'Blueprint Book',
+	'post_status' => 'publish',
+	'numberposts' => 1,
+));
+$post_type = get_post_type_object('book');
+echo json_encode(array(
+	'exists' => post_type_exists('book'),
+	'inserted' => !is_wp_error($post_id),
+	'queried_title' => $posts ? $posts[0]->post_title : null,
+	'label' => $post_type ? $post_type->label : null,
+));
+`,
+			});
+
+			expect(requestedPaths).toEqual(['post-types/book.json']);
+			expect(JSON.parse(response.text)).toEqual({
+				exists: true,
+				inserted: true,
+				queried_title: 'Blueprint Book',
+				label: 'Books',
+			});
 		} finally {
 			php.exit();
 			await handler[Symbol.asyncDispose]();

@@ -262,6 +262,49 @@ describe.each(blueprintVersions)(
 			).resolves.toBe('native-v2');
 		});
 
+		test('should read local v2 execution-context files after explicit consent', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-v2-blueprint-')
+			);
+			const blueprintPath = path.join(tmpDir, 'blueprint.json');
+			await writeFile(path.join(tmpDir, 'asset.txt'), 'adjacent-data');
+			await writeFile(
+				blueprintPath,
+				JSON.stringify({
+					version: 2,
+					additionalStepsAfterExecution: [
+						{
+							step: 'writeFiles',
+							files: {
+								'/adjacent.txt': './asset.txt',
+							},
+						},
+					],
+				})
+			);
+
+			try {
+				await using cliResult = await parseOptionsAndRunCLI([
+					'server',
+					`--blueprint=${blueprintPath}`,
+					'--blueprint-may-read-adjacent-files',
+					'--mode=mount-only',
+					'--verbosity=quiet',
+					'--port=0',
+					'--workers=1',
+				]);
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+				await expect(
+					cliServer.playground.readFileAsText(
+						'/wordpress/adjacent.txt'
+					)
+				).resolves.toBe('adjacent-data');
+			} finally {
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		});
+
 		test('should route --mode to the native v2 handler without the experimental flag', async () => {
 			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
 				code?: number | string | null

@@ -7,7 +7,16 @@ import type {
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
+import { consumeAPI } from '@php-wasm/universal';
 import { fetchSqliteIntegration } from '../src/blueprints-v1/download';
+
+vi.mock('@php-wasm/universal', async (importOriginal) => {
+	const actual = (await importOriginal()) as Record<string, unknown>;
+	return {
+		...actual,
+		consumeAPI: vi.fn(),
+	};
+});
 
 vi.mock('../src/blueprints-v1/download', async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
@@ -372,6 +381,68 @@ describe('BlueprintsV2Handler', () => {
 		expect(compiled.extraLibraries).toContain('wp-cli');
 	});
 
+	test('uses v2 runtime intl settings when booting the worker', async () => {
+		const playground = createMockBlueprintV1Worker();
+		vi.mocked(consumeAPI).mockReturnValue(playground as any);
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				intl: true,
+				blueprint: {
+					version: 2,
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+
+		await handler.bootRequestHandler({
+			worker: { phpPort: {}, processId: 7 } as any,
+			fileLockManagerPort: {} as any,
+			nativeInternalDirPath: '/tmp/playground',
+		});
+
+		expect(playground.bootRequestHandler).toHaveBeenCalledWith(
+			expect.objectContaining({
+				extensions: [],
+			})
+		);
+	});
+
+	test('preserves migrated v1 intl settings when booting the worker', async () => {
+		const playground = createMockBlueprintV1Worker();
+		vi.mocked(consumeAPI).mockReturnValue(playground as any);
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				blueprint: createBundle({
+					features: {
+						intl: true,
+					},
+					steps: [],
+				}),
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+
+		await handler.bootRequestHandler({
+			worker: { phpPort: {}, processId: 8 } as any,
+			fileLockManagerPort: {} as any,
+			nativeInternalDirPath: '/tmp/playground',
+		});
+
+		expect(playground.bootRequestHandler).toHaveBeenCalledWith(
+			expect.objectContaining({
+				extensions: ['intl'],
+			})
+		);
+	});
+
 	test('translates v2 apply-to-existing-site mode to the v1 worker install mode', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
@@ -710,6 +781,15 @@ describe('BlueprintsV2Handler', () => {
 		expect(playground.bootWordPress).not.toHaveBeenCalled();
 	});
 });
+
+function createMockBlueprintV1Worker() {
+	return {
+		isConnected: vi.fn().mockResolvedValue(undefined),
+		useFileLockManager: vi.fn().mockResolvedValue(undefined),
+		bootRequestHandler: vi.fn().mockResolvedValue(undefined),
+		isReady: vi.fn().mockResolvedValue(undefined),
+	};
+}
 
 function createBundle(
 	blueprint: BlueprintV1Declaration | BlueprintV2Declaration,

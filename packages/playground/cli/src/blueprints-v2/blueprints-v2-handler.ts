@@ -235,7 +235,10 @@ export class BlueprintsV2Handler {
 			trace: this.args.experimentalTrace === true,
 			extensions: cliExtensionArgsToExtensionsArray(
 				filterExtensionArgsForPHPVersion(
-					this.args,
+					{
+						...this.args,
+						intl: runtimeConfiguration.intl,
+					},
 					runtimeConfiguration.phpVersion
 				)
 			),
@@ -275,9 +278,9 @@ export class BlueprintsV2Handler {
 		const resolvedBlueprint =
 			this.args.blueprint || ({ version: 2 } as BlueprintV2Declaration);
 		if (isBlueprintBundle(resolvedBlueprint)) {
-			const reflection = await BlueprintReflection.create(
-				resolvedBlueprint as BlueprintBundle
-			);
+			const blueprintBundle = resolvedBlueprint as BlueprintBundle;
+			const reflection =
+				await BlueprintReflection.create(blueprintBundle);
 			return {
 				declaration: applyCliOptionsToBlueprint(
 					reflection.getDeclaration() as
@@ -286,7 +289,7 @@ export class BlueprintsV2Handler {
 					this.args,
 					additionalBlueprintSteps
 				),
-				streamBundledFile: (resolvedBlueprint as BlueprintBundle).read,
+				streamBundledFile: (path: string) => blueprintBundle.read(path),
 			};
 		}
 

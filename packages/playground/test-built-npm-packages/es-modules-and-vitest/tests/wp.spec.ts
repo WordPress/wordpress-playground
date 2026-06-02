@@ -111,6 +111,36 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 		}
 	});
 
+	it('Should expose Blueprint v2 compiler and public validator files', async () => {
+		const blueprints = await import('@wp-playground/blueprints');
+		const { default: validateBlueprintDeclaration } =
+			await import('@wp-playground/blueprints/public/blueprint-schema-validator.js');
+		const declaration = {
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: '/wordpress/cache',
+				},
+			],
+		};
+
+		assert.equal(typeof blueprints.compileBlueprintV2, 'function');
+		assert.equal(
+			typeof blueprints.createBlueprintV2ExecutionPlan,
+			'function'
+		);
+		assert.equal(validateBlueprintDeclaration(declaration), true);
+		assert.equal(
+			blueprints.createBlueprintV2ExecutionPlan(declaration as any)[0]
+				.step,
+			'mkdir'
+		);
+		await assert.doesNotReject(
+			blueprints.compileBlueprintV2(declaration as any)
+		);
+	});
+
 	/**
 	 * This broke at one point in the built package. It bundler tried really hard to create an isomorphic
 	 * package, but ended shipping the following code which always returned false:

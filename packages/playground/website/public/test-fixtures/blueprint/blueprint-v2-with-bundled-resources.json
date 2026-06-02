@@ -1,0 +1,16 @@
+{
+	"version": 2,
+	"applicationOptions": {
+		"wordpress-playground": {
+			"landingPage": "/v2-bundled.txt"
+		}
+	},
+	"additionalStepsAfterExecution": [
+		{
+			"step": "writeFiles",
+			"files": {
+				"/wordpress/v2-bundled.txt": "./v2_text_file.txt"
+			}
+		}
+	]
+}

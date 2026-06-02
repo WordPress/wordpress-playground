@@ -245,6 +245,23 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 	);
 });
 
+test('?blueprint-url=... should resolve v2 bundled resources', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint-v2-with-bundled-resources.json',
+		page.url()
+	);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'Blueprint v2 bundled resource'
+	);
+});
+
 test('enableMultisite step should re-activate the plugins', async ({
 	website,
 	wordpress,
