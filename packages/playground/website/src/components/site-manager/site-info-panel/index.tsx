@@ -65,7 +65,7 @@ function getSiteLastTab(siteSlug: string): string | null {
 	}
 }
 
-export function setSiteLastTab(siteSlug: string, tabName: string): void {
+function setSiteLastTab(siteSlug: string, tabName: string): void {
 	try {
 		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
 		const tabs = stored ? JSON.parse(stored) : {};
@@ -81,18 +81,19 @@ export function SiteInfoPanel({
 	site,
 	mobileUi,
 	siteViewHidden,
+	initialTab,
 }: {
 	className: string;
 	site: SiteInfo;
 	mobileUi?: boolean;
 	siteViewHidden?: boolean;
+	initialTab?: string;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
 	// Load the last active tab for this site
 	const [initialTabName] = useState(() => {
-		const lastTab = getSiteLastTab(site.slug);
-		return lastTab || 'settings';
+		return initialTab || getSiteLastTab(site.slug) || 'settings';
 	});
 
 	// Resolve documentRoot from playground client

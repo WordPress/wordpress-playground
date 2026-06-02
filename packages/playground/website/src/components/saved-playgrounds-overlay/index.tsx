@@ -34,9 +34,7 @@ import {
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
-	remountSiteInfoPanel,
 } from '../../lib/state/redux/slice-ui';
-import { setSiteLastTab } from '../site-manager/site-info-panel';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
@@ -94,9 +92,6 @@ export function SavedPlaygroundsOverlay({
 	initialViewMode = 'main',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
-	const siteManagerIsOpen = useAppSelector(
-		(state) => state.ui.siteManagerIsOpen
-	);
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
@@ -376,14 +371,8 @@ export function SavedPlaygroundsOverlay({
 			title: 'Blueprint editor',
 			icon: code,
 			onClick: () => {
-				if (activeSite) {
-					setSiteLastTab(activeSite.slug, 'blueprint');
-				}
-				if (siteManagerIsOpen) {
-					dispatch(remountSiteInfoPanel());
-				}
 				dispatch(setSiteManagerOpen(true));
-				dispatch(setSiteManagerSection('site-details'));
+				dispatch(setSiteManagerSection('blueprint'));
 				onClose();
 			},
 			disabled: false,

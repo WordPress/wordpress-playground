@@ -24,9 +24,6 @@ export const SiteManager = forwardRef<
 	const activeSiteManagerSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
 	);
-	const siteInfoPanelKey = useAppSelector(
-		(state) => state.ui.siteInfoPanelKey
-	);
 
 	// Load saved width from localStorage or use default
 	const [siteInfoWidth, setSiteInfoWidth] = useState<number>(() => {
@@ -72,15 +69,21 @@ export const SiteManager = forwardRef<
 				/>
 			);
 			break;
+		case 'blueprint':
 		default:
-		case 'site-details':
+		case 'site-details': {
+			const initialTab =
+				activeSiteManagerSection === 'blueprint'
+					? 'blueprint'
+					: undefined;
 			activePanel = activeSite ? (
 				fullScreenSections ? (
 					<SiteInfoPanel
-						key={`${activeSite?.slug}-${siteInfoPanelKey}`}
+						key={`${activeSite?.slug}-${activeSiteManagerSection}`}
 						className={css.siteManagerSiteInfo}
 						site={activeSite}
 						mobileUi={fullScreenSections}
+						initialTab={initialTab}
 					/>
 				) : (
 					<ResizableBox
@@ -104,15 +107,17 @@ export const SiteManager = forwardRef<
 						}}
 					>
 						<SiteInfoPanel
-							key={`${activeSite?.slug}-${siteInfoPanelKey}`}
+							key={`${activeSite?.slug}-${activeSiteManagerSection}`}
 							className={css.siteManagerSiteInfo}
 							site={activeSite}
 							mobileUi={fullScreenSections}
+							initialTab={initialTab}
 						/>
 					</ResizableBox>
 				)
 			) : null;
 			break;
+		}
 	}
 
 	// If the site manager is open but there's no active panel,

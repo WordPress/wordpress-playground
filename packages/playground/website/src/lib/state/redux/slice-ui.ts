@@ -17,7 +17,11 @@ export type SiteError =
 	| 'network-firewall-interference'
 	| 'resource-download-failed';
 
-export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
+export type SiteManagerSection =
+	| 'sidebar'
+	| 'site-details'
+	| 'blueprints'
+	| 'blueprint';
 
 export const modalSlugs = {
 	LOG: 'log',
@@ -161,7 +165,6 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
-	siteInfoPanelKey: number;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -204,7 +207,6 @@ const initialState: UIState = {
 		// your entire screen – quite a confusing experience.
 		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
-	siteInfoPanelKey: 0,
 };
 
 const uiSlice = createSlice({
@@ -293,9 +295,6 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToSave = action.payload;
 		},
-		remountSiteInfoPanel: (state) => {
-			state.siteInfoPanelKey++;
-		},
 	},
 });
 
@@ -343,7 +342,6 @@ export const {
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
-	remountSiteInfoPanel,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
