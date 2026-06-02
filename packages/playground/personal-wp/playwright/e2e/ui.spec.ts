@@ -60,14 +60,14 @@ test('should close the Site Tools panel with its close button', async ({
 
 	await website.ensureSiteToolsIsOpen();
 	await expect(
-		website.page.getByRole('link', { name: /App Launcher/ })
+		website.page.getByRole('button', { name: /App Launcher/ })
 	).toBeVisible();
 
 	await website.page
 		.getByRole('button', { name: /Close Site Tools/ })
 		.click();
 	await expect(
-		website.page.getByRole('link', { name: /App Launcher/ })
+		website.page.getByRole('button', { name: /App Launcher/ })
 	).not.toBeVisible();
 });
 
