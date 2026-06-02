@@ -173,6 +173,14 @@ function assertSafeRelativePath(value: string, label: string) {
 	}
 }
 
+/**
+ * Resolves the requested behavior when an install target already exists.
+ *
+ * Returns `true` when the caller should skip writing the asset and `false`
+ * when it should continue. Symlinks are rejected before applying overwrite
+ * semantics because following them could delete or replace files outside the
+ * intended plugin/theme directory.
+ */
 export async function handleIfAlreadyInstalled(
 	playground: UniversalPHP,
 	{

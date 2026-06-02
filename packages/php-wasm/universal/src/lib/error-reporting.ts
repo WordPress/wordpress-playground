@@ -16,8 +16,8 @@ export async function printDebugDetails(
 
 /**
  * Pretty prints the full stack trace of the error and all its causes.
+ *
  * Includes debug details for each error in the chain.
- * This is needed
  *
  * @param e
  */

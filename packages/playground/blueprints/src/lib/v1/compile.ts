@@ -1,5 +1,5 @@
 import { ProgressTracker } from '@php-wasm/progress';
-import { Semaphore } from '@php-wasm/util';
+import { isGitRepoUrl, Semaphore } from '@php-wasm/util';
 import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
 import type { FileReference } from './resources';
@@ -861,20 +861,4 @@ function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
 			[]
 		);
 	}
-}
-
-function isGitRepoUrl(url: string): boolean {
-	const normalizedUrl = url.trim().replace(/\/+$/, '');
-	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
-		return true;
-	}
-	// GitHub: exactly /owner/repo
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
-		return true;
-	}
-	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)) {
-		return true;
-	}
-	return false;
 }

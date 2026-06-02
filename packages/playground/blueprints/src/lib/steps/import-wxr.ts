@@ -417,6 +417,7 @@ async function importWithDefaultImporter(
 	add_filter('wp_import_post_meta', 'blueprint_wxr_rewrite_post_meta', 10, 3);
 	add_filter('wp_import_post_comments', 'blueprint_wxr_filter_post_comments', 10, 3);
 
+	try {
 	$wp_import                  = new WP_Import();
 	$import_data                = $wp_import->parse( getenv('IMPORT_FILE') );
 	$GLOBALS['blueprint_wxr_url_map'] = blueprint_wxr_expand_url_map(
@@ -448,10 +449,19 @@ async function importWithDefaultImporter(
 	$_POST = blueprint_wxr_author_mapping_post_data($wp_import->authors, $default_author_id);
 	$_POST['fetch_attachments'] = $wp_import->fetch_attachments;
 
-	$GLOBALS['wpcli_import_current_file'] = basename( $file );
+	$GLOBALS['wpcli_import_current_file'] = basename( getenv('IMPORT_FILE') );
 	$wp_import->import( getenv('IMPORT_FILE'), [
 		'rewrite_urls' => getenv('REWRITE_URLS') === 'true',
 	] );
+	} finally {
+		remove_filter('wp_import_post_data_processed', 'blueprint_wxr_rewrite_post_data', 10);
+		remove_filter('wp_import_post_meta', 'blueprint_wxr_rewrite_post_meta', 10);
+		remove_filter('wp_import_post_comments', 'blueprint_wxr_filter_post_comments', 10);
+		unset($GLOBALS['blueprint_wxr_url_map']);
+		unset($GLOBALS['blueprint_wxr_import_comments']);
+		unset($GLOBALS['blueprint_wxr_imported_author_ids']);
+		unset($GLOBALS['wpcli_import_current_file']);
+	}
 	`,
 		env: {
 			IMPORT_FILE: '/tmp/import.wxr',

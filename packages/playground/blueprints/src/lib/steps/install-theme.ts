@@ -102,12 +102,12 @@ export const installTheme: StepHandler<
 	}
 
 	const onError = options.onError ?? 'throw';
+	let assetNiceName = '';
+	const progressName = () => options.humanReadableName || assetNiceName;
 	try {
 		const targetFolderName =
 			'targetFolderName' in options ? options.targetFolderName : '';
 		let assetFolderName = '';
-		let assetNiceName = '';
-		const progressName = () => options.humanReadableName || assetNiceName;
 		if (themeData instanceof File) {
 			// @TODO: Consider validating whether this is a zip file?
 			const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
@@ -187,8 +187,9 @@ export const installTheme: StepHandler<
 		}
 	} catch (error) {
 		if (onError === 'skip-theme') {
+			const skippedThemeName = progressName() || 'unknown theme';
 			logger.warn(
-				`Skipping theme installation after failure: ${
+				`Skipping theme installation for ${skippedThemeName} after failure: ${
 					error instanceof Error ? error.message : String(error)
 				}`
 			);

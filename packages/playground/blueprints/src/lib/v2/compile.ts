@@ -1,5 +1,10 @@
 import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
+import {
+	basename as pathBasename,
+	isGitRepoUrl,
+	joinPaths,
+} from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	compileBlueprintV1,
@@ -50,6 +55,10 @@ type UpgradedV1RuntimeConfiguration = Partial<
 	Pick<RuntimeConfiguration, 'extraLibraries' | 'intl'>
 >;
 
+// V1 migrations carry compatibility-only metadata that must not become public
+// Blueprint v2 JSON. Any clone of a migrated declaration must copy these
+// symbols before validation/lowering so v1 runtime flags and absolute paths
+// keep their original behavior.
 const upgradedV1RuntimeConfiguration = Symbol('upgradedV1RuntimeConfiguration');
 const upgradedV1Declaration = Symbol('upgradedV1Declaration');
 
@@ -1233,58 +1242,63 @@ if (!function_exists('wp_get_font_dir') || !post_type_exists('wp_font_family') |
 	throw new Exception('Blueprint fonts require WordPress 6.5 or newer.');
 }
 
-$font_dir = wp_get_font_dir();
-if (!empty($font_dir['error'])) {
-	throw new Exception($font_dir['error']);
-}
-if (!wp_mkdir_p($font_dir['basedir'])) {
-	throw new Exception('Could not create font directory: ' . $font_dir['basedir']);
-}
-
-$registered_collections = array();
-foreach ($collections as $collection) {
-	if (!is_array($collection) || empty($collection['slug']) || !is_string($collection['slug'])) {
-		throw new Exception('Each Blueprint font collection must have a slug.');
+$blueprint_temp_files = blueprint_font_temp_files($files);
+try {
+	$font_dir = wp_get_font_dir();
+	if (!empty($font_dir['error'])) {
+		throw new Exception($font_dir['error']);
+	}
+	if (!wp_mkdir_p($font_dir['basedir'])) {
+		throw new Exception('Could not create font directory: ' . $font_dir['basedir']);
 	}
 
-	$slug = sanitize_title($collection['slug']);
-	$families = isset($collection['font_families']) && is_array($collection['font_families'])
-		? $collection['font_families']
-		: array();
-
-	foreach ($families as $family_index => $family) {
-		if (!is_array($family) || !isset($family['font_family_settings']) || !is_array($family['font_family_settings'])) {
-			throw new Exception('Each Blueprint font family must include font_family_settings.');
+	$registered_collections = array();
+	foreach ($collections as $collection) {
+		if (!is_array($collection) || empty($collection['slug']) || !is_string($collection['slug'])) {
+			throw new Exception('Each Blueprint font collection must have a slug.');
 		}
 
-		$settings = $family['font_family_settings'];
-		$family_id = blueprint_upsert_font_family($settings);
-		if (!empty($settings['fontFace']) && is_array($settings['fontFace'])) {
-			foreach ($settings['fontFace'] as $face_index => $face) {
-				if (!is_array($face)) {
-					throw new Exception('Each Blueprint fontFace entry must be an object.');
-				}
-				$prepared_face = blueprint_prepare_font_face($face, $files, $font_dir);
-				blueprint_upsert_font_face($family_id, $prepared_face['settings'], $prepared_face['files']);
-				$settings['fontFace'][$face_index] = $prepared_face['settings'];
+		$slug = sanitize_title($collection['slug']);
+		$families = isset($collection['font_families']) && is_array($collection['font_families'])
+			? $collection['font_families']
+			: array();
+
+		foreach ($families as $family_index => $family) {
+			if (!is_array($family) || !isset($family['font_family_settings']) || !is_array($family['font_family_settings'])) {
+				throw new Exception('Each Blueprint font family must include font_family_settings.');
 			}
+
+			$settings = $family['font_family_settings'];
+			$family_id = blueprint_upsert_font_family($settings);
+			if (!empty($settings['fontFace']) && is_array($settings['fontFace'])) {
+				foreach ($settings['fontFace'] as $face_index => $face) {
+					if (!is_array($face)) {
+						throw new Exception('Each Blueprint fontFace entry must be an object.');
+					}
+					$prepared_face = blueprint_prepare_font_face($face, $files, $font_dir);
+					blueprint_upsert_font_face($family_id, $prepared_face['settings'], $prepared_face['files']);
+					$settings['fontFace'][$face_index] = $prepared_face['settings'];
+				}
+			}
+			$families[$family_index]['font_family_settings'] = $settings;
 		}
-		$families[$family_index]['font_family_settings'] = $settings;
+
+		$collection_args = array(
+			'name' => $collection['name'] ?? blueprint_humanize_slug($slug),
+			'font_families' => $families,
+		);
+		$categories = blueprint_collect_font_categories($families);
+		if (!empty($categories)) {
+			$collection_args['categories'] = $categories;
+		}
+		$registered_collections[$slug] = $collection_args;
+		blueprint_register_font_collection($slug, $collection_args);
 	}
 
-	$collection_args = array(
-		'name' => $collection['name'] ?? blueprint_humanize_slug($slug),
-		'font_families' => $families,
-	);
-	$categories = blueprint_collect_font_categories($families);
-	if (!empty($categories)) {
-		$collection_args['categories'] = $categories;
-	}
-	$registered_collections[$slug] = $collection_args;
-	blueprint_register_font_collection($slug, $collection_args);
+	blueprint_write_font_collections_mu_plugin($registered_collections);
+} finally {
+	blueprint_cleanup_font_temp_files($blueprint_temp_files);
 }
-
-blueprint_write_font_collections_mu_plugin($registered_collections);
 
 function blueprint_upsert_font_family(array $settings): int {
 	foreach (array('name', 'slug', 'fontFamily') as $field) {
@@ -1471,6 +1485,24 @@ function blueprint_write_font_collections_mu_plugin(array $collections): void {
 function blueprint_humanize_slug(string $slug): string {
 	return ucwords(str_replace(array('-', '_'), ' ', $slug));
 }
+
+function blueprint_font_temp_files(array $files): array {
+	$paths = array();
+	foreach ($files as $file) {
+		if (is_array($file) && !empty($file['path']) && is_string($file['path'])) {
+			$paths[] = $file['path'];
+		}
+	}
+	return $paths;
+}
+
+function blueprint_cleanup_font_temp_files(array $paths): void {
+	foreach (array_unique($paths) as $path) {
+		if (is_string($path) && file_exists($path)) {
+			@unlink($path);
+		}
+	}
+}
 `;
 
 const IMPORT_POSTS_PHP = `<?php
@@ -1485,51 +1517,62 @@ if (!is_array($posts) || !is_array($post_files) || !is_array($urls_map)) {
 	throw new Exception('Invalid Blueprint posts payload.');
 }
 
+$blueprint_temp_files = array();
 foreach ($post_files as $file) {
-	$source_path = $file['path'] ?? '';
-	if (!$source_path || !is_readable($source_path)) {
-		throw new Exception('Post content source is not readable: ' . $source_path);
+	if (is_array($file) && !empty($file['path']) && is_string($file['path'])) {
+		$blueprint_temp_files[] = $file['path'];
 	}
-	$posts[] = array(
-		'post_title' => $file['post_title'] ?? 'Untitled Post',
-		'post_content' => file_get_contents($source_path),
-		'post_status' => 'publish',
-		'post_type' => $file['post_type'] ?? 'post',
-	);
 }
 
-$default_author = blueprint_default_post_author();
-wp_set_current_user($default_author);
-
-foreach ($posts as $post) {
-	if (!is_array($post)) {
-		throw new Exception('Each Blueprint post must be an object.');
+try {
+	foreach ($post_files as $file) {
+		$source_path = $file['path'] ?? '';
+		if (!$source_path || !is_readable($source_path)) {
+			throw new Exception('Post content source is not readable: ' . $source_path);
+		}
+		$posts[] = array(
+			'post_title' => $file['post_title'] ?? 'Untitled Post',
+			'post_content' => file_get_contents($source_path),
+			'post_status' => 'publish',
+			'post_type' => $file['post_type'] ?? 'post',
+		);
 	}
 
-	$post = blueprint_prepare_post($post, $default_author, $urls_mode, $urls_map);
-	$post_tags = $post['post_tags'] ?? null;
-	$page_template = $post['page_template'] ?? null;
-	$tax_input = $post['tax_input'] ?? null;
-	unset($post['post_tags'], $post['page_template'], $post['tax_input']);
+	$default_author = blueprint_default_post_author();
+	wp_set_current_user($default_author);
 
-	$post_id = wp_insert_post(wp_slash($post), true);
-	if (is_wp_error($post_id)) {
-		throw new Exception($post_id->get_error_message());
-	}
+	foreach ($posts as $post) {
+		if (!is_array($post)) {
+			throw new Exception('Each Blueprint post must be an object.');
+		}
 
-	if (is_array($post_tags)) {
-		blueprint_set_terms($post_id, 'post_tag', $post_tags);
-	}
-	if (is_array($tax_input)) {
-		foreach ($tax_input as $taxonomy => $terms) {
-			if (taxonomy_exists($taxonomy) && is_array($terms)) {
-				blueprint_set_terms($post_id, $taxonomy, $terms);
+		$post = blueprint_prepare_post($post, $default_author, $urls_mode, $urls_map);
+		$post_tags = $post['post_tags'] ?? null;
+		$page_template = $post['page_template'] ?? null;
+		$tax_input = $post['tax_input'] ?? null;
+		unset($post['post_tags'], $post['page_template'], $post['tax_input']);
+
+		$post_id = wp_insert_post(wp_slash($post), true);
+		if (is_wp_error($post_id)) {
+			throw new Exception($post_id->get_error_message());
+		}
+
+		if (is_array($post_tags)) {
+			blueprint_set_terms($post_id, 'post_tag', $post_tags);
+		}
+		if (is_array($tax_input)) {
+			foreach ($tax_input as $taxonomy => $terms) {
+				if (taxonomy_exists($taxonomy) && is_array($terms)) {
+					blueprint_set_terms($post_id, $taxonomy, $terms);
+				}
 			}
 		}
+		if ($page_template && ($post['post_type'] ?? 'post') === 'page') {
+			update_post_meta($post_id, '_wp_page_template', $page_template);
+		}
 	}
-	if ($page_template && ($post['post_type'] ?? 'post') === 'page') {
-		update_post_meta($post_id, '_wp_page_template', $page_template);
-	}
+} finally {
+	blueprint_cleanup_post_temp_files($blueprint_temp_files);
 }
 
 function blueprint_prepare_post(array $post, int $default_author, string $urls_mode, array $urls_map): array {
@@ -1668,8 +1711,17 @@ function blueprint_rewrite_urls($value, string $urls_mode, array $urls_map) {
 		foreach ($value as $key => $item) {
 			$value[$key] = blueprint_rewrite_urls($item, $urls_mode, $urls_map);
 		}
+		return $value;
 	}
 	return $value;
+}
+
+function blueprint_cleanup_post_temp_files(array $paths): void {
+	foreach (array_unique($paths) as $path) {
+		if (is_string($path) && file_exists($path)) {
+			@unlink($path);
+		}
+	}
 }
 `;
 
@@ -1683,47 +1735,66 @@ if (!is_array($media_items)) {
 	throw new Exception('Invalid BLUEPRINT_MEDIA payload.');
 }
 
+$blueprint_temp_files = array();
 foreach ($media_items as $item) {
-	$source_path = $item['path'] ?? '';
-	if (!$source_path || !is_readable($source_path)) {
-		throw new Exception('Media source is not readable: ' . $source_path);
+	if (is_array($item) && !empty($item['path']) && is_string($item['path'])) {
+		$blueprint_temp_files[] = $item['path'];
 	}
+}
 
-	$uploads = wp_upload_dir();
-	if (!empty($uploads['error'])) {
-		throw new Exception($uploads['error']);
-	}
-	if (!wp_mkdir_p($uploads['path'])) {
-		throw new Exception('Could not create uploads directory: ' . $uploads['path']);
-	}
+try {
+	foreach ($media_items as $item) {
+		$source_path = $item['path'] ?? '';
+		if (!$source_path || !is_readable($source_path)) {
+			throw new Exception('Media source is not readable: ' . $source_path);
+		}
 
-	$filename = wp_unique_filename($uploads['path'], basename($item['filename'] ?? $source_path));
-	$target_path = trailingslashit($uploads['path']) . $filename;
-	if (!copy($source_path, $target_path)) {
-		throw new Exception('Could not copy media file to uploads directory.');
-	}
+		$uploads = wp_upload_dir();
+		if (!empty($uploads['error'])) {
+			throw new Exception($uploads['error']);
+		}
+		if (!wp_mkdir_p($uploads['path'])) {
+			throw new Exception('Could not create uploads directory: ' . $uploads['path']);
+		}
 
-	$filetype = wp_check_filetype($filename, null);
-	$attachment = array(
-		'guid' => trailingslashit($uploads['url']) . $filename,
-		'post_mime_type' => $filetype['type'] ?: 'application/octet-stream',
-		'post_title' => $item['title'] ?? preg_replace('/\\.[^.]+$/', '', $filename),
-		'post_content' => $item['description'] ?? '',
-		'post_excerpt' => $item['caption'] ?? '',
-		'post_status' => 'inherit',
-	);
+		$filename = wp_unique_filename($uploads['path'], basename($item['filename'] ?? $source_path));
+		$target_path = trailingslashit($uploads['path']) . $filename;
+		if (!copy($source_path, $target_path)) {
+			throw new Exception('Could not copy media file to uploads directory.');
+		}
 
-	$attachment_id = wp_insert_attachment($attachment, $target_path, 0, true);
-	if (is_wp_error($attachment_id)) {
-		throw new Exception($attachment_id->get_error_message());
-	}
+		$filetype = wp_check_filetype($filename, null);
+		$attachment = array(
+			'guid' => trailingslashit($uploads['url']) . $filename,
+			'post_mime_type' => $filetype['type'] ?: 'application/octet-stream',
+			'post_title' => $item['title'] ?? preg_replace('/\\.[^.]+$/', '', $filename),
+			'post_content' => $item['description'] ?? '',
+			'post_excerpt' => $item['caption'] ?? '',
+			'post_status' => 'inherit',
+		);
 
-	$metadata = wp_generate_attachment_metadata($attachment_id, $target_path);
-	if (!is_wp_error($metadata) && !empty($metadata)) {
-		wp_update_attachment_metadata($attachment_id, $metadata);
+		$attachment_id = wp_insert_attachment($attachment, $target_path, 0, true);
+		if (is_wp_error($attachment_id)) {
+			throw new Exception($attachment_id->get_error_message());
+		}
+
+		$metadata = wp_generate_attachment_metadata($attachment_id, $target_path);
+		if (!is_wp_error($metadata) && !empty($metadata)) {
+			wp_update_attachment_metadata($attachment_id, $metadata);
+		}
+		if (array_key_exists('alt', $item)) {
+			update_post_meta($attachment_id, '_wp_attachment_image_alt', $item['alt']);
+		}
 	}
-	if (array_key_exists('alt', $item)) {
-		update_post_meta($attachment_id, '_wp_attachment_image_alt', $item['alt']);
+} finally {
+	blueprint_cleanup_media_temp_files($blueprint_temp_files);
+}
+
+function blueprint_cleanup_media_temp_files(array $paths): void {
+	foreach (array_unique($paths) as $path) {
+		if (is_string($path) && file_exists($path)) {
+			@unlink($path);
+		}
 	}
 }
 `;
@@ -2204,7 +2275,7 @@ foreach ($meta as $name => $value) {
 						[path]:
 							typeof step['data'] === 'string'
 								? {
-										filename: basename(path),
+										filename: basenameFromUrlOrPath(path),
 										content: step['data'],
 									}
 								: convertV1ResourceToV2Reference(step['data']),
@@ -2245,7 +2316,7 @@ foreach ($meta as $name => $value) {
 				files[`${basePath}/${path}`] =
 					typeof data === 'string'
 						? {
-								filename: basename(path),
+								filename: basenameFromUrlOrPath(path),
 								content: data,
 							}
 						: convertV1ResourceToV2Reference(data);
@@ -4064,6 +4135,13 @@ function resolveV2PHPVersion(
 			'/phpVersion: must be a string or version constraint object'
 		);
 	}
+	for (const key of Object.keys(version)) {
+		if (!['min', 'max', 'recommended'].includes(key)) {
+			throw new InvalidBlueprintV2Error(
+				`/phpVersion: has unexpected property "${key}"`
+			);
+		}
+	}
 	const min = version.min
 		? normalizeSupportedPHPVersionConstraint(version.min, '/phpVersion/min')
 		: undefined;
@@ -4399,6 +4477,9 @@ function blueprintRequiresWpCli(blueprint: BlueprintV2Declaration) {
 	return steps.some((step: any) => step?.step === 'wp-cli');
 }
 
+// Public v2 paths are site-relative unless prefixed with `site:`. Migrated v1
+// blueprints may still target `/tmp` or other absolute VFS paths, so the
+// internal marker preserves that intent without accepting it from public v2 JSON.
 const V1_ABSOLUTE_PATH_PREFIX = 'v1-absolute:';
 
 function toPlaygroundPath(path: string, allowV1AbsolutePaths = false): string {
@@ -4425,12 +4506,12 @@ function toPlaygroundPath(path: string, allowV1AbsolutePaths = false): string {
 		);
 	}
 	if (path.startsWith('site:')) {
-		return joinPath('/wordpress', path.slice('site:'.length));
+		return joinPaths('/wordpress', path.slice('site:'.length));
 	}
 	if (path === '/wordpress' || path.startsWith('/wordpress/')) {
 		return path;
 	}
-	return joinPath('/wordpress', path);
+	return joinPaths('/wordpress', path);
 }
 
 function migrateV1Path(path: string): string {
@@ -4456,20 +4537,6 @@ function isHttpUrl(value: string) {
 	} catch {
 		return false;
 	}
-}
-
-function isGitRepoUrl(url: string): boolean {
-	const normalizedUrl = url.trim().replace(/\/+$/, '');
-	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
-		return true;
-	}
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
-		return true;
-	}
-	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)) {
-		return true;
-	}
-	return false;
 }
 
 function isDirectorySlug(value: string) {
@@ -4617,12 +4684,12 @@ function getMuPluginTargetPath(reference: V2DataReference, index: number) {
 		return `/wordpress/wp-content/mu-plugins/${reference.directoryName}`;
 	}
 	if (typeof reference === 'string') {
-		return `/wordpress/wp-content/mu-plugins/${basename(reference)}`;
+		return `/wordpress/wp-content/mu-plugins/${basenameFromUrlOrPath(reference)}`;
 	}
 	return `/wordpress/wp-content/mu-plugins/blueprint-mu-plugin-${index}.php`;
 }
 
-function basename(path: string) {
+function basenameFromUrlOrPath(path: string) {
 	try {
 		const parsed = new URL(path);
 		path = parsed.pathname;
@@ -4630,7 +4697,7 @@ function basename(path: string) {
 		// Not a URL.
 	}
 	const trimmed = path.replace(/\/+$/, '');
-	return trimmed.split('/').pop() || 'file';
+	return pathBasename(trimmed) || 'file';
 }
 
 function getDataReferenceBasename(
@@ -4638,16 +4705,16 @@ function getDataReferenceBasename(
 	fallback: string
 ) {
 	if (typeof reference === 'string') {
-		return basename(reference);
+		return basenameFromUrlOrPath(reference);
 	}
 	if (isInlineFile(reference)) {
-		return basename(reference.filename);
+		return basenameFromUrlOrPath(reference.filename);
 	}
 	if (isInlineDirectory(reference)) {
-		return basename(reference.directoryName || fallback);
+		return basenameFromUrlOrPath(reference.directoryName || fallback);
 	}
 	if (isGitPath(reference)) {
-		return basename(
+		return basenameFromUrlOrPath(
 			reference.pathInRepository || reference.path || fallback
 		);
 	}
@@ -4662,10 +4729,6 @@ function sanitizePathForTempFile(path: string) {
 
 function sanitizeFilenameForTempPath(filename: string) {
 	return filename.replace(/[^a-zA-Z0-9._-]+/g, '-') || 'file';
-}
-
-function joinPath(root: string, path: string) {
-	return `${root.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
 }
 
 function escapeJsonPointer(pathSegment: string) {

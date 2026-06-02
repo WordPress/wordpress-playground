@@ -1462,6 +1462,23 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				},
 			],
 		});
+
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				phpVersion: {
+					minimum: '8.2',
+				},
+			})
+		).toEqual({
+			valid: false,
+			errors: [
+				{
+					path: '/phpVersion',
+					message: 'has unexpected property "minimum"',
+				},
+			],
+		});
 	});
 
 	it('resolves runtime configuration from v2 declarations', () => {
@@ -2211,6 +2228,16 @@ describe('Blueprint v2 TypeScript compiler', () => {
 			},
 		]);
 		expect(plan[1].options.code).toContain('wp_insert_attachment');
+		expect(plan[1].options.code).toContain(
+			"$blueprint_temp_files[] = $item['path'];"
+		);
+		expect(
+			plan[1].options.code.indexOf(
+				"$blueprint_temp_files[] = $item['path'];"
+			)
+		).toBeLessThan(
+			plan[1].options.code.indexOf('Media source is not readable')
+		);
 		expect(plan[2]).toMatchObject({
 			path: '/tmp/blueprint-media-additionalStepsAfterExecution-0-media-0-brochure.pdf',
 			data: {
@@ -2534,6 +2561,16 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		expect(plan[1].options.code).toContain('blueprint_default_post_author');
 		expect(plan[1].options.code).toContain('wp_set_object_terms');
 		expect(plan[1].options.code).toContain('post_parent_name');
+		expect(plan[1].options.code).toContain(
+			"$blueprint_temp_files[] = $file['path'];"
+		);
+		expect(
+			plan[1].options.code.indexOf(
+				"$blueprint_temp_files[] = $file['path'];"
+			)
+		).toBeLessThan(
+			plan[1].options.code.indexOf('Post content source is not readable')
+		);
 		expect(JSON.parse(plan[2].options.env.BLUEPRINT_POSTS)).toEqual([
 			{
 				post_title: 'After import',
@@ -2716,6 +2753,12 @@ describe('Blueprint v2 TypeScript compiler', () => {
 									post_tags: ['featured'],
 									meta_input: {
 										source_url: 'https://old.example/meta',
+										rating: 5,
+										settings: {
+											endpoint: 'https://old.example/api',
+											count: 7,
+											enabled: true,
+										},
 									},
 								},
 								{
@@ -2734,22 +2777,28 @@ describe('Blueprint v2 TypeScript compiler', () => {
 
 			const response = await php.run({
 				code: `<?php
-require '/wordpress/wp-load.php';
-$child = get_posts(array('post_type' => 'page', 'title' => 'Child Page', 'numberposts' => 1))[0];
-$parent = get_post($child->post_parent);
-$post = get_posts(array('post_type' => 'post', 'title' => 'Regular Post', 'numberposts' => 1))[0];
-$file_post = get_posts(array('post_type' => 'post', 'title' => 'Test Post', 'numberposts' => 1))[0];
-echo json_encode(array(
-	'child_parent' => $parent->post_title,
-	'child_template' => get_post_meta($child->ID, '_wp_page_template', true),
-	'post_content' => $post->post_content,
-	'post_author' => get_user_by('ID', $post->post_author)->user_login,
-	'post_meta' => get_post_meta($post->ID, 'source_url', true),
-	'categories' => wp_get_post_terms($post->ID, 'category', array('fields' => 'names')),
-	'tags' => wp_get_post_terms($post->ID, 'post_tag', array('fields' => 'names')),
-	'file_post_content' => $file_post->post_content,
-));
-`,
+	require '/wordpress/wp-load.php';
+	$child = get_posts(array('post_type' => 'page', 'title' => 'Child Page', 'numberposts' => 1))[0];
+	$parent = get_post($child->post_parent);
+	$post = get_posts(array('post_type' => 'post', 'title' => 'Regular Post', 'numberposts' => 1))[0];
+	$file_post = get_posts(array('post_type' => 'post', 'title' => 'Test Post', 'numberposts' => 1))[0];
+	$settings = get_post_meta($post->ID, 'settings', true);
+	echo json_encode(array(
+		'child_parent' => $parent->post_title,
+		'child_template' => get_post_meta($child->ID, '_wp_page_template', true),
+		'post_content' => $post->post_content,
+		'post_author' => get_user_by('ID', $post->post_author)->user_login,
+		'post_meta' => get_post_meta($post->ID, 'source_url', true),
+		'post_rating' => (int) get_post_meta($post->ID, 'rating', true),
+		'settings_endpoint' => $settings['endpoint'] ?? null,
+		'settings_count' => $settings['count'] ?? null,
+		'settings_enabled' => $settings['enabled'] ?? null,
+			'categories' => wp_get_post_terms($post->ID, 'category', array('fields' => 'names')),
+			'tags' => wp_get_post_terms($post->ID, 'post_tag', array('fields' => 'names')),
+			'file_post_content' => $file_post->post_content,
+		'staged_file_exists' => file_exists('/tmp/blueprint-post-content-content-0-source-3-file-post.html'),
+	));
+	`,
 			});
 
 			expect(JSON.parse(response.text)).toEqual({
@@ -2758,9 +2807,14 @@ echo json_encode(array(
 				post_content: 'https://new.example/content',
 				post_author: 'admin',
 				post_meta: 'https://new.example/meta',
+				post_rating: 5,
+				settings_endpoint: 'https://new.example/api',
+				settings_count: 7,
+				settings_enabled: true,
 				categories: ['news'],
 				tags: ['featured'],
 				file_post_content: 'File post content',
+				staged_file_exists: false,
 			});
 		} finally {
 			php.exit();
@@ -2813,10 +2867,11 @@ echo json_encode(array(
 	'caption' => $attachment->post_excerpt,
 	'description' => $attachment->post_content,
 	'alt' => get_post_meta($attachment->ID, '_wp_attachment_image_alt', true),
-	'file_exists' => file_exists($attached_file),
-	'file_contents' => file_get_contents($attached_file),
-));
-`,
+		'file_exists' => file_exists($attached_file),
+		'file_contents' => file_get_contents($attached_file),
+		'staged_file_exists' => file_exists('/tmp/blueprint-media-media-0-sample.txt'),
+	));
+	`,
 			});
 
 			expect(JSON.parse(response.text)).toEqual({
@@ -2826,6 +2881,7 @@ echo json_encode(array(
 				alt: 'Sample alt',
 				file_exists: true,
 				file_contents: 'Sample media content',
+				staged_file_exists: false,
 			});
 		} finally {
 			php.exit();
@@ -2879,11 +2935,12 @@ echo json_encode(array(
 	'family_title' => $family->post_title,
 	'family_settings' => json_decode($family->post_content, true),
 	'face_src' => $settings['src'],
-	'font_file' => $font_file,
-	'font_file_exists' => file_exists(trailingslashit($font_dir['basedir']) . $font_file),
-	'collection_plugin_exists' => file_exists(WP_CONTENT_DIR . '/mu-plugins/blueprint-font-collections.php'),
-));
-`,
+		'font_file' => $font_file,
+		'font_file_exists' => file_exists(trailingslashit($font_dir['basedir']) . $font_file),
+		'collection_plugin_exists' => file_exists(WP_CONTENT_DIR . '/mu-plugins/blueprint-font-collections.php'),
+		'staged_file_exists' => file_exists('/tmp/blueprint-font-fonts-open-sans-source-open-sans.woff2'),
+	));
+	`,
 			});
 
 			const result = JSON.parse(response.text);
@@ -2900,6 +2957,7 @@ echo json_encode(array(
 				font_file: 'open-sans.woff2',
 				font_file_exists: true,
 				collection_plugin_exists: true,
+				staged_file_exists: false,
 			});
 			expect(result.face_src).toContain(
 				'/wp-content/uploads/fonts/open-sans.woff2'

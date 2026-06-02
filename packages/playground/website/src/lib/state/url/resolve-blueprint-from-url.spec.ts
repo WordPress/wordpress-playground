@@ -69,6 +69,52 @@ describe('resolveBlueprintFromURL', () => {
 		});
 	});
 
+	it('converts v1 Query API Git plugin URLs into git directory resources', async () => {
+		const result = await resolveBlueprintFromURL(
+			new URL(
+				'https://playground.test/?plugin=https://github.com/example/plugin'
+			)
+		);
+
+		expect(result.blueprint).toMatchObject({
+			steps: [
+				{
+					step: 'installPlugin',
+					pluginData: {
+						resource: 'zip',
+						inner: {
+							resource: 'git:directory',
+							url: 'https://github.com/example/plugin',
+							ref: 'HEAD',
+						},
+					},
+				},
+			],
+		});
+	});
+
+	it('keeps v1 Query API GitLab subroute plugin URLs as downloadable URLs', async () => {
+		const pluginUrl =
+			'https://gitlab.com/example/plugin/-/archive/main/plugin-main.zip';
+		const result = await resolveBlueprintFromURL(
+			new URL(
+				`https://playground.test/?plugin=${encodeURIComponent(pluginUrl)}`
+			)
+		);
+
+		expect(result.blueprint).toMatchObject({
+			steps: [
+				{
+					step: 'installPlugin',
+					pluginData: {
+						resource: 'url',
+						url: pluginUrl,
+					},
+				},
+			],
+		});
+	});
+
 	it('allows query API theme installs to fail without skipping later themes', async () => {
 		const result = await resolveBlueprintFromURL(
 			new URL(
@@ -400,6 +446,37 @@ describe('resolveBlueprintFromURL', () => {
 		});
 	});
 
+	it('applies core PR previews to Blueprint v1 declarations', async () => {
+		const result = await applyQueryOverrides(
+			{},
+			new URLSearchParams('core-pr=12345')
+		);
+
+		expect(result).toMatchObject({
+			preferredVersions: {
+				wp: 'https://playground.test/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-12345&pr=12345',
+			},
+		});
+	});
+
+	it('rejects malformed core PR preview values', async () => {
+		await expect(
+			applyQueryOverrides(
+				{ version: 2 },
+				new URLSearchParams('core-pr=12345%26repo=other')
+			)
+		).rejects.toThrow(/core-pr/);
+	});
+
+	it('rejects malformed core PR preview values for Blueprint v1 declarations', async () => {
+		await expect(
+			applyQueryOverrides(
+				{},
+				new URLSearchParams('core-pr=12345%26repo=other')
+			)
+		).rejects.toThrow(/core-pr/);
+	});
+
 	it('applies Gutenberg Query API previews to Blueprint v2 declarations', async () => {
 		const result = await applyQueryOverrides(
 			{
@@ -445,5 +522,19 @@ describe('resolveBlueprintFromURL', () => {
 		expect(
 			(result as any).additionalStepsAfterExecution[0].code.content
 		).toContain('&pr=73010');
+		expect(
+			(result as any).additionalStepsAfterExecution[0].code.content
+		).toContain('finally');
+		const installerCode = (result as any).additionalStepsAfterExecution[0]
+			.code.content;
+		expect(installerCode).toContain('function blueprint_delete_directory');
+		expect(
+			installerCode.indexOf('function blueprint_delete_directory')
+		).toBeLessThan(
+			installerCode.indexOf('blueprint_delete_directory($workdir)')
+		);
+		expect(
+			(result as any).additionalStepsAfterExecution[0].code.content
+		).toContain('blueprint_delete_directory($workdir)');
 	});
 });

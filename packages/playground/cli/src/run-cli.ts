@@ -1036,70 +1036,6 @@ export interface RunCLIServer extends AsyncDisposable {
 // Re-export merge functions from defines.ts
 export { mergeDefinedConstants } from './defines';
 
-type BlueprintV2ArgOrigins = {
-	mode: boolean;
-	wordpressInstallMode: boolean;
-	skipSqliteSetup: boolean;
-	autoMount: boolean;
-};
-
-function getBlueprintV2ArgOrigins(args: RunCLIArgs): BlueprintV2ArgOrigins {
-	const autoMountEnabled = args.autoMount !== false;
-	return {
-		mode: args.cliProvidedOptions?.mode ?? args.mode !== undefined,
-		wordpressInstallMode:
-			args.cliProvidedOptions?.wordpressInstallMode ??
-			args.wordpressInstallMode !== undefined,
-		skipSqliteSetup:
-			args.cliProvidedOptions?.skipSqliteSetup ??
-			args.skipSqliteSetup === true,
-		autoMount:
-			args.cliProvidedOptions?.autoMount !== undefined
-				? args.cliProvidedOptions.autoMount && autoMountEnabled
-				: args.autoMount !== undefined && autoMountEnabled,
-	};
-}
-
-async function shouldUseBlueprintsV2Handler(
-	args: RunCLIArgs,
-	argOrigins: BlueprintV2ArgOrigins
-) {
-	if (args['experimental-blueprints-v2-runner']) {
-		return true;
-	}
-	if (argOrigins.mode) {
-		return true;
-	}
-	if (!args.blueprint) {
-		return false;
-	}
-	const reflection = await BlueprintReflection.create(args.blueprint);
-	return reflection.getVersion() === 2;
-}
-
-function validateAndNormalizeBlueprintsV2Args(
-	args: RunCLIArgs,
-	argOrigins: BlueprintV2ArgOrigins
-) {
-	if (argOrigins.mode) {
-		if (argOrigins.wordpressInstallMode) {
-			throw new Error(
-				'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
-			);
-		}
-		if (argOrigins.autoMount) {
-			throw new Error(
-				'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
-			);
-		}
-		return;
-	}
-
-	if (args.wordpressInstallMode === 'do-not-attempt-installing') {
-		args.mode = 'mount-only';
-	}
-}
-
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' | 'php' }
 ): Promise<void>;
@@ -1933,6 +1869,78 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		openInBrowser(server.serverUrl);
 	}
 	return server;
+}
+
+type BlueprintV2ArgOrigins = {
+	mode: boolean;
+	wordpressInstallMode: boolean;
+	skipSqliteSetup: boolean;
+	autoMount: boolean;
+};
+
+/**
+ * Returns which Blueprint v2 mode-affecting options came from user intent.
+ *
+ * Yargs defaults and the `start` command expansion populate several fields
+ * even when the user did not pass their flags. The v2 handler must distinguish
+ * those defaults from explicit flags before rejecting conflicts or selecting
+ * mount-only/create-new-site behavior.
+ */
+function getBlueprintV2ArgOrigins(args: RunCLIArgs): BlueprintV2ArgOrigins {
+	const autoMountEnabled = args.autoMount !== false;
+	return {
+		mode: args.cliProvidedOptions?.mode ?? args.mode !== undefined,
+		wordpressInstallMode:
+			args.cliProvidedOptions?.wordpressInstallMode ??
+			args.wordpressInstallMode !== undefined,
+		skipSqliteSetup:
+			args.cliProvidedOptions?.skipSqliteSetup ??
+			args.skipSqliteSetup === true,
+		autoMount:
+			args.cliProvidedOptions?.autoMount !== undefined
+				? args.cliProvidedOptions.autoMount && autoMountEnabled
+				: args.autoMount !== undefined && autoMountEnabled,
+	};
+}
+
+async function shouldUseBlueprintsV2Handler(
+	args: RunCLIArgs,
+	argOrigins: BlueprintV2ArgOrigins
+) {
+	if (args['experimental-blueprints-v2-runner']) {
+		return true;
+	}
+	if (argOrigins.mode) {
+		return true;
+	}
+	if (!args.blueprint) {
+		return false;
+	}
+	const reflection = await BlueprintReflection.create(args.blueprint);
+	return reflection.getVersion() === 2;
+}
+
+function validateAndNormalizeBlueprintsV2Args(
+	args: RunCLIArgs,
+	argOrigins: BlueprintV2ArgOrigins
+) {
+	if (argOrigins.mode) {
+		if (argOrigins.wordpressInstallMode) {
+			throw new Error(
+				'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
+			);
+		}
+		if (argOrigins.autoMount) {
+			throw new Error(
+				'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+			);
+		}
+		return;
+	}
+
+	if (args.wordpressInstallMode === 'do-not-attempt-installing') {
+		args.mode = 'mount-only';
+	}
 }
 
 /**

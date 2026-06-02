@@ -133,6 +133,27 @@ describe('Blueprint step importWxr', () => {
 		return result.json;
 	};
 
+	const inspectWxrCleanupState = async () => {
+		const result = await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode([
+				'data_filter' => has_filter('wp_import_post_data_processed', 'blueprint_wxr_rewrite_post_data'),
+				'meta_filter' => has_filter('wp_import_post_meta', 'blueprint_wxr_rewrite_post_meta'),
+				'comments_filter' => has_filter('wp_import_post_comments', 'blueprint_wxr_filter_post_comments'),
+				'url_map_global' => array_key_exists('blueprint_wxr_url_map', $GLOBALS),
+				'comments_global' => array_key_exists('blueprint_wxr_import_comments', $GLOBALS),
+				'authors_global' => array_key_exists('blueprint_wxr_imported_author_ids', $GLOBALS),
+				'current_file_global' => array_key_exists('wpcli_import_current_file', $GLOBALS),
+			]);
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+			},
+		});
+		return result.json;
+	};
+
 	const checkTemplateImportResults = async () => {
 		return await php.run({
 			code: `<?php
@@ -421,17 +442,27 @@ describe('Blueprint step importWxr', () => {
 			const imported = await inspectImportedPost('mapped-import-post');
 			const remoteUserExists = await php.run({
 				code: `<?php
-			require getenv('DOCROOT') . '/wp-load.php';
-			echo json_encode((bool) username_exists('remote_mapped_author'));
+				require getenv('DOCROOT') . '/wp-load.php';
+				echo json_encode((bool) username_exists('remote_mapped_author'));
 			`,
 				env: {
 					DOCROOT: handler.documentRoot,
 				},
 			});
+			const cleanupState = await inspectWxrCleanupState();
 
 			expect(imported.post_found).toBe(true);
 			expect(imported.author_login).toBe('mapped_user');
 			expect(remoteUserExists.json).toBe(false);
+			expect(cleanupState).toEqual({
+				data_filter: false,
+				meta_filter: false,
+				comments_filter: false,
+				url_map_global: false,
+				comments_global: false,
+				authors_global: false,
+				current_file_global: false,
+			});
 			expect(imported.blogname).toBe('Mapped Import Site');
 			expect(imported.post_content).toContain('https://new.example/page');
 			expect(imported.source_url).toBe('https://new.example/meta');
@@ -673,6 +704,43 @@ describe('Blueprint step importWxr', () => {
 			const postTitles = json.post_authors.map((p: any) => p.post_title);
 			expect(postTitles).toContain('Comprehensive Post');
 			expect(postTitles).toContain('Comprehensive Page');
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should clean WXR filters and globals when the importer fails',
+		async () => {
+			const file = new File(
+				[
+					createWxr({
+						siteTitle: 'Failed Import Site',
+						authorLogin: 'remote_failed_author',
+						authorEmail: 'remote-failed@example.com',
+						postTitle: 'Failed Import Post',
+						postSlug: 'failed-import-post',
+						postId: 777,
+					}),
+				],
+				'import.wxr'
+			);
+
+			await expect(
+				importWxr(php, {
+					file,
+					authorsMode: 'invalid-mode' as any,
+				})
+			).rejects.toThrow('Invalid WXR authors mode');
+
+			expect(await inspectWxrCleanupState()).toEqual({
+				data_filter: false,
+				meta_filter: false,
+				comments_filter: false,
+				url_map_global: false,
+				comments_global: false,
+				authors_global: false,
+				current_file_global: false,
+			});
 		},
 		{ timeout: 30_000 }
 	);

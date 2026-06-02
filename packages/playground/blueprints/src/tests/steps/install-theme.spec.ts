@@ -4,6 +4,7 @@ import { RecommendedPHPVersion } from '@wp-playground/common';
 import { installTheme } from '../../lib/steps/install-theme';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { logger } from '@php-wasm/logger';
 
 describe('Blueprint step installTheme', () => {
 	let zipFileName = '';
@@ -158,15 +159,49 @@ describe('Blueprint step installTheme', () => {
 	});
 
 	it('should skip installation errors when onError is skip-theme', async () => {
-		await installTheme(php, {
-			themeData: new File(['not a zip'], 'broken-theme.zip'),
-			ifAlreadyInstalled: 'overwrite',
-			options: {
-				onError: 'skip-theme',
-			},
-		});
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			await installTheme(php, {
+				themeData: new File(['not a zip'], 'broken-theme.zip'),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					onError: 'skip-theme',
+				},
+			});
 
-		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(false);
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Skipping theme installation for Broken theme after failure'
+				)
+			);
+			expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(false);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
+	});
+
+	it('should log fallback theme name when skipping unnamed installation errors', async () => {
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			await installTheme(php, {
+				themeData: undefined as any,
+				options: {
+					onError: 'skip-theme',
+				},
+			});
+
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Skipping theme installation for unknown theme after failure'
+				)
+			);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
 	});
 
 	describe('ifAlreadyInstalled option', () => {

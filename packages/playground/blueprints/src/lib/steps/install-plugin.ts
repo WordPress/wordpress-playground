@@ -123,6 +123,8 @@ export const installPlugin: StepHandler<
 	}
 
 	const onError = options.onError ?? 'throw';
+	let assetNiceName = '';
+	const progressName = () => options.humanReadableName || assetNiceName;
 	try {
 		const pluginsDirectoryPath = joinPaths(
 			await playground.documentRoot,
@@ -132,15 +134,15 @@ export const installPlugin: StepHandler<
 		const targetFolderName =
 			'targetFolderName' in options ? options.targetFolderName : '';
 		let assetFolderPath = '';
-		let assetNiceName = '';
-		const progressName = () => options.humanReadableName || assetNiceName;
 
 		const looksLikeZipFile = async (file: File): Promise<boolean> => {
 			if (file.name.toLowerCase().endsWith('.zip')) {
 				return true;
 			}
 
-			const filePrefix = new Uint8Array(await file.arrayBuffer(), 0, 4);
+			const filePrefix = new Uint8Array(
+				await file.slice(0, 4).arrayBuffer()
+			);
 			// Check against the signature for non-empty, non-spanned zip files.
 			const matchesZipSignature =
 				filePrefix[0] === 0x50 &&
@@ -152,8 +154,6 @@ export const installPlugin: StepHandler<
 
 		if (pluginData instanceof File) {
 			if (await looksLikeZipFile(pluginData)) {
-				// Assume any other file is a zip file
-				// @TODO: Consider validating whether this is a zip file?
 				const zipFileName =
 					pluginData.name.split('/').pop() || 'plugin.zip';
 				assetNiceName = zipNameToHumanName(zipFileName);
@@ -263,8 +263,9 @@ export const installPlugin: StepHandler<
 		}
 	} catch (error) {
 		if (onError === 'skip-plugin') {
+			const skippedPluginName = progressName() || 'unknown plugin';
 			logger.warn(
-				`Skipping plugin installation after failure: ${
+				`Skipping plugin installation for ${skippedPluginName} after failure: ${
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
@@ -274,6 +275,15 @@ export const installPlugin: StepHandler<
 	}
 };
 
+/**
+ * Stages activation options for a plugin before its activation hook runs.
+ *
+ * Activation happens in a separate PHP request, so options are written to a
+ * temporary WordPress option keyed by the plugin file. The PHP helper prints a
+ * sentinel-prefixed JSON payload because plugin bootstrap code may also write
+ * to stdout; callers must delete the option in a `finally` block after
+ * activation.
+ */
 async function setPluginActivationOptions(
 	playground: UniversalPHP,
 	pluginPath: string,

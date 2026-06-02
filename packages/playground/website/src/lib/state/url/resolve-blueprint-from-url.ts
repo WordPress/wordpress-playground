@@ -13,6 +13,8 @@ import {
 } from '@wp-playground/client';
 import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
+import { logger } from '@php-wasm/logger';
+import { isGitRepoUrl } from '@php-wasm/util';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
 import { GENERATED_GUTENBERG_INSTALLER_MARKER } from '../../gutenberg-preview';
@@ -218,16 +220,6 @@ function createPluginDataReference(plugin: string) {
 	};
 }
 
-function isGitRepoUrl(url: string): boolean {
-	if (/^https:\/\/.+\.git$/.test(url)) {
-		return true;
-	}
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(url)) {
-		return true;
-	}
-	return /^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(url);
-}
-
 export async function applyQueryOverrides(
 	blueprint: BlueprintDeclaration | BlueprintBundle,
 	query: URLSearchParams
@@ -368,9 +360,8 @@ function applyQueryOverridesToV1Declaration(
 	// Handle WordPress core PR preview
 	const coreRef = query.get('core-pr');
 	if (coreRef) {
-		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		const artifactName = `wordpress-build-${coreRef}`;
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`;
+		blueprint.preferredVersions!.wp =
+			createCorePrWordPressBuildUrl(coreRef);
 	}
 
 	// Handle Gutenberg PR or branch preview
@@ -494,10 +485,7 @@ function applyQueryOverridesToV2Declaration(
 
 	const coreRef = query.get('core-pr');
 	if (coreRef) {
-		const artifactName = `wordpress-build-${coreRef}`;
-		next.wordpressVersion = resolveAgainstPlaygroundOrigin(
-			`/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`
-		) as any;
+		next.wordpressVersion = createCorePrWordPressBuildUrl(coreRef) as any;
 	}
 
 	const gutenbergArtifact = getGutenbergArtifactDetails(query);
@@ -616,6 +604,24 @@ function getGutenbergArtifactDetails(
 	};
 }
 
+function createCorePrWordPressBuildUrl(coreRef: string) {
+	if (!/^\d+$/.test(coreRef)) {
+		throw new Error(
+			'The core-pr Query API parameter must be a WordPress pull request number.'
+		);
+	}
+	const params = new URLSearchParams({
+		org: 'WordPress',
+		repo: 'wordpress-develop',
+		workflow: 'Test Build Processes',
+		artifact: `wordpress-build-${coreRef}`,
+		pr: coreRef,
+	});
+	return resolveAgainstPlaygroundOrigin(
+		`/plugin-proxy.php?${params.toString().replace(/\+/g, '%20')}`
+	);
+}
+
 function resolveAgainstPlaygroundOrigin(path: string) {
 	const origin =
 		typeof globalThis.location !== 'undefined'
@@ -639,54 +645,86 @@ WP_Filesystem();
 
 $artifact_url = ${JSON.stringify(proxyUrl)};
 $artifact_label = ${JSON.stringify(`Gutenberg ${refLabel} ${ref}`)};
-$artifact_zip = download_url($artifact_url);
-if (is_wp_error($artifact_zip)) {
-	throw new Exception('Could not download ' . $artifact_label . ': ' . $artifact_zip->get_error_message());
-}
+$artifact_zip = null;
+$workdir = null;
 
-$workdir = trailingslashit(get_temp_dir()) . 'playground-gutenberg-' . wp_generate_uuid4();
-if (!wp_mkdir_p($workdir)) {
-	@unlink($artifact_zip);
-	throw new Exception('Could not create a temporary directory for ' . $artifact_label . '.');
-}
-
-$unzipped = unzip_file($artifact_zip, $workdir);
-@unlink($artifact_zip);
-if (is_wp_error($unzipped)) {
-	throw new Exception('Could not extract ' . $artifact_label . ': ' . $unzipped->get_error_message());
-}
-
-$plugin_zip = $workdir . '/gutenberg.zip';
-if (!file_exists($plugin_zip)) {
-	$iterator = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator($workdir, FilesystemIterator::SKIP_DOTS)
-	);
-	foreach ($iterator as $file) {
-		if ($file->getFilename() === 'gutenberg.zip') {
-			$plugin_zip = $file->getPathname();
-			break;
+if (!function_exists('blueprint_delete_directory')) {
+	function blueprint_delete_directory(string $directory): void {
+		if (!is_dir($directory)) {
+			return;
 		}
+		$iterator = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+			RecursiveIteratorIterator::CHILD_FIRST
+		);
+		foreach ($iterator as $file) {
+			if ($file->isDir()) {
+				@rmdir($file->getPathname());
+			} else {
+				@unlink($file->getPathname());
+			}
+		}
+		@rmdir($directory);
 	}
 }
-if (!file_exists($plugin_zip)) {
-	throw new Exception('Could not find gutenberg.zip inside the ' . $artifact_label . ' artifact.');
-}
 
-$skin = new Automatic_Upgrader_Skin();
-$upgrader = new Plugin_Upgrader($skin);
-$installed = $upgrader->install($plugin_zip);
-if (is_wp_error($installed)) {
-	throw new Exception('Could not install ' . $artifact_label . ': ' . $installed->get_error_message());
-}
-if ($installed === false) {
-	$errors = $skin->get_errors();
-	$message = is_wp_error($errors) && $errors->has_errors() ? $errors->get_error_message() : 'unknown installer error';
-	throw new Exception('Could not install ' . $artifact_label . ': ' . $message);
-}
+try {
+	$artifact_zip = download_url($artifact_url);
+	if (is_wp_error($artifact_zip)) {
+		throw new Exception('Could not download ' . $artifact_label . ': ' . $artifact_zip->get_error_message());
+	}
 
-$activated = activate_plugin('gutenberg/gutenberg.php');
-if (is_wp_error($activated)) {
-	throw new Exception('Could not activate ' . $artifact_label . ': ' . $activated->get_error_message());
+	$workdir = trailingslashit(get_temp_dir()) . 'playground-gutenberg-' . wp_generate_uuid4();
+	if (!wp_mkdir_p($workdir)) {
+		throw new Exception('Could not create a temporary directory for ' . $artifact_label . '.');
+	}
+
+	$unzipped = unzip_file($artifact_zip, $workdir);
+	@unlink($artifact_zip);
+	$artifact_zip = null;
+	if (is_wp_error($unzipped)) {
+		throw new Exception('Could not extract ' . $artifact_label . ': ' . $unzipped->get_error_message());
+	}
+
+	$plugin_zip = $workdir . '/gutenberg.zip';
+	if (!file_exists($plugin_zip)) {
+		$iterator = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator($workdir, FilesystemIterator::SKIP_DOTS)
+		);
+		foreach ($iterator as $file) {
+			if ($file->getFilename() === 'gutenberg.zip') {
+				$plugin_zip = $file->getPathname();
+				break;
+			}
+		}
+	}
+	if (!file_exists($plugin_zip)) {
+		throw new Exception('Could not find gutenberg.zip inside the ' . $artifact_label . ' artifact.');
+	}
+
+	$skin = new Automatic_Upgrader_Skin();
+	$upgrader = new Plugin_Upgrader($skin);
+	$installed = $upgrader->install($plugin_zip);
+	if (is_wp_error($installed)) {
+		throw new Exception('Could not install ' . $artifact_label . ': ' . $installed->get_error_message());
+	}
+	if ($installed === false) {
+		$errors = $skin->get_errors();
+		$message = is_wp_error($errors) && $errors->has_errors() ? $errors->get_error_message() : 'unknown installer error';
+		throw new Exception('Could not install ' . $artifact_label . ': ' . $message);
+	}
+
+	$activated = activate_plugin('gutenberg/gutenberg.php');
+	if (is_wp_error($activated)) {
+		throw new Exception('Could not activate ' . $artifact_label . ': ' . $activated->get_error_message());
+	}
+} finally {
+	if (is_string($artifact_zip) && file_exists($artifact_zip)) {
+		@unlink($artifact_zip);
+	}
+	if (is_string($workdir) && is_dir($workdir)) {
+		blueprint_delete_directory($workdir);
+	}
 }
 `;
 }

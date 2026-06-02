@@ -4,6 +4,7 @@ import { installPlugin } from '../../lib/steps/install-plugin';
 import { phpVar } from '@php-wasm/util';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { logger } from '@php-wasm/logger';
 import {
 	getSqliteDriverModule,
 	getWordPressModule,
@@ -195,14 +196,51 @@ describe('Blueprint step installPlugin', () => {
 	});
 
 	it('should skip installation errors when onError is skip-plugin', async () => {
-		await expect(
-			installPlugin(php, {
-				pluginData: new File(['not a plugin'], 'not-a-plugin.txt'),
-				options: {
-					onError: 'skip-plugin',
-				},
-			})
-		).resolves.toBeUndefined();
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			await expect(
+				installPlugin(php, {
+					pluginData: new File(['not a plugin'], 'not-a-plugin.txt'),
+					options: {
+						onError: 'skip-plugin',
+					},
+				})
+			).resolves.toBeUndefined();
+
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Skipping plugin installation for unknown plugin after failure'
+				)
+			);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
+	});
+
+	it('should log the derived plugin name when skipping zip installation errors', async () => {
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			await expect(
+				installPlugin(php, {
+					pluginData: new File(['not a zip'], 'broken-plugin.zip'),
+					options: {
+						onError: 'skip-plugin',
+					},
+				})
+			).resolves.toBeUndefined();
+
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Skipping plugin installation for Broken plugin after failure'
+				)
+			);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
 	});
 
 	it('should expose activationOptions during plugin activation', async () => {
