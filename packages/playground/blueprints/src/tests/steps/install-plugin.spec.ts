@@ -125,6 +125,75 @@ describe('Blueprint step installPlugin', () => {
 		expect(php.readFileAsText(pluginFilePath)).toBe(rawPluginContent);
 	});
 
+	it('should reject single-file plugin names that are not path segments', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: new File(['<?php'], '../escape.php'),
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Plugin filename must be a single path segment.');
+
+		expect(php.fileExists('/wordpress/wp-content/escape.php')).toBe(false);
+	});
+
+	it('should reject directory plugin names that are not path segments', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: {
+					name: '../escape',
+					files: {
+						'index.php': `/**\n * Plugin Name: Test Plugin`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow(
+			'Plugin directory name must be a single path segment.'
+		);
+
+		expect(php.fileExists('/wordpress/wp-content/escape')).toBe(false);
+	});
+
+	it('should reject directory plugin file paths that escape the plugin directory', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: {
+					name: 'test-plugin',
+					files: {
+						'../escape.php': `/**\n * Plugin Name: Test Plugin`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Plugin file paths must not escape');
+
+		expect(php.fileExists('/wordpress/wp-content/escape.php')).toBe(false);
+	});
+
+	it('should reject plugin targetFolderName values that are not path segments', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: await zipFiles(php, zipFileName, {
+					[`${pluginName}/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+				}),
+				options: {
+					activate: false,
+					targetFolderName: 'nested/plugin',
+				},
+			})
+		).rejects.toThrow(
+			'Asset target folder name must be a single path segment.'
+		);
+
+		expect(php.fileExists(`${pluginsPath}/nested/plugin`)).toBe(false);
+	});
+
 	it('should skip installation errors when onError is skip-plugin', async () => {
 		await expect(
 			installPlugin(php, {
@@ -188,6 +257,41 @@ echo json_encode(array(
 				},
 				cleanup: 'missing',
 			});
+		} finally {
+			wpPhp.exit();
+			await handler[Symbol.asyncDispose]();
+		}
+	});
+
+	it('should report missing plugin files when setting activationOptions', async () => {
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		const wpPhp = await handler.getPrimaryPhp();
+
+		try {
+			await expect(
+				installPlugin(wpPhp, {
+					pluginData: {
+						name: 'plugin-without-php-file',
+						files: {
+							'readme.txt': 'Not a plugin file.',
+						},
+					},
+					options: {
+						activate: true,
+						activationOptions: {
+							enabled: true,
+						},
+					},
+				})
+			).rejects.toThrow(
+				'Could not find plugin file for activation options.'
+			);
 		} finally {
 			wpPhp.exit();
 			await handler[Symbol.asyncDispose]();
@@ -282,6 +386,111 @@ echo json_encode(array(
 					},
 				})
 			).rejects.toThrowError();
+		});
+
+		it('should apply ifAlreadyInstalled to directory plugin resources', async () => {
+			await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `/**\n * Plugin Name: Skipped Plugin`,
+					},
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: Test Plugin');
+
+			await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `/**\n * Plugin Name: Overwritten Plugin`,
+					},
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: Overwritten Plugin');
+
+			await expect(
+				installPlugin(php, {
+					pluginData: {
+						name: pluginName,
+						files: {
+							'index.php': `/**\n * Plugin Name: Error Plugin`,
+						},
+					},
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/already exists/);
+		});
+
+		it('should apply ifAlreadyInstalled to single-file plugin resources', async () => {
+			const pluginFilePath = `${pluginsPath}/standalone.php`;
+
+			await installPlugin(php, {
+				pluginData: new File(
+					['<?php\n/**\n * Plugin Name: Standalone Plugin */'],
+					'standalone.php'
+				),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+
+			await installPlugin(php, {
+				pluginData: new File(
+					['<?php\n/**\n * Plugin Name: Skipped Standalone */'],
+					'standalone.php'
+				),
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(pluginFilePath)).toContain(
+				'Plugin Name: Standalone Plugin'
+			);
+
+			await installPlugin(php, {
+				pluginData: new File(
+					['<?php\n/**\n * Plugin Name: Overwritten Standalone */'],
+					'standalone.php'
+				),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(pluginFilePath)).toContain(
+				'Plugin Name: Overwritten Standalone'
+			);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: new File(
+						['<?php\n/**\n * Plugin Name: Error Standalone */'],
+						'standalone.php'
+					),
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/already exists/);
 		});
 	});
 

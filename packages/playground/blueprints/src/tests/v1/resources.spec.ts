@@ -45,6 +45,43 @@ describe('UrlResource', () => {
 			'https://raw.githubusercontent.com/adamziel/blueprints/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json'
 		);
 	});
+
+	it('should redact credentials from download error messages', async () => {
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('Forbidden', {
+				status: 403,
+				statusText: 'Forbidden',
+			})
+		);
+		const resource = new UrlResource({
+			resource: 'url',
+			url: 'https://user:pass@example.com/file.zip?access_token=secret&keep=1',
+		});
+
+		try {
+			let caughtError: unknown;
+			try {
+				await resource.resolve();
+			} catch (error) {
+				caughtError = error;
+			}
+			const message =
+				caughtError instanceof Error
+					? caughtError.message
+					: String(caughtError);
+			expect(message).toContain('REDACTED');
+			expect(message).not.toContain('user:pass');
+			expect(message).not.toContain('access_token=secret');
+			expect((caughtError as { url: string }).url).not.toContain(
+				'user:pass'
+			);
+			expect((caughtError as { url: string }).url).not.toContain(
+				'access_token=secret'
+			);
+		} finally {
+			fetchSpy.mockRestore();
+		}
+	});
 });
 
 describe('GitDirectoryResource', () => {

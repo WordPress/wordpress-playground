@@ -435,7 +435,9 @@ export class NodeJsFilesystem implements ReadableFilesystemBackend {
 				this.fs = require('fs');
 				this.path = require('path');
 			}
-			this.root = this.path.resolve(this.root) + this.path.sep;
+			this.root =
+				this.fs.realpathSync(this.path.resolve(this.root)) +
+				this.path.sep;
 		}
 	}
 
@@ -451,9 +453,22 @@ export class NodeJsFilesystem implements ReadableFilesystemBackend {
 				`Refused to read a file outside of the root directory: ${filePath}`
 			);
 		}
+		let realFilePath: string;
+		try {
+			realFilePath = this.fs.realpathSync(filePath);
+		} catch (err: any) {
+			throw new Error(
+				`Failed to read file at ${filePath}: ${err.message}`
+			);
+		}
+		if (!realFilePath.startsWith(this.root)) {
+			throw new Error(
+				`Refused to read a file outside of the root directory: ${filePath}`
+			);
+		}
 
 		return new Promise((resolve, reject) => {
-			const fullPath = this.path.resolve(filePath);
+			const fullPath = this.path.resolve(realFilePath);
 			const stream = this.fs.createReadStream(fullPath);
 
 			stream.on('error', (err: any) => {

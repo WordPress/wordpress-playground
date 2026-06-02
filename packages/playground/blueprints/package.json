@@ -8,9 +8,11 @@
 		},
 		"./public/blueprint-schema.json": "./public/blueprint-schema.json",
 		"./public/blueprint-schema-validator.js": {
+			"types": "./public/blueprint-schema-validator.d.ts",
 			"import": "./public/blueprint-schema-validator.js"
 		},
 		"./public/blueprint-v1-schema-validator.js": {
+			"types": "./public/blueprint-v1-schema-validator.d.ts",
 			"import": "./public/blueprint-v1-schema-validator.js"
 		},
 		"./package.json": "./package.json"

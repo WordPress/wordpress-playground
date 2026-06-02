@@ -160,6 +160,80 @@ describe('resolveBlueprintFromURL', () => {
 		});
 	});
 
+	it('applies Query API install and WXR controls to Blueprint v2 declarations', async () => {
+		const result = await applyQueryOverrides(
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'mkdir',
+						path: '/wordpress/existing',
+					},
+				],
+			},
+			new URLSearchParams(
+				'plugin=activitypub&plugin=https://github.com/example/plugin&theme=pendant&theme=disco&import-wxr=https://example.com/content.wxr'
+			)
+		);
+
+		expect(result).toMatchObject({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: '/wordpress/existing',
+				},
+				{
+					step: 'installPlugin',
+					source: 'activitypub',
+					active: true,
+					onError: 'skip-plugin',
+				},
+				{
+					step: 'installPlugin',
+					source: {
+						gitRepository: 'https://github.com/example/plugin',
+						ref: 'HEAD',
+					},
+					active: true,
+					onError: 'skip-plugin',
+				},
+				{
+					step: 'installTheme',
+					source: 'pendant',
+					active: false,
+					onError: 'skip-theme',
+				},
+				{
+					step: 'installTheme',
+					source: 'disco',
+					active: true,
+					onError: 'skip-theme',
+				},
+				{
+					step: 'importContent',
+					content: [
+						{
+							type: 'wxr',
+							source: 'https://example.com/content.wxr',
+						},
+					],
+				},
+			],
+		});
+	});
+
+	it('rejects unsupported Query API import-site on Blueprint v2 declarations', async () => {
+		await expect(
+			applyQueryOverrides(
+				{
+					version: 2,
+				},
+				new URLSearchParams('import-site=https://example.com/site.zip')
+			)
+		).rejects.toThrow(/import-site/);
+	});
+
 	it('defaults Blueprint v2 login while preserving explicit Blueprint login intent', async () => {
 		await expect(
 			applyQueryOverrides(

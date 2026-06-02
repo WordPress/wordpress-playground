@@ -27,7 +27,6 @@ import {
 	resolveWordPressRelease,
 	type WordPressInstallMode,
 } from '@wp-playground/wordpress';
-import { StreamedFile } from '@php-wasm/stream-compression';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -85,19 +84,26 @@ export class BlueprintsV2Handler {
 			legacyBlueprintSkipsWordPress
 		);
 		const effectiveBlueprint = await this.getEffectiveBlueprint();
-		const runtimeConfiguration =
-			await resolveRuntimeConfiguration(effectiveBlueprint);
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			effectiveBlueprint.declaration
+		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		if (
-			(await hasBlueprintV2WordPressZipReference(effectiveBlueprint)) &&
+			(await hasBlueprintV2WordPressZipReference(
+				effectiveBlueprint.declaration
+			)) &&
 			wordpressInstallMode !== 'download-and-install'
 		) {
 			throw new Error(
 				'Blueprint v2 wordpressVersion ZIP references can only be used when creating a new site.'
 			);
 		}
-		const wordpressSource =
-			await resolveBlueprintV2WordPressSource(effectiveBlueprint);
+		const wordpressSource = await resolveBlueprintV2WordPressSource(
+			effectiveBlueprint.declaration,
+			{
+				streamBundledFile: effectiveBlueprint.streamBundledFile,
+			}
+		);
 		if (wordpressInstallMode === 'download-and-install') {
 			const monitor = new EmscriptenDownloadMonitor();
 			let progressReached100 = false;
@@ -214,7 +220,7 @@ export class BlueprintsV2Handler {
 
 		await playground.isConnected();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			await this.getEffectiveBlueprint()
+			(await this.getEffectiveBlueprint()).declaration
 		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		await playground.useFileLockManager(fileLockManagerPort);
@@ -259,8 +265,9 @@ export class BlueprintsV2Handler {
 			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
 		});
 
-		return await compileBlueprintV2(blueprint, {
+		return await compileBlueprintV2(blueprint.declaration, {
 			progress: tracker,
+			streamBundledFile: blueprint.streamBundledFile,
 		});
 	}
 
@@ -271,26 +278,28 @@ export class BlueprintsV2Handler {
 			const reflection = await BlueprintReflection.create(
 				resolvedBlueprint as BlueprintBundle
 			);
-			const declaration = applyCliOptionsToBlueprint(
-				reflection.getDeclaration() as
+			return {
+				declaration: applyCliOptionsToBlueprint(
+					reflection.getDeclaration() as
+						| BlueprintV1Declaration
+						| BlueprintV2Declaration,
+					this.args,
+					additionalBlueprintSteps
+				),
+				streamBundledFile: (resolvedBlueprint as BlueprintBundle).read,
+			};
+		}
+
+		return {
+			declaration: applyCliOptionsToBlueprint(
+				resolvedBlueprint as
 					| BlueprintV1Declaration
 					| BlueprintV2Declaration,
 				this.args,
 				additionalBlueprintSteps
-			);
-			return withBlueprintDeclaration(
-				resolvedBlueprint as BlueprintBundle,
-				declaration
-			);
-		}
-
-		return applyCliOptionsToBlueprint(
-			resolvedBlueprint as
-				| BlueprintV1Declaration
-				| BlueprintV2Declaration,
-			this.args,
-			additionalBlueprintSteps
-		);
+			),
+			streamBundledFile: undefined,
+		};
 	}
 }
 
@@ -346,26 +355,6 @@ function applyCliOptionsToBlueprint(
 		];
 	}
 	return blueprint as BlueprintV2Declaration;
-}
-
-function withBlueprintDeclaration(
-	bundle: BlueprintBundle,
-	declaration: BlueprintV2Declaration
-): BlueprintBundle {
-	return {
-		...bundle,
-		read: async (filePath: string) => {
-			const normalizedPath = filePath.replace(/^\.?\//, '');
-			if (normalizedPath !== 'blueprint.json') {
-				return bundle.read(filePath);
-			}
-			const bytes = new TextEncoder().encode(JSON.stringify(declaration));
-			return StreamedFile.fromArrayBuffer(bytes, 'blueprint.json', {
-				type: 'application/json',
-				filesize: bytes.byteLength,
-			});
-		},
-	};
 }
 
 function resolveV2WordPressInstallMode(

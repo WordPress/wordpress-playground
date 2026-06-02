@@ -60,8 +60,10 @@ each install independently. An invalid slug is skipped so later plugins or
 themes still install.
 
 Query parameters such as `php`, `wp`, `login`, `url`, `networking`, `language`,
-and `multisite` are also applied to Blueprints loaded through `blueprint-url` or
-the URL fragment, including Blueprint v2 declarations.
+`multisite`, `plugin`, `theme`, and `import-wxr` are also applied to Blueprints
+loaded through `blueprint-url` or the URL fragment, including Blueprint v2
+declarations. `import-site` is currently only supported for v1 Query API
+Blueprints.
 
 ## Loading PHP.wasm extensions
 

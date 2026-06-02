@@ -1449,6 +1449,40 @@ describe('start command', () => {
 		}
 	}, 180000);
 
+	test('should accept Blueprint v2 --mode with disabled auto-mount', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-start-no-auto-mount-mode-')
+		);
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+			code?: number | string | null
+		) => {
+			throw new Error(`process.exit unexpectedly called with "${code}"`);
+		}) as any);
+
+		try {
+			await using cliResult = await parseOptionsAndRunCLI([
+				'start',
+				`--path=${tmpDir}`,
+				'--mode=mount-only',
+				'--no-auto-mount',
+				'--mount-dir',
+				tmpDir,
+				'/wordpress',
+				'--skip-browser',
+				'--quiet',
+				'--port=0',
+			]);
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+			expect(
+				await cliServer.playground.fileExists('/wordpress/wp-load.php')
+			).toBe(false);
+		} finally {
+			exitSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
+
 	test('rejects create-new-site mode for auto-detected WordPress directories', async () => {
 		const tmpDir = await mkdtemp(
 			path.join(tmpdir(), 'playground-test-start-existing-wp-')

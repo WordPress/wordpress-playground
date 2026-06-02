@@ -100,6 +100,63 @@ describe('Blueprint step installTheme', () => {
 		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 	});
 
+	it('should reject directory theme names that are not path segments', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: '../escape',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow(
+			'Theme directory name must be a single path segment.'
+		);
+
+		expect(php.fileExists('/wordpress/wp-content/escape')).toBe(false);
+	});
+
+	it('should reject directory theme file paths that escape the theme directory', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'../escape.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Theme file paths must not escape');
+
+		expect(php.fileExists('/wordpress/wp-content/escape.php')).toBe(false);
+	});
+
+	it('should reject theme targetFolderName values that are not path segments', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: new File(
+					[php.readFileAsBuffer(zipFilePath)],
+					zipFileName
+				),
+				options: {
+					activate: false,
+					targetFolderName: 'nested/theme',
+				},
+			})
+		).rejects.toThrow(
+			'Asset target folder name must be a single path segment.'
+		);
+
+		expect(php.fileExists(`${themesPath}/nested/theme`)).toBe(false);
+	});
+
 	it('should skip installation errors when onError is skip-theme', async () => {
 		await installTheme(php, {
 			themeData: new File(['not a zip'], 'broken-theme.zip'),
@@ -167,6 +224,55 @@ describe('Blueprint step installTheme', () => {
 					},
 				})
 			).rejects.toThrow();
+		});
+
+		it('should apply ifAlreadyInstalled to directory theme resources', async () => {
+			await installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Skipped Theme`,
+					},
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(expectedThemeIndexPhpPath)).toContain(
+				'Theme Name: Test Theme'
+			);
+
+			await installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Overwritten Theme`,
+					},
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(expectedThemeIndexPhpPath)).toContain(
+				'Theme Name: Overwritten Theme'
+			);
+
+			await expect(
+				installTheme(php, {
+					themeData: {
+						name: 'test-theme',
+						files: {
+							'index.php': `/**\n * Theme Name: Error Theme`,
+						},
+					},
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/already exists/);
 		});
 	});
 

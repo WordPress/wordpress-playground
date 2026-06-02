@@ -472,6 +472,17 @@ function applyQueryOverridesToV2Declaration(
 	if (query.get('url')) {
 		playgroundOptions.landingPage = query.get('url')!;
 	}
+	appendV2QueryPluginSteps(next, query.getAll('plugin'));
+	appendV2QueryThemeSteps(next, query.getAll('theme'));
+	appendV2QueryWxrImportStep(
+		next,
+		query.get('import-wxr') || query.get('import-content')
+	);
+	if (query.get('import-site')) {
+		throw new Error(
+			'The import-site Query API parameter is not supported with Blueprint v2 declarations yet.'
+		);
+	}
 	if (next.wordpressVersion === '6.3') {
 		prependV2StepIfMissing(next, 'defineConstants', {
 			step: 'defineConstants',
@@ -515,6 +526,62 @@ function applyQueryOverridesToV2Declaration(
 	}
 
 	return next;
+}
+
+function appendV2QueryPluginSteps(
+	blueprint: BlueprintV2Declaration,
+	plugins: string[]
+) {
+	for (const plugin of plugins) {
+		blueprint.additionalStepsAfterExecution?.push({
+			step: 'installPlugin',
+			source: createV2PluginDataReference(plugin),
+			active: true,
+			onError: 'skip-plugin',
+		} as any);
+	}
+}
+
+function createV2PluginDataReference(plugin: string) {
+	const normalizedPlugin = plugin.trim().replace(/\/+$/, '');
+	if (isGitRepoUrl(normalizedPlugin)) {
+		return {
+			gitRepository: normalizedPlugin,
+			ref: 'HEAD',
+		};
+	}
+	return normalizedPlugin;
+}
+
+function appendV2QueryThemeSteps(
+	blueprint: BlueprintV2Declaration,
+	themes: string[]
+) {
+	for (const [index, theme] of themes.entries()) {
+		blueprint.additionalStepsAfterExecution?.push({
+			step: 'installTheme',
+			source: theme,
+			active: index === themes.length - 1,
+			onError: 'skip-theme',
+		} as any);
+	}
+}
+
+function appendV2QueryWxrImportStep(
+	blueprint: BlueprintV2Declaration,
+	importWxrQueryArg: string | null
+) {
+	if (importWxrQueryArg && /^(http(s?)):\/\//i.test(importWxrQueryArg)) {
+		blueprint.additionalStepsAfterExecution?.push({
+			step: 'importContent',
+			content: [
+				{
+					type: 'wxr',
+					source: importWxrQueryArg,
+				},
+			],
+		} as any);
+	}
 }
 
 type GutenbergArtifactDetails = {

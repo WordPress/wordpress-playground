@@ -357,6 +357,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				{
 					source: 'akismet',
 					targetDirectoryName: '../plugins',
+					ifAlreadyInstalled: 'replace',
 				},
 				{
 					source: 'akismet',
@@ -418,6 +419,10 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					{
 						path: '/plugins/0/targetDirectoryName',
 						message: 'must be a directory name, not a path',
+					},
+					{
+						path: '/plugins/0/ifAlreadyInstalled',
+						message: 'must be "overwrite", "skip", or "error"',
 					},
 					{
 						path: '/plugins/1/targetDirectoryName',
@@ -863,6 +868,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 						storeCity: 'Wroclaw',
 					},
 					onError: 'skip-plugin',
+					ifAlreadyInstalled: 'skip',
 					targetDirectoryName: 'woocommerce-dev',
 					humanReadableName: 'WooCommerce Dev',
 				},
@@ -876,6 +882,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					resource: 'wordpress.org/plugins',
 					slug: 'woocommerce',
 				},
+				ifAlreadyInstalled: 'skip',
 				options: {
 					activate: true,
 					activationOptions: {
@@ -1191,6 +1198,36 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		).toBe(
 			'https://example.com/plugin-proxy.php?artifact=wordpress-build-123'
 		);
+	});
+
+	it('rejects invalid wordpressVersion data references before resolving sources', async () => {
+		const invalidGitRepository = {
+			version: 2,
+			wordpressVersion: {
+				gitRepository: 'https://',
+				pathInRepository: 'wordpress',
+			},
+		};
+		const escapingGitPath = {
+			version: 2,
+			wordpressVersion: {
+				gitRepository: 'https://github.com/wordpress/wordpress.git',
+				pathInRepository: '../wordpress',
+			},
+		};
+
+		expect(validateBlueprintV2(invalidGitRepository).valid).toBe(false);
+		expect(validateBlueprintV2(escapingGitPath).valid).toBe(false);
+		await expect(
+			resolveBlueprintV2WordPressSource(
+				invalidGitRepository as unknown as BlueprintV2Declaration
+			)
+		).rejects.toThrow(/wordpressVersion/);
+		await expect(
+			hasBlueprintV2WordPressZipReference(
+				escapingGitPath as unknown as BlueprintV2Declaration
+			)
+		).rejects.toThrow(/pathInRepository/);
 	});
 
 	it('accepts WordPress release channel aliases in runtime configuration', () => {
@@ -1671,6 +1708,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 						resource: 'wordpress.org/plugins',
 						slug: 'akismet',
 					},
+					ifAlreadyInstalled: 'skip',
 					options: {
 						activate: true,
 						activationOptions: {
@@ -1687,6 +1725,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 						resource: 'wordpress.org/themes',
 						slug: 'twentytwentyfive',
 					},
+					ifAlreadyInstalled: 'error',
 					options: {
 						activate: false,
 						importStarterContent: true,
@@ -1707,6 +1746,7 @@ describe('Blueprint v2 TypeScript compiler', () => {
 					storeCity: 'Wroclaw',
 				},
 				onError: 'skip-plugin',
+				ifAlreadyInstalled: 'skip',
 				targetDirectoryName: 'akismet-dev',
 				humanReadableName: 'Akismet Dev',
 			},
@@ -1716,10 +1756,109 @@ describe('Blueprint v2 TypeScript compiler', () => {
 				active: false,
 				importStarterContent: true,
 				onError: 'skip-theme',
+				ifAlreadyInstalled: 'error',
 				targetDirectoryName: 'tt5-dev',
 				humanReadableName: 'Twenty Twenty-Five Dev',
 			},
 		]);
+	});
+
+	it('migrates v1 zip-wrapped directory resources for plugin and theme installs', () => {
+		const migrated = upgradeBlueprintV1ToV2({
+			steps: [
+				{
+					step: 'installPlugin',
+					pluginData: {
+						resource: 'zip',
+						inner: {
+							resource: 'git:directory',
+							url: 'https://github.com/example/plugin.git',
+							ref: 'main',
+							path: 'plugin',
+						},
+					},
+					options: {
+						activate: false,
+					},
+				},
+				{
+					step: 'installTheme',
+					themeData: {
+						resource: 'zip',
+						inner: {
+							resource: 'literal:directory',
+							name: 'theme',
+							files: {
+								'style.css': '/* Theme Name: Test */',
+							},
+						},
+					},
+					options: {
+						activate: false,
+					},
+				},
+			],
+		} as BlueprintV1Declaration);
+
+		expect(validateBlueprintV2(migrated)).toEqual({ valid: true });
+		expect(migrated.additionalStepsAfterExecution).toMatchObject([
+			{
+				step: 'installPlugin',
+				source: {
+					gitRepository: 'https://github.com/example/plugin.git',
+					ref: 'main',
+					pathInRepository: 'plugin',
+				},
+			},
+			{
+				step: 'installTheme',
+				source: {
+					directoryName: 'theme',
+					files: {
+						'style.css': '/* Theme Name: Test */',
+					},
+				},
+			},
+		]);
+
+		expect(createBlueprintV2ExecutionPlan(migrated)).toMatchObject([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'git:directory',
+					url: 'https://github.com/example/plugin.git',
+					ref: 'main',
+					path: 'plugin',
+				},
+			},
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'literal:directory',
+					name: 'theme',
+				},
+			},
+		]);
+	});
+
+	it('rejects v1 zip-wrapped file resources during v2 migration', () => {
+		expect(() =>
+			upgradeBlueprintV1ToV2({
+				steps: [
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'zip',
+							inner: {
+								resource: 'literal',
+								name: 'plugin.php',
+								contents: '<?php',
+							},
+						},
+					},
+				],
+			} as BlueprintV1Declaration)
+		).toThrow(/ZIP resources wrapping files/);
 	});
 
 	it('preserves v1 WXR import options during v2 migration', () => {
@@ -2528,6 +2667,71 @@ echo json_encode(array(
 				categories: ['news'],
 				tags: ['featured'],
 				file_post_content: 'File post content',
+			});
+		} finally {
+			php.exit();
+			await handler[Symbol.asyncDispose]();
+		}
+	}, 30_000);
+
+	it('runs media imports against WordPress', async () => {
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		const php = await handler.getPrimaryPhp();
+
+		try {
+			await runBlueprintV2Steps(
+				await compileBlueprintV2({
+					version: 2,
+					media: [
+						{
+							source: {
+								filename: 'sample.txt',
+								content: 'Sample media content',
+							},
+							title: 'Sample Attachment',
+							caption: 'Sample caption',
+							description: 'Sample description',
+							alt: 'Sample alt',
+						},
+					],
+				} as BlueprintV2Declaration),
+				php
+			);
+
+			const response = await php.run({
+				code: `<?php
+require '/wordpress/wp-load.php';
+$attachment = get_posts(array(
+	'post_type' => 'attachment',
+	'title' => 'Sample Attachment',
+	'post_status' => 'inherit',
+	'numberposts' => 1,
+))[0];
+$attached_file = get_attached_file($attachment->ID);
+echo json_encode(array(
+	'title' => $attachment->post_title,
+	'caption' => $attachment->post_excerpt,
+	'description' => $attachment->post_content,
+	'alt' => get_post_meta($attachment->ID, '_wp_attachment_image_alt', true),
+	'file_exists' => file_exists($attached_file),
+	'file_contents' => file_get_contents($attached_file),
+));
+`,
+			});
+
+			expect(JSON.parse(response.text)).toEqual({
+				title: 'Sample Attachment',
+				caption: 'Sample caption',
+				description: 'Sample description',
+				alt: 'Sample alt',
+				file_exists: true,
+				file_contents: 'Sample media content',
 			});
 		} finally {
 			php.exit();

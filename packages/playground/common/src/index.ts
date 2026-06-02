@@ -48,11 +48,141 @@ export const unzipFile = async (
 		});
 		await php.run({
 			code: `<?php
+        function playground_unzip_is_path_inside($path, $root)
+        {
+            $path = str_replace('\\\\', '/', $path);
+            $root = rtrim(str_replace('\\\\', '/', $root), '/');
+            return $path === $root || strpos($path, $root . '/') === 0;
+        }
+
+        function playground_unzip_assert_realpath_inside($path, $root, $label)
+        {
+            $realpath = realpath($path);
+            if ($realpath === false) {
+                throw new Exception("Could not resolve " . $label . ": " . $path);
+            }
+            if (!playground_unzip_is_path_inside($realpath, $root)) {
+                throw new Exception("Refusing to extract ZIP entry outside target: " . $path);
+            }
+        }
+
+        function playground_unzip_copy_stream($zip, $filename, $targetPath)
+        {
+            if (is_link($targetPath)) {
+                throw new Exception("Refusing to write ZIP entry through symlink: " . $filename);
+            }
+            $source = $zip->getStream($filename);
+            if (!is_resource($source)) {
+                throw new Exception("Could not read ZIP entry: " . $filename);
+            }
+            $target = fopen($targetPath, 'wb');
+            if (!is_resource($target)) {
+                fclose($source);
+                throw new Exception("Could not write ZIP entry: " . $filename);
+            }
+            try {
+                while (!feof($source)) {
+                    $chunk = fread($source, 1048576);
+                    if ($chunk === false) {
+                        throw new Exception("Could not read ZIP entry: " . $filename);
+                    }
+                    if ($chunk !== '' && fwrite($target, $chunk) === false) {
+                        throw new Exception("Could not write ZIP entry: " . $filename);
+                    }
+                }
+            } catch (Exception $e) {
+                fclose($target);
+                fclose($source);
+                throw $e;
+            }
+            fclose($target);
+            fclose($source);
+        }
+
+        function playground_unzip_prepare_directory($path, $label)
+        {
+            $normalizedPath = str_replace('\\\\', '/', $path);
+            if ($normalizedPath === '') {
+                throw new Exception("Invalid " . $label . ": " . $path);
+            }
+            $currentPath = substr($normalizedPath, 0, 1) === '/' ? '/' : '.';
+            $parts = explode('/', trim($normalizedPath, '/'));
+            foreach ($parts as $part) {
+                if ($part === '') {
+                    continue;
+                }
+                if ($part === '.' || $part === '..') {
+                    throw new Exception("Invalid " . $label . ": " . $path);
+                }
+                $currentPath = rtrim($currentPath, '/') . '/' . $part;
+                if (is_link($currentPath)) {
+                    throw new Exception("Refusing to create " . $label . " through symlink: " . $path);
+                }
+                if (file_exists($currentPath)) {
+                    if (!is_dir($currentPath)) {
+                        throw new Exception("Cannot create " . $label . " over file: " . $path);
+                    }
+                    continue;
+                }
+                if (!mkdir($currentPath, 0777)) {
+                    throw new Exception("Could not create " . $label . ": " . $path);
+                }
+            }
+            $realpath = realpath($path);
+            if ($realpath === false) {
+                throw new Exception("Could not resolve " . $label . ": " . $path);
+            }
+            return $realpath;
+        }
+
+        function playground_unzip_path_parts($filename)
+        {
+            $parts = explode('/', trim($filename, '/'));
+            foreach ($parts as $part) {
+                if ($part === '' || $part === '.' || $part === '..') {
+                    throw new Exception("Unsafe ZIP entry path: " . $filename);
+                }
+            }
+            return $parts;
+        }
+
+        function playground_unzip_ensure_directory($root, $parts, $filename)
+        {
+            $currentPath = $root;
+            foreach ($parts as $part) {
+                $currentPath .= '/' . $part;
+                if (is_link($currentPath)) {
+                    throw new Exception("Refusing to extract ZIP entry through symlink: " . $filename);
+                }
+                if (file_exists($currentPath)) {
+                    if (!is_dir($currentPath)) {
+                        throw new Exception("Cannot create ZIP entry directory over file: " . $filename);
+                    }
+                    playground_unzip_assert_realpath_inside(
+                        $currentPath,
+                        $root,
+                        "ZIP entry directory"
+                    );
+                    continue;
+                }
+                if (!mkdir($currentPath, 0777)) {
+                    throw new Exception("Could not create ZIP entry directory: " . $filename);
+                }
+                playground_unzip_assert_realpath_inside(
+                    $currentPath,
+                    $root,
+                    "ZIP entry directory"
+                );
+            }
+            return $currentPath;
+        }
+
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
         {
-            if (!is_dir($extractTo)) {
-                mkdir($extractTo, 0777, true);
-            }
+            $extractRoot = playground_unzip_prepare_directory(
+                $extractTo,
+                "ZIP extraction target"
+            );
             $zip = new ZipArchive;
             $res = $zip->open($zipPath);
             if ($res === TRUE) {
@@ -68,6 +198,7 @@ export const unzipFile = async (
 							$normalizedFilename === '' ||
 							substr($normalizedFilename, 0, 1) === '/' ||
 							preg_match('/^[A-Za-z]:/', $normalizedFilename) ||
+							preg_match('#(?:^|/)\\.(?:/|$)#', $normalizedFilename) ||
 							preg_match('#(?:^|/)\\.\\.(?:/|$)#', $normalizedFilename)
 						) {
 							throw new Exception("Unsafe ZIP entry path: " . $filename);
@@ -75,13 +206,40 @@ export const unzipFile = async (
 						$filenames[] = $filename;
 					}
 					foreach ($filenames as $filename) {
-						$fileinfo = pathinfo($filename);
-						$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
-						// Check if file exists and $overwriteFiles is false
-						if (!file_exists($extractFilePath) || $overwriteFiles) {
-							// Extract file
-							$zip->extractTo($extractTo, $filename);
+						$normalizedFilename = str_replace('\\\\', '/', $filename);
+						$pathParts = playground_unzip_path_parts($normalizedFilename);
+						if (substr($normalizedFilename, -1) === '/') {
+							playground_unzip_ensure_directory(
+								$extractRoot,
+								$pathParts,
+								$filename
+							);
+							continue;
 						}
+						$entryBasename = array_pop($pathParts);
+						$parentPath = playground_unzip_ensure_directory(
+							$extractRoot,
+							$pathParts,
+							$filename
+						);
+						$extractFilePath = $parentPath . '/' . $entryBasename;
+						if (is_link($extractFilePath)) {
+							throw new Exception("Refusing to write ZIP entry through symlink: " . $filename);
+						}
+						if (file_exists($extractFilePath)) {
+							playground_unzip_assert_realpath_inside(
+								$extractFilePath,
+								$extractRoot,
+								"ZIP entry"
+							);
+							if (is_dir($extractFilePath)) {
+								throw new Exception("Cannot overwrite directory with ZIP entry: " . $filename);
+							}
+							if (!$overwriteFiles) {
+								continue;
+							}
+						}
+						playground_unzip_copy_stream($zip, $filename, $extractFilePath);
 					}
 				} catch (Exception $e) {
 					$zip->close();

@@ -637,7 +637,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
 							);
 						}
-						if (hasCliOption(argsToParse, 'auto-mount')) {
+						if (
+							hasEnabledAutoMountCliOption(
+								argsToParse,
+								args['autoMount']
+							)
+						) {
 							throw new Error(
 								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
 							);
@@ -739,7 +744,10 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					hasCliOption(argsToParse, 'wordpress-install-mode') ||
 					hasCliOption(argsToParse, 'skip-wordpress-install'),
 				skipSqliteSetup: hasCliOption(argsToParse, 'skip-sqlite-setup'),
-				autoMount: hasCliOption(argsToParse, 'auto-mount'),
+				autoMount: hasEnabledAutoMountCliOption(
+					argsToParse,
+					args['autoMount']
+				),
 			},
 			mount: [
 				...((args['mount'] as Mount[]) || []),
@@ -788,7 +796,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			[internalsKeyForTesting]: { cliServer },
 		};
 	} catch (e) {
-		console.error(e);
 		const debug = process.argv.includes('--debug');
 		if (e instanceof Error) {
 			if (debug) {
@@ -801,6 +808,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		}
 		process.exit(1);
 	}
+}
+
+function hasEnabledAutoMountCliOption(
+	argsToParse: string[],
+	autoMountValue: unknown
+) {
+	return hasCliOption(argsToParse, 'auto-mount') && autoMountValue !== false;
 }
 
 function hasCliOption(argsToParse: string[], optionName: string) {
@@ -1025,6 +1039,7 @@ type BlueprintV2ArgOrigins = {
 };
 
 function getBlueprintV2ArgOrigins(args: RunCLIArgs): BlueprintV2ArgOrigins {
+	const autoMountEnabled = args.autoMount !== false;
 	return {
 		mode: args.cliProvidedOptions?.mode ?? args.mode !== undefined,
 		wordpressInstallMode:
@@ -1034,8 +1049,9 @@ function getBlueprintV2ArgOrigins(args: RunCLIArgs): BlueprintV2ArgOrigins {
 			args.cliProvidedOptions?.skipSqliteSetup ??
 			args.skipSqliteSetup === true,
 		autoMount:
-			args.cliProvidedOptions?.autoMount ??
-			(args.autoMount !== undefined && args.autoMount !== false),
+			args.cliProvidedOptions?.autoMount !== undefined
+				? args.cliProvidedOptions.autoMount && autoMountEnabled
+				: args.autoMount !== undefined && autoMountEnabled,
 	};
 }
 

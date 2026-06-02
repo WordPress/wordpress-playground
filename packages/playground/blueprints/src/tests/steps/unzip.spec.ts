@@ -74,6 +74,83 @@ $zip->close();
 		expect(php.fileExists('/escaped.txt')).toBe(false);
 	});
 
+	it('does not follow ZIP symlink entries outside the extraction directory', async () => {
+		const zipPath = '/tmp/symlink-unsafe.zip';
+		await php.mkdir('/outside');
+		await php.run({
+			code: `<?php
+$zip = new ZipArchive();
+$zip->open('${zipPath}', ZipArchive::CREATE);
+$zip->addFromString('link', '../outside');
+$zip->setExternalAttributesName('link', 3, 0120777 << 16);
+$zip->addFromString('link/pwn.php', 'bad');
+$zip->close();
+`,
+		});
+
+		await expect(
+			unzipFile(
+				php,
+				new File([php.readFileAsBuffer(zipPath)], 'unsafe.zip'),
+				'/wordpress/extracted'
+			)
+		).rejects.toThrow(/ZIP entry/);
+
+		expect(php.fileExists('/outside/pwn.php')).toBe(false);
+		expect(php.fileExists('/wordpress/outside/pwn.php')).toBe(false);
+	});
+
+	it('does not create directories through pre-existing symlink parents', async () => {
+		const zipPath = '/tmp/preexisting-symlink-unsafe.zip';
+		await php.mkdir('/outside');
+		await php.mkdir('/wordpress/extracted');
+		await php.run({
+			code: `<?php
+symlink('/outside', '/wordpress/extracted/link');
+$zip = new ZipArchive();
+$zip->open('${zipPath}', ZipArchive::CREATE);
+$zip->addFromString('link/newdir/pwn.php', 'bad');
+$zip->close();
+`,
+		});
+
+		await expect(
+			unzipFile(
+				php,
+				new File([php.readFileAsBuffer(zipPath)], 'unsafe.zip'),
+				'/wordpress/extracted'
+			)
+		).rejects.toThrow(/symlink/);
+
+		expect(php.fileExists('/outside/newdir')).toBe(false);
+		expect(php.fileExists('/outside/newdir/pwn.php')).toBe(false);
+	});
+
+	it('does not create the extraction root through symlink parents', async () => {
+		const zipPath = '/tmp/root-symlink-unsafe.zip';
+		await php.mkdir('/outside');
+		await php.run({
+			code: `<?php
+symlink('/outside', '/wordpress/link');
+$zip = new ZipArchive();
+$zip->open('${zipPath}', ZipArchive::CREATE);
+$zip->addFromString('pwn.php', 'bad');
+$zip->close();
+`,
+		});
+
+		await expect(
+			unzipFile(
+				php,
+				new File([php.readFileAsBuffer(zipPath)], 'unsafe.zip'),
+				'/wordpress/link/extracted'
+			)
+		).rejects.toThrow(/symlink/);
+
+		expect(php.fileExists('/outside/extracted')).toBe(false);
+		expect(php.fileExists('/outside/extracted/pwn.php')).toBe(false);
+	});
+
 	it('cleans temporary File uploads when writing the temporary ZIP fails', async () => {
 		const originalWriteFile = php.writeFile.bind(php);
 		const writeFileSpy = vi

@@ -134,13 +134,7 @@ export async function compileBlueprintV2(
 		);
 	}
 
-	const validation = validateBlueprintV2(declaration);
-	if (!validation.valid) {
-		throw new InvalidBlueprintV2Error(
-			formatBlueprintV2ValidationErrors(validation.errors),
-			validation.errors
-		);
-	}
+	assertValidBlueprintV2Declaration(declaration as BlueprintV2Declaration);
 
 	const blueprint = declaration as BlueprintV2Declaration;
 	const v1Blueprint = blueprintV2ToBlueprintV1(blueprint);
@@ -291,6 +285,7 @@ export async function hasBlueprintV2WordPressZipReference(
 			declaration as BlueprintV1Declaration
 		);
 	}
+	assertValidBlueprintV2Declaration(declaration as BlueprintV2Declaration);
 	return !!getWordPressZipDataReference(
 		(declaration as BlueprintV2Declaration).wordpressVersion
 	);
@@ -324,6 +319,7 @@ export async function resolveBlueprintV2WordPressSource(
 			declaration as BlueprintV1Declaration
 		);
 	}
+	assertValidBlueprintV2Declaration(declaration as BlueprintV2Declaration);
 
 	const blueprint = declaration as BlueprintV2Declaration;
 	const wpVersion = resolveV2WordPressVersion(blueprint.wordpressVersion);
@@ -706,6 +702,9 @@ function createInstallPluginStep(plugin: any): any {
 	return {
 		step: 'installPlugin',
 		pluginData: convertV2DataReferenceToV1(definition['source'], 'plugin'),
+		...(definition['ifAlreadyInstalled']
+			? { ifAlreadyInstalled: definition['ifAlreadyInstalled'] }
+			: {}),
 		options: {
 			activate: definition['active'] ?? true,
 			...(definition['activationOptions']
@@ -736,6 +735,9 @@ function createInstallThemeStep(theme: any, active: boolean): any {
 	return {
 		step: 'installTheme',
 		themeData: convertV2DataReferenceToV1(definition['source'], 'theme'),
+		...(definition['ifAlreadyInstalled']
+			? { ifAlreadyInstalled: definition['ifAlreadyInstalled'] }
+			: {}),
 		options: {
 			activate: active,
 			importStarterContent: definition['importStarterContent'] ?? false,
@@ -1937,6 +1939,14 @@ function convertV1ResourceToV2Reference(resource: any): any {
 				pathInRepository: resource.path,
 				ref: resource.ref,
 			};
+		case 'zip':
+			if (isV1DirectoryReference(resource.inner)) {
+				return convertV1ResourceToV2Reference(resource.inner);
+			}
+			throw new UnsupportedBlueprintV2FeatureError(
+				'/v1/resource/zip',
+				'v1 ZIP resources wrapping files cannot be represented as Blueprint v2 data references'
+			);
 		default:
 			return resource;
 	}
@@ -2030,6 +2040,7 @@ function migrateV1StepToV2(step: JsonObject): V2Step[] {
 					active: step['options']?.activate,
 					activationOptions: step['options']?.activationOptions,
 					onError: step['options']?.onError,
+					ifAlreadyInstalled: step['ifAlreadyInstalled'],
 					targetDirectoryName: step['options']?.targetFolderName,
 					humanReadableName: step['options']?.humanReadableName,
 				},
@@ -2045,6 +2056,7 @@ function migrateV1StepToV2(step: JsonObject): V2Step[] {
 					importStarterContent: step['options']?.importStarterContent,
 					targetDirectoryName: step['options']?.targetFolderName,
 					onError: step['options']?.onError,
+					ifAlreadyInstalled: step['ifAlreadyInstalled'],
 					humanReadableName: step['options']?.humanReadableName,
 				},
 			];
@@ -2758,6 +2770,7 @@ function validatePluginDefinition(
 				'targetDirectoryName',
 				'activationOptions',
 				'onError',
+				'ifAlreadyInstalled',
 				'humanReadableName',
 			]),
 			errors
@@ -2786,6 +2799,11 @@ function validatePluginDefinition(
 				message: 'must be "skip-plugin" or "throw"',
 			});
 		}
+		validateIfAlreadyInstalled(
+			value['ifAlreadyInstalled'],
+			`${path}/ifAlreadyInstalled`,
+			errors
+		);
 		validateOptionalString(
 			value['humanReadableName'],
 			`${path}/humanReadableName`,
@@ -2813,6 +2831,7 @@ function validateThemeDefinition(
 				'importStarterContent',
 				'targetDirectoryName',
 				'onError',
+				'ifAlreadyInstalled',
 				'humanReadableName',
 			]),
 			errors
@@ -2840,6 +2859,11 @@ function validateThemeDefinition(
 				message: 'must be "skip-theme" or "throw"',
 			});
 		}
+		validateIfAlreadyInstalled(
+			value['ifAlreadyInstalled'],
+			`${path}/ifAlreadyInstalled`,
+			errors
+		);
 		validateOptionalString(
 			value['humanReadableName'],
 			`${path}/humanReadableName`,
@@ -3596,6 +3620,9 @@ function validateWordPressVersion(
 	path: string,
 	errors: BlueprintV2ValidationError[]
 ) {
+	if (isDataReferenceObject(value)) {
+		validateDataReference(value, path, errors);
+	}
 	try {
 		resolveV2WordPressVersion(value);
 	} catch (error) {
@@ -3607,6 +3634,35 @@ function validateWordPressVersion(
 					: String(error),
 		});
 	}
+}
+
+function validateIfAlreadyInstalled(
+	value: any,
+	path: string,
+	errors: BlueprintV2ValidationError[]
+) {
+	if (
+		value !== undefined &&
+		value !== 'overwrite' &&
+		value !== 'skip' &&
+		value !== 'error'
+	) {
+		errors.push({
+			path,
+			message: 'must be "overwrite", "skip", or "error"',
+		});
+	}
+}
+
+function isDataReferenceObject(value: any) {
+	return (
+		isPlainObject(value) &&
+		('filename' in value ||
+			'content' in value ||
+			'directoryName' in value ||
+			'files' in value ||
+			'gitRepository' in value)
+	);
 }
 
 function validateArray(
@@ -4519,6 +4575,18 @@ function formatBlueprintV2ValidationErrors(
 	);
 }
 
+function assertValidBlueprintV2Declaration(
+	declaration: BlueprintV2Declaration
+) {
+	const validation = validateBlueprintV2(declaration);
+	if (!validation.valid) {
+		throw new InvalidBlueprintV2Error(
+			formatBlueprintV2ValidationErrors(validation.errors),
+			validation.errors
+		);
+	}
+}
+
 function assertNeverStep(step: string): never {
 	throw new InvalidBlueprintV2Error(`Unknown Blueprint v2 step: ${step}`);
 }
@@ -4586,6 +4654,7 @@ const V2_STEP_ALLOWED_PROPERTIES: Record<string, Set<string>> = {
 		'targetDirectoryName',
 		'activationOptions',
 		'onError',
+		'ifAlreadyInstalled',
 		'humanReadableName',
 	]),
 	installTheme: new Set([
@@ -4595,6 +4664,7 @@ const V2_STEP_ALLOWED_PROPERTIES: Record<string, Set<string>> = {
 		'importStarterContent',
 		'targetDirectoryName',
 		'onError',
+		'ifAlreadyInstalled',
 		'humanReadableName',
 	]),
 	mkdir: new Set(['step', 'path']),

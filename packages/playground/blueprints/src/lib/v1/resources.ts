@@ -51,7 +51,7 @@ export class ResourceDownloadError extends Error {
 	constructor(message: string, url: string, options?: ErrorOptions) {
 		super(message, options);
 		this.name = 'ResourceDownloadError';
-		this.url = url;
+		this.url = redactSensitiveUrl(url);
 	}
 }
 
@@ -533,6 +533,7 @@ export abstract class FetchResource extends Resource<File> {
 	async resolve() {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
+		const displayUrl = redactSensitiveUrl(url);
 		try {
 			let response = await fetchWithCorsProxy(
 				url,
@@ -542,7 +543,7 @@ export abstract class FetchResource extends Resource<File> {
 			);
 			if (!response.ok) {
 				throw new ResourceDownloadError(
-					`Could not download "${url}"`,
+					`Could not download "${displayUrl}"`,
 					url
 				);
 			}
@@ -552,7 +553,7 @@ export abstract class FetchResource extends Resource<File> {
 			);
 			if (response.status !== 200) {
 				throw new ResourceDownloadError(
-					`Could not download "${url}"`,
+					`Could not download "${displayUrl}"`,
 					url
 				);
 			}
@@ -565,9 +566,12 @@ export abstract class FetchResource extends Resource<File> {
 			return new File([await response.arrayBuffer()], filename);
 		} catch (e) {
 			throw new ResourceDownloadError(
-				`Could not download "${url}".\n\n` +
+				`Could not download "${displayUrl}".\n\n` +
 					`Confirm that the URL is correct, the server is reachable, and the file is ` +
-					`actually served at that URL. Original error: \n ${e}`,
+					`actually served at that URL. Original error: \n ${redactSensitiveText(
+						String(e),
+						url
+					)}`,
 				url,
 				{ cause: e }
 			);
@@ -603,6 +607,30 @@ export abstract class FetchResource extends Resource<File> {
 	override get isAsync(): boolean {
 		return true;
 	}
+}
+
+function redactSensitiveUrl(url: string) {
+	try {
+		const parsed = new URL(url);
+		if (parsed.username) {
+			parsed.username = 'REDACTED';
+		}
+		if (parsed.password) {
+			parsed.password = 'REDACTED';
+		}
+		for (const [key] of parsed.searchParams) {
+			if (/token|key|secret|password|auth|signature/i.test(key)) {
+				parsed.searchParams.set(key, 'REDACTED');
+			}
+		}
+		return parsed.toString();
+	} catch {
+		return url;
+	}
+}
+
+function redactSensitiveText(text: string, rawUrl: string) {
+	return text.split(rawUrl).join(redactSensitiveUrl(rawUrl));
 }
 
 /**

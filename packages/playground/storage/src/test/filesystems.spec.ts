@@ -11,6 +11,8 @@ import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
 import type { BlobReader, ZipReader } from '@zip.js/zip.js';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 // Mock fetch for FetchFilesystem tests
 global.fetch = vi.fn();
@@ -438,6 +440,30 @@ describe('NodeJsFilesystem', () => {
 		await expect(filesystem.read('../../pygmalion.txt')).rejects.toThrow(
 			'Refused to read a file outside of the root directory'
 		);
+	});
+
+	it('should throw an error if a symlink points outside the root directory', async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nodefs-root-'));
+		const outside = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'nodefs-outside-')
+		);
+		try {
+			fs.writeFileSync(path.join(outside, 'secret.txt'), 'secret');
+			fs.symlinkSync(
+				path.join(outside, 'secret.txt'),
+				path.join(root, 'secret.txt')
+			);
+
+			const symlinkedFilesystem = new NodeJsFilesystem(root);
+			await expect(
+				symlinkedFilesystem.read('secret.txt')
+			).rejects.toThrow(
+				'Refused to read a file outside of the root directory'
+			);
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+			fs.rmSync(outside, { recursive: true, force: true });
+		}
 	});
 });
 

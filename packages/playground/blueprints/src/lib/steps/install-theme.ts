@@ -1,6 +1,11 @@
 import type { StepHandler } from '.';
 import type { InstallAssetOptions } from './install-asset';
-import { installAsset } from './install-asset';
+import {
+	assertSafePathSegment,
+	assertSafeRelativeFileTree,
+	handleIfAlreadyInstalled,
+	installAsset,
+} from './install-asset';
 import { activateTheme } from './activate-theme';
 import type { Directory } from '../v1/resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
@@ -29,8 +34,10 @@ import { logger } from '@php-wasm/logger';
  * }
  * </code>
  */
-export interface InstallThemeStep<FileResource, DirectoryResource>
-	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
+export interface InstallThemeStep<FileResource, DirectoryResource> extends Pick<
+	InstallAssetOptions,
+	'ifAlreadyInstalled'
+> {
 	/**
 	 * The step identifier.
 	 */
@@ -119,6 +126,8 @@ export const installTheme: StepHandler<
 		} else {
 			assetNiceName = themeData.name;
 			assetFolderName = targetFolderName || assetNiceName;
+			assertSafePathSegment(assetFolderName, 'Theme directory name');
+			assertSafeRelativeFileTree(themeData.files, 'Theme file paths');
 
 			progress?.tracker.setCaption(
 				`Installing the ${progressName()} theme`
@@ -129,9 +138,27 @@ export const installTheme: StepHandler<
 				'themes',
 				assetFolderName
 			);
-			await writeFiles(playground, themeDirectoryPath, themeData.files, {
-				rmRoot: true,
+			const skipped = await handleIfAlreadyInstalled(playground, {
+				assetName: assetFolderName,
+				assetPath: themeDirectoryPath,
+				targetPath: joinPaths(
+					await playground.documentRoot,
+					'wp-content',
+					'themes'
+				),
+				ifAlreadyInstalled,
+				expectedType: 'directory',
 			});
+			if (!skipped) {
+				await writeFiles(
+					playground,
+					themeDirectoryPath,
+					themeData.files,
+					{
+						rmRoot: true,
+					}
+				);
+			}
 		}
 
 		const activate = 'activate' in options ? options.activate : true;

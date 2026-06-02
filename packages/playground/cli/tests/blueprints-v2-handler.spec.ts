@@ -4,6 +4,7 @@ import type { RunCLIArgs } from '../src/run-cli';
 import type { CLIOutput } from '../src/cli-output';
 import type {
 	BlueprintBundle,
+	BlueprintV1Declaration,
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import { fetchSqliteIntegration } from '../src/blueprints-v1/download';
@@ -346,6 +347,31 @@ describe('BlueprintsV2Handler', () => {
 		});
 	});
 
+	test('preserves v1 bundle runtime-only metadata during native v2 compilation', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				blueprint: createBundle({
+					features: {
+						intl: true,
+						networking: false,
+					},
+					extraLibraries: ['wp-cli'],
+				}),
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+
+		const compiled = await handler.compileInputBlueprint([]);
+
+		expect(compiled.features.intl).toBe(true);
+		expect(compiled.features.networking).toBe(false);
+		expect(compiled.extraLibraries).toContain('wp-cli');
+	});
+
 	test('translates v2 apply-to-existing-site mode to the v1 worker install mode', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
@@ -686,7 +712,7 @@ describe('BlueprintsV2Handler', () => {
 });
 
 function createBundle(
-	blueprint: BlueprintV2Declaration,
+	blueprint: BlueprintV1Declaration | BlueprintV2Declaration,
 	files: Record<string, string> = {}
 ): BlueprintBundle {
 	return {

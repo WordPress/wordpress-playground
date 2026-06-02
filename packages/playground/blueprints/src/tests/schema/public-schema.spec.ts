@@ -7,10 +7,8 @@ import validateBlueprintDeclaration from '../../../public/blueprint-schema-valid
 import packageJson from '../../../package.json';
 import { validateBlueprintV2 } from '../../lib/v2/compile';
 
-const publicDir = resolve(
-	dirname(fileURLToPath(import.meta.url)),
-	'../../../public'
-);
+const testFilePath = fileURLToPath(import.meta.url);
+const publicDir = resolve(dirname(testFilePath), '../../../public');
 
 describe('public Blueprint schema', () => {
 	it('publishes a combined v1/v2 BlueprintDeclaration schema', () => {
@@ -615,6 +613,30 @@ describe('public Blueprint schema', () => {
 			.map(formatTypeScriptDiagnostic);
 
 		expect(diagnostics).toEqual([]);
+	});
+
+	it('resolves validator subpath types for NodeNext consumers', () => {
+		for (const validator of [
+			'blueprint-schema-validator',
+			'blueprint-v1-schema-validator',
+		]) {
+			const resolved = ts.resolveModuleName(
+				`${packageJson.name}/public/${validator}.js`,
+				testFilePath,
+				{
+					noEmit: true,
+					skipLibCheck: true,
+					target: ts.ScriptTarget.ES2020,
+					module: ts.ModuleKind.NodeNext,
+					moduleResolution: ts.ModuleResolutionKind.NodeNext,
+				},
+				ts.sys
+			).resolvedModule;
+
+			expect(resolved?.resolvedFileName).toBe(
+				resolve(publicDir, `${validator}.d.ts`)
+			);
+		}
 	});
 });
 

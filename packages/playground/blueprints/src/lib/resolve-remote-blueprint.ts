@@ -14,7 +14,7 @@ export class BlueprintFetchError extends Error {
 	constructor(message: string, url: string, options?: ErrorOptions) {
 		super(message, options);
 		this.name = 'BlueprintFetchError';
-		this.url = url;
+		this.url = redactSensitiveUrl(url);
 	}
 }
 
@@ -33,6 +33,7 @@ export async function resolveRemoteBlueprint(
 	url: string,
 	options: ResolveRemoteBlueprintOptions = {}
 ): Promise<BlueprintBundle> {
+	const displayUrl = redactSensitiveUrl(url);
 	let blueprintBytes: ArrayBuffer;
 	try {
 		const fetchBlueprint = options.fetch || fetch;
@@ -40,12 +41,17 @@ export async function resolveRemoteBlueprint(
 			credentials: 'omit',
 		});
 		if (!response.ok) {
-			throw new Error(`Failed to fetch blueprint from ${url}`);
+			throw new Error(`Failed to fetch blueprint from ${displayUrl}`);
 		}
 		blueprintBytes = await response.arrayBuffer();
 	} catch (error) {
+		const errorMessage =
+			error instanceof Error ? error.message : String(error);
 		throw new BlueprintFetchError(
-			`Blueprint file could not be resolved from ${url}: ${error instanceof Error ? error.message : String(error)}`,
+			`Blueprint file could not be resolved from ${displayUrl}: ${redactSensitiveText(
+				errorMessage,
+				url
+			)}`,
 			url,
 			{ cause: error }
 		);
@@ -72,10 +78,34 @@ export async function resolveRemoteBlueprint(
 			return createBlueprintBundleFromZip(blueprintBytes);
 		}
 		throw new Error(
-			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
+			`Blueprint file at ${displayUrl} is neither a valid JSON nor a ZIP file.`,
 			{ cause: error }
 		);
 	}
+}
+
+function redactSensitiveUrl(url: string) {
+	try {
+		const parsed = new URL(url);
+		if (parsed.username) {
+			parsed.username = 'REDACTED';
+		}
+		if (parsed.password) {
+			parsed.password = 'REDACTED';
+		}
+		for (const [key] of parsed.searchParams) {
+			if (/token|key|secret|password|auth|signature/i.test(key)) {
+				parsed.searchParams.set(key, 'REDACTED');
+			}
+		}
+		return parsed.toString();
+	} catch {
+		return url;
+	}
+}
+
+function redactSensitiveText(text: string, rawUrl: string) {
+	return text.split(rawUrl).join(redactSensitiveUrl(rawUrl));
 }
 
 /**

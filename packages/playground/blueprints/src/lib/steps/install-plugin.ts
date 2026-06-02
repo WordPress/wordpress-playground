@@ -1,6 +1,11 @@
 import type { StepHandler } from '.';
 import type { InstallAssetOptions } from './install-asset';
-import { installAsset } from './install-asset';
+import {
+	assertSafePathSegment,
+	assertSafeRelativeFileTree,
+	handleIfAlreadyInstalled,
+	installAsset,
+} from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { writeFile } from './write-file';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
@@ -165,14 +170,24 @@ export const installPlugin: StepHandler<
 				assetFolderPath = assetResult.assetFolderPath;
 				assetNiceName = assetResult.assetFolderName;
 			} else if (pluginData.name.endsWith('.php')) {
+				assertSafePathSegment(pluginData.name, 'Plugin filename');
 				const destinationFilePath = joinPaths(
 					pluginsDirectoryPath,
 					pluginData.name
 				);
-				await writeFile(playground, {
-					path: destinationFilePath,
-					data: pluginData,
+				const skipped = await handleIfAlreadyInstalled(playground, {
+					assetName: pluginData.name,
+					assetPath: destinationFilePath,
+					targetPath: pluginsDirectoryPath,
+					ifAlreadyInstalled,
+					expectedType: 'file',
 				});
+				if (!skipped) {
+					await writeFile(playground, {
+						path: destinationFilePath,
+						data: pluginData,
+					});
+				}
 				assetFolderPath = pluginsDirectoryPath;
 				assetNiceName = pluginData.name;
 			} else {
@@ -186,19 +201,33 @@ export const installPlugin: StepHandler<
 			progress?.tracker.setCaption(
 				`Installing the ${progressName()} plugin`
 			);
+			assertSafePathSegment(
+				targetFolderName || pluginData.name,
+				'Plugin directory name'
+			);
+			assertSafeRelativeFileTree(pluginData.files, 'Plugin file paths');
 
 			const pluginDirectoryPath = joinPaths(
 				pluginsDirectoryPath,
 				targetFolderName || pluginData.name
 			);
-			await writeFiles(
-				playground,
-				pluginDirectoryPath,
-				pluginData.files,
-				{
-					rmRoot: true,
-				}
-			);
+			const skipped = await handleIfAlreadyInstalled(playground, {
+				assetName: targetFolderName || pluginData.name,
+				assetPath: pluginDirectoryPath,
+				targetPath: pluginsDirectoryPath,
+				ifAlreadyInstalled,
+				expectedType: 'directory',
+			});
+			if (!skipped) {
+				await writeFiles(
+					playground,
+					pluginDirectoryPath,
+					pluginData.files,
+					{
+						rmRoot: true,
+					}
+				);
+			}
 			assetFolderPath = pluginDirectoryPath;
 		}
 
@@ -277,7 +306,7 @@ if (is_dir($plugin_path)) {
 
 if (!$plugin_file || !file_exists($plugin_file)) {
 	ob_end_clean();
-	echo json_encode(array('error' => 'Could not find plugin file for activation options.'));
+	echo '${ACTIVATION_OPTIONS_PAYLOAD_PREFIX}' . json_encode(array('error' => 'Could not find plugin file for activation options.'));
 	exit;
 }
 

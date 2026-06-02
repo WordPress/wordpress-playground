@@ -2153,6 +2153,12 @@
 									"description": "Sometimes it's fine when a theme fails to install.",
 									"default": "throw"
 								},
+								"ifAlreadyInstalled": {
+									"type": "string",
+									"enum": ["overwrite", "skip", "error"],
+									"description": "How to handle a theme that is already installed.",
+									"default": "overwrite"
+								},
 								"humanReadableName": {
 									"type": "string",
 									"description": "Human-readable name of the theme for the progress bar.\n\nFor example, with the following Blueprint:\n\n```json {     \"themes\": [         {             \"source\": \"https://github.com/Automattic/adventurer/archive/refs/heads/beta.zip\",             \"humanReadableName\": \"Adventurer\"         }     ] } ```\n\nThe progress bar will show \"Installing Adventurer theme\" instead of \"Installing https://github.com/Automattic/adventurer/archive/refs/heads/beta.zip\"."
@@ -2201,6 +2207,12 @@
 										"enum": ["skip-theme", "throw"],
 										"description": "Sometimes it's fine when a theme fails to install.",
 										"default": "throw"
+									},
+									"ifAlreadyInstalled": {
+										"type": "string",
+										"enum": ["overwrite", "skip", "error"],
+										"description": "How to handle a theme that is already installed.",
+										"default": "overwrite"
 									},
 									"humanReadableName": {
 										"type": "string",
@@ -2258,13 +2270,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 													}
 												}
 											]
@@ -2281,6 +2293,12 @@
 										"enum": ["skip-plugin", "throw"],
 										"description": "Sometimes it's fine when a plugin fails to install.\n\nUse-case:   Compatibility testing. A Blueprint may install WordPress nightly with   a number of plugins to test. Some of those plugins may not yet be compatible   with the latest version of WordPress. This is something to take not of,   but not a strong reason to fail the entire Blueprint installation.",
 										"default": "throw"
+									},
+									"ifAlreadyInstalled": {
+										"type": "string",
+										"enum": ["overwrite", "skip", "error"],
+										"description": "How to handle a plugin that is already installed.",
+										"default": "overwrite"
 									},
 									"humanReadableName": {
 										"type": "string",
@@ -2675,13 +2693,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																	"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																	"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																}
 															}
 														]
@@ -3088,13 +3106,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																		"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																		"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																	}
 																}
 															]
@@ -3229,13 +3247,13 @@
 																	{
 																		"type": "array",
 																		"items": {
-																			"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																			"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																		}
 																	},
 																	{
 																		"type": "object",
 																		"additionalProperties": {
-																			"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																			"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																		}
 																	}
 																]
@@ -3754,13 +3772,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																							"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																							"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																						}
 																					}
 																				]
@@ -3897,13 +3915,13 @@
 																						{
 																							"type": "array",
 																							"items": {
-																								"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																								"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																							}
 																						},
 																						{
 																							"type": "object",
 																							"additionalProperties": {
-																								"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+																								"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 																							}
 																						}
 																					]
@@ -4209,13 +4227,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 													}
 												}
 											]
@@ -4232,6 +4250,12 @@
 										"enum": ["skip-plugin", "throw"],
 										"description": "Sometimes it's fine when a plugin fails to install.\n\nUse-case:   Compatibility testing. A Blueprint may install WordPress nightly with   a number of plugins to test. Some of those plugins may not yet be compatible   with the latest version of WordPress. This is something to take not of,   but not a strong reason to fail the entire Blueprint installation.",
 										"default": "throw"
+									},
+									"ifAlreadyInstalled": {
+										"type": "string",
+										"enum": ["overwrite", "skip", "error"],
+										"description": "How to handle a plugin that is already installed.",
+										"default": "overwrite"
 									},
 									"humanReadableName": {
 										"type": "string",
@@ -4272,6 +4296,12 @@
 										"enum": ["skip-theme", "throw"],
 										"description": "Sometimes it's fine when a theme fails to install.",
 										"default": "throw"
+									},
+									"ifAlreadyInstalled": {
+										"type": "string",
+										"enum": ["overwrite", "skip", "error"],
+										"description": "How to handle a theme that is already installed.",
+										"default": "overwrite"
 									},
 									"humanReadableName": {
 										"type": "string",
@@ -4427,13 +4457,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 													}
 												}
 											]
@@ -4682,7 +4712,7 @@
 			"type": "string",
 			"pattern": "^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$"
 		},
-		"alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894": {
+		"alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4696,13 +4726,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+						"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-142191-142285-1337903113-97687-142299-1337903113-97653-142299-1337903113-0-155894"
+						"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-156199"
 					}
 				}
 			]

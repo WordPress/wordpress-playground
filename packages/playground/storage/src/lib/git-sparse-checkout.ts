@@ -216,7 +216,9 @@ export async function resolveCommitHash(
 
 	const oid = await fetchRefOid(repoUrl, parsed.refname, additionalHeaders);
 	if (!oid) {
-		throw new Error(`Git ref "${parsed.refname}" not found at ${repoUrl}`);
+		throw new Error(
+			`Git ref "${parsed.refname}" not found at ${redactSensitiveUrl(repoUrl)}`
+		);
 	}
 	return oid;
 }
@@ -284,7 +286,7 @@ export async function listGitRefs(
 			throw new GitAuthenticationError(repoUrl, response.status);
 		}
 		throw new Error(
-			`Failed to fetch git refs from ${repoUrl}: ${response.status} ${response.statusText}`
+			`Failed to fetch git refs from ${redactSensitiveUrl(repoUrl)}: ${response.status} ${response.statusText}`
 		);
 	}
 
@@ -393,7 +395,9 @@ async function parseGitRef(
 					resolvedOid: tagOid,
 				};
 			}
-			throw new Error(`Git ref "${ref.value}" not found at ${repoUrl}`);
+			throw new Error(
+				`Git ref "${ref.value}" not found at ${redactSensitiveUrl(repoUrl)}`
+			);
 		}
 		default:
 			throw new Error(`Invalid ref type: ${ref.type}`);
@@ -451,7 +455,7 @@ async function fetchWithoutBlobs(
 			throw new GitAuthenticationError(repoUrl, response.status);
 		}
 		throw new Error(
-			`Failed to fetch git objects from ${repoUrl}: ${response.status} ${response.statusText}`
+			`Failed to fetch git objects from ${redactSensitiveUrl(repoUrl)}: ${response.status} ${response.statusText}`
 		);
 	}
 
@@ -614,7 +618,7 @@ async function fetchObjects(
 			throw new GitAuthenticationError(url, response.status);
 		}
 		throw new Error(
-			`Failed to fetch git objects from ${url}: ${response.status} ${response.statusText}`
+			`Failed to fetch git objects from ${redactSensitiveUrl(url)}: ${response.status} ${response.statusText}`
 		);
 	}
 
@@ -639,6 +643,26 @@ async function fetchObjects(
 		packfile: toUint8Array(packfile),
 		promisor: false,
 	};
+}
+
+function redactSensitiveUrl(url: string) {
+	try {
+		const parsed = new URL(url);
+		if (parsed.username) {
+			parsed.username = 'REDACTED';
+		}
+		if (parsed.password) {
+			parsed.password = 'REDACTED';
+		}
+		for (const [key] of parsed.searchParams) {
+			if (/token|key|secret|password|auth|signature/i.test(key)) {
+				parsed.searchParams.set(key, 'REDACTED');
+			}
+		}
+		return parsed.toString();
+	} catch {
+		return url;
+	}
 }
 
 async function extractGitObjectFromIdx(idx: GitPackIndex, objectHash: string) {

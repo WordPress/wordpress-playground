@@ -67,6 +67,12 @@ Você pode testar isso agora mesmo. O Playground instalará automaticamente o te
 | `mcp-port`         | `7999`                | Define a porta WebSocket usada pelo bridge MCP para comunicar com o servidor MCP. Por exemplo, `mcp-port=8080`.                                                                                                                                                                                                                                                                                                                                              |
 | `overlay`          |                       | Abre uma sobreposição de interface ao carregar a página. Atualmente suporta `blueprints` para abrir a Galeria de Blueprints diretamente. Por exemplo, `?overlay=blueprints`. O parâmetro é removido da URL quando a sobreposição é fechada.                                                                                                                                                                                                                  |
 
+Query parameters such as `php`, `wp`, `login`, `url`, `networking`,
+`multisite`, `plugin`, `theme`, and `import-wxr` are also applied to Blueprints
+loaded through `blueprint-url` or the URL fragment, including Blueprint v2
+declarations. `import-site` is currently only supported for v1 Query API
+Blueprints.
+
 <!--
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin and opens the post editor:
 -->
