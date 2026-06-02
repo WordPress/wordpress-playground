@@ -138,13 +138,34 @@ type WordPressInstallMode = NonNullable<
 	StartPlaygroundOptions['wordpressInstallMode']
 >;
 
+/**
+ * Indicates whether WordPress update checks should be prefetched.
+ *
+ * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
+ * Skip for old WordPress versions — the functions called by prefetch
+ * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
+ * on legacy WP, and the resulting PHP errors create noise. WP 5.0
+ * (Gutenberg 1.0) also crashes the runtime with exit code 255 inside
+ * prefetchUpdateChecks when using the modern SQLite driver, so extend
+ * the skip range up to (but not including) WP 5.1.
+ *
+ * parseFloat extracts the major version from strings like "6.8",
+ * "4.9.26", etc. Non-numeric values like "nightly" or "trunk"
+ * produce NaN, which Number.isFinite rejects — those fall
+ * through to enabling prefetch (correct for dev builds).
+ *
+ * Prefetch only makes sense when WordPress is actually installed.
+ * In PHP-only mode (`preferredVersions.wp: false`), wp-load.php
+ * doesn't exist and the prefetch crashes the runtime.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/pull/2295
+ */
 function shouldPrefetchUpdateChecks(
 	runtimeConfiguration: Awaited<
 		ReturnType<typeof resolveRuntimeConfiguration>
 	>,
 	wordpressInstallMode: WordPressInstallMode
 ) {
-	// WP <5.1 lacks or crashes inside functions used by prefetchUpdateChecks().
 	const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
 	const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
 	return (
@@ -154,6 +175,13 @@ function shouldPrefetchUpdateChecks(
 	);
 }
 
+/**
+ * Indicates whether the first page the user sees is a wp-admin page.
+ *
+ * Admin landings still need update-check prefetching before the progress bar
+ * disappears. Frontend landings can defer that work because the prefetch only
+ * benefits the first subsequent wp-admin navigation.
+ */
 function isWpAdminLandingPage(blueprint: StartPlaygroundOptions['blueprint']) {
 	if (!blueprint || isBlueprintBundle(blueprint) || !blueprint.landingPage) {
 		return false;
@@ -168,6 +196,13 @@ function isWpAdminLandingPage(blueprint: StartPlaygroundOptions['blueprint']) {
 	}
 }
 
+/**
+ * Schedules update-check prefetching outside the frontend boot critical path.
+ *
+ * requestIdleCallback keeps the prefetch behind initial paint when available.
+ * The timeout preserves the old "make wp-admin faster soon after boot" intent
+ * even if the browser never reports an idle period.
+ */
 function scheduleUpdateChecksPrefetch(playground: PlaygroundClient) {
 	const prefetch = () => {
 		playground.prefetchUpdateChecks().catch((error) => {

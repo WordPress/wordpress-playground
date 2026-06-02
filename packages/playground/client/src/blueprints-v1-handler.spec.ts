@@ -55,6 +55,10 @@ describe('BlueprintsV1Handler', () => {
 			phpVersion: '8.4',
 			wpVersion: 'latest',
 			intl: false,
+			// Most tests below do not exercise update-check prefetching.
+			// Keep networking disabled by default so the deferred prefetch
+			// does not enqueue timers in unrelated tests. Prefetch-specific
+			// tests opt in explicitly.
 			networking: false,
 		});
 		mocks.createBlueprintReflection.mockResolvedValue({
@@ -113,6 +117,8 @@ describe('BlueprintsV1Handler', () => {
 			phpVersion: '8.4',
 			wpVersion: 'latest',
 			intl: true,
+			// This test only verifies PHP extension selection. Keep networking
+			// disabled so update-check prefetching remains outside its scope.
 			networking: false,
 		});
 		const iframe = createIframe();
