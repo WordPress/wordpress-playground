@@ -46,7 +46,7 @@ Before running the script, prepare your IDE to listen for the Xdebug connection.
 
 1.  Ensure you have installed the **PHP Debug** extension.
 2.  Open the **Run and Debug** panel on the left sidebar.
-3.  Select **"PHP.wasm CLI - Listen for Xdebug"** from the configuration dropdown.
+3.  Click **"Listen for Xdebug"** from the configuration dropdown.
 4.  Click the **Start Debugging** (play button) icon.
 
 #### **PhpStorm Instructions**
