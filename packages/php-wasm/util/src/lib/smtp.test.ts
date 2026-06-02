@@ -68,6 +68,18 @@ async function ehlo(
 	return lines;
 }
 
+function getServerDomainFromGreeting(greeting: string): string {
+	const match = greeting.match(/^220 ([^\s]+)(?:\s|\r\n|$)/);
+	if (!match) {
+		throw new Error(`Unexpected SMTP greeting: ${greeting}`);
+	}
+	return match[1];
+}
+
+function escapeForRegExp(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 describe('SmtpSink – happy path', () => {
 	it('captures an email through a full SMTP transaction', async () => {
 		// Walks the canonical SMTP transaction from RFC 5321 §3.3:
@@ -191,22 +203,28 @@ describe('SmtpSink – EHLO', () => {
 		// The first token after "250-" MUST be the server's Domain;
 		// any free-form `ehlo-greet` follows after a single SP.
 		const client = createClient();
-		await client.read();
+		const greeting = await client.read();
+		const serverDomain = getServerDomainFromGreeting(greeting);
 		await client.write('EHLO client.example.com\r\n');
 		const first = await client.read();
 		// The first reply line is "250-<Domain>[ SP ehlo-greet]".
-		// The greeter is "localhost", matching the 220 banner.
-		expect(first).toMatch(/^250-localhost(\s|\r\n)/);
+		// The domain token should match the 220 banner, not free-form text.
+		expect(first).toMatch(
+			new RegExp(`^250-${escapeForRegExp(serverDomain)}(\\s|\\r\\n)`)
+		);
 	});
 
 	it('HELO greeting line starts with the server domain', async () => {
 		// RFC 5321 §4.1.1.1 ABNF for HELO uses the same single-line
 		// `"250" SP Domain [ SP ehlo-greet ]` shape.
 		const client = createClient();
-		await client.read();
+		const greeting = await client.read();
+		const serverDomain = getServerDomainFromGreeting(greeting);
 		await client.write('HELO client.example.com\r\n');
 		const resp = await client.read();
-		expect(resp).toMatch(/^250 localhost(\s|\r\n)/);
+		expect(resp).toMatch(
+			new RegExp(`^250 ${escapeForRegExp(serverDomain)}(\\s|\\r\\n)`)
+		);
 	});
 });
 
