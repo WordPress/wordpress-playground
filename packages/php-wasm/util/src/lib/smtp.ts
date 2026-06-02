@@ -267,7 +267,7 @@ export class SmtpSink {
 					);
 				}
 				// RFC 1870 §3: SIZE parameter is the maximum message size the
-				// server will accept, not the size of a message in progress.
+				// server will accept.
 				// https://www.rfc-editor.org/rfc/rfc1870.html#section-3
 				extensions.push(`SIZE ${this.maxSize}`, 'PIPELINING');
 				await this.replyMulti(250, [
@@ -295,20 +295,25 @@ export class SmtpSink {
 
 			case 'AUTH': {
 				// RFC 4954 §4 extends SMTP with the AUTH command.
+				// Match exactly `AUTH <mechanism>` or
+				// `AUTH <mechanism> <initial-response>`.
+				// The separator is one literal space; the response is `=` or a
+				// single base64 string.
 				// https://www.rfc-editor.org/rfc/rfc4954.html#section-4
-				const [mechanismRaw, initialResponseRaw] =
-					commandArgument.split(/\s+/, 2);
-				const mechanism = (
-					mechanismRaw || ''
-				).toUpperCase() as SaslMechanism;
-
-				if (!mechanism) {
+				const authArgumentMatch = commandArgument.match(
+					/^([A-Za-z0-9_-]{1,20})(?: ((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?|=))?$/
+				);
+				if (!authArgumentMatch) {
 					await this.reply(
 						501,
 						'syntax: AUTH mechanism [initial-response]'
 					);
 					break;
 				}
+				const mechanism =
+					authArgumentMatch[1].toUpperCase() as SaslMechanism;
+				const initialResponseRaw = authArgumentMatch[2];
+
 				if (this.authenticated) {
 					await this.reply(503, 'already authenticated');
 					break;

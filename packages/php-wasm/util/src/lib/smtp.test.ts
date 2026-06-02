@@ -368,6 +368,33 @@ describe('SmtpSink – AUTH edge cases', () => {
 		expect(resp).toMatch(/^501 /);
 	});
 
+	it('rejects quoted AUTH mechanism tokens', async () => {
+		// AUTH arguments follow SMTP ABNF, not shell argv quoting.
+		// A quoted mechanism token is therefore a syntax error.
+		const client = createClient({
+			auth: { mechanisms: ['PLAIN'] },
+		});
+		await client.read();
+		await ehlo(client);
+		await client.write('AUTH "PLAIN"\r\n');
+		const resp = await client.read();
+		expect(resp).toMatch(/^501 /);
+	});
+
+	it('rejects AUTH with trailing extra tokens', async () => {
+		// RFC 4954 §4 allows only `AUTH mechanism [initial-response]`.
+		// Anything after the optional initial response is a syntax error.
+		const client = createClient({
+			auth: { mechanisms: ['PLAIN'] },
+		});
+		await client.read();
+		await ehlo(client);
+		const credentials = btoa('\0user\0pass');
+		await client.write(`AUTH PLAIN ${credentials} extra\r\n`);
+		const resp = await client.read();
+		expect(resp).toMatch(/^501 /);
+	});
+
 	it('rejects already-authenticated client', async () => {
 		// RFC 4954 §4: after a successful AUTH, further AUTH commands
 		// in the same session must be rejected with 503.
