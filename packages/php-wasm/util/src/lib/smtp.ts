@@ -43,11 +43,10 @@ export type SaslMechanism = 'PLAIN' | 'LOGIN';
 // EHLO/HELO 250 response. RFC 5321 §4.1.1.1 requires that token to be a Domain:
 // https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.1
 //
-// This sink is an in-process endpoint, not the public Playground service, so a
-// real-looking name such as playground.wordpress.net would imply DNS/TLS
-// identity it does not have. "localhost" is the safe identifier for loopback and
-// test-only SMTP sessions.
-const SERVER_NAME = 'localhost';
+// Use a stable Domain token for test-only SMTP sessions. It is emitted in the
+// 220/250 greeting only; this sink still runs over an in-process loopback
+// duplex and does not provide DNS or TLS identity.
+const SERVER_NAME = 'playground.wordpress.net';
 
 /**
  * Validates credentials provided through SMTP AUTH.
