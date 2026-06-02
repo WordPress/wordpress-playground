@@ -1,0 +1,177 @@
+Skip to content
+
+
+wordpress-playground
+
+
+Repository navigation
+Code
+Pull requests102 (102)
+
+
+
+
+Hood #3731
+Resolving conflicts between Cdult:Hood and WordPress:pump-node-supported-version and committing changes  Cdult:Hood
+
+3 conflicting files
+
+
+04-wp-playground-cli.md
+...l-development/04-wp-playground-cli.md
+
+04-wp-playground-cli.md
+...l-development/04-wp-playground-cli.md
+
+04-wp-playground-cli.md
+...l-development/04-wp-playground-cli.md
+packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/developers/05-local-development/04-wp-playground-cli.md
+ Resolved
+
+
+
+
+
+
+93
+Cuando se ejecuta dentro de un directorio de plugin o tema, `start` monta tu proyecto automáticamente:
+94
+​
+95
+```bash
+96
+cd my-plugin
+97
+npx @wp-playground/cli@latest start
+98
+```
+99
+​
+100
+<!--
+101
+**Key differences from `server`:**
+102
+​
+103
+- Auto-login is enabled by default
+104
+- Opens browser automatically
+105
+- Auto-mounts the project by default
+106
+-->
+107
+​
+108
+**Diferencias principales respecto a `server`:**
+109
+​
+110
+- El auto-login está habilitado por defecto
+111
+- Abre el navegador automáticamente
+112
+- Monta el proyecto automáticamente por defecto
+113
+​
+114
+<!--
+115
+### Using `server` (Advanced)
+116
+-->
+117
+​
+118
+### Usar `server` (Avanzado)
+119
+​
+120
+<!--
+121
+The `server` command provides full control over configuration:
+122
+-->
+123
+​
+124
+El comando `server` ofrece control total sobre la configuración:
+125
+​
+126
+```bash
+127
+npx @wp-playground/cli@latest server
+128
+```
+129
+​
+130
+![Playground CLI en acción](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/npx-wp-playground-server.gif)
+131
+​
+132
+<!--
+133
+**Automatic site persistence:** By default, the `start` command keeps your WordPress site persistent across sessions. Your files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`, where `<path-hash>` is derived from your project directory. This means you can stop and restart the CLI without losing your work.
+134
+-->
+135
+​
+136
+**Persistencia automática del sitio:** Por defecto, el comando `start` mantiene tu sitio WordPress persistente entre sesiones. Tus archivos y base de datos se almacenan en `~/.wordpress-playground/sites/<path-hash>/`, donde `<path-hash>` se deriva del directorio de tu proyecto. Así puedes detener y reiniciar el CLI sin perder tu trabajo.
+137
+​
+138
+<!--
+139
+This is useful when:
+140
+​
+141
+- You want a clean WordPress installation
+142
+- Testing fresh installation scenarios
+143
+- Your site data became corrupted or inconsistent
+144
+-->
+145
+​
+146
+Es útil cuando:
+147
+​
+148
+- Quieres una instalación limpia de WordPress
+149
+- Estás probando escenarios de instalación nueva
+150
+- Los datos de tu sitio se han corrompido o son inconsistentes
+151
+​
+152
+<!--
+153
+<div class="callout callout-info">
+154
+​
+
+
+
+Footer
+© 2026 GitHub, Inc.
+Footer navigation
+Terms
+Privacy
+Security
+Status
+Community
+Docs
+Contact
+Manage cookies
+Do not share my personal information
+
+
+packages/docs/site/i18n/pt-BR/docusaurus-plugin-content-docs/current/developers/05-local-development/04-wp-playground-cli.md marked as resolved
