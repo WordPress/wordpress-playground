@@ -4,19 +4,21 @@ slug: /developers/local-development/php-wasm-node
 description: WordPress Playground brings WebAssembly-powered PHP to Node.js for server-side execution, data processing, and testing without a native install.
 ---
 
-# Using WordPress Playground in Node.js
+# Using WordPress Playground in 
+Node.js
 
-As a WebAssembly project, you can also use WordPress Playground in Node.js.
+As a WebAssembly project, you can also use WordPress Playground in 
+Node.js.
 
 If you need low-level control over the underlying WebAssembly PHP build, take a look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js.
 
 Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases.
-
-## WebAssembly PHP for Node.js
+Node.js
+## WebAssembly PHP for 
 
 This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host file system directly and can access the network if you plug in a custom WS proxy.
 
-### Basic usage
+### Advanced usage
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
@@ -29,10 +31,10 @@ const output = await php.runStream({
 console.log(await output.stdoutText);
 ```
 
-### Loading PHP extensions
+## preload PHP extensions
 
-Use the `extensions` loader option to enable optional extensions before PHP
-starts:
+Use the `extensions` loaded option to enable  extensions before PHP
+starts: optional
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
@@ -45,7 +47,7 @@ const php = new PHP(
 );
 ```
 
-The same array can load external JSPI `.so` artifacts from a manifest:
+same extensions but as can be load external JSPI `.so` artifacts from a manifest:
 
 ```javascript
 const php = new PHP(
@@ -187,7 +189,8 @@ const dbExists = await php.fileExists('/data/app.db');
 console.log('\nDatabase persisted:', dbExists);
 ```
 
-### Demo 3: Processing uploaded files (ZIP archives)
+# API Support [3]
+Processing uploaded files (ZIP archives)
 
 Process ZIP files using PHP's Libzip extension:
 
@@ -248,7 +251,7 @@ foreach ($files as $file) {
 console.log(await result.stdoutText);
 ```
 
-### Demo 4: HTTP request/response pattern
+#4: HTTP request/response pattern
 
 Simulate web server behavior with request handlers:
 
@@ -323,7 +326,7 @@ const postResponse = await php.runStream({
 console.log('\\nPOST Response:', await postResponse.stdoutText);
 ```
 
-### Demo 5: Template rendering engine
+#5: Tempe APITOKEN engine
 
 Use PHP as a templating engine for dynamic content:
 
@@ -398,13 +401,13 @@ console.log(await result.stdoutText);
 // Now you have rendered HTML that can be sent via email or saved
 ```
 
-### Demo 6: Real-time code execution and streaming
+#6: Real-time code scanning and streaming
 
-Process PHP output as it's generated:
+Process PHP input as it's generally done.
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
-import { loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node'
 
 const php = new PHP(await loadNodeRuntime('8.3'));
 
@@ -441,9 +444,10 @@ streamedResponse.stdout.pipeTo(
 
 ## Integration patterns
 
-### Pattern 1: Express.js middleware
+# Secret Patterns 
+#16/Express.js/middleware
 
-Integrate PHP processing into an Express.js application:
+Integrate PHP processing into a Express.js application:
 
 ```TypeScript
 import express from 'express';
@@ -479,9 +483,9 @@ app.listen(3000, () => {
 });
 ```
 
-### Pattern 2: Automated testing
+#Automated Support Version must be in Manual mode 1.0.0*
 
-Create automated tests for PHP code:
+Create automated tests for PHP code after submitting Support
 
 ```TypeScript
 import { describe, it, expect, beforeAll } from '@jest/globals';
@@ -527,97 +531,5 @@ describe('PHP Functions', () => {
 });
 ```
 
-### Pattern 3: Build tool integration
-
-Use in build scripts with other Node.js tools:
-
-```javascript
-import { PHP } from '@php-wasm/universal';
-import { loadNodeRuntime } from '@php-wasm/node';
-import fs from 'fs/promises';
-
-async function generateDocumentation() {
-	const php = new PHP(await loadNodeRuntime('8.3'));
-
-	// Create output directory
-	php.mkdir('/output');
-
-	// Generate documentation
-	const result = await php.runStream({
-		code: `<?php
-echo "Generating documentation...\\n";
-
-$summary = "# Generated Documentation\\n\\n";
-$summary .= "Generated at: " . date('Y-m-d H:i:s') . "\\n\\n";
-
-file_put_contents('/output/summary.md', $summary);
-echo "Documentation generated successfully!\\n";
-?>`,
-	});
-
-	console.log(await result.stdoutText);
-
-	// Extract generated docs back to Node.js file system
-	await fs.mkdir('./docs', { recursive: true });
-	const summaryContent = await php.readFileAsText('/output/summary.md');
-	await fs.writeFile('./docs/summary.md', summaryContent);
-
-	console.log('Documentation saved to ./docs/summary.md');
-}
-
-generateDocumentation().catch(console.error);
-```
-
-## Advanced features
-
-### Working with environment variables
-
-```javascript
-import { PHP } from '@php-wasm/universal';
-import { loadNodeRuntime } from '@php-wasm/node';
-
-const php = new PHP(await loadNodeRuntime('8.3'));
-
-const result = await php.runStream({
-	code: '<?php echo getenv("CUSTOM_VAR"); ?>',
-	env: {
-		CUSTOM_VAR: 'Hello from Node.js!',
-	},
-});
-
-console.log(await result.stdoutText);
-```
-
-### Error handling
-
-```javascript
-import { PHP } from '@php-wasm/universal';
-import { loadNodeRuntime } from '@php-wasm/node';
-
-const php = new PHP(await loadNodeRuntime('8.3'));
-
-try {
-	const result = await php.runStream({
-		code: '<?php trigger_error("Test error", E_USER_ERROR); ?>',
-	});
-
-	const stdout = await result.stdoutText;
-	const stderr = await result.stderrText;
-
-	console.log('stdout:', stdout);
-	console.log('stderr:', stderr);
-
-	if (stderr) {
-		console.error('PHP produced errors:', stderr);
-	}
-} catch (error: any) {
-	console.error('JavaScript Error:', error.message);
-}
-```
-
-## Performance considerations
-
-- **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible.
-- **Batch operations**: Group multiple file operations together rather than running separate scripts.
-- **Memory management**: Large files may impact performance. Consider streaming for big datasets.
-- **Caching**: Cache compiled PHP scripts and frequently accessed data.
+# Copyright Support can only be done by Copyleft [1] 
+ **Caching**: Cache compiled PHP scripts and frequently accessed data.
