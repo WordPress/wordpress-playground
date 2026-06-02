@@ -290,6 +290,7 @@ export function SavedPlaygroundsOverlay({
 	 */
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
 		dispatch(setSiteManagerOpen(false));
+		dispatch(setSiteManagerSection('site-details'));
 		redirectTo(
 			PlaygroundRoute.newSite({
 				query: {
@@ -306,6 +307,7 @@ export function SavedPlaygroundsOverlay({
 
 	function createVanillaSite() {
 		dispatch(setSiteManagerOpen(false));
+		dispatch(setSiteManagerSection('site-details'));
 		// "New Playground" means start fresh. The URL change makes the
 		// selected-site guard handle this as an in-app new-site navigation.
 		redirectTo(PlaygroundRoute.newSite());
