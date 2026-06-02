@@ -6,6 +6,7 @@ import {
 	resolveCommitHash,
 	type GitAdditionalHeaders,
 } from '../lib/git-sparse-checkout';
+import { createDotGitDirectory } from '../lib/git-create-dotgit-directory';
 
 describe('listRefs', () => {
 	it('should return the latest commit hash for a given ref', async () => {
@@ -95,6 +96,27 @@ describe('resolveCommitHash', () => {
 				type: 'unsupported' as any,
 			})
 		).rejects.toThrow('Invalid ref type: unsupported');
+	});
+});
+
+describe('createDotGitDirectory', () => {
+	it('redacts sensitive URLs from persisted .git config', async () => {
+		const files = await createDotGitDirectory({
+			repoUrl:
+				'https://user:pass@example.com/private/repo.git?token=secret&keep=1',
+			commitHash: '1234567890abcdef1234567890abcdef12345678',
+			ref: 'trunk',
+			refType: 'branch',
+			objects: [],
+			fileOids: {},
+			pathPrefix: '',
+		});
+
+		const config = String(files['.git/config']);
+		expect(config).toContain('REDACTED');
+		expect(config).toContain('keep=1');
+		expect(config).not.toContain('user:pass');
+		expect(config).not.toContain('token=secret');
 	});
 });
 

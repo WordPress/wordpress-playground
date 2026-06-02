@@ -62,11 +62,11 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `core-pr`       |                       | https://github.com/WordPress/wordpress-develop の特定のコア PR をインストールします。PR 番号を指定します。例: `core-pr=6883`。                                                                                                                                                                                                                                                                                                                                                                                      |
 | `gutenberg-pr`  |                       | https://github.com/WordPress/gutenberg の特定の PR をインストールします。PR 番号を指定します。例：`gutenberg-pr=65337`。                                                                                                                                                                                                                                                                                                                                                                                            |
 
-Query parameters such as `php`, `wp`, `login`, `url`, `networking`,
-`multisite`, `plugin`, `theme`, and `import-wxr` are also applied to Blueprints
-loaded through `blueprint-url` or the URL fragment, including Blueprint v2
-declarations. `import-site` is currently only supported for v1 Query API
-Blueprints.
+`php`、`wp`、`login`、`url`、`networking`、`multisite`、`plugin`、`theme`、
+`import-wxr` などのクエリパラメータは、`blueprint-url` または URL
+フラグメントから読み込まれた Blueprint にも適用されます。Blueprint v2
+宣言も対象です。`import-site` は現在、Query API v1 の Blueprint でのみ
+サポートされています。
 
 <!--
 | Option                   | Default Value         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

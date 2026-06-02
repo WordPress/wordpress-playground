@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync } from 'fs';
 import * as ts from 'typescript';
 import schema from '../../../public/blueprint-schema.json';
 import validateBlueprintDeclaration from '../../../public/blueprint-schema-validator';
@@ -613,6 +614,11 @@ describe('public Blueprint schema', () => {
 			.map(formatTypeScriptDiagnostic);
 
 		expect(diagnostics).toEqual([]);
+		for (const declarationPath of declarationPaths) {
+			expect(readFileSync(declarationPath, 'utf8')).not.toContain(
+				"from 'ajv'"
+			);
+		}
 	});
 
 	it('resolves validator subpath types for NodeNext consumers', () => {

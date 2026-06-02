@@ -5,7 +5,11 @@ import {
 } from '@php-wasm/progress';
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
-import { randomFilename } from '@php-wasm/util';
+import {
+	randomFilename,
+	redactSensitiveText,
+	redactSensitiveUrl,
+} from '@php-wasm/util';
 import {
 	GitAuthenticationError,
 	listDescendantFiles,
@@ -342,7 +346,7 @@ export abstract class Resource<T extends File | Directory> {
 				// eslint-disable-next-line no-console
 				console.warn(
 					`[Blueprints] github-proxy.com is deprecated and will stop working soon. ` +
-						`The URL "${ref.url}" has been automatically converted to a ${rewritten.resource} resource. ` +
+						`The URL "${redactSensitiveUrl(ref.url)}" has been automatically converted to a ${rewritten.resource} resource. ` +
 						`Please update your Blueprint to use native resource types. ` +
 						`See: https://wordpress.github.io/wordpress-playground/blueprints/steps/resources`
 				);
@@ -562,15 +566,14 @@ export abstract class FetchResource extends Resource<File> {
 				parseContentDisposition(
 					response.headers.get('content-disposition') || ''
 				) ||
-				encodeURIComponent(url);
+				encodeURIComponent(redactSensitiveUrl(url));
 			return new File([await response.arrayBuffer()], filename);
 		} catch (e) {
 			throw new ResourceDownloadError(
 				`Could not download "${displayUrl}".\n\n` +
 					`Confirm that the URL is correct, the server is reachable, and the file is ` +
 					`actually served at that URL. Original error: \n ${redactSensitiveText(
-						String(e),
-						url
+						String(e)
 					)}`,
 				url,
 				{ cause: e }
@@ -607,30 +610,6 @@ export abstract class FetchResource extends Resource<File> {
 	override get isAsync(): boolean {
 		return true;
 	}
-}
-
-function redactSensitiveUrl(url: string) {
-	try {
-		const parsed = new URL(url);
-		if (parsed.username) {
-			parsed.username = 'REDACTED';
-		}
-		if (parsed.password) {
-			parsed.password = 'REDACTED';
-		}
-		for (const [key] of parsed.searchParams) {
-			if (/token|key|secret|password|auth|signature/i.test(key)) {
-				parsed.searchParams.set(key, 'REDACTED');
-			}
-		}
-		return parsed.toString();
-	} catch {
-		return url;
-	}
-}
-
-function redactSensitiveText(text: string, rawUrl: string) {
-	return text.split(rawUrl).join(redactSensitiveUrl(rawUrl));
 }
 
 /**
@@ -875,7 +854,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 	/** @inheritDoc */
 	get name() {
 		return [
-			this.reference.url,
+			redactSensitiveUrl(this.reference.url),
 			this.reference.ref ? `(${this.reference.ref})` : '',
 			this.reference.path?.replace(/^\/+/, '')
 				? `at ${this.reference.path}`

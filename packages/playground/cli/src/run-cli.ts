@@ -86,6 +86,7 @@ import {
 	PHPMYADMIN_INSTALL_PATH,
 } from '@wp-playground/tools';
 import { jspi } from 'wasm-feature-detect';
+import { redactSensitiveText } from '@php-wasm/util';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -832,6 +833,10 @@ function hasCliOption(argsToParse: string[], optionName: string) {
  * transfer), and arbitrary values.
  */
 function describeError(error: unknown): string {
+	return redactSensitiveText(describeErrorWithoutRedaction(error));
+}
+
+function describeErrorWithoutRedaction(error: unknown): string {
 	if (error instanceof Error) {
 		if (error.message) {
 			return error.message;

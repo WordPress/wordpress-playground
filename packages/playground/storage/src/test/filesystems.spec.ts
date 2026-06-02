@@ -5,6 +5,7 @@ import {
 	OverlayFilesystem,
 	FetchFilesystem,
 	NodeJsFilesystem,
+	ChrootFilesystem,
 	type ReadableFilesystemBackend,
 } from '../lib/filesystems';
 import { StreamedFile } from '@php-wasm/stream-compression';
@@ -133,6 +134,27 @@ describe('ZipFilesystem', () => {
 
 		// getEntries should only be called once
 		expect(mockZipReader.getEntries).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('ChrootFilesystem', () => {
+	it('rejects reads that normalize outside the chroot directory', async () => {
+		const filesystem = new ChrootFilesystem(
+			'bundle',
+			new InMemoryFilesystem({
+				bundle: {
+					'allowed.zip': 'allowed',
+				},
+				'secret.zip': 'secret',
+			})
+		);
+
+		await expect(filesystem.read('../secret.zip')).rejects.toThrow(
+			/outside the blueprint bundle directory/
+		);
+		await expect(
+			streamToString((await filesystem.read('allowed.zip')).stream())
+		).resolves.toBe('allowed');
 	});
 });
 

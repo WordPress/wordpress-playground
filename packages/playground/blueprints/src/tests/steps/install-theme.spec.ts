@@ -274,6 +274,70 @@ describe('Blueprint step installTheme', () => {
 				})
 			).rejects.toThrow(/already exists/);
 		});
+
+		it('should reject overwriting a symlinked theme directory', async () => {
+			const outsidePath = '/outside-theme-target';
+			php.rmdir(`${themesPath}/test-theme`, { recursive: true });
+			php.mkdir(outsidePath);
+			php.writeFile(`${outsidePath}/index.php`, 'keep me');
+			php.symlink(outsidePath, `${themesPath}/test-theme`);
+
+			await expect(
+				installTheme(php, {
+					themeData: new File(
+						[php.readFileAsBuffer(zipFilePath)],
+						zipFileName
+					),
+					ifAlreadyInstalled: 'overwrite',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/symbolic link/);
+
+			expect(php.readFileAsText(`${outsidePath}/index.php`)).toBe(
+				'keep me'
+			);
+		});
+
+		it('should reject skipping a symlinked theme directory', async () => {
+			const outsidePath = '/outside-theme-target';
+			php.rmdir(`${themesPath}/test-theme`, { recursive: true });
+			php.mkdir(outsidePath);
+			php.writeFile(`${outsidePath}/index.php`, 'keep me');
+			php.symlink(outsidePath, `${themesPath}/test-theme`);
+
+			await expect(
+				installTheme(php, {
+					themeData: new File(
+						[php.readFileAsBuffer(zipFilePath)],
+						zipFileName
+					),
+					ifAlreadyInstalled: 'skip',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/symbolic link/);
+		});
+
+		it('should reject overwriting a broken symlinked theme directory', async () => {
+			php.rmdir(`${themesPath}/test-theme`, { recursive: true });
+			php.symlink('/missing-theme-target', `${themesPath}/test-theme`);
+
+			await expect(
+				installTheme(php, {
+					themeData: new File(
+						[php.readFileAsBuffer(zipFilePath)],
+						zipFileName
+					),
+					ifAlreadyInstalled: 'overwrite',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/symbolic link/);
+		});
 	});
 
 	describe('targetFolderName option', () => {

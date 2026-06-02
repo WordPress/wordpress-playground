@@ -17,6 +17,8 @@ import {
 	resolveBlueprintFromURL,
 } from './resolve-blueprint-from-url';
 // eslint-disable-next-line import/first
+import { createBlueprintV2ExecutionPlan } from '@wp-playground/blueprints';
+// eslint-disable-next-line import/first
 import { GENERATED_GUTENBERG_INSTALLER_MARKER } from '../../gutenberg-preview';
 
 describe('resolveBlueprintFromURL', () => {
@@ -216,11 +218,27 @@ describe('resolveBlueprintFromURL', () => {
 						{
 							type: 'wxr',
 							source: 'https://example.com/content.wxr',
+							authorsMode: 'default-author',
+							defaultAuthorUsername: 'admin',
+							importComments: true,
 						},
 					],
 				},
 			],
 		});
+
+		expect(createBlueprintV2ExecutionPlan(result as any)).toContainEqual(
+			expect.objectContaining({
+				step: 'importWxr',
+				file: {
+					resource: 'url',
+					url: 'https://example.com/content.wxr',
+				},
+				authorsMode: 'default-author',
+				defaultAuthorUsername: 'admin',
+				importComments: true,
+			})
+		);
 	});
 
 	it('rejects unsupported Query API import-site on Blueprint v2 declarations', async () => {

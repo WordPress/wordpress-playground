@@ -645,26 +645,6 @@ async function fetchObjects(
 	};
 }
 
-function redactSensitiveUrl(url: string) {
-	try {
-		const parsed = new URL(url);
-		if (parsed.username) {
-			parsed.username = 'REDACTED';
-		}
-		if (parsed.password) {
-			parsed.password = 'REDACTED';
-		}
-		for (const [key] of parsed.searchParams) {
-			if (/token|key|secret|password|auth|signature/i.test(key)) {
-				parsed.searchParams.set(key, 'REDACTED');
-			}
-		}
-		return parsed.toString();
-	} catch {
-		return url;
-	}
-}
-
 async function extractGitObjectFromIdx(idx: GitPackIndex, objectHash: string) {
 	const tree = await idx.read({ oid: objectHash });
 	readObject(tree);

@@ -938,6 +938,75 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		]);
 	});
 
+	it('preserves v1 absolute paths outside WordPress during v2 lowering', () => {
+		const migrated = upgradeBlueprintV1ToV2({
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/tmp/staged.txt',
+					data: 'staged',
+				},
+				{
+					step: 'mkdir',
+					path: '/tmp/folder',
+				},
+				{
+					step: 'cp',
+					fromPath: '/tmp/staged.txt',
+					toPath: '/tmp/copied.txt',
+				},
+				{
+					step: 'mv',
+					fromPath: '/tmp/copied.txt',
+					toPath: '/tmp/moved.txt',
+				},
+				{
+					step: 'unzip',
+					zipFile: {
+						resource: 'literal',
+						name: 'archive.zip',
+						contents: '',
+					},
+					extractToPath: '/tmp/unzipped',
+				},
+				{
+					step: 'rm',
+					path: '/tmp/moved.txt',
+				},
+			],
+		} as BlueprintV1Declaration);
+
+		expect(validateBlueprintV2(migrated)).toEqual({ valid: true });
+		expect(createBlueprintV2ExecutionPlan(migrated)).toMatchObject([
+			{
+				step: 'writeFile',
+				path: '/tmp/staged.txt',
+			},
+			{
+				step: 'mkdir',
+				path: '/tmp/folder',
+			},
+			{
+				step: 'cp',
+				fromPath: '/tmp/staged.txt',
+				toPath: '/tmp/copied.txt',
+			},
+			{
+				step: 'mv',
+				fromPath: '/tmp/copied.txt',
+				toPath: '/tmp/moved.txt',
+			},
+			{
+				step: 'unzip',
+				extractToPath: '/tmp/unzipped',
+			},
+			{
+				step: 'rm',
+				path: '/tmp/moved.txt',
+			},
+		]);
+	});
+
 	it('passes theme target directory and progress name options to installTheme', () => {
 		const plan = createBlueprintV2ExecutionPlan({
 			version: 2,

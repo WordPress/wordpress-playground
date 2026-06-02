@@ -146,6 +146,20 @@ export const unzipFile = async (
             return $parts;
         }
 
+        function playground_unzip_is_symlink_entry($zip, $index)
+        {
+            if (!method_exists($zip, 'getExternalAttributesIndex')) {
+                return false;
+            }
+            $opsys = 0;
+            $attr = 0;
+            if (!$zip->getExternalAttributesIndex($index, $opsys, $attr)) {
+                return false;
+            }
+            $mode = ($attr >> 16) & 0170000;
+            return $mode === 0120000;
+        }
+
         function playground_unzip_ensure_directory($root, $parts, $filename)
         {
             $currentPath = $root;
@@ -202,6 +216,9 @@ export const unzipFile = async (
 							preg_match('#(?:^|/)\\.\\.(?:/|$)#', $normalizedFilename)
 						) {
 							throw new Exception("Unsafe ZIP entry path: " . $filename);
+						}
+						if (playground_unzip_is_symlink_entry($zip, $i)) {
+							throw new Exception("Refusing to extract ZIP symlink entry: " . $filename);
 						}
 						$filenames[] = $filename;
 					}

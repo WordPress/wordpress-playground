@@ -492,6 +492,90 @@ echo json_encode(array(
 				})
 			).rejects.toThrow(/already exists/);
 		});
+
+		it('should reject overwriting a symlinked plugin directory', async () => {
+			const outsidePath = '/outside-plugin-target';
+			php.rmdir(installedPluginPath, { recursive: true });
+			php.mkdir(outsidePath);
+			php.writeFile(`${outsidePath}/index.php`, 'keep me');
+			php.symlink(outsidePath, installedPluginPath);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: await zipFiles(php, zipFileName, {
+						[`${pluginName}/index.php`]: `/**\n * Plugin Name: Symlink Plugin`,
+					}),
+					ifAlreadyInstalled: 'overwrite',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/symbolic link/);
+
+			expect(php.readFileAsText(`${outsidePath}/index.php`)).toBe(
+				'keep me'
+			);
+		});
+
+		it('should reject skipping a symlinked plugin directory', async () => {
+			const outsidePath = '/outside-plugin-target';
+			php.rmdir(installedPluginPath, { recursive: true });
+			php.mkdir(outsidePath);
+			php.writeFile(`${outsidePath}/index.php`, 'keep me');
+			php.symlink(outsidePath, installedPluginPath);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: await zipFiles(php, zipFileName, {
+						[`${pluginName}/index.php`]: `/**\n * Plugin Name: Symlink Plugin`,
+					}),
+					ifAlreadyInstalled: 'skip',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/symbolic link/);
+		});
+
+		it('should reject overwriting a broken symlinked plugin directory', async () => {
+			php.rmdir(installedPluginPath, { recursive: true });
+			php.symlink('/missing-plugin-target', installedPluginPath);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: await zipFiles(php, zipFileName, {
+						[`${pluginName}/index.php`]: `/**\n * Plugin Name: Symlink Plugin`,
+					}),
+					ifAlreadyInstalled: 'overwrite',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/symbolic link/);
+		});
+
+		it('should reject a symlinked single-file plugin target', async () => {
+			const pluginFilePath = `${pluginsPath}/standalone.php`;
+			php.writeFile('/outside-standalone.php', 'keep me');
+			php.symlink('/outside-standalone.php', pluginFilePath);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: new File(
+						['<?php\n/**\n * Plugin Name: Standalone */'],
+						'standalone.php'
+					),
+					ifAlreadyInstalled: 'skip',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/symbolic link/);
+
+			expect(php.readFileAsText('/outside-standalone.php')).toBe(
+				'keep me'
+			);
+		});
 	});
 
 	describe('targetFolderName option', () => {

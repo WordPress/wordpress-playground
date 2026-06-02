@@ -13,6 +13,7 @@
 import { CLIOutput as BaseCLIOutput } from '@php-wasm/cli-util';
 import { shouldRenderProgress } from './utils/progress';
 import type { Mount } from '@php-wasm/cli-util';
+import { redactSensitiveText } from '@php-wasm/util';
 
 /**
  * Configuration details displayed at CLI startup.
@@ -65,7 +66,9 @@ export class CLIOutput extends BaseCLIOutput {
 
 		// PHP and WordPress versions
 		lines.push(
-			`${this.dim('PHP')} ${this.cyan(config.phpVersion)}  ${this.dim('WordPress')} ${this.cyan(config.wpVersion)}`
+			`${this.dim('PHP')} ${this.cyan(config.phpVersion)}  ${this.dim(
+				'WordPress'
+			)} ${this.cyan(redactSensitiveText(config.wpVersion))}`
 		);
 
 		// Extensions
@@ -92,7 +95,11 @@ export class CLIOutput extends BaseCLIOutput {
 
 		// Blueprint if specified
 		if (config.blueprint) {
-			lines.push(`${this.dim('Blueprint')} ${config.blueprint}`);
+			lines.push(
+				`${this.dim('Blueprint')} ${redactSensitiveText(
+					config.blueprint
+				)}`
+			);
 		}
 
 		this.writeStream.write(lines.join('\n') + '\n\n');

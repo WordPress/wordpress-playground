@@ -1,6 +1,6 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
-import { joinPaths, normalizePath } from '@php-wasm/util';
+import { isParentOf, joinPaths, normalizePath } from '@php-wasm/util';
 import type { Entry } from '@zip.js/zip.js';
 import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
@@ -273,7 +273,13 @@ export class ChrootFilesystem implements ReadableFilesystemBackend {
 	}
 
 	async read(path: string): Promise<StreamedFile> {
-		const chrootedPath = joinPaths(this.chroot, path);
+		const chroot = normalizePath(this.chroot);
+		const chrootedPath = normalizePath(joinPaths(chroot, path));
+		if (chroot && !isParentOf(chroot, chrootedPath)) {
+			throw new Error(
+				`File ${path} is outside the blueprint bundle directory.`
+			);
+		}
 		return this.backend.read(chrootedPath);
 	}
 }

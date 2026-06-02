@@ -4301,9 +4301,20 @@ function blueprintRequiresWpCli(blueprint: BlueprintV2Declaration) {
 	return steps.some((step: any) => step?.step === 'wp-cli');
 }
 
+const V1_ABSOLUTE_PATH_PREFIX = 'v1-absolute:';
+
 function toPlaygroundPath(path: string): string {
 	if (typeof path !== 'string' || path.length === 0) {
 		return '/wordpress';
+	}
+	if (path.startsWith(V1_ABSOLUTE_PATH_PREFIX)) {
+		const v1Path = path.slice(V1_ABSOLUTE_PATH_PREFIX.length);
+		if (pathContainsParentDirectorySegment(v1Path)) {
+			throw new InvalidBlueprintV2Error(
+				`Invalid Blueprint v2 path "${v1Path}": must not contain parent directory segments.`
+			);
+		}
+		return v1Path;
 	}
 	if (pathContainsParentDirectorySegment(path)) {
 		throw new InvalidBlueprintV2Error(
@@ -4320,11 +4331,17 @@ function toPlaygroundPath(path: string): string {
 }
 
 function migrateV1Path(path: string): string {
+	if (path === '/wordpress') {
+		return '/';
+	}
 	if (path.startsWith('/wordpress/')) {
 		return path.slice('/wordpress'.length);
 	}
 	if (path.startsWith('wordpress/')) {
 		return path.slice('wordpress'.length);
+	}
+	if (path.startsWith('/')) {
+		return `${V1_ABSOLUTE_PATH_PREFIX}${path}`;
 	}
 	return path;
 }

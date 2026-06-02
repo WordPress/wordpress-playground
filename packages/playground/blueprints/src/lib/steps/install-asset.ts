@@ -1,5 +1,5 @@
 import type { UniversalPHP } from '@php-wasm/universal';
-import { joinPaths, randomFilename } from '@php-wasm/util';
+import { joinPaths, phpVar, randomFilename } from '@php-wasm/util';
 import { unzip } from './unzip';
 
 export interface InstallAssetOptions {
@@ -189,6 +189,12 @@ export async function handleIfAlreadyInstalled(
 		expectedType: 'directory' | 'file';
 	}
 ) {
+	if (await isSymlink(playground, assetPath)) {
+		throw new Error(
+			`Cannot install asset ${assetName} to ${assetPath} because a symbolic link with the same name already exists.`
+		);
+	}
+
 	if (!(await playground.fileExists(assetPath))) {
 		return false;
 	}
@@ -222,4 +228,11 @@ export async function handleIfAlreadyInstalled(
 		`Cannot install asset ${assetName} to ${targetPath} because it already exists and ` +
 			`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
 	);
+}
+
+async function isSymlink(playground: UniversalPHP, path: string) {
+	const result = await playground.run({
+		code: `<?php echo is_link(${phpVar(path)}) ? '1' : '0';`,
+	});
+	return result.text === '1';
 }

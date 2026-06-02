@@ -81,6 +81,7 @@ $zip->close();
 			code: `<?php
 $zip = new ZipArchive();
 $zip->open('${zipPath}', ZipArchive::CREATE);
+$zip->addFromString('safe.txt', 'safe');
 $zip->addFromString('link', '../outside');
 $zip->setExternalAttributesName('link', 3, 0120777 << 16);
 $zip->addFromString('link/pwn.php', 'bad');
@@ -94,8 +95,9 @@ $zip->close();
 				new File([php.readFileAsBuffer(zipPath)], 'unsafe.zip'),
 				'/wordpress/extracted'
 			)
-		).rejects.toThrow(/ZIP entry/);
+		).rejects.toThrow(/ZIP symlink entry/);
 
+		expect(php.fileExists('/wordpress/extracted/safe.txt')).toBe(false);
 		expect(php.fileExists('/outside/pwn.php')).toBe(false);
 		expect(php.fileExists('/wordpress/outside/pwn.php')).toBe(false);
 	});

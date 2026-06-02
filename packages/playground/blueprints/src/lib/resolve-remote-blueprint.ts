@@ -5,7 +5,13 @@ import {
 	ChrootFilesystem,
 	ZipFilesystem,
 } from '@wp-playground/storage';
-import { basename, dirname, normalizePath } from '@php-wasm/util';
+import {
+	basename,
+	dirname,
+	normalizePath,
+	redactSensitiveText,
+	redactSensitiveUrl,
+} from '@php-wasm/util';
 import type { BlueprintBundle } from './types';
 
 export class BlueprintFetchError extends Error {
@@ -49,8 +55,7 @@ export async function resolveRemoteBlueprint(
 			error instanceof Error ? error.message : String(error);
 		throw new BlueprintFetchError(
 			`Blueprint file could not be resolved from ${displayUrl}: ${redactSensitiveText(
-				errorMessage,
-				url
+				errorMessage
 			)}`,
 			url,
 			{ cause: error }
@@ -82,30 +87,6 @@ export async function resolveRemoteBlueprint(
 			{ cause: error }
 		);
 	}
-}
-
-function redactSensitiveUrl(url: string) {
-	try {
-		const parsed = new URL(url);
-		if (parsed.username) {
-			parsed.username = 'REDACTED';
-		}
-		if (parsed.password) {
-			parsed.password = 'REDACTED';
-		}
-		for (const [key] of parsed.searchParams) {
-			if (/token|key|secret|password|auth|signature/i.test(key)) {
-				parsed.searchParams.set(key, 'REDACTED');
-			}
-		}
-		return parsed.toString();
-	} catch {
-		return url;
-	}
-}
-
-function redactSensitiveText(text: string, rawUrl: string) {
-	return text.split(rawUrl).join(redactSensitiveUrl(rawUrl));
 }
 
 /**

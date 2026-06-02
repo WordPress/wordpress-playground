@@ -578,6 +578,9 @@ function appendV2QueryWxrImportStep(
 				{
 					type: 'wxr',
 					source: importWxrQueryArg,
+					authorsMode: 'default-author',
+					defaultAuthorUsername: 'admin',
+					importComments: true,
 				},
 			],
 		} as any);
