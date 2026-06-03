@@ -40,15 +40,58 @@
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
+	position: relative;
+	height: 28px;
 	min-height: 28px;
+	min-width: 86px;
 	padding: 0 10px;
 	border-radius: 4px;
 	background: #f0f6fc;
 	color: #1e1e1e;
 	font-size: 12px;
+	line-height: 1;
 	font-weight: 500;
 	border: 1px solid #c3c4c7;
 	white-space: nowrap;
+}
+
+.status-pill-button {
+	font-family: inherit;
+	cursor: pointer;
+}
+
+.status-pill-button:hover,
+.status-pill-button:focus-visible {
+	background: #f6f7f7;
+	border-color: #8c8f94;
+	color: #1e1e1e;
+}
+
+.status-pill-button:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.status-pill-label,
+.status-pill-hover-label {
+	display: block;
+	line-height: 1;
+}
+
+.status-pill-hover-label {
+	position: absolute;
+	opacity: 0;
+}
+
+.status-pill-button:hover .status-pill-label,
+.status-pill-button:focus-visible .status-pill-label {
+	opacity: 0;
+}
+
+.status-pill-button:hover .status-pill-hover-label,
+.status-pill-button:focus-visible .status-pill-hover-label {
+	opacity: 1;
 }
 
 .unsupported-notice {

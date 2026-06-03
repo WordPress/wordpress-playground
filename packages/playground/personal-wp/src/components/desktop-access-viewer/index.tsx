@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
 import type { SessionStatusResponse } from '../../lib/relay-server/types';
 
+// @ts-ignore
+import serviceWorkerPath from '../../../../remote/service-worker.ts?worker&url';
+
 interface DesktopAccessViewerProps {
 	sessionId: string;
 }
@@ -14,6 +17,9 @@ type ConnectionStatus =
 
 const STATUS_POLL_INTERVAL_MS = 3000;
 const GUEST_ID_STORAGE_KEY = 'personal-wp-desktop-access-guest-id';
+const DESKTOP_RELAY_SCOPE = 'default';
+const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
+const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
 
 export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [status, setStatus] = useState<ConnectionStatus>('connecting');
@@ -134,6 +140,65 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	}, [relayBaseUrl, statusUrl]);
 
 	useEffect(() => {
+		if (!('serviceWorker' in navigator)) {
+			return;
+		}
+
+		let cancelled = false;
+		let interval: ReturnType<typeof setInterval> | null = null;
+
+		const configureServiceWorker = async () => {
+			const serviceWorkerUrl = new URL(
+				serviceWorkerPath,
+				window.location.origin
+			);
+			const registration = await navigator.serviceWorker.register(
+				serviceWorkerUrl,
+				{
+					type: 'module',
+					updateViaCache: 'none',
+				}
+			);
+			await navigator.serviceWorker.ready;
+
+			if (cancelled) {
+				return;
+			}
+			postDesktopRelayMapping(registration);
+			interval = setInterval(
+				() => postDesktopRelayMapping(registration),
+				SERVICE_WORKER_RELAY_REFRESH_MS
+			);
+			registration.update().catch(() => {});
+		};
+
+		const postDesktopRelayMapping = (
+			registration: ServiceWorkerRegistration
+		) => {
+			const worker =
+				navigator.serviceWorker.controller || registration.active;
+			worker?.postMessage({
+				type: 'personal-wp-desktop-relay-map',
+				scope: DESKTOP_RELAY_SCOPE,
+				relayBaseUrl,
+				ttl: SERVICE_WORKER_RELAY_TTL_MS,
+			});
+		};
+
+		configureServiceWorker().catch(() => {});
+
+		window.addEventListener('pagehide', clearDesktopRelayMapping);
+		return () => {
+			cancelled = true;
+			if (interval !== null) {
+				clearInterval(interval);
+			}
+			window.removeEventListener('pagehide', clearDesktopRelayMapping);
+			clearDesktopRelayMapping();
+		};
+	}, [relayBaseUrl]);
+
+	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
 			if (!isMessageFromIframeTree(event, iframeRef.current)) {
 				return;
@@ -172,6 +237,11 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		}
 	};
 
+	const disconnect = () => {
+		clearDesktopRelayMapping();
+		window.location.href = '/connect';
+	};
+
 	return (
 		<div className={css.viewer}>
 			<header className={css.banner}>
@@ -182,7 +252,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 						here.
 					</span>
 				</div>
-				<ConnectionPill status={status} />
+				<ConnectionPill status={status} onDisconnect={disconnect} />
 			</header>
 			{unsupportedMessage ? (
 				<div className={css.unsupportedNotice} role="status">
@@ -310,7 +380,20 @@ export function getDesktopAccessSessionId(): string | null {
 	return params.get('share');
 }
 
-function ConnectionPill({ status }: { status: ConnectionStatus }) {
+function clearDesktopRelayMapping() {
+	navigator.serviceWorker?.controller?.postMessage({
+		type: 'personal-wp-desktop-relay-clear',
+		scope: DESKTOP_RELAY_SCOPE,
+	});
+}
+
+function ConnectionPill({
+	status,
+	onDisconnect,
+}: {
+	status: ConnectionStatus;
+	onDisconnect: () => void;
+}) {
 	const label =
 		status === 'connected'
 			? 'Connected'
@@ -319,6 +402,20 @@ function ConnectionPill({ status }: { status: ConnectionStatus }) {
 				: status === 'error'
 					? 'Connection error'
 					: 'Connecting';
+
+	if (status === 'connected') {
+		return (
+			<button
+				type="button"
+				className={`${css.statusPill} ${css.statusPillButton}`}
+				onClick={onDisconnect}
+				aria-label="Disconnect desktop access"
+			>
+				<span className={css.statusPillLabel}>{label}</span>
+				<span className={css.statusPillHoverLabel}>Disconnect</span>
+			</button>
+		);
+	}
 
 	return <span className={css.statusPill}>{label}</span>;
 }

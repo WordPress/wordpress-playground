@@ -196,6 +196,20 @@ export default defineConfig(({ command, mode }) => {
 			},
 		],
 
+		worker: {
+			format: 'es',
+			plugins: () => [
+				viteTsConfigPaths({
+					root: '../../../',
+				}),
+				viteIgnoreImports({
+					extensions: ['wasm', 'so', 'dat'],
+				}),
+				...viteGlobalExtensions,
+				buildVersionPlugin('remote-config'),
+			],
+		},
+
 		build: {
 			target: 'esnext',
 			sourcemap: true,
