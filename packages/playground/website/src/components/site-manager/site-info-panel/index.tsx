@@ -91,7 +91,7 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
-	// Load the last active tab for this site
+	// Load the requested tab, restore the last visited one, or default to settings
 	const [initialTabName] = useState(() => {
 		return initialTab || getSiteLastTab(site.slug) || 'settings';
 	});
