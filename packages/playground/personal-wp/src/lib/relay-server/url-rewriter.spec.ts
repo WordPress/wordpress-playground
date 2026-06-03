@@ -151,6 +151,15 @@ describe('createRelayUrlRewriter — HTML', () => {
 		expect(out).toContain('window.fetch');
 	});
 
+	it('rewrites absolute scoped URLs inside script bodies', () => {
+		const html = `<script type="importmap">{"imports":{"@wordpress/interactivity":"https://${HOST}/scope:default/wp-includes/js/dist/script-modules/interactivity/index.min.js?ver=1"}}</script>`;
+		const out = rw.rewriteHtml(html);
+		expect(out).toContain(
+			`"@wordpress/interactivity":"${PREFIX}/wp-includes/js/dist/script-modules/interactivity/index.min.js?ver=1"`
+		);
+		expect(out).not.toContain('/scope:default/wp-includes');
+	});
+
 	it('injects a runtime URL rewriter that is valid JavaScript', () => {
 		const html =
 			'<html><body><a href="/scope:default/">site</a></body></html>';

@@ -154,16 +154,18 @@ export function createRelayUrlRewriter(
 			return false;
 		}
 		let path = raw.trim();
+		let isScopedPath = path.startsWith('/scope:');
 		if (/^[a-z][a-z0-9+.-]*:/i.test(path)) {
 			try {
 				path = new URL(path).pathname;
+				isScopedPath = path.startsWith('/scope:');
 			} catch {
 				return false;
 			}
 		}
 		path = getRelayPath(path);
 		return (
-			raw.trim().startsWith('/scope:') ||
+			isScopedPath ||
 			path === '/wp-admin/admin-ajax.php' ||
 			path.startsWith('/wp-json/') ||
 			path.startsWith('/index.php?rest_route=')
