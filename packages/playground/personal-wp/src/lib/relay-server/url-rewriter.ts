@@ -221,9 +221,9 @@ export function createRelayUrlRewriter(
 		return originalFetch(rewriteUrl(input), init);
 	};
 
-	const originalOpen = XMLHttpRequest.prototype.open;
+	const originalXHROpen = XMLHttpRequest.prototype.open;
 	XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-		return originalOpen.call(this, method, rewriteUrl(url), ...rest);
+		return originalXHROpen.call(this, method, rewriteUrl(url), ...rest);
 	};
 
 	const originalSendBeacon = navigator.sendBeacon?.bind(navigator);
@@ -231,10 +231,10 @@ export function createRelayUrlRewriter(
 		navigator.sendBeacon = (url, data) => originalSendBeacon(rewriteUrl(url), data);
 	}
 
-	const originalOpen = window.open?.bind(window);
-	if (originalOpen) {
+	const originalWindowOpen = window.open?.bind(window);
+	if (originalWindowOpen) {
 		window.open = (url, target, features) =>
-			originalOpen(url === undefined ? url : rewriteUrl(url), target, features);
+			originalWindowOpen(url === undefined ? url : rewriteUrl(url), target, features);
 	}
 
 	document.addEventListener('click', (event) => {

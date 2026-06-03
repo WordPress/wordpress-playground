@@ -151,6 +151,16 @@ describe('createRelayUrlRewriter — HTML', () => {
 		expect(out).toContain('window.fetch');
 	});
 
+	it('injects a runtime URL rewriter that is valid JavaScript', () => {
+		const html =
+			'<html><body><a href="/scope:default/">site</a></body></html>';
+		const out = rw.rewriteHtml(html);
+		const doc = new DOMParser().parseFromString(out, 'text/html');
+		const injectedScript = doc.querySelector('script')?.textContent;
+		expect(injectedScript).toContain('window.fetch');
+		expect(() => new Function(injectedScript || '')).not.toThrow();
+	});
+
 	it('does NOT touch unrelated URLs inside <script> bodies', () => {
 		const html =
 			'<html><body><script>var u = "/wp-admin/edit.php"; console.log(u);</script></body></html>';

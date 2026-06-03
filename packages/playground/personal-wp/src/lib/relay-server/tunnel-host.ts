@@ -6,6 +6,7 @@
  */
 
 import { logger } from '@php-wasm/logger';
+import { joinPaths, normalizePath } from '@php-wasm/util';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { createRelayUrlRewriter } from './url-rewriter';
 import type {
@@ -55,6 +56,25 @@ function removeScopePrefix(path: string): string {
 	const match = path.match(/^\/scope:[^/]+(\/.*)?$/);
 	return match ? match[1] || '/' : path;
 }
+
+const STATIC_ASSET_MIME_TYPES: Record<string, string> = {
+	css: 'text/css',
+	js: 'application/javascript',
+	mjs: 'application/javascript',
+	json: 'application/json',
+	map: 'application/json',
+	png: 'image/png',
+	jpg: 'image/jpeg',
+	jpeg: 'image/jpeg',
+	gif: 'image/gif',
+	svg: 'image/svg+xml',
+	webp: 'image/webp',
+	ico: 'image/x-icon',
+	woff: 'font/woff',
+	woff2: 'font/woff2',
+	ttf: 'font/ttf',
+	eot: 'application/vnd.ms-fontobject',
+};
 
 export type TunnelHostStatus =
 	| 'disconnected'
@@ -254,6 +274,10 @@ export class TunnelHost {
 	 * Requests are processed sequentially since PlaygroundClient is single-threaded.
 	 */
 	private queueRequest(request: TunnelRequest): void {
+		if (this.canHandleAsStaticAsset(request)) {
+			void this.handleStaticAssetRequest(request);
+			return;
+		}
 		this.requestQueue.push(request);
 		this.processQueue();
 	}
@@ -577,6 +601,84 @@ export class TunnelHost {
 		}
 	}
 
+	private canHandleAsStaticAsset(tunnelRequest: TunnelRequest): boolean {
+		if (tunnelRequest.method !== 'GET' && tunnelRequest.method !== 'HEAD') {
+			return false;
+		}
+		if (tunnelRequest.body) {
+			return false;
+		}
+		const pathname = new URL(tunnelRequest.path, 'https://example.com')
+			.pathname;
+		if (pathname.includes('..')) {
+			return false;
+		}
+		return getStaticAssetMimeType(pathname) !== null;
+	}
+
+	private async handleStaticAssetRequest(
+		tunnelRequest: TunnelRequest
+	): Promise<void> {
+		const sessionIdAtStart = this.sessionId;
+		try {
+			const pathname = new URL(tunnelRequest.path, 'https://example.com')
+				.pathname;
+			const documentRoot = normalizePath(
+				await this.playgroundClient.documentRoot
+			);
+			const fsPath = normalizePath(
+				joinPaths(documentRoot, removeScopePrefix(pathname))
+			);
+			if (!fsPath.startsWith(`${documentRoot}/`)) {
+				throw new Error(`Refusing to read outside ${documentRoot}`);
+			}
+			if (!(await this.playgroundClient.isFile(fsPath))) {
+				await this.queuePhpFallbackRequest(tunnelRequest);
+				return;
+			}
+
+			const mimeType =
+				getStaticAssetMimeType(pathname) || 'application/octet-stream';
+			const body =
+				tunnelRequest.method === 'HEAD'
+					? new Uint8Array()
+					: await this.playgroundClient.readFileAsBuffer(fsPath);
+
+			if (
+				!this.isActive ||
+				this.sessionId !== sessionIdAtStart ||
+				!this.sessionId
+			) {
+				return;
+			}
+
+			await this.sendResponse({
+				requestId: tunnelRequest.requestId,
+				status: 200,
+				headers: {
+					'content-type': mimeType,
+					'cache-control':
+						'no-cache, must-revalidate, max-age=0, no-store, private',
+				},
+				body: uint8ArrayToBase64(body),
+			});
+			this.emit('requestProcessed', tunnelRequest);
+		} catch (error) {
+			logger.warn(
+				`[TunnelHost] Static asset fast path failed for ${tunnelRequest.path}:`,
+				error
+			);
+			await this.queuePhpFallbackRequest(tunnelRequest);
+		}
+	}
+
+	private async queuePhpFallbackRequest(
+		tunnelRequest: TunnelRequest
+	): Promise<void> {
+		this.requestQueue.push(tunnelRequest);
+		await this.processQueue();
+	}
+
 	/**
 	 * Send a response back to the relay server.
 	 *
@@ -608,4 +710,12 @@ export class TunnelHost {
 			throw new Error(`Failed to send response: ${res.statusText}`);
 		}
 	}
+}
+
+function getStaticAssetMimeType(pathname: string): string | null {
+	const extension = pathname.split('.').pop()?.toLowerCase();
+	if (!extension || extension === pathname) {
+		return null;
+	}
+	return STATIC_ASSET_MIME_TYPES[extension] || null;
 }
