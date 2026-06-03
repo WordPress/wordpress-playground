@@ -212,7 +212,8 @@ self.addEventListener('fetch', (event) => {
 
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
-		url.pathname.startsWith('/client/index.js');
+		url.pathname.startsWith('/client/index.js') ||
+		url.pathname.startsWith('/relay/');
 	if (isReservedUrl) {
 		return;
 	}

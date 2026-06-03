@@ -34,6 +34,18 @@ const proxy: CommonServerOptions['proxy'] = {
 	},
 };
 
+const phpRelayUrl = 'http://127.0.0.1:5264';
+const buildRelayProxy = (forwardedHost: string) => ({
+	'^/relay/': {
+		target: phpRelayUrl,
+		changeOrigin: true,
+		headers: {
+			'X-Forwarded-Host': forwardedHost,
+			'X-Forwarded-Proto': 'http',
+		},
+	},
+});
+
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	const isProductionBuild = mode === 'production';
@@ -65,7 +77,12 @@ export default defineConfig(({ command, mode }) => {
 		preview: {
 			port: personalWPDevServerPort,
 			host: websiteDevServerHost,
-			proxy,
+			proxy: {
+				...proxy,
+				...buildRelayProxy(
+					`${websiteDevServerHost}:${personalWPDevServerPort}`
+				),
+			},
 		},
 
 		server: {
@@ -88,7 +105,10 @@ export default defineConfig(({ command, mode }) => {
 					target: `http://${websiteDevServerHost}:${personalWPDevServerPort}`,
 					rewrite: (path) => `/website-server${path}`,
 				},
-				'^[/]((?!website-server).)': {
+				...buildRelayProxy(
+					`${websiteDevServerHost}:${personalWPDevServerPort}`
+				),
+				'^[/]((?!website-server|relay).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 				},
 			},

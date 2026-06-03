@@ -34,6 +34,12 @@ import {
 } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
 import { encodeStringAsBase64 } from '../../../lib/base64';
+import {
+	getDesktopAccessStatus,
+	startDesktopAccess,
+	stopDesktopAccess,
+	subscribeToDesktopAccessStatus,
+} from '../../../lib/desktop-access-service';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -153,6 +159,140 @@ function InstallAppsSection({ siteSlug }: { siteSlug: string }) {
 			</div>
 		</div>
 	);
+}
+
+function DesktopAccessSection() {
+	const playground = usePlaygroundClient();
+	const [desktopAccess, setDesktopAccess] = useState(getDesktopAccessStatus);
+	const [message, setMessage] = useState<string | null>(null);
+
+	useEffect(() => subscribeToDesktopAccessStatus(setDesktopAccess), []);
+
+	async function startAccess() {
+		if (!playground) {
+			return;
+		}
+		setMessage(null);
+		try {
+			const shareUrl = await startDesktopAccess(playground);
+			setMessage(
+				(await copyUrl(shareUrl))
+					? 'Desktop link copied.'
+					: 'Desktop link ready.'
+			);
+		} catch (error) {
+			logger.error('Failed to start desktop access:', error);
+			setMessage('Could not start desktop access.');
+		}
+	}
+
+	async function stopAccess() {
+		setMessage(null);
+		await stopDesktopAccess();
+	}
+
+	async function copyCurrentUrl() {
+		if (!desktopAccess.shareUrl) {
+			return;
+		}
+		setMessage(
+			(await copyUrl(desktopAccess.shareUrl))
+				? 'Desktop link copied.'
+				: 'Copy is not available.'
+		);
+	}
+
+	async function shareCurrentUrl() {
+		if (!desktopAccess.shareUrl || !navigator.share) {
+			return;
+		}
+		await navigator.share({
+			title: 'My WordPress desktop access',
+			url: desktopAccess.shareUrl,
+		});
+	}
+
+	const isStarting = desktopAccess.status === 'connecting';
+	const isActive = desktopAccess.isActive && desktopAccess.shareUrl;
+	const connectUrl = `${window.location.origin}/connect`;
+
+	return (
+		<div className={css.aboutSection}>
+			<h4 className={css.aboutSectionTitle}>Use on desktop</h4>
+			<p>
+				Open this running WordPress on a larger screen while this phone
+				stays next to your computer.
+			</p>
+			<div className={css.desktopAccessControls}>
+				{isActive ? (
+					<>
+						<div className={css.desktopAccessCodeBlock}>
+							<span>Open on your desktop:</span>
+							<strong>{connectUrl}</strong>
+							<span>Enter code:</span>
+							<b>{desktopAccess.accessCode}</b>
+						</div>
+						<div className={css.desktopAccessUrl}>
+							{desktopAccess.shareUrl}
+						</div>
+						<div className={css.desktopAccessButtons}>
+							<button
+								type="button"
+								className={css.backupNowButton}
+								onClick={copyCurrentUrl}
+							>
+								Copy link
+							</button>
+							{'share' in navigator && (
+								<button
+									type="button"
+									className={css.backupNowButton}
+									onClick={shareCurrentUrl}
+								>
+									Share
+								</button>
+							)}
+							<button
+								type="button"
+								className={css.textButton}
+								onClick={stopAccess}
+							>
+								Stop
+							</button>
+						</div>
+					</>
+				) : (
+					<button
+						type="button"
+						className={css.backupNowButton}
+						disabled={!playground || isStarting}
+						onClick={startAccess}
+					>
+						{isStarting
+							? 'Starting desktop access...'
+							: 'Start desktop access'}
+					</button>
+				)}
+				{message && (
+					<div className={css.desktopAccessStatus} role="status">
+						{message}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+async function copyUrl(url: string): Promise<boolean> {
+	try {
+		if (!navigator.clipboard) {
+			return false;
+		}
+		await navigator.clipboard.writeText(url);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 // ── Backup ────────────────────────────────────────────────────
@@ -445,6 +585,7 @@ function AboutTab({ siteSlug }: { siteSlug: string }) {
 			<InstallAppsSection siteSlug={siteSlug} />
 			{!isDependentMode && (
 				<>
+					<DesktopAccessSection />
 					<BackupSection />
 					<RecoverySection />
 				</>

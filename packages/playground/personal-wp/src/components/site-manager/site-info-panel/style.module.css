@@ -280,6 +280,70 @@
 	line-height: 18px;
 }
 
+/* -- Desktop access -- */
+
+.desktop-access-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.desktop-access-url {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+	color: #1e1e1e;
+	font-size: 12px;
+	line-height: 18px;
+	word-break: break-all;
+}
+
+.desktop-access-code-block {
+	display: grid;
+	gap: 4px;
+	padding: 12px;
+	border: 1px solid #1e1e1e;
+	border-radius: 6px;
+	background: #ffffff;
+}
+
+.desktop-access-code-block span {
+	color: #50575e;
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.desktop-access-code-block strong {
+	font-size: 13px;
+	line-height: 18px;
+	font-weight: 600;
+	word-break: break-all;
+}
+
+.desktop-access-code-block b {
+	color: #1e1e1e;
+	font-size: 28px;
+	line-height: 34px;
+	font-weight: 600;
+	letter-spacing: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.desktop-access-buttons {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.desktop-access-status {
+	font-size: 12px;
+	line-height: 18px;
+	color: #50575e;
+}
+
 /* ── Apps ── */
 
 .apps-loading {

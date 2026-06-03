@@ -54,11 +54,21 @@
 			"options": {
 				"commands": [
 					"nx run playground-php-cors-proxy:start",
+					"nx run playground-personal-wp:dev:relay-php",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev:standalone playground-personal-wp --configuration=development --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true
+			}
+		},
+		"dev:relay-php": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"PHP_CLI_SERVER_WORKERS=20 PLAYGROUND_RELAY_PUBLIC_BASE_URL=http://127.0.0.1:5401/website-server/ node ../bin/quiet-php-server.cjs 127.0.0.1:5264 relay.php"
+				],
+				"cwd": "packages/playground/personal-wp/public"
 			}
 		},
 		"dev:standalone": {
