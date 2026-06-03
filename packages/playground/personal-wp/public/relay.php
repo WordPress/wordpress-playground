@@ -277,10 +277,26 @@ final class FileRelayStorage implements RelayStorage {
         $requestsDir = $this->dataDir . '/requests/' . $sessionId;
         $this->ensureDir($requestsDir);
         $files = glob($requestsDir . '/*.json') ?: [];
+        $candidates = [];
+        foreach ($files as $file) {
+            $contents = @file_get_contents($file);
+            $request = $contents ? json_decode($contents, true) : null;
+            if ($request && empty($request['dispatched'])) {
+                $candidates[] = [
+                    'file' => $file,
+                    'priority' => (int)($request['priority'] ?? getRequestPriority($request['request'] ?? [])),
+                    'createdAt' => (int)($request['createdAt'] ?? 0),
+                ];
+            }
+        }
+        usort($candidates, function ($a, $b) {
+            return [$a['priority'], $a['createdAt']] <=> [$b['priority'], $b['createdAt']];
+        });
         // Each candidate request file is opened under flock() so two
         // pollers cannot dispatch the same request twice (the original
         // code did a racy read-modify-write that could double-deliver).
-        foreach ($files as $file) {
+        foreach ($candidates as $candidate) {
+            $file = $candidate['file'];
             $fh = @fopen($file, 'r+');
             if (!$fh) {
                 continue;
@@ -318,6 +334,7 @@ final class FileRelayStorage implements RelayStorage {
                 'request' => $request,
                 'dispatched' => false,
                 'createdAt' => nowMs(),
+                'priority' => getRequestPriority($request),
             ])
         );
     }
@@ -652,16 +669,44 @@ final class MysqlRelayStorage implements RelayStorage {
         $this->pdo->beginTransaction();
         try {
             $stmt = $this->pdo->prepare(
-                "SELECT request_id, payload
+                "SELECT request_id, payload, created_at
                  FROM `{$this->requestsTable}`
                  WHERE session_id = ? AND dispatched = 0
                  ORDER BY created_at ASC
-                 LIMIT 1
+                 LIMIT 50
                  FOR UPDATE"
             );
             $stmt->execute([$sessionId]);
-            $row = $stmt->fetch();
-            if (!$row) {
+            $rows = $stmt->fetchAll();
+            if (!$rows) {
+                $this->pdo->commit();
+                return null;
+            }
+            $selected = null;
+            $selectedEnvelope = null;
+            foreach ($rows as $row) {
+                $envelope = json_decode($row['payload'], true);
+                if (!is_array($envelope) || !isset($envelope['request'])) {
+                    continue;
+                }
+                $priority = (int)($envelope['priority'] ?? getRequestPriority($envelope['request']));
+                $createdAt = (int)($row['created_at'] ?? 0);
+                if (
+                    $selected === null ||
+                    [$priority, $createdAt] < [
+                        $selected['priority'],
+                        $selected['createdAt'],
+                    ]
+                ) {
+                    $selected = [
+                        'requestId' => $row['request_id'],
+                        'priority' => $priority,
+                        'createdAt' => $createdAt,
+                    ];
+                    $selectedEnvelope = $envelope;
+                }
+            }
+            if ($selected === null || $selectedEnvelope === null) {
                 $this->pdo->commit();
                 return null;
             }
@@ -670,14 +715,9 @@ final class MysqlRelayStorage implements RelayStorage {
                  SET dispatched = 1
                  WHERE session_id = ? AND request_id = ?"
             );
-            $update->execute([$sessionId, $row['request_id']]);
+            $update->execute([$sessionId, $selected['requestId']]);
             $this->pdo->commit();
-
-            $envelope = json_decode($row['payload'], true);
-            if (!is_array($envelope) || !isset($envelope['request'])) {
-                return null;
-            }
-            return $envelope['request'];
+            return $selectedEnvelope['request'];
         } catch (Throwable $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
@@ -691,6 +731,7 @@ final class MysqlRelayStorage implements RelayStorage {
             'request' => $request,
             'dispatched' => false,
             'createdAt' => nowMs(),
+            'priority' => getRequestPriority($request),
         ];
         $stmt = $this->pdo->prepare(
             "INSERT INTO `{$this->requestsTable}`
@@ -1215,6 +1256,45 @@ function handleResponse(RelayStorage $storage, string $sessionId, string $reques
 
     header('Content-Type: application/json');
     echo json_encode(['ok' => true]);
+}
+
+/**
+ * Prioritize document/dynamic requests ahead of static asset fan-out.
+ *
+ * A WordPress page load often emits dozens of CSS/JS/font requests. If those
+ * are claimed strictly FIFO, a navigation request such as /my-apps/ can sit
+ * behind the asset backlog and hit the guest's 30s wait timeout. The phone
+ * side has a direct filesystem fast path for these static extensions, so keep
+ * them lower priority and let dynamic/document requests cut through.
+ */
+function getRequestPriority(array $request): int {
+    $method = strtoupper((string)($request['method'] ?? 'GET'));
+    if ($method !== 'GET' && $method !== 'HEAD') {
+        return 0;
+    }
+
+    $path = parse_url((string)($request['path'] ?? ''), PHP_URL_PATH) ?: '';
+    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $staticExtensions = [
+        'css' => true,
+        'js' => true,
+        'mjs' => true,
+        'json' => true,
+        'map' => true,
+        'png' => true,
+        'jpg' => true,
+        'jpeg' => true,
+        'gif' => true,
+        'svg' => true,
+        'webp' => true,
+        'ico' => true,
+        'woff' => true,
+        'woff2' => true,
+        'ttf' => true,
+        'eot' => true,
+    ];
+
+    return isset($staticExtensions[$extension]) ? 10 : 0;
 }
 
 /**
