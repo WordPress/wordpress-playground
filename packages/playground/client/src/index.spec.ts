@@ -4,19 +4,13 @@ import type { ProgressTracker } from '@php-wasm/progress';
 const mocks = vi.hoisted(() => {
 	vi.stubGlobal('location', { origin: 'http://localhost' });
 	return {
-		v1BootPlayground: vi.fn(),
-		v2BootPlayground: vi.fn(),
-		BlueprintsV1Handler: vi.fn(),
-		BlueprintsV2Handler: vi.fn(),
+		bootPlayground: vi.fn(),
+		BlueprintsHandler: vi.fn(),
 	};
 });
 
-vi.mock('./blueprints-v1-handler', () => ({
-	BlueprintsV1Handler: mocks.BlueprintsV1Handler,
-}));
-
-vi.mock('./blueprints-v2-handler', () => ({
-	BlueprintsV2Handler: mocks.BlueprintsV2Handler,
+vi.mock('./blueprints-handler', () => ({
+	BlueprintsHandler: mocks.BlueprintsHandler,
 }));
 
 import { startPlaygroundWeb } from './index';
@@ -26,15 +20,12 @@ describe('startPlaygroundWeb', () => {
 		vi.clearAllMocks();
 	});
 
-	it('routes v2 declarations through the native v2 handler by default', async () => {
+	it('routes Blueprint declarations through the shared handler', async () => {
 		const playground = { connected: true };
-		mocks.BlueprintsV1Handler.mockImplementation(() => ({
-			bootPlayground: mocks.v1BootPlayground,
+		mocks.BlueprintsHandler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlayground,
 		}));
-		mocks.BlueprintsV2Handler.mockImplementation(() => ({
-			bootPlayground: mocks.v2BootPlayground,
-		}));
-		mocks.v2BootPlayground.mockResolvedValue(playground);
+		mocks.bootPlayground.mockResolvedValue(playground);
 		const iframe = createIframe();
 
 		await expect(
@@ -51,8 +42,7 @@ describe('startPlaygroundWeb', () => {
 			})
 		).resolves.toBe(playground);
 
-		expect(mocks.BlueprintsV2Handler).toHaveBeenCalledTimes(1);
-		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
+		expect(mocks.BlueprintsHandler).toHaveBeenCalledTimes(1);
 		expect(iframe.src).toContain('blueprints-runner=v1');
 	});
 });

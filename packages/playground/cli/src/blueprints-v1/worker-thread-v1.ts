@@ -291,7 +291,7 @@ async function createPHPWorker(
 	options: Omit<WorkerBootRequestHandlerOptions, 'processId'>,
 	fileLockManager: FileLockManager
 ) {
-	const spawnedWorker = await spawnWorkerThread('v1');
+	const spawnedWorker = await spawnWorkerThread('standard');
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 		spawnedWorker.phpPort

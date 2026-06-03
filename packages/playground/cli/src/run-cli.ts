@@ -44,7 +44,6 @@ import {
 } from './defines';
 import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
-import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
@@ -101,7 +100,26 @@ export const LogVerbosity = {
 
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
+/**
+ * Historical public worker selector values.
+ *
+ * @deprecated Use `WorkerThreadEntrypoint`. These aliases are kept so
+ * downstream callers of `spawnWorkerThread('v1' | 'v2')` continue to work.
+ */
 export type WorkerType = 'v1' | 'v2';
+
+/**
+ * Selects the physical worker file to spawn.
+ *
+ * `standard` is the only runtime implementation used by the CLI. The v2
+ * entrypoint stays available so built packages continue to expose the
+ * historical worker-thread-v2 filename for downstream bundlers. The deprecated
+ * `v1` and `v2` aliases map to those same physical files.
+ */
+export type WorkerThreadEntrypoint =
+	| 'standard'
+	| 'compatibility-worker-thread-v2'
+	| WorkerType;
 
 const PlaygroundCLIPHPVersions = AllPHPVersions.filter(
 	(version) => !isPHPNextVersion(version)
@@ -708,8 +726,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		// Don't default WP_DEBUG* on for legacy PHP: old WordPress
 		// (pre-2.3) prints E_NOTICE output before headers are sent,
 		// which corrupts redirects and breaks the installer. The web
-		// worker path applies the same gate in
-		// @wp-playground/client/src/blueprints-v1-handler.ts.
+		// worker path applies the same gate when resolving runtime options.
 		const phpVersionForDebug = (args['php'] ||
 			RecommendedPHPVersion) as AllPHPVersion;
 		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
@@ -1009,10 +1026,7 @@ export interface RunCLIArgs {
 	reset?: boolean;
 }
 
-// TODO: Maybe we should just be declaring an interface instead of a type union
-export type PlaygroundCliWorker =
-	| PlaygroundCliBlueprintV1Worker
-	| PlaygroundCliBlueprintV2Worker;
+export type PlaygroundCliWorker = PlaygroundCliBlueprintV1Worker;
 
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
@@ -1579,13 +1593,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						args['additional-blueprint-steps'] || []
 					);
 				const promisesToBoot = [];
-				const workerType = handler.getWorkerType();
 				for (
 					let workerIndex = 0;
 					workerIndex < targetWorkerCount;
 					workerIndex++
 				) {
-					const promiseToBoot = spawnWorkerThread(workerType, {
+					const promiseToBoot = spawnWorkerThread('standard', {
 						onExit: (exitCode: number) => {
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
@@ -2079,18 +2092,15 @@ export type SpawnedWorker = {
 };
 
 /**
- * A statically analyzable function that spawns a worker thread of a given type.
+ * Spawns a worker thread through a statically analyzable entrypoint.
  *
  * **Important:** This function builds to code that has the worker URL hardcoded
  * inline, e.g. `new Worker(new URL('./worker-thread-v1.js', import.meta.url))`.
  * This allows the downstream consumers to statically analyze the code, recognize
  * it uses workers, create new entrypoints, and rewrite the new Worker() calls.
- *
- * @param workerType
- * @returns
  */
 export function spawnWorkerThread(
-	workerType: 'v1' | 'v2',
+	workerEntrypoint: WorkerThreadEntrypoint,
 	{ onExit }: { onExit?: (code: number) => void } = {}
 ) {
 	/**
@@ -2107,9 +2117,11 @@ export function spawnWorkerThread(
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
 	let worker: Worker;
-	if (workerType === 'v1') {
+	if (workerEntrypoint === 'standard' || workerEntrypoint === 'v1') {
 		worker = new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
 	} else {
+		// Keep the historical worker-thread-v2 filename available for
+		// downstream bundlers without maintaining a second worker implementation.
 		worker = new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
 	}
 

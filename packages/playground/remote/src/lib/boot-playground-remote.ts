@@ -42,7 +42,7 @@ function getWorkerUrl(): string {
 	);
 	if (runner === 'v2') {
 		logger.warn(
-			'The blueprints-runner=v2 worker is deprecated. Blueprint v2 is executed by the TypeScript client handler on the standard worker.'
+			'The blueprints-runner=v2 boot path is deprecated. Blueprints are executed by the TypeScript client handler on the standard worker.'
 		);
 	}
 	return new URL(workerV1Url, origin) + '';

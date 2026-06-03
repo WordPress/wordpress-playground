@@ -59,7 +59,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				blueprint.version === 2)
 		) {
 			throw new Error(
-				'The legacy remote Blueprint v2 worker is no longer supported. Use the TypeScript Blueprint v2 client handler on the standard worker.'
+				'The legacy remote Blueprint v2 boot path is no longer supported. Use the TypeScript Blueprint client handler on the standard worker.'
 			);
 		}
 		if (corsProxyUrl === undefined) {

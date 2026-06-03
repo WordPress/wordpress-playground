@@ -11,6 +11,12 @@ export type {
 	RuntimeConfiguration,
 } from './lib/types';
 export { BlueprintReflection } from './lib/reflection';
+export { compileBlueprintForExecution } from './lib/compile';
+export type {
+	BlueprintExecutionPath,
+	CompiledBlueprintForExecution,
+	CompileBlueprintForExecutionOptions,
+} from './lib/compile';
 export {
 	getBlueprintDeclaration,
 	isBlueprintBundle,

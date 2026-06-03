@@ -81,9 +81,9 @@ export type WorkerBootOptions = {
 	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
-	/** @deprecated Legacy remote Blueprint v2 worker boots are rejected. */
+	/** @deprecated Legacy remote Blueprint v2 boot options are rejected. */
 	experimentalBlueprintsV2Runner?: boolean;
-	/** @deprecated Direct worker Blueprint v2 execution is unsupported. */
+	/** @deprecated Direct remote Blueprint execution is unsupported. */
 	blueprint?: BlueprintDeclaration;
 	/**
 	 * How to handle WordPress installation.

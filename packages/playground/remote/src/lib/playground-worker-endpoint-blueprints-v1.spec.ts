@@ -175,7 +175,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 				},
 			})
 		).rejects.toThrow(
-			'The legacy remote Blueprint v2 worker is no longer supported.'
+			'The legacy remote Blueprint v2 boot path is no longer supported.'
 		);
 		expect(bootWordPress).not.toHaveBeenCalled();
 	}, 10000);

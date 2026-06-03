@@ -37,20 +37,6 @@ describe('BlueprintsV2Handler', () => {
 		vi.clearAllMocks();
 	});
 
-	test('uses the standard TypeScript worker path', () => {
-		const handler = new BlueprintsV2Handler(
-			{
-				command: 'server',
-			} as RunCLIArgs,
-			{
-				siteUrl: 'http://127.0.0.1:9400',
-				cliOutput,
-			}
-		);
-
-		expect(handler.getWorkerType()).toBe('v1');
-	});
-
 	test('applies CLI overrides and normalizes additional steps before compiling', async () => {
 		const handler = new BlueprintsV2Handler(
 			{

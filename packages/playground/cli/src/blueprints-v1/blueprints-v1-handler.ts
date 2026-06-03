@@ -28,7 +28,6 @@ import {
 	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
-	type WorkerType,
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
@@ -55,10 +54,6 @@ export class BlueprintsV1Handler {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.cliOutput = options.cliOutput;
-	}
-
-	getWorkerType(): WorkerType {
-		return 'v1';
 	}
 
 	async bootWordPress(

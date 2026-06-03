@@ -33,7 +33,6 @@ import type {
 	BlueprintDeclaration,
 	OnStepCompleted,
 } from '@wp-playground/blueprints';
-import { BlueprintReflection } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
@@ -42,8 +41,7 @@ import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
-import { BlueprintsV1Handler } from './blueprints-v1-handler';
-import { BlueprintsV2Handler } from './blueprints-v2-handler';
+import { BlueprintsHandler } from './blueprints-handler';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -166,32 +164,12 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	const blueprintVersion = await getBlueprintVersion(options.blueprint);
-	const handler =
-		options.experimentalBlueprintsV2Runner || blueprintVersion === 2
-			? new BlueprintsV2Handler(options)
-			: new BlueprintsV1Handler(options);
+	const handler = new BlueprintsHandler(options);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();
 
 	return playground;
-}
-
-async function getBlueprintVersion(blueprint: Blueprint | undefined) {
-	if (!blueprint) {
-		return 1;
-	}
-	if (
-		typeof blueprint === 'object' &&
-		!('read' in blueprint) &&
-		'version' in blueprint &&
-		typeof blueprint.version === 'number'
-	) {
-		return blueprint.version;
-	}
-	const reflection = await BlueprintReflection.create(blueprint);
-	return reflection.getVersion();
 }
 
 /**

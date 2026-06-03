@@ -39,7 +39,6 @@ import {
 	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
-	type WorkerType,
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
@@ -66,10 +65,6 @@ export class BlueprintsV2Handler {
 		this.cliOutput = options.cliOutput;
 	}
 
-	getWorkerType(): WorkerType {
-		return 'v1';
-	}
-
 	async bootWordPress(
 		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
@@ -77,11 +72,12 @@ export class BlueprintsV2Handler {
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
 		let preinstalledWpContentPath: string | undefined = undefined;
-		const legacyBlueprintSkipsWordPress =
-			await blueprintRequestsNoWordPress(this.args.blueprint);
+		const v1PhpOnlyMode = await v1BlueprintRequestsPhpOnlyMode(
+			this.args.blueprint
+		);
 		const wordpressInstallMode = resolveV2WordPressInstallMode(
 			this.args,
-			legacyBlueprintSkipsWordPress
+			v1PhpOnlyMode
 		);
 		const effectiveBlueprint = await this.getEffectiveBlueprint();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
@@ -274,6 +270,12 @@ export class BlueprintsV2Handler {
 		});
 	}
 
+	/**
+	 * Returns a v2 declaration after applying CLI-level defaults and overrides.
+	 *
+	 * Bundled Blueprints keep a `streamBundledFile` callback because v2 lowering
+	 * still needs the original archive to resolve bundled resources.
+	 */
 	private async getEffectiveBlueprint(additionalBlueprintSteps: any[] = []) {
 		const resolvedBlueprint =
 			this.args.blueprint || ({ version: 2 } as BlueprintV2Declaration);
@@ -306,6 +308,63 @@ export class BlueprintsV2Handler {
 	}
 }
 
+/**
+ * Detects v1 PHP-only mode before upgrading declarations to v2.
+ *
+ * `preferredVersions.wp: false` is not a public v2 field, but the CLI must
+ * still preserve it when a v1 declaration is migrated through the v2 compiler.
+ */
+async function v1BlueprintRequestsPhpOnlyMode(
+	blueprint: RunCLIArgs['blueprint']
+) {
+	if (!blueprint) {
+		return false;
+	}
+	const reflection = await BlueprintReflection.create(blueprint as any);
+	return (
+		reflection.getVersion() === 1 &&
+		(reflection.getDeclaration() as any).preferredVersions?.wp === false
+	);
+}
+
+/**
+ * Maps Blueprint v2 CLI modes onto the worker's WordPress install modes.
+ *
+ * V1 PHP-only mode wins over CLI defaults because downloading WordPress would
+ * change the semantics of a migrated `preferredVersions.wp: false` Blueprint.
+ */
+function resolveV2WordPressInstallMode(
+	args: RunCLIArgs,
+	v1PhpOnlyMode = false
+): WordPressInstallMode {
+	if (v1PhpOnlyMode) {
+		if (args.mode && args.mode !== 'mount-only') {
+			throw new Error(
+				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
+			);
+		}
+		if (
+			!args.mode &&
+			args.wordpressInstallMode &&
+			args.wordpressInstallMode !== 'do-not-attempt-installing'
+		) {
+			throw new Error(
+				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
+			);
+		}
+		return 'do-not-attempt-installing';
+	}
+	switch (args.mode) {
+		case 'apply-to-existing-site':
+			return 'install-from-existing-files-if-needed';
+		case 'mount-only':
+			return 'do-not-attempt-installing';
+		case 'create-new-site':
+			return 'download-and-install';
+	}
+	return args.wordpressInstallMode || 'download-and-install';
+}
+
 function assertCliSupportedPHPVersion(phpVersion: string) {
 	if (phpVersion === 'next') {
 		throw new Error(
@@ -314,6 +373,12 @@ function assertCliSupportedPHPVersion(phpVersion: string) {
 	}
 }
 
+/**
+ * Applies CLI flags as execution-time overrides without mutating caller data.
+ *
+ * V1 declarations are upgraded first so the CLI has one lowering path while
+ * preserving CLI defaults for PHP, WordPress, login, and appended steps.
+ */
 function applyCliOptionsToBlueprint(
 	resolvedBlueprint: BlueprintV1Declaration | BlueprintV2Declaration,
 	args: RunCLIArgs,
@@ -358,51 +423,6 @@ function applyCliOptionsToBlueprint(
 		];
 	}
 	return blueprint as BlueprintV2Declaration;
-}
-
-function resolveV2WordPressInstallMode(
-	args: RunCLIArgs,
-	legacyBlueprintSkipsWordPress = false
-): WordPressInstallMode {
-	if (legacyBlueprintSkipsWordPress) {
-		if (args.mode && args.mode !== 'mount-only') {
-			throw new Error(
-				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
-			);
-		}
-		if (
-			!args.mode &&
-			args.wordpressInstallMode &&
-			args.wordpressInstallMode !== 'do-not-attempt-installing'
-		) {
-			throw new Error(
-				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
-			);
-		}
-		return 'do-not-attempt-installing';
-	}
-	switch (args.mode) {
-		case 'apply-to-existing-site':
-			return 'install-from-existing-files-if-needed';
-		case 'mount-only':
-			return 'do-not-attempt-installing';
-		case 'create-new-site':
-			return 'download-and-install';
-	}
-	return args.wordpressInstallMode || 'download-and-install';
-}
-
-async function blueprintRequestsNoWordPress(
-	blueprint: RunCLIArgs['blueprint']
-) {
-	if (!blueprint) {
-		return false;
-	}
-	const reflection = await BlueprintReflection.create(blueprint as any);
-	return (
-		reflection.getVersion() === 1 &&
-		(reflection.getDeclaration() as any).preferredVersions?.wp === false
-	);
 }
 
 function normalizeAdditionalBlueprintSteps(steps: any[]) {
