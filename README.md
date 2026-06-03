@@ -116,6 +116,33 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
+### Running tests
+
+To run the unit tests for every project, use:
+
+```bash
+npm run test
+```
+
+To run unit tests for one project, pass the project name to Nx:
+
+```bash
+npx nx run playground-website:test
+```
+
+Some browser tests target the local `playground.test` domain over HTTPS, which requires additional local setup before they can run. Once your local environment is configured for that domain, you can run the Playground website E2E tests with:
+
+```bash
+npx nx run playground-website:e2e
+```
+
+The Playground website also has Playwright E2E targets:
+
+```bash
+npx nx run playground-website:e2e:playwright
+npx nx run playground-website:e2e:playwright:ci
+```
+
 And here are a few more interesting CLI commands you can run in this repo:
 
 ```bash
