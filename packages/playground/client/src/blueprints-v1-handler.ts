@@ -1,5 +1,7 @@
 import type { ProgressTracker } from '@php-wasm/progress';
 import {
+	type BlueprintV1,
+	type BlueprintV1Declaration,
 	type PlaygroundClient,
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
@@ -119,6 +121,7 @@ export class BlueprintsV1Handler {
 
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
+		 *
 		 * Skip for old WordPress versions — the functions called by prefetch
 		 * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
 		 * on legacy WP, and the resulting PHP errors create noise. WP 5.0
@@ -148,61 +151,19 @@ export class BlueprintsV1Handler {
 
 		if (shouldPrefetchUpdateChecks) {
 			/**
-			 * Admin landings still need update-check prefetching before the
-			 * progress bar disappears. Frontend landings can defer that work
-			 * because the prefetch only benefits the first subsequent wp-admin
-			 * navigation.
-			 *
-			 * Match only real wp-admin path segments. `/wp-adminer` is a
-			 * frontend path, not a wp-admin landing.
+			 * Only wait for the prefetch results if the initial landingPage is wp-admin.
+			 * In all other cases, schedule the pre-fetch in idle time as awaiting it
+			 * would slow down the initial page load.
 			 */
-			let isWpAdminLandingPage = false;
-			if (
-				blueprint &&
-				!isBlueprintBundle(blueprint) &&
-				blueprint.landingPage
-			) {
-				let landingPathname: string;
-				try {
-					landingPathname = new URL(
-						blueprint.landingPage,
-						'http://playground.local'
-					).pathname;
-				} catch {
-					landingPathname = blueprint.landingPage.split(/[?#]/, 1)[0];
-				}
-				isWpAdminLandingPage =
-					landingPathname === '/wp-admin' ||
-					landingPathname.startsWith('/wp-admin/');
-			}
-
-			if (isWpAdminLandingPage) {
+			if (await isWpAdminLandingPage(blueprint)) {
 				await playground.prefetchUpdateChecks();
 			} else {
 				/**
-				 * requestIdleCallback keeps the prefetch outside the frontend
-				 * boot critical path when available. The timeout preserves the
-				 * old "make wp-admin faster soon after boot" intent even if
-				 * the browser never reports an idle period.
+				 * Keeps the prefetch outside the frontend boot critical path.
 				 */
-				const prefetch = () => {
-					playground.prefetchUpdateChecks().catch((error) => {
-						logger.warn(
-							'Failed to prefetch WordPress update checks',
-							error
-						);
-					});
-				};
-				const requestIdleCallback = (
-					globalThis as typeof globalThis & {
-						requestIdleCallback?: (
-							callback: (deadline: IdleDeadline) => void,
-							options?: IdleRequestOptions
-						) => number;
-					}
-				).requestIdleCallback;
-				if (requestIdleCallback) {
-					requestIdleCallback(prefetch, { timeout: 5000 });
+				const prefetch = () => playground.prefetchUpdateChecks();
+				if (globalThis.requestIdleCallback) {
+					globalThis.requestIdleCallback(prefetch, { timeout: 5000 });
 				} else {
 					setTimeout(prefetch, 0);
 				}
@@ -211,6 +172,42 @@ export class BlueprintsV1Handler {
 
 		return playground;
 	}
+}
+
+/**
+ * Checks if the landing page defined in the blueprint or bundle is
+ * inside wp-admin.
+ */
+async function isWpAdminLandingPage(blueprint: BlueprintV1): Promise<boolean> {
+	if (!blueprint) {
+		return false;
+	}
+	let blueprintDeclaration: BlueprintV1Declaration | undefined = undefined;
+	if (isBlueprintBundle(blueprint)) {
+		const blueprintResult = await blueprint.read('/blueprint.json');
+		const blueprintJson = await blueprintResult.text();
+		blueprint = JSON.parse(blueprintJson) as any;
+		blueprintDeclaration = blueprint as BlueprintV1Declaration;
+	} else {
+		blueprintDeclaration = blueprint;
+	}
+
+	const landingPage = blueprintDeclaration.landingPage;
+	if (!landingPage) {
+		return false;
+	}
+
+	let landingPathname: string;
+	try {
+		landingPathname = new URL(landingPage, 'http://playground.local')
+			.pathname;
+	} catch {
+		return false;
+	}
+	return (
+		landingPathname === '/wp-admin' ||
+		landingPathname.startsWith('/wp-admin/')
+	);
 }
 
 type WordPressInstallMode = NonNullable<
