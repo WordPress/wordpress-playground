@@ -125,6 +125,21 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
+	/**
+	 * Paths removed from the currently loaded minified WordPress build.
+	 *
+	 * ## Lifecycle
+	 *
+	 * Each boot starts with a fresh set. `finalizeAfterBoot()` populates it
+	 * from `/wordpress/wordpress-remote-asset-paths`, fetching that list first
+	 * when a stored WordPress build does not already include it.
+	 *
+	 * ## Service worker handoff
+	 *
+	 * The service worker cannot read the PHP filesystem directly. Exposing this
+	 * set through `getWordPressModuleDetails()` lets it skip PHP for assets that
+	 * are known to be absent from the minified filesystem.
+	 */
 	protected knownRemoteAssetPaths = new Set<string>();
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
@@ -366,6 +381,13 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			requestHandler.documentRoot,
 			'wordpress-remote-asset-paths'
 		);
+		/**
+		 * Minified WordPress builds contain a `wordpress-remote-asset-paths`
+		 * file, but WordPress restored from browser storage may come from an
+		 * older archive that did not include it. Fetch the list for the loaded
+		 * WordPress version so remote asset handling stays tied to the version
+		 * actually present in the PHP filesystem.
+		 */
 		if (
 			wpStaticAssetsDir !== undefined &&
 			!primaryPhp.fileExists(remoteAssetListPath)
@@ -387,6 +409,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		if (primaryPhp.isFile(remoteAssetListPath)) {
+			/**
+			 * Keep the list in memory for the service worker and normalize every
+			 * entry to a site-relative absolute path. Empty lines must be ignored:
+			 * otherwise they would normalize to `/`, making the front page look
+			 * like a remote static asset.
+			 */
 			const remoteAssetPaths = primaryPhp
 				.readFileAsText(remoteAssetListPath)
 				.split('\n')
@@ -419,7 +447,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
 	/**
-	 * @returns WordPress module details, including the static assets directory and default theme.
+	 * Returns the WordPress details needed outside the PHP worker.
+	 *
+	 * `staticAssetsDirectory` points at the remote static assets directory for
+	 * the loaded WordPress version. `remoteAssetPaths` lists files removed from
+	 * the minified build so the service worker can serve them without first
+	 * asking PHP to 404.
 	 */
 	async getWordPressModuleDetails() {
 		return {

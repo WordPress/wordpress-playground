@@ -473,6 +473,30 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	return workerResponse;
 }
 
+/**
+ * Serve known minified-build assets before involving PHP.
+ *
+ * ## Why this runs before convertFetchEventToPHPRequest()
+ *
+ * Minified WordPress builds intentionally omit many static assets from the
+ * in-memory filesystem. The removed paths are listed in
+ * `wordpress-remote-asset-paths`, so a matching request is known up front
+ * to end in a PHP 404 and a remote-host fallback. Fetching it here avoids
+ * spending a PHP worker turn on work whose outcome is already known.
+ *
+ * ## Request methods
+ *
+ * Only GET and HEAD are safe to short-circuit. Other methods may have
+ * WordPress or plugin semantics even if their path resembles a static
+ * asset, so they keep using the PHP request path.
+ *
+ * ## Scope details
+ *
+ * `getScopedWpDetails()` reads the loaded WordPress version and the remote
+ * asset list reported by the worker that owns this scope. If the scope is
+ * not a minified WordPress build, or if the asset path is not listed, this
+ * function returns `undefined` and the existing PHP path remains unchanged.
+ */
 async function serveKnownRemoteAsset(
 	event: FetchEvent,
 	scope: string,
@@ -493,6 +517,19 @@ async function serveKnownRemoteAsset(
 	return fetchRemoteStaticAsset(request);
 }
 
+/**
+ * Fetches a WordPress static asset from the remote host.
+ *
+ * This is shared by the known-asset fast path and the existing PHP 404
+ * fallback. Both paths intentionally use `fetch()` rather than `fetchFresh()`
+ * because these requests are normal WordPress asset requests and should keep
+ * WordPress' own HTTP caching behavior.
+ *
+ * Playground.WordPress.net occasionally fails static asset requests with a
+ * TypeError that may represent an HTTP/2 protocol error. Keep the historical
+ * randomized single retry so both the fast path and fallback path handle that
+ * transient failure the same way.
+ */
 function fetchRemoteStaticAsset(request: Request) {
 	return fetch(request).catch((e) => {
 		if (e?.name === 'TypeError') {
