@@ -2,8 +2,8 @@ import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
 import {
 	basename as pathBasename,
-	isGitRepoUrl,
 	joinPaths,
+	seemsLikeGitRepoUrl,
 } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
@@ -71,6 +71,12 @@ export type BlueprintV2ValidationResult =
 	| { valid: true }
 	| { valid: false; errors: BlueprintV2ValidationError[] };
 
+/**
+ * Reports schema and semantic validation failures in a Blueprint v2 document.
+ *
+ * The optional validation error list is preserved for UI surfaces that need
+ * structured paths instead of parsing the human-readable message.
+ */
 export class InvalidBlueprintV2Error extends Error {
 	public readonly validationErrors?: BlueprintV2ValidationError[];
 
@@ -84,6 +90,10 @@ export class InvalidBlueprintV2Error extends Error {
 	}
 }
 
+/**
+ * Reports a valid Blueprint feature that the current v2-to-v1 runtime bridge
+ * cannot execute yet.
+ */
 export class UnsupportedBlueprintV2FeatureError extends Error {
 	public readonly featurePath: string;
 
@@ -94,6 +104,13 @@ export class UnsupportedBlueprintV2FeatureError extends Error {
 	}
 }
 
+/**
+ * Configures Blueprint v2 compilation.
+ *
+ * Most options are forwarded to the v1 compiler after v2 declarations are
+ * lowered. The callbacks and bundled-file reader use v2-shaped data because
+ * callers should not need to know about the v1 bridge.
+ */
 export interface CompileBlueprintV2Options extends Omit<
 	CompileBlueprintV1Options,
 	'streamBundledFile' | 'onBlueprintValidated' | 'additionalSteps'
@@ -103,11 +120,24 @@ export interface CompileBlueprintV2Options extends Omit<
 	additionalSteps?: V2Step[];
 }
 
+/**
+ * Represents a Blueprint v2 declaration after validation and lowering.
+ *
+ * The runnable form still uses the v1 execution engine while the public
+ * declaration remains the v2 document accepted by the compiler.
+ */
 export interface CompiledBlueprintV2 extends CompiledBlueprintV1 {
 	declaration: BlueprintV2Declaration;
 	run: (playground: UniversalPHP) => Promise<void>;
 }
 
+/**
+ * Compiles a Blueprint v2-compatible input into executable Playground steps.
+ *
+ * This accepts raw JSON, bundles, already-parsed v2 declarations, and legacy
+ * v1 declarations. V1 inputs are upgraded first, then the validated v2
+ * declaration is lowered into v1 steps until the native v2 runner exists.
+ */
 export async function compileBlueprintV2(
 	input:
 		| BlueprintV2
@@ -166,6 +196,9 @@ export async function compileBlueprintV2(
 	};
 }
 
+/**
+ * Runs a compiled Blueprint v2 against a booted Playground runtime.
+ */
 export async function runBlueprintV2Steps(
 	compiledBlueprint: CompiledBlueprintV2,
 	playground: UniversalPHP
@@ -173,6 +206,12 @@ export async function runBlueprintV2Steps(
 	await compiledBlueprint.run(playground);
 }
 
+/**
+ * Returns the Blueprint declaration from raw JSON, bundles, or parsed objects.
+ *
+ * Bundles keep using the v1 bundle reader because the bundle format still
+ * stores its declaration in `blueprint.json` regardless of schema version.
+ */
 export async function getBlueprintV2Declaration(
 	blueprint:
 		| BlueprintV2
@@ -189,6 +228,13 @@ export async function getBlueprintV2Declaration(
 	return blueprint as BlueprintV2Declaration | BlueprintV1Declaration;
 }
 
+/**
+ * Appends runtime-supplied steps without dropping private v1 upgrade markers.
+ *
+ * Upgraded v1 declarations use non-enumerable metadata to preserve absolute
+ * path and runtime feature semantics. Cloning the declaration here must copy
+ * those markers or later lowering would treat the document as public v2 JSON.
+ */
 function appendAdditionalV2Steps(
 	blueprint: BlueprintV2Declaration,
 	additionalSteps: V2Step[]
@@ -209,6 +255,13 @@ function isBlueprintBundle(input: any): input is BlueprintBundle {
 	return input && 'read' in input && typeof input.read === 'function';
 }
 
+/**
+ * Validates the public Blueprint v2 shape and semantic constraints.
+ *
+ * This is stricter than TypeScript typing because Blueprints usually arrive
+ * from JSON, URLs, or bundles where unsupported properties and ambiguous paths
+ * must be rejected before any runtime side effects happen.
+ */
 export function validateBlueprintV2(
 	blueprintMaybe: object
 ): BlueprintV2ValidationResult {
@@ -264,6 +317,12 @@ export function validateBlueprintV2(
 	return { valid: true };
 }
 
+/**
+ * Resolves the PHP, WordPress, networking, and library requirements for boot.
+ *
+ * This runs before step execution so callers can start Playground with the
+ * runtime features implied by the v2 declaration and any upgraded v1 metadata.
+ */
 export function resolveBlueprintV2RuntimeConfiguration(
 	blueprint: BlueprintV2Declaration
 ): RuntimeConfiguration {
@@ -285,11 +344,20 @@ export function resolveBlueprintV2RuntimeConfiguration(
 	};
 }
 
+/**
+ * Describes the WordPress source that should be used to boot Playground.
+ */
 export interface ResolvedBlueprintV2WordPressSource {
 	wpVersion: string;
 	wordPressZip?: File;
 }
 
+/**
+ * Indicates whether the Blueprint references a custom WordPress ZIP source.
+ *
+ * Callers use this as a cheap preflight before resolving the ZIP, which may
+ * require fetching bundled or remote assets.
+ */
 export async function hasBlueprintV2WordPressZipReference(
 	input:
 		| BlueprintV2
@@ -309,6 +377,13 @@ export async function hasBlueprintV2WordPressZipReference(
 	);
 }
 
+/**
+ * Resolves the WordPress version and optional ZIP file required for boot.
+ *
+ * Custom WordPress sources are represented as v2 data references but the boot
+ * path expects a concrete `File`, so this function performs that conversion at
+ * the boundary where callers already provide resource-loading options.
+ */
 export async function resolveBlueprintV2WordPressSource(
 	input:
 		| BlueprintV2
@@ -361,6 +436,13 @@ export async function resolveBlueprintV2WordPressSource(
 	return { wpVersion, wordPressZip };
 }
 
+/**
+ * Converts a legacy Blueprint v1 declaration into the public Blueprint v2 form.
+ *
+ * The migration preserves v1-only runtime settings in private metadata because
+ * they are still needed for execution but should not appear in serialized v2
+ * JSON or become part of the new public schema.
+ */
 export function upgradeBlueprintV1ToV2(
 	v1: BlueprintV1Declaration
 ): BlueprintV2Declaration {
@@ -461,6 +543,13 @@ export function upgradeBlueprintV1ToV2(
 	return upgraded;
 }
 
+/**
+ * Lowers a validated Blueprint v2 declaration into a Blueprint v1 declaration.
+ *
+ * Playground still executes with the mature v1 step engine, so this is the
+ * single compatibility bridge that translates v2 fields, runtime options, and
+ * additional steps into the shape accepted by that engine.
+ */
 export function blueprintV2ToBlueprintV1(
 	blueprint: BlueprintV2Declaration
 ): BlueprintV1Declaration {
@@ -491,6 +580,13 @@ export function blueprintV2ToBlueprintV1(
 	return v1;
 }
 
+/**
+ * Creates the ordered v1 step plan implied by a Blueprint v2 declaration.
+ *
+ * Declarative v2 fields are materialized before explicit
+ * `additionalStepsAfterExecution` entries so the final plan matches the setup
+ * order promised by the v2 schema.
+ */
 export function createBlueprintV2ExecutionPlan(
 	blueprint: BlueprintV2Declaration
 ): any[] {
@@ -995,7 +1091,7 @@ function createImportPostsSteps(item: any, itemPath: string): any[] {
 				`Invalid Blueprint v2: ${sourcePath} must be a post object or data reference.`
 			);
 		}
-		inlinePosts.push(normalizePostDefinitionForImport(source));
+		inlinePosts.push({ ...source });
 	}
 
 	if (inlinePosts.length === 0 && postFiles.length === 0) {
@@ -1015,10 +1111,6 @@ function createImportPostsSteps(item: any, itemPath: string): any[] {
 		},
 	});
 	return steps;
-}
-
-function normalizePostDefinitionForImport(post: JsonObject): JsonObject {
-	return { ...post };
 }
 
 function createImportMediaSteps(media: any[], basePath: string): any[] {
@@ -1212,7 +1304,11 @@ function materializeFontSource(
 	const filename = sanitizeFilenameForTempPath(
 		getDataReferenceBasename(source, `${slug}.woff2`)
 	);
-	assertAllowedFontFilename(filename, sourcePath);
+	if (!isAllowedFontFilename(filename)) {
+		throw new InvalidBlueprintV2Error(
+			`${sourcePath}: must reference a .woff2, .woff, .ttf, or .otf file`
+		);
+	}
 	const token = `font-${index}`;
 	const path = `/tmp/blueprint-font-${sanitizePathForTempFile(
 		sourcePath
@@ -1942,6 +2038,13 @@ add_action('init', function () {
 `;
 }
 
+/**
+ * Converts a Blueprint v2 data reference into the v1 resource model.
+ *
+ * Plain strings are intentionally context-sensitive: plugin and theme fields
+ * may use WordPress.org slugs or Git repository-looking URLs, while generic
+ * file fields must be explicit URLs or execution-context paths.
+ */
 function convertV2DataReferenceToV1(
 	reference: V2DataReference,
 	context?: 'plugin' | 'theme'
@@ -1949,7 +2052,7 @@ function convertV2DataReferenceToV1(
 	if (typeof reference === 'string') {
 		if (
 			(context === 'plugin' || context === 'theme') &&
-			isGitRepoUrl(reference)
+			seemsLikeGitRepoUrl(reference)
 		) {
 			return {
 				resource: 'zip',
@@ -2022,6 +2125,13 @@ function convertV2FileDataReferenceToV1(
 	return resource;
 }
 
+/**
+ * Converts v1 resource references into the closest v2 data reference.
+ *
+ * Some v1 resources cannot be represented without changing behavior. Those
+ * cases throw so migration failures are visible instead of silently emitting a
+ * v2 document that cannot reproduce the original Blueprint.
+ */
 function convertV1ResourceToV2Reference(resource: any): any {
 	if (typeof resource === 'string') {
 		return resource;
@@ -2074,6 +2184,13 @@ function convertV1ResourceToV2Reference(resource: any): any {
 	}
 }
 
+/**
+ * Migrates a supported v1 step into one or more v2 additional steps.
+ *
+ * The result is intentionally an execution-step list, not a declarative v2
+ * field update, because preserving original v1 ordering is more important than
+ * producing the prettiest serialized v2 document.
+ */
 function migrateV1StepToV2(step: JsonObject): V2Step[] {
 	switch (step['step']) {
 		case 'activatePlugin':
@@ -2371,6 +2488,13 @@ const V1_WORDPRESS_ONLY_FEATURES = new Set([
 	'resetData',
 ]);
 
+/**
+ * Ensures v1 no-WordPress Blueprints do not carry WordPress-only behavior.
+ *
+ * Blueprint v2 treats WordPress as a runtime source, so a migrated
+ * `preferredVersions.wp: false` declaration must not keep steps that require a
+ * WordPress install to exist.
+ */
 function assertV1BlueprintWithoutWordPressCanUpgrade(
 	blueprint: BlueprintV1Declaration
 ) {
@@ -3554,7 +3678,12 @@ function validateFontSourceReference(
 		});
 		return;
 	}
-	if (isValidDataReferenceForFilename(value)) {
+	if (
+		typeof value === 'string' ||
+		isInlineFile(value) ||
+		isInlineDirectory(value) ||
+		isGitPath(value)
+	) {
 		const filename = getDataReferenceBasename(value, '');
 		if (!isAllowedFontFilename(filename)) {
 			errors.push({
@@ -4098,6 +4227,12 @@ function getUpgradedV1RuntimeConfiguration(
 	return (blueprint as any)[upgradedV1RuntimeConfiguration];
 }
 
+/**
+ * Copies private v1 migration metadata after cloning a declaration.
+ *
+ * These markers are deliberately non-enumerable so generated v2 JSON stays
+ * clean, but every clone used for execution must keep them.
+ */
 function copyUpgradedV1Metadata(
 	from: BlueprintV2Declaration,
 	to: BlueprintV2Declaration
@@ -4121,6 +4256,13 @@ function isUpgradedV1Declaration(blueprint: object) {
 	return (blueprint as any)[upgradedV1Declaration] === true;
 }
 
+/**
+ * Resolves v2 PHP aliases and min/max constraints to a supported PHP version.
+ *
+ * The resolver prefers the project's recommended version when it satisfies the
+ * range, otherwise it chooses the lowest supported version in the allowed set
+ * so the result is deterministic.
+ */
 function resolveV2PHPVersion(
 	version: BlueprintV2Declaration['phpVersion']
 ): AllPHPVersion {
@@ -4183,6 +4325,13 @@ function resolveV2PHPVersion(
 	return compatibleVersions[0];
 }
 
+/**
+ * Resolves a v2 WordPress source into the v1 runtime version label.
+ *
+ * Built-in versions pass through unchanged. Custom ZIP, inline directory, and
+ * Git sources use stable synthetic labels because the actual source is resolved
+ * separately by `resolveBlueprintV2WordPressSource()`.
+ */
 function resolveV2WordPressVersion(
 	version: BlueprintV2Declaration['wordpressVersion']
 ) {
@@ -4409,14 +4558,6 @@ function resolveLatestSupportedWordPressVersionMatchingConstraint({
 	);
 }
 
-function assertAllowedFontFilename(filename: string, path: string) {
-	if (!isAllowedFontFilename(filename)) {
-		throw new InvalidBlueprintV2Error(
-			`${path}: must reference a .woff2, .woff, .ttf, or .otf file`
-		);
-	}
-}
-
 function isAllowedFontFilename(filename: string) {
 	return /\.(woff2|woff|ttf|otf)$/i.test(filename);
 }
@@ -4482,6 +4623,13 @@ function blueprintRequiresWpCli(blueprint: BlueprintV2Declaration) {
 // internal marker preserves that intent without accepting it from public v2 JSON.
 const V1_ABSOLUTE_PATH_PREFIX = 'v1-absolute:';
 
+/**
+ * Converts a public Blueprint v2 path into an absolute Playground VFS path.
+ *
+ * Public v2 paths are site-relative by default. Only migrated v1 declarations
+ * may carry internal absolute-path markers because v1 allowed writing outside
+ * `/wordpress`.
+ */
 function toPlaygroundPath(path: string, allowV1AbsolutePaths = false): string {
 	if (typeof path !== 'string' || path.length === 0) {
 		return '/wordpress';
@@ -4514,6 +4662,13 @@ function toPlaygroundPath(path: string, allowV1AbsolutePaths = false): string {
 	return joinPaths('/wordpress', path);
 }
 
+/**
+ * Converts a v1 path into the v2 path representation used during migration.
+ *
+ * Paths under `/wordpress` become public site-relative paths. Other absolute
+ * paths receive an internal prefix so they can execute without becoming valid
+ * syntax in public Blueprint v2 JSON.
+ */
 function migrateV1Path(path: string): string {
 	if (path === '/wordpress') {
 		return '/';
@@ -4556,15 +4711,11 @@ function normalizeExecutionContextPath(path: string) {
 	return path.replace(/^\.?\//, '');
 }
 
-function hasParentDirectorySegment(path: string) {
-	return path.split('/').includes('..');
-}
-
 function pathContainsParentDirectorySegment(path: string) {
 	const vfsPath = path.startsWith('site:')
 		? path.slice('site:'.length)
 		: path;
-	return hasParentDirectorySegment(vfsPath.replace(/\\/g, '/'));
+	return vfsPath.replace(/\\/g, '/').split('/').includes('..');
 }
 
 function wordpressOrgResource(
@@ -4642,15 +4793,6 @@ function isV2DataReferenceObjectLike(
 			'directoryName' in value ||
 			'files' in value ||
 			'gitRepository' in value)
-	);
-}
-
-function isValidDataReferenceForFilename(value: any): value is V2DataReference {
-	return (
-		typeof value === 'string' ||
-		isInlineFile(value) ||
-		isInlineDirectory(value) ||
-		isGitPath(value)
 	);
 }
 

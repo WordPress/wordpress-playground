@@ -14,7 +14,7 @@ import {
 import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { isGitRepoUrl } from '@php-wasm/util';
+import { seemsLikeGitRepoUrl } from '@php-wasm/util';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
 import { GENERATED_GUTENBERG_INSTALLER_MARKER } from '../../gutenberg-preview';
@@ -198,7 +198,7 @@ function createQueryPluginInstallSteps(plugins: string[]): StepDefinition[] {
 
 function createPluginDataReference(plugin: string) {
 	const normalizedPlugin = plugin.trim().replace(/\/+$/, '');
-	if (isGitRepoUrl(normalizedPlugin)) {
+	if (seemsLikeGitRepoUrl(normalizedPlugin)) {
 		return {
 			resource: 'zip',
 			inner: {
@@ -532,7 +532,7 @@ function appendV2QueryPluginSteps(
 
 function createV2PluginDataReference(plugin: string) {
 	const normalizedPlugin = plugin.trim().replace(/\/+$/, '');
-	if (isGitRepoUrl(normalizedPlugin)) {
+	if (seemsLikeGitRepoUrl(normalizedPlugin)) {
 		return {
 			gitRepository: normalizedPlugin,
 			ref: 'HEAD',

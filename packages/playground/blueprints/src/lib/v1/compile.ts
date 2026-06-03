@@ -1,5 +1,5 @@
 import { ProgressTracker } from '@php-wasm/progress';
-import { isGitRepoUrl, Semaphore } from '@php-wasm/util';
+import { seemsLikeGitRepoUrl, Semaphore } from '@php-wasm/util';
 import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
 import type { FileReference } from './resources';
@@ -259,7 +259,7 @@ function compileBlueprintJson(
 		const steps = blueprint.plugins
 			.map((value) => {
 				if (typeof value === 'string') {
-					if (isGitRepoUrl(value)) {
+					if (seemsLikeGitRepoUrl(value)) {
 						return {
 							resource: 'zip',
 							inner: {
@@ -731,7 +731,12 @@ function compileStep<S extends StepDefinition>(
 				}
 			);
 		} catch (error) {
-			if (shouldSkipInstallAssetError(step)) {
+			if (
+				(step.step === 'installPlugin' &&
+					(step as any).options?.onError === 'skip-plugin') ||
+				(step.step === 'installTheme' &&
+					(step as any).options?.onError === 'skip-theme')
+			) {
 				logger.warn(
 					`Skipping ${step.step === 'installTheme' ? 'theme' : 'plugin'} installation after failure: ${
 						error instanceof Error ? error.message : String(error)
@@ -760,15 +765,6 @@ function compileStep<S extends StepDefinition>(
 	}
 
 	return { run, step, resources };
-}
-
-function shouldSkipInstallAssetError(step: StepDefinition) {
-	return (
-		(step.step === 'installPlugin' &&
-			(step as any).options?.onError === 'skip-plugin') ||
-		(step.step === 'installTheme' &&
-			(step as any).options?.onError === 'skip-theme')
-	);
 }
 
 /**
