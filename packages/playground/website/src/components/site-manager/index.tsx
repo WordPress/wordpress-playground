@@ -72,10 +72,12 @@ export const SiteManager = forwardRef<
 		case 'blueprint':
 		default:
 		case 'site-details': {
-			const initialTab =
-				activeSiteManagerSection === 'blueprint'
-					? 'blueprint'
-					: undefined;
+			const STANDARD_SECTIONS = ['site-details', 'blueprints', 'sidebar'];
+			const initialTab = !STANDARD_SECTIONS.includes(
+				activeSiteManagerSection
+			)
+				? activeSiteManagerSection
+				: undefined;
 			activePanel = activeSite ? (
 				fullScreenSections ? (
 					<SiteInfoPanel
