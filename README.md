@@ -124,13 +124,13 @@ To run the unit tests for every project, use:
 npm run test
 ```
 
-To run unit tests for one project, pass the project name to Nx:
+To run unit tests for one project, run that project's test target with Nx:
 
 ```bash
 npx nx run playground-website:test
 ```
 
-Some browser tests target the local `playground.test` domain over HTTPS, which requires additional local setup before they can run. Once your local environment is configured for that domain, you can run the Playground website E2E tests with:
+Some browser tests target the local `playground.test` domain over HTTPS, which requires additional local setup before they can run. See the [local Multisite setup instructions](https://wordpress.github.io/wordpress-playground/contributing/code#running-a-local-multisite) for guidance on configuring `playground.test` with HTTPS. Once your local environment is configured for that domain, you can run the Playground website E2E tests with:
 
 ```bash
 npx nx run playground-website:e2e
