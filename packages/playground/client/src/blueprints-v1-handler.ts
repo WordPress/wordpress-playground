@@ -68,6 +68,41 @@ export class BlueprintsV1Handler {
 			? ['intl']
 			: [];
 		extensions.push(...(this.options.extensions || []));
+		let runtimeDownload: RuntimeDownloadProgress | undefined;
+		let runtimeDownloadHeartbeat:
+			| ReturnType<typeof setInterval>
+			| undefined;
+		const stopRuntimeDownloadHeartbeat = () => {
+			if (runtimeDownloadHeartbeat) {
+				clearInterval(runtimeDownloadHeartbeat);
+				runtimeDownloadHeartbeat = undefined;
+			}
+		};
+		const ensureRuntimeDownloadHeartbeat = () => {
+			if (runtimeDownloadHeartbeat) {
+				return;
+			}
+			runtimeDownloadHeartbeat = setInterval(() => {
+				if (
+					!runtimeDownload ||
+					runtimeDownload.loaded >= runtimeDownload.total
+				) {
+					return;
+				}
+				const stalledForMs = Date.now() - runtimeDownload.updatedAt;
+				if (stalledForMs < 5000) {
+					return;
+				}
+				setProgressCaption(
+					progressTracker,
+					formatRuntimeDownloadCaption(
+						runtimeDownload.loaded,
+						runtimeDownload.total,
+						stalledForMs
+					)
+				);
+			}, 1000);
+		};
 		await playground.onDownloadProgress((event: any) => {
 			downloadProgress.loadingListener(event);
 			const { loaded, total } = event.detail || {};
@@ -82,7 +117,9 @@ export class BlueprintsV1Handler {
 				);
 				return;
 			}
+			runtimeDownload = { loaded, total, updatedAt: Date.now() };
 			if (loaded >= total) {
+				stopRuntimeDownloadHeartbeat();
 				setProgressCaption(
 					progressTracker,
 					`Compiling runtime assets (100%, ${formatBytes(total)} downloaded)`
@@ -93,9 +130,10 @@ export class BlueprintsV1Handler {
 				0,
 				Math.min(99, Math.floor((loaded / total) * 100))
 			);
+			ensureRuntimeDownloadHeartbeat();
 			setProgressCaption(
 				progressTracker,
-				`Downloading runtime assets ${percent}% (${formatBytes(loaded)} / ${formatBytes(total)})`
+				formatRuntimeDownloadCaption(loaded, total, 0, percent)
 			);
 		});
 		await playground.addEventListener?.('boot.progress', (event: any) => {
@@ -150,6 +188,7 @@ export class BlueprintsV1Handler {
 		);
 		await playground.isReady();
 		downloadProgress.finish();
+		stopRuntimeDownloadHeartbeat();
 
 		setProgressCaption(progressTracker, 'Connecting Playground client');
 		collectPhpLogs(logger, playground);
@@ -264,11 +303,30 @@ type WordPressInstallMode = NonNullable<
 	StartPlaygroundOptions['wordpressInstallMode']
 >;
 
+interface RuntimeDownloadProgress {
+	loaded: number;
+	total: number;
+	updatedAt: number;
+}
+
 function setProgressCaption(
 	progressTracker: ProgressTracker,
 	caption: string
 ): void {
 	progressTracker.setCaption?.(caption);
+}
+
+function formatRuntimeDownloadCaption(
+	loaded: number,
+	total: number,
+	stalledForMs: number,
+	percent = Math.max(0, Math.min(99, Math.floor((loaded / total) * 100)))
+): string {
+	const stalledSuffix =
+		stalledForMs >= 5000
+			? `, no data for ${Math.floor(stalledForMs / 1000)}s`
+			: '';
+	return `Downloading runtime assets ${percent}% (${formatBytes(loaded)} / ${formatBytes(total)}${stalledSuffix})`;
 }
 
 function formatBytes(bytes: number): string {
