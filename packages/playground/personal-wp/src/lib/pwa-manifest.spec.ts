@@ -8,11 +8,11 @@ describe('PWA manifest configuration', () => {
 		const manifest = readJson('public/manifest.json');
 
 		expect(manifest).toMatchObject({
-			id: '/my-apps/',
+			id: '/',
 			display: 'standalone',
 			display_override: ['standalone'],
 			scope: '/',
-			start_url: '/my-apps/',
+			start_url: '/',
 			categories: ['productivity', 'utilities'],
 		});
 		expect(manifest.screenshots).toEqual([
@@ -37,14 +37,14 @@ describe('PWA manifest configuration', () => {
 	it('adds iOS install metadata and links the production dynamic manifest', () => {
 		const html = readText('index.html');
 
-		expect(html).toContain(
-			'<link rel="apple-touch-icon" href="/apple-touch-icon.png" />'
+		expect(html).toMatch(
+			/<link\b(?=[^>]*\brel="apple-touch-icon")(?=[^>]*\bhref="\/apple-touch-icon\.png")[^>]*>/
 		);
-		expect(html).toContain(
-			'<meta name="apple-mobile-web-app-capable" content="yes" />'
+		expect(html).toMatch(
+			/<meta\b(?=[^>]*\bname="apple-mobile-web-app-capable")(?=[^>]*\bcontent="yes")[^>]*>/
 		);
-		expect(html).toContain(
-			'<meta name="apple-mobile-web-app-title" content="My WordPress" />'
+		expect(html).toMatch(
+			/<meta\b(?=[^>]*\bname="apple-mobile-web-app-title")(?=[^>]*\bcontent="My WordPress")[^>]*>/
 		);
 		expect(html).toContain('/dynamic-manifest.json.php');
 		expect(html).not.toContain('if (!manifestUrl)');
@@ -57,7 +57,8 @@ describe('PWA manifest configuration', () => {
 		expect(php).toContain("unset($query['random']);");
 		expect(php).toContain('"id" => getManifestId($start_url)');
 		expect(php).toContain('"scope" => $base_url . "/"');
-		expect(php).toContain("'/my-apps/'");
+		expect(php).toContain("getTrustedBaseUrl('my.wordpress.net')");
+		expect(php).toContain(" : '/'");
 		expect(php).not.toContain('"shortcuts" =>');
 		expect(php).toContain(
 			"$app_name = $_GET['app_name'] ?? 'My WordPress';"

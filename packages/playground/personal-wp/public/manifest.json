@@ -1,11 +1,11 @@
 {
-	"id": "/my-apps/",
+	"id": "/",
 	"theme_color": "#ffffff",
 	"background_color": "#ffffff",
 	"display": "standalone",
 	"display_override": ["standalone"],
 	"scope": "/",
-	"start_url": "/my-apps/",
+	"start_url": "/",
 	"short_name": "My WordPress",
 	"description": "A WordPress directly in your browser: personal, private, and persistent.",
 	"name": "My WordPress",
