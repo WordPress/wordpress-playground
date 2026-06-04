@@ -69,6 +69,11 @@ export class BlueprintsV1Handler {
 			: [];
 		extensions.push(...(this.options.extensions || []));
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
+		await playground.addEventListener?.('boot.progress', (event: any) => {
+			if (typeof event.caption === 'string') {
+				setProgressCaption(progressTracker, event.caption);
+			}
+		});
 		// Blueprint's `preferredVersions.wp: false` is the declarative way to
 		// opt out of WordPress. Bundles carry their declaration inside a JSON
 		// file we haven't read here, so we only honor the flag for inline
