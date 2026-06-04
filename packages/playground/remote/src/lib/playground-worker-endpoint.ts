@@ -25,7 +25,7 @@ import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
-import { hasCachedResponse } from './offline-mode-cache';
+import { hasCachedResponse, putCachedResponse } from './offline-mode-cache';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
@@ -215,15 +215,17 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			phpVersion,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
+				let wasmTotalSize = 0;
 				onProgress?.('Loading PHP runtime module');
 				return await loadWebRuntime(phpVersion, {
 					extensions,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
+						wasmTotalSize = phpLoaderModule.dependenciesTotalSize;
 						onProgress?.('Preparing PHP runtime download');
 						this.downloadMonitor.expectAssets({
-							[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
+							[wasmUrl]: wasmTotalSize,
 						});
 					},
 					emscriptenOptions: {
@@ -236,9 +238,22 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 									? 'Loading cached PHP runtime'
 									: 'Downloading PHP runtime'
 							);
-							const response = await this.memoizedFetch(wasmUrl, {
-								credentials: 'same-origin',
-							});
+							const response =
+								await this.downloadMonitor.monitorFetch(
+									fetchWithInMemoryResume(
+										wasmUrl,
+										{
+											credentials: 'same-origin',
+										},
+										{
+											expectedTotal: wasmTotalSize,
+											onResume: (offset) =>
+												onProgress?.(
+													`Resuming PHP runtime download at ${formatBytes(offset)}`
+												),
+										}
+									)
+								);
 							onProgress?.('Streaming and compiling PHP runtime');
 							const wasm = await WebAssembly.instantiateStreaming(
 								response as Response,
@@ -593,6 +608,162 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		this.unmounts[options.mountpoint] = unmount;
 		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
+}
+
+async function fetchWithInMemoryResume(
+	url: string,
+	init: RequestInit,
+	options: {
+		expectedTotal: number;
+		onResume?: (offset: number) => void;
+		stallTimeoutMs?: number;
+		maxRetries?: number;
+	}
+): Promise<Response> {
+	const stallTimeoutMs = options.stallTimeoutMs ?? 15000;
+	const maxRetries = options.maxRetries ?? 10;
+	const firstFetch = await fetchRuntimeChunk(url, init, 0);
+	const responseHeaders = new Headers(firstFetch.response.headers);
+	responseHeaders.set('content-length', `${options.expectedTotal}`);
+
+	const responseInit = {
+		status: firstFetch.response.status,
+		statusText: firstFetch.response.statusText,
+		headers: responseHeaders,
+	};
+	const body = new ReadableStream<Uint8Array>({
+		async start(controller) {
+			let loaded = 0;
+			let retries = 0;
+			let chunkFetch = firstFetch;
+
+			while (loaded < options.expectedTotal) {
+				const reader = chunkFetch.response.body?.getReader();
+				if (!reader) {
+					controller.error(
+						new Error('PHP runtime response has no body')
+					);
+					return;
+				}
+				try {
+					while (true) {
+						const { done, value } = await readWithTimeout(
+							reader,
+							stallTimeoutMs,
+							chunkFetch.abort
+						);
+						if (done) {
+							break;
+						}
+						if (value) {
+							loaded += value.byteLength;
+							controller.enqueue(value);
+						}
+					}
+				} catch (error) {
+					if (loaded >= options.expectedTotal) {
+						break;
+					}
+					if (++retries > maxRetries) {
+						controller.error(error);
+						return;
+					}
+					options.onResume?.(loaded);
+					chunkFetch = await fetchRuntimeChunk(url, init, loaded);
+					continue;
+				}
+
+				if (loaded >= options.expectedTotal) {
+					break;
+				}
+				if (++retries > maxRetries) {
+					controller.error(
+						new Error(
+							`PHP runtime download ended early at ${loaded} bytes`
+						)
+					);
+					return;
+				}
+				options.onResume?.(loaded);
+				chunkFetch = await fetchRuntimeChunk(url, init, loaded);
+			}
+
+			controller.close();
+		},
+	});
+	const [runtimeBody, cacheBody] = body.tee();
+	const response = new Response(runtimeBody, responseInit);
+	putCachedResponse(url, new Response(cacheBody, responseInit)).catch(
+		(error) => logger.warn('Failed to cache PHP runtime response', error)
+	);
+	Object.defineProperty(response, 'url', {
+		value: url,
+	});
+	return response;
+}
+
+async function fetchRuntimeChunk(
+	url: string,
+	init: RequestInit,
+	offset: number
+): Promise<{ response: Response; abort: () => void }> {
+	const abortController = new AbortController();
+	const headers = new Headers(init.headers);
+	if (offset > 0) {
+		headers.set('range', `bytes=${offset}-`);
+	}
+	const response = await fetch(url, {
+		...init,
+		headers,
+		signal: abortController.signal,
+	});
+	if (offset > 0 && response.status !== 206) {
+		throw new Error(
+			`Cannot resume PHP runtime download because the server returned HTTP ${response.status}`
+		);
+	}
+	if (offset === 0 && !response.ok) {
+		throw new Error(
+			`Failed to download PHP runtime: HTTP ${response.status}`
+		);
+	}
+	return {
+		response,
+		abort: () => abortController.abort(),
+	};
+}
+
+function readWithTimeout(
+	reader: ReadableStreamDefaultReader<Uint8Array>,
+	timeoutMs: number,
+	abort: () => void
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+	let timeout: ReturnType<typeof setTimeout> | undefined;
+	return Promise.race([
+		reader.read(),
+		new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+			timeout = setTimeout(() => {
+				abort();
+				reject(new Error('PHP runtime download stalled'));
+			}, timeoutMs);
+		}),
+	]).finally(() => {
+		if (timeout) {
+			clearTimeout(timeout);
+		}
+	});
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes < 1024) {
+		return `${bytes} B`;
+	}
+	const megabytes = bytes / 1024 / 1024;
+	if (megabytes >= 1) {
+		return `${megabytes.toFixed(1)} MB`;
+	}
+	const kilobytes = bytes / 1024;
+	return `${kilobytes.toFixed(0)} KB`;
 }
 
 function createNullPrototypeRecord<T>() {

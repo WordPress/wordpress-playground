@@ -96,6 +96,7 @@ export class BlueprintsV1Handler {
 				setProgressCaption(
 					progressTracker,
 					formatRuntimeDownloadCaption(
+						runtimeDownload.label,
 						runtimeDownload.loaded,
 						runtimeDownload.total,
 						stalledForMs
@@ -105,35 +106,54 @@ export class BlueprintsV1Handler {
 		};
 		await playground.onDownloadProgress((event: any) => {
 			downloadProgress.loadingListener(event);
-			const { loaded, total } = event.detail || {};
+			const {
+				loaded,
+				total,
+				fileName,
+				fileLoaded = loaded,
+				fileTotal = total,
+			} = event.detail || {};
 			if (
 				typeof loaded !== 'number' ||
 				typeof total !== 'number' ||
 				total <= 0
 			) {
-				setProgressCaption(
-					progressTracker,
-					'Downloading runtime assets'
-				);
+				setProgressCaption(progressTracker, getDownloadLabel(fileName));
 				return;
 			}
-			runtimeDownload = { loaded, total, updatedAt: Date.now() };
+			runtimeDownload = {
+				label: getDownloadLabel(fileName),
+				loaded: fileLoaded,
+				total: fileTotal,
+				updatedAt: Date.now(),
+			};
 			if (loaded >= total) {
 				stopRuntimeDownloadHeartbeat();
 				setProgressCaption(
 					progressTracker,
-					`Compiling runtime assets (100%, ${formatBytes(total)} downloaded)`
+					getCompletedDownloadCaption(runtimeDownload.label, total)
 				);
 				return;
 			}
 			const percent = Math.max(
 				0,
-				Math.min(99, Math.floor((loaded / total) * 100))
+				Math.min(
+					99,
+					Math.floor(
+						(runtimeDownload.loaded / runtimeDownload.total) * 100
+					)
+				)
 			);
 			ensureRuntimeDownloadHeartbeat();
 			setProgressCaption(
 				progressTracker,
-				formatRuntimeDownloadCaption(loaded, total, 0, percent)
+				formatRuntimeDownloadCaption(
+					runtimeDownload.label,
+					runtimeDownload.loaded,
+					runtimeDownload.total,
+					0,
+					percent
+				)
 			);
 		});
 		await playground.addEventListener?.('boot.progress', (event: any) => {
@@ -304,6 +324,7 @@ type WordPressInstallMode = NonNullable<
 >;
 
 interface RuntimeDownloadProgress {
+	label: string;
 	loaded: number;
 	total: number;
 	updatedAt: number;
@@ -317,6 +338,7 @@ function setProgressCaption(
 }
 
 function formatRuntimeDownloadCaption(
+	label: string,
 	loaded: number,
 	total: number,
 	stalledForMs: number,
@@ -326,9 +348,32 @@ function formatRuntimeDownloadCaption(
 		stalledForMs >= 5000
 			? `, no data for ${Math.floor(
 					stalledForMs / 1000
-				)}s; interrupted downloads restart`
+				)}s; waiting to resume`
 			: '';
-	return `Downloading runtime assets ${percent}% (${formatBytes(loaded)} / ${formatBytes(total)}${stalledSuffix})`;
+	return `${label} ${percent}% (${formatBytes(loaded)} / ${formatBytes(total)}${stalledSuffix})`;
+}
+
+function getDownloadLabel(fileName?: string): string {
+	if (!fileName) {
+		return 'Downloading files';
+	}
+	if (fileName.endsWith('.wasm') || fileName.startsWith('php_')) {
+		return 'Downloading PHP runtime';
+	}
+	if (fileName.includes('wordpress')) {
+		return 'Downloading WordPress';
+	}
+	if (fileName.includes('sqlite')) {
+		return 'Downloading SQLite integration';
+	}
+	return `Downloading ${fileName}`;
+}
+
+function getCompletedDownloadCaption(label: string, total: number): string {
+	if (label === 'Downloading PHP runtime') {
+		return `Compiling PHP runtime (100%, ${formatBytes(total)} downloaded)`;
+	}
+	return `Preparing downloaded files (100%, ${formatBytes(total)} downloaded)`;
 }
 
 function formatBytes(bytes: number): string {

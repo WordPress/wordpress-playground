@@ -339,6 +339,13 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Deliberate partial requests are used to resume stalled runtime downloads.
+	// Do not strip their Range header or cache the 206 Partial Content response.
+	if (event.request.headers.has('range')) {
+		event.respondWith(fetch(event.request));
+		return;
+	}
+
 	// Use cache first strategy to serve regular static assets.
 	return event.respondWith(cacheFirstFetch(event.request));
 });
