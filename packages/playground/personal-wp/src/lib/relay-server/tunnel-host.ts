@@ -62,9 +62,22 @@ export type TunnelHostStatus =
 	| 'connected'
 	| 'error';
 
+export interface TunnelHostMetrics {
+	received: number;
+	pending: number;
+	processing: number;
+	completed: number;
+	failed: number;
+	lastMethod: string | null;
+	lastPath: string | null;
+	lastStatus: number | null;
+	lastError: string | null;
+}
+
 export interface TunnelHostEvents {
 	statusChange: (status: TunnelHostStatus) => void;
 	requestProcessed: (request: TunnelRequest) => void;
+	metricsChange: (metrics: TunnelHostMetrics) => void;
 	error: (error: Error) => void;
 }
 
@@ -95,6 +108,17 @@ export class TunnelHost {
 	 */
 	private requestQueue: TunnelRequest[] = [];
 	private isProcessingRequest = false;
+	private metrics: TunnelHostMetrics = {
+		received: 0,
+		pending: 0,
+		processing: 0,
+		completed: 0,
+		failed: 0,
+		lastMethod: null,
+		lastPath: null,
+		lastStatus: null,
+		lastError: null,
+	};
 
 	/**
 	 * Hard cap on how many guest requests we'll buffer in host RAM at
@@ -191,6 +215,10 @@ export class TunnelHost {
 		this.accessCode = null;
 		this.requestQueue = [];
 		this.isProcessingRequest = false;
+		this.updateMetrics({
+			pending: 0,
+			processing: 0,
+		});
 		this.removePagehideBeacon();
 		this.setStatus('disconnected');
 
@@ -255,6 +283,13 @@ export class TunnelHost {
 	 */
 	private queueRequest(request: TunnelRequest): void {
 		this.requestQueue.push(request);
+		this.updateMetrics({
+			received: this.metrics.received + 1,
+			pending: this.requestQueue.length,
+			lastMethod: request.method,
+			lastPath: request.path,
+			lastError: null,
+		});
 		this.processQueue();
 	}
 
@@ -273,6 +308,12 @@ export class TunnelHost {
 
 		while (this.requestQueue.length > 0 && this.isActive) {
 			const request = this.requestQueue.shift()!;
+			this.updateMetrics({
+				pending: this.requestQueue.length,
+				processing: 1,
+				lastMethod: request.method,
+				lastPath: request.path,
+			});
 			// One AbortController per request so stopSharing() can
 			// signal "drop whatever you're holding" without affecting
 			// any future request that might land in the same loop.
@@ -290,6 +331,10 @@ export class TunnelHost {
 				}
 			} finally {
 				this.currentRequestController = null;
+				this.updateMetrics({
+					pending: this.requestQueue.length,
+					processing: 0,
+				});
 			}
 		}
 
@@ -319,6 +364,10 @@ export class TunnelHost {
 	 */
 	getStatus(): TunnelHostStatus {
 		return this.status;
+	}
+
+	getMetrics(): TunnelHostMetrics {
+		return { ...this.metrics };
 	}
 
 	/**
@@ -550,6 +599,11 @@ export class TunnelHost {
 				return;
 			}
 
+			this.updateMetrics({
+				completed: this.metrics.completed + 1,
+				lastStatus: phpResponse.httpStatusCode,
+				lastError: null,
+			});
 			this.emit('requestProcessed', tunnelRequest);
 		} catch (error) {
 			// Aborted mid-flight: nothing to log, nothing to report.
@@ -557,6 +611,11 @@ export class TunnelHost {
 				return;
 			}
 			logger.error('Error processing request:', error);
+			this.updateMetrics({
+				failed: this.metrics.failed + 1,
+				lastStatus: 500,
+				lastError: (error as Error).message,
+			});
 
 			// Send error response
 			const errorResponse: TunnelResponse = {
@@ -577,6 +636,14 @@ export class TunnelHost {
 				);
 			});
 		}
+	}
+
+	private updateMetrics(metrics: Partial<TunnelHostMetrics>): void {
+		this.metrics = {
+			...this.metrics,
+			...metrics,
+		};
+		this.emit('metricsChange', this.getMetrics());
 	}
 
 	/**

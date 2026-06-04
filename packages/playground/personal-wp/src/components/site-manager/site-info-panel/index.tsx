@@ -235,6 +235,11 @@ function DesktopAccessSection() {
 						<div className={css.desktopAccessUrl}>
 							{desktopAccess.shareUrl}
 						</div>
+						{desktopAccess.metrics && (
+							<DesktopAccessDiagnostics
+								metrics={desktopAccess.metrics}
+							/>
+						)}
 						<div className={css.desktopAccessButtons}>
 							<button
 								type="button"
@@ -279,6 +284,38 @@ function DesktopAccessSection() {
 					</div>
 				)}
 			</div>
+		</div>
+	);
+}
+
+function DesktopAccessDiagnostics({
+	metrics,
+}: {
+	metrics: NonNullable<ReturnType<typeof getDesktopAccessStatus>['metrics']>;
+}) {
+	return (
+		<div className={css.desktopAccessDiagnostics}>
+			<div className={css.desktopAccessDiagnosticsTitle}>
+				Desktop traffic
+			</div>
+			<div className={css.desktopAccessMetrics}>
+				<span>Received {metrics.received}</span>
+				<span>Pending {metrics.pending}</span>
+				<span>Processing {metrics.processing}</span>
+				<span>Done {metrics.completed}</span>
+				<span>Failed {metrics.failed}</span>
+			</div>
+			<div className={css.desktopAccessLastRequest}>
+				{metrics.lastMethod && metrics.lastPath
+					? `${metrics.lastMethod} ${metrics.lastPath}`
+					: 'Waiting for desktop requests'}
+				{metrics.lastStatus ? ` · ${metrics.lastStatus}` : ''}
+			</div>
+			{metrics.lastError && (
+				<div className={css.desktopAccessLastError}>
+					{metrics.lastError}
+				</div>
+			)}
 		</div>
 	);
 }

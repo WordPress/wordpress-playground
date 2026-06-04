@@ -7,7 +7,11 @@
 
 import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import { TunnelHost, type TunnelHostStatus } from './relay-server';
+import {
+	TunnelHost,
+	type TunnelHostMetrics,
+	type TunnelHostStatus,
+} from './relay-server';
 
 let tunnelHost: TunnelHost | null = null;
 let currentSessionId: string | null = null;
@@ -20,6 +24,7 @@ export interface DesktopAccessStatus {
 	shareUrl: string | null;
 	sessionId: string | null;
 	accessCode: string | null;
+	metrics: TunnelHostMetrics | null;
 }
 
 export function getDesktopAccessStatus(): DesktopAccessStatus {
@@ -29,6 +34,7 @@ export function getDesktopAccessStatus(): DesktopAccessStatus {
 		shareUrl: currentShareUrl,
 		sessionId: currentSessionId,
 		accessCode: tunnelHost?.getAccessCode() ?? null,
+		metrics: tunnelHost?.getMetrics() ?? null,
 	};
 }
 
@@ -53,6 +59,7 @@ export async function startDesktopAccess(
 
 	tunnelHost = new TunnelHost(playgroundClient, window.location.origin);
 	tunnelHost.on('statusChange', notifyListeners);
+	tunnelHost.on('metricsChange', notifyListeners);
 	tunnelHost.on('error', (error) => {
 		logger.error('[DesktopAccess] Relay error:', error);
 		notifyListeners();
