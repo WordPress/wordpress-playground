@@ -1811,6 +1811,9 @@ function LoadingProgress({
 					>
 						{progress.caption}
 					</div>
+					<div className={css.loadingProgressDetail}>
+						{Math.round(progressValue)}%
+					</div>
 					<div className={css.loadingProgressTrack}>
 						<div
 							className={css.loadingProgressBar}
