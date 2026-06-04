@@ -411,7 +411,9 @@ export class TunnelHost {
 					continue;
 				}
 
-				if (data.request) {
+				const requests =
+					data.requests || (data.request ? [data.request] : []);
+				for (const request of requests) {
 					// Hand the request off to the serializing queue and
 					// keep polling immediately. PlaygroundClient is single-
 					// threaded — calling handleRequest() concurrently here
@@ -420,7 +422,7 @@ export class TunnelHost {
 					// deadlocking once WordPress fires its dozen-or-so
 					// sub-resource fetches in parallel. queueRequest() runs
 					// the handlers one at a time via processQueue().
-					this.queueRequest(data.request);
+					this.queueRequest(request);
 				}
 			} catch (error) {
 				if ((error as Error).name === 'AbortError') {

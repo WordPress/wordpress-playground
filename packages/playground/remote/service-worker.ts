@@ -142,6 +142,7 @@ type DesktopRelayMapping = {
 };
 
 const desktopRelayMappings: Record<string, DesktopRelayMapping> = {};
+const desktopRelayBatchers: Record<string, DesktopRelayBatcher> = {};
 
 self.addEventListener('message', (event) => {
 	if (
@@ -166,13 +167,20 @@ self.addEventListener('message', (event) => {
 					? ttl
 					: 5 * 60 * 1000),
 		};
+		desktopRelayBatchers[relayBaseUrl] ||= new DesktopRelayBatcher(
+			relayBaseUrl
+		);
 		return;
 	}
 
 	if (event.data.type === 'personal-wp-desktop-relay-clear') {
 		const { scope } = event.data;
 		if (typeof scope === 'string') {
-			delete desktopRelayMappings[scope];
+			const mapping = desktopRelayMappings[scope];
+			if (mapping) {
+				delete desktopRelayBatchers[mapping.relayBaseUrl];
+				delete desktopRelayMappings[scope];
+			}
 		}
 	}
 });
@@ -250,6 +258,11 @@ self.addEventListener('fetch', (event) => {
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
 		return;
+	}
+
+	const desktopRelayBatcher = getDesktopRelayBatcher(event.request);
+	if (desktopRelayBatcher) {
+		return event.respondWith(desktopRelayBatcher.enqueue(event.request));
 	}
 
 	const isReservedUrl =
@@ -406,6 +419,21 @@ function getDesktopRelayMapping(
 	return mapping;
 }
 
+function getDesktopRelayBatcher(request: Request): DesktopRelayBatcher | null {
+	if (request.method !== 'GET' && request.method !== 'HEAD') {
+		return null;
+	}
+	for (const [relayBaseUrl, batcher] of Object.entries(
+		desktopRelayBatchers
+	)) {
+		const base = new URL(relayBaseUrl, self.location.origin);
+		if (request.url.startsWith(base.href)) {
+			return batcher;
+		}
+	}
+	return null;
+}
+
 async function handleDesktopRelayRequest(
 	event: FetchEvent,
 	mapping: DesktopRelayMapping
@@ -430,6 +458,152 @@ function getDesktopRelayUrl(
 	relayUrl.search = unscopedUrl.search;
 	relayUrl.hash = unscopedUrl.hash;
 	return relayUrl;
+}
+
+type BatchedRelayRequest = {
+	requestId: string;
+	method: string;
+	path: string;
+	headers: Record<string, string>;
+};
+
+type BatchedRelayResponse = {
+	requestId: string;
+	status: number;
+	headers: Record<string, string>;
+	body: string;
+};
+
+type PendingRelayRequest = {
+	request: Request;
+	resolve: (response: Response) => void;
+	reject: (error: unknown) => void;
+};
+
+class DesktopRelayBatcher {
+	private queue: PendingRelayRequest[] = [];
+	private flushTimer: ReturnType<typeof setTimeout> | undefined;
+	private readonly relayBaseUrl: URL;
+	private readonly batchUrl: URL;
+
+	constructor(relayBaseUrl: string) {
+		this.relayBaseUrl = new URL(relayBaseUrl, self.location.origin);
+		const match = this.relayBaseUrl.pathname.match(
+			/^\/relay\/([^/]+)\/request\/?$/
+		);
+		if (!match) {
+			throw new Error(`Invalid relay base URL: ${relayBaseUrl}`);
+		}
+		this.batchUrl = new URL(
+			`/relay/${match[1]}/batch-request`,
+			self.location.origin
+		);
+	}
+
+	enqueue(request: Request): Promise<Response> {
+		return new Promise((resolve, reject) => {
+			this.queue.push({ request, resolve, reject });
+			if (!this.flushTimer) {
+				this.flushTimer = setTimeout(() => this.flush(), 16);
+			}
+		});
+	}
+
+	private async flush() {
+		const batch = this.queue.splice(0, 16);
+		this.flushTimer = undefined;
+		if (this.queue.length > 0) {
+			this.flushTimer = setTimeout(() => this.flush(), 16);
+		}
+		if (batch.length === 0) {
+			return;
+		}
+
+		const byId = new Map<string, PendingRelayRequest>();
+		const requests: BatchedRelayRequest[] = batch.map((pending) => {
+			const requestId = crypto.randomUUID();
+			byId.set(requestId, pending);
+			return {
+				requestId,
+				method: pending.request.method,
+				path: getRelayRequestPath(
+					pending.request.url,
+					this.relayBaseUrl
+				),
+				headers: getRequestHeaders(pending.request),
+			};
+		});
+
+		try {
+			const response = await fetch(this.batchUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requests }),
+			});
+			if (!response.ok) {
+				throw new Error(`Relay batch failed: ${response.status}`);
+			}
+			const data = (await response.json()) as {
+				responses?: BatchedRelayResponse[];
+			};
+			const seen = new Set<string>();
+			for (const relayResponse of data.responses || []) {
+				seen.add(relayResponse.requestId);
+				const pending = byId.get(relayResponse.requestId);
+				if (pending) {
+					pending.resolve(createResponseFromRelay(relayResponse));
+				}
+			}
+			for (const [requestId, pending] of byId) {
+				if (!seen.has(requestId)) {
+					pending.reject(
+						new Error(`Relay batch timed out: ${requestId}`)
+					);
+				}
+			}
+		} catch (error) {
+			for (const pending of batch) {
+				pending.reject(error);
+			}
+		}
+	}
+}
+
+function getRequestHeaders(request: Request): Record<string, string> {
+	const headers: Record<string, string> = {};
+	request.headers.forEach((value, key) => {
+		headers[key] = value;
+	});
+	return headers;
+}
+
+function getRelayRequestPath(requestUrl: string, relayBaseUrl: URL): string {
+	const url = new URL(requestUrl);
+	const basePath = relayBaseUrl.pathname.replace(/\/$/, '');
+	const pathname = url.pathname.substring(basePath.length) || '/';
+	return pathname + url.search + url.hash;
+}
+
+function createResponseFromRelay(
+	relayResponse: BatchedRelayResponse
+): Response {
+	const headers = new Headers(relayResponse.headers);
+	const body = [204, 205, 304].includes(relayResponse.status)
+		? null
+		: base64ToUint8Array(relayResponse.body);
+	return new Response(body, {
+		status: relayResponse.status,
+		headers,
+	});
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+	const binary = atob(base64);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) {
+		bytes[i] = binary.charCodeAt(i);
+	}
+	return bytes;
 }
 
 /**

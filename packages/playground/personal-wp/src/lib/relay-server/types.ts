@@ -53,4 +53,5 @@ export interface CreateSessionResponse {
 export interface PollResponse {
 	timeout?: boolean;
 	request?: TunnelRequest;
+	requests?: TunnelRequest[];
 }

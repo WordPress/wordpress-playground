@@ -856,6 +856,8 @@ if ($path === '/relay/session' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     handleClose($storage, $matches[1]);
 } elseif (preg_match('#^/relay/([^/]+)/response/([^/]+)$#', $path, $matches) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     handleResponse($storage, $matches[1], $matches[2]);
+} elseif (preg_match('#^/relay/([^/]+)/batch-request$#', $path, $matches) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    handleBatchGuestRequest($storage, $matches[1]);
 } elseif (preg_match('#^/relay/([^/]+)/request(/.*)?$#', $path, $matches)) {
     handleGuestRequest($storage, $matches[1], $matches[2] ?? '/');
 } else {
@@ -1098,8 +1100,19 @@ function handlePoll(RelayStorage $storage, string $sessionId): void {
     while (time() - $startTime < POLL_TIMEOUT_SEC) {
         $request = $storage->claimNextRequest($sessionId);
         if ($request !== null) {
+            $requests = [$request];
+            for ($i = 1; $i < 8; $i++) {
+                $nextRequest = $storage->claimNextRequest($sessionId);
+                if ($nextRequest === null) {
+                    break;
+                }
+                $requests[] = $nextRequest;
+            }
             header('Content-Type: application/json');
-            echo json_encode(['request' => $request]);
+            echo json_encode([
+                'request' => $request,
+                'requests' => $requests,
+            ]);
             return;
         }
         usleep(100000); // 100ms
@@ -1338,6 +1351,43 @@ function normalizeUploadedFile(array $file): array {
  * Guest makes a request through the relay.
  */
 function handleGuestRequest(RelayStorage $storage, string $sessionId, string $requestPath): void {
+    $session = waitForConnectedHost($storage, $sessionId);
+    if (!$session) {
+        return;
+    }
+
+    $requestId = generateUuid();
+
+    $headers = collectGuestRequestHeaders();
+
+    // Read request body. Multipart requests may need reconstruction
+    // because PHP-FPM consumes them before php://input is available.
+    $body = readGuestRequestBody($headers);
+    if ($body === null) {
+        unset($headers['content-length']);
+    }
+
+    // Create the tunnel request
+    $tunnelRequest = [
+        'requestId' => $requestId,
+        'method' => $_SERVER['REQUEST_METHOD'],
+        'path' => $requestPath,
+        'headers' => $headers,
+        'body' => $body !== '' ? $body : null,
+    ];
+
+    // Save the request for the host to pick up
+    $storage->saveRequest($sessionId, $requestId, $tunnelRequest);
+
+    $response = waitForRelayResponse($storage, $sessionId, $requestId);
+    if ($response === null) {
+        return;
+    }
+
+    sendRelayResponse($response);
+}
+
+function waitForConnectedHost(RelayStorage $storage, string $sessionId): ?array {
     // Briefly wait for the host to be polling. There is an inherent
     // race between the host calling startSharing (which kicks off
     // /poll in the background, not awaited) and a guest opening the
@@ -1369,26 +1419,25 @@ function handleGuestRequest(RelayStorage $storage, string $sessionId, string $re
             http_response_code(404);
             header('Content-Type: application/json');
             echo json_encode(['error' => 'Session not found']);
-            return;
+            return null;
         }
 
         if (!empty($session['hostConnected'])) {
-            break;
+            return $session;
         }
 
         if (time() >= $connectDeadline) {
             http_response_code(503);
             header('Content-Type: application/json');
             echo json_encode(['error' => 'Host not connected']);
-            return;
+            return null;
         }
 
         usleep(100000); // 100ms
     }
+}
 
-    $requestId = generateUuid();
-
-    // Collect headers
+function collectGuestRequestHeaders(): array {
     $headers = [];
     foreach ($_SERVER as $key => $value) {
         if (strpos($key, 'HTTP_') === 0) {
@@ -1410,65 +1459,96 @@ function handleGuestRequest(RelayStorage $storage, string $sessionId, string $re
     if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
         $headers['host'] = $_SERVER['HTTP_X_FORWARDED_HOST'];
     }
+    return $headers;
+}
 
-    // Read request body. Multipart requests may need reconstruction
-    // because PHP-FPM consumes them before php://input is available.
-    $body = readGuestRequestBody($headers);
-    if ($body === null) {
-        unset($headers['content-length']);
+function handleBatchGuestRequest(RelayStorage $storage, string $sessionId): void {
+    $session = waitForConnectedHost($storage, $sessionId);
+    if (!$session) {
+        return;
     }
 
-    // Create the tunnel request
-    $tunnelRequest = [
-        'requestId' => $requestId,
-        'method' => $_SERVER['REQUEST_METHOD'],
-        'path' => $requestPath,
-        'headers' => $headers,
-        'body' => $body !== '' ? $body : null,
-    ];
+    $payload = json_decode(file_get_contents('php://input'), true);
+    $requests = is_array($payload['requests'] ?? null) ? $payload['requests'] : [];
+    $requestIds = [];
+    foreach ($requests as $request) {
+        if (!is_array($request)) {
+            continue;
+        }
+        $requestId = (string)($request['requestId'] ?? '');
+        $method = strtoupper((string)($request['method'] ?? 'GET'));
+        $path = (string)($request['path'] ?? '/');
+        if ($requestId === '' || !in_array($method, ['GET', 'HEAD'], true)) {
+            continue;
+        }
+        $headers = is_array($request['headers'] ?? null) ? $request['headers'] : [];
+        if (empty($headers['host'])) {
+            $headers['host'] =
+                $_SERVER['HTTP_X_FORWARDED_HOST'] ??
+                $_SERVER['HTTP_HOST'] ??
+                '';
+        }
+        $tunnelRequest = [
+            'requestId' => $requestId,
+            'method' => $method,
+            'path' => $path === '' ? '/' : $path,
+            'headers' => $headers,
+            'body' => null,
+        ];
+        $storage->saveRequest($sessionId, $requestId, $tunnelRequest);
+        $requestIds[] = $requestId;
+    }
 
-    // Save the request for the host to pick up
-    $storage->saveRequest($sessionId, $requestId, $tunnelRequest);
+    $responses = waitForRelayResponses($storage, $sessionId, $requestIds);
+    header('Content-Type: application/json');
+    echo json_encode(['responses' => $responses]);
+}
 
+function waitForRelayResponse(RelayStorage $storage, string $sessionId, string $requestId): ?array {
+    $responses = waitForRelayResponses($storage, $sessionId, [$requestId]);
+    if (!$responses) {
+        return null;
+    }
+    return $responses[0];
+}
+
+function waitForRelayResponses(RelayStorage $storage, string $sessionId, array $requestIds): array {
     // Wait for response. Re-check session health every ~1s so we
     // can fail fast if the host disconnects mid-wait instead of
     // sitting around for the full timeout.
     $startTime = time();
     $lastHealthCheck = 0;
 
-    while (time() - $startTime < REQUEST_TIMEOUT_SEC) {
-        $response = $storage->getResponse($sessionId, $requestId);
-        if ($response !== null) {
-            // Clean up
-            $storage->deleteResponse($sessionId, $requestId);
-            $storage->deleteRequest($sessionId, $requestId);
+    $pending = array_fill_keys($requestIds, true);
+    $responses = [];
 
-            // Send the response
-            http_response_code($response['status']);
-
-            foreach ($response['headers'] as $name => $value) {
-                // Skip certain headers
-                $lowerName = strtolower($name);
-                if (in_array($lowerName, ['transfer-encoding', 'connection', 'keep-alive'])) {
-                    continue;
-                }
-                header("{$name}: {$value}");
+    while ($pending && time() - $startTime < REQUEST_TIMEOUT_SEC) {
+        foreach (array_keys($pending) as $requestId) {
+            $response = $storage->getResponse($sessionId, $requestId);
+            if ($response !== null) {
+                $storage->deleteResponse($sessionId, $requestId);
+                $storage->deleteRequest($sessionId, $requestId);
+                $responses[] = $response;
+                unset($pending[$requestId]);
             }
-
-            // Decode base64 body
-            if (!empty($response['body'])) {
-                echo base64_decode($response['body']);
-            }
-            return;
+        }
+        if (!$pending) {
+            return $responses;
         }
 
         // If close() deleted our request, the host won't see it
         // any more — bail out instead of waiting for the timer.
-        if (!$storage->requestExists($sessionId, $requestId)) {
+        foreach (array_keys($pending) as $requestId) {
+            if ($storage->requestExists($sessionId, $requestId)) {
+                continue;
+            }
+            unset($pending[$requestId]);
+        }
+        if (!$pending && !$responses) {
             http_response_code(503);
             header('Content-Type: application/json');
             echo json_encode(['error' => 'Host disconnected']);
-            return;
+            return [];
         }
 
         // Periodic re-check: did the host stop polling while we
@@ -1489,11 +1569,13 @@ function handleGuestRequest(RelayStorage $storage, string $sessionId, string $re
                 return $session;
             });
             if (!$check || !$check['hostConnected']) {
-                $storage->deleteRequest($sessionId, $requestId);
+                foreach (array_keys($pending) as $requestId) {
+                    $storage->deleteRequest($sessionId, $requestId);
+                }
                 http_response_code(503);
                 header('Content-Type: application/json');
                 echo json_encode(['error' => 'Host disconnected']);
-                return;
+                return $responses;
             }
         }
 
@@ -1501,9 +1583,32 @@ function handleGuestRequest(RelayStorage $storage, string $sessionId, string $re
     }
 
     // Timeout - clean up and return error
-    $storage->deleteRequest($sessionId, $requestId);
+    foreach (array_keys($pending) as $requestId) {
+        $storage->deleteRequest($sessionId, $requestId);
+    }
 
-    http_response_code(504);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Gateway timeout']);
+    if (!$responses) {
+        http_response_code(504);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Gateway timeout']);
+    }
+    return $responses;
+}
+
+function sendRelayResponse(array $response): void {
+    http_response_code($response['status']);
+
+    foreach ($response['headers'] as $name => $value) {
+        // Skip certain headers
+        $lowerName = strtolower($name);
+        if (in_array($lowerName, ['transfer-encoding', 'connection', 'keep-alive'])) {
+            continue;
+        }
+        header("{$name}: {$value}");
+    }
+
+    // Decode base64 body
+    if (!empty($response['body'])) {
+        echo base64_decode($response['body']);
+    }
 }
