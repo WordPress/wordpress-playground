@@ -1499,7 +1499,7 @@ function handleBatchGuestRequest(RelayStorage $storage, string $sessionId): void
         $requestIds[] = $requestId;
     }
 
-    $responses = waitForRelayResponses($storage, $sessionId, $requestIds);
+    $responses = waitForRelayResponses($storage, $sessionId, $requestIds, false);
     header('Content-Type: application/json');
     echo json_encode(['responses' => $responses]);
 }
@@ -1512,7 +1512,7 @@ function waitForRelayResponse(RelayStorage $storage, string $sessionId, string $
     return $responses[0];
 }
 
-function waitForRelayResponses(RelayStorage $storage, string $sessionId, array $requestIds): array {
+function waitForRelayResponses(RelayStorage $storage, string $sessionId, array $requestIds, bool $emitErrors = true): array {
     // Wait for response. Re-check session health every ~1s so we
     // can fail fast if the host disconnects mid-wait instead of
     // sitting around for the full timeout.
@@ -1545,9 +1545,11 @@ function waitForRelayResponses(RelayStorage $storage, string $sessionId, array $
             unset($pending[$requestId]);
         }
         if (!$pending && !$responses) {
-            http_response_code(503);
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Host disconnected']);
+            if ($emitErrors) {
+                http_response_code(503);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => 'Host disconnected']);
+            }
             return [];
         }
 
@@ -1572,9 +1574,11 @@ function waitForRelayResponses(RelayStorage $storage, string $sessionId, array $
                 foreach (array_keys($pending) as $requestId) {
                     $storage->deleteRequest($sessionId, $requestId);
                 }
-                http_response_code(503);
-                header('Content-Type: application/json');
-                echo json_encode(['error' => 'Host disconnected']);
+                if ($emitErrors && !$responses) {
+                    http_response_code(503);
+                    header('Content-Type: application/json');
+                    echo json_encode(['error' => 'Host disconnected']);
+                }
                 return $responses;
             }
         }
@@ -1587,7 +1591,7 @@ function waitForRelayResponses(RelayStorage $storage, string $sessionId, array $
         $storage->deleteRequest($sessionId, $requestId);
     }
 
-    if (!$responses) {
+    if ($emitErrors && !$responses) {
         http_response_code(504);
         header('Content-Type: application/json');
         echo json_encode(['error' => 'Gateway timeout']);

@@ -158,6 +158,14 @@ self.addEventListener('message', (event) => {
 		if (typeof scope !== 'string' || typeof relayBaseUrl !== 'string') {
 			return;
 		}
+		let batcher: DesktopRelayBatcher;
+		try {
+			batcher =
+				desktopRelayBatchers[relayBaseUrl] ||
+				new DesktopRelayBatcher(relayBaseUrl);
+		} catch {
+			return;
+		}
 		desktopRelayMappings[scope] = {
 			scope,
 			relayBaseUrl,
@@ -167,9 +175,7 @@ self.addEventListener('message', (event) => {
 					? ttl
 					: 5 * 60 * 1000),
 		};
-		desktopRelayBatchers[relayBaseUrl] ||= new DesktopRelayBatcher(
-			relayBaseUrl
-		);
+		desktopRelayBatchers[relayBaseUrl] = batcher;
 		return;
 	}
 
@@ -427,11 +433,32 @@ function getDesktopRelayBatcher(request: Request): DesktopRelayBatcher | null {
 		desktopRelayBatchers
 	)) {
 		const base = new URL(relayBaseUrl, self.location.origin);
-		if (request.url.startsWith(base.href)) {
+		if (!requestMatchesRelayBase(request.url, base)) {
+			continue;
+		}
+		if (hasActiveDesktopRelayMapping(relayBaseUrl)) {
 			return batcher;
 		}
+		delete desktopRelayBatchers[relayBaseUrl];
 	}
 	return null;
+}
+
+function requestMatchesRelayBase(requestUrl: string, relayBaseUrl: URL) {
+	const baseHref = relayBaseUrl.href.replace(/\/$/, '');
+	return requestUrl === baseHref || requestUrl.startsWith(`${baseHref}/`);
+}
+
+function hasActiveDesktopRelayMapping(relayBaseUrl: string): boolean {
+	for (const mapping of Object.values(desktopRelayMappings)) {
+		if (
+			mapping.relayBaseUrl === relayBaseUrl &&
+			getDesktopRelayMapping(mapping.scope)
+		) {
+			return true;
+		}
+	}
+	return false;
 }
 
 async function handleDesktopRelayRequest(
@@ -563,7 +590,9 @@ class DesktopRelayBatcher {
 			}
 		} catch (error) {
 			for (const pending of batch) {
-				pending.reject(error);
+				fetch(pending.request).then(pending.resolve, () =>
+					pending.reject(error)
+				);
 			}
 		}
 	}
