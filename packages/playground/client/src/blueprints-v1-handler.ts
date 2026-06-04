@@ -68,7 +68,36 @@ export class BlueprintsV1Handler {
 			? ['intl']
 			: [];
 		extensions.push(...(this.options.extensions || []));
-		await playground.onDownloadProgress(downloadProgress.loadingListener);
+		await playground.onDownloadProgress((event: any) => {
+			downloadProgress.loadingListener(event);
+			const { loaded, total } = event.detail || {};
+			if (
+				typeof loaded !== 'number' ||
+				typeof total !== 'number' ||
+				total <= 0
+			) {
+				setProgressCaption(
+					progressTracker,
+					'Downloading runtime assets'
+				);
+				return;
+			}
+			if (loaded >= total) {
+				setProgressCaption(
+					progressTracker,
+					`Compiling runtime assets (100%, ${formatBytes(total)} downloaded)`
+				);
+				return;
+			}
+			const percent = Math.max(
+				0,
+				Math.min(99, Math.floor((loaded / total) * 100))
+			);
+			setProgressCaption(
+				progressTracker,
+				`Downloading runtime assets ${percent}% (${formatBytes(loaded)} / ${formatBytes(total)})`
+			);
+		});
 		await playground.addEventListener?.('boot.progress', (event: any) => {
 			if (typeof event.caption === 'string') {
 				setProgressCaption(progressTracker, event.caption);
@@ -240,4 +269,16 @@ function setProgressCaption(
 	caption: string
 ): void {
 	progressTracker.setCaption?.(caption);
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes < 1024) {
+		return `${bytes} B`;
+	}
+	const megabytes = bytes / 1024 / 1024;
+	if (megabytes >= 1) {
+		return `${megabytes.toFixed(1)} MB`;
+	}
+	const kilobytes = bytes / 1024;
+	return `${kilobytes.toFixed(0)} KB`;
 }
