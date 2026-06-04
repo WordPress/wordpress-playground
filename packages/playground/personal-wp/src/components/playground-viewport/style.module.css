@@ -64,11 +64,27 @@
 }
 
 .loading-progress-caption {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: baseline;
+	min-height: 17px;
 	margin-bottom: 8px;
 	font-size: 13px;
 	font-weight: 500;
 	line-height: 1.3;
-	overflow-wrap: anywhere;
+}
+
+.loading-progress-caption-text {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.loading-progress-percent {
+	font-variant-numeric: tabular-nums;
+	color: #50575e;
 }
 
 .loading-progress-track {
