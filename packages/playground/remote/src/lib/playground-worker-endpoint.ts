@@ -25,6 +25,7 @@ import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
+import { hasCachedResponse } from './offline-mode-cache';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
@@ -230,7 +231,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 							imports: any,
 							receiveInstance: any
 						) => {
-							onProgress?.('Downloading PHP runtime');
+							onProgress?.(
+								(await hasCachedResponse(wasmUrl))
+									? 'Loading cached PHP runtime'
+									: 'Downloading PHP runtime'
+							);
 							const response = await this.memoizedFetch(wasmUrl, {
 								credentials: 'same-origin',
 							});

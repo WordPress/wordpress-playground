@@ -324,7 +324,9 @@ function formatRuntimeDownloadCaption(
 ): string {
 	const stalledSuffix =
 		stalledForMs >= 5000
-			? `, no data for ${Math.floor(stalledForMs / 1000)}s`
+			? `, no data for ${Math.floor(
+					stalledForMs / 1000
+				)}s; interrupted downloads restart`
 			: '';
 	return `Downloading runtime assets ${percent}% (${formatBytes(loaded)} / ${formatBytes(total)}${stalledSuffix})`;
 }
