@@ -120,12 +120,11 @@
 			prNumber = prNumber.trim();
 
 			// Extract number from a GitHub URL
-			if (
-				prNumber
-					.toLowerCase()
-					.includes('github.com/wordpress/gutenberg/pull')
-			) {
-				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
+			const gutenbergPr = prNumber.match(
+				/github\.com\/wordpress\/gutenberg\/pull\/(\d+)/i
+			);
+			if (gutenbergPr) {
+				prNumber = gutenbergPr[1];
 			}
 
 			if (!/^\d+$/.test(prNumber)) {
