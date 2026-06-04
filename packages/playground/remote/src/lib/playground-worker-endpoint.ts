@@ -152,6 +152,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking,
 		phpVersion,
 		pathAliases,
+		onProgress,
 	}: {
 		siteUrl: string;
 		sapiName: string;
@@ -161,6 +162,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
+		onProgress?: (caption: string) => void;
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
@@ -172,9 +174,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (withNetworking) {
 			// @TODO: Is it fine this is only set in this code branch? That
 			//        makes sense and all, but the previous worker always created the transport.
+			onProgress?.('Preparing network transport');
 			this.networkTransport = new WordPressFetchNetworkTransport({
 				corsProxyUrl,
 			});
+			onProgress?.('Generating networking certificate');
 			const CAroot = await generateCertificate({
 				subject: {
 					commonName: 'WordPressPlaygroundCA',
@@ -191,6 +195,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				corsProxyUrl,
 			};
 		} else {
+			onProgress?.('Disabling network transport');
 			phpIniEntries['allow_url_fopen'] = '0';
 			phpIniEntries['disable_functions'] = (
 				phpIniEntries['disable_functions'] ?? ''
@@ -203,16 +208,19 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 		const parsedSiteUrl = new URL(siteUrl);
 		const isLegacyPhp = isLegacyPHPVersion(phpVersion);
+		onProgress?.('Creating PHP request handler');
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
 			phpVersion,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
+				onProgress?.('Loading PHP runtime module');
 				return await loadWebRuntime(phpVersion, {
 					extensions,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
+						onProgress?.('Preparing PHP runtime download');
 						this.downloadMonitor.expectAssets({
 							[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
 						});
@@ -222,9 +230,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 							imports: any,
 							receiveInstance: any
 						) => {
+							onProgress?.('Downloading PHP runtime');
 							const response = await this.memoizedFetch(wasmUrl, {
 								credentials: 'same-origin',
 							});
+							onProgress?.('Instantiating PHP runtime');
 							const wasm = await WebAssembly.instantiateStreaming(
 								response as Response,
 								imports
@@ -236,6 +246,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				onProgress?.(
+					isPrimary
+						? 'Creating primary PHP instance'
+						: 'Creating secondary PHP instance'
+				);
 				if (!isPrimary) {
 					const pathsToShareBetweenPhpInstances = [
 						'/tmp',
@@ -261,6 +276,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					);
 				}
 				if (withNetworking) {
+					onProgress?.('Setting up PHP network transport');
 					await this.networkTransport!.setupMessageHandler(php);
 				}
 			},
@@ -315,6 +331,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			},
 		});
 
+		onProgress?.('Connecting primary PHP runtime');
 		const primaryPhp = await requestHandler.getPrimaryPhp();
 		primaryPhp.requestHandler ??= requestHandler;
 		await this.setPrimaryPHP(primaryPhp);

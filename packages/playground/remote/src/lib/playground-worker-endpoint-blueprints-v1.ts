@@ -81,6 +81,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				withNetworking,
 				phpVersion: phpVersion!,
 				pathAliases,
+				onProgress: reportBootProgress,
 			});
 
 			this.requestedWordPressVersion =
