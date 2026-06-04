@@ -1726,7 +1726,15 @@ function LoadingProgress({
 						className={css.loadingProgressCaption}
 						aria-live="polite"
 					>
-						{progress.caption} · {Math.round(progressValue)}%
+						<span
+							className={css.loadingProgressCaptionText}
+							title={progress.caption}
+						>
+							{progress.caption}
+						</span>
+						<span className={css.loadingProgressPercent}>
+							{Math.round(progressValue)}%
+						</span>
 					</div>
 					<div className={css.loadingProgressTrack}>
 						<div

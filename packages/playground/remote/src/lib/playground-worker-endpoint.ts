@@ -14,7 +14,6 @@ import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
 } from '@php-wasm/web';
-import { createMemoizedFetch } from '@wp-playground/common';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import {
 	LatestMinifiedWordPressVersion,
@@ -127,15 +126,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	private requestHandler: PHPRequestHandler | undefined;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
-	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
 
 		this.downloadMonitor = monitor;
-		const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
-			this.downloadMonitor.monitorFetch(fetch(input, init));
-		this.memoizedFetch = createMemoizedFetch(monitoredFetch);
 	}
 
 	protected computeSiteUrl(scope: string) {
