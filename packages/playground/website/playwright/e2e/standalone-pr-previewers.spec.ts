@@ -26,6 +26,19 @@ test('wordpress.html: non-PR input shows a wordpress-develop-specific error', as
 	);
 });
 
+test('wordpress.html: malformed wordpress-develop PR URL shows a validation error', async ({
+	page,
+}) => {
+	await page.goto('./wordpress.html');
+	await submit(
+		page,
+		'https://github.com/WordPress/wordpress-develop/pull/not-a-number'
+	);
+	await expect(page.locator('#error')).toHaveText(
+		'Please enter a valid wordpress-develop PR number or URL.'
+	);
+});
+
 test('wordpress.html: a numeric PR is forwarded to plugin-proxy', async ({
 	page,
 }) => {
@@ -81,6 +94,19 @@ test('gutenberg.html: non-PR input shows a gutenberg-specific error', async ({
 }) => {
 	await page.goto('./gutenberg.html');
 	await submit(page, 'oh-no');
+	await expect(page.locator('#error')).toHaveText(
+		'Please enter a valid gutenberg PR number or URL.'
+	);
+});
+
+test('gutenberg.html: malformed Gutenberg PR URL shows a validation error', async ({
+	page,
+}) => {
+	await page.goto('./gutenberg.html');
+	await submit(
+		page,
+		'https://github.com/WordPress/gutenberg/pull/not-a-number'
+	);
 	await expect(page.locator('#error')).toHaveText(
 		'Please enter a valid gutenberg PR number or URL.'
 	);

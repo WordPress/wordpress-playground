@@ -137,12 +137,11 @@
 			prNumber = prNumber.trim();
 
 			// Extract number from a GitHub URL
-			if (
-				prNumber
-					.toLowerCase()
-					.includes('github.com/wordpress/wordpress-develop/pull')
-			) {
-				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
+			const wordpressDevelopPr = prNumber.match(
+				/github\.com\/wordpress\/wordpress-develop\/pull\/(\d+)/i
+			);
+			if (wordpressDevelopPr) {
+				prNumber = wordpressDevelopPr[1];
 			}
 
 			if (!/^\d+$/.test(prNumber)) {
