@@ -156,12 +156,13 @@ export async function startPlaygroundWeb(
 			? 'v2'
 			: 'v1',
 	});
-	progressTracker.setCaption('Preparing WordPress');
+	progressTracker.setCaption('Loading Playground iframe');
 
 	await new Promise((resolve) => {
 		iframe.src = remoteUrl;
 		iframe.addEventListener('load', resolve, false);
 	});
+	progressTracker.setCaption('Connecting to Playground runtime');
 
 	const handler = options.experimentalBlueprintsV2Runner
 		? new BlueprintsV2Handler(options)
