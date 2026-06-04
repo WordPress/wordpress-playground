@@ -66,7 +66,14 @@ describe('PWA manifest configuration', () => {
 		expect(php).toContain("unset($query['random']);");
 		expect(php).toContain('"id" => getManifestId($start_url)');
 		expect(php).toContain('"scope" => $base_url . "/"');
-		expect(php).toContain("getTrustedBaseUrl('playground.wordpress.net')");
+		expect(php).toContain('function getRequestBaseUrl($fallback_host)');
+		expect(php).toContain(
+			"$http_host = $_SERVER['HTTP_HOST'] ?? $fallback_host;"
+		);
+		expect(php).toContain(
+			"$base_url = getRequestBaseUrl('playground.wordpress.net');"
+		);
+		expect(php).not.toContain('allowed_hosts');
 		expect(php).toContain(
 			'function getShortcutUrl($base_url, $wordpress_url)'
 		);
