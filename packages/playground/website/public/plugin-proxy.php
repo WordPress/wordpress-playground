@@ -295,11 +295,20 @@ function streamHttpResponse($url, $request_method = 'GET', $request_headers = []
 	$response = curl_exec($ch);
 	$info = curl_getinfo($ch);
 	if ($response === false && isset($info['http_code']) && $info['http_code'] === 429) {
-		curl_close($ch);
+		closeCurlHandle($ch);
 		throw new RateLimitedException('Rate limited');
 	}
-	curl_close($ch);
+	closeCurlHandle($ch);
 	return $info;
+}
+
+function closeCurlHandle($ch)
+{
+	if (version_compare(PHP_VERSION, '8.5', '<')) {
+		// curl_close is deprecated in PHP 8.5 and later.
+		// See https://www.php.net/manual/en/migration85.deprecated.php#migration85.deprecated.curl
+		curl_close($ch);
+	}
 }
 
 function isRateLimitedResponse($headers)
