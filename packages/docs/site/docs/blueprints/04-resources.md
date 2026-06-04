@@ -78,8 +78,20 @@ for the bucket:
 }
 ```
 
+Prefer bucket names without dots when using HTTPS S3 object URLs. Bucket names
+with dots can cause certificate errors in virtual-hosted S3 URLs. If you already
+have a bucket name with dots, review the
+[Amazon S3 virtual hosting documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+and use a URL format that works for your bucket, such as a path-style URL if it
+is supported for your setup:
+
+```text
+https://s3.REGION.amazonaws.com/BUCKET_NAME/plugins/example-plugin.zip
+```
+
 For a public S3 bucket, allow read access to the objects that Playground needs
-to download. Replace `BUCKET_NAME` with the bucket name:
+to download. Scope the policy to the prefixes you use for Playground assets,
+and replace `BUCKET_NAME` with the bucket name:
 
 ```json
 {
@@ -90,11 +102,16 @@ to download. Replace `BUCKET_NAME` with the bucket name:
 			"Effect": "Allow",
 			"Principal": "*",
 			"Action": "s3:GetObject",
-			"Resource": "arn:aws:s3:::BUCKET_NAME/*"
+			"Resource": ["arn:aws:s3:::BUCKET_NAME/blueprints/*", "arn:aws:s3:::BUCKET_NAME/plugins/*", "arn:aws:s3:::BUCKET_NAME/themes/*"]
 		}
 	]
 }
 ```
+
+[Amazon S3 Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)
+settings must allow public bucket policies for this policy to work. Only allow
+public access for objects that are intended to be downloadable by anyone with
+the URL.
 
 Configure CORS so the Playground website can fetch those objects. The following
 S3 CORS configuration allows `GET` and `HEAD` requests from
@@ -147,8 +164,23 @@ Here is a Blueprint that installs a plugin ZIP hosted on S3:
 }
 ```
 
-The same pattern works for `installTheme` with `themeData`, and for loading a
-Blueprint JSON file or Blueprint bundle with `?blueprint-url=`:
+Use the same `url` resource shape with `installTheme` and `themeData`:
+
+```json
+{
+	"step": "installTheme",
+	"themeData": {
+		"resource": "url",
+		"url": "https://BUCKET_NAME.s3.REGION.amazonaws.com/themes/example-theme.zip"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+For loading a Blueprint JSON file or Blueprint bundle from S3, pass the object
+URL to `?blueprint-url=`:
 
 ```text
 https://playground.wordpress.net/?blueprint-url=https://BUCKET_NAME.s3.REGION.amazonaws.com/blueprints/example-blueprint.json
