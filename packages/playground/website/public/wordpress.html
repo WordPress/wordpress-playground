@@ -143,6 +143,25 @@
 				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
 			}
 
+			if (!/^\d+$/.test(prNumber)) {
+				if (
+					prNumber
+						.toLowerCase()
+						.includes('github.com/wordpress/gutenberg/pull')
+				) {
+					errorDiv.innerHTML =
+						'This looks like a Gutenberg PR. ' +
+						'Use the <a href="./gutenberg.html">Gutenberg PR previewer</a> instead.';
+				} else {
+					errorDiv.innerText =
+						'Please enter a valid wordpress-develop PR number or URL.';
+				}
+				submitting = false;
+				submitButton.classList.remove('loading');
+				submitButton.disabled = false;
+				return;
+			}
+
 			// Verify that the PR exists and that GitHub CI finished building it
 			const zipArtifactUrl = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <head>
 	<title>Gutenberg PR Previewer</title>
@@ -64,8 +64,8 @@
 	<div id="links">
 		Powered by
 		<a href="https://developer.wordpress.org/playground">
-			WordPress Playground
-		</a>. To build a previewer like this for your repository, check the
+			WordPress Playground </a
+		>. To build a previewer like this for your repository, check the
 		<a
 			target="_blank"
 			href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/gutenberg.html"
@@ -108,7 +108,14 @@
 			if (submitting) {
 				return;
 			}
-			let prNumber = document.getElementById('pr-number').value;
+			previewPr(document.getElementById('pr-number').value);
+		});
+
+		async function previewPr(prNumber) {
+			submitting = true;
+			errorDiv.innerText = '';
+			submitButton.classList.add('loading');
+			submitButton.disabled = true;
 
 			// Extract number from a GitHub URL
 			if (
@@ -119,14 +126,24 @@
 				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
 			}
 
-			previewPr(prNumber);
-		});
-
-		async function previewPr(prNumber) {
-			submitting = true;
-			errorDiv.innerText = '';
-			submitButton.classList.add('loading');
-			submitButton.disabled = true;
+			if (!/^\d+$/.test(prNumber)) {
+				if (
+					prNumber
+						.toLowerCase()
+						.includes('github.com/wordpress/wordpress-develop/pull')
+				) {
+					errorDiv.innerHTML =
+						'This looks like a WordPress Core PR. ' +
+						'Use the <a href="./wordpress.html">WordPress PR previewer</a> instead.';
+				} else {
+					errorDiv.innerText =
+						'Please enter a valid gutenberg PR number or URL.';
+				}
+				submitting = false;
+				submitButton.classList.remove('loading');
+				submitButton.disabled = false;
+				return;
+			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
 			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
@@ -151,7 +168,7 @@
 						step: 'login',
 						username: 'admin',
 						password: 'password',
-					}
+					},
 				],
 			};
 			// If there's a import-site query parameter, pass that to the blueprint
