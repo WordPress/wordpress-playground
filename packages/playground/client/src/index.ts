@@ -20,6 +20,7 @@ export type {
 export type { WordPressInstallMode } from '@wp-playground/wordpress';
 export {
 	setPhpIniEntries,
+	PHPNextVersion,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
@@ -36,6 +37,7 @@ import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import type { PathAlias } from '@php-wasm/universal';
+import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
@@ -48,6 +50,10 @@ export interface StartPlaygroundOptions {
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	blueprint?: BlueprintV1;
+	/**
+	 * PHP extensions to install before the runtime starts.
+	 */
+	extensions?: PHPWebExtension[];
 	/**
 	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
 	 */
@@ -69,6 +75,13 @@ export interface StartPlaygroundOptions {
 	 */
 	sapiName?: string;
 	mounts?: Array<MountDescriptor>;
+	/**
+	 * @deprecated Use `wordpressInstallMode` instead.
+	 *
+	 * Whether to download/install WordPress files. Set this to `false` when
+	 * WordPress files are already available, for example from `mounts` or a
+	 * saved site.
+	 */
 	shouldInstallWordPress?: boolean;
 	/**
 	 * The string prefix used in the site URL served by the currently
@@ -101,7 +114,7 @@ export interface StartPlaygroundOptions {
 	sqliteDriverVersion?: string;
 	/**
 	 * How to handle WordPress installation.
-	 * Defaults to 'install-from-existing-files-if-needed'.
+	 * Defaults to `download-and-install`.
 	 */
 	wordpressInstallMode?: WordPressInstallMode;
 	/**

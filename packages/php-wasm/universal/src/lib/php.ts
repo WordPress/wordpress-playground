@@ -1057,10 +1057,14 @@ export class PHP implements Disposable {
 					return e.status;
 				}
 
-				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
-				stdout.controller.error(e);
-				stderr.controller.error(e);
-				headers.controller.error(e);
+				// Non-exit-code errors indicate a WASM runtime crash.
+				// Let's clean up and throw. We use safeStreamError()
+				// because the headers controller may already be closed
+				// if onStdout fired before the crash (onStdout calls
+				// closeHeadersStream()).
+				safeStreamError(stdout.controller, e);
+				safeStreamError(stderr.controller, e);
+				safeStreamError(headers.controller, e);
 				streamsClosed = true;
 
 				/**
@@ -1083,8 +1087,11 @@ export class PHP implements Disposable {
 				throw e;
 			} finally {
 				if (!streamsClosed) {
-					stdout.controller.close();
-					stderr.controller.close();
+					// Close each stream individually so that a failure
+					// in one (e.g. stream cancelled by the consumer)
+					// doesn't prevent the others from being closed.
+					safeStreamClose(stdout.controller);
+					safeStreamClose(stderr.controller);
 					closeHeadersStream();
 					streamsClosed = true;
 				}
@@ -1214,11 +1221,28 @@ export class PHP implements Disposable {
 	 * Moves a file or directory in the PHP filesystem to a
 	 * new location.
 	 *
-	 * @param oldPath The path to rename.
-	 * @param newPath The new path.
+	 * @param fromPath The path to rename.
+	 * @param toPath The new path.
 	 */
 	mv(fromPath: string, toPath: string) {
 		const result = FSHelpers.mv(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
+	}
+
+	/**
+	 * Copies a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param fromPath The source path.
+	 * @param toPath The target path.
+	 */
+	cp(fromPath: string, toPath: string) {
+		const result = FSHelpers.copyRecursive(
 			this[__private__dont__use].FS,
 			fromPath,
 			toPath
@@ -1486,14 +1510,19 @@ export class PHP implements Disposable {
 		const mountObject = {
 			mountHandler,
 			unmount: async () => {
-				await unmountCallback();
-				delete this.#mounts[virtualFSPath];
+				try {
+					await unmountCallback();
+				} finally {
+					// JS mount tracking is authoritative. Even if the
+					// underlying filesystem unmount fails, forget this entry
+					// so later runtime swaps and remounts cannot reuse a stale
+					// mount handler.
+					delete this.#mounts[virtualFSPath];
+				}
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
-		return () => {
-			mountObject.unmount();
-		};
+		return () => mountObject.unmount();
 	}
 
 	/**
@@ -1575,16 +1604,38 @@ export class PHP implements Disposable {
 
 		const stderrStream = await createInvertedReadableStream<Uint8Array>();
 		process.on('error', (error) => {
-			stderrStream.controller.error(error);
+			safeStreamError(stderrStream.controller, error);
 		});
-		process.stderr.on('data', (data) => {
-			stderrStream.controller.enqueue(data);
-		});
+		const onStderrData = (data: Uint8Array) => {
+			try {
+				stderrStream.controller.enqueue(data);
+			} catch {
+				// enqueue() throws when the stream is no longer
+				// readable — the consumer cancelled it, someone
+				// called controller.error(), or the stream was
+				// already closed. We swallow the error because
+				// the consumer already knows why the stream ended
+				// (they cancelled, or received the error, or read
+				// all the data). Re-throwing here would propagate
+				// into Node's EventEmitter and crash the process,
+				// which is exactly what this PR fixes. The only
+				// actionable response is to detach the listener
+				// so we stop receiving data we can't deliver.
+				process.stderr.off('data', onStderrData);
+			}
+		};
+		process.stderr.on('data', onStderrData);
 
 		const stdoutStream = await createInvertedReadableStream<Uint8Array>();
-		process.stdout.on('data', (data) => {
-			stdoutStream.controller.enqueue(data);
-		});
+		const onStdoutData = (data: Uint8Array) => {
+			try {
+				stdoutStream.controller.enqueue(data);
+			} catch {
+				// See the comment in onStderrData above.
+				process.stdout.off('data', onStdoutData);
+			}
+		};
+		process.stdout.on('data', onStdoutData);
 
 		process.on('exit', () => {
 			// Delay until next tick to ensure we don't close the streams before
@@ -1687,7 +1738,12 @@ function copyMEMFSNodes(
 		return;
 	}
 
-	const oldNode = source.lookupPath(path);
+	const oldNode = source.lookupPath(path, { follow: false });
+	if (source.isLink(oldNode.node.mode)) {
+		const linkTarget = source.readlink(path);
+		target.symlink(linkTarget, path);
+		return;
+	}
 	if (!source.isDir(oldNode.node.mode)) {
 		target.writeFile(path, source.readFile(path));
 		return;
@@ -1745,6 +1801,40 @@ async function createInvertedReadableStream<T = BufferSource>(
 		stream,
 		controller,
 	};
+}
+
+/**
+ * Calls controller.error() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit. This commonly happens
+ * when onStdout closes the headers stream before a WASM crash
+ * propagates to the error-handling code.
+ */
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+) {
+	try {
+		controller.error(error);
+	} catch {
+		// Stream already in a terminal state.
+	}
+}
+
+/**
+ * Calls controller.close() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * prevent sibling streams from being cleaned up and crash the
+ * Node process.
+ */
+function safeStreamClose(controller: ReadableStreamDefaultController) {
+	try {
+		controller.close();
+	} catch {
+		// Stream already in a terminal state.
+	}
 }
 
 const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {

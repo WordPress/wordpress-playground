@@ -20,8 +20,8 @@ Este guia mostra como habilitar o Xdebug no WordPress Playground e começar a de
 
 Primeiramente, o Xdebug está presente em dois CLI diferentes:
 
--   **`@php-wasm/cli`**: Execute scripts PHP independentes. Use isso quando estiver depurando código PHP, sem precisar de um ambiente WordPress.
--   **`@wp-playground/cli`**: Execute uma instalação completa do WordPress. Útil para depurar plugins WordPress, temas ou funcionalidades do núcleo.
+- **`@php-wasm/cli`**: Execute scripts PHP independentes. Use isso quando estiver depurando código PHP, sem precisar de um ambiente WordPress.
+- **`@wp-playground/cli`**: Execute uma instalação completa do WordPress. Útil para depurar plugins WordPress, temas ou funcionalidades do núcleo.
 
 <!-- For this guide, we'll use `@wp-playground/cli`. If you're not familiar with the tool, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`. -->
 
@@ -68,18 +68,18 @@ Booting WordPress...
 WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 
 Chrome connected! Initializing Xdebug receiver...
 XDebug receiver running on port 9003
 Running a PHP script with Xdebug enabled...
 ```
 
-<!-- By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance. -->
+<!-- By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance. -->
 
-Clicando na URL fornecida, por exemplo, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, você pode acessar o DevTools conectado à sua aplicação, com a possibilidade de inspecionar todos os arquivos de uma instância WordPress.
+Clicando na URL fornecida, por exemplo, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, você pode acessar o DevTools conectado à sua aplicação, com a possibilidade de inspecionar todos os arquivos de uma instância WordPress.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 
 <!-- For a more practical example, let's debug a plugin that has the following code: -->
 
@@ -123,7 +123,7 @@ npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mou
 
 O Playground CLI (`@wp-playground/cli`) detectará automaticamente a pasta do plugin e a montará. Abrindo o projeto em seu navegador e DevTools, você poderá adicionar breakpoints no código do seu plugin e testá-lo linha por linha.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 
 <!-- ## Starting with IDE integration -->
 
@@ -153,7 +153,7 @@ npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integrat
 
 Agora, vá para o seu código, adicione os breakpoints e bons testes.
 
-![Xdebug em execução no VSCode](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+![Xdebug em execução no VSCode](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
 <!-- This feature is in experimental mode. Until it is completed, we will need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts. -->
 

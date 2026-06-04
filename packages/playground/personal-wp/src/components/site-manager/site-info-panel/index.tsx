@@ -1,14 +1,39 @@
 import { Button, Flex, FlexItem, Icon, TabPanel } from '@wordpress/components';
-import { chevronLeft } from '@wordpress/icons';
+import { chevronLeft, close, trash, external, upload } from '@wordpress/icons';
 import classNames from 'classnames';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
+import { importWordPressFiles } from '@wp-playground/client';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
+import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
+import type { SiteMetadata } from '../../../lib/state/redux/slice-sites';
 import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
-import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
-import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
+import {
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../../lib/state/redux/store';
+import {
+	usePlaygroundClient,
+	usePlaygroundClientInfo,
+} from '../../../lib/use-playground-client';
 import { SiteLogs } from '../../log-modal';
 import { SiteDatabasePanel } from '../site-database-panel';
+import { useBackup } from '../../../lib/hooks/use-backup';
+import { WordPressIcon } from '@wp-playground/components';
+import {
+	getBlueprintUrl,
+	healthCheckRecoveryBlueprint,
+} from '../../../lib/health-check-recovery';
+import { getRelativeDate } from '../../../lib/utils/get-relative-date';
+import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
+import {
+	broadcastSiteReset,
+	requestBlueprintInstall,
+} from '../../../lib/state/redux/tab-coordinator';
+import { logger } from '@php-wasm/logger';
+import { encodeStringAsBase64 } from '../../../lib/base64';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -41,6 +66,419 @@ function setSiteLastTab(siteSlug: string, tabName: string): void {
 	}
 }
 
+// -- Install Apps ------------------------------------------------------------
+
+const APP_LAUNCHER_BLUEPRINT = {
+	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
+	meta: {
+		title: 'App Launcher',
+		description: 'Install more apps with this app launcher',
+		author: 'Alex Kirk',
+	},
+	login: true,
+	landingPage: '/my-apps/',
+	steps: [
+		{
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'git:directory',
+				url: 'https://github.com/akirk/my-apps',
+				ref: 'main',
+				refType: 'branch',
+			},
+			options: {
+				targetFolderName: 'my-apps',
+			},
+		},
+	],
+};
+
+const APP_LAUNCHER_BLUEPRINT_URL = blueprintToDataUrl(
+	JSON.stringify(APP_LAUNCHER_BLUEPRINT)
+);
+
+function blueprintToDataUrl(blueprint: string): string {
+	return `data:application/json;base64,${encodeStringAsBase64(blueprint)}`;
+}
+
+function InstallAppsSection({ siteSlug }: { siteSlug: string }) {
+	const installMessage = useAppSelector(
+		(state) => state.ui.blueprintInstallMessage
+	);
+
+	async function installAppLauncher() {
+		if (installMessage) {
+			return;
+		}
+		const result = await requestBlueprintInstall(
+			siteSlug,
+			APP_LAUNCHER_BLUEPRINT_URL
+		);
+		if (result.status === 'error') {
+			logger.error('Failed to install App Launcher:', result.error);
+		}
+	}
+
+	return (
+		<div className={css.aboutSection}>
+			<h4 className={css.aboutSectionTitle}>
+				Installing apps has moved here:
+			</h4>
+			<div className={css.appsList}>
+				<div className={css.appRow}>
+					<button
+						type="button"
+						className={css.appLink}
+						onClick={installAppLauncher}
+						disabled={!!installMessage}
+					>
+						<span className={css.appIcon}>
+							<WordPressIcon />
+						</span>
+						<span className={css.appContent}>
+							<span className={css.appTitle}>
+								{APP_LAUNCHER_BLUEPRINT.meta.title}
+							</span>
+							<span className={css.appDescription}>
+								{APP_LAUNCHER_BLUEPRINT.meta.description}
+							</span>
+						</span>
+					</button>
+				</div>
+				{installMessage && (
+					<div className={css.appInstallStatus} role="status">
+						{installMessage}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+// ── Backup ────────────────────────────────────────────────────
+
+type AutoBackupInterval = NonNullable<SiteMetadata['autoBackupInterval']>;
+
+const autoBackupOptions: { value: AutoBackupInterval; label: string }[] = [
+	{ value: 'none', label: 'No auto-download' },
+	{ value: 'daily', label: 'Auto-download daily' },
+	{ value: 'every-2-days', label: 'Auto-download every 2 days' },
+	{ value: 'weekly', label: 'Auto-download weekly' },
+];
+
+function BackupSection() {
+	const activeSite = useActiveSite();
+	const dispatch = useAppDispatch();
+	const { isDependentMode, performBackup, isBackingUp } = useBackup();
+	// In dependent mode the client only exposes navigation methods, so it
+	// can't be used for `importWordPressFiles`. Treat it as absent here so
+	// the Restore button stays disabled.
+	const rawPlayground = usePlaygroundClient();
+	const playground = isDependentMode ? null : rawPlayground;
+	const [showHistory, setShowHistory] = useState(false);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const restoreInputRef = useRef<HTMLInputElement>(null);
+
+	if (!activeSite || activeSite.metadata.storage === 'none') {
+		return null;
+	}
+
+	const handleRestoreClick = () => {
+		restoreInputRef.current?.click();
+	};
+
+	const handleRestore = async (e: ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		const resetInput = () => {
+			if (restoreInputRef.current) {
+				restoreInputRef.current.value = '';
+			}
+		};
+		if (!file || !playground) {
+			resetInput();
+			return;
+		}
+
+		const proceed = window.confirm(
+			'Restoring a backup will replace all current content. Continue?'
+		);
+		if (!proceed) {
+			resetInput();
+			return;
+		}
+
+		setIsRestoring(true);
+		try {
+			await importWordPressFiles(playground, { wordPressFilesZip: file });
+			await playground.goTo('/');
+			window.location.reload();
+		} catch (error) {
+			logger.error(error);
+			window.alert(
+				'Unable to restore backup. Is it a valid WordPress Playground export?'
+			);
+		} finally {
+			setIsRestoring(false);
+			resetInput();
+		}
+	};
+
+	const { backupHistory = [], autoBackupInterval = 'daily' } =
+		activeSite.metadata;
+	const autoBackupSelectValue =
+		autoBackupInterval === 'ignore' ? 'none' : autoBackupInterval;
+	const lastBackup = backupHistory[0];
+
+	const lastBackupText = lastBackup
+		? `Last download: ${getRelativeDate(new Date(lastBackup.timestamp))}`
+		: 'Never backed up';
+
+	const handleAutoBackupChange = (e: ChangeEvent<HTMLSelectElement>) => {
+		dispatch(
+			updateSiteMetadata({
+				slug: activeSite.slug,
+				metadata: {
+					autoBackupInterval: e.target.value as AutoBackupInterval,
+				},
+			})
+		);
+	};
+
+	return (
+		<div className={css.aboutSection}>
+			<h4 className={css.aboutSectionTitle}>Backup</h4>
+			{isDependentMode ? (
+				<p>
+					Backups are managed from the main tab that has the active
+					connection.
+				</p>
+			) : (
+				<>
+					<p>
+						Your site is stored in this browser. Browser data can be
+						cleared unexpectedly, so regular backups keep your
+						WordPress safe.
+					</p>
+					<div className={css.backupControls}>
+						<div className={css.backupRow}>
+							<select
+								className={css.backupSelect}
+								value={autoBackupSelectValue}
+								onChange={handleAutoBackupChange}
+							>
+								{autoBackupOptions.map((option) => (
+									<option
+										key={option.value}
+										value={option.value}
+									>
+										{option.label}
+									</option>
+								))}
+							</select>
+							<button
+								className={css.backupNowButton}
+								onClick={performBackup}
+								disabled={isBackingUp || isRestoring}
+								type="button"
+							>
+								{isBackingUp ? 'Backing up...' : 'Backup now'}
+							</button>
+							<input
+								type="file"
+								ref={restoreInputRef}
+								onChange={handleRestore}
+								accept=".zip,application/zip"
+								style={{ display: 'none' }}
+							/>
+							<button
+								className={css.backupNowButton}
+								onClick={handleRestoreClick}
+								disabled={
+									!playground || isBackingUp || isRestoring
+								}
+								type="button"
+							>
+								<Icon icon={upload} size={16} />
+								{isRestoring ? 'Restoring...' : 'Restore'}
+							</button>
+						</div>
+						<span className={css.backupStatus}>
+							{lastBackupText}
+							{backupHistory.length > 0 && (
+								<button
+									className={css.historyToggle}
+									onClick={() => setShowHistory(!showHistory)}
+									type="button"
+								>
+									{showHistory
+										? 'hide history'
+										: `${backupHistory.length} backup${backupHistory.length === 1 ? '' : 's'}`}
+								</button>
+							)}
+						</span>
+					</div>
+					{showHistory && (
+						<ul className={css.backupHistory}>
+							{backupHistory.map((entry, index) => (
+								<li
+									key={index}
+									className={css.backupHistoryItem}
+								>
+									<span>{entry.filename}</span>
+									<span className={css.backupHistoryDate}>
+										{getRelativeDate(
+											new Date(entry.timestamp)
+										)}
+									</span>
+								</li>
+							))}
+						</ul>
+					)}
+				</>
+			)}
+		</div>
+	);
+}
+
+// ── Recovery & Reset ──────────────────────────────────────────
+
+function RecoverySection() {
+	const activeSite = useActiveSite();
+	const { isDependentMode } = useBackup();
+	const [showRecovery, setShowRecovery] = useState(false);
+	const [showReset, setShowReset] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
+
+	async function handleStartOver() {
+		if (!activeSite || activeSite.metadata.storage === 'none') {
+			return;
+		}
+		const { backupHistory = [] } = activeSite.metadata;
+		const hasBackup = backupHistory.length > 0;
+		const message = hasBackup
+			? 'Are you sure? This will delete all data and reset WordPress.'
+			: 'Are you sure? You have no backups — all data will be permanently lost.';
+		if (!window.confirm(message)) {
+			return;
+		}
+		setIsDeleting(true);
+		try {
+			broadcastSiteReset(activeSite.slug);
+			await opfsSiteStorage?.delete(activeSite.slug);
+			window.location.href =
+				window.location.origin + window.location.pathname;
+		} catch (error) {
+			logger.error(error);
+			alert('Failed to reset. Please try again.');
+			setIsDeleting(false);
+		}
+	}
+
+	return (
+		<div className={css.aboutSection}>
+			<h4 className={css.aboutSectionTitle}>Troubleshooting</h4>
+			<p>
+				If WordPress crashed,{' '}
+				<button
+					className={css.textButton}
+					onClick={() => setShowRecovery(!showRecovery)}
+					type="button"
+				>
+					enter recovery mode
+				</button>
+				.
+				{!isDependentMode && (
+					<>
+						{' '}
+						Or{' '}
+						<button
+							className={css.textButton}
+							onClick={() => setShowReset(!showReset)}
+							type="button"
+						>
+							start over
+						</button>
+						.
+					</>
+				)}
+			</p>
+			{showRecovery && (
+				<a
+					href={getBlueprintUrl(healthCheckRecoveryBlueprint)}
+					className={css.recoveryLink}
+				>
+					Install Health Check &amp; Troubleshoot
+				</a>
+			)}
+			{showReset && !isDependentMode && (
+				<button
+					className={css.dangerButton}
+					onClick={handleStartOver}
+					disabled={isDeleting}
+					type="button"
+				>
+					<Icon icon={trash} size={16} />
+					<span>
+						{isDeleting ? 'Deleting...' : 'Delete everything'}
+					</span>
+				</button>
+			)}
+		</div>
+	);
+}
+
+// ── About Tab (composed) ──────────────────────────────────────
+
+function AboutTab({ siteSlug }: { siteSlug: string }) {
+	const clientInfo = usePlaygroundClientInfo();
+	const isDependentMode = clientInfo?.isDependentMode ?? false;
+
+	return (
+		<div className={css.aboutTab}>
+			<h3 className={css.aboutHeading}>My WordPress</h3>
+			<p>
+				A full WordPress running entirely in your browser — no server,
+				no account, completely free and private. Your data stays on your
+				device.
+			</p>
+
+			<InstallAppsSection siteSlug={siteSlug} />
+			{!isDependentMode && (
+				<>
+					<BackupSection />
+					<RecoverySection />
+				</>
+			)}
+			{isDependentMode && <DependentTabToolsNotice />}
+
+			<div className={css.aboutSection}>
+				<a
+					href="https://playground.wordpress.net"
+					target="_blank"
+					rel="noopener noreferrer"
+					className={css.externalLink}
+				>
+					<Icon icon={external} size={16} />
+					<span>Open playground.wordpress.net</span>
+				</a>
+			</div>
+		</div>
+	);
+}
+
+function DependentTabToolsNotice() {
+	return (
+		<div className={css.dependentTabToolsNotice}>
+			<h4>Runtime-only: backups, recovery, reset</h4>
+			<p>
+				This tab can view, navigate, and install apps. Backups,
+				recovery, and reset controls need the tab running the WordPress
+				runtime.
+			</p>
+		</div>
+	);
+}
+
 export function SiteInfoPanel({
 	className,
 	site,
@@ -55,13 +493,13 @@ export function SiteInfoPanel({
 	const dispatch = useAppDispatch();
 
 	// Load the last active tab for this site
+	const validTabs = ['about', 'files', 'database', 'logs'];
 	const [initialTabName] = useState(() => {
 		const lastTab = getSiteLastTab(site.slug);
-		// Only allow tabs that exist in our simplified panel
-		if (lastTab && ['files', 'database', 'logs'].includes(lastTab)) {
+		if (lastTab && validTabs.includes(lastTab)) {
 			return lastTab;
 		}
-		return 'files';
+		return 'about';
 	});
 
 	// Resolve documentRoot from playground client, or use fallback for direct OPFS access
@@ -78,7 +516,16 @@ export function SiteInfoPanel({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
 	);
-	const playground = clientInfo?.client;
+	// The dependent-mode client is a minimal stub exposing only `goTo` and
+	// `getCurrentURL` — calling PHP-runtime methods (`isDir`, `fileExists`,
+	// `documentRoot`, …) on it throws. Use the navigation client for the
+	// header buttons but treat the runtime client as absent so file/database
+	// panels fall back to OPFS access or render a disabled state.
+	const navigationClient = clientInfo?.client;
+	const playground =
+		clientInfo && !clientInfo.isDependentMode
+			? clientInfo.client
+			: undefined;
 
 	// Resolve documentRoot from playground, or use fallback for direct OPFS access
 	useEffect(() => {
@@ -101,8 +548,8 @@ export function SiteInfoPanel({
 			dispatch(setSiteManagerOpen(false));
 		}
 
-		if (playground) {
-			playground.goTo(path);
+		if (navigationClient) {
+			navigationClient.goTo(path);
 		}
 	}
 
@@ -167,7 +614,7 @@ export function SiteInfoPanel({
 								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="tertiary"
-										disabled={!playground}
+										disabled={!navigationClient}
 										onClick={() => navigateTo('/wp-admin/')}
 									>
 										WP Admin
@@ -176,11 +623,21 @@ export function SiteInfoPanel({
 								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="secondary"
-										disabled={!playground}
+										disabled={!navigationClient}
 										onClick={() => navigateTo('/')}
 									>
 										Homepage
 									</Button>
+								</FlexItem>
+								<FlexItem>
+									<Button
+										icon={close}
+										label="Close Site Tools"
+										onClick={() => {
+											dispatch(setSiteManagerOpen(false));
+										}}
+										className={css.closeButton}
+									/>
 								</FlexItem>
 							</>
 						)}
@@ -192,6 +649,10 @@ export function SiteInfoPanel({
 						initialTabName={initialTabName}
 						onSelect={handleTabSelect}
 						tabs={[
+							{
+								name: 'about',
+								title: 'About',
+							},
 							{
 								name: 'files',
 								title: 'Files',
@@ -208,6 +669,19 @@ export function SiteInfoPanel({
 					>
 						{(tab) => (
 							<>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.padded,
+										{
+											[css.tabHidden]:
+												tab.name !== 'about',
+										}
+									)}
+									hidden={tab.name !== 'about'}
+								>
+									<AboutTab siteSlug={site.slug} />
+								</div>
 								<div
 									className={classNames(
 										css.tabContents,

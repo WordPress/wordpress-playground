@@ -4,6 +4,15 @@
 	"sourceRoot": "packages/php-wasm/universal/src",
 	"projectType": "library",
 	"targets": {
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/universal/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/universal/tsconfig.spec.json --noEmit"
+				]
+			}
+		},
 		"build": {
 			"executor": "nx:noop",
 			"dependsOn": ["build:README"]
@@ -23,6 +32,16 @@
 				"tsConfig": "packages/php-wasm/universal/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/universal",
 				"buildTarget": "php-wasm-universal:build:bundle:production"
+			},
+			"dependsOn": ["build:extension-manifest-schema"]
+		},
+		"build:extension-manifest-schema": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/universal/bin/generate-extension-manifest-schema.js"
+				],
+				"parallel": false
 			}
 		},
 		"build:bundle": {
@@ -49,7 +68,7 @@
 			"dependsOn": ["build"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/universal"],
 			"options": {
 				"passWithNoTests": true,
@@ -64,15 +83,6 @@
 				"lintFilePatterns": ["packages/php-wasm/universal/**/*.ts"],
 				"maxWarnings": 0
 			}
-		}
-	},
-	"typecheck": {
-		"executor": "nx:run-commands",
-		"options": {
-			"commands": [
-				"tsc -p packages/php-wasm/universal/tsconfig.lib.json --noEmit",
-				"tsc -p packages/php-wasm/universal/tsconfig.spec.json --noEmit"
-			]
 		}
 	}
 }

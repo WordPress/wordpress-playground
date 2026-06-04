@@ -1,6 +1,25 @@
 import type { PHP } from './php';
 
 /**
+ * Reads the major PHP version from an instance's Emscripten runtime and
+ * returns true for anything older than PHP 7. Used to decide whether the
+ * PROXYFS mmap patch should apply — see {@link proxyFileSystem} for the
+ * legacy-PHP rationale. Falls back to `false` when the runtime hasn't
+ * populated phpVersion yet, matching the pre-refactor default behaviour.
+ */
+function isLegacyPhpInstance(phpInstance: PHP): boolean {
+	// We can't import __private__dont__use because Playground CLI is
+	// built as ESM and php-wasm-node is built as CJS — the imported
+	// symbols would differ in the production build. Use
+	// getOwnPropertySymbols()[0] like the rest of this file.
+	const __private__symbol = Object.getOwnPropertySymbols(phpInstance)[0];
+	// @ts-ignore
+	const runtime = phpInstance[__private__symbol];
+	const major: number | undefined = runtime?.phpVersion?.major;
+	return typeof major === 'number' && major < 7;
+}
+
+/**
  * Adds mmap support to PROXYFS for memory-mapping files across PHP instances.
  *
  * Without mmap, libraries like ICU fail when accessing data files through PROXYFS.
@@ -136,44 +155,71 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
  * For example, mounting /wordpress from the parent instance into a child worker allows
  * both to access the same WordPress installation without copying the entire directory.
  *
- * The function automatically patches PROXYFS with mmap support before mounting, ensuring
- * libraries like ICU can memory-map data files through the proxied filesystem.
+ * The function automatically patches PROXYFS with mmap support before mounting on
+ * PHP 7+, so libraries like ICU can memory-map data files through the proxied
+ * filesystem.
+ *
+ * Legacy PHP (< 7) skips the mmap patch. PHP 5.x's zend_compile_file
+ * calls mmap() via zend_stream_fixup and trusts fstat() for the buffer
+ * size. When a file is pre-populated in MEMFS before PROXYFS is mounted
+ * over that path (e.g. php.ini written by preRun), fstat() can return
+ * the stale MEMFS size instead of the PROXYFS size, causing the parser
+ * to read past the real EOF and report spurious syntax errors. Without
+ * the mmap patch, Emscripten returns ENOSYS from mmap() and PHP falls
+ * back to a read-based path that handles size mismatches gracefully.
+ * PHP 7+ removed the mmap path from zend_stream_fixup entirely, so the
+ * patch is both safe and needed there (for ICU/intl).
+ *
+ * Mounts are registered via php.mount() so they survive runtime rotation.
+ * When the replica's WASM module is hot-swapped, hotSwapPHPRuntime()
+ * re-applies these mount handlers on the fresh module.
  *
  * @param sourceOfTruth - The PHP instance containing the original files
  * @param replica - The PHP instance that will access files through PROXYFS
  * @param paths - Absolute paths to mount (e.g., ['/wordpress', '/internal/shared'])
  */
-export function proxyFileSystem(
+export async function proxyFileSystem(
 	sourceOfTruth: PHP,
 	replica: PHP,
 	paths: string[]
 ) {
-	ensureProxyFSHasMmapSupport(replica);
-
+	const replicaIsLegacy = isLegacyPhpInstance(replica);
 	// We can't just import the symbol from the library because
 	// Playground CLI is built as ESM and php-wasm-node is built as
 	// CJS and the imported symbols will differ in the production build.
-	// Get symbols from both instances to ensure correct property access.
-	const replicaSymbol = Object.getOwnPropertySymbols(replica)[0];
 	const sourceSymbol = Object.getOwnPropertySymbols(sourceOfTruth)[0];
 	for (const path of paths) {
-		if (!replica.fileExists(path)) {
-			replica.mkdir(path);
-		}
 		if (!sourceOfTruth.fileExists(path)) {
 			sourceOfTruth.mkdir(path);
 		}
-		// @ts-ignore
-		replica[replicaSymbol].FS.mount(
+		// Register via php.mount() so the mount handler is re-applied
+		// after runtime rotation in hotSwapPHPRuntime().
+		replica.mkdir(path);
+		await replica.mount(path, (php: PHP) => {
+			if (!replicaIsLegacy) {
+				ensureProxyFSHasMmapSupport(php);
+			}
+			const replicaSymbol = Object.getOwnPropertySymbols(php)[0];
 			// @ts-ignore
-			replica[replicaSymbol].PROXYFS,
-			{
-				root: path,
+			php[replicaSymbol].FS.mount(
 				// @ts-ignore
-				fs: sourceOfTruth[sourceSymbol].FS,
-			},
-			path
-		);
+				php[replicaSymbol].PROXYFS,
+				{
+					root: path,
+					// @ts-ignore
+					fs: sourceOfTruth[sourceSymbol].FS,
+				},
+				path
+			);
+			return () => {
+				try {
+					// @ts-ignore
+					php[replicaSymbol].FS.unmount(path);
+				} catch {
+					// Ignore unmount errors during cleanup
+				}
+			};
+		});
 	}
 }
 

@@ -5,10 +5,10 @@ description: playground.wordpress.net પર વેબ ઈન્ટરફેસ 
 ---
 
 <!--
-# WordPress Playground web instance {#wordpress-playground-web-instance}
+# WordPress Playground web instance
 -->
 
-# વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબ ઇન્સ્ટન્સ {#wordpress-playground-web-instance}
+# વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબ ઇન્સ્ટન્સ
 
 <!--
 [https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
@@ -42,13 +42,13 @@ The Playground website includes toolbars that customize your instance and provid
 
 પ્લેગ્રાઉન્ડ વેબસાઇટમાં ટૂલબાર્સ શામેલ છે જે તમારી ઇન્સ્ટન્સને કસ્ટમાઇઝ કરે છે અને સંસાધનો અને ઉપયોગિતાઓની ઝડપી ઍક્સેસ પ્રદાન કરે છે.
 
-![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
+![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
 
 <!--
-## Customize Playground {#customize-playground}
+## Customize Playground
 -->
 
-## પ્લેગ્રાઉન્ડ કસ્ટમાઇઝ કરો {#customize-playground}
+## પ્લેગ્રાઉન્ડ કસ્ટમાઇઝ કરો
 
 <!--
 On the toolbar, you'll find:
@@ -65,12 +65,12 @@ On the toolbar, you'll find:
 - **પ્લેગ્રાઉન્ડ લૉન્ચ પેનલ**: લૉન્ચ પેનલ વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ લૉન્ચ કરવાની બધી રીતો બતાવે છે.
 
 <!--
-### Playground Settings {#playground-settings}
+### Playground Settings
 -->
 
-### પ્લેગ્રાઉન્ડ સેટિંગ્સ {#playground-settings}
+### પ્લેગ્રાઉન્ડ સેટિંગ્સ
 
-![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
+![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
 
 <!--
 The **Playground Settings Panel** includes these [Query API options](/developers/apis/query-api#available-options):
@@ -91,12 +91,12 @@ The **Playground Settings Panel** includes these [Query API options](/developers
 - `networking`: વર્ડપ્રેસ પ્લગઇન ડિરેક્ટરી અને વર્ડપ્રેસ API માટે નેટવર્ક ઍક્સેસ સક્ષમ કરે છે.
 
 <!--
-## Playground Manager {#playground-manager}
+## Playground Manager
 -->
 
-## પ્લેગ્રાઉન્ડ મેનેજર {#playground-manager}
+## પ્લેગ્રાઉન્ડ મેનેજર
 
-![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
+![Playground settings panel allow users to save export and edit the WordPress directly](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
 
 <!--
 This panel lets you manage Playground instances and provides access to the following panels:
@@ -116,7 +116,7 @@ This panel lets you manage Playground instances and provides access to the follo
 - **ડેટાબેસ**: Adminer અને phpMyAdmin સાથે ડેટાબેસ મેનેજ કરવા અને `.sqlite` ફાઇલ તરીકે ડાઉનલોડ કરવાના સાધનો.
 - **લૉગ્સ**: કંઈક ખોટું થાય ત્યારે લૉગ મેસેજ દર્શાવે છે.
 
-![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
+![Save Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
 
 <!--
 Click "Save" to create an instance and list it in the Playground Launch Panel. The Playground Dashboard also offers export and download options through the Additional actions menu:
@@ -125,12 +125,12 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 ઇન્સ્ટન્સ બનાવવા અને પ્લેગ્રાઉન્ડ લૉન્ચ પેનલમાં સૂચિબદ્ધ કરવા માટે "Save" પર ક્લિક કરો. પ્લેગ્રાઉન્ડ ડેશબોર્ડ Additional actions મેનૂ દ્વારા એક્સપોર્ટ અને ડાઉનલોડ વિકલ્પો પણ આપે છે:
 
 <!--
-### Additional actions menu {#additional-actions-menu}
+### Additional actions menu
 -->
 
-### એડિશનલ એક્શન્‍સ મેનુ {#additional-actions-menu}
+### એડિશનલ એક્શન્‍સ મેનુ
 
-![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
+![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/additional-options-playground-dashboard.webp)
 
 <!--
 - **Export Pull Request to GitHub**: Export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Watch a [demo of this feature](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
@@ -141,12 +141,12 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 - **zip તરીકે ડાઉનલોડ કરો**: પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સના સેટઅપ સાથે `.zip` ફાઇલ બનાવે છે, જેમાં કોઈપણ ઇન્સ્ટોલ કરેલી થીમ્સ અથવા પ્લગઇન્સ શામેલ છે. આ `.zip` કન્ટેન્ટ અને ડેટાબેસ ફેરફારો શામેલ કરતું નથી.
 
 <!--
-### Blueprint Editor {#blueprint-editor}
+### Blueprint Editor
 -->
 
-### બ્લુપ્રીન્ટ એડિટર {#blueprint-editor}
+### બ્લુપ્રીન્ટ એડિટર
 
-![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
+![Blueprint editor WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)
 
 <!--
 The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
@@ -155,12 +155,12 @@ The Blueprint editor replaced the older Blueprint builder, offering the ability 
 બ્લુપ્રીન્ટ એડિટરે જૂના બ્લુપ્રીન્ટ બિલ્ડરને બદલ્યું, જે બહુવિધ બ્લુપ્રીન્ટ મેનેજ કરવાની અને કોડ વેલિડેશનની ક્ષમતા આપે છે.
 
 <!--
-### Launch Playground Panel {#launch-playground-panel}
+### Launch Playground Panel
 -->
 
-### પ્લેગ્રાઉન્ડ લૉન્ચ પેનલ {#launch-playground-panel}
+### પ્લેગ્રાઉન્ડ લૉન્ચ પેનલ
 
-![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
+![Playground Launch Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 This panel shows all the ways to launch WordPress Playground: import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
@@ -173,17 +173,19 @@ The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery a
 લૉન્ચ પેનલ બ્લુપ્રીન્ટ ગેલેરીમાંથી 40 થી વધુ બ્લુપ્રીન્ટ અને તમારા સેવ કરેલા પ્લેગ્રાઉન્ડ પણ સૂચિબદ્ધ કરે છે.
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 https://playground.wordpress.net પરની સાઇટ સમુદાયને સમર્થન આપવા માટે છે, પરંતુ ટ્રાફિક નોંધપાત્ર રીતે વધે તો તે કામ કરવાનું ચાલુ રાખશે તેની કોઈ ગેરંટી નથી.
 
 જો તમને ચોક્કસ ઉપલબ્ધતાની જરૂર હોય, તો તમારે [તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરવું](/developers/architecture/host-your-own-playground) જોઈએ.
-:::
+
+</div>

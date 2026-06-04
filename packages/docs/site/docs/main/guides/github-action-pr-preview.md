@@ -6,13 +6,23 @@ description: Automatically add Playground preview buttons to pull requests for y
 
 The Playground PR Preview action adds a preview button to your pull requests. Clicking the button launches Playground with your plugin or theme installed from the PR branch:
 
-![PR Preview Button](@site/static/img/try-it-in-playground.webp)
+![PR Preview Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/try-it-in-playground.webp)
 
 For complete configuration options and advanced features, see the [action-wp-playground-pr-preview workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2).
 
 ## How it works
 
-The action runs on pull request events (opened, updated, edited). It can either update the PR description with a preview button or post the button as a comment.
+The basic workflow runs on the `pull_request` event (types `opened`, `synchronize`, `reopened`, `edited`). It reads pull request metadata, builds a Playground URL that points at the PR branch, and updates the PR description or comment.
+
+Forked pull requests need extra care because GitHub makes `GITHUB_TOKEN` read-only for `pull_request` workflows from forks. If you need to write a preview button for fork PRs, use `pull_request_target` only for a small workflow that reads PR metadata and writes the button. If your preview needs a build step, run the build in a separate `pull_request` workflow and publish the preview from a `workflow_run` workflow.
+
+<div class="callout callout-warning">
+
+**This is a regular GitHub Action, not a reusable workflow**
+
+Reference it as a step inside `jobs.<job_id>.steps:` (i.e. `jobs.<job_id>.steps[*].uses:`) — never as `jobs.<job_id>.uses:` at the job level. The job-level form is valid YAML for reusable workflows, so it is a common mistake (including by AI coding assistants), but it will not work with this action.
+
+</div>
 
 ## Basic setup for plugins
 
@@ -67,6 +77,28 @@ jobs:
                   theme-path: .
 ```
 
+## Testing PRs from forks
+
+Pull requests opened from forked repositories run with a read-only `GITHUB_TOKEN`, so the default `pull_request` trigger cannot post or update the preview button. The action may fail with `Resource not accessible by integration`.
+
+Use `pull_request_target` only for the workflow that posts the preview button:
+
+```yaml
+on:
+    pull_request_target:
+        types: [opened, synchronize, reopened, edited]
+```
+
+<div class="callout callout-warning">
+
+**Security note**
+
+`pull_request_target` runs in the context of the base repository and can access repository secrets and a write-capable `GITHUB_TOKEN`. Do **not** use it to check out PR code, run files from the PR, install PR dependencies, load a blueprint from the PR branch, or pass PR values into shell commands. Keep permissions as narrow as possible, typically `contents: read` and `pull-requests: write` for this action.
+
+If you need Composer, npm, tests, or any other step that runs PR code, put that work in a separate `pull_request` workflow and use [`workflow_run`](https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run) to publish the preview after the build completes.
+
+</div>
+
 ## Button placement
 
 By default, the action updates the PR description (`mode: append-to-description`). To post as a comment instead:
@@ -90,91 +122,28 @@ with:
 
 For plugins or themes requiring compilation, the workflow involves building the code, exposing it via GitHub releases, and creating a blueprint that references the public URL.
 
-Example workflow (see [complete documentation](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#advanced-testing-built-ci-artifacts)):
+<div class="callout callout-warning">
 
-```yaml
-name: PR Preview with Build
-on:
-    pull_request:
-        types: [opened, synchronize, reopened, edited]
+**First-time setup: publish the draft release**
 
-permissions:
-    contents: write
-    pull-requests: write
+The `expose-artifact-on-public-url` action uploads built files to a GitHub release tagged `ci-artifacts` by default. On the first run, GitHub creates this release as a **draft**, which is not publicly fetchable — the preview button will appear but silently 404 when clicked. Go to your repository's Releases page once and either publish the release or mark it as a pre-release. Subsequent runs reuse the same release, so this is only needed once.
 
-jobs:
-    build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - name: Build
-              run: |
-                  npm install
-                  npm run build
-                  zip -r plugin.zip dist/
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: built-plugin
-                  path: plugin.zip
+</div>
 
-    expose-build:
-        needs: build
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        outputs:
-            artifact-url: ${{ steps.expose.outputs.artifact-url }}
-        steps:
-            - name: Expose built artifact
-              id: expose
-              uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@v2
-              with:
-                  artifact-name: 'built-plugin'
-                  pr-number: ${{ github.event.pull_request.number }}
-                  commit-sha: ${{ github.sha }}
-                  artifacts-to-keep: '2'
+Use the two-workflow pattern from the [complete artifact documentation](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#advanced-testing-built-ci-artifacts):
 
-    create-blueprint:
-        needs: expose-build
-        runs-on: ubuntu-latest
-        outputs:
-            blueprint: ${{ steps.blueprint.outputs.result }}
-        steps:
-            - uses: actions/github-script@v7
-              id: blueprint
-              with:
-                  script: |
-                      const blueprint = {
-                        steps: [{
-                          step: "installPlugin",
-                          pluginZipFile: {
-                            resource: "url",
-                            url: "${{ needs.expose-build.outputs.artifact-url }}"
-                          }
-                        }]
-                      };
-                      return JSON.stringify(blueprint);
-                  result-encoding: string
+- A `pull_request` workflow checks out the PR code, runs the build with read-only permissions, and uploads the ZIP as a GitHub Actions artifact.
+- A `workflow_run` workflow runs only after that build succeeds. It has `contents: write` and `pull-requests: write`, exposes the uploaded ZIP on a public release URL, builds a Blueprint that installs that ZIP, and posts the preview button.
 
-    preview:
-        needs: create-blueprint
-        runs-on: ubuntu-latest
-        permissions:
-            pull-requests: write
-        steps:
-            - uses: WordPress/action-wp-playground-pr-preview@v2
-              with:
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
-```
-
-The `artifacts-to-keep` setting controls how many builds to retain per PR. For themes, change `installPlugin` to `installTheme`.
+Keep secrets and write permissions out of the build workflow. The publish workflow should not check out or run PR code. The `artifacts-to-keep` setting controls how many builds to retain per PR. For themes, change `installPlugin` to `installTheme`.
 
 See [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) for a complete working example.
 
 ## Custom blueprints
 
 Use blueprints to configure the Playground environment. You can install additional plugins, set WordPress options, import content, or run custom PHP.
+
+For the canonical pattern of installing a plugin straight from a GitHub repository — and when to publish a built ZIP instead because your plugin needs a Composer or npm build step — see [Plugin in a GitHub repository](/guides/for-plugin-developers#plugin-in-a-github-repository).
 
 Example installing your plugin with WooCommerce:
 
@@ -197,8 +166,12 @@ jobs:
                             step: "installPlugin",
                             pluginData: {
                               resource: "git:directory",
-                              url: `https://github.com/${context.repo.owner}/${context.repo.repo}.git`,
-                              ref: context.payload.pull_request.head.ref,
+                              // Use head.repo.full_name, not context.repo. PRs from forks
+                              // live on the contributor's fork, not the base repository —
+                              // pointing at context.repo.* will 404 for every fork PR.
+                              url: `https://github.com/${context.payload.pull_request.head.repo.full_name}.git`,
+                              ref: context.payload.pull_request.head.sha,
+                              refType: "commit",
                               path: "/"
                             }
                           },
@@ -218,6 +191,7 @@ jobs:
         needs: create-blueprint
         runs-on: ubuntu-latest
         permissions:
+            contents: read
             pull-requests: write
         steps:
             - uses: WordPress/action-wp-playground-pr-preview@v2
@@ -262,15 +236,29 @@ Configuration options: [Expose Artifact Inputs](https://github.com/WordPress/act
 
 ## Troubleshooting
 
-**Button not appearing:** Workflow file must exist on the default branch. Check Actions tab for errors.
+**`Invalid workflow file` or `jobs.<id>.uses` error:** You referenced the action as a reusable workflow. Move `uses: WordPress/action-wp-playground-pr-preview@v2` into the job's `steps:` list (as an item under `jobs.<job_id>.steps:`), not directly under the job. See [How it works](#how-it-works).
 
-**Preview fails to load:** Verify path points to valid plugin/theme directory. Check build logs for artifacts.
+**Button not appearing:** The workflow file must exist on the default branch before it runs on PRs. Check the Actions tab for errors.
 
-**Not activated:** Check browser console for PHP errors. Dependencies may be missing.
+**`Resource not accessible by integration`:** The PR was opened from a fork and the default `pull_request` trigger cannot write. Use `pull_request_target` only for the preview-button workflow described in [Testing PRs from forks](#testing-prs-from-forks). If you need to build or run PR code, use the two-workflow artifact pattern in [Working with built artifacts](#working-with-built-artifacts).
 
-**Permissions errors:** Set permissions at job level.
+**Button appears but preview fails to load (404):** For built-artifact workflows, the `ci-artifacts` release is still a draft. Publish it once from the Releases page. See [Working with built artifacts](#working-with-built-artifacts).
+
+**`plugin-path` or `theme-path` resolves to an empty directory:** The path is relative to the repository root, not to the workflow file. Use `.` for repo-root plugins, `plugins/my-plugin` for subdirectories.
+
+**`Git ref refs/heads/<branch> not found` on a fork PR:** Your blueprint uses `context.repo.owner`/`context.repo.repo` to build the [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) URL, which points at the base repository. Fork PRs live on the contributor's fork — use `context.payload.pull_request.head.repo.full_name` and `head.sha` with `refType: "commit"` instead. Repository URLs with or without a trailing `.git` suffix are supported.
+
+**Blueprint references a legacy ZIP-from-repo proxy service and times out:** Look in your blueprint for resource URLs pointing at ZIP-from-repo proxy endpoints, then switch source-based previews to the [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) (shown in [Custom blueprints](#custom-blueprints)), which fetches directly from GitHub. For plugins or themes that need a build step, publish a built ZIP artifact and install that artifact with a [`url` resource](/blueprints/steps/resources#urlreference) instead.
+
+**Plugin/theme not activated:** Check the browser console for PHP errors. Dependencies may be missing, or the plugin's main file may not match the directory name.
+
+**Permissions errors:** Ensure the job declares `permissions: pull-requests: write` (and `contents: write` for built-artifact workflows).
 
 More: [workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2)
+
+## Other ways of previewing a git repository
+
+<iframe width="800" src="https://www.youtube.com/embed/2VQkCPYyabQ?si=g5zkAZelHZ9bkN1X" title="Previewing GitHub branches with WordPress Playground" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## Examples
 
@@ -282,5 +270,3 @@ More: [workflow README](https://github.com/WordPress/action-wp-playground-pr-pre
 
 - Add demo content ([guide](/guides/providing-content-for-your-demo))
 - Create custom blueprints ([docs](/blueprints))
-- Integrate with testing workflows
-- Customize templates for reviewers

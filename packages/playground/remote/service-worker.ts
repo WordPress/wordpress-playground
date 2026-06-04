@@ -101,7 +101,12 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
+import {
+	getURLScope,
+	isURLScoped,
+	removeURLScope,
+	setURLScope,
+} from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -220,7 +225,7 @@ self.addEventListener('fetch', (event) => {
 		const scope = getURLScope(url)!;
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
+				applyCrossOriginIsolationHeaders(response, scope)
 			)
 		);
 	}
@@ -233,12 +238,23 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
+		if (url.origin !== referrerUrl.origin) {
+			// Cross-origin requests can be handled by the service worker when they
+			// are initiated from a page in the service worker's scope.
+			// If this request doesn't have the referrer scope's origin,
+			// let's not intercept it or send it to the scope's WordPress.
+			return;
+		}
+
 		const scope = getURLScope(referrerUrl)!;
-		return event.respondWith(
-			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
-			)
-		);
+
+		// Let's redirect to a scope URL so that no unscoped page is loaded
+		// while navigating around a scoped WordPress. Otherwise, clicking an
+		// unscoped link from an unscoped page will lose the scope entirely,
+		// and the service worker won't be able to match the request with
+		// the right WordPress instance.
+		const scopedRedirectTarget = setURLScope(event.request.url, scope);
+		return event.respondWith(Response.redirect(scopedRedirectTarget));
 	}
 
 	/**
@@ -487,8 +503,6 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 				return xhr.responseText;
 			} catch(e) {
 				return '';
-			} finally {
-				URL.revokeObjectURL(url);
 			}
 		};
 		if (props.srcDoc) {
@@ -577,15 +591,18 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  * usual way of achieving cross-origin isolation is via the Cross-Origin-Embedder-Policy (COEP)
  * and Cross-Origin-Resource-Policy (CORP) headers.
  *
- * However, COEP/COOP are viral-ish. Once a part of a site sets them, the rest of the site must
- * follow. This breaks external embeds, like YouTube videos, that don't set the necessary headers.
- * Serving them by default on the entire playground.wordpress.net site would break existing
- * WordPress features.
+ * However, COEP/COOP are viral-ish. To access SharedArrayBuffer in the site editor frame,
+ * the entire chain of parent frames must have them set. This includes the two iframes on
+ * playground.wordpress.net and also any site where Playground is embedded. This would break
+ * embedding Playground on other sites that don't set COEP/COOP headers.
  *
- * Gutenberg only uses them in the block editor iframe and only when the
- * client-side media processing experiment is enabled. This is fine for native WordPress, where
- * navigating between wp-admin pages triggers a full page reload, but it's problematic in
- * Playground, where the top-level page remains open the entire time you use WordPress.
+ * Relying on COEP/COOP headers is fine in native WordPress, but problematic in Playground:
+ *
+ * * WordPress can use the COEP/COOP headers in wp-admin as every navigation triggers a full
+ *   page reload and wp-admin rarely gets embedded in iframes on other pages.
+ * * Playground can't easily trigger a full page reload on every navigation – that would destroy
+ *   the current Playground instance. Also, Playground often gets embedded in iframes on other
+ *   pages.
  *
  * ## Document-Isolation-Policy
  *
@@ -606,7 +623,6 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  * Playground rewrites the COEP/COOP headers to Document-Isolation-Policy in the supporting
  * browsers. The support is decided using feature detection. As more browsers implement the
  * specification, they'll automatically start receiving the new header and a better experience.
- *
  *
  * @see boot-playground-remote.ts for the other part of the feature detection logic.
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
@@ -632,24 +648,40 @@ self.addEventListener('message', (event) => {
 });
 
 /**
- * Rewrites COEP/COOP headers to Document-Isolation-Policy for browsers that support it.
+ * Ensures cross-origin isolation is applied consistently for scoped responses.
  *
- * When the browser supports Document-Isolation-Policy, this function:
- * - Removes Cross-Origin-Embedder-Policy (COEP) header
- * - Removes Cross-Origin-Opener-Policy (COOP) header
- * - Adds Document-Isolation-Policy: isolate-and-credentialless
+ * Handles two cases:
  *
- * This enables cross-origin isolation (for SharedArrayBuffer) without breaking
- * external embeds like YouTube videos that don't set COEP/COOP headers.
+ * 1. Response already carries `Document-Isolation-Policy`. This is what
+ *    Gutenberg ≥ 22.6 / Gutenberg PR #75991 sends directly on editor screens in
+ *    Chromium 137+. The response is left as-is, but the scope is tracked so
+ *    that `empty.html` (the block editor's inner iframe) also receives DIP —
+ *    parent and child frames need the same DIP for the editor to function
+ *    (see https://github.com/WordPress/wordpress-playground/pull/3320).
+ *
+ * 2. Response carries COEP/COOP (older Gutenberg, WordPress core's
+ *    `wp_set_up_cross_origin_isolation`, or custom plugins). When the browser
+ *    supports DIP, the COEP/COOP pair is rewritten to the equivalent DIP value
+ *    so the page is cross-origin isolated without making the whole host send
+ *    COEP/COOP — that would break external embeds and third-party embedders of
+ *    Playground.
  *
  * @param response The response to potentially modify
  * @param scope The scope of the request, used to track which scopes have cross-origin isolation
- * @returns A new Response with rewritten headers, or the original response if no rewriting is needed
+ * @returns A new Response with rewritten headers, or the original response if no changes are needed
  */
-function rewriteCoopHeadersToDocumentIsolationPolicy(
+function applyCrossOriginIsolationHeaders(
 	response: Response,
 	scope: string
 ): Response {
+	// If the response already opts into DIP, track the scope so empty.html gets DIP too.
+	// This is the modern path once Gutenberg sends DIP directly — see
+	// https://github.com/WordPress/gutenberg/pull/75991.
+	if (response.headers.has('document-isolation-policy')) {
+		scopesWithCrossOriginIsolation.add(scope);
+		return response;
+	}
+
 	// If we don't know whether the browser supports Document-Isolation-Policy,
 	// or if it doesn't support it, return the original response unchanged.
 	if (!browserSupportsDocumentIsolationPolicy) {
@@ -719,7 +751,7 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
  * with the `Document-Isolation-Policy` header. SharedArrayBuffer is only available
  * in this document if the browser supports `Document-Isolation-Policy`.
  *
- * @see rewriteCoopHeadersToDocumentIsolationPolicy
+ * @see applyCrossOriginIsolationHeaders
  */
 function documentIsolationPolicyHtml() {
 	return new Response(

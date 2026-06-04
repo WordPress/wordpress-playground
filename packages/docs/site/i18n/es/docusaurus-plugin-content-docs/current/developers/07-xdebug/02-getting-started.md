@@ -20,8 +20,8 @@ Esta guía te muestra cómo habilitar Xdebug en WordPress Playground y comenzar 
 
 Primero, Xdebug está presente en dos CLI diferentes:
 
--   **`@php-wasm/cli`**: Ejecuta scripts PHP independientes. Úsalo cuando estés depurando código PHP sin necesidad de un entorno WordPress.
--   **`@wp-playground/cli`**: Ejecuta una instalación completa de WordPress. Útil para depurar plugins de WordPress, temas o funcionalidades del núcleo.
+- **`@php-wasm/cli`**: Ejecuta scripts PHP independientes. Úsalo cuando estés depurando código PHP sin necesidad de un entorno WordPress.
+- **`@wp-playground/cli`**: Ejecuta una instalación completa de WordPress. Útil para depurar plugins de WordPress, temas o funcionalidades del núcleo.
 
 <!-- For this guide, we'll use `@wp-playground/cli`. If you're not familiar with the tool, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`. -->
 
@@ -68,18 +68,18 @@ Booting WordPress...
 WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 
 Chrome connected! Initializing Xdebug receiver...
 XDebug receiver running on port 9003
 Running a PHP script with Xdebug enabled...
 ```
 
-<!-- By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance. -->
+<!-- By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance. -->
 
-Al hacer clic en la URL proporcionada, por ejemplo, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, puedes acceder a DevTools conectado con tu aplicación, con la posibilidad de inspeccionar todos los archivos de una instancia WordPress.
+Al hacer clic en la URL proporcionada, por ejemplo, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, puedes acceder a DevTools conectado con tu aplicación, con la posibilidad de inspeccionar todos los archivos de una instancia WordPress.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 
 <!-- For a more practical example, let's debug a plugin that has the following code: -->
 
@@ -123,7 +123,7 @@ npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mou
 
 El Playground CLI (`@wp-playground/cli`) detectará automáticamente la carpeta del plugin y la montará. Abriendo el proyecto en tu navegador y DevTools, podrás agregar breakpoints en el código de tu plugin y probarlo línea por línea.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 
 <!-- ## Starting with IDE integration -->
 
@@ -153,7 +153,7 @@ npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integrat
 
 Ahora, ve a tu código, agrega los breakpoints y buenas pruebas.
 
-![Xdebug en ejecución en VSCode](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+![Xdebug en ejecución en VSCode](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
 <!-- This feature is in experimental mode. Until it is completed, we will need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts. -->
 

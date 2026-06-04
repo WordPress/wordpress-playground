@@ -66,6 +66,8 @@ export interface WebClientMixin extends ProgressReceiver {
 		onProgress?: SyncProgressCallback
 	): Promise<void>;
 
+	flushOpfs(mountpoint: string): Promise<void>;
+
 	unmountOpfs(mountpoint: string): Promise<void>;
 
 	boot(options: WorkerBootOptions): Promise<void>;
@@ -75,8 +77,9 @@ export interface WebClientMixin extends ProgressReceiver {
  * The Playground Client interface.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PlaygroundClient
-	extends RemoteAPI<PlaygroundWorkerEndpoint & WebClientMixin> {}
+export interface PlaygroundClient extends RemoteAPI<
+	PlaygroundWorkerEndpoint & WebClientMixin
+> {}
 
 /*
  * Assert that PlaygroundClient is a superset of UniversalPHP.

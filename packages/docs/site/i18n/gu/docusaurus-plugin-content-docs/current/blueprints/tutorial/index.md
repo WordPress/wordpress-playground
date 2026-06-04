@@ -27,12 +27,16 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 3. [Build your first Blueprint](/blueprints/tutorial/build-your-first-blueprint)
  -->
 
-:::tip
+<div class="callout callout-tip">
+
 જો તમને આ ટ્યુટોરીયલ પૂર્ણ કરતી વખતે કોઈ સમસ્યા આવે, તો કૃપા કરીને [મુશ્કેલીનિવારણ અને ડિબગિંગ બ્લુપ્રિન્ટ્સ](/blueprints/troubleshoot-and-debug) વિભાગ જુઓ જેથી તમને મુશ્કેલીનિવારણમાં મદદ મળે.
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
-:::
+
+</div>
  -->

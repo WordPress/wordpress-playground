@@ -116,14 +116,24 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
+	width: 58px;
+	height: 58px;
 }
 
 .creationIcon :global(svg) {
 	fill: #fff;
 	width: 28px;
 	height: 28px;
+}
+
+.newPlaygroundIcon {
+	width: 58px;
+	height: 58px;
+}
+
+.newPlaygroundIcon :global(svg) {
+	width: 56px;
+	height: 56px;
 }
 
 .creationTitle {
@@ -289,12 +299,16 @@
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	min-width: 0;
 }
 
 .siteRowName {
 	font-size: clamp(14px, 1.4vw, 15px);
 	font-weight: 500;
 	color: #fff;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .siteRowDate {
@@ -304,6 +318,14 @@
 
 .siteRowMenu {
 	margin-right: 12px;
+}
+
+.siteRowActions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+	padding-right: 8px;
 }
 
 .siteRowMenu button {
@@ -321,6 +343,44 @@
 
 .dangerMenuItem:hover {
 	background: rgba(220, 38, 38, 0.1) !important;
+}
+
+.keepButton {
+	background: #3858e9;
+	border: 1px solid #6c84ff;
+	border-radius: 4px;
+	color: #fff;
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1;
+	padding: 8px 12px;
+	white-space: nowrap;
+}
+
+.keepButton:hover {
+	background: #4f6df0;
+	border-color: #8fa1ff;
+}
+
+.showMoreButton {
+	align-items: center;
+	background: transparent;
+	border: 1px solid #3c4349;
+	border-radius: 4px;
+	color: #dcdcde;
+	cursor: pointer;
+	display: inline-flex;
+	font: inherit;
+	font-size: 13px;
+	margin-top: 12px;
+	padding: 8px 12px;
+}
+
+.showMoreButton:hover {
+	background: #2c3338;
+	color: #fff;
 }
 
 /* Loading state */
@@ -519,6 +579,14 @@
 
 	.siteRowContent {
 		padding: 12px 16px;
+	}
+
+	.siteRowActions {
+		padding-right: 4px;
+	}
+
+	.keepButton {
+		padding: 7px 10px;
 	}
 
 	.siteRowLogo {

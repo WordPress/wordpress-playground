@@ -4,9 +4,9 @@
 	"display": "standalone",
 	"scope": "/",
 	"start_url": "/",
-	"short_name": "WordPress Playground",
-	"description": "WordPress Playground",
-	"name": "WordPress Playground",
+	"short_name": "My WordPress",
+	"description": "A WordPress directly in your browser: personal, private, and persistent.",
+	"name": "My WordPress",
 	"icons": [
 		{
 			"src": "logo-192.png",

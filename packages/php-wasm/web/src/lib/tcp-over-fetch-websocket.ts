@@ -27,7 +27,8 @@
  * class as follows:
  *
  * 1. We generate a self-signed CA certificate and tell PHP to trust it using the
- *    `openssl.cafile` PHP.ini option
+ *    `openssl.cafile` and `curl.cainfo` PHP.ini options (so both PHP streams
+ *    and libcurl validate the MITM cert against the same CA bundle)
  * 2. We create a domain-specific child certificate and sign it with the CA private key.
  * 3. We start accepting raw encrypted bytes, process them as structured TLS records,
  *    and perform the TLS handshake.
@@ -324,11 +325,26 @@ export class TCPOverFetchWebsocket {
 		]);
 
 		// Connect the TLS server end to the fetch() request
-		const request = await RawBytesFetch.parseHttpRequest(
-			tlsConnection.serverEnd.upstream.readable,
-			this.host,
-			'https'
-		);
+		const { request, expectsContinue } =
+			await RawBytesFetch.parseHttpRequest(
+				tlsConnection.serverEnd.upstream.readable,
+				this.host,
+				'https'
+			);
+		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
+		// uploads with bodies > 1024 bytes), it pauses after sending the
+		// headers and waits for a "100 Continue" response before sending
+		// the body. We must send that response back through the TLS tunnel
+		// to unblock curl, otherwise the body stream will never arrive
+		// and we'll deadlock.
+		if (expectsContinue) {
+			const writer =
+				tlsConnection.serverEnd.downstream.writable.getWriter();
+			await writer.write(
+				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
+			);
+			writer.releaseLock();
+		}
 		try {
 			await RawBytesFetch.fetchRawResponseBytes(
 				request,
@@ -345,11 +361,25 @@ export class TCPOverFetchWebsocket {
 
 	async fetchOverHTTP() {
 		// Connect this WebSocket's client end to the fetch() request
-		const request = await RawBytesFetch.parseHttpRequest(
-			this.clientUpstream.readable,
-			this.host,
-			'http'
-		);
+		const { request, expectsContinue } =
+			await RawBytesFetch.parseHttpRequest(
+				this.clientUpstream.readable,
+				this.host,
+				'http'
+			);
+		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
+		// uploads with bodies > 1024 bytes), it pauses after sending the
+		// headers and waits for a "100 Continue" response before sending
+		// the body. We must send that response back to unblock curl,
+		// otherwise the body stream will never arrive and we'll deadlock.
+		if (expectsContinue) {
+			const writer = this.clientDownstream.writable.getWriter();
+			await writer.write(
+				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
+			);
+			writer.releaseLock();
+		}
+
 		try {
 			await RawBytesFetch.fetchRawResponseBytes(
 				request,
@@ -547,6 +577,12 @@ export class RawBytesFetch {
 		 * for the details.
 		 */
 		delete headersObject['content-length'];
+		// The browser decompresses the response body transparently, but
+		// the Content-Encoding header may still be present. Passing it
+		// through would tell PHP's curl the body is compressed when it's
+		// actually already decompressed, causing decode failures (e.g.,
+		// curl rejecting an unrecognized "br" encoding).
+		delete headersObject['content-encoding'];
 		headersObject['transfer-encoding'] = 'chunked';
 
 		const headers: string[] = [];
@@ -591,6 +627,9 @@ export class RawBytesFetch {
 
 		const headersBuffer = inputBuffer.slice(0, headersEndIndex);
 		const parsedHeaders = RawBytesFetch.parseRequestHeaders(headersBuffer);
+		const expectsContinue = RawBytesFetch.expectsContinue(
+			parsedHeaders.headers
+		);
 		const terminationMode =
 			parsedHeaders.headers.get('Transfer-Encoding') !== null
 				? 'chunked'
@@ -604,7 +643,13 @@ export class RawBytesFetch {
 			headersEndIndex + 4 /* Skip \r\n\r\n */
 		);
 		let outboundBodyStream: ReadableStream<Uint8Array> | undefined;
-		if (parsedHeaders.method !== 'GET') {
+		// GET and HEAD are forbidden by the Fetch spec from carrying a request
+		// body. Building a ReadableStream for HEAD and then passing it to
+		// `new Request(url, { method: 'HEAD', body: stream })` raises
+		// `TypeError: Failed to construct 'Request': Request with GET/HEAD
+		// method cannot have body.` which surfaces as an uncaught promise
+		// rejection here and corrupts the cURL call that emitted the HEAD.
+		if (parsedHeaders.method !== 'GET' && parsedHeaders.method !== 'HEAD') {
 			const requestBytesReader = requestBytesStream.getReader();
 			let seenBytes = bodyBytes.length;
 			let last5Bytes = bodyBytes.slice(-6);
@@ -614,7 +659,17 @@ export class RawBytesFetch {
 					if (bodyBytes.length > 0) {
 						controller.enqueue(bodyBytes);
 					}
-					if (requestDataExhausted) {
+					// Close the stream immediately if we already have the
+					// full body. This happens when curl sends the headers
+					// and body together (small bodies without Expect:
+					// 100-continue). Without this check, pull() would
+					// block forever waiting for upstream data that will
+					// never arrive.
+					const bodyAlreadyComplete =
+						terminationMode === 'content-length' &&
+						contentLength !== undefined &&
+						seenBytes >= contentLength;
+					if (requestDataExhausted || bodyAlreadyComplete) {
 						controller.close();
 					}
 				},
@@ -686,16 +741,21 @@ export class RawBytesFetch {
 		 */
 		const hostname = parsedHeaders.headers.get('Host') ?? host;
 		const url = new URL(parsedHeaders.path, protocol + '://' + hostname);
+		const requestHeaders = RawBytesFetch.normalizeRequestHeadersForFetch(
+			parsedHeaders.headers
+		);
 
-		return new Request(url.toString(), {
+		const request = new Request(url.toString(), {
 			method: parsedHeaders.method,
-			headers: parsedHeaders.headers,
+			headers: requestHeaders,
 			body: outboundBodyStream,
-			// In Node.js, duplex: 'half' is required when
-			// the body stream is provided.
-			// @ts-expect-error
-			duplex: 'half',
+			// @ts-expect-error duplex is required for streaming request bodies
+			duplex: outboundBodyStream ? 'half' : undefined,
 		});
+		return {
+			request,
+			expectsContinue,
+		};
 	}
 
 	private static parseRequestHeaders(httpRequestBytes: Uint8Array) {
@@ -708,11 +768,67 @@ export class RawBytesFetch {
 			if (line === '') {
 				break;
 			}
-			const [name, value] = line.split(': ');
-			headers.set(name, value);
+			const colonIndex = line.indexOf(':');
+			if (colonIndex === -1) {
+				continue;
+			}
+			const name = line.slice(0, colonIndex).trim();
+			const value = line.slice(colonIndex + 1).trimStart();
+			if (name !== '') {
+				headers.set(name, value);
+			}
 		}
 
 		return { method, path, headers };
+	}
+
+	private static expectsContinue(headers: Headers) {
+		return headers.get('Expect')?.toLowerCase() === '100-continue';
+	}
+
+	private static normalizeRequestHeadersForFetch(headers: Headers) {
+		const normalizedHeaders = new Headers(headers);
+		/*
+		 * PHP writes a raw HTTP/1.1 request to what it believes is a TCP socket.
+		 * tcpOverFetch parses that byte stream and turns it into a browser
+		 * Request. At that point there are two different network hops involved:
+		 *
+		 * 1. PHP to tcpOverFetch, where HTTP/1.1 framing headers such as
+		 *    Content-Length, Transfer-Encoding, Expect, and Connection are valid.
+		 * 2. Browser fetch to the remote server, where the browser owns request
+		 *    framing, connection management, host selection, and upload streaming.
+		 *
+		 * Forwarding PHP's hop-by-hop headers into fetch mixes those two layers.
+		 * Some of these names are forbidden by the Fetch spec and can make
+		 * `new Request()` or `fetch()` reject. Others are technically accepted
+		 * but stale after tcpOverFetch transforms the request, e.g. after
+		 * responding to Expect: 100-continue or decoding Transfer-Encoding:
+		 * chunked. Content-Length is especially problematic for CURLFile uploads:
+		 * Chromium requires streaming uploads to be sent without caller-supplied
+		 * HTTP/1.1 framing metadata, and forwarding it can make large streamed
+		 * multipart requests fail before the server receives the body.
+		 *
+		 * Keep end-to-end headers such as Content-Type and Authorization, but
+		 * remove headers that describe only the PHP-to-socket hop. The Host header
+		 * is handled above when choosing the target URL because fetch does not
+		 * support Host spoofing.
+		 */
+		for (const header of [
+			'Connection',
+			'Content-Length',
+			'Expect',
+			'Host',
+			'Keep-Alive',
+			'Proxy-Authenticate',
+			'Proxy-Authorization',
+			'TE',
+			'Trailer',
+			'Transfer-Encoding',
+			'Upgrade',
+		]) {
+			normalizedHeaders.delete(header);
+		}
+		return normalizedHeaders;
 	}
 }
 

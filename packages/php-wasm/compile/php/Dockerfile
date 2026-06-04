@@ -5,51 +5,51 @@ ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
 ENV PATH="/root/lib/bin:${PATH}"
 
 # The PHP version to build.
-# This value must point to an existing branch of the
-# https://github.com/php/php-src.git repository when prefixed
-# with "PHP-".
-# For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
-# but just "7" is invalid because there's no branch PHP-7.
+# This controls version-specific build patches and output filenames.
 ARG PHP_VERSION
+
+# The git ref to clone from php-src. Release builds use php-$PHP_VERSION tags;
+# next builds use php-src development refs.
+ARG PHP_REF
 
 # Whether to build the opcache extension. The .m4 file is patched before the main
 # ./buildconf script is generated.
 ARG WITH_OPCACHE
 
-# Clone PHP from a tag [ php-$PHP_VERSION ] instead of a branch [ PHP-$PHP_VERSION ]
-RUN git clone https://github.com/php/php-src.git php-src \
-	--branch php-$PHP_VERSION \
-	--single-branch  \
-	--depth 1;
+RUN PHP_REF="${PHP_REF:-php-$PHP_VERSION}" && \
+	git clone https://github.com/php/php-src.git php-src \
+		--branch $PHP_REF \
+		--single-branch \
+		--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
-COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
+COPY ./compile/php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
 # Polyfill for dns functions
-COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
+COPY ./compile/php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
 # Polyfill for post_message_to_js functions
-COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
+COPY ./compile/php-post-message-to-js/ /root/php-src/ext/post_message_to_js
 
 # Copy the opcache_module.c and php_opcache.h files.
-COPY ./opcache/ /root/php-src/ext/opcache
+COPY ./compile/opcache/ /root/php-src/ext/opcache
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
-COPY ./libiconv/ /root/builds/libiconv
-COPY ./libcurl/ /root/builds/libcurl
-COPY ./libopenssl/ /root/builds/libopenssl
-COPY ./libpng16/ /root/builds/libpng16
-COPY ./libjpeg/ /root/builds/libjpeg
-COPY ./libwebp/ /root/builds/libwebp
-COPY ./libaom/ /root/builds/libaom
-COPY ./libavif/ /root/builds/libavif
-COPY ./libsqlite3/ /root/builds/libsqlite3
-COPY ./libxml2/ /root/builds/libxml2
-COPY ./libz/ /root/builds/libz
-COPY ./oniguruma/ /root/builds/oniguruma
-COPY ./libImageMagick/ /root/builds/libImageMagick
-COPY ./libgd/ /root/builds/libgd
+COPY ./compile/libiconv/ /root/builds/libiconv
+COPY ./compile/libcurl/ /root/builds/libcurl
+COPY ./compile/libopenssl/ /root/builds/libopenssl
+COPY ./compile/libpng16/ /root/builds/libpng16
+COPY ./compile/libjpeg/ /root/builds/libjpeg
+COPY ./compile/libwebp/ /root/builds/libwebp
+COPY ./compile/libaom/ /root/builds/libaom
+COPY ./compile/libavif/ /root/builds/libavif
+COPY ./compile/libsqlite3/ /root/builds/libsqlite3
+COPY ./compile/libxml2/ /root/builds/libxml2
+COPY ./compile/libz/ /root/builds/libz
+COPY ./compile/oniguruma/ /root/builds/oniguruma
+COPY ./compile/libImageMagick/ /root/builds/libImageMagick
+COPY ./compile/libgd/ /root/builds/libgd
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	find /root/builds -path '*/jspi/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
@@ -57,7 +57,7 @@ else \
 	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 fi
 
-COPY ./libzip/ /root/builds-libzip/
+COPY ./compile/libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libzip/jspi/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
@@ -67,7 +67,7 @@ else \
 	cp -r /root/builds-libzip/asyncify/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 fi
 
-COPY ./libopenssl/ /root/builds-libopenssl/
+COPY ./compile/libopenssl/ /root/builds-libopenssl/
 RUN mkdir -p /libs/libopenssl
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libopenssl/jspi/dist/root/lib /libs/libopenssl; \
@@ -135,7 +135,8 @@ ARG EMSCRIPTEN_ENVIRONMENT=web
 RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.emcc-php-wasm-sources && \
-	touch /root/.EXPORTED_FUNCTIONS
+	touch /root/.JS_ABI_EXPORTS && \
+	touch /root/.WASM_ABI_EXPORTS
 
 RUN apt install -y bison;
 
@@ -157,7 +158,7 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 			'/root/php-src/sapi/cli/php_http_parser.c /root/php-src/sapi/cli/php_cli_server.c ' \
 			'/root/php-src/sapi/cli/php_cli.c ' \
 			>> /root/.emcc-php-wasm-sources && \
-		echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
+		echo "_run_cli" >> /root/.JS_ABI_EXPORTS && echo "_wasm_add_cli_arg" >> /root/.JS_ABI_EXPORTS && \
 		echo -n ' -DWITH_CLI_SAPI=1 ' >> /root/.emcc-php-wasm-flags && \
 		/root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
 		# Avoid a symbol conflict between php_cli.c and php_embed.c
@@ -283,19 +284,23 @@ RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	fi;
 
 # Get and patch PHP
-COPY ./php/php*.patch /root/
-COPY ./php/apply-mysqlnd-patch.sh /root/
+COPY ./compile/php/php*.patch /root/
+COPY ./compile/php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
-	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	PHP_PATCH_VERSION="${PHP_VERSION:0:3}" && \
+	if ! compgen -G "/root/php${PHP_PATCH_VERSION}*.patch" > /dev/null; then \
+		PHP_PATCH_VERSION="8.5"; \
+	fi && \
+	git apply --no-index /root/php${PHP_PATCH_VERSION}*.patch -v && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
-	if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
+	if [[ "$PHP_PATCH_VERSION" < '8.3' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-up-to-8.2.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.3' ]]; then \
+	elif [[ "$PHP_PATCH_VERSION" == '8.3' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.4' ]]; then \
+	elif [[ "$PHP_PATCH_VERSION" == '8.4' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.5' ]]; then \
+	elif [[ "$PHP_PATCH_VERSION" == '8.5' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.5.patch -v; \
 	fi && \
 	touch php-src/patched
@@ -307,8 +312,9 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 	fi
 
 # Download and prepare imagick extension if needed (PHP 7.4+)
-# Use version 3.7.0 for PHP 7.x, master for PHP 8.x
-RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
+# Use version 3.7.0 for PHP 7.x, development branch for PHP 8.x
+RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
+		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			IMAGICK_BRANCH="3.7.0"; \
 		else \
 			IMAGICK_BRANCH="master"; \
@@ -330,7 +336,8 @@ RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			./buildconf --force; \
 		fi && \
 		echo -n ' --with-imagick=/root/lib --with-imagick-config=/root/lib/bin/wasm32-unknown-emscripten-MagickWand-config ' >> /root/.php-configure-flags && \
-		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources
+		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources; \
+	fi
 
 # Disable phar.php generation for all builds (WASM binaries can't execute during build)
 # This must run after buildconf but before configure
@@ -340,7 +347,6 @@ RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-	ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
 	CURL_CFLAGS="-I/root/lib/include" \
 	WEBP_LIBS="-L/root/lib/lib -lwebp -lsharpyuv" \
 	WEBP_CFLAGS="-I/root/lib/include" \
@@ -514,8 +520,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
-COPY ./php/php_wasm.c /root/
-COPY ./php/proc_open* /root/
+COPY ./compile/php/php_wasm.c /root/
+COPY ./compile/php/proc_open* /root/
 
 ARG WITH_SOURCEMAPS
 ARG OUTPUT_DIR_ON_HOST
@@ -803,9 +809,12 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "createFunctionApi",\
 "createModule",\
 "ctype_fallback",\
+"Curl_client_write",\
 "Curl_conncache_foreach",\
 "curl_easy_perform",\
 "Curl_http_connect",\
+"Curl_httpchunk_read",\
+"curl_write",\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
@@ -1082,8 +1091,13 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "get_http_body",\
 "get_line",\
 "getFileMode",\
+"gzip_unencode_write",\
 "hasHotJournal",\
 "https_connecting",\
+"inflate",\
+"inflate_fast",\
+"inflate_stream",\
+"inflate_table",\
 "iter_wrapper_free",\
 "iter_wrapper_get_gc",\
 "lex_scan",\
@@ -1436,9 +1450,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "sqlite_handle_closer",\
 "sqlite_handle_doer",\
 "sqlite_handle_preparer",\
+"sqlite3_auto_extension",\
 "sqlite3_autovacuum_pages",\
 "sqlite3_backup_step",\
 "sqlite3_bind_pointer",\
+"sqlite3_cancel_auto_extension",\
 "sqlite3_exec",\
 "sqlite3_finalize",\
 "sqlite3_free",\
@@ -1617,6 +1633,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "unixShmSystemLock",\
 "unixShmUnmap",\
 "unixSync",\
+"unencode_write",\
 "unixTempFileDir",\
 "unixUnlock",\
 "unlockBtreeIfUnused",\
@@ -1625,6 +1642,29 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "updatewindow",\
 "user_shutdown_function_call",\
 "userfilter_filter",\
+"var_destroy",\
+"_efree_large",\
+"_php_stream_make_seekable",\
+"_zval_undefined_op1",\
+"concat_function",\
+"zend_get_properties_for",\
+"ZEND_CALL_TRAMPOLINE_SPEC_HANDLER",\
+"ZEND_CONCAT_SPEC_CONST_CV_HANDLER",\
+"ZEND_CLONE_SPEC_CV_HANDLER",\
+"ZEND_ECHO_SPEC_CV_HANDLER",\
+"php_output_op",\
+"php_output_write",\
+"php_printf_to_smart_str",\
+"php_unserialize_with_options",\
+"php_var_unserialize_destroy",\
+"xbuf_format_converter",\
+"zend_hash_destroy",\
+"zend_std_cast_object_tostring",\
+"zend_std_get_debug_info",\
+"zend_std_get_properties_for",\
+"zif_serialize",\
+"zif_unserialize",\
+"zif_var_dump",\
 "vdbeCommit",\
 "vdbeCompareMemString",\
 "vdbeMemClearExternAndSetNull",\
@@ -2141,59 +2181,208 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 
 	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
 
+
+# List global and exports symbols
+COPY ./compile/php/exported-functions.list /root/exported-functions.list
+COPY ./compile/php/zend-side-module-exports.c /root/zend-side-module-exports.c
+RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
+
+RUN set -eux; \
+	if [ "$WITH_JSPI" != "yes" ]; then \
+		exit 0; \
+	fi; \
+	PHP_VERSION_MAJOR="${PHP_VERSION%%.*}"; \
+	PHP_VERSION_REST="${PHP_VERSION#*.}"; \
+	PHP_VERSION_MINOR="${PHP_VERSION_REST%%.*}"; \
+	{ \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_ce_exception'; \
+		fi; \
+		echo 'zend_ce_traversable'; \
+		echo 'zend_ce_iterator'; \
+		echo 'zend_ce_aggregate'; \
+		echo 'zend_ce_arrayaccess'; \
+		if [ "$PHP_VERSION_MAJOR" -gt 7 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 7 ] && [ "$PHP_VERSION_MINOR" -ge 2 ]; }; then \
+			echo 'zend_ce_countable'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_ce_throwable'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -lt 9 ]; then \
+			echo 'zend_ce_serializable'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -ge 8 ]; then \
+			echo 'zend_ce_stringable'; \
+			echo 'zend_ce_unhandled_match_error'; \
+			echo 'zend_ce_division_by_zero_error'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 8 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 8 ] && [ "$PHP_VERSION_MINOR" -ge 1 ]; }; then \
+			echo 'zend_ce_unit_enum'; \
+			echo 'zend_ce_backed_enum'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 7 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 7 ] && [ "$PHP_VERSION_MINOR" -ge 3 ]; }; then \
+			echo 'zend_string_init_interned'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_empty_string'; \
+			echo 'zend_one_char_string'; \
+		fi; \
+		echo 'std_object_handlers'; \
+		echo 'executor_globals'; \
+		echo 'compiler_globals'; \
+		echo 'sapi_globals'; \
+		echo 'file_globals'; \
+		echo 'sapi_module'; \
+		echo 'zend_compile_string'; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zend_get_executed_scope'; \
+		fi; \
+		echo 'zend_execute'; \
+		if [ "$PHP_VERSION_MAJOR" -ge 7 ]; then \
+			echo 'zval_ptr_dtor'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -gt 8 ] || \
+			{ [ "$PHP_VERSION_MAJOR" -eq 8 ] && [ "$PHP_VERSION_MINOR" -ge 1 ]; }; then \
+			echo 'zend_destroy_static_vars'; \
+		fi; \
+		if [ "$PHP_VERSION_MAJOR" -lt 7 ]; then \
+			echo '_zval_ptr_dtor'; \
+		fi; \
+		echo 'destroy_op_array'; \
+		echo '_efree'; \
+		echo '_zend_bailout'; \
+		echo 'getentropy'; \
+		echo 'posix_memalign'; \
+		echo 'pthread_cond_signal'; \
+		echo 'pthread_cond_wait'; \
+		echo 'pthread_condattr_destroy'; \
+		echo 'pthread_condattr_init'; \
+		echo 'pthread_condattr_setclock'; \
+		echo 'pthread_mutex_trylock'; \
+		echo 'pthread_mutexattr_destroy'; \
+		echo 'pthread_mutexattr_init'; \
+		echo 'pthread_mutexattr_settype'; \
+		echo 'sched_yield'; \
+		echo 'writev'; \
+		if [ "$PHP_VERSION_MAJOR" -ge 8 ]; then \
+			echo '_call_user_function_impl'; \
+			echo 'zend_array_count'; \
+			echo 'zend_declare_class_constant_ex'; \
+			echo 'zend_declare_property'; \
+			echo 'zend_do_implement_interface'; \
+			echo 'zend_hash_get_current_key_zval_ex'; \
+			echo 'zend_is_callable'; \
+			echo 'zend_is_iterable'; \
+			echo 'zend_lookup_class_ex'; \
+			echo 'zend_objects_new'; \
+			echo 'zend_register_internal_class_ex'; \
+			echo 'zend_register_internal_interface'; \
+			echo 'zend_std_get_properties'; \
+			echo 'zend_std_has_property'; \
+			echo 'zend_std_read_property'; \
+			echo 'zend_std_write_property'; \
+			echo 'zend_throw_exception_object'; \
+		fi; \
+	} >> /root/.WASM_ABI_EXPORTS
+
+# WORKAROUND: JSPI side modules may import wasm longjmp symbols. Asyncify
+# builds do not provide those symbols, so including them in the shared
+# exported-functions.list would break Asyncify builds. Add them only for JSPI.
+RUN if [ "$WITH_JSPI" = "yes" ]; then \
+		echo '___wasm_setjmp' >> /root/.JS_ABI_EXPORTS; \
+		echo '___wasm_setjmp_test' >> /root/.JS_ABI_EXPORTS; \
+		echo '___wasm_longjmp' >> /root/.JS_ABI_EXPORTS; \
+		echo '___c_longjmp' >> /root/.JS_ABI_EXPORTS; \
+	fi;
+
+RUN if [ "$(echo "$PHP_VERSION" | cut -d. -f1)" -ge 8 ] && [ "$WITH_JSPI" = "yes" ]; then \
+		{ \
+			echo '_clock_gettime'; \
+			echo '_getcwd'; \
+			echo '_pthread_cond_destroy'; \
+			echo '_pthread_cond_init'; \
+			echo '_pthread_cond_timedwait'; \
+			echo '_pthread_mutex_destroy'; \
+			echo '_pthread_mutex_init'; \
+			echo '_pthread_mutex_lock'; \
+			echo '_pthread_mutex_unlock'; \
+			echo '_strerror_r'; \
+			echo '_write'; \
+			echo '_zend_hash_get_current_data_ex'; \
+			echo '_zend_hash_get_current_key_type_ex'; \
+			echo '_zend_hash_move_forward_ex'; \
+			echo '_zend_is_true'; \
+		} >> /root/.JS_ABI_EXPORTS; \
+	fi;
+
+COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
+COPY ./compile/shared/ /root/shared/
+RUN	set -eux; \
+	PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \
+	ASYNCIFY_OR_JSPI_DIR=$( [ "$WITH_JSPI" = "yes" ] && echo "jspi" || echo "asyncify" ); \
+	EXTENSIONS_DIR_PATH="/root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${ASYNCIFY_OR_JSPI_DIR}/extensions"; \
+	for path in "$EXTENSIONS_DIR_PATH"/*; do \
+		extension="${path##*/}"; \
+		# List globals symbols [ env func and globals without invoke_ and libc++(_Z) prefixed ones ]
+		/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
+		| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
+		| sed '/^invoke_/d' \
+		| sed '/^_Z/d' \
+		| sed 's/^/_/' \
+		| sort \
+		>> /root/.JS_ABI_EXPORTS; \
+		# List exports symbols [ GOT.mem and GOT.func globals ]
+		/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
+		| sed -n 's/^[[:space:]]*(import "\(GOT\.mem\|GOT\.func\)" "\([^"]*\)"[[:space:]]*(global.*/\2/p' \
+		| sort \
+		>> /root/.WASM_ABI_EXPORTS; \
+		# Inject extension-specific exported functions
+		if [ -f /root/shared/${extension}/exported-functions.list ]; then \
+			cat /root/shared/${extension}/exported-functions.list >> /root/.JS_ABI_EXPORTS; \
+		fi; \
+	done
+
+RUN set -eux; \
+	sort -u /root/.JS_ABI_EXPORTS | \
+	grep -v '^[[:space:]]*$' | \
+	sed 's/^/  "/; s/$/",/' | \
+	sed '$ s/,$//' | \
+	{ echo '['; cat; echo ']'; } \
+	> /root/.exported-functions
+
+RUN set -eux; \
+	sort -u /root/.WASM_ABI_EXPORTS | \
+	grep -v '^[[:space:]]*$' | \
+	sed 's/^/-Wl,--export=/' \
+	> /root/.wasm-exports
+
+
 # Build the final .wasm file
 RUN mkdir /root/output
-COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
-COPY ./php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
-COPY ./php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
-COPY ./php/phpwasm-emscripten-library-dns-lookup-for-node.js /root/phpwasm-emscripten-library-dns-lookup-for-node.js
-COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
+COPY ./compile/php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
+COPY ./compile/php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
+COPY ./compile/php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
+COPY ./compile/php/phpwasm-emscripten-library-dns-lookup-for-node.js /root/phpwasm-emscripten-library-dns-lookup-for-node.js
+COPY ./compile/php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
 ARG STACK_SIZE
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
+	ZEND_SIDE_MODULE_EXPORT_SOURCE=""; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,recv,setsockopt,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,recv,setsockopt,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
+		ZEND_SIDE_MODULE_EXPORT_SOURCE="/root/zend-side-module-exports.c"; \
 	else \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports,UTF8ToString,lengthBytesUTF8,stringToUTF8 $(cat /root/.emcc-php-asyncify-flags)  "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports,UTF8ToString,lengthBytesUTF8,stringToUTF8 $(cat /root/.emcc-php-asyncify-flags) "; \
 		echo '' > /root/php_wasm_asyncify.h; \
 	fi; \
-	export EXPORTED_FUNCTIONS=$'["_exit", \n\
-"UTF8ToString", \n\
-"stringToUTF8", \n\
-"lengthBytesUTF8", \n\
-"FS", \n\
-"_malloc", \n\
-"___errno_location", \n\
-"___wrap_select", \n\
-"_wasm_set_sapi_name", \n\
-"_php_wasm_init", \n\
-"_emscripten_sleep", \n\
-"_wasm_sleep", \n\
-"_wasm_set_phpini_path", \n\
-"_wasm_add_SERVER_entry", \n\
-"_wasm_add_ENV_entry", \n\
-"_wasm_read", \n\
-"_wasm_free", \n\
-"_wasm_sapi_handle_request", \n\
-"_wasm_sapi_request_shutdown", \n\
-"_wasm_set_content_length", \n\
-"_wasm_set_content_type", \n\
-"_wasm_set_cookies", \n\
-"_wasm_set_path_translated", \n\
-"_wasm_set_query_string", \n\
-"_wasm_set_request_body", \n\
-"_wasm_set_request_host", \n\
-"_wasm_set_request_method", \n\
-"_wasm_set_request_port", \n\
-"_wasm_set_request_uri", \n\
-"_wasm_set_skip_shebang", \n\
-"_recv", \n\
-"_setsockopt" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
@@ -2202,7 +2391,7 @@ RUN set -euxo pipefail; \
 	ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT"; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js --js-library /root/phpwasm-emscripten-library-dns-lookup-for-node.js -Wl,--wrap=getpid"; \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js --js-library /root/phpwasm-emscripten-library-dns-lookup-for-node.js -Wl,--wrap=getpid "; \
 	else \
 		# Prevents "document is not defined" errors in Web Workers when using MAIN_MODULE.
 		# By default, Emscripten assumes MAIN_MODULE runs only in a web environment,
@@ -2227,11 +2416,11 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
-	-s MAIN_MODULE \
-	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
+	-s MAIN_MODULE=2 \
+	-s EXPORTED_FUNCTIONS="@/root/.exported-functions" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
-	-s INITIAL_MEMORY=256MB \
+	-s INITIAL_MEMORY=64MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s STACK_SIZE="$STACK_SIZE" \
 	-s ASSERTIONS=0 \
@@ -2241,11 +2430,13 @@ RUN set -euxo pipefail; \
 	-s INVOKE_RUN=0 \
 	-o /build/output/php.js \
 	-s EXIT_RUNTIME=1 \
-	-Wl,--wrap=select \
+	-Wl,@/root/.wasm-exports \
 	-Wl,--wrap=usleep \
+	-Wl,--wrap=select \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
+		$ZEND_SIDE_MODULE_EXPORT_SOURCE \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
@@ -2264,9 +2455,9 @@ RUN set -euxo pipefail; \
 #     fi
 
 # Postprocess the build php.js module:
-COPY ./php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
-COPY ./php/esm-prefix.js /root/esm-prefix.js
-COPY ./php/esm-suffix.js /root/esm-suffix.js
+COPY ./compile/php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
+COPY ./compile/php/esm-prefix.js /root/esm-prefix.js
+COPY ./compile/php/esm-suffix.js /root/esm-suffix.js
 RUN set -euxo pipefail; \
 	cp -rfv /build/output/* /root/output/; \
 	# Figure out the target file names and URLs
@@ -2338,21 +2529,25 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=[^;]*;/ENVIRONMENT_IS_$1=RuntimeName==="$1";/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+	# Provide the JSPI longjmp tag for web side modules.
+		# Existing web JSPI binaries do not export __c_longjmp, so the dynamic
+		# linker would otherwise synthesize a JS function stub for a tag import.
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ] && [ "$WITH_JSPI" = "yes" ]; then \
+			/root/replace.sh $'s/Asyncify\\.instrumentWasmImports\\(wasmImports\\);/Asyncify.instrumentWasmImports(wasmImports);\\n\\t\\twasmImports["__c_longjmp"] ??= new WebAssembly.Tag({\\n\\t\\t\\tparameters: ["i32"],\\n\\t\\t});/g' /root/output/php.js; \
+		fi; \
 	# Expose required functions to the module.
 		# Emscripten 4.0.10 removed the runtime exposure of `_malloc` and `_free`,
 		# so we rebind them from `wasmExports` and attach them to PHPLoader.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			/root/replace.sh "s/_free\s*=\s*wasmExports\['free'\];/_free = PHPLoader['free'] = wasmExports['free'];/g" /root/output/php.js; \
-		else \
-			/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
-		fi ; \
+		/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
 		/root/replace.sh "s/_malloc\s*=\s*Module\[[\"']_malloc[\"']\]/_malloc = PHPLoader['malloc'] = Module['_malloc']/g" /root/output/php.js; \
-	# Add recv and setsockopt aliases to wasmImports for dynamic extensions
-		# Dynamic extensions like memcached import socket functions by their POSIX names
-		# (recv, setsockopt) but the main module only defines wasm_recv and wasm_setsockopt.
-		# We add these aliases so dynamically loaded extensions can resolve them.
-		/root/replace.sh 's/wasm_recv:\s*_wasm_recv,/wasm_recv: _wasm_recv,\n  \/** @export *\/\n  recv: _recv,/g' /root/output/php.js; \
-		/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** @export *\/\n  setsockopt: _setsockopt,/g' /root/output/php.js; \
+	# Add alias to wasmImports for dynamically loaded extensions.
+		# The memcached extension imports wasm_recv and wasm_setsockopt,
+		# but the main module only exposes wasm_setsockopt in wasmImports.
+		# This alias ensure that dynamically loaded extensions can
+		# correctly resolve the required import.
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+			/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js; \
+		fi; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not
@@ -2373,6 +2568,20 @@ RUN set -euxo pipefail; \
 		# But the alternative `onExit()` handling is conditional and has different semantics.
 		# To avoid bugs due to this change, let's just restore support for quit callback customization.
 		/root/replace.sh "s/(if\s*\(Module\[['\"]thisProgram['\"]\]\)\s*thisProgram\s*=\s*Module\[['\"]thisProgram['\"]\];)/\$1\nif (Module[\"quit\"]) quit_=Module[\"quit\"];/" /root/output/php.js; \
+	# Cache Asyncify sleep data allocation to prevent memory growth corruption
+		#
+		# Emscripten's handleSleep() calls _malloc() on every async operation and
+		# _free() on every rewind. If _malloc triggers memory.grow(), the ArrayBuffer
+		# detaches and corrupts state. Fix: allocate once, reuse on subsequent sleeps.
+		# See: https://github.com/emscripten-core/emscripten/issues/21108
+		if [ "$WITH_JSPI" != "yes" ]; then \
+			/root/replace.sh \
+				's/Asyncify\.currData\s*=\s*Asyncify\.allocateData\(\)/if (!Asyncify._cachedData) { Asyncify._cachedData = Asyncify.allocateData(); } else { Asyncify.setDataHeader(Asyncify._cachedData, Asyncify._cachedData + 12, Asyncify.StackSize); Asyncify.setDataRewindFunc(Asyncify._cachedData); } Asyncify.currData = Asyncify._cachedData/' \
+				/root/output/php.js; \
+			/root/replace-across-lines.sh \
+				's/runAndAbortIfError\(_asyncify_stop_rewind\);\s*_free\(Asyncify\.currData\);/runAndAbortIfError(_asyncify_stop_rewind);/s' \
+				/root/output/php.js; \
+		fi; \
 	# Node.js: Create a require() function and add 'currentDirPath' declaration
 	# because Emscripten generates Node.js code that requires them.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \

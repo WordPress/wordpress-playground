@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/cli/src",
 	"projectType": "library",
+	"tags": ["scope:php-wasm-public", "scope:cli"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -92,7 +93,7 @@
 						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
 						"forwardAllArgs": false
 					},
-					"node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
+					"PLAYGROUND_NO_JSPI_RESPAWN=1 node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
 				],
 				"tty": true,
 				"parallel": false
@@ -132,7 +133,7 @@
 				"maxWarnings": 0
 			}
 		},
-		"test-for-node-22-and-above": {
+		"test-playground-cli": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
@@ -148,7 +149,13 @@
 					"tsc -p packages/playground/cli/tsconfig.spec.json --noEmit"
 				]
 			}
+		},
+		"perf": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts packages/playground/cli/perf/benchmark.ts",
+				"tty": true
+			}
 		}
-	},
-	"tags": ["scope:php-wasm-public"]
+	}
 }

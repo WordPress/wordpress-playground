@@ -9,8 +9,8 @@
 
 const LibraryExample = {
 	// Emscripten dependencies:
-	$PHPWASM__deps: ['$allocateUTF8OnStack'],
-	$PHPWASM__postset: 'PHPWASM.init(PHPLoader?.phpWasmInitOptions);',
+	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
+	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated
 	// JavaScript library under the PHPWASM object:
@@ -24,11 +24,131 @@ const LibraryExample = {
 		POLLHUP: Number('{{{cDefs.POLLHUP}}}'),
 		SETFL_MASK:
 			Number('{{{cDefs.O_APPEND}}}') | Number('{{{cDefs.O_NONBLOCK}}}'),
+		socketTimeouts: new Map(),
 		// These macros are not defined in Emscripten at the time of writing:
 		// emscripten_O_NDELAY |
 		// emscripten_O_DIRECT |
 		// emscripten_O_NOATIME
-		init: function (phpWasmInitOptions) {
+		init: function () {
+			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
+			if (PHPLoader.bindUserSpace) {
+				/**
+				 * We need to add an onInit callback to bind the user-space API
+				 * because some dependencies like wasmImports and wasmExports
+				 * are not yet assigned.
+				 */
+				addOnInit(() => {
+					if (typeof PHPLoader.processId !== 'number') {
+						throw new Error(
+							'PHPLoader.processId must be set before init'
+						);
+					}
+					Module['userSpace'] = PHPLoader.bindUserSpace({
+						pid: PHPLoader.processId,
+						constants: {
+							F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+							O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+							O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+							O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+							O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+							O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+							F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+							F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+							F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+							F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+							SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+							SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+							SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+							F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+							O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+							O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+							O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+							O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+							O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+							F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+							F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+							F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+							F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+							SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+							SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+							SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+							// From:
+							// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
+							F_RDLCK: 0,
+							F_WRLCK: 1,
+							F_UNLCK: 2,
+							// From:
+							// https://github.com/emscripten-core/emscripten/blob/81bbaa42a7827d88a71bd89701245052c622428c/system/lib/libc/musl/include/sys/file.h#L7-L10
+							LOCK_SH: 1,
+							LOCK_EX: 2,
+							LOCK_NB: 4, // Non-blocking lock
+							LOCK_UN: 8, // Unlock
+						},
+						errnoCodes: ERRNO_CODES,
+						// Use get/set closures instead of exposing
+						// typed arrays directly. After memory.grow(),
+						// Emscripten's updateMemoryViews() reassigns
+						// the module-scoped HEAP* variables. Closures
+						// always reference the current value, so
+						// accesses are never stale. The get/set
+						// interface also prevents callers from
+						// capturing a typed array reference that
+						// could become stale.
+						memory: {
+							HEAP8: {
+								get(offset) { return HEAP8[offset]; },
+								set(offset, value) { HEAP8[offset] = value; },
+							},
+							HEAPU8: {
+								get(offset) { return HEAPU8[offset]; },
+								set(offset, value) { HEAPU8[offset] = value; },
+							},
+							HEAP16: {
+								get(offset) { return HEAP16[offset]; },
+								set(offset, value) { HEAP16[offset] = value; },
+							},
+							HEAPU16: {
+								get(offset) { return HEAPU16[offset]; },
+								set(offset, value) { HEAPU16[offset] = value; },
+							},
+							HEAP32: {
+								get(offset) { return HEAP32[offset]; },
+								set(offset, value) { HEAP32[offset] = value; },
+							},
+							HEAPU32: {
+								get(offset) { return HEAPU32[offset]; },
+								set(offset, value) { HEAPU32[offset] = value; },
+							},
+							HEAPF32: {
+								get(offset) { return HEAPF32[offset]; },
+								set(offset, value) { HEAPF32[offset] = value; },
+							},
+							HEAP64: {
+								get(offset) { return HEAP64[offset]; },
+								set(offset, value) { HEAP64[offset] = value; },
+							},
+							HEAPU64: {
+								get(offset) { return HEAPU64[offset]; },
+								set(offset, value) { HEAPU64[offset] = value; },
+							},
+							HEAPF64: {
+								get(offset) { return HEAPF64[offset]; },
+								set(offset, value) { HEAPF64[offset] = value; },
+							},
+						},
+						wasmImports: Object.assign({}, wasmImports,
+							typeof _builtin_fd_close === 'function' ? { builtin_fd_close: _builtin_fd_close } : {},
+							typeof _builtin_fcntl64 === 'function' ? { builtin_fcntl64: _builtin_fcntl64 } : {}
+						),
+						wasmExports,
+						syscalls: SYSCALLS,
+						FS,
+						PROXYFS,
+						NODEFS,
+					});
+				});
+			}
+
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
 			Module['ENV']['PATH'] = [
@@ -47,10 +167,10 @@ const LibraryExample = {
 			// and contains the php.ini, constants definitions, etc.
 			FS.mkdir('/internal');
 
-			if (phpWasmInitOptions?.nativeInternalDirPath) {
+			if (PHPLoader.nativeInternalDirPath) {
 				FS.mount(
 					FS.filesystems.NODEFS,
-					{ root: phpWasmInitOptions.nativeInternalDirPath },
+					{ root: PHPLoader.nativeInternalDirPath },
 					'/internal'
 				);
 			}
@@ -348,6 +468,33 @@ const LibraryExample = {
 		},
 		noop: function () {},
 
+		parseSocketTimeout: function (optionValuePtr, optionLen) {
+			if (!optionValuePtr || optionLen < 8) {
+				return null;
+			}
+
+			let seconds;
+			let microseconds;
+			if (optionLen >= 16) {
+				seconds = Number(HEAP64[optionValuePtr >> 3]);
+				microseconds = Number(HEAP64[(optionValuePtr + 8) >> 3]);
+			} else {
+				seconds = HEAP32[optionValuePtr >> 2];
+				microseconds = HEAP32[(optionValuePtr + 4) >> 2];
+			}
+
+			if (
+				!Number.isFinite(seconds) ||
+				!Number.isFinite(microseconds) ||
+				seconds < 0 ||
+				microseconds < 0
+			) {
+				return null;
+			}
+
+			return seconds * 1000 + Math.ceil(microseconds / 1000);
+		},
+
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
 				const spawned = Module['spawnProcess'](
@@ -355,9 +502,9 @@ const LibraryExample = {
 					args,
 					/**
 					 * We're providing the same extra options we would pass to child_process.spawn().
-					 * 
+					 *
 					 * Why?
-					 * 
+					 *
 					 * spawnProcess() follows the same interface as child_process.spawn()
 					 * and some consumers pass `child_process.spawn` directly to php.setSpawnHandler()
 					 */
@@ -373,7 +520,7 @@ const LibraryExample = {
 					 * Delaying it to the next tick via Promise.resolve() would create
 					 * a race condition where it might emit some events before the
 					 * caller has a chance to bind event listeners to them.
-					 * 
+					 *
 					 * Without this condition, this callback would be at least flaky:
 					 *
 					 *    php.setSpawnHandler(require('child_process').spawn);
@@ -410,6 +557,8 @@ const LibraryExample = {
 		 * @returns 0 on success, -1 on failure
 		 */
 		shutdownSocket: function (socketd, how) {
+			PHPWASM.socketTimeouts.delete(socketd);
+
 			// This implementation only supports websockets at the moment
 			const sock = getSocketFromFD(socketd);
 			const peer = Object.values(sock.peers)[0];
@@ -542,8 +691,12 @@ const LibraryExample = {
 				stdoutParentFd = std[1]?.parent,
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
+			const detachPipeDataListeners = [];
 
 			cp.on('exit', function (code) {
+				for (const detach of detachPipeDataListeners) {
+					detach();
+				}
 				for (const fd of [
 					// The child process exited. Let's clean up its output streams:
 					stdoutChildFd,
@@ -570,16 +723,27 @@ const LibraryExample = {
 					stdoutChildFd
 				);
 				let stdoutAt = 0;
-				cp.stdout.on('data', function (data) {
-					stdoutStream.stream_ops.write(
-						stdoutStream,
-						data,
-						0,
-						data.length,
-						stdoutAt
-					);
-					stdoutAt += data.length;
-				});
+				const onStdoutData = function (data) {
+					try {
+						stdoutStream.stream_ops.write(
+							stdoutStream,
+							data,
+							0,
+							data.length,
+							stdoutAt
+						);
+						stdoutAt += data.length;
+					} catch {
+						// PHP may close the child pipe before Node finishes
+						// draining already-buffered stdout data. Late chunks are
+						// no longer deliverable, so detach the listener and stop.
+						cp.stdout.off('data', onStdoutData);
+					}
+				};
+				cp.stdout.on('data', onStdoutData);
+				detachPipeDataListeners.push(() =>
+					cp.stdout.off('data', onStdoutData)
+				);
 			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
@@ -588,16 +752,24 @@ const LibraryExample = {
 					stderrChildFd
 				);
 				let stderrAt = 0;
-				cp.stderr.on('data', function (data) {
-					stderrStream.stream_ops.write(
-						stderrStream,
-						data,
-						0,
-						data.length,
-						stderrAt
-					);
-					stderrAt += data.length;
-				});
+				const onStderrData = function (data) {
+					try {
+						stderrStream.stream_ops.write(
+							stderrStream,
+							data,
+							0,
+							data.length,
+							stderrAt
+						);
+						stderrAt += data.length;
+					} catch {
+						cp.stderr.off('data', onStderrData);
+					}
+				};
+				cp.stderr.on('data', onStderrData);
+				detachPipeDataListeners.push(() =>
+					cp.stderr.off('data', onStderrData)
+				);
 			}
 
 			/**
@@ -749,9 +921,9 @@ const LibraryExample = {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					_wasm_free(buffer);
+					_wasm_free(iov);
+					_wasm_free(pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -845,7 +1017,15 @@ const LibraryExample = {
 	 */
 	wasm_recv: function (sockfd, buffer, size, flags) {
 		return Asyncify.handleSleep((wakeUp) => {
+			const receiveTimeout =
+				PHPWASM.socketTimeouts.get(sockfd)?.receive;
+			const startedAt = Date.now();
+			let resolved = false;
+
 			const poll = function () {
+				if (resolved) {
+					return;
+				}
 				let newl = ___syscall_recvfrom(
 					sockfd,
 					buffer,
@@ -855,10 +1035,20 @@ const LibraryExample = {
 					null
 				);
 				if (newl > 0) {
+					resolved = true;
 					wakeUp(newl);
-				} else if (newl === -6) {
+				} else if (newl === -ERRNO_CODES.EAGAIN) {
+					if (
+						receiveTimeout > 0 &&
+						Date.now() - startedAt >= receiveTimeout
+					) {
+						resolved = true;
+						wakeUp(-ERRNO_CODES.EAGAIN);
+						return;
+					}
 					setTimeout(poll, 20);
 				} else {
+					resolved = true;
 					wakeUp(0);
 				}
 			};
@@ -869,10 +1059,14 @@ const LibraryExample = {
 	/**
 	 * Shims setsockopt(2) functionality for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/setsockopt.2.html
-	 * The only supported options are SO_KEEPALIVE and TCP_NODELAY.
+	 * The supported options are SO_KEEPALIVE, TCP_NODELAY, SO_RCVTIMEO,
+	 * and SO_SNDTIMEO.
 	 *
-	 * Technically these options are propagated to the WebSockets proxy
-	 * server which then sets them on the underlying TCP connection.
+	 * SO_KEEPALIVE and TCP_NODELAY are propagated to the WebSockets proxy
+	 * server, which then sets them on the underlying TCP connection.
+	 *
+		 * SO_RCVTIMEO and SO_SNDTIMEO are stored per socket. wasm_recv()
+		 * uses SO_RCVTIMEO and wasm_connect() uses SO_SNDTIMEO.
 	 *
 	 * @param {int} socketd Socket descriptor
 	 * @param {int} level  Level at which the option is defined
@@ -896,27 +1090,38 @@ const LibraryExample = {
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
 
+		if (
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO)
+		) {
+			const timeoutMs = PHPWASM.parseSocketTimeout(
+				optionValuePtr,
+				optionLen
+			);
+			if (timeoutMs === null) {
+				return -1;
+			}
+
+			const timeouts = PHPWASM.socketTimeouts.get(socketd) || {};
+			if (optionName === SO_RCVTIMEO) {
+				timeouts.receive = timeoutMs;
+			} else {
+				timeouts.send = timeoutMs;
+			}
+			PHPWASM.socketTimeouts.set(socketd, timeouts);
+			return 0;
+		}
+
 		// Options that we can forward to the WebSocket proxy
 		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
 
-		// Options that we acknowledge but don't actually implement
-		// (WebSocket connections handle timeouts differently)
-		const isIgnorable =
-			level === SOL_SOCKET &&
-			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
-
-		if (!isForwardable && !isIgnorable) {
+		if (!isForwardable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
-		}
-
-		// For ignorable options, just return success
-		if (isIgnorable) {
-			return 0;
 		}
 
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
@@ -926,27 +1131,6 @@ const LibraryExample = {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
-
-	/**
-	 * Alias for wasm_recv to support dynamically loaded extensions like memcached
-	 * that import `recv` by its POSIX name instead of the WASM-specific name.
-	 *
-	 * This allows extensions compiled without the -Drecv=wasm_recv flag to still
-	 * benefit from the async-aware implementation.
-	 */
-	recv: function (sockfd, buffer, size, flags) {
-		return _wasm_recv(sockfd, buffer, size, flags);
-	},
-	recv__deps: ['wasm_recv'],
-
-	/**
-	 * Alias for wasm_setsockopt to support dynamically loaded extensions like memcached
-	 * that import `setsockopt` by its POSIX name instead of the WASM-specific name.
-	 */
-	setsockopt: function (socketd, level, optionName, optionValuePtr, optionLen) {
-		return _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen);
-	},
-	setsockopt__deps: ['wasm_setsockopt'],
 
 	/**
 	 * Async-aware connect(2) for WebSocket-based sockets.
@@ -1037,45 +1221,73 @@ const LibraryExample = {
 				return;
 			}
 
-			// Wait for the connection to be established
-			const timeout = 30000; // 30 second timeout
+			// Wait for the connection to be established. A zero timeval
+			// disables the timeout, matching SO_SNDTIMEO semantics.
+			const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
+			const timeout = sendTimeout ?? 30000;
 			let resolved = false;
+			let timeoutId;
+			let handleOpen;
+			let handleError;
+			let handleClose;
+			const peer = PHPWASM.getAllPeers(sock).find(
+				(candidate) => candidate.socket === ws
+			);
 
-			const timeoutId = setTimeout(() => {
-				if (!resolved) {
-					resolved = true;
-					wakeUp(-ERRNO_CODES.ETIMEDOUT);
-				}
-			}, timeout);
-
-			const handleOpen = () => {
-				if (!resolved) {
-					resolved = true;
+			const cleanupConnectListeners = () => {
+				if (typeof timeoutId !== 'undefined') {
 					clearTimeout(timeoutId);
-					ws.removeEventListener('error', handleError);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(0);
+				}
+				ws.removeEventListener('open', handleOpen);
+				ws.removeEventListener('error', handleError);
+				ws.removeEventListener('close', handleClose);
+			};
+
+			const cleanupFailedConnect = (errno) => {
+				try {
+					if (
+						ws.readyState !== ws.CLOSING &&
+						ws.readyState !== ws.CLOSED
+					) {
+						ws.close();
+					}
+				} catch (e) {
+					// Ignore close errors on an already-failed connect.
+				}
+				if (peer) {
+					SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				}
+				sock.connecting = false;
+				sock.error = errno;
+			};
+
+			const finishConnect = (result) => {
+				if (!resolved) {
+					resolved = true;
+					cleanupConnectListeners();
+					if (result < 0) {
+						cleanupFailedConnect(-result);
+					}
+					wakeUp(result);
 				}
 			};
 
-			const handleError = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+			if (timeout > 0) {
+				timeoutId = setTimeout(() => {
+					finishConnect(-ERRNO_CODES.ETIMEDOUT);
+				}, timeout);
+			}
+
+			handleOpen = () => {
+				finishConnect(0);
 			};
 
-			const handleClose = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('error', handleError);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+			handleError = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
+			};
+
+			handleClose = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
 
 			ws.addEventListener('open', handleOpen);

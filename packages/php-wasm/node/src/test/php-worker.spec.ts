@@ -1,21 +1,28 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
 import { PHP, PHPRequestHandler, PHPWorker } from '@php-wasm/universal';
-import { loadNodeRuntime } from '..';
+import { loadNodeRuntime, type PHPExtension } from '..';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { jspi } from 'wasm-feature-detect';
+
+const isJspiAvailable = await jspi();
+const workerLifecycleExtensionNames = [
+	'xdebug',
+	'intl',
+	...(isJspiAvailable ? ['redis', 'memcached'] : []),
+];
+const workerLifecycleLoaderOptions = {
+	extensions: [
+		'xdebug',
+		'intl',
+		...(isJspiAvailable ? (['redis', 'memcached'] as const) : []),
+	] satisfies PHPExtension[],
+};
 
 describe('PHP Worker', () => {
 	let handler: PHPRequestHandler;
 	let worker: PHPWorker;
 	beforeEach(async () => {
-		handler = new PHPRequestHandler({
-			documentRoot: '/wordpress',
-			absoluteUrl: 'http://127.0.0.1:2398',
-			phpFactory: async () =>
-				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
-			maxPhpInstances: 3,
-		});
-		worker = new PHPWorker(handler);
-		await worker.setPrimaryPHP(await handler.getPrimaryPhp());
+		({ handler, worker } = await createWorker());
 	});
 
 	afterEach(async () => {
@@ -56,4 +63,80 @@ describe('PHP Worker', () => {
 		});
 		expect(received).toHaveLength(1);
 	});
+
+	it('loads configured extensions in every PHP instance acquired by the worker', async () => {
+		await worker[Symbol.asyncDispose]();
+		await handler[Symbol.asyncDispose]();
+		({ handler, worker } = await createWorker(
+			workerLifecycleLoaderOptions
+		));
+
+		const acquired = [];
+		try {
+			acquired.push(await handler.instanceManager.acquirePHPInstance());
+			acquired.push(await handler.instanceManager.acquirePHPInstance());
+
+			const heldResults = await Promise.all(
+				acquired.map(({ php }) =>
+					php.run({
+						code: extensionCheckCode(workerLifecycleExtensionNames),
+					})
+				)
+			);
+
+			expect(heldResults.map(({ text }) => text)).toEqual([
+				expectedExtensionCheckOutput(workerLifecycleExtensionNames),
+				expectedExtensionCheckOutput(workerLifecycleExtensionNames),
+			]);
+
+			const workerResult = await worker.run({
+				code: extensionCheckCode(workerLifecycleExtensionNames),
+			});
+			expect(workerResult.text).toBe(
+				expectedExtensionCheckOutput(workerLifecycleExtensionNames)
+			);
+		} finally {
+			for (const acquiredPhp of acquired) {
+				acquiredPhp.reap();
+			}
+		}
+	});
 });
+
+async function createWorker(
+	loaderOptions: Parameters<typeof loadNodeRuntime>[1] = {}
+) {
+	const handler = new PHPRequestHandler({
+		documentRoot: '/wordpress',
+		absoluteUrl: 'http://127.0.0.1:2398',
+		phpFactory: async () =>
+			new PHP(
+				await loadNodeRuntime(RecommendedPHPVersion, loaderOptions)
+			),
+		maxPhpInstances: 3,
+	});
+	const worker = new PHPWorker(handler);
+	await worker.setPrimaryPHP(await handler.getPrimaryPhp());
+	return { handler, worker };
+}
+
+function extensionCheckCode(extensionNames: string[]) {
+	return `<?php
+		$extensions = ${phpArrayLiteral(extensionNames)};
+		foreach ($extensions as $extension) {
+			echo $extension . ':' . (extension_loaded($extension) ? 'loaded' : 'missing') . "\\n";
+		}
+	`;
+}
+
+function expectedExtensionCheckOutput(extensionNames: string[]) {
+	return extensionNames
+		.map((extensionName) => `${extensionName}:loaded\n`)
+		.join('');
+}
+
+function phpArrayLiteral(values: string[]) {
+	return `array(${values
+		.map((value) => `'${value.replaceAll("'", "\\'")}'`)
+		.join(', ')})`;
+}

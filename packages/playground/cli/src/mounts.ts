@@ -107,7 +107,10 @@ const ACTIVATE_FIRST_THEME_STEP = {
  * Auto-mounts resolution logic:
  */
 export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
-	const path = args.autoMount!;
+	if (typeof args.autoMount !== 'string') {
+		return args;
+	}
+	const path = args.autoMount;
 
 	const mount = [...(args.mount || [])];
 	const mountBeforeInstall = [...(args['mount-before-install'] || [])];
@@ -167,7 +170,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				continue;
 			}
 			mount.push({
-				hostPath: `${path}/${file}`,
+				hostPath: join(path, file),
 				vfsPath: `/wordpress/wp-content/${file}`,
 				autoMounted: true,
 			});

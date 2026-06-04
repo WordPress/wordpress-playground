@@ -20,6 +20,7 @@ import { logger } from '@php-wasm/logger';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
+	getPlaygroundBeforeImport?: () => Promise<PlaygroundClient>;
 	onImported: (details: {
 		url: string;
 		urlInformation: GitHubURLInformation;
@@ -42,6 +43,7 @@ function getClient() {
 
 export default function GitHubImportForm({
 	playground,
+	getPlaygroundBeforeImport,
 	onImported,
 }: GitHubImportFormProps) {
 	const [errors, setErrors] = useState<Record<string, string>>({});
@@ -140,13 +142,17 @@ export default function GitHubImportForm({
 						setImportProgress({ ...progress }),
 				}
 			);
+			const targetPlayground = getPlaygroundBeforeImport
+				? await getPlaygroundBeforeImport()
+				: playground;
 			await importFromGitHub(
-				playground,
+				targetPlayground,
 				ghFiles,
 				contentType!,
 				relativeRepoPath,
 				pluginOrThemeName
 			);
+			targetPlayground.goTo('/');
 			onImported({
 				url: newUrl,
 				urlInformation: urlInformation!,

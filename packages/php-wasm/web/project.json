@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/web/src",
 	"projectType": "library",
+	"tags": ["scope:php-binaries", "scope:browser-only"],
 	"implicitDependencies": ["php-wasm-compile"],
 	"targets": {
 		"build": {
@@ -129,14 +130,15 @@
 			"dependsOn": ["build"]
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/web"],
 			"options": {
 				"reportsDirectory": "../../coverage/packages/php-wasm/web",
 				"testFiles": [
 					"prf.spec.ts",
 					"certificates.spec.ts",
-					"tcp-over-fetch-websocket.spec.ts"
+					"tcp-over-fetch-websocket.spec.ts",
+					"directory-handle-mount.spec.ts"
 				]
 			}
 		},
@@ -166,6 +168,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-binaries"]
+	}
 }

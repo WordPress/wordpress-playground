@@ -1,0 +1,375 @@
+/// <reference lib="WebWorker" />
+declare const self: ServiceWorkerGlobalScope;
+
+import { awaitReply, getNextRequestId } from './messaging';
+import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
+import { portToStream } from '@php-wasm/universal';
+
+export async function convertFetchEventToPHPRequest(event: FetchEvent) {
+	let url = new URL(event.request.url);
+
+	if (!isURLScoped(url)) {
+		try {
+			const referrerUrl = new URL(event.request.referrer);
+			url = setURLScope(url, getURLScope(referrerUrl)!);
+		} catch {
+			// ignore
+		}
+	}
+
+	const contentType = event.request.headers.get('content-type')!;
+	const body =
+		event.request.method === 'POST'
+			? new Uint8Array(await event.request.clone().arrayBuffer())
+			: undefined;
+	const requestHeaders: Record<string, string> = {};
+	for (const pair of (event.request.headers as any).entries()) {
+		requestHeaders[pair[0]] = pair[1];
+	}
+
+	let phpResponse;
+	try {
+		const message = {
+			method: 'request',
+			args: [
+				{
+					body,
+					url: url.toString(),
+					method: event.request.method,
+					headers: {
+						...requestHeaders,
+						Host: url.host,
+						// Safari and Firefox don't make the User-Agent header
+						// available in the fetch event. Let's add it manually:
+						'User-agent': self.navigator.userAgent,
+						'Content-type': contentType,
+					},
+				},
+			],
+		};
+		const scope = getURLScope(url);
+		if (scope === null) {
+			throw new Error(
+				`The URL ${url.toString()} is not scoped. This should not happen.`
+			);
+		}
+		const requestId = await broadcastMessageExpectReply(message, scope);
+		phpResponse = await awaitReply(self, requestId);
+
+		// X-frame-options gets in the way when PHP is
+		// being displayed in an iframe.
+		delete phpResponse.headers['x-frame-options'];
+
+		/*
+		 * Content-Security-Policy can get in the way when PHP is
+		 * being displayed in an iframe. WordPress 6.9 added a new
+		 * `Content-Security-Policy: frame-ancestors 'self';` header that
+		 * is breaking folks who embed a Playground from another origin.
+		 * https://core.trac.wordpress.org/changeset/60657/
+		 *
+		 * Let's prune the frame-ancestors and avoid clobbering other CSP directives.
+		 *
+		 * NOTE: We expect all header names to be lowercase.
+		 */
+		if (phpResponse.headers['content-security-policy']) {
+			const filteredCspHeaders = phpResponse.headers[
+				'content-security-policy'
+			]
+				// Remove any frame-ancestors directives.
+				.map((originalValue: string) =>
+					removeContentSecurityPolicyDirective(
+						'frame-ancestors',
+						originalValue
+					)
+				)
+				// Remove empty or whitespace-only values.
+				.filter((value: string) => value.trim().length > 0);
+
+			if (filteredCspHeaders.length > 0) {
+				phpResponse.headers['content-security-policy'] =
+					filteredCspHeaders;
+			} else {
+				// There are no remaining CSP directives, so let's remove the header altogether.
+				delete phpResponse.headers['content-security-policy'];
+			}
+		}
+	} catch (e) {
+		console.error(e, { url: url.toString() });
+		throw e;
+	}
+
+	/**
+	 * Redirect responses need `Response.redirect()` because Safari
+	 * service workers cannot redirect via a plain
+	 * `new Response(body, { status: 302, headers: { location } })`.
+	 * See https://bugs.webkit.org/show_bug.cgi?id=282427
+	 *
+	 * Before redirecting, re-scope the Location URL. PHP and WordPress
+	 * emit unscoped paths (e.g. `/wp-admin/`). Resolving against the
+	 * origin would lose the `/scope:…/` prefix, so we add it back.
+	 */
+	if (
+		phpResponse.httpStatusCode >= 300 &&
+		phpResponse.httpStatusCode <= 399 &&
+		phpResponse.headers['location']
+	) {
+		const scope = getURLScope(url);
+		let redirectTarget = new URL(
+			phpResponse.headers['location'][0],
+			url.toString()
+		);
+		if (scope && !isURLScoped(redirectTarget)) {
+			redirectTarget = setURLScope(redirectTarget, scope);
+		}
+		return Response.redirect(
+			redirectTarget.toString(),
+			phpResponse.httpStatusCode
+		);
+	}
+
+	/**
+	 * Make sure we don't pass an actual body string to new Response()
+	 * if the status is a null body status (101, 103, 204, 205, or 304).
+	 * new Response() throws a TypeError in that case, as the fetch() spec
+	 * requires.
+	 *
+	 * @see https://fetch.spec.whatwg.org/#statuses
+	 */
+	const isNullBodyCode = [101, 103, 204, 205, 304].includes(
+		phpResponse.httpStatusCode
+	);
+
+	let responseBody: ReadableStream<Uint8Array> | Uint8Array | null = null;
+	if (!isNullBodyCode) {
+		if (phpResponse.bodyPort) {
+			// Reconstruct the body ReadableStream from the MessagePort.
+			// We couldn't just transfer it directly as this kind of transfer
+			// doesn't seem to be supported between the document and the service worker.
+			responseBody = portToStream(phpResponse.bodyPort);
+		} else {
+			// Fallback: buffered response bytes
+			responseBody = phpResponse.bytes;
+		}
+	}
+
+	return new Response(responseBody as BodyInit | null, {
+		headers: phpResponse.headers,
+		status: phpResponse.httpStatusCode,
+	});
+}
+
+/**
+ * Sends the message to all the controlled clients
+ * of this service worker.
+ *
+ * This used to be implemented with a BroadcastChannel, but
+ * it didn't work in Safari. BroadcastChannel breaks iframe
+ * embedding the playground in Safari.
+ *
+ * Weirdly, Safari does not pass any messages from the ServiceWorker
+ * to Window if the page is rendered inside an iframe. Window to Service
+ * Worker communication works just fine.
+ *
+ * The regular client.postMessage() communication works perfectly, so that's
+ * what this function uses to broadcast the message.
+ *
+ * @param  message The message to broadcast.
+ * @param  scope   Target web worker scope.
+ * @returns The request ID to receive the reply.
+ */
+export async function broadcastMessageExpectReply(message: any, scope: string) {
+	const requestId = getNextRequestId();
+	for (const client of await self.clients.matchAll({
+		// Sometimes the client that triggered the current fetch()
+		// event is considered uncontrolled in Google Chrome. This
+		// only happens on the first few fetches() after the initial
+		// registration of the service worker.
+		includeUncontrolled: true,
+	})) {
+		client.postMessage({
+			...message,
+			/**
+			 * Attach the scope with a URL starting with `/scope:` to this message.
+			 *
+			 * We need this mechanics because this worker broadcasts
+			 * events to all the listeners across all browser tabs. Scopes
+			 * helps WASM workers ignore requests meant for other WASM workers.
+			 */
+			scope,
+			requestId,
+		});
+	}
+	return requestId;
+}
+
+/**
+ * Copy a request with custom overrides.
+ *
+ * This function is only needed because Request properties
+ * are read-only. The only way to change e.g. a URL is to
+ * create an entirely new request:
+ *
+ * https://developer.mozilla.org/en-US/docs/Web/API/Request
+ *
+ * @param  request
+ * @param  overrides
+ * @returns The new request.
+ */
+export async function cloneRequest(
+	request: Request,
+	overrides: Record<string, any>
+): Promise<Request> {
+	let body: ArrayBuffer | ReadableStream | undefined;
+
+	if (['GET', 'HEAD'].includes(request.method)) {
+		body = undefined;
+	} else if ('body' in overrides) {
+		body = overrides['body'];
+	} else if (!request.bodyUsed && request.body) {
+		// If the body hasn't been consumed yet, we can reuse the stream directly
+		// This avoids the hang that occurs when trying to read from a stream
+		// that's still waiting for more data
+		body = request.body;
+	} else {
+		// Otherwise, we need to read the body as an arrayBuffer.
+		// We don't use .blob() because it throws when the client is low
+		// on disk space (blobs tend to be stored as temporary files, array
+		// buffers tend to be stored in memory).
+		// see https://github.com/WordPress/wordpress-playground/issues/2769
+		body = await request.arrayBuffer();
+	}
+
+	return new Request(overrides['url'] || request.url, {
+		body,
+		method: request.method,
+		headers: request.headers,
+		referrer: request.referrer,
+		referrerPolicy: request.referrerPolicy,
+		mode: request.mode === 'navigate' ? 'same-origin' : request.mode,
+		credentials: request.credentials,
+		cache: request.cache,
+		redirect: request.redirect,
+		integrity: request.integrity,
+		/**
+		 * Infer the duplex value in a way that's consistent across browsers. Web browsers
+		 * only support 'half' as of January 2026, but other values may be supported in the future.
+		 * Unfortunately, also as of January 2026, we cannot read the duplex value directly from the
+		 * request object:
+		 *
+		 * > Although duplex can be passed as an option when constructing a Request,
+		 * > it is not currently exposed as a readable property on the resulting Request
+		 * > object in all browsers.
+		 *
+		 * See MDN: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
+		 */
+		...(body instanceof ReadableStream && { duplex: 'half' }),
+		...overrides,
+	});
+}
+
+// Cached result of supportsReadableStreamBody(); undefined means not probed yet.
+let streamBodySupported: boolean | undefined;
+
+/** @internal Test-only utilities — not part of the public API. */
+export const __testing = {
+	resetStreamBodySupported(): void {
+		streamBodySupported = undefined;
+	},
+};
+
+/**
+ * Detects whether the browser supports passing a ReadableStream as the body
+ * of a fetch() request. The result is probed once (via a `data:` URL) and
+ * cached for the lifetime of the page.
+ *
+ * - Chrome: supported (with `duplex: 'half'`).
+ * - Safari: throws `NotSupportedError: ReadableStream uploading is not supported`.
+ * - Firefox: the probe fetch itself may fail; `request.body` is not even exposed.
+ */
+export async function supportsReadableStreamBody(): Promise<boolean> {
+	if (streamBodySupported !== undefined) {
+		return streamBodySupported;
+	}
+	try {
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+		await fetch('data:,', {
+			method: 'POST',
+			body: stream,
+			duplex: 'half',
+		} as RequestInit);
+		streamBodySupported = true;
+	} catch {
+		streamBodySupported = false;
+	}
+	return streamBodySupported;
+}
+
+/**
+ * Extracts headers from a Request as a plain key->value JS object.
+ *
+ * @param request
+ * @returns
+ */
+export function getRequestHeaders(request: Request) {
+	const headers: Record<string, string> = {};
+	request.headers.forEach((value: string, key: string) => {
+		headers[key] = value;
+	});
+	return headers;
+}
+
+/**
+ * Removes the specified directive from the Content-Security-Policy header value.
+ *
+ * @param directiveToRemove The directive name to remove.
+ * @param cspHeader The Content-Security-Policy header value to filter.
+ * @returns The filtered Content-Security-Policy header value.
+ */
+export function removeContentSecurityPolicyDirective(
+	directiveToRemove: string,
+	cspHeader: string
+) {
+	// ASCII whitespace:
+	// @see https://infra.spec.whatwg.org/#ascii-whitespace
+	// eslint-disable-next-line no-control-regex
+	const leadingAsciiWhitespace = /^[\u{9}\u{A}\u{C}\u{D}\u{20}]+/u;
+	// eslint-disable-next-line no-control-regex
+	const trailingAsciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]+$/u;
+	// eslint-disable-next-line no-control-regex
+	const asciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]/u;
+
+	// Parse based on the CSP spec:
+	// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
+	return (
+		cspHeader
+			// "For each token returned by strictly splitting serialized
+			// on the U+003B SEMICOLON character (;):"
+			.split(';')
+			.filter((rawDirective: string) => {
+				// "Strip leading and trailing ASCII whitespace from token."
+				const trimmedDirective = rawDirective
+					.replace(leadingAsciiWhitespace, '')
+					.replace(trailingAsciiWhitespace, '');
+
+				// "Let directive name be the result of collecting a sequence
+				// of code points from token which are not ASCII whitespace."
+				const [directiveName] = trimmedDirective.split(
+					asciiWhitespace,
+					// The directive name is the first token.
+					1
+				);
+
+				// "Directive names are case-insensitive, that is:
+				// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
+				return (
+					directiveName.toLowerCase() !==
+					directiveToRemove.toLowerCase()
+				);
+			})
+			.join(';')
+	);
+}

@@ -1,4 +1,5 @@
 import type { MessageListener } from '@php-wasm/universal';
+import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
@@ -16,6 +17,8 @@ export type { MountDescriptor, WorkerBootOptions };
 import type { WebClientMixin } from './playground-client';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
+
+type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
@@ -127,9 +130,18 @@ export async function bootPlaygroundRemote() {
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	const phpRemoteApi: WebClientMixin = {
+	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
+		},
+		/**
+		 * Re-expose cli() from this iframe instead of piping through the
+		 * worker proxy. WebKit otherwise receives a Comlink function proxy
+		 * from another Comlink proxy and may dispatch the call to an endpoint
+		 * that has not booted yet.
+		 */
+		async cli(argv, options) {
+			return await phpWorkerApi.cli(argv, options);
 		},
 		async journalFSEvents(root: string, callback) {
 			return phpWorkerApi.journalFSEvents(root, callback);
@@ -311,7 +323,9 @@ export async function bootPlaygroundRemote() {
 			 *      the detailed context.
 			 */
 			const navigationComplete = new Promise<void>((resolve) => {
-				wpFrame.addEventListener('load', () => resolve(), { once: true });
+				wpFrame.addEventListener('load', () => resolve(), {
+					once: true,
+				});
 			});
 
 			// If the URL is the same, we need to force a reload
@@ -379,6 +393,10 @@ export async function bootPlaygroundRemote() {
 			return await phpWorkerApi.mountOpfs(options, onProgress);
 		},
 
+		async flushOpfs(mountpoint: string) {
+			return await phpWorkerApi.flushOpfs(mountpoint);
+		},
+
 		/**
 		 * Ditto for this function.
 		 * @see onMessage
@@ -423,17 +441,52 @@ export async function bootPlaygroundRemote() {
 						return;
 					}
 
-					// Wait for the PHP API client to be set by bootPlaygroundRemote
 					const args = event.data.args || [];
 					const method = event.data
 						.method as keyof PlaygroundWorkerEndpoint;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-					const result = await (phpWorkerApi[method] as Function)(
-						...args
-					);
-					event.source!.postMessage(
-						responseTo(event.data.requestId, result)
-					);
+
+					if (method === 'request') {
+						const streamedResponse = await (
+							phpWorkerApi.requestStreamed as any
+						)(...args);
+						const httpStatusCode =
+							await streamedResponse.httpStatusCode;
+						const headers = await streamedResponse.headers;
+
+						/**
+						 * ReadableStreams are transferable, but cannot be
+						 * transferred to the service worker.
+						 *
+						 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+						 * message when the transfer list contains a ReadableStream.
+						 * The call succeeds and the stream detaches from the sender,
+						 * but the message never arrives at the service worker.
+						 *
+						 * To work around this, we bridge the body stream via a MessagePort.
+						 *
+						 * See:
+						 * * https://github.com/whatwg/streams/issues/1063
+						 * * https://github.com/whatwg/streams/issues/276
+						 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+						 */
+						const bodyPort = streamToPort(streamedResponse.stdout);
+						(event.source! as ServiceWorker).postMessage(
+							responseTo(event.data.requestId, {
+								httpStatusCode,
+								headers,
+								bodyPort,
+							}),
+							[bodyPort]
+						);
+					} else {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+						const result = await (phpWorkerApi[method] as Function)(
+							...args
+						);
+						event.source!.postMessage(
+							responseTo(event.data.requestId, result)
+						);
+					}
 				}
 			);
 			sw.startMessages();

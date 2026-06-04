@@ -9,7 +9,7 @@ import {
 } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
@@ -77,9 +77,14 @@ would not suffer fools gladly.`;
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+const phpLoaderOptions: PHPLoaderOptions[] = [{}, { extensions: ['xdebug'] }];
 
 phpLoaderOptions.forEach((options) => {
+	// Tests are skipped when Xdebug is enabled because Xdebug alters PHP's
+	// output format and process behavior, which breaks exact text assertions.
+	// These tests cover core features that only need to run once without Xdebug.
+	const skip = options.extensions?.includes('xdebug') ?? false;
+
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
@@ -96,7 +101,7 @@ phpLoaderOptions.forEach((options) => {
 			php.exit();
 		});
 
-		describe('php.runStream()', { skip: options.withXdebug }, () => {
+		describe('php.runStream()', { skip }, () => {
 			it('should return a StreamedPHPResponse', async () => {
 				const streamed = await php.runStream({
 					code: '<?php echo "test";',
@@ -447,7 +452,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('ENV variables', { skip: options.withXdebug }, () => {
+		describe('ENV variables', { skip }, () => {
 			it('Supports setting per-request ENV variables', async () => {
 				const result = await php.run({
 					env: {
@@ -478,7 +483,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('exec()', { skip: options.withXdebug }, () => {
+		describe('exec()', { skip }, () => {
 			it('echo', async () => {
 				const result = await php.run({
 					code: `<?php
@@ -489,7 +494,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('shell_exec()', { skip: options.withXdebug }, () => {
+		describe('shell_exec()', { skip }, () => {
 			it('echo', async () => {
 				const result = await php.run({
 					code: `<?php
@@ -503,24 +508,20 @@ phpLoaderOptions.forEach((options) => {
 		/**
 		 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
 		 */
-		describe(
-			'dns_* function warnings',
-			{ skip: options.withXdebug },
-			() => {
-				it('dns_check_record should throw a warning', async () => {
-					const result = await php.run({
-						code: `<?php
+		describe('dns_* function warnings', { skip }, () => {
+			it('dns_check_record should throw a warning', async () => {
+				const result = await php.run({
+					code: `<?php
 					dns_check_record('w.org', 2);
 				`,
-					});
-					expect(result.text).toContain(
-						'dns_check_record() always returns false in PHP.wasm.'
-					);
 				});
-			}
-		);
+				expect(result.text).toContain(
+					'dns_check_record() always returns false in PHP.wasm.'
+				);
+			});
+		});
 
-		describe('dns_* functions()', { skip: options.withXdebug }, () => {
+		describe('dns_* functions()', { skip }, () => {
 			beforeEach(async () => {
 				await setPhpIniEntries(php, {
 					...getPhpIniEntries(php),
@@ -570,7 +571,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('dns constants', { skip: options.withXdebug }, () => {
+		describe('dns constants', { skip }, () => {
 			it('DNS_* constants should exist', async () => {
 				const result = await php.run({
 					code: `<?php echo json_encode(array(
@@ -756,7 +757,6 @@ phpLoaderOptions.forEach((options) => {
 			it(
 				'cat: stdin=pipe, stdout=file, stderr=file, file_get_contents',
 				async () => {
-					console.log({ withXdebug: options.withXdebug });
 					const result = await php.run({
 						code: `<?php
 						$res = proc_open(
@@ -1107,7 +1107,7 @@ phpLoaderOptions.forEach((options) => {
 
 			it(
 				'feof() returns true when exhausted the synchronous data',
-				{ skip: options.withXdebug },
+				{ skip },
 				async () => {
 					const handler = createSpawnHandler(
 						async (command: string[], processApi: any) => {
@@ -1150,7 +1150,7 @@ phpLoaderOptions.forEach((options) => {
 
 			it(
 				'feof() returns true when exhausted the asynchronous data',
-				{ skip: options.withXdebug },
+				{ skip },
 				async () => {
 					const handler = createSpawnHandler(
 						async (command: string[], processApi: any) => {
@@ -1407,37 +1407,31 @@ phpLoaderOptions.forEach((options) => {
 				php.setSpawnHandler(handler);
 
 				const startTime = Date.now();
-				try {
-					await php.run({
-						code: `<?php
-							$res = proc_open(
-								"hanging_command",
-								array(
-									array("pipe","r"),
-									array("pipe","w"),
-									array("pipe","w"),
-								),
-								$pipes
-							);
-							// This will block – it's a blocking pipe and will never
-							// output any data.
-							fread($pipes[1], 1024);
-						`,
-					});
-					// Should not reach here
-					expect(false).toBe(true);
-				} catch (e) {
-					console.log(e);
-					const elapsed = Date.now() - startTime;
-					// Should timeout around 5 seconds (allowing some margin)
-					expect(elapsed).toBeGreaterThan(4500);
-					expect(elapsed).toBeLessThan(6000);
-					expect(spawnHandlerCalled).toBe(true);
-				}
+				await php.run({
+					code: `<?php
+						$res = proc_open(
+							"hanging_command",
+							array(
+								array("pipe","r"),
+								array("pipe","w"),
+								array("pipe","w"),
+							),
+							$pipes
+						);
+						// This will block – it's a blocking pipe and will never
+						// output any data.
+						fread($pipes[1], 1024);
+					`,
+				});
+				const elapsed = Date.now() - startTime;
+				// Should timeout around 5 seconds (allowing some margin)
+				expect(elapsed).toBeGreaterThan(4500);
+				expect(elapsed).toBeLessThan(6000);
+				expect(spawnHandlerCalled).toBe(true);
 			}, 10000);
 		});
 
-		describe('Filesystem', { skip: options.withXdebug }, () => {
+		describe('Filesystem', { skip }, () => {
 			// Unit tests for the filesystem methods of the
 			// PHP runtime.
 			it('writeFile() should create a file when it does not exist', () => {
@@ -1605,6 +1599,182 @@ phpLoaderOptions.forEach((options) => {
 				).toEqual(false);
 				expect(php.fileExists('/tmp/test.txt')).toEqual(true);
 				expect(php.readFileAsText('/tmp/test.txt')).toEqual('contents');
+			});
+
+			it('cp() should copy a file', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/2.txt';
+
+				php.writeFile(file1, '1');
+				php.cp(file1, file2);
+
+				expect(php.fileExists(file1)).toEqual(true);
+				expect(php.fileExists(file2)).toEqual(true);
+				expect(php.readFileAsText(file2)).toEqual('1');
+			});
+
+			it('cp() should replace target file if it exists', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/2.txt';
+
+				php.writeFile(file1, '1');
+				php.writeFile(file2, '2');
+
+				php.cp(file1, file2);
+
+				expect(php.fileExists(file1)).toEqual(true);
+				expect(php.fileExists(file2)).toEqual(true);
+				expect(php.readFileAsText(file2)).toEqual('1');
+			});
+
+			it('cp() should recursively copy a directory', () => {
+				php.mkdir(testDirPath);
+				const sourceDir = testDirPath + '/dir1';
+				const targetDir = testDirPath + '/dir2';
+
+				php.mkdir(sourceDir);
+				php.writeFile(sourceDir + '/a.txt', 'A');
+				php.mkdir(sourceDir + '/nested');
+				php.writeFile(sourceDir + '/nested/b.txt', 'B');
+
+				php.cp(sourceDir, targetDir);
+
+				expect(php.fileExists(sourceDir + '/a.txt')).toEqual(true);
+				expect(php.fileExists(targetDir + '/a.txt')).toEqual(true);
+				expect(php.fileExists(targetDir + '/nested/b.txt')).toEqual(
+					true
+				);
+				expect(php.readFileAsText(targetDir + '/a.txt')).toEqual('A');
+				expect(php.readFileAsText(targetDir + '/nested/b.txt')).toEqual(
+					'B'
+				);
+			});
+
+			it('cp() should throw a useful error when source file does not exist', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/2.txt';
+
+				expect(() => {
+					php.cp(file1, file2);
+				}).toThrowError(
+					`Could not copy ${file1} to ${file2}: There is no such file or directory OR the parent directory does not exist.`
+				);
+			});
+
+			it('cp() should throw a useful error when target directory does not exist', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/nowhere/2.txt';
+
+				php.writeFile(file1, '1');
+
+				expect(() => {
+					php.cp(file1, file2);
+				}).toThrowError(
+					`Could not copy ${file1} to ${file2}: There is no such file or directory OR the parent directory does not exist.`
+				);
+			});
+
+			it('cp() should not allow copying a directory into itself', () => {
+				php.mkdir(testDirPath);
+				const dir = testDirPath + '/dir';
+
+				php.mkdir(dir);
+
+				expect(() => {
+					php.cp(dir, `${dir}/nested`);
+				}).toThrow(
+					`Could not copy ${dir} to ${dir}/nested: Invalid argument.`
+				);
+			});
+
+			it('cp() from NODEFS to MEMFS should work', () => {
+				php.mount(
+					'/nodefs',
+					createNodeFsMountHandler(
+						__dirname + '/test-data/mount-contents'
+					)
+				);
+				php.mkdir('/nodefs/tmp-dir-for-cp-test');
+				expect(
+					existsSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test'
+					)
+				).toEqual(true);
+
+				php.writeFile(
+					'/nodefs/tmp-dir-for-cp-test/test.txt',
+					'contents'
+				);
+				php.cp(
+					'/nodefs/tmp-dir-for-cp-test',
+					'/tmp/tmp-dir-for-cp-test'
+				);
+				expect(
+					existsSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test'
+					)
+				).toEqual(true);
+				expect(php.fileExists('/nodefs/tmp-dir-for-cp-test')).toEqual(
+					true
+				);
+				expect(php.fileExists('/tmp/tmp-dir-for-cp-test')).toEqual(
+					true
+				);
+				expect(
+					php.readFileAsText('/tmp/tmp-dir-for-cp-test/test.txt')
+				).toEqual('contents');
+
+				rmSync(
+					__dirname + '/test-data/mount-contents/tmp-dir-for-cp-test',
+					{
+						recursive: true,
+					}
+				);
+			});
+
+			it('cp() from MEMFS to NODEFS should work', () => {
+				php.mount(
+					'/nodefs',
+					createNodeFsMountHandler(
+						__dirname + '/test-data/mount-contents'
+					)
+				);
+
+				php.mkdir('/tmp/tmp-dir-for-cp-test');
+				php.writeFile('/tmp/tmp-dir-for-cp-test/test.txt', 'contents');
+				php.cp(
+					'/tmp/tmp-dir-for-cp-test',
+					'/nodefs/tmp-dir-for-cp-test'
+				);
+				expect(php.fileExists('/tmp/tmp-dir-for-cp-test')).toEqual(
+					true
+				);
+				expect(
+					existsSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test'
+					)
+				).toEqual(true);
+				expect(
+					readFileSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test/test.txt',
+						'utf-8'
+					)
+				).toEqual('contents');
+
+				rmSync(
+					__dirname + '/test-data/mount-contents/tmp-dir-for-cp-test',
+					{
+						recursive: true,
+					}
+				);
 			});
 
 			it('mkdir() should create a directory', () => {

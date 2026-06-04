@@ -2,7 +2,7 @@
 	"name": "php-wasm-compile-shared-redis",
 	"$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
 	"targets": {
-		"node:jspi": {
+		"jspi": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
@@ -11,17 +11,17 @@
 				"parallel": false
 			}
 		},
-		"node:jspi:all": {
+		"jspi:all": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"nx run php-wasm-compile-shared-redis:node:jspi --PHP_VERSION=8.5",
-					"nx run php-wasm-compile-shared-redis:node:jspi --PHP_VERSION=8.4",
-					"nx run php-wasm-compile-shared-redis:node:jspi --PHP_VERSION=8.3",
-					"nx run php-wasm-compile-shared-redis:node:jspi --PHP_VERSION=8.2",
-					"nx run php-wasm-compile-shared-redis:node:jspi --PHP_VERSION=8.1",
-					"nx run php-wasm-compile-shared-redis:node:jspi --PHP_VERSION=8.0",
-					"nx run php-wasm-compile-shared-redis:node:jspi --PHP_VERSION=7.4"
+					"nx run php-wasm-compile-shared-redis:jspi --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-redis:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-redis:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-redis:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-redis:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-redis:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-redis:jspi --PHP_VERSION=7.4"
 				],
 				"parallel": false
 			}

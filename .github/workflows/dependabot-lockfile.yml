@@ -4,14 +4,17 @@ on:
     pull_request:
         types: [opened, synchronize]
 
-permissions:
-    contents: write
-    pull-requests: write
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
 
 jobs:
     fix-lock:
         if: github.actor == 'dependabot[bot]'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: write # Required to push the updated lockfile commit back to the branch.
         steps:
             - uses: actions/checkout@v4
               with:

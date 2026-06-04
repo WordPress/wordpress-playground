@@ -25,7 +25,9 @@ Mukhang walang nangyayari, pero ang Blueprint na ito ay gumagawa na ng WordPress
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{})
 
-:::tip **Autocomplete**
+<div class="callout callout-tip">
+
+**Autocomplete**
 
 Kung gumagamit ka ng IDE, tulad ng VS Code o PHPStorm, maaari mong gamitin ang [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) para sa autocompleted na Blueprint development experience. Magdagdag ng sumusunod na line sa itaas ng iyong `blueprint.json` file:
 
@@ -35,10 +37,10 @@ Kung gumagamit ka ng IDE, tulad ng VS Code o PHPStorm, maaari mong gamitin ang [
 }
 ```
 
-:::
+</div>
 Ganito ang itsura nito sa VS Code:
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. I-set ang site title sa "My first Blueprint"
 
@@ -113,25 +115,27 @@ Ang Adventurer ay isang open-source theme na [available sa WordPress theme direc
 
 Ang site ay dapat na mukhang ganito sa screenshot sa ibaba:
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### Mga Resource
 
 Ang `themeData` ay nagde-define ng [resource](/blueprints/steps/resources) at nagre-reference ng external file na kailangan para makumpleto ang step. Ang Playground ay sumusuporta sa iba't ibang uri ng resources, kasama ang
 
--   `url`,
--   `wordpress.org/themes`,
--   `wordpress.org/plugins`,
--   `vfs`(virtual file system), o
--   `literal`.
+- `url`,
+- `wordpress.org/themes`,
+- `wordpress.org/plugins`,
+- `vfs`(virtual file system), o
+- `literal`.
 
 Ang example ay gumagamit ng `wordpress.org/themes` resource, na nangangailangan ng `slug` na identical sa ginagamit sa WordPress theme directory:
 
 Sa kasong ito, `https://wordpress.org/themes/<slug>/` ay nagiging `https://wordpress.org/themes/adventurer/`.
 
-:::note
+<div class="callout callout-info">
+
 Matuto pa tungkol sa mga supported na resources sa [Blueprint Resources API Reference](/blueprints/steps/resources/).
-:::
+
+</div>
 
 ## 4. I-install ang _Hello Dolly_ plugin
 
@@ -273,7 +277,7 @@ Narito ang kumpletong Blueprint:
 
 Ganito ang itsura nito kapag nag-navigate ka sa dashboard:
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### Gumawa ng plugin at i-zip ito
 

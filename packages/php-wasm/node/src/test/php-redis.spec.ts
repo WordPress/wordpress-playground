@@ -11,7 +11,11 @@
  * operations. These tests are skipped when JSPI is not available.
  */
 
-import { PHP, SupportedPHPVersions, type SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	PHP,
+	SupportedPHPVersions,
+	type SupportedPHPVersion,
+} from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 import { jspi } from 'wasm-feature-detect';
 
@@ -38,21 +42,20 @@ if (!isJspiAvailable) {
 	`);
 	describe('Redis Extension (requires REDIS_HOST)', () => {
 		it('skipped - REDIS_HOST not set', () => {
-			throw new Error( 'REDIS_HOST not set' );
+			throw new Error('REDIS_HOST not set');
 		});
 	});
 } else {
+	const phpVersions =
+		'PHP' in process.env
+			? [process.env['PHP']! as SupportedPHPVersion]
+			: SupportedPHPVersions;
 
-const phpVersions =
-	'PHP' in process.env
-		? [process.env['PHP']! as SupportedPHPVersion]
-		: SupportedPHPVersions;
-
-/**
- * PHP helper function that creates a configured Redis instance with proper
- * timeout settings for WebSocket-based TCP connections.
- */
-const createRedisPHP = () => `
+	/**
+	 * PHP helper function that creates a configured Redis instance with proper
+	 * timeout settings for WebSocket-based TCP connections.
+	 */
+	const createRedisPHP = () => `
 	function createRedis() {
 		$r = new Redis();
 		// Set timeouts to give WebSocket proxy time to connect
@@ -61,48 +64,50 @@ const createRedisPHP = () => `
 	}
 `;
 
-/**
- * Test that the Redis extension loads and provides the expected API.
- * This test does not require a running Redis server.
- */
-describe('Redis Extension', () => {
-	describe.each(phpVersions)('PHP %s', (phpVersion) => {
-		let php: PHP;
+	/**
+	 * Test that the Redis extension loads and provides the expected API.
+	 * This test does not require a running Redis server.
+	 */
+	describe('Redis Extension', () => {
+		describe.each(phpVersions)('PHP %s', (phpVersion) => {
+			let php: PHP;
 
-		beforeEach(async () => {
-			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withRedis: true })
-			);
-		});
+			beforeEach(async () => {
+				php = new PHP(
+					await loadNodeRuntime(phpVersion as any, {
+						extensions: ['redis'],
+					})
+				);
+			});
 
-		afterEach(() => {
-			php?.exit();
-		});
+			afterEach(() => {
+				php?.exit();
+			});
 
-		it('loads the redis extension', async () => {
-			const result = await php.run({
-				code: `<?php
+			it('loads the redis extension', async () => {
+				const result = await php.run({
+					code: `<?php
 					echo extension_loaded('redis') ? 'LOADED' : 'NOT_LOADED';
 				?>`,
+				});
+				expect(result.text).toBe('LOADED');
+				expect(result.errors).toBeFalsy();
 			});
-			expect(result.text).toBe('LOADED');
-			expect(result.errors).toBeFalsy();
-		});
 
-		it('can instantiate Redis class', async () => {
-			const result = await php.run({
-				code: `<?php
+			it('can instantiate Redis class', async () => {
+				const result = await php.run({
+					code: `<?php
 					$r = new Redis();
 					echo ($r instanceof Redis) ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
 
-		it('has expected methods available', async () => {
-			const result = await php.run({
-				code: `<?php
+			it('has expected methods available', async () => {
+				const result = await php.run({
+					code: `<?php
 					$methods = [
 						'connect', 'pconnect', 'close',
 						'get', 'set', 'del', 'delete',
@@ -125,14 +130,14 @@ describe('Redis Extension', () => {
 					}
 					echo empty($missing) ? 'ALL_PRESENT' : 'MISSING: ' . implode(', ', $missing);
 				?>`,
+				});
+				expect(result.text).toBe('ALL_PRESENT');
+				expect(result.errors).toBeFalsy();
 			});
-			expect(result.text).toBe('ALL_PRESENT');
-			expect(result.errors).toBeFalsy();
-		});
 
-		it('has expected constants defined', async () => {
-			const result = await php.run({
-				code: `<?php
+			it('has expected constants defined', async () => {
+				const result = await php.run({
+					code: `<?php
 					$constants = [
 						'Redis::REDIS_STRING',
 						'Redis::REDIS_SET',
@@ -149,30 +154,32 @@ describe('Redis Extension', () => {
 					}
 					echo empty($missing) ? 'ALL_DEFINED' : 'MISSING: ' . implode(', ', $missing);
 				?>`,
+				});
+				expect(result.text).toBe('ALL_DEFINED');
+				expect(result.errors).toBeFalsy();
 			});
-			expect(result.text).toBe('ALL_DEFINED');
-			expect(result.errors).toBeFalsy();
 		});
 	});
-});
 
-describe('Redis Network Integration', () => {
-	describe.each(phpVersions)('PHP %s', (phpVersion) => {
-		let php: PHP;
+	describe('Redis Network Integration', () => {
+		describe.each(phpVersions)('PHP %s', (phpVersion) => {
+			let php: PHP;
 
-		beforeEach(async () => {
-			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withRedis: true })
-			);
-		});
+			beforeEach(async () => {
+				php = new PHP(
+					await loadNodeRuntime(phpVersion as any, {
+						extensions: ['redis'],
+					})
+				);
+			});
 
-		afterEach(() => {
-			php?.exit();
-		});
+			afterEach(() => {
+				php?.exit();
+			});
 
-		it('can connect to Redis server', async () => {
-			const result = await php.run({
-				code: `<?php
+			it('can connect to Redis server', async () => {
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -185,18 +192,18 @@ describe('Redis Network Integration', () => {
 						echo 'PING_FAILED: ' . var_export($pong, true);
 					}
 				?>`,
+				});
+
+				expect(result.text).toBe('CONNECTED');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('CONNECTED');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can set and get values', async () => {
+				const testKey = `test_key_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+				const testValue = 'Hello from PHP-WASM!';
 
-		it('can set and get values', async () => {
-			const testKey = `test_key_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-			const testValue = 'Hello from PHP-WASM!';
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -222,17 +229,74 @@ describe('Redis Network Integration', () => {
 
 					echo $retrieved;
 				?>`,
+				});
+
+				expect(result.text).toBe(testValue);
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe(testValue);
-			expect(result.errors).toBeFalsy();
-		});
+			it('honors a custom read timeout against a blocking Redis command', async () => {
+				const testKey = `test_read_timeout_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can set values with expiration', async () => {
-			const testKey = `test_expiry_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+				const result = await php.run({
+					code: `<?php
+					$r = new Redis();
+					$r->connect('${REDIS_HOST}', ${REDIS_PORT}, 5.0);
 
-			const result = await php.run({
-				code: `<?php
+					if (!defined('Redis::OPT_READ_TIMEOUT')) {
+						echo json_encode([
+							'outcome' => 'MISSING_OPT_READ_TIMEOUT',
+						]);
+						exit;
+					}
+
+					$key = '${testKey}';
+					$r->del($key);
+					$r->setOption(Redis::OPT_READ_TIMEOUT, 0.2);
+
+					$start = microtime(true);
+					$outcome = 'UNKNOWN';
+					$error = null;
+
+					try {
+						$value = $r->blPop([$key], 2);
+						$outcome = $value === false ? 'FALSE' : 'VALUE';
+					} catch (Throwable $e) {
+						$outcome = 'EXCEPTION';
+						$error = $e->getMessage();
+					}
+
+					$elapsedMs = (int) round((microtime(true) - $start) * 1000);
+					$r->close();
+
+					echo json_encode([
+						'outcome' => $outcome,
+						'elapsedMs' => $elapsedMs,
+						'error' => $error,
+					]);
+				?>`,
+				});
+
+				const timeoutResult = JSON.parse(result.text) as {
+					outcome: string;
+					elapsedMs: number;
+					error: string | null;
+				};
+				expect(['EXCEPTION', 'FALSE']).toContain(timeoutResult.outcome);
+				expect(timeoutResult.elapsedMs).toBeGreaterThanOrEqual(100);
+				expect(timeoutResult.elapsedMs).toBeLessThan(1500);
+				if (timeoutResult.outcome === 'EXCEPTION') {
+					expect(timeoutResult.error).toMatch(
+						/read|socket|timed? out/i
+					);
+				}
+			});
+
+			it('can set values with expiration', async () => {
+				const testKey = `test_expiry_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -250,17 +314,17 @@ describe('Redis Network Integration', () => {
 
 					echo ($value !== false && $ttl > 0) ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can delete values', async () => {
+				const testKey = `test_delete_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can delete values', async () => {
-			const testKey = `test_delete_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -277,17 +341,17 @@ describe('Redis Network Integration', () => {
 
 					echo ($deleteResult >= 1 && $value === false) ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can increment and decrement values', async () => {
+				const testKey = `test_incr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can increment and decrement values', async () => {
-			const testKey = `test_incr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -308,17 +372,17 @@ describe('Redis Network Integration', () => {
 					// Should be 10 + 5 = 15, then 15 - 3 = 12
 					echo "incr:$afterIncr,decr:$afterDecr";
 				?>`,
+				});
+
+				expect(result.text).toBe('incr:15,decr:12');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('incr:15,decr:12');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can handle multiple keys with mget/mset', async () => {
+				const prefix = `test_multi_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can handle multiple keys with mget/mset', async () => {
-			const prefix = `test_multi_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -347,17 +411,17 @@ describe('Redis Network Integration', () => {
 
 					echo $allMatch ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can work with hash data structures', async () => {
+				const testKey = `test_hash_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can work with hash data structures', async () => {
-			const testKey = `test_hash_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -386,17 +450,17 @@ describe('Redis Network Integration', () => {
 
 					echo $isValid ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can work with list data structures', async () => {
+				const testKey = `test_list_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can work with list data structures', async () => {
-			const testKey = `test_list_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -421,17 +485,17 @@ describe('Redis Network Integration', () => {
 
 					echo $isValid ? 'SUCCESS' : "FAILED: len=$len, first=$first";
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can work with set data structures', async () => {
+				const testKey = `test_set_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can work with set data structures', async () => {
-			const testKey = `test_set_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -460,17 +524,17 @@ describe('Redis Network Integration', () => {
 
 					echo $isValid ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can work with sorted set data structures', async () => {
+				const testKey = `test_zset_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can work with sorted set data structures', async () => {
-			const testKey = `test_zset_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -500,15 +564,15 @@ describe('Redis Network Integration', () => {
 
 					echo $isValid ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
-
-		it('handles non-existent keys gracefully', async () => {
-			const result = await php.run({
-				code: `<?php
+			it('handles non-existent keys gracefully', async () => {
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -516,17 +580,17 @@ describe('Redis Network Integration', () => {
 
 					echo ($value === false) ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can check if keys exist', async () => {
+				const testKey = `test_exists_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can check if keys exist', async () => {
-			const testKey = `test_exists_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -546,17 +610,17 @@ describe('Redis Network Integration', () => {
 
 					echo (!$beforeSet && $afterSet) ? 'SUCCESS' : 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
-		});
+			it('can use setnx to only set if key does not exist', async () => {
+				const testKey = `test_setnx_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-		it('can use setnx to only set if key does not exist', async () => {
-			const testKey = `test_setnx_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-			const result = await php.run({
-				code: `<?php
+				const result = await php.run({
+					code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -578,12 +642,42 @@ describe('Redis Network Integration', () => {
 						? 'SUCCESS'
 						: 'FAILED';
 				?>`,
+				});
+
+				expect(result.text).toBe('SUCCESS');
+				expect(result.errors).toBeFalsy();
 			});
 
-			expect(result.text).toBe('SUCCESS');
-			expect(result.errors).toBeFalsy();
+			it('setex serializes values the same as set (#3406)', async () => {
+				const prefix = `test_setex_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+				const result = await php.run({
+					code: `<?php
+					${createRedisPHP()}
+					$r = createRedis();
+
+					$r->setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_PHP);
+					$r->set('${prefix}_set', [1, 2, 3]);
+					$r->setex('${prefix}_setex', 3600, [1, 2, 3]);
+
+					$r->setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_NONE);
+					$set_raw = $r->get('${prefix}_set');
+					$setex_raw = $r->get('${prefix}_setex');
+
+					$r->del('${prefix}_set');
+					$r->del('${prefix}_setex');
+
+					echo json_encode([
+						'set' => $set_raw,
+						'setex' => $setex_raw,
+					]);
+				?>`,
+				});
+
+				expect(result.errors).toBeFalsy();
+				const results = JSON.parse(result.text);
+				expect(results.setex).toBe(results.set);
+			});
 		});
 	});
-});
-
 } // End of else block for JSPI/REDIS_HOST check

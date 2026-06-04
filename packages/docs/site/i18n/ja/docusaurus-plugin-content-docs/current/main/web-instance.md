@@ -5,10 +5,10 @@ description: ツールバー、設定、インスタンス マネージャーを
 ---
 
 <!--
-# WordPress Playground web instance {#wordpress-playground-web-instance}
+# WordPress Playground web instance
 -->
 
-# WordPress Playground ウェブ インスタンス {#wordpress-playground-web-instance}
+# WordPress Playground ウェブ インスタンス
 
 <!--
 [https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
@@ -42,13 +42,13 @@ The Playground website includes toolbars that customize your instance and provid
 
 Playground Web サイトには、インスタンスをカスタマイズしたり、リソースやユーティリティにすばやくアクセスするためのツールバーが用意されています。
 
-![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
+![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
 
 <!--
-## Customize Playground {#customize-playground}
+## Customize Playground
 -->
 
-## Playground をカスタマイズする {#customize-playground}
+## Playground をカスタマイズする
 
 <!--
 On the toolbar, you'll find:
@@ -65,12 +65,12 @@ On the toolbar, you'll find:
 - **Playground 起動パネル**: WordPress Playground インスタンスを起動するさまざまな方法を表示するパネルです。
 
 <!--
-### Playground Settings {#playground-settings}
+### Playground Settings
 -->
 
-### Playground 設定 {#playground-settings}
+### Playground 設定
 
-![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
+![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
 
 <!--
 The **Playground Settings Panel** includes these [Query API options](/developers/apis/query-api#available-options):
@@ -91,12 +91,12 @@ The **Playground Settings Panel** includes these [Query API options](/developers
 - `networking`: WordPress プラグインディレクトリと WordPress API へのネットワークアクセスを有効にします。
 
 <!--
-## Playground Manager {#playground-manager}
+## Playground Manager
 -->
 
-## Playground マネージャー {#playground-manager}
+## Playground マネージャー
 
-![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
+![Playground settings panel allow users to save export and edit the WordPress directly](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
 
 <!--
 This panel lets you manage Playground instances and provides access to the following panels:
@@ -116,7 +116,7 @@ This panel lets you manage Playground instances and provides access to the follo
 - **データベース**: Adminer と phpMyAdmin でデータベースを管理し、`.sqlite` ファイルとしてダウンロードするツール。
 - **ログ**: 問題が発生したときにログメッセージを表示します。
 
-![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
+![Save Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
 
 <!--
 Click "Save" to create an instance and list it in the Playground Launch Panel. The Playground Dashboard also offers export and download options through the Additional actions menu:
@@ -125,12 +125,12 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 「保存」をクリックすると、インスタンスが作成され、Playground 起動パネルにリストされます。Playground ダッシュボードでは、追加アクションメニューからエクスポートやダウンロードオプションも利用できます:
 
 <!--
-### Additional actions menu {#additional-actions-menu}
+### Additional actions menu
 -->
 
-### 追加アクションメニュー {#additional-actions-menu}
+### 追加アクションメニュー
 
-![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
+![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/additional-options-playground-dashboard.webp)
 
 <!--
 - **Export Pull Request to GitHub**: Export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Watch a [demo of this feature](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
@@ -141,12 +141,12 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 - **zip としてダウンロード**: テーマやプラグインがインストールされた状態を含む、Playground インスタンスのセットアップを含む `.zip` ファイルが作成されます。この `.zip` ファイルには、コンテンツやデータベースの変更は含まれません。
 
 <!--
-### Blueprint Editor {#blueprint-editor}
+### Blueprint Editor
 -->
 
-### ブループリントエディタ {#blueprint-editor}
+### ブループリントエディタ
 
-![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
+![Blueprint editor WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)
 
 <!--
 The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
@@ -155,12 +155,12 @@ The Blueprint editor replaced the older Blueprint builder, offering the ability 
 ブループリントエディタは、以前のブループリントビルダーに代わるもので、複数のブループリントを管理し、コード検証を行う機能を提供します。
 
 <!--
-### Launch Playground Panel {#launch-playground-panel}
+### Launch Playground Panel
 -->
 
-### Playground 起動パネル {#launch-playground-panel}
+### Playground 起動パネル
 
-![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
+![Playground Launch Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 This panel shows all the ways to launch WordPress Playground: import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
@@ -173,17 +173,19 @@ The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery a
 起動パネルには、ブループリントギャラリーからの 40 以上のブループリントと、保存した Playground も一覧表示されます。
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 https://playground.wordpress.net のサイトはコミュニティをサポートするために存在しますが、トラフィックが大幅に増加した場合、引き続き機能するという保証はありません。
 
 一定の可用性が必要な場合は、[独自の WordPress Playground をホスト](/developers/architecture/host-your-own-playground)する必要があります。
-:::
+
+</div>

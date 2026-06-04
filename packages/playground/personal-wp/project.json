@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/personal-wp/src",
 	"projectType": "application",
+	"tags": ["scope:web-client"],
 	"implicitDependencies": ["playground-remote"],
 	"targets": {
 		"build": {
@@ -85,13 +86,22 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/playground/personal-wp"
 			],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/personal-wp"
+			}
+		},
+		"e2e:playwright": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts"
+				],
+				"parallel": false
 			}
 		},
 		"lint": {
@@ -114,6 +124,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

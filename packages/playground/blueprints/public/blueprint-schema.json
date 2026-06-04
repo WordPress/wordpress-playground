@@ -57,8 +57,20 @@
 							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
 						},
 						"wp": {
-							"type": "string",
-							"description": "The preferred WordPress version to use. If not specified, the latest supported version will be used"
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "string",
+									"const": "latest"
+								},
+								{
+									"type": "boolean",
+									"const": false
+								}
+							],
+							"description": "The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time."
 						}
 					},
 					"required": ["php", "wp"],
@@ -175,7 +187,7 @@
 		"BlueprintPHPVersion": {
 			"anyOf": [
 				{
-					"$ref": "#/definitions/SupportedPHPVersion"
+					"$ref": "#/definitions/AllPHPVersion"
 				},
 				{
 					"type": "string",
@@ -188,9 +200,30 @@
 			],
 			"description": "PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation."
 		},
+		"AllPHPVersion": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/PHPNextVersion"
+				},
+				{
+					"$ref": "#/definitions/SupportedPHPVersion"
+				},
+				{
+					"$ref": "#/definitions/LegacyPHPVersion"
+				}
+			]
+		},
+		"PHPNextVersion": {
+			"type": "string",
+			"const": "next"
+		},
 		"SupportedPHPVersion": {
 			"type": "string",
 			"enum": ["8.5", "8.4", "8.3", "8.2", "8.1", "8.0", "7.4"]
+		},
+		"LegacyPHPVersion": {
+			"type": "string",
+			"enum": ["5.2"]
 		},
 		"ExtraLibrary": {
 			"type": "string",

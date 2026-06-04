@@ -4,10 +4,12 @@ import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
 import type {
-	MountDevice,
+	DirectoryHandleMount,
+	PHPWebExtension,
 	SyncProgressCallback,
 	TCPOverFetchOptions,
 } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
@@ -28,8 +30,14 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { PathAlias, PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type {
+	AllPHPVersion,
+	PathAlias,
+	PHP,
+	PHPRequestHandler,
+} from '@php-wasm/universal';
 import {
+	isLegacyPHPVersion,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -48,7 +56,11 @@ import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-build
 import { networkingDisabledFunctions } from './disabled-functions';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+/* @ts-ignore */
+import playgroundWebMuPluginPhp52 from './playground-mu-plugin/0-playground-php52.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
+
+let activeRequestHandler: PHPRequestHandler | undefined;
 
 export interface MountDescriptor {
 	mountpoint: string;
@@ -59,12 +71,13 @@ export interface MountDescriptor {
 export type WorkerBootOptions = {
 	wpVersion?: string;
 	sqliteDriverVersion?: string;
-	phpVersion?: SupportedPHPVersion;
+	phpVersion?: AllPHPVersion;
 	sapiName?: string;
 	scope: string;
-	withIntl: boolean;
+	extensions?: PHPWebExtension[];
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
+	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
 	/** When true, skip default WP install and run Blueprints v2 in the worker */
@@ -73,7 +86,7 @@ export type WorkerBootOptions = {
 	blueprint?: BlueprintDeclaration;
 	/**
 	 * How to handle WordPress installation.
-	 * Defaults to 'install-from-existing-files-if-needed'.
+	 * Defaults to `download-and-install`.
 	 */
 	wordpressInstallMode?: WordPressInstallMode;
 	/**
@@ -105,9 +118,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
 		[];
 
-	unmounts: Record<string, () => any> = {};
+	unmounts: Record<string, () => any> = createNullPrototypeRecord();
+	private opfsMounts: Record<string, DirectoryHandleMount> =
+		createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
+	private requestHandler: PHPRequestHandler | undefined;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
@@ -132,7 +148,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
-		withIntl,
+		extensions,
 		withNetworking,
 		phpVersion,
 		pathAliases,
@@ -141,13 +157,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
-		withIntl: boolean;
+		extensions?: PHPWebExtension[];
 		withNetworking: boolean;
-		phpVersion: SupportedPHPVersion;
+		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			'curl.cainfo': '/internal/shared/ca-bundle.crt',
 		};
 
 		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
@@ -192,12 +209,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		const parsedSiteUrl = new URL(siteUrl);
+		const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
+			phpVersion,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
-					withIntl,
+					extensions,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
@@ -238,7 +257,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					// TODO: Document that this shift is a breaking change.
 					// Proxy the filesystem for all secondary PHP instances to
 					// the primary one.
-					proxyFileSystem(
+					// proxyFileSystem auto-detects legacy PHP from the
+					// replica's runtime and skips the PROXYFS mmap patch
+					// there, so this call is the same for every PHP
+					// version.
+					await proxyFileSystem(
 						await requestHandler.getPrimaryPhp(),
 						php,
 						pathsToProxy
@@ -255,7 +278,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
-					'1-playground-web.php': playgroundWebMuPlugin,
+					// Legacy PHP can't parse closures at all (even with an
+					// early return), so use a minimal compatible stub instead.
+					'1-playground-web.php': isLegacyPhp
+						? playgroundWebMuPluginPhp52
+						: playgroundWebMuPlugin,
 					'playground-includes': {
 						'wp_http_dummy.php': transportDummy,
 						'wp_http_fetch.php': transportFetch,
@@ -296,7 +323,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 
 		const primaryPhp = await requestHandler.getPrimaryPhp();
+		primaryPhp.requestHandler ??= requestHandler;
 		await this.setPrimaryPHP(primaryPhp);
+		this.__internal_setRequestHandler(requestHandler);
+		this.requestHandler = requestHandler;
+		activeRequestHandler = requestHandler;
 		return requestHandler;
 	}
 
@@ -306,6 +337,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		knownRemoteAssetPaths: Set<string>
 	) {
 		const primaryPhp = await requestHandler.getPrimaryPhp();
+		primaryPhp.requestHandler ??= requestHandler;
+		this.requestHandler = requestHandler;
+		activeRequestHandler = requestHandler;
 
 		if (withNetworking) {
 			/**
@@ -368,6 +402,23 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		this.__internal_setRequestHandler(requestHandler);
 	}
 
+	protected override getRequestHandler(required?: true): PHPRequestHandler;
+	protected override getRequestHandler(
+		required: false
+	): PHPRequestHandler | undefined;
+	protected override getRequestHandler(required = true) {
+		const requestHandler =
+			super.getRequestHandler(false) ??
+			this.requestHandler ??
+			activeRequestHandler;
+		if (requestHandler || !required) {
+			return requestHandler;
+		}
+		throw new Error(
+			'Playground worker is not connected to a request handler.'
+		);
+	}
+
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
 	/**
@@ -391,29 +442,51 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	async hasOpfsMount(mountpoint: string) {
-		return mountpoint in this.unmounts;
+		return hasOwnProperty(this.opfsMounts, mountpoint);
 	}
 
 	async mountOpfs(
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
-		const handle = await directoryHandleFromMountDevice(options.device);
 		const php = this.__internal_getPHP()!;
-		this.unmounts[options.mountpoint] = await php.mount(
-			options.mountpoint,
-			createDirectoryHandleMountHandler(handle, {
-				initialSync: {
-					onProgress,
-					direction: options.initialSyncDirection,
-				},
-			})
-		);
+		await this.mountOpfsIntoPhp(php, options, onProgress);
+	}
+
+	async flushOpfs(mountpoint: string) {
+		const opfsMount = this.opfsMounts[mountpoint];
+		if (opfsMount === undefined) {
+			throw new Error(`No OPFS mount found at "${mountpoint}".`);
+		}
+		await opfsMount.flush();
 	}
 
 	async unmountOpfs(mountpoint: string) {
-		this.unmounts[mountpoint]();
-		delete this.unmounts[mountpoint];
+		const opfsMount = this.opfsMounts[mountpoint];
+		const unmount = this.unmounts[mountpoint];
+		if (opfsMount === undefined || unmount === undefined) {
+			throw new Error(`No OPFS mount found at "${mountpoint}".`);
+		}
+		let flushError: unknown;
+		try {
+			await opfsMount.flush();
+		} catch (error) {
+			flushError = error;
+		}
+		try {
+			await unmount();
+		} catch (error) {
+			if (flushError === undefined) {
+				throw error;
+			}
+			logger.error(error);
+		} finally {
+			delete this.unmounts[mountpoint];
+			delete this.opfsMounts[mountpoint];
+		}
+		if (flushError !== undefined) {
+			throw flushError;
+		}
 	}
 
 	async backfillStaticFilesRemovedFromMinifiedBuild() {
@@ -463,4 +536,53 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	async replayFSJournal(events: FilesystemOperation[]) {
 		return replayFSJournal(this.__internal_getPHP()!, events);
 	}
+
+	protected async mountOpfsIntoPhp(
+		php: PHP,
+		options: MountDescriptor,
+		onProgress?: SyncProgressCallback
+	) {
+		if (
+			hasOwnProperty(this.opfsMounts, options.mountpoint) ||
+			hasOwnProperty(this.unmounts, options.mountpoint)
+		) {
+			throw new Error(
+				`OPFS mount already exists at "${options.mountpoint}".`
+			);
+		}
+		const handle = await directoryHandleFromMountDevice(options.device);
+		let opfsMount: DirectoryHandleMount | undefined;
+		const unmount = await php.mount(
+			options.mountpoint,
+			createDirectoryHandleMountHandler(handle, {
+				initialSync: {
+					onProgress,
+					direction: options.initialSyncDirection,
+				},
+				onMount(mount) {
+					opfsMount = mount;
+				},
+			})
+		);
+		if (opfsMount === undefined) {
+			try {
+				await unmount();
+			} catch (error) {
+				logger.error(error);
+			}
+			throw new Error(
+				`Could not create an OPFS mount at "${options.mountpoint}".`
+			);
+		}
+		this.unmounts[options.mountpoint] = unmount;
+		this.opfsMounts[options.mountpoint] = opfsMount;
+	}
+}
+
+function createNullPrototypeRecord<T>() {
+	return Object.create(null) as Record<string, T>;
+}
+
+function hasOwnProperty(object: object, property: PropertyKey) {
+	return Object.prototype.hasOwnProperty.call(object, property);
 }

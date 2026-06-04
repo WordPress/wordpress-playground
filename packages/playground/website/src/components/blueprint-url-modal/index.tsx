@@ -15,6 +15,12 @@ export function BlueprintUrlModal() {
 
 	const closeModal = () => dispatch(setActiveModal(null));
 
+	/**
+	 * Opens the submitted Blueprint URL as a fresh Playground that may be autosaved.
+	 *
+	 * Intentionally uses `newSite()` instead of `newTemporarySite()` so
+	 * in-app Blueprint runs follow the default browser autosave policy.
+	 */
 	const handleSubmit = () => {
 		const trimmed = url.trim();
 		if (!trimmed) {
@@ -23,7 +29,7 @@ export function BlueprintUrlModal() {
 		dispatch(setSiteManagerOpen(false));
 		closeModal();
 		redirectTo(
-			PlaygroundRoute.newTemporarySite({
+			PlaygroundRoute.newSite({
 				query: {
 					'blueprint-url': trimmed,
 				},

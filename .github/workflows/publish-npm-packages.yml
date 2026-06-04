@@ -8,22 +8,27 @@ on:
                 required: true
                 default: 'patch'
             dist_tag:
-                description: 'Dist tag (latest, next, etc.)'
+                description: 'Dist tag (latest, next, etc.). Must be non-"latest" when publishing from a non-trunk branch.'
                 required: false
                 default: 'latest'
     schedule:
         # Auto-publish every Monday
         - cron: '0 9 * * 1'
 
-permissions:
-    id-token: write
-    contents: write
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
+concurrency:
+    group: npm-release
 
 jobs:
     release:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only run on the playground repo, and only allow Playground maintainers to trigger this workflow.
+        # Non-trunk branches are allowed but require a custom dist tag (not "latest").
         if: >
-            github.ref == 'refs/heads/trunk' && (
+            github.repository == 'WordPress/wordpress-playground' &&
+            (
               github.actor == 'adamziel' ||
               github.actor == 'dmsnell' ||
               github.actor == 'bgrgicak' ||
@@ -35,10 +40,23 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        # Timeout is set to an hour as Lerna sequentially publishes a large number of packages
+        # and the workflow regularly takes more than 30 minutes to complete.
+        timeout-minutes: 60
+        permissions:
+            id-token: write # Required for OIDC-based npm trusted publishing.
+            contents: write # Required to push the version bump commit and tags.
         environment:
             name: npm
 
         steps:
+            - name: Require custom dist tag for non-trunk branches
+              if: github.ref != 'refs/heads/trunk' && (inputs.dist_tag == 'latest' || inputs.dist_tag == '')
+              run: |
+                  echo "::error::Publishing from a non-trunk branch requires a custom dist tag (not 'latest')."
+                  echo "Please re-run this workflow and set the dist_tag input to something like 'next', 'canary', or 'beta'."
+                  exit 1
+
             - name: Free up runner disk space
               run: |
                   set -euo pipefail
@@ -52,21 +70,21 @@ jobs:
 
             - uses: actions/checkout@v4
               with:
-                  ref: trunk
+                  ref: ${{ github.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
 
             - name: Configure git
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
 
             - name: Set up Node.js with OIDC
               uses: actions/setup-node@v4
               with:
-                  node-version: '22'
+                  node-version: '20'
                   registry-url: 'https://registry.npmjs.org'
                   cache: 'npm'
 
@@ -77,6 +95,12 @@ jobs:
             - uses: ./.github/actions/prepare-playground
 
             - name: Publish NPM packages
-              # Version bump, release, tag a new version on GitHub
+              # Version bump, release, tag a new version on GitHub.
+              # On non-trunk branches, --no-push avoids pushing the version
+              # bump commit back to the branch. The published packages still
+              # get the version bump in their package.json on npm.
               run: >
-                  lerna publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
+                  lerna publish ${{ inputs.version_bump || 'patch' }}
+                  --yes --no-private --loglevel=verbose
+                  --dist-tag=${{ inputs.dist_tag || 'latest' }}
+                  ${{ github.ref != 'refs/heads/trunk' && '--no-push --no-git-tag-version' || '' }}

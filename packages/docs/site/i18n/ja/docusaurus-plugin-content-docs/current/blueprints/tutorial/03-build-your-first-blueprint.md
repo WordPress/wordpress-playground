@@ -50,7 +50,9 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{})
 
-:::tip **オートコンプリート**
+<div class="callout callout-tip">
+
+**オートコンプリート**
 
 VS Code や PHPStorm などの IDE をご利用の場合は、[Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json)を使用して、自動補完機能を備えたブループリント開発環境を構築できます。`blueprint.json`ファイルの先頭に次の行を追加してください。
 
@@ -60,10 +62,12 @@ VS Code や PHPStorm などの IDE をご利用の場合は、[Blueprint JSON Sc
 }
 ```
 
-:::
+</div>
 
 <!--
-:::tip **Autocomplete**
+<div class="callout callout-tip">
+
+**Autocomplete**
 
 If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
 
@@ -73,7 +77,7 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 }
 ```
 
-:::
+</div>
 -->
 
 VS Code では次のようになります。
@@ -82,7 +86,7 @@ VS Code では次のようになります。
 Here's what it looks like in VS Code:
 -->
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. サイトのタイトルを「My first Blueprint」に設定する
 
@@ -247,7 +251,7 @@ Adventurer is an open-source theme [available in the WordPress theme directory](
 The site should now look like the screenshot below:
 -->
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### リソース
 
@@ -261,11 +265,11 @@ The site should now look like the screenshot below:
 The `themeData` defines a [resource](/blueprints/steps/resources) and referrences an external file required to complete the step. Playground supports different types of resources, including
 -->
 
--   `url`,
--   `wordpress.org/themes`,
--   `wordpress.org/plugins`,
--   `vfs`(仮想的なファイルシステム), または
--   `literal`.
+- `url`,
+- `wordpress.org/themes`,
+- `wordpress.org/plugins`,
+- `vfs`(仮想的なファイルシステム), または
+- `literal`.
 
 <!--
 -   `url`,
@@ -287,14 +291,18 @@ The example uses the `wordpress.org/themes` resource, which requires a `slug` id
 In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`.
 -->
 
-:::note
+<div class="callout callout-info">
+
 サポートされているリソースの詳細については、[Blueprint リソース API リファレンス](/blueprints/steps/resources/)を参照してください。
-:::
+
+</div>
 
 <!--
-:::note
+<div class="callout callout-info">
+
 Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
-:::
+
+</div>
 -->
 
 ## 4. *Hello Dolly*プラグインをインストールする
@@ -554,7 +562,7 @@ Here's the complete Blueprint:
 That's what it looks like when you navigate to the dashboard:
 -->
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### プラグインを作成して圧縮する
 

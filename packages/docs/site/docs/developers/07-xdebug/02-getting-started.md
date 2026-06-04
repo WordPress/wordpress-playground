@@ -12,8 +12,8 @@ This guide shows you how to enable Xdebug in WordPress Playground and start debu
 
 First, Xdebug is present in two different CLIs:
 
--   **`@php-wasm/cli`**: Run standalone PHP scripts. Use this when debugging PHP code without needing a WordPress environment.
--   **`@wp-playground/cli`**: Run a full WordPress installation. Useful for debugging WordPress plugins, themes, or core functionality.
+- **`@php-wasm/cli`**: Run standalone PHP scripts. Use this when debugging PHP code without needing a WordPress environment.
+- **`@wp-playground/cli`**: Run a full WordPress installation. Useful for debugging WordPress plugins, themes, or core functionality.
 
 For this guide, we'll use `@wp-playground/cli`. If you're not familiar with the tool, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`.
 
@@ -27,17 +27,21 @@ npx @wp-playground/cli@latest server --xdebug
 
 This starts WordPress on `http://127.0.0.1:9400` with Xdebug enabled. Now you can connect a debugger.
 
-:::info
+<div class="callout callout-info">
+
 Only one project can be debugged at a time.
-:::
+
+</div>
 
 ## Starting with IDE integration
 
 Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, add the `--experimental-unsafe-ide-integration=phpstorm` flag.
 
-:::info
+<div class="callout callout-info">
+
 This flag is marked as `unsafe` because it edits the IDE config files to set Xdebug path mappings and web server details. **CAUTION:** If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
-:::
+
+</div>
 
 To debug in VS Code, you'll need the following prerequisites:
 
@@ -50,6 +54,7 @@ If everything is ready, you run the command:
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
 ```
+
 If you don't have a `.vscode/launch.json` file, the terminal will create a file similar to this:
 
 ```JSON
@@ -71,7 +76,7 @@ If you don't have a `.vscode/launch.json` file, the terminal will create a file 
 
 Now, you can go to your code, add the breakpoints, start the debugging session named by your IDE, and happy testing.
 
-![Xdebug in action on VS Code](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+![Xdebug in action on VS Code](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
 ## Early Access: DevTools debugger
 
@@ -94,16 +99,16 @@ Booting WordPress...
 WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
-devtools://devtools/bundled/inspector.html?ws=localhost:9229
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
 
 Chrome connected! Initializing Xdebug receiver...
 XDebug receiver running on port 9003
 Running a PHP script with Xdebug enabled...
 ```
 
-By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=localhost:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance.
+By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 
 For a more practical example, let's debug a plugin that has the following code:
 
@@ -141,8 +146,6 @@ npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mou
 
 The Playground CLI(`@wp-playground/cli`) will automatically detect the plugin folder and mount it. Opening the project in your browser and DevTools, you'll be able to add breakpoints in your plugin's code and test it line by line.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
-
-
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 
 This feature is in experimental mode. Until it's finished, we'll need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts.

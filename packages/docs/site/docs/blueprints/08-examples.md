@@ -9,9 +9,11 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 # Blueprints Examples
 
-:::tip
+<div class="callout callout-tip">
+
 Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-:::
+
+</div>
 
 Let's see some cool things you can do with Blueprints.
 
@@ -122,9 +124,11 @@ You can run WP-CLI commands on a Playground instance either from your terminal o
 
 To use your terminal, you must first mount the `/wordpress/` directory and ensure the SQLite database integration is configured. This is because Playground's internal database doesn't persist on a mounted site, so you must explicitly install the database plugin via a Blueprint. This allows WP-CLI to recognize the WordPress installation and connect to its database.
 
-:::note
+<div class="callout callout-info">
+
 If you run WP-CLI commands as steps within your Blueprint file, this manual setup is not needed.
-:::
+
+</div>
 
 The following Blueprint snippet handles this setup:
 
