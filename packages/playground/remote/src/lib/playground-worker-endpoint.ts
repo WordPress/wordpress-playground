@@ -234,11 +234,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 							const response = await this.memoizedFetch(wasmUrl, {
 								credentials: 'same-origin',
 							});
-							onProgress?.('Instantiating PHP runtime');
+							onProgress?.('Streaming and compiling PHP runtime');
 							const wasm = await WebAssembly.instantiateStreaming(
 								response as Response,
 								imports
 							);
+							onProgress?.('Attaching PHP runtime');
 							receiveInstance(wasm.instance, wasm.module);
 							return {} as any;
 						},
