@@ -1,4 +1,12 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import type { KeyboardEvent, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
@@ -1691,7 +1699,7 @@ function AutoBackupPrompt({
 function getInitialBootProgress(): ProgressDetails {
 	return {
 		progress: 0,
-		caption: 'Preparing WordPress',
+		caption: 'Loading Playground iframe',
 	};
 }
 
@@ -1745,7 +1753,7 @@ const LoadingScreenHtml = memo(function LoadingScreenHtml({
 	const hostRef = useRef<HTMLDivElement>(null);
 	const renderedHtmlRef = useRef<string | null>(null);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (renderedHtmlRef.current === html) {
 			return;
 		}

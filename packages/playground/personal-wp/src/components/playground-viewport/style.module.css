@@ -36,6 +36,8 @@
 	z-index: 10;
 	overflow: hidden;
 	background: #fff;
+	color-scheme: light;
+	color: #1e1e1e;
 }
 
 .loading-screen-html {
@@ -96,25 +98,9 @@
 	cursor: pointer;
 }
 
-.loading-ready-button:hover {
+.loading-ready-button:hover,
+.loading-ready-button:focus-visible {
 	background: #2145e6;
-}
-
-@media (prefers-color-scheme: dark) {
-	.loading-screen {
-		background: #111;
-	}
-
-	.loading-progress {
-		border-color: rgba(255, 255, 255, 0.14);
-		background: rgba(30, 30, 30, 0.88);
-		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
-		color: #f0f0f1;
-	}
-
-	.loading-progress-track {
-		background: #3c434a;
-	}
 }
 
 /* Sidebar latch — tab on the bottom-left edge */
