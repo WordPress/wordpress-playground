@@ -52,7 +52,15 @@ export class BlueprintsV1Handler {
 			iframe.contentWindow!,
 			iframe.ownerDocument!.defaultView!
 		) as PlaygroundClient;
+		setProgressCaption(
+			progressTracker,
+			'Waiting for remote Playground runtime'
+		);
 		await playground.isConnected();
+		setProgressCaption(
+			progressTracker,
+			'Resolving Playground runtime versions'
+		);
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);
 		}
@@ -91,6 +99,7 @@ export class BlueprintsV1Handler {
 					'`preferredVersions.wp: false`. Pick one.'
 			);
 		}
+		setProgressCaption(progressTracker, 'Booting PHP and WordPress');
 		await playground.boot({
 			mounts,
 			sapiName,
@@ -104,12 +113,18 @@ export class BlueprintsV1Handler {
 			sqliteDriverVersion,
 			pathAliases,
 		});
+		setProgressCaption(
+			progressTracker,
+			'Waiting for WordPress to be ready'
+		);
 		await playground.isReady();
 		downloadProgress.finish();
 
+		setProgressCaption(progressTracker, 'Connecting Playground client');
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
+		setProgressCaption(progressTracker, 'Preparing blueprint steps');
 		const reflection = await BlueprintReflection.create(blueprint);
 		if (reflection.getVersion() === 1) {
 			const compiled = await compileBlueprintV1(blueprint, {
@@ -119,6 +134,7 @@ export class BlueprintsV1Handler {
 				corsProxy,
 				gitAdditionalHeadersCallback,
 			});
+			setProgressCaption(progressTracker, 'Running blueprint steps');
 			await runBlueprintV1Steps(compiled, playground);
 		}
 
@@ -216,3 +232,10 @@ async function isWpAdminLandingPage(blueprint: BlueprintV1): Promise<boolean> {
 type WordPressInstallMode = NonNullable<
 	StartPlaygroundOptions['wordpressInstallMode']
 >;
+
+function setProgressCaption(
+	progressTracker: ProgressTracker,
+	caption: string
+): void {
+	progressTracker.setCaption?.(caption);
+}

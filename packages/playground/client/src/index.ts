@@ -200,9 +200,10 @@ export async function startPlaygroundWeb(
 			? '1'
 			: undefined,
 	});
-	progressTracker.setCaption('Preparing WordPress');
+	progressTracker.setCaption('Loading Playground iframe');
 
 	await loadIframe(iframe, remoteUrl);
+	progressTracker.setCaption('Connecting to Playground runtime');
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
