@@ -134,6 +134,8 @@
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
 
+			prNumber = prNumber.trim();
+
 			// Extract number from a GitHub URL
 			if (
 				prNumber
@@ -149,9 +151,14 @@
 						.toLowerCase()
 						.includes('github.com/wordpress/gutenberg/pull')
 				) {
-					errorDiv.innerHTML =
-						'This looks like a Gutenberg PR. ' +
-						'Use the <a href="./gutenberg.html">Gutenberg PR previewer</a> instead.';
+					const link = document.createElement('a');
+					link.href = './gutenberg.html';
+					link.textContent = 'Gutenberg PR previewer';
+					errorDiv.replaceChildren(
+						'This looks like a Gutenberg PR. Use the ',
+						link,
+						' instead.'
+					);
 				} else {
 					errorDiv.innerText =
 						'Please enter a valid wordpress-develop PR number or URL.';

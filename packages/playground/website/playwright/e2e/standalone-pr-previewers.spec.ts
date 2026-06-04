@@ -45,6 +45,24 @@ test('wordpress.html: a numeric PR is forwarded to plugin-proxy', async ({
 	expect(capturedUrl).toContain('pr=12345');
 });
 
+test('wordpress.html: whitespace around the PR value is trimmed', async ({
+	page,
+}) => {
+	let capturedUrl = '';
+	await page.route('**/plugin-proxy.php*', (route) => {
+		capturedUrl = route.request().url();
+		return route.fulfill({
+			status: 400,
+			contentType: 'application/json',
+			body: JSON.stringify({ error: 'artifact_expired' }),
+		});
+	});
+	await page.goto('./wordpress.html');
+	await submit(page, '  12345\n');
+	await expect(page.locator('#error')).toContainText('artifact has expired');
+	expect(capturedUrl).toContain('pr=12345');
+});
+
 test('gutenberg.html: pasting a wordpress-develop PR URL points to the WordPress previewer', async ({
 	page,
 }) => {
@@ -86,7 +104,9 @@ test('gutenberg.html: ?pr= URL param is extracted before reaching plugin-proxy',
 				'https://github.com/WordPress/gutenberg/pull/78937'
 			)
 	);
-	await expect(page.locator('#error')).toBeVisible();
+	await expect(page.locator('#error')).toContainText(
+		'does not exist or GitHub CI did not finish'
+	);
 	expect(capturedUrl).toContain('repo=gutenberg');
 	expect(capturedUrl).toContain('pr=78937');
 	expect(capturedUrl).not.toContain('github.com');
