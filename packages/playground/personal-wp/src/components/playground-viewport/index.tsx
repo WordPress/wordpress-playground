@@ -27,10 +27,14 @@ import {
 	refreshMainTabStatus,
 	requestRemoteBlueprintInstall,
 	setInstallBlueprintRequestCallback,
+	setUserBlueprintInstallCallback,
 } from '../../lib/state/redux/tab-coordinator';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
-import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
+import {
+	setBlueprintInstallMessage,
+	setSiteManagerOpen,
+} from '../../lib/state/redux/slice-ui';
 import { playgroundLogo } from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
@@ -980,17 +984,31 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		}
 	}, []);
 
+	const setBlueprintInstallStatus = useCallback(
+		(message: string | null) => {
+			setInstallingBlueprint(message);
+			dispatch(setBlueprintInstallMessage(message));
+		},
+		[dispatch]
+	);
+
 	const scheduleInstallBannerReset = useCallback(() => {
 		clearInstallBannerResetTimeout();
 		installBannerResetTimeoutRef.current = setTimeout(() => {
 			installBannerResetTimeoutRef.current = null;
-			setInstallingBlueprint(null);
+			setBlueprintInstallStatus(null);
 		}, 3000);
-	}, [clearInstallBannerResetTimeout]);
+	}, [clearInstallBannerResetTimeout, setBlueprintInstallStatus]);
 
 	useEffect(() => {
 		return clearInstallBannerResetTimeout;
 	}, [clearInstallBannerResetTimeout]);
+
+	useEffect(() => {
+		return () => {
+			dispatch(setBlueprintInstallMessage(null));
+		};
+	}, [dispatch]);
 
 	useEffect(() => {
 		setIsBooting(true);
@@ -1059,20 +1077,20 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			const allowNavigation = options.allowNavigation ?? true;
 			clearInstallBannerResetTimeout();
 			try {
-				setInstallingBlueprint('Installing\u2026');
+				setBlueprintInstallStatus('Installing\u2026');
 				const { blueprint, declaration } =
 					await resolveBlueprintForInstallExecution(
 						blueprintUrl,
 						corsProxyUrl
 					);
 				const title = declaration.meta?.title || 'app';
-				setInstallingBlueprint(`Installing ${title}\u2026`);
+				setBlueprintInstallStatus(`Installing ${title}\u2026`);
 
 				const progress = new ProgressTracker();
 				progress.addEventListener('progress', ((e: CustomEvent) => {
 					const caption = e.detail?.caption;
 					if (caption) {
-						setInstallingBlueprint(caption);
+						setBlueprintInstallStatus(caption);
 					}
 				}) as EventListener);
 
@@ -1089,28 +1107,35 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					)
 				);
 				if (allowNavigation && declaration.landingPage) {
+					setBlueprintInstallStatus('Opening app\u2026');
 					await playground.goTo(declaration.landingPage);
 				}
 			} catch (e) {
 				logger.error('Failed to apply blueprint:', e);
-				setInstallingBlueprint('Installation failed');
+				setBlueprintInstallStatus('Installation failed');
 				scheduleInstallBannerReset();
 				return {
 					status: 'error',
 					error: getErrorMessage(e),
 				};
 			}
-			setInstallingBlueprint(null);
+			setBlueprintInstallStatus('App installed');
+			scheduleInstallBannerReset();
 			return { status: 'success' };
 		},
-		[clearInstallBannerResetTimeout, playground, scheduleInstallBannerReset]
+		[
+			clearInstallBannerResetTimeout,
+			playground,
+			scheduleInstallBannerReset,
+			setBlueprintInstallStatus,
+		]
 	);
 
 	const applyBlueprintInMainTab = useCallback(
 		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
 			clearInstallBannerResetTimeout();
 			try {
-				setInstallingBlueprint('Installing in the active tab\u2026');
+				setBlueprintInstallStatus('Installing app\u2026');
 				const install = await prepareBlueprintForRemoteInstall(
 					blueprintUrl,
 					corsProxyUrl
@@ -1120,26 +1145,27 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					install.blueprintUrl
 				);
 				if (result.status === 'error') {
-					setInstallingBlueprint('Installation failed');
+					setBlueprintInstallStatus('Installation failed');
 					scheduleInstallBannerReset();
 				} else {
 					if (install.landingPage) {
 						if (!playground) {
-							setInstallingBlueprint('Installation failed');
+							setBlueprintInstallStatus('Installation failed');
 							scheduleInstallBannerReset();
 							return {
 								status: 'error',
 								error: 'The app was installed, but this tab could not open it.',
 							};
 						}
-						setInstallingBlueprint('Opening app\u2026');
+						setBlueprintInstallStatus('Opening app\u2026');
 						await playground.goTo(install.landingPage);
 					}
-					setInstallingBlueprint(null);
+					setBlueprintInstallStatus('App installed');
+					scheduleInstallBannerReset();
 				}
 				return result;
 			} catch (e) {
-				setInstallingBlueprint('Installation failed');
+				setBlueprintInstallStatus('Installation failed');
 				scheduleInstallBannerReset();
 				return {
 					status: 'error',
@@ -1151,7 +1177,37 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			clearInstallBannerResetTimeout,
 			playground,
 			scheduleInstallBannerReset,
+			setBlueprintInstallStatus,
 			siteSlug,
+		]
+	);
+
+	const installBlueprintFromUserAction = useCallback(
+		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
+			if (hasLocalRuntimeClient) {
+				return applyBlueprint(blueprintUrl);
+			}
+			if (!isDependentMode) {
+				return {
+					status: 'error',
+					error: 'Playground is not ready.',
+				};
+			}
+
+			const status = await refreshMainTabStatus();
+			if (status !== 'connected') {
+				return {
+					status: 'error',
+					error: getMainTabUnavailableMessage(status),
+				};
+			}
+			return applyBlueprintInMainTab(blueprintUrl);
+		},
+		[
+			applyBlueprint,
+			applyBlueprintInMainTab,
+			hasLocalRuntimeClient,
+			isDependentMode,
 		]
 	);
 
@@ -1169,6 +1225,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			setInstallBlueprintRequestCallback(null);
 		};
 	}, [applyBlueprint, hasLocalRuntimeClient]);
+
+	useEffect(() => {
+		setUserBlueprintInstallCallback(installBlueprintFromUserAction);
+		return () => {
+			setUserBlueprintInstallCallback(null);
+		};
+	}, [installBlueprintFromUserAction]);
 
 	// Handle relay messages from WordPress plugins.
 	useEffect(() => {

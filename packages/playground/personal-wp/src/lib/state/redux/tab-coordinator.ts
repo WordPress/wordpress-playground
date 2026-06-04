@@ -122,6 +122,9 @@ let backupRequestCallback: (() => Promise<boolean>) | null = null;
 let installBlueprintRequestCallback:
 	| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
 	| null = null;
+let userBlueprintInstallCallback:
+	| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
+	| null = null;
 let mainLockRelease: (() => void) | null = null;
 let readyLockRelease: (() => void) | null = null;
 let mainLockRequest: Promise<unknown> | null = null;
@@ -182,6 +185,7 @@ export function destroyTabCoordinator(): void {
 	currentOptions = {};
 	backupRequestCallback = null;
 	installBlueprintRequestCallback = null;
+	userBlueprintInstallCallback = null;
 	clearTitleFlash();
 }
 
@@ -224,6 +228,33 @@ export function setInstallBlueprintRequestCallback(
 		| null
 ): void {
 	installBlueprintRequestCallback = callback;
+}
+
+export function setUserBlueprintInstallCallback(
+	callback:
+		| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
+		| null
+): void {
+	userBlueprintInstallCallback = callback;
+}
+
+export async function requestBlueprintInstall(
+	siteSlug: string,
+	blueprintUrl: string
+): Promise<InstallBlueprintCommandResult> {
+	if (currentTabInfo?.siteSlug === siteSlug && userBlueprintInstallCallback) {
+		return userBlueprintInstallCallback(blueprintUrl);
+	}
+
+	if (
+		currentTabInfo?.siteSlug === siteSlug &&
+		isCurrentMainTab() &&
+		installBlueprintRequestCallback
+	) {
+		return installBlueprintRequestCallback(blueprintUrl);
+	}
+
+	return requestRemoteBlueprintInstall(siteSlug, blueprintUrl);
 }
 
 export async function requestRemoteBackup(

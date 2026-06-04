@@ -1,5 +1,7 @@
 import type { ProgressTracker } from '@php-wasm/progress';
 import {
+	type BlueprintV1,
+	type BlueprintV1Declaration,
 	type PlaygroundClient,
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
@@ -119,6 +121,7 @@ export class BlueprintsV1Handler {
 
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
+		 *
 		 * Skip for old WordPress versions — the functions called by prefetch
 		 * (wp_check_php_version, wp_update_plugins, etc.) don't exist or crash
 		 * on legacy WP, and the resulting PHP errors create noise. WP 5.0
@@ -131,23 +134,80 @@ export class BlueprintsV1Handler {
 		 * produce NaN, which Number.isFinite rejects — those fall
 		 * through to enabling prefetch (correct for dev builds).
 		 *
+		 * Prefetch only makes sense when WordPress is actually installed because
+		 * prefetchUpdateChecks() executes PHP that requires wp-load.php and calls
+		 * WordPress update-check APIs. In PHP-only mode
+		 * (`preferredVersions.wp: false`), wp-load.php doesn't exist and the
+		 * prefetch crashes the runtime.
+		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
 		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
 		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
-		// Prefetch only makes sense when WordPress is actually installed.
-		// In PHP-only mode (`preferredVersions.wp: false`), wp-load.php
-		// doesn't exist and the prefetch crashes the runtime.
-		if (
+		const shouldPrefetchUpdateChecks =
 			runtimeConfiguration.networking &&
 			!isLegacyWpVersion &&
-			resolvedWordPressInstallMode === 'download-and-install'
-		) {
-			await playground.prefetchUpdateChecks();
+			resolvedWordPressInstallMode === 'download-and-install';
+
+		if (shouldPrefetchUpdateChecks) {
+			/**
+			 * Only wait for the prefetch results if the initial landingPage is wp-admin.
+			 * In all other cases, schedule the pre-fetch in idle time as awaiting it
+			 * would slow down the initial page load.
+			 */
+			if (await isWpAdminLandingPage(blueprint)) {
+				await playground.prefetchUpdateChecks();
+			} else {
+				/**
+				 * Keeps the prefetch outside the frontend boot critical path.
+				 */
+				const prefetch = () => playground.prefetchUpdateChecks();
+				if (globalThis.requestIdleCallback) {
+					globalThis.requestIdleCallback(prefetch, { timeout: 5000 });
+				} else {
+					setTimeout(prefetch, 0);
+				}
+			}
 		}
 
 		return playground;
 	}
+}
+
+/**
+ * Checks if the landing page defined in the blueprint or bundle is
+ * inside wp-admin.
+ */
+async function isWpAdminLandingPage(blueprint: BlueprintV1): Promise<boolean> {
+	if (!blueprint) {
+		return false;
+	}
+	let blueprintDeclaration: BlueprintV1Declaration | undefined = undefined;
+	if (isBlueprintBundle(blueprint)) {
+		const blueprintResult = await blueprint.read('/blueprint.json');
+		const blueprintJson = await blueprintResult.text();
+		blueprint = JSON.parse(blueprintJson) as any;
+		blueprintDeclaration = blueprint as BlueprintV1Declaration;
+	} else {
+		blueprintDeclaration = blueprint;
+	}
+
+	const landingPage = blueprintDeclaration.landingPage;
+	if (!landingPage) {
+		return false;
+	}
+
+	let landingPathname: string;
+	try {
+		landingPathname = new URL(landingPage, 'http://playground.local')
+			.pathname;
+	} catch {
+		return false;
+	}
+	return (
+		landingPathname === '/wp-admin' ||
+		landingPathname.startsWith('/wp-admin/')
+	);
 }
 
 type WordPressInstallMode = NonNullable<

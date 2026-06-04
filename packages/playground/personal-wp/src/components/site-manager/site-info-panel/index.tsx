@@ -28,10 +28,12 @@ import {
 } from '../../../lib/health-check-recovery';
 import { getRelativeDate } from '../../../lib/utils/get-relative-date';
 import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
-import { broadcastSiteReset } from '../../../lib/state/redux/tab-coordinator';
+import {
+	broadcastSiteReset,
+	requestBlueprintInstall,
+} from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
 import { encodeStringAsBase64 } from '../../../lib/base64';
-import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -95,17 +97,28 @@ const APP_LAUNCHER_BLUEPRINT_URL = blueprintToDataUrl(
 	JSON.stringify(APP_LAUNCHER_BLUEPRINT)
 );
 
-function getAppBlueprintUrl(blueprintUrl: string): string {
-	const url = getAppBaseUrl();
-	url.searchParams.set('blueprint-url', blueprintUrl);
-	return url.toString();
-}
-
 function blueprintToDataUrl(blueprint: string): string {
 	return `data:application/json;base64,${encodeStringAsBase64(blueprint)}`;
 }
 
-function InstallAppsSection() {
+function InstallAppsSection({ siteSlug }: { siteSlug: string }) {
+	const installMessage = useAppSelector(
+		(state) => state.ui.blueprintInstallMessage
+	);
+
+	async function installAppLauncher() {
+		if (installMessage) {
+			return;
+		}
+		const result = await requestBlueprintInstall(
+			siteSlug,
+			APP_LAUNCHER_BLUEPRINT_URL
+		);
+		if (result.status === 'error') {
+			logger.error('Failed to install App Launcher:', result.error);
+		}
+	}
+
 	return (
 		<div className={css.aboutSection}>
 			<h4 className={css.aboutSectionTitle}>
@@ -113,9 +126,11 @@ function InstallAppsSection() {
 			</h4>
 			<div className={css.appsList}>
 				<div className={css.appRow}>
-					<a
+					<button
+						type="button"
 						className={css.appLink}
-						href={getAppBlueprintUrl(APP_LAUNCHER_BLUEPRINT_URL)}
+						onClick={installAppLauncher}
+						disabled={!!installMessage}
 					>
 						<span className={css.appIcon}>
 							<WordPressIcon />
@@ -128,8 +143,13 @@ function InstallAppsSection() {
 								{APP_LAUNCHER_BLUEPRINT.meta.description}
 							</span>
 						</span>
-					</a>
+					</button>
 				</div>
+				{installMessage && (
+					<div className={css.appInstallStatus} role="status">
+						{installMessage}
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -409,7 +429,7 @@ function RecoverySection() {
 
 // ── About Tab (composed) ──────────────────────────────────────
 
-function AboutTab() {
+function AboutTab({ siteSlug }: { siteSlug: string }) {
 	const clientInfo = usePlaygroundClientInfo();
 	const isDependentMode = clientInfo?.isDependentMode ?? false;
 
@@ -422,9 +442,9 @@ function AboutTab() {
 				device.
 			</p>
 
+			<InstallAppsSection siteSlug={siteSlug} />
 			{!isDependentMode && (
 				<>
-					<InstallAppsSection />
 					<BackupSection />
 					<RecoverySection />
 				</>
@@ -449,11 +469,11 @@ function AboutTab() {
 function DependentTabToolsNotice() {
 	return (
 		<div className={css.dependentTabToolsNotice}>
-			<h4>Tools available in the active tab</h4>
+			<h4>Runtime-only: backups, recovery, reset</h4>
 			<p>
-				This tab can view and navigate the site. Apps, backups,
-				recovery, and reset controls are shown only in the tab with the
-				active WordPress runtime.
+				This tab can view, navigate, and install apps. Backups,
+				recovery, and reset controls need the tab running the WordPress
+				runtime.
 			</p>
 		</div>
 	);
@@ -660,7 +680,7 @@ export function SiteInfoPanel({
 									)}
 									hidden={tab.name !== 'about'}
 								>
-									<AboutTab />
+									<AboutTab siteSlug={site.slug} />
 								</div>
 								<div
 									className={classNames(
