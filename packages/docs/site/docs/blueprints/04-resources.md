@@ -62,6 +62,98 @@ For GitHub source code, do not point `url` at a repository page or a generated
 ZIP from a branch when you can use `git:directory`. Use `url` for built ZIP
 artifacts and `git:directory` for source directories.
 
+#### Hosting URL resources on Amazon S3
+
+Amazon S3 can host Blueprint files, Blueprint bundles, plugin ZIP files, and
+theme ZIP files when the objects are public and CORS is configured for
+Playground requests. Use the object URL in the `url` resource. Replace
+`BUCKET_NAME` with the bucket name and `REGION` with the
+[AWS Region code](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)
+for the bucket:
+
+```json
+{
+	"resource": "url",
+	"url": "https://BUCKET_NAME.s3.REGION.amazonaws.com/plugins/example-plugin.zip"
+}
+```
+
+For a public S3 bucket, allow read access to the objects that Playground needs
+to download. Replace `BUCKET_NAME` with the bucket name:
+
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "AllowPublicReadForPlaygroundAssets",
+			"Effect": "Allow",
+			"Principal": "*",
+			"Action": "s3:GetObject",
+			"Resource": "arn:aws:s3:::BUCKET_NAME/*"
+		}
+	]
+}
+```
+
+Configure CORS so the Playground website can fetch those objects. The following
+S3 CORS configuration allows `GET` and `HEAD` requests from
+`https://playground.wordpress.net`:
+
+```json
+[
+	{
+		"AllowedHeaders": ["*"],
+		"AllowedMethods": ["GET", "HEAD"],
+		"AllowedOrigins": ["https://playground.wordpress.net"],
+		"ExposeHeaders": [],
+		"MaxAgeSeconds": 3000
+	}
+]
+```
+
+Use `AllowedOrigins: ["*"]` only when the objects are intended to be fetched
+from any website. See the Amazon S3 documentation for
+[bucket policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteAccessPermissionsReqd.html)
+and [CORS configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/enabling-cors-examples.html).
+
+Here is a Blueprint that installs a plugin ZIP hosted on S3:
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/plugins.php",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"steps": [
+		{
+			"step": "login",
+			"username": "admin",
+			"password": "password"
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://BUCKET_NAME.s3.REGION.amazonaws.com/plugins/example-plugin.zip"
+			},
+			"options": {
+				"activate": true
+			}
+		}
+	]
+}
+```
+
+The same pattern works for `installTheme` with `themeData`, and for loading a
+Blueprint JSON file or Blueprint bundle with `?blueprint-url=`:
+
+```text
+https://playground.wordpress.net/?blueprint-url=https://BUCKET_NAME.s3.REGION.amazonaws.com/blueprints/example-blueprint.json
+```
+
 ### GitDirectoryReference
 
 The `GitDirectoryReference` resource is used to reference a directory inside a Git repository. This is useful when a plugin or theme lives in a subfolder of a repo, or when you want to install from a specific branch, tag, or commit.
