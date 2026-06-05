@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import type { ExampleName } from './PhpCodeSnippetLiveExample.examples';
 
-const SCRIPT_URL = 'https://playground.wordpress.net/php-code-snippet.js';
+// php-code-snippet.js used to be served with a one-year browser cache.
+// Keep this query so docs previews don't reuse stale pre-editable-default copies.
+const SCRIPT_URL =
+	'https://playground.wordpress.net/php-code-snippet.js?v=editable-by-default';
 
 function usePhpSnippetScript() {
 	useEffect(() => {
@@ -23,11 +26,13 @@ function usePhpSnippetExample(name: ExampleName) {
 		let isCurrent = true;
 
 		setHtml(undefined);
-		void import('./PhpCodeSnippetLiveExample.examples').then(({ examples }) => {
-			if (isCurrent) {
-				setHtml(examples[name]);
+		void import('./PhpCodeSnippetLiveExample.examples').then(
+			({ examples }) => {
+				if (isCurrent) {
+					setHtml(examples[name]);
+				}
 			}
-		});
+		);
 
 		return () => {
 			isCurrent = false;
