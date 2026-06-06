@@ -7,7 +7,6 @@
 
 import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import { createRelayUrlRewriter } from './url-rewriter';
 import type {
 	TunnelRequest,
 	TunnelResponse,
@@ -554,34 +553,13 @@ export class TunnelHost {
 				responseHeaders[key] = value;
 			}
 
-			// For HTML and CSS responses, rewrite URLs to go through the
-			// relay. The rewriter is a real DOM walk (DOMParser), not a
-			// regex sweep — see url-rewriter.ts and its adversarial
-			// spec for why that matters.
-			let responseBody = phpResponse.bytes;
-			const contentType = responseHeaders['content-type'] || '';
-			const isHtml = contentType.includes('text/html');
-			const isCss = contentType.includes('text/css');
-
-			if ((isHtml || isCss) && this.sessionId) {
-				const text = new TextDecoder().decode(phpResponse.bytes);
-				const rewriter = createRelayUrlRewriter(
-					this.sessionId,
-					originalHost
-				);
-				const rewrittenText = isHtml
-					? rewriter.rewriteHtml(text)
-					: rewriter.rewriteCss(text);
-				responseBody = new TextEncoder().encode(rewrittenText);
-			}
-
 			// Build tunnel response
 			const tunnelResponse: TunnelResponse = {
 				requestId: tunnelRequest.requestId,
 				status: phpResponse.httpStatusCode,
 				headers: responseHeaders,
 				// Encode body as base64 for safe JSON transport
-				body: uint8ArrayToBase64(responseBody),
+				body: uint8ArrayToBase64(phpResponse.bytes),
 			};
 
 			// Send response back to relay server

@@ -18,6 +18,7 @@ type ConnectionStatus =
 const STATUS_POLL_INTERVAL_MS = 3000;
 const GUEST_ID_STORAGE_KEY = 'personal-wp-desktop-access-guest-id';
 const DESKTOP_RELAY_SCOPE = 'default';
+const DESKTOP_RELAY_SCOPED_URL = `/scope:${DESKTOP_RELAY_SCOPE}/`;
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
 
@@ -233,7 +234,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		setStatus('connecting');
 		setError(null);
 		if (iframeRef.current) {
-			iframeRef.current.src = `${relayBaseUrl}/`;
+			iframeRef.current.src = DESKTOP_RELAY_SCOPED_URL;
 		}
 	};
 
@@ -290,7 +291,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				<div className={css.iframeWrapper}>
 					<iframe
 						ref={iframeRef}
-						src={`${relayBaseUrl}/`}
+						src={DESKTOP_RELAY_SCOPED_URL}
 						className={css.iframe}
 						onLoad={handleIframeLoad}
 						title="My WordPress from phone"
