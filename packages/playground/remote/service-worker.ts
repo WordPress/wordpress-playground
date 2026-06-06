@@ -125,6 +125,11 @@ import {
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
+import {
+	getDesktopRelayMapping,
+	handleDesktopRelayMessage,
+	handleDesktopRelayRequest,
+} from './src/lib/desktop-relay';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -135,46 +140,8 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
-type DesktopRelayMapping = {
-	scope: string;
-	relayBaseUrl: string;
-	expiresAt: number;
-};
-
-const desktopRelayMappings: Record<string, DesktopRelayMapping> = {};
-
 self.addEventListener('message', (event) => {
-	if (
-		typeof event.data !== 'object' ||
-		event.data === null ||
-		!('type' in event.data)
-	) {
-		return;
-	}
-
-	if (event.data.type === 'personal-wp-desktop-relay-map') {
-		const { scope, relayBaseUrl, ttl } = event.data;
-		if (typeof scope !== 'string' || typeof relayBaseUrl !== 'string') {
-			return;
-		}
-		desktopRelayMappings[scope] = {
-			scope,
-			relayBaseUrl,
-			expiresAt:
-				Date.now() +
-				(typeof ttl === 'number' && Number.isFinite(ttl)
-					? ttl
-					: 5 * 60 * 1000),
-		};
-		return;
-	}
-
-	if (event.data.type === 'personal-wp-desktop-relay-clear') {
-		const { scope } = event.data;
-		if (typeof scope === 'string') {
-			delete desktopRelayMappings[scope];
-		}
-	}
+	handleDesktopRelayMessage(event.data);
 });
 
 /**
@@ -391,46 +358,6 @@ self.addEventListener('fetch', (event) => {
 	// Use cache first strategy to serve regular static assets.
 	return event.respondWith(cacheFirstFetch(event.request));
 });
-
-function getDesktopRelayMapping(
-	scope: string
-): DesktopRelayMapping | undefined {
-	const mapping = desktopRelayMappings[scope];
-	if (!mapping) {
-		return;
-	}
-	if (mapping.expiresAt <= Date.now()) {
-		delete desktopRelayMappings[scope];
-		return;
-	}
-	return mapping;
-}
-
-async function handleDesktopRelayRequest(
-	event: FetchEvent,
-	mapping: DesktopRelayMapping
-) {
-	const relayUrl = getDesktopRelayUrl(event.request.url, mapping);
-	const request = await cloneRequest(event.request, {
-		url: relayUrl,
-	});
-	return fetch(request);
-}
-
-function getDesktopRelayUrl(
-	scopedRequestUrl: string,
-	mapping: DesktopRelayMapping
-) {
-	const unscopedUrl = removeURLScope(new URL(scopedRequestUrl));
-	const relayUrl = new URL(mapping.relayBaseUrl, self.location.origin);
-	const relayBasePath = relayUrl.pathname.replace(/\/$/, '');
-	relayUrl.pathname =
-		relayBasePath +
-		(unscopedUrl.pathname === '/' ? '/' : unscopedUrl.pathname);
-	relayUrl.search = unscopedUrl.search;
-	relayUrl.hash = unscopedUrl.hash;
-	return relayUrl;
-}
 
 /**
  * A request to a PHP Worker Thread or to a regular static asset,

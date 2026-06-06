@@ -178,7 +178,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			const worker =
 				navigator.serviceWorker.controller || registration.active;
 			worker?.postMessage({
-				type: 'personal-wp-desktop-relay-map',
+				type: 'desktop-relay-map',
 				scope: DESKTOP_RELAY_SCOPE,
 				relayBaseUrl,
 				ttl: SERVICE_WORKER_RELAY_TTL_MS,
@@ -382,7 +382,7 @@ export function getDesktopAccessSessionId(): string | null {
 
 function clearDesktopRelayMapping() {
 	navigator.serviceWorker?.controller?.postMessage({
-		type: 'personal-wp-desktop-relay-clear',
+		type: 'desktop-relay-clear',
 		scope: DESKTOP_RELAY_SCOPE,
 	});
 }
