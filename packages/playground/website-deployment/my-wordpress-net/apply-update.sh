@@ -11,7 +11,7 @@ echo Setting up staging directory
 cd ~
 rm -rf website-update
 
-echo Moving updated Playground files to staging directory
+echo Moving updated My WordPress files to staging directory
 mv updated-playground-files website-update
 mkdir website-update/static-files-to-serve-via-php
 
@@ -20,6 +20,8 @@ cp -r ~/website-deployment/__wp__ ~/website-update/
 cp ~/website-deployment/custom-redirects-lib.php ~/website-update/
 cp ~/website-deployment/custom-redirects.php ~/website-update/
 cp ~/website-deployment/cors-proxy-config.php ~/website-update/
+cp ~/website-deployment/mywp-event.php ~/website-update/
+cp ~/website-deployment/mywp-event-dashboard.php ~/website-update/
 
 # Generate mime-types.php from mime-types.json in case the PHP can be opcached
 echo Generating mime-types.php
@@ -92,6 +94,9 @@ find -type f |
     match_static_files_to_serve_via_php |
     sed 's#^/##' |                     # remove the leading '/' to get paths relative to current dir
     set_aside_static_files_to_serve_via_php
+
+echo Applying latest My WordPress event stats schema
+cat ~/website-deployment/mywp-event-tables.sql | mysql --database="$DB_NAME"
 
 echo Syncing staged files to production
 rsync -av --delete --no-perms --omit-dir-times ~/website-update/ /srv/htdocs/

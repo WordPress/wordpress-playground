@@ -23,6 +23,10 @@ In order to customize these aspects for static files on WP Cloud, we did the fol
 
 New website builds are pushed to the WP Cloud site via SSH.
 
+The main Playground site uses `apply-update.sh`. The My WordPress site uses
+`my-wordpress-net/apply-update.sh` so its endpoint deployment and schema
+updates do not affect the main Playground deployment path.
+
 During deployment, we consult `custom-redirects-lib.php` about each file, and if it needs special treatment (e.g., URL rewrites, redirects, etc), it is set aside into the `<web-root>/static-files-to-serve-via-php/` folder with its relative path otherwise preserved. For example, if a file `a/b/c/playground.png` requires special handling, it is moved to `<web-root>/static-files-to-serve-via-php/a/b/c/playground.png`. Nginx will no longer find the file based on the request URI `a/b/c/playground.png` and will delegate the request to PHP, giving us a chance to customize how the file is served.
 
 At the end of the deployment process, the WP Cloud edge cache is purged.

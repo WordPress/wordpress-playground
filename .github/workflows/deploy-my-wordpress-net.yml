@@ -110,4 +110,4 @@ jobs:
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_MY_WORDPRESS_NET_USER }}@${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST }} \
-                    -tt -C 'ENABLE_MYWP_EVENT_STATS=true ~/website-deployment/apply-update.sh'
+                    -tt -C '~/website-deployment/my-wordpress-net/apply-update.sh'
