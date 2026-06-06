@@ -6,14 +6,30 @@ import { Provider } from 'react-redux';
 import store from './lib/state/redux/store';
 import { Layout } from './components/layout';
 import { EnsurePlaygroundSite } from './components/ensure-playground-site';
+import {
+	DesktopAccessViewer,
+	getDesktopAccessSessionId,
+} from './components/desktop-access-viewer';
+import {
+	DesktopAccessConnect,
+	isDesktopAccessConnectRoute,
+} from './components/desktop-access-connect';
 
 collectWindowErrors(logger);
 
 const root = createRoot(document.getElementById('root')!);
+const desktopAccessSessionId = getDesktopAccessSessionId();
+
 root.render(
-	<Provider store={store}>
-		<EnsurePlaygroundSite>
-			<Layout />
-		</EnsurePlaygroundSite>
-	</Provider>
+	isDesktopAccessConnectRoute() ? (
+		<DesktopAccessConnect />
+	) : desktopAccessSessionId ? (
+		<DesktopAccessViewer sessionId={desktopAccessSessionId} />
+	) : (
+		<Provider store={store}>
+			<EnsurePlaygroundSite>
+				<Layout />
+			</EnsurePlaygroundSite>
+		</Provider>
+	)
 );

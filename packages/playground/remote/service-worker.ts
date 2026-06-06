@@ -125,6 +125,11 @@ import {
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
+import {
+	getDesktopRelayMapping,
+	handleDesktopRelayMessage,
+	handleDesktopRelayRequest,
+} from './src/lib/desktop-relay';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -134,6 +139,10 @@ if (!(self as any).document) {
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
 }
+
+self.addEventListener('message', (event) => {
+	handleDesktopRelayMessage(event.data);
+});
 
 /**
  * Forces the browser to always use the latest service worker.
@@ -212,7 +221,8 @@ self.addEventListener('fetch', (event) => {
 
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
-		url.pathname.startsWith('/client/index.js');
+		url.pathname.startsWith('/client/index.js') ||
+		url.pathname.startsWith('/relay/');
 	if (isReservedUrl) {
 		return;
 	}
@@ -223,6 +233,12 @@ self.addEventListener('fetch', (event) => {
 
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
+		const desktopRelayMapping = getDesktopRelayMapping(scope);
+		if (desktopRelayMapping) {
+			return event.respondWith(
+				handleDesktopRelayRequest(event, desktopRelayMapping)
+			);
+		}
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) =>
 				applyCrossOriginIsolationHeaders(response, scope)
