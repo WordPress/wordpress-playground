@@ -202,6 +202,16 @@ export default defineConfig(({ command, mode }) => {
 				...viteGlobalExtensions,
 				buildVersionPlugin('remote-config'),
 			],
+			rollupOptions: {
+				output: {
+					entryFileNames: (chunkInfo: any) => {
+						if (chunkInfo.name === 'service-worker') {
+							return 'sw.js';
+						}
+						return '[name]-[hash].js';
+					},
+				},
+			},
 		},
 
 		build: {

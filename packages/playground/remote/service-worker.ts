@@ -128,6 +128,7 @@ import {
 import {
 	getDesktopRelayMapping,
 	handleDesktopRelayMessage,
+	handleDesktopRelayProbe,
 	handleDesktopRelayRequest,
 } from './src/lib/desktop-relay';
 
@@ -233,6 +234,9 @@ self.addEventListener('fetch', (event) => {
 
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
+		if (url.searchParams.has('desktop-relay-probe')) {
+			return event.respondWith(handleDesktopRelayProbe(scope));
+		}
 		const desktopRelayMapping = getDesktopRelayMapping(scope);
 		if (desktopRelayMapping) {
 			return event.respondWith(

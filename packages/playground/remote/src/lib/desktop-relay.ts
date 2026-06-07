@@ -73,6 +73,24 @@ export function getDesktopRelayMapping(
 	return mapping;
 }
 
+export function handleDesktopRelayProbe(scope: string): Response {
+	const mapping = getDesktopRelayMapping(scope);
+	return new Response(
+		JSON.stringify({
+			ok: true,
+			scope,
+			hasMapping: !!mapping,
+			clientId: mapping?.clientId,
+		}),
+		{
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Desktop-Relay-Service-Worker': '1',
+			},
+		}
+	);
+}
+
 export async function handleDesktopRelayRequest(
 	event: FetchEvent,
 	mapping: DesktopRelayMapping

@@ -19,10 +19,21 @@ interface SessionStatusResponse {
 	hostAlive: boolean;
 }
 
+interface RelayDiagnostics {
+	serviceWorker: string;
+	dataChannel: string;
+	iframe: string;
+	requests: number;
+	pending: number;
+	lastPath: string;
+	lastError: string;
+}
+
 const STATUS_POLL_INTERVAL_MS = 3000;
 const GUEST_ID_STORAGE_KEY = 'personal-wp-desktop-access-guest-id';
 const DESKTOP_RELAY_SCOPE = 'default';
 const DESKTOP_RELAY_SCOPED_URL = `/scope:${DESKTOP_RELAY_SCOPE}/`;
+const DESKTOP_RELAY_PROBE_URL = `${DESKTOP_RELAY_SCOPED_URL}?desktop-relay-probe=1`;
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
 
@@ -34,6 +45,15 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	);
 	const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 	const [dataChannelReady, setDataChannelReady] = useState(false);
+	const [relayDiagnostics, setRelayDiagnostics] = useState<RelayDiagnostics>({
+		serviceWorker: 'Waiting',
+		dataChannel: 'Waiting',
+		iframe: 'Waiting',
+		requests: 0,
+		pending: 0,
+		lastPath: '-',
+		lastError: '-',
+	});
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const directTunnelRef = useRef<DirectTunnelGuest | null>(null);
 	const guestId = useRef(getOrCreateGuestId()).current;
@@ -105,10 +125,18 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				if (nextStatus === 'connected') {
 					sawPhoneAlive = true;
 					setDataChannelReady(true);
+					setRelayDiagnostics((current) => ({
+						...current,
+						dataChannel: 'Connected',
+					}));
 					return;
 				}
 				if (nextStatus === 'error' && !sawPhoneAlive) {
 					setDataChannelReady(false);
+					setRelayDiagnostics((current) => ({
+						...current,
+						dataChannel: 'Failed before connecting',
+					}));
 					setError(
 						'Unable to connect directly to your phone. Keep both devices nearby and on the same network.'
 					);
@@ -116,6 +144,10 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					return;
 				}
 				setDataChannelReady(false);
+				setRelayDiagnostics((current) => ({
+					...current,
+					dataChannel: 'Reconnecting',
+				}));
 				setStatus('connecting');
 			},
 		});
@@ -131,6 +163,10 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			if (directTunnelRef.current === directTunnel) {
 				directTunnelRef.current = null;
 			}
+			setRelayDiagnostics((current) => ({
+				...current,
+				dataChannel: 'Stopped',
+			}));
 			if (timeoutHandle !== null) {
 				clearTimeout(timeoutHandle);
 			}
@@ -150,11 +186,16 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				serviceWorkerPath,
 				window.location.origin
 			);
+			setRelayDiagnostics((current) => ({
+				...current,
+				serviceWorker: `Registering ${serviceWorkerUrl.pathname}`,
+			}));
 			const registration = await navigator.serviceWorker.register(
 				serviceWorkerUrl,
 				{
 					type: 'module',
 					updateViaCache: 'none',
+					scope: '/',
 				}
 			);
 			await navigator.serviceWorker.ready;
@@ -163,6 +204,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				return;
 			}
 			await postDesktopRelayMapping(registration);
+			await verifyScopedRequestsAreControlled();
 			if (cancelled) {
 				return;
 			}
@@ -196,6 +238,12 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				channel.port1.onmessage = (event) => {
 					clearTimeout(timeout);
 					if (event.data?.type === 'desktop-relay-map-result') {
+						setRelayDiagnostics((current) => ({
+							...current,
+							serviceWorker: event.data?.clientId
+								? `Mapped client ${event.data.clientId}`
+								: 'Mapped without client id',
+						}));
 						resolve();
 						return;
 					}
@@ -218,7 +266,32 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			});
 		};
 
+		const verifyScopedRequestsAreControlled = async () => {
+			const response = await fetch(DESKTOP_RELAY_PROBE_URL, {
+				cache: 'no-store',
+			});
+			if (
+				response.headers.get('X-Desktop-Relay-Service-Worker') !== '1'
+			) {
+				throw new Error(
+					'Desktop access service worker is not controlling WordPress requests.'
+				);
+			}
+			const data = await response.json();
+			setRelayDiagnostics((current) => ({
+				...current,
+				serviceWorker: data.hasMapping
+					? 'Controlling /scope:default/'
+					: 'Probe reached worker without mapping',
+			}));
+		};
+
 		configureServiceWorker().catch((error) => {
+			setRelayDiagnostics((current) => ({
+				...current,
+				serviceWorker: `Error: ${(error as Error).message}`,
+				lastError: (error as Error).message,
+			}));
 			setError((error as Error).message);
 			setStatus('error');
 		});
@@ -250,8 +323,20 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			if (!port) {
 				return;
 			}
+			setRelayDiagnostics((current) => ({
+				...current,
+				requests: current.requests + 1,
+				pending: current.pending + 1,
+				lastPath: `${data.method || 'GET'} ${data.path || '/'}`,
+				lastError: '-',
+			}));
 			const directTunnel = directTunnelRef.current;
 			if (!directTunnel) {
+				setRelayDiagnostics((current) => ({
+					...current,
+					pending: Math.max(0, current.pending - 1),
+					lastError: 'Phone data channel is not connected yet.',
+				}));
 				port.postMessage({
 					type: 'desktop-relay-error',
 					error: 'Phone data channel is not connected yet.',
@@ -267,12 +352,21 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					body: data.body,
 				})
 				.then((response) => {
+					setRelayDiagnostics((current) => ({
+						...current,
+						pending: Math.max(0, current.pending - 1),
+					}));
 					port.postMessage({
 						type: 'desktop-relay-response',
 						response,
 					});
 				})
 				.catch((error) => {
+					setRelayDiagnostics((current) => ({
+						...current,
+						pending: Math.max(0, current.pending - 1),
+						lastError: (error as Error).message,
+					}));
 					port.postMessage({
 						type: 'desktop-relay-error',
 						error: (error as Error).message,
@@ -323,6 +417,10 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		if (!iframeRef.current?.src.includes(DESKTOP_RELAY_SCOPED_URL)) {
 			return;
 		}
+		setRelayDiagnostics((current) => ({
+			...current,
+			iframe: 'Loaded /scope:default/',
+		}));
 		setStatus('connected');
 	}, []);
 
@@ -334,6 +432,11 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				? DESKTOP_RELAY_SCOPED_URL
 				: 'about:blank';
 		}
+		setRelayDiagnostics((current) => ({
+			...current,
+			iframe: shouldLoadIframe ? 'Reloading' : 'Waiting',
+			lastError: '-',
+		}));
 	};
 
 	const disconnect = () => {
@@ -353,6 +456,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				</div>
 				<ConnectionPill status={status} onDisconnect={disconnect} />
 			</header>
+			<RelayDiagnosticsBar diagnostics={relayDiagnostics} />
 			{unsupportedMessage ? (
 				<div className={css.unsupportedNotice} role="status">
 					<span>{unsupportedMessage}</span>
@@ -523,6 +627,24 @@ function ConnectionPill({
 	}
 
 	return <span className={css.statusPill}>{label}</span>;
+}
+
+function RelayDiagnosticsBar({
+	diagnostics,
+}: {
+	diagnostics: RelayDiagnostics;
+}) {
+	return (
+		<div className={css.relayDiagnostics} aria-live="polite">
+			<span>SW: {diagnostics.serviceWorker}</span>
+			<span>Channel: {diagnostics.dataChannel}</span>
+			<span>Frame: {diagnostics.iframe}</span>
+			<span>Requests: {diagnostics.requests}</span>
+			<span>Pending: {diagnostics.pending}</span>
+			<span>Last: {diagnostics.lastPath}</span>
+			<span>Error: {diagnostics.lastError}</span>
+		</div>
+	);
 }
 
 function getOrCreateGuestId(): string {

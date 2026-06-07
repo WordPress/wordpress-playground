@@ -118,6 +118,28 @@
 	cursor: pointer;
 }
 
+.relay-diagnostics {
+	min-height: 34px;
+	padding: 6px 16px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	overflow-x: auto;
+	background: #1e1e1e;
+	color: #f6f7f7;
+	border-bottom: 1px solid #000000;
+	font-family:
+		ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+	font-size: 11px;
+	line-height: 16px;
+	white-space: nowrap;
+	z-index: 2;
+}
+
+.relay-diagnostics span {
+	flex: 0 0 auto;
+}
+
 .iframe-wrapper {
 	position: relative;
 	flex: 1;
@@ -135,7 +157,7 @@
 
 .center-notice {
 	position: absolute;
-	inset: 56px 0 0;
+	inset: 90px 0 0;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -203,6 +225,6 @@
 	}
 
 	.center-notice {
-		inset-block-start: 90px;
+		inset-block-start: 124px;
 	}
 }
