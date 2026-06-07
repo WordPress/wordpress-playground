@@ -3,12 +3,16 @@ import { removeURLScope } from '@php-wasm/scopes';
 export type DesktopRelayMapping = {
 	scope: string;
 	sessionId: string;
+	clientId?: string;
 	expiresAt: number;
 };
 
 const desktopRelayMappings: Record<string, DesktopRelayMapping> = {};
 
-export function handleDesktopRelayMessage(data: unknown): boolean {
+export function handleDesktopRelayMessage(
+	event: ExtendableMessageEvent
+): boolean {
+	const data = event.data;
 	if (typeof data !== 'object' || data === null || !('type' in data)) {
 		return false;
 	}
@@ -21,12 +25,18 @@ export function handleDesktopRelayMessage(data: unknown): boolean {
 		desktopRelayMappings[scope] = {
 			scope,
 			sessionId,
+			clientId: getSourceClientId(event),
 			expiresAt:
 				Date.now() +
 				(typeof ttl === 'number' && Number.isFinite(ttl)
 					? ttl
 					: 5 * 60 * 1000),
 		};
+		event.ports[0]?.postMessage({
+			type: 'desktop-relay-map-result',
+			ok: true,
+			clientId: desktopRelayMappings[scope].clientId,
+		});
 		return true;
 	}
 
@@ -39,6 +49,14 @@ export function handleDesktopRelayMessage(data: unknown): boolean {
 	}
 
 	return false;
+}
+
+function getSourceClientId(event: ExtendableMessageEvent): string | undefined {
+	const source = event.source;
+	if (source && 'id' in source && typeof source.id === 'string') {
+		return source.id;
+	}
+	return undefined;
 }
 
 export function getDesktopRelayMapping(
@@ -103,11 +121,18 @@ async function postRequestToDesktopClient(
 	message: Record<string, unknown>
 ): Promise<{ status: number; headers: Record<string, string>; body: string }> {
 	const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
+	const client = mapping.clientId
+		? await serviceWorker.clients.get(mapping.clientId)
+		: undefined;
+	if (client) {
+		return postRequestToClient(client, message);
+	}
+
 	const clients = await serviceWorker.clients.matchAll({
 		type: 'window',
 		includeUncontrolled: true,
 	});
-	const client = clients.find((candidate: Client) => {
+	const fallbackClient = clients.find((candidate: Client) => {
 		try {
 			return (
 				new URL(candidate.url).searchParams.get('share') ===
@@ -117,10 +142,16 @@ async function postRequestToDesktopClient(
 			return false;
 		}
 	});
-	if (!client) {
+	if (!fallbackClient) {
 		throw new Error('Desktop relay page is not available');
 	}
+	return postRequestToClient(fallbackClient, message);
+}
 
+function postRequestToClient(
+	client: Client,
+	message: Record<string, unknown>
+): Promise<{ status: number; headers: Record<string, string>; body: string }> {
 	const channel = new MessageChannel();
 	const result = new Promise<{
 		status: number;

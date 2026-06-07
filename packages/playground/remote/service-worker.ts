@@ -141,7 +141,7 @@ if (!(self as any).document) {
 }
 
 self.addEventListener('message', (event) => {
-	handleDesktopRelayMessage(event.data);
+	handleDesktopRelayMessage(event);
 });
 
 /**

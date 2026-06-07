@@ -162,7 +162,10 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			if (cancelled) {
 				return;
 			}
-			postDesktopRelayMapping(registration);
+			await postDesktopRelayMapping(registration);
+			if (cancelled) {
+				return;
+			}
 			setServiceWorkerReady(true);
 			interval = setInterval(
 				() => postDesktopRelayMapping(registration),
@@ -173,18 +176,52 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 
 		const postDesktopRelayMapping = (
 			registration: ServiceWorkerRegistration
-		) => {
+		): Promise<void> => {
 			const worker =
 				navigator.serviceWorker.controller || registration.active;
-			worker?.postMessage({
-				type: 'desktop-relay-map',
-				scope: DESKTOP_RELAY_SCOPE,
-				sessionId,
-				ttl: SERVICE_WORKER_RELAY_TTL_MS,
+			if (!worker) {
+				return Promise.reject(
+					new Error('Desktop access service worker is not active.')
+				);
+			}
+			return new Promise((resolve, reject) => {
+				const channel = new MessageChannel();
+				const timeout = setTimeout(() => {
+					reject(
+						new Error(
+							'Desktop access service worker did not confirm setup.'
+						)
+					);
+				}, 5000);
+				channel.port1.onmessage = (event) => {
+					clearTimeout(timeout);
+					if (event.data?.type === 'desktop-relay-map-result') {
+						resolve();
+						return;
+					}
+					reject(
+						new Error(
+							event.data?.error ||
+								'Desktop access service worker setup failed.'
+						)
+					);
+				};
+				worker.postMessage(
+					{
+						type: 'desktop-relay-map',
+						scope: DESKTOP_RELAY_SCOPE,
+						sessionId,
+						ttl: SERVICE_WORKER_RELAY_TTL_MS,
+					},
+					[channel.port2]
+				);
 			});
 		};
 
-		configureServiceWorker().catch(() => {});
+		configureServiceWorker().catch((error) => {
+			setError((error as Error).message);
+			setStatus('error');
+		});
 
 		window.addEventListener('pagehide', clearDesktopRelayMapping);
 		return () => {
