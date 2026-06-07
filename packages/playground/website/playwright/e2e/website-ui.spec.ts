@@ -810,6 +810,103 @@ test.describe('Default Playground storage', () => {
 		).toBe(true);
 	});
 
+	test('should offer full settings for an autosaved Playground', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.page.goto('./');
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({
+			timeout: 120000,
+		});
+
+		await website.page
+			.getByRole('button', { name: 'Edit Playground settings' })
+			.click();
+
+		await expect(
+			website.page.getByText(
+				'Stored Playgrounds have limited configuration options.'
+			)
+		).toHaveCount(0);
+		await expect(
+			website.page.getByLabel('WordPress version')
+		).toBeEnabled();
+		await expect(website.page.getByLabel('Language')).toBeEnabled();
+		await expect(
+			website.page.getByLabel('Create a multisite network')
+		).toBeEnabled();
+		await expect(
+			website.page.getByText('Apply Settings & Recreate Playground')
+		).toBeVisible();
+	});
+
+	test('should apply settings to an autosaved Playground under the same slug', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('settings-recreate'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const originalSite = await getActivePlaygroundSite(website.page);
+
+		await website.page
+			.getByRole('button', { name: 'Edit Playground settings' })
+			.click();
+		const phpSelect = website.page.getByLabel('PHP version');
+		const currentPhpVersion = await phpSelect.inputValue();
+		const nextPhpVersion = SupportedPHPVersions.find(
+			(version) => version !== currentPhpVersion
+		)!;
+		await phpSelect.selectOption(nextPhpVersion);
+		await website.page
+			.getByRole('button', {
+				name: 'Apply Settings & Recreate Playground',
+			})
+			.click();
+
+		await expect
+			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
+				timeout: 120000,
+			})
+			.toBe(nextPhpVersion);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.toMatchObject({
+				slug: originalSite.slug,
+				name: originalSite.name,
+				persistence: 'autosave',
+			});
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.filter((site: any) => site.slug === slug).length,
+					originalSite.slug
+				)
+			)
+			.toBe(1);
+	});
+
 	test('should show intent-driven creation actions in the overlay', async ({
 		website,
 		browserName,

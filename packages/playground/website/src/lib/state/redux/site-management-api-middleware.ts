@@ -20,6 +20,7 @@ import {
 	removeSite,
 	pruneAutosavedSites,
 	preserveSite,
+	resetAutosavedSiteSpec,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
@@ -36,6 +37,7 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import { redirectTo } from '../url/router';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -386,6 +388,34 @@ export function createSitesAPI(
 				);
 			}
 			return { slug: site.slug, storage };
+		},
+
+		/**
+		 * Recreates the active autosaved Playground with new setup settings.
+		 *
+		 * Autosaved Playgrounds behave like recoverable unsaved work: changing
+		 * setup settings replaces the current WordPress files under the same
+		 * autosaved slug instead of creating another autosave.
+		 *
+		 * @param settings Optional site settings.
+		 * @throws When no site is selected, the active site is not autosaved, or
+		 *   browser storage cannot be reset.
+		 */
+		async recreateAutosavedSite(settings?: SiteSettings): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
+			if (!isAutosavedSite(site)) {
+				throw new Error(
+					'Only autosaved Playgrounds can be recreated in place.'
+				);
+			}
+			const setupUrl = getSetupUrlForNewSite(settings, {
+				onlySetupParams: true,
+			});
+			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
+			redirectTo(setupUrl.toString());
 		},
 
 		/**

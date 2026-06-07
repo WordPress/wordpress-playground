@@ -18,6 +18,7 @@ import {
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
+	BUNDLE_DIR_NAME,
 	loadPersistedBlueprintBundle,
 	loadPersistedBlueprintBundleFromPath,
 } from './opfs-blueprint-bundle-storage';
@@ -183,6 +184,33 @@ class OpfsSiteStorage {
 	}
 
 	/**
+	 * Removes WordPress files from an OPFS-backed site while preserving the
+	 * site metadata file and the editable Blueprint bundle directory.
+	 *
+	 * Autosaved Playgrounds use this before running their edited setup again:
+	 * the Playground keeps the same slug, name, and Blueprint bundle, but
+	 * WordPress must be recreated from that setup instead of reusing files from
+	 * the previous run.
+	 */
+	async resetSiteFiles(slug: string): Promise<void> {
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
+			throw new Error(`Site with slug '${slug}' does not exist.`);
+		}
+		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
+		const namesToDelete: string[] = [];
+		for await (const [name] of siteDirectory.entries()) {
+			if (name === SITE_METADATA_FILENAME || name === BUNDLE_DIR_NAME) {
+				continue;
+			}
+			namesToDelete.push(name);
+		}
+		for (const name of namesToDelete) {
+			await siteDirectory.removeEntry(name, { recursive: true });
+		}
+	}
+
+	/**
 	 * Finds the directory containing a persisted site's metadata.
 	 *
 	 * A failed save can leave behind an encoded directory without
@@ -225,8 +253,13 @@ async function metadataToStoredFormat(
 		{
 			slug,
 			originalBlueprintSource,
-			// Only store the blueprint declaration if it's NOT a bundle directory.
-			// For bundle directories, the full bundle is stored separately.
+			/**
+			 * Site metadata stores Blueprint declaration JSON, not arbitrary
+			 * bundle files. When the Blueprint source is `opfs-site`, the
+			 * bundle files already live beside the site's WordPress files, so
+			 * metadata points at that OPFS bundle directory instead of
+			 * duplicating the declaration here.
+			 */
 			originalBlueprint:
 				originalBlueprintSource?.type === 'opfs-site'
 					? undefined
