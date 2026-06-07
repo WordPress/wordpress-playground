@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { ExampleName } from './PhpCodeSnippetLiveExample.examples';
 
-// php-code-snippet.js used to be served with a one-year browser cache.
-// Keep this query so docs previews don't reuse stale pre-editable-default copies.
-const SCRIPT_URL =
-	'https://playground.wordpress.net/php-code-snippet.js?v=editable-by-default';
+const SCRIPT_URL = 'https://playground.wordpress.net/php-code-snippet.js';
 
 function usePhpSnippetScript() {
 	useEffect(() => {
