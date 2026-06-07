@@ -6,7 +6,7 @@ import {
 	MenuGroup,
 	MenuItem,
 } from '@wordpress/components';
-import { moreVertical, plus, upload, link } from '@wordpress/icons';
+import { moreVertical, upload, link, close } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useState, useEffect, useRef } from 'react';
@@ -21,8 +21,6 @@ import {
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
-	isExplicitlySavedSite,
-	MAX_AUTOSAVED_SITES,
 	selectSortedSites,
 	selectTemporarySite,
 } from '../../lib/state/redux/slice-sites';
@@ -76,14 +74,6 @@ function PullRequestIcon() {
 	);
 }
 
-function GridIcon({ size = 20 }: { size?: number }) {
-	return (
-		<svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor">
-			<path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V7zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V7zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2z" />
-		</svg>
-	);
-}
-
 /**
  * Displays saved Playgrounds, recent autosaves, and entry points for new sites.
  */
@@ -95,10 +85,6 @@ export function SavedPlaygroundsOverlay({
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
-	const explicitlySavedSites = storedSites.filter(isExplicitlySavedSite);
-	const autosavedSites = storedSites
-		.filter(isAutosavedSite)
-		.slice(0, MAX_AUTOSAVED_SITES);
 	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
@@ -206,8 +192,6 @@ export function SavedPlaygroundsOverlay({
 			}))
 		: [];
 
-	const previewBlueprints = allBlueprints.slice(0, 5);
-
 	const tagCounts = new Map<string, number>();
 	allBlueprints.forEach((b) => {
 		(b.categories || []).forEach((tag) => {
@@ -273,13 +257,19 @@ export function SavedPlaygroundsOverlay({
 	};
 
 	const getStoredSiteDetails = (site: SiteInfo) => {
+		const createdDate = formatSiteCreatedDate(site);
+		if (site.metadata.storage === 'none') {
+			return 'Not saved to browser storage';
+		}
 		if (isAutosavedSite(site)) {
-			return 'Recovery copy';
+			return createdDate
+				? `Recovery copy - Created ${createdDate}`
+				: 'Recovery copy';
 		}
 		if (site.metadata.storage === 'local-fs') {
 			return 'Saved in a local directory';
 		}
-		return 'Saved in this browser';
+		return createdDate ? `Created ${createdDate}` : 'Saved in this browser';
 	};
 
 	/**
@@ -315,15 +305,16 @@ export function SavedPlaygroundsOverlay({
 	const creationOptions = [
 		{
 			id: 'vanilla',
-			title: 'New Playground',
-			icon: plus,
-			iconSize: 56,
+			title: 'Vanilla WordPress',
+			ariaLabel: 'New Playground',
+			iconComponent: <WordPressIcon />,
 			onClick: createVanillaSite,
 			disabled: false,
 		},
 		{
 			id: 'wp-pr',
-			title: 'Preview a WordPress PR',
+			title: 'WordPress PR',
+			ariaLabel: 'Preview a WordPress PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
@@ -332,7 +323,8 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'gutenberg-pr',
-			title: 'Preview a Gutenberg PR',
+			title: 'Gutenberg PR',
+			ariaLabel: 'Preview a Gutenberg PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
@@ -341,7 +333,8 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'github',
-			title: 'Import from GitHub',
+			title: 'From GitHub',
+			ariaLabel: 'Import from GitHub',
 			iconComponent: GitHubIcon,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
@@ -350,7 +343,8 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'blueprint-url',
-			title: 'Open a Blueprint URL',
+			title: 'Blueprint URL',
+			ariaLabel: 'Open a Blueprint URL',
 			icon: link,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
@@ -359,7 +353,8 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'zip',
-			title: 'Import a .zip',
+			title: 'Import .zip',
+			ariaLabel: 'Import a .zip',
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
@@ -368,11 +363,11 @@ export function SavedPlaygroundsOverlay({
 		},
 	];
 
-	const visibleSavedSites = showAllSavedSites
-		? explicitlySavedSites
-		: explicitlySavedSites.slice(0, MAX_VISIBLE_SAVED_SITES);
+	const visibleStoredSites = showAllSavedSites
+		? storedSites
+		: storedSites.slice(0, MAX_VISIBLE_SAVED_SITES);
 	const hiddenSavedSitesCount =
-		explicitlySavedSites.length - visibleSavedSites.length;
+		storedSites.length - visibleStoredSites.length;
 
 	function formatSiteCreatedDate(site: SiteInfo) {
 		return site.metadata.whenCreated
@@ -390,7 +385,7 @@ export function SavedPlaygroundsOverlay({
 	function renderSiteRow(site: SiteInfo) {
 		const isSelected = site.slug === activeSite?.slug;
 		const isAutosave = isAutosavedSite(site);
-		const createdDate = formatSiteCreatedDate(site);
+		const isStoredSite = site.metadata.storage !== 'none';
 
 		return (
 			<div
@@ -419,80 +414,102 @@ export function SavedPlaygroundsOverlay({
 						</span>
 						<span className={css.siteRowDate}>
 							{getStoredSiteDetails(site)}
-							{createdDate ? ` - Created ${createdDate}` : ''}
 						</span>
 					</div>
 				</button>
-				<div className={css.siteRowActions}>
-					{isAutosave && (
-						<button
-							type="button"
-							className={css.keepButton}
-							onClick={() => openSaveModalForSite(site)}
-							title="Store this Playground permanently so it is not pruned from recent autosaves."
+				{isStoredSite && (
+					<div className={css.siteRowActions}>
+						{isAutosave && (
+							<button
+								type="button"
+								className={css.keepButton}
+								onClick={() => openSaveModalForSite(site)}
+								title="Store this Playground permanently so it is not pruned from recent autosaves."
+							>
+								Store permanently
+							</button>
+						)}
+						<DropdownMenu
+							icon={moreVertical}
+							label="Site actions"
+							className={css.siteRowMenu}
+							popoverProps={{
+								placement: 'bottom-end',
+							}}
 						>
-							Store permanently
-						</button>
-					)}
-					<DropdownMenu
-						icon={moreVertical}
-						label="Site actions"
-						className={css.siteRowMenu}
-						popoverProps={{
-							placement: 'bottom-end',
-						}}
-					>
-						{({ onClose: closeMenu }) => (
-							<>
-								<MenuGroup>
-									{isAutosave && (
+							{({ onClose: closeMenu }) => (
+								<>
+									<MenuGroup>
+										{isAutosave && (
+											<MenuItem
+												onClick={() =>
+													openSaveModalForSite(
+														site,
+														closeMenu
+													)
+												}
+											>
+												Store permanently
+											</MenuItem>
+										)}
 										<MenuItem
 											onClick={() =>
-												openSaveModalForSite(
+												handleRenameSite(
 													site,
 													closeMenu
 												)
 											}
 										>
-											Store permanently
+											Rename
 										</MenuItem>
-									)}
-									<MenuItem
-										onClick={() =>
-											handleRenameSite(site, closeMenu)
-										}
-									>
-										Rename
-									</MenuItem>
-								</MenuGroup>
-								<MenuGroup>
-									<MenuItem
-										className={css.dangerMenuItem}
-										onClick={() =>
-											handleDeleteSite(site, closeMenu)
-										}
-									>
-										Delete
-									</MenuItem>
-								</MenuGroup>
-							</>
-						)}
-					</DropdownMenu>
-				</div>
+									</MenuGroup>
+									<MenuGroup>
+										<MenuItem
+											className={css.dangerMenuItem}
+											onClick={() =>
+												handleDeleteSite(
+													site,
+													closeMenu
+												)
+											}
+										>
+											Delete
+										</MenuItem>
+									</MenuGroup>
+								</>
+							)}
+						</DropdownMenu>
+					</div>
+				)}
 			</div>
 		);
 	}
 
-	function renderSavedPlaygroundsSection() {
-		if (explicitlySavedSites.length === 0) {
-			return null;
-		}
+	function renderYourPlaygroundsSection() {
+		const visibleSites = [
+			...(temporarySite ? [temporarySite] : []),
+			...visibleStoredSites,
+		];
 
 		return (
-			<OverlaySection title="Saved Playgrounds">
-				<div className={css.sitesList}>
-					{visibleSavedSites.map(renderSiteRow)}
-				</div>
+			<OverlaySection
+				title="Your Playgrounds"
+				className={css.playgroundsSection}
+			>
+				{visibleSites.length === 0 ? (
+					<p className={css.emptyMessage}>
+						No Playgrounds available yet.
+					</p>
+				) : (
+					<div
+						className={classNames(
+							css.sitesList,
+							css.playgroundsList
+						)}
+					>
+						{visibleSites.map(renderSiteRow)}
+					</div>
+				)}
 				{hiddenSavedSitesCount > 0 && (
 					<button
 						type="button"
@@ -500,34 +517,21 @@ export function SavedPlaygroundsOverlay({
 						onClick={() => setShowAllSavedSites(!showAllSavedSites)}
 					>
 						{showAllSavedSites
-							? 'Show fewer saved Playgrounds'
-							: `Show ${hiddenSavedSitesCount} more saved Playgrounds`}
+							? 'Show fewer Playgrounds'
+							: `Show ${hiddenSavedSitesCount} more Playgrounds`}
 					</button>
 				)}
 			</OverlaySection>
 		);
 	}
 
-	function renderAutosavesSection() {
-		if (autosavedSites.length === 0) {
-			return null;
-		}
-
-		return (
-			<OverlaySection
-				title={`Last ${MAX_AUTOSAVED_SITES} autosaves`}
-				description="Older autosaves are deleted automatically. Use Store permanently to keep one."
-			>
-				<div className={css.sitesList}>
-					{autosavedSites.map(renderSiteRow)}
-				</div>
-			</OverlaySection>
-		);
-	}
-
 	if (viewMode === 'blueprints') {
 		return (
-			<Overlay onClose={onClose}>
+			<Overlay
+				onClose={onClose}
+				className={css.playgroundsOverlay}
+				contentClassName={css.playgroundsContent}
+			>
 				<OverlayHeader
 					onClose={onClose}
 					onBack={() => {
@@ -698,7 +702,11 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	return (
-		<Overlay onClose={onClose}>
+		<Overlay
+			onClose={onClose}
+			className={css.playgroundsOverlay}
+			contentClassName={css.playgroundsContent}
+		>
 			<input
 				type="file"
 				ref={zipFileInputRef}
@@ -706,53 +714,70 @@ export function SavedPlaygroundsOverlay({
 				accept=".zip,application/zip"
 				style={{ display: 'none' }}
 			/>
-			<OverlayHeader onClose={onClose} />
-			<OverlayBody>
-				<OverlaySection title="Start a new Playground">
-					<div className={css.creationRow}>
-						{creationOptions.map((option) => {
-							const hasIcon =
-								'iconComponent' in option || 'icon' in option;
-							return (
-								<button
-									key={option.id}
-									className={css.creationButton}
-									onClick={option.onClick}
-									disabled={option.disabled}
-								>
-									{hasIcon && (
-										<span
-											className={classNames(
-												css.creationIcon,
-												option.id === 'vanilla'
-													? css.newPlaygroundIcon
-													: undefined
-											)}
-										>
-											{'iconComponent' in option ? (
-												option.iconComponent
-											) : 'icon' in option ? (
-												<Icon
-													icon={option.icon!}
-													size={
-														'iconSize' in option
-															? option.iconSize
-															: 24
-													}
-												/>
-											) : null}
+			<button
+				type="button"
+				className={css.playgroundsCloseButton}
+				aria-label="Close"
+				onClick={onClose}
+			>
+				<Icon icon={close} size={28} />
+			</button>
+			<OverlayBody className={css.playgroundsBody}>
+				<div className={css.playgroundsColumns}>
+					{renderYourPlaygroundsSection()}
+					<OverlaySection
+						title="Start a new Playground"
+						className={css.playgroundsSection}
+					>
+						<div className={css.creationRow}>
+							{creationOptions.map((option) => {
+								const hasIcon =
+									'iconComponent' in option ||
+									'icon' in option;
+								return (
+									<button
+										key={option.id}
+										className={css.creationButton}
+										aria-label={option.ariaLabel}
+										onClick={option.onClick}
+										disabled={option.disabled}
+									>
+										{hasIcon && (
+											<span
+												className={classNames(
+													css.creationIcon,
+													option.id === 'vanilla'
+														? css.newPlaygroundIcon
+														: undefined
+												)}
+											>
+												{'iconComponent' in option ? (
+													option.iconComponent
+												) : 'icon' in option ? (
+													<Icon
+														icon={option.icon!}
+														size={24}
+													/>
+												) : null}
+											</span>
+										)}
+										<span className={css.creationTitle}>
+											{option.title}
 										</span>
-									)}
-									<span className={css.creationTitle}>
-										{option.title}
-									</span>
-								</button>
-							);
-						})}
-					</div>
-				</OverlaySection>
+									</button>
+								);
+							})}
+						</div>
+					</OverlaySection>
+				</div>
 
-				<OverlaySection title="Start from a Blueprint">
+				<OverlaySection
+					title="Start from a Blueprint"
+					className={classNames(
+						css.playgroundsSection,
+						css.blueprintsSection
+					)}
+				>
 					{blueprintsLoading ? (
 						<div className={css.loadingContainer}>
 							<Spinner />
@@ -763,7 +788,7 @@ export function SavedPlaygroundsOverlay({
 						</p>
 					) : (
 						<div className={css.blueprintsRow}>
-							{previewBlueprints.map((blueprint) => (
+							{allBlueprints.map((blueprint) => (
 								<button
 									key={blueprint.path}
 									className={css.blueprintPreviewCard}
@@ -797,28 +822,9 @@ export function SavedPlaygroundsOverlay({
 									</span>
 								</button>
 							))}
-							<button
-								className={css.blueprintPreviewCard}
-								onClick={() => setViewMode('blueprints')}
-							>
-								<div
-									className={classNames(
-										css.blueprintPreviewThumbnail,
-										css.viewAllThumbnail
-									)}
-								>
-									<GridIcon size={50} />
-								</div>
-								<span className={css.blueprintPreviewTitle}>
-									View all {allBlueprints.length} blueprints
-								</span>
-							</button>
 						</div>
 					)}
 				</OverlaySection>
-
-				{renderAutosavesSection()}
-				{renderSavedPlaygroundsSection()}
 			</OverlayBody>
 		</Overlay>
 	);

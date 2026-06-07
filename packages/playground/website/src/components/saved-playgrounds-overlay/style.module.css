@@ -211,17 +211,6 @@
 	height: 40px;
 }
 
-/* View all thumbnail modifier */
-.viewAllThumbnail {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.viewAllThumbnail svg {
-	fill: #fff;
-}
-
 /* Sites list - vertical rows */
 .sitesList {
 	display: flex;
@@ -592,5 +581,236 @@
 	.siteRowLogo {
 		width: 36px;
 		height: 36px;
+	}
+}
+
+.playgroundsOverlay.playgroundsOverlay {
+	top: 50px;
+}
+
+.playgroundsContent.playgroundsContent {
+	max-width: none;
+}
+
+.playgroundsBody.playgroundsBody {
+	padding: 72px 24px 70px;
+}
+
+.playgroundsCloseButton {
+	align-items: center;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	color: #949494;
+	cursor: pointer;
+	display: flex;
+	justify-content: center;
+	padding: 4px;
+	position: fixed;
+	right: 24px;
+	top: 70px;
+	z-index: 101;
+}
+
+.playgroundsCloseButton:hover {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+}
+
+.playgroundsCloseButton svg {
+	fill: currentColor;
+}
+
+.playgroundsColumns {
+	align-items: start;
+	column-gap: clamp(48px, 9.5vw, 137px);
+	display: grid;
+	grid-template-columns: minmax(420px, 710px) minmax(420px, 492px);
+	margin-bottom: 96px;
+	max-width: 1339px;
+}
+
+.playgroundsSection {
+	margin-bottom: 0;
+}
+
+.playgroundsSection h2 {
+	font-size: clamp(24px, 2.2vw, 28px) !important;
+	line-height: 1.2 !important;
+	margin-bottom: 18px !important;
+}
+
+.playgroundsList .siteRowContent {
+	min-height: 88px;
+	padding: 20px 24px;
+}
+
+.playgroundsList .siteRowSelected .siteRowContent {
+	padding-left: 21px;
+}
+
+.playgroundsList .siteRowLogo {
+	height: 50px;
+	width: 50px;
+}
+
+.playgroundsList .siteRowLogo svg {
+	height: 31px;
+	width: 31px;
+}
+
+.playgroundsList .siteRowName {
+	font-size: 20px;
+	font-weight: 600;
+}
+
+.playgroundsList .siteRowDate {
+	font-size: 16px;
+}
+
+.playgroundsList .siteRowMenu {
+	margin-right: 16px;
+}
+
+.playgroundsSection .creationRow {
+	display: grid;
+	gap: 14px;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.playgroundsSection .creationButton {
+	min-height: 112px;
+	min-width: 0;
+	padding: 14px 10px;
+}
+
+.playgroundsSection .creationIcon {
+	height: 42px;
+	width: 42px;
+}
+
+.playgroundsSection .creationIcon :global(svg) {
+	height: 32px;
+	width: 32px;
+}
+
+.playgroundsSection .newPlaygroundIcon :global(svg) {
+	height: 36px;
+	width: 36px;
+}
+
+.playgroundsSection .creationTitle {
+	font-size: 18px;
+	font-weight: 600;
+	line-height: 1.25;
+}
+
+.blueprintsSection .blueprintsRow {
+	display: grid;
+	gap: 24px 20px;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	overflow-x: hidden;
+	padding: 0 8px 16px 0;
+	scrollbar-color: #3c4349 transparent;
+	scrollbar-width: thin;
+}
+
+.blueprintsSection .blueprintsRow::-webkit-scrollbar {
+	width: 8px;
+}
+
+.blueprintsSection .blueprintsRow::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.blueprintsSection .blueprintsRow::-webkit-scrollbar-thumb {
+	background: #3c4349;
+	border-radius: 8px;
+}
+
+.blueprintsSection .blueprintPreviewCard {
+	min-width: 0;
+}
+
+.blueprintsSection .blueprintPreviewTitle {
+	font-size: 18px;
+	line-height: 1.25;
+}
+
+.blueprintsSection .blueprintPreviewThumbnail {
+	border-radius: 8px;
+}
+
+@media (max-width: 1050px) {
+	.playgroundsColumns {
+		column-gap: 48px;
+		grid-template-columns: minmax(380px, 1fr) minmax(360px, 440px);
+	}
+
+	.playgroundsSection .creationTitle {
+		font-size: 16px;
+	}
+}
+
+@media (max-width: 875px) {
+	.playgroundsBody.playgroundsBody {
+		padding-top: 48px;
+	}
+
+	.playgroundsColumns {
+		gap: 48px;
+		grid-template-columns: 1fr;
+		margin-bottom: 64px;
+	}
+
+	.playgroundsSection .creationRow {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.blueprintsSection .blueprintsRow {
+		gap: 8px;
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	}
+}
+
+@media (max-width: 640px) {
+	.playgroundsBody.playgroundsBody {
+		padding: 32px 20px 48px;
+	}
+
+	.playgroundsList .siteRowContent {
+		min-height: 76px;
+		padding: 14px 16px;
+	}
+
+	.playgroundsList .siteRowSelected .siteRowContent {
+		padding-left: 13px;
+	}
+
+	.playgroundsList .siteRowLogo {
+		height: 40px;
+		width: 40px;
+	}
+
+	.playgroundsList .siteRowName {
+		font-size: 16px;
+	}
+
+	.playgroundsList .siteRowDate {
+		font-size: 13px;
+	}
+
+	.playgroundsSection .creationRow {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 500px) {
+	.playgroundsOverlay.playgroundsOverlay {
+		top: 96px;
+	}
+
+	.playgroundsCloseButton {
+		top: 112px;
 	}
 }
