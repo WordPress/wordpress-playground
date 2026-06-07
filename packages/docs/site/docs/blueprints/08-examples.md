@@ -96,6 +96,59 @@ wp_insert_post(array(
 ]
 }} />
 
+## Run Symfony without WordPress
+
+Blueprints can also skip the WordPress download and boot a standalone PHP app.
+This example loads a bundled Symfony app with Composer dependencies already
+installed, so it starts without cloning a Git repository or running a Node/Sass
+build in the browser.
+
+The app demonstrates Symfony attribute routes, autowired services, Twig, and
+HttpClient. Its landing page also explains where to open the Playground file
+browser and Blueprint viewer.
+
+<BlueprintExample blueprint={{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/symfony-package-radar/public/index.php",
+	"meta": {
+		"title": "Symfony Package Radar",
+		"description": "A PHP-only Symfony app that demonstrates attribute routing, autowiring, Twig, and HttpClient without downloading WordPress or running a Node/Sass build.",
+		"author": "WordPress Playground",
+		"categories": ["php", "frameworks", "symfony"]
+	},
+	"preferredVersions": {
+		"php": "8.4",
+		"wp": false
+	},
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "unzip",
+			"zipFile": {
+				"resource": "url",
+				"url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=html-api-2026-06-08",
+				"caption": "Downloading the bundled Symfony demo"
+			},
+			"extractToPath": "/wordpress",
+			"progress": {
+				"caption": "Installing Symfony Package Radar"
+			}
+		},
+		{
+			"step": "request",
+			"request": {
+				"method": "GET",
+				"url": "/symfony-package-radar/public/index.php"
+			},
+			"progress": {
+				"caption": "Checking the Symfony route"
+			}
+		}
+	]
+}} />
+
 ## Enable an option on the Gutenberg Experiments page
 
 Here: Switch on the "new admin views" feature.
