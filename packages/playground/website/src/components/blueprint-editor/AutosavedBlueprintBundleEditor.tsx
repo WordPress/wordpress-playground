@@ -18,8 +18,18 @@ import {
 	useRef,
 	useState,
 } from 'react';
+import {
+	loadPersistedBlueprintBundle,
+	persistBlueprintBundle,
+} from '../../lib/state/opfs/opfs-blueprint-bundle-storage';
 // Reuse the file browser layout styles to keep UI consistent
-import type { SiteInfo } from '../../lib/state/redux/slice-sites';
+import {
+	isAutosavedSite,
+	isExplicitlySavedSite,
+	type SiteInfo,
+	updateSite,
+} from '../../lib/state/redux/slice-sites';
+import { useAppDispatch } from '../../lib/state/redux/store';
 import styles from './blueprint-bundle-editor.module.css';
 import {
 	type BlueprintBundleEditorHandle,
@@ -55,7 +65,9 @@ function isFilesystemBackend(obj: unknown): obj is WritableFilesystemBackend {
 		'listFiles' in obj &&
 		'isDir' in obj &&
 		'read' in obj &&
-		'fileExists' in obj
+		'fileExists' in obj &&
+		'writeFile' in obj &&
+		'clear' in obj
 	);
 }
 
@@ -93,6 +105,29 @@ async function populateFilesystemFromBlueprint(
 			await fs.writeFile(absolutePath, content);
 		}
 	}
+}
+
+/**
+ * Returns an editable filesystem for a site's Blueprint declaration or bundle.
+ *
+ * Bundle backends can be used directly. Declaration-only Blueprints are copied
+ * into a fresh in-memory filesystem so the editor always works with files.
+ */
+async function createFilesystemFromOriginalBlueprint(
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+): Promise<EventedFilesystem> {
+	if (isFilesystemBackend(originalBlueprint)) {
+		return new EventedFilesystem(originalBlueprint);
+	}
+
+	const fs = new EventedFilesystem(new InMemoryFilesystemBackend());
+	if (originalBlueprint) {
+		await populateFilesystemFromBlueprint(
+			fs,
+			originalBlueprint as Blueprint
+		);
+	}
+	return fs;
 }
 
 function collectBundledResourcePaths(value: unknown): Set<string> {
@@ -152,6 +187,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	AutosavedBlueprintBundleEditorHandle,
 	AutosavedBlueprintBundleEditorProps
 >(function ({ className, site }, ref) {
+	const dispatch = useAppDispatch();
 	const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
 		null
 	);
@@ -164,35 +200,56 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
-	// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
-	// Let's just populate an in-memory filesystem with the Blueprint.
-	const readOnly = site?.metadata.storage !== 'none';
+	// Autosaved and explicitly saved Playgrounds both use OPFS, but they
+	// represent different lifecycle states. Autosaves are recovery copies that
+	// can still be reshaped by editing their Blueprint; explicit saves are
+	// user-preserved site artifacts, so their Blueprints remain read-only.
+	const isAutosaved = isAutosavedSite(site);
+	const readOnly = isExplicitlySavedSite(site);
 
 	// Initialize the filesystem.
 	useEffect(() => {
 		const bootstrap = async () => {
-			let fs: EventedFilesystem | null = null;
-			// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
-			if (readOnly) {
-				const originalBlueprint = site.metadata.originalBlueprint;
-
-				// If originalBlueprint is already a filesystem backend (e.g., PersistedBlueprintBundle),
-				// use it directly instead of populating from blueprint JSON.
-				if (isFilesystemBackend(originalBlueprint)) {
-					fs = new EventedFilesystem(originalBlueprint);
+			if (isAutosaved) {
+				const fs = await createFilesystemFromOriginalBlueprint(
+					site.metadata.originalBlueprint
+				);
+				if (isFilesystemBackend(site.metadata.originalBlueprint)) {
 					setFilesystem(fs);
 					return;
 				}
 
-				// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
-				fs = new EventedFilesystem(new InMemoryFilesystemBackend());
-				if (originalBlueprint) {
-					await populateFilesystemFromBlueprint(
-						fs,
-						originalBlueprint as Blueprint
-					);
-				}
-				setFilesystem(fs);
+				await persistBlueprintBundle(site.slug, fs.backend);
+				const opfsFilesystem = new EventedFilesystem(
+					await loadPersistedBlueprintBundle(site.slug)
+				);
+				await dispatch(
+					updateSite({
+						slug: site.slug,
+						changes: {
+							metadata: {
+								...site.metadata,
+								originalBlueprint: opfsFilesystem.backend,
+								originalBlueprintSource: {
+									type: 'opfs-site',
+								},
+							},
+						},
+					})
+				);
+				setFilesystem(opfsFilesystem);
+				return;
+			}
+
+			// Explicitly saved Playgrounds show the Blueprint as the creation recipe
+			// for a preserved site. Editing that recipe without recreating the site
+			// would make the saved metadata disagree with the WordPress files.
+			if (readOnly) {
+				setFilesystem(
+					await createFilesystemFromOriginalBlueprint(
+						site.metadata.originalBlueprint
+					)
+				);
 				return;
 			}
 
@@ -220,7 +277,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 				// Continue editing with OPFS.
 				hasMigratedToOpfs.current = true;
 				try {
-					fs = new EventedFilesystem(await createOpfsBackend());
+					const fs = new EventedFilesystem(await createOpfsBackend());
 					setFilesystem(fs);
 					return;
 				} catch (error) {
@@ -233,16 +290,19 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 			// No autosave exists, or we couldn't load it.
 			// Start with an in-memory filesystem. We'll migrate to OPFS on first edit.
-			fs = new EventedFilesystem(new InMemoryFilesystemBackend());
-			await populateFilesystemFromBlueprint(
-				fs,
-				site.metadata.originalBlueprint as Blueprint
+			setFilesystem(
+				await createFilesystemFromOriginalBlueprint(
+					site.metadata.originalBlueprint
+				)
 			);
-			setFilesystem(fs);
 		};
 
 		bootstrap();
-	}, []);
+		// Rebuild the editor filesystem only when it switches to a different site
+		// or a different editability mode. Usage metadata such as `whenLastUsed`
+		// can change while the user is editing and should not remount the editor.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [site.slug, isAutosaved, readOnly]);
 
 	/**
 	 * Discard an autosave: clear OPFS and start fresh with in-memory.
@@ -260,12 +320,11 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 			// and we shouldn't skip the prompt next time if they reload.
 			delete autosavePromptAnswered[site.slug];
 
-			const fs = new EventedFilesystem(new InMemoryFilesystemBackend());
-			await populateFilesystemFromBlueprint(
-				fs,
-				site.metadata.originalBlueprint as Blueprint
+			setFilesystem(
+				await createFilesystemFromOriginalBlueprint(
+					site.metadata.originalBlueprint
+				)
 			);
-			setFilesystem(fs);
 			setAutosavePromptVisible(false);
 		} catch (error) {
 			logger.error('Failed to discard autosave bundle', error);
@@ -303,11 +362,21 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	 * This ensures autosaves only exist when the user has actually made changes.
 	 */
 	useEffect(() => {
-		if (!filesystem || readOnly || hasMigratedToOpfs.current) {
+		if (
+			!filesystem ||
+			readOnly ||
+			isAutosaved ||
+			hasMigratedToOpfs.current
+		) {
 			return;
 		}
 		async function migrateToOpfs() {
-			if (hasMigratedToOpfs.current || readOnly || !filesystem) {
+			if (
+				hasMigratedToOpfs.current ||
+				readOnly ||
+				isAutosaved ||
+				!filesystem
+			) {
 				return;
 			}
 			hasMigratedToOpfs.current = true;
@@ -334,7 +403,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 		return () => {
 			filesystem.removeEventListener('change', migrateToOpfs);
 		};
-	}, [filesystem, readOnly, site.slug]);
+	}, [filesystem, isAutosaved, readOnly, site.slug]);
 
 	useImperativeHandle(
 		ref,

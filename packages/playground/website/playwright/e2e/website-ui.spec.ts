@@ -66,6 +66,31 @@ async function getActivePlaygroundSite(page: Page) {
 	);
 }
 
+async function replaceBlueprintEditorContents(
+	page: Page,
+	blueprint: Blueprint
+) {
+	const editor = page.locator('[class*="blueprint-editor"] .cm-editor');
+	await editor.waitFor({ timeout: 10000 });
+
+	await editor.click();
+	await page.waitForTimeout(100);
+	await page.keyboard.press(
+		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+	);
+	await page.keyboard.press('Backspace');
+	await page.waitForTimeout(100);
+
+	const blueprintJson = JSON.stringify(blueprint, null, 2);
+	const cmContent = editor.locator('.cm-content');
+	await cmContent.fill(blueprintJson);
+
+	await page.waitForTimeout(500);
+	await expect(cmContent).toContainText('writeFile', {
+		timeout: 5000,
+	});
+}
+
 function escapeRegExp(text: string) {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -322,55 +347,18 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	// Navigate to Blueprint tab
 	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
 
-	// Wait for CodeMirror editor to load
-	const editor = website.page.locator(
-		'[class*="blueprint-editor"] .cm-editor'
-	);
-	await editor.waitFor({ timeout: 10000 });
-
 	// Create a simple blueprint that writes "Blueprint test" to index.php
-	const blueprint = JSON.stringify(
-		{
-			landingPage: '/index.php',
-			steps: [
-				{
-					step: 'writeFile',
-					path: '/wordpress/index.php',
-					data: 'Blueprint test',
-				},
-			],
-		},
-		null,
-		2
-	);
-
-	// Focus the editor
-	await editor.click();
-	// Wait a moment for the editor to be fully ready
-	await website.page.waitForTimeout(100);
-
-	// Select all existing content
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
-	);
-
-	// Delete the selected content
-	await website.page.keyboard.press('Backspace');
-	await website.page.waitForTimeout(100);
-
-	// Use Playwright's fill method on the contenteditable .cm-content element
-	// This is more reliable than character-by-character typing which triggers
-	// auto-bracket insertion
-	const cmContent = editor.locator('.cm-content');
-	await cmContent.fill(blueprint);
-
-	// Wait for validation to complete (linter has 300ms debounce)
-	await website.page.waitForTimeout(500);
-
-	// Verify the blueprint was inserted by checking the editor content
-	await expect(cmContent).toContainText('writeFile', {
-		timeout: 5000,
-	});
+	const blueprint: Blueprint = {
+		landingPage: '/index.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/index.php',
+				data: 'Blueprint test',
+			},
+		],
+	};
+	await replaceBlueprintEditorContents(website.page, blueprint);
 
 	// Click the "Run Blueprint" button
 	await website.page
@@ -808,6 +796,65 @@ test.describe('Default Playground storage', () => {
 				/^Autosaving [1-9]\d*%$/.test(ariaLabel ?? '')
 			)
 		).toBe(true);
+	});
+
+	test('should edit a Blueprint for an autosaved Playground and recreate the same autosave', async ({
+		website,
+		wordpress,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('blueprint-edit'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const originalSite = await getActivePlaygroundSite(website.page);
+
+		await website.ensureSiteManagerIsOpen();
+		await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+		await expect(
+			website.page
+				.getByLabel('WordPress Playground')
+				.getByText(
+					'Running this Blueprint will recreate this autosaved Playground under the same name and replace all its files.'
+				)
+		).toBeVisible();
+
+		await replaceBlueprintEditorContents(website.page, {
+			landingPage: '/index.php',
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/index.php',
+					data: 'Autosaved Blueprint test',
+				},
+			],
+		});
+
+		await website.page
+			.getByRole('button', {
+				name: 'Run Blueprint and reset site',
+			})
+			.click();
+		await website.waitForNestedIframes();
+
+		await expect(wordpress.locator('body')).toContainText(
+			'Autosaved Blueprint test',
+			{ timeout: 10000 }
+		);
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.toMatchObject({
+				slug: originalSite.slug,
+				name: originalSite.name,
+				persistence: 'autosave',
+			});
 	});
 
 	test('should show intent-driven creation actions in the overlay', async ({

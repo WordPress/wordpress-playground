@@ -41,9 +41,13 @@ import { StringEditorModal } from './string-editor-modal';
 import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
-import type { SiteInfo } from '../../lib/state/redux/slice-sites';
-import { sitesSlice } from '../../lib/state/redux/slice-sites';
+import {
+	isAutosavedSite,
+	type SiteInfo,
+	updateSite,
+} from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
+import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -376,11 +380,16 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [newUrl]);
 
 	const handleRecreateFromBlueprint = useCallback(async () => {
-		if (!site || site.metadata.storage !== 'none' || readOnly) {
+		if (
+			!site ||
+			readOnly ||
+			(site.metadata.storage !== 'none' && !isAutosavedSite(site))
+		) {
 			return;
 		}
 		try {
 			setIsRecreating(true);
+			const isAutosaved = isAutosavedSite(site);
 			const bundle =
 				(filesystem as EventedFilesystem | null) ??
 				((site.metadata.originalBlueprint ||
@@ -391,16 +400,35 @@ export const BlueprintBundleEditor = forwardRef<
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
 				bundle as any
 			);
+			if (isAutosaved) {
+				await opfsSiteStorage!.resetSiteFiles(site.slug);
+			}
 			dispatch(removeClientInfo(site.slug));
-			dispatch(
-				sitesSlice.actions.updateSite({
-					id: site.slug,
+			await dispatch(
+				updateSite({
+					slug: site.slug,
 					changes: {
 						metadata: {
 							...site.metadata,
-							originalBlueprintSource: { type: 'last-autosave' },
-							originalBlueprint: bundle,
+							originalBlueprintSource: isAutosaved
+								? { type: 'opfs-site' }
+								: { type: 'last-autosave' },
+							originalBlueprint: isAutosaved
+								? (filesystem as EventedFilesystem).backend
+								: bundle,
 							runtimeConfiguration,
+							initialOpfsSyncPending:
+								isAutosaved ||
+								site.metadata.initialOpfsSyncPending,
+							/**
+							 * Recreating an autosaved Playground discards the old WordPress
+							 * files and boots from the edited Blueprint. Constants discovered
+							 * from the previous runtime may no longer exist in the recreated
+							 * site, so they must be rediscovered after the first OPFS sync.
+							 */
+							playgroundDefinedConstants: isAutosaved
+								? undefined
+								: site.metadata.playgroundDefinedConstants,
 							whenCreated: Date.now(),
 						},
 						originalUrlParams: undefined,
@@ -413,7 +441,7 @@ export const BlueprintBundleEditor = forwardRef<
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [dispatch, filesystem, site]);
+	}, [dispatch, filesystem, readOnly, site]);
 
 	// autorun token hook
 	useEffect(() => {
@@ -635,6 +663,7 @@ export const BlueprintBundleEditor = forwardRef<
 		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
 	);
 
+	const isAutosaved = site ? isAutosavedSite(site) : false;
 	const disableRunButton = isRecreating || !site || hasValidationErrors;
 	return (
 		<>
@@ -736,7 +765,9 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarPlayIcon
 											}
 										/>
-										Run Blueprint
+										{isAutosaved
+											? 'Run Blueprint and reset site'
+											: 'Run Blueprint'}
 									</Button>
 								)}
 							</div>
@@ -762,6 +793,15 @@ export const BlueprintBundleEditor = forwardRef<
 									files and cannot be shared via URL. Use the
 									download button to export the bundle as a
 									zip file.
+								</Notice>
+							</div>
+						) : null}
+						{isAutosaved ? (
+							<div style={{ padding: '8px 16px' }}>
+								<Notice status="warning" isDismissible={false}>
+									Running this Blueprint will recreate this
+									autosaved Playground under the same name and
+									replace all its files.
 								</Notice>
 							</div>
 						) : null}

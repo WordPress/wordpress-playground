@@ -17,6 +17,7 @@ import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clien
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
+	isExplicitlySavedSite,
 	MAX_AUTOSAVED_SITES,
 } from '../../../lib/state/redux/slice-sites';
 import {
@@ -105,6 +106,7 @@ export function SiteInfoPanel({
 
 	const isTemporary = site.metadata.storage === 'none';
 	const isAutosaved = isAutosavedSite(site);
+	const isBlueprintReadOnly = isExplicitlySavedSite(site);
 
 	const removeSiteAndCloseMenu = (onClose: () => void) => {
 		dispatch(setSiteSlugToDelete(site.slug));
@@ -478,7 +480,7 @@ export function SiteInfoPanel({
 									)}
 									hidden={tab.name !== 'blueprint'}
 								>
-									{!isTemporary && (
+									{isBlueprintReadOnly && (
 										<div className={css.blueprintNotice}>
 											This Blueprint is read-only for
 											saved Playgrounds. Create an Unsaved
