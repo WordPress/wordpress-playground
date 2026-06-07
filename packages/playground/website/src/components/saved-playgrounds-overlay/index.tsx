@@ -45,9 +45,9 @@ import {
 } from '../overlay';
 
 /**
- * Maximum explicitly saved Playgrounds to show before collapsing the list.
+ * Maximum stored Playgrounds to show before collapsing the list.
  */
-const MAX_VISIBLE_SAVED_SITES = 8;
+const MAX_VISIBLE_STORED_SITES = 8;
 
 type BlueprintsIndexEntry = {
 	title: string;
@@ -95,7 +95,7 @@ export function SavedPlaygroundsOverlay({
 	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
-	const [showAllSavedSites, setShowAllSavedSites] = useState(false);
+	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
 	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
 	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
 		string | null
@@ -306,7 +306,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'vanilla',
 			title: 'Vanilla WordPress',
-			ariaLabel: 'New Playground',
 			iconComponent: <WordPressIcon />,
 			onClick: createVanillaSite,
 			disabled: false,
@@ -314,7 +313,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'wp-pr',
 			title: 'WordPress PR',
-			ariaLabel: 'Preview a WordPress PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
@@ -324,7 +322,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'gutenberg-pr',
 			title: 'Gutenberg PR',
-			ariaLabel: 'Preview a Gutenberg PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
@@ -334,7 +331,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'github',
 			title: 'From GitHub',
-			ariaLabel: 'Import from GitHub',
 			iconComponent: GitHubIcon,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
@@ -344,7 +340,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'blueprint-url',
 			title: 'Blueprint URL',
-			ariaLabel: 'Open a Blueprint URL',
 			icon: link,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
@@ -354,7 +349,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'zip',
 			title: 'Import .zip',
-			ariaLabel: 'Import a .zip',
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
@@ -363,10 +357,10 @@ export function SavedPlaygroundsOverlay({
 		},
 	];
 
-	const visibleStoredSites = showAllSavedSites
+	const visibleStoredSites = showAllStoredSites
 		? storedSites
-		: storedSites.slice(0, MAX_VISIBLE_SAVED_SITES);
-	const hiddenSavedSitesCount =
+		: storedSites.slice(0, MAX_VISIBLE_STORED_SITES);
+	const hiddenStoredSitesCount =
 		storedSites.length - visibleStoredSites.length;
 
 	function formatSiteCreatedDate(site: SiteInfo) {
@@ -510,15 +504,17 @@ export function SavedPlaygroundsOverlay({
 						{visibleSites.map(renderSiteRow)}
 					</div>
 				)}
-				{hiddenSavedSitesCount > 0 && (
+				{hiddenStoredSitesCount > 0 && (
 					<button
 						type="button"
 						className={css.showMoreButton}
-						onClick={() => setShowAllSavedSites(!showAllSavedSites)}
+						onClick={() =>
+							setShowAllStoredSites(!showAllStoredSites)
+						}
 					>
-						{showAllSavedSites
+						{showAllStoredSites
 							? 'Show fewer Playgrounds'
-							: `Show ${hiddenSavedSitesCount} more Playgrounds`}
+							: `Show ${hiddenStoredSitesCount} more Playgrounds`}
 					</button>
 				)}
 			</OverlaySection>
@@ -738,7 +734,6 @@ export function SavedPlaygroundsOverlay({
 									<button
 										key={option.id}
 										className={css.creationButton}
-										aria-label={option.ariaLabel}
 										onClick={option.onClick}
 										disabled={option.disabled}
 									>

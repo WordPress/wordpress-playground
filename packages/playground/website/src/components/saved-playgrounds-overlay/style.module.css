@@ -709,23 +709,7 @@
 	display: grid;
 	gap: 24px 20px;
 	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-	overflow-x: hidden;
 	padding: 0 8px 16px 0;
-	scrollbar-color: #3c4349 transparent;
-	scrollbar-width: thin;
-}
-
-.blueprintsSection .blueprintsRow::-webkit-scrollbar {
-	width: 8px;
-}
-
-.blueprintsSection .blueprintsRow::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-.blueprintsSection .blueprintsRow::-webkit-scrollbar-thumb {
-	background: #3c4349;
-	border-radius: 8px;
 }
 
 .blueprintsSection .blueprintPreviewCard {
