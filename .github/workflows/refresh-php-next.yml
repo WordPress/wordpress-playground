@@ -6,9 +6,9 @@ on:
             php_ref:
                 description: 'php-src ref to build (defaults to php-src development branch)'
                 required: false
-    # Refresh PHP next binaries every day at 6am UTC.
+    # Refresh PHP next binaries every 4 days at 6am UTC.
     schedule:
-        - cron: '0 6 * * *'
+        - cron: '0 6 */4 * *'
 
 concurrency:
     group: refresh-php-next
@@ -68,6 +68,7 @@ jobs:
                   trap 'rm -rf "$publish_dir"' EXIT
                   cp -a packages/playground/website/public/php-next/. "$publish_dir/"
 
+                  git reset --hard HEAD
                   git switch --orphan php-next-publish
                   git rm -rf . || true
                   git clean -fdx
