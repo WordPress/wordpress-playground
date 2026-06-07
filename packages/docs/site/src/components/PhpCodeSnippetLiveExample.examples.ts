@@ -188,6 +188,51 @@ echo get_bloginfo( 'version' );
 6.8
   </script>
 </php-snippet>`,
+	symfonyBlueprint: String.raw`<script id="symfony-blueprint-preview" type="application/json">
+{
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "unzip",
+      "zipFile": {
+        "resource": "url",
+        "url": "https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/symfony-package-radar/symfony-package-radar.zip"
+      },
+      "extractToPath": "/wordpress"
+    }
+  ]
+}
+</script>
+
+<php-snippet name="run-symfony.php" wp="none" blueprint="symfony-blueprint-preview">
+  <script type="application/x-php">
+<?php
+require '/wordpress/symfony-package-radar/vendor/autoload.php';
+
+use App\Kernel;
+use Symfony\Component\HttpFoundation\Request;
+
+$kernel = new Kernel('prod', false);
+$request = Request::create('/');
+$response = $kernel->handle($request);
+
+preg_match('/<h1>(.*?)<\/h1>/', $response->getContent(), $match);
+
+echo 'HTTP ' . $response->getStatusCode() . PHP_EOL;
+echo 'Symfony page: ' . html_entity_decode($match[1] ?? 'unknown') . PHP_EOL;
+echo 'WordPress installed: ';
+echo file_exists('/wordpress/wp-load.php') ? 'yes' : 'no';
+
+$kernel->terminate($request, $response);
+  </script>
+  <script type="text/expected-output">
+HTTP 200
+Symfony page: Package Radar
+WordPress installed: no
+  </script>
+</php-snippet>`,
 	illustration: String.raw`<php-snippet name="illustration.php" runnable="false">
   <script type="application/x-php">
 <?php
