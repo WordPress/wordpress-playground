@@ -34,68 +34,72 @@ That makes Playground useful for generic PHP examples:
 
 ## Try a Symfony app
 
-The example below uses a Blueprint to download and unzip a bundled Symfony app,
-then a `<php-snippet>` boots the Symfony kernel and renders the dashboard route.
-The snippet prints the Symfony response status, the page title, and whether a
-WordPress install exists.
+The example below uses a Blueprint to download and unzip a bundled Symfony app
+into `/app`. Then a `<php-snippet>` boots the Symfony kernel and renders the
+dashboard route. The snippet prints the Symfony response status, the page title,
+and whether a WordPress install exists.
 
 <PhpCodeSnippetExample name="symfonyBlueprint" />
 
 Here is the complete embed:
 
+<!-- prettier-ignore-start -->
+
 ```html
 <script type="module" src="https://playground.wordpress.net/php-code-snippet.js"></script>
 
 <script id="symfony-blueprint" type="application/json">
-	{
-		"features": {
-			"networking": true
-		},
-		"steps": [
-			{
-				"step": "unzip",
-				"zipFile": {
-					"resource": "url",
-					"url": "https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/symfony-package-radar/symfony-package-radar.zip"
-				},
-				"extractToPath": "/wordpress"
-			}
-		]
-	}
+{
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "unzip",
+      "zipFile": {
+        "resource": "url",
+        "url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip"
+      },
+      "extractToPath": "/app"
+    }
+  ]
+}
 </script>
 
 <php-snippet name="run-symfony.php" wp="none" blueprint="symfony-blueprint">
-	<script type="application/x-php">
-		<?php
-		require '/wordpress/symfony-package-radar/vendor/autoload.php';
+  <script type="application/x-php">
+<?php
+require '/app/symfony-package-radar/vendor/autoload.php';
 
-		use App\Kernel;
-		use Symfony\Component\HttpFoundation\Request;
+use App\Kernel;
+use Symfony\Component\HttpFoundation\Request;
 
-		$kernel = new Kernel( 'prod', false );
-		$request = Request::create( '/' );
-		$response = $kernel->handle( $request );
+$kernel = new Kernel( 'prod', false );
+$request = Request::create( '/' );
+$response = $kernel->handle( $request );
 
-		preg_match( '/<h1>(.*?)<\/h1>/', $response->getContent(), $match );
+preg_match( '/<h1>(.*?)<\/h1>/', $response->getContent(), $match );
 
-		echo 'HTTP ' . $response->getStatusCode() . PHP_EOL;
-		echo 'Symfony page: ' . html_entity_decode( $match[1] ?? 'unknown' ) . PHP_EOL;
-		echo 'WordPress installed: ';
-		echo file_exists( '/wordpress/wp-load.php' ) ? 'yes' : 'no';
+echo 'HTTP ' . $response->getStatusCode() . PHP_EOL;
+echo 'Symfony page: ' . html_entity_decode( $match[1] ?? 'unknown' ) . PHP_EOL;
+echo 'WordPress installed: ';
+echo file_exists( '/wordpress/wp-load.php' ) ? 'yes' : 'no';
 
-		$kernel->terminate( $request, $response );
-	</script>
-	<script type="text/expected-output">
-		HTTP 200
-		Symfony page: Package Radar
-		WordPress installed: no
-	</script>
+$kernel->terminate( $request, $response );
+  </script>
+  <script type="text/expected-output">
+HTTP 200
+Symfony page: Package Radar
+WordPress installed: no
+  </script>
 </php-snippet>
 ```
 
+<!-- prettier-ignore-end -->
+
 The same app is also available as a full Playground page:
 
-[Open the Symfony Package Radar demo](https://playground.wordpress.net/?blueprint-url=https%3A%2F%2Fraw.githubusercontent.com%2FWordPress%2Fblueprints%2Ftrunk%2Fblueprints%2Fsymfony-package-radar%2Fblueprint.json)
+[Open the Symfony Package Radar demo](https://playground.wordpress.net/?blueprint-url=https%3A%2F%2Fwordpress.github.io%2Fblueprints%2Fblueprints%2Fsymfony-package-radar%2Fblueprint.json)
 
 ## Package the app as a ZIP
 
@@ -103,7 +107,8 @@ For framework demos, prefer a ZIP that already contains `vendor/`. That keeps
 the Playground startup path short and avoids asking every visitor to wait for
 Composer, Git, and package registry downloads.
 
-A small Blueprint can then install the app with one step:
+For snippets or CLI runs, a small Blueprint can install the app into `/app` with
+one step:
 
 ```json
 {
@@ -123,7 +128,7 @@ A small Blueprint can then install the app with one step:
 				"resource": "bundled",
 				"path": "./symfony-package-radar.zip"
 			},
-			"extractToPath": "/wordpress"
+			"extractToPath": "/app"
 		}
 	]
 }
@@ -132,6 +137,10 @@ A small Blueprint can then install the app with one step:
 Use `bundled` resources when the ZIP ships next to `blueprint.json`, or use a
 `url` resource when the ZIP is hosted separately. See [Blueprint bundles](/blueprints/bundles)
 for packaging details.
+
+For a full-page Playground website, use a Blueprint like the gallery demo. It
+adds a tiny router at the Playground document root so the Symfony `public/`
+directory can respond to browser requests.
 
 ## Keep the demo browser-friendly
 

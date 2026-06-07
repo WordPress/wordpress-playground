@@ -198,9 +198,9 @@ echo get_bloginfo( 'version' );
       "step": "unzip",
       "zipFile": {
         "resource": "url",
-        "url": "https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/symfony-package-radar/symfony-package-radar.zip"
+        "url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip"
       },
-      "extractToPath": "/wordpress"
+      "extractToPath": "/app"
     }
   ]
 }
@@ -209,7 +209,7 @@ echo get_bloginfo( 'version' );
 <php-snippet name="run-symfony.php" wp="none" blueprint="symfony-blueprint-preview">
   <script type="application/x-php">
 <?php
-require '/wordpress/symfony-package-radar/vendor/autoload.php';
+require '/app/symfony-package-radar/vendor/autoload.php';
 
 use App\Kernel;
 use Symfony\Component\HttpFoundation\Request;
