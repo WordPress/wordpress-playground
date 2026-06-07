@@ -64,20 +64,21 @@ jobs:
               run: |
                   set -euo pipefail
                   branch="php-next-builds"
-                  publish_dir="$(mktemp -d)"
-                  trap 'rm -rf "$publish_dir"' EXIT
-                  cp -a packages/playground/website/public/php-next/. "$publish_dir/"
+                  publish_assets_dir="$(mktemp -d)"
+                  publish_worktree="$(mktemp -d)"
+                  trap 'git worktree remove --force "$publish_worktree"; rm -rf "$publish_assets_dir"' EXIT
+                  cp -a packages/playground/website/public/php-next/. "$publish_assets_dir/"
 
-                  git reset --hard HEAD
-                  git switch --orphan php-next-publish
-                  git rm -rf . || true
-                  git clean -fdx
-                  cp -a "$publish_dir/." .
-                  git add -A
+                  git worktree add --detach "$publish_worktree" HEAD
+                  git -C "$publish_worktree" switch --orphan php-next-publish
+                  git -C "$publish_worktree" rm -rf . || true
+                  git -C "$publish_worktree" clean -ffdx
+                  cp -a "$publish_assets_dir/." "$publish_worktree/"
+                  git -C "$publish_worktree" add -A
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git commit -m "Refresh PHP next builds"
-                  git push --force origin HEAD:"$branch"
+                  git -C "$publish_worktree" commit -m "Refresh PHP next builds"
+                  git -C "$publish_worktree" push --force origin HEAD:"$branch"
             - name: Deploy website
               uses: benc-uk/workflow-dispatch@v1
               with:
