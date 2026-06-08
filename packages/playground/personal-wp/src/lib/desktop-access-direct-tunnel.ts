@@ -1385,17 +1385,30 @@ export class DirectTunnelGuest {
 	}
 
 	private async handleSignals(messages: SignalMessage[]): Promise<void> {
+		let latestOffer: SignalMessage | null = null;
 		for (const message of messages) {
 			if (message.type === 'offer') {
-				const signal = readAttemptSignal(message.data);
-				if (!signal) {
-					continue;
-				}
+				latestOffer = message;
+			}
+		}
+		if (latestOffer) {
+			const signal = readAttemptSignal(latestOffer.data);
+			if (signal) {
 				await this.acceptOffer(
 					signal.attemptId,
 					isSessionDescription(signal.payload)
 				);
-			} else if (message.type === 'candidate' && this.peerConnection) {
+			}
+		}
+
+		for (const message of messages) {
+			if (
+				latestOffer &&
+				(message.seq <= latestOffer.seq || message.type === 'offer')
+			) {
+				continue;
+			}
+			if (message.type === 'candidate' && this.peerConnection) {
 				const signal = readAttemptSignal(message.data);
 				if (
 					!signal ||
