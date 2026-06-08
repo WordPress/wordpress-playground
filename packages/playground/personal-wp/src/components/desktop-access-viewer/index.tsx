@@ -51,6 +51,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [approvalPending, setApprovalPending] = useState(false);
 	const [iframeHasLoaded, setIframeHasLoaded] = useState(false);
 	const [iframeSrc, setIframeSrc] = useState('about:blank');
+	const [connectionAttempt, setConnectionAttempt] = useState(0);
 	const [relayDiagnostics, setRelayDiagnostics] = useState<RelayDiagnostics>({
 		serviceWorker: 'Waiting',
 		dataChannel: 'Waiting',
@@ -202,7 +203,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				clearTimeout(timeoutHandle);
 			}
 		};
-	}, [guestId, sessionId, statusUrl]);
+	}, [connectionAttempt, guestId, sessionId, statusUrl]);
 
 	useEffect(() => {
 		if (!('serviceWorker' in navigator)) {
@@ -491,8 +492,12 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const retry = () => {
 		setStatus('connecting');
 		setError(null);
+		setUnsupportedMessage(null);
+		setApprovalPending(false);
+		setDataChannelReady(false);
 		setIframeHasLoaded(false);
 		setIframeSrc('about:blank');
+		setConnectionAttempt((current) => current + 1);
 		setTimeout(() => {
 			if (shouldLoadIframe) {
 				setIframeSrc(buildDesktopRelayIframeUrl('/', sessionId));
@@ -500,6 +505,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		}, 0);
 		setRelayDiagnostics((current) => ({
 			...current,
+			dataChannel: 'Retrying',
 			iframe: shouldLoadIframe ? 'Reloading' : 'Waiting',
 			lastError: '-',
 		}));
@@ -555,7 +561,10 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					/>
 					<details className={css.relayDiagnosticsDetails}>
 						<summary title={relayDiagnosticsTitle}>Debug</summary>
-						<RelayDiagnosticsBar diagnostics={relayDiagnostics} />
+						<RelayDiagnosticsBar
+							diagnostics={relayDiagnostics}
+							onRetry={retry}
+						/>
 					</details>
 				</div>
 			</header>
@@ -798,11 +807,20 @@ function ConnectionPill({
 
 function RelayDiagnosticsBar({
 	diagnostics,
+	onRetry,
 }: {
 	diagnostics: RelayDiagnostics;
+	onRetry: () => void;
 }) {
 	return (
 		<div className={css.relayDiagnostics} aria-live="polite">
+			<button
+				type="button"
+				className={css.relayDiagnosticsButton}
+				onClick={onRetry}
+			>
+				Retry connection
+			</button>
 			<span>SW: {diagnostics.serviceWorker}</span>
 			<span>Channel: {diagnostics.dataChannel}</span>
 			<span>Frame: {diagnostics.iframe}</span>

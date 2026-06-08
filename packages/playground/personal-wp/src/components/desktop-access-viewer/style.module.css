@@ -179,6 +179,31 @@
 	flex: 0 0 auto;
 }
 
+.relay-diagnostics-button {
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #f6f7f7;
+	color: #1e1e1e;
+	font: inherit;
+	font-family: inherit;
+	font-size: 12px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.relay-diagnostics-button:hover,
+.relay-diagnostics-button:focus-visible {
+	border-color: #8c8f94;
+	background: #ffffff;
+}
+
+.relay-diagnostics-button:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
 .relay-diagnostics-details {
 	position: relative;
 	flex: 0 0 auto;
