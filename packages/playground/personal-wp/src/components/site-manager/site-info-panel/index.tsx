@@ -41,6 +41,7 @@ import {
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import {
 	getDesktopAccessStatus,
+	approveDesktopAccess,
 	startDesktopAccess,
 	stopDesktopAccess,
 	subscribeToDesktopAccessStatus,
@@ -167,6 +168,11 @@ function DesktopAccessSection() {
 		await stopDesktopAccess();
 	}
 
+	function approveAccess() {
+		setMessage('Desktop access approved.');
+		approveDesktopAccess();
+	}
+
 	async function copyCurrentUrl() {
 		if (!desktopAccess.shareUrl) {
 			return;
@@ -211,6 +217,23 @@ function DesktopAccessSection() {
 						<div className={css.desktopAccessUrl}>
 							{desktopAccess.shareUrl}
 						</div>
+						{desktopAccess.status === 'pending-approval' && (
+							<div
+								className={css.desktopAccessApproval}
+								role="status"
+							>
+								<span>
+									A desktop is asking to use this WordPress.
+								</span>
+								<button
+									type="button"
+									className={css.backupNowButton}
+									onClick={approveAccess}
+								>
+									Allow
+								</button>
+							</div>
+						)}
 						{desktopAccess.metrics && (
 							<DesktopAccessDiagnostics
 								metrics={desktopAccess.metrics}

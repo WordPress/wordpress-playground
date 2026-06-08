@@ -90,6 +90,11 @@ export async function stopDesktopAccess(): Promise<void> {
 	notifyListeners();
 }
 
+export function approveDesktopAccess(): void {
+	tunnelHost?.approveDesktopAccess();
+	notifyListeners();
+}
+
 function notifyListeners() {
 	const status = getDesktopAccessStatus();
 	for (const listener of statusListeners) {

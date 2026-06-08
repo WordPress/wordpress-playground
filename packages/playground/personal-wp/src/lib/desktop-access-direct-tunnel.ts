@@ -4,6 +4,7 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 export type TunnelHostStatus =
 	| 'disconnected'
 	| 'connecting'
+	| 'pending-approval'
 	| 'connected'
 	| 'error';
 
@@ -71,6 +72,10 @@ interface DataChannelRequest extends TunnelRequest {
 
 interface DataChannelResponse extends TunnelResponse {
 	type: 'response';
+}
+
+interface DataChannelControlMessage {
+	type: 'approval-required' | 'approved';
 }
 
 /**
@@ -155,6 +160,7 @@ export class DirectTunnelHost {
 	private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private isCreatingOffer = false;
+	private isApproved = false;
 	private requestQueue: DataChannelRequest[] = [];
 	private isProcessingRequest = false;
 	private metrics: TunnelHostMetrics = {
@@ -213,6 +219,7 @@ export class DirectTunnelHost {
 		this.peerConnection = null;
 		this.requestQueue = [];
 		this.isProcessingRequest = false;
+		this.isApproved = false;
 		this.sessionId = null;
 		this.shareUrl = null;
 		this.accessCode = null;
@@ -249,6 +256,15 @@ export class DirectTunnelHost {
 
 	getMetrics(): TunnelHostMetrics {
 		return { ...this.metrics };
+	}
+
+	approveDesktopAccess(): void {
+		if (!this.isActive) {
+			return;
+		}
+		this.isApproved = true;
+		this.sendDataChannelControlMessage({ type: 'approved' });
+		this.setStatus('connected');
 	}
 
 	on<K extends keyof TunnelHostEvents>(
@@ -316,7 +332,13 @@ export class DirectTunnelHost {
 	private configureDataChannel(channel: RTCDataChannel): void {
 		channel.onopen = () => {
 			this.stopReconnect();
-			this.setStatus('connected');
+			if (this.isApproved) {
+				this.sendDataChannelControlMessage({ type: 'approved' });
+				this.setStatus('connected');
+				return;
+			}
+			this.sendDataChannelControlMessage({ type: 'approval-required' });
+			this.setStatus('pending-approval');
 		};
 		channel.onclose = () => {
 			if (this.isActive) {
@@ -358,6 +380,20 @@ export class DirectTunnelHost {
 		}
 		const request = JSON.parse(data) as DataChannelRequest;
 		if (request.type !== 'request') {
+			return;
+		}
+		if (!this.isApproved) {
+			this.sendDataChannelResponse({
+				type: 'response',
+				requestId: request.requestId,
+				status: 403,
+				headers: { 'Content-Type': 'text/plain' },
+				body: uint8ArrayToBase64(
+					new TextEncoder().encode(
+						'Waiting for approval on the phone.'
+					)
+				),
+			});
 			return;
 		}
 
@@ -444,6 +480,15 @@ export class DirectTunnelHost {
 			throw new Error('Desktop data channel is not open');
 		}
 		this.dataChannel.send(JSON.stringify(response));
+	}
+
+	private sendDataChannelControlMessage(
+		message: DataChannelControlMessage
+	): void {
+		if (this.dataChannel?.readyState !== 'open') {
+			return;
+		}
+		this.dataChannel.send(JSON.stringify(message));
 	}
 
 	private async startSignalPolling(): Promise<void> {
@@ -584,6 +629,7 @@ export class DirectTunnelGuest {
 	private peerConnection: RTCPeerConnection | null = null;
 	private dataChannel: RTCDataChannel | null = null;
 	private signalCursor = 0;
+	private isApproved = false;
 	private pendingRequests = new Map<
 		string,
 		{
@@ -635,6 +681,9 @@ export class DirectTunnelGuest {
 	): Promise<DataChannelResponse> {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Phone data channel is not connected');
+		}
+		if (!this.isApproved) {
+			throw new Error('Waiting for approval on the phone');
 		}
 		const message: DataChannelRequest = {
 			...request,
@@ -738,9 +787,11 @@ export class DirectTunnelGuest {
 	}
 
 	private configureDataChannel(channel: RTCDataChannel): void {
-		channel.onopen = () => this.reportStatus('connected');
+		channel.onopen = () =>
+			this.reportStatus('connecting', 'waiting for phone approval');
 		channel.onclose = () => {
 			if (this.isActive) {
+				this.isApproved = false;
 				this.reportStatus('connecting');
 			}
 		};
@@ -748,7 +799,19 @@ export class DirectTunnelGuest {
 			if (typeof event.data !== 'string') {
 				return;
 			}
-			const response = JSON.parse(event.data) as DataChannelResponse;
+			const response = JSON.parse(event.data) as
+				| DataChannelResponse
+				| DataChannelControlMessage;
+			if (response.type === 'approval-required') {
+				this.isApproved = false;
+				this.reportStatus('connecting', 'waiting for phone approval');
+				return;
+			}
+			if (response.type === 'approved') {
+				this.isApproved = true;
+				this.reportStatus('connected');
+				return;
+			}
 			if (response.type !== 'response') {
 				return;
 			}

@@ -344,6 +344,20 @@
 	color: #50575e;
 }
 
+.desktop-access-approval {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px;
+	border: 1px solid #dba617;
+	border-radius: 4px;
+	background: #fff8e5;
+	color: #1e1e1e;
+	font-size: 13px;
+	line-height: 18px;
+}
+
 .desktop-access-diagnostics {
 	display: grid;
 	gap: 6px;
