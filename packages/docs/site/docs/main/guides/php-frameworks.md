@@ -79,20 +79,7 @@ $kernel = new Kernel( 'prod', false );
 $request = Request::create( '/' );
 $response = $kernel->handle( $request );
 
-$processor = WP_HTML_Processor::create_fragment( $response->getContent() );
-$page_title = 'unknown';
-if ( $processor->next_tag( 'H1' ) ) {
-	$page_title = '';
-	while ( $processor->next_token() ) {
-		if ( 'H1' === $processor->get_tag() && $processor->is_tag_closer() ) {
-			break;
-		}
-		if ( '#text' === $processor->get_token_type() ) {
-			$page_title .= $processor->get_modifiable_text();
-		}
-	}
-	$page_title = trim( $page_title );
-}
+$page_title = get_first_h1_text( $response->getContent() );
 
 echo 'HTTP ' . $response->getStatusCode() . PHP_EOL;
 echo 'Symfony page: ' . $page_title . PHP_EOL;
@@ -100,6 +87,25 @@ echo 'WordPress installed: ';
 echo file_exists( '/wordpress/wp-load.php' ) ? 'yes' : 'no';
 
 $kernel->terminate( $request, $response );
+
+function get_first_h1_text( string $html ): string {
+	$processor = WP_HTML_Processor::create_fragment( $html );
+	if ( ! $processor->next_tag( 'H1' ) ) {
+		return 'unknown';
+	}
+
+	$text = '';
+	while ( $processor->next_token() ) {
+		if ( 'H1' === $processor->get_tag() && $processor->is_tag_closer() ) {
+			break;
+		}
+		if ( '#text' === $processor->get_token_type() ) {
+			$text .= $processor->get_modifiable_text();
+		}
+	}
+
+	return trim( $text );
+}
   </script>
   <script type="text/expected-output">
 HTTP 200
