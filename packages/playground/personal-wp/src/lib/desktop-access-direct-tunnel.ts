@@ -341,6 +341,29 @@ async function addIceCandidateIfCurrent(
 	}
 }
 
+function bufferRemoteCandidate(
+	candidatesByAttempt: Map<string, RTCIceCandidateInit[]>,
+	attemptId: string,
+	candidate: RTCIceCandidateInit
+): void {
+	const candidates = candidatesByAttempt.get(attemptId) || [];
+	candidates.push(candidate);
+	candidatesByAttempt.set(attemptId, candidates);
+}
+
+async function flushRemoteCandidates(
+	candidatesByAttempt: Map<string, RTCIceCandidateInit[]>,
+	attemptId: string,
+	peerConnection: RTCPeerConnection,
+	logPrefix: string
+): Promise<void> {
+	const candidates = candidatesByAttempt.get(attemptId) || [];
+	candidatesByAttempt.delete(attemptId);
+	for (const candidate of candidates) {
+		await addIceCandidateIfCurrent(peerConnection, candidate, logPrefix);
+	}
+}
+
 /**
  * Phone-side direct tunnel. The relay is only used to exchange WebRTC
  * signaling messages; WordPress HTTP requests are handled over the data channel.
@@ -363,11 +386,9 @@ export class DirectTunnelHost {
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private dataChannelOpenTimeout: ReturnType<typeof setTimeout> | null = null;
 	private isCreatingOffer = false;
-	private isApproved = false;
 	private currentAttemptId: string | null = null;
 	private approvedAttemptId: string | null = null;
 	private pendingVerificationCode: string | null = null;
-	private pendingVerificationAttemptId: string | null = null;
 	private pendingRemoteCandidates = new Map<string, RTCIceCandidateInit[]>();
 	private requestQueue: DataChannelRequest[] = [];
 	private isProcessingRequest = false;
@@ -432,11 +453,9 @@ export class DirectTunnelHost {
 		this.peerConnection = null;
 		this.requestQueue = [];
 		this.isProcessingRequest = false;
-		this.isApproved = false;
 		this.currentAttemptId = null;
 		this.approvedAttemptId = null;
 		this.pendingVerificationCode = null;
-		this.pendingVerificationAttemptId = null;
 		this.pendingRemoteCandidates.clear();
 		this.sessionId = null;
 		this.shareUrl = null;
@@ -458,10 +477,6 @@ export class DirectTunnelHost {
 				logger.warn('[DirectTunnelHost] Close request failed:', e);
 			}
 		}
-	}
-
-	getShareUrl(): string | null {
-		return this.shareUrl;
 	}
 
 	getSessionId(): string | null {
@@ -490,17 +505,14 @@ export class DirectTunnelHost {
 		}
 		if (
 			!this.currentAttemptId ||
-			this.pendingVerificationAttemptId !== this.currentAttemptId ||
 			!this.pendingVerificationCode ||
 			normalizeVerificationCode(verificationCode) !==
 				this.pendingVerificationCode
 		) {
 			return false;
 		}
-		this.isApproved = true;
 		this.approvedAttemptId = this.currentAttemptId;
 		this.pendingVerificationCode = null;
-		this.pendingVerificationAttemptId = null;
 		this.sendDataChannelControlMessage({
 			type: 'approved',
 			attemptId: this.currentAttemptId,
@@ -538,9 +550,7 @@ export class DirectTunnelHost {
 		const attemptId = crypto.randomUUID();
 		this.currentAttemptId = attemptId;
 		this.approvedAttemptId = null;
-		this.isApproved = false;
 		this.pendingVerificationCode = null;
-		this.pendingVerificationAttemptId = null;
 		this.pendingRemoteCandidates.clear();
 		this.requestQueue = [];
 		this.updateMetrics({
@@ -838,7 +848,6 @@ export class DirectTunnelHost {
 			this.pendingVerificationCode = normalizeVerificationCode(
 				message.code
 			);
-			this.pendingVerificationAttemptId = attemptId;
 			this.updateMetrics({
 				handshakeState: 'Desktop verification received',
 			});
@@ -1086,7 +1095,7 @@ export class DirectTunnelHost {
 					isSessionDescription(signal.payload)
 				);
 				this.updateMetrics({ handshakeState: 'Remote answer set' });
-				await this.flushPendingRemoteCandidates(signal.attemptId);
+				await this.flushRemoteCandidates(signal.attemptId);
 			} else if (message.type === 'candidate') {
 				const signal = readAttemptSignal(message.data);
 				if (
@@ -1122,7 +1131,11 @@ export class DirectTunnelHost {
 			return;
 		}
 		if (!this.peerConnection.remoteDescription) {
-			this.bufferRemoteCandidate(attemptId, candidate);
+			bufferRemoteCandidate(
+				this.pendingRemoteCandidates,
+				attemptId,
+				candidate
+			);
 			return;
 		}
 		await addIceCandidateIfCurrent(
@@ -1132,33 +1145,19 @@ export class DirectTunnelHost {
 		);
 	}
 
-	private bufferRemoteCandidate(
-		attemptId: string,
-		candidate: RTCIceCandidateInit
-	): void {
-		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
-		candidates.push(candidate);
-		this.pendingRemoteCandidates.set(attemptId, candidates);
-	}
-
-	private async flushPendingRemoteCandidates(
-		attemptId: string
-	): Promise<void> {
+	private async flushRemoteCandidates(attemptId: string): Promise<void> {
 		if (
 			!this.peerConnection ||
 			!isAttemptCurrent(this.currentAttemptId, attemptId)
 		) {
 			return;
 		}
-		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
-		this.pendingRemoteCandidates.delete(attemptId);
-		for (const candidate of candidates) {
-			await addIceCandidateIfCurrent(
-				this.peerConnection,
-				candidate,
-				'[DirectTunnelHost]'
-			);
-		}
+		await flushRemoteCandidates(
+			this.pendingRemoteCandidates,
+			attemptId,
+			this.peerConnection,
+			'[DirectTunnelHost]'
+		);
 	}
 
 	private startHeartbeat(): void {
@@ -1257,7 +1256,6 @@ export class DirectTunnelGuest {
 	private localCandidates = 0;
 	private remoteCandidates = 0;
 	private signalCursor = 0;
-	private isApproved = false;
 	private currentAttemptId: string | null = null;
 	private approvedAttemptId: string | null = null;
 	private pendingRemoteCandidates = new Map<string, RTCIceCandidateInit[]>();
@@ -1346,17 +1344,11 @@ export class DirectTunnelGuest {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Phone data channel is not connected');
 		}
-		if (
-			!this.isApproved ||
-			!this.currentAttemptId ||
-			this.approvedAttemptId !== this.currentAttemptId
-		) {
-			throw new Error('Waiting for approval on the phone');
-		}
+		const attemptId = this.getApprovedAttemptId();
 		const message: DataChannelRequest = {
 			...request,
 			type: 'request',
-			attemptId: this.currentAttemptId,
+			attemptId,
 		};
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
@@ -1376,18 +1368,12 @@ export class DirectTunnelGuest {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Phone data channel is not connected');
 		}
-		if (
-			!this.isApproved ||
-			!this.currentAttemptId ||
-			this.approvedAttemptId !== this.currentAttemptId
-		) {
-			throw new Error('Waiting for approval on the phone');
-		}
+		const attemptId = this.getApprovedAttemptId();
 		const requestId = crypto.randomUUID();
 		const message: DataChannelBackupRequest = {
 			type: 'backup-request',
 			requestId,
-			attemptId: this.currentAttemptId,
+			attemptId,
 		};
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
@@ -1484,7 +1470,6 @@ export class DirectTunnelGuest {
 		this.dataChannel?.close();
 		this.currentAttemptId = attemptId;
 		this.approvedAttemptId = null;
-		this.isApproved = false;
 		for (const key of this.pendingRemoteCandidates.keys()) {
 			if (key !== attemptId) {
 				this.pendingRemoteCandidates.delete(key);
@@ -1540,13 +1525,14 @@ export class DirectTunnelGuest {
 				return;
 			}
 			this.reportStatus(
-				this.dataChannel?.readyState === 'open' && this.isApproved
+				this.dataChannel?.readyState === 'open' &&
+					this.isCurrentAttemptApproved()
 					? 'connected'
 					: 'connecting'
 			);
 		};
 		await pc.setRemoteDescription(offer);
-		await this.flushPendingRemoteCandidates(attemptId);
+		await this.flushRemoteCandidates(attemptId);
 		const answer = await pc.createAnswer();
 		await pc.setLocalDescription(answer);
 		await this.postSignal(
@@ -1564,11 +1550,19 @@ export class DirectTunnelGuest {
 		candidate: RTCIceCandidateInit
 	): Promise<void> {
 		if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
-			this.bufferRemoteCandidate(attemptId, candidate);
+			bufferRemoteCandidate(
+				this.pendingRemoteCandidates,
+				attemptId,
+				candidate
+			);
 			return;
 		}
 		if (!this.peerConnection?.remoteDescription) {
-			this.bufferRemoteCandidate(attemptId, candidate);
+			bufferRemoteCandidate(
+				this.pendingRemoteCandidates,
+				attemptId,
+				candidate
+			);
 			return;
 		}
 		await addIceCandidateIfCurrent(
@@ -1578,33 +1572,33 @@ export class DirectTunnelGuest {
 		);
 	}
 
-	private bufferRemoteCandidate(
-		attemptId: string,
-		candidate: RTCIceCandidateInit
-	): void {
-		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
-		candidates.push(candidate);
-		this.pendingRemoteCandidates.set(attemptId, candidates);
-	}
-
-	private async flushPendingRemoteCandidates(
-		attemptId: string
-	): Promise<void> {
+	private async flushRemoteCandidates(attemptId: string): Promise<void> {
 		if (
 			!this.peerConnection ||
 			!isAttemptCurrent(this.currentAttemptId, attemptId)
 		) {
 			return;
 		}
-		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
-		this.pendingRemoteCandidates.delete(attemptId);
-		for (const candidate of candidates) {
-			await addIceCandidateIfCurrent(
-				this.peerConnection,
-				candidate,
-				'[DirectTunnelGuest]'
-			);
+		await flushRemoteCandidates(
+			this.pendingRemoteCandidates,
+			attemptId,
+			this.peerConnection,
+			'[DirectTunnelGuest]'
+		);
+	}
+
+	private isCurrentAttemptApproved(): boolean {
+		return (
+			!!this.currentAttemptId &&
+			this.approvedAttemptId === this.currentAttemptId
+		);
+	}
+
+	private getApprovedAttemptId(): string {
+		if (!this.isCurrentAttemptApproved()) {
+			throw new Error('Waiting for approval on the phone');
 		}
+		return this.currentAttemptId!;
 	}
 
 	private configureDataChannel(
@@ -1628,7 +1622,6 @@ export class DirectTunnelGuest {
 				this.isActive &&
 				isAttemptCurrent(this.currentAttemptId, attemptId)
 			) {
-				this.isApproved = false;
 				this.approvedAttemptId = null;
 				this.reportStatus('connecting');
 			}
@@ -1645,13 +1638,11 @@ export class DirectTunnelGuest {
 				return;
 			}
 			if (response.type === 'approval-required') {
-				this.isApproved = false;
 				this.approvedAttemptId = null;
 				this.reportStatus('connecting', 'waiting for phone approval');
 				return;
 			}
 			if (response.type === 'approved') {
-				this.isApproved = true;
 				this.approvedAttemptId = attemptId;
 				this.reportStatus('connected');
 				return;

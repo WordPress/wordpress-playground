@@ -3,8 +3,6 @@ import css from './style.module.css';
 
 type ResolveCodeResponse = {
 	sessionId: string;
-	shareUrl: string;
-	accessCode: string;
 };
 
 export function DesktopAccessConnect() {

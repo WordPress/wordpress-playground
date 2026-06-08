@@ -38,8 +38,6 @@ const DESKTOP_RELAY_SCOPED_URL = `/scope:${DESKTOP_RELAY_SCOPE}/`;
 const DESKTOP_RELAY_PROBE_URL = `${DESKTOP_RELAY_SCOPED_URL}?desktop-relay-probe=1`;
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
-const AUTO_RETRY_DELAY_MS = 10000;
-const MAX_AUTO_RETRIES = 2;
 
 export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [status, setStatus] = useState<ConnectionStatus>('connecting');
@@ -55,7 +53,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [iframeHasLoaded, setIframeHasLoaded] = useState(false);
 	const [iframeSrc, setIframeSrc] = useState('about:blank');
 	const [connectionAttempt, setConnectionAttempt] = useState(0);
-	const [autoRetryCount, setAutoRetryCount] = useState(0);
 	const [relayDiagnostics, setRelayDiagnostics] = useState<RelayDiagnostics>({
 		serviceWorker: 'Waiting',
 		dataChannel: 'Waiting',
@@ -163,7 +160,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					sawPhoneAlive = true;
 					setDataChannelReady(true);
 					setApprovalPending(false);
-					setAutoRetryCount(0);
 					setStatus('connected');
 					setRelayDiagnostics((current) => ({
 						...current,
@@ -493,7 +489,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			return;
 		}
 		setIframeHasLoaded(true);
-		setAutoRetryCount(0);
 		syncDesktopUrlFromIframe(iframeRef.current);
 		setRelayDiagnostics((current) => ({
 			...current,
@@ -537,33 +532,8 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	);
 
 	const retry = () => {
-		setAutoRetryCount(0);
 		restartConnection('Retrying');
 	};
-
-	useEffect(() => {
-		if (
-			status !== 'connecting' ||
-			!serviceWorkerReady ||
-			dataChannelReady ||
-			iframeHasLoaded ||
-			autoRetryCount >= MAX_AUTO_RETRIES
-		) {
-			return;
-		}
-		const timeout = setTimeout(() => {
-			setAutoRetryCount((current) => current + 1);
-			restartConnection('Auto retrying');
-		}, AUTO_RETRY_DELAY_MS);
-		return () => clearTimeout(timeout);
-	}, [
-		autoRetryCount,
-		dataChannelReady,
-		iframeHasLoaded,
-		restartConnection,
-		serviceWorkerReady,
-		status,
-	]);
 
 	const disconnect = () => {
 		clearDesktopRelayMapping();
