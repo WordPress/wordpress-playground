@@ -48,6 +48,28 @@ npx @wp-playground/cli@latest start
 - Opens browser automatically
 - Auto-mounts the project by default
 
+## Migrating from wp-now
+
+The deprecated `@wp-now/wp-now` package maps most directly to the `start`
+command:
+
+| wp-now                                                  | Playground CLI                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
+| `npx @wp-now/wp-now start --path=./plugin`              | `npx @wp-playground/cli@latest start --path=./plugin`              |
+| `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
+| `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
+| `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
+| `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |
+
+The main difference is persistence. `wp-now` implicitly associated persistent
+sites with local paths. `@wp-playground/cli start` persists sites in
+`~/.wordpress-playground/sites/<path-hash>/`. The lower-level `server` command
+uses temporary storage unless you explicitly mount persistent directories.
+
+Use `start` for the familiar wp-now-style workflow. Use `server` when you need
+manual control over mounts, storage, or automation.
+
 ### Using `server` (Advanced)
 
 The `server` command provides full control over configuration:
