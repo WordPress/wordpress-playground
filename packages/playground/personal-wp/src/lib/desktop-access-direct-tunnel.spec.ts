@@ -38,13 +38,13 @@ describe('desktop access tunnel helpers', () => {
 
 	it('formats backup filenames with sanitized site names', () => {
 		vi.useFakeTimers();
-		vi.setSystemTime(new Date('2026-06-08T09:10:11Z'));
+		vi.setSystemTime(new Date(2026, 5, 8, 9, 10, 11));
 
 		expect(formatBackupFilename('My WordPress: Recipes!')).toBe(
-			'My-WordPress-Recipes-backup-2026-06-08-111011.zip'
+			'My-WordPress-Recipes-backup-2026-06-08-091011.zip'
 		);
 		expect(formatBackupFilename('!!!')).toBe(
-			'playground-backup-2026-06-08-111011.zip'
+			'playground-backup-2026-06-08-091011.zip'
 		);
 	});
 
