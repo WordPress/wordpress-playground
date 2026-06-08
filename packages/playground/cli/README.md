@@ -105,7 +105,7 @@ command:
 | wp-now                                                  | Playground CLI                                                     |
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
-| `npx @wp-now/wp-now start --path=./plugin`              | `npx @wp-playground/cli@latest start --path=./plugin`              |
+| `npx @wp-now/wp-now start --path=./plugin`              | `cd ./plugin && npx @wp-playground/cli@latest start`               |
 | `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
 | `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
 | `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
@@ -115,10 +115,18 @@ The main mental model change is storage:
 
 - `wp-now` implicitly associated persistent sites with local paths.
 - `@wp-playground/cli start` persists sites in
-  `~/.wordpress-playground/sites/<path-hash>/`.
+  `~/.wordpress-playground/sites/<path-hash>/` when it manages the WordPress
+  root directory. If the selected directory is a full WordPress installation,
+  or you explicitly mount `/wordpress`, that directory becomes the persistent
+  store instead.
 - `@wp-playground/cli server` is lower-level and temporary by default. Use
   `--mount`, `--mount-before-install`, or `--auto-mount` when you need explicit
   filesystem behavior.
+
+`start --path=./plugin` works for mounting another directory, but the managed
+persistent site is keyed to the command's current working directory. For the
+closest wp-now-style migration, `cd` into the project directory before running
+`start`.
 
 Use `start` for the familiar wp-now-style experience. Use `server` when you need
 to describe the virtual filesystem yourself.
@@ -134,7 +142,7 @@ to your unique WordPress setup. With the Playground CLI, you can use the followi
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
 - **`php`**: Runs a PHP script.
 
-The `start` command supports the following optional arguments:
+The `start` command supports these common optional arguments. Run `npx @wp-playground/cli@latest start --help` for the full list:
 
 - `--path=<path>`: Path to the project directory. Defaults to the current working directory.
 - `--wp=<version>`: WordPress version to use. Defaults to the latest.
@@ -146,10 +154,9 @@ The `start` command supports the following optional arguments:
 - `--reset`: Delete the stored site directory and start fresh.
 - `--no-auto-mount`: Disable automatic project detection.
 
-The `server` command supports the following optional arguments:
+The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
-- `--outfile`: When building, write to this output file.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
 - `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
 - `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
