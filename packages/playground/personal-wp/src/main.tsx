@@ -21,10 +21,10 @@ const root = createRoot(document.getElementById('root')!);
 const desktopAccessSessionId = getDesktopAccessSessionId();
 
 root.render(
-	isDesktopAccessConnectRoute() ? (
-		<DesktopAccessConnect />
-	) : desktopAccessSessionId ? (
+	desktopAccessSessionId ? (
 		<DesktopAccessViewer sessionId={desktopAccessSessionId} />
+	) : isDesktopAccessConnectRoute() ? (
+		<DesktopAccessConnect />
 	) : (
 		<Provider store={store}>
 			<EnsurePlaygroundSite>

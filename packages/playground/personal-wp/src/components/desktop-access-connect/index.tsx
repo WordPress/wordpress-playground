@@ -38,7 +38,9 @@ export function DesktopAccessConnect() {
 				throw new Error(response.statusText);
 			}
 			const data = (await response.json()) as ResolveCodeResponse;
-			window.location.href = data.shareUrl;
+			const viewerUrl = new URL(window.location.href);
+			viewerUrl.searchParams.set('share', data.sessionId);
+			window.location.href = `${viewerUrl.pathname}${viewerUrl.search}`;
 		} catch {
 			setStatus('error');
 			setError('Could not connect. Check the code and try again.');

@@ -98,7 +98,9 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		if (!url.searchParams.has('share')) {
 			return;
 		}
-		window.history.replaceState({}, '', '/connect');
+		url.searchParams.delete('share');
+		const nextUrl = `${url.pathname}${url.search}`;
+		window.history.replaceState({}, '', nextUrl || '/connect');
 	}, []);
 
 	useEffect(() => {
@@ -793,6 +795,7 @@ function getDesktopRelayPathFromConnectUrl() {
 		return '/';
 	}
 	const path = url.pathname.slice('/connect'.length) || '/';
+	url.searchParams.delete('share');
 	return `${path}${url.search}`;
 }
 
