@@ -42,14 +42,14 @@ interface TunnelRequest {
 	method: string;
 	path: string;
 	headers: Record<string, string>;
-	body?: string;
+	body?: Uint8Array;
 }
 
 interface TunnelResponse {
 	requestId: string;
 	status: number;
 	headers: Record<string, string>;
-	body: string;
+	body: Uint8Array;
 }
 
 type PeerRole = 'host' | 'guest';
@@ -75,14 +75,15 @@ interface SignalPollResponse {
 	hostAlive: boolean;
 }
 
-interface DataChannelRequest extends TunnelRequest {
+interface DataChannelRequest extends Omit<TunnelRequest, 'body'> {
 	type: 'request';
 	attemptId: string;
 	body?: string;
 }
 
-interface DataChannelResponse extends TunnelResponse {
+interface DataChannelResponse extends Omit<TunnelResponse, 'body'> {
 	type: 'response';
+	body: string;
 }
 
 interface DataChannelResponseStart {
@@ -1249,7 +1250,7 @@ export class DirectTunnelGuest {
 	private pendingRequests = new Map<
 		string,
 		{
-			resolve: (response: DataChannelResponse) => void;
+			resolve: (response: TunnelResponse) => void;
 			reject: (error: Error) => void;
 			timeout: ReturnType<typeof setTimeout>;
 			status?: number;
@@ -1332,15 +1333,17 @@ export class DirectTunnelGuest {
 		this.pendingBackups.clear();
 	}
 
-	async request(
-		request: Omit<DataChannelRequest, 'type' | 'attemptId'>
-	): Promise<DataChannelResponse> {
+	async request(request: TunnelRequest): Promise<TunnelResponse> {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Phone data channel is not connected');
 		}
 		const attemptId = this.getApprovedAttemptId();
 		const message: DataChannelRequest = {
-			...request,
+			requestId: request.requestId,
+			method: request.method,
+			path: request.path,
+			headers: request.headers,
+			body: request.body ? uint8ArrayToBase64(request.body) : undefined,
 			type: 'request',
 			attemptId,
 		};
@@ -1666,7 +1669,12 @@ export class DirectTunnelGuest {
 		if (message.type === 'response') {
 			clearTimeout(pending.timeout);
 			this.pendingRequests.delete(message.requestId);
-			pending.resolve(message);
+			pending.resolve({
+				requestId: message.requestId,
+				status: message.status,
+				headers: message.headers,
+				body: base64ToUint8Array(message.body),
+			});
 			return true;
 		}
 		if (message.type === 'response-start') {
@@ -1706,11 +1714,10 @@ export class DirectTunnelGuest {
 			offset += chunk.length;
 		}
 		pending.resolve({
-			type: 'response',
 			requestId: message.requestId,
 			status: pending.status,
 			headers: pending.headers,
-			body: uint8ArrayToBase64(bytes),
+			body: bytes,
 		});
 		return true;
 	}

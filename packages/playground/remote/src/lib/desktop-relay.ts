@@ -107,7 +107,7 @@ export async function handleDesktopRelayRequest(
 	const path = `${unscopedUrl.pathname}${unscopedUrl.search}`;
 	mapping.interceptedRequests += 1;
 	mapping.lastInterceptedPath = `${event.request.method} ${path}`;
-	const body = await requestBodyToBase64(event.request);
+	const body = await requestBodyToBytes(event.request);
 	const response = await postRequestToDesktopClient(mapping, {
 		type: 'desktop-relay-request',
 		sessionId: mapping.sessionId,
@@ -117,15 +117,15 @@ export async function handleDesktopRelayRequest(
 		headers: collectHeaders(event.request.headers),
 		body,
 	});
-	return new Response(base64ToUint8Array(response.body || ''), {
+	return new Response(response.body || new Uint8Array(), {
 		status: response.status,
 		headers: new Headers(response.headers),
 	});
 }
 
-async function requestBodyToBase64(
+async function requestBodyToBytes(
 	request: Request
-): Promise<string | undefined> {
+): Promise<Uint8Array | undefined> {
 	if (request.method === 'GET' || request.method === 'HEAD') {
 		return undefined;
 	}
@@ -133,7 +133,7 @@ async function requestBodyToBase64(
 	if (buffer.byteLength === 0) {
 		return undefined;
 	}
-	return uint8ArrayToBase64(new Uint8Array(buffer));
+	return new Uint8Array(buffer);
 }
 
 function collectHeaders(headers: Headers): Record<string, string> {
@@ -147,7 +147,11 @@ function collectHeaders(headers: Headers): Record<string, string> {
 async function postRequestToDesktopClient(
 	mapping: DesktopRelayMapping,
 	message: Record<string, unknown>
-): Promise<{ status: number; headers: Record<string, string>; body: string }> {
+): Promise<{
+	status: number;
+	headers: Record<string, string>;
+	body: Uint8Array;
+}> {
 	const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
 	const client = mapping.clientId
 		? await serviceWorker.clients.get(mapping.clientId)
@@ -179,12 +183,16 @@ async function postRequestToDesktopClient(
 function postRequestToClient(
 	client: Client,
 	message: Record<string, unknown>
-): Promise<{ status: number; headers: Record<string, string>; body: string }> {
+): Promise<{
+	status: number;
+	headers: Record<string, string>;
+	body: Uint8Array;
+}> {
 	const channel = new MessageChannel();
 	const result = new Promise<{
 		status: number;
 		headers: Record<string, string>;
-		body: string;
+		body: Uint8Array;
 	}>((resolve, reject) => {
 		const timeout = setTimeout(() => {
 			reject(new Error('Desktop relay request timed out'));
@@ -201,21 +209,4 @@ function postRequestToClient(
 	});
 	client.postMessage(message, [channel.port2]);
 	return result;
-}
-
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-	let binary = '';
-	for (let i = 0; i < bytes.length; i++) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-	return btoa(binary);
-}
-
-function base64ToUint8Array(value: string): Uint8Array {
-	const binary = atob(value);
-	const bytes = new Uint8Array(binary.length);
-	for (let i = 0; i < binary.length; i++) {
-		bytes[i] = binary.charCodeAt(i);
-	}
-	return bytes;
 }
