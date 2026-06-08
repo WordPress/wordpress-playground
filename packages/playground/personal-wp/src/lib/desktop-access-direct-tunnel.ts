@@ -72,6 +72,7 @@ interface SignalPollResponse {
 
 interface DataChannelRequest extends TunnelRequest {
 	type: 'request';
+	attemptId: string;
 	body?: string;
 }
 
@@ -103,6 +104,7 @@ interface DataChannelResponseComplete {
 interface DataChannelBackupRequest {
 	type: 'backup-request';
 	requestId: string;
+	attemptId: string;
 }
 
 interface DataChannelBackupStart {
@@ -132,9 +134,9 @@ interface DataChannelBackupError {
 }
 
 type DataChannelControlMessage =
-	| { type: 'approval-required' }
-	| { type: 'verification-code'; code: string }
-	| { type: 'approved' };
+	| { type: 'approval-required'; attemptId: string }
+	| { type: 'verification-code'; code: string; attemptId: string }
+	| { type: 'approved'; attemptId: string };
 
 type DataChannelHostMessage =
 	| DataChannelRequest
@@ -153,6 +155,11 @@ type DataChannelGuestMessage =
 	| DataChannelControlMessage;
 
 const DATA_CHANNEL_CHUNK_SIZE = 16 * 1024;
+
+interface AttemptSignalPayload<T> {
+	attemptId: string;
+	payload: T;
+}
 
 /**
  * Convert a Uint8Array to a base64 string (browser-compatible).
@@ -178,6 +185,34 @@ function createPeerConnection(): RTCPeerConnection {
 	return new RTCPeerConnection({
 		iceServers: [],
 	});
+}
+
+function createAttemptSignal<T>(
+	attemptId: string,
+	payload: T
+): AttemptSignalPayload<T> {
+	return { attemptId, payload };
+}
+
+function readAttemptSignal<T>(value: unknown): AttemptSignalPayload<T> | null {
+	if (!value || typeof value !== 'object') {
+		return null;
+	}
+	const attemptId = (value as { attemptId?: unknown }).attemptId;
+	if (typeof attemptId !== 'string' || !attemptId) {
+		return null;
+	}
+	return {
+		attemptId,
+		payload: (value as { payload?: T }).payload as T,
+	};
+}
+
+function isAttemptCurrent(
+	currentAttemptId: string | null,
+	attemptId: string
+): boolean {
+	return currentAttemptId === attemptId;
 }
 
 function isSessionDescription(value: unknown): RTCSessionDescriptionInit {
@@ -286,7 +321,10 @@ export class DirectTunnelHost {
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private isCreatingOffer = false;
 	private isApproved = false;
+	private currentAttemptId: string | null = null;
+	private approvedAttemptId: string | null = null;
 	private pendingVerificationCode: string | null = null;
+	private pendingVerificationAttemptId: string | null = null;
 	private requestQueue: DataChannelRequest[] = [];
 	private isProcessingRequest = false;
 	private metrics: TunnelHostMetrics = {
@@ -350,7 +388,10 @@ export class DirectTunnelHost {
 		this.requestQueue = [];
 		this.isProcessingRequest = false;
 		this.isApproved = false;
+		this.currentAttemptId = null;
+		this.approvedAttemptId = null;
 		this.pendingVerificationCode = null;
+		this.pendingVerificationAttemptId = null;
 		this.sessionId = null;
 		this.shareUrl = null;
 		this.accessCode = null;
@@ -402,6 +443,8 @@ export class DirectTunnelHost {
 			return false;
 		}
 		if (
+			!this.currentAttemptId ||
+			this.pendingVerificationAttemptId !== this.currentAttemptId ||
 			!this.pendingVerificationCode ||
 			normalizeVerificationCode(verificationCode) !==
 				this.pendingVerificationCode
@@ -409,8 +452,13 @@ export class DirectTunnelHost {
 			return false;
 		}
 		this.isApproved = true;
+		this.approvedAttemptId = this.currentAttemptId;
 		this.pendingVerificationCode = null;
-		this.sendDataChannelControlMessage({ type: 'approved' });
+		this.pendingVerificationAttemptId = null;
+		this.sendDataChannelControlMessage({
+			type: 'approved',
+			attemptId: this.currentAttemptId,
+		});
 		this.updateMetrics({ handshakeState: 'Approved' });
 		this.setStatus('connected');
 		return true;
@@ -441,6 +489,13 @@ export class DirectTunnelHost {
 			return;
 		}
 		this.isCreatingOffer = true;
+		const attemptId = crypto.randomUUID();
+		this.currentAttemptId = attemptId;
+		this.approvedAttemptId = null;
+		this.isApproved = false;
+		this.pendingVerificationCode = null;
+		this.pendingVerificationAttemptId = null;
+		this.requestQueue = [];
 		this.updateMetrics({
 			handshakeAttempts: this.metrics.handshakeAttempts + 1,
 			localCandidates: 0,
@@ -452,34 +507,50 @@ export class DirectTunnelHost {
 		const pc = createPeerConnection();
 		this.peerConnection = pc;
 		this.dataChannel = pc.createDataChannel('wordpress-http');
-		this.configureDataChannel(this.dataChannel);
-		this.configurePeerConnection(pc);
+		this.configureDataChannel(this.dataChannel, attemptId);
+		this.configurePeerConnection(pc, attemptId);
 
 		try {
 			const offer = await pc.createOffer();
 			this.updateMetrics({ handshakeState: 'Setting local offer' });
 			await pc.setLocalDescription(offer);
-			await this.postSignal('guest', 'offer', pc.localDescription);
+			await this.postSignal(
+				'guest',
+				'offer',
+				createAttemptSignal(attemptId, pc.localDescription)
+			);
 			this.updateMetrics({ handshakeState: 'Offer sent' });
 		} finally {
 			this.isCreatingOffer = false;
 		}
 	}
 
-	private configurePeerConnection(pc: RTCPeerConnection): void {
+	private configurePeerConnection(
+		pc: RTCPeerConnection,
+		attemptId: string
+	): void {
 		pc.onicecandidate = (event) => {
-			if (event.candidate) {
+			if (
+				event.candidate &&
+				isAttemptCurrent(this.currentAttemptId, attemptId)
+			) {
 				this.updateMetrics({
 					localCandidates: this.metrics.localCandidates + 1,
 					handshakeState: 'Sending ICE candidate',
 				});
-				this.postSignal('guest', 'candidate', event.candidate).catch(
-					(error) =>
-						logger.warn('[DirectTunnelHost] ICE failed:', error)
+				this.postSignal(
+					'guest',
+					'candidate',
+					createAttemptSignal(attemptId, event.candidate)
+				).catch((error) =>
+					logger.warn('[DirectTunnelHost] ICE failed:', error)
 				);
 			}
 		};
 		pc.onconnectionstatechange = () => {
+			if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
+				return;
+			}
 			this.updateMetrics({
 				handshakeState: `Peer ${pc.connectionState}`,
 			});
@@ -493,30 +564,46 @@ export class DirectTunnelHost {
 		};
 	}
 
-	private configureDataChannel(channel: RTCDataChannel): void {
+	private configureDataChannel(
+		channel: RTCDataChannel,
+		attemptId: string
+	): void {
 		channel.onopen = () => {
+			if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
+				channel.close();
+				return;
+			}
 			this.stopReconnect();
-			if (this.isApproved) {
-				this.sendDataChannelControlMessage({ type: 'approved' });
+			if (this.approvedAttemptId === attemptId) {
+				this.sendDataChannelControlMessage({
+					type: 'approved',
+					attemptId,
+				});
 				this.updateMetrics({ handshakeState: 'Data channel open' });
 				this.setStatus('connected');
 				return;
 			}
-			this.sendDataChannelControlMessage({ type: 'approval-required' });
+			this.sendDataChannelControlMessage({
+				type: 'approval-required',
+				attemptId,
+			});
 			this.updateMetrics({
 				handshakeState: 'Waiting for phone approval',
 			});
 			this.setStatus('pending-approval');
 		};
 		channel.onclose = () => {
-			if (this.isActive) {
+			if (
+				this.isActive &&
+				isAttemptCurrent(this.currentAttemptId, attemptId)
+			) {
 				this.updateMetrics({ handshakeState: 'Data channel closed' });
 				this.setStatus('connecting');
 				this.scheduleReconnect();
 			}
 		};
 		channel.onmessage = (event) => {
-			this.queueDataChannelMessage(event.data);
+			this.queueDataChannelMessage(event.data, attemptId);
 		};
 	}
 
@@ -544,13 +631,20 @@ export class DirectTunnelHost {
 		}
 	}
 
-	private queueDataChannelMessage(data: unknown): void {
+	private queueDataChannelMessage(data: unknown, attemptId: string): void {
 		if (typeof data !== 'string' || !this.dataChannel) {
 			return;
 		}
 		const request = JSON.parse(data) as DataChannelHostMessage;
 		if (isDataChannelControlMessage(request)) {
-			this.handleDataChannelControlMessage(request);
+			this.handleDataChannelControlMessage(request, attemptId);
+			return;
+		}
+		if (
+			request.attemptId !== attemptId ||
+			!isAttemptCurrent(this.currentAttemptId, attemptId)
+		) {
+			this.rejectStaleRequest(request);
 			return;
 		}
 		if (request.type === 'backup-request') {
@@ -560,7 +654,7 @@ export class DirectTunnelHost {
 		if (request.type !== 'request') {
 			return;
 		}
-		if (!this.isApproved) {
+		if (this.approvedAttemptId !== attemptId) {
 			this.sendDataChannelResponse({
 				type: 'response',
 				requestId: request.requestId,
@@ -589,7 +683,7 @@ export class DirectTunnelHost {
 	private async handleBackupRequest(
 		request: DataChannelBackupRequest
 	): Promise<void> {
-		if (!this.isApproved) {
+		if (this.approvedAttemptId !== request.attemptId) {
 			this.sendDataChannelBackupError(
 				request.requestId,
 				'Waiting for approval on the phone.'
@@ -640,17 +734,51 @@ export class DirectTunnelHost {
 	}
 
 	private handleDataChannelControlMessage(
-		message: DataChannelControlMessage
+		message: DataChannelControlMessage,
+		attemptId: string
 	): void {
-		if (message.type === 'verification-code' && !this.isApproved) {
+		if (
+			message.attemptId !== attemptId ||
+			!isAttemptCurrent(this.currentAttemptId, attemptId)
+		) {
+			return;
+		}
+		if (
+			message.type === 'verification-code' &&
+			this.approvedAttemptId !== attemptId
+		) {
 			this.pendingVerificationCode = normalizeVerificationCode(
 				message.code
 			);
+			this.pendingVerificationAttemptId = attemptId;
 			this.updateMetrics({
 				handshakeState: 'Desktop verification received',
 			});
 			this.setStatus('pending-approval');
 		}
+	}
+
+	private rejectStaleRequest(
+		request: DataChannelRequest | DataChannelBackupRequest
+	): void {
+		if (request.type === 'backup-request') {
+			this.sendDataChannelBackupError(
+				request.requestId,
+				'Desktop access attempt expired.'
+			);
+			return;
+		}
+		this.sendDataChannelResponse({
+			type: 'response',
+			requestId: request.requestId,
+			status: 409,
+			headers: { 'Content-Type': 'text/plain' },
+			body: uint8ArrayToBase64(
+				new TextEncoder().encode('Desktop access attempt expired.')
+			),
+		}).catch((error) => {
+			logger.warn('[DirectTunnelHost] Stale request failed:', error);
+		});
 	}
 
 	private async processQueue(): Promise<void> {
@@ -858,19 +986,33 @@ export class DirectTunnelHost {
 				continue;
 			}
 			if (message.type === 'answer') {
+				const signal = readAttemptSignal(message.data);
+				if (
+					!signal ||
+					!isAttemptCurrent(this.currentAttemptId, signal.attemptId)
+				) {
+					continue;
+				}
 				this.updateMetrics({ handshakeState: 'Answer received' });
 				await this.peerConnection.setRemoteDescription(
-					isSessionDescription(message.data)
+					isSessionDescription(signal.payload)
 				);
 				this.updateMetrics({ handshakeState: 'Remote answer set' });
 			} else if (message.type === 'candidate') {
+				const signal = readAttemptSignal(message.data);
+				if (
+					!signal ||
+					!isAttemptCurrent(this.currentAttemptId, signal.attemptId)
+				) {
+					continue;
+				}
 				this.updateMetrics({
 					remoteCandidates: this.metrics.remoteCandidates + 1,
 					handshakeState: 'Remote ICE candidate received',
 				});
 				await addIceCandidateIfCurrent(
 					this.peerConnection,
-					isIceCandidate(message.data),
+					isIceCandidate(signal.payload),
 					'[DirectTunnelHost]'
 				);
 			}
@@ -974,6 +1116,8 @@ export class DirectTunnelGuest {
 	private remoteCandidates = 0;
 	private signalCursor = 0;
 	private isApproved = false;
+	private currentAttemptId: string | null = null;
+	private approvedAttemptId: string | null = null;
 	private pendingRequests = new Map<
 		string,
 		{
@@ -1034,30 +1178,41 @@ export class DirectTunnelGuest {
 		this.isActive = false;
 		this.dataChannel?.close();
 		this.peerConnection?.close();
+		this.currentAttemptId = null;
+		this.approvedAttemptId = null;
+		this.rejectPendingMessages(new Error('Desktop access disconnected'));
+	}
+
+	private rejectPendingMessages(error: Error): void {
 		for (const pending of this.pendingRequests.values()) {
 			clearTimeout(pending.timeout);
-			pending.reject(new Error('Desktop access disconnected'));
+			pending.reject(error);
 		}
 		this.pendingRequests.clear();
 		for (const pending of this.pendingBackups.values()) {
 			clearTimeout(pending.timeout);
-			pending.reject(new Error('Desktop access disconnected'));
+			pending.reject(error);
 		}
 		this.pendingBackups.clear();
 	}
 
 	async request(
-		request: Omit<DataChannelRequest, 'type'>
+		request: Omit<DataChannelRequest, 'type' | 'attemptId'>
 	): Promise<DataChannelResponse> {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Phone data channel is not connected');
 		}
-		if (!this.isApproved) {
+		if (
+			!this.isApproved ||
+			!this.currentAttemptId ||
+			this.approvedAttemptId !== this.currentAttemptId
+		) {
 			throw new Error('Waiting for approval on the phone');
 		}
 		const message: DataChannelRequest = {
 			...request,
 			type: 'request',
+			attemptId: this.currentAttemptId,
 		};
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
@@ -1077,13 +1232,18 @@ export class DirectTunnelGuest {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Phone data channel is not connected');
 		}
-		if (!this.isApproved) {
+		if (
+			!this.isApproved ||
+			!this.currentAttemptId ||
+			this.approvedAttemptId !== this.currentAttemptId
+		) {
 			throw new Error('Waiting for approval on the phone');
 		}
 		const requestId = crypto.randomUUID();
 		const message: DataChannelBackupRequest = {
 			type: 'backup-request',
 			requestId,
+			attemptId: this.currentAttemptId,
 		};
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
@@ -1138,39 +1298,76 @@ export class DirectTunnelGuest {
 	private async handleSignals(messages: SignalMessage[]): Promise<void> {
 		for (const message of messages) {
 			if (message.type === 'offer') {
-				await this.acceptOffer(isSessionDescription(message.data));
+				const signal = readAttemptSignal(message.data);
+				if (!signal) {
+					continue;
+				}
+				await this.acceptOffer(
+					signal.attemptId,
+					isSessionDescription(signal.payload)
+				);
 			} else if (message.type === 'candidate' && this.peerConnection) {
+				const signal = readAttemptSignal(message.data);
+				if (
+					!signal ||
+					!isAttemptCurrent(this.currentAttemptId, signal.attemptId)
+				) {
+					continue;
+				}
 				this.remoteCandidates++;
 				await addIceCandidateIfCurrent(
 					this.peerConnection,
-					isIceCandidate(message.data),
+					isIceCandidate(signal.payload),
 					'[DirectTunnelGuest]'
 				);
 			}
 		}
 	}
 
-	private async acceptOffer(offer: RTCSessionDescriptionInit): Promise<void> {
+	private async acceptOffer(
+		attemptId: string,
+		offer: RTCSessionDescriptionInit
+	): Promise<void> {
 		this.peerConnection?.close();
+		this.dataChannel?.close();
+		this.currentAttemptId = attemptId;
+		this.approvedAttemptId = null;
+		this.isApproved = false;
 		this.localCandidates = 0;
 		this.remoteCandidates = 0;
+		this.rejectPendingMessages(
+			new Error('Desktop access attempt restarted')
+		);
 		const pc = createPeerConnection();
 		this.peerConnection = pc;
 		pc.onicecandidate = (event) => {
-			if (event.candidate) {
+			if (
+				event.candidate &&
+				isAttemptCurrent(this.currentAttemptId, attemptId)
+			) {
 				this.localCandidates++;
 				this.reportStatus('connecting');
-				this.postSignal('host', 'candidate', event.candidate).catch(
-					(error) =>
-						logger.warn('[DirectTunnelGuest] ICE failed:', error)
+				this.postSignal(
+					'host',
+					'candidate',
+					createAttemptSignal(attemptId, event.candidate)
+				).catch((error) =>
+					logger.warn('[DirectTunnelGuest] ICE failed:', error)
 				);
 			}
 		};
 		pc.ondatachannel = (event) => {
+			if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
+				event.channel.close();
+				return;
+			}
 			this.dataChannel = event.channel;
-			this.configureDataChannel(event.channel);
+			this.configureDataChannel(event.channel, attemptId);
 		};
 		pc.onconnectionstatechange = () => {
+			if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
+				return;
+			}
 			if (
 				pc.connectionState === 'failed' ||
 				pc.connectionState === 'disconnected'
@@ -1179,6 +1376,9 @@ export class DirectTunnelGuest {
 			}
 		};
 		pc.oniceconnectionstatechange = () => {
+			if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
+				return;
+			}
 			this.reportStatus(
 				this.dataChannel?.readyState === 'open' && this.isApproved
 					? 'connected'
@@ -1188,20 +1388,36 @@ export class DirectTunnelGuest {
 		await pc.setRemoteDescription(offer);
 		const answer = await pc.createAnswer();
 		await pc.setLocalDescription(answer);
-		await this.postSignal('host', 'answer', pc.localDescription);
+		await this.postSignal(
+			'host',
+			'answer',
+			createAttemptSignal(attemptId, pc.localDescription)
+		);
 	}
 
-	private configureDataChannel(channel: RTCDataChannel): void {
+	private configureDataChannel(
+		channel: RTCDataChannel,
+		attemptId: string
+	): void {
 		channel.onopen = () => {
+			if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
+				channel.close();
+				return;
+			}
 			this.sendDataChannelControlMessage({
 				type: 'verification-code',
 				code: this.verificationCode,
+				attemptId,
 			});
 			this.reportStatus('connecting', 'waiting for phone approval');
 		};
 		channel.onclose = () => {
-			if (this.isActive) {
+			if (
+				this.isActive &&
+				isAttemptCurrent(this.currentAttemptId, attemptId)
+			) {
 				this.isApproved = false;
+				this.approvedAttemptId = null;
 				this.reportStatus('connecting');
 			}
 		};
@@ -1210,13 +1426,21 @@ export class DirectTunnelGuest {
 				return;
 			}
 			const response = JSON.parse(event.data) as DataChannelGuestMessage;
+			if (
+				isDataChannelControlMessage(response) &&
+				response.attemptId !== attemptId
+			) {
+				return;
+			}
 			if (response.type === 'approval-required') {
 				this.isApproved = false;
+				this.approvedAttemptId = null;
 				this.reportStatus('connecting', 'waiting for phone approval');
 				return;
 			}
 			if (response.type === 'approved') {
 				this.isApproved = true;
+				this.approvedAttemptId = attemptId;
 				this.reportStatus('connected');
 				return;
 			}
