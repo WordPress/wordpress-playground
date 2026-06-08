@@ -371,8 +371,6 @@
 }
 
 .desktop-access-diagnostics {
-	display: grid;
-	gap: 6px;
 	padding: 10px;
 	border: 1px solid #dcdcde;
 	border-radius: 4px;
@@ -382,9 +380,14 @@
 	color: #50575e;
 }
 
-.desktop-access-diagnostics-title {
+.desktop-access-diagnostics summary {
 	color: #1e1e1e;
 	font-weight: 600;
+	cursor: pointer;
+}
+
+.desktop-access-diagnostics[open] summary {
+	margin-bottom: 6px;
 }
 
 .desktop-access-metrics {

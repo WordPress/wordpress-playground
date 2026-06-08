@@ -323,10 +323,8 @@ function DesktopAccessDiagnostics({
 	metrics: NonNullable<ReturnType<typeof getDesktopAccessStatus>['metrics']>;
 }) {
 	return (
-		<div className={css.desktopAccessDiagnostics}>
-			<div className={css.desktopAccessDiagnosticsTitle}>
-				Desktop traffic
-			</div>
+		<details className={css.desktopAccessDiagnostics}>
+			<summary>Desktop traffic</summary>
 			<div className={css.desktopAccessMetrics}>
 				<span>Handshake {metrics.handshakeAttempts}</span>
 				<span>{metrics.handshakeState}</span>
@@ -349,7 +347,7 @@ function DesktopAccessDiagnostics({
 					{metrics.lastError}
 				</div>
 			)}
-		</div>
+		</details>
 	);
 }
 
