@@ -45,6 +45,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	);
 	const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 	const [dataChannelReady, setDataChannelReady] = useState(false);
+	const [iframeHasLoaded, setIframeHasLoaded] = useState(false);
 	const [relayDiagnostics, setRelayDiagnostics] = useState<RelayDiagnostics>({
 		serviceWorker: 'Waiting',
 		dataChannel: 'Waiting',
@@ -57,7 +58,8 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const directTunnelRef = useRef<DirectTunnelGuest | null>(null);
 	const guestId = useRef(getOrCreateGuestId()).current;
-	const shouldLoadIframe = dataChannelReady && serviceWorkerReady;
+	const shouldLoadIframe =
+		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
 
 	const statusUrl = useMemo(
 		() =>
@@ -118,7 +120,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			sessionId,
 			relayUrl: window.location.origin,
 			guestId,
-			onStatusChange(nextStatus) {
+			onStatusChange(nextStatus, detail) {
 				if (cancelled) {
 					return;
 				}
@@ -127,7 +129,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					setDataChannelReady(true);
 					setRelayDiagnostics((current) => ({
 						...current,
-						dataChannel: 'Connected',
+						dataChannel: `Connected ${detail}`,
 					}));
 					return;
 				}
@@ -135,7 +137,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					setDataChannelReady(false);
 					setRelayDiagnostics((current) => ({
 						...current,
-						dataChannel: 'Failed before connecting',
+						dataChannel: `Failed before connecting ${detail}`,
 					}));
 					setError(
 						'Unable to connect directly to your phone. Keep both devices nearby and on the same network.'
@@ -146,7 +148,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				setDataChannelReady(false);
 				setRelayDiagnostics((current) => ({
 					...current,
-					dataChannel: 'Reconnecting',
+					dataChannel: `Reconnecting ${detail}`,
 				}));
 				setStatus('connecting');
 			},
@@ -417,6 +419,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		if (!iframeRef.current?.src.includes(DESKTOP_RELAY_SCOPED_URL)) {
 			return;
 		}
+		setIframeHasLoaded(true);
 		setRelayDiagnostics((current) => ({
 			...current,
 			iframe: 'Loaded /scope:default/',
@@ -505,7 +508,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 						title="My WordPress from phone"
 						style={{
 							opacity:
-								(status === 'connected' && shouldLoadIframe) ||
+								(iframeHasLoaded && shouldLoadIframe) ||
 								status === 'phone-disconnected'
 									? 1
 									: 0,

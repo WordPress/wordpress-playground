@@ -571,14 +571,18 @@ export class DirectTunnelGuest {
 	>();
 	private isActive = false;
 	private onStatusChange: (
-		status: 'connecting' | 'connected' | 'error'
+		status: 'connecting' | 'connected' | 'error',
+		detail: string
 	) => void;
 
 	constructor(options: {
 		sessionId: string;
 		relayUrl: string;
 		guestId: string;
-		onStatusChange: (status: 'connecting' | 'connected' | 'error') => void;
+		onStatusChange: (
+			status: 'connecting' | 'connected' | 'error',
+			detail: string
+		) => void;
 	}) {
 		this.sessionId = options.sessionId;
 		this.relayUrl = options.relayUrl;
@@ -588,7 +592,7 @@ export class DirectTunnelGuest {
 
 	start(): void {
 		this.isActive = true;
-		this.onStatusChange('connecting');
+		this.reportStatus('connecting');
 		this.startSignalPolling();
 	}
 
@@ -649,7 +653,10 @@ export class DirectTunnelGuest {
 						'[DirectTunnelGuest] Signal poll failed:',
 						error
 					);
-					this.onStatusChange('error');
+					this.reportStatus(
+						'error',
+						`signal poll failed: ${(error as Error).message}`
+					);
 					await new Promise((resolve) => setTimeout(resolve, 1000));
 				}
 			}
@@ -689,8 +696,15 @@ export class DirectTunnelGuest {
 				pc.connectionState === 'failed' ||
 				pc.connectionState === 'disconnected'
 			) {
-				this.onStatusChange('error');
+				this.reportStatus('error');
 			}
+		};
+		pc.oniceconnectionstatechange = () => {
+			this.reportStatus(
+				this.dataChannel?.readyState === 'open'
+					? 'connected'
+					: 'connecting'
+			);
 		};
 		await pc.setRemoteDescription(offer);
 		const answer = await pc.createAnswer();
@@ -699,10 +713,10 @@ export class DirectTunnelGuest {
 	}
 
 	private configureDataChannel(channel: RTCDataChannel): void {
-		channel.onopen = () => this.onStatusChange('connected');
+		channel.onopen = () => this.reportStatus('connected');
 		channel.onclose = () => {
 			if (this.isActive) {
-				this.onStatusChange('connecting');
+				this.reportStatus('connecting');
 			}
 		};
 		channel.onmessage = (event) => {
@@ -721,6 +735,24 @@ export class DirectTunnelGuest {
 			this.pendingRequests.delete(response.requestId);
 			pending.resolve(response);
 		};
+	}
+
+	private reportStatus(
+		status: 'connecting' | 'connected' | 'error',
+		detail = this.connectionDetail()
+	): void {
+		this.onStatusChange(status, detail);
+	}
+
+	private connectionDetail(): string {
+		const pc = this.peerConnection;
+		const dc = this.dataChannel;
+		return [
+			`pc:${pc?.connectionState ?? '-'}`,
+			`ice:${pc?.iceConnectionState ?? '-'}`,
+			`signal:${pc?.signalingState ?? '-'}`,
+			`dc:${dc?.readyState ?? '-'}`,
+		].join(' ');
 	}
 
 	private async postSignal(
