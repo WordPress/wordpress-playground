@@ -24,6 +24,7 @@ export interface DesktopAccessStatus {
 	shareUrl: string | null;
 	sessionId: string | null;
 	accessCode: string | null;
+	pendingVerificationCode: string | null;
 	metrics: TunnelHostMetrics | null;
 }
 
@@ -34,6 +35,8 @@ export function getDesktopAccessStatus(): DesktopAccessStatus {
 		shareUrl: currentShareUrl,
 		sessionId: currentSessionId,
 		accessCode: tunnelHost?.getAccessCode() ?? null,
+		pendingVerificationCode:
+			tunnelHost?.getPendingVerificationCode() ?? null,
 		metrics: tunnelHost?.getMetrics() ?? null,
 	};
 }
@@ -90,9 +93,11 @@ export async function stopDesktopAccess(): Promise<void> {
 	notifyListeners();
 }
 
-export function approveDesktopAccess(): void {
-	tunnelHost?.approveDesktopAccess();
+export function approveDesktopAccess(verificationCode: string): boolean {
+	const approved =
+		tunnelHost?.approveDesktopAccess(verificationCode) ?? false;
 	notifyListeners();
+	return approved;
 }
 
 function notifyListeners() {

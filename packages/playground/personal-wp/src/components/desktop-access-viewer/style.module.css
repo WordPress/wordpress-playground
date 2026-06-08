@@ -227,6 +227,18 @@
 	line-height: 20px;
 }
 
+.verification-code {
+	padding: 8px 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
+	font-size: 28px;
+	line-height: 34px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
 .center-notice button,
 .disconnected-card button {
 	margin-top: 6px;

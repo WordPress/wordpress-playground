@@ -46,6 +46,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	);
 	const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 	const [dataChannelReady, setDataChannelReady] = useState(false);
+	const [approvalPending, setApprovalPending] = useState(false);
 	const [iframeHasLoaded, setIframeHasLoaded] = useState(false);
 	const [iframeSrc, setIframeSrc] = useState('about:blank');
 	const [relayDiagnostics, setRelayDiagnostics] = useState<RelayDiagnostics>({
@@ -61,6 +62,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const directTunnelRef = useRef<DirectTunnelGuest | null>(null);
 	const guestId = useRef(getOrCreateGuestId()).current;
+	const verificationCode = useRef(generateVerificationCode()).current;
 	const shouldLoadIframe =
 		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
 	const desktopRelayIframeUrl = useMemo(
@@ -131,6 +133,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			sessionId,
 			relayUrl: window.location.origin,
 			guestId,
+			verificationCode,
 			onStatusChange(nextStatus, detail) {
 				if (cancelled) {
 					return;
@@ -138,6 +141,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				if (nextStatus === 'connected') {
 					sawPhoneAlive = true;
 					setDataChannelReady(true);
+					setApprovalPending(false);
 					setStatus('connected');
 					setRelayDiagnostics((current) => ({
 						...current,
@@ -145,6 +149,9 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					}));
 					return;
 				}
+				setApprovalPending(
+					detail.includes('waiting for phone approval')
+				);
 				if (nextStatus === 'error' && !sawPhoneAlive) {
 					setDataChannelReady(false);
 					setRelayDiagnostics((current) => ({
@@ -538,10 +545,17 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				<div className={css.centerNotice} role="status">
 					<h1>Connecting to your phone</h1>
 					<p>
-						{dataChannelReady
-							? 'Preparing the desktop viewer.'
-							: 'This desktop window will show the WordPress that is running on your phone.'}
+						{approvalPending
+							? 'Enter this code on your phone to approve this desktop.'
+							: dataChannelReady
+								? 'Preparing the desktop viewer.'
+								: 'This desktop window will show the WordPress that is running on your phone.'}
 					</p>
+					{approvalPending ? (
+						<div className={css.verificationCode}>
+							{formatVerificationCode(verificationCode)}
+						</div>
+					) : null}
 				</div>
 			) : null}
 
@@ -772,4 +786,13 @@ function getOrCreateGuestId(): string {
 	} catch {
 		return crypto.randomUUID();
 	}
+}
+
+function generateVerificationCode(): string {
+	const value = crypto.getRandomValues(new Uint32Array(1))[0] % 10000;
+	return value.toString().padStart(4, '0');
+}
+
+function formatVerificationCode(value: string): string {
+	return `${value.slice(0, 2)} ${value.slice(2)}`;
 }

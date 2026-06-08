@@ -138,6 +138,7 @@ function DesktopAccessSection() {
 	const playground = usePlaygroundClient();
 	const [desktopAccess, setDesktopAccess] = useState(getDesktopAccessStatus);
 	const [message, setMessage] = useState<string | null>(null);
+	const [verificationCode, setVerificationCode] = useState('');
 
 	useEffect(() => subscribeToDesktopAccessStatus(setDesktopAccess), []);
 
@@ -169,8 +170,12 @@ function DesktopAccessSection() {
 	}
 
 	function approveAccess() {
-		setMessage('Desktop access approved.');
-		approveDesktopAccess();
+		if (approveDesktopAccess(verificationCode)) {
+			setVerificationCode('');
+			setMessage('Desktop access approved.');
+			return;
+		}
+		setMessage('Enter the code shown on your desktop.');
 	}
 
 	async function copyCurrentUrl() {
@@ -224,11 +229,30 @@ function DesktopAccessSection() {
 							>
 								<span>
 									A desktop is asking to use this WordPress.
+									Enter the code shown there.
 								</span>
+								<input
+									value={formatVerificationCode(
+										verificationCode
+									)}
+									onChange={(event) =>
+										setVerificationCode(event.target.value)
+									}
+									inputMode="numeric"
+									autoComplete="one-time-code"
+									placeholder="12 34"
+									aria-label="Desktop verification code"
+									className={css.desktopAccessApprovalInput}
+								/>
 								<button
 									type="button"
 									className={css.backupNowButton}
 									onClick={approveAccess}
+									disabled={
+										normalizeVerificationCode(
+											verificationCode
+										).length !== 4
+									}
 								>
 									Allow
 								</button>
@@ -285,6 +309,18 @@ function DesktopAccessSection() {
 			</div>
 		</div>
 	);
+}
+
+function normalizeVerificationCode(value: string): string {
+	return value.replace(/\D+/g, '').slice(0, 4);
+}
+
+function formatVerificationCode(value: string): string {
+	const digits = normalizeVerificationCode(value);
+	if (digits.length <= 2) {
+		return digits;
+	}
+	return `${digits.slice(0, 2)} ${digits.slice(2)}`;
 }
 
 function DesktopAccessDiagnostics({

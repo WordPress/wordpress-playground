@@ -74,9 +74,10 @@ interface DataChannelResponse extends TunnelResponse {
 	type: 'response';
 }
 
-interface DataChannelControlMessage {
-	type: 'approval-required' | 'approved';
-}
+type DataChannelControlMessage =
+	| { type: 'approval-required' }
+	| { type: 'verification-code'; code: string }
+	| { type: 'approved' };
 
 /**
  * Convert a Uint8Array to a base64 string (browser-compatible).
@@ -116,6 +117,20 @@ function isIceCandidate(value: unknown): RTCIceCandidateInit {
 		throw new Error('Invalid WebRTC ICE candidate');
 	}
 	return value as RTCIceCandidateInit;
+}
+
+function normalizeVerificationCode(value: string): string {
+	return value.replace(/\D+/g, '').slice(0, 4);
+}
+
+function isDataChannelControlMessage(
+	value: DataChannelRequest | DataChannelControlMessage
+): value is DataChannelControlMessage {
+	return (
+		value.type === 'approval-required' ||
+		value.type === 'verification-code' ||
+		value.type === 'approved'
+	);
 }
 
 async function addIceCandidateIfCurrent(
@@ -161,6 +176,7 @@ export class DirectTunnelHost {
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private isCreatingOffer = false;
 	private isApproved = false;
+	private pendingVerificationCode: string | null = null;
 	private requestQueue: DataChannelRequest[] = [];
 	private isProcessingRequest = false;
 	private metrics: TunnelHostMetrics = {
@@ -220,6 +236,7 @@ export class DirectTunnelHost {
 		this.requestQueue = [];
 		this.isProcessingRequest = false;
 		this.isApproved = false;
+		this.pendingVerificationCode = null;
 		this.sessionId = null;
 		this.shareUrl = null;
 		this.accessCode = null;
@@ -258,13 +275,26 @@ export class DirectTunnelHost {
 		return { ...this.metrics };
 	}
 
-	approveDesktopAccess(): void {
+	getPendingVerificationCode(): string | null {
+		return this.pendingVerificationCode;
+	}
+
+	approveDesktopAccess(verificationCode: string): boolean {
 		if (!this.isActive) {
-			return;
+			return false;
+		}
+		if (
+			!this.pendingVerificationCode ||
+			normalizeVerificationCode(verificationCode) !==
+				this.pendingVerificationCode
+		) {
+			return false;
 		}
 		this.isApproved = true;
+		this.pendingVerificationCode = null;
 		this.sendDataChannelControlMessage({ type: 'approved' });
 		this.setStatus('connected');
+		return true;
 	}
 
 	on<K extends keyof TunnelHostEvents>(
@@ -378,7 +408,13 @@ export class DirectTunnelHost {
 		if (typeof data !== 'string' || !this.dataChannel) {
 			return;
 		}
-		const request = JSON.parse(data) as DataChannelRequest;
+		const request = JSON.parse(data) as
+			| DataChannelRequest
+			| DataChannelControlMessage;
+		if (isDataChannelControlMessage(request)) {
+			this.handleDataChannelControlMessage(request);
+			return;
+		}
 		if (request.type !== 'request') {
 			return;
 		}
@@ -406,6 +442,17 @@ export class DirectTunnelHost {
 			lastError: null,
 		});
 		this.processQueue();
+	}
+
+	private handleDataChannelControlMessage(
+		message: DataChannelControlMessage
+	): void {
+		if (message.type === 'verification-code' && !this.isApproved) {
+			this.pendingVerificationCode = normalizeVerificationCode(
+				message.code
+			);
+			this.setStatus('pending-approval');
+		}
 	}
 
 	private async processQueue(): Promise<void> {
@@ -626,6 +673,7 @@ export class DirectTunnelGuest {
 	private readonly sessionId: string;
 	private readonly relayUrl: string;
 	private readonly guestId: string;
+	private readonly verificationCode: string;
 	private peerConnection: RTCPeerConnection | null = null;
 	private dataChannel: RTCDataChannel | null = null;
 	private signalCursor = 0;
@@ -648,6 +696,7 @@ export class DirectTunnelGuest {
 		sessionId: string;
 		relayUrl: string;
 		guestId: string;
+		verificationCode: string;
 		onStatusChange: (
 			status: 'connecting' | 'connected' | 'error',
 			detail: string
@@ -656,6 +705,9 @@ export class DirectTunnelGuest {
 		this.sessionId = options.sessionId;
 		this.relayUrl = options.relayUrl;
 		this.guestId = options.guestId;
+		this.verificationCode = normalizeVerificationCode(
+			options.verificationCode
+		);
 		this.onStatusChange = options.onStatusChange;
 	}
 
@@ -775,7 +827,7 @@ export class DirectTunnelGuest {
 		};
 		pc.oniceconnectionstatechange = () => {
 			this.reportStatus(
-				this.dataChannel?.readyState === 'open'
+				this.dataChannel?.readyState === 'open' && this.isApproved
 					? 'connected'
 					: 'connecting'
 			);
@@ -787,8 +839,13 @@ export class DirectTunnelGuest {
 	}
 
 	private configureDataChannel(channel: RTCDataChannel): void {
-		channel.onopen = () =>
+		channel.onopen = () => {
+			this.sendDataChannelControlMessage({
+				type: 'verification-code',
+				code: this.verificationCode,
+			});
 			this.reportStatus('connecting', 'waiting for phone approval');
+		};
 		channel.onclose = () => {
 			if (this.isActive) {
 				this.isApproved = false;
@@ -823,6 +880,15 @@ export class DirectTunnelGuest {
 			this.pendingRequests.delete(response.requestId);
 			pending.resolve(response);
 		};
+	}
+
+	private sendDataChannelControlMessage(
+		message: DataChannelControlMessage
+	): void {
+		if (this.dataChannel?.readyState !== 'open') {
+			return;
+		}
+		this.dataChannel.send(JSON.stringify(message));
 	}
 
 	private reportStatus(

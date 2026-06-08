@@ -358,6 +358,18 @@
 	line-height: 18px;
 }
 
+.desktop-access-approval-input {
+	width: 72px;
+	padding: 6px 8px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
+	font: inherit;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
 .desktop-access-diagnostics {
 	display: grid;
 	gap: 6px;
