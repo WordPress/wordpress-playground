@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
 import { DirectTunnelGuest } from '../../lib/desktop-access-direct-tunnel';
+import saveAs from 'file-saver';
 
 // @ts-ignore
 import serviceWorkerPath from '../../../../remote/service-worker.ts?worker&url';
@@ -46,6 +47,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	);
 	const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 	const [dataChannelReady, setDataChannelReady] = useState(false);
+	const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
 	const [approvalPending, setApprovalPending] = useState(false);
 	const [iframeHasLoaded, setIframeHasLoaded] = useState(false);
 	const [iframeSrc, setIframeSrc] = useState('about:blank');
@@ -500,6 +502,27 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		window.location.href = '/connect';
 	};
 
+	const downloadBackup = async () => {
+		const directTunnel = directTunnelRef.current;
+		if (!directTunnel || isDownloadingBackup) {
+			return;
+		}
+		setIsDownloadingBackup(true);
+		setUnsupportedMessage(null);
+		try {
+			const backup = await directTunnel.downloadBackup();
+			saveAs(new File([backup.bytes], backup.filename));
+		} catch (error) {
+			setUnsupportedMessage(
+				`Could not download backup: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
+		} finally {
+			setIsDownloadingBackup(false);
+		}
+	};
+
 	return (
 		<div className={css.viewer}>
 			<header className={css.banner}>
@@ -507,6 +530,16 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					<strong>Using My WordPress from your phone</strong>
 				</div>
 				<div className={css.bannerActions}>
+					<button
+						type="button"
+						className={css.backupButton}
+						onClick={downloadBackup}
+						disabled={status !== 'connected' || isDownloadingBackup}
+					>
+						{isDownloadingBackup
+							? 'Downloading backup...'
+							: 'Download backup'}
+					</button>
 					<ConnectionPill
 						status={status}
 						title={relayDiagnosticsTitle}

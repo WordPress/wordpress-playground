@@ -1,4 +1,5 @@
 import { logger } from '@php-wasm/logger';
+import { zipWpContent } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 
 export type TunnelHostStatus =
@@ -74,10 +75,56 @@ interface DataChannelResponse extends TunnelResponse {
 	type: 'response';
 }
 
+interface DataChannelBackupRequest {
+	type: 'backup-request';
+	requestId: string;
+}
+
+interface DataChannelBackupStart {
+	type: 'backup-start';
+	requestId: string;
+	filename: string;
+	totalBytes: number;
+	totalChunks: number;
+}
+
+interface DataChannelBackupChunk {
+	type: 'backup-chunk';
+	requestId: string;
+	index: number;
+	body: string;
+}
+
+interface DataChannelBackupComplete {
+	type: 'backup-complete';
+	requestId: string;
+}
+
+interface DataChannelBackupError {
+	type: 'backup-error';
+	requestId: string;
+	error: string;
+}
+
 type DataChannelControlMessage =
 	| { type: 'approval-required' }
 	| { type: 'verification-code'; code: string }
 	| { type: 'approved' };
+
+type DataChannelHostMessage =
+	| DataChannelRequest
+	| DataChannelBackupRequest
+	| DataChannelControlMessage;
+
+type DataChannelGuestMessage =
+	| DataChannelResponse
+	| DataChannelBackupStart
+	| DataChannelBackupChunk
+	| DataChannelBackupComplete
+	| DataChannelBackupError
+	| DataChannelControlMessage;
+
+const BACKUP_CHUNK_SIZE = 48 * 1024;
 
 /**
  * Convert a Uint8Array to a base64 string (browser-compatible).
@@ -123,9 +170,44 @@ function normalizeVerificationCode(value: string): string {
 	return value.replace(/\D+/g, '').slice(0, 4);
 }
 
-function isDataChannelControlMessage(
-	value: DataChannelRequest | DataChannelControlMessage
-): value is DataChannelControlMessage {
+function sanitizeForFilename(name: string): string {
+	return name
+		.trim()
+		.replaceAll(/[^a-zA-Z0-9_-]/g, '-')
+		.replaceAll(/-+/g, '-')
+		.replace(/^-|-$/g, '');
+}
+
+function formatBackupFilename(siteName: string): string {
+	const now = new Date();
+	const date = now.toISOString().slice(0, 10);
+	const time = now.toTimeString().slice(0, 8).replace(/:/g, '');
+	const sanitized = sanitizeForFilename(siteName);
+	return `${sanitized || 'playground'}-backup-${date}-${time}.zip`;
+}
+
+async function getWordPressSiteName(
+	playgroundClient: PlaygroundClient
+): Promise<string | null> {
+	try {
+		const response = await playgroundClient.run({
+			code: `<?php
+				require_once '/wordpress/wp-load.php';
+				$name = get_option('blogname', 'WordPress');
+				echo html_entity_decode($name, ENT_QUOTES, 'UTF-8');
+			`,
+		});
+		const name = response.text.trim();
+		return name || null;
+	} catch (error) {
+		logger.debug('[DirectTunnelHost] Could not retrieve site name:', error);
+		return null;
+	}
+}
+
+function isDataChannelControlMessage(value: {
+	type: string;
+}): value is DataChannelControlMessage {
 	return (
 		value.type === 'approval-required' ||
 		value.type === 'verification-code' ||
@@ -408,11 +490,13 @@ export class DirectTunnelHost {
 		if (typeof data !== 'string' || !this.dataChannel) {
 			return;
 		}
-		const request = JSON.parse(data) as
-			| DataChannelRequest
-			| DataChannelControlMessage;
+		const request = JSON.parse(data) as DataChannelHostMessage;
 		if (isDataChannelControlMessage(request)) {
 			this.handleDataChannelControlMessage(request);
+			return;
+		}
+		if (request.type === 'backup-request') {
+			this.handleBackupRequest(request);
 			return;
 		}
 		if (request.type !== 'request') {
@@ -442,6 +526,57 @@ export class DirectTunnelHost {
 			lastError: null,
 		});
 		this.processQueue();
+	}
+
+	private async handleBackupRequest(
+		request: DataChannelBackupRequest
+	): Promise<void> {
+		if (!this.isApproved) {
+			this.sendDataChannelBackupError(
+				request.requestId,
+				'Waiting for approval on the phone.'
+			);
+			return;
+		}
+		try {
+			const siteName =
+				(await getWordPressSiteName(this.playgroundClient)) ||
+				'playground';
+			const bytes = await zipWpContent(this.playgroundClient, {
+				selfContained: true,
+			});
+			const totalChunks = Math.ceil(bytes.length / BACKUP_CHUNK_SIZE);
+			this.sendDataChannelBackupMessage({
+				type: 'backup-start',
+				requestId: request.requestId,
+				filename: formatBackupFilename(siteName),
+				totalBytes: bytes.length,
+				totalChunks,
+			});
+			for (let i = 0; i < totalChunks; i++) {
+				this.sendDataChannelBackupMessage({
+					type: 'backup-chunk',
+					requestId: request.requestId,
+					index: i,
+					body: uint8ArrayToBase64(
+						bytes.slice(
+							i * BACKUP_CHUNK_SIZE,
+							(i + 1) * BACKUP_CHUNK_SIZE
+						)
+					),
+				});
+				await this.waitForDataChannelDrain();
+			}
+			this.sendDataChannelBackupMessage({
+				type: 'backup-complete',
+				requestId: request.requestId,
+			});
+		} catch (error) {
+			this.sendDataChannelBackupError(
+				request.requestId,
+				(error as Error).message
+			);
+		}
 	}
 
 	private handleDataChannelControlMessage(
@@ -527,6 +662,59 @@ export class DirectTunnelHost {
 			throw new Error('Desktop data channel is not open');
 		}
 		this.dataChannel.send(JSON.stringify(response));
+	}
+
+	private sendDataChannelBackupMessage(
+		message:
+			| DataChannelBackupStart
+			| DataChannelBackupChunk
+			| DataChannelBackupComplete
+			| DataChannelBackupError
+	): void {
+		if (this.dataChannel?.readyState !== 'open') {
+			throw new Error('Desktop data channel is not open');
+		}
+		this.dataChannel.send(JSON.stringify(message));
+	}
+
+	private sendDataChannelBackupError(requestId: string, error: string): void {
+		this.sendDataChannelBackupMessage({
+			type: 'backup-error',
+			requestId,
+			error,
+		});
+	}
+
+	private async waitForDataChannelDrain(): Promise<void> {
+		const channel = this.dataChannel;
+		if (!channel || channel.readyState !== 'open') {
+			throw new Error('Desktop data channel is not open');
+		}
+		if (channel.bufferedAmount < 1024 * 1024) {
+			return;
+		}
+		channel.bufferedAmountLowThreshold = 512 * 1024;
+		await new Promise<void>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				cleanup();
+				reject(new Error('Desktop data channel did not drain'));
+			}, 30000);
+			const cleanup = () => {
+				clearTimeout(timeout);
+				channel.removeEventListener(
+					'bufferedamountlow',
+					handleBufferedAmountLow
+				);
+			};
+			const handleBufferedAmountLow = () => {
+				cleanup();
+				resolve();
+			};
+			channel.addEventListener(
+				'bufferedamountlow',
+				handleBufferedAmountLow
+			);
+		});
 	}
 
 	private sendDataChannelControlMessage(
@@ -686,6 +874,18 @@ export class DirectTunnelGuest {
 			timeout: ReturnType<typeof setTimeout>;
 		}
 	>();
+	private pendingBackups = new Map<
+		string,
+		{
+			resolve: (backup: { filename: string; bytes: Uint8Array }) => void;
+			reject: (error: Error) => void;
+			timeout: ReturnType<typeof setTimeout>;
+			filename: string | null;
+			totalBytes: number;
+			totalChunks: number;
+			chunks: Uint8Array[];
+		}
+	>();
 	private isActive = false;
 	private onStatusChange: (
 		status: 'connecting' | 'connected' | 'error',
@@ -726,6 +926,11 @@ export class DirectTunnelGuest {
 			pending.reject(new Error('Desktop access disconnected'));
 		}
 		this.pendingRequests.clear();
+		for (const pending of this.pendingBackups.values()) {
+			clearTimeout(pending.timeout);
+			pending.reject(new Error('Desktop access disconnected'));
+		}
+		this.pendingBackups.clear();
 	}
 
 	async request(
@@ -750,6 +955,36 @@ export class DirectTunnelGuest {
 				resolve,
 				reject,
 				timeout,
+			});
+			this.dataChannel?.send(JSON.stringify(message));
+		});
+	}
+
+	async downloadBackup(): Promise<{ filename: string; bytes: Uint8Array }> {
+		if (this.dataChannel?.readyState !== 'open') {
+			throw new Error('Phone data channel is not connected');
+		}
+		if (!this.isApproved) {
+			throw new Error('Waiting for approval on the phone');
+		}
+		const requestId = crypto.randomUUID();
+		const message: DataChannelBackupRequest = {
+			type: 'backup-request',
+			requestId,
+		};
+		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				this.pendingBackups.delete(requestId);
+				reject(new Error('Backup download timed out'));
+			}, 120000);
+			this.pendingBackups.set(requestId, {
+				resolve,
+				reject,
+				timeout,
+				filename: null,
+				totalBytes: 0,
+				totalChunks: 0,
+				chunks: [],
 			});
 			this.dataChannel?.send(JSON.stringify(message));
 		});
@@ -856,9 +1091,7 @@ export class DirectTunnelGuest {
 			if (typeof event.data !== 'string') {
 				return;
 			}
-			const response = JSON.parse(event.data) as
-				| DataChannelResponse
-				| DataChannelControlMessage;
+			const response = JSON.parse(event.data) as DataChannelGuestMessage;
 			if (response.type === 'approval-required') {
 				this.isApproved = false;
 				this.reportStatus('connecting', 'waiting for phone approval');
@@ -867,6 +1100,9 @@ export class DirectTunnelGuest {
 			if (response.type === 'approved') {
 				this.isApproved = true;
 				this.reportStatus('connected');
+				return;
+			}
+			if (this.handleBackupMessage(response)) {
 				return;
 			}
 			if (response.type !== 'response') {
@@ -880,6 +1116,62 @@ export class DirectTunnelGuest {
 			this.pendingRequests.delete(response.requestId);
 			pending.resolve(response);
 		};
+	}
+
+	private handleBackupMessage(message: DataChannelGuestMessage): boolean {
+		if (
+			message.type !== 'backup-start' &&
+			message.type !== 'backup-chunk' &&
+			message.type !== 'backup-complete' &&
+			message.type !== 'backup-error'
+		) {
+			return false;
+		}
+		const pending = this.pendingBackups.get(message.requestId);
+		if (!pending) {
+			return true;
+		}
+		if (message.type === 'backup-error') {
+			clearTimeout(pending.timeout);
+			this.pendingBackups.delete(message.requestId);
+			pending.reject(new Error(message.error));
+			return true;
+		}
+		if (message.type === 'backup-start') {
+			pending.filename = message.filename;
+			pending.totalBytes = message.totalBytes;
+			pending.totalChunks = message.totalChunks;
+			pending.chunks = new Array(message.totalChunks);
+			return true;
+		}
+		if (message.type === 'backup-chunk') {
+			pending.chunks[message.index] = base64ToUint8Array(message.body);
+			return true;
+		}
+		clearTimeout(pending.timeout);
+		this.pendingBackups.delete(message.requestId);
+		if (
+			!pending.filename ||
+			pending.chunks.length !== pending.totalChunks
+		) {
+			pending.reject(new Error('Incomplete backup response'));
+			return true;
+		}
+		const bytes = new Uint8Array(pending.totalBytes);
+		let offset = 0;
+		for (const chunk of pending.chunks) {
+			if (!chunk) {
+				pending.reject(new Error('Incomplete backup response'));
+				return true;
+			}
+			bytes.set(chunk, offset);
+			offset += chunk.length;
+		}
+		pending.resolve({
+			filename: pending.filename,
+			bytes,
+		});
+		return true;
 	}
 
 	private sendDataChannelControlMessage(

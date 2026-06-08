@@ -39,6 +39,41 @@
 	gap: 8px;
 }
 
+.backup-button {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
+	font: inherit;
+	font-size: 12px;
+	line-height: 1;
+	font-weight: 500;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.backup-button:hover:not(:disabled),
+.backup-button:focus-visible {
+	border-color: #8c8f94;
+	background: #f6f7f7;
+}
+
+.backup-button:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.backup-button:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
 .status-pill {
 	flex: 0 0 auto;
 	display: inline-flex;
