@@ -32,8 +32,6 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $path = preg_replace('#^/website-server#', '', $path);
 
 try {
-    ensureSchema();
-
     if ($path === '/relay/session' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         handleCreateSession();
     } elseif (preg_match('#^/relay/code/([0-9-]+)$#', $path, $matches) && $_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -479,93 +477,6 @@ function db(): mysqli {
     $db->real_connect($host, $user, $password ?? '', $name, $port);
     $db->set_charset('utf8mb4');
     return $db;
-}
-
-function ensureSchema(): void {
-    db()->query(
-        'CREATE TABLE IF NOT EXISTS ' . SESSIONS_TABLE . ' (
-            session_id varchar(64) NOT NULL PRIMARY KEY,
-            access_code varchar(7) NOT NULL UNIQUE,
-            created_at_ms bigint unsigned NOT NULL,
-            last_activity_ms bigint unsigned NOT NULL,
-            last_host_seen_at_ms bigint unsigned NOT NULL DEFAULT 0,
-            host_connected tinyint(1) NOT NULL DEFAULT 0,
-            KEY access_code_idx (access_code),
-            KEY last_activity_idx (last_activity_ms)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
-    );
-    migrateSessionSchema();
-    db()->query(
-        'CREATE TABLE IF NOT EXISTS ' . SIGNALS_TABLE . ' (
-            seq bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            session_id varchar(64) NOT NULL,
-            from_peer varchar(8) NOT NULL,
-            to_peer varchar(8) NOT NULL,
-            signal_type varchar(16) NOT NULL,
-            signal_data json NULL,
-            created_at_ms bigint unsigned NOT NULL,
-            KEY session_to_seq_idx (session_id, to_peer, seq),
-            KEY session_created_idx (session_id, created_at_ms),
-            KEY created_idx (created_at_ms)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
-    );
-    migrateSignalSchema();
-    db()->query(
-        'CREATE TABLE IF NOT EXISTS ' . GUESTS_TABLE . ' (
-            session_id varchar(64) NOT NULL,
-            guest_id varchar(128) NOT NULL,
-            last_seen_at_ms bigint unsigned NOT NULL,
-            PRIMARY KEY (session_id, guest_id),
-            KEY last_seen_idx (last_seen_at_ms)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
-    );
-}
-
-function migrateSessionSchema(): void {
-    $columns = tableColumns(SESSIONS_TABLE);
-    if (!isset($columns['last_host_seen_at_ms'])) {
-        db()->query(
-            'ALTER TABLE ' . SESSIONS_TABLE . '
-             ADD COLUMN last_host_seen_at_ms bigint unsigned NOT NULL DEFAULT 0'
-        );
-    }
-    if (!isset($columns['host_connected'])) {
-        db()->query(
-            'ALTER TABLE ' . SESSIONS_TABLE . '
-             ADD COLUMN host_connected tinyint(1) NOT NULL DEFAULT 0'
-        );
-    }
-    if (isset($columns['payload'])) {
-        db()->query('ALTER TABLE ' . SESSIONS_TABLE . ' DROP COLUMN payload');
-    }
-}
-
-function migrateSignalSchema(): void {
-    $indexes = tableIndexes(SIGNALS_TABLE);
-    if (!isset($indexes['created_idx'])) {
-        db()->query(
-            'ALTER TABLE ' . SIGNALS_TABLE . '
-             ADD KEY created_idx (created_at_ms)'
-        );
-    }
-}
-
-function tableColumns(string $table): array {
-    $result = db()->query('SHOW COLUMNS FROM ' . $table);
-    $columns = [];
-    while ($row = $result->fetch_assoc()) {
-        $columns[$row['Field']] = true;
-    }
-    return $columns;
-}
-
-function tableIndexes(string $table): array {
-    $result = db()->query('SHOW INDEX FROM ' . $table);
-    $indexes = [];
-    while ($row = $result->fetch_assoc()) {
-        $indexes[$row['Key_name']] = true;
-    }
-    return $indexes;
 }
 
 function configValue(array $keys, bool $required = true): ?string {
