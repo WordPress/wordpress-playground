@@ -334,6 +334,10 @@ function DesktopAccessDiagnostics({
 				Desktop traffic
 			</div>
 			<div className={css.desktopAccessMetrics}>
+				<span>Handshake {metrics.handshakeAttempts}</span>
+				<span>{metrics.handshakeState}</span>
+				<span>Local ICE {metrics.localCandidates}</span>
+				<span>Remote ICE {metrics.remoteCandidates}</span>
 				<span>Received {metrics.received}</span>
 				<span>Pending {metrics.pending}</span>
 				<span>Processing {metrics.processing}</span>

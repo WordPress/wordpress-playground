@@ -15,6 +15,10 @@ export interface TunnelHostMetrics {
 	processing: number;
 	completed: number;
 	failed: number;
+	handshakeAttempts: number;
+	localCandidates: number;
+	remoteCandidates: number;
+	handshakeState: string;
 	lastMethod: string | null;
 	lastPath: string | null;
 	lastStatus: number | null;
@@ -267,6 +271,10 @@ export class DirectTunnelHost {
 		processing: 0,
 		completed: 0,
 		failed: 0,
+		handshakeAttempts: 0,
+		localCandidates: 0,
+		remoteCandidates: 0,
+		handshakeState: 'Waiting',
 		lastMethod: null,
 		lastPath: null,
 		lastStatus: null,
@@ -323,7 +331,11 @@ export class DirectTunnelHost {
 		this.shareUrl = null;
 		this.accessCode = null;
 		this.setStatus('disconnected');
-		this.updateMetrics({ pending: 0, processing: 0 });
+		this.updateMetrics({
+			pending: 0,
+			processing: 0,
+			handshakeState: 'Stopped',
+		});
 
 		if (sessionIdToClose) {
 			try {
@@ -375,6 +387,7 @@ export class DirectTunnelHost {
 		this.isApproved = true;
 		this.pendingVerificationCode = null;
 		this.sendDataChannelControlMessage({ type: 'approved' });
+		this.updateMetrics({ handshakeState: 'Approved' });
 		this.setStatus('connected');
 		return true;
 	}
@@ -404,6 +417,12 @@ export class DirectTunnelHost {
 			return;
 		}
 		this.isCreatingOffer = true;
+		this.updateMetrics({
+			handshakeAttempts: this.metrics.handshakeAttempts + 1,
+			localCandidates: 0,
+			remoteCandidates: 0,
+			handshakeState: 'Creating offer',
+		});
 		this.dataChannel?.close();
 		this.peerConnection?.close();
 		const pc = createPeerConnection();
@@ -414,8 +433,10 @@ export class DirectTunnelHost {
 
 		try {
 			const offer = await pc.createOffer();
+			this.updateMetrics({ handshakeState: 'Setting local offer' });
 			await pc.setLocalDescription(offer);
 			await this.postSignal('guest', 'offer', pc.localDescription);
+			this.updateMetrics({ handshakeState: 'Offer sent' });
 		} finally {
 			this.isCreatingOffer = false;
 		}
@@ -424,6 +445,10 @@ export class DirectTunnelHost {
 	private configurePeerConnection(pc: RTCPeerConnection): void {
 		pc.onicecandidate = (event) => {
 			if (event.candidate) {
+				this.updateMetrics({
+					localCandidates: this.metrics.localCandidates + 1,
+					handshakeState: 'Sending ICE candidate',
+				});
 				this.postSignal('guest', 'candidate', event.candidate).catch(
 					(error) =>
 						logger.warn('[DirectTunnelHost] ICE failed:', error)
@@ -431,6 +456,9 @@ export class DirectTunnelHost {
 			}
 		};
 		pc.onconnectionstatechange = () => {
+			this.updateMetrics({
+				handshakeState: `Peer ${pc.connectionState}`,
+			});
 			if (
 				pc.connectionState === 'failed' ||
 				pc.connectionState === 'disconnected'
@@ -446,14 +474,19 @@ export class DirectTunnelHost {
 			this.stopReconnect();
 			if (this.isApproved) {
 				this.sendDataChannelControlMessage({ type: 'approved' });
+				this.updateMetrics({ handshakeState: 'Data channel open' });
 				this.setStatus('connected');
 				return;
 			}
 			this.sendDataChannelControlMessage({ type: 'approval-required' });
+			this.updateMetrics({
+				handshakeState: 'Waiting for phone approval',
+			});
 			this.setStatus('pending-approval');
 		};
 		channel.onclose = () => {
 			if (this.isActive) {
+				this.updateMetrics({ handshakeState: 'Data channel closed' });
 				this.setStatus('connecting');
 				this.scheduleReconnect();
 			}
@@ -472,6 +505,7 @@ export class DirectTunnelHost {
 			if (!this.isActive) {
 				return;
 			}
+			this.updateMetrics({ handshakeState: 'Reconnecting' });
 			this.createOffer().catch((error) => {
 				logger.warn('[DirectTunnelHost] Reconnect failed:', error);
 				this.scheduleReconnect();
@@ -586,6 +620,9 @@ export class DirectTunnelHost {
 			this.pendingVerificationCode = normalizeVerificationCode(
 				message.code
 			);
+			this.updateMetrics({
+				handshakeState: 'Desktop verification received',
+			});
 			this.setStatus('pending-approval');
 		}
 	}
@@ -758,10 +795,16 @@ export class DirectTunnelHost {
 				continue;
 			}
 			if (message.type === 'answer') {
+				this.updateMetrics({ handshakeState: 'Answer received' });
 				await this.peerConnection.setRemoteDescription(
 					isSessionDescription(message.data)
 				);
+				this.updateMetrics({ handshakeState: 'Remote answer set' });
 			} else if (message.type === 'candidate') {
+				this.updateMetrics({
+					remoteCandidates: this.metrics.remoteCandidates + 1,
+					handshakeState: 'Remote ICE candidate received',
+				});
 				await addIceCandidateIfCurrent(
 					this.peerConnection,
 					isIceCandidate(message.data),

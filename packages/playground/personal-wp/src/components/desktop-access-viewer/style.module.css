@@ -274,6 +274,16 @@
 	font-variant-numeric: tabular-nums;
 }
 
+.connection-detail {
+	max-width: 520px;
+	color: #50575e;
+	font-family:
+		ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+	font-size: 12px;
+	line-height: 18px;
+	overflow-wrap: anywhere;
+}
+
 .center-notice button,
 .disconnected-card button {
 	margin-top: 6px;

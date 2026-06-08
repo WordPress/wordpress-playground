@@ -394,6 +394,13 @@
 	font-variant-numeric: tabular-nums;
 }
 
+.desktop-access-metrics span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .desktop-access-last-request,
 .desktop-access-last-error {
 	overflow: hidden;
