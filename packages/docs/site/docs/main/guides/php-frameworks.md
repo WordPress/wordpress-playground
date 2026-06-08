@@ -36,8 +36,9 @@ That makes Playground useful for generic PHP examples:
 
 The example below uses a Blueprint to download and unzip a bundled Symfony app
 into `/app`. Then a `<php-snippet>` boots the Symfony kernel and renders the
-dashboard route. The snippet prints the Symfony response status, the page title,
-and whether a WordPress install exists.
+dashboard route. The app's Composer dependencies include the WordPress HTML API,
+so the snippet can read the `<h1>` with `WP_HTML_Processor` without installing or
+booting WordPress.
 
 <PhpCodeSnippetExample name="symfonyBlueprint" />
 
@@ -78,10 +79,23 @@ $kernel = new Kernel( 'prod', false );
 $request = Request::create( '/' );
 $response = $kernel->handle( $request );
 
-preg_match( '/<h1>(.*?)<\/h1>/', $response->getContent(), $match );
+$processor = WP_HTML_Processor::create_fragment( $response->getContent() );
+$page_title = 'unknown';
+if ( $processor->next_tag( 'H1' ) ) {
+	$page_title = '';
+	while ( $processor->next_token() ) {
+		if ( 'H1' === $processor->get_tag() && $processor->is_tag_closer() ) {
+			break;
+		}
+		if ( '#text' === $processor->get_token_type() ) {
+			$page_title .= $processor->get_modifiable_text();
+		}
+	}
+	$page_title = trim( $page_title );
+}
 
 echo 'HTTP ' . $response->getStatusCode() . PHP_EOL;
-echo 'Symfony page: ' . html_entity_decode( $match[1] ?? 'unknown' ) . PHP_EOL;
+echo 'Symfony page: ' . $page_title . PHP_EOL;
 echo 'WordPress installed: ';
 echo file_exists( '/wordpress/wp-load.php' ) ? 'yes' : 'no';
 
@@ -89,7 +103,7 @@ $kernel->terminate( $request, $response );
   </script>
   <script type="text/expected-output">
 HTTP 200
-Symfony page: Package Radar
+Symfony page: Symfony Playground
 WordPress installed: no
   </script>
 </php-snippet>
@@ -105,7 +119,9 @@ The same app is also available as a full Playground page:
 
 For framework demos, prefer a ZIP that already contains `vendor/`. That keeps
 the Playground startup path short and avoids asking every visitor to wait for
-Composer, Git, and package registry downloads.
+Composer, Git, and package registry downloads. The Symfony demo uses that path to
+bundle both Symfony and a Composer-installed copy of the WordPress HTML API; it
+still does not include a WordPress install.
 
 For snippets or CLI runs, a small Blueprint can install the app into `/app` with
 one step:

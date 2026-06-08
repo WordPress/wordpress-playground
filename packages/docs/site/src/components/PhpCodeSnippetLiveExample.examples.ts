@@ -218,10 +218,23 @@ $kernel = new Kernel('prod', false);
 $request = Request::create('/');
 $response = $kernel->handle($request);
 
-preg_match('/<h1>(.*?)<\/h1>/', $response->getContent(), $match);
+$processor = WP_HTML_Processor::create_fragment($response->getContent());
+$pageTitle = 'unknown';
+if ($processor->next_tag('H1')) {
+    $pageTitle = '';
+    while ($processor->next_token()) {
+        if ('H1' === $processor->get_tag() && $processor->is_tag_closer()) {
+            break;
+        }
+        if ('#text' === $processor->get_token_type()) {
+            $pageTitle .= $processor->get_modifiable_text();
+        }
+    }
+    $pageTitle = trim($pageTitle);
+}
 
 echo 'HTTP ' . $response->getStatusCode() . PHP_EOL;
-echo 'Symfony page: ' . html_entity_decode($match[1] ?? 'unknown') . PHP_EOL;
+echo 'Symfony page: ' . $pageTitle . PHP_EOL;
 echo 'WordPress installed: ';
 echo file_exists('/wordpress/wp-load.php') ? 'yes' : 'no';
 
@@ -229,7 +242,7 @@ $kernel->terminate($request, $response);
   </script>
   <script type="text/expected-output">
 HTTP 200
-Symfony page: Package Radar
+Symfony page: Symfony Playground
 WordPress installed: no
   </script>
 </php-snippet>`,
