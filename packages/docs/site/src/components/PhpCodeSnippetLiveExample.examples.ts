@@ -227,6 +227,11 @@ echo file_exists('/wordpress/wp-load.php') ? 'yes' : 'no';
 
 $kernel->terminate($request, $response);
 
+/**
+ * The app's Composer dependencies include the WordPress HTML API, so the
+ * snippet can read the <h1> with WP_HTML_Processor without installing or
+ * booting WordPress.
+ */
 function get_first_h1_text(string $html): string
 {
     $processor = WP_HTML_Processor::create_fragment($html);
