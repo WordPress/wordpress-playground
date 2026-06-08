@@ -138,6 +138,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				if (nextStatus === 'connected') {
 					sawPhoneAlive = true;
 					setDataChannelReady(true);
+					setStatus('connected');
 					setRelayDiagnostics((current) => ({
 						...current,
 						dataChannel: `Connected ${detail}`,
@@ -532,7 +533,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				</div>
 			) : null}
 
-			{status === 'connecting' ||
+			{(status === 'connecting' && !iframeHasLoaded) ||
 			(status === 'connected' && !shouldLoadIframe) ? (
 				<div className={css.centerNotice} role="status">
 					<h1>Connecting to your phone</h1>
