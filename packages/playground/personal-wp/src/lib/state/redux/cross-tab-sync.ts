@@ -92,6 +92,7 @@ function filterSyncableChanges(
 		'backupHistory',
 		'lastAccessDate',
 		'lastUsageStatsReturningVisitDate',
+		'appliedMigrations',
 	];
 
 	const filtered: Partial<SiteMetadata> = {};

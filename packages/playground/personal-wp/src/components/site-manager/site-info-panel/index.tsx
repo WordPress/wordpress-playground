@@ -33,7 +33,10 @@ import {
 	requestBlueprintInstall,
 } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
-import { encodeStringAsBase64 } from '../../../lib/base64';
+import {
+	APP_LAUNCHER_BLUEPRINT,
+	APP_LAUNCHER_BLUEPRINT_URL,
+} from '../../../lib/personalwp/my-apps';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -67,39 +70,6 @@ function setSiteLastTab(siteSlug: string, tabName: string): void {
 }
 
 // -- Install Apps ------------------------------------------------------------
-
-const APP_LAUNCHER_BLUEPRINT = {
-	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
-	meta: {
-		title: 'App Launcher',
-		description: 'Install more apps with this app launcher',
-		author: 'Alex Kirk',
-	},
-	login: true,
-	landingPage: '/my-apps/',
-	steps: [
-		{
-			step: 'installPlugin',
-			pluginData: {
-				resource: 'git:directory',
-				url: 'https://github.com/akirk/my-apps',
-				ref: 'main',
-				refType: 'branch',
-			},
-			options: {
-				targetFolderName: 'my-apps',
-			},
-		},
-	],
-};
-
-const APP_LAUNCHER_BLUEPRINT_URL = blueprintToDataUrl(
-	JSON.stringify(APP_LAUNCHER_BLUEPRINT)
-);
-
-function blueprintToDataUrl(blueprint: string): string {
-	return `data:application/json;base64,${encodeStringAsBase64(blueprint)}`;
-}
 
 function InstallAppsSection({ siteSlug }: { siteSlug: string }) {
 	const installMessage = useAppSelector(

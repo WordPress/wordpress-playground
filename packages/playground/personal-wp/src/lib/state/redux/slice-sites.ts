@@ -93,7 +93,19 @@ const sitesSlice = createSlice({
 			const { slug, metadata } = action.payload;
 			const site = state.entities[slug];
 			if (site) {
-				site.metadata = { ...site.metadata, ...metadata };
+				const appliedMigrations =
+					metadata.appliedMigrations ||
+					site.metadata.appliedMigrations
+						? {
+								...site.metadata.appliedMigrations,
+								...metadata.appliedMigrations,
+							}
+						: undefined;
+				site.metadata = {
+					...site.metadata,
+					...metadata,
+					...(appliedMigrations ? { appliedMigrations } : {}),
+				};
 			}
 		},
 
@@ -168,6 +180,34 @@ export function updateSiteMetadata({
 					metadata: {
 						...storedSite.metadata,
 						...metadata,
+					},
+				},
+			})
+		);
+	};
+}
+
+export function markSiteMigrationApplied({
+	slug,
+	migration,
+	timestamp = Date.now(),
+}: {
+	slug: string;
+	migration: string;
+	timestamp?: number;
+}) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const storedSite = selectSiteBySlug(getState(), slug);
+		await dispatch(
+			updateSiteMetadata({
+				slug,
+				metadata: {
+					appliedMigrations: {
+						...storedSite.metadata.appliedMigrations,
+						[migration]: timestamp,
 					},
 				},
 			})
@@ -555,6 +595,11 @@ export interface SiteMetadata {
 	 * UTC date of the last returning-visit usage stats event for this site.
 	 */
 	lastUsageStatsReturningVisitDate?: string;
+
+	/**
+	 * Timestamps for one-off migrations applied to this site.
+	 */
+	appliedMigrations?: Record<string, number>;
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =
