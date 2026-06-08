@@ -80,7 +80,10 @@ export function DesktopAccessConnect() {
 }
 
 export function isDesktopAccessConnectRoute(): boolean {
-	return window.location.pathname === '/connect';
+	return (
+		window.location.pathname === '/connect' ||
+		window.location.pathname.startsWith('/connect/')
+	);
 }
 
 function normalizeCode(value: string): string | null {
