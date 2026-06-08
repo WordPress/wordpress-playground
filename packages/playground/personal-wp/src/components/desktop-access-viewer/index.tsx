@@ -65,10 +65,15 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
 	const desktopRelayIframeUrl = useMemo(
 		() =>
-			`${DESKTOP_RELAY_SCOPED_URL}?desktop-relay-view=${encodeURIComponent(
+			buildDesktopRelayIframeUrl(
+				getDesktopRelayPathFromHash(),
 				sessionId
-			)}`,
+			),
 		[sessionId]
+	);
+	const relayDiagnosticsTitle = useMemo(
+		() => formatRelayDiagnosticsTitle(relayDiagnostics),
+		[relayDiagnostics]
 	);
 
 	const statusUrl = useMemo(
@@ -427,6 +432,27 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	}, [desktopRelayIframeUrl, iframeSrc, shouldLoadIframe]);
 
 	useEffect(() => {
+		function handleHashChange() {
+			if (!shouldLoadIframe) {
+				return;
+			}
+			setIframeSrc(
+				buildDesktopRelayIframeUrl(
+					getDesktopRelayPathFromHash(),
+					sessionId
+				)
+			);
+			setRelayDiagnostics((current) => ({
+				...current,
+				iframe: 'Loading URL from address bar',
+			}));
+		}
+
+		window.addEventListener('hashchange', handleHashChange);
+		return () => window.removeEventListener('hashchange', handleHashChange);
+	}, [sessionId, shouldLoadIframe]);
+
+	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
 			if (!isMessageFromIframeTree(event, iframeRef.current)) {
 				return;
@@ -458,6 +484,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			return;
 		}
 		setIframeHasLoaded(true);
+		syncDesktopUrlFromIframe(iframeRef.current, sessionId);
 		setRelayDiagnostics((current) => ({
 			...current,
 			iframe:
@@ -475,7 +502,12 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		setIframeSrc('about:blank');
 		setTimeout(() => {
 			if (shouldLoadIframe) {
-				setIframeSrc(desktopRelayIframeUrl);
+				setIframeSrc(
+					buildDesktopRelayIframeUrl(
+						getDesktopRelayPathFromHash(),
+						sessionId
+					)
+				);
 			}
 		}, 0);
 		setRelayDiagnostics((current) => ({
@@ -500,7 +532,11 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 						here.
 					</span>
 				</div>
-				<ConnectionPill status={status} onDisconnect={disconnect} />
+				<ConnectionPill
+					status={status}
+					title={relayDiagnosticsTitle}
+					onDisconnect={disconnect}
+				/>
 			</header>
 			<RelayDiagnosticsBar diagnostics={relayDiagnostics} />
 			{unsupportedMessage ? (
@@ -638,11 +674,76 @@ function clearDesktopRelayMapping() {
 	});
 }
 
+function buildDesktopRelayIframeUrl(pathAndSearch: string, sessionId: string) {
+	const url = new URL(
+		normalizeDesktopRelayPath(pathAndSearch),
+		location.origin
+	);
+	const scopedUrl = new URL(
+		`${DESKTOP_RELAY_SCOPED_URL.replace(/\/$/, '')}${url.pathname}${url.search}`,
+		location.origin
+	);
+	scopedUrl.searchParams.set('desktop-relay-view', sessionId);
+	return `${scopedUrl.pathname}${scopedUrl.search}`;
+}
+
+function getDesktopRelayPathFromHash() {
+	const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+	return normalizeDesktopRelayPath(hash || '/');
+}
+
+function normalizeDesktopRelayPath(pathAndSearch: string) {
+	const normalized = pathAndSearch.startsWith('/')
+		? pathAndSearch
+		: `/${pathAndSearch}`;
+	return normalized || '/';
+}
+
+function syncDesktopUrlFromIframe(
+	iframe: HTMLIFrameElement,
+	sessionId: string
+) {
+	try {
+		const iframeUrl = new URL(iframe.contentWindow?.location.href || '');
+		const scopedPrefix = DESKTOP_RELAY_SCOPED_URL.replace(/\/$/, '');
+		if (!iframeUrl.pathname.startsWith(scopedPrefix)) {
+			return;
+		}
+		const unscopedPath =
+			iframeUrl.pathname.slice(scopedPrefix.length) || '/';
+		iframeUrl.searchParams.delete('desktop-relay-view');
+		const nextHash = `${unscopedPath}${iframeUrl.search}`;
+		const nextUrl = new URL(window.location.href);
+		nextUrl.search = `?share=${encodeURIComponent(sessionId)}`;
+		nextUrl.hash = nextHash;
+		if (nextUrl.href !== window.location.href) {
+			window.history.replaceState({}, '', nextUrl);
+		}
+	} catch {
+		// Ignore cross-document timing gaps while the iframe is navigating.
+	}
+}
+
+function formatRelayDiagnosticsTitle(diagnostics: RelayDiagnostics) {
+	return [
+		`SW: ${diagnostics.serviceWorker}`,
+		`Channel: ${diagnostics.dataChannel}`,
+		`Frame: ${diagnostics.iframe}`,
+		`Requests: ${diagnostics.requests}`,
+		`Intercepted: ${diagnostics.intercepted}`,
+		`Pending: ${diagnostics.pending}`,
+		`Last: ${diagnostics.lastPath}`,
+		`Error: ${diagnostics.lastError}`,
+	].join('\n');
+}
+
 function ConnectionPill({
 	status,
+	title,
 	onDisconnect,
 }: {
 	status: ConnectionStatus;
+	title: string;
 	onDisconnect: () => void;
 }) {
 	const label =
@@ -660,6 +761,7 @@ function ConnectionPill({
 				type="button"
 				className={`${css.statusPill} ${css.statusPillButton}`}
 				onClick={onDisconnect}
+				title={title}
 				aria-label="Disconnect desktop access"
 			>
 				<span className={css.statusPillLabel}>{label}</span>
@@ -668,7 +770,11 @@ function ConnectionPill({
 		);
 	}
 
-	return <span className={css.statusPill}>{label}</span>;
+	return (
+		<span className={css.statusPill} title={title}>
+			{label}
+		</span>
+	);
 }
 
 function RelayDiagnosticsBar({
