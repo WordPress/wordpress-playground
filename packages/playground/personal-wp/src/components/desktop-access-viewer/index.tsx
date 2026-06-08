@@ -495,20 +495,21 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	return (
 		<div className={css.viewer}>
 			<header className={css.banner}>
-				<div>
+				<div className={css.bannerTitle}>
 					<strong>Using My WordPress from your phone</strong>
-					<span>
-						Keep my.wordpress.net open on your phone while you work
-						here.
-					</span>
 				</div>
-				<ConnectionPill
-					status={status}
-					title={relayDiagnosticsTitle}
-					onDisconnect={disconnect}
-				/>
+				<div className={css.bannerActions}>
+					<ConnectionPill
+						status={status}
+						title={relayDiagnosticsTitle}
+						onDisconnect={disconnect}
+					/>
+					<details className={css.relayDiagnosticsDetails}>
+						<summary title={relayDiagnosticsTitle}>Debug</summary>
+						<RelayDiagnosticsBar diagnostics={relayDiagnostics} />
+					</details>
+				</div>
 			</header>
-			<RelayDiagnosticsBar diagnostics={relayDiagnostics} />
 			{unsupportedMessage ? (
 				<div className={css.unsupportedNotice} role="status">
 					<span>{unsupportedMessage}</span>
