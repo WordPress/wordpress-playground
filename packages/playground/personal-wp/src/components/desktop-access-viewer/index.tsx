@@ -248,11 +248,11 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				return;
 			}
 			await postDesktopRelayMapping(registration);
-			await refreshServiceWorkerProbe();
 			if (cancelled) {
 				return;
 			}
 			setServiceWorkerReady(true);
+			refreshServiceWorkerProbe().catch(() => {});
 			interval = setInterval(
 				() => postDesktopRelayMapping(registration),
 				SERVICE_WORKER_RELAY_REFRESH_MS
