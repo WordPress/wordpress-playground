@@ -54,7 +54,12 @@ interface TunnelResponse {
 
 type PeerRole = 'host' | 'guest';
 
-type SignalType = 'offer' | 'answer' | 'candidate' | 'heartbeat';
+type SignalType =
+	| 'offer'
+	| 'answer'
+	| 'candidate'
+	| 'heartbeat'
+	| 'retry-request';
 
 interface SignalMessage {
 	seq: number;
@@ -383,7 +388,6 @@ export class DirectTunnelHost {
 		[K in keyof TunnelHostEvents]: Set<TunnelHostEvents[K]>;
 	}> = {};
 	private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private dataChannelOpenTimeout: ReturnType<typeof setTimeout> | null = null;
 	private isCreatingOffer = false;
 	private currentAttemptId: string | null = null;
@@ -435,7 +439,7 @@ export class DirectTunnelHost {
 		this.accessCode = data.accessCode;
 		this.isActive = true;
 
-		await this.createOffer();
+		this.updateMetrics({ handshakeState: 'Waiting for desktop' });
 		this.startSignalPolling();
 		this.startHeartbeat();
 		return this.shareUrl;
@@ -445,7 +449,6 @@ export class DirectTunnelHost {
 		const sessionIdToClose = this.sessionId;
 		this.isActive = false;
 		this.stopHeartbeat();
-		this.stopReconnect();
 		this.stopDataChannelOpenTimeout();
 		this.dataChannel?.close();
 		this.peerConnection?.close();
@@ -624,8 +627,9 @@ export class DirectTunnelHost {
 				pc.connectionState === 'failed' ||
 				pc.connectionState === 'disconnected'
 			) {
-				this.setStatus('connecting');
-				this.scheduleReconnect();
+				this.failCurrentAttempt(
+					`Peer connection ${pc.connectionState}`
+				);
 			}
 		};
 	}
@@ -640,7 +644,6 @@ export class DirectTunnelHost {
 				return;
 			}
 			this.stopDataChannelOpenTimeout();
-			this.stopReconnect();
 			if (this.approvedAttemptId === attemptId) {
 				this.sendDataChannelControlMessage({
 					type: 'approved',
@@ -664,38 +667,12 @@ export class DirectTunnelHost {
 				this.isActive &&
 				isAttemptCurrent(this.currentAttemptId, attemptId)
 			) {
-				this.updateMetrics({ handshakeState: 'Data channel closed' });
-				this.setStatus('connecting');
-				this.scheduleReconnect();
+				this.failCurrentAttempt('Data channel closed');
 			}
 		};
 		channel.onmessage = (event) => {
 			this.queueDataChannelMessage(event.data, attemptId);
 		};
-	}
-
-	private scheduleReconnect(): void {
-		if (!this.isActive || this.reconnectTimeout !== null) {
-			return;
-		}
-		this.reconnectTimeout = setTimeout(() => {
-			this.reconnectTimeout = null;
-			if (!this.isActive) {
-				return;
-			}
-			this.updateMetrics({ handshakeState: 'Reconnecting' });
-			this.createOffer().catch((error) => {
-				logger.warn('[DirectTunnelHost] Reconnect failed:', error);
-				this.scheduleReconnect();
-			});
-		}, 1000);
-	}
-
-	private stopReconnect(): void {
-		if (this.reconnectTimeout !== null) {
-			clearTimeout(this.reconnectTimeout);
-			this.reconnectTimeout = null;
-		}
 	}
 
 	private scheduleDataChannelOpenTimeout(attemptId: string): void {
@@ -712,13 +689,7 @@ export class DirectTunnelHost {
 			this.updateMetrics({
 				handshakeState: 'Data channel timed out',
 			});
-			this.createOffer().catch((error) => {
-				logger.warn(
-					'[DirectTunnelHost] Timed-out reconnect failed:',
-					error
-				);
-				this.scheduleReconnect();
-			});
+			this.failCurrentAttempt('Data channel timed out');
 		}, DATA_CHANNEL_OPEN_TIMEOUT_MS);
 	}
 
@@ -727,6 +698,16 @@ export class DirectTunnelHost {
 			clearTimeout(this.dataChannelOpenTimeout);
 			this.dataChannelOpenTimeout = null;
 		}
+	}
+
+	private failCurrentAttempt(message: string): void {
+		this.stopDataChannelOpenTimeout();
+		this.updateMetrics({
+			handshakeState: message,
+			lastError: message,
+		});
+		this.setStatus('error');
+		this.emit('error', new Error(message));
 	}
 
 	private queueDataChannelMessage(data: unknown, attemptId: string): void {
@@ -1079,6 +1060,12 @@ export class DirectTunnelHost {
 
 	private async handleSignals(messages: SignalMessage[]): Promise<void> {
 		for (const message of messages) {
+			if (message.type === 'retry-request') {
+				this.updateMetrics({ handshakeState: 'Retry requested' });
+				this.setStatus('connecting');
+				await this.createOffer();
+				continue;
+			}
 			if (!this.peerConnection) {
 				continue;
 			}
@@ -1313,6 +1300,13 @@ export class DirectTunnelGuest {
 		this.isActive = true;
 		this.reportStatus('connecting');
 		this.startSignalPolling();
+		this.requestFreshOffer().catch((error) => {
+			logger.warn('[DirectTunnelGuest] Retry request failed:', error);
+			this.reportStatus(
+				'error',
+				`retry request failed: ${(error as Error).message}`
+			);
+		});
 	}
 
 	stop(): void {
@@ -1804,6 +1798,12 @@ export class DirectTunnelGuest {
 			`localIce:${this.localCandidates}`,
 			`remoteIce:${this.remoteCandidates}`,
 		].join(' ');
+	}
+
+	private async requestFreshOffer(): Promise<void> {
+		await this.postSignal('host', 'retry-request', {
+			guestId: this.guestId,
+		});
 	}
 
 	private async postSignal(

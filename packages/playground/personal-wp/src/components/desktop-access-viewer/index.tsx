@@ -170,15 +170,18 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				setApprovalPending(
 					detail.includes('waiting for phone approval')
 				);
-				if (nextStatus === 'error' && !sawPhoneAlive) {
+				if (nextStatus === 'error') {
 					setDataChannelReady(false);
 					setRelayDiagnostics((current) => ({
 						...current,
-						dataChannel: `Failed before connecting ${detail}`,
+						dataChannel: sawPhoneAlive
+							? `Connection failed ${detail}`
+							: `Failed before connecting ${detail}`,
 					}));
 					setError(
 						'Unable to connect directly to your phone. Keep both devices nearby and on the same network.'
 					);
+					setNoticeCanRetry(true);
 					setStatus('error');
 					return;
 				}

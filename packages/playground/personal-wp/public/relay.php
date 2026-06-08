@@ -4,8 +4,8 @@
  *
  * This file is only a rendezvous/signaling service for the direct WebRTC
  * desktop tunnel. It stores session metadata plus small WebRTC messages
- * (offer, answer, ICE candidates, heartbeat). WordPress HTTP requests and
- * responses are not proxied through this PHP file.
+ * (offer, answer, ICE candidates, heartbeat, retry request). WordPress HTTP
+ * requests and responses are not proxied through this PHP file.
  */
 
 define('SESSION_TIMEOUT_MS', 5 * 60 * 1000);
@@ -566,7 +566,11 @@ function isValidSignal(string $from, string $to, string $type): bool {
     return in_array($from, ['host', 'guest'], true) &&
         in_array($to, ['host', 'guest'], true) &&
         $from !== $to &&
-        in_array($type, ['offer', 'answer', 'candidate', 'heartbeat'], true);
+        in_array(
+            $type,
+            ['offer', 'answer', 'candidate', 'heartbeat', 'retry-request'],
+            true
+        );
 }
 
 function buildShareUrl(string $sessionId): string {

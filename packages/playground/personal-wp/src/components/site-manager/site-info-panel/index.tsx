@@ -202,6 +202,7 @@ function DesktopAccessSection() {
 
 	const isStarting = desktopAccess.status === 'connecting';
 	const isActive = desktopAccess.isActive && desktopAccess.shareUrl;
+	const isConnected = desktopAccess.status === 'connected';
 	const connectUrl = `${window.location.origin}/connect`;
 
 	return (
@@ -215,10 +216,16 @@ function DesktopAccessSection() {
 				{isActive ? (
 					<>
 						<div className={css.desktopAccessCodeBlock}>
-							<span>Open on your desktop:</span>
-							<strong>{connectUrl}</strong>
-							<span>Enter code:</span>
-							<b>{desktopAccess.accessCode}</b>
+							{isConnected ? (
+								<span>Desktop connected.</span>
+							) : (
+								<>
+									<span>Open on your desktop:</span>
+									<strong>{connectUrl}</strong>
+									<span>Enter code:</span>
+									<b>{desktopAccess.accessCode}</b>
+								</>
+							)}
 						</div>
 						{desktopAccess.status === 'pending-approval' && (
 							<form
