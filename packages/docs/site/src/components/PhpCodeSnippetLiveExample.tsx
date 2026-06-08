@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import type { ExampleName } from './PhpCodeSnippetLiveExample.examples';
 
-// php-code-snippet.js used to be served with a one-year browser cache.
-// Keep this query so docs previews don't reuse stale copies.
+// In dev, load the local Playground website script so docs previews exercise
+// uncommitted php-code-snippet.js changes. Production docs still use the hosted
+// script and keep a query string to avoid stale one-year browser caches.
 const SCRIPT_URL =
-	'https://playground.wordpress.net/php-code-snippet.js?v=selected-text-visible';
+	process.env.NODE_ENV === 'development'
+		? 'http://127.0.0.1:5400/website-server/php-code-snippet.js'
+		: 'https://playground.wordpress.net/php-code-snippet.js?v=selected-text-visible';
 
 function usePhpSnippetScript() {
 	useEffect(() => {
