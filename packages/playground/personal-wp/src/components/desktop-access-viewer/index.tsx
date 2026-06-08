@@ -48,9 +48,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 	const [dataChannelReady, setDataChannelReady] = useState(false);
 	const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
-	const [connectionDetail, setConnectionDetail] = useState(
-		'Starting desktop connection'
-	);
 	const [approvalPending, setApprovalPending] = useState(false);
 	const [iframeHasLoaded, setIframeHasLoaded] = useState(false);
 	const [iframeSrc, setIframeSrc] = useState('about:blank');
@@ -86,6 +83,14 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			)}`,
 		[guestId, sessionId]
 	);
+
+	useEffect(() => {
+		const url = new URL(window.location.href);
+		if (!url.searchParams.has('share')) {
+			return;
+		}
+		window.history.replaceState({}, '', '/connect');
+	}, []);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -147,7 +152,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					sawPhoneAlive = true;
 					setDataChannelReady(true);
 					setApprovalPending(false);
-					setConnectionDetail(detail);
 					setStatus('connected');
 					setRelayDiagnostics((current) => ({
 						...current,
@@ -158,7 +162,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				setApprovalPending(
 					detail.includes('waiting for phone approval')
 				);
-				setConnectionDetail(detail);
 				if (nextStatus === 'error' && !sawPhoneAlive) {
 					setDataChannelReady(false);
 					setRelayDiagnostics((current) => ({
@@ -195,7 +198,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				...current,
 				dataChannel: 'Stopped',
 			}));
-			setConnectionDetail('Stopped');
 			if (timeoutHandle !== null) {
 				clearTimeout(timeoutHandle);
 			}
@@ -595,9 +597,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 							{formatVerificationCode(verificationCode)}
 						</div>
 					) : null}
-					<div className={css.connectionDetail}>
-						{formatConnectionDetail(connectionDetail)}
-					</div>
 				</div>
 			) : null}
 
@@ -757,17 +756,6 @@ function formatRelayDiagnosticsTitle(diagnostics: RelayDiagnostics) {
 	].join('\n');
 }
 
-function formatConnectionDetail(detail: string) {
-	if (detail.includes('waiting for phone approval')) {
-		return 'Waiting for approval on your phone';
-	}
-	return detail
-		.replaceAll('pc:', 'Peer: ')
-		.replaceAll('ice:', 'ICE: ')
-		.replaceAll('signal:', 'Signal: ')
-		.replaceAll('dc:', 'Channel: ');
-}
-
 function ConnectionPill({
 	status,
 	title,
@@ -842,10 +830,10 @@ function getOrCreateGuestId(): string {
 }
 
 function generateVerificationCode(): string {
-	const value = crypto.getRandomValues(new Uint32Array(1))[0] % 10000;
-	return value.toString().padStart(4, '0');
+	const value = crypto.getRandomValues(new Uint32Array(1))[0] % 100;
+	return value.toString().padStart(2, '0');
 }
 
 function formatVerificationCode(value: string): string {
-	return `${value.slice(0, 2)} ${value.slice(2)}`;
+	return value;
 }

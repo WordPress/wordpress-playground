@@ -171,7 +171,7 @@ function isIceCandidate(value: unknown): RTCIceCandidateInit {
 }
 
 function normalizeVerificationCode(value: string): string {
-	return value.replace(/\D+/g, '').slice(0, 4);
+	return value.replace(/\D+/g, '').slice(0, 2);
 }
 
 function sanitizeForFilename(name: string): string {

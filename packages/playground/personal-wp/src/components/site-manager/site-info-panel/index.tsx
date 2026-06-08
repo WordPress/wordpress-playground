@@ -2,7 +2,7 @@ import { Button, Flex, FlexItem, Icon, TabPanel } from '@wordpress/components';
 import { chevronLeft, close, trash, external, upload } from '@wordpress/icons';
 import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { importWordPressFiles } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
@@ -169,7 +169,8 @@ function DesktopAccessSection() {
 		await stopDesktopAccess();
 	}
 
-	function approveAccess() {
+	function approveAccess(event?: FormEvent) {
+		event?.preventDefault();
 		if (approveDesktopAccess(verificationCode)) {
 			setVerificationCode('');
 			setMessage('Desktop access approved.');
@@ -219,13 +220,11 @@ function DesktopAccessSection() {
 							<span>Enter code:</span>
 							<b>{desktopAccess.accessCode}</b>
 						</div>
-						<div className={css.desktopAccessUrl}>
-							{desktopAccess.shareUrl}
-						</div>
 						{desktopAccess.status === 'pending-approval' && (
-							<div
+							<form
 								className={css.desktopAccessApproval}
 								role="status"
+								onSubmit={approveAccess}
 							>
 								<span>
 									A desktop is asking to use this WordPress.
@@ -240,23 +239,22 @@ function DesktopAccessSection() {
 									}
 									inputMode="numeric"
 									autoComplete="one-time-code"
-									placeholder="12 34"
+									placeholder="12"
 									aria-label="Desktop verification code"
 									className={css.desktopAccessApprovalInput}
 								/>
 								<button
-									type="button"
+									type="submit"
 									className={css.backupNowButton}
-									onClick={approveAccess}
 									disabled={
 										normalizeVerificationCode(
 											verificationCode
-										).length !== 4
+										).length !== 2
 									}
 								>
 									Allow
 								</button>
-							</div>
+							</form>
 						)}
 						{desktopAccess.metrics && (
 							<DesktopAccessDiagnostics
@@ -312,15 +310,11 @@ function DesktopAccessSection() {
 }
 
 function normalizeVerificationCode(value: string): string {
-	return value.replace(/\D+/g, '').slice(0, 4);
+	return value.replace(/\D+/g, '').slice(0, 2);
 }
 
 function formatVerificationCode(value: string): string {
-	const digits = normalizeVerificationCode(value);
-	if (digits.length <= 2) {
-		return digits;
-	}
-	return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+	return normalizeVerificationCode(value);
 }
 
 function DesktopAccessDiagnostics({
