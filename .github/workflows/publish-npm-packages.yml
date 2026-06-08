@@ -94,6 +94,9 @@ jobs:
 
             - uses: ./.github/actions/prepare-playground
 
+            - name: Validate publish package overrides
+              run: node tools/scripts/check-publish-package-overrides.mjs
+
             - name: Publish NPM packages
               # Version bump, release, tag a new version on GitHub.
               # On non-trunk branches, --no-push avoids pushing the version

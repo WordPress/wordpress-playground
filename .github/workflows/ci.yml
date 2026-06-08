@@ -413,6 +413,8 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
+            - name: Validate publish package overrides
+              run: node tools/scripts/check-publish-package-overrides.mjs
             - name: Install Playwright Browsers
               run: npx --yes playwright@1.55.1 install --with-deps chromium
             - name: Build packages, start local registry, and run integration tests
