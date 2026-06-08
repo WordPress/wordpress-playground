@@ -155,6 +155,7 @@ type DataChannelGuestMessage =
 	| DataChannelControlMessage;
 
 const DATA_CHANNEL_CHUNK_SIZE = 16 * 1024;
+const DATA_CHANNEL_OPEN_TIMEOUT_MS = 8000;
 
 interface AttemptSignalPayload<T> {
 	attemptId: string;
@@ -305,6 +306,20 @@ function isDataChannelControlMessage(value: {
 	);
 }
 
+function shouldShowIceCandidateState(currentState: string): boolean {
+	return (
+		currentState === 'Waiting' ||
+		currentState === 'Creating offer' ||
+		currentState === 'Setting local offer' ||
+		currentState === 'Offer sent' ||
+		currentState === 'Answer received' ||
+		currentState === 'Remote answer set' ||
+		currentState === 'Sending ICE candidate' ||
+		currentState === 'Remote ICE candidate received' ||
+		currentState === 'Reconnecting'
+	);
+}
+
 async function addIceCandidateIfCurrent(
 	peerConnection: RTCPeerConnection,
 	candidate: RTCIceCandidateInit,
@@ -346,6 +361,7 @@ export class DirectTunnelHost {
 	}> = {};
 	private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+	private dataChannelOpenTimeout: ReturnType<typeof setTimeout> | null = null;
 	private isCreatingOffer = false;
 	private isApproved = false;
 	private currentAttemptId: string | null = null;
@@ -408,6 +424,7 @@ export class DirectTunnelHost {
 		this.isActive = false;
 		this.stopHeartbeat();
 		this.stopReconnect();
+		this.stopDataChannelOpenTimeout();
 		this.dataChannel?.close();
 		this.peerConnection?.close();
 		this.dataChannel = null;
@@ -550,6 +567,7 @@ export class DirectTunnelHost {
 				)
 			);
 			this.updateMetrics({ handshakeState: 'Offer sent' });
+			this.scheduleDataChannelOpenTimeout(attemptId);
 		} finally {
 			this.isCreatingOffer = false;
 		}
@@ -566,7 +584,9 @@ export class DirectTunnelHost {
 			) {
 				this.updateMetrics({
 					localCandidates: this.metrics.localCandidates + 1,
-					handshakeState: 'Sending ICE candidate',
+					...(shouldShowIceCandidateState(this.metrics.handshakeState)
+						? { handshakeState: 'Sending ICE candidate' }
+						: {}),
 				});
 				this.postSignal(
 					'guest',
@@ -606,6 +626,7 @@ export class DirectTunnelHost {
 				channel.close();
 				return;
 			}
+			this.stopDataChannelOpenTimeout();
 			this.stopReconnect();
 			if (this.approvedAttemptId === attemptId) {
 				this.sendDataChannelControlMessage({
@@ -661,6 +682,37 @@ export class DirectTunnelHost {
 		if (this.reconnectTimeout !== null) {
 			clearTimeout(this.reconnectTimeout);
 			this.reconnectTimeout = null;
+		}
+	}
+
+	private scheduleDataChannelOpenTimeout(attemptId: string): void {
+		this.stopDataChannelOpenTimeout();
+		this.dataChannelOpenTimeout = setTimeout(() => {
+			this.dataChannelOpenTimeout = null;
+			if (
+				!this.isActive ||
+				!isAttemptCurrent(this.currentAttemptId, attemptId) ||
+				this.dataChannel?.readyState === 'open'
+			) {
+				return;
+			}
+			this.updateMetrics({
+				handshakeState: 'Data channel timed out',
+			});
+			this.createOffer().catch((error) => {
+				logger.warn(
+					'[DirectTunnelHost] Timed-out reconnect failed:',
+					error
+				);
+				this.scheduleReconnect();
+			});
+		}, DATA_CHANNEL_OPEN_TIMEOUT_MS);
+	}
+
+	private stopDataChannelOpenTimeout(): void {
+		if (this.dataChannelOpenTimeout !== null) {
+			clearTimeout(this.dataChannelOpenTimeout);
+			this.dataChannelOpenTimeout = null;
 		}
 	}
 
@@ -1041,7 +1093,11 @@ export class DirectTunnelHost {
 				}
 				this.updateMetrics({
 					remoteCandidates: this.metrics.remoteCandidates + 1,
-					handshakeState: 'Remote ICE candidate received',
+					...(shouldShowIceCandidateState(this.metrics.handshakeState)
+						? {
+								handshakeState: 'Remote ICE candidate received',
+							}
+						: {}),
 				});
 				await addIceCandidateIfCurrent(
 					this.peerConnection,
