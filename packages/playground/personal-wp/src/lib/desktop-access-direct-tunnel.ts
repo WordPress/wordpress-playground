@@ -907,6 +907,8 @@ export class DirectTunnelGuest {
 	private readonly verificationCode: string;
 	private peerConnection: RTCPeerConnection | null = null;
 	private dataChannel: RTCDataChannel | null = null;
+	private localCandidates = 0;
+	private remoteCandidates = 0;
 	private signalCursor = 0;
 	private isApproved = false;
 	private pendingRequests = new Map<
@@ -1070,6 +1072,7 @@ export class DirectTunnelGuest {
 			if (message.type === 'offer') {
 				await this.acceptOffer(isSessionDescription(message.data));
 			} else if (message.type === 'candidate' && this.peerConnection) {
+				this.remoteCandidates++;
 				await addIceCandidateIfCurrent(
 					this.peerConnection,
 					isIceCandidate(message.data),
@@ -1081,10 +1084,14 @@ export class DirectTunnelGuest {
 
 	private async acceptOffer(offer: RTCSessionDescriptionInit): Promise<void> {
 		this.peerConnection?.close();
+		this.localCandidates = 0;
+		this.remoteCandidates = 0;
 		const pc = createPeerConnection();
 		this.peerConnection = pc;
 		pc.onicecandidate = (event) => {
 			if (event.candidate) {
+				this.localCandidates++;
+				this.reportStatus('connecting');
 				this.postSignal('host', 'candidate', event.candidate).catch(
 					(error) =>
 						logger.warn('[DirectTunnelGuest] ICE failed:', error)
@@ -1241,6 +1248,8 @@ export class DirectTunnelGuest {
 			`ice:${pc?.iceConnectionState ?? '-'}`,
 			`signal:${pc?.signalingState ?? '-'}`,
 			`dc:${dc?.readyState ?? '-'}`,
+			`localIce:${this.localCandidates}`,
+			`remoteIce:${this.remoteCandidates}`,
 		].join(' ');
 	}
 
