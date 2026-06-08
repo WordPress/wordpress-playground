@@ -11,8 +11,11 @@
 define('SESSION_TIMEOUT_MS', 5 * 60 * 1000);
 define('HOST_DEAD_AFTER_MS', 40 * 1000);
 define('GUEST_DEAD_AFTER_MS', 10 * 1000);
+define('SIGNAL_RETENTION_MS', 15 * 60 * 1000);
 define('SIGNAL_POLL_TIMEOUT_SEC', 25);
 define('SESSIONS_TABLE', 'mywp_desktop_access_sessions');
+define('SIGNALS_TABLE', 'mywp_desktop_access_signals');
+define('GUESTS_TABLE', 'mywp_desktop_access_guests');
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
@@ -60,19 +63,8 @@ function handleCreateSession(): void {
         $sessionId = generateUuid();
         $accessCode = generateAccessCode();
         $now = nowMs();
-        $session = [
-            'sessionId' => $sessionId,
-            'accessCode' => $accessCode,
-            'createdAt' => $now,
-            'lastActivity' => $now,
-            'lastHostSeenAt' => 0,
-            'hostConnected' => false,
-            'guests' => (object) [],
-            'signals' => [],
-            'nextSignalSeq' => 1,
-        ];
 
-        if (!insertSession($sessionId, $accessCode, $session, $now)) {
+        if (!insertSession($sessionId, $accessCode, $now)) {
             continue;
         }
 
@@ -94,15 +86,15 @@ function handleResolveAccessCode(string $rawAccessCode): void {
         return;
     }
 
-    $session = resolveAccessCode($accessCode);
-    if (!$session) {
+    $sessionId = resolveAccessCode($accessCode);
+    if (!$sessionId) {
         jsonResponse(['error' => 'Access code not found'], 404);
         return;
     }
 
     jsonResponse([
-        'sessionId' => $session['sessionId'],
-        'shareUrl' => buildShareUrl($session['sessionId']),
+        'sessionId' => $sessionId,
+        'shareUrl' => buildShareUrl($sessionId),
         'accessCode' => $accessCode,
     ]);
 }
@@ -113,19 +105,17 @@ function handleStatus(string $sessionId): void {
     $guestId = isset($queryParams['gid']) ? (string) $queryParams['gid'] : null;
     $now = nowMs();
 
-    $result = withSession($sessionId, function (array &$session) use ($guestId, $now) {
-        refreshHostState($session, $now);
-        if ($guestId) {
-            recordGuestHeartbeat($session, $guestId, $now);
-        }
-        return sessionStatus($session, $now);
-    });
-
-    if (!$result) {
+    $session = getSession($sessionId);
+    if (!$session) {
         jsonResponse(['error' => 'Session not found'], 404);
         return;
     }
-    jsonResponse($result);
+    refreshHostState($session, $now);
+    if ($guestId) {
+        recordGuestHeartbeat($sessionId, $guestId, $now);
+    }
+    touchSession($sessionId, $now);
+    jsonResponse(sessionStatus($session, $now));
 }
 
 function handlePostSignal(string $sessionId): void {
@@ -143,39 +133,35 @@ function handlePostSignal(string $sessionId): void {
         return;
     }
 
-    $result = withSession($sessionId, function (array &$session) use ($from, $to, $type, $payload) {
-        $now = nowMs();
-        if ($from === 'host') {
-            $session['hostConnected'] = true;
-            $session['lastHostSeenAt'] = $now;
-        }
-
-        if ($type === 'heartbeat') {
-            return ['seq' => (int) (($session['nextSignalSeq'] ?? 1) - 1)];
-        }
-
-        $seq = (int) ($session['nextSignalSeq'] ?? 1);
-        $session['nextSignalSeq'] = $seq + 1;
-        $signals = is_array($session['signals'] ?? null)
-            ? $session['signals']
-            : [];
-        $signals[] = [
-            'seq' => $seq,
-            'from' => $from,
-            'to' => $to,
-            'type' => $type,
-            'data' => $payload['data'] ?? null,
-            'createdAt' => $now,
-        ];
-        $session['signals'] = array_slice($signals, -200);
-        return ['seq' => $seq];
-    });
-
-    if (!$result) {
+    $session = getSession($sessionId);
+    if (!$session) {
         jsonResponse(['error' => 'Session not found'], 404);
         return;
     }
-    jsonResponse(['ok' => true, 'seq' => $result['seq']]);
+
+    $now = nowMs();
+    if ($from === 'host') {
+        markHostSeen($sessionId, $now);
+    } else {
+        touchSession($sessionId, $now);
+    }
+
+    if ($type === 'heartbeat') {
+        jsonResponse(['ok' => true, 'seq' => latestSignalSeq($sessionId)]);
+        return;
+    }
+
+    jsonResponse([
+        'ok' => true,
+        'seq' => insertSignal(
+            $sessionId,
+            $from,
+            $to,
+            $type,
+            $payload['data'] ?? null,
+            $now
+        ),
+    ]);
 }
 
 function handlePollSignal(string $sessionId): void {
@@ -192,34 +178,20 @@ function handlePollSignal(string $sessionId): void {
     $startTime = time();
     while (time() - $startTime < SIGNAL_POLL_TIMEOUT_SEC) {
         $now = nowMs();
-        $result = withSession($sessionId, function (array &$session) use ($to, $since, $guestId, $now) {
-            refreshHostState($session, $now);
-            if ($to === 'guest' && $guestId) {
-                recordGuestHeartbeat($session, $guestId, $now);
-            }
-
-            $messages = [];
-            $cursor = $since;
-            foreach (($session['signals'] ?? []) as $signal) {
-                $seq = (int) ($signal['seq'] ?? 0);
-                if (($signal['to'] ?? '') !== $to || $seq <= $since) {
-                    continue;
-                }
-                $messages[] = $signal;
-                $cursor = max($cursor, $seq);
-            }
-
-            return [
-                'messages' => $messages,
-                'cursor' => $cursor,
-                'hostAlive' => isHostAlive($session, $now),
-            ];
-        });
-
-        if (!$result) {
+        $session = getSession($sessionId);
+        if (!$session) {
             jsonResponse(['error' => 'Session not found'], 404);
             return;
         }
+        refreshHostState($session, $now);
+        if ($to === 'guest' && $guestId) {
+            recordGuestHeartbeat($sessionId, $guestId, $now);
+        } else {
+            touchSession($sessionId, $now);
+        }
+
+        $result = pollSignals($sessionId, $to, $since);
+        $result['hostAlive'] = isHostAlive($session, $now);
         if ($result['messages']) {
             jsonResponse($result);
             return;
@@ -227,34 +199,38 @@ function handlePollSignal(string $sessionId): void {
         usleep(100000);
     }
 
+    $session = getSession($sessionId);
     jsonResponse([
         'messages' => [],
         'cursor' => $since,
-        'hostAlive' => true,
+        'hostAlive' => $session ? isHostAlive($session, nowMs()) : false,
     ]);
 }
 
 function handleClose(string $sessionId): void {
-    withSession($sessionId, function (array &$session) {
-        $session['hostConnected'] = false;
-    });
+    setHostConnected($sessionId, false);
     jsonResponse(['ok' => true]);
 }
 
 function insertSession(
     string $sessionId,
     string $accessCode,
-    array $session,
     int $now
 ): bool {
     $stmt = db()->prepare(
         'INSERT INTO ' . SESSIONS_TABLE . '
-            (session_id, access_code, payload, created_at_ms, last_activity_ms)
-         VALUES (?, ?, ?, ?, ?)'
+            (
+                session_id,
+                access_code,
+                created_at_ms,
+                last_activity_ms,
+                last_host_seen_at_ms,
+                host_connected
+            )
+         VALUES (?, ?, ?, ?, 0, 0)'
     );
-    $payload = json_encode($session);
     try {
-        $stmt->bind_param('sssii', $sessionId, $accessCode, $payload, $now, $now);
+        $stmt->bind_param('ssii', $sessionId, $accessCode, $now, $now);
         $stmt->execute();
         return true;
     } catch (mysqli_sql_exception $e) {
@@ -265,54 +241,36 @@ function insertSession(
     }
 }
 
-function withSession(string $sessionId, Closure $callback) {
-    $db = db();
-    $db->begin_transaction();
-    try {
-        $stmt = $db->prepare(
-            'SELECT payload FROM ' . SESSIONS_TABLE . '
-             WHERE session_id = ?
-             FOR UPDATE'
-        );
-        $stmt->bind_param('s', $sessionId);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        if (!$row) {
-            $db->commit();
-            return null;
-        }
-
-        $session = json_decode($row['payload'], true);
-        if (!is_array($session) || isExpired($session, nowMs())) {
-            deleteSession($sessionId);
-            $db->commit();
-            return null;
-        }
-
-        $result = $callback($session);
-        $now = nowMs();
-        $session['lastActivity'] = $now;
-        $payload = json_encode($session);
-        $accessCode = (string) ($session['accessCode'] ?? '');
-        $update = $db->prepare(
-            'UPDATE ' . SESSIONS_TABLE . '
-             SET access_code = ?, payload = ?, last_activity_ms = ?
-             WHERE session_id = ?'
-        );
-        $update->bind_param('ssis', $accessCode, $payload, $now, $sessionId);
-        $update->execute();
-        $db->commit();
-        return $result;
-    } catch (Throwable $e) {
-        $db->rollback();
-        throw $e;
+function getSession(string $sessionId): ?array {
+    $stmt = db()->prepare(
+        'SELECT
+            session_id,
+            access_code,
+            created_at_ms,
+            last_activity_ms,
+            last_host_seen_at_ms,
+            host_connected
+         FROM ' . SESSIONS_TABLE . '
+         WHERE session_id = ?
+         LIMIT 1'
+    );
+    $stmt->bind_param('s', $sessionId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    if (!$row) {
+        return null;
     }
+    if (isExpired($row, nowMs())) {
+        deleteSession($sessionId);
+        return null;
+    }
+    return $row;
 }
 
-function resolveAccessCode(string $accessCode): ?array {
+function resolveAccessCode(string $accessCode): ?string {
     $deadline = nowMs() - SESSION_TIMEOUT_MS;
     $stmt = db()->prepare(
-        'SELECT session_id, payload FROM ' . SESSIONS_TABLE . '
+        'SELECT session_id FROM ' . SESSIONS_TABLE . '
          WHERE access_code = ? AND last_activity_ms >= ?
          LIMIT 1'
     );
@@ -322,28 +280,175 @@ function resolveAccessCode(string $accessCode): ?array {
     if (!$row) {
         return null;
     }
-
-    $session = json_decode($row['payload'], true);
-    if (!is_array($session) || isExpired($session, nowMs())) {
-        deleteSession((string) $row['session_id']);
-        return null;
-    }
-    return $session;
+    return (string) $row['session_id'];
 }
 
 function deleteSession(string $sessionId): void {
+    $stmt = db()->prepare('DELETE FROM ' . SIGNALS_TABLE . ' WHERE session_id = ?');
+    $stmt->bind_param('s', $sessionId);
+    $stmt->execute();
+
+    $stmt = db()->prepare('DELETE FROM ' . GUESTS_TABLE . ' WHERE session_id = ?');
+    $stmt->bind_param('s', $sessionId);
+    $stmt->execute();
+
     $stmt = db()->prepare('DELETE FROM ' . SESSIONS_TABLE . ' WHERE session_id = ?');
     $stmt->bind_param('s', $sessionId);
     $stmt->execute();
 }
 
 function cleanupSessions(): void {
-    $deadline = nowMs() - SESSION_TIMEOUT_MS;
+    cleanupOldSignals();
+
+    $now = nowMs();
+    $sessionDeadline = $now - SESSION_TIMEOUT_MS;
+    $guestDeadline = $now - GUEST_DEAD_AFTER_MS;
+
+    $stmt = db()->prepare(
+        'DELETE FROM ' . GUESTS_TABLE . ' WHERE last_seen_at_ms < ?'
+    );
+    $stmt->bind_param('i', $guestDeadline);
+    $stmt->execute();
+
+    db()->query(
+        'DELETE FROM ' . SIGNALS_TABLE . '
+         WHERE session_id IN (
+             SELECT session_id FROM ' . SESSIONS_TABLE . '
+             WHERE last_activity_ms < ' . (int) $sessionDeadline . '
+         )'
+    );
+    db()->query(
+        'DELETE FROM ' . GUESTS_TABLE . '
+         WHERE session_id IN (
+             SELECT session_id FROM ' . SESSIONS_TABLE . '
+             WHERE last_activity_ms < ' . (int) $sessionDeadline . '
+         )'
+    );
     $stmt = db()->prepare(
         'DELETE FROM ' . SESSIONS_TABLE . ' WHERE last_activity_ms < ?'
     );
+    $stmt->bind_param('i', $sessionDeadline);
+    $stmt->execute();
+}
+
+function cleanupOldSignals(): void {
+    $deadline = nowMs() - SIGNAL_RETENTION_MS;
+    $stmt = db()->prepare(
+        'DELETE FROM ' . SIGNALS_TABLE . ' WHERE created_at_ms < ?'
+    );
     $stmt->bind_param('i', $deadline);
     $stmt->execute();
+}
+
+function touchSession(string $sessionId, int $now): void {
+    $stmt = db()->prepare(
+        'UPDATE ' . SESSIONS_TABLE . '
+         SET last_activity_ms = ?
+         WHERE session_id = ?'
+    );
+    $stmt->bind_param('is', $now, $sessionId);
+    $stmt->execute();
+}
+
+function markHostSeen(string $sessionId, int $now): void {
+    $stmt = db()->prepare(
+        'UPDATE ' . SESSIONS_TABLE . '
+         SET host_connected = 1,
+             last_host_seen_at_ms = ?,
+             last_activity_ms = ?
+         WHERE session_id = ?'
+    );
+    $stmt->bind_param('iis', $now, $now, $sessionId);
+    $stmt->execute();
+}
+
+function setHostConnected(string $sessionId, bool $isConnected): void {
+    $value = $isConnected ? 1 : 0;
+    $now = nowMs();
+    $stmt = db()->prepare(
+        'UPDATE ' . SESSIONS_TABLE . '
+         SET host_connected = ?,
+             last_activity_ms = ?
+         WHERE session_id = ?'
+    );
+    $stmt->bind_param('iis', $value, $now, $sessionId);
+    $stmt->execute();
+}
+
+function insertSignal(
+    string $sessionId,
+    string $from,
+    string $to,
+    string $type,
+    $data,
+    int $now
+): int {
+    $encodedData = json_encode($data);
+    $stmt = db()->prepare(
+        'INSERT INTO ' . SIGNALS_TABLE . '
+            (
+                session_id,
+                from_peer,
+                to_peer,
+                signal_type,
+                signal_data,
+                created_at_ms
+            )
+         VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    $stmt->bind_param('sssssi', $sessionId, $from, $to, $type, $encodedData, $now);
+    $stmt->execute();
+    touchSession($sessionId, $now);
+    return (int) db()->insert_id;
+}
+
+function latestSignalSeq(string $sessionId): int {
+    $stmt = db()->prepare(
+        'SELECT MAX(seq) AS latest_seq
+         FROM ' . SIGNALS_TABLE . '
+         WHERE session_id = ?'
+    );
+    $stmt->bind_param('s', $sessionId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return (int) ($row['latest_seq'] ?? 0);
+}
+
+function pollSignals(string $sessionId, string $to, int $since): array {
+    $stmt = db()->prepare(
+        'SELECT
+            seq,
+            from_peer,
+            to_peer,
+            signal_type,
+            signal_data,
+            created_at_ms
+         FROM ' . SIGNALS_TABLE . '
+         WHERE session_id = ? AND to_peer = ? AND seq > ?
+         ORDER BY seq ASC
+         LIMIT 200'
+    );
+    $stmt->bind_param('ssi', $sessionId, $to, $since);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $messages = [];
+    $cursor = $since;
+    while ($row = $result->fetch_assoc()) {
+        $seq = (int) $row['seq'];
+        $messages[] = [
+            'seq' => $seq,
+            'from' => $row['from_peer'],
+            'to' => $row['to_peer'],
+            'type' => $row['signal_type'],
+            'data' => json_decode($row['signal_data'], true),
+            'createdAt' => (int) $row['created_at_ms'],
+        ];
+        $cursor = max($cursor, $seq);
+    }
+    return [
+        'messages' => $messages,
+        'cursor' => $cursor,
+    ];
 }
 
 function db(): mysqli {
@@ -381,13 +486,86 @@ function ensureSchema(): void {
         'CREATE TABLE IF NOT EXISTS ' . SESSIONS_TABLE . ' (
             session_id varchar(64) NOT NULL PRIMARY KEY,
             access_code varchar(7) NOT NULL UNIQUE,
-            payload json NOT NULL,
             created_at_ms bigint unsigned NOT NULL,
             last_activity_ms bigint unsigned NOT NULL,
+            last_host_seen_at_ms bigint unsigned NOT NULL DEFAULT 0,
+            host_connected tinyint(1) NOT NULL DEFAULT 0,
             KEY access_code_idx (access_code),
             KEY last_activity_idx (last_activity_ms)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
+    migrateSessionSchema();
+    db()->query(
+        'CREATE TABLE IF NOT EXISTS ' . SIGNALS_TABLE . ' (
+            seq bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            session_id varchar(64) NOT NULL,
+            from_peer varchar(8) NOT NULL,
+            to_peer varchar(8) NOT NULL,
+            signal_type varchar(16) NOT NULL,
+            signal_data json NULL,
+            created_at_ms bigint unsigned NOT NULL,
+            KEY session_to_seq_idx (session_id, to_peer, seq),
+            KEY session_created_idx (session_id, created_at_ms),
+            KEY created_idx (created_at_ms)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+    migrateSignalSchema();
+    db()->query(
+        'CREATE TABLE IF NOT EXISTS ' . GUESTS_TABLE . ' (
+            session_id varchar(64) NOT NULL,
+            guest_id varchar(128) NOT NULL,
+            last_seen_at_ms bigint unsigned NOT NULL,
+            PRIMARY KEY (session_id, guest_id),
+            KEY last_seen_idx (last_seen_at_ms)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+}
+
+function migrateSessionSchema(): void {
+    $columns = tableColumns(SESSIONS_TABLE);
+    if (!isset($columns['last_host_seen_at_ms'])) {
+        db()->query(
+            'ALTER TABLE ' . SESSIONS_TABLE . '
+             ADD COLUMN last_host_seen_at_ms bigint unsigned NOT NULL DEFAULT 0'
+        );
+    }
+    if (!isset($columns['host_connected'])) {
+        db()->query(
+            'ALTER TABLE ' . SESSIONS_TABLE . '
+             ADD COLUMN host_connected tinyint(1) NOT NULL DEFAULT 0'
+        );
+    }
+    if (isset($columns['payload'])) {
+        db()->query('ALTER TABLE ' . SESSIONS_TABLE . ' DROP COLUMN payload');
+    }
+}
+
+function migrateSignalSchema(): void {
+    $indexes = tableIndexes(SIGNALS_TABLE);
+    if (!isset($indexes['created_idx'])) {
+        db()->query(
+            'ALTER TABLE ' . SIGNALS_TABLE . '
+             ADD KEY created_idx (created_at_ms)'
+        );
+    }
+}
+
+function tableColumns(string $table): array {
+    $result = db()->query('SHOW COLUMNS FROM ' . $table);
+    $columns = [];
+    while ($row = $result->fetch_assoc()) {
+        $columns[$row['Field']] = true;
+    }
+    return $columns;
+}
+
+function tableIndexes(string $table): array {
+    $result = db()->query('SHOW INDEX FROM ' . $table);
+    $indexes = [];
+    while ($row = $result->fetch_assoc()) {
+        $indexes[$row['Key_name']] = true;
+    }
+    return $indexes;
 }
 
 function configValue(array $keys, bool $required = true): ?string {
@@ -412,39 +590,54 @@ function configValue(array $keys, bool $required = true): ?string {
     return null;
 }
 
-function recordGuestHeartbeat(array &$session, string $guestId, int $now): void {
-    $guests = is_array($session['guests'] ?? null) ? $session['guests'] : [];
-    $guests[$guestId] = [
-        'id' => $guestId,
-        'lastSeenAt' => $now,
-    ];
-    $session['guests'] = $guests;
+function recordGuestHeartbeat(string $sessionId, string $guestId, int $now): void {
+    $stmt = db()->prepare(
+        'INSERT INTO ' . GUESTS_TABLE . '
+            (session_id, guest_id, last_seen_at_ms)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE last_seen_at_ms = VALUES(last_seen_at_ms)'
+    );
+    $stmt->bind_param('ssi', $sessionId, $guestId, $now);
+    $stmt->execute();
+    touchSession($sessionId, $now);
 }
 
-function refreshHostState(array &$session, int $now): void {
+function refreshHostState(array $session, int $now): void {
     if (!isHostAlive($session, $now)) {
-        $session['hostConnected'] = false;
+        setHostConnected((string) $session['session_id'], false);
     }
 }
 
-function sessionStatus(array &$session, int $now): array {
+function sessionStatus(array $session, int $now): array {
     $guestList = [];
-    $survivors = [];
-    foreach (($session['guests'] ?? []) as $guest) {
-        if ($now - ($guest['lastSeenAt'] ?? 0) <= GUEST_DEAD_AFTER_MS) {
-            $survivors[$guest['id']] = $guest;
-            $guestList[] = [
-                'id' => $guest['id'],
-                'lastSeenMs' => $now - ($guest['lastSeenAt'] ?? $now),
-            ];
-        }
-    }
-    $session['guests'] = $survivors;
+    $deadline = $now - GUEST_DEAD_AFTER_MS;
+    $stmt = db()->prepare(
+        'DELETE FROM ' . GUESTS_TABLE . '
+         WHERE session_id = ? AND last_seen_at_ms < ?'
+    );
+    $sessionId = (string) $session['session_id'];
+    $stmt->bind_param('si', $sessionId, $deadline);
+    $stmt->execute();
 
-    $lastHostSeenAt = (int) ($session['lastHostSeenAt'] ?? 0);
+    $stmt = db()->prepare(
+        'SELECT guest_id, last_seen_at_ms FROM ' . GUESTS_TABLE . '
+         WHERE session_id = ?
+         ORDER BY last_seen_at_ms DESC'
+    );
+    $stmt->bind_param('s', $sessionId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($guest = $result->fetch_assoc()) {
+        $guestList[] = [
+            'id' => $guest['guest_id'],
+            'lastSeenMs' => $now - (int) $guest['last_seen_at_ms'],
+        ];
+    }
+
+    $lastHostSeenAt = (int) ($session['last_host_seen_at_ms'] ?? 0);
     return [
-        'sessionId' => $session['sessionId'],
-        'hostConnected' => (bool) ($session['hostConnected'] ?? false),
+        'sessionId' => $session['session_id'],
+        'hostConnected' => (bool) ($session['host_connected'] ?? false),
         'hostAlive' => isHostAlive($session, $now),
         'lastPollAgoMs' => $lastHostSeenAt > 0 ? $now - $lastHostSeenAt : -1,
         'guests' => $guestList,
@@ -452,10 +645,10 @@ function sessionStatus(array &$session, int $now): array {
 }
 
 function isHostAlive(array $session, int $now): bool {
-    $lastHostSeenAt = (int) ($session['lastHostSeenAt'] ?? 0);
-    return !empty($session['hostConnected']) &&
+    $lastHostSeenAt = (int) ($session['last_host_seen_at_ms'] ?? 0);
+    return !empty($session['host_connected']) &&
         $lastHostSeenAt > 0 &&
-        $now - $session['lastHostSeenAt'] < HOST_DEAD_AFTER_MS;
+        $now - $lastHostSeenAt < HOST_DEAD_AFTER_MS;
 }
 
 function isValidSignal(string $from, string $to, string $type): bool {
@@ -484,7 +677,7 @@ function buildShareUrl(string $sessionId): string {
 }
 
 function isExpired(array $session, int $now): bool {
-    return $now - ($session['lastActivity'] ?? 0) > SESSION_TIMEOUT_MS;
+    return $now - ($session['last_activity_ms'] ?? 0) > SESSION_TIMEOUT_MS;
 }
 
 function normalizeAccessCode(string $accessCode): string {
