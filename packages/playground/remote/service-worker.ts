@@ -240,7 +240,10 @@ self.addEventListener('fetch', (event) => {
 		const desktopRelayMapping = getDesktopRelayMapping(scope);
 		if (desktopRelayMapping) {
 			return event.respondWith(
-				handleDesktopRelayRequest(event, desktopRelayMapping)
+				handleDesktopRelayRequest(event, desktopRelayMapping).then(
+					(response) =>
+						applyCrossOriginIsolationHeaders(response, scope)
+				)
 			);
 		}
 		return event.respondWith(

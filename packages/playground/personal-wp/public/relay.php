@@ -24,9 +24,7 @@ define('GUESTS_TABLE', 'mywp_desktop_access_guests');
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+setCorsHeaders();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -388,7 +386,12 @@ function insertSignal(
     $data,
     int $now
 ): int {
-    $encodedData = json_encode($data);
+    try {
+        $encodedData = json_encode($data, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+    } catch (JsonException $e) {
+        jsonResponse(['error' => 'Invalid signal data'], 400);
+        exit;
+    }
     $stmt = db()->prepare(
         'INSERT INTO ' . SIGNALS_TABLE . '
             (
@@ -629,5 +632,21 @@ function nowMs(): int {
 function jsonResponse(array $data, int $status = 200): void {
     http_response_code($status);
     header('Content-Type: application/json');
-    echo json_encode($data);
+    echo json_encode($data, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+}
+
+function setCorsHeaders(): void {
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if ($origin !== '' && $host !== '') {
+        $originHost = parse_url($origin, PHP_URL_HOST);
+        $originPort = parse_url($origin, PHP_URL_PORT);
+        $originAuthority = $originHost . ($originPort ? ':' . $originPort : '');
+        if ($originAuthority === $host) {
+            header('Access-Control-Allow-Origin: ' . $origin);
+            header('Vary: Origin');
+        }
+    }
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type');
 }

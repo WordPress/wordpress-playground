@@ -55,7 +55,7 @@ interface TunnelRequest {
 	body?: Uint8Array;
 }
 
-interface TunnelResponse {
+export interface TunnelResponse {
 	requestId: string;
 	status: number;
 	headers: Record<string, string>;
@@ -191,6 +191,58 @@ function base64ToUint8Array(value: string): Uint8Array {
 		bytes[i] = binary.charCodeAt(i);
 	}
 	return bytes;
+}
+
+function parseDataChannelMessage<T>(
+	data: unknown,
+	logPrefix: string
+): T | null {
+	if (typeof data !== 'string') {
+		return null;
+	}
+	try {
+		return JSON.parse(data) as T;
+	} catch (error) {
+		logger.warn(`${logPrefix} Invalid data channel message:`, error);
+		return null;
+	}
+}
+
+export function assembleChunkedDataChannelResponse(
+	pending: {
+		status?: number;
+		headers?: Record<string, string>;
+		totalBytes?: number;
+		totalChunks?: number;
+		chunks?: Uint8Array[];
+	},
+	errorMessage: string
+): TunnelResponse | Error {
+	if (
+		pending.status === undefined ||
+		!pending.headers ||
+		pending.totalBytes === undefined ||
+		pending.totalChunks === undefined ||
+		!pending.chunks ||
+		pending.chunks.length !== pending.totalChunks
+	) {
+		return new Error(errorMessage);
+	}
+	const bytes = new Uint8Array(pending.totalBytes);
+	let offset = 0;
+	for (const chunk of pending.chunks) {
+		if (!chunk) {
+			return new Error(errorMessage);
+		}
+		bytes.set(chunk, offset);
+		offset += chunk.length;
+	}
+	return {
+		requestId: '',
+		status: pending.status,
+		headers: pending.headers,
+		body: bytes,
+	};
 }
 
 function createPeerConnection(): RTCPeerConnection {
@@ -625,10 +677,19 @@ export class DirectTunnelHost {
 	}
 
 	private queueDataChannelMessage(data: unknown, attemptId: string): void {
-		if (typeof data !== 'string' || !this.dataChannel) {
+		if (!this.dataChannel) {
 			return;
 		}
-		const request = JSON.parse(data) as DataChannelHostMessage;
+		const request = parseDataChannelMessage<DataChannelHostMessage>(
+			data,
+			'[DirectTunnelHost]'
+		);
+		if (!request) {
+			this.updateMetrics({
+				lastError: 'Invalid data channel message',
+			});
+			return;
+		}
 		if (isDataChannelControlMessage(request)) {
 			this.handleDataChannelControlMessage(request, attemptId);
 			return;
@@ -816,7 +877,8 @@ export class DirectTunnelHost {
 				requestId: request.requestId,
 				status: phpResponse.httpStatusCode,
 				headers: responseHeaders,
-				body: uint8ArrayToBase64(phpResponse.bytes),
+				body: '',
+				bytes: phpResponse.bytes,
 			});
 			this.updateMetrics({
 				completed: this.metrics.completed + 1,
@@ -841,14 +903,25 @@ export class DirectTunnelHost {
 	}
 
 	private async sendDataChannelResponse(
-		response: DataChannelResponse
+		response: DataChannelResponse & { bytes?: Uint8Array }
 	): Promise<void> {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Desktop data channel is not open');
 		}
-		const body = base64ToUint8Array(response.body);
+		const body = response.bytes ?? base64ToUint8Array(response.body);
 		if (body.length <= DATA_CHANNEL_CHUNK_SIZE) {
-			this.dataChannel.send(JSON.stringify(response));
+			this.dataChannel.send(
+				JSON.stringify({
+					type: 'response',
+					requestId: response.requestId,
+					status: response.status,
+					headers: response.headers,
+					body:
+						response.bytes === undefined
+							? response.body
+							: uint8ArrayToBase64(body),
+				})
+			);
 			return;
 		}
 		const totalChunks = Math.ceil(body.length / DATA_CHANNEL_CHUNK_SIZE);
@@ -1537,10 +1610,14 @@ export class DirectTunnelGuest {
 			}
 		};
 		channel.onmessage = (event) => {
-			if (typeof event.data !== 'string') {
+			const response = parseDataChannelMessage<DataChannelGuestMessage>(
+				event.data,
+				'[DirectTunnelGuest]'
+			);
+			if (!response) {
+				this.reportStatus('connecting', 'invalid data channel message');
 				return;
 			}
-			const response = JSON.parse(event.data) as DataChannelGuestMessage;
 			if (
 				isDataChannelControlMessage(response) &&
 				response.attemptId !== attemptId
@@ -1605,33 +1682,15 @@ export class DirectTunnelGuest {
 		}
 		clearTimeout(pending.timeout);
 		this.pendingRequests.delete(message.requestId);
-		if (
-			pending.status === undefined ||
-			!pending.headers ||
-			pending.totalBytes === undefined ||
-			pending.totalChunks === undefined ||
-			!pending.chunks ||
-			pending.chunks.length !== pending.totalChunks
-		) {
-			pending.reject(new Error('Incomplete desktop relay response'));
+		const response = assembleChunkedDataChannelResponse(
+			pending,
+			'Incomplete desktop relay response'
+		);
+		if (response instanceof Error) {
+			pending.reject(response);
 			return true;
 		}
-		const bytes = new Uint8Array(pending.totalBytes);
-		let offset = 0;
-		for (const chunk of pending.chunks) {
-			if (!chunk) {
-				pending.reject(new Error('Incomplete desktop relay response'));
-				return true;
-			}
-			bytes.set(chunk, offset);
-			offset += chunk.length;
-		}
-		pending.resolve({
-			requestId: message.requestId,
-			status: pending.status,
-			headers: pending.headers,
-			body: bytes,
-		});
+		pending.resolve({ ...response, requestId: message.requestId });
 		return true;
 	}
 

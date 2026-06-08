@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+	assembleChunkedDataChannelResponse,
+	DirectTunnelGuest,
+	DirectTunnelHost,
+} from './desktop-access-direct-tunnel';
+import {
 	bufferRemoteCandidate,
 	createAttemptSignal,
 	flushRemoteCandidates,
@@ -9,9 +14,23 @@ import {
 	readAttemptSignal,
 } from './desktop-access-tunnel-utils';
 
+vi.mock('@wp-playground/client', () => ({
+	zipWpContent: vi.fn(),
+}));
+
+interface FakeDataChannel {
+	readyState: string;
+	send: ReturnType<typeof vi.fn>;
+	close: ReturnType<typeof vi.fn>;
+	onopen: null | (() => void);
+	onclose: null | (() => void);
+	onmessage: null | ((event: { data: unknown }) => void);
+}
+
 describe('desktop access tunnel helpers', () => {
 	afterEach(() => {
 		vi.useRealTimers();
+		vi.restoreAllMocks();
 	});
 
 	it('wraps and reads attempt-scoped signaling payloads', () => {
@@ -80,5 +99,184 @@ describe('desktop access tunnel helpers', () => {
 		);
 		expect(candidates.has('attempt-1')).toBe(false);
 		expect(candidates.get('attempt-2')).toEqual([other]);
+	});
+
+	it('assembles complete chunked desktop relay responses', () => {
+		const response = assembleChunkedDataChannelResponse(
+			{
+				status: 200,
+				headers: { 'Content-Type': 'text/plain' },
+				totalBytes: 11,
+				totalChunks: 2,
+				chunks: [
+					new TextEncoder().encode('hello '),
+					new TextEncoder().encode('world'),
+				],
+			},
+			'Incomplete desktop relay response'
+		);
+
+		expect(response).not.toBeInstanceOf(Error);
+		expect((response as { status: number }).status).toBe(200);
+		expect(
+			new TextDecoder().decode((response as { body: Uint8Array }).body)
+		).toBe('hello world');
+	});
+
+	it('rejects incomplete chunked desktop relay responses', () => {
+		const response = assembleChunkedDataChannelResponse(
+			{
+				status: 200,
+				headers: { 'Content-Type': 'text/plain' },
+				totalBytes: 11,
+				totalChunks: 2,
+				chunks: [new TextEncoder().encode('hello ')],
+			},
+			'Incomplete desktop relay response'
+		);
+
+		expect(response).toBeInstanceOf(Error);
+		expect((response as Error).message).toBe(
+			'Incomplete desktop relay response'
+		);
+	});
+});
+
+describe('desktop access direct tunnel', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('requires phone approval before marking an attempt approved', () => {
+		const sentMessages: unknown[] = [];
+		const host = new DirectTunnelHost(
+			{} as ConstructorParameters<typeof DirectTunnelHost>[0],
+			'https://example.test'
+		);
+		Object.assign(host as unknown as Record<string, unknown>, {
+			isActive: true,
+			currentAttemptId: 'attempt-1',
+			dataChannel: {
+				readyState: 'open',
+				send: (message: string) => {
+					sentMessages.push(JSON.parse(message));
+				},
+			},
+		});
+
+		(
+			host as unknown as {
+				queueDataChannelMessage: (
+					data: unknown,
+					attemptId: string
+				) => void;
+			}
+		).queueDataChannelMessage(
+			JSON.stringify({
+				type: 'verification-code',
+				code: '4 2',
+				attemptId: 'attempt-1',
+			}),
+			'attempt-1'
+		);
+
+		expect(host.getStatus()).toBe('pending-approval');
+		expect(host.getPendingVerificationCode()).toBe('42');
+		expect(host.approveDesktopAccess('42')).toBe(true);
+		expect(host.getStatus()).toBe('connected');
+		expect(sentMessages).toContainEqual({
+			type: 'approved',
+			attemptId: 'attempt-1',
+		});
+	});
+
+	it('records malformed host data channel messages as protocol errors', () => {
+		const host = new DirectTunnelHost(
+			{} as ConstructorParameters<typeof DirectTunnelHost>[0],
+			'https://example.test'
+		);
+		Object.assign(host as unknown as Record<string, unknown>, {
+			dataChannel: { readyState: 'open' },
+		});
+
+		expect(() =>
+			(
+				host as unknown as {
+					queueDataChannelMessage: (
+						data: unknown,
+						attemptId: string
+					) => void;
+				}
+			).queueDataChannelMessage('{', 'attempt-1')
+		).not.toThrow();
+		expect(host.getMetrics().lastError).toBe(
+			'Invalid data channel message'
+		);
+	});
+
+	it('reports malformed guest data channel messages without throwing', () => {
+		const statuses: Array<[string, string]> = [];
+		const guest = new DirectTunnelGuest({
+			sessionId: 'session-1',
+			relayUrl: 'https://example.test',
+			guestId: 'guest-1',
+			verificationCode: '42',
+			onStatusChange: (status, detail) => {
+				statuses.push([status, detail]);
+			},
+		});
+		const channel: FakeDataChannel = {
+			readyState: 'open',
+			send: vi.fn(),
+			close: vi.fn(),
+			onopen: null,
+			onclose: null,
+			onmessage: null,
+		};
+
+		(
+			guest as unknown as {
+				configureDataChannel: (
+					channel: FakeDataChannel,
+					attemptId: string
+				) => void;
+			}
+		).configureDataChannel(channel, 'attempt-1');
+
+		expect(() => channel.onmessage?.({ data: '{' })).not.toThrow();
+		expect(statuses).toContainEqual([
+			'connecting',
+			'invalid data channel message',
+		]);
+	});
+
+	it('posts a retry request when the guest asks for a fresh offer', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('{}'));
+		const guest = new DirectTunnelGuest({
+			sessionId: 'session-1',
+			relayUrl: 'https://example.test',
+			guestId: 'guest-1',
+			verificationCode: '42',
+			onStatusChange: vi.fn(),
+		});
+
+		await (
+			guest as unknown as { requestFreshOffer: () => Promise<void> }
+		).requestFreshOffer();
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			'https://example.test/relay/session-1/signal',
+			expect.objectContaining({
+				method: 'POST',
+				body: JSON.stringify({
+					from: 'guest',
+					to: 'host',
+					type: 'retry-request',
+					data: { guestId: 'guest-1' },
+				}),
+			})
+		);
 	});
 });

@@ -18,3 +18,8 @@ declare module 'virtual:website-defaults' {
 	export const defaultStorageType: 'none' | 'opfs' | 'local-fs';
 	export const personalWPSiteSlug: string | undefined;
 }
+
+declare module '*?worker&url' {
+	const workerUrl: string;
+	export default workerUrl;
+}

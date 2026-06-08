@@ -2,7 +2,8 @@
  * Manages the desktop-access tunnel for Personal WP.
  *
  * The phone keeps running the real Playground runtime. Desktop browsers only
- * send HTTP requests through the relay and render the responses.
+ * use the relay for signaling, then send WordPress HTTP requests over a direct
+ * WebRTC data channel and render the responses.
  */
 
 import { logger } from '@php-wasm/logger';

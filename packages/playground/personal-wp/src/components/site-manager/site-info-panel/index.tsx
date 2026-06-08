@@ -46,6 +46,7 @@ import {
 	stopDesktopAccess,
 	subscribeToDesktopAccessStatus,
 } from '../../../lib/desktop-access-service';
+import { normalizeVerificationCode } from '../../../lib/desktop-access-tunnel-utils';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -314,10 +315,6 @@ function DesktopAccessSection() {
 			</div>
 		</div>
 	);
-}
-
-function normalizeVerificationCode(value: string): string {
-	return value.replace(/\D+/g, '').slice(0, 2);
 }
 
 function formatVerificationCode(value: string): string {

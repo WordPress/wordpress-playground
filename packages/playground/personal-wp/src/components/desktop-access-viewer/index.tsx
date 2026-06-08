@@ -3,7 +3,6 @@ import css from './style.module.css';
 import { DirectTunnelGuest } from '../../lib/desktop-access-direct-tunnel';
 import saveAs from 'file-saver';
 
-// @ts-ignore
 import serviceWorkerPath from '@wp-playground/remote/service-worker?worker&url';
 
 interface DesktopAccessViewerProps {
