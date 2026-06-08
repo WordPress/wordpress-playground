@@ -147,13 +147,42 @@
 	z-index: 2;
 }
 
+.unsupported-notice span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.unsupported-notice-actions {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .unsupported-notice button {
 	flex: 0 0 auto;
-	border: 0;
-	background: transparent;
-	color: #3858e9;
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid #dba617;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
 	font: inherit;
+	font-size: 12px;
+	line-height: 1;
+	font-weight: 500;
 	cursor: pointer;
+}
+
+.unsupported-notice button:hover,
+.unsupported-notice button:focus-visible {
+	background: #fffdf5;
+	border-color: #8a6a00;
+}
+
+.unsupported-notice button:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
 }
 
 .relay-diagnostics {

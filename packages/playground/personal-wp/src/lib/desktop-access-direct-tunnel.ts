@@ -79,6 +79,27 @@ interface DataChannelResponse extends TunnelResponse {
 	type: 'response';
 }
 
+interface DataChannelResponseStart {
+	type: 'response-start';
+	requestId: string;
+	status: number;
+	headers: Record<string, string>;
+	totalBytes: number;
+	totalChunks: number;
+}
+
+interface DataChannelResponseChunk {
+	type: 'response-chunk';
+	requestId: string;
+	index: number;
+	body: string;
+}
+
+interface DataChannelResponseComplete {
+	type: 'response-complete';
+	requestId: string;
+}
+
 interface DataChannelBackupRequest {
 	type: 'backup-request';
 	requestId: string;
@@ -122,13 +143,16 @@ type DataChannelHostMessage =
 
 type DataChannelGuestMessage =
 	| DataChannelResponse
+	| DataChannelResponseStart
+	| DataChannelResponseChunk
+	| DataChannelResponseComplete
 	| DataChannelBackupStart
 	| DataChannelBackupChunk
 	| DataChannelBackupComplete
 	| DataChannelBackupError
 	| DataChannelControlMessage;
 
-const BACKUP_CHUNK_SIZE = 48 * 1024;
+const DATA_CHANNEL_CHUNK_SIZE = 16 * 1024;
 
 /**
  * Convert a Uint8Array to a base64 string (browser-compatible).
@@ -579,7 +603,9 @@ export class DirectTunnelHost {
 			const bytes = await zipWpContent(this.playgroundClient, {
 				selfContained: true,
 			});
-			const totalChunks = Math.ceil(bytes.length / BACKUP_CHUNK_SIZE);
+			const totalChunks = Math.ceil(
+				bytes.length / DATA_CHANNEL_CHUNK_SIZE
+			);
 			this.sendDataChannelBackupMessage({
 				type: 'backup-start',
 				requestId: request.requestId,
@@ -594,8 +620,8 @@ export class DirectTunnelHost {
 					index: i,
 					body: uint8ArrayToBase64(
 						bytes.slice(
-							i * BACKUP_CHUNK_SIZE,
-							(i + 1) * BACKUP_CHUNK_SIZE
+							i * DATA_CHANNEL_CHUNK_SIZE,
+							(i + 1) * DATA_CHANNEL_CHUNK_SIZE
 						)
 					),
 				});
@@ -665,7 +691,7 @@ export class DirectTunnelHost {
 					? values.join(', ')
 					: values;
 			}
-			this.sendDataChannelResponse({
+			await this.sendDataChannelResponse({
 				type: 'response',
 				requestId: request.requestId,
 				status: phpResponse.httpStatusCode,
@@ -682,7 +708,7 @@ export class DirectTunnelHost {
 				lastStatus: 500,
 				lastError: (error as Error).message,
 			});
-			this.sendDataChannelResponse({
+			await this.sendDataChannelResponse({
 				type: 'response',
 				requestId: request.requestId,
 				status: 500,
@@ -694,11 +720,44 @@ export class DirectTunnelHost {
 		}
 	}
 
-	private sendDataChannelResponse(response: DataChannelResponse): void {
+	private async sendDataChannelResponse(
+		response: DataChannelResponse
+	): Promise<void> {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Desktop data channel is not open');
 		}
-		this.dataChannel.send(JSON.stringify(response));
+		const body = base64ToUint8Array(response.body);
+		if (body.length <= DATA_CHANNEL_CHUNK_SIZE) {
+			this.dataChannel.send(JSON.stringify(response));
+			return;
+		}
+		const totalChunks = Math.ceil(body.length / DATA_CHANNEL_CHUNK_SIZE);
+		this.sendDataChannelMessage({
+			type: 'response-start',
+			requestId: response.requestId,
+			status: response.status,
+			headers: response.headers,
+			totalBytes: body.length,
+			totalChunks,
+		});
+		for (let i = 0; i < totalChunks; i++) {
+			this.sendDataChannelMessage({
+				type: 'response-chunk',
+				requestId: response.requestId,
+				index: i,
+				body: uint8ArrayToBase64(
+					body.slice(
+						i * DATA_CHANNEL_CHUNK_SIZE,
+						(i + 1) * DATA_CHANNEL_CHUNK_SIZE
+					)
+				),
+			});
+			await this.waitForDataChannelDrain();
+		}
+		this.sendDataChannelMessage({
+			type: 'response-complete',
+			requestId: response.requestId,
+		});
 	}
 
 	private sendDataChannelBackupMessage(
@@ -708,6 +767,10 @@ export class DirectTunnelHost {
 			| DataChannelBackupComplete
 			| DataChannelBackupError
 	): void {
+		this.sendDataChannelMessage(message);
+	}
+
+	private sendDataChannelMessage(message: DataChannelGuestMessage): void {
 		if (this.dataChannel?.readyState !== 'open') {
 			throw new Error('Desktop data channel is not open');
 		}
@@ -917,6 +980,11 @@ export class DirectTunnelGuest {
 			resolve: (response: DataChannelResponse) => void;
 			reject: (error: Error) => void;
 			timeout: ReturnType<typeof setTimeout>;
+			status?: number;
+			headers?: Record<string, string>;
+			totalBytes?: number;
+			totalChunks?: number;
+			chunks?: Uint8Array[];
 		}
 	>();
 	private pendingBackups = new Map<
@@ -1152,20 +1220,78 @@ export class DirectTunnelGuest {
 				this.reportStatus('connected');
 				return;
 			}
+			if (this.handleResponseMessage(response)) {
+				return;
+			}
 			if (this.handleBackupMessage(response)) {
 				return;
 			}
-			if (response.type !== 'response') {
-				return;
-			}
-			const pending = this.pendingRequests.get(response.requestId);
-			if (!pending) {
-				return;
-			}
-			clearTimeout(pending.timeout);
-			this.pendingRequests.delete(response.requestId);
-			pending.resolve(response);
 		};
+	}
+
+	private handleResponseMessage(message: DataChannelGuestMessage): boolean {
+		if (
+			message.type !== 'response' &&
+			message.type !== 'response-start' &&
+			message.type !== 'response-chunk' &&
+			message.type !== 'response-complete'
+		) {
+			return false;
+		}
+		const pending = this.pendingRequests.get(message.requestId);
+		if (!pending) {
+			return true;
+		}
+		if (message.type === 'response') {
+			clearTimeout(pending.timeout);
+			this.pendingRequests.delete(message.requestId);
+			pending.resolve(message);
+			return true;
+		}
+		if (message.type === 'response-start') {
+			pending.status = message.status;
+			pending.headers = message.headers;
+			pending.totalBytes = message.totalBytes;
+			pending.totalChunks = message.totalChunks;
+			pending.chunks = new Array(message.totalChunks);
+			return true;
+		}
+		if (message.type === 'response-chunk') {
+			pending.chunks ??= [];
+			pending.chunks[message.index] = base64ToUint8Array(message.body);
+			return true;
+		}
+		clearTimeout(pending.timeout);
+		this.pendingRequests.delete(message.requestId);
+		if (
+			pending.status === undefined ||
+			!pending.headers ||
+			pending.totalBytes === undefined ||
+			pending.totalChunks === undefined ||
+			!pending.chunks ||
+			pending.chunks.length !== pending.totalChunks
+		) {
+			pending.reject(new Error('Incomplete desktop relay response'));
+			return true;
+		}
+		const bytes = new Uint8Array(pending.totalBytes);
+		let offset = 0;
+		for (const chunk of pending.chunks) {
+			if (!chunk) {
+				pending.reject(new Error('Incomplete desktop relay response'));
+				return true;
+			}
+			bytes.set(chunk, offset);
+			offset += chunk.length;
+		}
+		pending.resolve({
+			type: 'response',
+			requestId: message.requestId,
+			status: pending.status,
+			headers: pending.headers,
+			body: uint8ArrayToBase64(bytes),
+		});
+		return true;
 	}
 
 	private handleBackupMessage(message: DataChannelGuestMessage): boolean {

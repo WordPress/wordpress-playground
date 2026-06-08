@@ -38,8 +38,8 @@ const DESKTOP_RELAY_SCOPED_URL = `/scope:${DESKTOP_RELAY_SCOPE}/`;
 const DESKTOP_RELAY_PROBE_URL = `${DESKTOP_RELAY_SCOPED_URL}?desktop-relay-probe=1`;
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
-const AUTO_RETRY_DELAY_MS = 8000;
-const MAX_AUTO_RETRIES = 1;
+const AUTO_RETRY_DELAY_MS = 10000;
+const MAX_AUTO_RETRIES = 2;
 
 export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [status, setStatus] = useState<ConnectionStatus>('connecting');
@@ -47,6 +47,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [unsupportedMessage, setUnsupportedMessage] = useState<string | null>(
 		null
 	);
+	const [noticeCanRetry, setNoticeCanRetry] = useState(false);
 	const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 	const [dataChannelReady, setDataChannelReady] = useState(false);
 	const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
@@ -72,7 +73,11 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const shouldLoadIframe =
 		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
 	const desktopRelayIframeUrl = useMemo(
-		() => buildDesktopRelayIframeUrl('/', sessionId),
+		() =>
+			buildDesktopRelayIframeUrl(
+				getDesktopRelayPathFromConnectUrl(),
+				sessionId
+			),
 		[sessionId]
 	);
 	const relayDiagnosticsTitle = useMemo(
@@ -415,14 +420,17 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					});
 				})
 				.catch((error) => {
+					const message = (error as Error).message;
 					setRelayDiagnostics((current) => ({
 						...current,
 						pending: Math.max(0, current.pending - 1),
-						lastError: (error as Error).message,
+						lastError: message,
 					}));
+					setUnsupportedMessage(`Desktop request failed: ${message}`);
+					setNoticeCanRetry(true);
 					port.postMessage({
 						type: 'desktop-relay-error',
-						error: (error as Error).message,
+						error: message,
 					});
 				});
 		}
@@ -470,6 +478,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			setUnsupportedMessage(
 				'Installing apps from desktop access is not available yet. Use Site Tools on your phone to install this app.'
 			);
+			setNoticeCanRetry(false);
 			postUnsupportedInstallBlueprintResult(event);
 		}
 
@@ -499,6 +508,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			setStatus('connecting');
 			setError(null);
 			setUnsupportedMessage(null);
+			setNoticeCanRetry(false);
 			setApprovalPending(false);
 			setDataChannelReady(false);
 			setIframeHasLoaded(false);
@@ -506,7 +516,12 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			setConnectionAttempt((current) => current + 1);
 			setTimeout(() => {
 				if (shouldLoadIframe) {
-					setIframeSrc(buildDesktopRelayIframeUrl('/', sessionId));
+					setIframeSrc(
+						buildDesktopRelayIframeUrl(
+							getDesktopRelayPathFromConnectUrl(),
+							sessionId
+						)
+					);
 				}
 			}, 0);
 			setRelayDiagnostics((current) => ({
@@ -560,6 +575,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		}
 		setIsDownloadingBackup(true);
 		setUnsupportedMessage(null);
+		setNoticeCanRetry(false);
 		try {
 			const backup = await directTunnel.downloadBackup();
 			saveAs(new File([backup.bytes], backup.filename));
@@ -569,6 +585,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
+			setNoticeCanRetry(true);
 		} finally {
 			setIsDownloadingBackup(false);
 		}
@@ -608,12 +625,22 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			{unsupportedMessage ? (
 				<div className={css.unsupportedNotice} role="status">
 					<span>{unsupportedMessage}</span>
-					<button
-						type="button"
-						onClick={() => setUnsupportedMessage(null)}
-					>
-						Dismiss
-					</button>
+					<div className={css.unsupportedNoticeActions}>
+						{noticeCanRetry ? (
+							<button type="button" onClick={retry}>
+								Retry connection
+							</button>
+						) : null}
+						<button
+							type="button"
+							onClick={() => {
+								setUnsupportedMessage(null);
+								setNoticeCanRetry(false);
+							}}
+						>
+							Dismiss
+						</button>
+					</div>
 				</div>
 			) : null}
 
@@ -758,6 +785,15 @@ function buildDesktopRelayIframeUrl(pathAndSearch: string, sessionId: string) {
 	);
 	scopedUrl.searchParams.set('desktop-relay-view', sessionId);
 	return `${scopedUrl.pathname}${scopedUrl.search}`;
+}
+
+function getDesktopRelayPathFromConnectUrl() {
+	const url = new URL(window.location.href);
+	if (!url.pathname.startsWith('/connect')) {
+		return '/';
+	}
+	const path = url.pathname.slice('/connect'.length) || '/';
+	return `${path}${url.search}`;
 }
 
 function normalizeDesktopRelayPath(pathAndSearch: string) {
