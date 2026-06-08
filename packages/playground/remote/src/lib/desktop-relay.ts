@@ -4,6 +4,8 @@ export type DesktopRelayMapping = {
 	scope: string;
 	sessionId: string;
 	clientId?: string;
+	interceptedRequests: number;
+	lastInterceptedPath?: string;
 	expiresAt: number;
 };
 
@@ -22,10 +24,13 @@ export function handleDesktopRelayMessage(
 		if (typeof scope !== 'string' || typeof sessionId !== 'string') {
 			return true;
 		}
+		const existing = desktopRelayMappings[scope];
 		desktopRelayMappings[scope] = {
 			scope,
 			sessionId,
 			clientId: getSourceClientId(event),
+			interceptedRequests: existing?.interceptedRequests ?? 0,
+			lastInterceptedPath: existing?.lastInterceptedPath,
 			expiresAt:
 				Date.now() +
 				(typeof ttl === 'number' && Number.isFinite(ttl)
@@ -81,6 +86,8 @@ export function handleDesktopRelayProbe(scope: string): Response {
 			scope,
 			hasMapping: !!mapping,
 			clientId: mapping?.clientId,
+			interceptedRequests: mapping?.interceptedRequests ?? 0,
+			lastInterceptedPath: mapping?.lastInterceptedPath ?? null,
 		}),
 		{
 			headers: {
@@ -97,13 +104,16 @@ export async function handleDesktopRelayRequest(
 ) {
 	const requestId = crypto.randomUUID();
 	const unscopedUrl = removeURLScope(new URL(event.request.url));
+	const path = `${unscopedUrl.pathname}${unscopedUrl.search}`;
+	mapping.interceptedRequests += 1;
+	mapping.lastInterceptedPath = `${event.request.method} ${path}`;
 	const body = await requestBodyToBase64(event.request);
 	const response = await postRequestToDesktopClient(mapping, {
 		type: 'desktop-relay-request',
 		sessionId: mapping.sessionId,
 		requestId,
 		method: event.request.method,
-		path: `${unscopedUrl.pathname}${unscopedUrl.search}`,
+		path,
 		headers: collectHeaders(event.request.headers),
 		body,
 	});

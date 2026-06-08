@@ -113,6 +113,27 @@ function isIceCandidate(value: unknown): RTCIceCandidateInit {
 	return value as RTCIceCandidateInit;
 }
 
+async function addIceCandidateIfCurrent(
+	peerConnection: RTCPeerConnection,
+	candidate: RTCIceCandidateInit,
+	logPrefix: string
+): Promise<void> {
+	try {
+		await peerConnection.addIceCandidate(candidate);
+	} catch (error) {
+		const message = (error as Error).message;
+		if (
+			message.includes('Unknown ufrag') ||
+			message.includes('ufrag') ||
+			peerConnection.signalingState === 'closed'
+		) {
+			logger.warn(`${logPrefix} Ignoring stale ICE candidate:`, error);
+			return;
+		}
+		throw error;
+	}
+}
+
 /**
  * Phone-side direct tunnel. The relay is only used to exchange WebRTC
  * signaling messages; WordPress HTTP requests are handled over the data channel.
@@ -461,8 +482,10 @@ export class DirectTunnelHost {
 					isSessionDescription(message.data)
 				);
 			} else if (message.type === 'candidate') {
-				await this.peerConnection.addIceCandidate(
-					isIceCandidate(message.data)
+				await addIceCandidateIfCurrent(
+					this.peerConnection,
+					isIceCandidate(message.data),
+					'[DirectTunnelHost]'
 				);
 			}
 		}
@@ -668,8 +691,10 @@ export class DirectTunnelGuest {
 			if (message.type === 'offer') {
 				await this.acceptOffer(isSessionDescription(message.data));
 			} else if (message.type === 'candidate' && this.peerConnection) {
-				await this.peerConnection.addIceCandidate(
-					isIceCandidate(message.data)
+				await addIceCandidateIfCurrent(
+					this.peerConnection,
+					isIceCandidate(message.data),
+					'[DirectTunnelGuest]'
 				);
 			}
 		}

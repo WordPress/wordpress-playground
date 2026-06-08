@@ -24,6 +24,7 @@ interface RelayDiagnostics {
 	dataChannel: string;
 	iframe: string;
 	requests: number;
+	intercepted: number;
 	pending: number;
 	lastPath: string;
 	lastError: string;
@@ -46,11 +47,13 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 	const [dataChannelReady, setDataChannelReady] = useState(false);
 	const [iframeHasLoaded, setIframeHasLoaded] = useState(false);
+	const [iframeSrc, setIframeSrc] = useState('about:blank');
 	const [relayDiagnostics, setRelayDiagnostics] = useState<RelayDiagnostics>({
 		serviceWorker: 'Waiting',
 		dataChannel: 'Waiting',
 		iframe: 'Waiting',
 		requests: 0,
+		intercepted: 0,
 		pending: 0,
 		lastPath: '-',
 		lastError: '-',
@@ -60,6 +63,13 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const guestId = useRef(getOrCreateGuestId()).current;
 	const shouldLoadIframe =
 		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
+	const desktopRelayIframeUrl = useMemo(
+		() =>
+			`${DESKTOP_RELAY_SCOPED_URL}?desktop-relay-view=${encodeURIComponent(
+				sessionId
+			)}`,
+		[sessionId]
+	);
 
 	const statusUrl = useMemo(
 		() =>
@@ -182,6 +192,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 
 		let cancelled = false;
 		let interval: ReturnType<typeof setInterval> | null = null;
+		let probeInterval: ReturnType<typeof setInterval> | null = null;
 
 		const configureServiceWorker = async () => {
 			const serviceWorkerUrl = new URL(
@@ -206,7 +217,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				return;
 			}
 			await postDesktopRelayMapping(registration);
-			await verifyScopedRequestsAreControlled();
+			await refreshServiceWorkerProbe();
 			if (cancelled) {
 				return;
 			}
@@ -214,6 +225,10 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			interval = setInterval(
 				() => postDesktopRelayMapping(registration),
 				SERVICE_WORKER_RELAY_REFRESH_MS
+			);
+			probeInterval = setInterval(
+				() => refreshServiceWorkerProbe().catch(() => {}),
+				3000
 			);
 			registration.update().catch(() => {});
 		};
@@ -268,7 +283,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			});
 		};
 
-		const verifyScopedRequestsAreControlled = async () => {
+		const refreshServiceWorkerProbe = async () => {
 			const response = await fetch(DESKTOP_RELAY_PROBE_URL, {
 				cache: 'no-store',
 			});
@@ -283,8 +298,17 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			setRelayDiagnostics((current) => ({
 				...current,
 				serviceWorker: data.hasMapping
-					? 'Controlling /scope:default/'
+					? `Controlling /scope:default/ · intercepted ${data.interceptedRequests || 0}`
 					: 'Probe reached worker without mapping',
+				intercepted:
+					typeof data.interceptedRequests === 'number'
+						? data.interceptedRequests
+						: current.intercepted,
+				lastPath:
+					current.lastPath === '-' &&
+					typeof data.lastInterceptedPath === 'string'
+						? data.lastInterceptedPath
+						: current.lastPath,
 			}));
 		};
 
@@ -304,6 +328,9 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			setServiceWorkerReady(false);
 			if (interval !== null) {
 				clearInterval(interval);
+			}
+			if (probeInterval !== null) {
+				clearInterval(probeInterval);
 			}
 			window.removeEventListener('pagehide', clearDesktopRelayMapping);
 			clearDesktopRelayMapping();
@@ -389,6 +416,17 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	}, [sessionId]);
 
 	useEffect(() => {
+		if (!shouldLoadIframe || iframeSrc !== 'about:blank') {
+			return;
+		}
+		setIframeSrc(desktopRelayIframeUrl);
+		setRelayDiagnostics((current) => ({
+			...current,
+			iframe: 'Loading /scope:default/',
+		}));
+	}, [desktopRelayIframeUrl, iframeSrc, shouldLoadIframe]);
+
+	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
 			if (!isMessageFromIframeTree(event, iframeRef.current)) {
 				return;
@@ -422,7 +460,10 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		setIframeHasLoaded(true);
 		setRelayDiagnostics((current) => ({
 			...current,
-			iframe: 'Loaded /scope:default/',
+			iframe:
+				current.requests > 0 || current.intercepted > 0
+					? 'Loaded /scope:default/'
+					: 'Load event before relay request',
 		}));
 		setStatus('connected');
 	}, []);
@@ -430,11 +471,13 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const retry = () => {
 		setStatus('connecting');
 		setError(null);
-		if (iframeRef.current) {
-			iframeRef.current.src = shouldLoadIframe
-				? DESKTOP_RELAY_SCOPED_URL
-				: 'about:blank';
-		}
+		setIframeHasLoaded(false);
+		setIframeSrc('about:blank');
+		setTimeout(() => {
+			if (shouldLoadIframe) {
+				setIframeSrc(desktopRelayIframeUrl);
+			}
+		}, 0);
 		setRelayDiagnostics((current) => ({
 			...current,
 			iframe: shouldLoadIframe ? 'Reloading' : 'Waiting',
@@ -498,11 +541,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				<div className={css.iframeWrapper}>
 					<iframe
 						ref={iframeRef}
-						src={
-							shouldLoadIframe
-								? DESKTOP_RELAY_SCOPED_URL
-								: 'about:blank'
-						}
+						src={iframeSrc}
 						className={css.iframe}
 						onLoad={handleIframeLoad}
 						title="My WordPress from phone"
@@ -643,6 +682,7 @@ function RelayDiagnosticsBar({
 			<span>Channel: {diagnostics.dataChannel}</span>
 			<span>Frame: {diagnostics.iframe}</span>
 			<span>Requests: {diagnostics.requests}</span>
+			<span>Intercepted: {diagnostics.intercepted}</span>
 			<span>Pending: {diagnostics.pending}</span>
 			<span>Last: {diagnostics.lastPath}</span>
 			<span>Error: {diagnostics.lastError}</span>
