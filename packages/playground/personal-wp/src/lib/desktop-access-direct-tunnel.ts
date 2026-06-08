@@ -216,7 +216,11 @@ function isAttemptCurrent(
 }
 
 function isSessionDescription(value: unknown): RTCSessionDescriptionInit {
-	if (!value || typeof value !== 'object') {
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		typeof (value as { type?: unknown }).type !== 'string'
+	) {
 		throw new Error('Invalid WebRTC session description');
 	}
 	return value as RTCSessionDescriptionInit;
@@ -227,6 +231,29 @@ function isIceCandidate(value: unknown): RTCIceCandidateInit {
 		throw new Error('Invalid WebRTC ICE candidate');
 	}
 	return value as RTCIceCandidateInit;
+}
+
+function serializeSessionDescription(
+	description: RTCSessionDescription | RTCSessionDescriptionInit | null
+): RTCSessionDescriptionInit {
+	if (!description) {
+		throw new Error('Missing WebRTC session description');
+	}
+	return {
+		type: description.type,
+		sdp: description.sdp,
+	};
+}
+
+function serializeIceCandidate(
+	candidate: RTCIceCandidate
+): RTCIceCandidateInit {
+	return {
+		candidate: candidate.candidate,
+		sdpMid: candidate.sdpMid,
+		sdpMLineIndex: candidate.sdpMLineIndex,
+		usernameFragment: candidate.usernameFragment ?? undefined,
+	};
 }
 
 function normalizeVerificationCode(value: string): string {
@@ -517,7 +544,10 @@ export class DirectTunnelHost {
 			await this.postSignal(
 				'guest',
 				'offer',
-				createAttemptSignal(attemptId, pc.localDescription)
+				createAttemptSignal(
+					attemptId,
+					serializeSessionDescription(pc.localDescription)
+				)
 			);
 			this.updateMetrics({ handshakeState: 'Offer sent' });
 		} finally {
@@ -541,7 +571,10 @@ export class DirectTunnelHost {
 				this.postSignal(
 					'guest',
 					'candidate',
-					createAttemptSignal(attemptId, event.candidate)
+					createAttemptSignal(
+						attemptId,
+						serializeIceCandidate(event.candidate)
+					)
 				).catch((error) =>
 					logger.warn('[DirectTunnelHost] ICE failed:', error)
 				);
@@ -1350,7 +1383,10 @@ export class DirectTunnelGuest {
 				this.postSignal(
 					'host',
 					'candidate',
-					createAttemptSignal(attemptId, event.candidate)
+					createAttemptSignal(
+						attemptId,
+						serializeIceCandidate(event.candidate)
+					)
 				).catch((error) =>
 					logger.warn('[DirectTunnelGuest] ICE failed:', error)
 				);
@@ -1391,7 +1427,10 @@ export class DirectTunnelGuest {
 		await this.postSignal(
 			'host',
 			'answer',
-			createAttemptSignal(attemptId, pc.localDescription)
+			createAttemptSignal(
+				attemptId,
+				serializeSessionDescription(pc.localDescription)
+			)
 		);
 	}
 
