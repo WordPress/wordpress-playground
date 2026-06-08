@@ -109,7 +109,7 @@ The `--reset` flag works only with `start`. For `server`, manually delete the pe
 By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
 ```bash
-npx @wp-playground/cli@latest server --wp=6.8 --php=8.3
+npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
 ```
 
 ### Loading Blueprints
