@@ -1,4 +1,5 @@
-import { FormEvent, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useRef, useState } from 'react';
 import css from './style.module.css';
 
 type ResolveCodeResponse = {
@@ -88,7 +89,7 @@ export function isDesktopAccessConnectRoute(): boolean {
 	);
 }
 
-function normalizeCode(value: string): string | null {
+export function normalizeCode(value: string): string | null {
 	const digits = value.replace(/\D+/g, '');
 	if (digits.length !== 6) {
 		return null;
@@ -96,7 +97,7 @@ function normalizeCode(value: string): string | null {
 	return `${digits.slice(0, 3)}-${digits.slice(3)}`;
 }
 
-function formatCode(value: string): string {
+export function formatCode(value: string): string {
 	const digits = value.replace(/\D+/g, '').slice(0, 6);
 	if (digits.length <= 3) {
 		return digits;

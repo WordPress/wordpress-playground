@@ -4,7 +4,7 @@ import { DirectTunnelGuest } from '../../lib/desktop-access-direct-tunnel';
 import saveAs from 'file-saver';
 
 // @ts-ignore
-import serviceWorkerPath from '../../../../remote/service-worker.ts?worker&url';
+import serviceWorkerPath from '@wp-playground/remote/service-worker?worker&url';
 
 interface DesktopAccessViewerProps {
 	sessionId: string;
@@ -752,11 +752,11 @@ function clearDesktopRelayMapping() {
 function buildDesktopRelayIframeUrl(pathAndSearch: string, sessionId: string) {
 	const url = new URL(
 		normalizeDesktopRelayPath(pathAndSearch),
-		location.origin
+		window.location.origin
 	);
 	const scopedUrl = new URL(
 		`${DESKTOP_RELAY_SCOPED_URL.replace(/\/$/, '')}${url.pathname}${url.search}`,
-		location.origin
+		window.location.origin
 	);
 	scopedUrl.searchParams.set('desktop-relay-view', sessionId);
 	return `${scopedUrl.pathname}${scopedUrl.search}`;

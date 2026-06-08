@@ -123,7 +123,7 @@ export async function handleDesktopRelayRequest(
 	});
 }
 
-async function requestBodyToBytes(
+export async function requestBodyToBytes(
 	request: Request
 ): Promise<Uint8Array | undefined> {
 	if (request.method === 'GET' || request.method === 'HEAD') {
@@ -136,7 +136,7 @@ async function requestBodyToBytes(
 	return new Uint8Array(buffer);
 }
 
-function collectHeaders(headers: Headers): Record<string, string> {
+export function collectHeaders(headers: Headers): Record<string, string> {
 	const result: Record<string, string> = {};
 	headers.forEach((value, key) => {
 		result[key] = value;
