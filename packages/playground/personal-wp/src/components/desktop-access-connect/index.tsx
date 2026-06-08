@@ -80,6 +80,8 @@ export function DesktopAccessConnect() {
 }
 
 export function isDesktopAccessConnectRoute(): boolean {
+	// my.wordpress.net is configured to serve index.html for unknown paths.
+	// That SPA fallback is what lets /connect and /connect/... resume here.
 	return (
 		window.location.pathname === '/connect' ||
 		window.location.pathname.startsWith('/connect/')

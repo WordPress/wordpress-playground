@@ -6,6 +6,11 @@
  * desktop tunnel. It stores session metadata plus small WebRTC messages
  * (offer, answer, ICE candidates, heartbeat, retry request). WordPress HTTP
  * requests and responses are not proxied through this PHP file.
+ *
+ * The six-digit code is a rendezvous hint, not an authorization grant. The
+ * desktop still needs to open a direct WebRTC data channel and the phone must
+ * approve the two-digit verification code before any WordPress requests or
+ * backup data can flow.
  */
 
 define('SESSION_TIMEOUT_MS', 5 * 60 * 1000);
@@ -78,6 +83,8 @@ function handleCreateSession(): void {
 }
 
 function handleResolveAccessCode(string $rawAccessCode): void {
+    // Resolving the code only reveals the relay session id. The phone-side
+    // verification step is the authorization boundary for the desktop tunnel.
     $accessCode = normalizeAccessCode($rawAccessCode);
     if ($accessCode === '') {
         jsonResponse(['error' => 'Invalid access code'], 400);
