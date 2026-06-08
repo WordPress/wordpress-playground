@@ -62,18 +62,22 @@ command:
 | `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
 | `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |
 
-The main difference is persistence. `wp-now` implicitly associated persistent
-sites with local paths. `@wp-playground/cli start` persists sites in
-`~/.wordpress-playground/sites/<path-hash>/` when it manages the WordPress root
-directory. If the selected directory is a full WordPress installation, or you
-explicitly mount `/wordpress`, that directory becomes the persistent store
-instead.
+The main workflow change is where the saved site lives:
 
-`start --path=./plugin` works for mounting another directory, but the managed
-persistent site is keyed to the command's current working directory. For the
-closest wp-now-style migration, `cd` into the project directory before running
-`start`. Use `server` when you need manual control over mounts, storage, or
-automation.
+- With `wp-now`, `--path=./plugin` picked the project and the saved site.
+- With Playground CLI, `start` saves the site for the current directory. For
+  the closest match, `cd` into the project first, then run `start`.
+- When Playground CLI creates WordPress for you, it keeps the WordPress files
+  in `~/.wordpress-playground/sites/<path-hash>/`.
+- If you run it on a full WordPress directory, or mount a directory at
+  `/wordpress`, that directory is the WordPress site. Changes are written
+  there.
+- `start --path=./plugin` still mounts that folder, but it does not make
+  `./plugin` the saved site. The saved site still belongs to the directory
+  where you ran the command.
+
+Use `start` for the familiar wp-now-style flow. Use `server` only when you want
+to spell out mounts, storage, or automation yourself.
 
 ### Using `server` (Advanced)
 
