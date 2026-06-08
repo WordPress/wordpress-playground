@@ -368,6 +368,7 @@ export class DirectTunnelHost {
 	private approvedAttemptId: string | null = null;
 	private pendingVerificationCode: string | null = null;
 	private pendingVerificationAttemptId: string | null = null;
+	private pendingRemoteCandidates = new Map<string, RTCIceCandidateInit[]>();
 	private requestQueue: DataChannelRequest[] = [];
 	private isProcessingRequest = false;
 	private metrics: TunnelHostMetrics = {
@@ -436,6 +437,7 @@ export class DirectTunnelHost {
 		this.approvedAttemptId = null;
 		this.pendingVerificationCode = null;
 		this.pendingVerificationAttemptId = null;
+		this.pendingRemoteCandidates.clear();
 		this.sessionId = null;
 		this.shareUrl = null;
 		this.accessCode = null;
@@ -539,6 +541,7 @@ export class DirectTunnelHost {
 		this.isApproved = false;
 		this.pendingVerificationCode = null;
 		this.pendingVerificationAttemptId = null;
+		this.pendingRemoteCandidates.clear();
 		this.requestQueue = [];
 		this.updateMetrics({
 			handshakeAttempts: this.metrics.handshakeAttempts + 1,
@@ -1083,6 +1086,7 @@ export class DirectTunnelHost {
 					isSessionDescription(signal.payload)
 				);
 				this.updateMetrics({ handshakeState: 'Remote answer set' });
+				await this.flushPendingRemoteCandidates(signal.attemptId);
 			} else if (message.type === 'candidate') {
 				const signal = readAttemptSignal(message.data);
 				if (
@@ -1099,12 +1103,61 @@ export class DirectTunnelHost {
 							}
 						: {}),
 				});
-				await addIceCandidateIfCurrent(
-					this.peerConnection,
-					isIceCandidate(signal.payload),
-					'[DirectTunnelHost]'
+				await this.addOrBufferRemoteCandidate(
+					signal.attemptId,
+					isIceCandidate(signal.payload)
 				);
 			}
+		}
+	}
+
+	private async addOrBufferRemoteCandidate(
+		attemptId: string,
+		candidate: RTCIceCandidateInit
+	): Promise<void> {
+		if (
+			!this.peerConnection ||
+			!isAttemptCurrent(this.currentAttemptId, attemptId)
+		) {
+			return;
+		}
+		if (!this.peerConnection.remoteDescription) {
+			this.bufferRemoteCandidate(attemptId, candidate);
+			return;
+		}
+		await addIceCandidateIfCurrent(
+			this.peerConnection,
+			candidate,
+			'[DirectTunnelHost]'
+		);
+	}
+
+	private bufferRemoteCandidate(
+		attemptId: string,
+		candidate: RTCIceCandidateInit
+	): void {
+		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
+		candidates.push(candidate);
+		this.pendingRemoteCandidates.set(attemptId, candidates);
+	}
+
+	private async flushPendingRemoteCandidates(
+		attemptId: string
+	): Promise<void> {
+		if (
+			!this.peerConnection ||
+			!isAttemptCurrent(this.currentAttemptId, attemptId)
+		) {
+			return;
+		}
+		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
+		this.pendingRemoteCandidates.delete(attemptId);
+		for (const candidate of candidates) {
+			await addIceCandidateIfCurrent(
+				this.peerConnection,
+				candidate,
+				'[DirectTunnelHost]'
+			);
 		}
 	}
 
@@ -1207,6 +1260,7 @@ export class DirectTunnelGuest {
 	private isApproved = false;
 	private currentAttemptId: string | null = null;
 	private approvedAttemptId: string | null = null;
+	private pendingRemoteCandidates = new Map<string, RTCIceCandidateInit[]>();
 	private pendingRequests = new Map<
 		string,
 		{
@@ -1269,6 +1323,7 @@ export class DirectTunnelGuest {
 		this.peerConnection?.close();
 		this.currentAttemptId = null;
 		this.approvedAttemptId = null;
+		this.pendingRemoteCandidates.clear();
 		this.rejectPendingMessages(new Error('Desktop access disconnected'));
 	}
 
@@ -1402,25 +1457,20 @@ export class DirectTunnelGuest {
 		}
 
 		for (const message of messages) {
-			if (
-				latestOffer &&
-				(message.seq <= latestOffer.seq || message.type === 'offer')
-			) {
+			if (message.type === 'offer') {
 				continue;
 			}
-			if (message.type === 'candidate' && this.peerConnection) {
+			if (message.type === 'candidate') {
 				const signal = readAttemptSignal(message.data);
-				if (
-					!signal ||
-					!isAttemptCurrent(this.currentAttemptId, signal.attemptId)
-				) {
+				if (!signal) {
 					continue;
 				}
-				this.remoteCandidates++;
-				await addIceCandidateIfCurrent(
-					this.peerConnection,
-					isIceCandidate(signal.payload),
-					'[DirectTunnelGuest]'
+				if (isAttemptCurrent(this.currentAttemptId, signal.attemptId)) {
+					this.remoteCandidates++;
+				}
+				await this.addOrBufferRemoteCandidate(
+					signal.attemptId,
+					isIceCandidate(signal.payload)
 				);
 			}
 		}
@@ -1435,6 +1485,11 @@ export class DirectTunnelGuest {
 		this.currentAttemptId = attemptId;
 		this.approvedAttemptId = null;
 		this.isApproved = false;
+		for (const key of this.pendingRemoteCandidates.keys()) {
+			if (key !== attemptId) {
+				this.pendingRemoteCandidates.delete(key);
+			}
+		}
 		this.localCandidates = 0;
 		this.remoteCandidates = 0;
 		this.rejectPendingMessages(
@@ -1491,6 +1546,7 @@ export class DirectTunnelGuest {
 			);
 		};
 		await pc.setRemoteDescription(offer);
+		await this.flushPendingRemoteCandidates(attemptId);
 		const answer = await pc.createAnswer();
 		await pc.setLocalDescription(answer);
 		await this.postSignal(
@@ -1501,6 +1557,54 @@ export class DirectTunnelGuest {
 				serializeSessionDescription(pc.localDescription)
 			)
 		);
+	}
+
+	private async addOrBufferRemoteCandidate(
+		attemptId: string,
+		candidate: RTCIceCandidateInit
+	): Promise<void> {
+		if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
+			this.bufferRemoteCandidate(attemptId, candidate);
+			return;
+		}
+		if (!this.peerConnection?.remoteDescription) {
+			this.bufferRemoteCandidate(attemptId, candidate);
+			return;
+		}
+		await addIceCandidateIfCurrent(
+			this.peerConnection,
+			candidate,
+			'[DirectTunnelGuest]'
+		);
+	}
+
+	private bufferRemoteCandidate(
+		attemptId: string,
+		candidate: RTCIceCandidateInit
+	): void {
+		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
+		candidates.push(candidate);
+		this.pendingRemoteCandidates.set(attemptId, candidates);
+	}
+
+	private async flushPendingRemoteCandidates(
+		attemptId: string
+	): Promise<void> {
+		if (
+			!this.peerConnection ||
+			!isAttemptCurrent(this.currentAttemptId, attemptId)
+		) {
+			return;
+		}
+		const candidates = this.pendingRemoteCandidates.get(attemptId) || [];
+		this.pendingRemoteCandidates.delete(attemptId);
+		for (const candidate of candidates) {
+			await addIceCandidateIfCurrent(
+				this.peerConnection,
+				candidate,
+				'[DirectTunnelGuest]'
+			);
+		}
 	}
 
 	private configureDataChannel(
