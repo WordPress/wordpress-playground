@@ -136,6 +136,7 @@ function InstallAppsSection({ siteSlug }: { siteSlug: string }) {
 
 function DesktopAccessSection() {
 	const playground = usePlaygroundClient();
+	const { performBackup, isBackingUp, canBackup } = useBackup();
 	const [desktopAccess, setDesktopAccess] = useState(getDesktopAccessStatus);
 	const [message, setMessage] = useState<string | null>(null);
 	const [verificationCode, setVerificationCode] = useState('');
@@ -197,6 +198,16 @@ function DesktopAccessSection() {
 			title: 'My WordPress desktop access',
 			url: desktopAccess.shareUrl,
 		});
+	}
+
+	async function downloadBackup() {
+		setMessage(null);
+		const success = await performBackup();
+		setMessage(
+			success
+				? 'Backup download started.'
+				: 'Could not start backup download.'
+		);
 	}
 
 	const isStarting = desktopAccess.status === 'connecting';
@@ -280,6 +291,16 @@ function DesktopAccessSection() {
 									Share
 								</button>
 							)}
+							<button
+								type="button"
+								className={css.backupNowButton}
+								onClick={downloadBackup}
+								disabled={!canBackup || isBackingUp}
+							>
+								{isBackingUp
+									? 'Downloading backup...'
+									: 'Download backup'}
+							</button>
 							<button
 								type="button"
 								className={css.textButton}
