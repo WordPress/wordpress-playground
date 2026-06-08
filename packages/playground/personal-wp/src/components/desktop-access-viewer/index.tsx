@@ -64,11 +64,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	const shouldLoadIframe =
 		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
 	const desktopRelayIframeUrl = useMemo(
-		() =>
-			buildDesktopRelayIframeUrl(
-				getDesktopRelayPathFromHash(),
-				sessionId
-			),
+		() => buildDesktopRelayIframeUrl('/', sessionId),
 		[sessionId]
 	);
 	const relayDiagnosticsTitle = useMemo(
@@ -432,27 +428,6 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	}, [desktopRelayIframeUrl, iframeSrc, shouldLoadIframe]);
 
 	useEffect(() => {
-		function handleHashChange() {
-			if (!shouldLoadIframe) {
-				return;
-			}
-			setIframeSrc(
-				buildDesktopRelayIframeUrl(
-					getDesktopRelayPathFromHash(),
-					sessionId
-				)
-			);
-			setRelayDiagnostics((current) => ({
-				...current,
-				iframe: 'Loading URL from address bar',
-			}));
-		}
-
-		window.addEventListener('hashchange', handleHashChange);
-		return () => window.removeEventListener('hashchange', handleHashChange);
-	}, [sessionId, shouldLoadIframe]);
-
-	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
 			if (!isMessageFromIframeTree(event, iframeRef.current)) {
 				return;
@@ -484,7 +459,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			return;
 		}
 		setIframeHasLoaded(true);
-		syncDesktopUrlFromIframe(iframeRef.current, sessionId);
+		syncDesktopUrlFromIframe(iframeRef.current);
 		setRelayDiagnostics((current) => ({
 			...current,
 			iframe:
@@ -502,12 +477,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		setIframeSrc('about:blank');
 		setTimeout(() => {
 			if (shouldLoadIframe) {
-				setIframeSrc(
-					buildDesktopRelayIframeUrl(
-						getDesktopRelayPathFromHash(),
-						sessionId
-					)
-				);
+				setIframeSrc(buildDesktopRelayIframeUrl('/', sessionId));
 			}
 		}, 0);
 		setRelayDiagnostics((current) => ({
@@ -687,11 +657,6 @@ function buildDesktopRelayIframeUrl(pathAndSearch: string, sessionId: string) {
 	return `${scopedUrl.pathname}${scopedUrl.search}`;
 }
 
-function getDesktopRelayPathFromHash() {
-	const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
-	return normalizeDesktopRelayPath(hash || '/');
-}
-
 function normalizeDesktopRelayPath(pathAndSearch: string) {
 	const normalized = pathAndSearch.startsWith('/')
 		? pathAndSearch
@@ -699,10 +664,7 @@ function normalizeDesktopRelayPath(pathAndSearch: string) {
 	return normalized || '/';
 }
 
-function syncDesktopUrlFromIframe(
-	iframe: HTMLIFrameElement,
-	sessionId: string
-) {
+function syncDesktopUrlFromIframe(iframe: HTMLIFrameElement) {
 	try {
 		const iframeUrl = new URL(iframe.contentWindow?.location.href || '');
 		const scopedPrefix = DESKTOP_RELAY_SCOPED_URL.replace(/\/$/, '');
@@ -712,10 +674,10 @@ function syncDesktopUrlFromIframe(
 		const unscopedPath =
 			iframeUrl.pathname.slice(scopedPrefix.length) || '/';
 		iframeUrl.searchParams.delete('desktop-relay-view');
-		const nextHash = `${unscopedPath}${iframeUrl.search}`;
 		const nextUrl = new URL(window.location.href);
-		nextUrl.search = `?share=${encodeURIComponent(sessionId)}`;
-		nextUrl.hash = nextHash;
+		nextUrl.pathname = `/connect${unscopedPath}`;
+		nextUrl.search = iframeUrl.search;
+		nextUrl.hash = '';
 		if (nextUrl.href !== window.location.href) {
 			window.history.replaceState({}, '', nextUrl);
 		}
