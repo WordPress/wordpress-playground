@@ -9,8 +9,10 @@ const failures = [];
 // The release build writes resolved dependency versions into dist package.json files.
 // npm 11 rejects a direct dependency when the root override does not match that
 // resolved version exactly, even if the semver range would resolve correctly.
-// Example: `@wp-playground/mcp` had `ws@^8.21.0` in source, but the dist
-// manifest had `ws@8.21.0`; npm rejected it next to `overrides.ws@^8.21.0`.
+// Example: #3745 set both `@wp-playground/mcp` and root `overrides.ws`
+// to `^8.21.0`. During release, Lerna packed a generated MCP manifest
+// with the resolved direct dependency `ws@8.21.0`; npm 11 rejected that
+// because the root override still used the non-identical `^8.21.0` range.
 // @see https://github.com/WordPress/wordpress-playground/pull/3745
 for (const packageDir of getWorkspacePackageDirs(rootPackageJson.workspaces ?? [])) {
 	const packageJsonPath = `${packageDir}/package.json`;
