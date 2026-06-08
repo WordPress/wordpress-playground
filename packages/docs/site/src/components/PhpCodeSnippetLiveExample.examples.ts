@@ -198,7 +198,7 @@ echo get_bloginfo( 'version' );
       "step": "unzip",
       "zipFile": {
         "resource": "url",
-        "url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip"
+        "url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=html-api-2026-06-08"
       },
       "extractToPath": "/app"
     }
