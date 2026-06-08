@@ -132,6 +132,8 @@ export class DirectTunnelHost {
 		[K in keyof TunnelHostEvents]: Set<TunnelHostEvents[K]>;
 	}> = {};
 	private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+	private isCreatingOffer = false;
 	private requestQueue: DataChannelRequest[] = [];
 	private isProcessingRequest = false;
 	private metrics: TunnelHostMetrics = {
@@ -183,6 +185,7 @@ export class DirectTunnelHost {
 		const sessionIdToClose = this.sessionId;
 		this.isActive = false;
 		this.stopHeartbeat();
+		this.stopReconnect();
 		this.dataChannel?.close();
 		this.peerConnection?.close();
 		this.dataChannel = null;
@@ -248,15 +251,25 @@ export class DirectTunnelHost {
 		if (!this.sessionId) {
 			throw new Error('Missing relay session');
 		}
+		if (this.isCreatingOffer) {
+			return;
+		}
+		this.isCreatingOffer = true;
+		this.dataChannel?.close();
+		this.peerConnection?.close();
 		const pc = createPeerConnection();
 		this.peerConnection = pc;
 		this.dataChannel = pc.createDataChannel('wordpress-http');
 		this.configureDataChannel(this.dataChannel);
 		this.configurePeerConnection(pc);
 
-		const offer = await pc.createOffer();
-		await pc.setLocalDescription(offer);
-		await this.postSignal('guest', 'offer', pc.localDescription);
+		try {
+			const offer = await pc.createOffer();
+			await pc.setLocalDescription(offer);
+			await this.postSignal('guest', 'offer', pc.localDescription);
+		} finally {
+			this.isCreatingOffer = false;
+		}
 	}
 
 	private configurePeerConnection(pc: RTCPeerConnection): void {
@@ -273,21 +286,49 @@ export class DirectTunnelHost {
 				pc.connectionState === 'failed' ||
 				pc.connectionState === 'disconnected'
 			) {
-				this.setStatus('error');
+				this.setStatus('connecting');
+				this.scheduleReconnect();
 			}
 		};
 	}
 
 	private configureDataChannel(channel: RTCDataChannel): void {
-		channel.onopen = () => this.setStatus('connected');
+		channel.onopen = () => {
+			this.stopReconnect();
+			this.setStatus('connected');
+		};
 		channel.onclose = () => {
 			if (this.isActive) {
 				this.setStatus('connecting');
+				this.scheduleReconnect();
 			}
 		};
 		channel.onmessage = (event) => {
 			this.queueDataChannelMessage(event.data);
 		};
+	}
+
+	private scheduleReconnect(): void {
+		if (!this.isActive || this.reconnectTimeout !== null) {
+			return;
+		}
+		this.reconnectTimeout = setTimeout(() => {
+			this.reconnectTimeout = null;
+			if (!this.isActive) {
+				return;
+			}
+			this.createOffer().catch((error) => {
+				logger.warn('[DirectTunnelHost] Reconnect failed:', error);
+				this.scheduleReconnect();
+			});
+		}, 1000);
+	}
+
+	private stopReconnect(): void {
+		if (this.reconnectTimeout !== null) {
+			clearTimeout(this.reconnectTimeout);
+			this.reconnectTimeout = null;
+		}
 	}
 
 	private queueDataChannelMessage(data: unknown): void {
