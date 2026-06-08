@@ -20,8 +20,8 @@ cp -r ~/website-deployment/__wp__ ~/website-update/
 cp ~/website-deployment/custom-redirects-lib.php ~/website-update/
 cp ~/website-deployment/custom-redirects.php ~/website-update/
 cp ~/website-deployment/cors-proxy-config.php ~/website-update/
-cp ~/website-deployment/mywp-event.php ~/website-update/
-cp ~/website-deployment/mywp-event-dashboard.php ~/website-update/
+cp ~/website-deployment/my-wordpress-net/mywp-event.php ~/website-update/
+cp ~/website-deployment/my-wordpress-net/mywp-event-dashboard.php ~/website-update/
 
 # Generate mime-types.php from mime-types.json in case the PHP can be opcached
 echo Generating mime-types.php
@@ -96,7 +96,7 @@ find -type f |
     set_aside_static_files_to_serve_via_php
 
 echo Applying latest My WordPress event stats schema
-cat ~/website-deployment/mywp-event-tables.sql | mysql --database="$DB_NAME"
+cat ~/website-deployment/my-wordpress-net/mywp-event-tables.sql | mysql --database="$DB_NAME"
 
 echo Syncing staged files to production
 rsync -av --delete --no-perms --omit-dir-times ~/website-update/ /srv/htdocs/

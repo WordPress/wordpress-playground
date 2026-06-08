@@ -2,8 +2,8 @@
 
 require __DIR__ . '/cors-proxy-config.php';
 require __DIR__ . '/custom-redirects-lib.php';
-require __DIR__ . '/mywp-event.php';
-require __DIR__ . '/mywp-event-dashboard.php';
+require __DIR__ . '/my-wordpress-net/mywp-event.php';
+require __DIR__ . '/my-wordpress-net/mywp-event-dashboard.php';
 
 function assert_equal($expected, $actual, $message='') {
 	if ($expected !== $actual) {
