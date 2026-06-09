@@ -28,9 +28,9 @@ This guide includes links to the main repository, but all the steps and options 
 
 <div class="callout callout-info">
 
-**প্লেগ্রাউন্ড টুলসে কন্ট্রিবিউট করুন**
+<strong>প্লেগ্রাউন্ড টুলসে কন্ট্রিবিউট করুন</strong>
 
-এই গাইডে মেইন রিপোজিটরির লিঙ্ক রয়েছে, তবে সমস্ত স্টেপস এবং অপশন উভয়ের জন্য প্রযোজ্য। আপনি যদি প্লাগইন বা [লোকাল ডেভেলপমেন্ট](/developers/local-development/) টুলসে ইন্টারেস্টেড হন—সেখান থেকে শুরু করুন।
+এই গাইডে মেইন রিপোজিটরির লিঙ্ক রয়েছে, তবে সমস্ত স্টেপস এবং অপশন উভয়ের জন্য প্রযোজ্য। আপনি যদি প্লাগইন বা <a href="/developers/local-development/">লোকাল ডেভেলপমেন্ট</a> টুলসে ইন্টারেস্টেড হন—সেখান থেকে শুরু করুন।
 
 </div>
 
@@ -105,9 +105,9 @@ To fix this, first check your current limit:
 
 <div class="callout callout-tip">
 
-**ট্রাবলশুটিং: Linux-এ ফাইল ওয়াচার লিমিট**
+<strong>ট্রাবলশুটিং: Linux-এ ফাইল ওয়াচার লিমিট</strong>
 
-Linux-এ, `npm run dev` রান করার সময় আপনি `ENOSPC: System limit for number of file watchers reached` এর মতো একটি এরর দেখতে পারেন। এটি হয় কারণ প্লেগ্রাউন্ড রিপোজিটরিতে ডিফল্ট সিস্টেম লিমিটের চেয়ে বেশি ফাইল রয়েছে যা ওয়াচ করার অনুমতি দেয়।
+Linux-এ, <code>npm run dev</code> রান করার সময় আপনি <code>ENOSPC: System limit for number of file watchers reached</code> এর মতো একটি এরর দেখতে পারেন। এটি হয় কারণ প্লেগ্রাউন্ড রিপোজিটরিতে ডিফল্ট সিস্টেম লিমিটের চেয়ে বেশি ফাইল রয়েছে যা ওয়াচ করার অনুমতি দেয়।
 
 </div>
 
@@ -152,7 +152,7 @@ We handle code formatting and linting automatically. Relax, type away, and let t
 
 <div class="callout callout-info">
 
-**ফরম্যাটিং**
+<strong>ফরম্যাটিং</strong>
 
 আমরা কোড ফরম্যাটিং এবং লিন্টিং অটোমেটিক্যালি হ্যান্ডেল করি। রিল্যাক্স করুন, টাইপ করুন এবং মেশিনগুলোকে কাজ করতে দিন।
 

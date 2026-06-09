@@ -23,9 +23,9 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 
 <div class="callout callout-info">
 
-**অফিসিয়াল প্লেগ্রাউন্ড ওয়েবসাইট খুঁজছেন?**
+<strong>অফিসিয়াল প্লেগ্রাউন্ড ওয়েবসাইট খুঁজছেন?</strong>
 
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েবসাইট [wordpress.org/playground/](https://wordpress.org/playground/) এ স্থানান্তরিত হয়েছে। আপনি এখন যে সাইটে আছেন সেটি ডকুমেন্টেশন হোস্ট করে।
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েবসাইট <a href="https://wordpress.org/playground/">wordpress.org/playground/</a> এ স্থানান্তরিত হয়েছে। আপনি এখন যে সাইটে আছেন সেটি ডকুমেন্টেশন হোস্ট করে।
 
 </div>
 
@@ -147,7 +147,7 @@ Read [**Introduction to Playground: running WordPress in the browser**](https://
 
 <div class="callout callout-tip">
 
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ড-এর একটি দুর্দান্ত ভূমিকার জন্য [ওয়ার্ডপ্রেস ডেভেলপার ব্লগে](https://developer.wordpress.org/news) [**প্লেগ্রাউন্ড পরিচিতি: ব্রাউজারে ওয়ার্ডপ্রেস চালানো**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) ব্লগ পোস্টটি পড়ুন
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ড-এর একটি দুর্দান্ত ভূমিকার জন্য <a href="https://developer.wordpress.org/news">ওয়ার্ডপ্রেস ডেভেলপার ব্লগে</a> <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>প্লেগ্রাউন্ড পরিচিতি: ব্রাউজারে ওয়ার্ডপ্রেস চালানো</strong></a> ব্লগ পোস্টটি পড়ুন
 
 </div>
 
