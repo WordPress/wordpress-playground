@@ -128,6 +128,7 @@ browser and Blueprint viewer.
 			"step": "unzip",
 			"zipFile": {
 				"resource": "url",
+
 				"url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=html-api-2026-06-08",
 				"caption": "Downloading the bundled Symfony demo"
 			},
