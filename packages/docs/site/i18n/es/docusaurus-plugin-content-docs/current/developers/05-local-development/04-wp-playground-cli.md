@@ -158,7 +158,7 @@ The `--reset` flag works only with `start`. For `server`, manually delete the pe
 
 <div class="callout callout-info">
 
-La opción `--reset` solo funciona con `start`. Para `server`, elimina manualmente el directorio del sitio persistido en `~/.wordpress-playground/sites/<path-hash>/`.
+La opción <code>--reset</code> solo funciona con <code>start</code>. Para <code>server</code>, elimina manualmente el directorio del sitio persistido en <code>~/.wordpress-playground/sites/&lt;path-hash&gt;/</code>.
 
 </div>
 
@@ -261,7 +261,7 @@ On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve 
 
 <div class="callout callout-info">
 
-En Windows, el formato de ruta `/host/path:/vfs/path` puede causar problemas. Para resolverlo, usa las opciones `--mount-dir` y `--mount-dir-before-install`. Estas opciones permiten especificar las rutas del host y del sistema de archivos virtual en un formato alternativo: `"/host/path"` `"/vfs/path"`.
+En Windows, el formato de ruta <code>/host/path:/vfs/path</code> puede causar problemas. Para resolverlo, usa las opciones <code>--mount-dir</code> y <code>--mount-dir-before-install</code>. Estas opciones permiten especificar las rutas del host y del sistema de archivos virtual en un formato alternativo: <code>"/host/path"</code> <code>"/vfs/path"</code>.
 
 </div>
 
@@ -524,7 +524,7 @@ With the flag `--follow-symlinks`, the following symlinks will expose files outs
 
 <div class="callout callout-warning">
 
-Con la opción `--follow-symlinks`, los enlaces simbólicos pueden exponer archivos fuera de los directorios montados a Playground y suponer un riesgo de seguridad.
+Con la opción <code>--follow-symlinks</code>, los enlaces simbólicos pueden exponer archivos fuera de los directorios montados a Playground y suponer un riesgo de seguridad.
 
 </div>
 

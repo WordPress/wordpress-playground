@@ -26,7 +26,7 @@ For a detailed guide on the contribution workflow (forking, creating PRs, etc.),
 
 <div class="callout callout-info">
 
-কন্ট্রিবিউশন ওয়ার্কফ্লো (ফর্কিং, PR তৈরি ইত্যাদি) সম্পর্কে বিস্তারিত গাইডের জন্য, অনুগ্রহ করে আমাদের [ডকুমেন্টেশন কন্ট্রিবিউশন গাইড](/contributing/documentation#how-can-i-contribute) দেখুন
+কন্ট্রিবিউশন ওয়ার্কফ্লো (ফর্কিং, PR তৈরি ইত্যাদি) সম্পর্কে বিস্তারিত গাইডের জন্য, অনুগ্রহ করে আমাদের <a href="/contributing/documentation#how-can-i-contribute">ডকুমেন্টেশন কন্ট্রিবিউশন গাইড</a> দেখুন
 
 </div>
 
@@ -52,7 +52,7 @@ To learn more about how Docusaurus manages translations, see the [Internationali
 
 <div class="callout callout-info">
 
-Docusaurus কীভাবে অনুবাদ ম্যানেজ করে সে সম্পর্কে আরো জানতে, অফিসিয়াল Docusaurus ডকুমেন্টেশনের [ইন্টারন্যাশনালাইজেশন সেকশন](https://docusaurus.io/docs/i18n/introduction) দেখুন।
+Docusaurus কীভাবে অনুবাদ ম্যানেজ করে সে সম্পর্কে আরো জানতে, অফিসিয়াল Docusaurus ডকুমেন্টেশনের <a href="https://docusaurus.io/docs/i18n/introduction">ইন্টারন্যাশনালাইজেশন সেকশন</a> দেখুন।
 
 </div>
 

@@ -17,11 +17,11 @@ Las "Referencias de recursos" te permiten usar archivos externos en Blueprints
 
 <!-- Blueprint steps such as [`installPlugin`](/blueprints/steps) or [`installTheme`](/blueprints/steps) require a location of the plugin or theme to be installed. -->
 
-Las etapas de Blueprint como [`installPlugin`](/blueprints/steps) o [`installTheme`](/blueprints/steps) requieren una ubicación del plugin o tema que se va a instalar.
+Las etapas de Blueprint como <a href="/blueprints/steps"><code>installPlugin</code></a> o <a href="/blueprints/steps"><code>installTheme</code></a> requieren una ubicación del plugin o tema que se va a instalar.
 
 <!-- That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories. -->
 
-Esa ubicación puede definirse como un [recurso `URL`](#urlreference) del archivo `.zip` que contiene el tema o plugin. También puede definirse como un recurso [`wordpress.org/plugins`](#corepluginreference) o [`wordpress.org/themes`](#corethemereference) para esos plugins/temas publicados en los directorios oficiales de WordPress.
+Esa ubicación puede definirse como un <a href="#urlreference">recurso <code>URL</code></a> del archivo <code>.zip</code> que contiene el tema o plugin. También puede definirse como un recurso <a href="#corepluginreference"><code>wordpress.org/plugins</code></a> o <a href="#corethemereference"><code>wordpress.org/themes</code></a> para esos plugins/temas publicados en los directorios oficiales de WordPress.
 
 </div>
 
@@ -29,9 +29,13 @@ Esa ubicación puede definirse como un [recurso `URL`](#urlreference) del archiv
 
 Están disponibles las siguientes referencias de recursos:
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [URLReference](#urlreference)
+- [GitDirectoryReference](#gitdirectoryreference)
+- [CoreThemeReference](#corethemereference)
+- [CorePluginReference](#corepluginreference)
+- [VFSReference](#vfsreference)
+- [LiteralReference](#literalreference)
+- [BundledReference](#bundledreference)
 
 <!-- ### URLReference -->
 

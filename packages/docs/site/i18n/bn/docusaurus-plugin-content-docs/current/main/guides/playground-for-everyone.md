@@ -250,7 +250,7 @@ Every Playground runs independently in your browser. Nothing syncs to any extern
 
 <div class="callout callout-info">
 
-**আপনার আসল সাইটটি নিরাপদে থাকে**
+<strong>আপনার আসল সাইটটি নিরাপদে থাকে</strong>
 
 প্রতিটি প্লেগ্রাউন্ড আপনার ব্রাউজারে স্বাধীনভাবে চলে। কোনো কিছুই কোনো বাইরের সার্ভারের সাথে সিঙ্ক হয় না এবং কোনো কিছুই আপনার লাইভ ওয়ার্ডপ্রেস সাইটকে প্রভাবিত করে না।
 
@@ -356,7 +356,7 @@ When you save to the browser, copy the unique URL it generates. That link is you
 
 <div class="callout callout-tip">
 
-**আপনার প্লেগ্রাউন্ড লিঙ্কটি সংরক্ষণ করুন**
+<strong>আপনার প্লেগ্রাউন্ড লিঙ্কটি সংরক্ষণ করুন</strong>
 
 আপনি যখন ব্রাউজারে সেভ করবেন, তখন এটি যে ইউনিক URL জেনারেট করবে তা কপি করে রাখুন। আপনার সেভ করা কাজে ফিরে আসার জন্য এই লিঙ্কটিই একমাত্র উপায়।
 

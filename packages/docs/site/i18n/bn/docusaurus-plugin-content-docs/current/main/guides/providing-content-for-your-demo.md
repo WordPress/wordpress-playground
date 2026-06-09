@@ -52,7 +52,7 @@ To include images in your imported content, a good approach is to upload the ima
 
 <div class="callout callout-info">
 
-আপনার ইমপোর্ট করা কন্টেন্টে ইমেজ অন্তর্ভুক্ত করতে, একটি ভালো পদ্ধতি হলো ইমেজগুলো আপনার গিটহাব রিপোতে আপলোড করা এবং এক্সপোর্ট করা `.xml` ফাইলে তাদের জন্য পাথ সার্চ/রিপ্লেস করা এই URL ফরম্যাট ব্যবহার করে: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`।
+আপনার ইমপোর্ট করা কন্টেন্টে ইমেজ অন্তর্ভুক্ত করতে, একটি ভালো পদ্ধতি হলো ইমেজগুলো আপনার গিটহাব রিপোতে আপলোড করা এবং এক্সপোর্ট করা <code>.xml</code> ফাইলে তাদের জন্য পাথ সার্চ/রিপ্লেস করা এই URL ফরম্যাট ব্যবহার করে: <code>https://raw.githubusercontent.com/&#123;repo&#125;/&#123;branch&#125;/&#123;image_path&#125;</code>।
 
 ```html
 <!-- wp:image {"lightbox":{"enabled":false},"id":4751,"width":"78px","sizeSlug":"full","linkDestination":"none","align":"center","className":"no-border"} -->
@@ -266,7 +266,7 @@ Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/b
 
 <div class="callout callout-tip">
 
-কন্টেন্ট এবং ফিচার্ড ইমেজের মধ্যে সংযোগ দেখানো সম্পূর্ণ উদাহরণ দেখতে [ব্লুপ্রিন্ট গ্যালারি](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) থেকে ["ইমেজ সহ পোস্ট যোগ করতে wp-cli ব্যবহার করুন"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) উদাহরণটি দেখুন।
+কন্টেন্ট এবং ফিচার্ড ইমেজের মধ্যে সংযোগ দেখানো সম্পূর্ণ উদাহরণ দেখতে <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">ব্লুপ্রিন্ট গ্যালারি</a> থেকে <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"ইমেজ সহ পোস্ট যোগ করতে wp-cli ব্যবহার করুন"</a> উদাহরণটি দেখুন।
 
 </div>
 

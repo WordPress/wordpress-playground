@@ -222,7 +222,7 @@ If you're unsure about the steps listed above, visit the official [Gutenberg Pro
 
 <div class="callout callout-info">
 
-আপনি যদি উপরে তালিকাভুক্ত স্টেপগুলো নিয়ে অনিশ্চিত হন, অফিসিয়াল [গুটেনবার্গ প্রজেক্ট কন্ট্রিবিউটর গাইড](https://developer.wordpress.org/block-editor/contributors/) দেখুন। মনে রাখুন এই ক্ষেত্রে, `@wp-playground/cli` `wp-env`-কে রিপ্লেস করে।
+আপনি যদি উপরে তালিকাভুক্ত স্টেপগুলো নিয়ে অনিশ্চিত হন, অফিসিয়াল <a href="https://developer.wordpress.org/block-editor/contributors/">গুটেনবার্গ প্রজেক্ট কন্ট্রিবিউটর গাইড</a> দেখুন। মনে রাখুন এই ক্ষেত্রে, <code>@wp-playground/cli</code> <code>wp-env</code>-কে রিপ্লেস করে।
 
 </div>
 

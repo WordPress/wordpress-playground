@@ -806,7 +806,7 @@ en el navegador para crear, validar y previsualizar Blueprints.
 
 <div class="callout callout-warning">
 
-**Precaución**
+<strong>Precaución</strong>
 
 <!--
 The editor is under development and the embedded Playground sometimes fails to
@@ -880,15 +880,15 @@ Firefox y Edge, presiona `Ctrl + Shift + I` en Windows/Linux o
 
 <div class="callout callout-warning">
 
-**Safari**
+<strong>Safari</strong>
 
 <!--
 If you have not enabled the Develop menu, go to **Safari > Settings... >
 Advanced** and check **Show features for web developers**.
 -->
 
-Si no has activado el menú Develop, ve a **Safari > Settings... > Advanced** y
-marca **Show features for web developers**.
+Si no has activado el menú Develop, ve a <strong>Safari > Settings... > Advanced</strong> y
+marca <strong>Show features for web developers</strong>.
 
 </div>
 
@@ -922,7 +922,7 @@ also includes `debug.log`.
 <div class="callout callout-info">
 
 Cuando descargas tu instancia de Playground como ZIP mediante la opción
-["Download as zip"](/web-instance), el archivo también incluye `debug.log`.
+<a href="/web-instance">"Download as zip"</a>, el archivo también incluye <code>debug.log</code>.
 
 </div>
 
