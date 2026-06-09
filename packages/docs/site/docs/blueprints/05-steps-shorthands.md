@@ -124,9 +124,11 @@ The `shorthand` syntax and the `step` syntax correspond to each other. Every `st
 
 <div class="callout callout-info">
 
-**Which should you choose?**
+<strong>Which should you choose?</strong>
 
-- Use `shorthands` when **brevity** is your main concern.
-- Use explicit `steps` when you need more control over the **execution order**.
+<ul>
+<li>Use <code>shorthands</code> when <strong>brevity</strong> is your main concern.</li>
+<li>Use explicit <code>steps</code> when you need more control over the <strong>execution order</strong>.</li>
 
+</ul>
 </div>

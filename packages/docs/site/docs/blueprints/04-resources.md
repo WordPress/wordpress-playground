@@ -9,17 +9,21 @@ description: A technical reference for "Resource References." Learn how to use e
 
 <div class="callout callout-info">
 
-Blueprint steps such as [`installPlugin`](/blueprints/steps) or [`installTheme`](/blueprints/steps) require a location of the plugin or theme to be installed.
+Blueprint steps such as <a href="/blueprints/steps"><code>installPlugin</code></a> or <a href="/blueprints/steps"><code>installTheme</code></a> require a location of the plugin or theme to be installed.
 
-That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories.
+That location can be defined as <a href="#urlreference">a <code>URL</code> resource</a> of the <code>.zip</code> file containing the theme or plugin. It can also be defined as a <a href="#corepluginreference"><code>wordpress.org/plugins</code></a> or <a href="#corethemereference"><code>wordpress.org/themes</code></a> resource for those plugins/themes published in the official WordPress directories.
 
 </div>
 
 The following resource references are available:
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [URLReference](#urlreference)
+- [GitDirectoryReference](#gitdirectoryreference)
+- [CoreThemeReference](#corethemereference)
+- [CorePluginReference](#corepluginreference)
+- [VFSReference](#vfsreference)
+- [LiteralReference](#literalreference)
+- [BundledReference](#bundledreference)
 
 ### URLReference
 
