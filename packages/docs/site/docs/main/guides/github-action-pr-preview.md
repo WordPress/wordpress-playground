@@ -213,9 +213,9 @@ Or reference a hosted Blueprint:
 
 Choose the Blueprint input based on where the JSON comes from:
 
-- Use `blueprint` when the workflow can include the full JSON string.
-- Use `blueprint-url` when the JSON is already hosted at a public URL.
-- Use `blueprint-from-artifact` when the build workflow generates `blueprint.json` dynamically.
+- Use `blueprint` when the direct action or publish workflow can include the full JSON string.
+- Use `blueprint-url` with the direct action when the JSON is already hosted at a public URL.
+- Use `blueprint-from-build` in `preview-build.yml` together with `blueprint-from-artifact: true` in `preview-publish.yml` when the build workflow generates `blueprint.json` dynamically.
 
 See [Blueprints documentation](/blueprints) for all available steps and configuration options.
 
