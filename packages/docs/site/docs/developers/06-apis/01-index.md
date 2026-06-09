@@ -7,9 +7,15 @@ slug: /developers/apis/
 
 WordPress Playground exposes a few APIs that you can use to interact with the Playground:
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [WordPress Playground APIs overview](#wordpress-playground-apis-overview)
+    - [Query API](#query-api)
+    - [Blueprints](#blueprints)
+    - [Sites API](#sites-api)
+    - [JavaScript API](#javascript-api)
+- [Playground APIs Concepts](#playground-apis-concepts)
+    - [Link to the Playground site](#link-to-the-playground-site)
+    - [Browser APIs](#browser-apis)
+    - [In Node.js](#in-nodejs)
 
 ### Query API
 
@@ -29,7 +35,7 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 
 <div class="callout callout-info">
 
-Check the [Query API](/developers/apis/query-api) section for more info.
+Check the <a href="/developers/apis/query-api">Query API</a> section for more info.
 
 </div>
 
@@ -89,7 +95,7 @@ wp_insert_post(array(
 
 <div class="callout callout-info">
 
-Blueprints play a significant role in WordPress Playground, so they have their own dedicated documentation hub. Learn more about JSON Blueprints at the [Blueprints Docs Hub](/blueprints).
+Blueprints play a significant role in WordPress Playground, so they have their own dedicated documentation hub. Learn more about JSON Blueprints at the <a href="/blueprints">Blueprints Docs Hub</a>.
 
 </div>
 
@@ -105,7 +111,7 @@ const client = playgroundSites.getClient();
 
 <div class="callout callout-info">
 
-Check the [Sites API](/developers/apis/sites-api) section for more info.
+Check the <a href="/developers/apis/sites-api">Sites API</a> section for more info.
 
 </div>
 
@@ -130,7 +136,7 @@ The `@wp-playground/client` package provides a JavaScript API you can use to ful
 
 <div class="callout callout-info">
 
-Check the [JavaScript API](/developers/apis/javascript-api/) section for more info.
+Check the <a href="/developers/apis/javascript-api/">JavaScript API</a> section for more info.
 
 </div>
 
@@ -163,11 +169,11 @@ The JavaScript API gives you the most control, but it is also the least convenie
 
 <div class="callout callout-warning">
 
-**Careful with the demo site**
+<strong>Careful with the demo site</strong>
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
 
 </div>
 

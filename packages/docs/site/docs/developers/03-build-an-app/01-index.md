@@ -8,9 +8,14 @@ description: Practical guide to embedding WordPress, installing plugins, preview
 
 WordPress Playground was created as a programmable tool. Below you'll find a few examples of what you can do with it. Each discussed API is described in detail in the [APIs section](/developers/apis/):
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [Embed WordPress on your website](#embed-wordpress-on-your-website)
+- [Control the embedded website](#control-the-embedded-website)
+- [Showcase a plugin or theme from WordPress directory](#showcase-a-plugin-or-theme-from-wordpress-directory)
+- [Showcase any plugin or theme](#showcase-any-plugin-or-theme)
+- [Preview pull requests from your repository](#preview-pull-requests-from-your-repository)
+    - [Preview WordPress Core and Gutenberg Branches or PRs](#preview-wordpress-core-and-gutenberg-branches-or-prs)
+- [Build a compatibility testing environment](#build-a-compatibility-testing-environment)
+- [Run PHP code in the browser](#run-php-code-in-the-browser)
 
 ## Embed WordPress on your website
 
@@ -24,11 +29,11 @@ Every visitor will get their own private WordPress instance for free. You can th
 
 <div class="callout callout-warning">
 
-**Careful with the demo site**
+<strong>Careful with the demo site</strong>
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
 
 </div>
 
@@ -117,7 +122,7 @@ In the code above, it will install a plugin from a repository located at the `ur
 
 <div class="callout callout-tip">
 
-You can automate this process using the [GitHub Action to generate preview links](/guides/github-action-pr-preview), which will help streamline the process.
+You can automate this process using the <a href="/guides/github-action-pr-preview">GitHub Action to generate preview links</a>, which will help streamline the process.
 
 </div>
 

@@ -13,9 +13,9 @@ Key Features:
 
 <div class="callout callout-info">
 
-**Documentation**
+<strong>Documentation</strong>
 
-The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
+The VS Code extension is maintained in a different GitHub repository, <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a>. You can find the latest documentation in the <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md">dedicated README file</a>.
 
 </div>
 

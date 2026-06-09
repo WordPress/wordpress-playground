@@ -8,11 +8,11 @@ WordPress Playground comes with a JavaScript API client that grants you full con
 
 <div class="callout callout-info">
 
-**API here doesn't mean "REST API"**
+<strong>API here doesn't mean "REST API"</strong>
 
 WordPress Playground is a browser-based application.
 The term API here refers to a set of functions you can
-call inside JavaScript. This is **not** a network-based REST API.
+call inside JavaScript. This is <strong>not</strong> a network-based REST API.
 
 </div>
 
@@ -42,10 +42,10 @@ Here's the shortest example of how to use the JavaScript API in a HTML page:
 
 <div class="callout callout-info">
 
-**/remote.html is a special URL**
+<strong>/remote.html is a special URL</strong>
 
-`/remote.html` is a special URL that loads the Playground
-API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](/developers/apis/javascript-api/-html-vs-remote-html).
+<code>/remote.html</code> is a special URL that loads the Playground
+API endpoint instead of the demo app with the browser UI. Read more about the difference between <code>/</code> and <code>/remote.html</code> and <a href="/developers/apis/javascript-api/-html-vs-remote-html">on this page</a>.
 
 </div>
 

@@ -104,7 +104,7 @@ This is useful when:
 
 <div class="callout callout-info">
 
-The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
+The <code>--reset</code> flag works only with <code>start</code>. For <code>server</code>, manually delete the persisted site directory at <code>~/.wordpress-playground/sites/&lt;path-hash&gt;/</code>.
 
 </div>
 
@@ -159,7 +159,7 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 
 <div class="callout callout-info">
 
-On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
+On Windows, the path format <code>/host/path:/vfs/path</code> can cause issues. To resolve this, use the flags <code>--mount-dir</code> and <code>--mount-dir-before-install</code>. These flags let you specify host and virtual file system paths in an alternative format: <code>"/host/path"</code> <code>"/vfs/path"</code>.
 
 </div>
 
@@ -356,7 +356,7 @@ for manifest format, compiler helpers, and dependency notes.
 
 <div class="callout callout-warning">
 
-With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
+With the flag <code>--follow-symlinks</code>, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
 
 </div>
 

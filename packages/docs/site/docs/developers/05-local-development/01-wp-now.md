@@ -6,9 +6,9 @@ orphan: true
 
 <div class="callout callout-warning">
 
-**Package deprecated**
+<strong>Package deprecated</strong>
 
-The NPM package @wp-now/wp-now is deprecated and won't receive updates in the future. To use a command-line tool in your developer workflow, use the NPM package `@wp-playground/cli`.
+The NPM package @wp-now/wp-now is deprecated and won't receive updates in the future. To use a command-line tool in your developer workflow, use the NPM package <code>@wp-playground/cli</code>.
 
 </div>
 
