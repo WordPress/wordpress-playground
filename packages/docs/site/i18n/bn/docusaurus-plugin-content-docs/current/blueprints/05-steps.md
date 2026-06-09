@@ -68,7 +68,7 @@ The [WordPress Playground Step Library](https://akirk.github.io/playground-step-
 
 <div class="callout callout-tip">
 
-[ওয়ার্ডপ্রেস প্লেগ্রাউন্ড স্টেপ লাইব্রেরি](https://akirk.github.io/playground-step-library/#) টুলটি ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের জন্য একটি ব্লুপ্রিন্ট তৈরি করতে স্টেপগুলো ড্র্যাগ বা ক্লিক করার একটি ভিজ্যুয়াল ইন্টারফেস প্রদান করে। আপনি [নিজের স্টেপও তৈরি করতে পারেন](https://github.com/akirk/playground-step-library/#contributing)!
+<a href="https://akirk.github.io/playground-step-library/#">ওয়ার্ডপ্রেস প্লেগ্রাউন্ড স্টেপ লাইব্রেরি</a> টুলটি ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের জন্য একটি ব্লুপ্রিন্ট তৈরি করতে স্টেপগুলো ড্র্যাগ বা ক্লিক করার একটি ভিজ্যুয়াল ইন্টারফেস প্রদান করে। আপনি <a href="https://github.com/akirk/playground-step-library/#contributing">নিজের স্টেপও তৈরি করতে পারেন</a>!
 
 </div>
 

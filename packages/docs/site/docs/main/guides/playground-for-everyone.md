@@ -94,7 +94,7 @@ Open multiple browser tabs with different Playground setups. Compare plugin A ve
 
 <div class="callout callout-info">
 
-**Your Real Site Stays Safe**
+<strong>Your Real Site Stays Safe</strong>
 
 Every Playground runs independently in your browser. Nothing syncs to any external server, and nothing affects your live WordPress installation.
 
@@ -134,7 +134,7 @@ Need to move your work elsewhere? Choose **Download as .zip** to export your ent
 
 <div class="callout callout-tip">
 
-**Keep Your Playground Link**
+<strong>Keep Your Playground Link</strong>
 
 When you save to the browser, copy the unique URL it generates. That link is your way back to your saved work.
 

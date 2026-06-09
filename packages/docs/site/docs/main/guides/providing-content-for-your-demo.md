@@ -30,7 +30,7 @@ With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your ow
 
 <div class="callout callout-info">
 
-To include images in your imported content, a good approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
+To include images in your imported content, a good approach is to upload the images to your GitHub repo and search/replace the path for them in the exported <code>.xml</code> file using the URL format: <code>https://raw.githubusercontent.com/&#123;repo&#125;/&#123;branch&#125;/&#123;image_path&#125;</code>.
 
 ```html
 <!-- wp:image {"lightbox":{"enabled":false},"id":4751,"width":"78px","sizeSlug":"full","linkDestination":"none","align":"center","className":"no-border"} -->
@@ -187,7 +187,7 @@ You can also use the [`wp-cli` step](/blueprints/steps#WPCliStep) in combination
 
 <div class="callout callout-tip">
 
-Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to see the full example showing the connection between the content and the featured image.
+Check the <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"Use wp-cli to add a post with image"</a> example from the <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> to see the full example showing the connection between the content and the featured image.
 
 </div>
 

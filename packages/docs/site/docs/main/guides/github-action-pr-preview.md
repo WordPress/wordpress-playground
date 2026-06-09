@@ -18,9 +18,9 @@ Forked pull requests need extra care because GitHub makes `GITHUB_TOKEN` read-on
 
 <div class="callout callout-warning">
 
-**This is a regular GitHub Action, not a reusable workflow**
+<strong>This is a regular GitHub Action, not a reusable workflow</strong>
 
-Reference it as a step inside `jobs.<job_id>.steps:` (i.e. `jobs.<job_id>.steps[*].uses:`) — never as `jobs.<job_id>.uses:` at the job level. The job-level form is valid YAML for reusable workflows, so it is a common mistake (including by AI coding assistants), but it will not work with this action.
+Reference it as a step inside <code>jobs.&lt;job_id&gt;.steps:</code> (i.e. <code>jobs.&lt;job_id&gt;.steps[*].uses:</code>) — never as <code>jobs.&lt;job_id&gt;.uses:</code> at the job level. The job-level form is valid YAML for reusable workflows, so it is a common mistake (including by AI coding assistants), but it will not work with this action.
 
 </div>
 
@@ -91,11 +91,11 @@ on:
 
 <div class="callout callout-warning">
 
-**Security note**
+<strong>Security note</strong>
 
-`pull_request_target` runs in the context of the base repository and can access repository secrets and a write-capable `GITHUB_TOKEN`. Do **not** use it to check out PR code, run files from the PR, install PR dependencies, load a blueprint from the PR branch, or pass PR values into shell commands. Keep permissions as narrow as possible, typically `contents: read` and `pull-requests: write` for this action.
+<code>pull_request_target</code> runs in the context of the base repository and can access repository secrets and a write-capable <code>GITHUB_TOKEN</code>. Do <strong>not</strong> use it to check out PR code, run files from the PR, install PR dependencies, load a blueprint from the PR branch, or pass PR values into shell commands. Keep permissions as narrow as possible, typically <code>contents: read</code> and <code>pull-requests: write</code> for this action.
 
-If you need Composer, npm, tests, or any other step that runs PR code, put that work in a separate `pull_request` workflow and use [`workflow_run`](https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run) to publish the preview after the build completes.
+If you need Composer, npm, tests, or any other step that runs PR code, put that work in a separate <code>pull_request</code> workflow and use <a href="https://docs.github.com/en/actions/writing-workflows/choosing-when-workflows-run/events-that-trigger-workflows#workflow_run"><code>workflow_run</code></a> to publish the preview after the build completes.
 
 </div>
 
@@ -124,9 +124,9 @@ For plugins or themes requiring compilation, the workflow involves building the 
 
 <div class="callout callout-warning">
 
-**First-time setup: publish the draft release**
+<strong>First-time setup: publish the draft release</strong>
 
-The `expose-artifact-on-public-url` action uploads built files to a GitHub release tagged `ci-artifacts` by default. On the first run, GitHub creates this release as a **draft**, which is not publicly fetchable — the preview button will appear but silently 404 when clicked. Go to your repository's Releases page once and either publish the release or mark it as a pre-release. Subsequent runs reuse the same release, so this is only needed once.
+The <code>expose-artifact-on-public-url</code> action uploads built files to a GitHub release tagged <code>ci-artifacts</code> by default. On the first run, GitHub creates this release as a <strong>draft</strong>, which is not publicly fetchable — the preview button will appear but silently 404 when clicked. Go to your repository's Releases page once and either publish the release or mark it as a pre-release. Subsequent runs reuse the same release, so this is only needed once.
 
 </div>
 

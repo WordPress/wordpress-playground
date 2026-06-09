@@ -9,7 +9,7 @@ End-to-end testing verifies that your WordPress plugin or theme works correctly 
 
 <div class="callout callout-info">
 
-This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see [WordPress Playground for Plugin Developers](/guides/for-plugin-developers). For Blueprint configuration details, see [Blueprints Getting Started](/blueprints/getting-started).
+This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see <a href="/guides/for-plugin-developers">WordPress Playground for Plugin Developers</a>. For Blueprint configuration details, see <a href="/blueprints/getting-started">Blueprints Getting Started</a>.
 
 </div>
 
@@ -62,15 +62,15 @@ WordPress Playground needs more time to start than a typical web app. The 120-se
 
 <div class="callout callout-tip">
 
-**Using baseURL with dynamic ports**
+<strong>Using baseURL with dynamic ports</strong>
 
-By default, Playground will sign the port `9400`. If you want to select a different port, pass `port: [NEW_PORT_NUMBER]` in the `runCLI` options to select a different port:
+By default, Playground will sign the port <code>9400</code>. If you want to select a different port, pass <code>port: [NEW_PORT_NUMBER]</code> in the <code>runCLI</code> options to select a different port:
 
 ```typescript
 const cli = await runCLI({ command: 'server', port: 9500, blueprint });
 ```
 
-Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
+Then add <code>baseURL: "http://localhost:9500"</code> to the <code>use</code> section above. Note that <code>testMatch</code> defaults to <code>\*_/_.spec.ts</code> — customize it if your test files use a different naming pattern.
 
 </div>
 
@@ -153,9 +153,9 @@ await page.locator('#submit').click();
 
 <div class="callout callout-tip">
 
-**Generate locators automatically**
+<strong>Generate locators automatically</strong>
 
-Run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and record interactions. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
+Run <code>npx playwright codegen localhost:9400/wp-admin/</code> to open a browser and record interactions. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
 
 </div>
 
@@ -316,7 +316,7 @@ const blueprint = {
 
 <div class="callout callout-tip">
 
-Use the [Playground Step Library](https://akirk.github.io/playground-step-library/) or [Pootle Playground](https://pootleplayground.com/) to prototype your Blueprint configuration visually before adding it to your test code.
+Use the <a href="https://akirk.github.io/playground-step-library/">Playground Step Library</a> or <a href="https://pootleplayground.com/">Pootle Playground</a> to prototype your Blueprint configuration visually before adding it to your test code.
 
 </div>
 
@@ -530,7 +530,7 @@ This workflow installs dependencies, downloads Chromium, runs the tests, and upl
 
 <div class="callout callout-tip">
 
-**Sharding for faster CI**
+<strong>Sharding for faster CI</strong>
 
 Split tests across multiple CI jobs with Playwright's built-in sharding:
 
@@ -546,7 +546,7 @@ Create three parallel jobs in your workflow matrix, each running a different sha
 
 <div class="callout callout-info">
 
-For manual PR testing alongside automated E2E tests, see [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview).
+For manual PR testing alongside automated E2E tests, see <a href="/guides/github-action-pr-preview">Adding PR Preview Buttons with GitHub Actions</a>.
 
 </div>
 
@@ -588,7 +588,7 @@ npx playwright test --ui
 
 <div class="callout callout-tip">
 
-Combine `--debug` with a specific test file to focus your investigation: `npx playwright test tests/e2e/settings.spec.ts --debug`
+Combine <code>--debug</code> with a specific test file to focus your investigation: <code>npx playwright test tests/e2e/settings.spec.ts --debug</code>
 
 </div>
 

@@ -9,7 +9,7 @@ The [Playground CLI](/developers/local-development/wp-playground-cli) includes a
 
 <div class="callout callout-info">
 
-This guide assumes your plugin or theme has PHPUnit installed via Composer (`composer require --dev phpunit/phpunit`). The `vendor/bin/phpunit` path used below assumes a standard Composer setup.
+This guide assumes your plugin or theme has PHPUnit installed via Composer (<code>composer require --dev phpunit/phpunit</code>). The <code>vendor/bin/phpunit</code> path used below assumes a standard Composer setup.
 
 </div>
 

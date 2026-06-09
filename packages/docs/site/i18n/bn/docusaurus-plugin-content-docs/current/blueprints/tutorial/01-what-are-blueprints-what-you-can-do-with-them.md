@@ -117,13 +117,15 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 
 <div class="callout callout-info">
 
-**আরও রিসোর্স**
+<strong>আরও রিসোর্স</strong>
 
 ব্লুপ্রিন্টের (অসীম) সম্ভাবনা সম্পর্কে আরও জানতে এই লিংকগুলি ভিজিট করুন:
 
-- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের ভূমিকা](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
-- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লক](https://wordpress.org/plugins/interactive-code-block/) ব্যবহার করে আপনার ওয়েবসাইটে একটি প্রি-কনফিগার করা ওয়ার্ডপ্রেস সাইট এম্বেড করুন।
-- [ব্লুপ্রিন্টের উদাহরণ](/blueprints/examples)
-- [ব্লুপ্রিন্ট দিয়ে তৈরি ডেমো এবং অ্যাপ](/resources#apps-built-with-wordpress-playground)
+<ul>
+<li><a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের ভূমিকা</a></li>
+<li><a href="https://wordpress.org/plugins/interactive-code-block/">ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লক</a> ব্যবহার করে আপনার ওয়েবসাইটে একটি প্রি-কনফিগার করা ওয়ার্ডপ্রেস সাইট এম্বেড করুন।</li>
+<li><a href="/blueprints/examples">ব্লুপ্রিন্টের উদাহরণ</a></li>
+<li><a href="/resources#apps-built-with-wordpress-playground">ব্লুপ্রিন্ট দিয়ে তৈরি ডেমো এবং অ্যাপ</a></li>
 
+</ul>
 </div>
