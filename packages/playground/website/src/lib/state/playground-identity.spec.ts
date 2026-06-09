@@ -4,6 +4,7 @@ import {
 	getAutosaveFingerprintFromURL,
 	getAutosaveFingerprintFromSite,
 	getRuntimeBootFingerprint,
+	getSetupUrlFromSite,
 	getSetupUrlFromUrl,
 } from './playground-identity';
 
@@ -113,6 +114,33 @@ describe('getSetupUrlFromUrl', () => {
 
 		expect(setupUrl.toString()).toBe(
 			'https://playground.test/?php=8.3&php-extension=https%3A%2F%2Fexample.com%2Fext.json&plugin=a&plugin=b#blueprint'
+		);
+	});
+});
+
+describe('getSetupUrlFromSite', () => {
+	it('uses the stored site setup instead of the current browser route', () => {
+		const site = {
+			slug: 'test-site',
+			originalUrlParams: {
+				searchParams: {
+					plugin: ['a', 'b'],
+					theme: 'twentytwentyfive',
+					php: '8.3',
+					modal: 'site-manager',
+				},
+				hash: '#blueprint',
+			},
+			metadata: {},
+		} as unknown as SiteInfo;
+
+		const setupUrl = getSetupUrlFromSite(
+			site,
+			'https://playground.test/?site-slug=test-site&php=8.4#current'
+		);
+
+		expect(setupUrl.toString()).toBe(
+			'https://playground.test/?plugin=a&plugin=b&theme=twentytwentyfive&php=8.3#blueprint'
 		);
 	});
 });
