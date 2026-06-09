@@ -70,9 +70,11 @@ async function replaceBlueprintEditorContents(
 	page: Page,
 	blueprint: Blueprint
 ) {
+	// Wait for CodeMirror editor to load.
 	const editor = page.locator('[class*="blueprint-editor"] .cm-editor');
 	await editor.waitFor({ timeout: 10000 });
 
+	// Focus the editor and select all existing content before replacing it.
 	await editor.click();
 	await page.waitForTimeout(100);
 	await page.keyboard.press(
@@ -81,10 +83,15 @@ async function replaceBlueprintEditorContents(
 	await page.keyboard.press('Backspace');
 	await page.waitForTimeout(100);
 
+	// Use Playwright's fill method on the contenteditable .cm-content element.
+	// This is more reliable than character-by-character typing which triggers
+	// auto-bracket insertion.
 	const blueprintJson = JSON.stringify(blueprint, null, 2);
 	const cmContent = editor.locator('.cm-content');
 	await cmContent.fill(blueprintJson);
 
+	// Wait for validation to complete (linter has 300ms debounce), then verify
+	// the Blueprint was inserted by checking the editor content.
 	await page.waitForTimeout(500);
 	await expect(cmContent).toContainText('writeFile', {
 		timeout: 5000,

@@ -116,10 +116,14 @@ async function populateFilesystemFromBlueprint(
 async function createFilesystemFromOriginalBlueprint(
 	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
 ): Promise<EventedFilesystem> {
+	// If originalBlueprint is already a filesystem backend (e.g.,
+	// PersistedBlueprintBundle), use it directly instead of populating from
+	// Blueprint JSON.
 	if (isFilesystemBackend(originalBlueprint)) {
 		return new EventedFilesystem(originalBlueprint);
 	}
 
+	// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
 	const fs = new EventedFilesystem(new InMemoryFilesystemBackend());
 	if (originalBlueprint) {
 		await populateFilesystemFromBlueprint(
@@ -211,6 +215,9 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	useEffect(() => {
 		const bootstrap = async () => {
 			if (isAutosaved) {
+				// Autosaved Playgrounds are editable. Start from their current
+				// Blueprint, which may be either an OPFS bundle backend or a
+				// declaration-only Blueprint.
 				const fs = await createFilesystemFromOriginalBlueprint(
 					site.metadata.originalBlueprint
 				);
@@ -219,6 +226,8 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 					return;
 				}
 
+				// Declaration-only Blueprints need a persisted bundle before editing
+				// so bundled files have a stable OPFS home beside WordPress files.
 				await persistBlueprintBundle(site.slug, fs.backend);
 				const opfsFilesystem = new EventedFilesystem(
 					await loadPersistedBlueprintBundle(site.slug)
