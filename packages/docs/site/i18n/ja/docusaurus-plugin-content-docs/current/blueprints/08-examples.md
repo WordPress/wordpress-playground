@@ -14,7 +14,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-[Blueprints ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) をチェックして、WordPress Playground を使用してさまざまな設定で WordPress サイトを起動する実際のコード例を確認してください。
+<a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints ギャラリー</a> をチェックして、WordPress Playground を使用してさまざまな設定で WordPress サイトを起動する実際のコード例を確認してください。
 
 </div>
 

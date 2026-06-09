@@ -186,6 +186,6 @@ If you need certain availability, you should [host your own WordPress Playground
 
 https://playground.wordpress.net પરની સાઇટ સમુદાયને સમર્થન આપવા માટે છે, પરંતુ ટ્રાફિક નોંધપાત્ર રીતે વધે તો તે કામ કરવાનું ચાલુ રાખશે તેની કોઈ ગેરંટી નથી.
 
-જો તમને ચોક્કસ ઉપલબ્ધતાની જરૂર હોય, તો તમારે [તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરવું](/developers/architecture/host-your-own-playground) જોઈએ.
+જો તમને ચોક્કસ ઉપલબ્ધતાની જરૂર હોય, તો તમારે <a href="/developers/architecture/host-your-own-playground">તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરવું</a> જોઈએ.
 
 </div>

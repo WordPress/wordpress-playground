@@ -18,9 +18,9 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 
 <div class="callout callout-info">
 
-**પ્લેગ્રાઉન્ડ ટૂલ્સમાં યોગદાન આપો**
+<strong>પ્લેગ્રાઉન્ડ ટૂલ્સમાં યોગદાન આપો</strong>
 
-આ માર્ગદર્શિકામાં મુખ્ય ભંડારની લિંક્સ શામેલ છે, પરંતુ બધા પગલાં અને વિકલ્પો બંને માટે લાગુ પડે છે. જો તમને પ્લગઇન્સ અથવા [local development](/developers/local-development/) ટૂલ્સમાં રસ હોય તો - ત્યાંથી શરૂઆત કરો.
+આ માર્ગદર્શિકામાં મુખ્ય ભંડારની લિંક્સ શામેલ છે, પરંતુ બધા પગલાં અને વિકલ્પો બંને માટે લાગુ પડે છે. જો તમને પ્લગઇન્સ અથવા <a href="/developers/local-development/">local development</a> ટૂલ્સમાં રસ હોય તો - ત્યાંથી શરૂઆત કરો.
 
 </div>
 
@@ -103,7 +103,7 @@ When your'e ready, commit the changes and submit a Pull Request.
 
 <div class="callout callout-info">
 
-**ફોર્મેટિંગ**
+<strong>ફોર્મેટિંગ</strong>
 
 અમે કોડ ફોર્મેટિંગ અને લિન્ટિંગ આપમેળે હેન્ડલ કરીએ છીએ. આરામ કરો, ટાઇપ કરો અને મશીનોને કામ કરવા દો.
 

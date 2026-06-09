@@ -55,7 +55,7 @@ The following step-related topics are addressed on dedicated pages included in t
 
 <div class="callout callout-tip">
 
-[WordPress Playground ステップライブラリ](https://akirk.github.io/playground-step-library/#) ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。[独自のステップを作成](https://github.com/akirk/playground-step-library/#contributing) することも可能です!
+<a href="https://akirk.github.io/playground-step-library/#">WordPress Playground ステップライブラリ</a> ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。<a href="https://github.com/akirk/playground-step-library/#contributing">独自のステップを作成</a> することも可能です!
 
 </div>
 

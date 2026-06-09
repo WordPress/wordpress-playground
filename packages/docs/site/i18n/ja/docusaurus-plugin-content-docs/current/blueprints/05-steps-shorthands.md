@@ -175,11 +175,13 @@ The `shorthand` syntax and the `step` syntax correspond to each other. Every `st
 
 <div class="callout callout-info">
 
-**どちらを選ぶべきですか？**
+<strong>どちらを選ぶべきですか？</strong>
 
-- **簡潔さ** を重視する場合は、`shorthands` を使用します。
-- **実行順序** をより細かく制御する必要がある場合は、明示的な `steps` を使用します。
+<ul>
+<li><strong>簡潔さ</strong> を重視する場合は、<code>shorthands</code> を使用します。</li>
+<li><strong>実行順序</strong> をより細かく制御する必要がある場合は、明示的な <code>steps</code> を使用します。</li>
 
+</ul>
 </div>
 
 <!--

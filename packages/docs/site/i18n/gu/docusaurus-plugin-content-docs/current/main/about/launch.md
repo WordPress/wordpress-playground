@@ -76,7 +76,7 @@ With this block you have a straightforward and effective way to create live Word
 
 <div class="callout callout-info">
 
-વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લોક વિશે કોઈપણ સમસ્યાઓ અથવા પ્રશ્નો માટે [પ્લેગ્રાઉન્ડ-ટૂલ](https://github.com/WordPress/playground-tools) કૃપા કરીને રીપોઝીટરીમાં GitHub સમસ્યા ખોલો.
+વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લોક વિશે કોઈપણ સમસ્યાઓ અથવા પ્રશ્નો માટે <a href="https://github.com/WordPress/playground-tools">પ્લેગ્રાઉન્ડ-ટૂલ</a> કૃપા કરીને રીપોઝીટરીમાં GitHub સમસ્યા ખોલો.
 
 </div>
 

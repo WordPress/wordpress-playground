@@ -43,7 +43,7 @@ You can use an in-browser [Blueprints editor](https://playground.wordpress.net/b
 
 <div class="callout callout-warning">
 
-**注意**
+<strong>注意</strong>
 
 エディタは現在開発中であり、埋め込まれたプレイグラウンドの読み込みに失敗する場合があります。回避するには、ページを更新してください。この問題は認識しており、改善に取り組んでいます。
 
@@ -79,7 +79,7 @@ To check the final internal filesystem structure and database (after the bluepri
 
 <div class="callout callout-tip">
 
-WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは `window.playground` オブジェクトの一部として公開されています（[開発者 &gt; JavaScript API &gt; デバッグとテスト](/developers/apis/javascript-api/#debugging-and-testing) を参照）。いくつか例を挙げます。
+WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは <code>window.playground</code> オブジェクトの一部として公開されています（<a href="/developers/apis/javascript-api/#debugging-and-testing">開発者 &gt; JavaScript API &gt; デバッグとテスト</a> を参照）。いくつか例を挙げます。
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -88,7 +88,7 @@ true
 (3) ['hello.php', 'index.php', 'WordPress-Importer-master']
 ```
 
-使用できるメソッドの完全なリストは[こちら](/api/client/interface/PlaygroundClient)で確認できます。
+使用できるメソッドの完全なリストは<a href="/api/client/interface/PlaygroundClient">こちら</a>で確認できます。
 
 </div>
 
@@ -129,7 +129,7 @@ To open the developer tools in Chrome, Firefox, Safari\*, and Edge: press `Ctrl 
 
 <div class="callout callout-warning">
 
-まだ有効にしていない場合は、開発メニューを有効にします。**Safari > 設定... > 詳細** に移動し、**Web 開発者向けの機能を表示** をオンにします。
+まだ有効にしていない場合は、開発メニューを有効にします。<strong>Safari > 設定... > 詳細</strong> に移動し、<strong>Web 開発者向けの機能を表示</strong> をオンにします。
 
 </div>
 
@@ -163,7 +163,7 @@ You can `error_log` your own error messages through [`runPHP` step](/blueprints/
 
 <div class="callout callout-info">
 
-[「zip としてダウンロード」オプション](/web-instance#playground-options-menu) を使用して Playground インスタンスを `zip` としてダウンロードすると、Playground インスタンスからのすべてのログを含む `debug.log` ファイルもダウンロードされます。
+<a href="/web-instance#playground-options-menu">「zip としてダウンロード」オプション</a> を使用して Playground インスタンスを <code>zip</code> としてダウンロードすると、Playground インスタンスからのすべてのログを含む <code>debug.log</code> ファイルもダウンロードされます。
 
 </div>
 

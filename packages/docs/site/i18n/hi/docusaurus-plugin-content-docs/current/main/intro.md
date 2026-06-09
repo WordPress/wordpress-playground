@@ -13,7 +13,7 @@ description: WordPress Playground डॉक्स में आपका स्�
 
 <div class="callout callout-info">
 
-**क्या आप आधिकारिक Playground वेबसाइट ढूंढ रहे हैं?**
+<strong>क्या आप आधिकारिक Playground वेबसाइट ढूंढ रहे हैं?</strong>
 
 <!--
 <div class="callout callout-info">
@@ -25,7 +25,7 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 </div>
 -->
 
-WordPress Playground वेबसाइट अब [wordpress.org/playground/](https://wordpress.org/playground/) पर है। आप जिस साइट पर अभी हैं, वह दस्तावेज़ों के लिए है।
+WordPress Playground वेबसाइट अब <a href="https://wordpress.org/playground/">wordpress.org/playground/</a> पर है। आप जिस साइट पर अभी हैं, वह दस्तावेज़ों के लिए है।
 
 </div>
 
@@ -112,7 +112,7 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
 -->
 
-[**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) ब्लॉग पोस्ट को [WordPress Developer Blog](https://developer.wordpress.org/news) पर पढ़ें। यह WordPress Playground का बेहतरीन परिचय देता है।
+<a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> ब्लॉग पोस्ट को <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> पर पढ़ें। यह WordPress Playground का बेहतरीन परिचय देता है।
 
 </div>
 

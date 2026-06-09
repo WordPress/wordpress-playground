@@ -35,9 +35,9 @@ Come tutti i progetti WordPress, Playground usa GitHub per gestire il codice e t
 
 <div class="callout callout-info">
 
-**Contribuire a Playground Tools**
+<strong>Contribuire a Playground Tools</strong>
 
-Questa guida include link al repository principale, ma tutti i passaggi e le opzioni si applicano ad entrambi. Se sei interessato ai plugin o agli strumenti di [sviluppo locale](/developers/local-development/)—inizia da lì.
+Questa guida include link al repository principale, ma tutti i passaggi e le opzioni si applicano ad entrambi. Se sei interessato ai plugin o agli strumenti di <a href="/developers/local-development/">sviluppo locale</a>—inizia da lì.
 
 </div>
 
@@ -108,7 +108,7 @@ Quando sei pronto, committa le modifiche e invia una Pull Request.
 
 <div class="callout callout-info">
 
-**Formattazione**
+<strong>Formattazione</strong>
 
 Gestiamo automaticamente la formattazione del codice e il linting. Rilassati, scrivi e lascia che le macchine facciano il lavoro.
 
