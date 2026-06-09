@@ -57,13 +57,15 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 
 <div class="callout callout-info">
 
-**More Resources**
+<strong>More Resources</strong>
 
 Visit these links to learn more about the (endless) possibilities of Blueprints:
 
-- [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
-- Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
-- [Blueprints examples](/blueprints/examples)
-- [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
+<ul>
+<li><a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">Introduction to WordPress Playground</a></li>
+<li>Embed a pre-configured WordPress site in your website using the <a href="https://wordpress.org/plugins/interactive-code-block/">WordPress Playground Block</a>.</li>
+<li><a href="/blueprints/examples">Blueprints examples</a></li>
+<li><a href="/resources#apps-built-with-wordpress-playground">Demos and apps built with Blueprints</a></li>
 
+</ul>
 </div>

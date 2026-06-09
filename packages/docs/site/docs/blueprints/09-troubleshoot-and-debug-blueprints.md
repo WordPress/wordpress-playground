@@ -426,7 +426,7 @@ to build, validate, and preview Blueprints.
 
 <div class="callout callout-warning">
 
-**Caution**
+<strong>Caution</strong>
 
 The editor is under development and the embedded Playground sometimes fails to
 load. To get around it, refresh the page.
@@ -462,10 +462,10 @@ failed network requests. In Chrome, Firefox, and Edge, press
 
 <div class="callout callout-warning">
 
-**Safari**
+<strong>Safari</strong>
 
-If you have not enabled the Develop menu, go to **Safari > Settings... >
-Advanced** and check **Show features for web developers**.
+If you have not enabled the Develop menu, go to <strong>Safari > Settings... >
+Advanced</strong> and check <strong>Show features for web developers</strong>.
 
 </div>
 
@@ -480,8 +480,8 @@ You can write your own messages with `error_log()` in a
 <div class="callout callout-info">
 
 When you download your Playground instance as a ZIP through the
-["Download as zip"](/web-instance) option, the archive
-also includes `debug.log`.
+<a href="/web-instance">"Download as zip"</a> option, the archive
+also includes <code>debug.log</code>.
 
 </div>
 

@@ -27,9 +27,9 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 <div class="callout callout-tip">
 
-**Autocomplete**
+<strong>Autocomplete</strong>
 
-If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
+If you use an IDE, like VS Code or PHPStorm, you can use the <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> for an autocompleted Blueprint development experience. Add the following line at the top of your <code>blueprint.json</code> file:
 
 ```json
 {
@@ -133,7 +133,7 @@ In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.
 
 <div class="callout callout-info">
 
-Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
+Learn more about the supported resources in the <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
 
 </div>
 
