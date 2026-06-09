@@ -129,7 +129,7 @@ browser and Blueprint viewer.
 			"zipFile": {
 				"resource": "url",
 
-				"url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=html-api-2026-06-08",
+				"url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=wp-php-toolkit-html-2026-06-09",
 				"caption": "Downloading the bundled Symfony demo"
 			},
 			"extractToPath": "/wordpress",
