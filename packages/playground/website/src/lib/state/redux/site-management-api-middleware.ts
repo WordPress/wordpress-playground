@@ -549,8 +549,9 @@ export function createSitesAPI(
 		/**
 		 * Creates a new temporary site and boots it.
 		 *
-		 * @param siteSlug Optional slug hint. A random name is
-		 *   generated when omitted.
+		 * @param requestedSiteSlug Optional slug hint. When omitted, the
+		 *   Blueprint title becomes the site name if available; otherwise a
+		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @returns The new site's slug.
 		 */
@@ -576,8 +577,9 @@ export function createSitesAPI(
 		 * autosave. First boot creates the WordPress files from the setup URL,
 		 * then stores that initialized filesystem in OPFS for later boots.
 		 *
-		 * @param requestedSiteSlug Optional slug hint. A random name is
-		 *   generated when omitted.
+		 * @param requestedSiteSlug Optional slug hint. When omitted, the
+		 *   Blueprint title becomes the site name if available; otherwise a
+		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @param options Optional persistence, routing, and pruning behavior.
 		 * @returns The new site's slug.
