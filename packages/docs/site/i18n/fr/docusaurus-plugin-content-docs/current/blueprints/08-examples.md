@@ -13,7 +13,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-Consultez la [Galerie de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) pour découvrir des exemples de code réels utilisant WordPress Playground pour lancer un site WordPress avec une variété de configurations.
+Consultez la <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galerie de Blueprints</a> pour découvrir des exemples de code réels utilisant WordPress Playground pour lancer un site WordPress avec une variété de configurations.
 
 <!-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
 
@@ -393,13 +393,13 @@ Ce lot de Blueprint serait un fichier zip contenant les fichiers suivants :
 <!-- This Blueprint bundle would be zip file containing the following files: -->
 
 - `/blueprint.json` - La déclaration du blueprint décrite ci-dessus
-    <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
+  <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
 - `/my-theme.zip` - Un paquet de thème
-    <!-- - `/my-theme.zip` - A theme package -->
+  <!-- - `/my-theme.zip` - A theme package -->
 - `/my-plugin.zip` - Un paquet d’extension
-    <!-- - `/my-plugin.zip` - A plugin package -->
+  <!-- - `/my-plugin.zip` - A plugin package -->
 - `/assets/custom-page.html` - Un fichier HTML personnalisé
-    <!-- - `/assets/custom-page.html` - A custom HTML file -->
+  <!-- - `/assets/custom-page.html` - A custom HTML file -->
 
 Vous pouvez utiliser ce lot Blueprint en :
 
@@ -418,7 +418,7 @@ Pour plus d’informations sur les lots de Blueprint, consultez la documentation
 
 <div class="callout callout-info">
 
-Traduction automatisée, relecture et corrections par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
+Traduction automatisée, relecture et corrections par <a href="https://profiles.wordpress.org/beryldlg/">@beryldlg</a>
 
 Dernière mise à jour le 21 janvier 2026
 

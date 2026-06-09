@@ -186,6 +186,6 @@ If you need certain availability, you should [host your own WordPress Playground
 
 El sitio en https://playground.wordpress.net está ahí para apoyar a la comunidad, pero no hay garantías de que continúe funcionando si el tráfico crece significativamente.
 
-Si necesitas cierta disponibilidad, deberías [alojar tu propio WordPress Playground](/developers/architecture/host-your-own-playground).
+Si necesitas cierta disponibilidad, deberías <a href="/developers/architecture/host-your-own-playground">alojar tu propio WordPress Playground</a>.
 
 </div>

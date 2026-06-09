@@ -26,7 +26,7 @@ For a detailed guide on the contribution workflow (forking, creating PRs, etc.),
 
 <div class="callout callout-info">
 
-Para una guía detallada sobre el flujo de trabajo de contribución (hacer fork, crear PRs, etc.), consulta nuestra [guía de contribución a la documentación](/contributing/documentation#how-can-i-contribute)
+Para una guía detallada sobre el flujo de trabajo de contribución (hacer fork, crear PRs, etc.), consulta nuestra <a href="/contributing/documentation#how-can-i-contribute">guía de contribución a la documentación</a>
 
 </div>
 
@@ -52,7 +52,7 @@ To learn more about how Docusaurus manages translations, see the [Internationali
 
 <div class="callout callout-info">
 
-Para aprender más sobre cómo Docusaurus gestiona las traducciones, consulta la [sección de Internacionalización](https://docusaurus.io/docs/i18n/introduction) de la documentación oficial de Docusaurus.
+Para aprender más sobre cómo Docusaurus gestiona las traducciones, consulta la <a href="https://docusaurus.io/docs/i18n/introduction">sección de Internacionalización</a> de la documentación oficial de Docusaurus.
 
 </div>
 

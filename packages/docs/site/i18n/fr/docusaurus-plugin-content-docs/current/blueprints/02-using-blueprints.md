@@ -71,7 +71,7 @@ Example:
 <div class="callout callout-tip">
 
 En JavaScript, vous pouvez obtenir une version compacte de n’importe quel JSON
-de Blueprint avec [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) et [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
+de Blueprint avec <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify"><code>JSON.stringify</code></a> et <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"><code>JSON.parse</code></a>
 Exemple :
 
 ```js
@@ -175,8 +175,8 @@ In JavaScript, You can get any blueprint JSON in [Base64 format](https://develop
 <div class="callout callout-tip">
 
 En JavaScript, vous pouvez obtenir n’importe quel JSON de Blueprint au
-[format Base64](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support)
-avec la fonction globale `btoa()`.
+<a href="https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support">format Base64</a>
+avec la fonction globale <code>btoa()</code>.
 
 <!-- Example: -->
 

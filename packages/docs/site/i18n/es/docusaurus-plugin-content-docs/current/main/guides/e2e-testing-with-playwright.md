@@ -21,7 +21,7 @@ This guide assumes familiarity with WordPress plugin or theme development. For a
 
 <div class="callout callout-info">
 
-Esta guía asume familiaridad con el desarrollo de plugins o temas WordPress. Para una introducción al uso de Playground en tu flujo de desarrollo, consulta [WordPress Playground para desarrolladores de plugins](/guides/for-plugin-developers). Para detalles de configuración de Blueprint, consulta [Introducción a Blueprints](/blueprints/getting-started).
+Esta guía asume familiaridad con el desarrollo de plugins o temas WordPress. Para una introducción al uso de Playground en tu flujo de desarrollo, consulta <a href="/guides/for-plugin-developers">WordPress Playground para desarrolladores de plugins</a>. Para detalles de configuración de Blueprint, consulta <a href="/blueprints/getting-started">Introducción a Blueprints</a>.
 
 </div>
 
@@ -118,15 +118,15 @@ Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note tha
 
 <div class="callout callout-tip">
 
-**Usar baseURL con puertos dinámicos**
+<strong>Usar baseURL con puertos dinámicos</strong>
 
-Por defecto, Playground usará el puerto `9400`. Si quieres seleccionar un puerto diferente, pasa `port: [NUEVO_NÚMERO_DE_PUERTO]` en las opciones de `runCLI` para seleccionar un puerto diferente:
+Por defecto, Playground usará el puerto <code>9400</code>. Si quieres seleccionar un puerto diferente, pasa <code>port: [NUEVO_NÚMERO_DE_PUERTO]</code> en las opciones de <code>runCLI</code> para seleccionar un puerto diferente:
 
 ```typescript
 const cli = await runCLI({ command: 'server', port: 9500, blueprint });
 ```
 
-Luego añade `baseURL: "http://localhost:9500"` a la sección `use` anterior. Nota que `testMatch` tiene por defecto `**/*.spec.ts` — personalízalo si tus archivos de prueba usan un patrón de nombres diferente.
+Luego añade <code>baseURL: "http://localhost:9500"</code> a la sección <code>use</code> anterior. Nota que <code>testMatch</code> tiene por defecto <code>\*_/_.spec.ts</code> — personalízalo si tus archivos de prueba usan un patrón de nombres diferente.
 
 </div>
 
@@ -280,9 +280,9 @@ Run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and reco
 
 <div class="callout callout-tip">
 
-**Generar localizadores automáticamente**
+<strong>Generar localizadores automáticamente</strong>
 
-Ejecuta `npx playwright codegen localhost:9400/wp-admin/` para abrir un navegador y grabar interacciones. Playwright genera código de localizador mientras haces clic, ayudándote a descubrir qué localizadores semánticos funcionan para cada elemento.
+Ejecuta <code>npx playwright codegen localhost:9400/wp-admin/</code> para abrir un navegador y grabar interacciones. Playwright genera código de localizador mientras haces clic, ayudándote a descubrir qué localizadores semánticos funcionan para cada elemento.
 
 </div>
 
@@ -509,7 +509,7 @@ Use the [Playground Step Library](https://akirk.github.io/playground-step-librar
 
 <div class="callout callout-tip">
 
-Usa la [Playground Step Library](https://akirk.github.io/playground-step-library/) o [Pootle Playground](https://pootleplayground.com/) para prototipar tu configuración de Blueprint visualmente antes de añadirla a tu código de prueba.
+Usa la <a href="https://akirk.github.io/playground-step-library/">Playground Step Library</a> o <a href="https://pootleplayground.com/">Pootle Playground</a> para prototipar tu configuración de Blueprint visualmente antes de añadirla a tu código de prueba.
 
 </div>
 
@@ -786,7 +786,7 @@ Este workflow instala dependencias, descarga Chromium, ejecuta las pruebas y sub
 
 <div class="callout callout-tip">
 
-**Fragmentación para CI más rápido**
+<strong>Fragmentación para CI más rápido</strong>
 
 Divide las pruebas en múltiples jobs de CI con la fragmentación incorporada de Playwright:
 
@@ -810,7 +810,7 @@ For manual PR testing alongside automated E2E tests, see [Adding PR Preview Butt
 
 <div class="callout callout-info">
 
-Para pruebas manuales de PR junto con pruebas E2E automatizadas, consulta [Añadir botones de vista previa de PR con GitHub Actions](/guides/github-action-pr-preview).
+Para pruebas manuales de PR junto con pruebas E2E automatizadas, consulta <a href="/guides/github-action-pr-preview">Añadir botones de vista previa de PR con GitHub Actions</a>.
 
 </div>
 
@@ -907,7 +907,7 @@ Combine `--debug` with a specific test file to focus your investigation: `npx pl
 
 <div class="callout callout-tip">
 
-Combina `--debug` con un archivo de prueba específico para centrar tu investigación: `npx playwright test tests/e2e/settings.spec.ts --debug`
+Combina <code>--debug</code> con un archivo de prueba específico para centrar tu investigación: <code>npx playwright test tests/e2e/settings.spec.ts --debug</code>
 
 </div>
 

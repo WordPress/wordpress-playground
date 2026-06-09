@@ -23,9 +23,9 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 
 <div class="callout callout-info">
 
-**¿Buscas el sitio web oficial de Playground?**
+<strong>¿Buscas el sitio web oficial de Playground?</strong>
 
-El sitio web de WordPress Playground se trasladó a [wordpress.org/playground/](https://wordpress.org/playground/). El sitio en el que te encuentras ahora alberga la documentación.
+El sitio web de WordPress Playground se trasladó a <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. El sitio en el que te encuentras ahora alberga la documentación.
 
 </div>
 
@@ -131,7 +131,7 @@ Read [**Introduction to Playground: running WordPress in the browser**](https://
 
 <div class="callout callout-tip">
 
-Lee la publicación del blog [**Introducción a Playground: ejecutando WordPress en el navegador**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) en el [Blog de Desarrolladores de WordPress](https://developer.wordpress.org/news) para una excelente introducción a WordPress Playground
+Lee la publicación del blog <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introducción a Playground: ejecutando WordPress en el navegador</strong></a> en el <a href="https://developer.wordpress.org/news">Blog de Desarrolladores de WordPress</a> para una excelente introducción a WordPress Playground
 
 </div>
 

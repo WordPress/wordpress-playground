@@ -221,7 +221,7 @@ If you're unsure about the steps listed above, visit the official <a href="https
 
 <div class="callout callout-info">
 
-Si no estás seguro de los pasos anteriores, visita la <a href="https://developer.wordpress.org/block-editor/contributors/">guía oficial para colaboradores del proyecto Gutenberg</a>. Ten en cuenta que, en este caso, `@wp-playground/cli` sustituye a `wp-env`.
+Si no estás seguro de los pasos anteriores, visita la <a href="https://developer.wordpress.org/block-editor/contributors/">guía oficial para colaboradores del proyecto Gutenberg</a>. Ten en cuenta que, en este caso, <code>@wp-playground/cli</code> sustituye a <code>wp-env</code>.
 
 </div>
 

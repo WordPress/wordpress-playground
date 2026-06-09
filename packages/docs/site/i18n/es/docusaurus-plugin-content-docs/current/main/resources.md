@@ -32,12 +32,12 @@ There's a set of redirections in place to make it easier the access to some of t
 Hay un conjunto de redirecciones disponibles para facilitar el acceso a algunas de las herramientas relacionadas con Playground:
 
 <ul id="list-resources-redirections">
-<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Instancia de Playground</li>
-<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Documentación de Playground</li>
-<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Constructor de Blueprints de Playground</li>
-<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Visor de PR de Playground para WordPress</li>
-<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Visor de PR de Playground para Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Servicio Proxy de Playground <em>(ver [URLReference](/blueprints/steps/resources#urlreference) para más información)</em></li>
+<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Instancia de Playground</li>
+<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Documentación de Playground</li>
+<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Constructor de Blueprints de Playground</li>
+<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Visor de PR de Playground para WordPress</li>
+<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Visor de PR de Playground para Gutenberg</li>
+<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Servicio Proxy de Playground <em>(ver <a href="/blueprints/steps/resources#urlreference">URLReference</a> para más información)</em></li>
 </ul>
 
 </div>

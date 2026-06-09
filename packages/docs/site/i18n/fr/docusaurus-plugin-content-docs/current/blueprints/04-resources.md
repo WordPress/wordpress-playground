@@ -18,16 +18,16 @@ dans les Blueprints.
 
 <!-- Blueprint steps such as [`installPlugin`](/blueprints/steps) or [`installTheme`](/blueprints/steps) require a location of the plugin or theme to be installed. -->
 
-Les étapes de Blueprint comme [`installPlugin`](/blueprints/steps) ou
-[`installTheme`](/blueprints/steps) nécessitent l’emplacement de l’extension ou
+Les étapes de Blueprint comme <a href="/blueprints/steps"><code>installPlugin</code></a> ou
+<a href="/blueprints/steps"><code>installTheme</code></a> nécessitent l’emplacement de l’extension ou
 du thème à installer.
 
 <!-- That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories. -->
 
-Cet emplacement peut être défini comme une ressource [`URL`](#urlreference) du
-fichier `.zip` contenant le thème ou l’extension. Il peut aussi être défini
-comme une ressource [`wordpress.org/plugins`](#corepluginreference) ou
-[`wordpress.org/themes`](#corethemereference) pour les extensions/thèmes publiés
+Cet emplacement peut être défini comme une ressource <a href="#urlreference"><code>URL</code></a> du
+fichier <code>.zip</code> contenant le thème ou l’extension. Il peut aussi être défini
+comme une ressource <a href="#corepluginreference"><code>wordpress.org/plugins</code></a> ou
+<a href="#corethemereference"><code>wordpress.org/themes</code></a> pour les extensions/thèmes publiés
 dans les répertoires officiels WordPress.
 
 </div>
@@ -36,9 +36,13 @@ dans les répertoires officiels WordPress.
 
 Les références de ressources suivantes sont disponibles :
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [URLReference](#urlreference)
+- [GitDirectoryReference](#gitdirectoryreference)
+- [CoreThemeReference](#corethemereference)
+- [CorePluginReference](#corepluginreference)
+- [VFSReference](#vfsreference)
+- [LiteralReference](#literalreference)
+- [BundledReference](#bundledreference)
 
 <!-- ### URLReference -->
 

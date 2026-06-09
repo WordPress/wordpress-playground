@@ -26,7 +26,7 @@ This guide includes links to the main repository, but all the steps and options 
 
 <div class="callout callout-info">
 
-**Contribuye a las herramientas de Playground**
+<strong>Contribuye a las herramientas de Playground</strong>
 
 Esta guía incluye enlaces al repositorio principal, pero todos los pasos y opciones se aplican a ambos. Si estás interesado en los plugins o en las herramientas de desarrollo local, empieza por ahí.
 
@@ -111,7 +111,7 @@ We handle code formatting and linting automatically. Relax, type away, and let t
 
 <div class="callout callout-info">
 
-**Formato**
+<strong>Formato</strong>
 
 Nos encargamos del formato del código y del linting automáticamente. Relájate, escribe y deja que las máquinas hagan el trabajo.
 

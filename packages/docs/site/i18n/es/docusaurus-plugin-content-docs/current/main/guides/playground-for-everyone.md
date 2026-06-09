@@ -242,7 +242,7 @@ Every Playground runs independently in your browser. Nothing syncs to any extern
 
 <div class="callout callout-info">
 
-**Tu Sitio Real Permanece Seguro**
+<strong>Tu Sitio Real Permanece Seguro</strong>
 
 Cada Playground se ejecuta independientemente en tu navegador. Nada se sincroniza con ningún servidor externo, y nada afecta a tu instalación de WordPress en vivo.
 
@@ -346,7 +346,7 @@ When you save to the browser, copy the unique URL it generates. That link is you
 
 <div class="callout callout-tip">
 
-**Guarda Tu Enlace de Playground**
+<strong>Guarda Tu Enlace de Playground</strong>
 
 Cuando guardes en el navegador, copia la URL única que genera. Ese enlace es tu camino de vuelta a tu trabajo guardado.
 
