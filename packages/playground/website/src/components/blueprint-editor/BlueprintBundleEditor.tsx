@@ -412,7 +412,7 @@ export const BlueprintBundleEditor = forwardRef<
 							...site.metadata,
 							originalBlueprintSource: isAutosaved
 								? { type: 'opfs-site' }
-								: { type: 'last-autosave' },
+								: { type: 'none' },
 							originalBlueprint: isAutosaved
 								? (filesystem as EventedFilesystem).backend
 								: bundle,

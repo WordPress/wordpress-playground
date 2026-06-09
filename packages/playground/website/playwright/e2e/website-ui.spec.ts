@@ -842,17 +842,24 @@ test.describe('Default Playground storage', () => {
 			],
 		});
 
-		await website.page
-			.getByRole('button', {
-				name: 'Run Blueprint and reset site',
-			})
-			.click();
-		await website.waitForNestedIframes();
-
-		await expect(wordpress.locator('body')).toContainText(
-			'Autosaved Blueprint test',
-			{ timeout: 10000 }
-		);
+		const runBlueprintButton = website.page.getByRole('button', {
+			name: 'Run Blueprint and reset site',
+		});
+		// Recreate failures are shown inline and leave the Run button available,
+		// so retry the action instead of waiting on an unchanged iframe.
+		await expect(async () => {
+			await runBlueprintButton.click();
+			await expect(
+				website.page.getByText(
+					'Could not recreate Playground. Try again.'
+				)
+			).toHaveCount(0, { timeout: 5000 });
+			await website.waitForNestedIframes();
+			await expect(wordpress.locator('body')).toContainText(
+				'Autosaved Blueprint test',
+				{ timeout: 30000 }
+			);
+		}).toPass({ timeout: 180000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,
@@ -927,11 +934,15 @@ test.describe('Default Playground storage', () => {
 			(version) => version !== currentPhpVersion
 		)!;
 		await phpSelect.selectOption(nextPhpVersion);
-		await website.page
-			.getByRole('button', {
-				name: 'Apply Settings & Recreate Playground',
-			})
-			.click();
+		const applySettingsButton = website.page.getByRole('button', {
+			name: 'Apply Settings & Recreate Playground',
+		});
+		// The settings popover should close when recreation starts. If the click
+		// is lost, retry the user action before asserting on the new setup URL.
+		await expect(async () => {
+			await applySettingsButton.click();
+			await expect(applySettingsButton).toBeHidden({ timeout: 10000 });
+		}).toPass({ timeout: 120000 });
 
 		await expect
 			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
