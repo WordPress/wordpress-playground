@@ -1,12 +1,15 @@
 # WordPress Playground CLI
 
-`@wp-playground/cli` streamlines the process of setting up a local WordPress environment for development and testing. It utilizes WordPress Playground to set up a new WordPress environment seamlessly. As with its predecessor `wp-now`, you can switch between PHP and WordPress versions only with a flag.
+`@wp-playground/cli` runs WordPress locally with WordPress Playground. It is
+the recommended replacement for the deprecated `@wp-now/wp-now` package: no
+Docker, MySQL, or Apache are required.
 
 # Table of contents
 
 - [Requirements](#requirements)
 - [Quickstart](#quickstart)
 - [Usage](#usage)
+- [Migrating from wp-now](#migrating-from-wp-now)
 - [Working with Blueprints](#working-with-blueprints)
 - [Contributing](#contributing)
 
@@ -16,45 +19,70 @@ The Playground CLI requires Node.js 20.18 or higher, which is the recommended Lo
 
 ## Quickstart
 
-Running the Playground CLI is as simple as going to your plugin or theme directory and running the following command:
+For most local development workflows, use the `start` command:
 
 ```bash
 cd my-plugin-or-theme-directory
-npx @wp-playground/cli server --auto-mount
+npx @wp-playground/cli@latest start
 ```
 
-The flag `--auto-mount` will figure out if the project folder is a plugin or a theme for you. For more advanced mounting options, see the [Mounting Local Directories](#mounting-local-directories) section.
+`start` automatically detects whether the current directory is a plugin, theme,
+`wp-content` directory, or WordPress installation. It also persists the site
+between runs and opens the browser by default.
+
+Use `server` when you need explicit, low-level control over mounts, storage, or
+CI setup:
+
+```bash
+npx @wp-playground/cli@latest server --auto-mount
+```
 
 ## Usage
 
 You don't have to install `@wp-playground/cli`, you can run it directly with `npx`. This is the recommended way to use the CLI and requires no permanent installation. To run a vanilla WordPress website, you can run the command:
 
 ```bash
-npx @wp-playground/cli@latest server
+npx @wp-playground/cli@latest start
 ```
-
-> **_NOTE:_** You can also use the `@wp-playground/cli@latest` to load the latest version of playground.
 
 ### Choosing a WordPress Version
 
-By default, the CLI loads the latest stable version of WordPress and PHP 8.0 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
+By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
 ```bash
- npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
+npx @wp-playground/cli@latest start --wp=6.8 --php=8.4
 ```
+
+### `start` and `server`
+
+Playground CLI includes two commands for running WordPress locally:
+
+- **`start`**: Recommended for day-to-day development. It auto-detects the
+  project type, persists the site in `~/.wordpress-playground/sites/<path-hash>/`,
+  enables login, and opens the browser.
+- **`server`**: Advanced mode for explicit mounts, automation, and CI. Unless
+  you mount persistent storage yourself, `server` uses temporary directories
+  that are removed after they become stale.
 
 ### Mounting local Directories
 
 `@wp-playground/cli` operates by mounting your local project files into a virtualized WordPress environment. This allows you to work on your plugin or theme with a live WordPress instance without any complex setup. You can do this automatically or manually.
 
+The easiest option is automatic mounting:
+
+```bash
+cd my-plugin-or-theme-directory
+npx @wp-playground/cli@latest server --auto-mount
+```
+
 For full control, you can manually mount a local directory to a specific path inside the virtual WordPress installation. For example, to mount your current project folder into the plugins directory, use the `--mount` flag:
 
 ```shell
 cd my-plugin-or-theme-directory
-npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/
+npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/my-plugin
 ```
 
-Another helpful flag is `--mount-before-install` allows the users to create a site in a local filesystem instead of in the Virtual File System.
+Another helpful flag is `--mount-before-install`. It lets you mount files before WordPress is installed, which is useful when the mounted directory already contains a WordPress site:
 
 ```shell
 npx @wp-playground/cli@latest server --mount-before-install=./my-local-site:/wordpress
@@ -62,32 +90,77 @@ npx @wp-playground/cli@latest server --mount-before-install=./my-local-site:/wor
 
 ### Automatic Mounting with `--auto-mount`
 
-The `--auto-mount` flag is the easiest way to get started. It inspects the current directory and automatically mounts it to the correct location in the virtual WordPress site. These are the supported directory types and how they are detected:
+The `--auto-mount` flag inspects the selected directory and mounts it to the correct location in the virtual WordPress site. These are the supported directory types and how they are detected:
 
 - **Plugin Mode**: Presence of a PHP file with `Plugin Name:` in its header.
 - **Theme Mode**: Presence of a style.css file with `Theme Name:` in its header.
-- **wp-content Mode**: Presence of plugins and themes subdirectories.
+- **wp-content Mode**: Presence of plugins, themes, mu-plugins, or uploads subdirectories.
 - **WordPress Mode**: Presence of a complete WordPress installation. The directory will be mounted to the root `/wordpress` folder.
+
+## Migrating from wp-now
+
+The deprecated `@wp-now/wp-now` package maps most directly to the `start`
+command:
+
+| wp-now                                                  | Playground CLI                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
+| `npx @wp-now/wp-now start --path=./plugin`              | `cd ./plugin && npx @wp-playground/cli@latest start`               |
+| `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
+| `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
+| `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
+| `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |
+
+The main workflow change is where the saved site lives:
+
+- With `wp-now`, `--path=./plugin` picked the project and the saved site.
+- With Playground CLI, `start` saves the site for the current directory. For
+  the closest match, `cd` into the project first, then run `start`.
+- When Playground CLI creates WordPress for you, it keeps the WordPress files
+  in `~/.wordpress-playground/sites/<path-hash>/`.
+- If you run it on a full WordPress directory, or mount a directory at
+  `/wordpress`, that directory is the WordPress site. Changes are written
+  there.
+- `start --path=./plugin` still mounts that folder, but it does not make
+  `./plugin` the saved site. The saved site still belongs to the directory
+  where you ran the command.
+
+Use `start` for the familiar wp-now-style flow. Use `server` only when you want
+to spell out mounts, storage, or automation yourself.
 
 ## Command and Arguments
 
 Playground CLI is simple, configurable, and unopinionated. You can set it up according
 to your unique WordPress setup. With the Playground CLI, you can use the following top-level commands:
 
-- **`server`**: (Default) Starts a local WordPress server.
+- **`start`**: Starts a local WordPress server with automatic project detection, site persistence, and browser opening.
+- **`server`**: Starts a local WordPress server with full manual control over configuration.
 - **`run-blueprint`**: Executes a Blueprint file without starting a web server.
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
+- **`php`**: Runs a PHP script.
 
-The `server` command supports the following optional arguments:
+The `start` command supports these common optional arguments. Run `npx @wp-playground/cli@latest start --help` for the full list:
+
+- `--path=<path>`: Path to the project directory. Defaults to the current working directory.
+- `--wp=<version>`: WordPress version to use. Defaults to the latest.
+- `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
+- `--port=<port>`: The port number for the server to listen on. Defaults to 9400 when available.
+- `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
+- `--login`: Automatically log the user in as an administrator. Defaults to true.
+- `--skip-browser`: Do not open the site in your default browser.
+- `--reset`: Delete the stored site directory and start fresh.
+- `--no-auto-mount`: Disable automatic project detection.
+
+The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
-- `--outfile`: When building, write to this output file.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
+- `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
 - `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
-- `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: /host/path:/vfs/path
-- `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
-- `--mount-dir`: Mount a directory to the PHP runtime (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`.
-- `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`
+- `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `/host/path:/vfs/path`.
+- `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `/host/path:/vfs/path`.
+- `--mount-dir`: Mount a directory to the PHP runtime (can be used multiple times). Format: `"/host/path" "/vfs/path"`.
+- `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path" "/vfs/path"`.
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 - `--login`: Automatically log the user in as an administrator.

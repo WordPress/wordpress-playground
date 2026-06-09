@@ -226,7 +226,7 @@
 		"lodash": "^4.17.23",
 		"glob": "^9.3.0",
 		"webpackbar": "^7.0.0",
-		"ws": "^8.21.0"
+		"ws": "8.21.0"
 	},
 	"workspaces": [
 		"packages/nx-extensions",

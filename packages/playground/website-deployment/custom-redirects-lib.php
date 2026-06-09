@@ -369,6 +369,7 @@ function playground_get_custom_response_headers( $requested_path ) {
 			$filename,
 			array(
 				'index.js',
+				'php-code-snippet.js',
 				'blueprint-schema.json',
 				'logger.php',
 				'oauth.php',

@@ -11,7 +11,14 @@ import {
 	getSiteSettingsFromFormData,
 } from './setup-form-values';
 
-export function TemporarySiteSettingsForm({
+/**
+ * Renders the setup settings form for an autosaved Playground.
+ *
+ * Autosaved Playgrounds represent recoverable unsaved work, so changing setup
+ * fields recreates the same autosaved site instead of creating a second site or
+ * preserving the previous WordPress files.
+ */
+export function AutosavedSiteSettingsForm({
 	siteSlug,
 	onSubmit,
 }: {
@@ -23,10 +30,7 @@ export function TemporarySiteSettingsForm({
 	)!;
 	const sitesAPI = useSitesAPI();
 	const updateSite = async (data: SiteFormData) => {
-		await sitesAPI.createNewTemporarySite(
-			undefined,
-			getSiteSettingsFromFormData(data)
-		);
+		await sitesAPI.recreateAutosavedSite(getSiteSettingsFromFormData(data));
 		onSubmit?.();
 	};
 	const defaultValues = useMemo(
@@ -36,7 +40,7 @@ export function TemporarySiteSettingsForm({
 
 	return (
 		<UnconnectedSiteSettingsForm
-			className="is-temporary-site"
+			className="is-autosaved-site"
 			onSubmit={updateSite}
 			defaultValues={defaultValues}
 			footer={
@@ -48,10 +52,11 @@ export function TemporarySiteSettingsForm({
 				>
 					<p>
 						<b>Destructive action!</b> Applying these settings will
-						reset the WordPress site to its initial state.
+						recreate this autosaved Playground under the same name
+						and replace its current WordPress files.
 					</p>
 					<Button type="submit" variant="primary">
-						Apply Settings & Reset Playground
+						Apply Settings & Recreate Playground
 					</Button>
 				</VStack>
 			}
