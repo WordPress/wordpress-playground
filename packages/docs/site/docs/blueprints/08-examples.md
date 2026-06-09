@@ -107,48 +107,10 @@ The app demonstrates Symfony attribute routes, autowired services, Twig, and
 HttpClient. Its landing page also explains where to open the Playground file
 browser and Blueprint viewer.
 
-<BlueprintExample blueprint={{
-	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"landingPage": "/symfony-package-radar/public/index.php",
-	"meta": {
-		"title": "Symfony Package Radar",
-		"description": "A PHP-only Symfony app that demonstrates attribute routing, autowiring, Twig, and HttpClient without downloading WordPress or running a Node/Sass build.",
-		"author": "WordPress Playground",
-		"categories": ["php", "frameworks", "symfony"]
-	},
-	"preferredVersions": {
-		"php": "8.4",
-		"wp": false
-	},
-	"features": {
-		"networking": true
-	},
-	"steps": [
-		{
-			"step": "unzip",
-			"zipFile": {
-				"resource": "url",
-
-				"url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=wp-php-toolkit-html-2026-06-09",
-				"caption": "Downloading the bundled Symfony demo"
-			},
-			"extractToPath": "/wordpress",
-			"progress": {
-				"caption": "Installing Symfony Package Radar"
-			}
-		},
-		{
-			"step": "request",
-			"request": {
-				"method": "GET",
-				"url": "/symfony-package-radar/public/index.php"
-			},
-			"progress": {
-				"caption": "Checking the Symfony route"
-			}
-		}
-	]
-}} />
+<BlueprintExample
+	title="Blueprint URL"
+	blueprintUrl="https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/symfony-package-radar/blueprint.json"
+/>
 
 ## Enable an option on the Gutenberg Experiments page
 
