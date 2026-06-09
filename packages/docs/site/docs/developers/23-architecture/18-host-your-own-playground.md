@@ -139,9 +139,9 @@ As an alternative to Apache, here is an example of using NGINX to serve the Play
 
 <div class="callout callout-info">
 
-**Refer to the source file**
+<strong>Refer to the source file</strong>
 
-The example may be outdated. Please check [the source file](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) for the latest version.
+The example may be outdated. Please check <a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess">the source file</a> for the latest version.
 
 </div>
 

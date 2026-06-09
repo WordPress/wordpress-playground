@@ -10,7 +10,7 @@ The API is reached via the `window.playgroundSites` global. Note that `window.pl
 
 <div class="callout callout-info">
 
-The Sites API ships with the Playground website application, not with the `@wp-playground/client` library. It is exposed on the top-level page (`/`), not on `/remote.html`. If you embed Playground via `startPlaygroundWeb` into your own page, your iframe won't expose `window.playgroundSites` to the parent — use the [JavaScript API](/developers/apis/javascript-api/) for direct control instead.
+The Sites API ships with the Playground website application, not with the <code>@wp-playground/client</code> library. It is exposed on the top-level page (<code>/</code>), not on <code>/remote.html</code>. If you embed Playground via <code>startPlaygroundWeb</code> into your own page, your iframe won't expose <code>window.playgroundSites</code> to the parent — use the <a href="/developers/apis/javascript-api/">JavaScript API</a> for direct control instead.
 
 </div>
 

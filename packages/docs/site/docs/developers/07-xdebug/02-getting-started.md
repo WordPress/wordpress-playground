@@ -39,7 +39,7 @@ Similar to the process with DevTools, let's use the same plugin code from before
 
 <div class="callout callout-info">
 
-This flag is marked as `unsafe` because it edits the IDE config files to set Xdebug path mappings and web server details. **CAUTION:** If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
+This flag is marked as <code>unsafe</code> because it edits the IDE config files to set Xdebug path mappings and web server details. <strong>CAUTION:</strong> If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
 
 </div>
 

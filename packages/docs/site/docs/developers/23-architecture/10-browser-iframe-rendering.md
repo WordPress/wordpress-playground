@@ -24,13 +24,13 @@ This time, click the link in the browser to load `page.php` **inside the iframe*
 
 <div class="callout callout-info">
 
-**Crash reports**
+<strong>Crash reports</strong>
 
 Playground doesn't collect crash reports automatically. Instead, it prompts users to submit a crash report when an instance fails to run in the browser.
 
 The report includes a log, description, and a URL, and users can modify it before submitting it.
 
-The [Logger API](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php) handles it from there. This simple REST API validates the data and sends it to the **Making WordPress** [#playground-logs Slack channel](https://wordpress.slack.com/archives/C06Q5DCKZ3L).
+The <a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/logger.php">Logger API</a> handles it from there. This simple REST API validates the data and sends it to the <strong>Making WordPress</strong> <a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">#playground-logs Slack channel</a>.
 
 </div>
 

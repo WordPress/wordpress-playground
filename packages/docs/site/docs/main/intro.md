@@ -9,9 +9,9 @@ description: Welcome to the WordPress Playground docs! This page introduces the 
 
 <div class="callout callout-info">
 
-**Looking for the official Playground website?**
+<strong>Looking for the official Playground website?</strong>
 
-WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
+WordPress Playground website moved to <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. The site you're at now hosts the documentation.
 
 </div>
 
@@ -56,7 +56,7 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 
 <div class="callout callout-tip">
 
-Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
+Read <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> blog post in the <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> for a great introduction to WordPress Playground
 
 </div>
 

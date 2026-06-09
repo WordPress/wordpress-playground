@@ -8,9 +8,13 @@ description: A 5-minute guide to get started with Playground. Learn how to test 
 
 WordPress Playground can help you with any of the following:
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [Start a new WordPress site](#start-a-new-wordpress-site)
+- [Try a block, a theme, or a plugin](#try-a-block-a-theme-or-a-plugin)
+- [Save your site](#save-your-site)
+- [Restore a saved site](#restore-a-saved-site)
+- [Use a specific WordPress or PHP version](#use-a-specific-wordpress-or-php-version)
+- [Import a WXR file](#import-a-wxr-file)
+- [Build apps with WordPress Playground](#build-apps-with-wordpress-playground)
 
 This page will guide you through each of these. Oh, and if you're a visual learner – here's a video:
 
@@ -28,9 +32,9 @@ The entire site lives in your browser and is scraped when you close the tab. Wan
 
 <div class="callout callout-info">
 
-**WordPress Playground is private**
+<strong>WordPress Playground is private</strong>
 
-Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
+Everything you build stays in your browser and is <strong>not</strong> sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
 
 </div>
 
@@ -92,7 +96,7 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 
 <div class="callout callout-info">
 
-**Test your plugin or theme**
+<strong>Test your plugin or theme</strong>
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
@@ -113,9 +117,9 @@ To learn more about preparing content for demos, see the [providing content for 
 
 <div class="callout callout-info">
 
-**Major versions only**
+<strong>Major versions only</strong>
 
-You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. Generic aliases like `latest` and `next` are exceptions.
+You can specify major versions like <code>wp=6.2</code> or <code>php=8.1</code> and expect the most recent release in that line. You cannot, however, request older minor versions so neither <code>wp=6.1.2</code> nor <code>php=7.4.9</code> will work. Generic aliases like <code>latest</code> and <code>next</code> are exceptions.
 
 </div>
 

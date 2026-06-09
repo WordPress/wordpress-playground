@@ -10,9 +10,9 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 
 <div class="callout callout-info">
 
-**Contribute to Playground Tools**
+<strong>Contribute to Playground Tools</strong>
 
-This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or [local development](/developers/local-development/) tools—start there.
+This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or <a href="/developers/local-development/">local development</a> tools—start there.
 
 </div>
 
@@ -48,9 +48,9 @@ Playground will open in a new browser tab and refresh automatically with each ch
 
 <div class="callout callout-tip">
 
-**Troubleshooting: File watcher limit on Linux**
+<strong>Troubleshooting: File watcher limit on Linux</strong>
 
-On Linux, you might see an error like `ENOSPC: System limit for number of file watchers reached` when running `npm run dev`. This happens because the Playground repository has more files than the default system limit allows to watch.
+On Linux, you might see an error like <code>ENOSPC: System limit for number of file watchers reached</code> when running <code>npm run dev</code>. This happens because the Playground repository has more files than the default system limit allows to watch.
 
 To fix this, first check your current limit:
 
@@ -65,7 +65,7 @@ sudo sysctl fs.inotify.max_user_watches=131070
 sudo sysctl -p
 ```
 
-Then try `npm run dev` again. This is a common issue on Debian, Ubuntu, and other Linux distributions.
+Then try <code>npm run dev</code> again. This is a common issue on Debian, Ubuntu, and other Linux distributions.
 
 </div>
 
@@ -73,7 +73,7 @@ When your'e ready, commit the changes and submit a Pull Request.
 
 <div class="callout callout-info">
 
-**Formatting**
+<strong>Formatting</strong>
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 

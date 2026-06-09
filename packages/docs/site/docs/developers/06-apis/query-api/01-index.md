@@ -93,12 +93,12 @@ instead.
 
 <div class="callout callout-info">
 
-**CORS policy**
+<strong>CORS policy</strong>
 
 To import files from a URL, such as a site zip package or PHP extension
-manifest and `.so` artifact, they must be served with the
-`Access-Control-Allow-Origin` header set. For reference, see:
-[Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
+manifest and <code>.so</code> artifact, they must be served with the
+<code>Access-Control-Allow-Origin</code> header set. For reference, see:
+<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers">Cross-Origin Resource Sharing (CORS)</a>.
 
 </div>
 
