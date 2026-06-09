@@ -15,7 +15,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-[બ્લુપ્રિન્ટ્સ ગેલેરી](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉપયોગ કરીને વિવિધ રૂપરેખાંકનો સાથે વર્ડપ્રેસ સાઇટ કેવી રીતે લોન્ચ કરવી તેના વાસ્તવિક કોડ ઉદાહરણો જોવા માટે આ તપાસો.
+<a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">બ્લુપ્રિન્ટ્સ ગેલેરી</a> વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉપયોગ કરીને વિવિધ રૂપરેખાંકનો સાથે વર્ડપ્રેસ સાઇટ કેવી રીતે લોન્ચ કરવી તેના વાસ્તવિક કોડ ઉદાહરણો જોવા માટે આ તપાસો.
 
 </div>
 

@@ -5,9 +5,9 @@ slug: /developers/local-development/wp-now
 
 <div class="callout callout-warning">
 
-**પેકેજ ડિપ્રિકેટેડ (deprecated) છે**
+<strong>પેકેજ ડિપ્રિકેટેડ (deprecated) છે</strong>
 
-NPM પેકેજ @wp-now/wp-now ડિપ્રિકેટેડ (deprecated) છે, ભવિષ્યમાં અપડેટ્સ પ્રાપ્ત થશે નહીં. તમારા ડેવલપર ફ્લો પર કમાન્ડ-લાઇન ટૂલનો ઉપયોગ કરવા માટે, NPM પેકેજ `@wp-playground/cli` નો ઉપયોગ કરો.
+NPM પેકેજ @wp-now/wp-now ડિપ્રિકેટેડ (deprecated) છે, ભવિષ્યમાં અપડેટ્સ પ્રાપ્ત થશે નહીં. તમારા ડેવલપર ફ્લો પર કમાન્ડ-લાઇન ટૂલનો ઉપયોગ કરવા માટે, NPM પેકેજ <code>@wp-playground/cli</code> નો ઉપયોગ કરો.
 
 </div>
 
@@ -57,9 +57,9 @@ Key Features:
 
 <div class="callout callout-info">
 
-**દસ્તાવેજીકરણ**
+<strong>દસ્તાવેજીકરણ</strong>
 
-`wp-now` એક અલગ GitHub રિપોઝીટરી, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/) માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ [સમર્પિત README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) માં શોધી શકો છો.
+<code>wp-now</code> એક અલગ GitHub રિપોઝીટરી, <a href="https://github.com/WordPress/playground-tools/">પ્લેગ્રાઉન્ડ ટૂલ્સ</a> માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md">સમર્પિત README ફાઇલ</a> માં શોધી શકો છો.
 
 </div>
 

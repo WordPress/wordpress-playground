@@ -12,9 +12,13 @@ description: Un guide de 5 minutes pour débuter avec Playground. Apprenez à te
 
 WordPress Playground peut vous aider dans les domaines suivants :
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [Commencez un nouveau site WordPress](#commencez-un-nouveau-site-wordpress)
+- [Essayer un bloc, un thème, ou une extension](#essayer-un-bloc-un-thème-ou-une-extension)
+- [Sauvegarder votre site](#sauvegarder-votre-site)
+- [Restaurer un site sauvegardé](#restaurer-un-site-sauvegardé)
+- [Utiliser une version spécifique de WordPress ou de PHP](#utiliser-une-version-spécifique-de-wordpress-ou-de-php)
+- [Importer un fichier WXR](#importer-un-fichier-wxr)
+- [Créer des applications avec WordPress Playground](#créer-des-applications-avec-wordpress-playground)
 
 <!-- This page will guide you through each of these. Oh, and if you're a visual learner – here's a video: -->
 
@@ -47,11 +51,11 @@ L’ensemble du site se trouve dans votre navigateur et est effacé lorsque vous
 
 <div class="callout callout-info">
 
-**WordPress Playground est privé**
+<strong>WordPress Playground est privé</strong>
 
 <!-- Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over! -->
 
-Tout ce que vous construisez reste dans votre navigateur et n’est **pas** envoyé n’importe où. Une fois que vous avez terminé, vous pouvez exporter votre site sous forme de fichier zip. Ou simplement rafraîchir la page et recommencer !
+Tout ce que vous construisez reste dans votre navigateur et n’est <strong>pas</strong> envoyé n’importe où. Une fois que vous avez terminé, vous pouvez exporter votre site sous forme de fichier zip. Ou simplement rafraîchir la page et recommencer !
 
 </div>
 
@@ -161,7 +165,7 @@ Le moyen le plus rapide de modifier la version de WordPress ou de PHP est d’ut
 
 <div class="callout callout-info">
 
-**Testez votre extension ou votre thème**
+<strong>Testez votre extension ou votre thème</strong>
 
 <!-- Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage! -->
 
@@ -187,11 +191,11 @@ Pour en savoir plus au sujet de la préparation de contenu pour les démos, cons
 
 <div class="callout callout-info">
 
-**Versions majeures uniquement**
+<strong>Versions majeures uniquement</strong>
 
 <!-- You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. -->
 
-Vous pouvez spécifier des versions majeures comme `wp=6.2` ou `php=8.1` et attendre la version la plus récente dans cette ligne. Vous ne pouvez cependant pas demander des versions mineures plus anciennes, donc ni `wp=6.1.2` ni `php=7.4.9` ne fonctionneront.
+Vous pouvez spécifier des versions majeures comme <code>wp=6.2</code> ou <code>php=8.1</code> et attendre la version la plus récente dans cette ligne. Vous ne pouvez cependant pas demander des versions mineures plus anciennes, donc ni <code>wp=6.1.2</code> ni <code>php=7.4.9</code> ne fonctionneront.
 
 </div>
 

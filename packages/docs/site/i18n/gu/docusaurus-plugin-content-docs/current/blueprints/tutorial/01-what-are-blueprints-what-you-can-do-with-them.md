@@ -130,15 +130,17 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 
 <div class="callout callout-info">
 
-**વધુ સંસાધનો**
+<strong>વધુ સંસાધનો</strong>
 
 બ્લુપ્રિન્ટ્સની (અનંત) શક્યતાઓ વિશે વધુ જાણવા માટે આ લિંક્સની મુલાકાત લો:
 
-- [વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો પરિચય](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
-- [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લોક](https://wordpress.org/plugins/interactive-code-block/) નો ઉપયોગ કરીને તમારી વેબસાઇટમાં પૂર્વ-રૂપરેખાંકિત વર્ડપ્રેસ સાઇટ એમ્બેડ કરો.
-- [બ્લુપ્રિન્ટ્સ ઉદાહરણો](/blueprints/examples)
-- [બ્લુપ્રિન્ટ્સ સાથે બનેલા ડેમો અને એપ્લિકેશન્સ](/resources#apps-built-with-wordpress-playground)
+<ul>
+<li><a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો પરિચય</a></li>
+<li><a href="https://wordpress.org/plugins/interactive-code-block/">વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લોક</a> નો ઉપયોગ કરીને તમારી વેબસાઇટમાં પૂર્વ-રૂપરેખાંકિત વર્ડપ્રેસ સાઇટ એમ્બેડ કરો.</li>
+<li><a href="/blueprints/examples">બ્લુપ્રિન્ટ્સ ઉદાહરણો</a></li>
+<li><a href="/resources#apps-built-with-wordpress-playground">બ્લુપ્રિન્ટ્સ સાથે બનેલા ડેમો અને એપ્લિકેશન્સ</a></li>
 
+</ul>
 </div>
 
 <!--

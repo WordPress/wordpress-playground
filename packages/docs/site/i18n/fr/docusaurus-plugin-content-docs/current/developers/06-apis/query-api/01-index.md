@@ -80,13 +80,13 @@ Par exemple, le code suivant intègre un Playground avec l’extension Gutenberg
 
 <div class="callout callout-info">
 
-**Politique CORS**
+<strong>Politique CORS</strong>
 
 <!--
 To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 -->
 
-Pour importer des fichiers depuis une URL, comme une archive zip du site, ils doivent être servis avec l’en-tête `Access-Control-Allow-Origin` défini. Référence : [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
+Pour importer des fichiers depuis une URL, comme une archive zip du site, ils doivent être servis avec l’en-tête <code>Access-Control-Allow-Origin</code> défini. Référence : <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers">Cross-Origin Resource Sharing (CORS)</a>.
 
 </div>
 

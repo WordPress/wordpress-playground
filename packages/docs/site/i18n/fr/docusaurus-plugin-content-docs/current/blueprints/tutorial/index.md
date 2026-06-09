@@ -25,7 +25,7 @@ Bienvenue dans ce cours accéléré sur les blueprints où vous trouverez tout c
 
 <div class="callout callout-tip">
 
-Si vous rencontrez des difficultés en suivant ce tutoriel, consultez la section [Dépanner et déboguer les blueprints](/blueprints/troubleshoot-and-debug) pour des conseils et des outils pour vous aider à les résoudre.
+Si vous rencontrez des difficultés en suivant ce tutoriel, consultez la section <a href="/blueprints/troubleshoot-and-debug">Dépanner et déboguer les blueprints</a> pour des conseils et des outils pour vous aider à les résoudre.
 
 </div>
 
@@ -35,7 +35,7 @@ If you encounter any issues while following this tutorial, refer to the [Trouble
 
 <div class="callout callout-info">
 
-Traduction par [@sophiecaperaa](https://profiles.wordpress.org/sophiecaperaa/) et relecture par [@beryl-dlg](https://profiles.wordpress.org/beryl-dlg/)
+Traduction par <a href="https://profiles.wordpress.org/sophiecaperaa/">@sophiecaperaa</a> et relecture par <a href="https://profiles.wordpress.org/beryl-dlg/">@beryl-dlg</a>
 
 Dernière mise à jour le 9 mars 2026
 

@@ -12,9 +12,14 @@ description: Guide pratique pour intégrer WordPress, installer des extensions, 
 
 WordPress Playground a été créé comme un outil programmable. Vous trouverez ci-dessous quelques exemples de ce que vous pouvez faire avec. Chaque API discutée est décrite en détail dans la [section APIs](/developers/apis/) :
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [Intégrer WordPress sur votre site](#intégrer-wordpress-sur-votre-site)
+- [Contrôler le site intégré](#contrôler-le-site-intégré)
+- [Présenter une extension ou un thème du répertoire WordPress](#présenter-une-extension-ou-un-thème-du-répertoire-wordpress)
+- [Présenter n’importe quelle extension ou thème](#présenter-nimporte-quelle-extension-ou-thème)
+- [Prévisualiser les pull requests de votre dépôt](#prévisualiser-les-pull-requests-de-votre-dépôt)
+    - [Prévisualiser les branches ou PRs de WordPress Core et Gutenberg](#prévisualiser-les-branches-ou-prs-de-wordpress-core-et-gutenberg)
+- [Créer un environnement de test de compatibilité](#créer-un-environnement-de-test-de-compatibilité)
+- [Exécuter du code PHP dans le navigateur](#exécuter-du-code-php-dans-le-navigateur)
 
 <!-- ## Embed WordPress on your website -->
 
@@ -34,11 +39,11 @@ Chaque visiteur obtiendra sa propre instance WordPress privée gratuitement. Vou
 
 <div class="callout callout-warning">
 
-**Careful with the demo site**
+<strong>Careful with the demo site</strong>
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
 
 </div>
 
@@ -304,7 +309,7 @@ Combinez cela avec un éditeur de code comme Monaco ou CodeMirror, et vous obtie
 
 <div class="callout callout-info">
 
-Traduction automatisée, relecture et corrections par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
+Traduction automatisée, relecture et corrections par <a href="https://profiles.wordpress.org/beryldlg/">@beryldlg</a>
 
 Dernière mise à jour le 21 janvier 2026
 

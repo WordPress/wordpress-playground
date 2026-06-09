@@ -30,9 +30,9 @@ Key Features:
 
 <div class="callout callout-info">
 
-**દસ્તાવેજીકરણ**
+<strong>દસ્તાવેજીકરણ</strong>
 
-VS કોડ એક્સટેન્શન એક અલગ GitHub રિપોઝીટરીમાં જાળવવામાં આવે છે, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/). તમે નવીનતમ દસ્તાવેજો [dedicated README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md) માં શોધી શકો છો.
+VS કોડ એક્સટેન્શન એક અલગ GitHub રિપોઝીટરીમાં જાળવવામાં આવે છે, <a href="https://github.com/WordPress/playground-tools/">પ્લેગ્રાઉન્ડ ટૂલ્સ</a>. તમે નવીનતમ દસ્તાવેજો <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md">dedicated README ફાઇલ</a> માં શોધી શકો છો.
 
 </div>
 

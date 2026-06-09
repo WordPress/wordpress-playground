@@ -23,9 +23,9 @@ If you need low-level control over the underlying WebAssembly PHP build, take a 
 
 <div class="callout callout-info">
 
-**API સંદર્ભ**
+<strong>API સંદર્ભ</strong>
 
-વર્ગો, કાર્યો, ઇન્ટરફેસ અને પ્રકાર ઉપનામોની [સંપૂર્ણ સૂચિ](/api/node) જુઓ.
+વર્ગો, કાર્યો, ઇન્ટરફેસ અને પ્રકાર ઉપનામોની <a href="/api/node">સંપૂર્ણ સૂચિ</a> જુઓ.
 
 </div>
 

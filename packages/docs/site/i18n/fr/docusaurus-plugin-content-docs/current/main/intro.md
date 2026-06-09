@@ -11,11 +11,11 @@ description: Bienvenue dans la documentation de WordPress Playground ! Cette pag
 
 <div class="callout callout-info">
 
-**Vous cherchez le site officiel de Playground ?**
+<strong>Vous cherchez le site officiel de Playground ?</strong>
 
 <!-- :::info **Looking for the official Playground website?** -->
 
-Le site de WordPress Playground a été déplacé vers [wordpress.org/playground/](https://wordpress.org/playground/). Le site sur lequel vous vous trouvez héberge maintenant la documentation.
+Le site de WordPress Playground a été déplacé vers <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>. Le site sur lequel vous vous trouvez héberge maintenant la documentation.
 
 <!-- WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation. -->
 
@@ -95,7 +95,7 @@ Que vous soyez un développeur/une développeuse, un utilisateur/une utilisatric
 
 <div class="callout callout-tip">
 
-Lisez l’article [**Introduction to Playground: running WordPress in the browser (en anglais)**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) sur le [WordPress Developer Blog](https://developer.wordpress.org/news) pour une excellente introduction à WordPress Playground.
+Lisez l’article <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser (en anglais)</strong></a> sur le <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> pour une excellente introduction à WordPress Playground.
 
 </div>
 
@@ -160,8 +160,8 @@ WordPress Playground est un logiciel libre publié selon les termes de la licenc
 
 <div class="callout callout-info">
 
-Traduction par [@francoist](https://profiles.wordpress.org/francoist/)
-et relecture par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
+Traduction par <a href="https://profiles.wordpress.org/francoist/">@francoist</a>
+et relecture par <a href="https://profiles.wordpress.org/beryldlg/">@beryldlg</a>
 
 Dernière mise à jour le 6 octobre 2025
 

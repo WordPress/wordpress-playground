@@ -29,7 +29,7 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 
 <div class="callout callout-tip">
 
-જો તમને આ ટ્યુટોરીયલ પૂર્ણ કરતી વખતે કોઈ સમસ્યા આવે, તો કૃપા કરીને [મુશ્કેલીનિવારણ અને ડિબગિંગ બ્લુપ્રિન્ટ્સ](/blueprints/troubleshoot-and-debug) વિભાગ જુઓ જેથી તમને મુશ્કેલીનિવારણમાં મદદ મળે.
+જો તમને આ ટ્યુટોરીયલ પૂર્ણ કરતી વખતે કોઈ સમસ્યા આવે, તો કૃપા કરીને <a href="/blueprints/troubleshoot-and-debug">મુશ્કેલીનિવારણ અને ડિબગિંગ બ્લુપ્રિન્ટ્સ</a> વિભાગ જુઓ જેથી તમને મુશ્કેલીનિવારણમાં મદદ મળે.
 
 </div>
 

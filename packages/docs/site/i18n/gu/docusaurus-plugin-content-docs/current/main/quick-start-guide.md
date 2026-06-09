@@ -12,9 +12,13 @@ description: પ્લેગ્રાઉન્ડ શરૂ કરવા મા�
 
 વર્ડપ્રેસ પ્લેગ્રાઉન્ડ તમને નીચેના પૈકી કોઈ પણ બાબતમાં મદદ કરી શકે છે:
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [નવી વર્ડપ્રેસ સાઇટ શરૂ કરો](#નવી-વર્ડપ્રેસ-સાઇટ-શરૂ-કરો)
+- [એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો](#એક-બ્લોક-એક-થીમ-અથવા-એક-પ્લગિન-અજમાવો)
+- [તમારી સાઇટ સાચવો](#તમારી-સાઇટ-સાચવો)
+- [સેવ કરેલી સાઇટ પુનઃસ્થાપિત કરો](#સેવ-કરેલી-સાઇટ-પુનઃસ્થાપિત-કરો)
+- [ચોક્કસ વર્ડપ્રેસ અથવા PHP વર્ઝનનો ઉપયોગ કરો](#ચોક્કસ-વર્ડપ્રેસ-અથવા-php-વર્ઝનનો-ઉપયોગ-કરો)
+- [WXR ફાઇલ આયાત કરો](#wxr-ફાઇલ-આયાત-કરો)
+- [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે એપ્સ બનાવો](#વર્ડપ્રેસ-પ્લેગ્રાઉન્ડ-સાથે-એપ્સ-બનાવો)
 
 <!-- This page will guide you through each of these. Oh, and if you're a visual learner – here's a video: -->
 
@@ -47,11 +51,11 @@ import TOCInline from '@theme/TOCInline';
 
 <div class="callout callout-info">
 
-**વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ખાનગી છે**
+<strong>વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ખાનગી છે</strong>
 
 <!-- Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over! -->
 
-તમે બનાવેલું બધું તમારા બ્રાઉઝરમાં જ રહે છે અને ક્યાંય મોકલવામાં આવતું **નથી**. તમે પૂર્ણ કરી લો પછી, તમે તમારી સાઇટને ZIP ફાઇલ તરીકે એક્સપોર્ટ કરી શકો છો. અથવા ફક્ત પેજ રિફ્રેશ કરીને ફરીથી શરૂ કરી શકો છો!
+તમે બનાવેલું બધું તમારા બ્રાઉઝરમાં જ રહે છે અને ક્યાંય મોકલવામાં આવતું <strong>નથી</strong>. તમે પૂર્ણ કરી લો પછી, તમે તમારી સાઇટને ZIP ફાઇલ તરીકે એક્સપોર્ટ કરી શકો છો. અથવા ફક્ત પેજ રિફ્રેશ કરીને ફરીથી શરૂ કરી શકો છો!
 
 </div>
 
@@ -167,7 +171,7 @@ SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમ�
 
 <div class="callout callout-info">
 
-**તમારું પ્લગિન અથવા થીમ તપાસો**
+<strong>તમારું પ્લગિન અથવા થીમ તપાસો</strong>
 
 <!-- Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage! -->
 
@@ -193,11 +197,11 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 
 <div class="callout callout-info">
 
-**માત્ર મુખ્ય વર્ઝન**
+<strong>માત્ર મુખ્ય વર્ઝન</strong>
 
 <!-- You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. -->
 
-તમે `wp=6.2` અથવા `php=8.1` જેવા મુખ્ય વર્ઝન નિર્દેશ કરી શકો છો અને તે શ્રેણીમાં તાજેતરની રિલીઝ અપેક્ષા રાખી શકો છો. જોકે, તમે જૂના માઇનર વર્ઝન માટે વિનંતી કરી શકતા નથી, તેથી `wp=6.1.2` અથવા `php=7.4.9` બંને કામ નહીં કરે.
+તમે <code>wp=6.2</code> અથવા <code>php=8.1</code> જેવા મુખ્ય વર્ઝન નિર્દેશ કરી શકો છો અને તે શ્રેણીમાં તાજેતરની રિલીઝ અપેક્ષા રાખી શકો છો. જોકે, તમે જૂના માઇનર વર્ઝન માટે વિનંતી કરી શકતા નથી, તેથી <code>wp=6.1.2</code> અથવા <code>php=7.4.9</code> બંને કામ નહીં કરે.
 
 </div>
 

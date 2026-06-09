@@ -75,7 +75,7 @@ Dans l’ensemble, WordPress Playground fournit un environnement sans risque pou
 
 <div class="callout callout-tip">
 
-Consultez la [section guides](/guides) pour en savoir plus sur la façon d’utiliser WordPress Playground pour tester vos thèmes et extensions et créer du contenu à la volée.
+Consultez la <a href="/guides">section guides</a> pour en savoir plus sur la façon d’utiliser WordPress Playground pour tester vos thèmes et extensions et créer du contenu à la volée.
 
 </div>
 <!-- Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly. -->
@@ -121,8 +121,8 @@ Playground est une nouvelle façon de diffuser des technologies serveur - y comp
  -->
 <div class="callout callout-info">
 
-Traduction par [@francoist](https://profiles.wordpress.org/francoist/)
-et relecture par [@jdy68](https://profiles.wordpress.org/jdy68/)
+Traduction par <a href="https://profiles.wordpress.org/francoist/">@francoist</a>
+et relecture par <a href="https://profiles.wordpress.org/jdy68/">@jdy68</a>
 
 Dernière relecture le 22 janvier 2026
 

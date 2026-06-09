@@ -9,9 +9,9 @@ description: વર્ડપ્રેસ પ્લેગ્રાઉન્ડ �
 
 <div class="callout callout-info">
 
-**શું તમે પ્લેગ્રાઉન્ડની સત્તાવાર વેબસાઇટ શોધી રહ્યા છો?**
+<strong>શું તમે પ્લેગ્રાઉન્ડની સત્તાવાર વેબસાઇટ શોધી રહ્યા છો?</strong>
 
-વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબસાઇટ હવે [wordpress.org/playground/](https://wordpress.org/playground/)પર ખસેડાઈ ગઈ છે. તમે જે સાઇટ પર છો તે હવે માર્ગદર્શિકા માટે છે.
+વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબસાઇટ હવે <a href="https://wordpress.org/playground/">wordpress.org/playground/</a>પર ખસેડાઈ ગઈ છે. તમે જે સાઇટ પર છો તે હવે માર્ગદર્શિકા માટે છે.
 
 </div>
 
@@ -56,7 +56,7 @@ description: વર્ડપ્રેસ પ્લેગ્રાઉન્ડ �
 
 <div class="callout callout-tip">
 
-વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉત્તમ પરિચય મેળવવા માટે [WordPress Developer Blog](https://developer.wordpress.org/news) માં આવેલ [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) બ્લોગ પોસ્ટ વાંચો
+વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉત્તમ પરિચય મેળવવા માટે <a href="https://developer.wordpress.org/news">WordPress Developer Blog</a> માં આવેલ <a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/"><strong>Introduction to Playground: running WordPress in the browser</strong></a> બ્લોગ પોસ્ટ વાંચો
 
 </div>
 
