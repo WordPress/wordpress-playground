@@ -83,7 +83,7 @@ For any issues or questions about the WordPress Playground Block, please open a 
 
 <div class="callout callout-info">
 
-Para quaisquer problemas ou perguntas sobre o Bloco WordPress Playground, por favor, abra uma issue no GitHub no repositório [playground-tools](https://github.com/WordPress/playground-tools).
+Para quaisquer problemas ou perguntas sobre o Bloco WordPress Playground, por favor, abra uma issue no GitHub no repositório <a href="https://github.com/WordPress/playground-tools">playground-tools</a>.
 
 </div>
 

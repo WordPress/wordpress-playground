@@ -44,7 +44,7 @@ Com o passo [`importWxr`](/blueprints/steps#importWxr), você pode importar seu 
 
 <div class="callout callout-info">
 
-Para incluir imagens no seu conteúdo importado, uma boa abordagem é fazer upload das imagens para seu repo GitHub e substituir o caminho delas no arquivo `.xml` exportado usando o formato de URL: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
+Para incluir imagens no seu conteúdo importado, uma boa abordagem é fazer upload das imagens para seu repo GitHub e substituir o caminho delas no arquivo <code>.xml</code> exportado usando o formato de URL: <code>https://raw.githubusercontent.com/&#123;repo&#125;/&#123;branch&#125;/&#123;image_path&#125;</code>.
 
 ```html
 <!-- wp:image {"lightbox":{"enabled":false},"id":4751,"width":"78px","sizeSlug":"full","linkDestination":"none","align":"center","className":"no-border"} -->
@@ -259,7 +259,7 @@ Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/b
 
 <div class="callout callout-tip">
 
-Confira o exemplo ["Usar wp-cli para adicionar um post com imagem"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) da [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para ver o exemplo completo mostrando a conexão entre o conteúdo e a imagem destacada.
+Confira o exemplo <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"Usar wp-cli para adicionar um post com imagem"</a> da <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> para ver o exemplo completo mostrando a conexão entre o conteúdo e a imagem destacada.
 
 </div>
 

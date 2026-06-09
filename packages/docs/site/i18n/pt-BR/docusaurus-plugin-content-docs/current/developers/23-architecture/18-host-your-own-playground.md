@@ -248,9 +248,9 @@ Como alternativa ao Apache, aqui está um exemplo de uso do NGINX para servir o 
 
 <div class="callout callout-info">
 
-**Consulte o arquivo fonte**
+<strong>Consulte o arquivo fonte</strong>
 
-O exemplo pode estar desatualizado. Por favor verifique [o arquivo fonte](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) para a versão mais recente.
+O exemplo pode estar desatualizado. Por favor verifique <a href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess">o arquivo fonte</a> para a versão mais recente.
 
 </div>
 

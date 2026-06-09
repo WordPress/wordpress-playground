@@ -15,9 +15,13 @@ WordPress Playground はプログラミング可能なツールとして開発�
 WordPress Playground was created as a programmable tool. Below you'll find a few examples of what you can do with it. Each discussed API is described in detail in the [APIs section](/developers/apis/):
 -->
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [ウェブサイトに WordPress を埋め込む](#ウェブサイトに-wordpress-を埋め込む)
+- [埋め込まれたウェブサイトを制御する](#埋め込まれたウェブサイトを制御する)
+- [WordPress ディレクトリからプラグインやテーマを紹介する](#wordpress-ディレクトリからプラグインやテーマを紹介する)
+- [あらゆるプラグインやテーマを紹介](#あらゆるプラグインやテーマを紹介)
+- [リポジトリからのプルリクエストをプレビューする](#リポジトリからのプルリクエストをプレビューする)
+- [互換性テスト環境を構築する](#互換性テスト環境を構築する)
+- [ブラウザで PHP コードを実行する](#ブラウザで-php-コードを実行する)
 
 ## ウェブサイトに WordPress を埋め込む
 
@@ -43,11 +47,11 @@ Every visitor will get their own private WordPress instance for free. You can th
 
 <div class="callout callout-warning">
 
-**Careful with the demo site**
+<strong>Careful with the demo site</strong>
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
 
 </div>
 

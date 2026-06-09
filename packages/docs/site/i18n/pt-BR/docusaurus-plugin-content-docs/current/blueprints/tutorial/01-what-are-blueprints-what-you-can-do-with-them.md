@@ -150,7 +150,7 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 
 <div class="callout callout-info">
 
-**Mais Recursos**
+<strong>Mais Recursos</strong>
 
 Visite estes links para aprender mais sobre as (incontáveis) possibilidades dos Blueprints:
 
@@ -158,24 +158,26 @@ Visite estes links para aprender mais sobre as (incontáveis) possibilidades dos
 -   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 -->
 
-- [Introdução ao WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
+<ul>
+<li><a href="https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/">Introdução ao WordPress Playground</a></li>
 
 <!--
 -   Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
 -->
 
-- Incorpore um site WordPress pré-configurado em seu site usando o [Bloco do WordPress Playground](https://wordpress.org/plugins/interactive-code-block/).
+<li>Incorpore um site WordPress pré-configurado em seu site usando o <a href="https://wordpress.org/plugins/interactive-code-block/">Bloco do WordPress Playground</a>.</li>
 
 <!--
 -   [Blueprints examples](/blueprints/examples)
 -->
 
-- [Exemplos de Blueprints](/blueprints/examples)
+<li><a href="/blueprints/examples">Exemplos de Blueprints</a></li>
 
 <!--
 -   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
 -->
 
-- [Demonstrações e aplicativos construídos com Blueprints](/resources#apps-built-with-wordpress-playground)
+<li><a href="/resources#apps-built-with-wordpress-playground">Demonstrações e aplicativos construídos com Blueprints</a></li>
 
+</ul>
 </div>

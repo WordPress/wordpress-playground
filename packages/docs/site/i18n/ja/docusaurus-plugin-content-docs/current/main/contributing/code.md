@@ -18,7 +18,7 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 
 <div class="callout callout-info">
 
-**Playground Tools への貢献**
+<strong>Playground Tools への貢献</strong>
 
 このガイドにはメインリポジトリへのリンクが含まれていますが、すべての手順とオプションは両方に適用されます。プラグインやローカル開発ツールにご興味がある場合は、まずそちらから始めてください。
 
@@ -103,7 +103,7 @@ When your'e ready, commit the changes and submit a Pull Request.
 
 <div class="callout callout-info">
 
-**フォーマッティング**
+<strong>フォーマッティング</strong>
 
 コードのフォーマッティングとリンティングは自動的に行われます。安心して入力し、あとは機械に任せましょう。
 

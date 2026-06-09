@@ -52,9 +52,9 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 <div class="callout callout-tip">
 
-**オートコンプリート**
+<strong>オートコンプリート</strong>
 
-VS Code や PHPStorm などの IDE をご利用の場合は、[Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json)を使用して、自動補完機能を備えたブループリント開発環境を構築できます。`blueprint.json`ファイルの先頭に次の行を追加してください。
+VS Code や PHPStorm などの IDE をご利用の場合は、<a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a>を使用して、自動補完機能を備えたブループリント開発環境を構築できます。<code>blueprint.json</code>ファイルの先頭に次の行を追加してください。
 
 ```json
 {
@@ -293,7 +293,7 @@ In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.
 
 <div class="callout callout-info">
 
-サポートされているリソースの詳細については、[Blueprint リソース API リファレンス](/blueprints/steps/resources/)を参照してください。
+サポートされているリソースの詳細については、<a href="/blueprints/steps/resources/">Blueprint リソース API リファレンス</a>を参照してください。
 
 </div>
 

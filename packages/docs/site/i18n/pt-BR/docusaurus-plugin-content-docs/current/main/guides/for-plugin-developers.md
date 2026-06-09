@@ -26,7 +26,7 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 
 <div class="callout callout-info">
 
-Descubra como [Construir](/about/build), [Testar](/about/test) e [Lançar](/about/launch) seus produtos com o WordPress Playground na seção [Sobre o Playground](/about).
+Descubra como <a href="/about/build">Construir</a>, <a href="/about/test">Testar</a> e <a href="/about/launch">Lançar</a> seus produtos com o WordPress Playground na seção <a href="/about">Sobre o Playground</a>.
 
 </div>
 
@@ -58,7 +58,7 @@ You can install and activate several plugins via query parameters by repeating t
 
 <div class="callout callout-tip">
 
-Você pode instalar e ativar vários plugins via parâmetros de consulta repetindo o parâmetro `plugin` para cada plugin que deseja ser instalado e ativado na instância do Playground. Por exemplo: https://playground.wordpress.net/?plugin=gutenberg&plugin=akismet&plugin=wordpress-seo.
+Você pode instalar e ativar vários plugins via parâmetros de consulta repetindo o parâmetro <code>plugin</code> para cada plugin que deseja ser instalado e ativado na instância do Playground. Por exemplo: https://playground.wordpress.net/?plugin=gutenberg&plugin=akismet&plugin=wordpress-seo.
 
 </div>
 
@@ -138,7 +138,7 @@ For the past few months, the [GitHub proxy](https://playground.wordpress.net/pro
 
 <div class="callout callout-info">
 
-Durante os últimos meses, o [proxy do GitHub](https://playground.wordpress.net/proxy) foi uma ferramenta incrivelmente útil para carregar plugins de repositórios do GitHub, pois permitia carregar um plugin de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso `git:directory`.
+Durante os últimos meses, o <a href="https://playground.wordpress.net/proxy">proxy do GitHub</a> foi uma ferramenta incrivelmente útil para carregar plugins de repositórios do GitHub, pois permitia carregar um plugin de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso <code>git:directory</code>.
 
 </div>
 
@@ -194,7 +194,7 @@ If your plugin is hosted on GitHub, you can automatically add preview buttons to
 
 <div class="callout callout-tip">
 
-Se o seu plugin estiver hospedado no GitHub, você poderá adicionar automaticamente botões de visualização às suas solicitações pull usando o GitHub Action Playground PR Preview. Isso permite que os revisores testem suas alterações instantaneamente, sem qualquer configuração. Consulte [Adicionando botões de visualização de PR com ações do GitHub](/guides/github-action-pr-preview) para obter detalhes.
+Se o seu plugin estiver hospedado no GitHub, você poderá adicionar automaticamente botões de visualização às suas solicitações pull usando o GitHub Action Playground PR Preview. Isso permite que os revisores testem suas alterações instantaneamente, sem qualquer configuração. Consulte <a href="/guides/github-action-pr-preview">Adicionando botões de visualização de PR com ações do GitHub</a> para obter detalhes.
 
 </div>
 
@@ -278,7 +278,7 @@ The [Install plugin from a gist](https://playground.wordpress.net/builder/builde
 
 <div class="callout callout-info">
 
-O exemplo [Instalar plugin de um gist](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}) na [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) mostra como carregar um plugin de código em um gist
+O exemplo <a href="https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}">Instalar plugin de um gist</a> na <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> mostra como carregar um plugin de código em um gist
 
 </div>
 
@@ -310,10 +310,12 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Algumas ferramentas e recursos úteis fornecidos pelo projeto Playground para trabalhar com blueprints são:
 
-- Verifique a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.
-- A ferramenta [Biblioteca de Passos do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!
-- A ferramenta [Construtor de Blueprints](https://playground.wordpress.net/builder/builder.html) permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.
+<ul>
+<li>Verifique a <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.</li>
+<li>A ferramenta <a href="https://akirk.github.io/playground-step-library/#">Biblioteca de Passos do WordPress Playground</a> fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!</li>
+<li>A ferramenta <a href="https://playground.wordpress.net/builder/builder.html">Construtor de Blueprints</a> permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.</li>
 
+</ul>
 </div>
 
 <!--
@@ -332,7 +334,7 @@ A great demo with WordPress Playground might require that you load default conte
 
 <div class="callout callout-info">
 
-Uma ótima demonstração com o WordPress Playground pode exigir que você carregue conteúdo padrão para seu plugin e tema, incluindo imagens e outros recursos. Confira o guia [Fornecendo conteúdo para sua demonstração](/guides/providing-content-for-your-demo) para saber mais sobre isso.
+Uma ótima demonstração com o WordPress Playground pode exigir que você carregue conteúdo padrão para seu plugin e tema, incluindo imagens e outros recursos. Confira o guia <a href="/guides/providing-content-for-your-demo">Fornecendo conteúdo para sua demonstração</a> para saber mais sobre isso.
 
 </div>
 
@@ -538,6 +540,6 @@ Check [About Playground &gt; Build &gt; Synchronize your playground instance wit
 
 <div class="callout callout-info">
 
-Confira [Sobre o Playground &gt; Construir &gt; Sincronizar sua instância do playground com uma pasta local e criar Pull Requests do GitHub](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para mais informações.
+Confira <a href="/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests">Sobre o Playground &gt; Construir &gt; Sincronizar sua instância do playground com uma pasta local e criar Pull Requests do GitHub</a> para mais informações.
 
 </div>

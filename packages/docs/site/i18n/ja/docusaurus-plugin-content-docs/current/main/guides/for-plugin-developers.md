@@ -26,7 +26,7 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 
 <div class="callout callout-info">
 
-WordPress Playground を使用して製品を[構築](/about/build)、[テスト](/about/test)、[起動](/about/launch)する方法については、[Playground について](/about) セクションをご覧ください。
+WordPress Playground を使用して製品を<a href="/about/build">構築</a>、<a href="/about/test">テスト</a>、<a href="/about/launch">起動</a>する方法については、<a href="/about">Playground について</a> セクションをご覧ください。
 
 </div>
 
@@ -138,7 +138,7 @@ For the past few months, the [GitHub proxy](https://playground.wordpress.net/pro
 
 <div class="callout callout-info">
 
-ここ数ヶ月、[GitHubプロキシ](https://playground.wordpress.net/proxy)はGitHubリポジトリからプラグインを読み込むための非常に便利なツールでした。特定のブランチ、特定のディレクトリ、特定のコミット、または特定のPRからプラグインを読み込むことができました。しかし、Playgroundの最近の改善により、この機能は不要になりました。GitHubプロキシはまもなく廃止されるため、ブループリントを`git:directory`リソースに更新してください。
+ここ数ヶ月、<a href="https://playground.wordpress.net/proxy">GitHubプロキシ</a>はGitHubリポジトリからプラグインを読み込むための非常に便利なツールでした。特定のブランチ、特定のディレクトリ、特定のコミット、または特定のPRからプラグインを読み込むことができました。しかし、Playgroundの最近の改善により、この機能は不要になりました。GitHubプロキシはまもなく廃止されるため、ブループリントを<code>git:directory</code>リソースに更新してください。
 
 </div>
 
@@ -194,7 +194,7 @@ If your plugin is hosted on GitHub, you can automatically add preview buttons to
 
 <div class="callout callout-tip">
 
-プラグインがGitHubでホストされている場合、Playground PR Preview GitHub Actionを使用して、プルリクエストにプレビューボタンを自動的に追加できます。これにより、レビュアーは設定なしですぐに変更をテストできます。詳細については、[GitHub Actionsを使用したPRプレビューボタンの追加](/guides/github-action-pr-preview)を参照してください。
+プラグインがGitHubでホストされている場合、Playground PR Preview GitHub Actionを使用して、プルリクエストにプレビューボタンを自動的に追加できます。これにより、レビュアーは設定なしですぐに変更をテストできます。詳細については、<a href="/guides/github-action-pr-preview">GitHub Actionsを使用したPRプレビューボタンの追加</a>を参照してください。
 
 </div>
 
@@ -278,7 +278,7 @@ The [Install plugin from a gist](https://playground.wordpress.net/builder/builde
 
 <div class="callout callout-info">
 
-[ブループリントギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)の [gist からプラグインをインストール](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]})の例では、gist のコードからプラグインをロードする方法を示しています。
+<a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">ブループリントギャラリー</a>の <a href="https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}">gist からプラグインをインストール</a>の例では、gist のコードからプラグインをロードする方法を示しています。
 
 </div>
 
@@ -310,10 +310,12 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Playground プロジェクトでは、ブループリントを操作するために、以下の便利なツールとリソースを提供しています。
 
-- [ブループリント ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) では、WordPress Playground を使用して様々な設定で WordPress サイトを立ち上げる実際のコード例をご覧いただけます。
-- [WordPress Playground ステップ ライブラリ](https://akirk.github.io/playground-step-library/#) ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。独自のステップを作成することもできます。
-- [ブループリント ビルダー](https://playground.wordpress.net/builder/builder.html) ツールを使用すると、ブループリントをオンラインで編集し、Playground インスタンスで直接実行できます。
+<ul>
+<li><a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">ブループリント ギャラリー</a> では、WordPress Playground を使用して様々な設定で WordPress サイトを立ち上げる実際のコード例をご覧いただけます。</li>
+<li><a href="https://akirk.github.io/playground-step-library/#">WordPress Playground ステップ ライブラリ</a> ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。独自のステップを作成することもできます。</li>
+<li><a href="https://playground.wordpress.net/builder/builder.html">ブループリント ビルダー</a> ツールを使用すると、ブループリントをオンラインで編集し、Playground インスタンスで直接実行できます。</li>
 
+</ul>
 </div>
 
 <!--
@@ -332,7 +334,7 @@ A great demo with WordPress Playground might require that you load default conte
 
 <div class="callout callout-info">
 
-WordPress Playground を使った優れたデモでは、画像やその他のアセットを含む、プラグインとテーマのデフォルトコンテンツを読み込む必要がある場合があります。詳しくは、[デモ用のコンテンツの提供](/guides/providing-content-for-your-demo)ガイドをご覧ください。
+WordPress Playground を使った優れたデモでは、画像やその他のアセットを含む、プラグインとテーマのデフォルトコンテンツを読み込む必要がある場合があります。詳しくは、<a href="/guides/providing-content-for-your-demo">デモ用のコンテンツの提供</a>ガイドをご覧ください。
 
 </div>
 
@@ -538,6 +540,6 @@ Check [About Playground &gt; Build &gt; Synchronize your playground instance wit
 
 <div class="callout callout-info">
 
-詳細については、[Playground について &gt; ビルド &gt; Playground インスタンスをローカル フォルダーと同期して GitHub プル リクエストを作成する](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) を確認してください。
+詳細については、<a href="/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests">Playground について &gt; ビルド &gt; Playground インスタンスをローカル フォルダーと同期して GitHub プル リクエストを作成する</a> を確認してください。
 
 </div>

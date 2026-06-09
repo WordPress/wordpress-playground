@@ -186,6 +186,6 @@ If you need certain availability, you should [host your own WordPress Playground
 
 Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad, ngunit walang garantiya na ito ay patuloy na gagana kung ang traffic ay lumaki nang malaki.
 
-Kung kailangan mo ng tiyak na availability, dapat mong [i-host ang sarili mong WordPress Playground](/developers/architecture/host-your-own-playground).
+Kung kailangan mo ng tiyak na availability, dapat mong <a href="/developers/architecture/host-your-own-playground">i-host ang sarili mong WordPress Playground</a>.
 
 </div>

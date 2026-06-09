@@ -12,7 +12,7 @@ WordPress Playground comes with a JavaScript API client that grants you full con
 
 <div class="callout callout-info">
 
-**ここでの API は「REST API」を意味するものではありません**
+<strong>ここでの API は「REST API」を意味するものではありません</strong>
 
 WordPress Playground はブラウザベースのアプリケーションです。
 ここでの API とは、JavaScript 内で呼び出せる関数のセットを指します。
@@ -75,9 +75,9 @@ Here's the shortest example of how to use the JavaScript API in a HTML page:
 
 <div class="callout callout-info">
 
-**/remote.html は特別な URL です**
+<strong>/remote.html は特別な URL です</strong>
 
-`/remote.html` は、ブラウザ UI を備えたデモアプリではなく、Playground API エンドポイントを読み込む特別な URL です。`/` と `/remote.html` の違いについては、[このページ](/developers/apis/javascript-api/-html-vs-remote-html) をご覧ください。
+<code>/remote.html</code> は、ブラウザ UI を備えたデモアプリではなく、Playground API エンドポイントを読み込む特別な URL です。<code>/</code> と <code>/remote.html</code> の違いについては、<a href="/developers/apis/javascript-api/-html-vs-remote-html">このページ</a> をご覧ください。
 
 </div>
 

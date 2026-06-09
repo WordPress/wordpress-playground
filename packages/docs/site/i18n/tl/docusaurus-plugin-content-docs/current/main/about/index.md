@@ -36,7 +36,7 @@ Sa kabuuan, nagbibigay ang WordPress Playground ng isang walang risk na kapaligi
 
 <div class="callout callout-tip">
 
-Tingnan ang [mga gabay section](/guides) upang malaman kung paano mas mapapakinabangan ang WordPress Playground sa pag-test ng iyong mga theme at plugin at paglikha ng content on the fly.
+Tingnan ang <a href="/guides">mga gabay section</a> upang malaman kung paano mas mapapakinabangan ang WordPress Playground sa pag-test ng iyong mga theme at plugin at paglikha ng content on the fly.
 
 </div>
 

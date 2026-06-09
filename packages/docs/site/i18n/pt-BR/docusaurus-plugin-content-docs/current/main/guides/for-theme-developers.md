@@ -24,7 +24,7 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 
 <div class="callout callout-info">
 
-Descubra como [Construir](/about/build), [Testar](/about/test) e [Lançar](/about/launch) seus produtos com o WordPress Playground na seção [Sobre o Playground](/about)
+Descubra como <a href="/about/build">Construir</a>, <a href="/about/test">Testar</a> e <a href="/about/launch">Lançar</a> seus produtos com o WordPress Playground na seção <a href="/about">Sobre o Playground</a>
 
 </div>
 
@@ -104,7 +104,7 @@ For the past few months, the [GitHub proxy](https://playground.wordpress.net/pro
 
 <div class="callout callout-info">
 
-Durante os últimos meses, o [proxy do GitHub](https://playground.wordpress.net/proxy) foi uma ferramenta incrivelmente útil para carregar temas de repositórios do GitHub, pois permitia carregar um tema de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso `git:directory`.
+Durante os últimos meses, o <a href="https://playground.wordpress.net/proxy">proxy do GitHub</a> foi uma ferramenta incrivelmente útil para carregar temas de repositórios do GitHub, pois permitia carregar um tema de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso <code>git:directory</code>.
 
 </div>
 
@@ -143,7 +143,7 @@ If your theme is hosted on GitHub, you can automatically add preview buttons to 
 
 <div class="callout callout-tip">
 
-Se o seu tema estiver hospedado no GitHub, você pode adicionar automaticamente botões de visualização às suas solicitações pull usando o GitHub Action Playground PR Preview. Isso permite que os revisores testem suas alterações instantaneamente, sem qualquer configuração. Consulte [Adicionando botões de visualização de PR com ações do GitHub](/guides/github-action-pr-preview) para obter detalhes.
+Se o seu tema estiver hospedado no GitHub, você pode adicionar automaticamente botões de visualização às suas solicitações pull usando o GitHub Action Playground PR Preview. Isso permite que os revisores testem suas alterações instantaneamente, sem qualquer configuração. Consulte <a href="/guides/github-action-pr-preview">Adicionando botões de visualização de PR com ações do GitHub</a> para obter detalhes.
 
 </div>
 
@@ -187,10 +187,12 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Algumas ferramentas e recursos úteis fornecidos pelo projeto Playground para trabalhar com blueprints são:
 
-- Verifique a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.
-- A ferramenta [Biblioteca de Passos do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!
-- A ferramenta [Construtor de Blueprints](https://playground.wordpress.net/builder/builder.html) permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.
+<ul>
+<li>Verifique a <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.</li>
+<li>A ferramenta <a href="https://akirk.github.io/playground-step-library/#">Biblioteca de Passos do WordPress Playground</a> fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!</li>
+<li>A ferramenta <a href="https://playground.wordpress.net/builder/builder.html">Construtor de Blueprints</a> permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.</li>
 
+</ul>
 </div>
 
 <!--
@@ -209,7 +211,7 @@ To provide a good demo of your theme via Playground, you may want to load it wit
 
 <div class="callout callout-info">
 
-Para fornecer uma boa demonstração do seu tema via Playground, você pode querer carregá-lo com conteúdo padrão que destaque os recursos do seu tema. Confira o guia [Fornecendo conteúdo para sua demonstração](/guides/providing-content-for-your-demo) para saber mais sobre isso.
+Para fornecer uma boa demonstração do seu tema via Playground, você pode querer carregá-lo com conteúdo padrão que destaque os recursos do seu tema. Confira o guia <a href="/guides/providing-content-for-your-demo">Fornecendo conteúdo para sua demonstração</a> para saber mais sobre isso.
 
 </div>
 
@@ -426,7 +428,7 @@ The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/bluepri
 
 <div class="callout callout-tip">
 
-Os exemplos ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) e ["Carregando, ativando e configurando um tema de um repositório GitHub"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) da [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) são ótimas referências para carregar, ativar, importar conteúdo e configurar um tema de blocos em uma instância do Playground.
+Os exemplos <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press">"Stylish Press"</a> e <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo">"Carregando, ativando e configurando um tema de um repositório GitHub"</a> da <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> são ótimas referências para carregar, ativar, importar conteúdo e configurar um tema de blocos em uma instância do Playground.
 
 </div>
 
@@ -492,6 +494,6 @@ Check [About Playground &gt; Build &gt; Save changes done on a Block Theme and c
 
 <div class="callout callout-tip">
 
-Confira [Sobre o Playground &gt; Construir &gt; Salvar alterações feitas em um Tema de Blocos e criar Pull Requests do GitHub](/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests) para mais informações.
+Confira <a href="/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests">Sobre o Playground &gt; Construir &gt; Salvar alterações feitas em um Tema de Blocos e criar Pull Requests do GitHub</a> para mais informações.
 
 </div>

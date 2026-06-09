@@ -10,12 +10,12 @@ slug: /resources
 May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa Playground:
 
 <ul id="list-resources-redirections">
-<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Playground instance</li>
-<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Dokumentasyon ng Playground</li>
-<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Blueprint Builder ng Playground</li>
-<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer para sa WordPress</li>
-<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer para sa Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(tingnan ang [URLReference](/blueprints/steps/resources#urlreference) para sa detalye)</em></li>
+<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Playground instance</li>
+<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Dokumentasyon ng Playground</li>
+<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Blueprint Builder ng Playground</li>
+<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer para sa WordPress</li>
+<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer para sa Gutenberg</li>
+<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(tingnan ang <a href="/blueprints/steps/resources#urlreference">URLReference</a> para sa detalye)</em></li>
 </ul>
 
 </div>

@@ -30,9 +30,9 @@ Key Features:
 
 <div class="callout callout-info">
 
-**ドキュメント**
+<strong>ドキュメント</strong>
 
-VS Code 拡張機能は、別の GitHub リポジトリ[Playground Tools](https://github.com/WordPress/playground-tools/)で管理されています。最新のドキュメントは[専用の README ファイル](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md)をご覧ください。
+VS Code 拡張機能は、別の GitHub リポジトリ<a href="https://github.com/WordPress/playground-tools/">Playground Tools</a>で管理されています。最新のドキュメントは<a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md">専用の README ファイル</a>をご覧ください。
 
 </div>
 

@@ -20,7 +20,7 @@ Você pode usar Blueprints tanto com as versões web quanto com as versões node
 
 <div class="callout callout-info">
 
-**Versão 2 do Blueprints**
+<strong>Versão 2 do Blueprints</strong>
 
 <!-- The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup. -->
 
@@ -28,7 +28,7 @@ O time está explorando maneiras de fazer a transição do Blueprints de uma bib
 
 <!-- The proposed new specification is discussed on a separate GitHub repository, and you’re more than welcome to join (there or on the #playground Slack channel) and help shape the next generation of Playground. -->
 
-A [nova especificação](https://github.com/WordPress/blueprints-library/issues/6) proposta é discutida em um [repositório GitHub](https://github.com/WordPress/blueprints-library/) separado, e você é bem-vindo para participar (lá ou no canal Slack [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K)) e ajudar a moldar a próxima geração do Playground.
+A <a href="https://github.com/WordPress/blueprints-library/issues/6">nova especificação</a> proposta é discutida em um <a href="https://github.com/WordPress/blueprints-library/">repositório GitHub</a> separado, e você é bem-vindo para participar (lá ou no canal Slack <a href="https://wordpress.slack.com/archives/C04EWKGDJ0K">#playground</a>) e ajudar a moldar a próxima geração do Playground.
 
 </div>
 
@@ -50,6 +50,6 @@ Existem duas principais diferenças entre as APIs JSON e de Função:
 
 <!-- Check the Use the same structure for Blueprint JSON definitions and step handlers issue at wordpress-playground repo for more detailed info about this topic -->
 
-Verifique o issue [Use a mesma estrutura para definições JSON de Blueprint e manipuladores de etapas](https://github.com/WordPress/wordpress-playground/pull/215) no repositório [wordpress-playground](https://github.com/WordPress/wordpress-playground) para obter informações mais detalhadas sobre este tópico
+Verifique o issue <a href="https://github.com/WordPress/wordpress-playground/pull/215">Use a mesma estrutura para definições JSON de Blueprint e manipuladores de etapas</a> no repositório <a href="https://github.com/WordPress/wordpress-playground">wordpress-playground</a> para obter informações mais detalhadas sobre este tópico
 
 </div>

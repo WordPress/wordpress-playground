@@ -147,9 +147,11 @@ A sintaxe `abreviada` e a sintaxe `step` correspondem uma à outra. Cada `etapa`
 
 <div class="callout callout-info">
 
-**Qual você deve escolher?**
+<strong>Qual você deve escolher?</strong>
 
-- Use `abreviações` quando a **brevidade** for sua principal preocupação.
-- Use `etapas` explícitas quando precisar de mais controle sobre a **ordem de execução**.
+<ul>
+<li>Use <code>abreviações</code> quando a <strong>brevidade</strong> for sua principal preocupação.</li>
+<li>Use <code>etapas</code> explícitas quando precisar de mais controle sobre a <strong>ordem de execução</strong>.</li>
 
+</ul>
 </div>

@@ -21,7 +21,7 @@ Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trun
 
 <div class="callout callout-tip">
 
-Confira a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código do mundo real usando WordPress Playground para iniciar um site WordPress com uma variedade de configurações.
+Confira a <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Galeria de Blueprints</a> para explorar exemplos de código do mundo real usando WordPress Playground para iniciar um site WordPress com uma variedade de configurações.
 
 </div>
 

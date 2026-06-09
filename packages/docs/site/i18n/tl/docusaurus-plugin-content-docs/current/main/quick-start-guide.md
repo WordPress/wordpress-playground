@@ -8,9 +8,13 @@ description: Isang 5-minuto na gabay para magsimula sa Playground. Matuto kung p
 
 Maaaring makatulong sa iyo ang WordPress Playground sa alinman sa mga sumusunod:
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [Magsimula ng bagong WordPress site](#magsimula-ng-bagong-wordpress-site)
+- [Subukan ang isang block, theme, o plugin](#subukan-ang-isang-block-theme-o-plugin)
+- [I-save ang iyong site](#i-save-ang-iyong-site)
+- [I-restore ang na-save na site](#i-restore-ang-na-save-na-site)
+- [Gamitin ang tiyak na bersyon ng WordPress o PHP](#gamitin-ang-tiyak-na-bersyon-ng-wordpress-o-php)
+- [Mag-import ng WXR file](#mag-import-ng-wxr-file)
+- [Bumuo ng mga app gamit ang WordPress Playground](#bumuo-ng-mga-app-gamit-ang-wordpress-playground)
 
 Ang pahinang ito ang gagabay sa bawat hakbang. At para sa mga visual na nag-aaral—narito ang isang video:
 
@@ -28,9 +32,9 @@ Ang buong site ay nasa browser mo at matatanggal kapag isinara mo ang tab. Gusto
 
 <div class="callout callout-info">
 
-**WordPress Playground ay Pribado**
+<strong>WordPress Playground ay Pribado</strong>
 
-Lahat ng iyong ginawa ay nananatili sa browser at **hindi** ipinapadala kahit saan. Pagkatapos, maaari mong i-export ang iyong site bilang zip file. O i-refresh lang upang magsimula muli!
+Lahat ng iyong ginawa ay nananatili sa browser at <strong>hindi</strong> ipinapadala kahit saan. Pagkatapos, maaari mong i-export ang iyong site bilang zip file. O i-refresh lang upang magsimula muli!
 
 </div>
 
@@ -90,7 +94,7 @@ Ang pinakamabilis na paraan para baguhin ang bersyon ng WordPress o PHP ay sa se
 
 <div class="callout callout-info">
 
-**Subukan ang iyong plugin o theme**
+<strong>Subukan ang iyong plugin o theme</strong>
 
 Ang compatibility testing sa maraming bersyon ng WordPress at PHP ay palaging mahirap. Ginagawang madali ito ng WordPress Playground—gamitin ito!
 
@@ -108,9 +112,9 @@ Para matuto pa tungkol sa paghahanda ng content para sa mga demo, tingnan ang [g
 
 <div class="callout callout-info">
 
-**Major versions only**
+<strong>Major versions only</strong>
 
-Maaari kang mag-specify ng major versions tulad ng `wp=6.2` o `php=8.1` at makukuha ang pinakabagong release sa linya na iyon. Hindi ka maaaring humiling ng mas lumang minor versions, kaya `wp=6.1.2` o `php=7.4.9` ay hindi gagana.
+Maaari kang mag-specify ng major versions tulad ng <code>wp=6.2</code> o <code>php=8.1</code> at makukuha ang pinakabagong release sa linya na iyon. Hindi ka maaaring humiling ng mas lumang minor versions, kaya <code>wp=6.1.2</code> o <code>php=7.4.9</code> ay hindi gagana.
 
 </div>
 

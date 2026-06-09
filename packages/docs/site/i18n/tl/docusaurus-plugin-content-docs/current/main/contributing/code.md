@@ -8,7 +8,7 @@ Tulad ng lahat ng WordPress projects, ginagamit ng Playground ang GitHub para pa
 
 <div class="callout callout-info">
 
-**Mag-ambag sa Playground Tools**
+<strong>Mag-ambag sa Playground Tools</strong>
 
 Kasama sa gabay na ito ang mga link sa pangunahing repositorya, ngunit ang lahat ng hakbang at opsyon ay magagamit din para sa Playground Tools. Kung interesado ka sa mga plugin o lokal na development tools—simulan mo doon.
 
@@ -45,7 +45,7 @@ Kapag handa ka na, i-commit ang mga pagbabago at mag-submit ng Pull Request.
 
 <div class="callout callout-info">
 
-**Pag-format**
+<strong>Pag-format</strong>
 
 Awtomatikong hinahandle ang code formatting at linting. Mag-relax ka lang, mag-type lang, at hayaan ang makina ang gumalaw.
 

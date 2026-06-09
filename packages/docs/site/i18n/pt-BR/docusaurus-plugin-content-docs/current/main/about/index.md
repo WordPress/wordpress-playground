@@ -101,7 +101,7 @@ Check the [guides section](/guides) to learn more about how to leverage WordPres
 
 <div class="callout callout-tip">
 
-Confira a [seção de guias](/guides) para aprender mais sobre como aproveitar o WordPress Playground para testar seus temas e plugins e criar conteúdo dinamicamente.
+Confira a <a href="/guides">seção de guias</a> para aprender mais sobre como aproveitar o WordPress Playground para testar seus temas e plugins e criar conteúdo dinamicamente.
 
 </div>
 

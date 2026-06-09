@@ -95,7 +95,7 @@ Overall, WordPress Playground provides a risk-free environment for beginners to 
 
 <div class="callout callout-tip">
 
-WordPress Playground を活用してテーマやプラグインをテストし、その場でコンテンツを作成する方法について詳しくは、[ガイド セクション](/guides) をご覧ください。
+WordPress Playground を活用してテーマやプラグインをテストし、その場でコンテンツを作成する方法について詳しくは、<a href="/guides">ガイド セクション</a> をご覧ください。
 
 </div>
 

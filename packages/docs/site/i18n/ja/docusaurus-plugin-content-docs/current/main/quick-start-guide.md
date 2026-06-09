@@ -16,9 +16,13 @@ WordPress Playground は、次のような場合に役に立ちます。
 WordPress Playground can help you with any of the following:
  -->
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [新しい WordPress サイトを始める](#新しい-wordpress-サイトを始める)
+- [ブロック、テーマ、プラグインを試す](#ブロックテーマプラグインを試す)
+- [サイトを保存する](#サイトを保存する)
+- [保存したサイトを復元する](#保存したサイトを復元する)
+- [特定の WordPress または PHP バージョンを使用する](#特定の-wordpress-または-php-バージョンを使用する)
+- [WXR ファイルをインポートする](#wxr-ファイルをインポートする)
+- [WordPress Playground でアプリを構築する](#wordpress-playground-でアプリを構築する)
 
 このページでは、それぞれの手順を解説します。視覚的に学習したい方は、こちらの動画をご覧ください。
 
@@ -60,9 +64,9 @@ The entire site lives in your browser and is scraped when you close the tab. Wan
 
 <div class="callout callout-info">
 
-**WordPress Playground はプライベートです**
+<strong>WordPress Playground はプライベートです</strong>
 
-作成したものはすべてブラウザ内に保存され、他の場所には**送信されません**。完成したら、サイトを zip ファイルとしてエクスポートできます。または、ページを更新して最初からやり直すこともできます。
+作成したものはすべてブラウザ内に保存され、他の場所には<strong>送信されません</strong>。完成したら、サイトを zip ファイルとしてエクスポートできます。または、ページを更新して最初からやり直すこともできます。
 
 </div>
 
@@ -226,7 +230,7 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 
 <div class="callout callout-info">
 
-**プラグインまたはテーマをテストする**
+<strong>プラグインまたはテーマをテストする</strong>
 
 数多くの WordPress および PHP バージョンとの互換性テストは、いつも面倒でした。 WordPress Playground を使えば、このプロセスが楽になります。ぜひご活用ください !
 
@@ -261,9 +265,9 @@ To learn more about preparing content for demos, see the [providing content for 
 
 <div class="callout callout-info">
 
-**メジャーバージョンのみ**
+<strong>メジャーバージョンのみ</strong>
 
-`wp=6.2` や `php=8.1` のようなメジャーバージョンを指定すると、そのバージョンラインの最新リリースが期待されます。ただし、古いマイナーバージョンを指定することはできないため、`wp=6.1.2` や `php=7.4.9` は動作しません。
+<code>wp=6.2</code> や <code>php=8.1</code> のようなメジャーバージョンを指定すると、そのバージョンラインの最新リリースが期待されます。ただし、古いマイナーバージョンを指定することはできないため、<code>wp=6.1.2</code> や <code>php=7.4.9</code> は動作しません。
 
 </div>
 

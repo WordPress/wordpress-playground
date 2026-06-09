@@ -16,9 +16,13 @@ WordPress Playground can help you with any of the following:
 
 WordPress Playground pode nos seguintes pontos:
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [Inicie um novo site WordPress](#inicie-um-novo-site-wordpress)
+- [Testando Blocos, Temas e plugins](#testando-blocos-temas-e-plugins)
+- [Salve o seu site](#salve-o-seu-site)
+- [Restaurando um site salvo](#restaurando-um-site-salvo)
+- [Use uma versão específica do WordPress ou PHP](#use-uma-versão-específica-do-wordpress-ou-php)
+- [Importar um arquivo WXR](#importar-um-arquivo-wxr)
+- [Crie aplicativos com o WordPress Playground](#crie-aplicativos-com-o-wordpress-playground)
 
 <!--
 This page will guide you through each of these. Oh, and if you're a visual learner – here's a video:
@@ -70,9 +74,9 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 
 <div class="callout callout-info">
 
-**O WordPress Playground é privado**
+<strong>O WordPress Playground é privado</strong>
 
-Tudo o que você cria fica no seu navegador e **não** é enviado para nenhum servidor remoto, funcionando totalmente de forma privada. Quando terminar, você pode exportar o seu site como um arquivo zip. Ou simplesmente atualize a página e comece de novo!
+Tudo o que você cria fica no seu navegador e <strong>não</strong> é enviado para nenhum servidor remoto, funcionando totalmente de forma privada. Quando terminar, você pode exportar o seu site como um arquivo zip. Ou simplesmente atualize a página e comece de novo!
 
 </div>
 
@@ -219,7 +223,7 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 
 <div class="callout callout-info">
 
-**Teste seu plugin ou tema**
+<strong>Teste seu plugin ou tema</strong>
 
 Testes de compatibilidade com tantas versões do WordPress e do PHP sempre foram um desafio. O WordPress Playground torna esse processo fácil – use-o a seu favor!
 
@@ -255,9 +259,9 @@ You can specify major versions like `wp=6.2` or `php=8.1` and expect the most re
 
 <div class="callout callout-info">
 
-**Somente versões principais**
+<strong>Somente versões principais</strong>
 
-Você pode especificar versões principais, como `wp=6.2` ou `php=8.1`, e esperar a versão mais recente nessa linha. No entanto, você não pode solicitar versões secundárias mais antigas, portanto, nem `wp=6.1.2` nem `php=7.4.9` funcionarão.
+Você pode especificar versões principais, como <code>wp=6.2</code> ou <code>php=8.1</code>, e esperar a versão mais recente nessa linha. No entanto, você não pode solicitar versões secundárias mais antigas, portanto, nem <code>wp=6.1.2</code> nem <code>php=7.4.9</code> funcionarão.
 
 </div>
 

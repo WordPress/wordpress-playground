@@ -29,6 +29,6 @@ If you encounter any issues while following this tutorial, refer to the [Trouble
 
 <div class="callout callout-tip">
 
-Se você encontrar algum problema enquanto segue este tutorial, consulte a seção [Solução de problemas e depuração de Blueprints](/blueprints/troubleshoot-and-debug) para dicas e ferramentas que podem ajudá-lo a resolvê-los.
+Se você encontrar algum problema enquanto segue este tutorial, consulte a seção <a href="/blueprints/troubleshoot-and-debug">Solução de problemas e depuração de Blueprints</a> para dicas e ferramentas que podem ajudá-lo a resolvê-los.
 
 </div>

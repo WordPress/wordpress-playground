@@ -48,9 +48,9 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 
 <div class="callout callout-tip">
 
-**Autocompletar**
+<strong>Autocompletar</strong>
 
-Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) para uma experiência de desenvolvimento Blueprint com autocompletar. Adicione a seguinte linha no topo do seu arquivo `blueprint.json`:
+Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint JSON Schema</a> para uma experiência de desenvolvimento Blueprint com autocompletar. Adicione a seguinte linha no topo do seu arquivo <code>blueprint.json</code>:
 
 ```json
 {
@@ -206,7 +206,7 @@ Neste caso, `https://wordpress.org/themes/<slug>/` se torna `https://wordpress.o
 
 <div class="callout callout-info">
 
-Saiba mais sobre os recursos suportados em [Blueprint Resources API Reference](/blueprints/steps/resources/).
+Saiba mais sobre os recursos suportados em <a href="/blueprints/steps/resources/">Blueprint Resources API Reference</a>.
 
 </div>
 

@@ -42,7 +42,7 @@ With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your ow
 
 <div class="callout callout-info">
 
-インポートしたコンテンツに画像を含めるには、画像を GitHub リポジトリにアップロードし、URL 形式 `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}` を使用して、エクスポートされた `.xml` ファイル内の画像のパスを検索/置換するのが良い方法です。
+インポートしたコンテンツに画像を含めるには、画像を GitHub リポジトリにアップロードし、URL 形式 <code>https://raw.githubusercontent.com/&#123;repo&#125;/&#123;branch&#125;/&#123;image_path&#125;</code> を使用して、エクスポートされた <code>.xml</code> ファイル内の画像のパスを検索/置換するのが良い方法です。
 
 <!--
 To include images in your imported content, a good approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
@@ -239,7 +239,7 @@ You can also use the `wp-cli` step in combination with the `writeFile` step to c
 
 <div class="callout callout-tip">
 
-コンテンツとアイキャッチ画像の関係を示す完全な例を確認するには、[Blueprints ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) の ["wp-cli を使用して画像付きの投稿を追加する"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) の例を確認してください。
+コンテンツとアイキャッチ画像の関係を示す完全な例を確認するには、<a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints ギャラリー</a> の <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"wp-cli を使用して画像付きの投稿を追加する"</a> の例を確認してください。
 
 </div>
 

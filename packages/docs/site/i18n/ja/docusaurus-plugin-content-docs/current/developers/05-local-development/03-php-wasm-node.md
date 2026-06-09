@@ -23,9 +23,9 @@ If you need low-level control over the underlying WebAssembly PHP build, take a 
 
 <div class="callout callout-info">
 
-**API リファレンス**
+<strong>API リファレンス</strong>
 
-クラス、関数、インターフェース、および型エイリアスの[完全なリスト](/api/node)を参照してください。
+クラス、関数、インターフェース、および型エイリアスの<a href="/api/node">完全なリスト</a>を参照してください。
 
 </div>
 

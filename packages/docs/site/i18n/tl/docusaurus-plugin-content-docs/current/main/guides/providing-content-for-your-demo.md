@@ -30,7 +30,7 @@ Gamit ang [`importWxr`](/blueprints/steps#importWxr) step, maaari mong i-import 
 
 <div class="callout callout-info">
 
-Upang isama ang mga larawan sa iyong imported content, magandang paraan ang i-upload ang mga larawan sa iyong GitHub repo at gamitin ang path na `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}` sa exported `.xml` file.
+Upang isama ang mga larawan sa iyong imported content, magandang paraan ang i-upload ang mga larawan sa iyong GitHub repo at gamitin ang path na <code>https://raw.githubusercontent.com/&#123;repo&#125;/&#123;branch&#125;/&#123;image_path&#125;</code> sa exported <code>.xml</code> file.
 
 ```html
 <!-- wp:image {"lightbox":{"enabled":false},"id":4751,"width":"78px","sizeSlug":"full","linkDestination":"none","align":"center","className":"no-border"} -->
@@ -175,6 +175,6 @@ Maaari mo ring gamitin ang `wp-cli` step kasama ang `writeFile` step upang lumik
 
 <div class="callout callout-tip">
 
-Tingnan ang halimbawa na ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) mula sa [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) upang makita ang buong halimbawa na nagpapakita ng ugnayan sa pagitan ng content at featured image.
+Tingnan ang halimbawa na <a href="https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image">"Use wp-cli to add a post with image"</a> mula sa <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> upang makita ang buong halimbawa na nagpapakita ng ugnayan sa pagitan ng content at featured image.
 
 </div>

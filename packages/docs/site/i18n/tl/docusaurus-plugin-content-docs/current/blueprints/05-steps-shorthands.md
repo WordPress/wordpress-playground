@@ -153,12 +153,14 @@ Ang `shorthand` syntax at ang `step` syntax ay tumutugma sa isa't isa. Ang bawat
 
 **<!-- **Which should you choose?** -->**
 
-**Alin ang dapat mong piliin?**
+<strong>Alin ang dapat mong piliin?</strong>
 
 <!-- -   Use `shorthands` when **brevity** is your main concern. -->
 
-- Gamitin ang `shorthands` kapag ang **kakulangan** ang iyong pangunahing alalahanin.
+<ul>
+<li>Gamitin ang <code>shorthands</code> kapag ang <strong>kakulangan</strong> ang iyong pangunahing alalahanin.</li>
   <!-- -   Use explicit `steps` when you need more control over the **execution order**. -->
-- Gamitin ang explicit `steps` kapag kailangan mo ng mas maraming kontrol sa **execution order**.
+<li>Gamitin ang explicit <code>steps</code> kapag kailangan mo ng mas maraming kontrol sa <strong>execution order</strong>.</li>
 
+</ul>
 </div>

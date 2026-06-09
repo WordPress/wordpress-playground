@@ -32,12 +32,12 @@ There's a set of redirections in place to make it easier the access to some of t
 Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algumas das ferramentas relacionadas ao Playground:
 
 <ul id="list-resources-redirections">
-<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Instância do Playground</li>
-<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Documentação do Playground</li>
-<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Construtor de Blueprints do Playground</li>
-<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Visualizador de PR do Playground para WordPress</li>
-<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Visualizador de PR do Playground para Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Serviço Proxy do Playground <em>(veja [URLReference](/blueprints/steps/resources#urlreference) para mais informações)</em></li>
+<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Instância do Playground</li>
+<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Documentação do Playground</li>
+<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Construtor de Blueprints do Playground</li>
+<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Visualizador de PR do Playground para WordPress</li>
+<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Visualizador de PR do Playground para Gutenberg</li>
+<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Serviço Proxy do Playground <em>(veja <a href="/blueprints/steps/resources#urlreference">URLReference</a> para mais informações)</em></li>
 </ul>
 
 </div>

@@ -12,9 +12,14 @@ description: Guia prático para incorporar WordPress, instalar plugins, visualiz
 
 WordPress Playground foi criado como uma ferramenta programável. Abaixo você encontrará alguns exemplos do que pode fazer com ele. Cada API discutida é descrita em detalhes na [seção de APIs](/developers/apis/):
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [Incorporar WordPress no seu site](#incorporar-wordpress-no-seu-site)
+- [Controlar o site incorporado](#controlar-o-site-incorporado)
+- [Apresentar um plugin ou tema do diretório WordPress](#apresentar-um-plugin-ou-tema-do-diretório-wordpress)
+- [Apresentar qualquer plugin ou tema](#apresentar-qualquer-plugin-ou-tema)
+- [Visualizar pull requests do seu repositório](#visualizar-pull-requests-do-seu-repositório)
+    - [Visualizar Branches ou PRs do WordPress Core e Gutenberg](#visualizar-branches-ou-prs-do-wordpress-core-e-gutenberg)
+- [Construir um ambiente de teste de compatibilidade](#construir-um-ambiente-de-teste-de-compatibilidade)
+- [Executar código PHP no navegador](#executar-código-php-no-navegador)
 
 <!-- ## Embed WordPress on your website -->
 
@@ -34,11 +39,11 @@ Cada visitante receberá sua própria instância privada do WordPress gratuitame
 
 <div class="callout callout-warning">
 
-**Careful with the demo site**
+<strong>Careful with the demo site</strong>
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
 
 </div>
 
@@ -150,7 +155,7 @@ No código acima, será instalado um plugin de um repositório localizado na `ur
 
 <div class="callout callout-tip">
 
-Você pode automatizar esse processo usando a [Ação do GitHub para gerar links de pré-visualização](/guides/github-action-pr-preview), o que ajudará a agilizar o processo.
+Você pode automatizar esse processo usando a <a href="/guides/github-action-pr-preview">Ação do GitHub para gerar links de pré-visualização</a>, o que ajudará a agilizar o processo.
 
 </div>
 

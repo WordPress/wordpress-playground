@@ -26,7 +26,7 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 
 <div class="callout callout-info">
 
-Tuklasin kung paano [Mag-build](/about/build), [Mag-test](/about/test), at [Mag-launch](/about/launch) ng iyong mga produkto gamit ang WordPress Playground sa [About Playground](/about) na seksyon.
+Tuklasin kung paano <a href="/about/build">Mag-build</a>, <a href="/about/test">Mag-test</a>, at <a href="/about/launch">Mag-launch</a> ng iyong mga produkto gamit ang WordPress Playground sa <a href="/about">About Playground</a> na seksyon.
 
 </div>
 
@@ -58,7 +58,7 @@ You can install and activate several plugins via query parameters by repeating t
 
 <div class="callout callout-tip">
 
-Maaari kang mag-install at mag-activate ng maraming plugin sa pamamagitan ng pag-uulit ng `plugin` parameter para sa bawat plugin na nais mong i-install at i-activate sa Playground instance. Halimbawa: https://playground.wordpress.net/?plugin=gutenberg&plugin=akismet&plugin=wordpress-seo
+Maaari kang mag-install at mag-activate ng maraming plugin sa pamamagitan ng pag-uulit ng <code>plugin</code> parameter para sa bawat plugin na nais mong i-install at i-activate sa Playground instance. Halimbawa: https://playground.wordpress.net/?plugin=gutenberg&plugin=akismet&plugin=wordpress-seo
 
 </div>
 
@@ -138,7 +138,7 @@ For the past few months, the [GitHub proxy](https://playground.wordpress.net/pro
 
 <div class="callout callout-info">
 
-Sa mga nakaraang buwan, ang [GitHub proxy](https://playground.wordpress.net/proxy) ay isang napaka-kapaki-pakinabang na tool upang mag-load ng mga plugin mula sa mga GitHub repository, dahil pinapayagan kang mag-load ng plugin mula sa isang partikular na branch, direktoryo, commit, o PR. Ngunit sa mga kamakailang pagpapabuti sa Playground, ang feature na ito ay hindi na kailangan. Ang GitHub Proxy ay hindi na ipagpapatuloy sa lalong madaling panahon, mangyaring i-update ang iyong mga blueprint sa `git:directory` resource.
+Sa mga nakaraang buwan, ang <a href="https://playground.wordpress.net/proxy">GitHub proxy</a> ay isang napaka-kapaki-pakinabang na tool upang mag-load ng mga plugin mula sa mga GitHub repository, dahil pinapayagan kang mag-load ng plugin mula sa isang partikular na branch, direktoryo, commit, o PR. Ngunit sa mga kamakailang pagpapabuti sa Playground, ang feature na ito ay hindi na kailangan. Ang GitHub Proxy ay hindi na ipagpapatuloy sa lalong madaling panahon, mangyaring i-update ang iyong mga blueprint sa <code>git:directory</code> resource.
 
 </div>
 
@@ -194,7 +194,7 @@ If your plugin is hosted on GitHub, you can automatically add preview buttons to
 
 <div class="callout callout-tip">
 
-Kung ang iyong plugin ay naka-host sa GitHub, maaari kang awtomatikong magdagdag ng mga preview button sa iyong mga pull request gamit ang Playground PR Preview GitHub Action. Hinahayaan nito ang mga reviewer na subukan ang iyong mga pagbabago kaagad nang walang anumang setup. Tingnan ang [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) para sa mga detalye.
+Kung ang iyong plugin ay naka-host sa GitHub, maaari kang awtomatikong magdagdag ng mga preview button sa iyong mga pull request gamit ang Playground PR Preview GitHub Action. Hinahayaan nito ang mga reviewer na subukan ang iyong mga pagbabago kaagad nang walang anumang setup. Tingnan ang <a href="/guides/github-action-pr-preview">Adding PR Preview Buttons with GitHub Actions</a> para sa mga detalye.
 
 </div>
 
@@ -278,7 +278,7 @@ The [Install plugin from a gist](https://playground.wordpress.net/builder/builde
 
 <div class="callout callout-info">
 
-Ang [Install plugin from a gist](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}) example sa [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) ay nagpapakita kung paano mag-load ng plugin mula sa code sa isang gist
+Ang <a href="https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}">Install plugin from a gist</a> example sa <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> ay nagpapakita kung paano mag-load ng plugin mula sa code sa isang gist
 
 </div>
 
@@ -310,10 +310,12 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Narito ang ilang kapaki-pakinabang na tool at mapagkukunan na ibinigay ng proyekto ng Playground upang gumana sa mga blueprint:
 
-- Tingnan ang [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) upang galugarin ang mga halimbawa ng code sa totoong mundo ng paggamit ng WordPress Playground upang maglunsad ng site ng WordPress na may iba't ibang mga setup.
-- Ang [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool ay nagbibigay ng visual na interface upang i-drag o i-click ang mga hakbang upang lumikha ng isang blueprint para sa WordPress Playground. Maaari ka ring lumikha ng iyong sariling mga hakbang!
-- Ang [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool ay nagbibigay-daan sa iyong i-edit ang iyong blueprint online at patakbuhin ito nang direkta sa isang instance ng Playground.
+<ul>
+<li>Tingnan ang <a href="https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md">Blueprints Gallery</a> upang galugarin ang mga halimbawa ng code sa totoong mundo ng paggamit ng WordPress Playground upang maglunsad ng site ng WordPress na may iba't ibang mga setup.</li>
+<li>Ang <a href="https://akirk.github.io/playground-step-library/#">WordPress Playground Step Library</a> tool ay nagbibigay ng visual na interface upang i-drag o i-click ang mga hakbang upang lumikha ng isang blueprint para sa WordPress Playground. Maaari ka ring lumikha ng iyong sariling mga hakbang!</li>
+<li>Ang <a href="https://playground.wordpress.net/builder/builder.html">Blueprints builder</a> tool ay nagbibigay-daan sa iyong i-edit ang iyong blueprint online at patakbuhin ito nang direkta sa isang instance ng Playground.</li>
 
+</ul>
 </div>
 
 <!--
@@ -332,7 +334,7 @@ A great demo with WordPress Playground might require that you load default conte
 
 <div class="callout callout-info">
 
-Isang mahusay na demo gamit ang WordPress Playground ay maaaring mangailangan na mag-load ka ng default na content para sa iyong plugin at theme, kabilang ang mga larawan at iba pang asset. Tingnan ang [Pagbibigay ng nilalaman para sa iyong demo](/guides/providing-content-for-your-demo) na gabay para matuto nang higit pa tungkol dito.
+Isang mahusay na demo gamit ang WordPress Playground ay maaaring mangailangan na mag-load ka ng default na content para sa iyong plugin at theme, kabilang ang mga larawan at iba pang asset. Tingnan ang <a href="/guides/providing-content-for-your-demo">Pagbibigay ng nilalaman para sa iyong demo</a> na gabay para matuto nang higit pa tungkol dito.
 
 </div>
 
@@ -538,6 +540,6 @@ Check [About Playground &gt; Build &gt; Synchronize your playground instance wit
 
 <div class="callout callout-info">
 
-Tingnan ang [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para sa karagdagang impormasyon.
+Tingnan ang <a href="/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests">About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests</a> para sa karagdagang impormasyon.
 
 </div>

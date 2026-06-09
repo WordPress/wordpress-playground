@@ -15,9 +15,14 @@ WordPress Playground は、Playground と通信するために使用できるい
 WordPress Playground exposes a few APIs that you can use to interact with the Playground:
 -->
 
-import TOCInline from '@theme/TOCInline';
-
-<TOCInline toc={toc} />
+- [WordPress Playground API の概要](#wordpress-playground-api-の概要)
+    - [クエリ API](#クエリ-api)
+    - [ブループリント](#ブループリント)
+    - [JavaScript API](#javascript-api)
+- [プレイグラウンド API の概念](#プレイグラウンド-api-の概念)
+    - [プレイグラウンドサイトへのリンク](#プレイグラウンドサイトへのリンク)
+    - [ブラウザ APIs](#ブラウザ-apis)
+    - [Node.js の場合](#nodejs-の場合)
 
 ### クエリ API
 
@@ -53,7 +58,7 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 
 <div class="callout callout-info">
 
-詳細については、[クエリ API](/developers/apis/query-api) セクションを確認してください。
+詳細については、<a href="/developers/apis/query-api">クエリ API</a> セクションを確認してください。
 
 </div>
 
@@ -129,7 +134,7 @@ wp_insert_post(array(
 
 <div class="callout callout-info">
 
-WordPress Playground ではブループリントが重要な役割を果たすため、専用のドキュメントハブが用意されています。JSON ブループリントの詳細については、[ブループリント ドキュメント ハブ](/blueprints) をご覧ください。
+WordPress Playground ではブループリントが重要な役割を果たすため、専用のドキュメントハブが用意されています。JSON ブループリントの詳細については、<a href="/blueprints">ブループリント ドキュメント ハブ</a> をご覧ください。
 
 </div>
 
@@ -170,7 +175,7 @@ The `@wp-playground/client` package provides a JavaScript API you can use to ful
 
 <div class="callout callout-info">
 
-詳細については、[JavaScript API](/developers/apis/javascript-api/) セクションをご覧ください。
+詳細については、<a href="/developers/apis/javascript-api/">JavaScript API</a> セクションをご覧ください。
 
 </div>
 
@@ -256,11 +261,11 @@ The JavaScript API gives you the most control, but it is also the least convenie
 
 <div class="callout callout-warning">
 
-**Careful with the demo site**
+<strong>Careful with the demo site</strong>
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+If you need certain availability, you should <a href="/developers/architecture/host-your-own-playground">host your own WordPress Playground</a>.
 
 </div>
 

@@ -5,9 +5,9 @@ slug: /developers/local-development/wp-now
 
 <div class="callout callout-warning">
 
-**パッケージは非推奨です**
+<strong>パッケージは非推奨です</strong>
 
-NPM パッケージ @wp-now/wp-now は非推奨となり、今後アップデートは行われません。開発フローでコマンドラインツールを使用するには、NPM パッケージ `@wp-playground/cli` を使用してください。
+NPM パッケージ @wp-now/wp-now は非推奨となり、今後アップデートは行われません。開発フローでコマンドラインツールを使用するには、NPM パッケージ <code>@wp-playground/cli</code> を使用してください。
 
 </div>
 
@@ -57,9 +57,9 @@ Key Features:
 
 <div class="callout callout-info">
 
-**ドキュメント**
+<strong>ドキュメント</strong>
 
-`wp-now` は別の GitHub リポジトリ [Playground Tools](https://github.com/WordPress/playground-tools/) でメンテナンスされています。最新のドキュメントは [専用の README ファイル](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) をご覧ください。
+<code>wp-now</code> は別の GitHub リポジトリ <a href="https://github.com/WordPress/playground-tools/">Playground Tools</a> でメンテナンスされています。最新のドキュメントは <a href="https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md">専用の README ファイル</a> をご覧ください。
 
 </div>
 

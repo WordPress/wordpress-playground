@@ -186,6 +186,6 @@ If you need certain availability, you should [host your own WordPress Playground
 
 https://playground.wordpress.net のサイトはコミュニティをサポートするために存在しますが、トラフィックが大幅に増加した場合、引き続き機能するという保証はありません。
 
-一定の可用性が必要な場合は、[独自の WordPress Playground をホスト](/developers/architecture/host-your-own-playground)する必要があります。
+一定の可用性が必要な場合は、<a href="/developers/architecture/host-your-own-playground">独自の WordPress Playground をホスト</a>する必要があります。
 
 </div>

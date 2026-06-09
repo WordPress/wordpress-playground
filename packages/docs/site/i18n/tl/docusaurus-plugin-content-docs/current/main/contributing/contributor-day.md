@@ -59,7 +59,7 @@ npm run dev
 
 <div class="callout callout-info">
 
-Kung hindi ka sigurado sa mga hakbang sa itaas, bisitahin ang opisyal na [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Tandaan na sa pagkakataong ito, papalitan ng `wp-now` ang `wp-env`.
+Kung hindi ka sigurado sa mga hakbang sa itaas, bisitahin ang opisyal na <a href="https://developer.wordpress.org/block-editor/contributors/">Gutenberg Project Contributor Guide</a>. Tandaan na sa pagkakataong ito, papalitan ng <code>wp-now</code> ang <code>wp-env</code>.
 
 </div>
 

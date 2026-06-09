@@ -157,7 +157,7 @@ The `--reset` flag works only with `start`. For `server`, manually delete the pe
 
 <div class="callout callout-info">
 
-`--reset` フラグは `start` でのみ有効です。`server` の場合は、`~/.wordpress-playground/sites/<path-hash>/` の永続化サイトディレクトリを手動で削除してください。
+<code>--reset</code> フラグは <code>start</code> でのみ有効です。<code>server</code> の場合は、<code>~/.wordpress-playground/sites/&lt;path-hash&gt;/</code> の永続化サイトディレクトリを手動で削除してください。
 
 </div>
 
@@ -260,7 +260,7 @@ On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve 
 
 <div class="callout callout-info">
 
-Windows では、パス形式 `/host/path:/vfs/path` が問題になることがあります。その場合は `--mount-dir` と `--mount-dir-before-install` を使い、`"/host/path"` `"/vfs/path"` の形式でホストと仮想ファイルシステムのパスを指定してください。
+Windows では、パス形式 <code>/host/path:/vfs/path</code> が問題になることがあります。その場合は <code>--mount-dir</code> と <code>--mount-dir-before-install</code> を使い、<code>"/host/path"</code> <code>"/vfs/path"</code> の形式でホストと仮想ファイルシステムのパスを指定してください。
 
 </div>
 
@@ -522,7 +522,7 @@ With the flag `--follow-symlinks`, the following symlinks will expose files outs
 
 <div class="callout callout-warning">
 
-`--follow-symlinks` を付けると、マウント外のファイルが Playground に露出するシンボリックリンクが存在し、セキュリティリスクになる可能性があります。
+<code>--follow-symlinks</code> を付けると、マウント外のファイルが Playground に露出するシンボリックリンクが存在し、セキュリティリスクになる可能性があります。
 
 </div>
 
