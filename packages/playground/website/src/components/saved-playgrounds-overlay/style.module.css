@@ -585,7 +585,9 @@
 }
 
 .playgroundsOverlay.playgroundsOverlay {
-	top: 50px;
+	--playgrounds-overlay-top: 50px;
+	--playgrounds-close-button-offset: 20px;
+	top: var(--playgrounds-overlay-top);
 }
 
 .playgroundsContent.playgroundsContent {
@@ -608,7 +610,9 @@
 	padding: 4px;
 	position: fixed;
 	right: 24px;
-	top: 70px;
+	top: calc(
+		var(--playgrounds-overlay-top) + var(--playgrounds-close-button-offset)
+	);
 	z-index: 101;
 }
 
@@ -791,10 +795,7 @@
 
 @media (max-width: 500px) {
 	.playgroundsOverlay.playgroundsOverlay {
-		top: 96px;
-	}
-
-	.playgroundsCloseButton {
-		top: 112px;
+		--playgrounds-overlay-top: 96px;
+		--playgrounds-close-button-offset: 16px;
 	}
 }
