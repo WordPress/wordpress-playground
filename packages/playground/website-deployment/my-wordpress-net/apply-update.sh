@@ -98,6 +98,9 @@ find -type f |
 echo Applying latest My WordPress event stats schema
 cat ~/website-deployment/my-wordpress-net/mywp-event-tables.sql | mysql --database="$DB_NAME"
 
+echo Applying latest My WordPress desktop access schema
+cat ~/website-deployment/my-wordpress-net/mywp-desktop-access-tables.sql | mysql --database="$DB_NAME"
+
 echo Syncing staged files to production
 rsync -av --delete --no-perms --omit-dir-times ~/website-update/ /srv/htdocs/
 
