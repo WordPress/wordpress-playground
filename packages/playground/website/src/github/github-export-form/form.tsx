@@ -28,6 +28,8 @@ import {
 	mayPush,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
+import { getAISettings, setAISettings } from '../ai-settings-state';
+import { generatePrDescription } from '../generate-pr-description';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import type { ContentType } from '../import-from-github';
@@ -83,6 +85,11 @@ export default function GitHubExportForm({
 	allowZipExport = true,
 }: GitHubExportFormProps) {
 	const [pushResult, setPushResult] = useState<PushResult>();
+	const [aiSettings, _setAiSettings] = useState(getAISettings());
+	const updateAiSettings = (settings: Partial<typeof aiSettings>) => {
+		setAISettings(settings);
+		_setAiSettings(getAISettings());
+	};
 	const [formValues, _setFormValues] = useState<ExportFormValues>({
 		repoUrl: '',
 		prNumber: '',
@@ -392,6 +399,23 @@ export default function GitHubExportForm({
 				new Map(Object.entries(ghComparableFiles)),
 				allPlaygroundFiles
 			);
+
+			// Propose an AI-generated PR title and description when the
+			// user opted in. Falls back to the defaults on any failure.
+			if (
+				aiSettings.useAiForPrDescription &&
+				aiSettings.openAiApiKey?.trim()
+			) {
+				const aiResult = await generatePrDescription(
+					changes,
+					aiSettings.openAiApiKey,
+					formValues.contentType
+				);
+				if (aiResult) {
+					prTitle = aiResult.title;
+					commitMessage = aiResult.body;
+				}
+			}
 
 			const pushResult = await pushToGithub(getClient(), {
 				owner: repoDetails.owner,
@@ -752,6 +776,58 @@ export default function GitHubExportForm({
 										</div>
 									)}
 								</div>
+								<div
+									className={`${forms.formGroup} ${forms.formGroupLast}`}
+								>
+									<label>
+										<input
+											type="checkbox"
+											checked={
+												aiSettings.useAiForPrDescription
+											}
+											onChange={(e) =>
+												updateAiSettings({
+													useAiForPrDescription:
+														e.target.checked,
+												})
+											}
+										/>
+										Propose a Pull Request title and
+										description with AI (uses your OpenAI
+										API key).
+									</label>
+								</div>
+								{aiSettings.useAiForPrDescription ? (
+									<div
+										className={`${forms.formGroup} ${forms.formGroupLast}`}
+									>
+										<label>
+											OpenAI API key:
+											<input
+												type="password"
+												className={css.repoInput}
+												value={
+													aiSettings.openAiApiKey ||
+													''
+												}
+												onChange={(e) =>
+													updateAiSettings({
+														openAiApiKey:
+															e.target.value,
+													})
+												}
+												placeholder="sk-..."
+											/>
+										</label>
+										<p className={css.fineprint}>
+											The key never leaves your browser
+											except for a single request to the
+											OpenAI API. Only the list of changed
+											file paths is shared, not the file
+											contents.
+										</p>
+									</div>
+								) : null}
 								{allowZipExport ? (
 									<div
 										className={`${forms.formGroup} ${forms.formGroupLast}`}

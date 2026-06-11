@@ -83,3 +83,9 @@
 	width: 40px !important;
 	height: 40px !important;
 }
+
+.fineprint {
+	font-size: 13px;
+	color: #555;
+	margin: 5px 0 0;
+}
