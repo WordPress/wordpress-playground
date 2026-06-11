@@ -18,6 +18,10 @@ define('HOST_DEAD_AFTER_MS', 40 * 1000);
 define('GUEST_DEAD_AFTER_MS', 10 * 1000);
 define('SIGNAL_RETENTION_MS', 15 * 60 * 1000);
 define('SIGNAL_POLL_TIMEOUT_SEC', 25);
+define('MAX_SIGNAL_BODY_BYTES', 8 * 1024);
+define('MAX_SIGNAL_ID_BYTES', 64);
+define('MAX_SIGNAL_SDP_BYTES', 4096);
+define('MAX_SIGNAL_ICE_CANDIDATE_BYTES', 1024);
 define('SESSIONS_TABLE', 'mywp_desktop_access_sessions');
 define('SIGNALS_TABLE', 'mywp_desktop_access_signals');
 define('GUESTS_TABLE', 'mywp_desktop_access_guests');
@@ -122,7 +126,13 @@ function handleStatus(string $sessionId): void {
 }
 
 function handlePostSignal(string $sessionId): void {
-    $payload = json_decode(file_get_contents('php://input'), true);
+    $rawBody = file_get_contents('php://input');
+    if (strlen($rawBody) > MAX_SIGNAL_BODY_BYTES) {
+        jsonResponse(['error' => 'Signal body too large'], 413);
+        return;
+    }
+
+    $payload = json_decode($rawBody, true);
     if (!is_array($payload)) {
         jsonResponse(['error' => 'Invalid signal body'], 400);
         return;
@@ -154,6 +164,12 @@ function handlePostSignal(string $sessionId): void {
         return;
     }
 
+    $data = validateSignalData($type, $payload['data'] ?? null);
+    if ($data === null) {
+        jsonResponse(['error' => 'Invalid signal data'], 400);
+        return;
+    }
+
     jsonResponse([
         'ok' => true,
         'seq' => insertSignal(
@@ -161,7 +177,7 @@ function handlePostSignal(string $sessionId): void {
             $from,
             $to,
             $type,
-            $payload['data'] ?? null,
+            $data,
             $now
         ),
     ]);
@@ -213,6 +229,115 @@ function handlePollSignal(string $sessionId): void {
 function handleClose(string $sessionId): void {
     setHostConnected($sessionId, false);
     jsonResponse(['ok' => true]);
+}
+
+function validateSignalData(string $type, $data): ?array {
+    if ($type === 'retry-request') {
+        return validateRetryRequestSignalData($data);
+    }
+    if ($type === 'offer' || $type === 'answer') {
+        return validateSessionDescriptionSignalData($type, $data);
+    }
+    if ($type === 'candidate') {
+        return validateIceCandidateSignalData($data);
+    }
+    return null;
+}
+
+function validateRetryRequestSignalData($data): ?array {
+    if (!is_array($data)) {
+        return null;
+    }
+    $guestId = $data['guestId'] ?? null;
+    if (!isBoundedString($guestId, 1, MAX_SIGNAL_ID_BYTES)) {
+        return null;
+    }
+    return ['guestId' => $guestId];
+}
+
+function validateSessionDescriptionSignalData(string $type, $data): ?array {
+    if (!is_array($data)) {
+        return null;
+    }
+    $attemptId = $data['attemptId'] ?? null;
+    $payload = $data['payload'] ?? null;
+    if (
+        !isBoundedString($attemptId, 1, MAX_SIGNAL_ID_BYTES) ||
+        !is_array($payload)
+    ) {
+        return null;
+    }
+    $descriptionType = $payload['type'] ?? null;
+    $sdp = $payload['sdp'] ?? null;
+    if (
+        $descriptionType !== $type ||
+        !isBoundedString($sdp, 1, MAX_SIGNAL_SDP_BYTES)
+    ) {
+        return null;
+    }
+    return [
+        'attemptId' => $attemptId,
+        'payload' => [
+            'type' => $descriptionType,
+            'sdp' => $sdp,
+        ],
+    ];
+}
+
+function validateIceCandidateSignalData($data): ?array {
+    if (!is_array($data)) {
+        return null;
+    }
+    $attemptId = $data['attemptId'] ?? null;
+    $payload = $data['payload'] ?? null;
+    if (
+        !isBoundedString($attemptId, 1, MAX_SIGNAL_ID_BYTES) ||
+        !is_array($payload)
+    ) {
+        return null;
+    }
+
+    $candidate = $payload['candidate'] ?? null;
+    $sdpMid = $payload['sdpMid'] ?? null;
+    $sdpMLineIndex = $payload['sdpMLineIndex'] ?? null;
+    $usernameFragment = $payload['usernameFragment'] ?? null;
+    if (
+        !isBoundedString($candidate, 0, MAX_SIGNAL_ICE_CANDIDATE_BYTES) ||
+        !isNullableBoundedString($sdpMid, 0, MAX_SIGNAL_ID_BYTES) ||
+        !isNullableInt($sdpMLineIndex) ||
+        !isNullableBoundedString($usernameFragment, 0, MAX_SIGNAL_ID_BYTES)
+    ) {
+        return null;
+    }
+
+    $candidatePayload = [
+        'candidate' => $candidate,
+        'sdpMid' => $sdpMid,
+        'sdpMLineIndex' => $sdpMLineIndex,
+    ];
+    if (array_key_exists('usernameFragment', $payload)) {
+        $candidatePayload['usernameFragment'] = $usernameFragment;
+    }
+    return [
+        'attemptId' => $attemptId,
+        'payload' => $candidatePayload,
+    ];
+}
+
+function isNullableInt($value): bool {
+    return $value === null || is_int($value);
+}
+
+function isNullableBoundedString($value, int $minBytes, int $maxBytes): bool {
+    return $value === null || isBoundedString($value, $minBytes, $maxBytes);
+}
+
+function isBoundedString($value, int $minBytes, int $maxBytes): bool {
+    if (!is_string($value)) {
+        return false;
+    }
+    $length = strlen($value);
+    return $length >= $minBytes && $length <= $maxBytes;
 }
 
 function insertSession(
