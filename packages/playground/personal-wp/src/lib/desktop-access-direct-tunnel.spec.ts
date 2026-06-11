@@ -144,6 +144,7 @@ describe('desktop access tunnel helpers', () => {
 
 describe('desktop access direct tunnel', () => {
 	afterEach(() => {
+		vi.useRealTimers();
 		vi.restoreAllMocks();
 	});
 
@@ -248,6 +249,37 @@ describe('desktop access direct tunnel', () => {
 			'connecting',
 			'invalid data channel message',
 		]);
+	});
+
+	it('moves the host attempt to error when the data channel times out', async () => {
+		vi.useFakeTimers();
+		const errors: Error[] = [];
+		const host = new DirectTunnelHost(
+			{} as ConstructorParameters<typeof DirectTunnelHost>[0],
+			'https://example.test'
+		);
+		host.on('error', (error) => {
+			errors.push(error);
+		});
+		Object.assign(host as unknown as Record<string, unknown>, {
+			isActive: true,
+			currentAttemptId: 'attempt-1',
+			dataChannel: { readyState: 'connecting' },
+		});
+
+		(
+			host as unknown as {
+				scheduleDataChannelOpenTimeout: (attemptId: string) => void;
+			}
+		).scheduleDataChannelOpenTimeout('attempt-1');
+		await vi.advanceTimersByTimeAsync(8000);
+
+		expect(host.getStatus()).toBe('error');
+		expect(host.getMetrics()).toMatchObject({
+			handshakeState: 'Data channel timed out',
+			lastError: 'Data channel timed out',
+		});
+		expect(errors[0]?.message).toBe('Data channel timed out');
 	});
 
 	it('posts a retry request when the guest asks for a fresh offer', async () => {
