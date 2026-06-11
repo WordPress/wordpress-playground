@@ -306,6 +306,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'vanilla',
 			title: 'Vanilla WordPress',
+			ariaLabel: 'Vanilla WordPress - New Playground',
 			iconComponent: <WordPressIcon />,
 			onClick: createVanillaSite,
 			disabled: false,
@@ -313,6 +314,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'wp-pr',
 			title: 'WordPress PR',
+			ariaLabel: 'WordPress PR - Preview a WordPress PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
@@ -322,6 +324,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'gutenberg-pr',
 			title: 'Gutenberg PR',
+			ariaLabel: 'Gutenberg PR - Preview a Gutenberg PR',
 			iconComponent: <PullRequestIcon />,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
@@ -331,6 +334,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'github',
 			title: 'From GitHub',
+			ariaLabel: 'From GitHub - Import from GitHub',
 			iconComponent: GitHubIcon,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
@@ -340,6 +344,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'blueprint-url',
 			title: 'Blueprint URL',
+			ariaLabel: 'Blueprint URL - Open a Blueprint URL',
 			icon: link,
 			onClick: () => {
 				dispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
@@ -349,6 +354,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'zip',
 			title: 'Import .zip',
+			ariaLabel: 'Import .zip - Import a .zip',
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
@@ -734,6 +740,7 @@ export function SavedPlaygroundsOverlay({
 									<button
 										key={option.id}
 										className={css.creationButton}
+										aria-label={option.ariaLabel}
 										onClick={option.onClick}
 										disabled={option.disabled}
 									>
