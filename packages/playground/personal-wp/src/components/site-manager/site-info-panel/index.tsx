@@ -38,7 +38,6 @@ import {
 	APP_LAUNCHER_BLUEPRINT,
 	APP_LAUNCHER_BLUEPRINT_URL,
 } from '../../../lib/personalwp/my-apps';
-import { encodeStringAsBase64 } from '../../../lib/base64';
 import {
 	getDesktopAccessStatus,
 	approveDesktopAccess,
@@ -174,7 +173,7 @@ function DesktopAccessSection() {
 		event?.preventDefault();
 		if (approveDesktopAccess(verificationCode)) {
 			setVerificationCode('');
-			setMessage('Desktop access approved.');
+			setMessage(null);
 			return;
 		}
 		setMessage('Enter the code shown on your desktop.');
@@ -216,18 +215,14 @@ function DesktopAccessSection() {
 			<div className={css.desktopAccessControls}>
 				{isActive ? (
 					<>
-						<div className={css.desktopAccessCodeBlock}>
-							{isConnected ? (
-								<span>Desktop connected.</span>
-							) : (
-								<>
-									<span>Open on your desktop:</span>
-									<strong>{connectUrl}</strong>
-									<span>Enter code:</span>
-									<b>{desktopAccess.accessCode}</b>
-								</>
-							)}
-						</div>
+						{!isConnected && (
+							<div className={css.desktopAccessCodeBlock}>
+								<span>Open on your desktop:</span>
+								<strong>{connectUrl}</strong>
+								<span>Enter code:</span>
+								<b>{desktopAccess.accessCode}</b>
+							</div>
+						)}
 						{desktopAccess.status === 'pending-approval' && (
 							<form
 								className={css.desktopAccessApproval}
@@ -267,6 +262,11 @@ function DesktopAccessSection() {
 						{desktopAccess.metrics && (
 							<DesktopAccessDiagnostics
 								metrics={desktopAccess.metrics}
+								label={
+									isConnected
+										? 'Desktop connected'
+										: 'Desktop traffic'
+								}
 							/>
 						)}
 						<div className={css.desktopAccessButtons}>
@@ -323,12 +323,14 @@ function formatVerificationCode(value: string): string {
 
 function DesktopAccessDiagnostics({
 	metrics,
+	label,
 }: {
 	metrics: NonNullable<ReturnType<typeof getDesktopAccessStatus>['metrics']>;
+	label: string;
 }) {
 	return (
 		<details className={css.desktopAccessDiagnostics}>
-			<summary>Desktop traffic</summary>
+			<summary>{label}</summary>
 			<div className={css.desktopAccessMetrics}>
 				<span>Handshake {metrics.handshakeAttempts}</span>
 				<span>{metrics.handshakeState}</span>

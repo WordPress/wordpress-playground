@@ -172,6 +172,11 @@ type DataChannelGuestMessage =
 
 const DATA_CHANNEL_CHUNK_SIZE = 16 * 1024;
 const DATA_CHANNEL_OPEN_TIMEOUT_MS = 8000;
+const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+	{ urls: 'stun:stun.cloudflare.com:3478' },
+	{ urls: 'stun:stun.l.google.com:19302' },
+	{ urls: 'stun:stun1.l.google.com:19302' },
+];
 
 /**
  * Convert a Uint8Array to a base64 string (browser-compatible).
@@ -247,7 +252,7 @@ export function assembleChunkedDataChannelResponse(
 
 function createPeerConnection(): RTCPeerConnection {
 	return new RTCPeerConnection({
-		iceServers: [],
+		iceServers: DEFAULT_ICE_SERVERS,
 	});
 }
 
