@@ -587,6 +587,9 @@
 .playgroundsOverlay.playgroundsOverlay {
 	--playgrounds-overlay-top: 50px;
 	--playgrounds-close-button-offset: 20px;
+	--playgrounds-body-top-padding: calc(
+		var(--playgrounds-close-button-offset) + 52px
+	);
 	top: var(--playgrounds-overlay-top);
 }
 
@@ -595,7 +598,7 @@
 }
 
 .playgroundsBody.playgroundsBody {
-	padding: 72px 24px 70px;
+	padding: var(--playgrounds-body-top-padding) 24px 70px;
 }
 
 .playgroundsCloseButton {
@@ -741,10 +744,6 @@
 }
 
 @media (max-width: 875px) {
-	.playgroundsBody.playgroundsBody {
-		padding-top: 48px;
-	}
-
 	.playgroundsColumns {
 		gap: 48px;
 		grid-template-columns: 1fr;
@@ -763,7 +762,7 @@
 
 @media (max-width: 640px) {
 	.playgroundsBody.playgroundsBody {
-		padding: 32px 20px 48px;
+		padding: var(--playgrounds-body-top-padding) 20px 48px;
 	}
 
 	.playgroundsList .siteRowContent {

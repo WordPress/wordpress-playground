@@ -257,10 +257,10 @@ export function SavedPlaygroundsOverlay({
 	};
 
 	const getStoredSiteDetails = (site: SiteInfo) => {
-		const createdDate = formatSiteCreatedDate(site);
 		if (site.metadata.storage === 'none') {
 			return 'Not saved to browser storage';
 		}
+		const createdDate = formatSiteCreatedDate(site);
 		if (isAutosavedSite(site)) {
 			return createdDate
 				? `Recovery copy - Created ${createdDate}`
