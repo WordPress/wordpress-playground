@@ -3,7 +3,12 @@ import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
 	legacyOpfsPathSymbol,
+	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
+import {
+	isTraversableFilesystemBackend,
+	persistBlueprintBundle,
+} from '../opfs/opfs-blueprint-bundle-storage';
 import {
 	addClientInfo,
 	removeClientInfo,
@@ -18,7 +23,10 @@ import {
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
-import { startPlaygroundWeb } from '@wp-playground/client';
+import {
+	resolveRemoteBlueprint,
+	startPlaygroundWeb,
+} from '@wp-playground/client';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import {
@@ -30,6 +38,9 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
 	selectSiteBySlug,
+	shouldResetInitialOpfsSync,
+	type SiteInfo,
+	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -45,6 +56,7 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { applyQueryOverrides } from '../url/resolve-blueprint-from-url';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -58,7 +70,7 @@ export function bootSiteClient(
 		signal.onabort = () => {
 			dispatch(removeClientInfo(siteSlug));
 		};
-		const site = selectSiteBySlug(getState(), siteSlug);
+		let site = selectSiteBySlug(getState(), siteSlug);
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -93,6 +105,25 @@ export function bootSiteClient(
 				},
 				mountpoint: '/wordpress',
 			} as const;
+		}
+
+		const needsInitialOpfsSync = shouldResetInitialOpfsSync(site);
+		if (needsInitialOpfsSync) {
+			try {
+				site = await recoverInterruptedInitialOpfsSync(site, {
+					dispatch,
+					getState,
+				});
+			} catch (e) {
+				logger.error(e);
+				dispatch(
+					setActiveSiteError({
+						error: 'site-boot-failed',
+						details: e,
+					})
+				);
+				return;
+			}
 		}
 
 		let isWordPressInstalled = false;
@@ -174,10 +205,7 @@ export function bootSiteClient(
 		 * Only then, on subsequent boots, we can synchronize WordPress files
 		 * back from OPFS to MEMFS.
 		 */
-		const isFirstOpfsBoot =
-			site.metadata.initialOpfsSyncPending === true &&
-			site.metadata.storage === 'opfs' &&
-			!isWordPressInstalled;
+		const isFirstOpfsBoot = needsInitialOpfsSync && !isWordPressInstalled;
 		const mounts: MountDescriptor[] = [];
 		let mountDescriptorForInitialOpfsSync: typeof mountDescriptor =
 			undefined;
@@ -333,15 +361,6 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
-		// `initialOpfsSyncPending` is a recovery flag, not the source of truth.
-		// If OPFS already contains WordPress files, the initial sync either
-		// completed earlier or is no longer needed. Clear the stale flag so
-		// future boots mount OPFS normally.
-		const hasStaleInitialOpfsSyncPendingFlag =
-			site.metadata.initialOpfsSyncPending === true &&
-			site.metadata.storage === 'opfs' &&
-			isWordPressInstalled;
-
 		if (mountDescriptorForInitialOpfsSync) {
 			void syncInitialOpfsFilesInBackground({
 				playground: connectedPlayground,
@@ -355,9 +374,6 @@ export function bootSiteClient(
 				const metadataChanges = {
 					...(site.metadata.storage !== 'none'
 						? { whenLastUsed: Date.now() }
-						: {}),
-					...(hasStaleInitialOpfsSyncPendingFlag
-						? { initialOpfsSyncPending: false }
 						: {}),
 				};
 				if (Object.keys(metadataChanges).length > 0) {
@@ -397,6 +413,111 @@ export function bootSiteClient(
 
 		signal.onabort = null;
 	};
+}
+
+/**
+ * Restarts an interrupted first OPFS sync from the saved setup recipe.
+ *
+ * `initialOpfsSyncPending` means the OPFS copy never reached the point where
+ * it could be trusted as a complete WordPress filesystem. A partial directory
+ * can still contain `wp-config.php` and the SQLite database, so checking for
+ * those files alone would boot from a corrupt snapshot. Drop the partial files
+ * and let the normal first-boot path recreate WordPress, then sync it again.
+ */
+async function recoverInterruptedInitialOpfsSync(
+	site: SiteInfo,
+	{
+		dispatch,
+		getState,
+	}: {
+		dispatch: PlaygroundDispatch;
+		getState: () => PlaygroundReduxState;
+	}
+) {
+	site = await recoverRemoteBlueprintBundleIfNeeded(site, {
+		dispatch,
+		getState,
+	});
+	await opfsSiteStorage!.resetSiteFiles(site.slug);
+	return site;
+}
+
+async function recoverRemoteBlueprintBundleIfNeeded(
+	site: SiteInfo,
+	{
+		dispatch,
+		getState,
+	}: {
+		dispatch: PlaygroundDispatch;
+		getState: () => PlaygroundReduxState;
+	}
+) {
+	const source = site.metadata.originalBlueprintSource;
+	if (
+		source?.type !== 'remote-url' ||
+		isTraversableFilesystemBackend(site.metadata.originalBlueprint) ||
+		!hasBundledResource(site.metadata.originalBlueprint)
+	) {
+		return site;
+	}
+
+	const recoveredBlueprint = await applyQueryOverrides(
+		await resolveRemoteBlueprint(source.url),
+		originalUrlParamsToSearchParams(site.originalUrlParams)
+	);
+	if (!isTraversableFilesystemBackend(recoveredBlueprint)) {
+		return site;
+	}
+	await persistBlueprintBundle(site.slug, recoveredBlueprint);
+	await dispatch(
+		updateSite({
+			slug: site.slug,
+			changes: {
+				metadata: {
+					...site.metadata,
+					originalBlueprint: recoveredBlueprint,
+					originalBlueprintSource: {
+						type: 'opfs-site',
+					},
+				},
+			},
+		})
+	);
+	return selectSiteBySlug(getState(), site.slug)!;
+}
+
+function originalUrlParamsToSearchParams(
+	originalUrlParams: SiteInfo['originalUrlParams']
+) {
+	const searchParams = new URLSearchParams();
+	for (const [key, value] of Object.entries(
+		originalUrlParams?.searchParams ?? {}
+	)) {
+		const values = Array.isArray(value) ? value : [value];
+		for (const item of values) {
+			searchParams.append(key, item);
+		}
+	}
+	return searchParams;
+}
+
+function hasBundledResource(value: unknown) {
+	const stack = [value];
+	while (stack.length) {
+		const current = stack.pop();
+		if (!current || typeof current !== 'object') {
+			continue;
+		}
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		if ((current as { resource?: unknown }).resource === 'bundled') {
+			return true;
+		}
+		stack.push(...Object.values(current));
+	}
+	return false;
 }
 
 /**

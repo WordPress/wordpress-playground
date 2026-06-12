@@ -22,6 +22,10 @@ import {
 	type ResolvedBlueprint,
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
+import {
+	isTraversableFilesystemBackend,
+	persistBlueprintBundle,
+} from '../opfs/opfs-blueprint-bundle-storage';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -48,6 +52,7 @@ export {
 	getSitePublicPersistence,
 	isAutosavedSite,
 	isExplicitlySavedSite,
+	shouldResetInitialOpfsSync,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 export type {
@@ -568,6 +573,13 @@ export function setStoredSiteSpec(
 			preferredSlug || deriveSlugFromSiteName(slugBaseName),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
+		let originalBlueprintSource = resolvedBlueprint.source!;
+		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
+			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
 			originalUrlParams,
@@ -583,7 +595,7 @@ export function setStoredSiteSpec(
 					playgroundUrlWithQueryApiArgs
 				),
 				originalBlueprint: resolvedBlueprint.blueprint,
-				originalBlueprintSource: resolvedBlueprint.source!,
+				originalBlueprintSource,
 				runtimeConfiguration: await resolveRuntimeConfiguration(
 					resolvedBlueprint.blueprint
 				)!,

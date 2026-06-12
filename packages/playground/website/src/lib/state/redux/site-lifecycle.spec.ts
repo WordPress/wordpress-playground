@@ -4,6 +4,7 @@ import {
 	getSitePublicPersistence,
 	getSitesSortedByRecency,
 	isAutosavedSite,
+	shouldResetInitialOpfsSync,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 import type { SiteInfo } from './slice-sites';
@@ -130,6 +131,33 @@ describe('autosaved site helpers', () => {
 					whenLastUsed: now - RECENT_AUTOSAVE_RESTORE_WINDOW_MS - 1,
 				}),
 				now
+			)
+		).toBe(false);
+	});
+
+	it('resets only OPFS sites with a pending initial sync', () => {
+		expect(
+			shouldResetInitialOpfsSync(
+				createSite('pending-opfs', {
+					storage: 'opfs',
+					initialOpfsSyncPending: true,
+				})
+			)
+		).toBe(true);
+		expect(
+			shouldResetInitialOpfsSync(
+				createSite('finished-opfs', {
+					storage: 'opfs',
+					initialOpfsSyncPending: false,
+				})
+			)
+		).toBe(false);
+		expect(
+			shouldResetInitialOpfsSync(
+				createSite('temporary', {
+					storage: 'none',
+					initialOpfsSyncPending: true,
+				})
 			)
 		).toBe(false);
 	});

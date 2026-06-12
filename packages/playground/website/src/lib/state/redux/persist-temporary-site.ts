@@ -6,7 +6,10 @@ import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
-import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
+import {
+	isTraversableFilesystemBackend,
+	persistBlueprintBundle,
+} from '../opfs/opfs-blueprint-bundle-storage';
 import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
@@ -100,15 +103,8 @@ export function persistTemporarySite(
 		let bundleToPersist: TraversableFilesystemBackend | null = null;
 
 		const originalBlueprint = siteInfo.metadata.originalBlueprint;
-		if (
-			originalBlueprint &&
-			typeof originalBlueprint === 'object' &&
-			'read' in originalBlueprint &&
-			'listFiles' in originalBlueprint &&
-			'isDir' in originalBlueprint
-		) {
-			bundleToPersist =
-				originalBlueprint as unknown as TraversableFilesystemBackend;
+		if (isTraversableFilesystemBackend(originalBlueprint)) {
+			bundleToPersist = originalBlueprint;
 		}
 
 		let bundleWasPersisted = false;

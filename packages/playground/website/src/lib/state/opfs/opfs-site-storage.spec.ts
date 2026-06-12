@@ -4,9 +4,13 @@ import type { opfsSiteStorage as exportedOpfsSiteStorage } from './opfs-site-sto
 describe('opfsSiteStorage', () => {
 	let opfsRoot: MemoryDirectoryHandle;
 	let storage: NonNullable<typeof exportedOpfsSiteStorage>;
+	let loadPersistedBlueprintBundle: ReturnType<typeof vi.fn>;
+	let loadPersistedBlueprintBundleFromPath: ReturnType<typeof vi.fn>;
 
 	beforeEach(async () => {
 		vi.resetModules();
+		loadPersistedBlueprintBundle = vi.fn();
+		loadPersistedBlueprintBundleFromPath = vi.fn();
 		opfsRoot = new MemoryDirectoryHandle('');
 		vi.stubGlobal('navigator', {
 			storage: {
@@ -14,8 +18,8 @@ describe('opfsSiteStorage', () => {
 			},
 		});
 		vi.doMock('./opfs-blueprint-bundle-storage', () => ({
-			loadPersistedBlueprintBundle: vi.fn(),
-			loadPersistedBlueprintBundleFromPath: vi.fn(),
+			loadPersistedBlueprintBundle,
+			loadPersistedBlueprintBundleFromPath,
 		}));
 		vi.doMock('@wp-playground/blueprints', () => ({
 			getBlueprintDeclaration: vi.fn(async (blueprint) => blueprint),
@@ -68,6 +72,22 @@ describe('opfsSiteStorage', () => {
 			sitesRoot.getDirectoryHandle('site-a%2Fb')
 		).resolves.toBeDefined();
 	});
+
+	it('loads persisted Blueprint bundles for stored bundle metadata', async () => {
+		const bundle = { read: vi.fn(), listFiles: vi.fn(), isDir: vi.fn() };
+		loadPersistedBlueprintBundle.mockResolvedValue(bundle);
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(sitesRoot, 'site-bundle', 'bundle', {
+			originalBlueprintSource: {
+				type: 'opfs-site',
+			},
+		});
+
+		const site = await storage.read('bundle');
+
+		expect(loadPersistedBlueprintBundle).toHaveBeenCalledWith('bundle');
+		expect(site?.metadata.originalBlueprint).toBe(bundle);
+	});
 });
 
 async function getSitesRoot(opfsRoot: MemoryDirectoryHandle) {
@@ -77,7 +97,8 @@ async function getSitesRoot(opfsRoot: MemoryDirectoryHandle) {
 async function writeSiteMetadata(
 	sitesRoot: MemoryDirectoryHandle,
 	directoryName: string,
-	slug: string
+	slug: string,
+	metadata: Partial<SiteMetadata> = {}
 ) {
 	const siteDirectory = await sitesRoot.getDirectoryHandle(directoryName, {
 		create: true,
@@ -86,12 +107,14 @@ async function writeSiteMetadata(
 		'wp-runtime.json',
 		JSON.stringify({
 			slug,
-			...createSiteMetadata(),
+			...createSiteMetadata(metadata),
 		})
 	);
 }
 
-function createSiteMetadata(): SiteMetadata {
+function createSiteMetadata(
+	metadata: Partial<SiteMetadata> = {}
+): SiteMetadata {
 	return {
 		storage: 'opfs',
 		id: 'test-site-id',
@@ -108,6 +131,7 @@ function createSiteMetadata(): SiteMetadata {
 		originalBlueprintSource: {
 			type: 'none',
 		},
+		...metadata,
 	};
 }
 

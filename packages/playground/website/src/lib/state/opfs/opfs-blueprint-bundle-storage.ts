@@ -16,6 +16,18 @@ import { getDirectoryPathForSlug } from './opfs-site-path';
 
 export const BUNDLE_DIR_NAME = 'blueprint-bundle';
 
+export function isTraversableFilesystemBackend(
+	value: unknown
+): value is TraversableFilesystemBackend {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'read' in value &&
+		'listFiles' in value &&
+		'isDir' in value
+	);
+}
+
 /**
  * Get the OPFS path for a site's blueprint bundle directory.
  */

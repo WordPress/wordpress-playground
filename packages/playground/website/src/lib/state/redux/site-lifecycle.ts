@@ -78,6 +78,20 @@ export function isExplicitlySavedSite(site: SiteInfo) {
 }
 
 /**
+ * Indicates whether an interrupted first OPFS sync should be rebuilt.
+ *
+ * `initialOpfsSyncPending` is cleared only after a full MEMFS-to-OPFS copy.
+ * While it remains set, the OPFS directory may contain enough files to look
+ * installed but not enough to boot reliably.
+ */
+export function shouldResetInitialOpfsSync(site: SiteInfo) {
+	return (
+		site.metadata.storage === 'opfs' &&
+		site.metadata.initialOpfsSyncPending === true
+	);
+}
+
+/**
  * Returns the persistence value exposed by the public site-management API.
  *
  * Persistence describes a stored Playground, so temporary Playgrounds do not
