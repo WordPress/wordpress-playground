@@ -672,7 +672,7 @@ describe.each(blueprintVersions)(
 				// PHP file located in the post-install mount.
 				await cliServer.playground.writeFile(
 					'/wordpress/probe-parent.php',
-					`<?php echo 'PARENT:' . trim((string) shell_exec('php /wordpress/wp-content/probe/child.php 2>&1'));`
+					`<?php echo 'PARENT:' . trim((string) shell_exec('php /wordpress/wp-content/probe/child.php'));`
 				);
 
 				const response = await fetch(
@@ -709,7 +709,7 @@ describe.each(blueprintVersions)(
 			);
 			await cliServer.playground.writeFile(
 				'/wordpress/lock-parent.php',
-				`<?php echo 'PARENT:' . trim((string) shell_exec('php /wordpress/lock-child.php 2>&1'));`
+				`<?php echo 'PARENT:' . trim((string) shell_exec('php /wordpress/lock-child.php'));`
 			);
 
 			const response = await fetch(
@@ -717,8 +717,45 @@ describe.each(blueprintVersions)(
 			);
 			expect(response.status).toBe(200);
 			const text = await response.text();
+			// If the child's flock() could not reach the shared lock manager it
+			// would time out instead of completing, so it would never print
+			// CHILD_LOCK_OK.
 			expect(text).toContain('CHILD_LOCK_OK');
-			expect(text).not.toContain('Timeout waiting for response');
+		}, 120000);
+
+		// Regression test: a spawned child must itself be able to spawn a
+		// grandchild (PHP that shells out to PHP that shells out to PHP). The
+		// grandchild also needs to reach the shared lock manager directly.
+		test('grandchild processes spawned via nested proc_open() reach the lock manager', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+			});
+
+			await cliServer.playground.writeFile(
+				'/wordpress/gc.php',
+				`<?php
+				$fp = fopen('/wordpress/gc-lock.txt', 'w');
+				$ok = flock($fp, LOCK_EX);
+				if ($ok) { flock($fp, LOCK_UN); }
+				fclose($fp);
+				echo $ok ? 'GRANDCHILD_LOCK_OK' : 'GRANDCHILD_LOCK_FAIL';`
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/child.php',
+				`<?php echo 'CHILD:' . trim((string) shell_exec('php /wordpress/gc.php'));`
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/parent.php',
+				`<?php echo 'PARENT:' . trim((string) shell_exec('php /wordpress/child.php'));`
+			);
+
+			const response = await fetch(
+				new URL('/parent.php', cliServer.serverUrl)
+			);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+			expect(text).toContain('GRANDCHILD_LOCK_OK');
 		}, 120000);
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks

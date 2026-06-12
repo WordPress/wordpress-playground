@@ -92,8 +92,13 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 type FileLockManagerService = {
 	/** Attach the shared lock manager to `port`; returns an attachment id. */
 	attachFileLockManager: (port: NodeMessagePort) => Promise<number>;
+	/**
+	 * Attach the service itself to `port` so a spawned child can in turn spawn
+	 * its own children that reach the lock manager directly. Returns an id.
+	 */
+	attachService: (port: NodeMessagePort) => Promise<number>;
 	/** Release a previously attached port (closes it on the main thread). */
-	detachFileLockManager: (id: number) => Promise<void>;
+	detach: (id: number) => Promise<void>;
 };
 
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
@@ -345,14 +350,20 @@ async function createPHPWorker(
 	// while the child runs — deadlocking the child (it would time out waiting
 	// for a response). Instead, ask the main thread to attach the broker to a
 	// fresh channel and hand the child the other end.
-	//
-	// Both ports are transferred away, so they're cleaned up where they end up:
-	// port2 dies with the child when the worker is terminated in reap() below,
-	// and reap() asks the main thread to close port1 via detachFileLockManager().
-	const { port1, port2 } = new MessageChannel();
-	const lockManagerPortId =
-		await lockManagerService.attachFileLockManager(port1);
-	await handler.useFileLockManager(port2);
+	const lockChannel = new MessageChannel();
+	const lockAttachmentId = await lockManagerService.attachFileLockManager(
+		lockChannel.port1
+	);
+	await handler.useFileLockManager(lockChannel.port2);
+
+	// Also hand the child its own port to this service, so PHP running in the
+	// child can in turn spawn further children that reach the lock manager
+	// directly (otherwise a nested system()/proc_open() would have no service).
+	const serviceChannel = new MessageChannel();
+	const serviceAttachmentId = await lockManagerService.attachService(
+		serviceChannel.port1
+	);
+	await handler.useFileLockManagerService(serviceChannel.port2);
 
 	await handler.bootRequestHandler({
 		...options,
@@ -372,14 +383,15 @@ async function createPHPWorker(
 			} catch {
 				/** */
 			}
-			// Deterministically release the main-thread lock-manager port
-			// for this child so the server doesn't leak ports/listeners.
-			// Best-effort: swallow the async rejection so reap() can't throw.
-			lockManagerService
-				.detachFileLockManager(lockManagerPortId)
-				.catch(() => {
-					/** */
-				});
+			// Deterministically release the main-thread ports for this child so
+			// the server doesn't leak ports/listeners. Best-effort: swallow the
+			// async rejection so reap() can't throw.
+			lockManagerService.detach(lockAttachmentId).catch(() => {
+				/** */
+			});
+			lockManagerService.detach(serviceAttachmentId).catch(() => {
+				/** */
+			});
 		},
 	};
 }

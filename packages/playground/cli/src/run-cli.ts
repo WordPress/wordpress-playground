@@ -2163,7 +2163,7 @@ async function exposeFileLockManagerService(
 	// and lock-manager listeners over time.
 	const attachedPorts = new Map<number, NodeMessagePort>();
 	let nextAttachmentId = 1;
-	const releaseAttachment = (id: number) => {
+	const release = (id: number) => {
 		const port = attachedPorts.get(id);
 		if (port) {
 			attachedPorts.delete(id);
@@ -2174,28 +2174,35 @@ async function exposeFileLockManagerService(
 			}
 		}
 	};
-	const { port1, port2 } = new NodeMessageChannel();
-	await exposeAPI(
-		{
-			attachFileLockManager: async (port: NodeMessagePort) => {
-				await exposeSyncAPI(fileLockManager, port);
-				const id = nextAttachmentId++;
-				attachedPorts.set(id, port);
-				// Defensive backstop: the spawning worker releases this
-				// attachment from its reap() path, but if it never does (e.g.
-				// the child crashed), drop it when the port goes away so it
-				// can't leak for the lifetime of the server.
-				port.once('close', () => releaseAttachment(id));
-				port.once('error', () => releaseAttachment(id));
-				return id;
-			},
-			detachFileLockManager: async (id: number) => {
-				releaseAttachment(id);
-			},
+	const track = (port: NodeMessagePort) => {
+		const id = nextAttachmentId++;
+		attachedPorts.set(id, port);
+		// The spawning worker releases this attachment from its reap() path.
+		// As a backstop — in case it never does (e.g. the child crashed) —
+		// also drop it when the port itself goes away. Node's MessagePort
+		// emits 'close' (and 'messageerror'), not 'error'.
+		port.once('close', () => release(id));
+		port.once('messageerror', () => release(id));
+		return id;
+	};
+	// The service is self-propagating: a spawned child also receives a port to
+	// it (via attachService) so that PHP running in the child can itself spawn
+	// further children that reach the shared lock manager directly.
+	const service = {
+		attachFileLockManager: async (port: NodeMessagePort) => {
+			await exposeSyncAPI(fileLockManager, port);
+			return track(port);
 		},
-		undefined,
-		port1
-	);
+		attachService: async (port: NodeMessagePort) => {
+			await exposeAPI(service, undefined, port);
+			return track(port);
+		},
+		detach: async (id: number) => {
+			release(id);
+		},
+	};
+	const { port1, port2 } = new NodeMessageChannel();
+	await exposeAPI(service, undefined, port1);
 	return port2;
 }
 
