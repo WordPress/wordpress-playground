@@ -2172,15 +2172,18 @@ function createFileLockManagerService(
 	// and lock-manager listeners over time.
 	const attachedPorts = new Map<number, NodeMessagePort>();
 	let nextAttachmentId = 1;
+	const closePortQuietly = (port: NodeMessagePort) => {
+		try {
+			port.close();
+		} catch {
+			/** */
+		}
+	};
 	const release = (id: number) => {
 		const port = attachedPorts.get(id);
 		if (port) {
 			attachedPorts.delete(id);
-			try {
-				port.close();
-			} catch {
-				/** */
-			}
+			closePortQuietly(port);
 		}
 	};
 	const track = (port: NodeMessagePort) => {
@@ -2208,11 +2211,7 @@ function createFileLockManagerService(
 		try {
 			await expose();
 		} catch (e) {
-			try {
-				port.close();
-			} catch {
-				/** */
-			}
+			closePortQuietly(port);
 			throw e;
 		}
 		return track(port);
@@ -2247,13 +2246,7 @@ function createFileLockManagerService(
 		 * and any per-child attachments that were never detached.
 		 */
 		dispose() {
-			for (const port of servicePorts.splice(0)) {
-				try {
-					port.close();
-				} catch {
-					/** */
-				}
-			}
+			servicePorts.splice(0).forEach(closePortQuietly);
 			for (const id of [...attachedPorts.keys()]) {
 				release(id);
 			}

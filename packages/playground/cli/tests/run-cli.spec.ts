@@ -662,15 +662,15 @@ describe.each(blueprintVersions)(
 			const hostDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-spawn-mount-')
 			);
-			// A PHP script that exists only inside the mounted host directory.
-			// If the spawned child cannot see the mount it cannot even load
-			// this file ("Could not open input file").
-			writeFileSync(
-				path.join(hostDir, 'child.php'),
-				`<?php echo 'CHILD_SAW_MOUNT';`
-			);
-
 			try {
+				// A PHP script that exists only inside the mounted host
+				// directory. If the spawned child cannot see the mount it
+				// cannot even load this file ("Could not open input file").
+				writeFileSync(
+					path.join(hostDir, 'child.php'),
+					`<?php echo 'CHILD_SAW_MOUNT';`
+				);
+
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',

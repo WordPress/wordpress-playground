@@ -234,9 +234,12 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					sandboxedSpawnHandlerFactory(() => {
 						if (!this.lockManagerService) {
 							throw new Error(
-								'Cannot spawn a child PHP process: ' +
-									'useFileLockManagerService() was not ' +
-									'called on this worker before boot.'
+								'Cannot spawn a child PHP process: this ' +
+									'worker has no file-lock-manager ' +
+									'service. Call ' +
+									'useFileLockManagerService() on the ' +
+									'worker to enable spawning via ' +
+									'proc_open()/system().'
 							);
 						}
 
