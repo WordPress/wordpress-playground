@@ -425,6 +425,14 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
+			if (isRemoteAccessFrameCommand(event, iframeRef.current)) {
+				setRelayDiagnostics((current) => ({
+					...current,
+					iframe: `Frame ${event.data.command} accepted`,
+					lastPath: event.data.href,
+				}));
+				return;
+			}
 			if (isRemoteAccessFrameLoad(event, iframeRef.current)) {
 				setIframeHasLoaded(true);
 				syncDesktopUrlFromScopedUrl(event.data.href);
@@ -522,35 +530,44 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	};
 
 	const reloadRemoteFrame = () => {
+		const targetUrl = new URL(
+			remoteAccessRelayIframeUrl,
+			window.location.origin
+		).toString();
 		iframeRef.current?.contentWindow?.postMessage(
 			{
 				type: 'remote-access-frame-navigate',
-				src: remoteAccessRelayIframeUrl,
+				src: targetUrl,
 			},
 			window.location.origin
 		);
 		setRelayDiagnostics((current) => ({
 			...current,
-			iframe: 'Programmatic navigation',
+			iframe: `Programmatic navigation to ${new URL(targetUrl).pathname}`,
+			lastPath: targetUrl,
 		}));
 	};
 
 	const replaceRemoteFrame = () => {
-		const wordCampCompanionUrl = buildRemoteAccessScopedIframeUrl(
-			'/wordcamp-companion/',
-			sessionId,
-			{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+		const targetUrl = new URL(
+			buildRemoteAccessScopedIframeUrl(
+				'/wordcamp-companion/',
+				sessionId,
+				{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+			),
+			window.location.origin
 		);
 		iframeRef.current?.contentWindow?.postMessage(
 			{
 				type: 'remote-access-frame-replace',
-				src: wordCampCompanionUrl,
+				src: targetUrl.toString(),
 			},
 			window.location.origin
 		);
 		setRelayDiagnostics((current) => ({
 			...current,
-			iframe: 'Replacing frame with /wordcamp-companion/',
+			iframe: `Replacing frame with ${targetUrl.pathname}`,
+			lastPath: targetUrl.toString(),
 		}));
 	};
 
@@ -742,6 +759,25 @@ function isRemoteAccessFrameLoad(
 		typeof event.data === 'object' &&
 		event.data !== null &&
 		event.data.type === 'remote-access-frame-load' &&
+		typeof event.data.href === 'string'
+	);
+}
+
+function isRemoteAccessFrameCommand(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null
+): event is MessageEvent<{
+	type: 'remote-access-frame-command';
+	command: string;
+	href: string;
+}> {
+	return (
+		event.origin === window.location.origin &&
+		event.source === iframe?.contentWindow &&
+		typeof event.data === 'object' &&
+		event.data !== null &&
+		event.data.type === 'remote-access-frame-command' &&
+		typeof event.data.command === 'string' &&
 		typeof event.data.href === 'string'
 	);
 }

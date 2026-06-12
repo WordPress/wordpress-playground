@@ -100,6 +100,11 @@
 				) {
 					const scopedUrl = normalizeScopedUrl(event.data.src);
 					if (scopedUrl) {
+						postToParent({
+							type: 'remote-access-frame-command',
+							command: 'navigate',
+							href: scopedUrl,
+						});
 						wpFrame.src = scopedUrl;
 					}
 					return;
@@ -110,6 +115,11 @@
 				) {
 					const scopedUrl = normalizeScopedUrl(event.data.src);
 					if (scopedUrl) {
+						postToParent({
+							type: 'remote-access-frame-command',
+							command: 'replace',
+							href: scopedUrl,
+						});
 						replaceWordPressFrame(scopedUrl);
 					}
 				}
