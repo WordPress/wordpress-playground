@@ -101,6 +101,8 @@ jobs:
                   # Include MIME types for use with PHP-served files
                   cp packages/php-wasm/universal/src/lib/mime-types.json \
                     packages/playground/website-deployment/
+                  cp packages/playground/remote-access/relay.php \
+                    packages/playground/website-deployment/my-wordpress-net/
 
                   # Host-specific deployment scripts and server config (reuse website-deployment)
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \

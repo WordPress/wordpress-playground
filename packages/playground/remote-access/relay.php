@@ -1,6 +1,6 @@
 <?php
 /**
- * Minimal Personal WP remote-access relay.
+ * Minimal WordPress Playground Remote Access relay.
  *
  * This file is only a rendezvous/signaling service for the direct WebRTC
  * remote access tunnel. It stores session metadata plus small WebRTC messages
@@ -8,9 +8,9 @@
  * requests and responses are not proxied through this PHP file.
  *
  * The six-digit code is a rendezvous hint, not an authorization grant. The
- * remote device still needs to open a direct WebRTC data channel and the phone must
- * approve the two-digit verification code before any WordPress requests or
- * backup data can flow.
+ * remote device still needs to open a direct WebRTC data channel and the host
+ * device must approve the two-digit verification code before any WordPress
+ * requests or backup data can flow.
  */
 
 define('SESSION_TIMEOUT_MS', 5 * 60 * 1000);
