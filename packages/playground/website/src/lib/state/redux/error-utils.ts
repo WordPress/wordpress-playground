@@ -62,12 +62,50 @@ const DOWNLOAD_ERROR_PATTERNS = [
  * WebAssembly.CompileError and LinkError occur when the browser tries
  * to compile a non-WASM response (e.g. an HTML error page) as WASM.
  * ResourceDownloadError is thrown for Blueprint resource fetch failures.
+ * InvalidAssetSlugError extends ResourceDownloadError but is checked
+ * separately so callers can show a targeted error message.
  */
 const DOWNLOAD_ERROR_CLASS_NAMES = [
 	'CompileError',
 	'LinkError',
 	'ResourceDownloadError',
+	'InvalidAssetSlugError',
 ];
+
+/**
+ * Search through an error's cause chain for an InvalidAssetSlugError.
+ * Returns the slug and assetType if found, otherwise undefined.
+ *
+ * Checks both instanceof and the error's name property to handle
+ * Comlink-serialized errors (which lose their prototype chain).
+ */
+export function findInvalidSlugErrorInCauseChain(
+	error: unknown
+): { slug: string; assetType: string } | undefined {
+	let current: unknown = error;
+	const seen = new Set<Error>();
+	let depth = 0;
+	while (current && depth < MAX_CAUSE_CHAIN_DEPTH) {
+		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
+			const className =
+				(current as any).originalErrorClassName || current.name;
+			if (className === 'InvalidAssetSlugError') {
+				return {
+					slug: String((current as any).slug ?? 'unknown'),
+					assetType: String((current as any).assetType ?? 'asset'),
+				};
+			}
+		}
+		current =
+			current instanceof Error ? (current as Error).cause : undefined;
+		depth++;
+	}
+	return undefined;
+}
 
 /**
  * Search through an error's cause chain to find a network/download error.

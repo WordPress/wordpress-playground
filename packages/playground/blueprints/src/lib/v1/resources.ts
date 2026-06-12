@@ -47,11 +47,41 @@ export class BlueprintFilesystemRequiredError extends Error {
  */
 export class ResourceDownloadError extends Error {
 	public readonly url: string;
+	public readonly statusCode?: number;
 
-	constructor(message: string, url: string, options?: ErrorOptions) {
-		super(message, options);
+	constructor(
+		message: string,
+		url: string,
+		options?: ErrorOptions & { statusCode?: number }
+	) {
+		const { statusCode, ...errorOptions } = options ?? {};
+		super(message, errorOptions);
 		this.name = 'ResourceDownloadError';
 		this.url = url;
+		this.statusCode = statusCode;
+	}
+}
+
+/**
+ * Error thrown when a plugin or theme slug does not exist on WordPress.org.
+ *
+ * Callers should present a user-friendly message pointing to the slug as the
+ * likely cause rather than treating this as a generic network failure.
+ */
+export class InvalidAssetSlugError extends ResourceDownloadError {
+	public readonly slug: string;
+	public readonly assetType: 'plugin' | 'theme';
+
+	constructor(slug: string, assetType: 'plugin' | 'theme', url: string) {
+		super(
+			`The ${assetType} "${slug}" could not be found on WordPress.org. ` +
+				`Please verify that "${slug}" is a valid ${assetType} slug.`,
+			url,
+			{ statusCode: 404 }
+		);
+		this.name = 'InvalidAssetSlugError';
+		this.slug = slug;
+		this.assetType = assetType;
 	}
 }
 
@@ -543,7 +573,8 @@ export abstract class FetchResource extends Resource<File> {
 			if (!response.ok) {
 				throw new ResourceDownloadError(
 					`Could not download "${url}"`,
-					url
+					url,
+					{ statusCode: response.status }
 				);
 			}
 			response = await cloneResponseMonitorProgress(
@@ -553,7 +584,8 @@ export abstract class FetchResource extends Resource<File> {
 			if (response.status !== 200) {
 				throw new ResourceDownloadError(
 					`Could not download "${url}"`,
-					url
+					url,
+					{ statusCode: response.status }
 				);
 			}
 			const filename =
@@ -564,6 +596,9 @@ export abstract class FetchResource extends Resource<File> {
 				encodeURIComponent(url);
 			return new File([await response.arrayBuffer()], filename);
 		} catch (e) {
+			if (e instanceof ResourceDownloadError) {
+				throw e;
+			}
 			throw new ResourceDownloadError(
 				`Could not download "${url}".\n\n` +
 					`Confirm that the URL is correct, the server is reachable, and the file is ` +
@@ -906,6 +941,23 @@ export class CoreThemeResource extends FetchResource {
 		const zipName = toDirectoryZipName(this.resource.slug);
 		return `https://downloads.wordpress.org/theme/${zipName}`;
 	}
+	override async resolve() {
+		try {
+			return await super.resolve();
+		} catch (error) {
+			if (
+				error instanceof ResourceDownloadError &&
+				error.statusCode === 404
+			) {
+				throw new InvalidAssetSlugError(
+					this.resource.slug,
+					'theme',
+					this.getURL()
+				);
+			}
+			throw error;
+		}
+	}
 }
 
 /**
@@ -928,6 +980,24 @@ export class CorePluginResource extends FetchResource {
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
 		return `https://downloads.wordpress.org/plugin/${zipName}`;
+	}
+
+	override async resolve() {
+		try {
+			return await super.resolve();
+		} catch (error) {
+			if (
+				error instanceof ResourceDownloadError &&
+				error.statusCode === 404
+			) {
+				throw new InvalidAssetSlugError(
+					this.resource.slug,
+					'plugin',
+					this.getURL()
+				);
+			}
+			throw error;
+		}
 	}
 }
 
