@@ -44,7 +44,7 @@ export function getRemoteAccessPathFromConnectUrl(
 	}
 	const path = nextUrl.pathname.slice(connectPath.length) || '/';
 	nextUrl.searchParams.delete(shareParam);
-	return `${path}${nextUrl.search}`;
+	return normalizeRemoteAccessPath(`${path}${nextUrl.search}`);
 }
 
 export function buildRemoteAccessScopedIframeUrl(
@@ -107,5 +107,5 @@ export function normalizeRemoteAccessPath(pathAndSearch: string): string {
 	const normalized = pathAndSearch.startsWith('/')
 		? pathAndSearch
 		: `/${pathAndSearch}`;
-	return normalized || '/';
+	return normalized.replace(/^\/+/, '/') || '/';
 }

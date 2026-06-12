@@ -31,6 +31,10 @@ describe('remote access URL routing helpers', () => {
 			)
 		).toBe('/wp-admin/?page=tools');
 		expect(getRemoteAccessPathFromConnectUrl('/connect')).toBe('/');
+		expect(getRemoteAccessPathFromConnectUrl('/connect//')).toBe('/');
+		expect(getRemoteAccessPathFromConnectUrl('/connect//my-apps/')).toBe(
+			'/my-apps/'
+		);
 		expect(getRemoteAccessPathFromConnectUrl('/my-apps/')).toBe('/');
 	});
 
@@ -43,6 +47,12 @@ describe('remote access URL routing helpers', () => {
 		).toBe(
 			'/scope:default/wp-admin/?page=tools&remote-access-view=session-1'
 		);
+		expect(buildRemoteAccessScopedIframeUrl('//', 'session-1')).toBe(
+			'/scope:default/?remote-access-view=session-1'
+		);
+		expect(
+			buildRemoteAccessScopedIframeUrl('//my-apps/', 'session-1')
+		).toBe('/scope:default/my-apps/?remote-access-view=session-1');
 	});
 
 	it('maps scoped iframe URLs back to connect URLs', () => {
