@@ -639,20 +639,37 @@ describe.each(blueprintVersions)(
 			}
 		});
 
+		// Render a value as a PHP single-quoted string literal. Only
+		// backslashes and single quotes need escaping, so the generated
+		// code stays valid PHP for any embedded value.
+		const phpString = (value: string) =>
+			`'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+
 		// Build a PHP script that runs `scriptPath` in a child PHP process via
 		// proc_open() — the code path the regression tests below guard — and
-		// echoes `prefix` followed by the child's trimmed stdout.
+		// echoes `prefix` followed by the child's trimmed stdout. A failed
+		// spawn and any stderr output are surfaced in the echoed text so a
+		// broken spawn produces actionable test diagnostics.
 		const phpSpawningChildScript = (prefix: string, scriptPath: string) =>
 			`<?php
 			$proc = proc_open(
-				escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('${scriptPath}'),
-				[1 => ['pipe', 'w']],
+				escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(${phpString(scriptPath)}),
+				[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
 				$pipes
 			);
+			if ($proc === false) {
+				echo ${phpString(prefix)} . ':PROC_OPEN_FAILED';
+				exit(1);
+			}
 			$stdout = (string) stream_get_contents($pipes[1]);
+			$stderr = (string) stream_get_contents($pipes[2]);
 			fclose($pipes[1]);
+			fclose($pipes[2]);
 			proc_close($proc);
-			echo '${prefix}:' . trim($stdout);`;
+			echo ${phpString(prefix)} . ':' . trim($stdout);
+			if ($stderr !== '') {
+				echo ' [stderr: ' . trim($stderr) . ']';
+			}`;
 
 		// Regression test: files provided via post-install --mount used to be
 		// invisible to child PHP processes spawned with proc_open()/system(),

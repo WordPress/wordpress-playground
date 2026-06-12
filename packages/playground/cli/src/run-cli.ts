@@ -2221,7 +2221,9 @@ function createFileLockManagerService(
 			attach(port, () => exposeSyncAPI(fileLockManager, port)),
 		attachService: (port: NodeMessagePort) =>
 			attach(port, () => exposeAPI(service, undefined, port)),
-		detach: async (id: number) => {
+		// Synchronous on this side; callers go through comlink and observe a
+		// Promise either way.
+		detach: (id: number) => {
 			release(id);
 		},
 	};
