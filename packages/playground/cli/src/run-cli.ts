@@ -2177,6 +2177,11 @@ async function exposeFileLockManagerService(
 	const track = (port: NodeMessagePort) => {
 		const id = nextAttachmentId++;
 		attachedPorts.set(id, port);
+		// Don't let this per-child main-thread port keep the event loop alive on
+		// its own; the main thread is kept running by the HTTP server / the
+		// pending CLI promise, and unref() doesn't stop message delivery — it
+		// just means a leaked attachment can't block a clean process exit.
+		port.unref();
 		// The spawning worker releases this attachment from its reap() path.
 		// As a backstop — in case it never does (e.g. the child crashed) —
 		// also drop it when the port itself goes away. Node's MessagePort
@@ -2214,6 +2219,12 @@ async function exposeFileLockManagerService(
 	};
 	const { port1, port2 } = new NodeMessageChannel();
 	await exposeAPI(service, undefined, port1);
+	// One service channel is exposed per primary worker and lives for the whole
+	// server lifetime; it is never closed on disposeCLI(). unref() its main-thread
+	// end so these accumulated ports can't keep the event loop alive across
+	// repeated start/stop cycles (e.g. in tests). Message handling is unaffected —
+	// the main thread stays alive via the HTTP server / pending CLI promise.
+	port1.unref();
 	return port2;
 }
 

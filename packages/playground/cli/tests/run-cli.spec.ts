@@ -672,7 +672,7 @@ describe.each(blueprintVersions)(
 				// PHP file located in the post-install mount.
 				await cliServer.playground.writeFile(
 					'/wordpress/probe-parent.php',
-					`<?php echo 'PARENT:' . trim((string) shell_exec(PHP_BINARY . ' /wordpress/wp-content/probe/child.php'));`
+					`<?php echo 'PARENT:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/wp-content/probe/child.php')));`
 				);
 
 				const response = await fetch(
@@ -709,7 +709,7 @@ describe.each(blueprintVersions)(
 			);
 			await cliServer.playground.writeFile(
 				'/wordpress/lock-parent.php',
-				`<?php echo 'PARENT:' . trim((string) shell_exec(PHP_BINARY . ' /wordpress/lock-child.php'));`
+				`<?php echo 'PARENT:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/lock-child.php')));`
 			);
 
 			const response = await fetch(
@@ -743,11 +743,11 @@ describe.each(blueprintVersions)(
 			);
 			await cliServer.playground.writeFile(
 				'/wordpress/child.php',
-				`<?php echo 'CHILD:' . trim((string) shell_exec(PHP_BINARY . ' /wordpress/gc.php'));`
+				`<?php echo 'CHILD:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/gc.php')));`
 			);
 			await cliServer.playground.writeFile(
 				'/wordpress/parent.php',
-				`<?php echo 'PARENT:' . trim((string) shell_exec(PHP_BINARY . ' /wordpress/child.php'));`
+				`<?php echo 'PARENT:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/child.php')));`
 			);
 
 			const response = await fetch(
