@@ -3,6 +3,7 @@ import {
 	collectHeaders,
 	getRemoteAccessRelayMapping,
 	getRemoteAccessRelayMappingFromUrl,
+	handleRemoteAccessRelayProbe,
 	requestBodyToBytes,
 } from './service-worker-relay';
 
@@ -67,6 +68,36 @@ describe('remote access service worker relay helpers', () => {
 		expect(mapping?.sessionId).toBe('session-1');
 		expect(getRemoteAccessRelayMapping('default')?.sessionId).toBe(
 			'session-1'
+		);
+	});
+
+	it('only returns probe diagnostics for the mapped session id', async () => {
+		getRemoteAccessRelayMappingFromUrl(
+			'probe-test',
+			new URL(
+				'https://example.com/scope:probe-test/?remote-access-view=session-probe'
+			)
+		);
+
+		const response = handleRemoteAccessRelayProbe(
+			'probe-test',
+			'session-probe'
+		);
+		expect(response.status).toBe(200);
+		expect(response.headers.get('X-Remote-Access-Service-Worker')).toBe(
+			'1'
+		);
+		await expect(response.json()).resolves.toMatchObject({
+			hasMapping: true,
+			interceptedRequests: 0,
+			lastInterceptedPath: null,
+		});
+
+		expect(
+			handleRemoteAccessRelayProbe('probe-test', 'other-session').status
+		).toBe(404);
+		expect(handleRemoteAccessRelayProbe('missing-test', null).status).toBe(
+			404
 		);
 	});
 });

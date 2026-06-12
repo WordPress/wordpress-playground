@@ -170,7 +170,7 @@ self.addEventListener('fetch', (event) => {
 	}
 	const scope = getURLScope(url)!;
 	if (url.searchParams.has('remote-access-probe')) {
-		return event.respondWith(handleRemoteAccessRelayProbe(scope));
+		return event.respondWith(handleRemoteAccessRelayProbe(scope, url.searchParams.get('remote-access-probe')));
 	}
 	const mapping = getRemoteAccessRelayMapping(scope) || getRemoteAccessRelayMappingFromUrl(scope, url);
 	if (mapping) {
@@ -182,6 +182,10 @@ self.addEventListener('fetch', (event) => {
 The viewer iframe URL contains `remote-access-view=<session-id>`. That lets the
 service worker recover the relay mapping after activation or update if the
 in-memory mapping was not present yet.
+
+The readiness probe URL contains `remote-access-probe=<session-id>`. The
+service worker only returns diagnostics when that value matches the active
+mapping for the scope.
 
 ## URL Helpers
 

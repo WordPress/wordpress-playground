@@ -100,16 +100,23 @@ export function getRemoteAccessRelayMappingFromUrl(
 	return remoteAccessRelayMappings[scope];
 }
 
-export function handleRemoteAccessRelayProbe(scope: string): Response {
+export function handleRemoteAccessRelayProbe(
+	scope: string,
+	sessionId: string | null
+): Response {
 	const mapping = getRemoteAccessRelayMapping(scope);
+	if (!mapping || mapping.sessionId !== sessionId) {
+		return new Response('Not found', { status: 404 });
+	}
+
 	return new Response(
 		JSON.stringify({
 			ok: true,
 			scope,
-			hasMapping: !!mapping,
-			clientId: mapping?.clientId,
-			interceptedRequests: mapping?.interceptedRequests ?? 0,
-			lastInterceptedPath: mapping?.lastInterceptedPath ?? null,
+			hasMapping: true,
+			clientId: mapping.clientId,
+			interceptedRequests: mapping.interceptedRequests,
+			lastInterceptedPath: mapping.lastInterceptedPath ?? null,
 		}),
 		{
 			headers: {

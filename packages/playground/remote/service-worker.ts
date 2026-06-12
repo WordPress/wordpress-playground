@@ -236,7 +236,12 @@ self.addEventListener('fetch', (event) => {
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
 		if (url.searchParams.has('remote-access-probe')) {
-			return event.respondWith(handleRemoteAccessRelayProbe(scope));
+			return event.respondWith(
+				handleRemoteAccessRelayProbe(
+					scope,
+					url.searchParams.get('remote-access-probe')
+				)
+			);
 		}
 		const remoteAccessRelayMapping =
 			getRemoteAccessRelayMapping(scope) ||

@@ -295,7 +295,8 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 		const refreshServiceWorkerProbe = async () => {
 			const data = await fetchRemoteAccessRelayProbe(
-				REMOTE_ACCESS_RELAY_SCOPE
+				REMOTE_ACCESS_RELAY_SCOPE,
+				sessionId
 			);
 			setRelayDiagnostics((current) => ({
 				...current,

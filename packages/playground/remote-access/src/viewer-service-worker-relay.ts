@@ -23,8 +23,13 @@ export function getRemoteAccessRelayScopedUrl(scope: string): string {
 	return `/scope:${scope}/`;
 }
 
-export function getRemoteAccessRelayProbeUrl(scope: string): string {
-	return `${getRemoteAccessRelayScopedUrl(scope)}?remote-access-probe=1`;
+export function getRemoteAccessRelayProbeUrl(
+	scope: string,
+	sessionId: string
+): string {
+	return `${getRemoteAccessRelayScopedUrl(
+		scope
+	)}?remote-access-probe=${encodeURIComponent(sessionId)}`;
 }
 
 export async function registerRemoteAccessServiceWorker(
@@ -111,11 +116,15 @@ export function postRemoteAccessRelayMapping(
 }
 
 export async function fetchRemoteAccessRelayProbe(
-	scope: string
+	scope: string,
+	sessionId: string
 ): Promise<RemoteAccessRelayProbeResult> {
-	const response = await fetch(getRemoteAccessRelayProbeUrl(scope), {
-		cache: 'no-store',
-	});
+	const response = await fetch(
+		getRemoteAccessRelayProbeUrl(scope, sessionId),
+		{
+			cache: 'no-store',
+		}
+	);
 	if (response.headers.get('X-Remote-Access-Service-Worker') !== '1') {
 		throw new Error(
 			'Remote access service worker is not controlling WordPress requests.'
