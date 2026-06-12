@@ -21,7 +21,7 @@ export function handleRemoteAccessRelayMessage(
 		return false;
 	}
 
-	if (data.type === 'desktop-relay-map') {
+	if (data.type === 'remote-access-relay-map') {
 		const { scope, sessionId, ttl } = data as Record<string, unknown>;
 		if (typeof scope !== 'string' || typeof sessionId !== 'string') {
 			return true;
@@ -40,14 +40,14 @@ export function handleRemoteAccessRelayMessage(
 					: 5 * 60 * 1000),
 		};
 		event.ports[0]?.postMessage({
-			type: 'desktop-relay-map-result',
+			type: 'remote-access-relay-map-result',
 			ok: true,
 			clientId: remoteAccessRelayMappings[scope].clientId,
 		});
 		return true;
 	}
 
-	if (data.type === 'desktop-relay-clear') {
+	if (data.type === 'remote-access-relay-clear') {
 		const { scope } = data as Record<string, unknown>;
 		if (typeof scope === 'string') {
 			delete remoteAccessRelayMappings[scope];
@@ -80,6 +80,26 @@ export function getRemoteAccessRelayMapping(
 	return mapping;
 }
 
+export function getRemoteAccessRelayMappingFromUrl(
+	scope: string,
+	url: URL
+): RemoteAccessRelayMapping | undefined {
+	const sessionId = url.searchParams.get('remote-access-view');
+	if (!sessionId) {
+		return;
+	}
+	const existing = remoteAccessRelayMappings[scope];
+	remoteAccessRelayMappings[scope] = {
+		scope,
+		sessionId,
+		clientId: existing?.clientId,
+		interceptedRequests: existing?.interceptedRequests ?? 0,
+		lastInterceptedPath: existing?.lastInterceptedPath,
+		expiresAt: Date.now() + 5 * 60 * 1000,
+	};
+	return remoteAccessRelayMappings[scope];
+}
+
 export function handleRemoteAccessRelayProbe(scope: string): Response {
 	const mapping = getRemoteAccessRelayMapping(scope);
 	return new Response(
@@ -94,7 +114,7 @@ export function handleRemoteAccessRelayProbe(scope: string): Response {
 		{
 			headers: {
 				'Content-Type': 'application/json',
-				'X-Desktop-Relay-Service-Worker': '1',
+				'X-Remote-Access-Service-Worker': '1',
 			},
 		}
 	);
@@ -110,8 +130,8 @@ export async function handleRemoteAccessRelayRequest(
 	mapping.interceptedRequests += 1;
 	mapping.lastInterceptedPath = `${event.request.method} ${path}`;
 	const body = await requestBodyToBytes(event.request);
-	const response = await postRequestToDesktopClient(mapping, {
-		type: 'desktop-relay-request',
+	const response = await postRequestToRemoteAccessClient(mapping, {
+		type: 'remote-access-relay-request',
 		sessionId: mapping.sessionId,
 		requestId,
 		method: event.request.method,
@@ -146,7 +166,7 @@ export function collectHeaders(headers: Headers): Record<string, string> {
 	return result;
 }
 
-async function postRequestToDesktopClient(
+async function postRequestToRemoteAccessClient(
 	mapping: RemoteAccessRelayMapping,
 	message: Record<string, unknown>
 ): Promise<{
@@ -168,9 +188,11 @@ async function postRequestToDesktopClient(
 	});
 	const fallbackClient = clients.find((candidate: Client) => {
 		try {
+			const url = new URL(candidate.url);
 			return (
-				new URL(candidate.url).searchParams.get('share') ===
-				mapping.sessionId
+				url.searchParams.get('share') === mapping.sessionId ||
+				(url.pathname.startsWith('/connect') &&
+					!url.pathname.startsWith('/scope:'))
 			);
 		} catch {
 			return false;
@@ -202,7 +224,7 @@ function postRequestToClient(
 		channel.port1.onmessage = (event) => {
 			clearTimeout(timeout);
 			const data = event.data;
-			if (data?.type === 'desktop-relay-response') {
+			if (data?.type === 'remote-access-relay-response') {
 				resolve(data.response);
 				return;
 			}

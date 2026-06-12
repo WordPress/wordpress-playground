@@ -127,6 +127,7 @@ import {
 } from './src/lib/offline-mode-cache';
 import {
 	getRemoteAccessRelayMapping,
+	getRemoteAccessRelayMappingFromUrl,
 	handleRemoteAccessRelayMessage,
 	handleRemoteAccessRelayProbe,
 	handleRemoteAccessRelayRequest,
@@ -234,10 +235,12 @@ self.addEventListener('fetch', (event) => {
 
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
-		if (url.searchParams.has('desktop-relay-probe')) {
+		if (url.searchParams.has('remote-access-probe')) {
 			return event.respondWith(handleRemoteAccessRelayProbe(scope));
 		}
-		const remoteAccessRelayMapping = getRemoteAccessRelayMapping(scope);
+		const remoteAccessRelayMapping =
+			getRemoteAccessRelayMapping(scope) ||
+			getRemoteAccessRelayMappingFromUrl(scope, url);
 		if (remoteAccessRelayMapping) {
 			return event.respondWith(
 				handleRemoteAccessRelayRequest(

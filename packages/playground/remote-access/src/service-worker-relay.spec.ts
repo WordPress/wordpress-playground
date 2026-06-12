@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { collectHeaders, requestBodyToBytes } from './service-worker-relay';
+import {
+	collectHeaders,
+	getRemoteAccessRelayMapping,
+	getRemoteAccessRelayMappingFromUrl,
+	requestBodyToBytes,
+} from './service-worker-relay';
 
 describe('remote access service worker relay helpers', () => {
 	it('does not read bodies for GET and HEAD requests', async () => {
@@ -49,5 +54,19 @@ describe('remote access service worker relay helpers', () => {
 			'content-type': 'text/plain',
 			'x-request-id': 'abc',
 		});
+	});
+
+	it('recovers and persists a relay mapping from a scoped viewer URL', () => {
+		const mapping = getRemoteAccessRelayMappingFromUrl(
+			'default',
+			new URL(
+				'https://example.com/scope:default/?remote-access-view=session-1'
+			)
+		);
+
+		expect(mapping?.sessionId).toBe('session-1');
+		expect(getRemoteAccessRelayMapping('default')?.sessionId).toBe(
+			'session-1'
+		);
 	});
 });

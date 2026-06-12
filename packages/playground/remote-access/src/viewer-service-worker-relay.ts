@@ -10,7 +10,7 @@ export interface RemoteAccessRelayProbeResult {
 }
 
 export interface RemoteAccessRelayRequestMessage {
-	type: 'desktop-relay-request';
+	type: 'remote-access-relay-request';
 	sessionId: string;
 	requestId: string;
 	method: string;
@@ -24,7 +24,7 @@ export function getRemoteAccessRelayScopedUrl(scope: string): string {
 }
 
 export function getRemoteAccessRelayProbeUrl(scope: string): string {
-	return `${getRemoteAccessRelayScopedUrl(scope)}?desktop-relay-probe=1`;
+	return `${getRemoteAccessRelayScopedUrl(scope)}?remote-access-probe=1`;
 }
 
 export async function registerRemoteAccessServiceWorker(
@@ -74,7 +74,7 @@ export function postRemoteAccessRelayMapping(
 		}, 5000);
 		channel.port1.onmessage = (event) => {
 			clearTimeout(timeout);
-			if (event.data?.type === 'desktop-relay-map-result') {
+			if (event.data?.type === 'remote-access-relay-map-result') {
 				resolve({ clientId: event.data?.clientId });
 				return;
 			}
@@ -87,7 +87,7 @@ export function postRemoteAccessRelayMapping(
 		};
 		worker.postMessage(
 			{
-				type: 'desktop-relay-map',
+				type: 'remote-access-relay-map',
 				scope,
 				sessionId,
 				ttl,
@@ -103,7 +103,7 @@ export async function fetchRemoteAccessRelayProbe(
 	const response = await fetch(getRemoteAccessRelayProbeUrl(scope), {
 		cache: 'no-store',
 	});
-	if (response.headers.get('X-Desktop-Relay-Service-Worker') !== '1') {
+	if (response.headers.get('X-Remote-Access-Service-Worker') !== '1') {
 		throw new Error(
 			'Remote access service worker is not controlling WordPress requests.'
 		);
@@ -125,7 +125,7 @@ export async function fetchRemoteAccessRelayProbe(
 
 export function clearRemoteAccessRelayMapping(scope: string): void {
 	navigator.serviceWorker?.controller?.postMessage({
-		type: 'desktop-relay-clear',
+		type: 'remote-access-relay-clear',
 		scope,
 	});
 }
@@ -137,7 +137,7 @@ export function getRemoteAccessRelayRequestMessage(
 	if (
 		typeof data !== 'object' ||
 		data === null ||
-		(data as { type?: unknown }).type !== 'desktop-relay-request' ||
+		(data as { type?: unknown }).type !== 'remote-access-relay-request' ||
 		(data as { sessionId?: unknown }).sessionId !== sessionId
 	) {
 		return null;
@@ -150,7 +150,7 @@ export function postRemoteAccessRelayResponse(
 	response: unknown
 ): void {
 	port.postMessage({
-		type: 'desktop-relay-response',
+		type: 'remote-access-relay-response',
 		response,
 	});
 }
@@ -160,7 +160,7 @@ export function postRemoteAccessRelayError(
 	error: string
 ): void {
 	port.postMessage({
-		type: 'desktop-relay-error',
+		type: 'remote-access-relay-error',
 		error,
 	});
 }

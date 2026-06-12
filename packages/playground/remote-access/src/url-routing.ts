@@ -8,7 +8,7 @@ export interface RemoteAccessRouteOptions {
 const DEFAULT_CONNECT_PATH = '/connect';
 const DEFAULT_SHARE_PARAM = 'share';
 const DEFAULT_SCOPE = 'default';
-const DEFAULT_RELAY_VIEW_PARAM = 'desktop-relay-view';
+const DEFAULT_RELAY_VIEW_PARAM = 'remote-access-view';
 
 export function getRemoteAccessSessionId(
 	url: string,
