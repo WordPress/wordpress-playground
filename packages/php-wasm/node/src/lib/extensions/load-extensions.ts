@@ -113,6 +113,15 @@ export async function withPHPExtensions(
 	return withResolvedNodePHPExtensions(options, resolvedExtensions);
 }
 
+/**
+ * Describes a bundled Node extension loaded from the host filesystem.
+ *
+ * Bundled extension modules already exist on disk next to the Node package.
+ * Mounting the `.so` file through NODEFS lets PHP see the expected virtual
+ * path without first copying the WebAssembly side module into MEMFS. The
+ * generated `.ini` file and any small sidecar files still live in MEMFS
+ * because PHP reads them as regular startup configuration.
+ */
 interface NodeFilesystemPHPExtension {
 	soPath: string;
 	soHostPath: string;
@@ -126,141 +135,6 @@ interface NodeFilesystemPHPExtension {
 type ResolvedNodePHPExtension =
 	| ResolvedPHPExtension
 	| NodeFilesystemPHPExtension;
-
-function withResolvedNodePHPExtensions(
-	options: EmscriptenOptions,
-	extensions: ResolvedNodePHPExtension[]
-): EmscriptenOptions {
-	if (!extensions.length) {
-		return options;
-	}
-	const env = { ...options.ENV };
-	for (const extension of extensions) {
-		Object.assign(env, extension.env);
-		if (!extension.iniPath) {
-			continue;
-		}
-		const paths = env['PHP_INI_SCAN_DIR']?.split(':') ?? [];
-		if (!paths.includes(extension.extensionDir)) {
-			paths.push(extension.extensionDir);
-			env['PHP_INI_SCAN_DIR'] = paths.join(':');
-		}
-	}
-	const preRun = options['preRun'] ?? [];
-	return {
-		...options,
-		ENV: env,
-		['preRun']: [
-			...preRun,
-			(phpRuntime: { FS: any }) => {
-				for (const extension of extensions) {
-					if ('soBytes' in extension) {
-						installPHPExtensionFilesSync(phpRuntime.FS, extension);
-					} else {
-						installNodeFilesystemExtensionFilesSync(
-							phpRuntime.FS,
-							extension
-						);
-					}
-				}
-			},
-		],
-	};
-}
-
-function createNodeFilesystemExtension(options: {
-	name: BuiltInPHPExtensionName;
-	hostPath: string;
-	loadWithIniDirective?: 'extension' | 'zend_extension';
-	iniEntries?: Record<string, string>;
-	extraFiles?: ResolvedInstallOptions['extraFiles'];
-	env?: Record<string, string>;
-}): NodeFilesystemPHPExtension {
-	const extensionDir = PHP_EXTENSIONS_DIR;
-	const soPath = joinPaths(extensionDir, `${options.name}.so`);
-	return {
-		soPath,
-		soHostPath: options.hostPath,
-		iniPath: joinPaths(extensionDir, `${options.name}.ini`),
-		iniContent: createExtensionIniContent({
-			directive: options.loadWithIniDirective ?? 'extension',
-			soPath,
-			iniEntries: options.iniEntries,
-		}),
-		extraFiles: options.extraFiles,
-		env: options.env,
-		extensionDir,
-	};
-}
-
-function createExtensionIniContent(options: {
-	directive: 'extension' | 'zend_extension';
-	soPath: string;
-	iniEntries?: Record<string, string>;
-}): string {
-	const lines = [`${options.directive}=${options.soPath}`];
-	for (const [key, value] of Object.entries(options.iniEntries ?? {})) {
-		lines.push(`${key}=${value}`);
-	}
-	return lines.join('\n');
-}
-
-function installNodeFilesystemExtensionFilesSync(
-	FS: Emscripten.RootFS,
-	extension: NodeFilesystemPHPExtension
-) {
-	mountHostFile(FS, extension.soHostPath, extension.soPath);
-	if (extension.iniPath && extension.iniContent !== undefined) {
-		mkdirIfMissing(FS, dirname(extension.iniPath));
-		FS.writeFile(extension.iniPath, extension.iniContent);
-	}
-	if (extension.extraFiles) {
-		const { directories = [], files } = extension.extraFiles;
-		for (const directory of directories) {
-			mkdirIfMissing(FS, directory);
-		}
-		for (const [path, content] of Object.entries(files)) {
-			mkdirIfMissing(FS, dirname(path));
-			FS.writeFile(path, content);
-		}
-	}
-}
-
-function mountHostFile(
-	FS: Emscripten.RootFS,
-	hostPath: string,
-	vfsPath: string
-) {
-	mkdirIfMissing(FS, dirname(vfsPath));
-	if (!fileExists(FS, vfsPath)) {
-		// Emscripten's mount point must exist before NODEFS can replace it.
-		FS.writeFile(vfsPath, '');
-	}
-	FS.mount(
-		FS.filesystems['NODEFS'],
-		{ root: fs.realpathSync(hostPath) },
-		vfsPath
-	);
-}
-
-function mkdirIfMissing(FS: Emscripten.RootFS, path: string) {
-	if (!fileExists(FS, path)) {
-		FS.mkdirTree(path);
-	}
-}
-
-function fileExists(FS: Emscripten.RootFS, path: string): boolean {
-	try {
-		FS.lookupPath(path);
-		return true;
-	} catch (e) {
-		const error = e as Emscripten.FS.ErrnoError;
-		if (error.errno === 44) {
-			return false;
-		}
-		throw e;
-	}
-}
 
 /**
  * Resolves one user-facing Node extension request before PHP starts.
@@ -380,6 +254,59 @@ async function resolveRuntimePHPExtension(
 }
 
 /**
+ * Builds a NODEFS-backed descriptor for one bundled extension module.
+ *
+ * The descriptor keeps the host path and the PHP-visible path separate:
+ * `soHostPath` points at the package artifact on disk, while `soPath` is the
+ * path PHP loads from `extension_dir`. The generated `.ini` file is installed
+ * later during Emscripten `preRun`, after the runtime filesystem exists.
+ */
+function createNodeFilesystemExtension(options: {
+	name: BuiltInPHPExtensionName;
+	hostPath: string;
+	loadWithIniDirective?: 'extension' | 'zend_extension';
+	iniEntries?: Record<string, string>;
+	extraFiles?: ResolvedInstallOptions['extraFiles'];
+	env?: Record<string, string>;
+}): NodeFilesystemPHPExtension {
+	const extensionDir = PHP_EXTENSIONS_DIR;
+	const soPath = joinPaths(extensionDir, `${options.name}.so`);
+	return {
+		soPath,
+		soHostPath: options.hostPath,
+		iniPath: joinPaths(extensionDir, `${options.name}.ini`),
+		iniContent: createExtensionIniContent({
+			directive: options.loadWithIniDirective ?? 'extension',
+			soPath,
+			iniEntries: options.iniEntries,
+		}),
+		extraFiles: options.extraFiles,
+		env: options.env,
+		extensionDir,
+	};
+}
+
+/**
+ * Creates the PHP startup configuration for one NODEFS-backed extension.
+ *
+ * Most extensions load with `extension=...`; Xdebug is a Zend extension and
+ * must use `zend_extension=...`. Additional entries are appended in order so
+ * extension-specific configuration remains next to the directive that loads
+ * the module.
+ */
+function createExtensionIniContent(options: {
+	directive: 'extension' | 'zend_extension';
+	soPath: string;
+	iniEntries?: Record<string, string>;
+}): string {
+	const lines = [`${options.directive}=${options.soPath}`];
+	for (const [key, value] of Object.entries(options.iniEntries ?? {})) {
+		lines.push(`${key}=${value}`);
+	}
+	return lines.join('\n');
+}
+
+/**
  * Finds the bundled ICU data file for Node `intl`.
  *
  * The path is different in source tests and in the built package. Source tests
@@ -450,4 +377,137 @@ function resolveXdebugExtraFiles(
 	}
 
 	return { files };
+}
+
+/**
+ * Adds resolved Node extension files to Emscripten startup options.
+ *
+ * Extensions are installed during `preRun` because Emscripten creates the
+ * runtime filesystem only after options are prepared. Existing `preRun`
+ * callbacks are preserved, extension-specific environment variables are
+ * merged, and NODEFS-backed `.ini` directories are appended to
+ * `PHP_INI_SCAN_DIR` so PHP discovers them during startup.
+ */
+function withResolvedNodePHPExtensions(
+	options: EmscriptenOptions,
+	extensions: ResolvedNodePHPExtension[]
+): EmscriptenOptions {
+	if (!extensions.length) {
+		return options;
+	}
+	const env = { ...options.ENV };
+	for (const extension of extensions) {
+		Object.assign(env, extension.env);
+		if (!extension.iniPath) {
+			continue;
+		}
+		const paths = env['PHP_INI_SCAN_DIR']?.split(':') ?? [];
+		if (!paths.includes(extension.extensionDir)) {
+			paths.push(extension.extensionDir);
+			env['PHP_INI_SCAN_DIR'] = paths.join(':');
+		}
+	}
+	const preRun = options['preRun'] ?? [];
+	return {
+		...options,
+		ENV: env,
+		['preRun']: [
+			...preRun,
+			(phpRuntime: { FS: any }) => {
+				for (const extension of extensions) {
+					if ('soBytes' in extension) {
+						installPHPExtensionFilesSync(phpRuntime.FS, extension);
+					} else {
+						installNodeFilesystemExtensionFilesSync(
+							phpRuntime.FS,
+							extension
+						);
+					}
+				}
+			},
+		],
+	};
+}
+
+/**
+ * Installs one NODEFS-backed extension into the runtime filesystem.
+ *
+ * The heavy `.so` module is mounted from the host filesystem. The generated
+ * `.ini` file and sidecar files are written into MEMFS because they are small
+ * startup inputs, and because some of them are virtual paths with no matching
+ * host file.
+ */
+function installNodeFilesystemExtensionFilesSync(
+	FS: Emscripten.RootFS,
+	extension: NodeFilesystemPHPExtension
+) {
+	mountHostFile(FS, extension.soHostPath, extension.soPath);
+	if (extension.iniPath && extension.iniContent !== undefined) {
+		mkdirIfMissing(FS, dirname(extension.iniPath));
+		FS.writeFile(extension.iniPath, extension.iniContent);
+	}
+	if (extension.extraFiles) {
+		const { directories = [], files } = extension.extraFiles;
+		for (const directory of directories) {
+			mkdirIfMissing(FS, directory);
+		}
+		for (const [path, content] of Object.entries(files)) {
+			mkdirIfMissing(FS, dirname(path));
+			FS.writeFile(path, content);
+		}
+	}
+}
+
+/**
+ * Mounts one host file at the PHP-visible virtual filesystem path.
+ *
+ * NODEFS replaces an existing filesystem node with a mount, so the VFS path is
+ * created as an empty file first. The host path is resolved before mounting so
+ * symlinked package artifacts keep working when the package is linked into a
+ * workspace.
+ */
+function mountHostFile(
+	FS: Emscripten.RootFS,
+	hostPath: string,
+	vfsPath: string
+) {
+	mkdirIfMissing(FS, dirname(vfsPath));
+	if (!fileExists(FS, vfsPath)) {
+		// Emscripten's mount point must exist before NODEFS can replace it.
+		FS.writeFile(vfsPath, '');
+	}
+	FS.mount(
+		FS.filesystems['NODEFS'],
+		{ root: fs.realpathSync(hostPath) },
+		vfsPath
+	);
+}
+
+/**
+ * Ensures a directory exists without failing when it was created earlier.
+ */
+function mkdirIfMissing(FS: Emscripten.RootFS, path: string) {
+	if (!fileExists(FS, path)) {
+		FS.mkdirTree(path);
+	}
+}
+
+/**
+ * Indicates whether a path exists in Emscripten's virtual filesystem.
+ *
+ * Emscripten reports a missing path as errno 44 (`ENOENT`) instead of
+ * returning `undefined`, so the helper keeps the expected miss separate from
+ * filesystem errors that should still bubble up.
+ */
+function fileExists(FS: Emscripten.RootFS, path: string): boolean {
+	try {
+		FS.lookupPath(path);
+		return true;
+	} catch (e) {
+		const error = e as Emscripten.FS.ErrnoError;
+		if (error.errno === 44) {
+			return false;
+		}
+		throw e;
+	}
 }
