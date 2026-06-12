@@ -617,17 +617,15 @@ function db(): mysqli {
         return $db;
     }
 
-    $host = configValue(['PLAYGROUND_RELAY_DB_HOST', 'MYWP_DB_HOST', 'DB_HOST']);
-    $user = configValue(['PLAYGROUND_RELAY_DB_USER', 'MYWP_DB_USER', 'DB_USER']);
+    $host = configValue(['PLAYGROUND_RELAY_DB_HOST', 'DB_HOST']);
+    $user = configValue(['PLAYGROUND_RELAY_DB_USER', 'DB_USER']);
     $password = configValue([
         'PLAYGROUND_RELAY_DB_PASSWORD',
-        'MYWP_DB_PASSWORD',
         'DB_PASSWORD',
     ], false);
-    $name = configValue(['PLAYGROUND_RELAY_DB_NAME', 'MYWP_DB_NAME', 'DB_NAME']);
+    $name = configValue(['PLAYGROUND_RELAY_DB_NAME', 'DB_NAME']);
     $port = (int) (configValue([
         'PLAYGROUND_RELAY_DB_PORT',
-        'MYWP_DB_PORT',
         'DB_PORT',
     ], false) ?? 3306);
 

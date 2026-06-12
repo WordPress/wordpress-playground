@@ -70,11 +70,11 @@ packages/playground/website-deployment/my-wordpress-net/mywp-remote-access-table
 
 The relay reads DB configuration from these env/server variables, in order:
 
-- `PLAYGROUND_RELAY_DB_HOST`, `MYWP_DB_HOST`, `DB_HOST`
-- `PLAYGROUND_RELAY_DB_USER`, `MYWP_DB_USER`, `DB_USER`
-- `PLAYGROUND_RELAY_DB_PASSWORD`, `MYWP_DB_PASSWORD`, `DB_PASSWORD`
-- `PLAYGROUND_RELAY_DB_NAME`, `MYWP_DB_NAME`, `DB_NAME`
-- `PLAYGROUND_RELAY_DB_PORT`, `MYWP_DB_PORT`, `DB_PORT`
+- `PLAYGROUND_RELAY_DB_HOST`, `DB_HOST`
+- `PLAYGROUND_RELAY_DB_USER`, `DB_USER`
+- `PLAYGROUND_RELAY_DB_PASSWORD`, `DB_PASSWORD`
+- `PLAYGROUND_RELAY_DB_NAME`, `DB_NAME`
+- `PLAYGROUND_RELAY_DB_PORT`, `DB_PORT`
 
 Set `PLAYGROUND_RELAY_PUBLIC_BASE_URL` when generated share URLs should use a
 specific public origin.
