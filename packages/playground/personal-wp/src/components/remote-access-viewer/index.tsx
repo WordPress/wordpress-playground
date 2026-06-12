@@ -536,16 +536,21 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	};
 
 	const replaceRemoteFrame = () => {
+		const wordCampCompanionUrl = buildRemoteAccessScopedIframeUrl(
+			'/wordcamp-companion/',
+			sessionId,
+			{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+		);
 		iframeRef.current?.contentWindow?.postMessage(
 			{
 				type: 'remote-access-frame-replace',
-				src: remoteAccessRelayIframeUrl,
+				src: wordCampCompanionUrl,
 			},
 			window.location.origin
 		);
 		setRelayDiagnostics((current) => ({
 			...current,
-			iframe: 'Replacing frame',
+			iframe: 'Replacing frame with /wordcamp-companion/',
 		}));
 	};
 
