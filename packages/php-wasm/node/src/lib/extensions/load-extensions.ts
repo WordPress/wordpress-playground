@@ -14,6 +14,7 @@ import {
 } from '@php-wasm/universal';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { dirname, joinPaths } from '@php-wasm/util';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 import { getMemcachedExtensionModule } from './memcached/get-memcached-extension-module';
@@ -191,7 +192,7 @@ async function resolveRuntimePHPExtension(
 			const moduleDir =
 				typeof __dirname !== 'undefined'
 					? __dirname
-					: import.meta.dirname;
+					: path.dirname(fileURLToPath(import.meta.url));
 			const dataPath = resolveIntlDataPath(moduleDir, dataName);
 			return createNodeFilesystemExtension({
 				name: 'intl',
@@ -443,16 +444,24 @@ function installNodeFilesystemExtensionFilesSync(
 ) {
 	mountHostFile(FS, extension.soHostPath, extension.soPath);
 	if (extension.iniPath && extension.iniContent !== undefined) {
-		mkdirIfMissing(FS, dirname(extension.iniPath));
+		const iniDir = dirname(extension.iniPath);
+		if (!fileExists(FS, iniDir)) {
+			FS.mkdirTree(iniDir);
+		}
 		FS.writeFile(extension.iniPath, extension.iniContent);
 	}
 	if (extension.extraFiles) {
 		const { directories = [], files } = extension.extraFiles;
 		for (const directory of directories) {
-			mkdirIfMissing(FS, directory);
+			if (!fileExists(FS, directory)) {
+				FS.mkdirTree(directory);
+			}
 		}
 		for (const [path, content] of Object.entries(files)) {
-			mkdirIfMissing(FS, dirname(path));
+			const fileDir = dirname(path);
+			if (!fileExists(FS, fileDir)) {
+				FS.mkdirTree(fileDir);
+			}
 			FS.writeFile(path, content);
 		}
 	}
@@ -471,7 +480,10 @@ function mountHostFile(
 	hostPath: string,
 	vfsPath: string
 ) {
-	mkdirIfMissing(FS, dirname(vfsPath));
+	const mountDir = dirname(vfsPath);
+	if (!fileExists(FS, mountDir)) {
+		FS.mkdirTree(mountDir);
+	}
 	if (!fileExists(FS, vfsPath)) {
 		// Emscripten's mount point must exist before NODEFS can replace it.
 		FS.writeFile(vfsPath, '');
@@ -481,15 +493,6 @@ function mountHostFile(
 		{ root: fs.realpathSync(hostPath) },
 		vfsPath
 	);
-}
-
-/**
- * Ensures a directory exists without failing when it was created earlier.
- */
-function mkdirIfMissing(FS: Emscripten.RootFS, path: string) {
-	if (!fileExists(FS, path)) {
-		FS.mkdirTree(path);
-	}
 }
 
 /**

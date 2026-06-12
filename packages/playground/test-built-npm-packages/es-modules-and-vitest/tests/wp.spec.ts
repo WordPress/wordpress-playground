@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { runCLI } from '@wp-playground/cli';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import { PHP, SupportedPHPVersions } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const phpVersion = process.env.PHP_VERSION as SupportedPHPVersion;
 if (!phpVersion) {
@@ -40,6 +41,47 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 			}
 		}
 	});
+
+	it(
+		'Should load bundled PHP extensions from installed packages',
+		{ timeout: 30000 },
+		async () => {
+			const php = new PHP(
+				await loadNodeRuntime(phpVersion, {
+					emscriptenOptions: { processId: 1 },
+					extensions: ['intl', 'xdebug'],
+				})
+			);
+			try {
+				const response = await php.runStream({
+					code: `<?php
+					echo extension_loaded('intl') ? "intl=yes\n" : "intl=no\n";
+					echo extension_loaded('xdebug') ? "xdebug=yes\n" : "xdebug=no\n";
+				`,
+				});
+				assert.equal(
+					await response.stdoutText,
+					'intl=yes\nxdebug=yes\n'
+				);
+
+				assert.equal(
+					php.readFileAsText('/internal/shared/extensions/intl.ini'),
+					'extension=/internal/shared/extensions/intl.so'
+				);
+				assert.ok(
+					php
+						.readFileAsText(
+							'/internal/shared/extensions/xdebug.ini'
+						)
+						.startsWith(
+							'zend_extension=/internal/shared/extensions/xdebug.so'
+						)
+				);
+			} finally {
+				php.exit();
+			}
+		}
+	);
 
 	/**
 	 * Verify the built Playground packages ship worker files that have stable names.

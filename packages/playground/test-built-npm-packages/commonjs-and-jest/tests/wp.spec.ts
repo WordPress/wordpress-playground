@@ -1,6 +1,7 @@
 const { SupportedPHPVersions } = require('@php-wasm/universal');
 const { getPHPLoaderModule } = require('@php-wasm/node');
 const { runCLI } = require('@wp-playground/cli');
+const { execFileSync } = require('child_process');
 const path = require('path');
 SupportedPHPVersions.forEach((phpVersion: string) => {
 	describe(`PHP ${phpVersion}`, () => {
@@ -22,6 +23,17 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}
+		}, 30000);
+
+		it('bundled PHP extensions should load from installed packages', () => {
+			execFileSync(
+				process.execPath,
+				[
+					path.join(__dirname, 'load-bundled-extensions.cjs'),
+					phpVersion,
+				],
+				{ stdio: 'pipe' }
+			);
 		}, 30000);
 	});
 	/**
