@@ -22,6 +22,7 @@ cp ~/website-deployment/custom-redirects.php ~/website-update/
 cp ~/website-deployment/cors-proxy-config.php ~/website-update/
 cp ~/website-deployment/my-wordpress-net/mywp-event.php ~/website-update/
 cp ~/website-deployment/my-wordpress-net/mywp-event-dashboard.php ~/website-update/
+cp ~/website-deployment/my-wordpress-net/relay.php ~/website-update/
 
 # Generate mime-types.php from mime-types.json in case the PHP can be opcached
 echo Generating mime-types.php
