@@ -759,8 +759,9 @@ test.describe('Default Playground storage', () => {
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			null
 		);
+		await expect(website.page.getByText('Autosaving')).toHaveCount(0);
 		await expect(
-			website.page.getByText(/Autosaving|Finalizing autosave/)
+			website.page.getByText('Finalizing autosave')
 		).toHaveCount(0);
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
@@ -790,17 +791,15 @@ test.describe('Default Playground storage', () => {
 				}
 			)
 		);
-		const autosavingIndex = saveStatusSamples.findIndex(
-			({ text }) => text === 'Autosaving'
-		);
-		const autosavedIndex = saveStatusSamples.findIndex(
-			({ text }) => text === 'Autosaved'
-		);
-		expect(autosavingIndex).toBeGreaterThan(-1);
-		expect(autosavedIndex).toBeGreaterThan(autosavingIndex);
+		expect(
+			saveStatusSamples.some(({ text }) => text === 'Autosaved')
+		).toBe(true);
+		expect(
+			saveStatusSamples.some(({ text }) => text === 'Autosaving')
+		).toBe(false);
 		expect(
 			saveStatusSamples.some(({ ariaLabel }) =>
-				/^Autosaving [1-9]\d*%$/.test(ariaLabel ?? '')
+				/^Autosaved [1-9]\d*%$/.test(ariaLabel ?? '')
 			)
 		).toBe(true);
 	});
@@ -1285,7 +1284,7 @@ test.describe('Default Playground storage', () => {
 			)
 			.toBe('explicit');
 		await expect(
-			website.page.getByText(/Autosaved|Autosaving|Finalizing autosave/)
+			website.page.getByText(/Autosaved|Finalizing autosave/)
 		).toHaveCount(0);
 		await expect(
 			website.page.getByText(/Saved Playground|Saving|Finalizing save/)
