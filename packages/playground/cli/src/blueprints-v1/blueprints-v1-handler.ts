@@ -176,10 +176,12 @@ export class BlueprintsV1Handler {
 	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
+		fileLockManagerServicePort,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
+		fileLockManagerServicePort: NodeMessagePort;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
@@ -191,6 +193,7 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
+		await playground.useFileLockManagerService(fileLockManagerServicePort);
 		await playground.bootRequestHandler({
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,

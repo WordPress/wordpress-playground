@@ -639,6 +639,54 @@ describe.each(blueprintVersions)(
 			}
 		});
 
+		// Regression test: files provided via post-install --mount used to be
+		// invisible to child PHP processes spawned with proc_open()/system(),
+		// because the spawned worker never installs WordPress itself and so
+		// skipped applying the post-install mounts.
+		test('child processes spawned via proc_open() see post-install --mount files', async () => {
+			const hostDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-mount-')
+			);
+			// A PHP script that exists only inside the mounted host directory.
+			// If the spawned child cannot see the mount it cannot even load
+			// this file ("Could not open input file").
+			writeFileSync(
+				path.join(hostDir, 'child.php'),
+				`<?php echo 'CHILD_SAW_MOUNT';`
+			);
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: [
+						{
+							hostPath: hostDir,
+							vfsPath: '/wordpress/wp-content/probe',
+						},
+					],
+				});
+
+				// Served by the primary worker (which sees the mount). It
+				// spawns a child via shell_exec()/proc_open() that runs the
+				// PHP file located in the post-install mount.
+				await cliServer.playground.writeFile(
+					'/wordpress/probe-parent.php',
+					`<?php echo 'PARENT:' . trim((string) shell_exec('php /wordpress/wp-content/probe/child.php 2>&1'));`
+				);
+
+				const response = await fetch(
+					new URL('/probe-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				// The child could load and run the script from the mount.
+				expect(text).toContain('CHILD_SAW_MOUNT');
+			} finally {
+				rmSync(hostDir, { recursive: true, force: true });
+			}
+		}, 120000);
+
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 
 		describe('auto-mount', () => {

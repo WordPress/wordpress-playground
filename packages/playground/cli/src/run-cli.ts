@@ -1538,10 +1538,15 @@ export async function runCLI(
 
 							const fileLockManagerPort =
 								await exposeFileLockManager(fileLockManager);
+							const fileLockManagerServicePort =
+								await exposeFileLockManagerService(
+									fileLockManager
+								);
 							const playgroundApi =
 								await handler.bootRequestHandler({
 									worker: spawnResult,
 									fileLockManagerPort,
+									fileLockManagerServicePort,
 									nativeInternalDirPath,
 								});
 
@@ -2135,6 +2140,33 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	await exposeSyncAPI(fileLockManager, port1);
+	return port2;
+}
+
+/**
+ * Expose a small service that lets a worker attach a fresh MessagePort to the
+ * shared file lock manager.
+ *
+ * Workers use this when they spawn a child PHP process (proc_open()/system()):
+ * the child gets a direct line to the broker on the main thread instead of
+ * relaying its synchronous flock() calls through the spawning worker — which is
+ * blocked inside system() while the child runs and would deadlock it.
+ *
+ * @see comlink-sync.ts
+ */
+async function exposeFileLockManagerService(
+	fileLockManager: FileLockManagerInMemory
+) {
+	const { port1, port2 } = new NodeMessageChannel();
+	await exposeAPI(
+		{
+			attachFileLockManager: async (port: NodeMessagePort) => {
+				await exposeSyncAPI(fileLockManager, port);
+			},
+		},
+		undefined,
+		port1
+	);
 	return port2;
 }
 
