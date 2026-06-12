@@ -23,7 +23,8 @@
 			/*
 			 * Chromium can crash its renderer when some app pages navigate this
 			 * already-loaded remote iframe. Replacing the inner iframe avoids that
-			 * compositor crash while leaving Safari/Firefox on normal navigation.
+			 * compositor crash, observed in Chrome 149 and 151, while leaving
+			 * Safari/Firefox on normal navigation.
 			 */
 			const shouldReplaceFrameOnNavigation = isChromiumBrowser();
 			let wpFrame = createWordPressFrame();
