@@ -8,7 +8,6 @@ import {
 	fetchRemoteAccessRelayProbe,
 	getRemoteAccessPathFromConnectUrl,
 	getRemoteAccessRelayRequestMessage,
-	getRemoteAccessRelayScopedUrl,
 	getRemoteAccessSessionId as getRemoteAccessSessionIdFromUrl,
 	postRemoteAccessRelayError,
 	postRemoteAccessRelayMapping,
@@ -19,6 +18,7 @@ import {
 import saveAs from 'file-saver';
 
 import serviceWorkerPath from '@wp-playground/remote/service-worker?worker&url';
+import remoteAccessFrameUrl from './remote-access-frame.html?url';
 
 interface RemoteAccessViewerProps {
 	sessionId: string;
@@ -45,12 +45,14 @@ interface RelayDiagnostics {
 	lastError: string;
 }
 
+interface RemoteAccessFrameMessage {
+	type: 'remote-access-frame-message';
+	payload: unknown;
+}
+
 const STATUS_POLL_INTERVAL_MS = 3000;
 const GUEST_ID_STORAGE_KEY = 'personal-wp-remote-access-guest-id';
 const REMOTE_ACCESS_RELAY_SCOPE = 'default';
-const REMOTE_ACCESS_RELAY_SCOPED_URL = getRemoteAccessRelayScopedUrl(
-	REMOTE_ACCESS_RELAY_SCOPE
-);
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
 
@@ -93,6 +95,9 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			),
 		[sessionId]
 	);
+	const remoteAccessViewerFrameUrl = useMemo(() => {
+		return buildRemoteAccessViewerFrameUrl(remoteAccessRelayIframeUrl);
+	}, [remoteAccessRelayIframeUrl]);
 	const relayDiagnosticsTitle = useMemo(
 		() => formatRelayDiagnosticsTitle(relayDiagnostics),
 		[relayDiagnostics]
@@ -411,26 +416,41 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		if (!shouldLoadIframe || iframeSrc !== 'about:blank') {
 			return;
 		}
-		setIframeSrc(remoteAccessRelayIframeUrl);
+		setIframeSrc(remoteAccessViewerFrameUrl);
 		setRelayDiagnostics((current) => ({
 			...current,
 			iframe: 'Loading /scope:default/',
 		}));
-	}, [remoteAccessRelayIframeUrl, iframeSrc, shouldLoadIframe]);
+	}, [remoteAccessViewerFrameUrl, iframeSrc, shouldLoadIframe]);
 
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
+			if (isRemoteAccessFrameLoad(event, iframeRef.current)) {
+				setIframeHasLoaded(true);
+				syncDesktopUrlFromScopedUrl(event.data.href);
+				setRelayDiagnostics((current) => ({
+					...current,
+					iframe:
+						current.requests > 0 || current.intercepted > 0
+							? 'Loaded /scope:default/'
+							: 'Load event before relay request',
+				}));
+				setStatus('connected');
+				return;
+			}
 			if (!isMessageFromIframeTree(event, iframeRef.current)) {
 				return;
 			}
 			if (event.origin !== window.location.origin) {
 				return;
 			}
+			const frameMessage = unwrapRemoteAccessFrameMessage(event);
+			const data = frameMessage?.payload ?? event.data;
 			if (
-				typeof event.data !== 'object' ||
-				event.data === null ||
-				event.data.type !== 'relay' ||
-				event.data.relayType !== 'install-blueprint'
+				typeof data !== 'object' ||
+				data === null ||
+				data.type !== 'relay' ||
+				data.relayType !== 'install-blueprint'
 			) {
 				return;
 			}
@@ -439,7 +459,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 				'Installing apps from remote access is not available yet. Use Site Tools on the host device to install this app.'
 			);
 			setNoticeCanRetry(false);
-			postUnsupportedInstallBlueprintResult(event);
+			postUnsupportedInstallBlueprintResult(event, data, frameMessage);
 		}
 
 		window.addEventListener('message', handleMessage);
@@ -447,19 +467,13 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	}, []);
 
 	const handleIframeLoad = useCallback(() => {
-		if (!iframeRef.current?.src.includes(REMOTE_ACCESS_RELAY_SCOPED_URL)) {
+		if (!iframeRef.current?.src.includes(remoteAccessFrameUrl)) {
 			return;
 		}
-		setIframeHasLoaded(true);
-		syncDesktopUrlFromIframe(iframeRef.current);
 		setRelayDiagnostics((current) => ({
 			...current,
-			iframe:
-				current.requests > 0 || current.intercepted > 0
-					? 'Loaded /scope:default/'
-					: 'Load event before relay request',
+			iframe: 'Frame loaded',
 		}));
-		setStatus('connected');
 	}, []);
 
 	const restartConnection = useCallback(
@@ -476,12 +490,14 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			setTimeout(() => {
 				if (shouldLoadIframe) {
 					setIframeSrc(
-						buildRemoteAccessScopedIframeUrl(
-							getRemoteAccessPathFromConnectUrl(
-								window.location.href
-							),
-							sessionId,
-							{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+						buildRemoteAccessViewerFrameUrl(
+							buildRemoteAccessScopedIframeUrl(
+								getRemoteAccessPathFromConnectUrl(
+									window.location.href
+								),
+								sessionId,
+								{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+							)
 						)
 					);
 				}
@@ -646,27 +662,66 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	);
 }
 
-function postUnsupportedInstallBlueprintResult(event: MessageEvent) {
+function buildRemoteAccessViewerFrameUrl(scopedUrl: string): string {
+	const url = new URL(remoteAccessFrameUrl, window.location.href);
+	url.searchParams.set('src', scopedUrl);
+	return url.toString();
+}
+
+function postUnsupportedInstallBlueprintResult(
+	event: MessageEvent,
+	data: { blueprintUrl?: unknown; requestId?: unknown },
+	frameMessage: RemoteAccessFrameMessage | null
+) {
 	if (!event.source) {
 		return;
 	}
-	const data = event.data as {
-		blueprintUrl?: unknown;
-		requestId?: unknown;
+	const result = {
+		type: 'relay',
+		relayType: 'install-blueprint-result',
+		blueprintUrl:
+			typeof data.blueprintUrl === 'string' ? data.blueprintUrl : '',
+		requestId:
+			typeof data.requestId === 'string' ? data.requestId : undefined,
+		status: 'error',
+		error: 'Installing apps from remote access is not available yet.',
 	};
 	(event.source as Window).postMessage(
-		{
-			type: 'relay',
-			relayType: 'install-blueprint-result',
-			blueprintUrl:
-				typeof data.blueprintUrl === 'string' ? data.blueprintUrl : '',
-			requestId:
-				typeof data.requestId === 'string' ? data.requestId : undefined,
-			status: 'error',
-			error: 'Installing apps from remote access is not available yet.',
-		},
+		frameMessage
+			? {
+					type: 'remote-access-frame-forward',
+					payload: result,
+				}
+			: result,
 		event.origin
 	);
+}
+
+function isRemoteAccessFrameLoad(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null
+): event is MessageEvent<{ type: 'remote-access-frame-load'; href: string }> {
+	return (
+		event.origin === window.location.origin &&
+		event.source === iframe?.contentWindow &&
+		typeof event.data === 'object' &&
+		event.data !== null &&
+		event.data.type === 'remote-access-frame-load' &&
+		typeof event.data.href === 'string'
+	);
+}
+
+function unwrapRemoteAccessFrameMessage(
+	event: MessageEvent
+): RemoteAccessFrameMessage | null {
+	if (
+		typeof event.data !== 'object' ||
+		event.data === null ||
+		event.data.type !== 'remote-access-frame-message'
+	) {
+		return null;
+	}
+	return event.data as RemoteAccessFrameMessage;
 }
 
 function isMessageFromIframeTree(
@@ -707,10 +762,10 @@ function clearRemoteAccessRelay() {
 	clearRemoteAccessRelayMapping(REMOTE_ACCESS_RELAY_SCOPE);
 }
 
-function syncDesktopUrlFromIframe(iframe: HTMLIFrameElement) {
+function syncDesktopUrlFromScopedUrl(scopedUrl: string) {
 	try {
 		const nextUrl = buildConnectUrlFromScopedIframeUrl(
-			iframe.contentWindow?.location.href || '',
+			scopedUrl,
 			window.location.href,
 			{ scope: REMOTE_ACCESS_RELAY_SCOPE }
 		);

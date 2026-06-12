@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Remote Access Frame</title>
+		<style>
+			html,
+			body,
+			iframe {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				border: 0;
+				padding: 0;
+				background: #ffffff;
+			}
+		</style>
+	</head>
+	<body>
+		<iframe
+			id="wp"
+			title="Remote WordPress site"
+			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals"
+		></iframe>
+		<script>
+			const params = new URLSearchParams(window.location.search);
+			const wpFrame = document.getElementById('wp');
+
+			function getScopedUrl() {
+				const src = params.get('src');
+				if (!src) {
+					return null;
+				}
+				const url = new URL(src, window.location.href);
+				if (url.origin !== window.location.origin) {
+					return null;
+				}
+				return url.toString();
+			}
+
+			function postToParent(data) {
+				window.parent.postMessage(data, window.location.origin);
+			}
+
+			window.addEventListener('message', (event) => {
+				if (event.origin !== window.location.origin) {
+					return;
+				}
+				if (event.source === wpFrame.contentWindow) {
+					postToParent({
+						type: 'remote-access-frame-message',
+						payload: event.data,
+					});
+					return;
+				}
+				if (
+					event.source === window.parent &&
+					event.data?.type === 'remote-access-frame-forward'
+				) {
+					wpFrame.contentWindow?.postMessage(
+						event.data.payload,
+						window.location.origin
+					);
+				}
+			});
+
+			wpFrame.addEventListener('load', () => {
+				let href = wpFrame.src;
+				try {
+					href = wpFrame.contentWindow?.location.href || href;
+				} catch {
+					// Keep the src fallback if Chrome is between documents.
+				}
+				if (href === 'about:blank') {
+					return;
+				}
+				postToParent({
+					type: 'remote-access-frame-load',
+					href,
+				});
+			});
+
+			const scopedUrl = getScopedUrl();
+			if (scopedUrl) {
+				wpFrame.src = scopedUrl;
+			} else {
+				document.body.textContent =
+					'Remote access frame URL is invalid.';
+			}
+		</script>
+	</body>
+</html>
