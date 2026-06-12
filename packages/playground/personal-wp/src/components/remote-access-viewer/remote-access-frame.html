@@ -28,7 +28,10 @@
 			const wpFrame = document.getElementById('wp');
 
 			function getScopedUrl() {
-				const src = params.get('src');
+				return normalizeScopedUrl(params.get('src'));
+			}
+
+			function normalizeScopedUrl(src) {
 				if (!src) {
 					return null;
 				}
@@ -62,6 +65,16 @@
 						event.data.payload,
 						window.location.origin
 					);
+					return;
+				}
+				if (
+					event.source === window.parent &&
+					event.data?.type === 'remote-access-frame-navigate'
+				) {
+					const scopedUrl = normalizeScopedUrl(event.data.src);
+					if (scopedUrl) {
+						wpFrame.src = scopedUrl;
+					}
 				}
 			});
 

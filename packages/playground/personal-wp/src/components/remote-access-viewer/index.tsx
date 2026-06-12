@@ -521,6 +521,20 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		window.location.href = '/connect';
 	};
 
+	const reloadRemoteFrame = () => {
+		iframeRef.current?.contentWindow?.postMessage(
+			{
+				type: 'remote-access-frame-navigate',
+				src: remoteAccessRelayIframeUrl,
+			},
+			window.location.origin
+		);
+		setRelayDiagnostics((current) => ({
+			...current,
+			iframe: 'Programmatic navigation',
+		}));
+	};
+
 	const downloadBackup = async () => {
 		const directTunnel = directTunnelRef.current;
 		if (!directTunnel || isDownloadingBackup) {
@@ -571,6 +585,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 						<RelayDiagnosticsBar
 							diagnostics={relayDiagnostics}
 							onRetry={retry}
+							onReloadFrame={reloadRemoteFrame}
 						/>
 					</details>
 				</div>
@@ -836,9 +851,11 @@ function ConnectionPill({
 function RelayDiagnosticsBar({
 	diagnostics,
 	onRetry,
+	onReloadFrame,
 }: {
 	diagnostics: RelayDiagnostics;
 	onRetry: () => void;
+	onReloadFrame: () => void;
 }) {
 	return (
 		<div className={css.relayDiagnostics} aria-live="polite">
@@ -848,6 +865,13 @@ function RelayDiagnosticsBar({
 				onClick={onRetry}
 			>
 				Retry connection
+			</button>
+			<button
+				type="button"
+				className={css.relayDiagnosticsButton}
+				onClick={onReloadFrame}
+			>
+				Navigate frame
 			</button>
 			<span>SW: {diagnostics.serviceWorker}</span>
 			<span>Channel: {diagnostics.dataChannel}</span>
