@@ -67,6 +67,7 @@ export function RemoteAccessConnect() {
 						id="remote-access-code"
 						inputMode="numeric"
 						autoComplete="one-time-code"
+						autoFocus={true}
 						placeholder="123-456"
 						value={formatAccessCode(code)}
 						onChange={(event) => setCode(event.target.value)}
