@@ -434,14 +434,16 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 				return;
 			}
 			if (isRemoteAccessFrameLoad(event, iframeRef.current)) {
+				const loadedUrl = new URL(event.data.href);
 				setIframeHasLoaded(true);
 				syncDesktopUrlFromScopedUrl(event.data.href);
 				setRelayDiagnostics((current) => ({
 					...current,
 					iframe:
 						current.requests > 0 || current.intercepted > 0
-							? 'Loaded /scope:default/'
+							? `Loaded ${loadedUrl.pathname}`
 							: 'Load event before relay request',
+					lastPath: event.data.href,
 				}));
 				setStatus('connected');
 				return;
