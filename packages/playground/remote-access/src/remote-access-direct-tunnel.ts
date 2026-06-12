@@ -690,10 +690,7 @@ export class DirectTunnelHost {
 			this.updateMetrics({
 				handshakeState: `Peer ${pc.connectionState}`,
 			});
-			if (
-				pc.connectionState === 'failed' ||
-				pc.connectionState === 'disconnected'
-			) {
+			if (pc.connectionState === 'failed') {
 				this.failCurrentAttempt(
 					`Peer connection ${pc.connectionState}`
 				);
@@ -1809,10 +1806,7 @@ export class DirectTunnelGuest {
 			if (!isAttemptCurrent(this.currentAttemptId, attemptId)) {
 				return;
 			}
-			if (
-				pc.connectionState === 'failed' ||
-				pc.connectionState === 'disconnected'
-			) {
+			if (pc.connectionState === 'failed') {
 				this.reportStatus('error');
 			}
 		};
