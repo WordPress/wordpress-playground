@@ -425,14 +425,6 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
-			if (isRemoteAccessFrameCommand(event, iframeRef.current)) {
-				setRelayDiagnostics((current) => ({
-					...current,
-					iframe: `Frame ${event.data.command} accepted`,
-					lastPath: event.data.href,
-				}));
-				return;
-			}
 			if (isRemoteAccessFrameLoad(event, iframeRef.current)) {
 				const loadedUrl = new URL(event.data.href);
 				setIframeHasLoaded(true);
@@ -531,48 +523,6 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		window.location.href = '/connect';
 	};
 
-	const reloadRemoteFrame = () => {
-		const targetUrl = new URL(
-			remoteAccessRelayIframeUrl,
-			window.location.origin
-		).toString();
-		iframeRef.current?.contentWindow?.postMessage(
-			{
-				type: 'remote-access-frame-navigate',
-				src: targetUrl,
-			},
-			window.location.origin
-		);
-		setRelayDiagnostics((current) => ({
-			...current,
-			iframe: `Programmatic navigation to ${new URL(targetUrl).pathname}`,
-			lastPath: targetUrl,
-		}));
-	};
-
-	const replaceRemoteFrame = () => {
-		const targetUrl = new URL(
-			buildRemoteAccessScopedIframeUrl(
-				'/wordcamp-companion/',
-				sessionId,
-				{ scope: REMOTE_ACCESS_RELAY_SCOPE }
-			),
-			window.location.origin
-		);
-		iframeRef.current?.contentWindow?.postMessage(
-			{
-				type: 'remote-access-frame-replace',
-				src: targetUrl.toString(),
-			},
-			window.location.origin
-		);
-		setRelayDiagnostics((current) => ({
-			...current,
-			iframe: `Replacing frame with ${targetUrl.pathname}`,
-			lastPath: targetUrl.toString(),
-		}));
-	};
-
 	const downloadBackup = async () => {
 		const directTunnel = directTunnelRef.current;
 		if (!directTunnel || isDownloadingBackup) {
@@ -618,15 +568,6 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 						title={relayDiagnosticsTitle}
 						onDisconnect={disconnect}
 					/>
-					<details className={css.relayDiagnosticsDetails}>
-						<summary title={relayDiagnosticsTitle}>Debug</summary>
-						<RelayDiagnosticsBar
-							diagnostics={relayDiagnostics}
-							onRetry={retry}
-							onReloadFrame={reloadRemoteFrame}
-							onReplaceFrame={replaceRemoteFrame}
-						/>
-					</details>
 				</div>
 			</header>
 			{unsupportedMessage ? (
@@ -765,25 +706,6 @@ function isRemoteAccessFrameLoad(
 	);
 }
 
-function isRemoteAccessFrameCommand(
-	event: MessageEvent,
-	iframe: HTMLIFrameElement | null
-): event is MessageEvent<{
-	type: 'remote-access-frame-command';
-	command: string;
-	href: string;
-}> {
-	return (
-		event.origin === window.location.origin &&
-		event.source === iframe?.contentWindow &&
-		typeof event.data === 'object' &&
-		event.data !== null &&
-		event.data.type === 'remote-access-frame-command' &&
-		typeof event.data.command === 'string' &&
-		typeof event.data.href === 'string'
-	);
-}
-
 function unwrapRemoteAccessFrameMessage(
 	event: MessageEvent
 ): RemoteAccessFrameMessage | null {
@@ -903,52 +825,6 @@ function ConnectionPill({
 		<span className={css.statusPill} title={title}>
 			{label}
 		</span>
-	);
-}
-
-function RelayDiagnosticsBar({
-	diagnostics,
-	onRetry,
-	onReloadFrame,
-	onReplaceFrame,
-}: {
-	diagnostics: RelayDiagnostics;
-	onRetry: () => void;
-	onReloadFrame: () => void;
-	onReplaceFrame: () => void;
-}) {
-	return (
-		<div className={css.relayDiagnostics} aria-live="polite">
-			<button
-				type="button"
-				className={css.relayDiagnosticsButton}
-				onClick={onRetry}
-			>
-				Retry connection
-			</button>
-			<button
-				type="button"
-				className={css.relayDiagnosticsButton}
-				onClick={onReloadFrame}
-			>
-				Navigate frame
-			</button>
-			<button
-				type="button"
-				className={css.relayDiagnosticsButton}
-				onClick={onReplaceFrame}
-			>
-				Replace frame
-			</button>
-			<span>SW: {diagnostics.serviceWorker}</span>
-			<span>Channel: {diagnostics.dataChannel}</span>
-			<span>Frame: {diagnostics.iframe}</span>
-			<span>Requests: {diagnostics.requests}</span>
-			<span>Intercepted: {diagnostics.intercepted}</span>
-			<span>Pending: {diagnostics.pending}</span>
-			<span>Last: {diagnostics.lastPath}</span>
-			<span>Error: {diagnostics.lastError}</span>
-		</div>
 	);
 }
 
