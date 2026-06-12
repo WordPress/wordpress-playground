@@ -18,12 +18,7 @@ import {
 	bootWordPress,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import {
-	MessageChannel,
-	type MessagePort,
-	type MessagePort as NodeMessagePort,
-	parentPort,
-} from 'worker_threads';
+import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
@@ -91,12 +86,12 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
  */
 type FileLockManagerService = {
 	/** Attach the shared lock manager to `port`; returns an attachment id. */
-	attachFileLockManager: (port: NodeMessagePort) => Promise<number>;
+	attachFileLockManager: (port: MessagePort) => Promise<number>;
 	/**
 	 * Attach the service itself to `port` so a spawned child can in turn spawn
 	 * its own children that reach the lock manager directly. Returns an id.
 	 */
-	attachService: (port: NodeMessagePort) => Promise<number>;
+	attachService: (port: MessagePort) => Promise<number>;
 	/** Release a previously attached port (closes it on the main thread). */
 	detach: (id: number) => Promise<void>;
 };
@@ -237,6 +232,14 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				pathAliases: options.pathAliases,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() => {
+						if (!this.lockManagerService) {
+							throw new Error(
+								'Cannot spawn a child PHP process: ' +
+									'useFileLockManagerService() was not ' +
+									'called on this worker before boot.'
+							);
+						}
+
 						let effectiveOptions = options;
 						if (!this.bootedWordPress) {
 							// WordPress is not yet booted so skip the post-install mounts.
@@ -258,7 +261,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 								// already cleared above, so this is a no-op.)
 								applyPostInstallMountsImmediately: true,
 							},
-							this.lockManagerService!
+							this.lockManagerService
 						);
 					}),
 			});

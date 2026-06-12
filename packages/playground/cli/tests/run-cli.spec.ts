@@ -639,6 +639,21 @@ describe.each(blueprintVersions)(
 			}
 		});
 
+		// Build a PHP script that runs `scriptPath` in a child PHP process via
+		// proc_open() — the code path the regression tests below guard — and
+		// echoes `prefix` followed by the child's trimmed stdout.
+		const phpSpawningChildScript = (prefix: string, scriptPath: string) =>
+			`<?php
+			$proc = proc_open(
+				escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('${scriptPath}'),
+				[1 => ['pipe', 'w']],
+				$pipes
+			);
+			$stdout = (string) stream_get_contents($pipes[1]);
+			fclose($pipes[1]);
+			proc_close($proc);
+			echo '${prefix}:' . trim($stdout);`;
+
 		// Regression test: files provided via post-install --mount used to be
 		// invisible to child PHP processes spawned with proc_open()/system(),
 		// because the spawned worker never installs WordPress itself and so
@@ -668,11 +683,14 @@ describe.each(blueprintVersions)(
 				});
 
 				// Served by the primary worker (which sees the mount). It
-				// spawns a child via shell_exec()/proc_open() that runs the
-				// PHP file located in the post-install mount.
+				// spawns a child via proc_open() that runs the PHP file
+				// located in the post-install mount.
 				await cliServer.playground.writeFile(
 					'/wordpress/probe-parent.php',
-					`<?php echo 'PARENT:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/wp-content/probe/child.php')));`
+					phpSpawningChildScript(
+						'PARENT',
+						'/wordpress/wp-content/probe/child.php'
+					)
 				);
 
 				const response = await fetch(
@@ -709,7 +727,7 @@ describe.each(blueprintVersions)(
 			);
 			await cliServer.playground.writeFile(
 				'/wordpress/lock-parent.php',
-				`<?php echo 'PARENT:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/lock-child.php')));`
+				phpSpawningChildScript('PARENT', '/wordpress/lock-child.php')
 			);
 
 			const response = await fetch(
@@ -743,11 +761,11 @@ describe.each(blueprintVersions)(
 			);
 			await cliServer.playground.writeFile(
 				'/wordpress/child.php',
-				`<?php echo 'CHILD:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/gc.php')));`
+				phpSpawningChildScript('CHILD', '/wordpress/gc.php')
 			);
 			await cliServer.playground.writeFile(
 				'/wordpress/parent.php',
-				`<?php echo 'PARENT:' . trim((string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/child.php')));`
+				phpSpawningChildScript('PARENT', '/wordpress/child.php')
 			);
 
 			const response = await fetch(

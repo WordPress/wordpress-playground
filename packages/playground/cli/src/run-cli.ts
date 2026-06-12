@@ -1070,6 +1070,10 @@ export async function runCLI(
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
 	const fileLockManager = new FileLockManagerInMemory();
+	// Lets workers mint direct broker ports for the PHP children they spawn
+	// via proc_open()/system(). Disposed from disposeCLI().
+	const fileLockManagerService =
+		createFileLockManagerService(fileLockManager);
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
@@ -1165,6 +1169,9 @@ export async function runCLI(
 						await spawnedWorker.worker.terminate();
 					})
 				);
+				// All workers are gone, so no one is using the lock-manager
+				// service ports anymore — close them.
+				fileLockManagerService.dispose();
 				if (server) {
 					await new Promise((resolve) => {
 						server.close(resolve);
@@ -1539,9 +1546,7 @@ export async function runCLI(
 							const fileLockManagerPort =
 								await exposeFileLockManager(fileLockManager);
 							const fileLockManagerServicePort =
-								await exposeFileLockManagerService(
-									fileLockManager
-								);
+								await fileLockManagerService.exposeServicePort();
 							const playgroundApi =
 								await handler.bootRequestHandler({
 									worker: spawnResult,
@@ -2144,17 +2149,21 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 }
 
 /**
- * Expose a small service that lets a worker attach a fresh MessagePort to the
+ * Create the service that lets workers attach fresh MessagePorts to the
  * shared file lock manager.
  *
- * Workers use this when they spawn a child PHP process (proc_open()/system()):
+ * Workers use it when they spawn a child PHP process (proc_open()/system()):
  * the child gets a direct line to the broker on the main thread instead of
  * relaying its synchronous flock() calls through the spawning worker — which is
  * blocked inside system() while the child runs and would deadlock it.
  *
+ * A single instance serves the whole CLI run. Each worker gets its own port to
+ * it via exposeServicePort(), and dispose() — invoked from disposeCLI() —
+ * closes every port the service ever handed out.
+ *
  * @see comlink-sync.ts
  */
-async function exposeFileLockManagerService(
+function createFileLockManagerService(
 	fileLockManager: FileLockManagerInMemory
 ) {
 	// A fresh channel is attached for every spawned child. Track the main-thread
@@ -2217,15 +2226,39 @@ async function exposeFileLockManagerService(
 			release(id);
 		},
 	};
-	const { port1, port2 } = new NodeMessageChannel();
-	await exposeAPI(service, undefined, port1);
-	// One service channel is exposed per primary worker and lives for the whole
-	// server lifetime; it is never closed on disposeCLI(). unref() its main-thread
-	// end so these accumulated ports can't keep the event loop alive across
-	// repeated start/stop cycles (e.g. in tests). Message handling is unaffected —
-	// the main thread stays alive via the HTTP server / pending CLI promise.
-	port1.unref();
-	return port2;
+	// The main-thread ends of the per-worker channels the service is exposed on.
+	const servicePorts: NodeMessagePort[] = [];
+	return {
+		/**
+		 * Expose the service on a fresh channel and return the worker's end.
+		 */
+		async exposeServicePort() {
+			const { port1, port2 } = new NodeMessageChannel();
+			await exposeAPI(service, undefined, port1);
+			// Don't let the main-thread end keep the event loop alive on its
+			// own — the main thread stays alive via the HTTP server / pending
+			// CLI promise, and unref() doesn't stop message delivery.
+			port1.unref();
+			servicePorts.push(port1);
+			return port2;
+		},
+		/**
+		 * Close every port the service handed out: the per-worker channels
+		 * and any per-child attachments that were never detached.
+		 */
+		dispose() {
+			for (const port of servicePorts.splice(0)) {
+				try {
+					port.close();
+				} catch {
+					/** */
+				}
+			}
+			for (const id of [...attachedPorts.keys()]) {
+				release(id);
+			}
+		},
+	};
 }
 
 /**
