@@ -151,6 +151,38 @@ describe('remote access service worker relay helpers', () => {
 		await expect(response.text()).resolves.toBe('');
 	});
 
+	it('removes transport and body-size headers from synthesized responses', async () => {
+		const response = createRemoteAccessRelayResponse(
+			'https://example.com/scope:default/my-admin/',
+			{
+				scope: 'default',
+				sessionId: 'session-headers',
+				interceptedRequests: 0,
+				expiresAt: Date.now() + 1000,
+			},
+			{
+				status: 200,
+				headers: {
+					'content-type': 'text/html',
+					'content-length': '10',
+					connection: 'keep-alive',
+					'transfer-encoding': 'chunked',
+				},
+				body: new TextEncoder().encode(
+					'<a href="/my-admin/">Admin</a>'
+				),
+			}
+		);
+
+		expect(response.headers.get('content-type')).toBe('text/html');
+		expect(response.headers.has('content-length')).toBe(false);
+		expect(response.headers.has('connection')).toBe(false);
+		expect(response.headers.has('transfer-encoding')).toBe(false);
+		await expect(response.text()).resolves.toContain(
+			'https://example.com/scope:default/my-admin/'
+		);
+	});
+
 	it('stores response cookies and sends them on later relay requests', () => {
 		const mapping = {
 			scope: 'default',

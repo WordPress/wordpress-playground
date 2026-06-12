@@ -170,6 +170,7 @@ export function createRemoteAccessRelayResponse(
 	}
 ): Response {
 	const headers = new Headers(response.headers);
+	sanitizeRemoteAccessRelayResponseHeaders(headers);
 	const location = headers.get('location');
 	if (isRedirectStatus(response.status) && location) {
 		let redirectTarget = new URL(location, requestUrl);
@@ -191,6 +192,17 @@ export function createRemoteAccessRelayResponse(
 		status: response.status,
 		headers,
 	});
+}
+
+function sanitizeRemoteAccessRelayResponseHeaders(headers: Headers): void {
+	for (const header of [
+		'connection',
+		'content-length',
+		'keep-alive',
+		'transfer-encoding',
+	]) {
+		headers.delete(header);
+	}
 }
 
 function getRemoteAccessRelayResponseBody(
