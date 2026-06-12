@@ -535,6 +535,20 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		}));
 	};
 
+	const replaceRemoteFrame = () => {
+		iframeRef.current?.contentWindow?.postMessage(
+			{
+				type: 'remote-access-frame-replace',
+				src: remoteAccessRelayIframeUrl,
+			},
+			window.location.origin
+		);
+		setRelayDiagnostics((current) => ({
+			...current,
+			iframe: 'Replacing frame',
+		}));
+	};
+
 	const downloadBackup = async () => {
 		const directTunnel = directTunnelRef.current;
 		if (!directTunnel || isDownloadingBackup) {
@@ -586,6 +600,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 							diagnostics={relayDiagnostics}
 							onRetry={retry}
 							onReloadFrame={reloadRemoteFrame}
+							onReplaceFrame={replaceRemoteFrame}
 						/>
 					</details>
 				</div>
@@ -852,10 +867,12 @@ function RelayDiagnosticsBar({
 	diagnostics,
 	onRetry,
 	onReloadFrame,
+	onReplaceFrame,
 }: {
 	diagnostics: RelayDiagnostics;
 	onRetry: () => void;
 	onReloadFrame: () => void;
+	onReplaceFrame: () => void;
 }) {
 	return (
 		<div className={css.relayDiagnostics} aria-live="polite">
@@ -872,6 +889,13 @@ function RelayDiagnosticsBar({
 				onClick={onReloadFrame}
 			>
 				Navigate frame
+			</button>
+			<button
+				type="button"
+				className={css.relayDiagnosticsButton}
+				onClick={onReplaceFrame}
+			>
+				Replace frame
 			</button>
 			<span>SW: {diagnostics.serviceWorker}</span>
 			<span>Channel: {diagnostics.dataChannel}</span>

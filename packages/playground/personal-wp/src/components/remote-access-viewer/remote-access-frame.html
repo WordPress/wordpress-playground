@@ -18,17 +18,44 @@
 		</style>
 	</head>
 	<body>
-		<iframe
-			id="wp"
-			title="Remote WordPress site"
-			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals"
-		></iframe>
 		<script>
 			const params = new URLSearchParams(window.location.search);
-			const wpFrame = document.getElementById('wp');
+			let wpFrame = createWordPressFrame();
 
 			function getScopedUrl() {
 				return normalizeScopedUrl(params.get('src'));
+			}
+
+			function createWordPressFrame() {
+				const frame = document.createElement('iframe');
+				frame.id = 'wp';
+				frame.title = 'Remote WordPress site';
+				frame.sandbox =
+					'allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals';
+				frame.addEventListener('load', () => {
+					let href = frame.src;
+					try {
+						href = frame.contentWindow?.location.href || href;
+					} catch {
+						// Keep the src fallback if Chrome is between documents.
+					}
+					if (href === 'about:blank') {
+						return;
+					}
+					postToParent({
+						type: 'remote-access-frame-load',
+						href,
+					});
+				});
+				document.body.appendChild(frame);
+				return frame;
+			}
+
+			function replaceWordPressFrame(scopedUrl) {
+				const previousFrame = wpFrame;
+				wpFrame = createWordPressFrame();
+				wpFrame.src = scopedUrl;
+				previousFrame.remove();
 			}
 
 			function normalizeScopedUrl(src) {
@@ -75,23 +102,17 @@
 					if (scopedUrl) {
 						wpFrame.src = scopedUrl;
 					}
-				}
-			});
-
-			wpFrame.addEventListener('load', () => {
-				let href = wpFrame.src;
-				try {
-					href = wpFrame.contentWindow?.location.href || href;
-				} catch {
-					// Keep the src fallback if Chrome is between documents.
-				}
-				if (href === 'about:blank') {
 					return;
 				}
-				postToParent({
-					type: 'remote-access-frame-load',
-					href,
-				});
+				if (
+					event.source === window.parent &&
+					event.data?.type === 'remote-access-frame-replace'
+				) {
+					const scopedUrl = normalizeScopedUrl(event.data.src);
+					if (scopedUrl) {
+						replaceWordPressFrame(scopedUrl);
+					}
+				}
 			});
 
 			const scopedUrl = getScopedUrl();
