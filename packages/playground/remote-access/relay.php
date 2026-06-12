@@ -196,6 +196,19 @@ function handlePollSignal(string $sessionId): void {
         return;
     }
 
+    $now = nowMs();
+    $session = getSession($sessionId);
+    if (!$session) {
+        jsonResponse(['error' => 'Session not found'], 404);
+        return;
+    }
+    refreshHostState($session, $now);
+    if ($to === 'guest' && $guestId) {
+        recordGuestHeartbeat($sessionId, $guestId, $now);
+    } else {
+        touchSession($sessionId, $now);
+    }
+
     $startTime = time();
     while (time() - $startTime < SIGNAL_POLL_TIMEOUT_SEC) {
         $now = nowMs();
@@ -204,13 +217,6 @@ function handlePollSignal(string $sessionId): void {
             jsonResponse(['error' => 'Session not found'], 404);
             return;
         }
-        refreshHostState($session, $now);
-        if ($to === 'guest' && $guestId) {
-            recordGuestHeartbeat($sessionId, $guestId, $now);
-        } else {
-            touchSession($sessionId, $now);
-        }
-
         $result = pollSignals($sessionId, $to, $since);
         $result['hostAlive'] = isHostAlive($session, $now);
         if ($result['messages']) {
@@ -221,6 +227,9 @@ function handlePollSignal(string $sessionId): void {
     }
 
     $session = getSession($sessionId);
+    if ($session) {
+        refreshHostState($session, nowMs());
+    }
     jsonResponse([
         'messages' => [],
         'cursor' => $since,

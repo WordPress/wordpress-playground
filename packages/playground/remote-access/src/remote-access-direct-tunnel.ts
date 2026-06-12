@@ -60,6 +60,7 @@ export interface TunnelResponse {
 	requestId: string;
 	status: number;
 	headers: Record<string, string>;
+	cookies?: string[];
 	body: Uint8Array;
 }
 
@@ -92,6 +93,27 @@ interface DataChannelRequest extends Omit<TunnelRequest, 'body'> {
 	body?: string;
 }
 
+interface DataChannelRequestStart extends Omit<TunnelRequest, 'body'> {
+	type: 'request-start';
+	attemptId: string;
+	totalBytes: number;
+	totalChunks: number;
+}
+
+interface DataChannelRequestChunk {
+	type: 'request-chunk';
+	requestId: string;
+	attemptId: string;
+	index: number;
+	body: string;
+}
+
+interface DataChannelRequestComplete {
+	type: 'request-complete';
+	requestId: string;
+	attemptId: string;
+}
+
 interface DataChannelResponse extends Omit<TunnelResponse, 'body'> {
 	type: 'response';
 	body: string;
@@ -102,6 +124,7 @@ interface DataChannelResponseStart {
 	requestId: string;
 	status: number;
 	headers: Record<string, string>;
+	cookies?: string[];
 	totalBytes: number;
 	totalChunks: number;
 }
@@ -157,6 +180,9 @@ type DataChannelControlMessage =
 
 type DataChannelHostMessage =
 	| DataChannelRequest
+	| DataChannelRequestStart
+	| DataChannelRequestChunk
+	| DataChannelRequestComplete
 	| DataChannelBackupRequest
 	| DataChannelControlMessage;
 
@@ -218,6 +244,7 @@ export function assembleChunkedDataChannelResponse(
 	pending: {
 		status?: number;
 		headers?: Record<string, string>;
+		cookies?: string[];
 		totalBytes?: number;
 		totalChunks?: number;
 		chunks?: Uint8Array[];
@@ -247,8 +274,64 @@ export function assembleChunkedDataChannelResponse(
 		requestId: '',
 		status: pending.status,
 		headers: pending.headers,
+		cookies: pending.cookies,
 		body: bytes,
 	};
+}
+
+function assembleDataChannelChunks(
+	pending: {
+		totalBytes: number;
+		totalChunks: number;
+		chunks: Uint8Array[];
+	},
+	errorMessage: string
+): Uint8Array | Error {
+	if (
+		pending.chunks.length !== pending.totalChunks ||
+		pending.totalBytes < 0
+	) {
+		return new Error(errorMessage);
+	}
+	const bytes = new Uint8Array(pending.totalBytes);
+	let offset = 0;
+	for (const chunk of pending.chunks) {
+		if (!chunk) {
+			return new Error(errorMessage);
+		}
+		bytes.set(chunk, offset);
+		offset += chunk.length;
+	}
+	if (offset !== pending.totalBytes) {
+		return new Error(errorMessage);
+	}
+	return bytes;
+}
+
+function getHeaderValues(
+	headers: Record<string, string | string[]>,
+	name: string
+): string[] | undefined {
+	for (const [key, value] of Object.entries(headers)) {
+		if (key.toLowerCase() !== name) {
+			continue;
+		}
+		return Array.isArray(value) ? value : [value];
+	}
+	return undefined;
+}
+
+function isChunkedRequestMessage(
+	message: DataChannelHostMessage
+): message is
+	| DataChannelRequestStart
+	| DataChannelRequestChunk
+	| DataChannelRequestComplete {
+	return (
+		message.type === 'request-start' ||
+		message.type === 'request-chunk' ||
+		message.type === 'request-complete'
+	);
 }
 
 function createPeerConnection(): RTCPeerConnection {
@@ -366,6 +449,17 @@ export class DirectTunnelHost {
 	private approvedAttemptId: string | null = null;
 	private pendingVerificationCode: string | null = null;
 	private pendingRemoteCandidates = new Map<string, RTCIceCandidateInit[]>();
+	private pendingChunkedRequests = new Map<
+		string,
+		{
+			method: string;
+			path: string;
+			headers: Record<string, string>;
+			totalBytes: number;
+			totalChunks: number;
+			chunks: Uint8Array[];
+		}
+	>();
 	private requestQueue: DataChannelRequest[] = [];
 	private isProcessingRequest = false;
 	private metrics: TunnelHostMetrics = {
@@ -527,6 +621,7 @@ export class DirectTunnelHost {
 		this.approvedAttemptId = null;
 		this.pendingVerificationCode = null;
 		this.pendingRemoteCandidates.clear();
+		this.pendingChunkedRequests.clear();
 		this.requestQueue = [];
 		this.updateMetrics({
 			handshakeAttempts: this.metrics.handshakeAttempts + 1,
@@ -711,6 +806,10 @@ export class DirectTunnelHost {
 			this.handleBackupRequest(request);
 			return;
 		}
+		if (isChunkedRequestMessage(request)) {
+			this.handleChunkedRequestMessage(request);
+			return;
+		}
 		if (request.type !== 'request') {
 			return;
 		}
@@ -735,6 +834,86 @@ export class DirectTunnelHost {
 			pending: this.requestQueue.length,
 			lastMethod: request.method,
 			lastPath: request.path,
+			lastError: null,
+		});
+		this.processQueue();
+	}
+
+	private handleChunkedRequestMessage(
+		message:
+			| DataChannelRequestStart
+			| DataChannelRequestChunk
+			| DataChannelRequestComplete
+	): void {
+		if (this.approvedAttemptId !== message.attemptId) {
+			this.pendingChunkedRequests.delete(message.requestId);
+			this.sendDataChannelResponse({
+				type: 'response',
+				requestId: message.requestId,
+				status: 403,
+				headers: { 'Content-Type': 'text/plain' },
+				body: uint8ArrayToBase64(
+					new TextEncoder().encode(
+						'Waiting for approval on the host device.'
+					)
+				),
+			});
+			return;
+		}
+
+		if (message.type === 'request-start') {
+			this.pendingChunkedRequests.set(message.requestId, {
+				method: message.method,
+				path: message.path,
+				headers: message.headers,
+				totalBytes: message.totalBytes,
+				totalChunks: message.totalChunks,
+				chunks: new Array(message.totalChunks),
+			});
+			return;
+		}
+
+		const pending = this.pendingChunkedRequests.get(message.requestId);
+		if (!pending) {
+			return;
+		}
+
+		if (message.type === 'request-chunk') {
+			pending.chunks[message.index] = base64ToUint8Array(message.body);
+			return;
+		}
+
+		this.pendingChunkedRequests.delete(message.requestId);
+		const body = assembleDataChannelChunks(
+			pending,
+			'Incomplete remote access relay request'
+		);
+		if (body instanceof Error) {
+			this.sendDataChannelResponse({
+				type: 'response',
+				requestId: message.requestId,
+				status: 400,
+				headers: { 'Content-Type': 'text/plain' },
+				body: uint8ArrayToBase64(
+					new TextEncoder().encode(body.message)
+				),
+			});
+			return;
+		}
+		this.requestQueue.push({
+			type: 'request',
+			requestId: message.requestId,
+			attemptId: message.attemptId,
+			method: pending.method,
+			path: pending.path,
+			headers: pending.headers,
+			body: uint8ArrayToBase64(body),
+		});
+		this.updateMetrics({
+			received: this.metrics.received + 1,
+			pending: this.requestQueue.length,
+			lastMethod: pending.method,
+			lastPath: pending.path,
 			lastError: null,
 		});
 		this.processQueue();
@@ -818,7 +997,12 @@ export class DirectTunnelHost {
 	}
 
 	private rejectStaleRequest(
-		request: DataChannelRequest | DataChannelBackupRequest
+		request:
+			| DataChannelRequest
+			| DataChannelRequestStart
+			| DataChannelRequestChunk
+			| DataChannelRequestComplete
+			| DataChannelBackupRequest
 	): void {
 		if (request.type === 'backup-request') {
 			this.sendDataChannelBackupError(
@@ -826,6 +1010,9 @@ export class DirectTunnelHost {
 				'Remote access attempt expired.'
 			);
 			return;
+		}
+		if (isChunkedRequestMessage(request)) {
+			this.pendingChunkedRequests.delete(request.requestId);
 		}
 		this.sendDataChannelResponse({
 			type: 'response',
@@ -893,15 +1080,20 @@ export class DirectTunnelHost {
 			});
 			const responseHeaders: Record<string, string> = {};
 			for (const [key, values] of Object.entries(phpResponse.headers)) {
+				if (key.toLowerCase() === 'set-cookie') {
+					continue;
+				}
 				responseHeaders[key] = Array.isArray(values)
 					? values.join(', ')
 					: values;
 			}
+			const cookies = getHeaderValues(phpResponse.headers, 'set-cookie');
 			await this.sendDataChannelResponse({
 				type: 'response',
 				requestId: request.requestId,
 				status: phpResponse.httpStatusCode,
 				headers: responseHeaders,
+				cookies,
 				body: '',
 				bytes: phpResponse.bytes,
 			});
@@ -941,6 +1133,7 @@ export class DirectTunnelHost {
 					requestId: response.requestId,
 					status: response.status,
 					headers: response.headers,
+					cookies: response.cookies,
 					body:
 						response.bytes === undefined
 							? response.body
@@ -955,6 +1148,7 @@ export class DirectTunnelHost {
 			requestId: response.requestId,
 			status: response.status,
 			headers: response.headers,
+			cookies: response.cookies,
 			totalBytes: body.length,
 			totalChunks,
 		});
@@ -1266,6 +1460,7 @@ export class DirectTunnelGuest {
 			timeout: ReturnType<typeof setTimeout>;
 			status?: number;
 			headers?: Record<string, string>;
+			cookies?: string[];
 			totalBytes?: number;
 			totalChunks?: number;
 			chunks?: Uint8Array[];
@@ -1349,16 +1544,15 @@ export class DirectTunnelGuest {
 			throw new Error('Host data channel is not connected');
 		}
 		const attemptId = this.getApprovedAttemptId();
-		const message: DataChannelRequest = {
+		const message: Omit<DataChannelRequest, 'body'> = {
 			requestId: request.requestId,
 			method: request.method,
 			path: request.path,
 			headers: request.headers,
-			body: request.body ? uint8ArrayToBase64(request.body) : undefined,
 			type: 'request',
 			attemptId,
 		};
-		return new Promise((resolve, reject) => {
+		const response = new Promise<TunnelResponse>((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.pendingRequests.delete(request.requestId);
 				reject(new Error('Host request timed out'));
@@ -1368,7 +1562,101 @@ export class DirectTunnelGuest {
 				reject,
 				timeout,
 			});
-			this.dataChannel?.send(JSON.stringify(message));
+		});
+		try {
+			await this.sendDataChannelRequest(message, request.body);
+		} catch (error) {
+			const pending = this.pendingRequests.get(request.requestId);
+			if (pending) {
+				clearTimeout(pending.timeout);
+				this.pendingRequests.delete(request.requestId);
+			}
+			throw error;
+		}
+		return response;
+	}
+
+	private async sendDataChannelRequest(
+		message: Omit<DataChannelRequest, 'body'>,
+		body: Uint8Array | undefined
+	): Promise<void> {
+		if (!body || body.length <= DATA_CHANNEL_CHUNK_SIZE) {
+			this.sendDataChannelHostMessage({
+				...message,
+				body: body ? uint8ArrayToBase64(body) : undefined,
+			});
+			return;
+		}
+
+		const totalChunks = Math.ceil(body.length / DATA_CHANNEL_CHUNK_SIZE);
+		this.sendDataChannelHostMessage({
+			type: 'request-start',
+			requestId: message.requestId,
+			attemptId: message.attemptId,
+			method: message.method,
+			path: message.path,
+			headers: message.headers,
+			totalBytes: body.length,
+			totalChunks,
+		});
+		for (let i = 0; i < totalChunks; i++) {
+			this.sendDataChannelHostMessage({
+				type: 'request-chunk',
+				requestId: message.requestId,
+				attemptId: message.attemptId,
+				index: i,
+				body: uint8ArrayToBase64(
+					body.slice(
+						i * DATA_CHANNEL_CHUNK_SIZE,
+						(i + 1) * DATA_CHANNEL_CHUNK_SIZE
+					)
+				),
+			});
+			await this.waitForDataChannelDrain();
+		}
+		this.sendDataChannelHostMessage({
+			type: 'request-complete',
+			requestId: message.requestId,
+			attemptId: message.attemptId,
+		});
+	}
+
+	private sendDataChannelHostMessage(message: DataChannelHostMessage): void {
+		if (this.dataChannel?.readyState !== 'open') {
+			throw new Error('Host data channel is not connected');
+		}
+		this.dataChannel.send(JSON.stringify(message));
+	}
+
+	private async waitForDataChannelDrain(): Promise<void> {
+		const channel = this.dataChannel;
+		if (!channel || channel.readyState !== 'open') {
+			throw new Error('Host data channel is not connected');
+		}
+		if (channel.bufferedAmount < 1024 * 1024) {
+			return;
+		}
+		channel.bufferedAmountLowThreshold = 512 * 1024;
+		await new Promise<void>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				cleanup();
+				reject(new Error('Host data channel did not drain'));
+			}, 30000);
+			const cleanup = () => {
+				clearTimeout(timeout);
+				channel.removeEventListener(
+					'bufferedamountlow',
+					handleBufferedAmountLow
+				);
+			};
+			const handleBufferedAmountLow = () => {
+				cleanup();
+				resolve();
+			};
+			channel.addEventListener(
+				'bufferedamountlow',
+				handleBufferedAmountLow
+			);
 		});
 	}
 
@@ -1688,6 +1976,7 @@ export class DirectTunnelGuest {
 				requestId: message.requestId,
 				status: message.status,
 				headers: message.headers,
+				cookies: message.cookies,
 				body: base64ToUint8Array(message.body),
 			});
 			return true;
@@ -1695,6 +1984,7 @@ export class DirectTunnelGuest {
 		if (message.type === 'response-start') {
 			pending.status = message.status;
 			pending.headers = message.headers;
+			pending.cookies = message.cookies;
 			pending.totalBytes = message.totalBytes;
 			pending.totalChunks = message.totalChunks;
 			pending.chunks = new Array(message.totalChunks);

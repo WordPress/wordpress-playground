@@ -1,11 +1,12 @@
 /// <reference lib="WebWorker" />
 
-import { removeURLScope } from '@php-wasm/scopes';
+import { isURLScoped, removeURLScope, setURLScope } from '@php-wasm/scopes';
 
 export type RemoteAccessRelayMapping = {
 	scope: string;
 	sessionId: string;
 	clientId?: string;
+	cookies?: Record<string, string>;
 	interceptedRequests: number;
 	lastInterceptedPath?: string;
 	expiresAt: number;
@@ -31,6 +32,7 @@ export function handleRemoteAccessRelayMessage(
 			scope,
 			sessionId,
 			clientId: getSourceClientId(event),
+			cookies: existing?.cookies,
 			interceptedRequests: existing?.interceptedRequests ?? 0,
 			lastInterceptedPath: existing?.lastInterceptedPath,
 			expiresAt:
@@ -93,6 +95,7 @@ export function getRemoteAccessRelayMappingFromUrl(
 		scope,
 		sessionId,
 		clientId: existing?.clientId,
+		cookies: existing?.cookies,
 		interceptedRequests: existing?.interceptedRequests ?? 0,
 		lastInterceptedPath: existing?.lastInterceptedPath,
 		expiresAt: Date.now() + 5 * 60 * 1000,
@@ -137,19 +140,128 @@ export async function handleRemoteAccessRelayRequest(
 	mapping.interceptedRequests += 1;
 	mapping.lastInterceptedPath = `${event.request.method} ${path}`;
 	const body = await requestBodyToBytes(event.request);
+	const headers = collectHeaders(event.request.headers);
+	applyRemoteAccessCookies(mapping, headers);
 	const response = await postRequestToRemoteAccessClient(mapping, {
 		type: 'remote-access-relay-request',
 		sessionId: mapping.sessionId,
 		requestId,
 		method: event.request.method,
 		path,
-		headers: collectHeaders(event.request.headers),
+		headers,
 		body,
 	});
-	return new Response(response.body || new Uint8Array(), {
+	storeRemoteAccessCookies(mapping, response.cookies);
+	return createRemoteAccessRelayResponse(
+		event.request.url,
+		mapping,
+		response
+	);
+}
+
+export function createRemoteAccessRelayResponse(
+	requestUrl: string,
+	mapping: RemoteAccessRelayMapping,
+	response: {
+		status: number;
+		headers: Record<string, string>;
+		body?: Uint8Array;
+		cookies?: string[];
+	}
+): Response {
+	const headers = new Headers(response.headers);
+	const location = headers.get('location');
+	if (isRedirectStatus(response.status) && location) {
+		let redirectTarget = new URL(location, requestUrl);
+		if (!isURLScoped(redirectTarget)) {
+			redirectTarget = setURLScope(redirectTarget, mapping.scope);
+		}
+		return Response.redirect(redirectTarget.toString(), response.status);
+	}
+
+	const body = isNullBodyStatus(response.status)
+		? null
+		: response.body || new Uint8Array();
+	return new Response(body, {
 		status: response.status,
-		headers: new Headers(response.headers),
+		headers,
 	});
+}
+
+export function applyRemoteAccessCookies(
+	mapping: RemoteAccessRelayMapping,
+	headers: Record<string, string>
+): void {
+	const cookies = Object.entries(mapping.cookies || {});
+	if (cookies.length === 0) {
+		return;
+	}
+	const cookieHeader = cookies
+		.map(([name, value]) => `${name}=${value}`)
+		.join('; ');
+	headers['cookie'] = headers['cookie']
+		? `${headers['cookie']}; ${cookieHeader}`
+		: cookieHeader;
+}
+
+export function storeRemoteAccessCookies(
+	mapping: RemoteAccessRelayMapping,
+	cookies: string[] | undefined
+): void {
+	if (!cookies?.length) {
+		return;
+	}
+	mapping.cookies ??= {};
+	for (const cookie of cookies) {
+		const parsed = parseSetCookieHeader(cookie);
+		if (!parsed) {
+			continue;
+		}
+		if (parsed.expires) {
+			delete mapping.cookies[parsed.name];
+		} else {
+			mapping.cookies[parsed.name] = parsed.value;
+		}
+	}
+}
+
+function parseSetCookieHeader(
+	cookie: string
+): { name: string; value: string; expires: boolean } | null {
+	const [nameValue, ...attributes] = cookie.split(';');
+	const separatorIndex = nameValue.indexOf('=');
+	if (separatorIndex <= 0) {
+		return null;
+	}
+	const name = nameValue.slice(0, separatorIndex).trim();
+	const value = nameValue.slice(separatorIndex + 1).trim();
+	if (!name) {
+		return null;
+	}
+	const expires = attributes.some((attribute) => {
+		const normalized = attribute.trim().toLowerCase();
+		if (normalized === 'max-age=0') {
+			return true;
+		}
+		if (!normalized.startsWith('expires=')) {
+			return false;
+		}
+		const timestamp = Date.parse(
+			attribute.slice(attribute.indexOf('=') + 1)
+		);
+		return Number.isFinite(timestamp) && timestamp <= Date.now();
+	});
+	return { name, value, expires };
+}
+
+function isRedirectStatus(
+	status: number
+): status is 301 | 302 | 303 | 307 | 308 {
+	return [301, 302, 303, 307, 308].includes(status);
+}
+
+function isNullBodyStatus(status: number): boolean {
+	return [101, 103, 204, 205, 304].includes(status);
 }
 
 export async function requestBodyToBytes(
@@ -180,6 +292,7 @@ async function postRequestToRemoteAccessClient(
 	status: number;
 	headers: Record<string, string>;
 	body: Uint8Array;
+	cookies?: string[];
 }> {
 	const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
 	const client = mapping.clientId
@@ -218,12 +331,14 @@ function postRequestToClient(
 	status: number;
 	headers: Record<string, string>;
 	body: Uint8Array;
+	cookies?: string[];
 }> {
 	const channel = new MessageChannel();
 	const result = new Promise<{
 		status: number;
 		headers: Record<string, string>;
 		body: Uint8Array;
+		cookies?: string[];
 	}>((resolve, reject) => {
 		const timeout = setTimeout(() => {
 			reject(new Error('Remote access relay request timed out'));

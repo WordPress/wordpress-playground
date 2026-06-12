@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+	applyRemoteAccessCookies,
 	collectHeaders,
+	createRemoteAccessRelayResponse,
 	getRemoteAccessRelayMapping,
 	getRemoteAccessRelayMappingFromUrl,
 	handleRemoteAccessRelayProbe,
 	requestBodyToBytes,
+	storeRemoteAccessCookies,
 } from './service-worker-relay';
 
 describe('remote access service worker relay helpers', () => {
@@ -98,6 +101,83 @@ describe('remote access service worker relay helpers', () => {
 		).toBe(404);
 		expect(handleRemoteAccessRelayProbe('missing-test', null).status).toBe(
 			404
+		);
+	});
+
+	it('keeps remote access redirects inside the scoped iframe', () => {
+		const response = createRemoteAccessRelayResponse(
+			'https://example.com/scope:default/wp-admin/edit.php',
+			{
+				scope: 'default',
+				sessionId: 'session-redirect',
+				interceptedRequests: 0,
+				expiresAt: Date.now() + 1000,
+			},
+			{
+				status: 302,
+				headers: {
+					location: '/wp-admin/post.php?post=1&action=edit',
+				},
+				body: new Uint8Array(),
+			}
+		);
+
+		expect(response.status).toBe(302);
+		expect(response.headers.get('location')).toBe(
+			'https://example.com/scope:default/wp-admin/post.php?post=1&action=edit'
+		);
+	});
+
+	it('does not attach a body to null-body responses', async () => {
+		const response = createRemoteAccessRelayResponse(
+			'https://example.com/scope:default/wp-admin/',
+			{
+				scope: 'default',
+				sessionId: 'session-null-body',
+				interceptedRequests: 0,
+				expiresAt: Date.now() + 1000,
+			},
+			{
+				status: 304,
+				headers: {
+					etag: '"abc"',
+				},
+				body: new Uint8Array([1, 2, 3]),
+			}
+		);
+
+		expect(response.status).toBe(304);
+		await expect(response.text()).resolves.toBe('');
+	});
+
+	it('stores response cookies and sends them on later relay requests', () => {
+		const mapping = {
+			scope: 'default',
+			sessionId: 'session-cookies',
+			interceptedRequests: 0,
+			expiresAt: Date.now() + 1000,
+		};
+
+		storeRemoteAccessCookies(mapping, [
+			'wordpress_logged_in=abc123; Path=/; HttpOnly',
+			'wordpress_test_cookie=WP%20Cookie%20check; Path=/',
+		]);
+
+		const headers = { cookie: 'existing=value' };
+		applyRemoteAccessCookies(mapping, headers);
+
+		expect(headers.cookie).toBe(
+			'existing=value; wordpress_logged_in=abc123; wordpress_test_cookie=WP%20Cookie%20check'
+		);
+
+		storeRemoteAccessCookies(mapping, [
+			'wordpress_logged_in=deleted; Max-Age=0; Path=/',
+		]);
+		const nextHeaders: Record<string, string> = {};
+		applyRemoteAccessCookies(mapping, nextHeaders);
+
+		expect(nextHeaders.cookie).toBe(
+			'wordpress_test_cookie=WP%20Cookie%20check'
 		);
 	});
 });
