@@ -42,6 +42,7 @@
 					if (href === 'about:blank') {
 						return;
 					}
+					installNavigationInterceptors(frame);
 					postToParent({
 						type: 'remote-access-frame-load',
 						href,
@@ -58,6 +59,58 @@
 				previousFrame.remove();
 			}
 
+			function installNavigationInterceptors(frame) {
+				let doc;
+				try {
+					doc = frame.contentDocument;
+				} catch {
+					return;
+				}
+				if (!doc || doc.__remoteAccessNavigationIntercepted) {
+					return;
+				}
+				doc.__remoteAccessNavigationIntercepted = true;
+				doc.addEventListener(
+					'click',
+					(event) => {
+						if (
+							event.defaultPrevented ||
+							event.button !== 0 ||
+							event.metaKey ||
+							event.ctrlKey ||
+							event.shiftKey ||
+							event.altKey
+						) {
+							return;
+						}
+						const link = event.target?.closest?.('a[href]');
+						if (
+							!link ||
+							link.target ||
+							link.hasAttribute('download')
+						) {
+							return;
+						}
+						const href = link.getAttribute('href');
+						if (!href || href.startsWith('#')) {
+							return;
+						}
+						const targetUrl = normalizeScopedUrl(link.href);
+						if (!targetUrl) {
+							return;
+						}
+						event.preventDefault();
+						postToParent({
+							type: 'remote-access-frame-command',
+							command: 'replace-click',
+							href: targetUrl,
+						});
+						replaceWordPressFrame(targetUrl);
+					},
+					true
+				);
+			}
+
 			function normalizeScopedUrl(src) {
 				if (!src) {
 					return null;
@@ -66,7 +119,20 @@
 				if (url.origin !== window.location.origin) {
 					return null;
 				}
+				const scopePrefix = getScopePrefix();
+				if (scopePrefix && !url.pathname.startsWith(scopePrefix)) {
+					url.pathname = `${scopePrefix}${url.pathname}`;
+				}
 				return url.toString();
+			}
+
+			function getScopePrefix() {
+				const src = params.get('src');
+				if (!src) {
+					return null;
+				}
+				const url = new URL(src, window.location.href);
+				return url.pathname.match(/^\/scope:[^/]+/)?.[0] || null;
 			}
 
 			function postToParent(data) {
