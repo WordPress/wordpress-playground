@@ -127,7 +127,9 @@ async function buildPackageJson(
 	sourceFileMap?: ProjectFileMap,
 	sourceDeps?: Set<string>
 ) {
-	const packageJson = createPackageJson(
+	const packageJson: ReturnType<typeof createPackageJson> & {
+		publishedDependencies?: Record<string, string>;
+	} = createPackageJson(
 		context.projectName,
 		context.projectGraph,
 		{
