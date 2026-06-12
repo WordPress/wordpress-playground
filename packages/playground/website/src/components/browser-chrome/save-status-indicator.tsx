@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import css from './save-status-indicator.module.css';
 import classNames from 'classnames';
 import {
@@ -36,6 +36,20 @@ export function SaveStatusIndicator() {
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(activeSite, clientInfo);
 	const isAutosaved = activeSite ? isAutosavedSite(activeSite) : false;
+
+	useEffect(() => {
+		if (status !== 'unsaved') {
+			return;
+		}
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			event.preventDefault();
+			return (event.returnValue = '');
+		};
+		window.addEventListener('beforeunload', handleBeforeUnload);
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+		};
+	}, [status]);
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const canStorePermanently =
 		isOpfsAvailable || localFsAvailability === 'available';
