@@ -6,7 +6,7 @@ type ResolveCodeResponse = {
 	sessionId: string;
 };
 
-export function DesktopAccessConnect() {
+export function RemoteAccessConnect() {
 	const [code, setCode] = useState('');
 	const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 	const [error, setError] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export function DesktopAccessConnect() {
 		const normalized = normalizeCode(code);
 		if (!normalized) {
 			setStatus('error');
-			setError('Enter the six-digit code from your phone.');
+			setError('Enter the six-digit code from the host device.');
 			inputRef.current?.focus();
 			return;
 		}
@@ -29,7 +29,7 @@ export function DesktopAccessConnect() {
 			if (response.status === 404) {
 				setStatus('error');
 				setError(
-					'That code was not found. Start desktop access again on your phone.'
+					'That code was not found. Start remote access again on the host device.'
 				);
 				return;
 			}
@@ -49,16 +49,16 @@ export function DesktopAccessConnect() {
 	return (
 		<main className={css.page}>
 			<section className={css.panel}>
-				<h1>Use My WordPress on this computer</h1>
+				<h1>Connect to a remote My WordPress</h1>
 				<p>
-					On your phone, open Site Tools and start desktop access.
+					On the host device, open Site Tools and start remote access.
 					Then enter the code shown there.
 				</p>
 				<form className={css.form} onSubmit={submit}>
-					<label htmlFor="desktop-access-code">Access code</label>
+					<label htmlFor="remote-access-code">Access code</label>
 					<input
 						ref={inputRef}
-						id="desktop-access-code"
+						id="remote-access-code"
 						inputMode="numeric"
 						autoComplete="one-time-code"
 						placeholder="123-456"
@@ -80,7 +80,7 @@ export function DesktopAccessConnect() {
 	);
 }
 
-export function isDesktopAccessConnectRoute(): boolean {
+export function isRemoteAccessConnectRoute(): boolean {
 	// my.wordpress.net is configured to serve index.html for unknown paths.
 	// That SPA fallback is what lets /connect and /connect/... resume here.
 	return (

@@ -7,24 +7,24 @@ import store from './lib/state/redux/store';
 import { Layout } from './components/layout';
 import { EnsurePlaygroundSite } from './components/ensure-playground-site';
 import {
-	DesktopAccessViewer,
-	getDesktopAccessSessionId,
-} from './components/desktop-access-viewer';
+	RemoteAccessViewer,
+	getRemoteAccessSessionId,
+} from './components/remote-access-viewer';
 import {
-	DesktopAccessConnect,
-	isDesktopAccessConnectRoute,
-} from './components/desktop-access-connect';
+	RemoteAccessConnect,
+	isRemoteAccessConnectRoute,
+} from './components/remote-access-connect';
 
 collectWindowErrors(logger);
 
 const root = createRoot(document.getElementById('root')!);
-const desktopAccessSessionId = getDesktopAccessSessionId();
+const remoteAccessSessionId = getRemoteAccessSessionId();
 
 root.render(
-	desktopAccessSessionId ? (
-		<DesktopAccessViewer sessionId={desktopAccessSessionId} />
-	) : isDesktopAccessConnectRoute() ? (
-		<DesktopAccessConnect />
+	remoteAccessSessionId ? (
+		<RemoteAccessViewer sessionId={remoteAccessSessionId} />
+	) : isRemoteAccessConnectRoute() ? (
+		<RemoteAccessConnect />
 	) : (
 		<Provider store={store}>
 			<EnsurePlaygroundSite>

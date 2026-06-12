@@ -1,14 +1,14 @@
 <?php
 /**
- * Minimal Personal WP desktop-access relay.
+ * Minimal Personal WP remote-access relay.
  *
  * This file is only a rendezvous/signaling service for the direct WebRTC
- * desktop tunnel. It stores session metadata plus small WebRTC messages
+ * remote access tunnel. It stores session metadata plus small WebRTC messages
  * (offer, answer, ICE candidates, heartbeat, retry request). WordPress HTTP
  * requests and responses are not proxied through this PHP file.
  *
  * The six-digit code is a rendezvous hint, not an authorization grant. The
- * desktop still needs to open a direct WebRTC data channel and the phone must
+ * remote device still needs to open a direct WebRTC data channel and the phone must
  * approve the two-digit verification code before any WordPress requests or
  * backup data can flow.
  */
@@ -22,9 +22,9 @@ define('MAX_SIGNAL_BODY_BYTES', 8 * 1024);
 define('MAX_SIGNAL_ID_BYTES', 64);
 define('MAX_SIGNAL_SDP_BYTES', 4096);
 define('MAX_SIGNAL_ICE_CANDIDATE_BYTES', 1024);
-define('SESSIONS_TABLE', 'mywp_desktop_access_sessions');
-define('SIGNALS_TABLE', 'mywp_desktop_access_signals');
-define('GUESTS_TABLE', 'mywp_desktop_access_guests');
+define('SESSIONS_TABLE', 'playground_remote_access_sessions');
+define('SIGNALS_TABLE', 'playground_remote_access_signals');
+define('GUESTS_TABLE', 'playground_remote_access_guests');
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
@@ -59,7 +59,7 @@ try {
         cleanupSessions();
     }
 } catch (Throwable $e) {
-    error_log('Desktop access relay error: ' . $e->getMessage());
+    error_log('Remote access relay error: ' . $e->getMessage());
     jsonResponse(['error' => $e->getMessage()], 500);
 }
 
@@ -86,7 +86,7 @@ function handleCreateSession(): void {
 
 function handleResolveAccessCode(string $rawAccessCode): void {
     // Resolving the code only reveals the relay session id. The phone-side
-    // verification step is the authorization boundary for the desktop tunnel.
+    // verification step is the authorization boundary for the remote access tunnel.
     $accessCode = normalizeAccessCode($rawAccessCode);
     if ($accessCode === '') {
         jsonResponse(['error' => 'Invalid access code'], 400);
@@ -605,7 +605,7 @@ function db(): mysqli {
     ], false) ?? 3306);
 
     if (!$host || !$user || !$name) {
-        throw new RuntimeException('Desktop access relay DB config is incomplete.');
+        throw new RuntimeException('Remote access relay DB config is incomplete.');
     }
 
     $db = mysqli_init();

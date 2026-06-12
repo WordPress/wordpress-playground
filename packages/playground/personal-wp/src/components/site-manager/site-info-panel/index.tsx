@@ -39,13 +39,13 @@ import {
 	APP_LAUNCHER_BLUEPRINT_URL,
 } from '../../../lib/personalwp/my-apps';
 import {
-	getDesktopAccessStatus,
-	approveDesktopAccess,
-	startDesktopAccess,
-	stopDesktopAccess,
-	subscribeToDesktopAccessStatus,
-} from '../../../lib/desktop-access-service';
-import { normalizeVerificationCode } from '../../../lib/desktop-access-tunnel-utils';
+	getRemoteAccessStatus,
+	approveRemoteAccess,
+	startRemoteAccess,
+	stopRemoteAccess,
+	subscribeToRemoteAccessStatus,
+} from '../../../lib/remote-access-service';
+import { normalizeVerificationCode } from '@wp-playground/remote-access';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -134,13 +134,13 @@ function InstallAppsSection({ siteSlug }: { siteSlug: string }) {
 	);
 }
 
-function DesktopAccessSection() {
+function RemoteAccessSection() {
 	const playground = usePlaygroundClient();
-	const [desktopAccess, setDesktopAccess] = useState(getDesktopAccessStatus);
+	const [remoteAccess, setRemoteAccess] = useState(getRemoteAccessStatus);
 	const [message, setMessage] = useState<string | null>(null);
 	const [verificationCode, setVerificationCode] = useState('');
 
-	useEffect(() => subscribeToDesktopAccessStatus(setDesktopAccess), []);
+	useEffect(() => subscribeToRemoteAccessStatus(setRemoteAccess), []);
 
 	async function startAccess() {
 		if (!playground) {
@@ -148,16 +148,16 @@ function DesktopAccessSection() {
 		}
 		setMessage(null);
 		try {
-			const shareUrl = await startDesktopAccess(playground);
+			const shareUrl = await startRemoteAccess(playground);
 			setMessage(
 				(await copyUrl(shareUrl))
-					? 'Desktop link copied.'
-					: 'Desktop link ready.'
+					? 'Remote access link copied.'
+					: 'Remote access link ready.'
 			);
 		} catch (error) {
-			logger.error('Failed to start desktop access:', error);
+			logger.error('Failed to start remote access:', error);
 			setMessage(
-				`Could not start desktop access: ${
+				`Could not start remote access: ${
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
@@ -166,72 +166,72 @@ function DesktopAccessSection() {
 
 	async function stopAccess() {
 		setMessage(null);
-		await stopDesktopAccess();
+		await stopRemoteAccess();
 	}
 
 	function approveAccess(event?: FormEvent) {
 		event?.preventDefault();
-		if (approveDesktopAccess(verificationCode)) {
+		if (approveRemoteAccess(verificationCode)) {
 			setVerificationCode('');
 			setMessage(null);
 			return;
 		}
-		setMessage('Enter the code shown on your desktop.');
+		setMessage('Enter the code shown on the remote device.');
 	}
 
 	async function copyCurrentUrl() {
-		if (!desktopAccess.shareUrl) {
+		if (!remoteAccess.shareUrl) {
 			return;
 		}
 		setMessage(
-			(await copyUrl(desktopAccess.shareUrl))
-				? 'Desktop link copied.'
+			(await copyUrl(remoteAccess.shareUrl))
+				? 'Remote access link copied.'
 				: 'Copy is not available.'
 		);
 	}
 
 	async function shareCurrentUrl() {
-		if (!desktopAccess.shareUrl || !navigator.share) {
+		if (!remoteAccess.shareUrl || !navigator.share) {
 			return;
 		}
 		await navigator.share({
-			title: 'My WordPress desktop access',
-			url: desktopAccess.shareUrl,
+			title: 'My WordPress remote access',
+			url: remoteAccess.shareUrl,
 		});
 	}
 
-	const isStarting = desktopAccess.status === 'connecting';
-	const isActive = desktopAccess.isActive && desktopAccess.shareUrl;
-	const isConnected = desktopAccess.status === 'connected';
+	const isStarting = remoteAccess.status === 'connecting';
+	const isActive = remoteAccess.isActive && remoteAccess.shareUrl;
+	const isConnected = remoteAccess.status === 'connected';
 	const connectUrl = `${window.location.origin}/connect`;
 
 	return (
 		<div className={css.aboutSection}>
-			<h4 className={css.aboutSectionTitle}>Use on desktop</h4>
+			<h4 className={css.aboutSectionTitle}>Remote Access</h4>
 			<p>
-				Open this running WordPress on a larger screen while this phone
-				stays next to your computer.
+				Open this running WordPress on another device while this host
+				device stays nearby.
 			</p>
-			<div className={css.desktopAccessControls}>
+			<div className={css.remoteAccessControls}>
 				{isActive ? (
 					<>
 						{!isConnected && (
-							<div className={css.desktopAccessCodeBlock}>
-								<span>Open on your desktop:</span>
+							<div className={css.remoteAccessCodeBlock}>
+								<span>Open on the other device:</span>
 								<strong>{connectUrl}</strong>
 								<span>Enter code:</span>
-								<b>{desktopAccess.accessCode}</b>
+								<b>{remoteAccess.accessCode}</b>
 							</div>
 						)}
-						{desktopAccess.status === 'pending-approval' && (
+						{remoteAccess.status === 'pending-approval' && (
 							<form
-								className={css.desktopAccessApproval}
+								className={css.remoteAccessApproval}
 								role="status"
 								onSubmit={approveAccess}
 							>
 								<span>
-									A desktop is asking to use this WordPress.
-									Enter the code shown there.
+									Another device is asking to use this
+									WordPress. Enter the code shown there.
 								</span>
 								<input
 									value={formatVerificationCode(
@@ -243,8 +243,8 @@ function DesktopAccessSection() {
 									inputMode="numeric"
 									autoComplete="one-time-code"
 									placeholder="12"
-									aria-label="Desktop verification code"
-									className={css.desktopAccessApprovalInput}
+									aria-label="Remote access verification code"
+									className={css.remoteAccessApprovalInput}
 								/>
 								<button
 									type="submit"
@@ -259,17 +259,17 @@ function DesktopAccessSection() {
 								</button>
 							</form>
 						)}
-						{desktopAccess.metrics && (
-							<DesktopAccessDiagnostics
-								metrics={desktopAccess.metrics}
+						{remoteAccess.metrics && (
+							<RemoteAccessDiagnostics
+								metrics={remoteAccess.metrics}
 								label={
 									isConnected
-										? 'Desktop connected'
-										: 'Desktop traffic'
+										? 'Remote device connected'
+										: 'Remote access traffic'
 								}
 							/>
 						)}
-						<div className={css.desktopAccessButtons}>
+						<div className={css.remoteAccessButtons}>
 							<button
 								type="button"
 								className={css.backupNowButton}
@@ -303,12 +303,12 @@ function DesktopAccessSection() {
 						onClick={startAccess}
 					>
 						{isStarting
-							? 'Starting desktop access...'
-							: 'Start desktop access'}
+							? 'Starting remote access...'
+							: 'Start remote access'}
 					</button>
 				)}
 				{message && (
-					<div className={css.desktopAccessStatus} role="status">
+					<div className={css.remoteAccessStatus} role="status">
 						{message}
 					</div>
 				)}
@@ -321,17 +321,17 @@ function formatVerificationCode(value: string): string {
 	return normalizeVerificationCode(value);
 }
 
-function DesktopAccessDiagnostics({
+function RemoteAccessDiagnostics({
 	metrics,
 	label,
 }: {
-	metrics: NonNullable<ReturnType<typeof getDesktopAccessStatus>['metrics']>;
+	metrics: NonNullable<ReturnType<typeof getRemoteAccessStatus>['metrics']>;
 	label: string;
 }) {
 	return (
-		<details className={css.desktopAccessDiagnostics}>
+		<details className={css.remoteAccessDiagnostics}>
 			<summary>{label}</summary>
-			<div className={css.desktopAccessMetrics}>
+			<div className={css.remoteAccessMetrics}>
 				<span>Handshake {metrics.handshakeAttempts}</span>
 				<span>{metrics.handshakeState}</span>
 				<span>Local ICE {metrics.localCandidates}</span>
@@ -342,14 +342,14 @@ function DesktopAccessDiagnostics({
 				<span>Done {metrics.completed}</span>
 				<span>Failed {metrics.failed}</span>
 			</div>
-			<div className={css.desktopAccessLastRequest}>
+			<div className={css.remoteAccessLastRequest}>
 				{metrics.lastMethod && metrics.lastPath
 					? `${metrics.lastMethod} ${metrics.lastPath}`
-					: 'Waiting for desktop requests'}
+					: 'Waiting for remote access requests'}
 				{metrics.lastStatus ? ` · ${metrics.lastStatus}` : ''}
 			</div>
 			{metrics.lastError && (
-				<div className={css.desktopAccessLastError}>
+				<div className={css.remoteAccessLastError}>
 					{metrics.lastError}
 				</div>
 			)}
@@ -667,7 +667,7 @@ function AboutTab({ siteSlug }: { siteSlug: string }) {
 			<InstallAppsSection siteSlug={siteSlug} />
 			{!isDependentMode && (
 				<>
-					<DesktopAccessSection />
+					<RemoteAccessSection />
 					<BackupSection />
 					<RecoverySection />
 				</>

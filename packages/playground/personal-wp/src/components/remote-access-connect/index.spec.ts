@@ -1,26 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-	formatCode,
-	isDesktopAccessConnectRoute,
-	normalizeCode,
-} from './index';
+import { formatCode, isRemoteAccessConnectRoute, normalizeCode } from './index';
 
-describe('DesktopAccessConnect route helpers', () => {
+describe('RemoteAccessConnect route helpers', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 	});
 
 	it('recognizes /connect and nested connect paths', () => {
 		vi.stubGlobal('window', { location: { pathname: '/connect' } });
-		expect(isDesktopAccessConnectRoute()).toBe(true);
+		expect(isRemoteAccessConnectRoute()).toBe(true);
 
 		vi.stubGlobal('window', {
 			location: { pathname: '/connect/my-apps/' },
 		});
-		expect(isDesktopAccessConnectRoute()).toBe(true);
+		expect(isRemoteAccessConnectRoute()).toBe(true);
 
 		vi.stubGlobal('window', { location: { pathname: '/scope:default/' } });
-		expect(isDesktopAccessConnectRoute()).toBe(false);
+		expect(isRemoteAccessConnectRoute()).toBe(false);
 	});
 
 	it('normalizes six digit codes', () => {

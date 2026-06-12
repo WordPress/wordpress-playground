@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import { zipWpContent } from '@wp-playground/client';
+import { zipWpContent } from '@wp-playground/blueprints';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import {
 	addIceCandidateIfCurrent,
@@ -10,7 +10,7 @@ import {
 	isAttemptCurrent,
 	normalizeVerificationCode,
 	readAttemptSignal,
-} from './desktop-access-tunnel-utils';
+} from './remote-access-tunnel-utils';
 
 export type TunnelHostStatus =
 	| 'disconnected'
@@ -341,7 +341,7 @@ function shouldShowIceCandidateState(currentState: string): boolean {
 }
 
 /**
- * Phone-side direct tunnel. The relay is only used to exchange WebRTC
+ * Host-side direct tunnel. The relay is only used to exchange WebRTC
  * signaling messages; WordPress HTTP requests are handled over the data channel.
  */
 export class DirectTunnelHost {
@@ -410,7 +410,7 @@ export class DirectTunnelHost {
 		this.accessCode = data.accessCode;
 		this.isActive = true;
 
-		this.updateMetrics({ handshakeState: 'Waiting for desktop' });
+		this.updateMetrics({ handshakeState: 'Waiting for remote device' });
 		this.startSignalPolling();
 		this.startHeartbeat();
 		return this.shareUrl;
@@ -473,7 +473,7 @@ export class DirectTunnelHost {
 		return this.pendingVerificationCode;
 	}
 
-	approveDesktopAccess(verificationCode: string): boolean {
+	approveRemoteAccess(verificationCode: string): boolean {
 		if (!this.isActive) {
 			return false;
 		}
@@ -629,7 +629,7 @@ export class DirectTunnelHost {
 				attemptId,
 			});
 			this.updateMetrics({
-				handshakeState: 'Waiting for phone approval',
+				handshakeState: 'Waiting for host approval',
 			});
 			this.setStatus('pending-approval');
 		};
@@ -721,7 +721,7 @@ export class DirectTunnelHost {
 				headers: { 'Content-Type': 'text/plain' },
 				body: uint8ArrayToBase64(
 					new TextEncoder().encode(
-						'Waiting for approval on the phone.'
+						'Waiting for approval on the host device.'
 					)
 				),
 			});
@@ -745,7 +745,7 @@ export class DirectTunnelHost {
 		if (this.approvedAttemptId !== request.attemptId) {
 			this.sendDataChannelBackupError(
 				request.requestId,
-				'Waiting for approval on the phone.'
+				'Waiting for approval on the host device.'
 			);
 			return;
 		}
@@ -810,7 +810,7 @@ export class DirectTunnelHost {
 				message.code
 			);
 			this.updateMetrics({
-				handshakeState: 'Desktop verification received',
+				handshakeState: 'Remote verification received',
 			});
 			this.setStatus('pending-approval');
 		}
@@ -822,7 +822,7 @@ export class DirectTunnelHost {
 		if (request.type === 'backup-request') {
 			this.sendDataChannelBackupError(
 				request.requestId,
-				'Desktop access attempt expired.'
+				'Remote access attempt expired.'
 			);
 			return;
 		}
@@ -832,7 +832,7 @@ export class DirectTunnelHost {
 			status: 409,
 			headers: { 'Content-Type': 'text/plain' },
 			body: uint8ArrayToBase64(
-				new TextEncoder().encode('Desktop access attempt expired.')
+				new TextEncoder().encode('Remote access attempt expired.')
 			),
 		}).catch((error) => {
 			logger.warn('[DirectTunnelHost] Stale request failed:', error);
@@ -911,7 +911,7 @@ export class DirectTunnelHost {
 		response: DataChannelResponse & { bytes?: Uint8Array }
 	): Promise<void> {
 		if (this.dataChannel?.readyState !== 'open') {
-			throw new Error('Desktop data channel is not open');
+			throw new Error('Remote access data channel is not open');
 		}
 		const body = response.bytes ?? base64ToUint8Array(response.body);
 		if (body.length <= DATA_CHANNEL_CHUNK_SIZE) {
@@ -970,7 +970,7 @@ export class DirectTunnelHost {
 
 	private sendDataChannelMessage(message: DataChannelGuestMessage): void {
 		if (this.dataChannel?.readyState !== 'open') {
-			throw new Error('Desktop data channel is not open');
+			throw new Error('Remote access data channel is not open');
 		}
 		this.dataChannel.send(JSON.stringify(message));
 	}
@@ -986,7 +986,7 @@ export class DirectTunnelHost {
 	private async waitForDataChannelDrain(): Promise<void> {
 		const channel = this.dataChannel;
 		if (!channel || channel.readyState !== 'open') {
-			throw new Error('Desktop data channel is not open');
+			throw new Error('Remote access data channel is not open');
 		}
 		if (channel.bufferedAmount < 1024 * 1024) {
 			return;
@@ -995,7 +995,7 @@ export class DirectTunnelHost {
 		await new Promise<void>((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				cleanup();
-				reject(new Error('Desktop data channel did not drain'));
+				reject(new Error('Remote access data channel did not drain'));
 			}, 30000);
 			const cleanup = () => {
 				clearTimeout(timeout);
@@ -1308,7 +1308,7 @@ export class DirectTunnelGuest {
 		this.currentAttemptId = null;
 		this.approvedAttemptId = null;
 		this.pendingRemoteCandidates.clear();
-		this.rejectPendingMessages(new Error('Desktop access disconnected'));
+		this.rejectPendingMessages(new Error('Remote access disconnected'));
 	}
 
 	private rejectPendingMessages(error: Error): void {
@@ -1326,7 +1326,7 @@ export class DirectTunnelGuest {
 
 	async request(request: TunnelRequest): Promise<TunnelResponse> {
 		if (this.dataChannel?.readyState !== 'open') {
-			throw new Error('Phone data channel is not connected');
+			throw new Error('Host data channel is not connected');
 		}
 		const attemptId = this.getApprovedAttemptId();
 		const message: DataChannelRequest = {
@@ -1341,7 +1341,7 @@ export class DirectTunnelGuest {
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.pendingRequests.delete(request.requestId);
-				reject(new Error('Phone request timed out'));
+				reject(new Error('Host request timed out'));
 			}, 30000);
 			this.pendingRequests.set(request.requestId, {
 				resolve,
@@ -1354,7 +1354,7 @@ export class DirectTunnelGuest {
 
 	async downloadBackup(): Promise<{ filename: string; bytes: Uint8Array }> {
 		if (this.dataChannel?.readyState !== 'open') {
-			throw new Error('Phone data channel is not connected');
+			throw new Error('Host data channel is not connected');
 		}
 		const attemptId = this.getApprovedAttemptId();
 		const requestId = crypto.randomUUID();
@@ -1466,7 +1466,7 @@ export class DirectTunnelGuest {
 		this.localCandidates = 0;
 		this.remoteCandidates = 0;
 		this.rejectPendingMessages(
-			new Error('Desktop access attempt restarted')
+			new Error('Remote access attempt restarted')
 		);
 		const pc = createPeerConnection();
 		this.peerConnection = pc;
@@ -1584,7 +1584,7 @@ export class DirectTunnelGuest {
 
 	private getApprovedAttemptId(): string {
 		if (!this.isCurrentAttemptApproved()) {
-			throw new Error('Waiting for approval on the phone');
+			throw new Error('Waiting for approval on the host device');
 		}
 		return this.currentAttemptId!;
 	}
@@ -1603,7 +1603,7 @@ export class DirectTunnelGuest {
 				code: this.verificationCode,
 				attemptId,
 			});
-			this.reportStatus('connecting', 'waiting for phone approval');
+			this.reportStatus('connecting', 'waiting for host approval');
 		};
 		channel.onclose = () => {
 			if (
@@ -1631,7 +1631,7 @@ export class DirectTunnelGuest {
 			}
 			if (response.type === 'approval-required') {
 				this.approvedAttemptId = null;
-				this.reportStatus('connecting', 'waiting for phone approval');
+				this.reportStatus('connecting', 'waiting for host approval');
 				return;
 			}
 			if (response.type === 'approved') {
@@ -1689,7 +1689,7 @@ export class DirectTunnelGuest {
 		this.pendingRequests.delete(message.requestId);
 		const response = assembleChunkedDataChannelResponse(
 			pending,
-			'Incomplete desktop relay response'
+			'Incomplete remote access relay response'
 		);
 		if (response instanceof Error) {
 			pending.reject(response);

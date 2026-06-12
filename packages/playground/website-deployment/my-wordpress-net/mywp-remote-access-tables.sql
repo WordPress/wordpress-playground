@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS mywp_desktop_access_sessions (
+CREATE TABLE IF NOT EXISTS playground_remote_access_sessions (
 	`session_id` CHAR(36) NOT NULL,
 	`access_code` CHAR(7) NOT NULL,
 	`created_at_ms` BIGINT UNSIGNED NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS mywp_desktop_access_sessions (
 	INDEX (`last_activity_ms`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS mywp_desktop_access_signals (
+CREATE TABLE IF NOT EXISTS playground_remote_access_signals (
 	`seq` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 	`session_id` CHAR(36) NOT NULL,
 	`from_peer` ENUM('host', 'guest') NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS mywp_desktop_access_signals (
 	INDEX (`created_at_ms`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS mywp_desktop_access_guests (
+CREATE TABLE IF NOT EXISTS playground_remote_access_guests (
 	`session_id` CHAR(36) NOT NULL,
 	`guest_id` CHAR(36) NOT NULL,
 	`last_seen_at_ms` BIGINT UNSIGNED NOT NULL,

@@ -3,7 +3,7 @@ import {
 	assembleChunkedDataChannelResponse,
 	DirectTunnelGuest,
 	DirectTunnelHost,
-} from './desktop-access-direct-tunnel';
+} from './remote-access-direct-tunnel';
 import {
 	bufferRemoteCandidate,
 	createAttemptSignal,
@@ -12,9 +12,9 @@ import {
 	isAttemptCurrent,
 	normalizeVerificationCode,
 	readAttemptSignal,
-} from './desktop-access-tunnel-utils';
+} from './remote-access-tunnel-utils';
 
-vi.mock('@wp-playground/client', () => ({
+vi.mock('@wp-playground/blueprints', () => ({
 	zipWpContent: vi.fn(),
 }));
 
@@ -27,7 +27,7 @@ interface FakeDataChannel {
 	onmessage: null | ((event: { data: unknown }) => void);
 }
 
-describe('desktop access tunnel helpers', () => {
+describe('remote access tunnel helpers', () => {
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.restoreAllMocks();
@@ -101,7 +101,7 @@ describe('desktop access tunnel helpers', () => {
 		expect(candidates.get('attempt-2')).toEqual([other]);
 	});
 
-	it('assembles complete chunked desktop relay responses', () => {
+	it('assembles complete chunked remote access relay responses', () => {
 		const response = assembleChunkedDataChannelResponse(
 			{
 				status: 200,
@@ -113,7 +113,7 @@ describe('desktop access tunnel helpers', () => {
 					new TextEncoder().encode('world'),
 				],
 			},
-			'Incomplete desktop relay response'
+			'Incomplete remote access relay response'
 		);
 
 		expect(response).not.toBeInstanceOf(Error);
@@ -123,7 +123,7 @@ describe('desktop access tunnel helpers', () => {
 		).toBe('hello world');
 	});
 
-	it('rejects incomplete chunked desktop relay responses', () => {
+	it('rejects incomplete chunked remote access relay responses', () => {
 		const response = assembleChunkedDataChannelResponse(
 			{
 				status: 200,
@@ -132,17 +132,17 @@ describe('desktop access tunnel helpers', () => {
 				totalChunks: 2,
 				chunks: [new TextEncoder().encode('hello ')],
 			},
-			'Incomplete desktop relay response'
+			'Incomplete remote access relay response'
 		);
 
 		expect(response).toBeInstanceOf(Error);
 		expect((response as Error).message).toBe(
-			'Incomplete desktop relay response'
+			'Incomplete remote access relay response'
 		);
 	});
 });
 
-describe('desktop access direct tunnel', () => {
+describe('remote access direct tunnel', () => {
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.restoreAllMocks();
@@ -183,7 +183,7 @@ describe('desktop access direct tunnel', () => {
 
 		expect(host.getStatus()).toBe('pending-approval');
 		expect(host.getPendingVerificationCode()).toBe('42');
-		expect(host.approveDesktopAccess('42')).toBe(true);
+		expect(host.approveRemoteAccess('42')).toBe(true);
 		expect(host.getStatus()).toBe('connected');
 		expect(sentMessages).toContainEqual({
 			type: 'approved',

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
-import { DirectTunnelGuest } from '../../lib/desktop-access-direct-tunnel';
+import { DirectTunnelGuest } from '@wp-playground/remote-access';
 import saveAs from 'file-saver';
 
 import serviceWorkerPath from '@wp-playground/remote/service-worker?worker&url';
 
-interface DesktopAccessViewerProps {
+interface RemoteAccessViewerProps {
 	sessionId: string;
 }
 
@@ -13,7 +13,7 @@ type ConnectionStatus =
 	| 'connecting'
 	| 'connected'
 	| 'error'
-	| 'phone-disconnected';
+	| 'host-disconnected';
 
 interface SessionStatusResponse {
 	hostAlive: boolean;
@@ -31,14 +31,14 @@ interface RelayDiagnostics {
 }
 
 const STATUS_POLL_INTERVAL_MS = 3000;
-const GUEST_ID_STORAGE_KEY = 'personal-wp-desktop-access-guest-id';
+const GUEST_ID_STORAGE_KEY = 'personal-wp-remote-access-guest-id';
 const DESKTOP_RELAY_SCOPE = 'default';
 const DESKTOP_RELAY_SCOPED_URL = `/scope:${DESKTOP_RELAY_SCOPE}/`;
 const DESKTOP_RELAY_PROBE_URL = `${DESKTOP_RELAY_SCOPED_URL}?desktop-relay-probe=1`;
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
 
-export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
+export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	const [status, setStatus] = useState<ConnectionStatus>('connecting');
 	const [error, setError] = useState<string | null>(null);
 	const [unsupportedMessage, setUnsupportedMessage] = useState<string | null>(
@@ -102,7 +102,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 	useEffect(() => {
 		const controller = new AbortController();
 		let cancelled = false;
-		let sawPhoneAlive = false;
+		let sawHostAlive = false;
 		let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
 		const scheduleNextPoll = () => {
@@ -123,7 +123,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					return;
 				}
 				if (res.status === 404) {
-					setError('This desktop access link has expired.');
+					setError('This remote access link has expired.');
 					setStatus('error');
 					return;
 				}
@@ -133,9 +133,9 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				}
 				const data = (await res.json()) as SessionStatusResponse;
 				if (data.hostAlive) {
-					sawPhoneAlive = true;
-				} else if (sawPhoneAlive) {
-					setStatus('phone-disconnected');
+					sawHostAlive = true;
+				} else if (sawHostAlive) {
+					setStatus('host-disconnected');
 					return;
 				}
 			} catch (err) {
@@ -156,7 +156,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					return;
 				}
 				if (nextStatus === 'connected') {
-					sawPhoneAlive = true;
+					sawHostAlive = true;
 					setDataChannelReady(true);
 					setApprovalPending(false);
 					setStatus('connected');
@@ -167,18 +167,18 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					return;
 				}
 				setApprovalPending(
-					detail.includes('waiting for phone approval')
+					detail.includes('waiting for host approval')
 				);
 				if (nextStatus === 'error') {
 					setDataChannelReady(false);
 					setRelayDiagnostics((current) => ({
 						...current,
-						dataChannel: sawPhoneAlive
+						dataChannel: sawHostAlive
 							? `Connection failed ${detail}`
 							: `Failed before connecting ${detail}`,
 					}));
 					setError(
-						'Unable to connect directly to your phone. Keep both devices nearby and on the same network.'
+						'Unable to connect directly to the host device. Keep both devices nearby and on the same network.'
 					);
 					setNoticeCanRetry(true);
 					setStatus('error');
@@ -269,7 +269,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				navigator.serviceWorker.controller || registration.active;
 			if (!worker) {
 				return Promise.reject(
-					new Error('Desktop access service worker is not active.')
+					new Error('Remote access service worker is not active.')
 				);
 			}
 			return new Promise((resolve, reject) => {
@@ -277,7 +277,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				const timeout = setTimeout(() => {
 					reject(
 						new Error(
-							'Desktop access service worker did not confirm setup.'
+							'Remote access service worker did not confirm setup.'
 						)
 					);
 				}, 5000);
@@ -296,7 +296,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					reject(
 						new Error(
 							event.data?.error ||
-								'Desktop access service worker setup failed.'
+								'Remote access service worker setup failed.'
 						)
 					);
 				};
@@ -320,7 +320,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				response.headers.get('X-Desktop-Relay-Service-Worker') !== '1'
 			) {
 				throw new Error(
-					'Desktop access service worker is not controlling WordPress requests.'
+					'Remote access service worker is not controlling WordPress requests.'
 				);
 			}
 			const data = await response.json();
@@ -393,11 +393,12 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 				setRelayDiagnostics((current) => ({
 					...current,
 					pending: Math.max(0, current.pending - 1),
-					lastError: 'Phone data channel is not connected yet.',
+					lastError:
+						'Remote access data channel is not connected yet.',
 				}));
 				port.postMessage({
 					type: 'desktop-relay-error',
-					error: 'Phone data channel is not connected yet.',
+					error: 'Remote access data channel is not connected yet.',
 				});
 				return;
 			}
@@ -410,6 +411,8 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 					body: data.body,
 				})
 				.then((response) => {
+					setIframeHasLoaded(true);
+					setStatus('connected');
 					setRelayDiagnostics((current) => ({
 						...current,
 						pending: Math.max(0, current.pending - 1),
@@ -426,7 +429,9 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 						pending: Math.max(0, current.pending - 1),
 						lastError: message,
 					}));
-					setUnsupportedMessage(`Desktop request failed: ${message}`);
+					setUnsupportedMessage(
+						`Remote access request failed: ${message}`
+					);
 					setNoticeCanRetry(true);
 					port.postMessage({
 						type: 'desktop-relay-error',
@@ -476,7 +481,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			}
 
 			setUnsupportedMessage(
-				'Installing apps from desktop access is not available yet. Use Site Tools on your phone to install this app.'
+				'Installing apps from remote access is not available yet. Use Site Tools on the host device to install this app.'
 			);
 			setNoticeCanRetry(false);
 			postUnsupportedInstallBlueprintResult(event);
@@ -569,7 +574,7 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 		<div className={css.viewer}>
 			<header className={css.banner}>
 				<div className={css.bannerTitle}>
-					<strong>Using My WordPress from your phone</strong>
+					<strong>Using My WordPress from the host device</strong>
 				</div>
 				<div className={css.bannerActions}>
 					<button
@@ -631,13 +636,13 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 			{(status === 'connecting' && !iframeHasLoaded) ||
 			(status === 'connected' && !shouldLoadIframe) ? (
 				<div className={css.centerNotice} role="status">
-					<h1>Connecting to your phone</h1>
+					<h1>Connecting to the host device</h1>
 					<p>
 						{approvalPending
-							? 'Enter this code on your phone to approve this desktop.'
+							? 'Enter this code on the host device to approve remote access.'
 							: dataChannelReady
-								? 'Preparing the desktop viewer.'
-								: 'This desktop window will show the WordPress that is running on your phone.'}
+								? 'Preparing remote access.'
+								: 'This window will show the WordPress that is running on the host device.'}
 					</p>
 					{approvalPending ? (
 						<div className={css.verificationCode}>
@@ -654,22 +659,22 @@ export function DesktopAccessViewer({ sessionId }: DesktopAccessViewerProps) {
 						src={iframeSrc}
 						className={css.iframe}
 						onLoad={handleIframeLoad}
-						title="My WordPress from phone"
+						title="My WordPress from host device"
 						style={{
 							opacity:
 								(iframeHasLoaded && shouldLoadIframe) ||
-								status === 'phone-disconnected'
+								status === 'host-disconnected'
 									? 1
 									: 0,
 						}}
 					/>
-					{status === 'phone-disconnected' ? (
+					{status === 'host-disconnected' ? (
 						<div className={css.disconnectedOverlay}>
 							<div className={css.disconnectedCard}>
-								<h1>Phone disconnected</h1>
+								<h1>Host device disconnected</h1>
 								<p>
 									The last page is preserved, but new actions
-									need the phone tab to reconnect.
+									need the host device to reconnect.
 								</p>
 								<button type="button" onClick={retry}>
 									Try again
@@ -700,7 +705,7 @@ function postUnsupportedInstallBlueprintResult(event: MessageEvent) {
 			requestId:
 				typeof data.requestId === 'string' ? data.requestId : undefined,
 			status: 'error',
-			error: 'Installing apps from desktop access is not available yet.',
+			error: 'Installing apps from remote access is not available yet.',
 		},
 		event.origin
 	);
@@ -736,7 +741,7 @@ function isDescendantWindow(
 	return false;
 }
 
-export function getDesktopAccessSessionId(): string | null {
+export function getRemoteAccessSessionId(): string | null {
 	const params = new URLSearchParams(window.location.search);
 	return params.get('share');
 }
@@ -825,8 +830,8 @@ function ConnectionPill({
 	const label =
 		status === 'connected'
 			? 'Connected'
-			: status === 'phone-disconnected'
-				? 'Phone disconnected'
+			: status === 'host-disconnected'
+				? 'Host device disconnected'
 				: status === 'error'
 					? 'Connection error'
 					: 'Connecting';
@@ -838,7 +843,7 @@ function ConnectionPill({
 				className={`${css.statusPill} ${css.statusPillButton}`}
 				onClick={onDisconnect}
 				title={title}
-				aria-label="Disconnect desktop access"
+				aria-label="Disconnect remote access"
 			>
 				<span className={css.statusPillLabel}>{label}</span>
 				<span className={css.statusPillHoverLabel}>Disconnect</span>
