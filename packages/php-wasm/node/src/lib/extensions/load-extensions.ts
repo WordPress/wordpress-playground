@@ -272,39 +272,30 @@ function createNodeFilesystemExtension(options: {
 }): NodeFilesystemPHPExtension {
 	const extensionDir = PHP_EXTENSIONS_DIR;
 	const soPath = joinPaths(extensionDir, `${options.name}.so`);
+	const directive = options.loadWithIniDirective ?? 'extension';
+	/*
+	 * PHP only discovers this NODEFS-backed extension through startup
+	 * configuration. Most extensions load with `extension=...`; Xdebug is a
+	 * Zend extension and must use `zend_extension=...`. Additional entries are
+	 * appended in order so extension-specific configuration remains next to the
+	 * directive that loads the module.
+	 */
+	const iniContent = [
+		`${directive}=${soPath}`,
+		...Object.entries(options.iniEntries ?? {}).map(
+			([key, value]) => `${key}=${value}`
+		),
+	].join('\n');
+
 	return {
 		soPath,
 		soHostPath: options.hostPath,
 		iniPath: joinPaths(extensionDir, `${options.name}.ini`),
-		iniContent: createExtensionIniContent({
-			directive: options.loadWithIniDirective ?? 'extension',
-			soPath,
-			iniEntries: options.iniEntries,
-		}),
+		iniContent,
 		extraFiles: options.extraFiles,
 		env: options.env,
 		extensionDir,
 	};
-}
-
-/**
- * Creates the PHP startup configuration for one NODEFS-backed extension.
- *
- * Most extensions load with `extension=...`; Xdebug is a Zend extension and
- * must use `zend_extension=...`. Additional entries are appended in order so
- * extension-specific configuration remains next to the directive that loads
- * the module.
- */
-function createExtensionIniContent(options: {
-	directive: 'extension' | 'zend_extension';
-	soPath: string;
-	iniEntries?: Record<string, string>;
-}): string {
-	const lines = [`${options.directive}=${options.soPath}`];
-	for (const [key, value] of Object.entries(options.iniEntries ?? {})) {
-		lines.push(`${key}=${value}`);
-	}
-	return lines.join('\n');
 }
 
 /**
