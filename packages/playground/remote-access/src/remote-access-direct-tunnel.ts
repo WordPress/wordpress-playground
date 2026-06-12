@@ -845,21 +845,40 @@ export class DirectTunnelHost {
 			return;
 		}
 		this.isProcessingRequest = true;
-		while (this.requestQueue.length > 0 && this.isActive) {
-			const request = this.requestQueue.shift()!;
-			this.updateMetrics({
-				pending: this.requestQueue.length,
-				processing: 1,
-				lastMethod: request.method,
-				lastPath: request.path,
-			});
-			await this.handleRequest(request);
+		try {
+			while (this.requestQueue.length > 0 && this.isActive) {
+				const request = this.requestQueue.shift()!;
+				this.updateMetrics({
+					pending: this.requestQueue.length,
+					processing: 1,
+					lastMethod: request.method,
+					lastPath: request.path,
+				});
+				try {
+					await this.handleRequest(request);
+				} catch (error) {
+					logger.warn(
+						'[DirectTunnelHost] Request handling failed:',
+						error
+					);
+					this.updateMetrics({
+						failed: this.metrics.failed + 1,
+						lastStatus: 500,
+						lastError: (error as Error).message,
+					});
+				}
+				this.updateMetrics({
+					processing: 0,
+					pending: this.requestQueue.length,
+				});
+			}
+		} finally {
 			this.updateMetrics({
 				processing: 0,
 				pending: this.requestQueue.length,
 			});
+			this.isProcessingRequest = false;
 		}
-		this.isProcessingRequest = false;
 	}
 
 	private async handleRequest(request: DataChannelRequest): Promise<void> {

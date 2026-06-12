@@ -67,18 +67,31 @@ export function postRemoteAccessRelayMapping(
 	}
 	return new Promise((resolve, reject) => {
 		const channel = new MessageChannel();
+		const cleanup = () => {
+			clearTimeout(timeout);
+			channel.port1.onmessage = null;
+			channel.port1.close();
+			channel.port2.close();
+		};
+		const resolveMapping = (value: RemoteAccessRelayMappingResult) => {
+			cleanup();
+			resolve(value);
+		};
+		const rejectMapping = (error: Error) => {
+			cleanup();
+			reject(error);
+		};
 		const timeout = setTimeout(() => {
-			reject(
+			rejectMapping(
 				new Error('Remote access service worker did not confirm setup.')
 			);
 		}, 5000);
 		channel.port1.onmessage = (event) => {
-			clearTimeout(timeout);
 			if (event.data?.type === 'remote-access-relay-map-result') {
-				resolve({ clientId: event.data?.clientId });
+				resolveMapping({ clientId: event.data?.clientId });
 				return;
 			}
-			reject(
+			rejectMapping(
 				new Error(
 					event.data?.error ||
 						'Remote access service worker setup failed.'

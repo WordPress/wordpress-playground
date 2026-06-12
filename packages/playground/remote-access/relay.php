@@ -60,7 +60,7 @@ try {
     }
 } catch (Throwable $e) {
     error_log('Remote access relay error: ' . $e->getMessage());
-    jsonResponse(['error' => $e->getMessage()], 500);
+    jsonResponse(['error' => 'Remote access relay error'], 500);
 }
 
 function handleCreateSession(): void {
@@ -358,7 +358,15 @@ function insertSession(
          VALUES (?, ?, ?, ?, 0, 0)'
     );
     try {
-        $stmt->bind_param('ssii', $sessionId, $accessCode, $now, $now);
+        $createdAt = (string) $now;
+        $lastActivity = (string) $now;
+        $stmt->bind_param(
+            'ssss',
+            $sessionId,
+            $accessCode,
+            $createdAt,
+            $lastActivity
+        );
         $stmt->execute();
         return true;
     } catch (mysqli_sql_exception $e) {
@@ -402,7 +410,8 @@ function resolveAccessCode(string $accessCode): ?string {
          WHERE access_code = ? AND last_activity_ms >= ?
          LIMIT 1'
     );
-    $stmt->bind_param('si', $accessCode, $deadline);
+    $deadlineMs = (string) $deadline;
+    $stmt->bind_param('ss', $accessCode, $deadlineMs);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     if (!$row) {
@@ -435,7 +444,8 @@ function cleanupSessions(): void {
     $stmt = db()->prepare(
         'DELETE FROM ' . GUESTS_TABLE . ' WHERE last_seen_at_ms < ?'
     );
-    $stmt->bind_param('i', $guestDeadline);
+    $guestDeadlineMs = (string) $guestDeadline;
+    $stmt->bind_param('s', $guestDeadlineMs);
     $stmt->execute();
 
     db()->query(
@@ -455,7 +465,8 @@ function cleanupSessions(): void {
     $stmt = db()->prepare(
         'DELETE FROM ' . SESSIONS_TABLE . ' WHERE last_activity_ms < ?'
     );
-    $stmt->bind_param('i', $sessionDeadline);
+    $sessionDeadlineMs = (string) $sessionDeadline;
+    $stmt->bind_param('s', $sessionDeadlineMs);
     $stmt->execute();
 }
 
@@ -464,7 +475,8 @@ function cleanupOldSignals(): void {
     $stmt = db()->prepare(
         'DELETE FROM ' . SIGNALS_TABLE . ' WHERE created_at_ms < ?'
     );
-    $stmt->bind_param('i', $deadline);
+    $deadlineMs = (string) $deadline;
+    $stmt->bind_param('s', $deadlineMs);
     $stmt->execute();
 }
 
@@ -474,7 +486,8 @@ function touchSession(string $sessionId, int $now): void {
          SET last_activity_ms = ?
          WHERE session_id = ?'
     );
-    $stmt->bind_param('is', $now, $sessionId);
+    $nowMs = (string) $now;
+    $stmt->bind_param('ss', $nowMs, $sessionId);
     $stmt->execute();
 }
 
@@ -486,7 +499,9 @@ function markHostSeen(string $sessionId, int $now): void {
              last_activity_ms = ?
          WHERE session_id = ?'
     );
-    $stmt->bind_param('iis', $now, $now, $sessionId);
+    $hostSeenAt = (string) $now;
+    $lastActivity = (string) $now;
+    $stmt->bind_param('sss', $hostSeenAt, $lastActivity, $sessionId);
     $stmt->execute();
 }
 
@@ -499,7 +514,8 @@ function setHostConnected(string $sessionId, bool $isConnected): void {
              last_activity_ms = ?
          WHERE session_id = ?'
     );
-    $stmt->bind_param('iis', $value, $now, $sessionId);
+    $nowMs = (string) $now;
+    $stmt->bind_param('iss', $value, $nowMs, $sessionId);
     $stmt->execute();
 }
 
@@ -529,7 +545,16 @@ function insertSignal(
             )
          VALUES (?, ?, ?, ?, ?, ?)'
     );
-    $stmt->bind_param('sssssi', $sessionId, $from, $to, $type, $encodedData, $now);
+    $createdAt = (string) $now;
+    $stmt->bind_param(
+        'ssssss',
+        $sessionId,
+        $from,
+        $to,
+        $type,
+        $encodedData,
+        $createdAt
+    );
     $stmt->execute();
     touchSession($sessionId, $now);
     return (int) db()->insert_id;
@@ -643,7 +668,8 @@ function recordGuestHeartbeat(string $sessionId, string $guestId, int $now): voi
          VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE last_seen_at_ms = VALUES(last_seen_at_ms)'
     );
-    $stmt->bind_param('ssi', $sessionId, $guestId, $now);
+    $lastSeenAt = (string) $now;
+    $stmt->bind_param('sss', $sessionId, $guestId, $lastSeenAt);
     $stmt->execute();
     touchSession($sessionId, $now);
 }
@@ -662,7 +688,8 @@ function sessionStatus(array $session, int $now): array {
          WHERE session_id = ? AND last_seen_at_ms < ?'
     );
     $sessionId = (string) $session['session_id'];
-    $stmt->bind_param('si', $sessionId, $deadline);
+    $deadlineMs = (string) $deadline;
+    $stmt->bind_param('ss', $sessionId, $deadlineMs);
     $stmt->execute();
 
     $stmt = db()->prepare(
