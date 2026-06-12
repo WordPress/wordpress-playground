@@ -3,6 +3,7 @@ import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import {
 	Button,
 	MenuItem,
+	Modal,
 	NavigableMenu,
 	Popover,
 	__experimentalTreeGrid as TreeGrid,
@@ -196,6 +197,12 @@ export const FilePickerTree = forwardRef<
 	const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(
 		null
 	);
+	const [moveConflict, setMoveConflict] = useState<{
+		sourcePath: string;
+		destinationDir: string;
+		destinationPath: string;
+		isDirectory: boolean;
+	} | null>(null);
 	const dragExpandTimeoutsRef = useRef<Record<string, number>>({});
 	const rootAutoExpandedRef = useRef(false);
 
@@ -927,9 +934,24 @@ export const FilePickerTree = forwardRef<
 			return;
 		}
 		if (await pathExists(destinationPath)) {
+			const isDirectory = await filesystem
+				.isDir(destinationPath)
+				.catch(() => false);
+			setMoveConflict({
+				sourcePath,
+				destinationDir,
+				destinationPath,
+				isDirectory,
+			});
 			return;
 		}
+		await doMoveNode(sourcePath, destinationPath);
+	};
+
+	const doMoveNode = async (sourcePath: string, destinationPath: string) => {
+		if (!filesystem) return;
 		const sourceParent = dirname(sourcePath);
+		const destinationDir = dirname(destinationPath);
 		try {
 			await filesystem.mv(sourcePath, destinationPath);
 			remapPathState(sourcePath, destinationPath);
@@ -964,6 +986,36 @@ export const FilePickerTree = forwardRef<
 			// ignore move errors
 		}
 	};
+
+	const handleConflictOverwrite = async () => {
+		if (!filesystem || !moveConflict) return;
+		const { sourcePath, destinationPath, isDirectory } = moveConflict;
+		setMoveConflict(null);
+		try {
+			if (isDirectory) {
+				await filesystem.rmdir(destinationPath, { recursive: true });
+			} else {
+				await filesystem.unlink(destinationPath);
+			}
+		} catch {
+			// ignore removal errors; the mv will fail if the path still exists
+		}
+		await doMoveNode(sourcePath, destinationPath);
+	};
+
+	const handleConflictKeepBoth = async () => {
+		if (!moveConflict) return;
+		const { sourcePath, destinationDir } = moveConflict;
+		setMoveConflict(null);
+		const newName = await findAvailableName(
+			destinationDir,
+			basename(sourcePath)
+		);
+		const newPath = joinPaths(destinationDir, newName);
+		await doMoveNode(sourcePath, newPath);
+	};
+
+	const handleConflictCancel = () => setMoveConflict(null);
 
 	const getEntryFromItem = (item: DataTransferItem) => {
 		const maybeItem = item as DataTransferItem & {
@@ -1431,6 +1483,44 @@ export const FilePickerTree = forwardRef<
 						</MenuItem>
 					</NavigableMenu>
 				</Popover>
+			)}
+			{moveConflict && (
+				<Modal
+					title="Item already exists"
+					onRequestClose={handleConflictCancel}
+					size="small"
+				>
+					<p>
+						{`"${basename(moveConflict.sourcePath)}" already exists in the destination. What would you like to do?`}
+					</p>
+					<div
+						style={{
+							display: 'flex',
+							gap: 8,
+							justifyContent: 'flex-end',
+							marginTop: 16,
+						}}
+					>
+						<Button
+							variant="tertiary"
+							onClick={handleConflictCancel}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={handleConflictKeepBoth}
+						>
+							Keep both
+						</Button>
+						<Button
+							variant="primary"
+							onClick={handleConflictOverwrite}
+						>
+							Replace
+						</Button>
+					</div>
+				</Modal>
 			)}
 		</div>
 	);
