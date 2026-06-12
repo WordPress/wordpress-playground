@@ -18,7 +18,12 @@ import {
 	bootWordPress,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import {
+	MessageChannel,
+	type MessagePort,
+	type MessagePort as NodeMessagePort,
+	parentPort,
+} from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
@@ -85,7 +90,10 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
  * direct MessagePort to the shared file lock manager.
  */
 type FileLockManagerService = {
-	attachFileLockManager: (port: MessagePort) => Promise<void>;
+	/** Attach the shared lock manager to `port`; returns an attachment id. */
+	attachFileLockManager: (port: NodeMessagePort) => Promise<number>;
+	/** Release a previously attached port (closes it on the main thread). */
+	detachFileLockManager: (id: number) => Promise<void>;
 };
 
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
@@ -340,10 +348,10 @@ async function createPHPWorker(
 	//
 	// Both ports are transferred away, so they're cleaned up where they end up:
 	// port2 dies with the child when the worker is terminated in reap() below,
-	// and the main thread closes port1 once that happens (see
-	// exposeFileLockManagerService()).
+	// and reap() asks the main thread to close port1 via detachFileLockManager().
 	const { port1, port2 } = new MessageChannel();
-	await lockManagerService.attachFileLockManager(port1);
+	const lockManagerPortId =
+		await lockManagerService.attachFileLockManager(port1);
 	await handler.useFileLockManager(port2);
 
 	await handler.bootRequestHandler({
@@ -361,6 +369,15 @@ async function createPHPWorker(
 			}
 			try {
 				spawnedWorker.worker.terminate();
+			} catch {
+				/** */
+			}
+			// Deterministically release the main-thread lock-manager port
+			// for this child so the server doesn't leak ports/listeners.
+			try {
+				void lockManagerService.detachFileLockManager(
+					lockManagerPortId
+				);
 			} catch {
 				/** */
 			}

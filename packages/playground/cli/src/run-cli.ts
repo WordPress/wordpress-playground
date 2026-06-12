@@ -2157,22 +2157,31 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 async function exposeFileLockManagerService(
 	fileLockManager: FileLockManagerInMemory
 ) {
+	// A fresh channel is attached for every spawned child. Track the main-thread
+	// ends by id so the spawning worker can deterministically release them from
+	// its reap() path — otherwise a long-running server would accumulate ports
+	// and lock-manager listeners over time.
+	const attachedPorts = new Map<number, NodeMessagePort>();
+	let nextAttachmentId = 1;
 	const { port1, port2 } = new NodeMessageChannel();
 	await exposeAPI(
 		{
 			attachFileLockManager: async (port: NodeMessagePort) => {
 				await exposeSyncAPI(fileLockManager, port);
-				// A fresh channel is attached for every spawned child. Close
-				// this end once the child's end goes away (its worker is
-				// terminated) so a long-running server doesn't accumulate
-				// ports and lock-manager listeners over time.
-				port.on('close', () => {
+				const id = nextAttachmentId++;
+				attachedPorts.set(id, port);
+				return id;
+			},
+			detachFileLockManager: async (id: number) => {
+				const port = attachedPorts.get(id);
+				if (port) {
+					attachedPorts.delete(id);
 					try {
 						port.close();
 					} catch {
 						/** */
 					}
-				});
+				}
 			},
 		},
 		undefined,
