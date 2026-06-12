@@ -181,11 +181,97 @@ export function createRemoteAccessRelayResponse(
 
 	const body = isNullBodyStatus(response.status)
 		? null
-		: response.body || new Uint8Array();
+		: getRemoteAccessRelayResponseBody(
+				requestUrl,
+				mapping,
+				headers,
+				response.body
+			);
 	return new Response(body, {
 		status: response.status,
 		headers,
 	});
+}
+
+function getRemoteAccessRelayResponseBody(
+	requestUrl: string,
+	mapping: RemoteAccessRelayMapping,
+	headers: Headers,
+	body: Uint8Array | undefined
+): Uint8Array {
+	if (!body) {
+		return new Uint8Array();
+	}
+	if (!isHtmlResponse(headers)) {
+		return body;
+	}
+	const html = new TextDecoder().decode(body);
+	return new TextEncoder().encode(
+		scopeRemoteAccessHtmlUrls(requestUrl, mapping, html)
+	);
+}
+
+function isHtmlResponse(headers: Headers): boolean {
+	return (
+		headers.get('content-type')?.toLowerCase().includes('text/html') ??
+		false
+	);
+}
+
+export function scopeRemoteAccessHtmlUrls(
+	requestUrl: string,
+	mapping: RemoteAccessRelayMapping,
+	html: string
+): string {
+	return html.replace(
+		/\b(href|src|action)=("|')([^"']*)\2/gi,
+		(match, attribute: string, quote: string, value: string) => {
+			const scopedUrl = scopeRemoteAccessHtmlUrl(
+				requestUrl,
+				mapping,
+				value
+			);
+			if (!scopedUrl) {
+				return match;
+			}
+			return `${attribute}=${quote}${scopedUrl}${quote}`;
+		}
+	);
+}
+
+function scopeRemoteAccessHtmlUrl(
+	requestUrl: string,
+	mapping: RemoteAccessRelayMapping,
+	value: string
+): string | null {
+	if (
+		value === '' ||
+		value.startsWith('#') ||
+		value.startsWith('mailto:') ||
+		value.startsWith('tel:') ||
+		value.startsWith('javascript:')
+	) {
+		return null;
+	}
+	const request = new URL(requestUrl);
+	const url = new URL(value, request);
+	if (url.origin !== request.origin) {
+		return null;
+	}
+	if (isURLScoped(url)) {
+		return isRootRelativeUrl(value) || isAbsoluteUrl(value)
+			? null
+			: url.toString();
+	}
+	return setURLScope(url, mapping.scope).toString();
+}
+
+function isRootRelativeUrl(value: string): boolean {
+	return value.startsWith('/');
+}
+
+function isAbsoluteUrl(value: string): boolean {
+	return /^[a-z][a-z\d+.-]*:/i.test(value) || value.startsWith('//');
 }
 
 export function applyRemoteAccessCookies(

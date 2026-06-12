@@ -7,6 +7,7 @@ import {
 	getRemoteAccessRelayMappingFromUrl,
 	handleRemoteAccessRelayProbe,
 	requestBodyToBytes,
+	scopeRemoteAccessHtmlUrls,
 	storeRemoteAccessCookies,
 } from './service-worker-relay';
 
@@ -179,5 +180,45 @@ describe('remote access service worker relay helpers', () => {
 		expect(nextHeaders.cookie).toBe(
 			'wordpress_test_cookie=WP%20Cookie%20check'
 		);
+	});
+
+	it('scopes same-origin HTML links and form actions', () => {
+		const mapping = {
+			scope: 'default',
+			sessionId: 'session-html',
+			interceptedRequests: 0,
+			expiresAt: Date.now() + 1000,
+		};
+		const html = scopeRemoteAccessHtmlUrls(
+			'https://example.com/scope:default/my-admin/',
+			mapping,
+			[
+				'<a href="/my-admin/">Admin</a>',
+				'<a href="post.php?id=1">Post</a>',
+				'<form action="/wp-admin/admin-post.php"></form>',
+				'<img src="https://example.com/wp-content/uploads/a.png">',
+				'<a href="https://example.com/scope:default/already/">Scoped</a>',
+				'<a href="https://wordpress.org/">External</a>',
+				'<a href="#section">Hash</a>',
+			].join('')
+		);
+
+		expect(html).toContain(
+			'href="https://example.com/scope:default/my-admin/"'
+		);
+		expect(html).toContain(
+			'href="https://example.com/scope:default/my-admin/post.php?id=1"'
+		);
+		expect(html).toContain(
+			'action="https://example.com/scope:default/wp-admin/admin-post.php"'
+		);
+		expect(html).toContain(
+			'src="https://example.com/scope:default/wp-content/uploads/a.png"'
+		);
+		expect(html).toContain(
+			'href="https://example.com/scope:default/already/"'
+		);
+		expect(html).toContain('href="https://wordpress.org/"');
+		expect(html).toContain('href="#section"');
 	});
 });
