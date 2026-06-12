@@ -2162,6 +2162,17 @@ async function exposeFileLockManagerService(
 		{
 			attachFileLockManager: async (port: NodeMessagePort) => {
 				await exposeSyncAPI(fileLockManager, port);
+				// A fresh channel is attached for every spawned child. Close
+				// this end once the child's end goes away (its worker is
+				// terminated) so a long-running server doesn't accumulate
+				// ports and lock-manager listeners over time.
+				port.on('close', () => {
+					try {
+						port.close();
+					} catch {
+						/** */
+					}
+				});
 			},
 		},
 		undefined,

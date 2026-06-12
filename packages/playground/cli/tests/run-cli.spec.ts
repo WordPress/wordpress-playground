@@ -687,6 +687,40 @@ describe.each(blueprintVersions)(
 			}
 		}, 120000);
 
+		// Regression test: a child PHP process spawned via proc_open()/system()
+		// used to be handed the spawning worker's own file-lock-manager proxy,
+		// so its synchronous flock() calls were routed back through that worker
+		// (blocked inside system()) and timed out with "Timeout waiting for
+		// response". The child must reach the shared lock manager directly.
+		test('child processes spawned via proc_open() can acquire a file lock', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+			});
+
+			await cliServer.playground.writeFile(
+				'/wordpress/lock-child.php',
+				`<?php
+				$fp = fopen('/wordpress/lock-target.txt', 'w');
+				$ok = flock($fp, LOCK_EX);
+				if ($ok) { fwrite($fp, 'x'); flock($fp, LOCK_UN); }
+				fclose($fp);
+				echo $ok ? 'CHILD_LOCK_OK' : 'CHILD_LOCK_FAIL';`
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/lock-parent.php',
+				`<?php echo 'PARENT:' . trim((string) shell_exec('php /wordpress/lock-child.php 2>&1'));`
+			);
+
+			const response = await fetch(
+				new URL('/lock-parent.php', cliServer.serverUrl)
+			);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+			expect(text).toContain('CHILD_LOCK_OK');
+			expect(text).not.toContain('Timeout waiting for response');
+		}, 120000);
+
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 
 		describe('auto-mount', () => {

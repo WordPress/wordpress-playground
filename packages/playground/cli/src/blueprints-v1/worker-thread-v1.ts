@@ -236,13 +236,14 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						return createPHPWorker(
 							{
 								...effectiveOptions,
-								// The spawning worker already has WordPress
-								// booted, so the child should apply the
-								// post-install mounts as soon as it starts —
-								// otherwise mounted files would be invisible to
-								// the spawned process.
-								applyPostInstallMountsImmediately:
-									this.bootedWordPress,
+								// A spawned child never installs WordPress
+								// itself, so it must apply the post-install
+								// mounts as soon as it starts — otherwise
+								// mounted files would be invisible to the
+								// spawned process. (When the spawning worker
+								// hasn't booted WordPress yet, the mounts were
+								// already cleared above, so this is a no-op.)
+								applyPostInstallMountsImmediately: true,
 							},
 							this.lockManagerService!
 						);
@@ -336,9 +337,14 @@ async function createPHPWorker(
 	// while the child runs — deadlocking the child (it would time out waiting
 	// for a response). Instead, ask the main thread to attach the broker to a
 	// fresh channel and hand the child the other end.
+	//
+	// Both ports are transferred away, so they're cleaned up where they end up:
+	// port2 dies with the child when the worker is terminated in reap() below,
+	// and the main thread closes port1 once that happens (see
+	// exposeFileLockManagerService()).
 	const { port1, port2 } = new MessageChannel();
-	await lockManagerService.attachFileLockManager(port1 as any);
-	await handler.useFileLockManager(port2 as any);
+	await lockManagerService.attachFileLockManager(port1);
+	await handler.useFileLockManager(port2);
 
 	await handler.bootRequestHandler({
 		...options,
