@@ -374,13 +374,12 @@ async function createPHPWorker(
 			}
 			// Deterministically release the main-thread lock-manager port
 			// for this child so the server doesn't leak ports/listeners.
-			try {
-				void lockManagerService.detachFileLockManager(
-					lockManagerPortId
-				);
-			} catch {
-				/** */
-			}
+			// Best-effort: swallow the async rejection so reap() can't throw.
+			lockManagerService
+				.detachFileLockManager(lockManagerPortId)
+				.catch(() => {
+					/** */
+				});
 		},
 	};
 }

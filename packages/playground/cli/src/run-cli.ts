@@ -2163,6 +2163,17 @@ async function exposeFileLockManagerService(
 	// and lock-manager listeners over time.
 	const attachedPorts = new Map<number, NodeMessagePort>();
 	let nextAttachmentId = 1;
+	const releaseAttachment = (id: number) => {
+		const port = attachedPorts.get(id);
+		if (port) {
+			attachedPorts.delete(id);
+			try {
+				port.close();
+			} catch {
+				/** */
+			}
+		}
+	};
 	const { port1, port2 } = new NodeMessageChannel();
 	await exposeAPI(
 		{
@@ -2170,18 +2181,16 @@ async function exposeFileLockManagerService(
 				await exposeSyncAPI(fileLockManager, port);
 				const id = nextAttachmentId++;
 				attachedPorts.set(id, port);
+				// Defensive backstop: the spawning worker releases this
+				// attachment from its reap() path, but if it never does (e.g.
+				// the child crashed), drop it when the port goes away so it
+				// can't leak for the lifetime of the server.
+				port.once('close', () => releaseAttachment(id));
+				port.once('error', () => releaseAttachment(id));
 				return id;
 			},
 			detachFileLockManager: async (id: number) => {
-				const port = attachedPorts.get(id);
-				if (port) {
-					attachedPorts.delete(id);
-					try {
-						port.close();
-					} catch {
-						/** */
-					}
-				}
+				releaseAttachment(id);
 			},
 		},
 		undefined,
