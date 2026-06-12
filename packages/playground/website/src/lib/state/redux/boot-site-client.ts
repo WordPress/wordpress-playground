@@ -421,8 +421,9 @@ export function bootSiteClient(
  * `initialOpfsSyncPending` means the OPFS copy never reached the point where
  * it could be trusted as a complete WordPress filesystem. A partial directory
  * can still contain `wp-config.php` and the SQLite database, so checking for
- * those files alone would boot from a corrupt snapshot. Drop the partial files
- * and let the normal first-boot path recreate WordPress, then sync it again.
+ * those files alone would boot from a corrupt snapshot. If the sync-complete
+ * marker exists, only the metadata update was interrupted. Otherwise, drop the
+ * partial files and let the normal first-boot path recreate WordPress.
  */
 async function recoverInterruptedInitialOpfsSync(
 	site: SiteInfo,
@@ -434,11 +435,31 @@ async function recoverInterruptedInitialOpfsSync(
 		getState: () => PlaygroundReduxState;
 	}
 ) {
+	const storage = opfsSiteStorage;
+	if (!storage) {
+		throw new Error(
+			'Cannot recover interrupted OPFS sync because OPFS site storage is unavailable.'
+		);
+	}
+
 	site = await recoverRemoteBlueprintBundleIfNeeded(site, {
 		dispatch,
 		getState,
 	});
-	await opfsSiteStorage!.resetSiteFiles(site.slug);
+	if (await storage.isInitialOpfsSyncComplete(site.slug)) {
+		await dispatch(
+			updateSiteMetadata({
+				slug: site.slug,
+				changes: {
+					initialOpfsSyncPending: false,
+					whenLastUsed: Date.now(),
+				},
+			})
+		);
+		return selectSiteBySlug(getState(), site.slug)!;
+	}
+
+	await storage.resetSiteFiles(site.slug);
 	return site;
 }
 
@@ -503,11 +524,16 @@ function originalUrlParamsToSearchParams(
 
 function hasBundledResource(value: unknown) {
 	const stack = [value];
+	const seen = new WeakSet<object>();
 	while (stack.length) {
 		const current = stack.pop();
 		if (!current || typeof current !== 'object') {
 			continue;
 		}
+		if (seen.has(current)) {
+			continue;
+		}
+		seen.add(current);
 		if (Array.isArray(current)) {
 			stack.push(...current);
 			continue;
@@ -564,6 +590,13 @@ async function syncInitialOpfsFilesInBackground({
 				);
 			}
 		);
+		const storage = opfsSiteStorage;
+		if (!storage) {
+			throw new Error(
+				'Cannot finish initial OPFS sync because OPFS site storage is unavailable.'
+			);
+		}
+		await storage.markInitialOpfsSyncComplete(siteSlug);
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,

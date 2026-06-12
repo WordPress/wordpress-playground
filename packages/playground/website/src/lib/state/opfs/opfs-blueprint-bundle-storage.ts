@@ -22,9 +22,12 @@ export function isTraversableFilesystemBackend(
 	return (
 		typeof value === 'object' &&
 		value !== null &&
-		'read' in value &&
-		'listFiles' in value &&
-		'isDir' in value
+		typeof (value as Partial<TraversableFilesystemBackend>).read ===
+			'function' &&
+		typeof (value as Partial<TraversableFilesystemBackend>).listFiles ===
+			'function' &&
+		typeof (value as Partial<TraversableFilesystemBackend>).isDir ===
+			'function'
 	);
 }
 

@@ -18,6 +18,7 @@ describe('opfsSiteStorage', () => {
 			},
 		});
 		vi.doMock('./opfs-blueprint-bundle-storage', () => ({
+			BUNDLE_DIR_NAME: 'blueprint-bundle',
 			loadPersistedBlueprintBundle,
 			loadPersistedBlueprintBundleFromPath,
 		}));
@@ -88,6 +89,26 @@ describe('opfsSiteStorage', () => {
 		expect(loadPersistedBlueprintBundle).toHaveBeenCalledWith('bundle');
 		expect(site?.metadata.originalBlueprint).toBe(bundle);
 	});
+
+	it('tracks and clears the initial OPFS sync completion marker', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-complete',
+			'complete'
+		);
+		siteDirectory.setFile('.wp-playground-initial-opfs-sync-complete', '1');
+
+		await expect(
+			storage.isInitialOpfsSyncComplete('complete')
+		).resolves.toBe(true);
+
+		await storage.resetSiteFiles('complete');
+
+		await expect(
+			storage.isInitialOpfsSyncComplete('complete')
+		).resolves.toBe(false);
+	});
 });
 
 async function getSitesRoot(opfsRoot: MemoryDirectoryHandle) {
@@ -110,6 +131,7 @@ async function writeSiteMetadata(
 			...createSiteMetadata(metadata),
 		})
 	);
+	return siteDirectory;
 }
 
 function createSiteMetadata(
@@ -138,7 +160,7 @@ function createSiteMetadata(
 class MemoryDirectoryHandle {
 	kind = 'directory' as const;
 	name: string;
-	private entries = new Map<
+	private children = new Map<
 		string,
 		MemoryDirectoryHandle | MemoryFileHandle
 	>();
@@ -151,7 +173,7 @@ class MemoryDirectoryHandle {
 		name: string,
 		options?: { create?: boolean }
 	): Promise<MemoryDirectoryHandle> {
-		const entry = this.entries.get(name);
+		const entry = this.children.get(name);
 		if (entry instanceof MemoryDirectoryHandle) {
 			return entry;
 		}
@@ -160,14 +182,14 @@ class MemoryDirectoryHandle {
 		}
 		if (options?.create) {
 			const directory = new MemoryDirectoryHandle(name);
-			this.entries.set(name, directory);
+			this.children.set(name, directory);
 			return directory;
 		}
 		throw createDomException('NotFoundError');
 	}
 
 	async getFileHandle(name: string): Promise<MemoryFileHandle> {
-		const entry = this.entries.get(name);
+		const entry = this.children.get(name);
 		if (entry instanceof MemoryFileHandle) {
 			return entry;
 		}
@@ -178,17 +200,21 @@ class MemoryDirectoryHandle {
 	}
 
 	async removeEntry(name: string) {
-		if (!this.entries.delete(name)) {
+		if (!this.children.delete(name)) {
 			throw createDomException('NotFoundError');
 		}
 	}
 
 	async *values() {
-		yield* this.entries.values();
+		yield* this.children.values();
+	}
+
+	async *entries() {
+		yield* this.children.entries();
 	}
 
 	setFile(name: string, content: string) {
-		this.entries.set(name, new MemoryFileHandle(name, content));
+		this.children.set(name, new MemoryFileHandle(name, content));
 	}
 }
 
