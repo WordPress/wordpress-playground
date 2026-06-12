@@ -25,7 +25,9 @@ export async function writeCommonPlatformMuPlugins(
 					'path' => FQDB,
 					'driver_path' => defined('WP_MYSQL_ON_SQLITE_LOADER_PATH')
 						? WP_MYSQL_ON_SQLITE_LOADER_PATH
-						: dirname(SQLITE_MAIN_FILE) . '/wp-pdo-mysql-on-sqlite.php',
+						: (defined('SQLITE_MAIN_FILE')
+							? dirname(SQLITE_MAIN_FILE) . '/wp-pdo-mysql-on-sqlite.php'
+							: null),
 				);
 			} else {
 				$db_info = array(
