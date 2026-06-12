@@ -2188,15 +2188,26 @@ async function exposeFileLockManagerService(
 	// The service is self-propagating: a spawned child also receives a port to
 	// it (via attachService) so that PHP running in the child can itself spawn
 	// further children that reach the shared lock manager directly.
+	// Only track a port once it has been successfully exposed; if exposing
+	// throws, close the port (best-effort) so a failed attach can't leak it.
+	const attach = async (port: NodeMessagePort, expose: () => unknown) => {
+		try {
+			await expose();
+		} catch (e) {
+			try {
+				port.close();
+			} catch {
+				/** */
+			}
+			throw e;
+		}
+		return track(port);
+	};
 	const service = {
-		attachFileLockManager: async (port: NodeMessagePort) => {
-			await exposeSyncAPI(fileLockManager, port);
-			return track(port);
-		},
-		attachService: async (port: NodeMessagePort) => {
-			await exposeAPI(service, undefined, port);
-			return track(port);
-		},
+		attachFileLockManager: (port: NodeMessagePort) =>
+			attach(port, () => exposeSyncAPI(fileLockManager, port)),
+		attachService: (port: NodeMessagePort) =>
+			attach(port, () => exposeAPI(service, undefined, port)),
 		detach: async (id: number) => {
 			release(id);
 		},

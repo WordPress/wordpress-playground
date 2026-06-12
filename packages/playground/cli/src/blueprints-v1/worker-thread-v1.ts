@@ -350,25 +350,60 @@ async function createPHPWorker(
 	// while the child runs — deadlocking the child (it would time out waiting
 	// for a response). Instead, ask the main thread to attach the broker to a
 	// fresh channel and hand the child the other end.
+	//
+	// The child also gets its own port to the service, so PHP running in it can
+	// in turn spawn further children that reach the lock manager directly
+	// (otherwise a nested system()/proc_open() would have no service).
 	const lockChannel = new MessageChannel();
-	const lockAttachmentId = await lockManagerService.attachFileLockManager(
-		lockChannel.port1
-	);
-	await handler.useFileLockManager(lockChannel.port2);
-
-	// Also hand the child its own port to this service, so PHP running in the
-	// child can in turn spawn further children that reach the lock manager
-	// directly (otherwise a nested system()/proc_open() would have no service).
 	const serviceChannel = new MessageChannel();
-	const serviceAttachmentId = await lockManagerService.attachService(
-		serviceChannel.port1
-	);
-	await handler.useFileLockManagerService(serviceChannel.port2);
+	let lockAttachmentId: number | undefined;
+	let serviceAttachmentId: number | undefined;
+	const detach = (id: number | undefined) => {
+		if (id !== undefined) {
+			lockManagerService.detach(id).catch(() => {
+				/** */
+			});
+		}
+	};
+	try {
+		lockAttachmentId = await lockManagerService.attachFileLockManager(
+			lockChannel.port1
+		);
+		await handler.useFileLockManager(lockChannel.port2);
 
-	await handler.bootRequestHandler({
-		...options,
-		processId: spawnedWorker.processId,
-	});
+		serviceAttachmentId = await lockManagerService.attachService(
+			serviceChannel.port1
+		);
+		await handler.useFileLockManagerService(serviceChannel.port2);
+
+		await handler.bootRequestHandler({
+			...options,
+			processId: spawnedWorker.processId,
+		});
+	} catch (e) {
+		// Roll back partial setup so a failed spawn can't leak the worker, the
+		// main-thread attachments, or the channels.
+		detach(lockAttachmentId);
+		detach(serviceAttachmentId);
+		for (const port of [
+			lockChannel.port1,
+			lockChannel.port2,
+			serviceChannel.port1,
+			serviceChannel.port2,
+		]) {
+			try {
+				port.close();
+			} catch {
+				/** */
+			}
+		}
+		try {
+			spawnedWorker.worker.terminate();
+		} catch {
+			/** */
+		}
+		throw e;
+	}
 
 	return {
 		php: handler,
@@ -386,12 +421,8 @@ async function createPHPWorker(
 			// Deterministically release the main-thread ports for this child so
 			// the server doesn't leak ports/listeners. Best-effort: swallow the
 			// async rejection so reap() can't throw.
-			lockManagerService.detach(lockAttachmentId).catch(() => {
-				/** */
-			});
-			lockManagerService.detach(serviceAttachmentId).catch(() => {
-				/** */
-			});
+			detach(lockAttachmentId);
+			detach(serviceAttachmentId);
 		},
 	};
 }
