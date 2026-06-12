@@ -129,6 +129,10 @@ function handleStatus(string $sessionId): void {
 
 function handlePostSignal(string $sessionId): void {
     $rawBody = file_get_contents('php://input');
+    if ($rawBody === false) {
+        jsonResponse(['error' => 'Could not read request body'], 400);
+        return;
+    }
     if (strlen($rawBody) > MAX_SIGNAL_BODY_BYTES) {
         jsonResponse(['error' => 'Signal body too large'], 413);
         return;

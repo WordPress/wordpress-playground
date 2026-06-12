@@ -97,12 +97,28 @@ describe('remote access service worker relay helpers', () => {
 			lastInterceptedPath: null,
 		});
 
-		expect(
-			handleRemoteAccessRelayProbe('probe-test', 'other-session').status
-		).toBe(404);
-		expect(handleRemoteAccessRelayProbe('missing-test', null).status).toBe(
-			404
+		const mismatchedResponse = handleRemoteAccessRelayProbe(
+			'probe-test',
+			'other-session'
 		);
+		expect(mismatchedResponse.status).toBe(404);
+		expect(
+			mismatchedResponse.headers.get('X-Remote-Access-Service-Worker')
+		).toBe('1');
+		await expect(mismatchedResponse.json()).resolves.toMatchObject({
+			hasMapping: false,
+			interceptedRequests: 0,
+			lastInterceptedPath: null,
+		});
+
+		const missingResponse = handleRemoteAccessRelayProbe(
+			'missing-test',
+			null
+		);
+		expect(missingResponse.status).toBe(404);
+		expect(
+			missingResponse.headers.get('X-Remote-Access-Service-Worker')
+		).toBe('1');
 	});
 
 	it('keeps remote access redirects inside the scoped iframe', () => {

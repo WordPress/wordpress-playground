@@ -34,7 +34,7 @@ export function buildRemoteAccessUrl(
 	sessionId: string,
 	shareParam = 'share'
 ): string {
-	const viewerUrl = new URL(currentUrl);
+	const viewerUrl = new URL(currentUrl, 'http://remote-access.local');
 	viewerUrl.searchParams.set(shareParam, sessionId);
 	return `${viewerUrl.pathname}${viewerUrl.search}`;
 }

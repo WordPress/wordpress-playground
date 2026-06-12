@@ -1,4 +1,5 @@
 /// <reference types='vitest' />
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -8,7 +9,8 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 
 export default defineConfig({
 	root: __dirname,

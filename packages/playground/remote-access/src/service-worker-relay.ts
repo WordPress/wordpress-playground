@@ -13,6 +13,8 @@ export type RemoteAccessRelayMapping = {
 };
 
 const remoteAccessRelayMappings: Record<string, RemoteAccessRelayMapping> = {};
+const DEFAULT_RELAY_MAPPING_TTL_MS = 5 * 60 * 1000;
+const MAX_RELAY_MAPPING_TTL_MS = 5 * 60 * 1000;
 
 export function handleRemoteAccessRelayMessage(
 	event: ExtendableMessageEvent
@@ -28,6 +30,7 @@ export function handleRemoteAccessRelayMessage(
 			return true;
 		}
 		const existing = remoteAccessRelayMappings[scope];
+		const ttlMs = getSafeRelayMappingTtl(ttl);
 		remoteAccessRelayMappings[scope] = {
 			scope,
 			sessionId,
@@ -35,11 +38,7 @@ export function handleRemoteAccessRelayMessage(
 			cookies: existing?.cookies,
 			interceptedRequests: existing?.interceptedRequests ?? 0,
 			lastInterceptedPath: existing?.lastInterceptedPath,
-			expiresAt:
-				Date.now() +
-				(typeof ttl === 'number' && Number.isFinite(ttl)
-					? ttl
-					: 5 * 60 * 1000),
+			expiresAt: Date.now() + ttlMs,
 		};
 		event.ports[0]?.postMessage({
 			type: 'remote-access-relay-map-result',
@@ -58,6 +57,13 @@ export function handleRemoteAccessRelayMessage(
 	}
 
 	return false;
+}
+
+function getSafeRelayMappingTtl(ttl: unknown): number {
+	if (typeof ttl !== 'number' || !Number.isFinite(ttl)) {
+		return DEFAULT_RELAY_MAPPING_TTL_MS;
+	}
+	return Math.min(Math.max(ttl, 1), MAX_RELAY_MAPPING_TTL_MS);
 }
 
 function getSourceClientId(event: ExtendableMessageEvent): string | undefined {
@@ -98,7 +104,7 @@ export function getRemoteAccessRelayMappingFromUrl(
 		cookies: existing?.cookies,
 		interceptedRequests: existing?.interceptedRequests ?? 0,
 		lastInterceptedPath: existing?.lastInterceptedPath,
-		expiresAt: Date.now() + 5 * 60 * 1000,
+		expiresAt: Date.now() + DEFAULT_RELAY_MAPPING_TTL_MS,
 	};
 	return remoteAccessRelayMappings[scope];
 }
@@ -109,7 +115,23 @@ export function handleRemoteAccessRelayProbe(
 ): Response {
 	const mapping = getRemoteAccessRelayMapping(scope);
 	if (!mapping || mapping.sessionId !== sessionId) {
-		return new Response('Not found', { status: 404 });
+		return new Response(
+			JSON.stringify({
+				ok: false,
+				scope,
+				hasMapping: false,
+				clientId: null,
+				interceptedRequests: 0,
+				lastInterceptedPath: null,
+			}),
+			{
+				status: 404,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Remote-Access-Service-Worker': '1',
+				},
+			}
+		);
 	}
 
 	return new Response(

@@ -194,10 +194,18 @@ function RemoteAccessSection() {
 		if (!remoteAccess.shareUrl || !navigator.share) {
 			return;
 		}
-		await navigator.share({
-			title: 'My WordPress remote access',
-			url: remoteAccess.shareUrl,
-		});
+		try {
+			await navigator.share({
+				title: 'My WordPress remote access',
+				url: remoteAccess.shareUrl,
+			});
+		} catch (error) {
+			if ((error as { name?: string })?.name === 'AbortError') {
+				return;
+			}
+			logger.error('Failed to share remote access link:', error);
+			setMessage('Could not share remote access link.');
+		}
 	}
 
 	const isStarting = remoteAccess.status === 'connecting';
