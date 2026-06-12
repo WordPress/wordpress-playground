@@ -95,11 +95,3 @@ export function isRemoteAccessConnectRoute(): boolean {
 		window.location.pathname.startsWith('/connect/')
 	);
 }
-
-export function normalizeCode(value: string): string | null {
-	return normalizeAccessCode(value);
-}
-
-export function formatCode(value: string): string {
-	return formatAccessCode(value);
-}

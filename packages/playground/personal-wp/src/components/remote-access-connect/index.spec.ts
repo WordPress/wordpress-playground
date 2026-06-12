@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatCode, isRemoteAccessConnectRoute, normalizeCode } from './index';
+import {
+	formatAccessCode,
+	normalizeAccessCode,
+} from '@wp-playground/remote-access';
+import { isRemoteAccessConnectRoute } from './index';
 
 describe('RemoteAccessConnect route helpers', () => {
 	afterEach(() => {
@@ -20,16 +24,16 @@ describe('RemoteAccessConnect route helpers', () => {
 	});
 
 	it('normalizes six digit codes', () => {
-		expect(normalizeCode('123456')).toBe('123-456');
-		expect(normalizeCode('123-456')).toBe('123-456');
-		expect(normalizeCode(' 12 34 56 ')).toBe('123-456');
-		expect(normalizeCode('12345')).toBeNull();
-		expect(normalizeCode('1234567')).toBeNull();
+		expect(normalizeAccessCode('123456')).toBe('123-456');
+		expect(normalizeAccessCode('123-456')).toBe('123-456');
+		expect(normalizeAccessCode(' 12 34 56 ')).toBe('123-456');
+		expect(normalizeAccessCode('12345')).toBeNull();
+		expect(normalizeAccessCode('1234567')).toBeNull();
 	});
 
 	it('formats partial code input without accepting more than six digits', () => {
-		expect(formatCode('12')).toBe('12');
-		expect(formatCode('1234')).toBe('123-4');
-		expect(formatCode('123456789')).toBe('123-456');
+		expect(formatAccessCode('12')).toBe('12');
+		expect(formatAccessCode('1234')).toBe('123-4');
+		expect(formatAccessCode('123456789')).toBe('123-456');
 	});
 });
