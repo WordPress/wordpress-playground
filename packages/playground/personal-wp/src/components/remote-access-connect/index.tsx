@@ -1,10 +1,13 @@
 import type { FormEvent } from 'react';
 import { useRef, useState } from 'react';
+import {
+	buildRemoteAccessUrl,
+	formatAccessCode,
+	normalizeAccessCode,
+	resolveAccessCode,
+	ResolveAccessCodeError,
+} from '@wp-playground/remote-access';
 import css from './style.module.css';
-
-type ResolveCodeResponse = {
-	sessionId: string;
-};
 
 export function RemoteAccessConnect() {
 	const [code, setCode] = useState('');
@@ -14,7 +17,7 @@ export function RemoteAccessConnect() {
 
 	async function submit(event: FormEvent) {
 		event.preventDefault();
-		const normalized = normalizeCode(code);
+		const normalized = normalizeAccessCode(code);
 		if (!normalized) {
 			setStatus('error');
 			setError('Enter the six-digit code from the host device.');
@@ -25,22 +28,25 @@ export function RemoteAccessConnect() {
 		setStatus('loading');
 		setError(null);
 		try {
-			const response = await fetch(`/relay/code/${normalized}`);
-			if (response.status === 404) {
+			const data = await resolveAccessCode(
+				window.location.origin,
+				normalized
+			);
+			window.location.href = buildRemoteAccessUrl(
+				window.location.href,
+				data.sessionId
+			);
+		} catch (error) {
+			if (
+				error instanceof ResolveAccessCodeError &&
+				error.response.status === 404
+			) {
 				setStatus('error');
 				setError(
 					'That code was not found. Start remote access again on the host device.'
 				);
 				return;
 			}
-			if (!response.ok) {
-				throw new Error(response.statusText);
-			}
-			const data = (await response.json()) as ResolveCodeResponse;
-			const viewerUrl = new URL(window.location.href);
-			viewerUrl.searchParams.set('share', data.sessionId);
-			window.location.href = `${viewerUrl.pathname}${viewerUrl.search}`;
-		} catch {
 			setStatus('error');
 			setError('Could not connect. Check the code and try again.');
 		}
@@ -62,7 +68,7 @@ export function RemoteAccessConnect() {
 						inputMode="numeric"
 						autoComplete="one-time-code"
 						placeholder="123-456"
-						value={formatCode(code)}
+						value={formatAccessCode(code)}
 						onChange={(event) => setCode(event.target.value)}
 						disabled={status === 'loading'}
 					/>
@@ -90,17 +96,9 @@ export function isRemoteAccessConnectRoute(): boolean {
 }
 
 export function normalizeCode(value: string): string | null {
-	const digits = value.replace(/\D+/g, '');
-	if (digits.length !== 6) {
-		return null;
-	}
-	return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+	return normalizeAccessCode(value);
 }
 
 export function formatCode(value: string): string {
-	const digits = value.replace(/\D+/g, '').slice(0, 6);
-	if (digits.length <= 3) {
-		return digits;
-	}
-	return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+	return formatAccessCode(value);
 }

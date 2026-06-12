@@ -1,6 +1,6 @@
 import { logger } from '@php-wasm/logger';
+import type { HTTPMethod } from '@php-wasm/universal';
 import { zipWpContent } from '@wp-playground/blueprints';
-import type { PlaygroundClient } from '@wp-playground/remote';
 import {
 	addIceCandidateIfCurrent,
 	bufferRemoteCandidate,
@@ -11,6 +11,7 @@ import {
 	normalizeVerificationCode,
 	readAttemptSignal,
 } from './remote-access-tunnel-utils';
+import type { RemoteAccessHostClient } from './types';
 
 export type TunnelHostStatus =
 	| 'disconnected'
@@ -298,7 +299,7 @@ function serializeIceCandidate(
 }
 
 async function getWordPressSiteName(
-	playgroundClient: PlaygroundClient
+	playgroundClient: RemoteAccessHostClient
 ): Promise<string | null> {
 	try {
 		const response = await playgroundClient.run({
@@ -345,7 +346,7 @@ function shouldShowIceCandidateState(currentState: string): boolean {
  * signaling messages; WordPress HTTP requests are handled over the data channel.
  */
 export class DirectTunnelHost {
-	private readonly playgroundClient: PlaygroundClient;
+	private readonly playgroundClient: RemoteAccessHostClient;
 	private readonly relayUrl: string;
 	private peerConnection: RTCPeerConnection | null = null;
 	private dataChannel: RTCDataChannel | null = null;
@@ -383,7 +384,7 @@ export class DirectTunnelHost {
 		lastError: null,
 	};
 
-	constructor(playgroundClient: PlaygroundClient, relayUrl: string) {
+	constructor(playgroundClient: RemoteAccessHostClient, relayUrl: string) {
 		this.playgroundClient = playgroundClient;
 		this.relayUrl = relayUrl;
 	}
@@ -864,7 +865,7 @@ export class DirectTunnelHost {
 	private async handleRequest(request: DataChannelRequest): Promise<void> {
 		try {
 			const phpResponse = await this.playgroundClient.request({
-				method: request.method as any,
+				method: request.method as HTTPMethod,
 				url: request.path,
 				headers: request.headers,
 				body: request.body

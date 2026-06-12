@@ -1,6 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
-import { DirectTunnelGuest } from '@wp-playground/remote-access';
+import {
+	buildConnectUrlFromScopedIframeUrl,
+	buildRemoteAccessScopedIframeUrl,
+	clearRemoteAccessRelayMapping,
+	DirectTunnelGuest,
+	fetchRemoteAccessRelayProbe,
+	getRemoteAccessPathFromConnectUrl,
+	getRemoteAccessRelayRequestMessage,
+	getRemoteAccessRelayScopedUrl,
+	getRemoteAccessSessionId as getRemoteAccessSessionIdFromUrl,
+	postRemoteAccessRelayError,
+	postRemoteAccessRelayMapping,
+	postRemoteAccessRelayResponse,
+	registerRemoteAccessServiceWorker,
+	stripRemoteAccessSessionId,
+} from '@wp-playground/remote-access';
 import saveAs from 'file-saver';
 
 import serviceWorkerPath from '@wp-playground/remote/service-worker?worker&url';
@@ -32,9 +47,10 @@ interface RelayDiagnostics {
 
 const STATUS_POLL_INTERVAL_MS = 3000;
 const GUEST_ID_STORAGE_KEY = 'personal-wp-remote-access-guest-id';
-const DESKTOP_RELAY_SCOPE = 'default';
-const DESKTOP_RELAY_SCOPED_URL = `/scope:${DESKTOP_RELAY_SCOPE}/`;
-const DESKTOP_RELAY_PROBE_URL = `${DESKTOP_RELAY_SCOPED_URL}?desktop-relay-probe=1`;
+const REMOTE_ACCESS_RELAY_SCOPE = 'default';
+const REMOTE_ACCESS_RELAY_SCOPED_URL = getRemoteAccessRelayScopedUrl(
+	REMOTE_ACCESS_RELAY_SCOPE
+);
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
 
@@ -68,11 +84,12 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	const verificationCode = useRef(generateVerificationCode()).current;
 	const shouldLoadIframe =
 		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
-	const desktopRelayIframeUrl = useMemo(
+	const remoteAccessRelayIframeUrl = useMemo(
 		() =>
-			buildDesktopRelayIframeUrl(
-				getDesktopRelayPathFromConnectUrl(),
-				sessionId
+			buildRemoteAccessScopedIframeUrl(
+				getRemoteAccessPathFromConnectUrl(window.location.href),
+				sessionId,
+				{ scope: REMOTE_ACCESS_RELAY_SCOPE }
 			),
 		[sessionId]
 	);
@@ -94,9 +111,11 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		if (!url.searchParams.has('share')) {
 			return;
 		}
-		url.searchParams.delete('share');
-		const nextUrl = `${url.pathname}${url.search}`;
-		window.history.replaceState({}, '', nextUrl || '/connect');
+		window.history.replaceState(
+			{},
+			'',
+			stripRemoteAccessSessionId(window.location.href)
+		);
 	}, []);
 
 	useEffect(() => {
@@ -232,27 +251,22 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 				...current,
 				serviceWorker: `Registering ${serviceWorkerUrl.pathname}`,
 			}));
-			const registration = await navigator.serviceWorker.register(
+			const registration = await registerRemoteAccessServiceWorker(
 				serviceWorkerUrl,
-				{
-					type: 'module',
-					updateViaCache: 'none',
-					scope: '/',
-				}
+				window.location.origin
 			);
-			await navigator.serviceWorker.ready;
 
 			if (cancelled) {
 				return;
 			}
-			await postDesktopRelayMapping(registration);
+			await refreshRemoteAccessRelayMapping(registration);
 			if (cancelled) {
 				return;
 			}
 			setServiceWorkerReady(true);
 			refreshServiceWorkerProbe().catch(() => {});
 			interval = setInterval(
-				() => postDesktopRelayMapping(registration),
+				() => refreshRemoteAccessRelayMapping(registration),
 				SERVICE_WORKER_RELAY_REFRESH_MS
 			);
 			probeInterval = setInterval(
@@ -262,80 +276,36 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			registration.update().catch(() => {});
 		};
 
-		const postDesktopRelayMapping = (
+		const refreshRemoteAccessRelayMapping = (
 			registration: ServiceWorkerRegistration
 		): Promise<void> => {
-			const worker =
-				navigator.serviceWorker.controller || registration.active;
-			if (!worker) {
-				return Promise.reject(
-					new Error('Remote access service worker is not active.')
-				);
-			}
-			return new Promise((resolve, reject) => {
-				const channel = new MessageChannel();
-				const timeout = setTimeout(() => {
-					reject(
-						new Error(
-							'Remote access service worker did not confirm setup.'
-						)
-					);
-				}, 5000);
-				channel.port1.onmessage = (event) => {
-					clearTimeout(timeout);
-					if (event.data?.type === 'desktop-relay-map-result') {
-						setRelayDiagnostics((current) => ({
-							...current,
-							serviceWorker: event.data?.clientId
-								? `Mapped client ${event.data.clientId}`
-								: 'Mapped without client id',
-						}));
-						resolve();
-						return;
-					}
-					reject(
-						new Error(
-							event.data?.error ||
-								'Remote access service worker setup failed.'
-						)
-					);
-				};
-				worker.postMessage(
-					{
-						type: 'desktop-relay-map',
-						scope: DESKTOP_RELAY_SCOPE,
-						sessionId,
-						ttl: SERVICE_WORKER_RELAY_TTL_MS,
-					},
-					[channel.port2]
-				);
+			return postRemoteAccessRelayMapping(registration, {
+				scope: REMOTE_ACCESS_RELAY_SCOPE,
+				sessionId,
+				ttl: SERVICE_WORKER_RELAY_TTL_MS,
+			}).then(({ clientId }) => {
+				setRelayDiagnostics((current) => ({
+					...current,
+					serviceWorker: clientId
+						? `Mapped client ${clientId}`
+						: 'Mapped without client id',
+				}));
 			});
 		};
 
 		const refreshServiceWorkerProbe = async () => {
-			const response = await fetch(DESKTOP_RELAY_PROBE_URL, {
-				cache: 'no-store',
-			});
-			if (
-				response.headers.get('X-Desktop-Relay-Service-Worker') !== '1'
-			) {
-				throw new Error(
-					'Remote access service worker is not controlling WordPress requests.'
-				);
-			}
-			const data = await response.json();
+			const data = await fetchRemoteAccessRelayProbe(
+				REMOTE_ACCESS_RELAY_SCOPE
+			);
 			setRelayDiagnostics((current) => ({
 				...current,
 				serviceWorker: data.hasMapping
-					? `Controlling /scope:default/ · intercepted ${data.interceptedRequests || 0}`
+					? `Controlling /scope:default/ · intercepted ${data.interceptedRequests}`
 					: 'Probe reached worker without mapping',
-				intercepted:
-					typeof data.interceptedRequests === 'number'
-						? data.interceptedRequests
-						: current.intercepted,
+				intercepted: data.interceptedRequests,
 				lastPath:
 					current.lastPath === '-' &&
-					typeof data.lastInterceptedPath === 'string'
+					data.lastInterceptedPath !== null
 						? data.lastInterceptedPath
 						: current.lastPath,
 			}));
@@ -351,7 +321,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			setStatus('error');
 		});
 
-		window.addEventListener('pagehide', clearDesktopRelayMapping);
+		window.addEventListener('pagehide', clearRemoteAccessRelay);
 		return () => {
 			cancelled = true;
 			setServiceWorkerReady(false);
@@ -361,20 +331,18 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			if (probeInterval !== null) {
 				clearInterval(probeInterval);
 			}
-			window.removeEventListener('pagehide', clearDesktopRelayMapping);
-			clearDesktopRelayMapping();
+			window.removeEventListener('pagehide', clearRemoteAccessRelay);
+			clearRemoteAccessRelay();
 		};
 	}, [sessionId]);
 
 	useEffect(() => {
 		function handleServiceWorkerMessage(event: MessageEvent) {
-			const data = event.data;
-			if (
-				typeof data !== 'object' ||
-				data === null ||
-				data.type !== 'desktop-relay-request' ||
-				data.sessionId !== sessionId
-			) {
+			const data = getRemoteAccessRelayRequestMessage(
+				event.data,
+				sessionId
+			);
+			if (!data) {
 				return;
 			}
 			const port = event.ports[0];
@@ -396,10 +364,10 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 					lastError:
 						'Remote access data channel is not connected yet.',
 				}));
-				port.postMessage({
-					type: 'desktop-relay-error',
-					error: 'Remote access data channel is not connected yet.',
-				});
+				postRemoteAccessRelayError(
+					port,
+					'Remote access data channel is not connected yet.'
+				);
 				return;
 			}
 			directTunnel
@@ -417,10 +385,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 						...current,
 						pending: Math.max(0, current.pending - 1),
 					}));
-					port.postMessage({
-						type: 'desktop-relay-response',
-						response,
-					});
+					postRemoteAccessRelayResponse(port, response);
 				})
 				.catch((error) => {
 					const message = (error as Error).message;
@@ -433,10 +398,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 						`Remote access request failed: ${message}`
 					);
 					setNoticeCanRetry(true);
-					port.postMessage({
-						type: 'desktop-relay-error',
-						error: message,
-					});
+					postRemoteAccessRelayError(port, message);
 				});
 		}
 
@@ -456,12 +418,12 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		if (!shouldLoadIframe || iframeSrc !== 'about:blank') {
 			return;
 		}
-		setIframeSrc(desktopRelayIframeUrl);
+		setIframeSrc(remoteAccessRelayIframeUrl);
 		setRelayDiagnostics((current) => ({
 			...current,
 			iframe: 'Loading /scope:default/',
 		}));
-	}, [desktopRelayIframeUrl, iframeSrc, shouldLoadIframe]);
+	}, [remoteAccessRelayIframeUrl, iframeSrc, shouldLoadIframe]);
 
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
@@ -492,7 +454,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	}, []);
 
 	const handleIframeLoad = useCallback(() => {
-		if (!iframeRef.current?.src.includes(DESKTOP_RELAY_SCOPED_URL)) {
+		if (!iframeRef.current?.src.includes(REMOTE_ACCESS_RELAY_SCOPED_URL)) {
 			return;
 		}
 		setIframeHasLoaded(true);
@@ -521,9 +483,12 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			setTimeout(() => {
 				if (shouldLoadIframe) {
 					setIframeSrc(
-						buildDesktopRelayIframeUrl(
-							getDesktopRelayPathFromConnectUrl(),
-							sessionId
+						buildRemoteAccessScopedIframeUrl(
+							getRemoteAccessPathFromConnectUrl(
+								window.location.href
+							),
+							sessionId,
+							{ scope: REMOTE_ACCESS_RELAY_SCOPE }
 						)
 					);
 				}
@@ -543,7 +508,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	};
 
 	const disconnect = () => {
-		clearDesktopRelayMapping();
+		clearRemoteAccessRelay();
 		window.location.href = '/connect';
 	};
 
@@ -742,62 +707,24 @@ function isDescendantWindow(
 }
 
 export function getRemoteAccessSessionId(): string | null {
-	const params = new URLSearchParams(window.location.search);
-	return params.get('share');
+	return getRemoteAccessSessionIdFromUrl(window.location.href);
 }
 
-function clearDesktopRelayMapping() {
-	navigator.serviceWorker?.controller?.postMessage({
-		type: 'desktop-relay-clear',
-		scope: DESKTOP_RELAY_SCOPE,
-	});
-}
-
-function buildDesktopRelayIframeUrl(pathAndSearch: string, sessionId: string) {
-	const url = new URL(
-		normalizeDesktopRelayPath(pathAndSearch),
-		window.location.origin
-	);
-	const scopedUrl = new URL(
-		`${DESKTOP_RELAY_SCOPED_URL.replace(/\/$/, '')}${url.pathname}${url.search}`,
-		window.location.origin
-	);
-	scopedUrl.searchParams.set('desktop-relay-view', sessionId);
-	return `${scopedUrl.pathname}${scopedUrl.search}`;
-}
-
-function getDesktopRelayPathFromConnectUrl() {
-	const url = new URL(window.location.href);
-	if (!url.pathname.startsWith('/connect')) {
-		return '/';
-	}
-	const path = url.pathname.slice('/connect'.length) || '/';
-	url.searchParams.delete('share');
-	return `${path}${url.search}`;
-}
-
-function normalizeDesktopRelayPath(pathAndSearch: string) {
-	const normalized = pathAndSearch.startsWith('/')
-		? pathAndSearch
-		: `/${pathAndSearch}`;
-	return normalized || '/';
+function clearRemoteAccessRelay() {
+	clearRemoteAccessRelayMapping(REMOTE_ACCESS_RELAY_SCOPE);
 }
 
 function syncDesktopUrlFromIframe(iframe: HTMLIFrameElement) {
 	try {
-		const iframeUrl = new URL(iframe.contentWindow?.location.href || '');
-		const scopedPrefix = DESKTOP_RELAY_SCOPED_URL.replace(/\/$/, '');
-		if (!iframeUrl.pathname.startsWith(scopedPrefix)) {
+		const nextUrl = buildConnectUrlFromScopedIframeUrl(
+			iframe.contentWindow?.location.href || '',
+			window.location.href,
+			{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+		);
+		if (!nextUrl) {
 			return;
 		}
-		const unscopedPath =
-			iframeUrl.pathname.slice(scopedPrefix.length) || '/';
-		iframeUrl.searchParams.delete('desktop-relay-view');
-		const nextUrl = new URL(window.location.href);
-		nextUrl.pathname = `/connect${unscopedPath}`;
-		nextUrl.search = iframeUrl.search;
-		nextUrl.hash = '';
-		if (nextUrl.href !== window.location.href) {
+		if (nextUrl !== window.location.href) {
 			window.history.replaceState({}, '', nextUrl);
 		}
 	} catch {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { collectHeaders, requestBodyToBytes } from './desktop-relay';
+import { collectHeaders, requestBodyToBytes } from './service-worker-relay';
 
-describe('desktop relay request helpers', () => {
+describe('remote access service worker relay helpers', () => {
 	it('does not read bodies for GET and HEAD requests', async () => {
 		await expect(
 			requestBodyToBytes(

@@ -9,100 +9,39 @@
 import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import {
-	DirectTunnelHost,
-	type TunnelHostMetrics,
-	type TunnelHostStatus,
+	RemoteAccessHostController,
+	type RemoteAccessHostStatus,
 } from '@wp-playground/remote-access';
 
-let tunnelHost: DirectTunnelHost | null = null;
-let currentSessionId: string | null = null;
-let currentShareUrl: string | null = null;
-const statusListeners = new Set<(status: RemoteAccessStatus) => void>();
+export type RemoteAccessStatus = RemoteAccessHostStatus;
 
-export interface RemoteAccessStatus {
-	isActive: boolean;
-	status: TunnelHostStatus;
-	shareUrl: string | null;
-	sessionId: string | null;
-	accessCode: string | null;
-	pendingVerificationCode: string | null;
-	metrics: TunnelHostMetrics | null;
-}
+const hostController = new RemoteAccessHostController({
+	relayUrl: window.location.origin,
+	onError(error) {
+		logger.error('[RemoteAccess] Relay error:', error);
+	},
+});
 
 export function getRemoteAccessStatus(): RemoteAccessStatus {
-	return {
-		isActive: tunnelHost !== null,
-		status: tunnelHost?.getStatus() ?? 'disconnected',
-		shareUrl: currentShareUrl,
-		sessionId: currentSessionId,
-		accessCode: tunnelHost?.getAccessCode() ?? null,
-		pendingVerificationCode:
-			tunnelHost?.getPendingVerificationCode() ?? null,
-		metrics: tunnelHost?.getMetrics() ?? null,
-	};
+	return hostController.getStatus();
 }
 
 export function subscribeToRemoteAccessStatus(
 	listener: (status: RemoteAccessStatus) => void
 ): () => void {
-	statusListeners.add(listener);
-	return () => {
-		statusListeners.delete(listener);
-	};
+	return hostController.subscribe(listener);
 }
 
 export async function startRemoteAccess(
 	playgroundClient: PlaygroundClient
 ): Promise<string> {
-	if (tunnelHost) {
-		if (currentShareUrl) {
-			return currentShareUrl;
-		}
-		throw new Error('Remote access is already starting.');
-	}
-
-	tunnelHost = new DirectTunnelHost(playgroundClient, window.location.origin);
-	tunnelHost.on('statusChange', notifyListeners);
-	tunnelHost.on('metricsChange', notifyListeners);
-	tunnelHost.on('error', (error) => {
-		logger.error('[RemoteAccess] Relay error:', error);
-		notifyListeners();
-	});
-
-	try {
-		currentShareUrl = await tunnelHost.startSharing();
-		currentSessionId = tunnelHost.getSessionId();
-		notifyListeners();
-		return currentShareUrl;
-	} catch (error) {
-		tunnelHost = null;
-		currentShareUrl = null;
-		currentSessionId = null;
-		notifyListeners();
-		throw error;
-	}
+	return hostController.start(playgroundClient);
 }
 
 export async function stopRemoteAccess(): Promise<void> {
-	if (!tunnelHost) {
-		return;
-	}
-	await tunnelHost.stopSharing();
-	tunnelHost = null;
-	currentShareUrl = null;
-	currentSessionId = null;
-	notifyListeners();
+	await hostController.stop();
 }
 
 export function approveRemoteAccess(verificationCode: string): boolean {
-	const approved = tunnelHost?.approveRemoteAccess(verificationCode) ?? false;
-	notifyListeners();
-	return approved;
-}
-
-function notifyListeners() {
-	const status = getRemoteAccessStatus();
-	for (const listener of statusListeners) {
-		listener(status);
-	}
+	return hostController.approve(verificationCode);
 }

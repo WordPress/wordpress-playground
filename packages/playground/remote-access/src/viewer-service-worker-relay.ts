@@ -1,0 +1,166 @@
+export interface RemoteAccessRelayMappingResult {
+	clientId?: string;
+}
+
+export interface RemoteAccessRelayProbeResult {
+	hasMapping: boolean;
+	clientId?: string;
+	interceptedRequests: number;
+	lastInterceptedPath: string | null;
+}
+
+export interface RemoteAccessRelayRequestMessage {
+	type: 'desktop-relay-request';
+	sessionId: string;
+	requestId: string;
+	method: string;
+	path: string;
+	headers: Record<string, string>;
+	body?: Uint8Array;
+}
+
+export function getRemoteAccessRelayScopedUrl(scope: string): string {
+	return `/scope:${scope}/`;
+}
+
+export function getRemoteAccessRelayProbeUrl(scope: string): string {
+	return `${getRemoteAccessRelayScopedUrl(scope)}?desktop-relay-probe=1`;
+}
+
+export async function registerRemoteAccessServiceWorker(
+	serviceWorkerPath: string | URL,
+	origin: string
+): Promise<ServiceWorkerRegistration> {
+	const serviceWorkerUrl =
+		serviceWorkerPath instanceof URL
+			? serviceWorkerPath
+			: new URL(serviceWorkerPath, origin);
+	const registration = await navigator.serviceWorker.register(
+		serviceWorkerUrl,
+		{
+			type: 'module',
+			updateViaCache: 'none',
+			scope: '/',
+		}
+	);
+	await navigator.serviceWorker.ready;
+	return registration;
+}
+
+export function postRemoteAccessRelayMapping(
+	registration: ServiceWorkerRegistration,
+	{
+		scope,
+		sessionId,
+		ttl,
+	}: {
+		scope: string;
+		sessionId: string;
+		ttl: number;
+	}
+): Promise<RemoteAccessRelayMappingResult> {
+	const worker = navigator.serviceWorker.controller || registration.active;
+	if (!worker) {
+		return Promise.reject(
+			new Error('Remote access service worker is not active.')
+		);
+	}
+	return new Promise((resolve, reject) => {
+		const channel = new MessageChannel();
+		const timeout = setTimeout(() => {
+			reject(
+				new Error('Remote access service worker did not confirm setup.')
+			);
+		}, 5000);
+		channel.port1.onmessage = (event) => {
+			clearTimeout(timeout);
+			if (event.data?.type === 'desktop-relay-map-result') {
+				resolve({ clientId: event.data?.clientId });
+				return;
+			}
+			reject(
+				new Error(
+					event.data?.error ||
+						'Remote access service worker setup failed.'
+				)
+			);
+		};
+		worker.postMessage(
+			{
+				type: 'desktop-relay-map',
+				scope,
+				sessionId,
+				ttl,
+			},
+			[channel.port2]
+		);
+	});
+}
+
+export async function fetchRemoteAccessRelayProbe(
+	scope: string
+): Promise<RemoteAccessRelayProbeResult> {
+	const response = await fetch(getRemoteAccessRelayProbeUrl(scope), {
+		cache: 'no-store',
+	});
+	if (response.headers.get('X-Desktop-Relay-Service-Worker') !== '1') {
+		throw new Error(
+			'Remote access service worker is not controlling WordPress requests.'
+		);
+	}
+	const data = await response.json();
+	return {
+		hasMapping: !!data.hasMapping,
+		clientId: typeof data.clientId === 'string' ? data.clientId : undefined,
+		interceptedRequests:
+			typeof data.interceptedRequests === 'number'
+				? data.interceptedRequests
+				: 0,
+		lastInterceptedPath:
+			typeof data.lastInterceptedPath === 'string'
+				? data.lastInterceptedPath
+				: null,
+	};
+}
+
+export function clearRemoteAccessRelayMapping(scope: string): void {
+	navigator.serviceWorker?.controller?.postMessage({
+		type: 'desktop-relay-clear',
+		scope,
+	});
+}
+
+export function getRemoteAccessRelayRequestMessage(
+	data: unknown,
+	sessionId: string
+): RemoteAccessRelayRequestMessage | null {
+	if (
+		typeof data !== 'object' ||
+		data === null ||
+		(data as { type?: unknown }).type !== 'desktop-relay-request' ||
+		(data as { sessionId?: unknown }).sessionId !== sessionId
+	) {
+		return null;
+	}
+	return data as RemoteAccessRelayRequestMessage;
+}
+
+export function postRemoteAccessRelayResponse(
+	port: MessagePort,
+	response: unknown
+): void {
+	port.postMessage({
+		type: 'desktop-relay-response',
+		response,
+	});
+}
+
+export function postRemoteAccessRelayError(
+	port: MessagePort,
+	error: string
+): void {
+	port.postMessage({
+		type: 'desktop-relay-error',
+		error,
+	});
+}

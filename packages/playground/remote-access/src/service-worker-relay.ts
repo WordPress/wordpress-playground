@@ -1,6 +1,8 @@
+/// <reference lib="WebWorker" />
+
 import { removeURLScope } from '@php-wasm/scopes';
 
-export type DesktopRelayMapping = {
+export type RemoteAccessRelayMapping = {
 	scope: string;
 	sessionId: string;
 	clientId?: string;
@@ -9,9 +11,9 @@ export type DesktopRelayMapping = {
 	expiresAt: number;
 };
 
-const desktopRelayMappings: Record<string, DesktopRelayMapping> = {};
+const remoteAccessRelayMappings: Record<string, RemoteAccessRelayMapping> = {};
 
-export function handleDesktopRelayMessage(
+export function handleRemoteAccessRelayMessage(
 	event: ExtendableMessageEvent
 ): boolean {
 	const data = event.data;
@@ -24,8 +26,8 @@ export function handleDesktopRelayMessage(
 		if (typeof scope !== 'string' || typeof sessionId !== 'string') {
 			return true;
 		}
-		const existing = desktopRelayMappings[scope];
-		desktopRelayMappings[scope] = {
+		const existing = remoteAccessRelayMappings[scope];
+		remoteAccessRelayMappings[scope] = {
 			scope,
 			sessionId,
 			clientId: getSourceClientId(event),
@@ -40,7 +42,7 @@ export function handleDesktopRelayMessage(
 		event.ports[0]?.postMessage({
 			type: 'desktop-relay-map-result',
 			ok: true,
-			clientId: desktopRelayMappings[scope].clientId,
+			clientId: remoteAccessRelayMappings[scope].clientId,
 		});
 		return true;
 	}
@@ -48,7 +50,7 @@ export function handleDesktopRelayMessage(
 	if (data.type === 'desktop-relay-clear') {
 		const { scope } = data as Record<string, unknown>;
 		if (typeof scope === 'string') {
-			delete desktopRelayMappings[scope];
+			delete remoteAccessRelayMappings[scope];
 		}
 		return true;
 	}
@@ -64,22 +66,22 @@ function getSourceClientId(event: ExtendableMessageEvent): string | undefined {
 	return undefined;
 }
 
-export function getDesktopRelayMapping(
+export function getRemoteAccessRelayMapping(
 	scope: string
-): DesktopRelayMapping | undefined {
-	const mapping = desktopRelayMappings[scope];
+): RemoteAccessRelayMapping | undefined {
+	const mapping = remoteAccessRelayMappings[scope];
 	if (!mapping) {
 		return;
 	}
 	if (mapping.expiresAt <= Date.now()) {
-		delete desktopRelayMappings[scope];
+		delete remoteAccessRelayMappings[scope];
 		return;
 	}
 	return mapping;
 }
 
-export function handleDesktopRelayProbe(scope: string): Response {
-	const mapping = getDesktopRelayMapping(scope);
+export function handleRemoteAccessRelayProbe(scope: string): Response {
+	const mapping = getRemoteAccessRelayMapping(scope);
 	return new Response(
 		JSON.stringify({
 			ok: true,
@@ -98,9 +100,9 @@ export function handleDesktopRelayProbe(scope: string): Response {
 	);
 }
 
-export async function handleDesktopRelayRequest(
+export async function handleRemoteAccessRelayRequest(
 	event: FetchEvent,
-	mapping: DesktopRelayMapping
+	mapping: RemoteAccessRelayMapping
 ) {
 	const requestId = crypto.randomUUID();
 	const unscopedUrl = removeURLScope(new URL(event.request.url));
@@ -145,7 +147,7 @@ export function collectHeaders(headers: Headers): Record<string, string> {
 }
 
 async function postRequestToDesktopClient(
-	mapping: DesktopRelayMapping,
+	mapping: RemoteAccessRelayMapping,
 	message: Record<string, unknown>
 ): Promise<{
 	status: number;
@@ -175,7 +177,7 @@ async function postRequestToDesktopClient(
 		}
 	});
 	if (!fallbackClient) {
-		throw new Error('Desktop relay page is not available');
+		throw new Error('Remote access page is not available');
 	}
 	return postRequestToClient(fallbackClient, message);
 }
@@ -195,7 +197,7 @@ function postRequestToClient(
 		body: Uint8Array;
 	}>((resolve, reject) => {
 		const timeout = setTimeout(() => {
-			reject(new Error('Desktop relay request timed out'));
+			reject(new Error('Remote access relay request timed out'));
 		}, 30000);
 		channel.port1.onmessage = (event) => {
 			clearTimeout(timeout);
@@ -204,7 +206,9 @@ function postRequestToClient(
 				resolve(data.response);
 				return;
 			}
-			reject(new Error(data?.error || 'Desktop relay request failed'));
+			reject(
+				new Error(data?.error || 'Remote access relay request failed')
+			);
 		};
 	});
 	client.postMessage(message, [channel.port2]);

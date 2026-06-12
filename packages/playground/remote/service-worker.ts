@@ -126,11 +126,11 @@ import {
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
 import {
-	getDesktopRelayMapping,
-	handleDesktopRelayMessage,
-	handleDesktopRelayProbe,
-	handleDesktopRelayRequest,
-} from './src/lib/desktop-relay';
+	getRemoteAccessRelayMapping,
+	handleRemoteAccessRelayMessage,
+	handleRemoteAccessRelayProbe,
+	handleRemoteAccessRelayRequest,
+} from '@wp-playground/remote-access';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -142,7 +142,7 @@ if (!(self as any).document) {
 }
 
 self.addEventListener('message', (event) => {
-	handleDesktopRelayMessage(event);
+	handleRemoteAccessRelayMessage(event);
 });
 
 /**
@@ -235,14 +235,16 @@ self.addEventListener('fetch', (event) => {
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
 		if (url.searchParams.has('desktop-relay-probe')) {
-			return event.respondWith(handleDesktopRelayProbe(scope));
+			return event.respondWith(handleRemoteAccessRelayProbe(scope));
 		}
-		const desktopRelayMapping = getDesktopRelayMapping(scope);
-		if (desktopRelayMapping) {
+		const remoteAccessRelayMapping = getRemoteAccessRelayMapping(scope);
+		if (remoteAccessRelayMapping) {
 			return event.respondWith(
-				handleDesktopRelayRequest(event, desktopRelayMapping).then(
-					(response) =>
-						applyCrossOriginIsolationHeaders(response, scope)
+				handleRemoteAccessRelayRequest(
+					event,
+					remoteAccessRelayMapping
+				).then((response) =>
+					applyCrossOriginIsolationHeaders(response, scope)
 				)
 			);
 		}
