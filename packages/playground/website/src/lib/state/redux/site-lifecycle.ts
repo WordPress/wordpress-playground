@@ -78,15 +78,16 @@ export function isExplicitlySavedSite(site: SiteInfo) {
 }
 
 /**
- * Indicates whether an interrupted first OPFS sync should be rebuilt.
+ * Indicates whether the restored site has an interrupted first OPFS sync.
  *
  * `initialOpfsSyncPending` is cleared only after a full MEMFS-to-OPFS copy.
- * While it remains set, the OPFS directory may contain enough files to look
- * installed but not enough to boot reliably.
+ * While it remains set on a site loaded from storage, the OPFS directory may
+ * contain enough files to look installed but not enough to boot reliably.
  */
-export function shouldResetInitialOpfsSync(site: SiteInfo) {
+export function hasInterruptedInitialOpfsSync(site: SiteInfo) {
 	return (
 		site.metadata.storage === 'opfs' &&
+		site.loadedFromStorage === true &&
 		site.metadata.initialOpfsSyncPending === true
 	);
 }

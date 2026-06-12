@@ -3,8 +3,8 @@ import {
 	getAutosavedSitesToPrune,
 	getSitePublicPersistence,
 	getSitesSortedByRecency,
+	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
-	shouldResetInitialOpfsSync,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 import type { SiteInfo } from './slice-sites';
@@ -135,26 +135,37 @@ describe('autosaved site helpers', () => {
 		).toBe(false);
 	});
 
-	it('resets only OPFS sites with a pending initial sync', () => {
+	it('identifies stored OPFS sites with an interrupted initial sync', () => {
 		expect(
-			shouldResetInitialOpfsSync(
+			hasInterruptedInitialOpfsSync(
 				createSite('pending-opfs', {
+					loadedFromStorage: true,
 					storage: 'opfs',
 					initialOpfsSyncPending: true,
 				})
 			)
 		).toBe(true);
 		expect(
-			shouldResetInitialOpfsSync(
+			hasInterruptedInitialOpfsSync(
+				createSite('fresh-pending-opfs', {
+					storage: 'opfs',
+					initialOpfsSyncPending: true,
+				})
+			)
+		).toBe(false);
+		expect(
+			hasInterruptedInitialOpfsSync(
 				createSite('finished-opfs', {
+					loadedFromStorage: true,
 					storage: 'opfs',
 					initialOpfsSyncPending: false,
 				})
 			)
 		).toBe(false);
 		expect(
-			shouldResetInitialOpfsSync(
+			hasInterruptedInitialOpfsSync(
 				createSite('temporary', {
+					loadedFromStorage: true,
 					storage: 'none',
 					initialOpfsSyncPending: true,
 				})
@@ -179,10 +190,13 @@ describe('site recency helpers', () => {
 
 function createSite(
 	slug: string,
-	metadata: Partial<SiteInfo['metadata']> = {}
+	options: Partial<SiteInfo['metadata']> &
+		Pick<Partial<SiteInfo>, 'loadedFromStorage'> = {}
 ): SiteInfo {
+	const { loadedFromStorage, ...metadata } = options;
 	return {
 		slug,
+		loadedFromStorage,
 		metadata: {
 			storage: 'opfs',
 			id: slug,

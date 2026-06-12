@@ -34,8 +34,6 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
-const INITIAL_OPFS_SYNC_COMPLETE_FILENAME =
-	'.wp-playground-initial-opfs-sync-complete';
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
@@ -215,33 +213,6 @@ class OpfsSiteStorage {
 		for (const name of namesToDelete) {
 			await siteDirectory.removeEntry(name, { recursive: true });
 		}
-	}
-
-	async markInitialOpfsSyncComplete(slug: string): Promise<void> {
-		const siteDirName = await this.findExistingSiteDirName(slug);
-		if (!siteDirName) {
-			throw new Error(`Site with slug '${slug}' does not exist.`);
-		}
-		await opfsWriteFile(
-			joinPaths(
-				OPFS_SITES_ROOT_PATH,
-				siteDirName,
-				INITIAL_OPFS_SYNC_COMPLETE_FILENAME
-			),
-			'1'
-		);
-	}
-
-	async isInitialOpfsSyncComplete(slug: string): Promise<boolean> {
-		const siteDirName = await this.findExistingSiteDirName(slug);
-		if (!siteDirName) {
-			throw new Error(`Site with slug '${slug}' does not exist.`);
-		}
-		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
-		return opfsFileExists(
-			siteDirectory,
-			INITIAL_OPFS_SYNC_COMPLETE_FILENAME
-		);
 	}
 
 	/**

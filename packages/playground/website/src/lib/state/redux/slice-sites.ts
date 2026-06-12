@@ -50,9 +50,9 @@ export {
 	getSiteRecencyTimestamp,
 	getSitesSortedByRecency,
 	getSitePublicPersistence,
+	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
 	isExplicitlySavedSite,
-	shouldResetInitialOpfsSync,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 export type {
@@ -68,6 +68,7 @@ const DEFAULT_BLUEPRINT =
  */
 export interface SiteInfo {
 	slug: string;
+	loadedFromStorage?: boolean;
 	originalUrlParams?: {
 		searchParams?: Record<string, string | string[]>;
 		hash?: string;
@@ -137,7 +138,10 @@ export const OPFSSitesLoaded = (sites: SiteInfo[]) => {
 		const currentSites = getState().sites.entities;
 		const allSites = { ...currentSites };
 		sites.forEach((site) => {
-			allSites[site.slug] = site;
+			allSites[site.slug] = {
+				...site,
+				loadedFromStorage: true,
+			};
 		});
 		dispatch(sitesSlice.actions.setSites(allSites));
 		dispatch(setOPFSSitesLoadingState('loaded'));

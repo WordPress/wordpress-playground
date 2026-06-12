@@ -3,12 +3,7 @@ import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
 	legacyOpfsPathSymbol,
-	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
-import {
-	isTraversableFilesystemBackend,
-	persistBlueprintBundle,
-} from '../opfs/opfs-blueprint-bundle-storage';
 import {
 	addClientInfo,
 	removeClientInfo,
@@ -23,10 +18,7 @@ import {
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
-import {
-	resolveRemoteBlueprint,
-	startPlaygroundWeb,
-} from '@wp-playground/client';
+import { startPlaygroundWeb } from '@wp-playground/client';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import {
@@ -38,9 +30,7 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
 	selectSiteBySlug,
-	shouldResetInitialOpfsSync,
-	type SiteInfo,
-	updateSite,
+	hasInterruptedInitialOpfsSync,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -56,7 +46,6 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
-import { applyQueryOverrides } from '../url/resolve-blueprint-from-url';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -70,7 +59,7 @@ export function bootSiteClient(
 		signal.onabort = () => {
 			dispatch(removeClientInfo(siteSlug));
 		};
-		let site = selectSiteBySlug(getState(), siteSlug);
+		const site = selectSiteBySlug(getState(), siteSlug);
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -107,23 +96,14 @@ export function bootSiteClient(
 			} as const;
 		}
 
-		const needsInitialOpfsSync = shouldResetInitialOpfsSync(site);
-		if (needsInitialOpfsSync) {
-			try {
-				site = await recoverInterruptedInitialOpfsSync(site, {
-					dispatch,
-					getState,
-				});
-			} catch (e) {
-				logger.error(e);
-				dispatch(
-					setActiveSiteError({
-						error: 'site-boot-failed',
-						details: e,
-					})
-				);
-				return;
-			}
+		const hasInterruptedSync = hasInterruptedInitialOpfsSync(site);
+		if (hasInterruptedSync) {
+			dispatch(
+				setActiveSiteError({
+					error: 'initial-opfs-sync-interrupted',
+				})
+			);
+			return;
 		}
 
 		let isWordPressInstalled = false;
@@ -205,7 +185,10 @@ export function bootSiteClient(
 		 * Only then, on subsequent boots, we can synchronize WordPress files
 		 * back from OPFS to MEMFS.
 		 */
-		const isFirstOpfsBoot = needsInitialOpfsSync && !isWordPressInstalled;
+		const isFirstOpfsBoot =
+			site.metadata.initialOpfsSyncPending === true &&
+			site.metadata.storage === 'opfs' &&
+			!isWordPressInstalled;
 		const mounts: MountDescriptor[] = [];
 		let mountDescriptorForInitialOpfsSync: typeof mountDescriptor =
 			undefined;
@@ -416,137 +399,6 @@ export function bootSiteClient(
 }
 
 /**
- * Restarts an interrupted first OPFS sync from the saved setup recipe.
- *
- * `initialOpfsSyncPending` means the OPFS copy never reached the point where
- * it could be trusted as a complete WordPress filesystem. A partial directory
- * can still contain `wp-config.php` and the SQLite database, so checking for
- * those files alone would boot from a corrupt snapshot. If the sync-complete
- * marker exists, only the metadata update was interrupted. Otherwise, drop the
- * partial files and let the normal first-boot path recreate WordPress.
- */
-async function recoverInterruptedInitialOpfsSync(
-	site: SiteInfo,
-	{
-		dispatch,
-		getState,
-	}: {
-		dispatch: PlaygroundDispatch;
-		getState: () => PlaygroundReduxState;
-	}
-) {
-	const storage = opfsSiteStorage;
-	if (!storage) {
-		throw new Error(
-			'Cannot recover interrupted OPFS sync because OPFS site storage is unavailable.'
-		);
-	}
-
-	site = await recoverRemoteBlueprintBundleIfNeeded(site, {
-		dispatch,
-		getState,
-	});
-	if (await storage.isInitialOpfsSyncComplete(site.slug)) {
-		await dispatch(
-			updateSiteMetadata({
-				slug: site.slug,
-				changes: {
-					initialOpfsSyncPending: false,
-					whenLastUsed: Date.now(),
-				},
-			})
-		);
-		return selectSiteBySlug(getState(), site.slug)!;
-	}
-
-	await storage.resetSiteFiles(site.slug);
-	return site;
-}
-
-async function recoverRemoteBlueprintBundleIfNeeded(
-	site: SiteInfo,
-	{
-		dispatch,
-		getState,
-	}: {
-		dispatch: PlaygroundDispatch;
-		getState: () => PlaygroundReduxState;
-	}
-) {
-	const source = site.metadata.originalBlueprintSource;
-	if (
-		source?.type !== 'remote-url' ||
-		isTraversableFilesystemBackend(site.metadata.originalBlueprint) ||
-		!hasBundledResource(site.metadata.originalBlueprint)
-	) {
-		return site;
-	}
-
-	const recoveredBlueprint = await applyQueryOverrides(
-		await resolveRemoteBlueprint(source.url),
-		originalUrlParamsToSearchParams(site.originalUrlParams)
-	);
-	if (!isTraversableFilesystemBackend(recoveredBlueprint)) {
-		return site;
-	}
-	await persistBlueprintBundle(site.slug, recoveredBlueprint);
-	await dispatch(
-		updateSite({
-			slug: site.slug,
-			changes: {
-				metadata: {
-					...site.metadata,
-					originalBlueprint: recoveredBlueprint,
-					originalBlueprintSource: {
-						type: 'opfs-site',
-					},
-				},
-			},
-		})
-	);
-	return selectSiteBySlug(getState(), site.slug)!;
-}
-
-function originalUrlParamsToSearchParams(
-	originalUrlParams: SiteInfo['originalUrlParams']
-) {
-	const searchParams = new URLSearchParams();
-	for (const [key, value] of Object.entries(
-		originalUrlParams?.searchParams ?? {}
-	)) {
-		const values = Array.isArray(value) ? value : [value];
-		for (const item of values) {
-			searchParams.append(key, item);
-		}
-	}
-	return searchParams;
-}
-
-function hasBundledResource(value: unknown) {
-	const stack = [value];
-	const seen = new WeakSet<object>();
-	while (stack.length) {
-		const current = stack.pop();
-		if (!current || typeof current !== 'object') {
-			continue;
-		}
-		if (seen.has(current)) {
-			continue;
-		}
-		seen.add(current);
-		if (Array.isArray(current)) {
-			stack.push(...current);
-			continue;
-		}
-		if ((current as { resource?: unknown }).resource === 'bundled') {
-			return true;
-		}
-		stack.push(...Object.values(current));
-	}
-	return false;
-}
-
-/**
  * Copies files created during a saved site's first boot from MEMFS into OPFS.
  *
  * The iframe is already usable when this runs. Redux keeps showing sync
@@ -590,13 +442,6 @@ async function syncInitialOpfsFilesInBackground({
 				);
 			}
 		);
-		const storage = opfsSiteStorage;
-		if (!storage) {
-			throw new Error(
-				'Cannot finish initial OPFS sync because OPFS site storage is unavailable.'
-			);
-		}
-		await storage.markInitialOpfsSyncComplete(siteSlug);
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,

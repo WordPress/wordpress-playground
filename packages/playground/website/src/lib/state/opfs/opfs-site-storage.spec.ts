@@ -89,26 +89,6 @@ describe('opfsSiteStorage', () => {
 		expect(loadPersistedBlueprintBundle).toHaveBeenCalledWith('bundle');
 		expect(site?.metadata.originalBlueprint).toBe(bundle);
 	});
-
-	it('tracks and clears the initial OPFS sync completion marker', async () => {
-		const sitesRoot = await getSitesRoot(opfsRoot);
-		const siteDirectory = await writeSiteMetadata(
-			sitesRoot,
-			'site-complete',
-			'complete'
-		);
-		siteDirectory.setFile('.wp-playground-initial-opfs-sync-complete', '1');
-
-		await expect(
-			storage.isInitialOpfsSyncComplete('complete')
-		).resolves.toBe(true);
-
-		await storage.resetSiteFiles('complete');
-
-		await expect(
-			storage.isInitialOpfsSyncComplete('complete')
-		).resolves.toBe(false);
-	});
 });
 
 async function getSitesRoot(opfsRoot: MemoryDirectoryHandle) {
@@ -131,7 +111,6 @@ async function writeSiteMetadata(
 			...createSiteMetadata(metadata),
 		})
 	);
-	return siteDirectory;
 }
 
 function createSiteMetadata(
@@ -199,18 +178,14 @@ class MemoryDirectoryHandle {
 		throw createDomException('NotFoundError');
 	}
 
-	async removeEntry(name: string) {
-		if (!this.children.delete(name)) {
-			throw createDomException('NotFoundError');
-		}
-	}
-
 	async *values() {
 		yield* this.children.values();
 	}
 
-	async *entries() {
-		yield* this.children.entries();
+	async removeEntry(name: string) {
+		if (!this.children.delete(name)) {
+			throw createDomException('NotFoundError');
+		}
 	}
 
 	setFile(name: string, content: string) {
