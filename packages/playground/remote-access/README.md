@@ -1,7 +1,7 @@
 # WordPress Playground Remote Access
 
 Private workspace package for sharing Remote Access transport code between
-Personal WP and future website integrations.
+packages.
 
 Remote Access lets one browser open a WordPress Playground runtime that is
 already running in another browser. The PHP relay is only used for rendezvous,
@@ -9,8 +9,8 @@ heartbeats, and WebRTC signaling. WordPress HTTP requests, responses, and backup
 data flow over a direct WebRTC `RTCDataChannel`.
 
 This package is intentionally private. It is not a published npm API yet, but it
-keeps the transport and routing code out of `personal-wp` so the website package
-can reuse the same pieces without copying them.
+keeps the transport and routing code out of `personal-wp` so other packages can
+reuse the same pieces without copying them.
 
 ## What Lives Here
 
@@ -26,9 +26,9 @@ can reuse the same pieces without copying them.
 - Shared tunnel utilities for attempt-scoped signals, verification codes, backup
   filenames, and ICE candidate buffering.
 
-## Required Pieces For A Website Integration
+## Using This Package
 
-A website integration needs to provide four app-specific pieces around this
+A consuming package needs to provide four app-specific pieces around this
 package:
 
 1. A deployed copy of `relay.php` at `/relay/*`, backed by the Remote Access
@@ -43,7 +43,8 @@ package:
 
 The package does not provide React components. Personal WP has the current UI
 implementation in `packages/playground/personal-wp/src/components/remote-access-*`.
-Use that code as an integration example rather than as shared API.
+Use that code as a reference for package-specific screens rather than as shared
+API.
 
 ## Server Relay
 
