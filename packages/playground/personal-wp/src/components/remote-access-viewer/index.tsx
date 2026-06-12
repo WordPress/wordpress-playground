@@ -240,7 +240,6 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 		let cancelled = false;
 		let interval: ReturnType<typeof setInterval> | null = null;
-		let probeInterval: ReturnType<typeof setInterval> | null = null;
 
 		const configureServiceWorker = async () => {
 			const serviceWorkerUrl = new URL(
@@ -268,10 +267,6 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			interval = setInterval(
 				() => refreshRemoteAccessRelayMapping(registration),
 				SERVICE_WORKER_RELAY_REFRESH_MS
-			);
-			probeInterval = setInterval(
-				() => refreshServiceWorkerProbe().catch(() => {}),
-				3000
 			);
 			registration.update().catch(() => {});
 		};
@@ -328,9 +323,6 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			setServiceWorkerReady(false);
 			if (interval !== null) {
 				clearInterval(interval);
-			}
-			if (probeInterval !== null) {
-				clearInterval(probeInterval);
 			}
 			window.removeEventListener('pagehide', clearRemoteAccessRelay);
 			clearRemoteAccessRelay();
