@@ -37,5 +37,8 @@
 	"types": "index.d.ts",
 	"dependencies": {
 		"pako": "^1.0.10"
+	},
+	"publishedDependencies": {
+		"crc-32": "1.2.2"
 	}
 }
