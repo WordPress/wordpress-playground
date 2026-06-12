@@ -4,8 +4,10 @@
  *
  * This file is only a rendezvous/signaling service for the direct WebRTC
  * remote access tunnel. It stores session metadata plus small WebRTC messages
- * (offer, answer, ICE candidates, heartbeat, retry request). WordPress HTTP
- * requests and responses are not proxied through this PHP file.
+ * (offer, answer, ICE candidates, heartbeat, retry request). In WebRTC, ICE
+ * means Interactive Connectivity Establishment: the browser process for
+ * discovering candidate network paths between peers. WordPress HTTP requests
+ * and responses are not proxied through this PHP file.
  *
  * The six-digit code is a rendezvous hint, not an authorization grant. The
  * remote device still needs to open a direct WebRTC data channel and the host
