@@ -353,7 +353,11 @@
 	border-color: #8fa1ff;
 }
 
-.showMoreButton {
+.keepButtonCompactText {
+	display: none;
+}
+
+.viewAllPlaygroundsButton {
 	align-items: center;
 	background: transparent;
 	border: 1px solid #3c4349;
@@ -367,7 +371,7 @@
 	padding: 8px 12px;
 }
 
-.showMoreButton:hover {
+.viewAllPlaygroundsButton:hover {
 	background: #2c3338;
 	color: #fff;
 }
@@ -585,16 +589,19 @@
 }
 
 .playgroundsOverlay.playgroundsOverlay {
-	--playgrounds-overlay-top: 50px;
+	--playgrounds-overlay-top: 36px;
+	--playgrounds-close-button-top: 24px;
 	--playgrounds-close-button-offset: 20px;
 	--playgrounds-body-top-padding: calc(
 		var(--playgrounds-close-button-offset) + 52px
 	);
-	top: var(--playgrounds-overlay-top);
+	overscroll-behavior: none;
 }
 
 .playgroundsContent.playgroundsContent {
+	box-sizing: border-box;
 	max-width: none;
+	padding-top: var(--playgrounds-overlay-top);
 }
 
 .playgroundsBody.playgroundsBody {
@@ -603,9 +610,10 @@
 
 .playgroundsCloseButton {
 	align-items: center;
-	background: transparent;
+	background: #1e2327;
 	border: none;
 	border-radius: 4px;
+	box-shadow: 0 0 0 12px #1e2327;
 	color: #949494;
 	cursor: pointer;
 	display: flex;
@@ -613,14 +621,12 @@
 	padding: 4px;
 	position: fixed;
 	right: 24px;
-	top: calc(
-		var(--playgrounds-overlay-top) + var(--playgrounds-close-button-offset)
-	);
+	top: var(--playgrounds-close-button-top);
 	z-index: 101;
 }
 
 .playgroundsCloseButton:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: #2c3338;
 	color: #fff;
 }
 
@@ -632,9 +638,14 @@
 	align-items: start;
 	column-gap: clamp(48px, 9.5vw, 137px);
 	display: grid;
-	grid-template-columns: minmax(420px, 710px) minmax(420px, 492px);
-	margin-bottom: 96px;
+	row-gap: 28px;
+	grid-template-columns: minmax(420px, 492px) minmax(420px, 710px);
+	margin: 0 auto;
 	max-width: 1339px;
+}
+
+.playgroundsColumns > * {
+	min-width: 0;
 }
 
 .playgroundsSection {
@@ -645,6 +656,10 @@
 	font-size: clamp(24px, 2.2vw, 28px) !important;
 	line-height: 1.2 !important;
 	margin-bottom: 18px !important;
+}
+
+.playgroundsColumns .playgroundsSection h2 {
+	text-align: center;
 }
 
 .playgroundsList .siteRowContent {
@@ -677,6 +692,12 @@
 
 .playgroundsList .siteRowMenu {
 	margin-right: 16px;
+}
+
+.playgroundsList {
+	max-height: 273px;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
 }
 
 .playgroundsSection .creationRow {
@@ -715,8 +736,12 @@
 .blueprintsSection .blueprintsRow {
 	display: grid;
 	gap: 24px 20px;
-	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 	padding: 0 8px 16px 0;
+}
+
+.blueprintsSection {
+	grid-column: 1 / -1;
 }
 
 .blueprintsSection .blueprintPreviewCard {
@@ -735,7 +760,7 @@
 @media (max-width: 1050px) {
 	.playgroundsColumns {
 		column-gap: 48px;
-		grid-template-columns: minmax(380px, 1fr) minmax(360px, 440px);
+		grid-template-columns: minmax(360px, 440px) minmax(380px, 1fr);
 	}
 
 	.playgroundsSection .creationTitle {
@@ -745,9 +770,22 @@
 
 @media (max-width: 875px) {
 	.playgroundsColumns {
-		gap: 48px;
+		gap: 40px;
 		grid-template-columns: 1fr;
-		margin-bottom: 64px;
+	}
+
+	.blueprintsSection {
+		order: 3;
+	}
+
+	.yourPlaygroundsSection {
+		order: 2;
+	}
+
+	.playgroundsList {
+		max-height: none;
+		overflow-y: visible;
+		scrollbar-gutter: auto;
 	}
 
 	.playgroundsSection .creationRow {
@@ -758,11 +796,52 @@
 		gap: 8px;
 		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 	}
+
+	.blueprintsSection .blueprintPreviewCard {
+		align-items: center;
+		background: none;
+		border: none;
+		flex-direction: column;
+		gap: 8px;
+		overflow: visible;
+		padding: 0;
+	}
+
+	.blueprintsSection .blueprintPreviewThumbnail {
+		aspect-ratio: 4 / 3;
+		border: 2px solid #3c4349;
+		border-radius: 8px;
+		height: auto;
+		width: 100% !important;
+	}
+
+	.blueprintsSection .blueprintPreviewTitle {
+		font-size: 16px;
+		text-align: center;
+		white-space: normal;
+	}
 }
 
 @media (max-width: 640px) {
+	.playgroundsOverlay.playgroundsOverlay {
+		--playgrounds-overlay-top: 24px;
+		--playgrounds-close-button-top: calc(
+			var(--playgrounds-overlay-top) +
+				var(--playgrounds-close-button-offset)
+		);
+		--playgrounds-close-button-offset: 16px;
+	}
+
 	.playgroundsBody.playgroundsBody {
 		padding: var(--playgrounds-body-top-padding) 20px 48px;
+	}
+
+	.playgroundsCloseButton {
+		right: 8px;
+	}
+
+	.playgroundsColumns {
+		gap: 32px;
 	}
 
 	.playgroundsList .siteRowContent {
@@ -787,14 +866,46 @@
 		font-size: 13px;
 	}
 
+	.keepButtonFullText {
+		display: none;
+	}
+
+	.keepButtonCompactText {
+		display: inline;
+	}
+
 	.playgroundsSection .creationRow {
+		gap: 8px;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.playgroundsSection .creationButton {
+		min-height: 86px;
+		padding: 10px 6px;
+	}
+
+	.playgroundsSection .creationIcon {
+		height: 30px;
+		width: 30px;
+	}
+
+	.playgroundsSection .creationIcon :global(svg) {
+		height: 24px;
+		width: 24px;
+	}
+
+	.playgroundsSection .newPlaygroundIcon :global(svg) {
+		height: 28px;
+		width: 28px;
+	}
+
+	.playgroundsSection .creationTitle {
+		font-size: 14px;
 	}
 }
 
 @media (max-width: 500px) {
 	.playgroundsOverlay.playgroundsOverlay {
-		--playgrounds-overlay-top: 96px;
 		--playgrounds-close-button-offset: 16px;
 	}
 }

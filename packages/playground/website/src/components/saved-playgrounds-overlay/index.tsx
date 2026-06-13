@@ -44,10 +44,8 @@ import {
 	OverlaySection,
 } from '../overlay';
 
-/**
- * Maximum stored Playgrounds to show before collapsing the list.
- */
-const MAX_VISIBLE_STORED_SITES = 8;
+const COMPACT_LAYOUT_QUERY = '(max-width: 875px)';
+const MAX_VISIBLE_COMPACT_STORED_SITES = 2;
 
 type BlueprintsIndexEntry = {
 	title: string;
@@ -64,6 +62,30 @@ export type OverlayViewMode = 'main' | 'blueprints';
 interface SavedPlaygroundsOverlayProps {
 	onClose: () => void;
 	initialViewMode?: OverlayViewMode;
+}
+
+function useIsCompactLayout() {
+	const [isCompactLayout, setIsCompactLayout] = useState(() => {
+		return (
+			typeof window !== 'undefined' &&
+			window.matchMedia(COMPACT_LAYOUT_QUERY).matches
+		);
+	});
+
+	useEffect(() => {
+		const mediaQuery = window.matchMedia(COMPACT_LAYOUT_QUERY);
+		const updateIsCompactLayout = () => {
+			setIsCompactLayout(mediaQuery.matches);
+		};
+
+		updateIsCompactLayout();
+		mediaQuery.addEventListener('change', updateIsCompactLayout);
+		return () => {
+			mediaQuery.removeEventListener('change', updateIsCompactLayout);
+		};
+	}, []);
+
+	return isCompactLayout;
 }
 
 function PullRequestIcon() {
@@ -100,6 +122,7 @@ export function SavedPlaygroundsOverlay({
 	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
 		string | null
 	>(null);
+	const isCompactLayout = useIsCompactLayout();
 
 	useEffect(() => {
 		if (
@@ -363,12 +386,6 @@ export function SavedPlaygroundsOverlay({
 		},
 	];
 
-	const visibleStoredSites = showAllStoredSites
-		? storedSites
-		: storedSites.slice(0, MAX_VISIBLE_STORED_SITES);
-	const hiddenStoredSitesCount =
-		storedSites.length - visibleStoredSites.length;
-
 	function formatSiteCreatedDate(site: SiteInfo) {
 		return site.metadata.whenCreated
 			? new Date(site.metadata.whenCreated).toLocaleDateString(
@@ -424,9 +441,15 @@ export function SavedPlaygroundsOverlay({
 								type="button"
 								className={css.keepButton}
 								onClick={() => openSaveModalForSite(site)}
+								aria-label="Store this Playground permanently"
 								title="Store this Playground permanently so it is not pruned from recent autosaves."
 							>
-								Store permanently
+								<span className={css.keepButtonFullText}>
+									Store permanently
+								</span>
+								<span className={css.keepButtonCompactText}>
+									Keep
+								</span>
 							</button>
 						)}
 						<DropdownMenu
@@ -486,6 +509,12 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	function renderYourPlaygroundsSection() {
+		const visibleStoredSites =
+			isCompactLayout && !showAllStoredSites
+				? storedSites.slice(0, MAX_VISIBLE_COMPACT_STORED_SITES)
+				: storedSites;
+		const hiddenStoredSitesCount =
+			storedSites.length - visibleStoredSites.length;
 		const visibleSites = [
 			...(temporarySite ? [temporarySite] : []),
 			...visibleStoredSites,
@@ -494,7 +523,10 @@ export function SavedPlaygroundsOverlay({
 		return (
 			<OverlaySection
 				title="Your Playgrounds"
-				className={css.playgroundsSection}
+				className={classNames(
+					css.playgroundsSection,
+					css.yourPlaygroundsSection
+				)}
 			>
 				{visibleSites.length === 0 ? (
 					<p className={css.emptyMessage}>
@@ -510,19 +542,26 @@ export function SavedPlaygroundsOverlay({
 						{visibleSites.map(renderSiteRow)}
 					</div>
 				)}
-				{hiddenStoredSitesCount > 0 && (
+				{isCompactLayout && hiddenStoredSitesCount > 0 && (
 					<button
 						type="button"
-						className={css.showMoreButton}
-						onClick={() =>
-							setShowAllStoredSites(!showAllStoredSites)
-						}
+						className={css.viewAllPlaygroundsButton}
+						onClick={() => setShowAllStoredSites(true)}
 					>
-						{showAllStoredSites
-							? 'Show fewer Playgrounds'
-							: `Show ${hiddenStoredSitesCount} more Playgrounds`}
+						View all
 					</button>
 				)}
+				{isCompactLayout &&
+					showAllStoredSites &&
+					storedSites.length > MAX_VISIBLE_COMPACT_STORED_SITES && (
+						<button
+							type="button"
+							className={css.viewAllPlaygroundsButton}
+							onClick={() => setShowAllStoredSites(false)}
+						>
+							Show fewer
+						</button>
+					)}
 			</OverlaySection>
 		);
 	}
@@ -726,7 +765,6 @@ export function SavedPlaygroundsOverlay({
 			</button>
 			<OverlayBody className={css.playgroundsBody}>
 				<div className={css.playgroundsColumns}>
-					{renderYourPlaygroundsSection()}
 					<OverlaySection
 						title="Start a new Playground"
 						className={css.playgroundsSection}
@@ -771,62 +809,70 @@ export function SavedPlaygroundsOverlay({
 							})}
 						</div>
 					</OverlaySection>
-				</div>
+					{renderYourPlaygroundsSection()}
 
-				<OverlaySection
-					title="Start from a Blueprint"
-					className={classNames(
-						css.playgroundsSection,
-						css.blueprintsSection
-					)}
-				>
-					{blueprintsLoading ? (
-						<div className={css.loadingContainer}>
-							<Spinner />
-						</div>
-					) : blueprintsError ? (
-						<p className={css.emptyMessage}>
-							Unable to load blueprints. Check your connection.
-						</p>
-					) : (
-						<div className={css.blueprintsRow}>
-							{allBlueprints.map((blueprint) => (
-								<button
-									key={blueprint.path}
-									className={css.blueprintPreviewCard}
-									onClick={() =>
-										previewBlueprint(blueprint.path)
-									}
-								>
-									<div
-										className={
-											css.blueprintPreviewThumbnail
+					<OverlaySection
+						title="Start from a Blueprint"
+						className={classNames(
+							css.playgroundsSection,
+							css.blueprintsSection
+						)}
+					>
+						{blueprintsLoading ? (
+							<div className={css.loadingContainer}>
+								<Spinner />
+							</div>
+						) : blueprintsError ? (
+							<p className={css.emptyMessage}>
+								Unable to load blueprints. Check your
+								connection.
+							</p>
+						) : (
+							<div className={css.blueprintsRow}>
+								{allBlueprints.map((blueprint) => (
+									<button
+										key={blueprint.path}
+										className={css.blueprintPreviewCard}
+										onClick={() =>
+											previewBlueprint(blueprint.path)
 										}
 									>
-										{blueprint.screenshot_url ? (
-											<img
-												src={blueprint.screenshot_url}
-												alt=""
-												loading="lazy"
-											/>
-										) : (
-											<div
-												className={
-													css.blueprintPlaceholder
-												}
-											>
-												<WordPressIcon />
-											</div>
-										)}
-									</div>
-									<span className={css.blueprintPreviewTitle}>
-										{blueprint.title}
-									</span>
-								</button>
-							))}
-						</div>
-					)}
-				</OverlaySection>
+										<div
+											className={
+												css.blueprintPreviewThumbnail
+											}
+										>
+											{blueprint.screenshot_url ? (
+												<img
+													src={
+														blueprint.screenshot_url
+													}
+													alt=""
+													loading="lazy"
+												/>
+											) : (
+												<div
+													className={
+														css.blueprintPlaceholder
+													}
+												>
+													<WordPressIcon />
+												</div>
+											)}
+										</div>
+										<span
+											className={
+												css.blueprintPreviewTitle
+											}
+										>
+											{blueprint.title}
+										</span>
+									</button>
+								))}
+							</div>
+						)}
+					</OverlaySection>
+				</div>
 			</OverlayBody>
 		</Overlay>
 	);
