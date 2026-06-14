@@ -1014,7 +1014,7 @@ test.describe('Default Playground storage', () => {
 			})
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', { name: /Import \.zip/ })
+			website.page.getByRole('button', { name: /Import.*\.zip/ })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved Playground' })

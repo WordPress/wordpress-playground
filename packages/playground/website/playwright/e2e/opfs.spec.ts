@@ -652,6 +652,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
+	await website.page.getByRole('button', { name: 'New Playground' }).click();
 
 	const importZipButton = website.page.getByRole('button', {
 		name: 'Import a .zip',
