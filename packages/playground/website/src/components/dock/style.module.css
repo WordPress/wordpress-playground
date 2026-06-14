@@ -162,6 +162,28 @@
 	font-weight: 400;
 }
 
+.rename-playground {
+	background: transparent;
+	border: 0;
+	color: #3858e9;
+	cursor: pointer;
+	font: inherit;
+	font-weight: 600;
+	margin-left: 8px;
+	padding: 2px 0;
+}
+
+.rename-playground:hover {
+	color: #2145e6;
+	text-decoration: underline;
+}
+
+.rename-playground:focus-visible {
+	border-radius: 2px;
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
 .pane-header p:last-child {
 	color: #5f5b54;
 	font-size: 15px;

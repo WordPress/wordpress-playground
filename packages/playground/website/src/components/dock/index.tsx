@@ -7,8 +7,11 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import {
+	modalSlugs,
+	setActiveModal,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setSiteSlugToRename,
 } from '../../lib/state/redux/slice-ui';
 import {
 	useActiveSite,
@@ -140,6 +143,7 @@ export function Dock() {
 		activeSite?.metadata.storage === 'none'
 			? 'Unsaved Playground'
 			: activeSite?.metadata.name;
+	const canRenameActiveSite = activeSite?.metadata.storage !== 'none';
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -161,6 +165,14 @@ export function Dock() {
 		}
 		dispatch(setSiteManagerSection(section));
 		dispatch(setSiteManagerOpen(true));
+	};
+
+	const openRenameModal = () => {
+		if (!activeSite) {
+			return;
+		}
+		dispatch(setSiteSlugToRename(activeSite.slug));
+		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
 	};
 
 	return (
@@ -202,6 +214,16 @@ export function Dock() {
 											activeSite
 										)}
 									</span>
+									{canRenameActiveSite && (
+										<button
+											type="button"
+											className={css.renamePlayground}
+											aria-label="Rename Playground"
+											onClick={openRenameModal}
+										>
+											Rename
+										</button>
+									)}
 								</p>
 							)}
 						<p>{paneCopy.description}</p>
