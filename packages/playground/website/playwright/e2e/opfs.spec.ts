@@ -44,9 +44,14 @@ async function saveSiteViaModal(
 ) {
 	const { customName, storageType = 'opfs' } = options || {};
 
-	// The site manager remembers the last selected tab. The save notice only
-	// lives on the Settings tab, so select it before looking for the button.
-	await page.getByRole('tab', { name: 'Settings' }).click();
+	// The site manager remembers the last selected section. The save notice only
+	// lives in Settings, so select it before looking for the button.
+	const settingsButton = page.getByRole('button', {
+		name: /Site Manager/,
+	});
+	if ((await settingsButton.getAttribute('aria-pressed')) !== 'true') {
+		await settingsButton.click();
+	}
 
 	// Click the "Save site locally" button in the temporary site notice to open the modal.
 	// This button is in the site manager panel and triggers the save flow via SitePersistButton.
