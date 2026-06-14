@@ -139,6 +139,8 @@ export function Dock() {
 	const paneRef = useRef<HTMLElement>(null);
 	const normalizedSection = normalizeSection(activeSection);
 	const paneCopy = PANE_COPY[normalizedSection];
+	const isEditorSection =
+		normalizedSection === 'blueprint' || normalizedSection === 'files';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
 			? 'Unsaved Playground'
@@ -191,7 +193,9 @@ export function Dock() {
 			>
 				<section
 					ref={paneRef}
-					className={classNames(css.pane, css.overlayCompat)}
+					className={classNames(css.pane, css.overlayCompat, {
+						[css.paneEditor]: isEditorSection,
+					})}
 					aria-label={`${paneCopy.title} pane`}
 				>
 					<div className={css.paneHeader}>
