@@ -20,13 +20,6 @@
 	<body>
 		<script>
 			const params = new URLSearchParams(window.location.search);
-			/*
-			 * Chromium can crash its renderer when some app pages navigate this
-			 * already-loaded remote iframe. Replacing the inner iframe avoids that
-			 * compositor crash, observed in Chrome 149 and 151, while leaving
-			 * Safari/Firefox on normal navigation.
-			 */
-			const shouldReplaceFrameOnNavigation = isChromiumBrowser();
 			let wpFrame = createWordPressFrame();
 
 			function getScopedUrl() {
@@ -49,7 +42,6 @@
 					if (href === 'about:blank') {
 						return;
 					}
-					installNavigationInterceptors(frame);
 					postToParent({
 						type: 'remote-access-frame-load',
 						href,
@@ -57,63 +49,6 @@
 				});
 				document.body.appendChild(frame);
 				return frame;
-			}
-
-			function replaceWordPressFrame(scopedUrl) {
-				const previousFrame = wpFrame;
-				wpFrame = createWordPressFrame();
-				wpFrame.src = scopedUrl;
-				previousFrame.remove();
-			}
-
-			function installNavigationInterceptors(frame) {
-				if (!shouldReplaceFrameOnNavigation) {
-					return;
-				}
-				let doc;
-				try {
-					doc = frame.contentDocument;
-				} catch {
-					return;
-				}
-				if (!doc || doc.__remoteAccessNavigationIntercepted) {
-					return;
-				}
-				doc.__remoteAccessNavigationIntercepted = true;
-				doc.addEventListener(
-					'click',
-					(event) => {
-						if (
-							event.defaultPrevented ||
-							event.button !== 0 ||
-							event.metaKey ||
-							event.ctrlKey ||
-							event.shiftKey ||
-							event.altKey
-						) {
-							return;
-						}
-						const link = event.target?.closest?.('a[href]');
-						if (!link || link.hasAttribute('download')) {
-							return;
-						}
-						const target = link.getAttribute('target');
-						if (target && target.toLowerCase() !== '_self') {
-							return;
-						}
-						const href = link.getAttribute('href');
-						if (!href || href.startsWith('#')) {
-							return;
-						}
-						const targetUrl = normalizeScopedUrl(link.href);
-						if (!targetUrl) {
-							return;
-						}
-						event.preventDefault();
-						replaceWordPressFrame(targetUrl);
-					},
-					true
-				);
 			}
 
 			function normalizeScopedUrl(src) {
@@ -138,21 +73,6 @@
 				}
 				const url = new URL(src, window.location.href);
 				return url.pathname.match(/^\/scope:[^/]+/)?.[0] || null;
-			}
-
-			function isChromiumBrowser() {
-				if (/\b(CriOS|EdgiOS|FxiOS)\b/.test(navigator.userAgent)) {
-					return false;
-				}
-				const brands = navigator.userAgentData?.brands || [];
-				if (
-					brands.some(({ brand }) =>
-						/Chromium|Google Chrome|Microsoft Edge/i.test(brand)
-					)
-				) {
-					return true;
-				}
-				return /\b(Chrome|Chromium|Edg)\//.test(navigator.userAgent);
 			}
 
 			function postToParent(data) {
