@@ -26,6 +26,10 @@ export default function BrowserChrome({
 	const activeSite = useActiveSite();
 	const showAddressBar = !!clientInfo;
 	const url = clientInfo?.url;
+	const playgroundTitle =
+		activeSite?.metadata.storage === 'none'
+			? 'Unsaved Playground'
+			: activeSite?.metadata.name;
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
@@ -47,6 +51,15 @@ export default function BrowserChrome({
 							}
 						/>
 					</div>
+
+					{playgroundTitle && (
+						<span
+							className={css.playgroundTitle}
+							aria-label="Playground title"
+						>
+							{playgroundTitle}
+						</span>
+					)}
 
 					{!isSavingDisabled && <SaveStatusIndicator />}
 
