@@ -201,10 +201,7 @@ export function Dock() {
 							playgroundTitle &&
 							normalizedSection !== 'new' && (
 								<p className={css.currentPlayground}>
-									Current:{' '}
-									<span aria-label="Playground title">
-										{playgroundTitle}
-									</span>
+									Current: <span>{playgroundTitle}</span>
 									<span
 										className={css.currentPlaygroundStorage}
 									>
