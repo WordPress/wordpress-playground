@@ -760,9 +760,9 @@ test.describe('Default Playground storage', () => {
 			null
 		);
 		await expect(website.page.getByText('Autosaving')).toHaveCount(0);
-		await expect(
-			website.page.getByText('Finalizing autosave')
-		).toHaveCount(0);
+		await expect(website.page.getByText('Finalizing autosave')).toHaveCount(
+			0
+		);
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toHaveCount(0);
@@ -791,9 +791,9 @@ test.describe('Default Playground storage', () => {
 				}
 			)
 		);
-		expect(
-			saveStatusSamples.some(({ text }) => text === 'Autosaved')
-		).toBe(true);
+		expect(saveStatusSamples.some(({ text }) => text === 'Autosaved')).toBe(
+			true
+		);
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
 		).toBe(false);
@@ -973,7 +973,7 @@ test.describe('Default Playground storage', () => {
 			.toBe(1);
 	});
 
-	test('should show intent-driven creation actions in the overlay', async ({
+	test('should show intent-driven creation actions in the New pane', async ({
 		website,
 		browserName,
 	}) => {
@@ -989,36 +989,39 @@ test.describe('Default Playground storage', () => {
 			website.page.url()
 		).searchParams.get('site-slug');
 		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.getByRole('button', { name: 'New Playground' })
+			.click();
 		await expect(
-			website.page.getByRole('button', { name: 'New Playground' })
+			website.page.getByRole('button', { name: /Vanilla WordPress/ })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', {
-				name: 'Preview a WordPress PR',
+				name: /WordPress PR/,
 			})
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', {
-				name: 'Preview a Gutenberg PR',
+				name: /Gutenberg PR/,
 			})
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', { name: 'Import from GitHub' })
+			website.page.getByRole('button', { name: /Import from GitHub/ })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', {
-				name: 'Open a Blueprint URL',
+				name: /Blueprint URL/,
 			})
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', { name: 'Import a .zip' })
+			website.page.getByRole('button', { name: /Import \.zip/ })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved Playground' })
 		).toHaveCount(0);
 
 		await website.page
-			.getByRole('button', { name: 'Import from GitHub' })
+			.getByRole('button', { name: /Import from GitHub/ })
 			.click();
 		await expect(
 			website.page.getByRole('dialog', { name: 'Import from GitHub' })
@@ -1124,9 +1127,7 @@ test.describe('Default Playground storage', () => {
 		const firstSite = await getActivePlaygroundSite(website.page);
 
 		await website.openSavedPlaygroundsOverlay();
-		await website.page
-			.getByRole('button', { name: 'New Playground' })
-			.click();
+		await website.startNewVanillaPlayground();
 		const overlay = website.page
 			.locator('[class*="overlay"]')
 			.filter({ hasText: 'Playground' });
@@ -1142,9 +1143,7 @@ test.describe('Default Playground storage', () => {
 		const firstBlankSite = await getActivePlaygroundSite(website.page);
 
 		await website.openSavedPlaygroundsOverlay();
-		await website.page
-			.getByRole('button', { name: 'New Playground' })
-			.click();
+		await website.startNewVanillaPlayground();
 		await expect(overlay).not.toBeVisible({ timeout: 1000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
