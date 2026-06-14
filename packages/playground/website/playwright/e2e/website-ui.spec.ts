@@ -268,11 +268,10 @@ test('should edit a file in the code editor and see changes in the viewport', as
 }) => {
 	await website.goto('./?storage=temp');
 
-	// Open site manager
-	await website.ensureSiteManagerIsOpen();
-
-	// Navigate to File Browser tab
-	await website.page.getByRole('tab', { name: 'File Browser' }).click();
+	await website.page.getByRole('button', { name: 'Files' }).click();
+	await expect(
+		website.page.locator('section[aria-label="Files pane"]')
+	).toBeVisible();
 
 	// Wait for file tree to load
 	await website.page.locator('[data-path="/wordpress"]').waitFor();
@@ -348,11 +347,12 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 }) => {
 	await website.goto('./?storage=temp');
 
-	// Open site manager
-	await website.ensureSiteManagerIsOpen();
-
-	// Navigate to Blueprint tab
-	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+	await website.page
+		.getByRole('button', { name: 'Current Blueprint' })
+		.click();
+	await expect(
+		website.page.locator('section[aria-label="Current Blueprint pane"]')
+	).toBeVisible();
 
 	// Create a simple blueprint that writes "Blueprint test" to index.php
 	const blueprint: Blueprint = {
@@ -399,11 +399,12 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 
 	await website.goto('./?storage=temp');
 
-	// Open site manager
-	await website.ensureSiteManagerIsOpen();
-
-	// Navigate to Blueprint tab
-	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+	await website.page
+		.getByRole('button', { name: 'Current Blueprint' })
+		.click();
+	await expect(
+		website.page.locator('section[aria-label="Current Blueprint pane"]')
+	).toBeVisible();
 
 	// Wait for CodeMirror editor to load
 	const editor = website.page.locator(
@@ -447,51 +448,43 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	expect(Array.isArray(decodedBlueprint.steps)).toBe(true);
 });
 
-test('should make every Site Manager tab reachable on mobile', async ({
-	website,
-}) => {
+test('should make every dock pane reachable on mobile', async ({ website }) => {
 	await website.page.setViewportSize({ width: 390, height: 844 });
 	await website.goto('./');
-	await website.ensureSiteManagerIsOpen();
 
-	const siteManager = website.page.locator(
-		'section[class*="site-info-panel"]'
-	);
-	await expect(siteManager).toBeVisible();
+	const dockPanes = [
+		{ buttonName: /Site Manager/, paneLabel: 'Settings pane' },
+		{ buttonName: 'Database', paneLabel: 'Database pane' },
+		{ buttonName: 'Files', paneLabel: 'Files pane' },
+		{
+			buttonName: 'Current Blueprint',
+			paneLabel: 'Current Blueprint pane',
+		},
+		{ buttonName: 'Logs', paneLabel: 'Logs pane' },
+		{ buttonName: 'Share and export', paneLabel: 'Share and export pane' },
+		{ buttonName: 'Your Playgrounds', paneLabel: 'Your Playgrounds pane' },
+		{ buttonName: 'New Playground', paneLabel: 'New Playground pane' },
+	];
 
-	const tabList = siteManager.locator('.components-tab-panel__tabs');
-	await expect(tabList).toBeVisible();
-
-	const logsTab = siteManager.getByRole('tab', { name: 'Logs' });
-	await expect(logsTab).toHaveCount(1);
-
-	await tabList.evaluate((element) => {
-		const logsTab = Array.from(
-			element.querySelectorAll<HTMLElement>('[role="tab"]')
-		).find((tab) => tab.textContent?.trim() === 'Logs');
-		if (!logsTab) {
-			throw new Error('Logs tab not found');
-		}
-
-		logsTab.scrollIntoView({ block: 'nearest', inline: 'end' });
-	});
-
-	await expect(logsTab).toBeInViewport();
-	await logsTab.click();
-	await expect(logsTab).toHaveAttribute('aria-selected', 'true');
+	for (const { buttonName, paneLabel } of dockPanes) {
+		const dockButton = website.page.getByRole('button', {
+			name: buttonName,
+		});
+		await dockButton.scrollIntoViewIfNeeded();
+		await dockButton.click();
+		await expect(
+			website.page.locator(`section[aria-label="${paneLabel}"]`)
+		).toBeVisible();
+	}
 });
 
 test.describe('Database panel', () => {
 	test.beforeEach(async ({ website }) => {
 		await website.goto('./?storage=temp');
-		await website.ensureSiteManagerIsOpen();
-
-		// Navigate to Database tab
-		await website.page.getByRole('tab', { name: 'Database' }).click();
-
-		// Verify the Database tab is active
-		const databaseTab = website.page.getByRole('tab', { name: 'Database' });
-		await expect(databaseTab).toHaveAttribute('aria-selected', 'true');
+		await website.page.getByRole('button', { name: 'Database' }).click();
+		await expect(
+			website.page.locator('section[aria-label="Database pane"]')
+		).toBeVisible();
 	});
 
 	test('should display database info', async ({ website }) => {
@@ -820,8 +813,9 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({ timeout: 120000 });
 		const originalSite = await getActivePlaygroundSite(website.page);
 
-		await website.ensureSiteManagerIsOpen();
-		await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+		await website.page
+			.getByRole('button', { name: 'Current Blueprint' })
+			.click();
 		await expect(
 			website.page
 				.getByLabel('WordPress Playground')
@@ -845,14 +839,9 @@ test.describe('Default Playground storage', () => {
 			name: 'Run Blueprint and reset site',
 		});
 		// Recreate failures are shown inline and leave the Run button available,
-		// so retry the action instead of waiting on an unchanged iframe.
+		// so retry the action until the recreated site boots with the new content.
 		await expect(async () => {
 			await runBlueprintButton.click();
-			await expect(
-				website.page.getByText(
-					'Could not recreate Playground. Try again.'
-				)
-			).toHaveCount(0, { timeout: 5000 });
 			await website.waitForNestedIframes();
 			await expect(wordpress.locator('body')).toContainText(
 				'Autosaved Blueprint test',

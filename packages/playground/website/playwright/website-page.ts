@@ -56,12 +56,24 @@ export class WebsitePage {
 	}
 
 	async ensureSiteManagerIsClosed() {
-		const siteManagerButton = this.page.getByRole('button', {
-			name: /Site Manager/,
+		const closeToolsButton = this.page.getByRole('button', {
+			name: 'Close Playground tools',
 		});
-		const isPressed = await siteManagerButton.getAttribute('aria-pressed');
-		if (isPressed === 'true') {
-			await siteManagerButton.click();
+		if (
+			await closeToolsButton
+				.isVisible({ timeout: 1000 })
+				.catch(() => false)
+		) {
+			await this.page.keyboard.press('Escape');
+		} else {
+			const siteManagerButton = this.page.getByRole('button', {
+				name: /Site Manager/,
+			});
+			const isPressed =
+				await siteManagerButton.getAttribute('aria-pressed');
+			if (isPressed === 'true') {
+				await siteManagerButton.click();
+			}
 		}
 		// Wait for the site info panel section to be hidden
 		await expect(
