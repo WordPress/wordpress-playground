@@ -83,6 +83,22 @@ export class WebsitePage {
 		).toBeVisible();
 	}
 
+	async startNewVanillaPlayground() {
+		const vanillaWordPressButton = this.page.getByRole('button', {
+			name: /Vanilla WordPress/,
+		});
+		if (
+			!(await vanillaWordPressButton
+				.isVisible({ timeout: 1000 })
+				.catch(() => false))
+		) {
+			await this.page
+				.getByRole('button', { name: 'New Playground' })
+				.click();
+		}
+		await vanillaWordPressButton.click();
+	}
+
 	async closeSavedPlaygroundsOverlay() {
 		const overlay = this.page
 			.locator('[class*="overlay"]')

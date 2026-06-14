@@ -120,7 +120,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 	await website.openSavedPlaygroundsOverlay();
 
 	// Start another saved Playground, then switch back to the first one.
-	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.startNewVanillaPlayground();
 	await website.waitForNestedIframes();
 	await website.ensureSiteManagerIsOpen();
 
@@ -204,7 +204,7 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	await website.openSavedPlaygroundsOverlay();
 
 	// Create another Playground, then switch back.
-	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.startNewVanillaPlayground();
 	await website.waitForNestedIframes();
 
 	// Open the overlay again to switch back to the stored site
