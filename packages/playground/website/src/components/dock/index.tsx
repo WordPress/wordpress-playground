@@ -6,7 +6,11 @@ import {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 } from '../../lib/state/redux/slice-ui';
-import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import {
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { SiteManager } from '../site-manager';
 import css from './style.module.css';
 
@@ -124,9 +128,14 @@ export function Dock() {
 	const activeSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
 	);
+	const activeSite = useActiveSite();
 	const paneRef = useRef<HTMLElement>(null);
 	const normalizedSection = normalizeSection(activeSection);
 	const paneCopy = PANE_COPY[normalizedSection];
+	const playgroundTitle =
+		activeSite?.metadata.storage === 'none'
+			? 'Unsaved Playground'
+			: activeSite?.metadata.name;
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -172,6 +181,14 @@ export function Dock() {
 					<div className={css.paneHeader}>
 						<p className={css.eyebrow}>WordPress Playground</p>
 						<h2>{paneCopy.title}</h2>
+						{playgroundTitle && normalizedSection !== 'new' && (
+							<p className={css.currentPlayground}>
+								Current:{' '}
+								<span aria-label="Playground title">
+									{playgroundTitle}
+								</span>
+							</p>
+						)}
 						<p>{paneCopy.description}</p>
 					</div>
 					<div className={css.paneBody}>
