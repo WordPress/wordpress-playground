@@ -145,6 +145,18 @@
 	margin: 0;
 }
 
+.current-playground {
+	color: #3c434a;
+	font-size: 13px;
+	line-height: 1.4;
+	margin: 8px 0 0;
+}
+
+.current-playground span {
+	color: #1d2327;
+	font-weight: 600;
+}
+
 .pane-header p:last-child {
 	color: #5f5b54;
 	font-size: 15px;
