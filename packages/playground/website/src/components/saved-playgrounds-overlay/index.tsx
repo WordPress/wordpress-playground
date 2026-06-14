@@ -25,6 +25,7 @@ import {
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
+	isExplicitlySavedSite,
 	selectSortedSites,
 	selectTemporarySite,
 } from '../../lib/state/redux/slice-sites';
@@ -51,6 +52,11 @@ import {
 const COMPACT_LAYOUT_QUERY = '(max-width: 875px)';
 const MAX_VISIBLE_COMPACT_STORED_SITES = 2;
 
+/**
+ * Maximum stored Playgrounds to show before collapsing the dock pane list.
+ */
+const MAX_VISIBLE_STORED_SITES = 8;
+
 type BlueprintsIndexEntry = {
 	title: string;
 	description: string;
@@ -66,6 +72,26 @@ export type OverlayViewMode = 'main' | 'blueprints';
 interface SavedPlaygroundsOverlayProps {
 	onClose: () => void;
 	initialViewMode?: OverlayViewMode;
+	variant?: 'overlay' | 'pane';
+	panel?: 'all' | 'playgrounds' | 'new';
+}
+
+export function SavedPlaygroundsPane({
+	panel,
+	initialViewMode = 'main',
+}: {
+	panel: 'playgrounds' | 'new';
+	initialViewMode?: OverlayViewMode;
+}) {
+	const dispatch = useAppDispatch();
+	return (
+		<SavedPlaygroundsOverlay
+			onClose={() => dispatch(setSiteManagerOpen(false))}
+			initialViewMode={initialViewMode}
+			variant="pane"
+			panel={panel}
+		/>
+	);
 }
 
 function useIsCompactLayout() {
@@ -106,6 +132,8 @@ function PullRequestIcon() {
 export function SavedPlaygroundsOverlay({
 	onClose,
 	initialViewMode = 'main',
+	variant = 'overlay',
+	panel = 'all',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const storedSites = useAppSelector(selectSortedSites).filter(
@@ -328,6 +356,91 @@ export function SavedPlaygroundsOverlay({
 		return createdDate ? `Created ${createdDate}` : 'Saved in this browser';
 	};
 
+	const getCurrentSiteDetails = (site: SiteInfo) => {
+		return [
+			getStorageLabel(site),
+			getRuntimeLabel(site),
+			`Started from ${getSourceLabel(site)}`,
+		].join(' · ');
+	};
+
+	const getStorageLabel = (site: SiteInfo) => {
+		if (site.metadata.storage === 'none') {
+			return 'Unsaved';
+		}
+		if (isAutosavedSite(site)) {
+			return 'Autosaved';
+		}
+		if (site.metadata.storage === 'local-fs') {
+			return 'Local directory';
+		}
+		return 'Saved in this browser';
+	};
+
+	const getRuntimeLabel = (site: SiteInfo) => {
+		const { phpVersion, wpVersion } = site.metadata.runtimeConfiguration;
+		return `WP ${wpVersion} · PHP ${phpVersion}`;
+	};
+
+	const getSourceLabel = (site: SiteInfo) => {
+		const corePr = getOriginalSearchParam(site, 'core-pr');
+		if (corePr) {
+			return `WordPress PR #${corePr}`;
+		}
+
+		const gutenbergPr = getOriginalSearchParam(site, 'gutenberg-pr');
+		if (gutenbergPr) {
+			return `Gutenberg PR #${gutenbergPr}`;
+		}
+
+		const gutenbergBranch = getOriginalSearchParam(
+			site,
+			'gutenberg-branch'
+		);
+		if (gutenbergBranch) {
+			return `Gutenberg branch ${gutenbergBranch}`;
+		}
+
+		const source = site.metadata.originalBlueprintSource;
+		if (source.type === 'remote-url') {
+			return getRemoteBlueprintLabel(source.url);
+		}
+		if (source.type === 'inline-string') {
+			return 'inline Blueprint';
+		}
+		if (source.type === 'opfs-site') {
+			return 'saved Playground files';
+		}
+		return 'default WordPress';
+	};
+
+	const getOriginalSearchParam = (site: SiteInfo, name: string) => {
+		const value = site.originalUrlParams?.searchParams?.[name];
+		return Array.isArray(value) ? value[0] : value;
+	};
+
+	const getRemoteBlueprintLabel = (url: string) => {
+		try {
+			const parsed = new URL(url);
+			const pathParts = parsed.pathname.split('/').filter(Boolean);
+			const filename = pathParts[pathParts.length - 2];
+			if (parsed.hostname === 'raw.githubusercontent.com' && filename) {
+				return `${formatBlueprintSlug(filename)} Blueprint`;
+			}
+			return `Blueprint URL on ${parsed.hostname}`;
+		} catch {
+			return 'remote Blueprint';
+		}
+	};
+
+	const formatBlueprintSlug = (slug: string) => {
+		return slug
+			.split(/[-_]/)
+			.filter(Boolean)
+			.map((word) => word[0].toUpperCase() + word.slice(1))
+			.join(' ');
+	};
+
 	/**
 	 * Opens the selected Blueprint as a fresh Playground that may be autosaved.
 	 *
@@ -418,6 +531,12 @@ export function SavedPlaygroundsOverlay({
 			disabled: false,
 		},
 	];
+
+	const inactiveStoredSites = storedSites.filter(
+		(site) => site.slug !== activeSite?.slug
+	);
+	const recentSites = inactiveStoredSites.filter(isAutosavedSite);
+	const savedSites = inactiveStoredSites.filter(isExplicitlySavedSite);
 
 	function formatSiteCreatedDate(site: SiteInfo) {
 		return site.metadata.whenCreated
@@ -541,7 +660,103 @@ export function SavedPlaygroundsOverlay({
 		);
 	}
 
+	function renderCurrentSiteRow(site: SiteInfo) {
+		return (
+			<div className={classNames(css.siteRow, css.currentSiteRow)}>
+				<div className={css.siteRowContent}>
+					<div className={css.siteRowLogo}>
+						{site.metadata.logo ? (
+							<img
+								src={getLogoDataURL(site.metadata.logo)}
+								alt=""
+							/>
+						) : (
+							<WordPressIcon />
+						)}
+					</div>
+					<div className={css.siteRowInfo}>
+						<span className={css.siteRowName}>
+							{site.metadata.name}
+						</span>
+						<span className={css.siteRowDate}>
+							{getCurrentSiteDetails(site)}
+						</span>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	function renderSiteGroup(title: string, sites: SiteInfo[]) {
+		if (sites.length === 0) {
+			return null;
+		}
+		return (
+			<div className={css.siteGroup}>
+				<h3 className={css.siteGroupTitle}>{title}</h3>
+				<div className={classNames(css.sitesList, css.playgroundsList)}>
+					{sites.map(renderSiteRow)}
+				</div>
+			</div>
+		);
+	}
+
 	function renderYourPlaygroundsSection() {
+		if (variant === 'pane') {
+			const visibleSavedSites = showAllStoredSites
+				? savedSites
+				: savedSites.slice(0, MAX_VISIBLE_STORED_SITES);
+			const hiddenSavedSitesCount =
+				savedSites.length - visibleSavedSites.length;
+			const hasSites =
+				!!activeSite ||
+				recentSites.length > 0 ||
+				savedSites.length > 0;
+
+			return (
+				<OverlaySection className={css.playgroundsSection}>
+					{!hasSites ? (
+						<p className={css.emptyMessage}>
+							No Playgrounds available yet.
+						</p>
+					) : (
+						<>
+							{activeSite && (
+								<div className={css.siteGroup}>
+									<h3 className={css.siteGroupTitle}>
+										Current Playground
+									</h3>
+									<div
+										className={classNames(
+											css.sitesList,
+											css.playgroundsList
+										)}
+									>
+										{renderCurrentSiteRow(activeSite)}
+									</div>
+								</div>
+							)}
+							{renderSiteGroup('Recent', recentSites)}
+							{renderSiteGroup('Saved', visibleSavedSites)}
+						</>
+					)}
+					{hiddenSavedSitesCount > 0 && (
+						<button
+							type="button"
+							className={css.showMoreButton}
+							onClick={() =>
+								setShowAllStoredSites(!showAllStoredSites)
+							}
+						>
+							{showAllStoredSites
+								? 'Show fewer Playgrounds'
+								: `Show ${hiddenSavedSitesCount} more Playgrounds`}
+						</button>
+					)}
+				</OverlaySection>
+			);
+		}
+
 		const visibleStoredSites =
 			isCompactLayout && !showAllStoredSites
 				? storedSites.slice(0, MAX_VISIBLE_COMPACT_STORED_SITES)
@@ -596,6 +811,202 @@ export function SavedPlaygroundsOverlay({
 						</button>
 					)}
 			</OverlaySection>
+		);
+	}
+
+	function renderCreationSection() {
+		return (
+			<OverlaySection
+				title="Start a new Playground"
+				className={css.playgroundsSection}
+			>
+				<div className={css.creationRow}>
+					{creationOptions.map((option) => {
+						const hasIcon =
+							'iconComponent' in option || 'icon' in option;
+						return (
+							<button
+								key={option.id}
+								className={css.creationButton}
+								aria-label={option.ariaLabel}
+								onClick={option.onClick}
+								disabled={option.disabled}
+								data-cy={
+									option.id === 'zip'
+										? 'restore-from-zip'
+										: undefined
+								}
+							>
+								{hasIcon && (
+									<span
+										className={classNames(
+											css.creationIcon,
+											option.id === 'vanilla'
+												? css.newPlaygroundIcon
+												: undefined
+										)}
+									>
+										{'iconComponent' in option ? (
+											option.iconComponent
+										) : 'icon' in option ? (
+											<Icon
+												icon={option.icon!}
+												size={24}
+											/>
+										) : null}
+									</span>
+								)}
+								<span className={css.creationTitle}>
+									{option.title}
+								</span>
+							</button>
+						);
+					})}
+				</div>
+			</OverlaySection>
+		);
+	}
+
+	function renderBlueprintFilters() {
+		return (
+			<div className={css.filtersBar}>
+				<div className={css.tagsContainer}>
+					<button
+						className={classNames(css.tagButton, {
+							[css.tagButtonActive]: selectedTag === null,
+						})}
+						onClick={() => setSelectedTag(null)}
+					>
+						All
+					</button>
+					<button
+						className={classNames(css.tagButton, {
+							[css.tagButtonActive]: selectedTag === 'Featured',
+						})}
+						onClick={() =>
+							setSelectedTag(
+								selectedTag === 'Featured' ? null : 'Featured'
+							)
+						}
+					>
+						Featured
+					</button>
+					{allTags.slice(0, 8).map((tag) => (
+						<button
+							key={tag}
+							className={classNames(css.tagButton, {
+								[css.tagButtonActive]: selectedTag === tag,
+							})}
+							onClick={() =>
+								setSelectedTag(selectedTag === tag ? null : tag)
+							}
+						>
+							{tag}
+						</button>
+					))}
+				</div>
+				<div className={css.searchWrapper}>
+					<div className={css.searchIcon}>
+						<svg
+							width="18"
+							height="18"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+						>
+							<circle cx="11" cy="11" r="8" />
+							<path d="m21 21-4.35-4.35" />
+						</svg>
+					</div>
+					<input
+						type="text"
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						placeholder="Search Blueprints"
+						className={css.searchField}
+					/>
+				</div>
+			</div>
+		);
+	}
+
+	function renderBlueprintPreviewSection() {
+		const blueprintsToShow =
+			variant === 'pane' ? filteredBlueprints : allBlueprints;
+		return (
+			<OverlaySection
+				title="Start from a Blueprint"
+				className={classNames(
+					css.playgroundsSection,
+					css.blueprintsSection
+				)}
+			>
+				{variant === 'pane' && renderBlueprintFilters()}
+				{blueprintsLoading ? (
+					<div className={css.loadingContainer}>
+						<Spinner />
+					</div>
+				) : blueprintsError ? (
+					<p className={css.emptyMessage}>
+						Unable to load blueprints. Check your connection.
+					</p>
+				) : blueprintsToShow.length === 0 ? (
+					<p className={css.emptyMessage}>
+						No blueprints found matching your criteria.
+					</p>
+				) : (
+					<div className={css.blueprintsRow}>
+						{blueprintsToShow.map((blueprint) => (
+							<button
+								key={blueprint.path}
+								className={css.blueprintPreviewCard}
+								onClick={() => previewBlueprint(blueprint.path)}
+							>
+								<div className={css.blueprintPreviewThumbnail}>
+									{blueprint.screenshot_url ? (
+										<img
+											src={blueprint.screenshot_url}
+											alt=""
+											loading="lazy"
+										/>
+									) : (
+										<div
+											className={css.blueprintPlaceholder}
+										>
+											<WordPressIcon />
+										</div>
+									)}
+								</div>
+								<span className={css.blueprintPreviewTitle}>
+									{blueprint.title}
+								</span>
+							</button>
+						))}
+					</div>
+				)}
+			</OverlaySection>
+		);
+	}
+
+	if (variant === 'pane') {
+		return (
+			<div className={css.playgroundsPane}>
+				<input
+					type="file"
+					ref={zipFileInputRef}
+					onChange={handleImportZip}
+					accept=".zip,application/zip"
+					style={{ display: 'none' }}
+				/>
+				{panel !== 'new' && renderYourPlaygroundsSection()}
+				{panel !== 'playgrounds' && (
+					<>
+						{renderCreationSection()}
+						{renderBlueprintPreviewSection()}
+					</>
+				)}
+			</div>
 		);
 	}
 
@@ -814,6 +1225,11 @@ export function SavedPlaygroundsOverlay({
 										aria-label={option.ariaLabel}
 										onClick={option.onClick}
 										disabled={option.disabled}
+										data-cy={
+											option.id === 'zip'
+												? 'restore-from-zip'
+												: undefined
+										}
 									>
 										{hasIcon && (
 											<span

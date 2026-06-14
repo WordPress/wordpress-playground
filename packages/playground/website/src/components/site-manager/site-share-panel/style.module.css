@@ -1,0 +1,18 @@
+.share-panel {
+	padding: 24px 32px 32px;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.description {
+	color: #5f5b54;
+	font-size: 15px;
+	line-height: 1.5;
+	margin: 0;
+	max-width: 560px;
+}

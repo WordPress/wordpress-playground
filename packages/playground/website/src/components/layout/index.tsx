@@ -1,10 +1,8 @@
 import css from './style.module.css';
 
-import { SiteManager } from '../site-manager';
-import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
-import { useAppSelector } from '../../lib/state/redux/store';
-import { useState, useRef, lazy, Suspense } from 'react';
+import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import { useState, lazy, Suspense, useEffect } from 'react';
 import type { ExportFormValues } from '../../github/github-export-form/form';
 import { asPullRequestAction } from '../../github/github-export-form/form';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
@@ -20,10 +18,16 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { DeleteSiteModal } from '../delete-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
-import { modalSlugs } from '../../lib/state/redux/slice-ui';
+import {
+	modalSlugs,
+	setSiteManagerOpen,
+	setSiteManagerSection,
+} from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
+import { Dock } from '../dock';
+import classNames from 'classnames';
 
 /**
  * Lazy modal wrapper component to reduce Suspense repetition
@@ -63,37 +67,66 @@ export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
-	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
+	const dispatch = useAppDispatch();
+	const showDock = displayMode !== 'seamless';
+
+	useEffect(() => {
+		const overlayParam = new URL(document.location.href).searchParams.get(
+			'overlay'
+		);
+		if (!showDock || overlayParam === null) {
+			return;
+		}
+		dispatch(
+			setSiteManagerSection(
+				overlayParam === 'blueprints' ? 'new' : 'playgrounds'
+			)
+		);
+		dispatch(setSiteManagerOpen(true));
+	}, [dispatch, showDock]);
+
+	const closeDockPane = () => {
+		dispatch(setSiteManagerOpen(false));
+		clearOverlayQueryParam();
+	};
 
 	return (
-		<div className={`${css.layout}`}>
+		<div
+			className={classNames(css.layout, {
+				[css.hasDockPane]: showDock && siteManagerIsOpen,
+			})}
+		>
 			<Modals />
-			<CSSTransition
-				nodeRef={siteManagerWrapperRef}
-				in={siteManagerIsOpen}
-				timeout={500}
-				classNames={{
-					enter: css.siteManagerWrapperEnter,
-					enterActive: css.siteManagerWrapperEnterActive,
-					exit: css.siteManagerWrapperExit,
-					exitActive: css.siteManagerWrapperExitActive,
-				}}
-				unmountOnExit
-			>
-				<div
-					ref={siteManagerWrapperRef}
-					className={css.siteManagerWrapper}
-				>
-					<SiteManager />
-				</div>
-			</CSSTransition>
 			<div className={css.siteView}>
-				<div className={css.siteViewContent}>
+				<div
+					className={classNames(css.siteViewContent, {
+						[css.siteViewContentBlurred]:
+							showDock && siteManagerIsOpen,
+					})}
+				>
 					<PlaygroundViewport displayMode={displayMode} />
 				</div>
+				{showDock && siteManagerIsOpen && (
+					<button
+						type="button"
+						className={css.previewDismiss}
+						aria-label="Close Playground tools"
+						onClick={closeDockPane}
+					/>
+				)}
 			</div>
+			{showDock && <Dock />}
 		</div>
 	);
+}
+
+function clearOverlayQueryParam() {
+	const url = new URL(window.location.href);
+	if (!url.searchParams.has('overlay')) {
+		return;
+	}
+	url.searchParams.delete('overlay');
+	window.history.replaceState({}, '', url.toString());
 }
 
 /**

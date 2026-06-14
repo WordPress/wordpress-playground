@@ -51,6 +51,13 @@ const SiteBlueprintBundleEditor = lazy(() =>
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
 
+export type SiteInfoPanelTabName =
+	| 'settings'
+	| 'files'
+	| 'blueprint'
+	| 'database'
+	| 'logs';
+
 function getSiteLastTab(siteSlug: string): string | null {
 	try {
 		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
@@ -80,11 +87,15 @@ export function SiteInfoPanel({
 	site,
 	mobileUi,
 	siteViewHidden,
+	activeTabName,
+	showHeader = true,
 }: {
 	className: string;
 	site: SiteInfo;
 	mobileUi?: boolean;
 	siteViewHidden?: boolean;
+	activeTabName?: SiteInfoPanelTabName;
+	showHeader?: boolean;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
@@ -168,229 +179,252 @@ export function SiteInfoPanel({
 				expanded={true}
 				className={css.siteInfoPanelContent}
 			>
-				<FlexItem style={{ flexShrink: 0 }}>
-					<Flex
-						direction="row"
-						gap={2}
-						justify="space-between"
-						align="flex-start"
-						expanded={true}
-						className={`${css.padded} ${css.siteInfoHeader}`}
-						style={{ paddingBottom: 10 }}
-					>
-						{mobileUi && (
-							<FlexItem style={{ marginLeft: -20 }}>
-								<Button
-									variant="link"
-									label="Back to Playground"
-									icon={() => (
-										<Icon icon={chevronLeft} size={38} />
-									)}
-									className={css.grayLinkDark}
-									onClick={() => {
-										dispatch(setSiteManagerOpen(false));
-									}}
-								/>
-							</FlexItem>
-						)}
-						<FlexItem className={css.siteInfoHeaderIcon}>
-							{site.metadata.logo ? (
-								<img
-									src={getLogoDataURL(site.metadata.logo)}
-									alt={site.metadata.name + ' logo'}
-								/>
-							) : (
-								<WordPressIcon
-									className={css.siteInfoHeaderIconDefault}
-								/>
+				{showHeader && (
+					<FlexItem style={{ flexShrink: 0 }}>
+						<Flex
+							direction="row"
+							gap={2}
+							justify="space-between"
+							align="flex-start"
+							expanded={true}
+							className={`${css.padded} ${css.siteInfoHeader}`}
+							style={{ paddingBottom: 10 }}
+						>
+							{mobileUi && (
+								<FlexItem style={{ marginLeft: -20 }}>
+									<Button
+										variant="link"
+										label="Back to Playground"
+										icon={() => (
+											<Icon
+												icon={chevronLeft}
+												size={38}
+											/>
+										)}
+										className={css.grayLinkDark}
+										onClick={() => {
+											dispatch(setSiteManagerOpen(false));
+										}}
+									/>
+								</FlexItem>
 							)}
-						</FlexItem>
-						<FlexItem style={{ flexGrow: 1 }}>
-							<Flex direction="column" gap={0.25} expanded={true}>
+							<FlexItem className={css.siteInfoHeaderIcon}>
+								{site.metadata.logo ? (
+									<img
+										src={getLogoDataURL(site.metadata.logo)}
+										alt={site.metadata.name + ' logo'}
+									/>
+								) : (
+									<WordPressIcon
+										className={
+											css.siteInfoHeaderIconDefault
+										}
+									/>
+								)}
+							</FlexItem>
+							<FlexItem style={{ flexGrow: 1 }}>
 								<Flex
-									direction="row"
-									align="flex-start"
-									className={css.siteInfoHeaderTitleRow}
+									direction="column"
+									gap={0.25}
+									expanded={true}
 								>
-									<FlexItem
-										className={css.siteInfoHeaderTitle}
+									<Flex
+										direction="row"
+										align="flex-start"
+										className={css.siteInfoHeaderTitleRow}
 									>
-										<h1
-											className={
-												css.siteInfoHeaderDetailsName
-											}
-											aria-label="Playground title"
+										<FlexItem
+											className={css.siteInfoHeaderTitle}
 										>
-											<span
+											<h1
 												className={
-													css.siteInfoHeaderDetailsNameText
+													css.siteInfoHeaderDetailsName
 												}
+												aria-label="Playground title"
 											>
-												{titleStart}{' '}
 												<span
 													className={
-														css.siteInfoHeaderDetailsNameTextEnd
+														css.siteInfoHeaderDetailsNameText
 													}
 												>
-													{titleEnd}
-													{!isTemporary && (
-														<Button
-															className={
-																css.siteInfoRenameButton
-															}
-															icon={edit}
-															label="Rename Playground"
-															showTooltip={true}
-															variant="tertiary"
-															isSmall={true}
-															onClick={() => {
-																dispatch(
-																	setSiteSlugToRename(
-																		site.slug
-																	)
-																);
-																dispatch(
-																	setActiveModal(
-																		modalSlugs.RENAME_SITE
-																	)
-																);
-															}}
-														/>
-													)}
+													{titleStart}{' '}
+													<span
+														className={
+															css.siteInfoHeaderDetailsNameTextEnd
+														}
+													>
+														{titleEnd}
+														{!isTemporary && (
+															<Button
+																className={
+																	css.siteInfoRenameButton
+																}
+																icon={edit}
+																label="Rename Playground"
+																showTooltip={
+																	true
+																}
+																variant="tertiary"
+																isSmall={true}
+																onClick={() => {
+																	dispatch(
+																		setSiteSlugToRename(
+																			site.slug
+																		)
+																	);
+																	dispatch(
+																		setActiveModal(
+																			modalSlugs.RENAME_SITE
+																		)
+																	);
+																}}
+															/>
+														)}
+													</span>
 												</span>
-											</span>
-										</h1>
-									</FlexItem>
-								</Flex>
-								{!isTemporary && (
-									<span
-										className={
-											css.siteInfoHeaderDetailsCreatedAt
-										}
-									>
-										{(function () {
-											const createdAgo = site.metadata
-												.whenCreated
-												? getRelativeDate(
-														new Date(
-															// -2 to make sure it's in the past. We want to
-															// avoid accidentally signaling this happened in
-															// the future, e.g. "in 1 seconds"
-															site.metadata
-																.whenCreated - 2
-														)
-													)
-												: '';
-											switch (site.metadata.storage) {
-												case 'local-fs':
-													return (
-														'Saved in a local directory' +
-														(localDirName
-															? ` (${localDirName})`
-															: '') +
-														` ${createdAgo}`
-													);
-												case 'opfs':
-													if (isAutosaved) {
-														return `Autosaved in this browser ${createdAgo}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`;
-													}
-													return `Saved in this browser ${createdAgo}`;
+											</h1>
+										</FlexItem>
+									</Flex>
+									{!isTemporary && (
+										<span
+											className={
+												css.siteInfoHeaderDetailsCreatedAt
 											}
-										})()}{' '}
-									</span>
-								)}
-							</Flex>
-						</FlexItem>
-						{isAutosaved && (
-							<FlexItem className={css.siteInfoHeaderAction}>
-								<Button
-									variant="primary"
-									onClick={openSaveModal}
-								>
-									Store permanently
-								</Button>
+										>
+											{(function () {
+												const createdAgo = site.metadata
+													.whenCreated
+													? getRelativeDate(
+															new Date(
+																// -2 to make sure it's in the past. We want to
+																// avoid accidentally signaling this happened in
+																// the future, e.g. "in 1 seconds"
+																site.metadata
+																	.whenCreated -
+																	2
+															)
+														)
+													: '';
+												switch (site.metadata.storage) {
+													case 'local-fs':
+														return (
+															'Saved in a local directory' +
+															(localDirName
+																? ` (${localDirName})`
+																: '') +
+															` ${createdAgo}`
+														);
+													case 'opfs':
+														if (isAutosaved) {
+															return `Autosaved in this browser ${createdAgo}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`;
+														}
+														return `Saved in this browser ${createdAgo}`;
+												}
+											})()}{' '}
+										</span>
+									)}
+								</Flex>
 							</FlexItem>
-						)}
-						{mobileUi ? (
-							<FlexItem style={{ flexShrink: 0 }}>
-								<Button
-									variant="primary"
-									onClick={() => {
-										dispatch(setSiteManagerOpen(false));
+							{isAutosaved && (
+								<FlexItem className={css.siteInfoHeaderAction}>
+									<Button
+										variant="primary"
+										onClick={openSaveModal}
+									>
+										Store permanently
+									</Button>
+								</FlexItem>
+							)}
+							{mobileUi ? (
+								<FlexItem style={{ flexShrink: 0 }}>
+									<Button
+										variant="primary"
+										onClick={() => {
+											dispatch(setSiteManagerOpen(false));
+										}}
+									>
+										Open site
+									</Button>
+								</FlexItem>
+							) : (
+								<>
+									<FlexItem
+										className={css.siteInfoHeaderAction}
+									>
+										<Button
+											variant="tertiary"
+											disabled={!playground}
+											onClick={() =>
+												navigateTo('/wp-admin/')
+											}
+										>
+											WP Admin
+										</Button>
+									</FlexItem>
+									<FlexItem
+										className={css.siteInfoHeaderAction}
+									>
+										<Button
+											variant="secondary"
+											disabled={!playground}
+											onClick={() => navigateTo('/')}
+										>
+											Homepage
+										</Button>
+									</FlexItem>
+								</>
+							)}
+							<FlexItem className={css.siteInfoHeaderAction}>
+								<DropdownMenu
+									icon={moreVertical}
+									label="Additional actions"
+									popoverProps={{
+										placement: 'bottom-end',
 									}}
 								>
-									Open site
-								</Button>
-							</FlexItem>
-						) : (
-							<>
-								<FlexItem className={css.siteInfoHeaderAction}>
-									<Button
-										variant="tertiary"
-										disabled={!playground}
-										onClick={() => navigateTo('/wp-admin/')}
-									>
-										WP Admin
-									</Button>
-								</FlexItem>
-								<FlexItem className={css.siteInfoHeaderAction}>
-									<Button
-										variant="secondary"
-										disabled={!playground}
-										onClick={() => navigateTo('/')}
-									>
-										Homepage
-									</Button>
-								</FlexItem>
-							</>
-						)}
-						<FlexItem className={css.siteInfoHeaderAction}>
-							<DropdownMenu
-								icon={moreVertical}
-								label="Additional actions"
-								popoverProps={{
-									placement: 'bottom-end',
-								}}
-							>
-								{({ onClose }) => (
-									<>
-										{!isTemporary && (
+									{({ onClose }) => (
+										<>
+											{!isTemporary && (
+												<MenuGroup>
+													<MenuItem
+														aria-label="Delete this Playground"
+														className={css.danger}
+														onClick={() =>
+															removeSiteAndCloseMenu(
+																onClose
+															)
+														}
+													>
+														Delete
+													</MenuItem>
+												</MenuGroup>
+											)}
 											<MenuGroup>
-												<MenuItem
-													aria-label="Delete this Playground"
-													className={css.danger}
-													onClick={() =>
-														removeSiteAndCloseMenu(
-															onClose
-														)
+												<GithubExportMenuItem
+													onClose={onClose}
+													disabled={
+														offline || !playground
 													}
-												>
-													Delete
-												</MenuItem>
+												/>
+												<DownloadAsZipMenuItem
+													onClose={onClose}
+													disabled={!playground}
+												/>
 											</MenuGroup>
-										)}
-										<MenuGroup>
-											<GithubExportMenuItem
-												onClose={onClose}
-												disabled={
-													offline || !playground
-												}
-											/>
-											<DownloadAsZipMenuItem
-												onClose={onClose}
-												disabled={!playground}
-											/>
-										</MenuGroup>
-									</>
-								)}
-							</DropdownMenu>
-						</FlexItem>
-					</Flex>
-				</FlexItem>
+										</>
+									)}
+								</DropdownMenu>
+							</FlexItem>
+						</Flex>
+					</FlexItem>
+				)}
 				<FlexItem style={{ flexGrow: 1 }}>
 					<TabPanel
-						className={css.tabs}
-						initialTabName={initialTabName}
+						key={activeTabName ?? site.slug}
+						className={classNames(css.tabs, {
+							[css.tabsNoNav]: !!activeTabName,
+						})}
+						initialTabName={activeTabName ?? initialTabName}
 						onSelect={handleTabSelect}
 						tabs={[
 							{
