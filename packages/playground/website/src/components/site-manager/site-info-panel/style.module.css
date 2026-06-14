@@ -3,9 +3,9 @@
 .site-info-panel {
 	--padding-size: 24px;
 
-	background: #ffffff;
-	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
-	border-radius: var(--site-manager-border-radius);
+	background: transparent;
+	box-shadow: none;
+	border-radius: 0;
 	overflow: hidden;
 
 	display: flex;
@@ -49,6 +49,10 @@
 		overflow: hidden;
 		align-self: stretch;
 	}
+}
+
+.tabs-no-nav :global(.components-tab-panel__tabs) {
+	display: none;
 }
 
 .tab-contents {
