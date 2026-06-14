@@ -157,6 +157,11 @@
 	font-weight: 600;
 }
 
+.current-playground .current-playground-storage {
+	color: #50575e;
+	font-weight: 400;
+}
+
 .pane-header p:last-child {
 	color: #5f5b54;
 	font-size: 15px;

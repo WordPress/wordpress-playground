@@ -1,6 +1,10 @@
 import classNames from 'classnames';
 import { useEffect, useRef } from 'react';
 import { CSSTransition } from 'react-transition-group';
+import {
+	isAutosavedSite,
+	type SiteInfo,
+} from '../../lib/state/redux/slice-sites';
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import {
 	setSiteManagerOpen,
@@ -181,14 +185,25 @@ export function Dock() {
 					<div className={css.paneHeader}>
 						<p className={css.eyebrow}>WordPress Playground</p>
 						<h2>{paneCopy.title}</h2>
-						{playgroundTitle && normalizedSection !== 'new' && (
-							<p className={css.currentPlayground}>
-								Current:{' '}
-								<span aria-label="Playground title">
-									{playgroundTitle}
-								</span>
-							</p>
-						)}
+						{activeSite &&
+							playgroundTitle &&
+							normalizedSection !== 'new' && (
+								<p className={css.currentPlayground}>
+									Current:{' '}
+									<span aria-label="Playground title">
+										{playgroundTitle}
+									</span>
+									<span
+										className={css.currentPlaygroundStorage}
+									>
+										{' '}
+										·{' '}
+										{getCurrentPlaygroundStorageLabel(
+											activeSite
+										)}
+									</span>
+								</p>
+							)}
 						<p>{paneCopy.description}</p>
 					</div>
 					<div className={css.paneBody}>
@@ -249,6 +264,19 @@ function normalizeSection(section: SiteManagerSection): DockSection {
 		return 'new';
 	}
 	return section;
+}
+
+function getCurrentPlaygroundStorageLabel(site: SiteInfo) {
+	if (site.metadata.storage === 'none') {
+		return 'Unsaved';
+	}
+	if (isAutosavedSite(site)) {
+		return 'Autosaved in this browser';
+	}
+	if (site.metadata.storage === 'local-fs') {
+		return 'Saved in a local directory';
+	}
+	return 'Saved in this browser';
 }
 
 function getDockItemAriaLabel(item: DockItem, isActive: boolean) {
