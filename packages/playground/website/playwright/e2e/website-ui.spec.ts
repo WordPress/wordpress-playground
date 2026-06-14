@@ -875,9 +875,7 @@ test.describe('Default Playground storage', () => {
 			timeout: 120000,
 		});
 
-		await website.page
-			.getByRole('button', { name: 'Edit Playground settings' })
-			.click();
+		await website.ensureSiteManagerIsOpen();
 
 		await expect(
 			website.page.getByText(
@@ -913,9 +911,7 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({ timeout: 120000 });
 		const originalSite = await getActivePlaygroundSite(website.page);
 
-		await website.page
-			.getByRole('button', { name: 'Edit Playground settings' })
-			.click();
+		await website.ensureSiteManagerIsOpen();
 		const phpSelect = website.page.getByLabel('PHP version');
 		const currentPhpVersion = await phpSelect.inputValue();
 		const nextPhpVersion = SupportedPHPVersions.find(
@@ -925,18 +921,20 @@ test.describe('Default Playground storage', () => {
 		const applySettingsButton = website.page.getByRole('button', {
 			name: 'Apply Settings & Recreate Playground',
 		});
-		// The settings popover should close when recreation starts. If the click
-		// is lost, retry the user action before asserting on the new setup URL.
+		// If the click is lost, retry the user action before asserting on
+		// the new setup URL. The dock pane may stay open during recreation.
 		await expect(async () => {
 			await applySettingsButton.click();
-			await expect(applySettingsButton).toBeHidden({ timeout: 10000 });
+			await expect
+				.poll(
+					() => new URL(website.page.url()).searchParams.get('php'),
+					{
+						timeout: 10000,
+					}
+				)
+				.toBe(nextPhpVersion);
 		}).toPass({ timeout: 120000 });
-
-		await expect
-			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
-				timeout: 120000,
-			})
-			.toBe(nextPhpVersion);
+		await website.waitForNestedIframes();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
@@ -1200,7 +1198,7 @@ test.describe('Default Playground storage', () => {
 		expect(switchStatusSamples).not.toContain('Autosaving');
 	});
 
-	test('should show autosave browser storage details in the Site Manager by default', async ({
+	test('should show autosave browser storage details in Playgrounds by default', async ({
 		website,
 		browserName,
 	}) => {
@@ -1210,21 +1208,24 @@ test.describe('Default Playground storage', () => {
 		);
 
 		await website.goto(getUniqueSavedPlaygroundSetupUrl('storage-details'));
-		await website.ensureSiteManagerIsOpen();
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
 
+		await expect(
+			website.page.getByRole('heading', { name: 'Current Playground' })
+		).toBeVisible();
 		await expect(
 			website.page.getByText('Autosaved in this browser')
 		).toBeVisible();
 		await expect(
-			website.page.getByText(
-				'Removed after 5 newer autosaves unless saved.'
-			)
+			website.page.getByText('Started from default WordPress')
 		).toBeVisible();
-		const siteInfoPanel = website.page.locator(
-			'section[class*="site-info-panel"]'
-		);
+
+		await website.ensureSiteManagerIsClosed();
+		await website.page.getByRole('button', { name: 'Autosaved' }).click();
 		await expect(
-			siteInfoPanel.getByRole('button', { name: 'Store permanently' })
+			website.page.getByRole('button', { name: 'Store permanently' })
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
