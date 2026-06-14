@@ -523,7 +523,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'zip',
 			title: 'Import .zip',
-			ariaLabel: 'Import .zip - Import a .zip',
+			ariaLabel: 'Import a .zip',
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
@@ -709,9 +709,7 @@ export function SavedPlaygroundsOverlay({
 			const hiddenSavedSitesCount =
 				savedSites.length - visibleSavedSites.length;
 			const hasSites =
-				!!activeSite ||
-				recentSites.length > 0 ||
-				savedSites.length > 0;
+				!!activeSite || recentSites.length > 0 || savedSites.length > 0;
 
 			return (
 				<OverlaySection className={css.playgroundsSection}>
