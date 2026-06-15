@@ -116,6 +116,36 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
+## Running tests
+
+After installing dependencies with `npm install`, you can run all unit test targets with:
+
+```bash
+npm test
+```
+
+To run unit tests for a single Nx project, pass the project name to `nx test`:
+
+```bash
+npx nx test playground-client
+npx nx test php-wasm-util
+```
+
+The Playground website end-to-end tests use Playwright. Install the browser dependencies once, then run the Playwright target:
+
+```bash
+npx playwright install --with-deps
+npx nx run playground-website:e2e:playwright
+```
+
+The Playwright target starts the website dev server and tests against `http://127.0.0.1:5400/website-server/` by default. To run the same tests against a custom local domain, such as an HTTPS `playground.test` setup for Multisite testing, set `PLAYWRIGHT_TEST_BASE_URL`:
+
+```bash
+PLAYWRIGHT_TEST_BASE_URL='https://playground.test/website-server/' npx nx run playground-website:e2e:playwright
+```
+
+For more details, see the [website Playwright README](packages/playground/website/playwright/README.md), the [E2E Testing with Playwright guide](packages/docs/site/docs/main/guides/e2e-testing-with-playwright.md), and the [PHPUnit guide](packages/docs/site/docs/main/guides/phpunit-testing.md).
+
 And here are a few more interesting CLI commands you can run in this repo:
 
 ```bash
