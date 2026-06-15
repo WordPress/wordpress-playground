@@ -38,7 +38,11 @@ export function buildRemoteAccessRelayEndpointUrl(
 	action: RelayEndpointAction,
 	params: Record<string, string | number | null | undefined> = {}
 ): string {
-	const url = new URL('/relay.php', relayUrl);
+	const baseUrl = new URL(relayUrl);
+	if (!baseUrl.pathname.endsWith('/')) {
+		baseUrl.pathname = `${baseUrl.pathname}/`;
+	}
+	const url = new URL('relay.php', baseUrl);
 	url.searchParams.set('action', action);
 	for (const [name, value] of Object.entries(params)) {
 		if (value !== null && value !== undefined) {

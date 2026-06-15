@@ -79,7 +79,8 @@ function handleDirectRelayRequest(string $action): bool {
     if ($action === 'code' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $accessCode = getQueryStringValue('accessCode');
         if ($accessCode === null) {
-            return false;
+            jsonResponse(['error' => 'Missing accessCode'], 400);
+            return true;
         }
         handleResolveAccessCode($accessCode);
         return true;
@@ -88,7 +89,8 @@ function handleDirectRelayRequest(string $action): bool {
     if ($action === 'status' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $sessionId = getQueryStringValue('sessionId');
         if ($sessionId === null) {
-            return false;
+            jsonResponse(['error' => 'Missing sessionId'], 400);
+            return true;
         }
         handleStatus($sessionId);
         return true;
@@ -97,7 +99,8 @@ function handleDirectRelayRequest(string $action): bool {
     if ($action === 'signal') {
         $sessionId = getQueryStringValue('sessionId');
         if ($sessionId === null) {
-            return false;
+            jsonResponse(['error' => 'Missing sessionId'], 400);
+            return true;
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             handlePostSignal($sessionId);
@@ -112,7 +115,8 @@ function handleDirectRelayRequest(string $action): bool {
     if ($action === 'close' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $sessionId = getQueryStringValue('sessionId');
         if ($sessionId === null) {
-            return false;
+            jsonResponse(['error' => 'Missing sessionId'], 400);
+            return true;
         }
         handleClose($sessionId);
         return true;

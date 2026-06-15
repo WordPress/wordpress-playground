@@ -53,5 +53,17 @@ describe('remote access connect code helpers', () => {
 		).toBe(
 			'https://example.com/relay.php?action=signal&sessionId=session-1&to=guest&since=12&gid=guest+1'
 		);
+		expect(
+			buildRemoteAccessRelayEndpointUrl(
+				'https://example.com/base',
+				'session'
+			)
+		).toBe('https://example.com/base/relay.php?action=session');
+		expect(
+			buildRemoteAccessRelayEndpointUrl(
+				'https://example.com/base/',
+				'session'
+			)
+		).toBe('https://example.com/base/relay.php?action=session');
 	});
 });
