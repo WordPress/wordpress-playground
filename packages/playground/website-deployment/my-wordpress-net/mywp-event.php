@@ -10,6 +10,7 @@ const MYWP_EVENT_ALLOWED_EVENTS = array(
 	'wordpress_installed',
 	'returning_visit',
 	'blueprint_installed',
+	'remote_access_started',
 );
 
 if ( 'cli' !== php_sapi_name() ) {

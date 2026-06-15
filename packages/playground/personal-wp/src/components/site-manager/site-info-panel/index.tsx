@@ -46,6 +46,7 @@ import {
 	subscribeToRemoteAccessStatus,
 } from '../../../lib/remote-access-service';
 import { normalizeVerificationCode } from '@wp-playground/remote-access';
+import { logPersonalWpEvent } from '../../../lib/personalwp/usage-stats';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -149,6 +150,7 @@ function RemoteAccessSection() {
 		setMessage(null);
 		try {
 			const shareUrl = await startRemoteAccess(playground);
+			logPersonalWpEvent('remote_access_started');
 			setMessage(
 				(await copyUrl(shareUrl))
 					? 'Remote access link copied.'

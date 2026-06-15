@@ -85,7 +85,33 @@ assert_equal(
     'My WordPress event dashboard should not be edge cached'
 );
 
+$mywp_relay_headers = playground_get_custom_response_headers( '/relay.php' );
+assert_equal(
+    true,
+    in_array( 'Cache-Control: no-store', $mywp_relay_headers, true ),
+    'My WordPress relay endpoint should not be edge cached'
+);
+
 $mywp_event_server_snapshot = $_SERVER;
+
+$_SERVER['HTTP_HOST'] = 'my.wordpress.net';
+assert_equal(
+    '/relay.php',
+    playground_maybe_rewrite( '/relay/session' ),
+    'My WordPress relay session endpoint should be routed to relay.php'
+);
+assert_equal(
+    '/relay.php',
+    playground_maybe_rewrite( '/relay/session/abc/signal' ),
+    'My WordPress relay subpaths should be routed to relay.php'
+);
+
+$_SERVER['HTTP_HOST'] = 'playground.wordpress.net';
+assert_equal(
+    false,
+    playground_maybe_rewrite( '/relay/session' ),
+    'Playground host should not route relay paths to my.wordpress.net relay.php'
+);
 
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';
 assert_equal(
@@ -376,6 +402,16 @@ assert_equal(
 );
 
 assert_equal(
+    '/mywp-event-dashboard.php?range=30&granularity=day&area=remote-access',
+    mywp_event_dashboard_filter_url(
+        30,
+        'day',
+        mywp_event_dashboard_area( 'remote-access' )
+    ),
+    'Dashboard filter URLs should support the Remote Access area'
+);
+
+assert_equal(
     7,
     mywp_event_dashboard_metric_value_count(
         array(
@@ -554,6 +590,24 @@ assert_equal(
         true
     ),
     'Allowed request source was not counted'
+);
+
+$remote_access_bumps = mywp_event_collect_stat_bumps( array(
+    'schema' => 'personal-wp-event/v1',
+    'app' => 'personal-wp',
+    'event' => 'remote_access_started',
+) );
+
+assert_equal(
+    array(
+        array(
+            'name' => 'event',
+            'value' => 'remote_access_started',
+            'views' => 1,
+        ),
+    ),
+    $remote_access_bumps,
+    'Remote Access starts should be counted as aggregate events only'
 );
 
 assert_equal(

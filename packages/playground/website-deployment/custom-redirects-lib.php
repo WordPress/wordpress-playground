@@ -186,6 +186,16 @@ function playground_maybe_rewrite( $original_requested_path ) {
 		$requested_path = '/plugin-proxy.php';
 	}
 
+	if (
+		playground_is_my_wordpress_net_request() &&
+		(
+			'/relay' === $requested_path ||
+			str_starts_with( $requested_path, '/relay/' )
+		)
+	) {
+		$requested_path = '/relay.php';
+	}
+
 	if ( $requested_path !== $original_requested_path ) {
 		return $requested_path;
 	}
@@ -379,6 +389,12 @@ function playground_maybe_set_environment( $requested_path ) {
 		return true;
 	}
 
+	if ( str_ends_with( $requested_path, 'relay.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		return true;
+	}
+
 	return false;
 }
 
@@ -387,7 +403,7 @@ function playground_get_custom_response_headers( $requested_path ) {
 
 	if ( 'iframe-worker.html' === $filename ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
-	} elseif ( in_array( $filename, array( 'mywp-event.php', 'mywp-event-dashboard.php' ), true ) ) {
+	} elseif ( in_array( $filename, array( 'mywp-event.php', 'mywp-event-dashboard.php', 'relay.php' ), true ) ) {
 		return array( 'Cache-Control: no-store' );
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
 		// Disable compression so zip file can be read piece by piece

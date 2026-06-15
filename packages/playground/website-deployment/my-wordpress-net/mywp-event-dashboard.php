@@ -996,6 +996,7 @@ function mywp_event_dashboard_get_current_area( $groups ) {
 				'new-installs',
 				'returning-visitors',
 				'blueprint-installs',
+				'remote-access',
 			),
 			true
 		)
@@ -1012,6 +1013,7 @@ function mywp_event_dashboard_area( $type, $plugin_slug = null ) {
 		'new-installs' => 'New installs',
 		'returning-visitors' => 'Returning visitors',
 		'blueprint-installs' => 'Blueprint installs',
+		'remote-access' => 'Remote Access',
 		'plugin' => 'Plugin',
 	);
 
@@ -1040,6 +1042,7 @@ function mywp_event_dashboard_render_area_controls(
 		mywp_event_dashboard_area( 'new-installs' ),
 		mywp_event_dashboard_area( 'returning-visitors' ),
 		mywp_event_dashboard_area( 'blueprint-installs' ),
+		mywp_event_dashboard_area( 'remote-access' ),
 	);
 	$plugin_slug_rows = mywp_event_dashboard_plugin_slug_rows( $groups );
 	?>
@@ -1167,6 +1170,18 @@ function mywp_event_dashboard_render_area(
 					'blueprint_installed:request_source',
 					'blueprint_installed:blueprint_source',
 				),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'remote-access':
+			mywp_event_dashboard_render_event_area(
+				'Remote Access',
+				'Remote Access sessions started from Site Tools.',
+				'remote_access_started',
+				array(),
 				$stats,
 				$groups,
 				$metric_definitions
@@ -1332,6 +1347,10 @@ function mywp_event_dashboard_render_overview_cards( $groups ) {
 		$groups,
 		'blueprint_installed'
 	);
+	$remote_access_started = mywp_event_dashboard_event_count(
+		$groups,
+		'remote_access_started'
+	);
 	$total_views = mywp_event_dashboard_sum_views( $groups['event'] ?? array() );
 	?>
 	<section class="grid" aria-label="Event totals">
@@ -1354,6 +1373,13 @@ function mywp_event_dashboard_render_overview_cards( $groups ) {
 			<div class="stat-number"><?php echo mywp_event_dashboard_number( $blueprint_installs ); ?></div>
 			<div class="kpi-detail">
 				<?php echo mywp_event_dashboard_ratio( $blueprint_installs, $new_installs ); ?> per new install
+			</div>
+		</div>
+		<div class="panel">
+			<div class="muted">Remote Access starts</div>
+			<div class="stat-number"><?php echo mywp_event_dashboard_number( $remote_access_started ); ?></div>
+			<div class="kpi-detail">
+				<?php echo mywp_event_dashboard_ratio( $remote_access_started, $new_installs ); ?> per new install
 			</div>
 		</div>
 		<div class="panel">
@@ -1436,6 +1462,7 @@ function mywp_event_dashboard_order_event_values( $event_values ) {
 		'wordpress_installed',
 		'returning_visit',
 		'blueprint_installed',
+		'remote_access_started',
 	);
 	$ordered_values = array();
 	foreach ( $preferred_order as $event_value ) {
@@ -1583,6 +1610,7 @@ function mywp_event_dashboard_event_color( $event ) {
 		'wordpress_installed' => '#0a7a69',
 		'returning_visit' => '#3858e9',
 		'blueprint_installed' => '#b26200',
+		'remote_access_started' => '#8a2424',
 	);
 
 	if ( isset( $colors[ $event ] ) ) {
@@ -1607,6 +1635,7 @@ function mywp_event_dashboard_event_label( $event ) {
 		'wordpress_installed' => 'New installs',
 		'returning_visit' => 'Returning visits',
 		'blueprint_installed' => 'Blueprint installs',
+		'remote_access_started' => 'Remote Access starts',
 	);
 
 	return $labels[ $event ] ?? $event;
