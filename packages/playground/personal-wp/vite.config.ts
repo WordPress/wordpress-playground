@@ -16,7 +16,10 @@ import {
 	remoteDevServerPort,
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+import {
+	buildVersionPlugin,
+	getBuildVersion,
+} from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -116,6 +119,7 @@ export default defineConfig(({ command, mode }) => {
 			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
+			appVersionPlugin(),
 			virtualModule({
 				name: 'cors-proxy-url',
 				content: `
@@ -250,3 +254,25 @@ export default defineConfig(({ command, mode }) => {
 		},
 	};
 });
+
+function appVersionPlugin(): Plugin {
+	return {
+		name: 'personal-wp-app-version',
+		apply: 'build',
+		generateBundle() {
+			this.emitFile({
+				type: 'asset',
+				fileName: 'app-version.json',
+				source:
+					JSON.stringify(
+						{
+							schema: 'personal-wp-app-version/v1',
+							buildVersion: getBuildVersion(),
+						},
+						null,
+						'\t'
+					) + '\n',
+			});
+		},
+	};
+}

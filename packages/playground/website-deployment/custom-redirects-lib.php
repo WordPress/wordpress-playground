@@ -414,7 +414,8 @@ function playground_get_custom_response_headers( $requested_path ) {
 		);
 	} elseif (
 		'/' === $requested_path ||
-		'/index.html' === $requested_path
+		'/index.html' === $requested_path ||
+		'/app-version.json' === $requested_path
 	) {
 		return array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );
 	} elseif (

@@ -42,6 +42,7 @@ const patternsToNotCache = [
 	 * Files needed only by the playground.wordpress.net server.
 	 */
 	'/.htaccess',
+	'/app-version.json',
 	/**
 	 * We can't download the PHP scripts – only get their execution result. This is fine,
 	 * we don't need them for the offline mode anyway. This includes things like plugins-proxy.php.

@@ -203,6 +203,10 @@ export function shouldCacheUrl(url: URL) {
 		return false;
 	}
 
+	if (url.pathname === '/app-version.json') {
+		return false;
+	}
+
 	/**
 	 * Allow only requests to the same hostname to be cached.
 	 */
