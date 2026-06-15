@@ -11,6 +11,7 @@ import {
 	normalizeVerificationCode,
 	readAttemptSignal,
 } from './remote-access-tunnel-utils';
+import { buildRemoteAccessRelayEndpointUrl } from './connect-code';
 import type { RemoteAccessHostClient } from './types';
 
 export type TunnelHostStatus =
@@ -489,9 +490,12 @@ export class DirectTunnelHost {
 		}
 
 		this.setStatus('connecting');
-		const response = await fetch(`${this.relayUrl}/relay/session`, {
-			method: 'POST',
-		});
+		const response = await fetch(
+			buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'session'),
+			{
+				method: 'POST',
+			}
+		);
 		if (!response.ok) {
 			this.setStatus('error');
 			throw new Error(
@@ -539,7 +543,9 @@ export class DirectTunnelHost {
 		if (sessionIdToClose) {
 			try {
 				await fetch(
-					`${this.relayUrl}/relay/${sessionIdToClose}/close`,
+					buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'close', {
+						sessionId: sessionIdToClose,
+					}),
 					{ method: 'POST', keepalive: true }
 				);
 			} catch (e) {
@@ -1239,7 +1245,11 @@ export class DirectTunnelHost {
 		while (this.isActive && this.sessionId) {
 			try {
 				const response = await fetch(
-					`${this.relayUrl}/relay/${this.sessionId}/signal?to=host&since=${this.signalCursor}`
+					buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'signal', {
+						sessionId: this.sessionId,
+						to: 'host',
+						since: this.signalCursor,
+					})
 				);
 				if (!response.ok) {
 					throw new Error(
@@ -1373,16 +1383,21 @@ export class DirectTunnelHost {
 		if (!this.sessionId) {
 			return;
 		}
-		await fetch(`${this.relayUrl}/relay/${this.sessionId}/signal`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				from: 'host',
-				to,
-				type,
-				data,
+		await fetch(
+			buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'signal', {
+				sessionId: this.sessionId,
 			}),
-		});
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					from: 'host',
+					to,
+					type,
+					data,
+				}),
+			}
+		);
 	}
 
 	private emit<K extends keyof TunnelHostEvents>(
@@ -1690,9 +1705,12 @@ export class DirectTunnelGuest {
 		while (this.isActive) {
 			try {
 				const response = await fetch(
-					`${this.relayUrl}/relay/${this.sessionId}/signal?to=guest&since=${this.signalCursor}&gid=${encodeURIComponent(
-						this.guestId
-					)}`
+					buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'signal', {
+						sessionId: this.sessionId,
+						to: 'guest',
+						since: this.signalCursor,
+						gid: this.guestId,
+					})
 				);
 				if (!response.ok) {
 					throw new Error(
@@ -2099,15 +2117,20 @@ export class DirectTunnelGuest {
 		type: SignalType,
 		data: unknown
 	): Promise<void> {
-		await fetch(`${this.relayUrl}/relay/${this.sessionId}/signal`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				from: 'guest',
-				to,
-				type,
-				data,
+		await fetch(
+			buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'signal', {
+				sessionId: this.sessionId,
 			}),
-		});
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					from: 'guest',
+					to,
+					type,
+					data,
+				}),
+			}
+		);
 	}
 }

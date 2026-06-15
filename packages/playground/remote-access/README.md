@@ -31,7 +31,7 @@ reuse the same pieces without copying them.
 A consuming package needs to provide four app-specific pieces around this
 package:
 
-1. A deployed copy of `relay.php` at `/relay/*`, backed by the Remote Access
+1. A deployed copy of `relay.php` at `/relay.php`, backed by the Remote Access
    MySQL tables.
 2. A host UI that can access a running Playground client and call
    `RemoteAccessHostController.start(playgroundClient)`.
@@ -48,7 +48,18 @@ API.
 
 ## Server Relay
 
-Deploy `relay.php` so these paths reach it:
+Deploy `relay.php` so it can be called directly. The client uses these direct
+endpoints:
+
+- `POST /relay.php?action=session`
+- `GET /relay.php?action=code&accessCode=:accessCode`
+- `GET /relay.php?action=status&sessionId=:sessionId`
+- `GET /relay.php?action=signal&sessionId=:sessionId`
+- `POST /relay.php?action=signal&sessionId=:sessionId`
+- `POST /relay.php?action=close&sessionId=:sessionId`
+
+The relay also accepts these pretty paths for deployments that route them to
+`relay.php`:
 
 - `POST /relay/session`
 - `GET /relay/code/:accessCode`

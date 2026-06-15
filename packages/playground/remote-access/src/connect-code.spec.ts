@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	buildRemoteAccessRelayEndpointUrl,
 	buildRemoteAccessUrl,
 	formatAccessCode,
 	normalizeAccessCode,
@@ -36,5 +37,21 @@ describe('remote access connect code helpers', () => {
 				'session-3'
 			)
 		).toBe('/connect/?tab=all&share=session-3');
+	});
+
+	it('builds direct relay.php endpoint URLs', () => {
+		expect(
+			buildRemoteAccessRelayEndpointUrl('https://example.com', 'session')
+		).toBe('https://example.com/relay.php?action=session');
+		expect(
+			buildRemoteAccessRelayEndpointUrl('https://example.com', 'signal', {
+				sessionId: 'session-1',
+				to: 'guest',
+				since: 12,
+				gid: 'guest 1',
+			})
+		).toBe(
+			'https://example.com/relay.php?action=signal&sessionId=session-1&to=guest&since=12&gid=guest+1'
+		);
 	});
 });

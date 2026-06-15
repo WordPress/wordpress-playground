@@ -299,7 +299,7 @@ describe('remote access direct tunnel', () => {
 		).requestFreshOffer();
 
 		expect(fetchMock).toHaveBeenCalledWith(
-			'https://example.test/relay/session-1/signal',
+			'https://example.test/relay.php?action=signal&sessionId=session-1',
 			expect.objectContaining({
 				method: 'POST',
 				body: JSON.stringify({

@@ -39,9 +39,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $path = preg_replace('#^/website-server#', '', $path);
+$relayAction = getQueryStringValue('action');
 
 try {
-    if ($path === '/relay/session' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($relayAction !== null) {
+        if (!handleDirectRelayRequest($relayAction)) {
+            jsonResponse(['error' => 'Not found'], 404);
+        }
+    } elseif ($path === '/relay/session' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         handleCreateSession();
     } elseif (preg_match('#^/relay/code/([0-9-]+)$#', $path, $matches) && $_SERVER['REQUEST_METHOD'] === 'GET') {
         handleResolveAccessCode($matches[1]);
@@ -63,6 +68,64 @@ try {
 } catch (Throwable $e) {
     error_log('Remote access relay error: ' . $e->getMessage());
     jsonResponse(['error' => 'Remote access relay error'], 500);
+}
+
+function handleDirectRelayRequest(string $action): bool {
+    if ($action === 'session' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        handleCreateSession();
+        return true;
+    }
+
+    if ($action === 'code' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        $accessCode = getQueryStringValue('accessCode');
+        if ($accessCode === null) {
+            return false;
+        }
+        handleResolveAccessCode($accessCode);
+        return true;
+    }
+
+    if ($action === 'status' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        $sessionId = getQueryStringValue('sessionId');
+        if ($sessionId === null) {
+            return false;
+        }
+        handleStatus($sessionId);
+        return true;
+    }
+
+    if ($action === 'signal') {
+        $sessionId = getQueryStringValue('sessionId');
+        if ($sessionId === null) {
+            return false;
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            handlePostSignal($sessionId);
+            return true;
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            handlePollSignal($sessionId);
+            return true;
+        }
+    }
+
+    if ($action === 'close' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $sessionId = getQueryStringValue('sessionId');
+        if ($sessionId === null) {
+            return false;
+        }
+        handleClose($sessionId);
+        return true;
+    }
+
+    return false;
+}
+
+function getQueryStringValue(string $name): ?string {
+    if (!isset($_GET[$name]) || !is_string($_GET[$name])) {
+        return null;
+    }
+    return $_GET[$name];
 }
 
 function handleCreateSession(): void {

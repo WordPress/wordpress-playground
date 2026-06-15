@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
 import {
 	buildConnectUrlFromScopedIframeUrl,
+	buildRemoteAccessRelayEndpointUrl,
 	buildRemoteAccessScopedIframeUrl,
 	clearRemoteAccessRelayMapping,
 	DirectTunnelGuest,
@@ -105,9 +106,14 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 	const statusUrl = useMemo(
 		() =>
-			`${window.location.origin}/relay/${sessionId}/status?gid=${encodeURIComponent(
-				guestId
-			)}`,
+			buildRemoteAccessRelayEndpointUrl(
+				window.location.origin,
+				'status',
+				{
+					sessionId,
+					gid: guestId,
+				}
+			),
 		[guestId, sessionId]
 	);
 

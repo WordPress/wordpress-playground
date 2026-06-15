@@ -2,6 +2,8 @@ export interface ResolveAccessCodeResponse {
 	sessionId: string;
 }
 
+type RelayEndpointAction = 'session' | 'code' | 'status' | 'signal' | 'close';
+
 export function normalizeAccessCode(value: string): string | null {
 	const digits = value.replace(/\D+/g, '');
 	if (digits.length !== 6) {
@@ -22,11 +24,28 @@ export async function resolveAccessCode(
 	relayUrl: string,
 	accessCode: string
 ): Promise<ResolveAccessCodeResponse> {
-	const response = await fetch(`${relayUrl}/relay/code/${accessCode}`);
+	const response = await fetch(
+		buildRemoteAccessRelayEndpointUrl(relayUrl, 'code', { accessCode })
+	);
 	if (!response.ok) {
 		throw new ResolveAccessCodeError(response);
 	}
 	return (await response.json()) as ResolveAccessCodeResponse;
+}
+
+export function buildRemoteAccessRelayEndpointUrl(
+	relayUrl: string,
+	action: RelayEndpointAction,
+	params: Record<string, string | number | null | undefined> = {}
+): string {
+	const url = new URL('/relay.php', relayUrl);
+	url.searchParams.set('action', action);
+	for (const [name, value] of Object.entries(params)) {
+		if (value !== null && value !== undefined) {
+			url.searchParams.set(name, String(value));
+		}
+	}
+	return url.toString();
 }
 
 export function buildRemoteAccessUrl(
