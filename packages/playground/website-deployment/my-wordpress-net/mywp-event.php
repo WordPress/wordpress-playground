@@ -230,6 +230,10 @@ function mywp_event_collect_stat_bumps( $payload ) {
 	$bumps = array();
 	mywp_event_add_bump( $bumps, 'event', $event );
 
+	if ( 'remote_access_started' === $event ) {
+		return $bumps;
+	}
+
 	mywp_event_add_allowed_property(
 		$bumps,
 		$event,

@@ -389,7 +389,7 @@ function playground_maybe_set_environment( $requested_path ) {
 		return true;
 	}
 
-	if ( str_ends_with( $requested_path, 'relay.php' ) ) {
+	if ( basename( $requested_path ) === 'relay.php' ) {
 		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
 		__atomic_env_define( 'DB_PASSWORD' );
 		return true;

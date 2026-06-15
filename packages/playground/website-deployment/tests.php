@@ -596,6 +596,10 @@ $remote_access_bumps = mywp_event_collect_stat_bumps( array(
     'schema' => 'personal-wp-event/v1',
     'app' => 'personal-wp',
     'event' => 'remote_access_started',
+    'properties' => array(
+        'site_age_bucket' => '1-7-days',
+        'previous_visit_age_bucket' => 'same-day',
+    ),
 ) );
 
 assert_equal(
