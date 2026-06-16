@@ -1742,6 +1742,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					const bridge = await startBridge({
 						phpInstance: playgroundPool,
 						phpRoot: '/wordpress',
+						excludedPaths: ['/internal'],
 					});
 
 					bridge.start();

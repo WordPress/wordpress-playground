@@ -671,7 +671,7 @@ pre {
 	caret-color: #24292f;
 	overflow: hidden;
 }
-.editor textarea::selection { background: #cfe7ff; color: transparent; }
+.editor textarea::selection { background: #cfe7ff; color: #24292f; }
 .output {
 	display: none;
 	border-top: 1px solid #e1e4e8;

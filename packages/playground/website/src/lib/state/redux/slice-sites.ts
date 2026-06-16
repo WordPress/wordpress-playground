@@ -15,6 +15,7 @@ import {
 	InvalidBlueprintError,
 	BlueprintFetchError,
 } from '@wp-playground/blueprints';
+import type { WritableFilesystemBackend } from '@wp-playground/storage';
 import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
@@ -29,10 +30,15 @@ import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
+	isAutosavedSite,
 	type AutosavedSitesPruneOptions,
 	type SitePersistence,
 } from './site-lifecycle';
 import { getAutosaveFingerprintFromURL } from '../playground-identity';
+import {
+	getDefaultSiteNameFromBlueprint,
+	getSiteNameWithCreationTimeIfDuplicate,
+} from './site-name';
 export {
 	MAX_AUTOSAVED_SITES,
 	SitePersistenceTypes,
@@ -409,16 +415,18 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(siteName),
-			{
-				// Temporary sites are removed before the new one is added, so they
-				// should not force the replacement site to take a numeric suffix.
-				unavailableSlugs: selectAllSites(getState())
-					.filter((site) => site.metadata.storage !== 'none')
-					.map((site) => site.slug),
-			}
+		// Temporary sites are removed before the new one is added, so they
+		// should not force the replacement site to take a numeric suffix.
+		const storedSites = selectAllSites(getState()).filter(
+			(site) => site.metadata.storage !== 'none'
 		);
+		const unavailableSlugs = storedSites.map((site) => site.slug);
+		const unavailableNames = storedSites.map((site) => site.metadata.name);
+		const getAvailableSiteSlug = (name: string) =>
+			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {
+				unavailableSlugs,
+			});
+		let siteSlug = getAvailableSiteSlug(siteName);
 
 		const sites = getState().sites.entities;
 
@@ -460,11 +468,25 @@ export function setTemporarySiteSpec(
 				resolvedBlueprint,
 				playgroundUrlWithQueryApiArgs
 			);
+			let displayName = siteName;
+			let slugBaseName = siteName;
+			if (!preferredSlug) {
+				slugBaseName = getDefaultSiteNameFromBlueprint(
+					resolvedBlueprint.blueprint,
+					siteName
+				);
+				displayName = getSiteNameWithCreationTimeIfDuplicate(
+					slugBaseName,
+					unavailableNames,
+					new Date()
+				);
+			}
+			siteSlug = getAvailableSiteSlug(slugBaseName);
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
-					name: siteName,
+					name: displayName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
@@ -520,10 +542,6 @@ export function setStoredSiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(siteName),
-			{ unavailableSlugs: selectSiteSlugs(getState()) }
-		);
 		const originalUrlParams = getOriginalUrlParams(
 			playgroundUrlWithQueryApiArgs
 		);
@@ -532,11 +550,29 @@ export function setStoredSiteSpec(
 			playgroundUrlWithQueryApiArgs
 		);
 		const now = Date.now();
+		const sites = selectAllSites(getState());
+		let displayName = siteName;
+		let slugBaseName = siteName;
+		if (!preferredSlug) {
+			slugBaseName = getDefaultSiteNameFromBlueprint(
+				resolvedBlueprint.blueprint,
+				siteName
+			);
+			displayName = getSiteNameWithCreationTimeIfDuplicate(
+				slugBaseName,
+				sites.map((site) => site.metadata.name),
+				new Date(now)
+			);
+		}
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(slugBaseName),
+			{ unavailableSlugs: sites.map((site) => site.slug) }
+		);
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
 			originalUrlParams,
 			metadata: {
-				name: siteName,
+				name: displayName,
 				id: crypto.randomUUID(),
 				whenCreated: now,
 				whenLastUsed: now,
@@ -556,6 +592,77 @@ export function setStoredSiteSpec(
 
 		await dispatch(addSite(newSiteInfo));
 		return newSiteInfo;
+	};
+}
+
+/**
+ * Replaces the setup metadata and WordPress files for an autosaved Playground
+ * without changing its slug or display name.
+ *
+ * Autosaves are recoverable unsaved work. Explicitly saved Playgrounds preserve
+ * their WordPress files, so they must not use this reset path.
+ */
+export function resetAutosavedSiteSpec(
+	siteSlug: string,
+	playgroundUrlWithQueryApiArgs: URL
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const site = selectSiteBySlug(getState(), siteSlug);
+		if (!site) {
+			throw new Error(`Site not found: ${siteSlug}`);
+		}
+		if (!isAutosavedSite(site)) {
+			throw new Error(
+				`Cannot reset ${siteSlug}; only autosaved Playgrounds can be recreated in place.`
+			);
+		}
+
+		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
+			playgroundUrlWithQueryApiArgs
+		);
+		const runtimeConfiguration = (await resolveRuntimeConfiguration(
+			resolvedBlueprint.blueprint
+		))!;
+		// Validate the new setup before deleting the old WordPress files so a
+		// broken Blueprint URL does not destroy the existing autosave.
+		// `isAutosavedSite()` requires OPFS storage; an autosaved site cannot be
+		// selected in a browser session where OPFS storage is unavailable.
+		await opfsSiteStorage!.resetSiteFiles(siteSlug);
+		const now = Date.now();
+		await dispatch(
+			updateSite({
+				slug: siteSlug,
+				changes: {
+					originalUrlParams: getOriginalUrlParams(
+						playgroundUrlWithQueryApiArgs
+					),
+					metadata: {
+						...site.metadata,
+						whenCreated: now,
+						whenLastUsed: now,
+						initialOpfsSyncPending: true,
+						/**
+						 * Recreating an autosaved Playground discards the old
+						 * WordPress files and boots from the updated setup.
+						 * Constants discovered from the previous runtime may no
+						 * longer exist in the recreated site, so they must be
+						 * rediscovered after the first OPFS sync.
+						 */
+						playgroundDefinedConstants: undefined,
+						sourceSetupUrlFingerprint:
+							getAutosaveFingerprintFromURL(
+								playgroundUrlWithQueryApiArgs
+							),
+						originalBlueprint: resolvedBlueprint.blueprint,
+						originalBlueprintSource: resolvedBlueprint.source!,
+						runtimeConfiguration,
+					},
+				},
+			})
+		);
 	};
 }
 
@@ -684,7 +791,7 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
-	originalBlueprint: BlueprintV1;
+	originalBlueprint: BlueprintV1 | WritableFilesystemBackend;
 	originalBlueprintSource: BlueprintSource;
 }
 

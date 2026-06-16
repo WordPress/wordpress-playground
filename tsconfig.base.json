@@ -128,6 +128,12 @@
 			"@wp-playground/remote": [
 				"packages/playground/remote/src/index.ts"
 			],
+			"@wp-playground/remote-access": [
+				"packages/playground/remote-access/src/index.ts"
+			],
+			"@wp-playground/remote/service-worker": [
+				"packages/playground/remote/service-worker.ts"
+			],
 			"@wp-playground/storage": [
 				"packages/playground/storage/src/index.ts"
 			],
