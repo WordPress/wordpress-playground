@@ -210,27 +210,47 @@ async function executeWordPressAbility(
 	input: Record<string, unknown>
 ): Promise<unknown> {
 	const marker = '---PLAYGROUND_MCP_ABILITY_RESULT---';
-	const response = await client.run({
-		code: createAbilityToolPHP(input, marker),
-	});
+	const endpointId = Math.random().toString(36).slice(2, 10);
+	const endpointPath = `/wordpress/wp-content/mcp-ability-${endpointId}.php`;
+	const endpointUrl = `/wp-content/mcp-ability-${endpointId}.php`;
+	let response: Awaited<ReturnType<ToolClient['request']>>;
+
+	await client.writeFile(endpointPath, createAbilityToolPHP(marker));
+	try {
+		response = await client.request({
+			url: endpointUrl,
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(input),
+		});
+	} finally {
+		try {
+			await client.unlink(endpointPath);
+		} catch {
+			// Do not hide the ability response behind cleanup failures.
+		}
+	}
+
 	const markerIndex = response.text.lastIndexOf(marker);
 	if (markerIndex === -1) {
 		return {
 			error: 'WordPress ability response marker not found',
 			text: response.text,
-			errors: response.errors,
-			exitCode: response.exitCode,
+			httpStatusCode: response.httpStatusCode,
+			headers: response.headers,
 		};
 	}
 
 	const jsonText = response.text.slice(markerIndex + marker.length).trim();
 	try {
 		const result = JSON.parse(jsonText);
-		if (response.errors || response.exitCode !== 0) {
+		if (response.httpStatusCode < 200 || response.httpStatusCode >= 300) {
 			return {
 				...result,
-				errors: response.errors,
-				exitCode: response.exitCode,
+				httpStatusCode: response.httpStatusCode,
+				headers: response.headers,
 			};
 		}
 		return result;
@@ -240,23 +260,20 @@ async function executeWordPressAbility(
 				error instanceof Error ? error.message : String(error)
 			}`,
 			text: response.text,
-			errors: response.errors,
-			exitCode: response.exitCode,
+			httpStatusCode: response.httpStatusCode,
+			headers: response.headers,
 		};
 	}
 }
 
-function createAbilityToolPHP(
-	input: Record<string, unknown>,
-	marker: string
-): string {
-	const encodedInput = phpStringLiteral(JSON.stringify(input));
+function createAbilityToolPHP(marker: string): string {
 	const encodedMarker = phpStringLiteral(marker);
 
 	return `<?php
 require_once "/wordpress/wp-load.php";
 
-$playground_mcp_input = json_decode('${encodedInput}', true);
+$playground_mcp_raw_input = file_get_contents('php://input');
+$playground_mcp_input = json_decode($playground_mcp_raw_input ?: '{}', true);
 $playground_mcp_marker = '${encodedMarker}';
 
 function playground_mcp_ability_json($value) {
