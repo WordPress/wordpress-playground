@@ -43,12 +43,10 @@ const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
 
-const AutosavedBlueprintBundleEditor = lazy(() =>
-	import('../../blueprint-editor/AutosavedBlueprintBundleEditor').then(
-		(m) => ({
-			default: m.AutosavedBlueprintBundleEditor,
-		})
-	)
+const SiteBlueprintBundleEditor = lazy(() =>
+	import('../../blueprint-editor/SiteBlueprintBundleEditor').then((m) => ({
+		default: m.SiteBlueprintBundleEditor,
+	}))
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
@@ -495,10 +493,9 @@ export function SiteInfoPanel({
 											</div>
 										}
 									>
-										<AutosavedBlueprintBundleEditor
+										<SiteBlueprintBundleEditor
 											key={site.slug}
 											site={site}
-											isVisible={tab.name === 'blueprint'}
 											className={classNames(
 												css.blueprintEditor
 											)}

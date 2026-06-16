@@ -4,6 +4,7 @@ import {
 	fetchBlueprint,
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
+	getTrustedBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstall,
 	resolveBlueprintForInstallExecution,
@@ -253,6 +254,19 @@ describe('prepareBlueprintForRemoteInstall', () => {
 				'https://playground.local/scope:test-site/my-apps/?category=forms'
 			)
 		).toBe(true);
+	});
+
+	it('reports the trusted My Apps install source', () => {
+		expect(getTrustedBlueprintInstallSource('/my-apps/')).toBe('my-apps');
+		expect(getTrustedBlueprintInstallSource('/my-apps')).toBe('my-apps');
+		expect(
+			getTrustedBlueprintInstallSource(
+				'https://playground.local/scope:test-site/my-apps/?category=forms'
+			)
+		).toBe('my-apps');
+		expect(
+			getTrustedBlueprintInstallSource('/wp-admin/admin.php?page=my-apps')
+		).toBeUndefined();
 	});
 
 	it('requires an exact trusted path before skipping confirmation', () => {

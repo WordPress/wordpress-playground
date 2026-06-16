@@ -186,6 +186,16 @@ function playground_maybe_rewrite( $original_requested_path ) {
 		$requested_path = '/plugin-proxy.php';
 	}
 
+	if (
+		playground_is_my_wordpress_net_request() &&
+		(
+			'/relay' === $requested_path ||
+			str_starts_with( $requested_path, '/relay/' )
+		)
+	) {
+		$requested_path = '/relay.php';
+	}
+
 	if ( $requested_path !== $original_requested_path ) {
 		return $requested_path;
 	}
@@ -344,6 +354,47 @@ function playground_maybe_set_environment( $requested_path ) {
 		return true;
 	}
 
+	if ( str_ends_with( $requested_path, 'mywp-event.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		return true;
+	}
+
+	if ( str_ends_with( $requested_path, 'mywp-event-dashboard.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		$secrets = new Atomic_Persistent_Data;
+		$github_client_id =
+			$secrets->MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_ID ??
+			$secrets->GITHUB_APP_CLIENT_ID ??
+			null;
+		$github_client_secret =
+			$secrets->MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_SECRET ??
+			$secrets->GITHUB_APP_CLIENT_SECRET ??
+			null;
+		if (
+			isset(
+				$github_client_id,
+				$github_client_secret,
+				$secrets->MYWP_EVENT_DASHBOARD_GITHUB_USERS,
+			)
+		) {
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_ID=$github_client_id" );
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_SECRET=$github_client_secret" );
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_USERS={$secrets->MYWP_EVENT_DASHBOARD_GITHUB_USERS}" );
+		} else {
+			error_log( 'PLAYGROUND: Missing secrets for mywp-event-dashboard.php' );
+		}
+
+		return true;
+	}
+
+	if ( basename( $requested_path ) === 'relay.php' ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		return true;
+	}
+
 	return false;
 }
 
@@ -352,6 +403,8 @@ function playground_get_custom_response_headers( $requested_path ) {
 
 	if ( 'iframe-worker.html' === $filename ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
+	} elseif ( in_array( $filename, array( 'mywp-event.php', 'mywp-event-dashboard.php', 'relay.php' ), true ) ) {
+		return array( 'Cache-Control: no-store' );
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
 		// Disable compression so zip file can be read piece by piece
 		// using file offsets embedded in the zip's metadata.

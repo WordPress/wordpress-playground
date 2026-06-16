@@ -7,10 +7,7 @@ import {
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
 import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
-import {
-	type TraversableFilesystemBackend,
-	OpfsFilesystemBackend,
-} from '@wp-playground/storage';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
@@ -97,9 +94,9 @@ export function persistTemporarySite(
 			});
 		}
 
-		// Persist the blueprint bundle if available.
-		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
-		// If not, check if there's an autosaved bundle in OPFS (from editing without running).
+		// Persist a Blueprint bundle only after the user has run the edited
+		// Blueprint. Editor-only changes stay in memory so a draft from one
+		// temporary Playground cannot be saved into another site by accident.
 		let bundleToPersist: TraversableFilesystemBackend | null = null;
 
 		const originalBlueprint = siteInfo.metadata.originalBlueprint;
@@ -112,20 +109,6 @@ export function persistTemporarySite(
 		) {
 			bundleToPersist =
 				originalBlueprint as unknown as TraversableFilesystemBackend;
-		} else {
-			// Check if there's an autosaved bundle from the blueprint editor.
-			try {
-				const opfsBackend = await OpfsFilesystemBackend.fromPath(
-					'blueprints/last-edited-bundle'
-				);
-				const files = await opfsBackend.listFiles('/');
-				if (files.length > 0) {
-					bundleToPersist = opfsBackend;
-				}
-			} catch {
-				// The blueprint editor only creates this bundle after editing
-				// without running, so absence is expected for regular saves.
-			}
 		}
 
 		let bundleWasPersisted = false;

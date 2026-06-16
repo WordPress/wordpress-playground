@@ -127,6 +127,8 @@ describe('cross-tab-sync', () => {
 			broadcastMetadataUpdate('my-site', {
 				backupHistory: [{ timestamp: 123, filename: 'backup-123.zip' }],
 				lastAccessDate: 999,
+				lastUsageStatsReturningVisitDate: '2026-05-28',
+				appliedMigrations: { myAppsPluginInstalled: 456 },
 			});
 
 			expect(messages).toHaveLength(1);
@@ -141,6 +143,8 @@ describe('cross-tab-sync', () => {
 			expect(message.changes).toEqual({
 				backupHistory: [{ timestamp: 123, filename: 'backup-123.zip' }],
 				lastAccessDate: 999,
+				lastUsageStatsReturningVisitDate: '2026-05-28',
+				appliedMigrations: { myAppsPluginInstalled: 456 },
 			});
 			expect(message.senderId).toBeTruthy();
 

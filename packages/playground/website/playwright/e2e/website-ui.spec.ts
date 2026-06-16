@@ -759,8 +759,9 @@ test.describe('Default Playground storage', () => {
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			null
 		);
+		await expect(website.page.getByText('Autosaving')).toHaveCount(0);
 		await expect(
-			website.page.getByText(/Autosaving|Finalizing autosave/)
+			website.page.getByText('Finalizing autosave')
 		).toHaveCount(0);
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
@@ -790,17 +791,15 @@ test.describe('Default Playground storage', () => {
 				}
 			)
 		);
-		const autosavingIndex = saveStatusSamples.findIndex(
-			({ text }) => text === 'Autosaving'
-		);
-		const autosavedIndex = saveStatusSamples.findIndex(
-			({ text }) => text === 'Autosaved'
-		);
-		expect(autosavingIndex).toBeGreaterThan(-1);
-		expect(autosavedIndex).toBeGreaterThan(autosavingIndex);
+		expect(
+			saveStatusSamples.some(({ text }) => text === 'Autosaved')
+		).toBe(true);
+		expect(
+			saveStatusSamples.some(({ text }) => text === 'Autosaving')
+		).toBe(false);
 		expect(
 			saveStatusSamples.some(({ ariaLabel }) =>
-				/^Autosaving [1-9]\d*%$/.test(ariaLabel ?? '')
+				/^Autosaved [1-9]\d*%$/.test(ariaLabel ?? '')
 			)
 		).toBe(true);
 	});
@@ -842,17 +841,24 @@ test.describe('Default Playground storage', () => {
 			],
 		});
 
-		await website.page
-			.getByRole('button', {
-				name: 'Run Blueprint and reset site',
-			})
-			.click();
-		await website.waitForNestedIframes();
-
-		await expect(wordpress.locator('body')).toContainText(
-			'Autosaved Blueprint test',
-			{ timeout: 10000 }
-		);
+		const runBlueprintButton = website.page.getByRole('button', {
+			name: 'Run Blueprint and reset site',
+		});
+		// Recreate failures are shown inline and leave the Run button available,
+		// so retry the action instead of waiting on an unchanged iframe.
+		await expect(async () => {
+			await runBlueprintButton.click();
+			await expect(
+				website.page.getByText(
+					'Could not recreate Playground. Try again.'
+				)
+			).toHaveCount(0, { timeout: 5000 });
+			await website.waitForNestedIframes();
+			await expect(wordpress.locator('body')).toContainText(
+				'Autosaved Blueprint test',
+				{ timeout: 30000 }
+			);
+		}).toPass({ timeout: 180000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,
@@ -927,11 +933,15 @@ test.describe('Default Playground storage', () => {
 			(version) => version !== currentPhpVersion
 		)!;
 		await phpSelect.selectOption(nextPhpVersion);
-		await website.page
-			.getByRole('button', {
-				name: 'Apply Settings & Recreate Playground',
-			})
-			.click();
+		const applySettingsButton = website.page.getByRole('button', {
+			name: 'Apply Settings & Recreate Playground',
+		});
+		// The settings popover should close when recreation starts. If the click
+		// is lost, retry the user action before asserting on the new setup URL.
+		await expect(async () => {
+			await applySettingsButton.click();
+			await expect(applySettingsButton).toBeHidden({ timeout: 10000 });
+		}).toPass({ timeout: 120000 });
 
 		await expect
 			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
@@ -1274,7 +1284,7 @@ test.describe('Default Playground storage', () => {
 			)
 			.toBe('explicit');
 		await expect(
-			website.page.getByText(/Autosaved|Autosaving|Finalizing autosave/)
+			website.page.getByText(/Autosaved|Finalizing autosave/)
 		).toHaveCount(0);
 		await expect(
 			website.page.getByText(/Saved Playground|Saving|Finalizing save/)

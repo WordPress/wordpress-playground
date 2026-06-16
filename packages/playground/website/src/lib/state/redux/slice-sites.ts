@@ -35,6 +35,10 @@ import {
 	type SitePersistence,
 } from './site-lifecycle';
 import { getAutosaveFingerprintFromURL } from '../playground-identity';
+import {
+	getDefaultSiteNameFromBlueprint,
+	getSiteNameWithCreationTimeIfDuplicate,
+} from './site-name';
 export {
 	MAX_AUTOSAVED_SITES,
 	SitePersistenceTypes,
@@ -411,16 +415,18 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(siteName),
-			{
-				// Temporary sites are removed before the new one is added, so they
-				// should not force the replacement site to take a numeric suffix.
-				unavailableSlugs: selectAllSites(getState())
-					.filter((site) => site.metadata.storage !== 'none')
-					.map((site) => site.slug),
-			}
+		// Temporary sites are removed before the new one is added, so they
+		// should not force the replacement site to take a numeric suffix.
+		const storedSites = selectAllSites(getState()).filter(
+			(site) => site.metadata.storage !== 'none'
 		);
+		const unavailableSlugs = storedSites.map((site) => site.slug);
+		const unavailableNames = storedSites.map((site) => site.metadata.name);
+		const getAvailableSiteSlug = (name: string) =>
+			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {
+				unavailableSlugs,
+			});
+		let siteSlug = getAvailableSiteSlug(siteName);
 
 		const sites = getState().sites.entities;
 
@@ -462,11 +468,25 @@ export function setTemporarySiteSpec(
 				resolvedBlueprint,
 				playgroundUrlWithQueryApiArgs
 			);
+			let displayName = siteName;
+			let slugBaseName = siteName;
+			if (!preferredSlug) {
+				slugBaseName = getDefaultSiteNameFromBlueprint(
+					resolvedBlueprint.blueprint,
+					siteName
+				);
+				displayName = getSiteNameWithCreationTimeIfDuplicate(
+					slugBaseName,
+					unavailableNames,
+					new Date()
+				);
+			}
+			siteSlug = getAvailableSiteSlug(slugBaseName);
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
-					name: siteName,
+					name: displayName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
@@ -522,10 +542,6 @@ export function setStoredSiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(siteName),
-			{ unavailableSlugs: selectSiteSlugs(getState()) }
-		);
 		const originalUrlParams = getOriginalUrlParams(
 			playgroundUrlWithQueryApiArgs
 		);
@@ -534,11 +550,29 @@ export function setStoredSiteSpec(
 			playgroundUrlWithQueryApiArgs
 		);
 		const now = Date.now();
+		const sites = selectAllSites(getState());
+		let displayName = siteName;
+		let slugBaseName = siteName;
+		if (!preferredSlug) {
+			slugBaseName = getDefaultSiteNameFromBlueprint(
+				resolvedBlueprint.blueprint,
+				siteName
+			);
+			displayName = getSiteNameWithCreationTimeIfDuplicate(
+				slugBaseName,
+				sites.map((site) => site.metadata.name),
+				new Date(now)
+			);
+		}
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(slugBaseName),
+			{ unavailableSlugs: sites.map((site) => site.slug) }
+		);
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
 			originalUrlParams,
 			metadata: {
-				name: siteName,
+				name: displayName,
 				id: crypto.randomUUID(),
 				whenCreated: now,
 				whenLastUsed: now,
