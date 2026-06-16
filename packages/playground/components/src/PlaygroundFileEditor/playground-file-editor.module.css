@@ -6,12 +6,15 @@
 	min-height: 0;
 }
 
+/* Surfaces use Quiet Paper tokens (defined on the dock .pane) with the editor's
+   original gray values as fallbacks, so this shared component still renders
+   correctly outside the dock (e.g. the devtools extension). */
 .content {
 	position: relative;
 	flex: 1;
 	display: flex;
 	min-height: 0;
-	background: var(--color-gray-000);
+	background: var(--paper-1, #ffffff);
 }
 
 .sidebarWrapper {
@@ -20,8 +23,8 @@
 	width: 280px;
 	max-width: 360px;
 	min-width: 220px;
-	border-right: 1px solid var(--color-gray-200);
-	background: #ffffff;
+	border-right: 1px solid var(--line-subtle, #ddd);
+	background: var(--paper-1, #ffffff);
 	z-index: 3;
 }
 
@@ -41,8 +44,8 @@
 	flex-wrap: wrap;
 	gap: 8px 12px;
 	padding: 12px 16px;
-	border-bottom: 1px solid var(--color-gray-200);
-	background: #ffffff;
+	border-bottom: 1px solid var(--line-subtle, #ddd);
+	background: var(--paper-2, #ffffff);
 	z-index: 1;
 }
 
@@ -53,12 +56,12 @@
 		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
-	color: var(--color-gray-700);
+	color: var(--ink-muted, #50575e);
 	word-break: break-all;
 }
 
 .editorPathPlaceholder {
-	color: var(--color-gray-500);
+	color: var(--ink-faint, #787c82);
 }
 
 .editorHeaderActions {
@@ -71,24 +74,24 @@
 .saveStatus {
 	font-size: 12px;
 	line-height: 16px;
-	color: var(--color-gray-600);
+	color: var(--ink-muted, #6a6a6a);
 	white-space: nowrap;
 }
 
 .saveStatusSaving,
 .saveStatusPending {
-	color: var(--color-gray-900);
+	color: var(--ink, #1e1e1e);
 }
 
 .saveStatusError {
-	color: var(--color-alert-red);
+	color: var(--color-alert-red, #cc1818);
 	font-weight: 500;
 }
 
 .editor {
 	flex: 1;
 	min-height: 0;
-	background: #ffffff;
+	background: var(--paper-1, #ffffff);
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -96,6 +99,18 @@
 
 .editor :global(.cm-editor) {
 	height: 100%;
+	background: var(--paper-1, #ffffff);
+}
+
+.editor :global(.cm-gutters) {
+	background: var(--paper-2, #ffffff);
+	color: var(--ink-faint, #787c82);
+	border-right: 1px solid var(--line-subtle, #ddd);
+}
+
+.editor :global(.cm-activeLine),
+.editor :global(.cm-activeLineGutter) {
+	background: var(--paper-3, #f0f0f1);
 }
 
 .editor :global(.cm-scroller) {
@@ -109,8 +124,8 @@
 	justify-content: center;
 	padding: 32px;
 	text-align: center;
-	color: var(--color-gray-700);
-	background: #ffffff;
+	color: var(--ink-muted, #50575e);
+	background: var(--paper-1, #ffffff);
 }
 
 .messageArea {
@@ -120,7 +135,7 @@
 	align-items: flex-start;
 	justify-content: flex-start;
 	padding: 16px 20px;
-	background: #ffffff;
+	background: var(--paper-1, #ffffff);
 	overflow: auto;
 	font-family:
 		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -140,13 +155,13 @@
 }
 
 .messageArea a {
-	color: #2271b1;
+	color: var(--accent-link, #2271b1);
 	text-decoration: underline;
 	cursor: pointer;
 }
 
 .messageArea a:hover {
-	color: #135e96;
+	color: var(--accent-hover, #135e96);
 }
 
 .mobileToggle {
@@ -191,7 +206,7 @@
 	.editorHeader {
 		flex-wrap: wrap;
 		gap: 8px;
-		background: #ffffff;
+		background: var(--paper-2, #ffffff);
 	}
 
 	.editorPath {

@@ -89,7 +89,7 @@ export function SiteSharePanel() {
 			</div>
 			<div className={css.group}>
 				<span className={css.groupIcon} aria-hidden="true">
-					{GitHubIcon}
+					<Icon icon={GitHubIcon} size={22} />
 				</span>
 				<div className={css.groupBody}>
 					<h3 className={css.groupTitle}>Export to GitHub</h3>

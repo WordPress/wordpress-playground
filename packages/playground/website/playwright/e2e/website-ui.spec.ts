@@ -822,7 +822,7 @@ test.describe('Default Playground storage', () => {
 			website.page
 				.getByLabel('WordPress Playground')
 				.getByText(
-					'Running this Blueprint will recreate this autosaved Playground under the same name and replace all its files.'
+					'Running this Blueprint recreates this Playground under the same name and replaces all its files.'
 				)
 		).toBeVisible();
 

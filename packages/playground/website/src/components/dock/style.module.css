@@ -429,10 +429,12 @@
 	padding: 0 var(--space-6) var(--space-4);
 }
 
+/* Rename/Delete trail the navigate actions as one set, sharing the row's gap —
+   never right-floated, which split the row in two and pushed them to the far
+   edge when the compact pane wrapped. When they do wrap, they stay flush-left. */
 .shortcuts-end {
 	display: flex;
 	gap: var(--space-2);
-	margin-left: auto;
 }
 
 /* Notices = recessed warm wells: a deeper parchment + faint inset, NO border and
@@ -448,20 +450,30 @@
 	padding: var(--space-4);
 }
 
-.pane :global(.components-notice.is-info) {
+/* Status is signalled by a single restrained left rule (kept as an inset shadow
+   so the "NO border, NO filled box" rule above still holds), never an
+   off-palette colour slab. Warning/info/success stay quiet parchment wells —
+   the same calm treatment the settings pane uses for its reset note — so a
+   caution never out-shouts the warm surface; only a true error carries red. */
+.pane :global(.components-notice.is-warning),
+.pane :global(.components-notice.is-success) {
 	background: var(--paper-3);
 }
 
-.pane :global(.components-notice.is-warning) {
-	background: #f3e6c8;
+/* Info wells (e.g. the Database "Early access" panel) carry a control-weight
+   edge so they separate from the near-equal paper pane instead of receding. */
+.pane :global(.components-notice.is-info) {
+	background: var(--paper-3);
+	box-shadow:
+		inset 0 0 0 1px var(--line-subtle),
+		inset 0 1px 1px rgba(40, 33, 23, 0.05);
 }
 
 .pane :global(.components-notice.is-error) {
-	background: #f2ddd6;
-}
-
-.pane :global(.components-notice.is-success) {
-	background: #e1ebd7;
+	background: var(--paper-3);
+	box-shadow:
+		inset 3px 0 0 0 #cc1818,
+		inset 0 1px 1px rgba(40, 33, 23, 0.04);
 }
 
 .pane :global(.components-notice .components-notice__content) {

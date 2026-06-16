@@ -1,4 +1,4 @@
-import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { Button } from '@wordpress/components';
 import { download } from '@wordpress/icons';
 import type { PlaygroundClient } from '@wp-playground/client';
 
@@ -35,13 +35,11 @@ export function DownloadButton({
 			onClick={
 				playground ? () => downloadDatabase(playground) : undefined
 			}
+			icon={download}
+			iconPosition="right"
+			iconSize={16}
 		>
-			<Flex justify="space-between" gap={2} expanded={true}>
-				<FlexItem>Download database.sqlite</FlexItem>
-				<FlexItem>
-					<Icon icon={download} size={16} />
-				</FlexItem>
-			</Flex>
+			Download database.sqlite
 		</Button>
 	);
 }
