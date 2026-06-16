@@ -2,6 +2,13 @@
 	position: relative;
 }
 
+/* Inline (dock pane) actions: a single left-aligned primary, matching the other
+   New-pane flows. The modal variant keeps the right-aligned Cancel/Submit row. */
+.inline-actions {
+	display: flex;
+	margin-top: 12px;
+}
+
 .overlay {
 	width: 100%;
 	height: 100%;

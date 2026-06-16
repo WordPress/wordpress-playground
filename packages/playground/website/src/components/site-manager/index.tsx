@@ -1,13 +1,19 @@
 import { useMediaQuery } from '@wordpress/compose';
-import { useActiveSite, useAppSelector } from '../../lib/state/redux/store';
+import {
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 
 import css from './style.module.css';
 import { SiteInfoPanel, type SiteInfoPanelTabName } from './site-info-panel';
 import classNames from 'classnames';
 
-import { forwardRef } from 'react';
+import { forwardRef, useCallback } from 'react';
 import { SavedPlaygroundsPane } from '../saved-playgrounds-overlay';
 import { SiteSharePanel } from './site-share-panel';
+import { SaveSiteModal } from '../save-site-modal';
+import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 
 const SITE_MANAGER_TOOL_TABS: Partial<Record<string, SiteInfoPanelTabName>> = {
 	'site-details': 'settings',
@@ -25,15 +31,25 @@ export const SiteManager = forwardRef<
 	}
 >(({ className }, ref) => {
 	const activeSite = useActiveSite();
+	const dispatch = useAppDispatch();
 	const fullScreenSections = useMediaQuery('(max-width: 875px)');
 	const activeSiteManagerSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
+	);
+	const closeSavePane = useCallback(
+		() => dispatch(setSiteManagerOpen(false)),
+		[dispatch]
 	);
 
 	let activePanel;
 	switch (activeSiteManagerSection) {
 		case 'playgrounds':
 			activePanel = <SavedPlaygroundsPane panel="playgrounds" />;
+			break;
+		case 'save':
+			activePanel = activeSite ? (
+				<SaveSiteModal asPane onClose={closeSavePane} />
+			) : null;
 			break;
 		case 'new':
 			activePanel = <SavedPlaygroundsPane panel="new" />;
@@ -68,8 +84,18 @@ export const SiteManager = forwardRef<
 		return null;
 	}
 
+	// The Your Playgrounds list scrolls as one piece inside the dock pane, so it
+	// must not clip. The New pane runs at a fixed height and scrolls within its
+	// own tab panel instead, so it keeps the default fill-and-clip behaviour.
+	const scrollsAsOnePiece = activeSiteManagerSection === 'playgrounds';
+
 	return (
-		<div className={classNames(css.siteManager, className)} ref={ref}>
+		<div
+			className={classNames(css.siteManager, className, {
+				[css.siteManagerScroll]: scrollsAsOnePiece,
+			})}
+			ref={ref}
+		>
 			{activePanel}
 		</div>
 	);

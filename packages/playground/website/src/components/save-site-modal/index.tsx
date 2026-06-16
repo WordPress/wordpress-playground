@@ -4,6 +4,7 @@ import {
 	useState,
 	useRef,
 	type CSSProperties,
+	type ReactElement,
 } from 'react';
 import {
 	Button,
@@ -12,6 +13,7 @@ import {
 	RadioControl,
 	Notice,
 } from '@wordpress/components';
+import { Icon, backup, cautionFilled } from '@wordpress/icons';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
@@ -37,7 +39,63 @@ const helpTextStyle: CSSProperties = {
 	marginTop: 8,
 };
 
-export function SaveSiteModal() {
+// Echoes the dock status pill the user clicked, so the pane reads as a direct
+// continuation of "Autosaved"/"Unsaved" rather than an unrelated dialog.
+const statusChipStyle: CSSProperties = {
+	alignItems: 'center',
+	alignSelf: 'flex-start',
+	borderRadius: 999,
+	display: 'inline-flex',
+	fontSize: 12,
+	fontWeight: 600,
+	gap: 4,
+	lineHeight: 1.2,
+	padding: '3px 10px 3px 6px',
+};
+
+/**
+ * Hosts the save form either in the centered Modal (default) or, when embedded
+ * in the dock's "Store permanently" pane, as a bare passthrough so the pane
+ * supplies the chrome.
+ */
+function SaveSurface({
+	asPane,
+	isSaving,
+	onRequestClose,
+	children,
+}: {
+	asPane: boolean;
+	isSaving: boolean;
+	onRequestClose: () => void;
+	children: ReactElement;
+}) {
+	if (asPane) {
+		return children;
+	}
+	return (
+		<Modal
+			title="Save Playground"
+			contentLabel="Save Playground"
+			onRequestClose={onRequestClose}
+			isDismissible={!isSaving}
+			small
+		>
+			{children}
+		</Modal>
+	);
+}
+
+export function SaveSiteModal({
+	asPane = false,
+	onClose,
+}: {
+	/**
+	 * Render the bare form for embedding in a dock pane ("Store permanently")
+	 * instead of the centered Modal. The host pane supplies the title + close.
+	 */
+	asPane?: boolean;
+	onClose?: () => void;
+} = {}) {
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const siteSlugToSave = useAppSelector((state) => state.ui.siteSlugToSave);
@@ -136,6 +194,10 @@ export function SaveSiteModal() {
 	const canSaveSite =
 		site && (site.metadata.storage === 'none' || isAutosaved);
 	const closeModal = () => {
+		if (asPane) {
+			onClose?.();
+			return;
+		}
 		dispatch(setActiveModal(null));
 		dispatch(setSiteSlugToSave(undefined));
 	};
@@ -144,9 +206,13 @@ export function SaveSiteModal() {
 		if (site && canSaveSite) {
 			return;
 		}
-		dispatch(setActiveModal(null));
-		dispatch(setSiteSlugToSave(undefined));
-	}, [canSaveSite, dispatch, site]);
+		if (asPane) {
+			onClose?.();
+		} else {
+			dispatch(setActiveModal(null));
+			dispatch(setSiteSlugToSave(undefined));
+		}
+	}, [asPane, canSaveSite, dispatch, onClose, site]);
 
 	if (!site || !canSaveSite) {
 		return null;
@@ -321,21 +387,46 @@ export function SaveSiteModal() {
 	};
 
 	return (
-		<Modal
-			title="Save Playground"
-			contentLabel="Save Playground"
+		<SaveSurface
+			asPane={asPane}
+			isSaving={isSaving}
 			onRequestClose={handleRequestClose}
-			isDismissible={!isSaving}
-			small
 		>
 			<form
 				onSubmit={(event) => {
 					event.preventDefault();
 					handleSubmit();
 				}}
-				style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 16,
+					// In the dock pane the form supplies its own padding so its
+					// content lines up with the pane header (the Modal handles
+					// this itself). Matches the other panes' 24px side padding.
+					...(asPane && {
+						padding: 'var(--space-2) var(--space-6) var(--space-6)',
+					}),
+				}}
 				autoComplete="off"
 			>
+				{asPane && (
+					<span
+						style={{
+							...statusChipStyle,
+							background: isAutosaved
+								? 'rgba(56, 88, 233, 0.1)'
+								: 'rgba(176, 124, 11, 0.14)',
+							color: isAutosaved ? '#2645c9' : '#8a5a00',
+						}}
+					>
+						<Icon
+							icon={isAutosaved ? backup : cautionFilled}
+							size={16}
+						/>
+						{isAutosaved ? 'Autosaved' : 'Unsaved'}
+					</span>
+				)}
 				<p style={{ margin: 0, color: '#1e1e1e' }}>
 					{isAutosaved
 						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
@@ -437,6 +528,6 @@ export function SaveSiteModal() {
 					style={{ marginTop: 0 }}
 				/>
 			</form>
-		</Modal>
+		</SaveSurface>
 	);
 }

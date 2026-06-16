@@ -1,18 +1,59 @@
 .share-panel {
-	padding: 24px 32px 32px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	padding: var(--space-2) var(--space-6) var(--space-6);
+}
+
+.group {
+	align-items: flex-start;
+	display: flex;
+	gap: var(--space-3);
+}
+
+/* A small warm chip leads each section so the three options are scannable. */
+.group-icon {
+	align-items: center;
+	background: var(--paper-3);
+	border-radius: var(--radius-card);
+	color: var(--accent-link);
+	display: flex;
+	flex-shrink: 0;
+	height: 38px;
+	justify-content: center;
+	width: 38px;
+}
+
+.group-icon svg {
+	fill: currentColor;
+}
+
+.group-body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.group-title {
+	color: var(--ink);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+	margin: 0;
 }
 
 .actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 12px;
-	margin-bottom: 16px;
+	gap: var(--space-3);
+	margin-top: var(--space-1);
 }
 
-.description {
-	color: #5f5b54;
-	font-size: 15px;
+.hint {
+	color: var(--ink-muted);
+	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;
-	max-width: 560px;
 }

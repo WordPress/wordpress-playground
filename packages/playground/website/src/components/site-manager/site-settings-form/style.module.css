@@ -19,36 +19,77 @@
 }
 
 .form-section {
-	padding: 24px;
+	padding: var(--space-4) var(--space-6) var(--space-6);
 }
 
 .form-section p {
 	margin: 0;
 }
 
+/* Quiet eyebrow labels that group the runtime selects and the network toggles,
+   so the settings read as two short lists instead of one long stack. */
+.group-label {
+	color: var(--ink-muted);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	margin: 0;
+	text-transform: uppercase;
+}
+
+.group-label:not(:first-child) {
+	margin-top: var(--space-3);
+}
+
+/* Side-label selects read like the spec sheet elsewhere: a fixed muted label
+   column + the control filling the rest, in warm tones. */
 .form-section :global(.components-select-control > :first-child) {
-	width: 50%;
+	flex: 0 0 150px;
+	width: 150px;
 }
 .form-section :global(.components-select-control > :first-child label) {
+	color: var(--ink);
+	font-size: 13px;
+	font-weight: 500;
 	text-transform: none;
-	font-weight: normal;
-	font-size: 14px;
-	color: #757575;
 }
 .form-section :global(.components-select-control > :nth-child(2)) {
+	flex: 1;
 	width: auto;
-	flex-shrink: 1;
+}
+.form-section :global(.components-input-control__backdrop) {
+	border-color: var(--line-control) !important;
+	border-radius: var(--radius-control) !important;
+}
+.form-section :global(.components-checkbox-control__label) {
+	color: var(--ink-soft);
+	font-size: 13px;
+}
+.form-section :global(.components-base-control__help) {
+	color: var(--ink-muted);
 }
 
 .notice {
-	background-color: #f3f6fd;
+	background-color: #efe8db;
+	border: 1px solid rgba(33, 30, 25, 0.16);
+	border-radius: 10px;
+	color: #44403a;
 }
 
+/* The recreate/reset action. The destructive (red) button already signals the
+   consequence, so the footer stays calm — a hairline separator and one quiet
+   note — instead of a loud red danger field. */
 .footer {
-	background-color: #f3f6fd;
+	border-top: 1px solid var(--line-subtle);
 	button {
 		width: 100%;
 		align-self: center;
 		justify-content: center;
 	}
+}
+
+.footer-note {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
 }

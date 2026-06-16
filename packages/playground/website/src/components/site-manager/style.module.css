@@ -8,6 +8,14 @@
 	color: #21201d;
 }
 
+/* Gallery panes (New / Your Playgrounds) scroll as one piece with the dock
+   pane, so they must not clip — a clipped ancestor breaks `position: sticky`
+   on the "Start from a Blueprint" heading. */
+.site-manager-scroll {
+	height: auto;
+	overflow: visible;
+}
+
 .site-manager-site-info {
 	min-width: 0;
 	height: 100%;

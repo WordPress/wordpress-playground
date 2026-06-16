@@ -1,18 +1,159 @@
 .dock {
-	align-items: stretch;
 	background: #21201d;
 	border-radius: 18px;
 	bottom: 16px;
 	box-shadow:
 		0 18px 44px rgba(33, 30, 25, 0.32),
 		0 2px 6px rgba(33, 30, 25, 0.22);
+	/* The bare background is a drag surface; controls reset their own cursors. */
+	cursor: grab;
 	display: flex;
-	gap: 2px;
+	flex-direction: column;
+	gap: 6px;
 	left: 50%;
-	padding: 6px;
+	max-width: calc(100vw - 24px);
+	padding: 8px 8px 6px;
 	position: fixed;
 	transform: translateX(-50%);
+	/* Content-based width so it stays put when dragged — auto width is
+	   shrink-to-fit and can change as the dock's `left` moves toward an edge. */
+	width: max-content;
 	z-index: 50;
+}
+
+.dock-dragging {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.dock-top-row {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+}
+
+.dock-address {
+	flex: 1;
+	min-width: 0;
+}
+
+.dock-status {
+	align-items: center;
+	display: flex;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* The active Playground's name is kept in the DOM for screen readers and as the
+   stable "Playground title" hook, but not shown — the save-status pill carries
+   the only visible status, and the name would just repeat it for unsaved sites. */
+.dock-site-name {
+	border: 0;
+	clip: rect(0, 0, 0, 0);
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+.drag-handle {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 8px;
+	color: rgba(247, 245, 242, 0.4);
+	cursor: grab;
+	display: flex;
+	flex-shrink: 0;
+	justify-content: center;
+	padding: 8px 4px;
+	touch-action: none;
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+}
+
+.drag-handle:hover {
+	background: rgba(247, 245, 242, 0.12);
+	color: rgba(247, 245, 242, 0.8);
+}
+
+.drag-handle:active {
+	cursor: grabbing;
+}
+
+.drag-handle:focus-visible {
+	color: #f7f5f2;
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+/* Subtle chevron that collapses the dock to just its top row. */
+.collapse-toggle {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 8px;
+	color: rgba(247, 245, 242, 0.4);
+	cursor: pointer;
+	display: flex;
+	flex-shrink: 0;
+	justify-content: center;
+	padding: 6px 2px;
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+}
+
+.collapse-toggle svg {
+	fill: currentColor;
+}
+
+.collapse-toggle:hover {
+	background: rgba(247, 245, 242, 0.12);
+	color: rgba(247, 245, 242, 0.8);
+}
+
+.collapse-toggle:focus-visible {
+	color: #f7f5f2;
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+/* Collapse the tools row's HEIGHT (animated) but keep its WIDTH, so the dock
+   doesn't narrow and re-center — that would make the expand chevron jump.
+   Compound selector beats `.dock-tools` regardless of source order. The negative
+   margin cancels the column gap so the collapsed dock stays evenly padded;
+   visibility flips to hidden only after the animation so the tools leave the tab
+   order without a flash. */
+.dock-tools.dock-tools-hidden {
+	margin-top: -6px;
+	max-height: 0;
+	opacity: 0;
+	pointer-events: none;
+	visibility: hidden;
+	transition:
+		max-height 280ms cubic-bezier(0.65, 0, 0.35, 1),
+		opacity 160ms ease,
+		margin-top 280ms cubic-bezier(0.65, 0, 0.35, 1),
+		visibility 0s 280ms;
+}
+
+.dock-tools {
+	align-items: stretch;
+	display: flex;
+	gap: 2px;
+	max-height: 64px;
+	opacity: 1;
+	overflow-y: hidden;
+	transition:
+		max-height 280ms cubic-bezier(0.65, 0, 0.35, 1),
+		opacity 200ms ease 60ms,
+		margin-top 280ms cubic-bezier(0.65, 0, 0.35, 1),
+		visibility 0s;
 }
 
 .with-separator {
@@ -41,10 +182,17 @@
 		color 120ms ease;
 }
 
-.dock-item:hover,
-.dock-item-active {
+.dock-item:hover {
 	background: rgba(247, 245, 242, 0.14);
 	color: #f7f5f2;
+}
+
+/* The open pane gets a persistent, stronger highlight than hover plus a blue
+   underline so it reads as "current" and never blends into the New pill. */
+.dock-item-active {
+	background: rgba(247, 245, 242, 0.22);
+	box-shadow: inset 0 -2px 0 #6c84ff;
+	color: #ffffff;
 }
 
 .dock-item:focus-visible {
@@ -64,10 +212,16 @@
 }
 
 .dock-icon {
-	font-size: 18px;
-	font-weight: 600;
+	align-items: center;
+	display: flex;
+	justify-content: center;
 	line-height: 1;
-	min-height: 20px;
+	min-height: 24px;
+}
+
+.dock-icon svg {
+	display: block;
+	fill: currentColor;
 }
 
 .dock-label {
@@ -78,142 +232,329 @@
 }
 
 .pane {
-	background: #f7f5f2;
-	border: 1px solid rgba(33, 30, 25, 0.14);
+	/* "Quiet Paper" design tokens — inherited by all pane content so every
+	   surface, space, and color comes from one warm scale. */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-12: 48px;
+	--paper-1: #f7f5f2; /* pane surface */
+	--paper-2: #faf8f5; /* raised */
+	--paper-3: #ece8e1; /* recessed well: notices, code chips */
+	--paper-4: #e7e2da; /* control hover */
+	--paper-5: #e2dcd2; /* control active */
+	--line-subtle: rgba(33, 32, 29, 0.08);
+	--line-control: rgba(33, 32, 29, 0.14);
+	--line-hover: rgba(33, 32, 29, 0.22);
+	--ink: #21201d;
+	--ink-soft: #2f2d28;
+	--ink-muted: #5f5b54;
+	--ink-faint: #8a857b;
+	--accent: #3858e9;
+	--accent-hover: #2f4ad1;
+	--accent-link: #2645c9;
+	--radius-card: 8px;
+	--radius-control: 6px;
+
+	background: var(--paper-1);
 	border-radius: 14px;
 	bottom: 94px;
-	box-shadow: 0 22px 60px rgba(33, 30, 25, 0.2);
-	color: #21201d;
-	display: grid;
-	grid-template-rows: auto minmax(0, 1fr);
+	/* Shadow only — a floating element doesn't also need a hard border
+	   (the doubled edge is a slop tell). A faint top highlight fakes a lit top. */
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.55),
+		0 1px 2px rgba(40, 33, 23, 0.05),
+		0 8px 18px rgba(40, 33, 23, 0.09),
+		0 26px 56px rgba(40, 33, 23, 0.18);
+	color: var(--ink);
+	/* Simple panes scroll as one piece — the header scrolls with the content
+	   rather than staying pinned. Editor panes override this below. */
+	display: block;
 	max-height: min(620px, calc(100dvh - 174px));
 	left: 50%;
-	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
 	position: fixed;
 	transform: translate(-50%, 0);
-	width: min(760px, calc(100vw - 40px));
+	width: min(600px, calc(100vw - 40px));
 	z-index: 40;
 }
 
 .pane-editor {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
 	height: min(780px, calc(100dvh - 148px));
 	max-height: none;
+	overflow: hidden;
 	width: min(1120px, calc(100vw - 40px));
+}
+
+/* The New pane runs at a fixed height (set inline) so its tab strip stays put
+   as tabs change; the header stays at the top and the body scrolls within. */
+.pane-fixed-height {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.pane-fixed-height .pane-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* "Store permanently" / "This Playground" hold short forms, so they get a
+   narrower pane. Compound selector so it also beats the `.pane` width override
+   in the max-width:720px media query below (equal specificity, later in source). */
+.pane.pane-compact {
+	width: min(440px, calc(100vw - 40px));
 }
 
 .overlay-compat {
 	/* Keeps existing browser tests oriented while the visual treatment changes. */
 }
 
-.pane-enter,
-.pane-exit-active {
+/* Start states. CSSTransition keeps the base (`-enter`/`-exit`) class on the
+   node alongside the `-active` class for the whole transition, so the `-active`
+   rules MUST come later in source order to win — otherwise the end state never
+   applies and the pane snaps instead of animating (the old close bug). */
+.pane-enter {
 	opacity: 0;
 	transform: translate(-50%, 14px);
 }
 
-.pane-enter-active,
 .pane-exit {
 	opacity: 1;
 	transform: translate(-50%, 0);
 }
 
-.pane-enter-active,
-.pane-exit-active {
+/* End states. Open decelerates into place (ease-out); close is its exact
+   time-reverse — accelerating away (ease-in) over the same distance/duration. */
+.pane-enter-active {
+	opacity: 1;
+	transform: translate(-50%, 0);
 	transition:
-		opacity 240ms cubic-bezier(0.65, 0, 0.35, 1),
-		transform 240ms cubic-bezier(0.65, 0, 0.35, 1);
+		opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+		transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pane-exit-active {
+	opacity: 0;
+	transform: translate(-50%, 14px);
+	transition:
+		opacity 240ms cubic-bezier(0.64, 0, 0.78, 0),
+		transform 240ms cubic-bezier(0.64, 0, 0.78, 0);
 }
 
 .pane-header {
-	margin: 0 auto;
-	max-width: 640px;
-	padding: 24px 32px 18px;
+	align-items: center;
+	display: flex;
+	gap: var(--space-4);
+	justify-content: space-between;
+	padding: var(--space-8) var(--space-6) var(--space-6);
 	width: 100%;
 }
 
-.pane-editor .pane-header {
-	max-width: none;
-	padding: 18px 32px 14px;
+.pane-header-main {
+	min-width: 0;
 }
 
-.eyebrow {
-	color: #6f6a62;
-	font-size: 12px;
+/* Right-aligned header action (e.g. "New Playground" on Your Playgrounds): a
+   compact accent affordance that sits beside the title rather than below it. */
+.pane-header-action {
+	align-items: center;
+	background: rgba(56, 88, 233, 0.08);
+	border: 1px solid rgba(56, 88, 233, 0.22);
+	border-radius: var(--radius-card);
+	color: var(--accent-link);
+	cursor: pointer;
+	display: inline-flex;
+	flex-shrink: 0;
+	font-size: 13px;
 	font-weight: 600;
-	letter-spacing: 0.08em;
-	line-height: 1.2;
-	margin: 0 0 6px;
-	text-transform: uppercase;
+	gap: 6px;
+	padding: 8px 12px;
+	transition:
+		background 0.12s ease,
+		border-color 0.12s ease;
+	white-space: nowrap;
+}
+
+.pane-header-action:hover {
+	background: rgba(56, 88, 233, 0.14);
+	border-color: rgba(56, 88, 233, 0.4);
+}
+
+.pane-header-action svg {
+	fill: currentColor;
+}
+
+.pane-editor .pane-header {
+	padding: var(--space-6) var(--space-6) var(--space-4);
 }
 
 .pane-header h2 {
-	color: #21201d;
-	font-family: Georgia, 'Times New Roman', serif;
-	font-size: 32px;
-	font-weight: 500;
-	letter-spacing: -0.03em;
-	line-height: 1.05;
+	color: var(--ink);
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
 	margin: 0;
 }
 
-.pane-editor .pane-header h2 {
-	font-size: 30px;
-}
-
-.current-playground {
-	color: #3c434a;
+/* Title + subtitle read as one unit; the section break to the body is the
+   header's bottom padding. */
+.pane-description {
+	color: var(--ink-muted);
 	font-size: 13px;
-	line-height: 1.4;
-	margin: 7px 0 0;
-}
-
-.current-playground span {
-	color: #1d2327;
-	font-weight: 600;
-}
-
-.current-playground .current-playground-storage {
-	color: #50575e;
-	font-weight: 400;
-}
-
-.rename-playground {
-	background: transparent;
-	border: 0;
-	color: #3858e9;
-	cursor: pointer;
-	font: inherit;
-	font-weight: 600;
-	margin-left: 8px;
-	padding: 2px 0;
-}
-
-.rename-playground:hover {
-	color: #2145e6;
-	text-decoration: underline;
-}
-
-.rename-playground:focus-visible {
-	border-radius: 2px;
-	outline: 2px solid #3858e9;
-	outline-offset: 2px;
-}
-
-.pane-header p:last-child {
-	color: #5f5b54;
-	font-size: 15px;
 	line-height: 1.45;
-	margin: 8px 0 0;
+	margin: var(--space-2) 0 0;
 }
 
-.pane-editor .pane-header p:last-child {
-	font-size: 14px;
-	margin-top: 6px;
+/* "This Playground" shortcuts row above the settings form. The bottom hairline
+   is the one divider allowed in a pane. */
+.shortcuts {
+	align-items: center;
+	border-bottom: 1px solid var(--line-subtle);
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-bottom: var(--space-4);
+	padding: 0 var(--space-6) var(--space-4);
+}
+
+.shortcuts-end {
+	display: flex;
+	gap: var(--space-2);
+	margin-left: auto;
+}
+
+/* Notices = recessed warm wells: a deeper parchment + faint inset, NO border and
+   NO outer shadow, so they read as carved-in context that never out-shouts the
+   title. (A bordered, filled box rivaling the H1 is the classic AI-slop tell.) */
+.pane :global(.components-notice) {
+	background: var(--paper-3);
+	border: 0;
+	border-radius: var(--radius-card);
+	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.04);
+	color: var(--ink-muted);
+	margin: 0;
+	padding: var(--space-4);
+}
+
+.pane :global(.components-notice.is-info) {
+	background: var(--paper-3);
+}
+
+.pane :global(.components-notice.is-warning) {
+	background: #f3e6c8;
+}
+
+.pane :global(.components-notice.is-error) {
+	background: #f2ddd6;
+}
+
+.pane :global(.components-notice.is-success) {
+	background: #e1ebd7;
+}
+
+.pane :global(.components-notice .components-notice__content) {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+}
+
+.pane :global(.components-notice .components-notice__content a) {
+	color: var(--accent-link);
+}
+
+.pane :global(.components-notice .components-notice__dismiss) {
+	color: var(--ink-faint);
+}
+
+/* Button hierarchy: exactly one filled blue primary per pane. Every secondary /
+   tertiary becomes a quiet ink control on paper (destructive stays red). */
+.pane :global(.components-button.is-secondary:not(.is-destructive)) {
+	box-shadow: inset 0 0 0 1px var(--line-control);
+	color: var(--ink);
+}
+
+.pane
+	:global(
+		.components-button.is-secondary:not(.is-destructive):hover:not(
+				:disabled
+			)
+	) {
+	background: var(--paper-4);
+	box-shadow: inset 0 0 0 1px var(--line-hover);
+	color: var(--ink);
+}
+
+.pane :global(.components-button.is-tertiary:not(.is-destructive)) {
+	color: var(--ink);
+}
+
+.pane
+	:global(
+		.components-button.is-tertiary:not(.is-destructive):hover:not(:disabled)
+	) {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
+/* Form fields — warm, consistent, refined across every pane (Store permanently,
+   This Playground, Share). The default WordPress controls otherwise read as
+   admin chrome and clash with the paper surface. */
+.pane :global(.components-text-control__input),
+.pane :global(.components-select-control__input) {
+	background: #ffffff;
+	border-color: var(--line-control);
+	border-radius: var(--radius-control);
+	box-shadow: none;
+	color: var(--ink);
+}
+
+.pane :global(.components-text-control__input:focus),
+.pane :global(.components-select-control__input:focus) {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 1px var(--accent);
+}
+
+.pane :global(.components-input-control__backdrop) {
+	border-color: var(--line-control) !important;
+	border-radius: var(--radius-control) !important;
+}
+
+/* Field labels are sentence case — UPPERCASE is reserved for section eyebrows
+   (e.g. "START FROM A BLUEPRINT"), so a label never doubles up the all-caps
+   header above it. */
+.pane :global(.components-base-control__label) {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.pane :global(.components-radio-control__input),
+.pane :global(.components-checkbox-control__input) {
+	accent-color: var(--accent);
+}
+
+.pane :global(.components-radio-control__label),
+.pane :global(.components-checkbox-control__label) {
+	color: var(--ink-soft);
 }
 
 .pane-body {
 	min-height: 0;
-	overflow: auto;
 }
 
 .pane-editor .pane-body {
@@ -224,6 +565,9 @@
 	.dock {
 		bottom: 10px;
 		max-width: calc(100vw - 20px);
+	}
+
+	.dock-tools {
 		overflow-x: auto;
 	}
 
@@ -243,10 +587,6 @@
 	}
 
 	.pane-header {
-		padding: 22px 20px 12px;
-	}
-
-	.pane-header h2 {
-		font-size: 28px;
+		padding: var(--space-6) var(--space-6) var(--space-4);
 	}
 }

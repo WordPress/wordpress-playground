@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { Spinner, TextControl } from '@wordpress/components';
+import { Button, Notice, Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
@@ -9,6 +9,9 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 interface PreviewPRFormProps {
 	onClose: () => void;
 	target: 'wordpress' | 'gutenberg';
+	/** Render a single left-aligned primary action (dock pane) instead of the
+	 *  modal's right-aligned Cancel/Submit row. */
+	inline?: boolean;
 }
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -33,6 +36,7 @@ export const targetParams = {
 export default function PreviewPRForm({
 	onClose,
 	target = 'wordpress',
+	inline = false,
 }: PreviewPRFormProps) {
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
@@ -253,14 +257,30 @@ export default function PreviewPRForm({
 						setValue(e);
 					}}
 				/>
-				{errorMsg && <div>{errorMsg}</div>}
+				{errorMsg && (
+					<Notice status="error" isDismissible={false}>
+						{errorMsg}
+					</Notice>
+				)}
 			</div>
-			<ModalButtons
-				areDisabled={submitting}
-				onCancel={onClose}
-				onSubmit={handleSubmit}
-				submitText="Preview"
-			/>
+			{inline ? (
+				<div className={css.inlineActions}>
+					<Button
+						variant="primary"
+						type="submit"
+						disabled={submitting}
+					>
+						Preview
+					</Button>
+				</div>
+			) : (
+				<ModalButtons
+					areDisabled={submitting}
+					onCancel={onClose}
+					onSubmit={handleSubmit}
+					submitText="Preview"
+				/>
+			)}
 		</form>
 	);
 }

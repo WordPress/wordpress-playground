@@ -5,6 +5,7 @@ import classNames from 'classnames';
 import css from './style.module.css';
 import { Modal } from '../modal';
 import { TextControl } from '@wordpress/components';
+import { Icon, check } from '@wordpress/icons';
 import type {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
@@ -83,12 +84,17 @@ export function SiteLogs({ className }: { className?: string }) {
 						No matching logs found.
 					</div>
 				) : (
-					<div>
-						Error logs for Playground, WordPress, and PHP will show
-						up here when something goes wrong.
-						<br />
-						<br />
-						No problems so far – yay! 🎉
+					<div className={css.logEmptyState}>
+						<Icon
+							className={css.logEmptyIcon}
+							icon={check}
+							size={24}
+						/>
+						<p className={css.logEmptyTitle}>No problems so far.</p>
+						<p className={css.logEmptyHint}>
+							Logs appear here when something needs your
+							attention.
+						</p>
 					</div>
 				)}
 			</div>

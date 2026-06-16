@@ -37,3 +37,30 @@
 .log__entry:has(mark) {
 	background-color: ivory;
 }
+
+.log-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	padding: 8px 0 16px;
+}
+
+.log-empty-icon {
+	color: #00a32a;
+	margin-bottom: 4px;
+}
+
+.log-empty-title {
+	color: #1e1e1e;
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0;
+}
+
+.log-empty-hint {
+	color: #646970;
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+}

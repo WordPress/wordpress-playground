@@ -47,7 +47,7 @@ async function saveSiteViaModal(
 	// The site manager remembers the last selected section. The save notice only
 	// lives in Settings, so select it before looking for the button.
 	const settingsButton = page.getByRole('button', {
-		name: /Site Manager/,
+		name: /This Playground/,
 	});
 	if ((await settingsButton.getAttribute('aria-pressed')) !== 'true') {
 		await settingsButton.click();
@@ -128,7 +128,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 		firstSiteName
 	);
 	await expect(
-		website.page.getByText('Autosaved in this browser')
+		website.page.getByRole('button', { name: 'Autosaved' })
 	).toBeVisible({ timeout: 120000 });
 	await expect
 		.poll(() =>
@@ -241,10 +241,9 @@ test('should rename a saved Playground and persist after reload', async ({
 		}
 	);
 
-	// Click the pencil/edit button next to the playground name
-	await website.page
-		.getByRole('button', { name: 'Rename Playground' })
-		.click();
+	// Rename via the shortcut in the "This Playground" pane.
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByRole('button', { name: 'Rename' }).click();
 
 	const newName = 'My Renamed Playground';
 	const dialog = website.page.getByRole('dialog', {
@@ -652,12 +651,15 @@ test('should create a saved site when importing ZIP while on a saved site with n
 
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
-	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.page
+		.locator('nav[aria-label="Playground tools"]')
+		.getByRole('button', { name: 'New Playground' })
+		.click();
 
-	const importZipButton = website.page.getByRole('button', {
+	const importZipTab = website.page.getByRole('tab', {
 		name: 'Import a .zip',
 	});
-	await expect(importZipButton).toBeVisible();
+	await expect(importZipTab).toBeVisible();
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';

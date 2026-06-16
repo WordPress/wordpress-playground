@@ -43,7 +43,7 @@ export class WebsitePage {
 
 	async ensureSiteManagerIsOpen() {
 		const siteManagerButton = this.page.getByRole('button', {
-			name: /Site Manager/,
+			name: /This Playground/,
 		});
 		const isPressed = await siteManagerButton.getAttribute('aria-pressed');
 		if (isPressed !== 'true') {
@@ -67,7 +67,7 @@ export class WebsitePage {
 			await this.page.keyboard.press('Escape');
 		} else {
 			const siteManagerButton = this.page.getByRole('button', {
-				name: /Site Manager/,
+				name: /This Playground/,
 			});
 			const isPressed =
 				await siteManagerButton.getAttribute('aria-pressed');
@@ -105,6 +105,7 @@ export class WebsitePage {
 				.catch(() => false))
 		) {
 			await this.page
+				.locator('nav[aria-label="Playground tools"]')
 				.getByRole('button', { name: 'New Playground' })
 				.click();
 		}

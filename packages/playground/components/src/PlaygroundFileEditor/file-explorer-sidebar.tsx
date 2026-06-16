@@ -5,8 +5,9 @@ import React, {
 	type Dispatch,
 	type SetStateAction,
 } from 'react';
+import classNames from 'classnames';
 import { Icon } from '@wordpress/components';
-import { file as folderIcon, page as fileIcon } from '@wordpress/icons';
+import { upload } from '@wordpress/icons';
 import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
@@ -23,6 +24,64 @@ import {
 	getMimeType,
 	isPreviewableBinary,
 } from './file-utils';
+
+const FilePlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M11 6h7l5 5v12a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M18 6v5h5"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="#fff" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);
+
+const FolderPlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M6 9h7l3 3h10v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M6 9V8a2 2 0 0 1 2-2h5l3 3"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="#fff" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);
 
 export type FileExplorerSidebarProps = {
 	filesystem: AsyncWritableFilesystem;
@@ -53,6 +112,8 @@ export function FileExplorerSidebar({
 	documentRoot,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
 	const treeInitialPath = useMemo(() => {
 		return normalizePath(
@@ -67,6 +128,136 @@ export function FileExplorerSidebar({
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		null
 	);
+	const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+
+	const isInternalDrag = (event: React.DragEvent) =>
+		event.dataTransfer?.types?.includes('application/x-wp-playground-path');
+
+	const resolveUploadDirectory = async () => {
+		const candidates = [
+			lastSelectedPath,
+			selectedDirPath,
+			documentRoot,
+		].filter(Boolean) as string[];
+		for (const candidate of candidates) {
+			try {
+				if (await filesystem.isDir(candidate)) {
+					return candidate;
+				}
+			} catch {
+				continue;
+			}
+			try {
+				const parent = dirname(candidate);
+				if (await filesystem.isDir(parent)) {
+					return parent;
+				}
+			} catch {
+				continue;
+			}
+		}
+		return documentRoot;
+	};
+
+	const getAvailablePath = async (baseDir: string, desiredName: string) => {
+		const safeName = desiredName || 'upload';
+		const basePath = baseDir === '/' ? '/' : baseDir;
+		const splitExt = (name: string) => {
+			const dot = name.lastIndexOf('.');
+			if (dot > 0) {
+				return { stem: name.slice(0, dot), ext: name.slice(dot) };
+			}
+			return { stem: name, ext: '' };
+		};
+		let counter = 0;
+		while (true) {
+			const { stem, ext } = splitExt(safeName);
+			const suffix = counter ? ` (${counter})` : '';
+			const candidateName = `${stem}${suffix}${ext}`;
+			const candidatePath =
+				basePath === '/'
+					? `/${candidateName}`
+					: `${basePath}/${candidateName}`;
+			const exists = await filesystem
+				.fileExists(candidatePath)
+				.catch(() => false);
+			const isDir = await filesystem
+				.isDir(candidatePath)
+				.catch(() => false);
+			if (!exists && !isDir) {
+				return candidatePath;
+			}
+			counter += 1;
+		}
+	};
+
+	const importFileList = async (files: FileList | File[]) => {
+		if (!files || !files.length) {
+			return;
+		}
+		const baseDir = await resolveUploadDirectory();
+		const createdPaths: string[] = [];
+		for (const file of Array.from(files)) {
+			try {
+				const targetPath = await getAvailablePath(baseDir, file.name);
+				const buffer = new Uint8Array(await file.arrayBuffer());
+				await filesystem.writeFile(targetPath, buffer);
+				createdPaths.push(targetPath);
+			} catch (error) {
+				logger.error('Failed to import file', error);
+			}
+		}
+		if (createdPaths.length) {
+			setLastSelectedPath(baseDir);
+			await treeRef.current?.refresh(baseDir);
+		}
+	};
+
+	const handleUploadButtonClick = () => {
+		uploadInputRef.current?.click();
+	};
+
+	const handleUploadInputChange = async (
+		event: React.ChangeEvent<HTMLInputElement>
+	) => {
+		await importFileList(event.target.files ?? []);
+		// Reset input so the same file selection can be chosen again.
+		event.target.value = '';
+	};
+
+	const handleSidebarDragEnter = (event: React.DragEvent) => {
+		if (isInternalDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		setIsDraggingSidebar(true);
+	};
+
+	const handleSidebarDragOver = (event: React.DragEvent) => {
+		if (isInternalDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		setIsDraggingSidebar(true);
+	};
+
+	const handleSidebarDragLeave = (event: React.DragEvent) => {
+		const related = event.relatedTarget as Node | null;
+		if (related && containerRef.current?.contains(related)) {
+			return;
+		}
+		setIsDraggingSidebar(false);
+	};
+
+	const handleSidebarDrop = async (event: React.DragEvent) => {
+		if (isInternalDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		setIsDraggingSidebar(false);
+		await importFileList(event.dataTransfer?.files ?? []);
+	};
 
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
@@ -143,12 +334,24 @@ export function FileExplorerSidebar({
 	};
 
 	return (
-		<div className={styles['fileExplorerContainer']}>
+		<div
+			ref={containerRef}
+			className={classNames(styles['fileExplorerContainer'], {
+				[styles['dropActive']]: isDraggingSidebar,
+			})}
+			onDragEnter={handleSidebarDragEnter}
+			onDragOver={handleSidebarDragOver}
+			onDragLeave={handleSidebarDragLeave}
+			onDrop={handleSidebarDrop}
+		>
 			<div className={styles['fileExplorerHeader']}>
 				<span className={styles['fileExplorerTitle']}>Files</span>
 				<div className={styles['fileExplorerActions']}>
 					<button
-						className={styles['fileExplorerButton']}
+						className={classNames(
+							styles['fileExplorerButton'],
+							styles['fileExplorerIconButton']
+						)}
 						type="button"
 						onClick={() => {
 							if (!treeRef.current) {
@@ -159,12 +362,15 @@ export function FileExplorerSidebar({
 							);
 						}}
 						title="Create new file"
+						aria-label="Create new file"
 					>
-						<Icon icon={fileIcon} size={16} />
-						New File
+						<FilePlusIcon />
 					</button>
 					<button
-						className={styles['fileExplorerButton']}
+						className={classNames(
+							styles['fileExplorerButton'],
+							styles['fileExplorerIconButton']
+						)}
 						type="button"
 						onClick={() => {
 							if (!treeRef.current) {
@@ -175,15 +381,36 @@ export function FileExplorerSidebar({
 							);
 						}}
 						title="Create new folder"
+						aria-label="Create new folder"
 					>
-						<Icon icon={folderIcon} size={16} />
-						New Folder
+						<FolderPlusIcon />
 					</button>
+					<button
+						className={classNames(
+							styles['fileExplorerButton'],
+							styles['fileExplorerIconButton'],
+							styles['fileExplorerUploadButton']
+						)}
+						type="button"
+						onClick={handleUploadButtonClick}
+						title="Upload files"
+						aria-label="Upload files"
+					>
+						<Icon icon={upload} size={16} />
+					</button>
+					<input
+						ref={uploadInputRef}
+						type="file"
+						multiple
+						style={{ display: 'none' }}
+						onChange={handleUploadInputChange}
+					/>
 				</div>
 			</div>
 			<div className={styles['fileExplorerTree']}>
 				<FilePickerTree
 					ref={treeRef}
+					withContextMenu
 					filesystem={filesystem}
 					root={documentRoot}
 					initialSelectedPath={treeInitialPath}

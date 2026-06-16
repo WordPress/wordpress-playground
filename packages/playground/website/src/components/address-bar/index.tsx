@@ -69,9 +69,19 @@ const quickNavItems: QuickNavItem[] = [
 interface AddressBarProps {
 	url?: string;
 	onUpdate?: (url: string) => void;
+	/**
+	 * Renders the bar inert (e.g. while the Playground is still booting and
+	 * there is no client to navigate yet) instead of hiding it, so the dock
+	 * layout stays stable through loading.
+	 */
+	disabled?: boolean;
 }
 
-export default function AddressBar({ url, onUpdate }: AddressBarProps) {
+export default function AddressBar({
+	url,
+	onUpdate,
+	disabled = false,
+}: AddressBarProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -150,6 +160,9 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 	}
 
 	function handleFocus() {
+		if (disabled) {
+			return;
+		}
 		setIsFocused(true);
 		setIsOpen(true);
 	}
@@ -196,6 +209,7 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 				type="button"
 				className={css.refreshButton}
 				onClick={handleRefresh}
+				disabled={disabled}
 				aria-label="Refresh page"
 				title="Refresh page"
 			>
@@ -221,6 +235,7 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 					onFocus={handleFocus}
 					onBlur={handleBlur}
 					onKeyDown={handleInputKeyDown}
+					disabled={disabled}
 					name="url"
 					type="text"
 					aria-label='URL to visit in the WordPress site, like "/wp-admin"'
@@ -228,7 +243,7 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 				/>
 				{isOpen && (
 					<Popover
-						placement="bottom-start"
+						placement="top-start"
 						onClose={() => setIsOpen(false)}
 						anchor={inputRef.current}
 						noArrow={true}

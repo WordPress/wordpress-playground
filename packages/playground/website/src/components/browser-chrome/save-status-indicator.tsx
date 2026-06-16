@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import css from './save-status-indicator.module.css';
 import classNames from 'classnames';
 import {
@@ -8,11 +8,13 @@ import {
 	useAppDispatch,
 } from '../../lib/state/redux/store';
 import {
-	modalSlugs,
-	setActiveModal,
+	setSiteManagerOpen,
+	setSiteManagerSection,
 	setSiteSlugToSave,
+	dismissAutosaveNudge,
+	addDeclinedAutosaveRestoreFingerprint,
 } from '../../lib/state/redux/slice-ui';
-import { Icon, Popover } from '@wordpress/components';
+import { Icon, Tooltip, Popover } from '@wordpress/components';
 import { backup, check, cautionFilled } from '@wordpress/icons';
 import {
 	isAutosavedSite,
@@ -22,16 +24,27 @@ import {
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
+import { logger } from '@php-wasm/logger';
+import { RestoreAutosaveNudge } from '../ensure-playground-site/restore-autosave-nudge';
 
 type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
 
+/**
+ * Compact persistence status for the dock. The actionable states (autosaved,
+ * unsaved, error) open the "Store permanently" dock pane directly on click —
+ * the single most useful thing to do — with the explanation carried by a
+ * hover/focus tooltip rather than an extra explain-then-act popover.
+ */
 export function SaveStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const statusButtonRef = useRef<HTMLButtonElement>(null);
-	const suppressNextTriggerClickRef = useRef(false);
-	const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+	const sitesAPI = useSitesAPI();
+	const autosaveNudge = useAppSelector((state) => state.ui.autosaveNudge);
+	const [nudgeAnchor, setNudgeAnchor] = useState<HTMLElement | null>(null);
+	const [nudgeBusy, setNudgeBusy] = useState(false);
+	const [nudgeError, setNudgeError] = useState<string>();
 
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(activeSite, clientInfo);
@@ -39,35 +52,83 @@ export function SaveStatusIndicator() {
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const canStorePermanently =
 		isOpfsAvailable || localFsAvailability === 'available';
+	const isLocalFs = activeSite?.metadata.storage === 'local-fs';
 
-	const openSaveModal = () => {
-		setIsPopoverOpen(false);
-		dispatch(setSiteSlugToSave(activeSite?.slug));
-		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
+	const openStorePermanently = () => {
+		// Open the dock's "Store permanently" pane for the active Playground
+		// (clearing any specific target left over from the Save modal flow).
+		dispatch(setSiteSlugToSave(undefined));
+		dispatch(setSiteManagerSection('save'));
+		dispatch(setSiteManagerOpen(true));
 	};
 
-	const handleTriggerMouseDown = (
-		event: React.MouseEvent<HTMLButtonElement>
-	) => {
-		if (!isPopoverOpen) {
+	const handleRestoreAutosave = async () => {
+		if (!autosaveNudge) {
 			return;
 		}
-		// Closing on mousedown keeps the popover from immediately reopening
-		// on the same click event that follows.
-		event.preventDefault();
-		event.stopPropagation();
-		suppressNextTriggerClickRef.current = true;
-		setIsPopoverOpen(false);
+		setNudgeError(undefined);
+		setNudgeBusy(true);
+		try {
+			await sitesAPI.setActiveSite(autosaveNudge.siteSlug);
+			dispatch(dismissAutosaveNudge());
+		} catch (error) {
+			logger.error('Error restoring autosaved Playground.', error);
+			setNudgeError(
+				'Could not restore the autosave. Try again or keep the new Playground.'
+			);
+		} finally {
+			setNudgeBusy(false);
+		}
 	};
 
-	const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-		event.stopPropagation();
-		if (suppressNextTriggerClickRef.current) {
-			suppressNextTriggerClickRef.current = false;
+	const handleKeepNew = async () => {
+		if (!autosaveNudge) {
 			return;
 		}
-		setIsPopoverOpen((isOpen) => !isOpen);
+		setNudgeError(undefined);
+		setNudgeBusy(true);
+		try {
+			await sitesAPI.autosaveTemporarySite(undefined, {
+				updateUrl: false,
+				excludeFromPruning: [autosaveNudge.siteSlug],
+			});
+			dispatch(
+				addDeclinedAutosaveRestoreFingerprint(
+					autosaveNudge.setupUrlFingerprint
+				)
+			);
+			dispatch(dismissAutosaveNudge());
+		} catch (error) {
+			logger.error(
+				'Error autosaving the new Playground after declining restore.',
+				error
+			);
+			setNudgeError(
+				'Could not keep the new Playground. Please try again.'
+			);
+		} finally {
+			setNudgeBusy(false);
+		}
 	};
+
+	const autosaveNudgePopover = autosaveNudge && nudgeAnchor && (
+		<Popover
+			anchor={nudgeAnchor}
+			placement="top"
+			offset={12}
+			focusOnMount={false}
+			onClose={() => dispatch(dismissAutosaveNudge())}
+		>
+			<RestoreAutosaveNudge
+				whenCreated={autosaveNudge.whenCreated}
+				error={nudgeError}
+				isBusy={nudgeBusy}
+				onRestore={handleRestoreAutosave}
+				onKeepNew={handleKeepNew}
+				onDismiss={() => dispatch(dismissAutosaveNudge())}
+			/>
+		</Popover>
+	);
 
 	if (!status) {
 		return null;
@@ -75,7 +136,14 @@ export function SaveStatusIndicator() {
 
 	if (status === 'saved') {
 		return (
-			<div className={classNames(css.indicator, css.saved)}>
+			<div
+				className={classNames(css.indicator, css.saved)}
+				title={
+					isLocalFs
+						? 'Stored in a local directory.'
+						: 'Stored permanently in this browser.'
+				}
+			>
 				<Icon icon={check} size={18} />
 				<span className={css.label}>Saved Playground</span>
 			</div>
@@ -84,49 +152,23 @@ export function SaveStatusIndicator() {
 
 	if (status === 'autosaved') {
 		return (
-			<>
+			<Tooltip
+				text={`Recent autosave — deleted after ${MAX_AUTOSAVED_SITES} newer autosaves. Click to store it permanently.`}
+				placement="top"
+			>
 				<button
-					ref={statusButtonRef}
 					className={classNames(
 						css.indicator,
 						css.autosaved,
 						css.actionable
 					)}
-					onMouseDown={handleTriggerMouseDown}
-					onClick={handleTriggerClick}
-					aria-expanded={isPopoverOpen}
+					onClick={openStorePermanently}
 					type="button"
 				>
 					<Icon icon={backup} size={18} />
 					<span className={css.label}>Autosaved</span>
 				</button>
-				{isPopoverOpen && (
-					<Popover
-						placement="bottom-end"
-						onClose={() => setIsPopoverOpen(false)}
-						anchor={statusButtonRef.current}
-						focusOnMount="firstElement"
-						className={css.popover}
-					>
-						<div className={css.popoverContent}>
-							<div className={css.popoverTitle}>Autosaved</div>
-							<p className={css.popoverDescription}>
-								This Playground is saved in this browser with
-								your recent autosaves. It will be deleted after{' '}
-								{MAX_AUTOSAVED_SITES} newer autosaves unless you
-								store it in this browser or a local directory.
-							</p>
-							<button
-								className={css.primaryAction}
-								onClick={openSaveModal}
-								type="button"
-							>
-								Store permanently
-							</button>
-						</div>
-					</Popover>
-				)}
-			</>
+			</Tooltip>
 		);
 	}
 
@@ -161,65 +203,58 @@ export function SaveStatusIndicator() {
 
 	if (status === 'error') {
 		return (
-			<button
-				className={classNames(css.indicator, css.error)}
-				onClick={openSaveModal}
-				type="button"
-			>
-				<Icon icon={cautionFilled} size={18} />
-				<span className={css.label}>
-					{opfsSync?.operation === 'autosave' || isAutosaved
-						? 'Autosave failed'
-						: 'Save failed'}
-				</span>
-			</button>
+			<Tooltip text="Saving failed. Click to try again." placement="top">
+				<button
+					className={classNames(css.indicator, css.error)}
+					onClick={openStorePermanently}
+					type="button"
+				>
+					<Icon icon={cautionFilled} size={18} />
+					<span className={css.label}>
+						{opfsSync?.operation === 'autosave' || isAutosaved
+							? 'Autosave failed'
+							: 'Save failed'}
+					</span>
+				</button>
+			</Tooltip>
+		);
+	}
+
+	// Unsaved. When permanent storage is available, clicking stores it; when it
+	// isn't, there is no action to offer, so it reads as plain status text.
+	if (canStorePermanently) {
+		return (
+			<span className={css.statusAnchor} ref={setNudgeAnchor}>
+				<Tooltip
+					text="Temporary Playground — everything is lost on refresh. Click to store it permanently."
+					placement="top"
+				>
+					<button
+						className={classNames(
+							css.indicator,
+							css.unsaved,
+							css.actionable
+						)}
+						onClick={openStorePermanently}
+						type="button"
+					>
+						<Icon icon={cautionFilled} size={18} />
+						<span className={css.label}>Unsaved</span>
+					</button>
+				</Tooltip>
+				{autosaveNudgePopover}
+			</span>
 		);
 	}
 
 	return (
-		<>
-			<button
-				ref={statusButtonRef}
-				className={classNames(
-					css.indicator,
-					css.unsaved,
-					css.actionable
-				)}
-				onMouseDown={handleTriggerMouseDown}
-				onClick={handleTriggerClick}
-				aria-expanded={isPopoverOpen}
-				type="button"
-			>
-				<Icon icon={cautionFilled} size={18} />
-				<span className={css.label}>Unsaved</span>
-			</button>
-			{isPopoverOpen && (
-				<Popover
-					placement="bottom-end"
-					onClose={() => setIsPopoverOpen(false)}
-					anchor={statusButtonRef.current}
-					focusOnMount="firstElement"
-					className={css.popover}
-				>
-					<div className={css.popoverContent}>
-						<div className={css.popoverTitle}>Unsaved</div>
-						<p className={css.popoverDescription}>
-							This Playground is not stored anywhere. Changes are
-							lost when this page is refreshed or closed.
-						</p>
-						{canStorePermanently && (
-							<button
-								className={css.primaryAction}
-								onClick={openSaveModal}
-								type="button"
-							>
-								Store permanently
-							</button>
-						)}
-					</div>
-				</Popover>
-			)}
-		</>
+		<div
+			className={classNames(css.indicator, css.unsaved)}
+			title="Temporary Playground — lost on refresh. Saving is unavailable in this browser."
+		>
+			<Icon icon={cautionFilled} size={18} />
+			<span className={css.label}>Unsaved</span>
+		</div>
 	);
 }
 

@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@wordpress/components';
-import css from './restore-autosave-nudge.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
@@ -9,7 +7,6 @@ import {
 	isAutosavedSite,
 	selectSiteBySlug,
 	selectSortedSites,
-	type SiteInfo,
 	wasSiteRecentlyInteractedWith,
 } from '../../lib/state/redux/slice-sites';
 import {
@@ -19,14 +16,18 @@ import {
 } from '../../lib/state/redux/store';
 import { logger } from '@php-wasm/logger';
 import { usePrevious } from '../../lib/hooks/use-previous';
-import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	modalSlugs,
+	setActiveModal,
+	setAutosaveNudge,
+	dismissAutosaveNudge,
+} from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import {
 	getAutosaveFingerprintFromSite,
 	getAutosaveFingerprintFromURL,
 } from '../../lib/state/playground-identity';
-import { getRelativeDate } from '../../lib/get-relative-date';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -66,17 +67,9 @@ export function EnsurePlaygroundSiteIsSelected({
 	);
 	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
 		useState<false | string>(false);
-	const [autosaveNudge, setAutosaveNudge] = useState<{
-		site: SiteInfo;
-		setupUrlFingerprint: string;
-	}>();
-	const [
-		declinedAutosaveRestoreFingerprints,
-		setDeclinedAutosaveRestoreFingerprints,
-	] = useState<string[]>([]);
-	const [autosaveNudgeError, setAutosaveNudgeError] = useState<string>();
-	const [isAutosaveNudgeActionPending, setIsAutosaveNudgeActionPending] =
-		useState(false);
+	const declinedAutosaveRestoreFingerprints = useAppSelector(
+		(state) => state.ui.declinedAutosaveRestoreFingerprints
+	);
 	const currentSetupUrlFingerprint = useMemo(
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
@@ -104,8 +97,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {
-				setAutosaveNudge(undefined);
-				setAutosaveNudgeError(undefined);
+				dispatch(dismissAutosaveNudge());
 			}
 
 			// Don't create a new temporary site until the site listing settles.
@@ -202,10 +194,13 @@ export function EnsurePlaygroundSiteIsSelected({
 					) &&
 					wasSiteRecentlyInteractedWith(matchingAutosave)
 				) {
-					setAutosaveNudge({
-						site: matchingAutosave,
-						setupUrlFingerprint: currentSetupUrlFingerprint,
-					});
+					dispatch(
+						setAutosaveNudge({
+							siteSlug: matchingAutosave.slug,
+							setupUrlFingerprint: currentSetupUrlFingerprint,
+							whenCreated: matchingAutosave.metadata.whenCreated,
+						})
+					);
 					await sitesAPI.createNewTemporarySite();
 					return;
 				}
@@ -261,107 +256,9 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	}, [url.searchParams]);
 
-	return (
-		<>
-			{children}
-			{autosaveNudge && (
-				<RestoreAutosaveNudge
-					site={autosaveNudge.site}
-					error={autosaveNudgeError}
-					isBusy={isAutosaveNudgeActionPending}
-					onRestore={async () => {
-						setAutosaveNudgeError(undefined);
-						setIsAutosaveNudgeActionPending(true);
-						try {
-							await sitesAPI.setActiveSite(
-								autosaveNudge.site.slug
-							);
-							setAutosaveNudge(undefined);
-						} catch (error) {
-							logger.error(
-								'Error restoring autosaved Playground.',
-								error
-							);
-							setAutosaveNudgeError(
-								'Could not restore the autosave. Try again or keep the new Playground.'
-							);
-						} finally {
-							setIsAutosaveNudgeActionPending(false);
-						}
-					}}
-					onKeepNew={async () => {
-						setAutosaveNudgeError(undefined);
-						setIsAutosaveNudgeActionPending(true);
-						try {
-							await sitesAPI.autosaveTemporarySite(undefined, {
-								updateUrl: false,
-								excludeFromPruning: [autosaveNudge.site.slug],
-							});
-							setDeclinedAutosaveRestoreFingerprints(
-								(fingerprints) => [
-									...fingerprints,
-									autosaveNudge.setupUrlFingerprint,
-								]
-							);
-							setAutosaveNudge(undefined);
-						} catch (error) {
-							logger.error(
-								'Error autosaving the new Playground after declining restore.',
-								error
-							);
-							setAutosaveNudgeError(
-								'Could not keep the new Playground. Please try again.'
-							);
-						} finally {
-							setIsAutosaveNudgeActionPending(false);
-						}
-					}}
-				/>
-			)}
-		</>
-	);
-}
-
-/**
- * Shows the restore choice for a recent autosave matching the current setup URL.
- */
-function RestoreAutosaveNudge({
-	site,
-	error,
-	isBusy,
-	onRestore,
-	onKeepNew,
-}: {
-	site: SiteInfo;
-	error?: string;
-	isBusy: boolean;
-	onRestore: () => Promise<void>;
-	onKeepNew: () => Promise<void>;
-}) {
-	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
-
-	return (
-		<aside className={css.nudge} aria-label="Recent autosaved Playground">
-			<div className={css.copy}>
-				<div className={css.title}>Recent autosave available</div>
-				<div className={css.description}>
-					Another Playground was created {getRelativeDate(createdAt)}{' '}
-					from the same URL.
-				</div>
-				{error && <div className={css.error}>{error}</div>}
-			</div>
-			<div className={css.actions}>
-				<Button variant="primary" onClick={onRestore} disabled={isBusy}>
-					Restore Autosave
-				</Button>
-				<Button
-					variant="tertiary"
-					onClick={onKeepNew}
-					disabled={isBusy}
-				>
-					No, thanks
-				</Button>
-			</div>
-		</aside>
-	);
+	// The restore-autosave nudge now renders as a popover anchored to the dock's
+	// save-status button (see SaveStatusIndicator); this component only detects
+	// the matching autosave and publishes it to the store.
+	// eslint-disable-next-line react/jsx-no-useless-fragment
+	return <>{children}</>;
 }

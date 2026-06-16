@@ -1,43 +1,79 @@
+.databasePanel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+}
+
+/* Spec-sheet: a fixed muted label column + ink values, aligned to one edge. */
 .databaseInfo {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: 8px 12px;
 	align-items: baseline;
+	column-gap: var(--space-3);
+	display: grid;
+	grid-template-columns: 96px 1fr;
+	margin: 0;
+	row-gap: var(--space-3);
 }
 
 .label {
-	font-weight: 600;
-	color: #1e1e1e;
-	white-space: nowrap;
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.4;
+	margin: 0;
 }
 
 .value {
-	color: #1e1e1e;
-	word-break: break-all;
+	color: var(--ink);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.4;
+	margin: 0;
+	word-break: break-word;
 }
 
 .value code {
-	background: #f0f0f0;
-	padding: 2px 6px;
-	border-radius: 3px;
-	font-size: 12px;
+	background: var(--paper-3);
+	border-radius: var(--radius-control);
+	color: var(--ink);
 	font-family:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 12px;
+	padding: 2px 6px;
 }
 
 .error {
 	color: #cc1818;
 	font-size: 13px;
-	margin-top: 8px;
+	margin-top: var(--space-2);
 }
 
+/* Appearance comes from the shared .pane .components-notice well; only the
+   eyebrow + body typography is set here. The notice spans the full content
+   width so its right edge lines up with the button row below it. */
 .siteNotice {
-	padding: 24px;
-	background-color: #f3f6fd;
+	width: 100%;
+}
+
+.noticeEyebrow {
+	color: var(--ink-muted);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	line-height: 1.2;
+	margin: 0 0 var(--space-1);
+	text-transform: uppercase;
+}
+
+.noticeBody {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
 }
 
 .buttonGroup {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 12px;
+	gap: var(--space-3);
+	margin-top: var(--space-2);
 }

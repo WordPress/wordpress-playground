@@ -19,11 +19,38 @@ const SaveState = {
 
 type SaveState = (typeof SaveState)[keyof typeof SaveState];
 
+/**
+ * Per-`persistKey` editor state that outlives the component, so closing and
+ * reopening the editor restores the last open file and its cursor position.
+ */
+type PersistedEditorState = {
+	path: string | null;
+	cursors: Map<string, number>;
+};
+const persistedEditorStates = new Map<string, PersistedEditorState>();
+
+function getPersistedEditorState(key: string): PersistedEditorState {
+	let state = persistedEditorStates.get(key);
+	if (!state) {
+		state = { path: null, cursors: new Map() };
+		persistedEditorStates.set(key, state);
+	}
+	return state;
+}
+
 export type PlaygroundFileEditorProps = {
 	filesystem: AsyncWritableFilesystem | null;
 	isVisible?: boolean;
 	documentRoot: string;
 	initialPath?: string | null;
+	/**
+	 * Opt-in key (e.g. a Playground slug) for remembering the open file and
+	 * cursor positions across unmounts. When the host unmounts and remounts
+	 * this editor (such as a panel that closes and reopens), passing the same
+	 * key reopens the last file at its last cursor position instead of falling
+	 * back to `initialPath`. Omit it to keep the default stateless behavior.
+	 */
+	persistKey?: string;
 	placeholderText?: string;
 	onSaveFile?: (path: string, content: string) => Promise<void>;
 	/**
@@ -45,10 +72,14 @@ export function PlaygroundFileEditor({
 	isVisible = true,
 	documentRoot,
 	initialPath = null,
+	persistKey,
 	placeholderText = 'Select a file to view or edit its contents.',
 	onSaveFile,
 	onBeforeFilesystemChange,
 }: PlaygroundFileEditorProps) {
+	const persistedState = persistKey
+		? getPersistedEditorState(persistKey)
+		: null;
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
 	);
@@ -70,8 +101,24 @@ export function PlaygroundFileEditor({
 	const currentPathRef = useRef<string | null>(currentPath);
 	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
 	const previousFilesystemRef = useRef<AsyncWritableFilesystem | null>(null);
-	const cursorPositionsRef = useRef<Map<string, number>>(new Map());
+	// Cursor positions live in the persisted state (when a persistKey is given)
+	// so they survive unmounts; otherwise they're a plain per-instance map.
+	const cursorPositionsRef = useRef<Map<string, number>>(
+		persistedState?.cursors ?? new Map()
+	);
 	const hasAutoOpenedRef = useRef<boolean>(false);
+	// True while we're restoring a saved cursor on (re)open, so the periodic
+	// save doesn't clobber the persisted position with the editor's initial 0
+	// before the restore has a chance to apply it.
+	const restoringCursorRef = useRef<boolean>(false);
+
+	// Re-point the cursor map if the persistKey changes (e.g. a different
+	// Playground) so we never write one site's cursors into another's state.
+	useEffect(() => {
+		if (persistedState) {
+			cursorPositionsRef.current = persistedState.cursors;
+		}
+	}, [persistedState]);
 
 	useEffect(() => {
 		codeRef.current = code;
@@ -112,28 +159,40 @@ export function PlaygroundFileEditor({
 		}
 	}, [filesystem]);
 
-	// Auto-open initialPath when filesystem becomes available
+	// Auto-open when the filesystem becomes available: reopen the last file
+	// remembered for this persistKey if we have one, otherwise initialPath.
 	useEffect(() => {
-		if (!filesystem || !initialPath || hasAutoOpenedRef.current) {
+		if (!filesystem || hasAutoOpenedRef.current) {
+			return;
+		}
+		const pathToOpen = persistedState?.path ?? initialPath;
+		if (!pathToOpen) {
 			return;
 		}
 
 		const tryAutoOpen = async () => {
 			try {
-				const exists = await filesystem.fileExists(initialPath);
+				const exists = await filesystem.fileExists(pathToOpen);
 				if (exists) {
-					const content =
-						await filesystem.readFileAsText(initialPath);
+					const content = await filesystem.readFileAsText(pathToOpen);
+					// Capture the saved cursor now, before any state change can
+					// trigger the periodic save and overwrite it with 0.
+					const savedPos = cursorPositionsRef.current.get(pathToOpen);
+					restoringCursorRef.current = savedPos !== undefined;
 					skipNextSaveRef.current = true;
-					setCurrentPath(initialPath);
+					setCurrentPath(pathToOpen);
 					setCode(content);
 					setReadOnly(false);
 					setSaveState(SaveState.IDLE);
 					setSaveError(null);
-					// Focus the editor after opening
+					// Restore the saved cursor position, then focus the editor.
 					setTimeout(() => {
+						if (savedPos !== undefined) {
+							editorRef.current?.setCursorPosition(savedPos);
+						}
 						editorRef.current?.focus();
-					}, 100);
+						restoringCursorRef.current = false;
+					}, 120);
 				}
 			} catch (error) {
 				// Silently fail - file may not exist or may not be readable
@@ -144,7 +203,7 @@ export function PlaygroundFileEditor({
 		};
 
 		void tryAutoOpen();
-	}, [filesystem, initialPath]);
+	}, [filesystem, initialPath, persistedState]);
 
 	// Reset when documentRoot changes
 	useEffect(() => {
@@ -250,6 +309,9 @@ export function PlaygroundFileEditor({
 
 			skipNextSaveRef.current = true;
 			setCurrentPath(path);
+			if (persistedState) {
+				persistedState.path = path;
+			}
 			setCode(content);
 			setMessageContent(null);
 			setReadOnly(false);
@@ -270,7 +332,7 @@ export function PlaygroundFileEditor({
 				}
 			}, 50);
 		},
-		[]
+		[persistedState]
 	);
 
 	// Periodically save cursor position while editing
@@ -286,10 +348,14 @@ export function PlaygroundFileEditor({
 			}
 		}, 1000);
 
-		// Save immediately on mount and when currentPath changes
-		const pos = editorRef.current?.getCursorPosition();
-		if (pos !== null && pos !== undefined) {
-			cursorPositionsRef.current.set(currentPath, pos);
+		// Save immediately on mount and when currentPath changes — unless we're
+		// mid-restore, where the editor still sits at 0 and would overwrite the
+		// position we're about to restore.
+		if (!restoringCursorRef.current) {
+			const pos = editorRef.current?.getCursorPosition();
+			if (pos !== null && pos !== undefined) {
+				cursorPositionsRef.current.set(currentPath, pos);
+			}
 		}
 
 		return () => {
@@ -332,12 +398,15 @@ export function PlaygroundFileEditor({
 
 		skipNextSaveRef.current = true;
 		setCurrentPath(null);
+		if (persistedState) {
+			persistedState.path = null;
+		}
 		setCode('');
 		setMessageContent(null);
 		setReadOnly(true);
 		setSaveState(SaveState.IDLE);
 		setSaveError(null);
-	}, []);
+	}, [persistedState]);
 
 	const handleShowMessage = useCallback(
 		async (_path: string | null, message: string | JSX.Element) => {
