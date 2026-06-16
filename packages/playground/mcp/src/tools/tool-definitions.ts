@@ -46,6 +46,66 @@ export function playgroundUrl(port: number, baseUrl?: string): string {
 // -- Per-site tool definitions --
 
 export const toolDefinitions: Record<string, ToolDefinition> = {
+	playground_ability: {
+		title: 'WordPress Ability',
+		errorPrefix: 'Error using WordPress ability',
+		description: `List, inspect, or execute WordPress Abilities API
+			abilities registered by WordPress, plugins, or themes.
+
+			This is a meta-tool:
+			- action="list" discovers available abilities. Use the
+			  optional category filter for domains like "content",
+			  "media", "users", or plugin-specific terms.
+			- action="get" returns full metadata for one ability,
+			  including input and output schemas. Call this before
+			  executing an unfamiliar ability.
+			- action="execute" runs an ability with the provided
+			  arguments object.
+
+			Prefer this tool over playground_execute_php for
+			plugin-specific WordPress actions when a matching ability
+			exists. If the running WordPress version does not include
+			the Abilities API, the tool returns an "Abilities API not
+			available" error payload.`,
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: false,
+			openWorldHint: true,
+		},
+		params: [
+			{
+				name: 'action',
+				type: 'string',
+				description:
+					'Action to perform: "list", "get", or "execute". Defaults to "list".',
+				required: false,
+				default: 'list',
+			},
+			{
+				name: 'category',
+				type: 'string',
+				description:
+					'Optional category or search term used with action="list".',
+				required: false,
+			},
+			{
+				name: 'ability',
+				type: 'string',
+				description:
+					'Ability identifier, e.g. "core/create-post" or "plugin/action". Required for action="get" and action="execute".',
+				required: false,
+			},
+			{
+				name: 'arguments',
+				type: 'object',
+				description:
+					'Arguments passed to the ability for action="execute". Schema varies by ability.',
+				required: false,
+				additionalProperties: true,
+			},
+		],
+	},
 	playground_execute_php: {
 		title: 'Execute PHP Code',
 		errorPrefix: 'Error executing PHP',

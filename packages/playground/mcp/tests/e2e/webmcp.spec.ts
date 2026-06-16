@@ -113,6 +113,7 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 	);
 	const names = tools.map((t: { name: string }) => t.name).sort();
 	expect(names).toEqual([
+		'playground_ability',
 		'playground_delete_directory',
 		'playground_delete_file',
 		'playground_execute_php',
@@ -141,6 +142,24 @@ test('WebMCP playground_execute_php runs PHP code', async ({ webmcpPage }) => {
 	});
 	expect(result.text).toContain('Hello WebMCP');
 	expect(result.exitCode).toBe(0);
+});
+
+test('WebMCP playground_ability lists WordPress abilities', async ({
+	webmcpPage,
+}) => {
+	const result = await webmcpPage.evaluate(async () => {
+		const executors = (window as any).__webmcpExecutors;
+		return await executors['playground_ability']({
+			action: 'list',
+		});
+	});
+	if (result.error === 'Abilities API not available') {
+		expect(result.abilities).toEqual([]);
+		expect(result.count).toBe(0);
+		return;
+	}
+	expect(result.abilities).toBeInstanceOf(Array);
+	expect(typeof result.count).toBe('number');
 });
 
 test('WebMCP playground_read_file reads wp-config.php', async ({

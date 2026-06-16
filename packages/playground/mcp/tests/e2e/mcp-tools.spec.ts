@@ -173,6 +173,7 @@ test('lists all registered tools', async ({ mcpClient }) => {
 	const result = await mcpClient.listTools();
 	const names = result.tools.map((t) => t.name).sort();
 	expect(names).toEqual([
+		'playground_ability',
 		'playground_delete_directory',
 		'playground_delete_file',
 		'playground_execute_php',
@@ -315,6 +316,24 @@ test('playground_execute_php runs code and returns output', async ({
 	const parsed = JSON.parse(resultText(result));
 	expect(parsed.text).toContain('Hello from PHP');
 	expect(parsed.exitCode).toBe(0);
+});
+
+test('playground_ability lists registered WordPress abilities', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_ability',
+		arguments: { siteId, action: 'list' },
+	});
+	const parsed = JSON.parse(resultText(result));
+	if (parsed.error === 'Abilities API not available') {
+		expect(parsed.abilities).toEqual([]);
+		expect(parsed.count).toBe(0);
+		return;
+	}
+	expect(parsed.abilities).toBeInstanceOf(Array);
+	expect(typeof parsed.count).toBe('number');
 });
 
 test('playground_request fetches the homepage', async ({

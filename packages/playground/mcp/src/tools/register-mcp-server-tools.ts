@@ -53,7 +53,7 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 				zodType = z.boolean();
 				break;
 			case 'object':
-				zodType = z.record(z.string(), z.string());
+				zodType = z.record(z.string(), z.unknown());
 				break;
 			default:
 				throw new Error(
