@@ -43,6 +43,37 @@ Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in your project):
 
 Your AI assistant will ask you to open the Playground website and provide the exact URL. You can also ask it: _"What's the Playground website URL?"_
 
+To connect to Personal Playground, pass its URL to the MCP server:
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp", "--url=https://my.wordpress.net/"]
+		}
+	}
+}
+```
+
+For a staging deployment, use that origin instead:
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp", "--url=https://mywp.kirk.at/"]
+		}
+	}
+}
+```
+
+The website URL returned by the MCP server will include `mcp-port`.
+Personal Playground uses that query parameter as the bridge opt-in.
+
 ## How it works
 
 ```
