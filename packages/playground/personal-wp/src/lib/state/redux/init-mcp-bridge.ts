@@ -3,13 +3,10 @@ import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { McpBridgeHandle } from '@wp-playground/mcp/client';
 import { registerWebMCPTools, startMcpBridge } from '@wp-playground/mcp/client';
+import { personalWPSiteSlug } from 'virtual:website-defaults';
 import type { PlaygroundReduxState, PlaygroundDispatch } from './store';
 import { selectClientBySiteSlug } from './slice-clients';
-import {
-	selectAllSites,
-	setOPFSSitesLoadingState,
-	updateSiteMetadata,
-} from './slice-sites';
+import { setOPFSSitesLoadingState, updateSiteMetadata } from './slice-sites';
 
 export const mcpBridgeMiddleware = createListenerMiddleware();
 
@@ -18,11 +15,7 @@ const startListening = mcpBridgeMiddleware.startListening.withTypes<
 	PlaygroundDispatch
 >();
 
-function selectActiveSite(state: PlaygroundReduxState) {
-	return state.ui.activeSite?.slug
-		? state.sites.entities[state.ui.activeSite.slug]
-		: undefined;
-}
+const PERSONAL_WP_MCP_SITE_SLUG = personalWPSiteSlug ?? 'default';
 
 startListening({
 	actionCreator: setOPFSSitesLoadingState,
@@ -31,30 +24,36 @@ startListening({
 
 		const mcpConfig = {
 			list: () => {
-				const state = listenerApi.getState();
-				const activeSite = selectActiveSite(state);
-				return selectAllSites(state).map((site) => ({
-					slug: site.slug,
-					name: site.metadata.name,
-					storage:
-						site.metadata.storage === 'none'
-							? 'temporary'
-							: site.metadata.storage,
-					isActive: site.slug === activeSite?.slug,
-				}));
+				const site =
+					listenerApi.getState().sites.entities[
+						PERSONAL_WP_MCP_SITE_SLUG
+					];
+				if (!site) {
+					return [];
+				}
+				return [
+					{
+						slug: PERSONAL_WP_MCP_SITE_SLUG,
+						name: site.metadata.name,
+						storage:
+							site.metadata.storage === 'none'
+								? 'temporary'
+								: site.metadata.storage,
+						isActive: true,
+					},
+				];
 			},
 			getClient: (): PlaygroundClient | undefined => {
 				const state = listenerApi.getState();
-				const site = selectActiveSite(state);
-				if (!site) {
-					throw new Error('No active site selected');
-				}
-				return selectClientBySiteSlug(state, site.slug);
+				return selectClientBySiteSlug(state, PERSONAL_WP_MCP_SITE_SLUG);
 			},
 			rename: async (newName: string): Promise<void> => {
-				const site = selectActiveSite(listenerApi.getState());
+				const site =
+					listenerApi.getState().sites.entities[
+						PERSONAL_WP_MCP_SITE_SLUG
+					];
 				if (!site) {
-					throw new Error('No active site selected');
+					throw new Error('Personal WordPress site is not loaded');
 				}
 				if (site.metadata.storage === 'none') {
 					throw new Error(
@@ -72,9 +71,12 @@ startListening({
 				slug: string;
 				storage: string;
 			}> => {
-				const site = selectActiveSite(listenerApi.getState());
+				const site =
+					listenerApi.getState().sites.entities[
+						PERSONAL_WP_MCP_SITE_SLUG
+					];
 				if (!site) {
-					throw new Error('No active site selected');
+					throw new Error('Personal WordPress site is not loaded');
 				}
 				if (site.metadata.storage === 'none') {
 					throw new Error(
@@ -83,7 +85,7 @@ startListening({
 					);
 				}
 				return {
-					slug: site.slug,
+					slug: PERSONAL_WP_MCP_SITE_SLUG,
 					storage: site.metadata.storage,
 				};
 			},
