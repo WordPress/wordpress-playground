@@ -412,7 +412,7 @@ export function FileExplorerSidebar({
 			onDrop={handleSidebarDrop}
 		>
 			<div className={styles.fileExplorerHeader}>
-				<span className={styles.fileExplorerTitle}>Files</span>
+				<span className={styles.fileExplorerTitle}>Blueprint</span>
 				<div className={styles.fileExplorerActions}>
 					{!readOnly ? (
 						<>

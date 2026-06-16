@@ -1,8 +1,10 @@
 .file-picker-tree {
 	width: 100%;
 
+	/* Inside the dock the warm --paper-2 makes the zebra subtle; elsewhere it
+	   falls back to the original admin gray. */
 	tr:nth-child(even) {
-		background-color: #f7f7f7;
+		background-color: var(--paper-2, #f7f7f7);
 	}
 
 	&:active {
@@ -34,12 +36,13 @@
 
 	width: 100%;
 	white-space: nowrap;
-	color: var(--wp-components-color-foreground, #1e1e1e);
+	color: var(--ink, var(--wp-components-color-foreground, #1e1e1e));
 	background: transparent;
 	padding: 6px;
 
-	font-family: -apple-system, 'system-ui', 'Segoe UI', Roboto, Oxygen-Sans,
-		Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+	font-family:
+		-apple-system, 'system-ui', 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu,
+		Cantarell, 'Helvetica Neue', sans-serif;
 	font-size: 13px;
 	font-weight: 400;
 
@@ -50,25 +53,29 @@
 	}
 }
 
+/* Selection: inside the dock it reads as a warm well with a left accent bar
+   (white-on-blue is too loud on warm paper); outside the dock it falls back to
+   the original admin-blue fill. */
 .selected {
-	background-color: var(--wp-admin-theme-color);
-	color: #fff;
+	background-color: var(--paper-5, var(--wp-admin-theme-color));
+	color: var(--ink, #fff);
+	box-shadow: inset 2px 0 0 var(--accent, transparent);
 
 	&:hover,
 	&:active,
 	&:focus {
-		color: #fff !important;
-		background-color: var(--wp-admin-theme-color);
+		color: var(--ink, #fff) !important;
+		background-color: var(--paper-5, var(--wp-admin-theme-color));
 	}
 }
 
 .focused {
-	box-shadow: 0 0 0 1px var(--wp-admin-theme-color) inset;
+	box-shadow: 0 0 0 1px var(--accent, var(--wp-admin-theme-color)) inset;
 	border-radius: 2px;
 }
 
 .dropTarget {
-	box-shadow: inset 0 0 0 2px var(--wp-admin-theme-color);
+	box-shadow: inset 0 0 0 2px var(--accent, var(--wp-admin-theme-color));
 }
 
 .dropTarget:not(.selected) {

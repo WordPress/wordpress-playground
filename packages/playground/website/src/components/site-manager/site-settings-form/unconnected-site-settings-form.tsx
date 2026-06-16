@@ -184,7 +184,6 @@ export function UnconnectedSiteSettingsForm({
 		>
 			{header}
 			<VStack spacing={3} className={css.formSection}>
-				<p className={css.groupLabel}>Runtime</p>
 				<Controller
 					control={control}
 					name="wpVersion"
@@ -200,7 +199,7 @@ export function UnconnectedSiteSettingsForm({
 							<SelectControl
 								size="compact"
 								__nextHasNoMarginBottom={true}
-								label="WordPress Version"
+								label="WordPress version"
 								labelPosition="side"
 								help={errors.wpVersion?.message}
 								className={classNames(css.addSiteInput, {
@@ -215,6 +214,7 @@ export function UnconnectedSiteSettingsForm({
 
 							{enabledFields.wpVersion && (
 								<CheckboxControl
+									className={css.subOption}
 									label="Include older versions"
 									help={
 										includeOlderVersions
@@ -242,7 +242,7 @@ export function UnconnectedSiteSettingsForm({
 						<SelectControl
 							size="compact"
 							__nextHasNoMarginBottom={true}
-							label="PHP Version"
+							label="PHP version"
 							labelPosition="side"
 							disabled={!!forcedPhpVersion}
 							help={
@@ -530,7 +530,6 @@ export function UnconnectedSiteSettingsForm({
 					)}
 				/>
 
-				<p className={css.groupLabel}>Network</p>
 				<Controller
 					control={control}
 					name="withNetworking"

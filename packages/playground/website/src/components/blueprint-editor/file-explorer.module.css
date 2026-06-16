@@ -7,25 +7,30 @@
 }
 
 .fileExplorerContainer.dropActive {
-	border: 2px dashed var(--accent, #2271b1);
+	border: 2px dashed var(--accent, #3858e9);
 	background: rgba(56, 88, 233, 0.06);
 }
 
+/* This bar carries the pane's title now (the separate pane header is dropped for
+   editor panes), so it matches the main editor header's surface and height. */
 .fileExplorerHeader {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 10px 14px;
-	background: var(--paper-3, #f0f0f1);
+	gap: 8px;
+	min-height: 56px;
+	/* Left padding matches the 24px title inset every other pane uses, so the
+	   "Blueprint" title lines up with "Logs", "This Playground", etc. */
+	padding: 8px 16px 8px 24px;
+	background: var(--paper-2, #ffffff);
 	border-bottom: 1px solid var(--line-subtle, #ddd);
 }
 
 .fileExplorerTitle {
-	text-transform: uppercase;
-	font-size: 13px;
+	font-size: 20px;
 	font-weight: 600;
-	letter-spacing: 0.04em;
-	color: var(--ink-muted, #50575e);
+	letter-spacing: -0.01em;
+	color: var(--ink, #1e1e1e);
 }
 
 .fileExplorerActions {

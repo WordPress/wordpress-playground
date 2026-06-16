@@ -19,7 +19,7 @@ export default function ModalButtons({
 	style,
 }: ModalButtonsProps) {
 	return (
-		<Flex justify="end" className={css.modalButtons} style={style}>
+		<Flex justify="end" gap={4} className={css.modalButtons} style={style}>
 			<Button
 				type="button"
 				isBusy={areBusy}

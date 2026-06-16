@@ -115,7 +115,7 @@ export function AdminerButton({
 	return (
 		<>
 			<Button
-				variant="primary"
+				variant="secondary"
 				disabled={!playground || isLoading}
 				isBusy={isLoading}
 				onClick={handleOpenAdminer}

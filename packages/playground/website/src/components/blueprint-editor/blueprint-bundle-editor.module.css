@@ -42,7 +42,8 @@
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 8px 12px;
-	padding: 12px 16px;
+	min-height: 56px;
+	padding: 8px 16px;
 	border-bottom: 1px solid var(--line-subtle, #ddd);
 	background: var(--paper-2, #ffffff);
 	z-index: 1;
@@ -146,20 +147,24 @@
 	color: var(--accent-hover, #135e96);
 }
 
-/* Calm one-line consequence note — matches the settings pane's reset note
-   rather than a loud boxed Notice, for one destructive-action treatment. */
-.resetNote {
-	color: var(--ink-muted, #50575e);
-	font-size: 13px;
-	line-height: 1.5;
-	margin: 0;
-	padding: 8px 16px;
-}
-
 .editorToolbarButton {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+}
+
+/* The link/download icon buttons get a quiet resting chip so they read as
+   buttons that belong with the primary "Run" button — not loose floating icons.
+   The extra selector depth beats the dock's tertiary theming. */
+.editorHeader .editorHeaderActions :global(.components-button.is-tertiary) {
+	background: var(--paper-3, #ece8e1);
+	border-radius: var(--radius-control, 6px);
+}
+
+.editorHeader
+	.editorHeaderActions
+	:global(.components-button.is-tertiary:hover:not(:disabled)) {
+	background: var(--paper-4, #e7e2da);
 }
 
 .editorToolbarPlayIcon {
@@ -182,7 +187,7 @@
 		bottom: 0;
 		left: 0;
 		width: min(85%, 340px);
-		box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+		box-shadow: 0 18px 40px rgba(40, 33, 23, 0.18);
 		display: none;
 	}
 
@@ -193,7 +198,7 @@
 	.mobileOverlay {
 		position: absolute;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.3);
+		background: rgba(40, 33, 23, 0.3);
 		z-index: 2;
 		display: none;
 	}

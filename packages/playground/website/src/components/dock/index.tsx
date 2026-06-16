@@ -1,7 +1,6 @@
 import classNames from 'classnames';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CSSTransition } from 'react-transition-group';
-import { Button } from '@wordpress/components';
 import {
 	Icon,
 	chevronDown,
@@ -10,6 +9,7 @@ import {
 	grid,
 	list,
 	page,
+	pencil,
 	plus,
 	share,
 	wordpress,
@@ -20,7 +20,6 @@ import {
 	setActiveModal,
 	setSiteManagerOpen,
 	setSiteManagerSection,
-	setSiteSlugToDelete,
 	setSiteSlugToRename,
 } from '../../lib/state/redux/slice-ui';
 import {
@@ -29,7 +28,6 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { SiteManager } from '../site-manager';
 import AddressBar from '../address-bar';
@@ -182,7 +180,7 @@ const PANE_COPY: Record<DockSection, { title: string; description: string }> = {
 	settings: {
 		title: 'This Playground',
 		description:
-			'Open this Playground, or change its runtime, language, and network settings.',
+			'Change this Playground’s WordPress, PHP, language, and network settings.',
 	},
 	database: {
 		title: 'Database',
@@ -219,7 +217,6 @@ export function Dock() {
 		(state) => state.ui.siteManagerSection
 	);
 	const activeSite = useActiveSite();
-	const playground = usePlaygroundClient();
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLDivElement>(null);
@@ -403,22 +400,6 @@ export function Dock() {
 		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
 	};
 
-	const openDeleteModal = () => {
-		if (!activeSite) {
-			return;
-		}
-		dispatch(setSiteSlugToDelete(activeSite.slug));
-		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
-	};
-
-	const navigateActiveSite = (path: string) => {
-		if (!playground) {
-			return;
-		}
-		dispatch(setSiteManagerOpen(false));
-		playground.goTo(path);
-	};
-
 	const dockStyle: React.CSSProperties | undefined = dockPosition
 		? {
 				left: `${dockPosition.left}px`,
@@ -502,66 +483,50 @@ export function Dock() {
 					style={paneStyle}
 					aria-label={`${paneCopy.title} pane`}
 				>
-					<div className={css.paneHeader}>
-						<div className={css.paneHeaderMain}>
-							<h2>{paneCopy.title}</h2>
-							{showDescription && (
-								<p className={css.paneDescription}>
-									{paneCopy.description}
-								</p>
-							)}
-						</div>
-						{normalizedSection === 'playgrounds' && (
-							<button
-								type="button"
-								className={css.paneHeaderAction}
-								onClick={() =>
-									dispatch(setSiteManagerSection('new'))
-								}
-							>
-								<Icon icon={plus} size={20} />
-								New Playground
-							</button>
-						)}
-					</div>
-					<div className={css.paneBody}>
-						{showPlaygroundShortcuts && (
-							<div className={css.shortcuts}>
-								<Button
-									variant="tertiary"
-									disabled={!playground}
-									onClick={() =>
-										navigateActiveSite('/wp-admin/')
-									}
-								>
-									Open WP Admin
-								</Button>
-								<Button
-									variant="tertiary"
-									disabled={!playground}
-									onClick={() => navigateActiveSite('/')}
-								>
-									Open homepage
-								</Button>
-								{canManageActiveSite && (
-									<div className={css.shortcutsEnd}>
-										<Button
-											variant="tertiary"
-											onClick={openRenameModal}
-										>
-											Rename
-										</Button>
-										<Button
-											variant="tertiary"
-											isDestructive
-											onClick={openDeleteModal}
-										>
-											Delete
-										</Button>
+					{!isEditorSection && (
+						<div className={css.paneHeader}>
+							<div className={css.paneHeaderMain}>
+								<h2>{paneCopy.title}</h2>
+								{showPlaygroundShortcuts ? (
+									<div className={css.settingsIdentity}>
+										<span className={css.settingsName}>
+											{playgroundTitle}
+										</span>
+										{canManageActiveSite && (
+											<button
+												type="button"
+												className={css.settingsRename}
+												aria-label="Rename Playground"
+												title="Rename"
+												onClick={openRenameModal}
+											>
+												<Icon icon={pencil} size={16} />
+											</button>
+										)}
 									</div>
+								) : (
+									showDescription && (
+										<p className={css.paneDescription}>
+											{paneCopy.description}
+										</p>
+									)
 								)}
 							</div>
-						)}
+							{normalizedSection === 'playgrounds' && (
+								<button
+									type="button"
+									className={css.paneHeaderAction}
+									onClick={() =>
+										dispatch(setSiteManagerSection('new'))
+									}
+								>
+									<Icon icon={plus} size={20} />
+									New Playground
+								</button>
+							)}
+						</div>
+					)}
+					<div className={css.paneBody}>
 						<SiteManager />
 					</div>
 				</section>

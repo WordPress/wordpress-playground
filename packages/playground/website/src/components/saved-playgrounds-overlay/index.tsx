@@ -21,7 +21,7 @@ import { GitHubIcon } from '../../github/github';
 import PreviewPRForm from '../../github/preview-pr/form';
 import GitHubImportForm from '../../github/github-import-form/form';
 import vanillaScreenshot from './vanilla-wordpress.jpeg';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { importWordPressFiles } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
@@ -58,6 +58,29 @@ import {
 
 const COMPACT_LAYOUT_QUERY = '(max-width: 875px)';
 const MAX_VISIBLE_COMPACT_STORED_SITES = 2;
+
+/**
+ * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
+ * source. Loaded lazily so opening the New pane on the Gallery never pulls in
+ * CodeMirror; it arrives only when the user chooses to author a Blueprint.
+ */
+const BlueprintAuthoringEditor = lazy(() =>
+	import('../blueprint-editor/json-schema-editor/json-schema-editor').then(
+		(module) => ({ default: module.JSONSchemaEditor })
+	)
+);
+
+/**
+ * Starter Blueprint for "Write your own" — a working scaffold (logged in, landing
+ * in wp-admin) rather than a blank box, so authoring begins from something that
+ * already runs.
+ */
+const STARTER_BLUEPRINT = `{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/",
+	"login": true,
+	"steps": []
+}`;
 
 /**
  * Maximum stored Playgrounds to show before collapsing the dock pane list.
@@ -99,16 +122,20 @@ const VANILLA_WORDPRESS_CARD: BlueprintsIndexEntry = {
 export type OverlayViewMode = 'main' | 'blueprints';
 
 /**
- * The "New Playground" pane is a single tabbed surface: "Blueprint" (the
- * gallery, default) plus one tab per alternative way to start. Selecting a tab
- * swaps the panel below rather than opening a separate modal.
+ * The "New Playground" pane is a method rail beside one content panel. The rail
+ * lists every way to start, grouped under two quiet eyebrows — "Blueprints"
+ * (Gallery, From a URL, Write your own) and "Bring your own" (From GitHub, Pull
+ * request, Import .zip). Selecting a rail row swaps only the panel; the rail
+ * never moves. The three Blueprint sources are adjacent peers that all end in
+ * one outcome — "Create Playground" — so they read as three doors to the same
+ * thing rather than scattered, mixed-weight tabs.
  */
 type CreationTabId =
-	| 'blueprint'
-	| 'wp-pr'
-	| 'gutenberg-pr'
-	| 'github'
+	| 'gallery'
 	| 'blueprint-url'
+	| 'write-own'
+	| 'github'
+	| 'pull-request'
 	| 'zip';
 
 interface SavedPlaygroundsOverlayProps {
@@ -197,8 +224,12 @@ export function SavedPlaygroundsOverlay({
 		string | null
 	>(null);
 	const [activeCreationTab, setActiveCreationTab] =
-		useState<CreationTabId>('blueprint');
+		useState<CreationTabId>('gallery');
 	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
+	const [prTarget, setPrTarget] = useState<'wordpress' | 'gutenberg'>(
+		'wordpress'
+	);
+	const [writeOwnDraft, setWriteOwnDraft] = useState(STARTER_BLUEPRINT);
 	const isCompactLayout = useIsCompactLayout();
 
 	useEffect(() => {
@@ -530,53 +561,86 @@ export function SavedPlaygroundsOverlay({
 		onClose();
 	};
 
-	const creationTabs: {
+	/**
+	 * Creates a Playground from the Blueprint authored in the inline editor.
+	 * The JSON rides the URL hash fragment (`#{...}`), which the boot resolver
+	 * already decodes — the same one-outcome path as the gallery and URL sources,
+	 * with no new API.
+	 */
+	const isWriteOwnValid = (() => {
+		try {
+			JSON.parse(writeOwnDraft);
+			return writeOwnDraft.trim().length > 0;
+		} catch {
+			return false;
+		}
+	})();
+	const createFromEditor = () => {
+		if (!isWriteOwnValid) {
+			return;
+		}
+		dispatch(setSiteManagerOpen(false));
+		redirectTo(
+			PlaygroundRoute.newSite({
+				hash: encodeURIComponent(writeOwnDraft),
+			})
+		);
+		onClose();
+	};
+
+	/**
+	 * The start methods, as a top tab strip. The three Blueprint sources lead
+	 * (Gallery / From a URL / Write your own) so they read as one cohesive way to
+	 * start; the code/import flows follow. Each tab shows an icon + label; the
+	 * panel below names the active flow and renders it.
+	 */
+	const creationMethods: {
 		id: CreationTabId;
-		title: string;
-		ariaLabel: string;
+		label: string;
+		panelTitle: string;
 		icon: React.ReactNode;
 		disabled: boolean;
 	}[] = [
 		{
-			id: 'blueprint',
-			title: 'Blueprint',
-			ariaLabel: 'Start from a Blueprint',
-			icon: <Icon icon={layout} size={24} />,
+			id: 'gallery',
+			label: 'Gallery',
+			panelTitle: 'Start from a Blueprint',
+			icon: <Icon icon={layout} size={20} />,
 			disabled: false,
 		},
 		{
-			id: 'wp-pr',
-			title: 'WordPress PR',
-			ariaLabel: 'Preview a WordPress PR',
-			icon: <PullRequestIcon />,
+			id: 'blueprint-url',
+			label: 'From a URL',
+			panelTitle: 'Blueprint from a URL',
+			icon: <Icon icon={link} size={20} />,
 			disabled: offline,
 		},
 		{
-			id: 'gutenberg-pr',
-			title: 'Gutenberg PR',
-			ariaLabel: 'Preview a Gutenberg PR',
+			id: 'write-own',
+			label: 'Write your own',
+			panelTitle: 'Write a Blueprint',
+			icon: <Icon icon={pencil} size={20} />,
+			disabled: false,
+		},
+		{
+			id: 'pull-request',
+			label: 'Pull request',
+			panelTitle: 'Preview a pull request',
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
 		{
 			id: 'github',
-			title: 'From GitHub',
-			ariaLabel: 'Import from GitHub',
+			label: 'From GitHub',
+			panelTitle: 'Import from GitHub',
 			icon: GitHubIcon,
 			disabled: offline,
 		},
 		{
-			id: 'blueprint-url',
-			title: 'Blueprint URL',
-			ariaLabel: 'Open a Blueprint URL',
-			icon: <Icon icon={link} size={24} />,
-			disabled: offline,
-		},
-		{
 			id: 'zip',
-			title: 'Import .zip',
-			ariaLabel: 'Import a .zip',
-			icon: <Icon icon={upload} size={24} />,
+			label: 'Import .zip',
+			panelTitle: 'Import a .zip export',
+			icon: <Icon icon={upload} size={20} />,
 			disabled: false,
 		},
 	];
@@ -702,35 +766,16 @@ export function SavedPlaygroundsOverlay({
 							}}
 						>
 							{({ onClose: closeMenu }) => (
-								<>
-									{isAutosave && (
-										<MenuGroup>
-											<MenuItem
-												onClick={() =>
-													openSaveModalForSite(
-														site,
-														closeMenu
-													)
-												}
-											>
-												Store permanently
-											</MenuItem>
-										</MenuGroup>
-									)}
-									<MenuGroup>
-										<MenuItem
-											className={css.dangerMenuItem}
-											onClick={() =>
-												handleDeleteSite(
-													site,
-													closeMenu
-												)
-											}
-										>
-											Delete
-										</MenuItem>
-									</MenuGroup>
-								</>
+								<MenuGroup>
+									<MenuItem
+										className={css.dangerMenuItem}
+										onClick={() =>
+											handleDeleteSite(site, closeMenu)
+										}
+									>
+										Delete
+									</MenuItem>
+								</MenuGroup>
 							)}
 						</DropdownMenu>
 					</div>
@@ -740,6 +785,8 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	function renderCurrentSiteRow(site: SiteInfo) {
+		const isAutosave = isAutosavedSite(site);
+		const isStoredSite = site.metadata.storage !== 'none';
 		return (
 			<div className={classNames(css.siteRow, css.currentSiteRow)}>
 				<div className={css.siteRowContent}>
@@ -762,6 +809,47 @@ export function SavedPlaygroundsOverlay({
 						</span>
 					</div>
 				</div>
+				{isStoredSite && (
+					<div className={css.siteRowActions}>
+						{isAutosave && (
+							<button
+								type="button"
+								className={css.keepButton}
+								onClick={() => openSaveModalForSite(site)}
+								aria-label="Store this Playground permanently"
+								title="Store this Playground permanently so it is not pruned from recent autosaves."
+							>
+								<span className={css.keepButtonFullText}>
+									Store permanently
+								</span>
+								<span className={css.keepButtonCompactText}>
+									Keep
+								</span>
+							</button>
+						)}
+						<DropdownMenu
+							icon={moreVertical}
+							label="Playground actions"
+							className={css.siteRowMenu}
+							popoverProps={{
+								placement: 'bottom-end',
+							}}
+						>
+							{({ onClose: closeMenu }) => (
+								<MenuGroup>
+									<MenuItem
+										className={css.dangerMenuItem}
+										onClick={() =>
+											handleDeleteSite(site, closeMenu)
+										}
+									>
+										Delete
+									</MenuItem>
+								</MenuGroup>
+							)}
+						</DropdownMenu>
+					</div>
+				)}
 			</div>
 		);
 	}
@@ -813,7 +901,7 @@ export function SavedPlaygroundsOverlay({
 									</div>
 								</div>
 							)}
-							{renderSiteGroup('Recent', recentSites)}
+							{renderSiteGroup('Unsaved', recentSites)}
 							{renderSiteGroup('Saved', visibleSavedSites)}
 						</>
 					)}
@@ -892,13 +980,11 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	function renderNewPlaygroundSection() {
-		// One tabbed surface: the tab strip (grouped in its own toolbar) picks a
-		// way to start, and the panel below swaps to match. The panel keeps a
-		// sticky header that names the active flow — restoring "Start from a
-		// Blueprint" and clearly separating the tabs from the gallery's category
-		// filters. "Blueprint" (the gallery) is the default.
-		const activeTab = creationTabs.find(
-			(tab) => tab.id === activeCreationTab
+		// A top tab strip picks a way to start; the panel below swaps to match.
+		// The three Blueprint sources lead so they read as one cohesive way to
+		// start, then the code/import flows. A quiet heading names each flow.
+		const activeMethod = creationMethods.find(
+			(method) => method.id === activeCreationTab
 		);
 		return (
 			<OverlaySection
@@ -912,23 +998,25 @@ export function SavedPlaygroundsOverlay({
 					role="tablist"
 					aria-label="Ways to start a new Playground"
 				>
-					{creationTabs.map((tab) => (
+					{creationMethods.map((method) => (
 						<button
-							key={tab.id}
+							key={method.id}
 							type="button"
 							role="tab"
-							aria-selected={activeCreationTab === tab.id}
+							aria-selected={activeCreationTab === method.id}
 							className={classNames(css.creationButton, {
 								[css.creationButtonActive]:
-									activeCreationTab === tab.id,
+									activeCreationTab === method.id,
 							})}
-							aria-label={tab.ariaLabel}
-							onClick={() => setActiveCreationTab(tab.id)}
-							disabled={tab.disabled}
+							aria-label={method.label}
+							onClick={() => setActiveCreationTab(method.id)}
+							disabled={method.disabled}
 						>
-							<span className={css.creationIcon}>{tab.icon}</span>
+							<span className={css.creationIcon}>
+								{method.icon}
+							</span>
 							<span className={css.creationTitle}>
-								{tab.title}
+								{method.label}
 							</span>
 						</button>
 					))}
@@ -936,7 +1024,7 @@ export function SavedPlaygroundsOverlay({
 				<div className={css.creationPanel}>
 					<div className={css.panelHeader}>
 						<h3 className={css.panelTitle}>
-							{activeTab?.ariaLabel}
+							{activeMethod?.panelTitle}
 						</h3>
 					</div>
 					{renderActiveCreationTab()}
@@ -961,14 +1049,14 @@ export function SavedPlaygroundsOverlay({
 				)}
 				{!blueprintsLoading && blueprintsError && (
 					<p className={css.emptyMessage}>
-						Unable to load blueprints. Check your connection.
+						Unable to load Blueprints. Check your connection.
 					</p>
 				)}
 				{!blueprintsLoading &&
 					!blueprintsError &&
 					filteredBlueprints.length === 0 && (
 						<p className={css.emptyMessage}>
-							No blueprints found matching your criteria.
+							No Blueprints found matching your criteria.
 						</p>
 					)}
 			</>
@@ -977,25 +1065,83 @@ export function SavedPlaygroundsOverlay({
 
 	function renderActiveCreationTab() {
 		switch (activeCreationTab) {
-			case 'blueprint':
+			case 'gallery':
 				return renderBlueprintGallery();
-			case 'wp-pr':
+			case 'write-own':
 				return (
-					<div className={css.inlineForm}>
-						<PreviewPRForm
-							target="wordpress"
-							inline
-							onClose={() => setActiveCreationTab('blueprint')}
-						/>
+					<div
+						className={classNames(css.inlineForm, css.writeOwnFlow)}
+					>
+						<p className={css.inlineFormHint}>
+							Sketch a starter Blueprint, then create your
+							Playground. For a roomier editor with a file tree,
+							open the Blueprint tab once it boots.
+						</p>
+						<div className={css.writeOwnEditor}>
+							<Suspense
+								fallback={
+									<div className={css.loadingContainer}>
+										<Spinner />
+									</div>
+								}
+							>
+								<BlueprintAuthoringEditor
+									config={{
+										initialDoc: writeOwnDraft,
+										onChange: setWriteOwnDraft,
+									}}
+								/>
+							</Suspense>
+						</div>
+						<div className={css.inlineFormActions}>
+							<Button
+								variant="primary"
+								onClick={createFromEditor}
+								disabled={!isWriteOwnValid}
+							>
+								Create Playground
+							</Button>
+						</div>
 					</div>
 				);
-			case 'gutenberg-pr':
+			case 'pull-request':
 				return (
 					<div className={css.inlineForm}>
+						<div
+							className={css.prToggle}
+							role="tablist"
+							aria-label="Pull request source"
+						>
+							<button
+								type="button"
+								role="tab"
+								aria-selected={prTarget === 'wordpress'}
+								className={classNames(css.prToggleButton, {
+									[css.prToggleButtonActive]:
+										prTarget === 'wordpress',
+								})}
+								onClick={() => setPrTarget('wordpress')}
+							>
+								WordPress
+							</button>
+							<button
+								type="button"
+								role="tab"
+								aria-selected={prTarget === 'gutenberg'}
+								className={classNames(css.prToggleButton, {
+									[css.prToggleButtonActive]:
+										prTarget === 'gutenberg',
+								})}
+								onClick={() => setPrTarget('gutenberg')}
+							>
+								Gutenberg
+							</button>
+						</div>
 						<PreviewPRForm
-							target="gutenberg"
+							key={prTarget}
+							target={prTarget}
 							inline
-							onClose={() => setActiveCreationTab('blueprint')}
+							onClose={() => setActiveCreationTab('gallery')}
 						/>
 					</div>
 				);
@@ -1007,11 +1153,11 @@ export function SavedPlaygroundsOverlay({
 							getPlaygroundBeforeImport={
 								createSiteForGitHubImport
 							}
-							onClose={() => setActiveCreationTab('blueprint')}
+							onClose={() => setActiveCreationTab('gallery')}
 							onImported={() => {
 								// eslint-disable-next-line no-alert
 								alert(
-									'Import finished! Your Playground site has been updated.'
+									'Import finished! Your Playground has been updated.'
 								);
 								onClose();
 							}}
@@ -1030,6 +1176,7 @@ export function SavedPlaygroundsOverlay({
 						<TextControl
 							__nextHasNoMarginBottom
 							label="Blueprint URL"
+							hideLabelFromVision
 							value={blueprintUrlInput}
 							onChange={(value: string) =>
 								setBlueprintUrlInput(value)
@@ -1047,7 +1194,7 @@ export function SavedPlaygroundsOverlay({
 								type="submit"
 								disabled={!blueprintUrlInput.trim()}
 							>
-								Run Blueprint
+								Create Playground
 							</Button>
 						</div>
 					</form>
@@ -1210,14 +1357,14 @@ export function SavedPlaygroundsOverlay({
 				)}
 				{!blueprintsLoading && blueprintsError && (
 					<p className={css.emptyMessage}>
-						Unable to load blueprints. Check your connection.
+						Unable to load Blueprints. Check your connection.
 					</p>
 				)}
 				{!blueprintsLoading &&
 					!blueprintsError &&
 					blueprintsToShow.length === 0 && (
 						<p className={css.emptyMessage}>
-							No blueprints found matching your criteria.
+							No Blueprints found matching your criteria.
 						</p>
 					)}
 			</OverlaySection>
@@ -1345,7 +1492,7 @@ export function SavedPlaygroundsOverlay({
 							</p>
 						) : filteredBlueprints.length === 0 ? (
 							<p className={css.emptyMessage}>
-								No blueprints found matching your criteria.
+								No Blueprints found matching your criteria.
 							</p>
 						) : (
 							<div className={css.blueprintsFullGrid}>
