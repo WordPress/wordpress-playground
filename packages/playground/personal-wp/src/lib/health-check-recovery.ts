@@ -1,5 +1,5 @@
 import type { Blueprint } from '@wp-playground/blueprints';
-import { encodeStringAsBase64 } from './base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 //
 // The Health Check MU-plugin requires a database option 'health-check-disable-plugin-hash'

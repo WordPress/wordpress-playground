@@ -30,7 +30,7 @@ import { getRelativeDate } from '../../../lib/utils/get-relative-date';
 import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
 import { broadcastSiteReset } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
-import { encodeStringAsBase64 } from '../../../lib/base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
 import css from './style.module.css';
 
