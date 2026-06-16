@@ -20,15 +20,12 @@ export async function writeCommonPlatformMuPlugins(
 		// Named function (not a closure) so this file parses on PHP 5.2.
 		function playground_save_wp_env_info() {
 			if (defined('DB_ENGINE') && DB_ENGINE === 'sqlite') {
-				$db_info = array(
-					'type' => 'sqlite',
-					'path' => FQDB,
-					'driver_path' => defined('WP_MYSQL_ON_SQLITE_LOADER_PATH')
-						? WP_MYSQL_ON_SQLITE_LOADER_PATH
-						: (defined('SQLITE_MAIN_FILE')
-							? dirname(SQLITE_MAIN_FILE) . '/wp-pdo-mysql-on-sqlite.php'
-							: null),
-				);
+				$db_info = array('type' => 'sqlite', 'path' => FQDB);
+				if (defined('WP_MYSQL_ON_SQLITE_LOADER_PATH')) {
+					$db_info['driver_path'] = WP_MYSQL_ON_SQLITE_LOADER_PATH;
+				} elseif (defined('SQLITE_MAIN_FILE')) {
+					$db_info['driver_path'] = dirname(SQLITE_MAIN_FILE) . '/wp-pdo-mysql-on-sqlite.php';
+				}
 			} else {
 				$db_info = array(
 					'type' => 'mysql',
