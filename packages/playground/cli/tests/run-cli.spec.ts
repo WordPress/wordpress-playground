@@ -6,9 +6,9 @@ import {
 	parseOptionsAndRunCLI,
 	internalsKeyForTesting,
 	resolveWorkerCount,
-	describeError,
 } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
+import { describeError } from '@php-wasm/universal';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -1220,6 +1220,31 @@ describe('describeError', () => {
 		error.cause = error;
 
 		expect(describeError(error)).toContain('[Circular error cause]');
+	});
+
+	test('preserves empty-message formatting through nested causes', () => {
+		const error = new Error('', {
+			cause: new Error('', {
+				cause: new Error('Inner failure'),
+			}),
+		});
+
+		const description = describeError(error);
+		expect(description).toContain('Inner failure');
+		expect(description).not.toContain('Error — caused by:');
+	});
+
+	test('describes local fields before cause', () => {
+		const description = describeError({
+			name: 'ErrnoError',
+			errno: 20,
+			code: 'ENOTDIR',
+			cause: new Error('Inner failure'),
+		});
+
+		expect(description).toBe(
+			'ErrnoError — errno: 20 — code: ENOTDIR — caused by: Inner failure'
+		);
 	});
 });
 

@@ -15,6 +15,7 @@ import {
 	exposeAPI,
 	exposeSyncAPI,
 	printDebugDetails,
+	describeError,
 } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
@@ -791,118 +792,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			if (debug) {
 				printDebugDetails(e);
 			} else {
-				const messageChain: string[] = [];
-				const seenErrors = new Set<Error>();
-				let currentError: Error | undefined = e;
-				for (let depth = 0; currentError && depth < 20; depth++) {
-					if (seenErrors.has(currentError)) {
-						messageChain.push('[Circular error cause]');
-						currentError = undefined;
-						break;
-					}
-					seenErrors.add(currentError);
-					messageChain.push(describeError(currentError));
-					currentError =
-						currentError.cause instanceof Error
-							? currentError.cause
-							: undefined;
-				}
-				if (currentError) {
-					messageChain.push('[Error cause chain truncated]');
-				}
-				console.error(
-					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
-				);
+				console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 			}
 		} else {
 			console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 		}
 		process.exit(1);
-	}
-}
-
-/**
- * Describe an error for display. Handles Error instances, Comlink-serialized
- * plain objects (which lose their Error prototype during worker thread
- * transfer), and arbitrary values.
- */
-export function describeError(
-	error: unknown,
-	seen = new WeakSet<object>(),
-	depth = 0
-): string {
-	if (depth > 10) {
-		return '[Max error cause depth exceeded]';
-	}
-	if (error instanceof Error) {
-		if (error.message) {
-			return error.message;
-		}
-		return describeErrorObject(error, seen, depth, {
-			suppressGenericErrorName: true,
-		});
-	}
-	if (error && typeof error === 'object') {
-		return describeErrorObject(error, seen, depth);
-	}
-	return String(error);
-}
-
-type ErrorLikeObject = object & {
-	name?: unknown;
-	message?: unknown;
-	cause?: unknown;
-	errno?: unknown;
-	code?: unknown;
-	stack?: unknown;
-};
-
-function describeErrorObject(
-	error: ErrorLikeObject,
-	seen: WeakSet<object>,
-	depth: number,
-	options: { suppressGenericErrorName?: boolean } = {}
-): string {
-	if (seen.has(error)) {
-		return '[Circular error cause]';
-	}
-	seen.add(error);
-
-	// Comlink-serialized errors arrive as plain objects like
-	// { name: 'ErrnoError', errno: 20 } with no .message.
-	const parts = [];
-	if (
-		error['name'] &&
-		!(options.suppressGenericErrorName && error['name'] === 'Error')
-	) {
-		parts.push(String(error['name']));
-	}
-	if (error['message']) {
-		parts.push(String(error['message']));
-	}
-	if (error['cause']) {
-		parts.push(
-			`caused by: ${describeError(error['cause'], seen, depth + 1)}`
-		);
-	}
-	if (error['errno'] !== undefined) {
-		parts.push(`errno: ${error['errno']}`);
-	}
-	if (error['code'] !== undefined) {
-		parts.push(`code: ${error['code']}`);
-	}
-	if (parts.length > 0) {
-		return parts.join(' — ');
-	}
-	if (typeof error['stack'] === 'string') {
-		return error['stack'];
-	}
-	// Last resort: JSON-serialize the object so we at least see
-	// what fields it has.
-	try {
-		return JSON.stringify(error);
-	} catch {
-		return String(error);
 	}
 }
 
