@@ -1,17 +1,6 @@
 import React from 'react';
 import css from './style.module.css';
-import AddressBar from '../address-bar';
 import classNames from 'classnames';
-import {
-	useAppSelector,
-	getActiveClientInfo,
-	useActiveSite,
-} from '../../lib/state/redux/store';
-import { SyncLocalFilesButton } from '../sync-local-files-button';
-import { SaveStatusIndicator } from './save-status-indicator';
-import { isSiteSavingDisabled } from '../../lib/state/url/router';
-
-const isSavingDisabled = isSiteSavingDisabled();
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -22,53 +11,17 @@ export default function BrowserChrome({
 	children,
 	className,
 }: BrowserChromeProps) {
-	const clientInfo = useAppSelector(getActiveClientInfo);
-	const activeSite = useActiveSite();
-	const showAddressBar = !!clientInfo;
-	const url = clientInfo?.url;
-	const playgroundTitle =
-		activeSite?.metadata.storage === 'none'
-			? 'Unsaved Playground'
-			: activeSite?.metadata.name;
-	const addressBarClass = classNames(css.addressBarSlot, {
-		[css.isHidden]: !showAddressBar,
-	});
 	const wrapperClass = classNames(
 		css.wrapper,
 		css.hasFullSizeWindow,
 		className
 	);
 
+	// The Playground's identity, save state, address bar, and tools now all
+	// live in the floating dock, so the browser window is pure preview surface.
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={`${css.window} browser-chrome-window`}>
-				<header className={css.toolbar} aria-label="Playground toolbar">
-					<div className={addressBarClass}>
-						<AddressBar
-							url={url}
-							onUpdate={(newUrl) =>
-								clientInfo?.client.goTo(newUrl)
-							}
-						/>
-					</div>
-
-					{playgroundTitle && (
-						<span
-							className={css.playgroundTitle}
-							aria-label="Playground title"
-						>
-							{playgroundTitle}
-						</span>
-					)}
-
-					{!isSavingDisabled && <SaveStatusIndicator />}
-
-					<div className={css.toolbarButtons}>
-						{activeSite?.metadata?.storage === 'local-fs' ? (
-							<SyncLocalFilesButton />
-						) : null}
-					</div>
-				</header>
 				<div className={css.content}>{children}</div>
 			</div>
 		</div>

@@ -28,6 +28,7 @@ export type SiteManagerSection =
 	| 'database'
 	| 'logs'
 	| 'share'
+	| 'save'
 	| 'blueprints';
 
 export const modalSlugs = {
@@ -172,6 +173,20 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	/**
+	 * A recent autosave from the same setup URL that the user can restore.
+	 * Surfaced as a popover anchored to the dock's save-status button.
+	 */
+	autosaveNudge?: {
+		siteSlug: string;
+		setupUrlFingerprint: string;
+		whenCreated?: number;
+	} | null;
+	/**
+	 * Setup-URL fingerprints the user declined to restore, so we don't reprompt
+	 * for the same URL within this session.
+	 */
+	declinedAutosaveRestoreFingerprints: string[];
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -214,6 +229,8 @@ const initialState: UIState = {
 		// your entire screen – quite a confusing experience.
 		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
+	autosaveNudge: null,
+	declinedAutosaveRestoreFingerprints: [],
 };
 
 const uiSlice = createSlice({
@@ -302,6 +319,31 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToSave = action.payload;
 		},
+		setAutosaveNudge: (
+			state,
+			action: PayloadAction<{
+				siteSlug: string;
+				setupUrlFingerprint: string;
+				whenCreated?: number;
+			}>
+		) => {
+			state.autosaveNudge = action.payload;
+		},
+		dismissAutosaveNudge: (state) => {
+			state.autosaveNudge = null;
+		},
+		addDeclinedAutosaveRestoreFingerprint: (
+			state,
+			action: PayloadAction<string>
+		) => {
+			if (
+				!state.declinedAutosaveRestoreFingerprints.includes(
+					action.payload
+				)
+			) {
+				state.declinedAutosaveRestoreFingerprints.push(action.payload);
+			}
+		},
 	},
 });
 
@@ -349,6 +391,9 @@ export const {
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
+	setAutosaveNudge,
+	dismissAutosaveNudge,
+	addDeclinedAutosaveRestoreFingerprint,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

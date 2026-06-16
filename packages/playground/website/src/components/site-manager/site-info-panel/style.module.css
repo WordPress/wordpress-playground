@@ -21,6 +21,13 @@
 	padding: var(--padding-size);
 }
 
+/* Tool tabs (database, logs) render under the dock pane's own header, whose
+   bottom padding already provides the gap to the content. Dropping the top
+   padding here avoids doubling that gap into an awkward empty band. */
+.tool-tab-contents {
+	padding: 0 var(--padding-size) var(--padding-size);
+}
+
 .tabs {
 	width: 100%;
 	height: 100%;

@@ -1,4 +1,25 @@
+.authenticate {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.note {
+	margin: 0;
+	color: #8a857b;
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.error {
+	margin: 0;
+	color: #b32d2e;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
 .github-button {
+	align-self: flex-start;
 	padding: 10px 20px;
 	background-color: #000;
 	color: #fff;

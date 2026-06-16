@@ -52,6 +52,7 @@ export function SiteFileBrowser({
 			filesystem={filesystem}
 			documentRoot={documentRoot}
 			isVisible={isVisible}
+			persistKey={site.slug}
 			initialPath={`${documentRoot}/wp-config.php`}
 			placeholderText="Start this Playground to browse and edit its files."
 			onSaveFile={handleSaveFile}

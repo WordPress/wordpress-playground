@@ -539,7 +539,7 @@ export function SiteInfoPanel({
 								<div
 									className={classNames(
 										css.tabContents,
-										css.padded,
+										css.toolTabContents,
 										{
 											[css.tabHidden]:
 												tab.name !== 'database',
@@ -554,7 +554,7 @@ export function SiteInfoPanel({
 								<div
 									className={classNames(
 										css.tabContents,
-										css.padded,
+										css.toolTabContents,
 										{
 											[css.tabHidden]:
 												tab.name !== 'logs',

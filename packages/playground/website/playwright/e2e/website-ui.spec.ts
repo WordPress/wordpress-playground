@@ -351,7 +351,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		.getByRole('button', { name: 'Current Blueprint' })
 		.click();
 	await expect(
-		website.page.locator('section[aria-label="Current Blueprint pane"]')
+		website.page.locator('section[aria-label="Blueprint pane"]')
 	).toBeVisible();
 
 	// Create a simple blueprint that writes "Blueprint test" to index.php
@@ -403,7 +403,7 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 		.getByRole('button', { name: 'Current Blueprint' })
 		.click();
 	await expect(
-		website.page.locator('section[aria-label="Current Blueprint pane"]')
+		website.page.locator('section[aria-label="Blueprint pane"]')
 	).toBeVisible();
 
 	// Wait for CodeMirror editor to load
@@ -453,12 +453,12 @@ test('should make every dock pane reachable on mobile', async ({ website }) => {
 	await website.goto('./');
 
 	const dockPanes = [
-		{ buttonName: /Site Manager/, paneLabel: 'Settings pane' },
+		{ buttonName: /This Playground/, paneLabel: 'This Playground pane' },
 		{ buttonName: 'Database', paneLabel: 'Database pane' },
 		{ buttonName: 'Files', paneLabel: 'Files pane' },
 		{
 			buttonName: 'Current Blueprint',
-			paneLabel: 'Current Blueprint pane',
+			paneLabel: 'Blueprint pane',
 		},
 		{ buttonName: 'Logs', paneLabel: 'Logs pane' },
 		{ buttonName: 'Share and export', paneLabel: 'Share and export pane' },
@@ -467,9 +467,11 @@ test('should make every dock pane reachable on mobile', async ({ website }) => {
 	];
 
 	for (const { buttonName, paneLabel } of dockPanes) {
-		const dockButton = website.page.getByRole('button', {
-			name: buttonName,
-		});
+		const dockButton = website.page
+			.locator('nav[aria-label="Playground tools"]')
+			.getByRole('button', {
+				name: buttonName,
+			});
 		await dockButton.scrollIntoViewIfNeeded();
 		await dockButton.click();
 		await expect(
@@ -740,7 +742,7 @@ test.describe('Default Playground storage', () => {
 		});
 		await website.page.goto('./');
 		await expect(
-			website.page.getByRole('button', { name: /Site Manager/ })
+			website.page.getByRole('button', { name: /This Playground/ })
 		).toBeVisible();
 		await website.ensureSiteManagerIsClosed();
 
@@ -977,42 +979,50 @@ test.describe('Default Playground storage', () => {
 		).searchParams.get('site-slug');
 		await website.openSavedPlaygroundsOverlay();
 		await website.page
+			.locator('nav[aria-label="Playground tools"]')
 			.getByRole('button', { name: 'New Playground' })
 			.click();
+
+		// The creation surface is a tab strip; "Blueprint" is the default and
+		// shows the gallery, with Vanilla WordPress as its first card.
+		await expect(
+			website.page.getByRole('tab', { name: 'Start from a Blueprint' })
+		).toHaveAttribute('aria-selected', 'true');
 		await expect(
 			website.page.getByRole('button', { name: /Vanilla WordPress/ })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', {
-				name: /WordPress PR/,
-			})
+			website.page.getByRole('tab', { name: 'Preview a WordPress PR' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', {
-				name: /Gutenberg PR/,
-			})
+			website.page.getByRole('tab', { name: 'Preview a Gutenberg PR' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', { name: /Import from GitHub/ })
+			website.page.getByRole('tab', { name: 'Import from GitHub' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', {
-				name: /Blueprint URL/,
-			})
+			website.page.getByRole('tab', { name: 'Open a Blueprint URL' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('button', { name: /Import.*\.zip/ })
+			website.page.getByRole('tab', { name: 'Import a .zip' })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved Playground' })
 		).toHaveCount(0);
 
+		// "From GitHub" switches the panel inline (no separate modal) and does
+		// not create a new site until an import actually runs.
 		await website.page
-			.getByRole('button', { name: /Import from GitHub/ })
+			.getByRole('tab', { name: 'Import from GitHub' })
 			.click();
 		await expect(
-			website.page.getByRole('dialog', { name: 'Import from GitHub' })
+			website.page.getByRole('link', {
+				name: 'Connect your GitHub account',
+			})
 		).toBeVisible();
+		await expect(
+			website.page.getByRole('dialog', { name: 'Import from GitHub' })
+		).toHaveCount(0);
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			siteSlugBeforeGitHubImport
 		);
@@ -1059,8 +1069,9 @@ test.describe('Default Playground storage', () => {
 			.locator('[class*="siteRow"]')
 			.filter({ hasText: setup.targetName })
 			.first();
-		await targetRow.getByRole('button', { name: 'Site actions' }).click();
-		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
+		await targetRow
+			.getByRole('button', { name: `Rename ${setup.targetName}` })
+			.click();
 
 		const dialog = website.page.getByRole('dialog', {
 			name: 'Rename Playground',
@@ -1223,9 +1234,11 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 
 		await website.ensureSiteManagerIsClosed();
+		// Clicking the status pill opens the "Store permanently" dock pane
+		// (the useful action) rather than an intermediate explainer popover.
 		await website.page.getByRole('button', { name: 'Autosaved' }).click();
 		await expect(
-			website.page.getByRole('button', { name: 'Store permanently' })
+			website.page.locator('section[aria-label="Store permanently pane"]')
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
@@ -1249,13 +1262,11 @@ test.describe('Default Playground storage', () => {
 			name: 'Autosaved',
 		});
 		await expect(statusButton).toBeVisible({ timeout: 120000 });
+		// The status pill opens the "Store permanently" dock pane directly.
 		await statusButton.click();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
-		const dialog = website.page.getByRole('dialog', {
-			name: 'Save Playground',
-		});
+		const dialog = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
 		await expect(dialog).toBeVisible();
 		await expect(dialog.getByText('Save in this browser')).toBeVisible();
 		await expect(
@@ -1314,13 +1325,11 @@ test.describe('Default Playground storage', () => {
 		});
 		await expect(statusButton).toBeVisible({ timeout: 120000 });
 
+		// The status pill opens the "Store permanently" dock pane directly.
 		await statusButton.click();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
-		const dialog = website.page.getByRole('dialog', {
-			name: 'Save Playground',
-		});
+		const dialog = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
 		await expect(dialog).toBeVisible();
 		await expect(
 			dialog.getByText('Save to a local directory (not available)')
@@ -1581,13 +1590,17 @@ echo get_option('blogname');
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			null
 		);
+		// With permanent storage unavailable there is no save action to offer,
+		// so the status reads as plain text rather than an actionable button.
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
-		).toBeVisible();
-		await website.page.getByRole('button', { name: 'Unsaved' }).click();
-		await expect(
-			website.page.getByRole('button', { name: 'Store permanently' })
 		).toHaveCount(0);
+		await expect(
+			website.page
+				.locator('nav[aria-label="Playground tools"]')
+				.getByText('Unsaved', { exact: true })
+				.first()
+		).toBeVisible();
 	});
 
 	test('should show "Unsaved" status for storage=temp Playgrounds', async ({
@@ -1596,23 +1609,6 @@ echo get_option('blogname');
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsClosed();
 
-		const indicator = website.page.getByRole('button', {
-			name: 'Unsaved',
-		});
-		await expect(indicator).toBeVisible();
-		await expect(indicator).toHaveCount(1);
-		await indicator.click();
-		const popoverDescription = website.page.getByText(
-			'This Playground is not stored anywhere. Changes are lost when this page is refreshed or closed.'
-		);
-		await expect(popoverDescription).toBeVisible();
-		await indicator.click();
-		await expect(popoverDescription).toHaveCount(0);
-		await indicator.click();
-		await expect(popoverDescription).toBeVisible();
-		const storePermanentlyButton = website.page.getByRole('button', {
-			name: 'Store permanently',
-		});
 		const canStorePermanently = await website.page.evaluate(async () => {
 			try {
 				await navigator.storage.getDirectory();
@@ -1621,13 +1617,32 @@ echo get_option('blogname');
 				return Boolean((window as any).showDirectoryPicker);
 			}
 		});
+
 		if (canStorePermanently) {
-			await storePermanentlyButton.click();
+			// Actionable: the status pill opens the "Store permanently" dock
+			// pane directly — no intermediate explainer popover.
+			const indicator = website.page.getByRole('button', {
+				name: 'Unsaved',
+			});
+			await expect(indicator).toBeVisible();
+			await indicator.click();
 			await expect(
-				website.page.getByRole('dialog', { name: 'Save Playground' })
+				website.page.locator(
+					'section[aria-label="Store permanently pane"]'
+				)
 			).toBeVisible();
 		} else {
-			await expect(storePermanentlyButton).toHaveCount(0);
+			// No save target available, so the status is plain text rather than
+			// an actionable button.
+			await expect(
+				website.page.getByRole('button', { name: 'Unsaved' })
+			).toHaveCount(0);
+			await expect(
+				website.page
+					.locator('nav[aria-label="Playground tools"]')
+					.getByText('Unsaved', { exact: true })
+					.first()
+			).toBeVisible();
 		}
 		expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
 			'temp'
@@ -1703,7 +1718,7 @@ echo get_option('blogname');
 			'iframe[title="Embedded Playground test"]'
 		);
 		await expect(
-			playgroundFrame.getByRole('button', { name: /Site Manager/ })
+			playgroundFrame.getByRole('button', { name: /This Playground/ })
 		).toBeVisible();
 
 		await expect(
@@ -1741,14 +1756,12 @@ echo get_option('blogname');
 
 		// Regression: saving the temporary Playground before answering the
 		// restore nudge must not be undone when the nudge is dismissed.
+		// The status pill opens the "Store permanently" dock pane directly.
 		await website.page.getByRole('button', { name: 'Unsaved' }).click();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
 
-		const saveDialog = website.page.getByRole('dialog', {
-			name: 'Save Playground',
-		});
+		const saveDialog = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
 		await expect(saveDialog).toBeVisible();
 		await saveDialog.getByRole('button', { name: 'Save' }).click();
 		await expect(saveDialog).not.toBeVisible({ timeout: 120000 });

@@ -1,22 +1,49 @@
+/* Popover content for the "recent autosave available" nudge. The floating box,
+   shadow, and arrow come from the @wordpress/components Popover that anchors this
+   to the dock's save-status button, so this only styles the inner layout. */
 .nudge {
-	position: fixed;
-	z-index: 30;
-	top: 62px;
-	right: 16px;
+	position: relative;
 	display: flex;
-	align-items: center;
-	gap: 16px;
-	max-width: min(520px, calc(100vw - 32px));
-	padding: 12px;
-	background: #fff;
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
-	box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+	flex-direction: column;
+	gap: 12px;
+	max-width: 280px;
+	padding: 14px 16px;
 	color: #1e1e1e;
 }
 
+.close {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	border-radius: 6px;
+	background: transparent;
+	color: #6b7280;
+	cursor: pointer;
+	transition:
+		background 0.12s ease,
+		color 0.12s ease;
+}
+
+.close:hover {
+	background: rgba(0, 0, 0, 0.06);
+	color: #1e1e1e;
+}
+
+.close svg {
+	fill: currentColor;
+}
+
 .copy {
+	/* Leave room for the absolute-positioned close button. */
 	min-width: 0;
+	padding-right: 24px;
 }
 
 .title {
@@ -43,19 +70,6 @@
 	display: flex;
 	flex: 0 0 auto;
 	align-items: center;
+	justify-content: flex-end;
 	gap: 6px;
-}
-
-@media (max-width: 600px) {
-	.nudge {
-		top: 108px;
-		left: 12px;
-		right: 12px;
-		align-items: stretch;
-		flex-direction: column;
-	}
-
-	.actions {
-		justify-content: flex-end;
-	}
 }

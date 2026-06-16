@@ -1,3 +1,10 @@
+/* Wraps the status button so the restore-autosave popover can anchor to it
+   without disturbing the dock's flex layout. */
+.status-anchor {
+	display: inline-flex;
+	flex-shrink: 0;
+}
+
 .indicator {
 	display: flex;
 	align-items: center;
@@ -43,9 +50,14 @@
 	transition: background 0.15s ease;
 }
 
-.actionable:hover,
-.actionable[aria-expanded='true'] {
+.actionable:hover {
 	background: rgba(255, 255, 255, 0.08);
+}
+
+.actionable:focus-visible,
+.error:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
 }
 
 .unsaved {
@@ -76,72 +88,6 @@
 
 .label {
 	display: inline;
-}
-
-.popover {
-	z-index: 100000;
-}
-
-.popover :global(.components-popover__content) {
-	background: #fff;
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-	color: #1e1e1e;
-	padding: 0;
-	width: min(320px, calc(100vw - 24px));
-}
-
-.popover-content {
-	display: grid;
-	gap: 10px;
-	padding: 14px;
-}
-
-.popover-title {
-	font-size: 14px;
-	font-weight: 600;
-	line-height: 1.3;
-}
-
-.popover-description {
-	color: #50575e;
-	font-size: 13px;
-	line-height: 1.45;
-	margin: 0;
-	white-space: normal;
-}
-
-.popover-error {
-	color: #b32d2e;
-	font-size: 13px;
-	line-height: 1.45;
-	margin: 0;
-	white-space: normal;
-}
-
-.primary-action {
-	align-items: center;
-	background: #3858e9;
-	border: 1px solid #6c84ff;
-	border-radius: 4px;
-	color: #fff;
-	cursor: pointer;
-	display: inline-flex;
-	font-size: 13px;
-	font-weight: 600;
-	justify-content: center;
-	line-height: 1.2;
-	min-height: 34px;
-	padding: 8px 12px;
-	transition: background 0.15s ease;
-	width: fit-content;
-}
-
-.primary-action:hover,
-.primary-action:focus-visible {
-	background: #4f6df0;
-	border-color: #8fa1ff;
 }
 
 .progress-ring {

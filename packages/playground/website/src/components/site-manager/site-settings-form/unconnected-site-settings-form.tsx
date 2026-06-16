@@ -184,6 +184,7 @@ export function UnconnectedSiteSettingsForm({
 		>
 			{header}
 			<VStack spacing={3} className={css.formSection}>
+				<p className={css.groupLabel}>Runtime</p>
 				<Controller
 					control={control}
 					name="wpVersion"
@@ -529,6 +530,7 @@ export function UnconnectedSiteSettingsForm({
 					)}
 				/>
 
+				<p className={css.groupLabel}>Network</p>
 				<Controller
 					control={control}
 					name="withNetworking"

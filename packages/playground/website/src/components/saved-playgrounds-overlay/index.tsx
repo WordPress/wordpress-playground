@@ -5,10 +5,22 @@ import {
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
+	TextControl,
+	Button,
 } from '@wordpress/components';
-import { moreVertical, upload, link, close } from '@wordpress/icons';
+import {
+	moreVertical,
+	upload,
+	link,
+	close,
+	pencil,
+	layout,
+} from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
+import PreviewPRForm from '../../github/preview-pr/form';
+import GitHubImportForm from '../../github/github-import-form/form';
+import vanillaScreenshot from './vanilla-wordpress.jpeg';
 import { useState, useEffect, useRef } from 'react';
 import {
 	usePlaygroundClient,
@@ -33,7 +45,6 @@ import {
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
-	setSiteManagerSection,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
@@ -65,9 +76,44 @@ type BlueprintsIndexEntry = {
 	path: string;
 	screenshot_url?: string;
 	featured?: boolean;
+	/**
+	 * The synthetic "Vanilla WordPress" card. It is not a real Blueprint in the
+	 * Blueprints repo — it starts a clean Playground and uses a screenshot kept
+	 * (and CI-refreshed) in this package.
+	 */
+	isVanilla?: boolean;
+};
+
+/**
+ * The default "Blueprint" gallery card. Starts a clean WordPress install rather
+ * than resolving a Blueprint from the index, so its preview is a local,
+ * CI-refreshed screenshot instead of one served from the Blueprints repo.
+ */
+const VANILLA_WORDPRESS_CARD: BlueprintsIndexEntry = {
+	path: '__vanilla-wordpress__',
+	title: 'Vanilla WordPress',
+	description: 'A clean WordPress install — the default starting point.',
+	author: 'WordPress',
+	categories: [],
+	featured: true,
+	screenshot_url: vanillaScreenshot,
+	isVanilla: true,
 };
 
 export type OverlayViewMode = 'main' | 'blueprints';
+
+/**
+ * The "New Playground" pane is a single tabbed surface: "Blueprint" (the
+ * gallery, default) plus one tab per alternative way to start. Selecting a tab
+ * swaps the panel below rather than opening a separate modal.
+ */
+type CreationTabId =
+	| 'blueprint'
+	| 'wp-pr'
+	| 'gutenberg-pr'
+	| 'github'
+	| 'blueprint-url'
+	| 'zip';
 
 interface SavedPlaygroundsOverlayProps {
 	onClose: () => void;
@@ -156,6 +202,9 @@ export function SavedPlaygroundsOverlay({
 	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
 		string | null
 	>(null);
+	const [activeCreationTab, setActiveCreationTab] =
+		useState<CreationTabId>('blueprint');
+	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
 	const isCompactLayout = useIsCompactLayout();
 	const activeOpfsSyncStatus = activeClientInfo?.opfsSync?.status;
 
@@ -269,12 +318,17 @@ export function SavedPlaygroundsOverlay({
 		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json'
 	);
 
-	const allBlueprints: BlueprintsIndexEntry[] = blueprintsData
-		? Object.entries(blueprintsData).map(([path, entry]) => ({
-				...entry,
-				path,
-			}))
-		: [];
+	const allBlueprints: BlueprintsIndexEntry[] = [
+		// Vanilla WordPress is always the first card and shows immediately, even
+		// while the remote Blueprint index is still loading.
+		VANILLA_WORDPRESS_CARD,
+		...(blueprintsData
+			? Object.entries(blueprintsData).map(([path, entry]) => ({
+					...entry,
+					path,
+				}))
+			: []),
+	];
 
 	const tagCounts = new Map<string, number>();
 	allBlueprints.forEach((b) => {
@@ -310,7 +364,10 @@ export function SavedPlaygroundsOverlay({
 	});
 
 	const onSiteClick = (slug: string) => {
-		dispatch(setSiteManagerSection('site-details'));
+		// Just switch to the Playground and close the pane. We intentionally do
+		// NOT change the dock section here: doing so made the closing pane
+		// re-render as the "This Playground" settings pane mid-exit-animation,
+		// which read as a confusing flash when restoring an autosaved Playground.
 		onClose();
 		void sitesAPI.setActiveSite(slug).catch((error) => {
 			logger.error('Error opening saved Playground', error);
@@ -327,10 +384,10 @@ export function SavedPlaygroundsOverlay({
 		closeMenu();
 	};
 
-	const handleRenameSite = (site: SiteInfo, closeMenu: () => void) => {
+	const handleRenameSite = (site: SiteInfo, closeMenu?: () => void) => {
 		dispatch(setSiteSlugToRename(site.slug));
 		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
-		closeMenu();
+		closeMenu?.();
 	};
 
 	const openSaveModalForSite = (site: SiteInfo, closeMenu?: () => void) => {
@@ -347,13 +404,13 @@ export function SavedPlaygroundsOverlay({
 		const createdDate = formatSiteCreatedDate(site);
 		if (isAutosavedSite(site)) {
 			return createdDate
-				? `Recovery copy - Created ${createdDate}`
-				: 'Recovery copy';
+				? `Autosaved · ${createdDate}`
+				: 'Autosaved in this browser';
 		}
 		if (site.metadata.storage === 'local-fs') {
 			return 'Saved in a local directory';
 		}
-		return createdDate ? `Created ${createdDate}` : 'Saved in this browser';
+		return createdDate ? `Saved · ${createdDate}` : 'Saved in this browser';
 	};
 
 	const getCurrentSiteDetails = (site: SiteInfo) => {
@@ -369,7 +426,7 @@ export function SavedPlaygroundsOverlay({
 			return 'Unsaved';
 		}
 		if (isAutosavedSite(site)) {
-			return 'Autosaved';
+			return 'Autosaved in this browser';
 		}
 		if (site.metadata.storage === 'local-fs') {
 			return 'Local directory';
@@ -471,63 +528,88 @@ export function SavedPlaygroundsOverlay({
 		onClose();
 	}
 
-	const creationOptions = [
+	/**
+	 * Creates a fresh Playground for the inline "From GitHub" import to write
+	 * into, so importing from the New pane starts a new site (mirrors the old
+	 * GitHub import modal's new-site flow).
+	 */
+	const createSiteForGitHubImport = async () => {
+		try {
+			await sitesAPI.createNewTemporarySite();
+			await sitesAPI.saveInBrowser();
+		} catch {
+			if (temporarySite) {
+				await sitesAPI.setActiveSite(temporarySite.slug);
+			} else {
+				await sitesAPI.createNewTemporarySite();
+			}
+		}
+		const client = sitesAPI.getClient();
+		if (!client) {
+			throw new Error('No active Playground to import into.');
+		}
+		return client;
+	};
+
+	const submitBlueprintUrl = () => {
+		const trimmed = blueprintUrlInput.trim();
+		if (!trimmed) {
+			return;
+		}
+		dispatch(setSiteManagerOpen(false));
+		redirectTo(
+			PlaygroundRoute.newSite({ query: { 'blueprint-url': trimmed } })
+		);
+		onClose();
+	};
+
+	const creationTabs: {
+		id: CreationTabId;
+		title: string;
+		ariaLabel: string;
+		icon: React.ReactNode;
+		disabled: boolean;
+	}[] = [
 		{
-			id: 'vanilla',
-			title: 'Vanilla WordPress',
-			ariaLabel: 'Vanilla WordPress - New Playground',
-			iconComponent: <WordPressIcon />,
-			onClick: createVanillaSite,
+			id: 'blueprint',
+			title: 'Blueprint',
+			ariaLabel: 'Start from a Blueprint',
+			icon: <Icon icon={layout} size={24} />,
 			disabled: false,
 		},
 		{
 			id: 'wp-pr',
 			title: 'WordPress PR',
-			ariaLabel: 'WordPress PR - Preview a WordPress PR',
-			iconComponent: <PullRequestIcon />,
-			onClick: () => {
-				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
-			},
+			ariaLabel: 'Preview a WordPress PR',
+			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
 		{
 			id: 'gutenberg-pr',
 			title: 'Gutenberg PR',
-			ariaLabel: 'Gutenberg PR - Preview a Gutenberg PR',
-			iconComponent: <PullRequestIcon />,
-			onClick: () => {
-				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
-			},
+			ariaLabel: 'Preview a Gutenberg PR',
+			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
 		{
 			id: 'github',
 			title: 'From GitHub',
-			ariaLabel: 'From GitHub - Import from GitHub',
-			iconComponent: GitHubIcon,
-			onClick: () => {
-				dispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
-			},
+			ariaLabel: 'Import from GitHub',
+			icon: GitHubIcon,
 			disabled: offline,
 		},
 		{
 			id: 'blueprint-url',
 			title: 'Blueprint URL',
-			ariaLabel: 'Blueprint URL - Open a Blueprint URL',
-			icon: link,
-			onClick: () => {
-				dispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
-			},
+			ariaLabel: 'Open a Blueprint URL',
+			icon: <Icon icon={link} size={24} />,
 			disabled: offline,
 		},
 		{
 			id: 'zip',
 			title: 'Import .zip',
 			ariaLabel: 'Import a .zip',
-			icon: upload,
-			onClick: () => {
-				zipFileInputRef.current?.click();
-			},
+			icon: <Icon icon={upload} size={24} />,
 			disabled: false,
 		},
 	];
@@ -539,16 +621,31 @@ export function SavedPlaygroundsOverlay({
 	const savedSites = inactiveStoredSites.filter(isExplicitlySavedSite);
 
 	function formatSiteCreatedDate(site: SiteInfo) {
-		return site.metadata.whenCreated
-			? new Date(site.metadata.whenCreated).toLocaleDateString(
-					undefined,
-					{
-						year: 'numeric',
-						month: 'short',
-						day: 'numeric',
-					}
-				)
-			: undefined;
+		if (!site.metadata.whenCreated) {
+			return undefined;
+		}
+		const created = new Date(site.metadata.whenCreated);
+		const now = new Date();
+		const startOfDay = (date: Date) =>
+			new Date(date.getFullYear(), date.getMonth(), date.getDate());
+		const dayDiff = Math.round(
+			(startOfDay(now).getTime() - startOfDay(created).getTime()) /
+				86_400_000
+		);
+		// Today/yesterday read more naturally as a time of day; older
+		// Playgrounds keep the calendar date. Both follow the browser locale.
+		if (dayDiff === 0 || dayDiff === 1) {
+			const time = created.toLocaleTimeString(undefined, {
+				hour: 'numeric',
+				minute: '2-digit',
+			});
+			return `${dayDiff === 0 ? 'Today' : 'Yesterday'} at ${time}`;
+		}
+		return created.toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+		});
 	}
 
 	function renderSiteRow(site: SiteInfo) {
@@ -563,9 +660,18 @@ export function SavedPlaygroundsOverlay({
 					[css.siteRowSelected]: isSelected,
 				})}
 			>
-				<button
+				<div
 					className={css.siteRowContent}
+					role="button"
+					tabIndex={0}
+					aria-label={`Open ${site.metadata.name}`}
 					onClick={() => onSiteClick(site.slug)}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault();
+							onSiteClick(site.slug);
+						}
+					}}
 				>
 					<div className={css.siteRowLogo}>
 						{site.metadata.logo ? (
@@ -578,14 +684,30 @@ export function SavedPlaygroundsOverlay({
 						)}
 					</div>
 					<div className={css.siteRowInfo}>
-						<span className={css.siteRowName}>
-							{site.metadata.name}
+						<span className={css.siteRowNameLine}>
+							<span className={css.siteRowName}>
+								{site.metadata.name}
+							</span>
+							{isStoredSite && (
+								<button
+									type="button"
+									className={css.renameButton}
+									aria-label={`Rename ${site.metadata.name}`}
+									title="Rename"
+									onClick={(event) => {
+										event.stopPropagation();
+										handleRenameSite(site);
+									}}
+								>
+									<Icon icon={pencil} size={16} />
+								</button>
+							)}
 						</span>
 						<span className={css.siteRowDate}>
 							{getStoredSiteDetails(site)}
 						</span>
 					</div>
-				</button>
+				</div>
 				{isStoredSite && (
 					<div className={css.siteRowActions}>
 						{isAutosave && (
@@ -606,7 +728,7 @@ export function SavedPlaygroundsOverlay({
 						)}
 						<DropdownMenu
 							icon={moreVertical}
-							label="Site actions"
+							label="Playground actions"
 							className={css.siteRowMenu}
 							popoverProps={{
 								placement: 'bottom-end',
@@ -614,8 +736,8 @@ export function SavedPlaygroundsOverlay({
 						>
 							{({ onClose: closeMenu }) => (
 								<>
-									<MenuGroup>
-										{isAutosave && (
+									{isAutosave && (
+										<MenuGroup>
 											<MenuItem
 												onClick={() =>
 													openSaveModalForSite(
@@ -626,18 +748,8 @@ export function SavedPlaygroundsOverlay({
 											>
 												Store permanently
 											</MenuItem>
-										)}
-										<MenuItem
-											onClick={() =>
-												handleRenameSite(
-													site,
-													closeMenu
-												)
-											}
-										>
-											Rename
-										</MenuItem>
-									</MenuGroup>
+										</MenuGroup>
+									)}
 									<MenuGroup>
 										<MenuItem
 											className={css.dangerMenuItem}
@@ -812,57 +924,188 @@ export function SavedPlaygroundsOverlay({
 		);
 	}
 
-	function renderCreationSection() {
+	function renderNewPlaygroundSection() {
+		// One tabbed surface: the tab strip (grouped in its own toolbar) picks a
+		// way to start, and the panel below swaps to match. The panel keeps a
+		// sticky header that names the active flow — restoring "Start from a
+		// Blueprint" and clearly separating the tabs from the gallery's category
+		// filters. "Blueprint" (the gallery) is the default.
+		const activeTab = creationTabs.find(
+			(tab) => tab.id === activeCreationTab
+		);
 		return (
 			<OverlaySection
-				title="Start a new Playground"
-				className={css.playgroundsSection}
+				className={classNames(
+					css.playgroundsSection,
+					css.creationSection
+				)}
 			>
-				<div className={css.creationRow}>
-					{creationOptions.map((option) => {
-						const hasIcon =
-							'iconComponent' in option || 'icon' in option;
-						return (
-							<button
-								key={option.id}
-								className={css.creationButton}
-								aria-label={option.ariaLabel}
-								onClick={option.onClick}
-								disabled={option.disabled}
-								data-cy={
-									option.id === 'zip'
-										? 'restore-from-zip'
-										: undefined
-								}
-							>
-								{hasIcon && (
-									<span
-										className={classNames(
-											css.creationIcon,
-											option.id === 'vanilla'
-												? css.newPlaygroundIcon
-												: undefined
-										)}
-									>
-										{'iconComponent' in option ? (
-											option.iconComponent
-										) : 'icon' in option ? (
-											<Icon
-												icon={option.icon!}
-												size={24}
-											/>
-										) : null}
-									</span>
-								)}
-								<span className={css.creationTitle}>
-									{option.title}
-								</span>
-							</button>
-						);
-					})}
+				<div
+					className={css.creationTabs}
+					role="tablist"
+					aria-label="Ways to start a new Playground"
+				>
+					{creationTabs.map((tab) => (
+						<button
+							key={tab.id}
+							type="button"
+							role="tab"
+							aria-selected={activeCreationTab === tab.id}
+							className={classNames(css.creationButton, {
+								[css.creationButtonActive]:
+									activeCreationTab === tab.id,
+							})}
+							aria-label={tab.ariaLabel}
+							onClick={() => setActiveCreationTab(tab.id)}
+							disabled={tab.disabled}
+						>
+							<span className={css.creationIcon}>{tab.icon}</span>
+							<span className={css.creationTitle}>
+								{tab.title}
+							</span>
+						</button>
+					))}
+				</div>
+				<div className={css.creationPanel}>
+					<div className={css.panelHeader}>
+						<h3 className={css.panelTitle}>
+							{activeTab?.ariaLabel}
+						</h3>
+					</div>
+					{renderActiveCreationTab()}
 				</div>
 			</OverlaySection>
 		);
+	}
+
+	function renderBlueprintGallery() {
+		return (
+			<>
+				{renderBlueprintFilters()}
+				{filteredBlueprints.length > 0 && (
+					<div className={css.blueprintsRow}>
+						{filteredBlueprints.map(renderBlueprintCard)}
+					</div>
+				)}
+				{blueprintsLoading && (
+					<div className={css.loadingContainer}>
+						<Spinner />
+					</div>
+				)}
+				{!blueprintsLoading && blueprintsError && (
+					<p className={css.emptyMessage}>
+						Unable to load blueprints. Check your connection.
+					</p>
+				)}
+				{!blueprintsLoading &&
+					!blueprintsError &&
+					filteredBlueprints.length === 0 && (
+						<p className={css.emptyMessage}>
+							No blueprints found matching your criteria.
+						</p>
+					)}
+			</>
+		);
+	}
+
+	function renderActiveCreationTab() {
+		switch (activeCreationTab) {
+			case 'blueprint':
+				return renderBlueprintGallery();
+			case 'wp-pr':
+				return (
+					<div className={css.inlineForm}>
+						<PreviewPRForm
+							target="wordpress"
+							inline
+							onClose={() => setActiveCreationTab('blueprint')}
+						/>
+					</div>
+				);
+			case 'gutenberg-pr':
+				return (
+					<div className={css.inlineForm}>
+						<PreviewPRForm
+							target="gutenberg"
+							inline
+							onClose={() => setActiveCreationTab('blueprint')}
+						/>
+					</div>
+				);
+			case 'github':
+				return (
+					<div className={css.inlineForm}>
+						<GitHubImportForm
+							playground={playground!}
+							getPlaygroundBeforeImport={
+								createSiteForGitHubImport
+							}
+							onClose={() => setActiveCreationTab('blueprint')}
+							onImported={() => {
+								// eslint-disable-next-line no-alert
+								alert(
+									'Import finished! Your Playground site has been updated.'
+								);
+								onClose();
+							}}
+						/>
+					</div>
+				);
+			case 'blueprint-url':
+				return (
+					<form
+						className={css.inlineForm}
+						onSubmit={(event) => {
+							event.preventDefault();
+							submitBlueprintUrl();
+						}}
+					>
+						<TextControl
+							__nextHasNoMarginBottom
+							label="Blueprint URL"
+							value={blueprintUrlInput}
+							onChange={(value: string) =>
+								setBlueprintUrlInput(value)
+							}
+							placeholder="https://example.com/blueprint.json"
+							type="url"
+						/>
+						<p className={css.inlineFormHint}>
+							Runs a Blueprint hosted at a public URL as a fresh
+							Playground.
+						</p>
+						<div className={css.inlineFormActions}>
+							<Button
+								variant="primary"
+								type="submit"
+								disabled={!blueprintUrlInput.trim()}
+							>
+								Run Blueprint
+							</Button>
+						</div>
+					</form>
+				);
+			case 'zip':
+				return (
+					<div className={css.inlineForm}>
+						<p className={css.inlineFormHint}>
+							Import a WordPress Playground <code>.zip</code>{' '}
+							export to start a new Playground from it.
+						</p>
+						<div className={css.inlineFormActions}>
+							<Button
+								variant="primary"
+								data-cy="restore-from-zip"
+								onClick={() => zipFileInputRef.current?.click()}
+							>
+								Choose a .zip file…
+							</Button>
+						</div>
+					</div>
+				);
+			default:
+				return null;
+		}
 	}
 
 	function renderBlueprintFilters() {
@@ -929,67 +1172,98 @@ export function SavedPlaygroundsOverlay({
 		);
 	}
 
+	function renderBlueprintCard(blueprint: BlueprintsIndexEntry) {
+		return (
+			<button
+				key={blueprint.path}
+				className={classNames(css.blueprintPreviewCard, {
+					[css.vanillaCard]: blueprint.isVanilla,
+				})}
+				onClick={() =>
+					blueprint.isVanilla
+						? createVanillaSite()
+						: previewBlueprint(blueprint.path)
+				}
+			>
+				<div className={css.blueprintPreviewThumbnail}>
+					{blueprint.screenshot_url ? (
+						<img
+							src={blueprint.screenshot_url}
+							alt=""
+							loading="lazy"
+						/>
+					) : (
+						<div className={css.blueprintPlaceholder}>
+							<WordPressIcon />
+						</div>
+					)}
+					{blueprint.isVanilla && (
+						<span className={css.blueprintBadge}>Default</span>
+					)}
+				</div>
+				<span className={css.blueprintPreviewBody}>
+					<span className={css.blueprintPreviewTitle}>
+						{blueprint.title}
+					</span>
+					{blueprint.description && (
+						<span className={css.blueprintPreviewDescription}>
+							{blueprint.description}
+						</span>
+					)}
+				</span>
+			</button>
+		);
+	}
+
 	function renderBlueprintPreviewSection() {
+		// Vanilla WordPress is always present in `allBlueprints`, so the grid
+		// shows it immediately while the remote index loads behind it.
 		const blueprintsToShow =
 			variant === 'pane' ? filteredBlueprints : allBlueprints;
 		return (
 			<OverlaySection
-				title="Start from a Blueprint"
+				title={
+					variant === 'pane' ? undefined : 'Start from a Blueprint'
+				}
 				className={classNames(
 					css.playgroundsSection,
 					css.blueprintsSection
 				)}
 			>
 				{variant === 'pane' && renderBlueprintFilters()}
-				{blueprintsLoading ? (
+				{blueprintsToShow.length > 0 && (
+					<div className={css.blueprintsRow}>
+						{blueprintsToShow.map(renderBlueprintCard)}
+					</div>
+				)}
+				{blueprintsLoading && (
 					<div className={css.loadingContainer}>
 						<Spinner />
 					</div>
-				) : blueprintsError ? (
+				)}
+				{!blueprintsLoading && blueprintsError && (
 					<p className={css.emptyMessage}>
 						Unable to load blueprints. Check your connection.
 					</p>
-				) : blueprintsToShow.length === 0 ? (
-					<p className={css.emptyMessage}>
-						No blueprints found matching your criteria.
-					</p>
-				) : (
-					<div className={css.blueprintsRow}>
-						{blueprintsToShow.map((blueprint) => (
-							<button
-								key={blueprint.path}
-								className={css.blueprintPreviewCard}
-								onClick={() => previewBlueprint(blueprint.path)}
-							>
-								<div className={css.blueprintPreviewThumbnail}>
-									{blueprint.screenshot_url ? (
-										<img
-											src={blueprint.screenshot_url}
-											alt=""
-											loading="lazy"
-										/>
-									) : (
-										<div
-											className={css.blueprintPlaceholder}
-										>
-											<WordPressIcon />
-										</div>
-									)}
-								</div>
-								<span className={css.blueprintPreviewTitle}>
-									{blueprint.title}
-								</span>
-							</button>
-						))}
-					</div>
 				)}
+				{!blueprintsLoading &&
+					!blueprintsError &&
+					blueprintsToShow.length === 0 && (
+						<p className={css.emptyMessage}>
+							No blueprints found matching your criteria.
+						</p>
+					)}
 			</OverlaySection>
 		);
 	}
 
 	if (variant === 'pane') {
 		return (
-			<div className={css.playgroundsPane}>
+			<div
+				className={classNames(css.playgroundsPane, {
+					[css.newPane]: panel === 'new',
+				})}
+			>
 				<input
 					type="file"
 					ref={zipFileInputRef}
@@ -998,12 +1272,7 @@ export function SavedPlaygroundsOverlay({
 					style={{ display: 'none' }}
 				/>
 				{panel !== 'new' && renderYourPlaygroundsSection()}
-				{panel !== 'playgrounds' && (
-					<>
-						{renderCreationSection()}
-						{renderBlueprintPreviewSection()}
-					</>
-				)}
+				{panel !== 'playgrounds' && renderNewPlaygroundSection()}
 			</div>
 		);
 	}
@@ -1207,118 +1476,10 @@ export function SavedPlaygroundsOverlay({
 			</button>
 			<OverlayBody className={css.playgroundsBody}>
 				<div className={css.playgroundsColumns}>
-					<OverlaySection
-						title="Start a new Playground"
-						className={css.playgroundsSection}
-					>
-						<div className={css.creationRow}>
-							{creationOptions.map((option) => {
-								const hasIcon =
-									'iconComponent' in option ||
-									'icon' in option;
-								return (
-									<button
-										key={option.id}
-										className={css.creationButton}
-										aria-label={option.ariaLabel}
-										onClick={option.onClick}
-										disabled={option.disabled}
-										data-cy={
-											option.id === 'zip'
-												? 'restore-from-zip'
-												: undefined
-										}
-									>
-										{hasIcon && (
-											<span
-												className={classNames(
-													css.creationIcon,
-													option.id === 'vanilla'
-														? css.newPlaygroundIcon
-														: undefined
-												)}
-											>
-												{'iconComponent' in option ? (
-													option.iconComponent
-												) : 'icon' in option ? (
-													<Icon
-														icon={option.icon!}
-														size={24}
-													/>
-												) : null}
-											</span>
-										)}
-										<span className={css.creationTitle}>
-											{option.title}
-										</span>
-									</button>
-								);
-							})}
-						</div>
-					</OverlaySection>
+					{renderNewPlaygroundSection()}
 					{renderYourPlaygroundsSection()}
 
-					<OverlaySection
-						title="Start from a Blueprint"
-						className={classNames(
-							css.playgroundsSection,
-							css.blueprintsSection
-						)}
-					>
-						{blueprintsLoading ? (
-							<div className={css.loadingContainer}>
-								<Spinner />
-							</div>
-						) : blueprintsError ? (
-							<p className={css.emptyMessage}>
-								Unable to load blueprints. Check your
-								connection.
-							</p>
-						) : (
-							<div className={css.blueprintsRow}>
-								{allBlueprints.map((blueprint) => (
-									<button
-										key={blueprint.path}
-										className={css.blueprintPreviewCard}
-										onClick={() =>
-											previewBlueprint(blueprint.path)
-										}
-									>
-										<div
-											className={
-												css.blueprintPreviewThumbnail
-											}
-										>
-											{blueprint.screenshot_url ? (
-												<img
-													src={
-														blueprint.screenshot_url
-													}
-													alt=""
-													loading="lazy"
-												/>
-											) : (
-												<div
-													className={
-														css.blueprintPlaceholder
-													}
-												>
-													<WordPressIcon />
-												</div>
-											)}
-										</div>
-										<span
-											className={
-												css.blueprintPreviewTitle
-											}
-										>
-											{blueprint.title}
-										</span>
-									</button>
-								))}
-							</div>
-						)}
-					</OverlaySection>
+					{renderBlueprintPreviewSection()}
 				</div>
 			</OverlayBody>
 		</Overlay>

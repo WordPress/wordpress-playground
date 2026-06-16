@@ -106,11 +106,15 @@ export function Layout() {
 				>
 					<PlaygroundViewport displayMode={displayMode} />
 				</div>
-				{showDock && siteManagerIsOpen && (
+				{showDock && (
 					<button
 						type="button"
-						className={css.previewDismiss}
+						className={classNames(css.previewDismiss, {
+							[css.previewDismissVisible]: siteManagerIsOpen,
+						})}
 						aria-label="Close Playground tools"
+						aria-hidden={!siteManagerIsOpen}
+						tabIndex={siteManagerIsOpen ? 0 : -1}
 						onClick={closeDockPane}
 					/>
 				)}

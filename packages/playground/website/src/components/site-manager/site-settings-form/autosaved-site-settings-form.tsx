@@ -50,12 +50,11 @@ export function AutosavedSiteSettingsForm({
 					style={{ margin: 0 }}
 					className={`${css.footer} ${css.formSection}`}
 				>
-					<p>
-						<b>Destructive action!</b> Applying these settings will
-						recreate this autosaved Playground under the same name
-						and replace its current WordPress files.
+					<p className={css.footerNote}>
+						Applying changes recreates this Playground under the
+						same name and replaces its current files.
 					</p>
-					<Button type="submit" variant="primary">
+					<Button type="submit" variant="primary" isDestructive>
 						Apply Settings & Recreate Playground
 					</Button>
 				</VStack>
