@@ -528,7 +528,7 @@ export function Dock() {
 						{showPlaygroundShortcuts && (
 							<div className={css.shortcuts}>
 								<Button
-									variant="secondary"
+									variant="tertiary"
 									disabled={!playground}
 									onClick={() =>
 										navigateActiveSite('/wp-admin/')
@@ -537,7 +537,7 @@ export function Dock() {
 									Open WP Admin
 								</Button>
 								<Button
-									variant="secondary"
+									variant="tertiary"
 									disabled={!playground}
 									onClick={() => navigateActiveSite('/')}
 								>

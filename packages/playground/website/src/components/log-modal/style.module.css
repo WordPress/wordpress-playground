@@ -26,40 +26,41 @@
 }
 
 .log__entry {
-	font-family: monospace;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 	word-wrap: break-word;
 	padding: 0.5rem 0;
 	margin: 0.5rem 0;
 	white-space-collapse: preserve-breaks;
-	border-block-end: 1px dashed currentcolor;
+	border-block-end: 1px solid var(--line-subtle);
 }
 
 .log__entry:has(mark) {
-	background-color: ivory;
+	background-color: var(--paper-3);
 }
 
 .log-empty-state {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
-	gap: 4px;
-	padding: 8px 0 16px;
+	gap: var(--space-1);
+	padding: var(--space-6) 0 var(--space-4);
 }
 
 .log-empty-icon {
-	color: #00a32a;
-	margin-bottom: 4px;
+	color: var(--ink-muted);
+	margin-bottom: var(--space-1);
 }
 
 .log-empty-title {
-	color: #1e1e1e;
+	color: var(--ink);
 	font-size: 14px;
 	font-weight: 600;
 	margin: 0;
 }
 
 .log-empty-hint {
-	color: #646970;
+	color: var(--ink-muted);
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;

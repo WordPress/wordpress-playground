@@ -797,13 +797,10 @@ export const BlueprintBundleEditor = forwardRef<
 							</div>
 						) : null}
 						{isAutosaved ? (
-							<div style={{ padding: '8px 16px' }}>
-								<Notice status="warning" isDismissible={false}>
-									Running this Blueprint will recreate this
-									autosaved Playground under the same name and
-									replace all its files.
-								</Notice>
-							</div>
+							<p className={styles.resetNote}>
+								Running this Blueprint recreates this Playground
+								under the same name and replaces all its files.
+							</p>
 						) : null}
 						{currentPath || code || messageContent ? (
 							messageContent ? (

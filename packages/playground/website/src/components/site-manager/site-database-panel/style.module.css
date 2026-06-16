@@ -56,16 +56,16 @@
 
 .noticeEyebrow {
 	color: var(--ink-muted);
-	font-size: 11px;
+	font-size: 13px;
 	font-weight: 600;
-	letter-spacing: 0.06em;
+	letter-spacing: 0.04em;
 	line-height: 1.2;
 	margin: 0 0 var(--space-1);
 	text-transform: uppercase;
 }
 
 .noticeBody {
-	color: var(--ink-muted);
+	color: var(--ink-soft);
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;

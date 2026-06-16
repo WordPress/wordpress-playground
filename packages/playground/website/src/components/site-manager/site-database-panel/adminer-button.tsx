@@ -1,4 +1,4 @@
-import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { Button } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import { useEffect, useState } from 'react';
 import css from './style.module.css';
@@ -114,21 +114,17 @@ export function AdminerButton({
 	const isLoading = state === 'loading';
 	return (
 		<>
-			<Flex direction="column" gap={0} expanded={false}>
-				<Button
-					variant="primary"
-					disabled={!playground || isLoading}
-					isBusy={isLoading}
-					onClick={handleOpenAdminer}
-				>
-					<Flex justify="space-between" gap={2} expanded={true}>
-						<FlexItem>Open Adminer</FlexItem>
-						<FlexItem>
-							<Icon icon={external} size={16} />
-						</FlexItem>
-					</Flex>
-				</Button>
-			</Flex>
+			<Button
+				variant="primary"
+				disabled={!playground || isLoading}
+				isBusy={isLoading}
+				onClick={handleOpenAdminer}
+				icon={external}
+				iconPosition="right"
+				iconSize={16}
+			>
+				Open Adminer
+			</Button>
 			{error && (
 				<div className={css.error}>
 					Failed to install Adminer. Please try again. Error: {error}

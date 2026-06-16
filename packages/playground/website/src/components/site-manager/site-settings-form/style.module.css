@@ -30,7 +30,7 @@
    so the settings read as two short lists instead of one long stack. */
 .group-label {
 	color: var(--ink-muted);
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	margin: 0;
@@ -48,7 +48,7 @@
 	width: 150px;
 }
 .form-section :global(.components-select-control > :first-child label) {
-	color: var(--ink);
+	color: var(--ink-muted);
 	font-size: 13px;
 	font-weight: 500;
 	text-transform: none;
@@ -62,7 +62,7 @@
 	border-radius: var(--radius-control) !important;
 }
 .form-section :global(.components-checkbox-control__label) {
-	color: var(--ink-soft);
+	color: var(--ink-muted);
 	font-size: 13px;
 }
 .form-section :global(.components-base-control__help) {
