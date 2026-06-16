@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Button as WordPressButton } from '@wordpress/components';
 import Button from '../button';
 import { useAppUpdate } from '../../lib/pwa-update/use-app-update';
 import css from './style.module.css';
@@ -31,21 +32,22 @@ export function AppUpdateNotice() {
 				<span>Restart My WordPress to load the latest version.</span>
 			</div>
 			<div className={css.noticeActions}>
-				<Button
+				<WordPressButton
 					variant="primary"
 					type="button"
 					onClick={appUpdate.applyUpdate}
 					disabled={appUpdate.isApplying}
 				>
 					{appUpdate.isApplying ? 'Updating...' : 'Update now'}
-				</Button>
-				<Button
+				</WordPressButton>
+				<WordPressButton
 					type="button"
+					variant="secondary"
 					onClick={appUpdate.dismissUpdate}
 					disabled={appUpdate.isApplying}
 				>
 					Later
-				</Button>
+				</WordPressButton>
 			</div>
 		</div>
 	);

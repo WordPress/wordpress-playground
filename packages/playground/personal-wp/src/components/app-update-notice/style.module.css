@@ -34,13 +34,6 @@
 	gap: 8px;
 }
 
-.notice-actions button {
-	flex-grow: 0;
-	min-width: 88px;
-	padding-right: 12px;
-	padding-left: 12px;
-}
-
 .required-screen,
 .loading-screen {
 	display: grid;
