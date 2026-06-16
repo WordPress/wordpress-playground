@@ -42,7 +42,7 @@ const FilePlusIcon = () => (
 			strokeLinejoin="round"
 		/>
 		<g transform="translate(19 19)">
-			<circle cx="5" cy="5" r="8" fill="#fff" />
+			<circle cx="5" cy="5" r="8" fill="var(--paper-2, #fff)" />
 			<path
 				d="M5 1.5v7M1.5 5h7"
 				fill="none"
@@ -71,7 +71,7 @@ const FolderPlusIcon = () => (
 			strokeLinejoin="round"
 		/>
 		<g transform="translate(19 19)">
-			<circle cx="5" cy="5" r="8" fill="#fff" />
+			<circle cx="5" cy="5" r="8" fill="var(--paper-2, #fff)" />
 			<path
 				d="M5 1.5v7M1.5 5h7"
 				fill="none"

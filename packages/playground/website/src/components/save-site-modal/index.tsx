@@ -13,7 +13,6 @@ import {
 	RadioControl,
 	Notice,
 } from '@wordpress/components';
-import { Icon, backup, cautionFilled } from '@wordpress/icons';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
@@ -34,25 +33,13 @@ import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 type StorageOption = Extract<SiteStorageType, 'opfs' | 'local-fs'>;
 
 const helpTextStyle: CSSProperties = {
-	color: '#757575',
+	color: 'var(--ink-muted, #5f5b54)',
 	fontSize: 12,
 	marginTop: 8,
 };
 
 // Echoes the dock status pill the user clicked, so the pane reads as a direct
 // continuation of "Autosaved"/"Unsaved" rather than an unrelated dialog.
-const statusChipStyle: CSSProperties = {
-	alignItems: 'center',
-	alignSelf: 'flex-start',
-	borderRadius: 999,
-	display: 'inline-flex',
-	fontSize: 12,
-	fontWeight: 600,
-	gap: 4,
-	lineHeight: 1.2,
-	padding: '3px 10px 3px 6px',
-};
-
 /**
  * Hosts the save form either in the centered Modal (default) or, when embedded
  * in the dock's "Store permanently" pane, as a bare passthrough so the pane
@@ -410,24 +397,7 @@ export function SaveSiteModal({
 				}}
 				autoComplete="off"
 			>
-				{asPane && (
-					<span
-						style={{
-							...statusChipStyle,
-							background: isAutosaved
-								? 'rgba(56, 88, 233, 0.1)'
-								: 'rgba(176, 124, 11, 0.14)',
-							color: isAutosaved ? '#2645c9' : '#8a5a00',
-						}}
-					>
-						<Icon
-							icon={isAutosaved ? backup : cautionFilled}
-							size={16}
-						/>
-						{isAutosaved ? 'Autosaved' : 'Unsaved'}
-					</span>
-				)}
-				<p style={{ margin: 0, color: '#1e1e1e' }}>
+				<p style={{ margin: 0, color: 'var(--ink, #21201d)' }}>
 					{isAutosaved
 						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
 						: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
@@ -508,7 +478,11 @@ export function SaveSiteModal({
 							id="save-progress"
 							max={savingProgress?.total || 100}
 							value={savingProgress?.files || 0}
-							style={{ width: '100%', height: 24 }}
+							style={{
+								width: '100%',
+								height: 12,
+								accentColor: 'var(--accent, #3858e9)',
+							}}
 						></progress>
 						<p style={{ ...helpTextStyle, marginTop: 4 }}>
 							{savingProgressLabel}

@@ -1,14 +1,20 @@
 .share-panel {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-6);
+	gap: var(--space-3);
 	padding: var(--space-2) var(--space-6) var(--space-6);
 }
 
+/* Each export option is its own card so the three actions read as distinct
+   choices rather than one running column. */
 .group {
 	align-items: flex-start;
+	background: var(--paper-2);
+	border: 1px solid var(--line-subtle);
+	border-radius: var(--radius-card);
 	display: flex;
 	gap: var(--space-3);
+	padding: var(--space-4);
 }
 
 /* A small warm chip leads each section so the three options are scannable. */

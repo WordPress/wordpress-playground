@@ -42,7 +42,7 @@
 }
 
 .error {
-	color: #cc1818;
+	color: var(--color-alert-red, #cc1818);
 	font-size: 13px;
 	margin-top: var(--space-2);
 }
@@ -65,7 +65,7 @@
 }
 
 .noticeBody {
-	color: var(--ink-soft);
+	color: var(--ink-muted);
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;

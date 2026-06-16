@@ -657,7 +657,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		.click();
 
 	const importZipTab = website.page.getByRole('tab', {
-		name: 'Import a .zip',
+		name: 'Import .zip',
 	});
 	await expect(importZipTab).toBeVisible();
 

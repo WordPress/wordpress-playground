@@ -207,7 +207,8 @@
 
 .dock-item-primary:hover,
 .dock-item-primary.dock-item-active {
-	background: #2742c4;
+	/* Matches the surface accent-hover (#2f4ad1) used in pane content. */
+	background: #2f4ad1;
 	color: #ffffff;
 }
 
@@ -285,8 +286,10 @@
 }
 
 .pane-editor {
+	/* Editor panes drop the pane header and carry their title in the
+	   file-browser bar, so the body fills the whole pane. */
 	display: grid;
-	grid-template-rows: auto minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
 	height: min(780px, calc(100dvh - 148px));
 	max-height: none;
 	overflow: hidden;
@@ -366,13 +369,14 @@
 }
 
 /* Right-aligned header action (e.g. "New Playground" on Your Playgrounds): a
-   compact accent affordance that sits beside the title rather than below it. */
+   quiet neutral affordance beside the title. Kept off-accent so it doesn't
+   compete with the active Playground card for attention. */
 .pane-header-action {
 	align-items: center;
-	background: rgba(56, 88, 233, 0.08);
-	border: 1px solid rgba(56, 88, 233, 0.22);
+	background: transparent;
+	border: 1px solid var(--line-control);
 	border-radius: var(--radius-card);
-	color: var(--accent-link);
+	color: var(--ink-soft);
 	cursor: pointer;
 	display: inline-flex;
 	flex-shrink: 0;
@@ -387,8 +391,8 @@
 }
 
 .pane-header-action:hover {
-	background: rgba(56, 88, 233, 0.14);
-	border-color: rgba(56, 88, 233, 0.4);
+	background: var(--paper-4);
+	border-color: var(--line-hover);
 }
 
 .pane-header-action svg {
@@ -397,6 +401,14 @@
 
 .pane-editor .pane-header {
 	padding: var(--space-6) var(--space-6) var(--space-4);
+}
+
+/* A header that carries a subtitle (the settings name, or any pane description)
+   reads as one title+subtitle unit, so the break to the body is tight — far less
+   than the default title-only header padding. */
+.pane-header:has(.settings-identity),
+.pane-header:has(.pane-description) {
+	padding-bottom: var(--space-3);
 }
 
 .pane-header h2 {
@@ -417,24 +429,55 @@
 	margin: var(--space-2) 0 0;
 }
 
-/* "This Playground" shortcuts row above the settings form. The bottom hairline
-   is the one divider allowed in a pane. */
-.shortcuts {
+/* The active Playground's name sits right under the "This Playground" title as
+   the header's subtitle line, with a quiet pencil to rename — so the pane names
+   the specific Playground without a separate row. */
+.settings-identity {
 	align-items: center;
-	border-bottom: 1px solid var(--line-subtle);
 	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-	margin-bottom: var(--space-4);
-	padding: 0 var(--space-6) var(--space-4);
+	gap: var(--space-1);
+	margin-top: var(--space-2);
+	min-width: 0;
 }
 
-/* Rename/Delete trail the navigate actions as one set, sharing the row's gap —
-   never right-floated, which split the row in two and pushed them to the far
-   edge when the compact pane wrapped. When they do wrap, they stay flush-left. */
-.shortcuts-end {
-	display: flex;
-	gap: var(--space-2);
+.settings-name {
+	color: var(--ink-soft);
+	font-size: 14px;
+	font-weight: 500;
+	margin: 0;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* A quiet inline edit affordance, sized to sit on the name's optical centre. */
+.settings-rename {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-control);
+	color: var(--ink-faint);
+	cursor: pointer;
+	display: inline-flex;
+	flex: none;
+	height: 24px;
+	justify-content: center;
+	padding: 0;
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+	width: 24px;
+}
+
+.settings-rename:hover,
+.settings-rename:focus-visible {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
+.settings-rename :global(svg) {
+	fill: currentColor;
 }
 
 /* Notices = recessed warm wells: a deeper parchment + faint inset, NO border and
@@ -493,6 +536,21 @@
 
 /* Button hierarchy: exactly one filled blue primary per pane. Every secondary /
    tertiary becomes a quiet ink control on paper (destructive stays red). */
+
+/* The filled primary uses the surface accent, not WordPress' admin teal
+   (#007cba) — Gutenberg's default is-primary keys off --wp-admin-theme-color,
+   which isn't on the warm ramp. (is-destructive primaries stay red.) */
+.pane :global(.components-button.is-primary:not(.is-destructive)) {
+	background: var(--accent);
+}
+
+.pane
+	:global(
+		.components-button.is-primary:not(.is-destructive):hover:not(:disabled)
+	) {
+	background: var(--accent-hover);
+}
+
 .pane :global(.components-button.is-secondary:not(.is-destructive)) {
 	box-shadow: inset 0 0 0 1px var(--line-control);
 	color: var(--ink);

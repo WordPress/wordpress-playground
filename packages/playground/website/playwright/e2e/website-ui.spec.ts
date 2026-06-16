@@ -819,11 +819,9 @@ test.describe('Default Playground storage', () => {
 			.getByRole('button', { name: 'Current Blueprint' })
 			.click();
 		await expect(
-			website.page
-				.getByLabel('WordPress Playground')
-				.getByText(
-					'Running this Blueprint recreates this Playground under the same name and replaces all its files.'
-				)
+			website.page.getByRole('button', {
+				name: 'Run Blueprint and reset site',
+			})
 		).toBeVisible();
 
 		await replaceBlueprintEditorContents(website.page, {
@@ -983,28 +981,28 @@ test.describe('Default Playground storage', () => {
 			.getByRole('button', { name: 'New Playground' })
 			.click();
 
-		// The creation surface is a tab strip; "Blueprint" is the default and
+		// The creation surface is a method rail; "Gallery" is the default and
 		// shows the gallery, with Vanilla WordPress as its first card.
 		await expect(
-			website.page.getByRole('tab', { name: 'Start from a Blueprint' })
+			website.page.getByRole('tab', { name: 'Gallery' })
 		).toHaveAttribute('aria-selected', 'true');
 		await expect(
 			website.page.getByRole('button', { name: /Vanilla WordPress/ })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('tab', { name: 'Preview a WordPress PR' })
+			website.page.getByRole('tab', { name: 'From a URL' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('tab', { name: 'Preview a Gutenberg PR' })
+			website.page.getByRole('tab', { name: 'Write your own' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('tab', { name: 'Import from GitHub' })
+			website.page.getByRole('tab', { name: 'Pull request' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('tab', { name: 'Open a Blueprint URL' })
+			website.page.getByRole('tab', { name: 'From GitHub' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('tab', { name: 'Import a .zip' })
+			website.page.getByRole('tab', { name: 'Import .zip' })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved Playground' })
@@ -1012,9 +1010,7 @@ test.describe('Default Playground storage', () => {
 
 		// "From GitHub" switches the panel inline (no separate modal) and does
 		// not create a new site until an import actually runs.
-		await website.page
-			.getByRole('tab', { name: 'Import from GitHub' })
-			.click();
+		await website.page.getByRole('tab', { name: 'From GitHub' }).click();
 		await expect(
 			website.page.getByRole('link', {
 				name: 'Connect your GitHub account',

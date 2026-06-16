@@ -301,9 +301,10 @@ export function JSONSchemaEditor({
 					display: 'flex',
 					alignItems: 'center',
 					padding: '0',
-					background: '#1e1e1e',
-					borderRadius: '6px',
-					boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+					background: 'var(--paper-2, #faf8f5)',
+					border: '1px solid var(--line-subtle, rgba(33,32,29,0.1))',
+					borderRadius: 'var(--radius-control, 6px)',
+					boxShadow: '0 2px 8px rgba(40,33,23,0.16)',
 				},
 				'.cm-string-editor-button': {
 					display: 'inline-flex',
@@ -314,7 +315,7 @@ export function JSONSchemaEditor({
 					border: 'none',
 					borderRadius: '4px',
 					background: 'transparent',
-					color: '#fff',
+					color: 'var(--ink, #21201d)',
 					cursor: 'pointer',
 					fontSize: '12px',
 					fontFamily: 'system-ui, sans-serif',
@@ -322,7 +323,7 @@ export function JSONSchemaEditor({
 					transition: 'background 0.15s',
 				},
 				'.cm-string-editor-button:hover': {
-					background: 'rgba(255,255,255,0.15)',
+					background: 'var(--paper-4, rgba(33,32,29,0.08))',
 				},
 			}),
 		];
