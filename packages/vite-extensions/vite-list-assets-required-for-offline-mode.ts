@@ -114,23 +114,27 @@ export const listAssetsRequiredForOfflineMode = ({
 		name: 'list-assets-required-for-offline-mode',
 		apply: 'build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
-			const files = distDirectoriesToList.flatMap((dir) => {
-				const absoluteDirPath = join(outputDir, dir);
-				console.log(`Listing files in ${absoluteDirPath}`);
-				return listFiles(absoluteDirPath)
-					.map((file) => {
-						file = file.replace(absoluteDirPath, '');
-						return join('/', file);
+			const files = Array.from(
+				new Set(
+					distDirectoriesToList.flatMap((dir) => {
+						const absoluteDirPath = join(outputDir, dir);
+						console.log(`Listing files in ${absoluteDirPath}`);
+						return listFiles(absoluteDirPath)
+							.map((file) => {
+								file = file.replace(absoluteDirPath, '');
+								return join('/', file);
+							})
+							.filter((item) => {
+								return !patternsToNotCache.some((pattern) => {
+									if (pattern instanceof RegExp) {
+										return pattern.test(item);
+									}
+									return pattern === item;
+								});
+							});
 					})
-					.filter((item) => {
-						return !patternsToNotCache.some((pattern) => {
-							if (pattern instanceof RegExp) {
-								return pattern.test(item);
-							}
-							return pattern === item;
-						});
-					});
-			});
+				)
+			);
 			writeFileSync(
 				join(outputDir, outputFile),
 				JSON.stringify(files, null, 2)
