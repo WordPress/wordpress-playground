@@ -16,12 +16,6 @@ export function encodeStringAsBase64(text: string): string {
 }
 
 export function encodeUint8ArrayAsBase64(bytes: Uint8Array): string {
-	// Build the binary string one byte at a time. Spreading the array into
-	// String.fromCharCode(...bytes) overflows the argument limit for large
-	// inputs and throws a RangeError.
-	let binaryString = '';
-	for (let index = 0; index < bytes.length; index++) {
-		binaryString += String.fromCharCode(bytes[index]);
-	}
+	const binaryString = String.fromCodePoint(...bytes);
 	return btoa(binaryString);
 }

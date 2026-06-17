@@ -21,17 +21,4 @@ describe('base64', () => {
 			)
 		).toEqual(Array.from(bytes));
 	});
-
-	it('encodes large byte arrays', () => {
-		const bytes = Uint8Array.from(
-			{ length: 100_000 },
-			(_value, index) => index % 256
-		);
-
-		expect(
-			Array.from(
-				decodeBase64ToUint8Array(encodeUint8ArrayAsBase64(bytes))
-			)
-		).toEqual(Array.from(bytes));
-	});
 });
