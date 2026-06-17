@@ -71,6 +71,19 @@
 	flex-shrink: 0;
 }
 
+/* A quiet docs link sitting to the left of the toolbar's actions. */
+.editorDocsLink {
+	margin-right: 4px;
+	color: var(--accent, #3858e9);
+	font-size: 13px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.editorDocsLink:hover {
+	text-decoration: underline;
+}
+
 .editor {
 	flex: 1;
 	min-height: 0;

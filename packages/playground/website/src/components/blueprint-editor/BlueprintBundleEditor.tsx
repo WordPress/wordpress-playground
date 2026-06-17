@@ -732,6 +732,14 @@ export const BlueprintBundleEditor = forwardRef<
 							</div>
 
 							<div className={styles.editorHeaderActions}>
+								<a
+									className={styles.editorDocsLink}
+									href="https://wordpress.github.io/wordpress-playground/blueprints"
+									target="_blank"
+									rel="noreferrer"
+								>
+									What are Blueprints?
+								</a>
 								<Button
 									variant="secondary"
 									className={styles.editorToolbarButton}

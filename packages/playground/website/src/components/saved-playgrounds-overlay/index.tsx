@@ -265,9 +265,6 @@ export function SavedPlaygroundsOverlay({
 	const [activeCreationTab, setActiveCreationTab] =
 		useState<CreationTabId>('gallery');
 	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
-	const [prTarget, setPrTarget] = useState<'wordpress' | 'gutenberg'>(
-		'wordpress'
-	);
 	// The "Write a Blueprint" draft lives in Redux so it survives closing and
 	// reopening the New pane (which unmounts this component). Falls back to the
 	// starter Blueprint until the user edits it.
@@ -1009,6 +1006,9 @@ export function SavedPlaygroundsOverlay({
 
 	function renderCurrentSiteRow(site: SiteInfo) {
 		const meta = getCurrentSiteDetails(site);
+		// A temporary Playground is lost on refresh — call that out right on its
+		// row so the list mirrors the dock's yellow "Unsaved" status.
+		const isUnsaved = site.metadata.storage === 'none';
 		return (
 			<div
 				data-playground-row={site.slug}
@@ -1026,7 +1026,14 @@ export function SavedPlaygroundsOverlay({
 						)}
 					</div>
 					<div className={css.siteRowInfo}>
-						{renderSiteRowName(site)}
+						<span className={css.currentSiteNameLine}>
+							{renderSiteRowName(site)}
+							{isUnsaved && (
+								<span className={css.unsavedBadge}>
+									Unsaved
+								</span>
+							)}
+						</span>
 						{activeSiteSyncLabel ? (
 							<span className={css.siteRowSaving}>
 								<span
@@ -1268,7 +1275,15 @@ export function SavedPlaygroundsOverlay({
 						<p className={css.inlineFormHint}>
 							Sketch a starter Blueprint, then create your
 							Playground. For a roomier editor with a file tree,
-							open the Blueprint tab once it boots.
+							open the Blueprint tab once it boots.{' '}
+							<a
+								className={css.inlineFormLink}
+								href="https://wordpress.github.io/wordpress-playground/blueprints"
+								target="_blank"
+								rel="noreferrer"
+							>
+								What are Blueprints?
+							</a>
 						</p>
 						<div className={css.writeOwnEditor}>
 							<Suspense
@@ -1300,39 +1315,7 @@ export function SavedPlaygroundsOverlay({
 			case 'pull-request':
 				return (
 					<div className={css.inlineForm}>
-						<div
-							className={css.prToggle}
-							role="tablist"
-							aria-label="Pull request source"
-						>
-							<button
-								type="button"
-								role="tab"
-								aria-selected={prTarget === 'wordpress'}
-								className={classNames(css.prToggleButton, {
-									[css.prToggleButtonActive]:
-										prTarget === 'wordpress',
-								})}
-								onClick={() => setPrTarget('wordpress')}
-							>
-								WordPress
-							</button>
-							<button
-								type="button"
-								role="tab"
-								aria-selected={prTarget === 'gutenberg'}
-								className={classNames(css.prToggleButton, {
-									[css.prToggleButtonActive]:
-										prTarget === 'gutenberg',
-								})}
-								onClick={() => setPrTarget('gutenberg')}
-							>
-								Gutenberg
-							</button>
-						</div>
 						<PreviewPRForm
-							key={prTarget}
-							target={prTarget}
 							inline
 							onClose={() => setActiveCreationTab('gallery')}
 						/>

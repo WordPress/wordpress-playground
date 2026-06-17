@@ -154,6 +154,7 @@ export function SaveStatusIndicator() {
 			placement="top"
 			offset={12}
 			focusOnMount={false}
+			className={css.autosaveNudgePopover}
 			onClose={() => dispatch(dismissAutosaveNudge())}
 		>
 			<RestoreAutosaveNudge

@@ -1,4 +1,5 @@
 import React, {
+	useEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -129,6 +130,33 @@ export function FileExplorerSidebar({
 		null
 	);
 	const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+
+	// Mirror the editor's open file into the tree selection. The tree's
+	// initialSelectedPath only applies on mount and points at the parent
+	// directory, so when the editor restores a file (e.g. reopening the panel
+	// via persistKey) the open file would otherwise stay unhighlighted. Expand
+	// to it and select it without moving DOM focus, so focus stays wherever the
+	// editor put it.
+	useEffect(() => {
+		if (!currentPath) {
+			return;
+		}
+		let cancelled = false;
+		void (async () => {
+			await treeRef.current?.expandToPath(currentPath);
+			if (cancelled) {
+				return;
+			}
+			treeRef.current?.focusPath(currentPath, {
+				select: true,
+				domFocus: false,
+				notify: false,
+			});
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentPath]);
 
 	const isInternalDrag = (event: React.DragEvent) =>
 		event.dataTransfer?.types?.includes('application/x-wp-playground-path');

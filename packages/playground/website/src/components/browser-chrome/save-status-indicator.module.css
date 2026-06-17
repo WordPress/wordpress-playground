@@ -5,6 +5,16 @@
 	flex-shrink: 0;
 }
 
+/* Lift the "recent autosave available" popover off the page with a stronger
+   shadow so it clearly reads as a floating prompt above the dock, not a flat
+   tooltip. */
+.autosave-nudge-popover :global(.components-popover__content) {
+	border-radius: 8px;
+	box-shadow:
+		0 14px 34px rgba(15, 23, 42, 0.2),
+		0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
 .indicator {
 	display: flex;
 	align-items: center;

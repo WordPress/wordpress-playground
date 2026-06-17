@@ -8,7 +8,12 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 
 interface PreviewPRFormProps {
 	onClose: () => void;
-	target: 'wordpress' | 'gutenberg';
+	/**
+	 * Preferred repository for ambiguous (bare) input. A recognized GitHub URL
+	 * always wins over this; it only decides whether a bare number/branch is a
+	 * WordPress Core or Gutenberg reference. Defaults to WordPress Core.
+	 */
+	target?: 'wordpress' | 'gutenberg';
 	/** Render a single left-aligned primary action (dock pane) instead of the
 	 *  modal's right-aligned Cancel/Submit row. */
 	inline?: boolean;
@@ -33,6 +38,95 @@ export const targetParams = {
 	},
 };
 
+type ResolvedRef = {
+	target: 'wordpress' | 'gutenberg';
+	ref: string;
+	isBranch: boolean;
+};
+
+// WordPress Core builds artifacts per pull request, not per branch, so a branch
+// name (or branch URL) can't be previewed. Gutenberg branches still work.
+const WP_BRANCH_ERROR =
+	"Branch names aren't supported for WordPress Core — paste a pull request number or URL instead. (To preview a Gutenberg branch, paste its full GitHub branch URL.)";
+
+/**
+ * Resolves free-form input into a repository + reference. A recognized GitHub
+ * URL decides the repository; a bare number is a pull request on the preferred
+ * repository; anything else is a branch name, which only Gutenberg supports.
+ */
+function resolvePrInput(
+	raw: string,
+	preferredTarget: 'wordpress' | 'gutenberg'
+): { ok: true; value: ResolvedRef } | { ok: false; error: string } {
+	const input = raw.trim();
+	if (!input) {
+		return { ok: false, error: 'Enter a pull request number or URL.' };
+	}
+
+	const gutenbergPr = input.match(
+		/github\.com\/[^/]+\/gutenberg\/pull\/(\d+)/i
+	);
+	if (gutenbergPr) {
+		return {
+			ok: true,
+			value: {
+				target: 'gutenberg',
+				ref: gutenbergPr[1],
+				isBranch: false,
+			},
+		};
+	}
+
+	const gutenbergBranch = input.match(
+		/github\.com\/[^/]+\/gutenberg\/tree\/(.+)$/i
+	);
+	if (gutenbergBranch) {
+		return {
+			ok: true,
+			value: {
+				target: 'gutenberg',
+				ref: gutenbergBranch[1].replace(/\/+$/, ''),
+				isBranch: true,
+			},
+		};
+	}
+
+	const wordpressPr = input.match(
+		/github\.com\/[^/]+\/wordpress-develop\/pull\/(\d+)/i
+	);
+	if (wordpressPr) {
+		return {
+			ok: true,
+			value: {
+				target: 'wordpress',
+				ref: wordpressPr[1],
+				isBranch: false,
+			},
+		};
+	}
+
+	if (/github\.com\/[^/]+\/wordpress-develop\/tree\//i.test(input)) {
+		return { ok: false, error: WP_BRANCH_ERROR };
+	}
+
+	if (/^\d+$/.test(input)) {
+		return {
+			ok: true,
+			value: { target: preferredTarget, ref: input, isBranch: false },
+		};
+	}
+
+	// Bare, non-numeric, no recognized URL: treat as a branch name. Gutenberg
+	// supports branches; WordPress Core does not.
+	if (preferredTarget === 'gutenberg') {
+		return {
+			ok: true,
+			value: { target: 'gutenberg', ref: input, isBranch: true },
+		};
+	}
+	return { ok: false, error: WP_BRANCH_ERROR };
+}
+
 export default function PreviewPRForm({
 	onClose,
 	target = 'wordpress',
@@ -53,70 +147,47 @@ export default function PreviewPRForm({
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 
-		if (!value) {
+		if (!value.trim()) {
 			return;
 		}
 
-		await previewPr(value);
+		const resolved = resolvePrInput(value, target);
+		if (!resolved.ok) {
+			setError(resolved.error);
+			return;
+		}
+		setError('');
+		await previewRef(resolved.value);
 	}
 
-	function renderRetryIn(retryIn: number, isBranch: boolean) {
+	function renderRetryIn(resolved: ResolvedRef, retryIn: number) {
 		setError(
 			`Waiting for GitHub to finish building ${
-				isBranch ? 'branch' : 'PR'
-			} ${value}. This might take 15 minutes or more! Retrying in ${
+				resolved.isBranch ? 'branch' : 'PR'
+			} ${resolved.ref}. This might take 15 minutes or more! Retrying in ${
 				retryIn / 1000
 			}...`
 		);
 	}
 
-	function buildArtifactUrl(ref: string, isBranch: boolean): string {
+	function buildArtifactUrl(resolved: ResolvedRef): string {
+		const { target: repo, ref, isBranch } = resolved;
 		const refType = isBranch ? 'branch' : 'pr';
-		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For Gutenberg PRs: artifact name is always gutenberg-plugin
-		// For Gutenberg branches: artifact name is always gutenberg-plugin
-		//   (we use prefix matching with trailing dash for branches)
-		let artifactSuffix = '';
-		if (target === 'wordpress') {
-			// WordPress only supports PRs, not branches
-			artifactSuffix = ref;
-		}
-		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}${artifactSuffix}&${refType}=${ref}`;
+		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}.
+		// For Gutenberg PRs/branches: artifact name is always gutenberg-plugin
+		//   (branches use prefix matching with a trailing dash).
+		const artifactSuffix = repo === 'wordpress' ? ref : '';
+		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${ref}`;
 	}
 
-	async function previewPr(prValue: string) {
-		let cleanupRetry = () => {};
-		if (cleanupRetry) {
-			cleanupRetry();
-		}
-
-		let prNumber: string = prValue;
-		let branchName: string | null = null;
+	async function previewRef(resolved: ResolvedRef) {
+		const { target: repo, ref, isBranch } = resolved;
 		setSubmitting(true);
 
-		// Extract number from a GitHub URL
-		if (prNumber.toLowerCase().includes(targetParams[target].pull)) {
-			prNumber = prNumber.match(/\/pull\/(\d+)/)![1];
-		} else if (!/^\d+$/.test(prNumber)) {
-			// For WordPress core, only allow PR numbers/URLs, not branch names
-			if (target === 'wordpress') {
-				setError(
-					'Please enter a valid PR number or PR URL for WordPress Core.'
-				);
-				setSubmitting(false);
-				return;
-			}
-			// For Gutenberg, treat non-numeric input as a branch name
-			branchName = prNumber;
-		}
-
-		const ref = branchName || prNumber;
-		const isBranch = !!branchName;
-
-		// For branches, skip verification since we'll use the most recent artifact with prefix matching
-		// For PRs, verify that the specific PR build exists
+		// For branches, skip verification since we'll use the most recent
+		// artifact with prefix matching. For PRs, verify the build exists.
 		if (!isBranch) {
-			const zipArtifactUrl = buildArtifactUrl(ref, isBranch);
+			const zipArtifactUrl = buildArtifactUrl(resolved);
 			const response = await fetch(zipArtifactUrl + '&verify_only=true');
 			if (response.status !== 200) {
 				let error = 'invalid_pr_number';
@@ -144,22 +215,18 @@ export default function PreviewPRForm({
 					} else {
 						// For PRs, retry since we expect a specific build to complete
 						let retryIn = 30000;
-						renderRetryIn(retryIn, false);
+						renderRetryIn(resolved, retryIn);
 						const timerInterval = setInterval(() => {
 							retryIn -= 1000;
 							if (retryIn <= 0) {
 								retryIn = 0;
 							}
-							renderRetryIn(retryIn, false);
+							renderRetryIn(resolved, retryIn);
 						}, 1000);
-						const scheduledRetry = setTimeout(() => {
-							previewPr(ref);
-						}, retryIn);
-						cleanupRetry = () => {
+						setTimeout(() => {
 							clearInterval(timerInterval);
-							clearTimeout(scheduledRetry);
-							cleanupRetry = () => {};
-						};
+							previewRef(resolved);
+						}, retryIn);
 					}
 				} else if (error === 'artifact_invalid') {
 					setError(
@@ -192,14 +259,14 @@ export default function PreviewPRForm({
 		};
 
 		const refParam = isBranch
-			? `${target === 'wordpress' ? 'core' : 'gutenberg'}-branch`
-			: `${target === 'wordpress' ? 'core' : 'gutenberg'}-pr`;
+			? `${repo === 'wordpress' ? 'core' : 'gutenberg'}-branch`
+			: `${repo === 'wordpress' ? 'core' : 'gutenberg'}-pr`;
 		const urlWithPreview = new URL(
 			window.location.pathname,
 			window.location.href
 		);
 
-		if (target === 'wordpress') {
+		if (repo === 'wordpress') {
 			// [wordpress] Passthrough the mode query parameter if it exists
 			if (urlParams.has('mode')) {
 				urlWithPreview.searchParams.set(
@@ -208,7 +275,7 @@ export default function PreviewPRForm({
 				);
 			}
 			urlWithPreview.searchParams.set(refParam, ref);
-		} else if (target === 'gutenberg') {
+		} else if (repo === 'gutenberg') {
 			// [gutenberg] If there's a import-site query parameter, pass that to the blueprint
 			try {
 				const importSite = new URL(
@@ -234,11 +301,6 @@ export default function PreviewPRForm({
 		window.location.href = urlWithPreview.toString();
 	}
 
-	const inputLabel =
-		target === 'wordpress'
-			? 'PR number or URL'
-			: 'PR number, URL, or a branch name';
-
 	return (
 		<form onSubmit={handleSubmit}>
 			<div className={css.content}>
@@ -249,7 +311,7 @@ export default function PreviewPRForm({
 				)}
 				<TextControl
 					disabled={submitting}
-					label={inputLabel}
+					label="Pull request URL or number"
 					value={value}
 					autoFocus
 					onChange={(e) => {
@@ -257,6 +319,11 @@ export default function PreviewPRForm({
 						setValue(e);
 					}}
 				/>
+				<p className={css.hint}>
+					Paste a link to a WordPress Core or Gutenberg pull request —
+					or just the PR number for WordPress Core. Gutenberg branch
+					links work too.
+				</p>
 				{errorMsg && (
 					<Notice status="error" isDismissible={false}>
 						{errorMsg}

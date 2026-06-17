@@ -36,7 +36,6 @@ import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
-import { TemporarySiteNotice } from '../temporary-site-notice';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -471,12 +470,6 @@ export function SiteInfoPanel({
 									{offline ? (
 										<div className={css.padded}>
 											<OfflineNotice />
-										</div>
-									) : null}
-
-									{isTemporary ? (
-										<div data-testid="temporary-site-notice">
-											<TemporarySiteNotice />
 										</div>
 									) : null}
 

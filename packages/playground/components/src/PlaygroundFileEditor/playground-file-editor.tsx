@@ -252,14 +252,15 @@ export function PlaygroundFileEditor({
 		setSaveState(SaveState.PENDING);
 		const timeout = window.setTimeout(async () => {
 			saveTimeoutRef.current = null;
-			setSaveState(SaveState.SAVING);
 			try {
 				const pathToSave = currentPathRef.current as string;
 				const contentToSave = codeRef.current;
 				// Skip writing content that already matches what's on disk.
 				// Opening a file loads its content into the editor, which would
 				// otherwise trip this auto-save and write the file back
-				// unchanged — triggering a needless persistence sync.
+				// unchanged — triggering a needless persistence sync. Check disk
+				// before flipping to "Saving…" so merely opening a file never
+				// flashes a save indicator.
 				let onDisk: string | null = null;
 				try {
 					onDisk = await activeFilesystem.readFileAsText(pathToSave);
@@ -270,6 +271,7 @@ export function PlaygroundFileEditor({
 					setSaveState(SaveState.IDLE);
 					return;
 				}
+				setSaveState(SaveState.SAVING);
 				if (onSaveFile) {
 					await onSaveFile(pathToSave, contentToSave);
 				} else {

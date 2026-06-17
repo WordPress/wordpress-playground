@@ -403,6 +403,28 @@
 	color: #6b7280;
 }
 
+/* Current Playground: its name sits on a line with a small status badge. */
+.currentSiteNameLine {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+
+/* "Unsaved" pill — a calm amber chip mirroring the dock's yellow Unsaved
+   status, so the current Playground's row plainly says it's lost on refresh. */
+.unsavedBadge {
+	flex-shrink: 0;
+	border-radius: 999px;
+	padding: 1px 8px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 16px;
+	letter-spacing: 0.01em;
+	background: #fdeeb3;
+	color: #7c4a03;
+}
+
 /* The active Playground's row mirrors the dock's "Saving" status while an OPFS
    sync is in flight, so progress is visible from the list too. */
 .siteRowSaving {
@@ -1287,40 +1309,6 @@
 	overflow: auto;
 }
 
-/* WordPress/Gutenberg toggle inside the Pull request panel — a small recessed
-   segmented control, visually distinct from the rail's list rows. */
-.playgrounds-pane.new-pane .prToggle {
-	background: var(--paper-4, #e7e2da);
-	border-radius: var(--radius-control, 6px);
-	box-shadow: inset 0 1px 2px rgba(40, 33, 23, 0.05);
-	display: inline-flex;
-	gap: 4px;
-	padding: 4px;
-}
-
-.playgrounds-pane.new-pane .prToggleButton {
-	background: transparent;
-	border: none;
-	border-radius: 4px;
-	color: var(--ink-muted, #5f5b54);
-	cursor: pointer;
-	font-size: 13px;
-	font-weight: 500;
-	padding: 5px 14px;
-	transition:
-		background 0.12s ease,
-		box-shadow 0.12s ease,
-		color 0.12s ease;
-}
-
-.playgrounds-pane.new-pane .prToggleButtonActive {
-	background: #ffffff;
-	box-shadow:
-		inset 0 0 0 1px var(--line-control, rgba(33, 32, 29, 0.14)),
-		0 1px 1px rgba(40, 33, 23, 0.05);
-	color: var(--ink, #21201d);
-}
-
 /* Inline creation flows (PR / GitHub / Blueprint URL / zip) reuse the modal
    form bodies. @wordpress/components fields are already themed by the dock pane;
    these rules retheme the remaining native inputs/labels/headings so the GitHub
@@ -1418,6 +1406,20 @@
 
 .playgrounds-pane .inlineFormHint {
 	color: var(--ink-muted, #5f5b54);
+}
+
+/* Inline docs link inside a hint — accent, underlines on hover. */
+.playgrounds-pane .inlineForm .inlineFormLink,
+.playgrounds-pane .inlineFormLink {
+	color: var(--accent, #3858e9);
+	font-weight: 500;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.playgrounds-pane .inlineForm .inlineFormLink:hover,
+.playgrounds-pane .inlineFormLink:hover {
+	text-decoration: underline;
 }
 
 /* Flat, calm list: rows sit directly on the pane with no per-group white box —
