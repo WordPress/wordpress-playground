@@ -981,19 +981,19 @@ test.describe('Default Playground storage', () => {
 			.getByRole('button', { name: 'New Playground' })
 			.click();
 
-		// The creation surface is a method rail; "Gallery" is the default and
-		// shows the gallery, with Vanilla WordPress as its first card.
+		// The creation surface is a method rail; "Blueprint gallery" is the
+		// default and shows the gallery, with Vanilla WordPress as its first card.
 		await expect(
-			website.page.getByRole('tab', { name: 'Gallery' })
+			website.page.getByRole('tab', { name: 'Blueprint gallery' })
 		).toHaveAttribute('aria-selected', 'true');
 		await expect(
 			website.page.getByRole('button', { name: /Vanilla WordPress/ })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('tab', { name: 'From a URL' })
+			website.page.getByRole('tab', { name: 'Blueprint URL' })
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('tab', { name: 'Write your own' })
+			website.page.getByRole('tab', { name: 'Write a Blueprint' })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('tab', { name: 'Pull request' })
@@ -1066,8 +1066,9 @@ test.describe('Default Playground storage', () => {
 			.filter({ hasText: setup.targetName })
 			.first();
 		await targetRow
-			.getByRole('button', { name: `Rename ${setup.targetName}` })
+			.getByRole('button', { name: 'Playground actions' })
 			.click();
+		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
 
 		const dialog = website.page.getByRole('dialog', {
 			name: 'Rename Playground',

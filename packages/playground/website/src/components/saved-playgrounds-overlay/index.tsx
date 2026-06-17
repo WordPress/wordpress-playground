@@ -15,13 +15,21 @@ import {
 	close,
 	pencil,
 	layout,
+	chevronRight,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import PreviewPRForm from '../../github/preview-pr/form';
 import GitHubImportForm from '../../github/github-import-form/form';
 import vanillaScreenshot from './vanilla-wordpress.jpeg';
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import {
+	useState,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	lazy,
+	Suspense,
+} from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { importWordPressFiles } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
@@ -43,7 +51,6 @@ import {
 	setSiteManagerOpen,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
-	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
@@ -388,48 +395,98 @@ export function SavedPlaygroundsOverlay({
 		closeMenu?.();
 	};
 
-	const openSaveModalForSite = (site: SiteInfo, closeMenu?: () => void) => {
-		dispatch(setSiteSlugToSave(site.slug));
-		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
-		closeMenu?.();
-		onClose();
+	// FLIP animation state for "Store": when an autosave becomes a permanent save
+	// it moves from "Last 5 autosaves" to "Saved". We snapshot every row's
+	// position before the change and animate each row from its old position to its
+	// new one, so the stored Playground visibly travels between the two groups.
+	const rowRectsRef = useRef<Map<string, DOMRect>>(new Map());
+	const animateMoveRef = useRef(false);
+
+	const snapshotRowRects = () => {
+		const rects = new Map<string, DOMRect>();
+		document
+			.querySelectorAll<HTMLElement>('[data-playground-row]')
+			.forEach((element) => {
+				const slug = element.getAttribute('data-playground-row');
+				if (slug) {
+					rects.set(slug, element.getBoundingClientRect());
+				}
+			});
+		return rects;
 	};
 
+	useLayoutEffect(() => {
+		const newRects = snapshotRowRects();
+		if (animateMoveRef.current) {
+			animateMoveRef.current = false;
+			const oldRects = rowRectsRef.current;
+			newRects.forEach((newRect, slug) => {
+				const oldRect = oldRects.get(slug);
+				if (!oldRect) {
+					return;
+				}
+				const dx = oldRect.left - newRect.left;
+				const dy = oldRect.top - newRect.top;
+				if (!dx && !dy) {
+					return;
+				}
+				const element = document.querySelector<HTMLElement>(
+					`[data-playground-row="${slug}"]`
+				);
+				if (!element) {
+					return;
+				}
+				// Invert: jump the row back to where it was, then release it so it
+				// transitions to its new home.
+				element.style.transition = 'none';
+				element.style.transform = `translate(${dx}px, ${dy}px)`;
+				element.style.zIndex = '2';
+				requestAnimationFrame(() => {
+					element.style.transition =
+						'transform 0.34s cubic-bezier(0.22, 1, 0.36, 1)';
+					element.style.transform = '';
+					const cleanup = () => {
+						element.style.transition = '';
+						element.style.zIndex = '';
+						element.removeEventListener('transitionend', cleanup);
+					};
+					element.addEventListener('transitionend', cleanup);
+				});
+			});
+		}
+		rowRectsRef.current = newRects;
+	});
+
+	// Store an autosaved Playground permanently in place — no modal, no leaving
+	// the pane. It's a metadata-only lifecycle change (autosave -> explicit), so
+	// the Playground simply moves into the "Saved" group, animated by the effect
+	// above.
+	const handleStorePermanently = (site: SiteInfo) => {
+		rowRectsRef.current = snapshotRowRects();
+		animateMoveRef.current = true;
+		void sitesAPI.keep(site.slug).catch((error) => {
+			animateMoveRef.current = false;
+			logger.error('Error storing Playground permanently', error);
+		});
+	};
+
+	// The save state lives in the row's status chip, so the meta line stays clean
+	// (just the date, or the location for local-directory Playgrounds).
 	const getStoredSiteDetails = (site: SiteInfo) => {
 		if (site.metadata.storage === 'none') {
 			return 'Not saved to browser storage';
 		}
-		const createdDate = formatSiteCreatedDate(site);
-		if (isAutosavedSite(site)) {
-			return createdDate
-				? `Autosaved · ${createdDate}`
-				: 'Autosaved in this browser';
-		}
 		if (site.metadata.storage === 'local-fs') {
-			return 'Saved in a local directory';
+			return 'Local directory';
 		}
-		return createdDate ? `Saved · ${createdDate}` : 'Saved in this browser';
+		return formatSiteCreatedDate(site) ?? '';
 	};
 
 	const getCurrentSiteDetails = (site: SiteInfo) => {
 		return [
-			getStorageLabel(site),
 			getRuntimeLabel(site),
 			`Started from ${getSourceLabel(site)}`,
 		].join(' · ');
-	};
-
-	const getStorageLabel = (site: SiteInfo) => {
-		if (site.metadata.storage === 'none') {
-			return 'Unsaved';
-		}
-		if (isAutosavedSite(site)) {
-			return 'Autosaved in this browser';
-		}
-		if (site.metadata.storage === 'local-fs') {
-			return 'Local directory';
-		}
-		return 'Saved in this browser';
 	};
 
 	const getRuntimeLabel = (site: SiteInfo) => {
@@ -603,21 +660,21 @@ export function SavedPlaygroundsOverlay({
 	}[] = [
 		{
 			id: 'gallery',
-			label: 'Gallery',
+			label: 'Blueprint gallery',
 			panelTitle: 'Start from a Blueprint',
 			icon: <Icon icon={layout} size={20} />,
 			disabled: false,
 		},
 		{
 			id: 'blueprint-url',
-			label: 'From a URL',
+			label: 'Blueprint URL',
 			panelTitle: 'Blueprint from a URL',
 			icon: <Icon icon={link} size={20} />,
 			disabled: offline,
 		},
 		{
 			id: 'write-own',
-			label: 'Write your own',
+			label: 'Write a Blueprint',
 			panelTitle: 'Write a Blueprint',
 			icon: <Icon icon={pencil} size={20} />,
 			disabled: false,
@@ -679,14 +736,70 @@ export function SavedPlaygroundsOverlay({
 		});
 	}
 
-	function renderSiteRow(site: SiteInfo) {
-		const isSelected = site.slug === activeSite?.slug;
+	// Trailing controls: a quiet "Store" link revealed on hover for autosaves and
+	// a calm "..." menu (Rename / Delete) revealed on hover, plus a resting
+	// chevron on switchable rows that signals "click to switch".
+	function renderRowActions(site: SiteInfo, showChevron: boolean) {
 		const isAutosave = isAutosavedSite(site);
 		const isStoredSite = site.metadata.storage !== 'none';
+		return (
+			<div className={css.siteRowActions}>
+				{isAutosave && (
+					<button
+						type="button"
+						className={css.storeLink}
+						onClick={() => handleStorePermanently(site)}
+						aria-label={`Store ${site.metadata.name} permanently`}
+						title="Store this Playground permanently so it is not pruned from recent autosaves."
+					>
+						Store
+					</button>
+				)}
+				{isStoredSite && (
+					<DropdownMenu
+						icon={moreVertical}
+						label="Playground actions"
+						className={css.siteRowMenu}
+						popoverProps={{ placement: 'bottom-end' }}
+					>
+						{({ onClose: closeMenu }) => (
+							<MenuGroup>
+								<MenuItem
+									onClick={() => {
+										closeMenu();
+										handleRenameSite(site);
+									}}
+								>
+									Rename
+								</MenuItem>
+								<MenuItem
+									className={css.dangerMenuItem}
+									onClick={() =>
+										handleDeleteSite(site, closeMenu)
+									}
+								>
+									Delete
+								</MenuItem>
+							</MenuGroup>
+						)}
+					</DropdownMenu>
+				)}
+				{showChevron && (
+					<span className={css.siteRowChevron} aria-hidden="true">
+						<Icon icon={chevronRight} size={22} />
+					</span>
+				)}
+			</div>
+		);
+	}
 
+	function renderSiteRow(site: SiteInfo) {
+		const isSelected = site.slug === activeSite?.slug;
+		const meta = getStoredSiteDetails(site);
 		return (
 			<div
 				key={site.slug}
+				data-playground-row={site.slug}
 				className={classNames(css.siteRow, {
 					[css.siteRowSelected]: isSelected,
 				})}
@@ -715,80 +828,26 @@ export function SavedPlaygroundsOverlay({
 						)}
 					</div>
 					<div className={css.siteRowInfo}>
-						<span className={css.siteRowNameLine}>
-							<span className={css.siteRowName}>
-								{site.metadata.name}
-							</span>
-							{isStoredSite && (
-								<button
-									type="button"
-									className={css.renameButton}
-									aria-label={`Rename ${site.metadata.name}`}
-									title="Rename"
-									onClick={(event) => {
-										event.stopPropagation();
-										handleRenameSite(site);
-									}}
-								>
-									<Icon icon={pencil} size={16} />
-								</button>
-							)}
+						<span className={css.siteRowName}>
+							{site.metadata.name}
 						</span>
-						<span className={css.siteRowDate}>
-							{getStoredSiteDetails(site)}
-						</span>
+						{meta && (
+							<span className={css.siteRowDate}>{meta}</span>
+						)}
 					</div>
 				</div>
-				{isStoredSite && (
-					<div className={css.siteRowActions}>
-						{isAutosave && (
-							<button
-								type="button"
-								className={css.keepButton}
-								onClick={() => openSaveModalForSite(site)}
-								aria-label="Store this Playground permanently"
-								title="Store this Playground permanently so it is not pruned from recent autosaves."
-							>
-								<span className={css.keepButtonFullText}>
-									Store permanently
-								</span>
-								<span className={css.keepButtonCompactText}>
-									Keep
-								</span>
-							</button>
-						)}
-						<DropdownMenu
-							icon={moreVertical}
-							label="Playground actions"
-							className={css.siteRowMenu}
-							popoverProps={{
-								placement: 'bottom-end',
-							}}
-						>
-							{({ onClose: closeMenu }) => (
-								<MenuGroup>
-									<MenuItem
-										className={css.dangerMenuItem}
-										onClick={() =>
-											handleDeleteSite(site, closeMenu)
-										}
-									>
-										Delete
-									</MenuItem>
-								</MenuGroup>
-							)}
-						</DropdownMenu>
-					</div>
-				)}
+				{renderRowActions(site, true)}
 			</div>
 		);
 	}
 
 	function renderCurrentSiteRow(site: SiteInfo) {
-		const isAutosave = isAutosavedSite(site);
-		const isStoredSite = site.metadata.storage !== 'none';
+		const meta = getCurrentSiteDetails(site);
 		return (
-			<div className={classNames(css.siteRow, css.currentSiteRow)}>
+			<div
+				data-playground-row={site.slug}
+				className={classNames(css.siteRow, css.currentSiteRow)}
+			>
 				<div className={css.siteRowContent}>
 					<div className={css.siteRowLogo}>
 						{site.metadata.logo ? (
@@ -804,52 +863,12 @@ export function SavedPlaygroundsOverlay({
 						<span className={css.siteRowName}>
 							{site.metadata.name}
 						</span>
-						<span className={css.siteRowDate}>
-							{getCurrentSiteDetails(site)}
-						</span>
+						{meta && (
+							<span className={css.siteRowDate}>{meta}</span>
+						)}
 					</div>
 				</div>
-				{isStoredSite && (
-					<div className={css.siteRowActions}>
-						{isAutosave && (
-							<button
-								type="button"
-								className={css.keepButton}
-								onClick={() => openSaveModalForSite(site)}
-								aria-label="Store this Playground permanently"
-								title="Store this Playground permanently so it is not pruned from recent autosaves."
-							>
-								<span className={css.keepButtonFullText}>
-									Store permanently
-								</span>
-								<span className={css.keepButtonCompactText}>
-									Keep
-								</span>
-							</button>
-						)}
-						<DropdownMenu
-							icon={moreVertical}
-							label="Playground actions"
-							className={css.siteRowMenu}
-							popoverProps={{
-								placement: 'bottom-end',
-							}}
-						>
-							{({ onClose: closeMenu }) => (
-								<MenuGroup>
-									<MenuItem
-										className={css.dangerMenuItem}
-										onClick={() =>
-											handleDeleteSite(site, closeMenu)
-										}
-									>
-										Delete
-									</MenuItem>
-								</MenuGroup>
-							)}
-						</DropdownMenu>
-					</div>
-				)}
+				{renderRowActions(site, false)}
 			</div>
 		);
 	}
@@ -901,7 +920,7 @@ export function SavedPlaygroundsOverlay({
 									</div>
 								</div>
 							)}
-							{renderSiteGroup('Unsaved', recentSites)}
+							{renderSiteGroup('Last 5 autosaves', recentSites)}
 							{renderSiteGroup('Saved', visibleSavedSites)}
 						</>
 					)}
