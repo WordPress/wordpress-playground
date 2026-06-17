@@ -59,7 +59,9 @@
 	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
 	font-size: 16px;
 	font-weight: 50;
-	height: 26px;
+	/* Driven by the dock: short when collapsed/wrapped, taller when the tools
+	   sit inline on one row so the input matches their height. */
+	height: var(--dock-input-height, 26px);
 	border: 0;
 	background: #40464d;
 	border-radius: 8px;

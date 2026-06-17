@@ -1,10 +1,11 @@
 import classNames from 'classnames';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import {
 	Icon,
 	chevronDown,
 	chevronUp,
+	close,
 	code,
 	grid,
 	list,
@@ -16,6 +17,7 @@ import {
 } from '@wordpress/icons';
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import {
+	isEditorDockSection,
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
@@ -42,9 +44,8 @@ type DockSection = Exclude<
 	'sidebar' | 'site-details' | 'blueprints'
 >;
 
-const DRAG_EDGE = 8;
+const VIEWPORT_EDGE = 8;
 const PANE_GAP = 12;
-const DOCK_DEFAULT_BOTTOM = 16;
 
 /**
  * Cylinder mark for the Database tool. @wordpress/icons has no database glyph,
@@ -80,25 +81,6 @@ function DatabaseIcon() {
 				stroke="currentColor"
 				strokeWidth="1.6"
 			/>
-		</svg>
-	);
-}
-
-function GripIcon() {
-	return (
-		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 16 16"
-			fill="currentColor"
-			aria-hidden="true"
-		>
-			<circle cx="5.5" cy="4" r="1.25" />
-			<circle cx="10.5" cy="4" r="1.25" />
-			<circle cx="5.5" cy="8" r="1.25" />
-			<circle cx="10.5" cy="8" r="1.25" />
-			<circle cx="5.5" cy="12" r="1.25" />
-			<circle cx="10.5" cy="12" r="1.25" />
 		</svg>
 	);
 }
@@ -205,8 +187,6 @@ const PANE_COPY: Record<DockSection, { title: string; description: string }> = {
 	},
 };
 
-type DockPosition = { left: number; top: number };
-
 export function Dock() {
 	const dispatch = useAppDispatch();
 	const siteManagerIsOpen = useAppSelector(
@@ -220,10 +200,16 @@ export function Dock() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLDivElement>(null);
+	const toolsRef = useRef<HTMLDivElement>(null);
+	// Natural width of the tools row, cached while it's visible so we can still
+	// tell one-row from two-row after the tools are collapsed (and removed from
+	// layout). Prev-two-row tracks the last layout so we only auto-collapse on
+	// the transition into two-row — the manual toggle wins between transitions.
+	const toolsWidthRef = useRef(0);
+	const prevTwoRowRef = useRef(false);
 	const normalizedSection = normalizeSection(activeSection);
 	const paneCopy = PANE_COPY[normalizedSection];
-	const isEditorSection =
-		normalizedSection === 'blueprint' || normalizedSection === 'files';
+	const isEditorSection = isEditorDockSection(normalizedSection);
 	// The New pane is tabbed; a fixed height keeps the tab strip from moving as
 	// the active tab's content (gallery vs. a short form) changes height.
 	const isFixedHeightSection = normalizedSection === 'new';
@@ -238,20 +224,21 @@ export function Dock() {
 		!!activeSite && normalizedSection === 'settings';
 	const showDescription = !isEditorSection && !!paneCopy.description;
 
-	// Free-floating dock position. `null` keeps the default bottom-center anchor.
-	const [dockPosition, setDockPosition] = useState<DockPosition | null>(null);
 	const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
-	const [isDragging, setIsDragging] = useState(false);
 	// Collapsed dock hides the tools row, leaving just the address + status.
 	const [isCollapsed, setIsCollapsed] = useState(false);
-	const dragStart = useRef<{
-		pointerX: number;
-		pointerY: number;
-		left: number;
-		top: number;
-	} | null>(null);
+	// True once the tools no longer fit beside the address area and wrap onto a
+	// second line. Drives the compact-vs-tall address input: only when the tools
+	// sit inline on one row do we grow the input to match their height.
+	const [isTwoRow, setIsTwoRow] = useState(false);
+	// Distance from the viewport's right edge to the active dock button's right
+	// edge. Popups anchor their right edge here and grow leftward. `null` until
+	// measured (or when the active button can't be found, e.g. collapsed tools).
+	const [activeItemRightOffset, setActiveItemRightOffset] = useState<
+		number | null
+	>(null);
 
-	// Track the dock size so the pane can be re-anchored above it when moved.
+	// Track the dock height so the pane can be anchored just above it.
 	useEffect(() => {
 		if (!dockRef.current || typeof ResizeObserver === 'undefined') {
 			return;
@@ -271,94 +258,47 @@ export function Dock() {
 		return () => observer.disconnect();
 	}, []);
 
-	const clampPosition = useCallback(
-		({ left, top }: DockPosition): DockPosition => {
-			const maxLeft = Math.max(
-				DRAG_EDGE,
-				window.innerWidth - dockSize.width - DRAG_EDGE
-			);
-			const maxTop = Math.max(
-				DRAG_EDGE,
-				window.innerHeight - dockSize.height - DRAG_EDGE
-			);
-			return {
-				left: Math.min(Math.max(left, DRAG_EDGE), maxLeft),
-				top: Math.min(Math.max(top, DRAG_EDGE), maxTop),
-			};
-		},
-		[dockSize.width, dockSize.height]
-	);
-
-	// Keep the dragged dock on-screen when the viewport resizes.
-	useEffect(() => {
-		if (!dockPosition) {
+	// The dock wraps the tools onto a second line once the address area can't
+	// keep its 360px basis alongside them (see the flex-wrap rule in CSS). When
+	// that happens the bar is cramped, so we auto-collapse the tools by default —
+	// but only on the transition into two-row, leaving the manual toggle free to
+	// re-expand. We measure from widths (not the wrapped geometry) so the check
+	// still holds once the tools are collapsed out of layout.
+	useLayoutEffect(() => {
+		const dock = dockRef.current;
+		if (!dock || typeof ResizeObserver === 'undefined') {
 			return;
 		}
-		const onResize = () =>
-			setDockPosition((current) =>
-				current ? clampPosition(current) : current
-			);
-		window.addEventListener('resize', onResize);
-		return () => window.removeEventListener('resize', onResize);
-	}, [dockPosition, clampPosition]);
-
-	const handleDockPointerDown = (event: React.PointerEvent) => {
-		if (event.button !== 0 || !dockRef.current) {
-			return;
-		}
-		// Drag from the dock's bare background (the dark gaps between buttons and
-		// inputs) and the grip — but never from an actual control, so clicks on
-		// the address bar, tools, and status still work normally.
-		const target = event.target as HTMLElement;
-		if (
-			target.closest(
-				'input, a, select, textarea, [contenteditable="true"]'
-			)
-		) {
-			return;
-		}
-		const button = target.closest('button');
-		if (button && button.getAttribute('aria-label') !== 'Move the dock') {
-			return;
-		}
-		event.preventDefault();
-		try {
-			event.currentTarget.setPointerCapture(event.pointerId);
-		} catch {
-			// Pointer capture is a best-effort nicety; dragging still works.
-		}
-		const rect = dockRef.current.getBoundingClientRect();
-		dragStart.current = {
-			pointerX: event.clientX,
-			pointerY: event.clientY,
-			left: rect.left,
-			top: rect.top,
+		const TOP_ROW_BASIS = 360;
+		const measure = () => {
+			const tools = toolsRef.current;
+			// offsetParent is null when the tools are display:none (collapsed);
+			// only refresh the cached width while they're actually laid out.
+			if (tools && tools.offsetParent !== null) {
+				toolsWidthRef.current = tools.offsetWidth;
+			}
+			if (!toolsWidthRef.current) {
+				return;
+			}
+			const styles = getComputedStyle(dock);
+			const paddingX =
+				parseFloat(styles.paddingLeft) +
+				parseFloat(styles.paddingRight);
+			const columnGap = parseFloat(styles.columnGap) || 0;
+			const available = dock.clientWidth - paddingX;
+			const twoRow =
+				available < TOP_ROW_BASIS + columnGap + toolsWidthRef.current;
+			setIsTwoRow(twoRow);
+			if (twoRow !== prevTwoRowRef.current) {
+				prevTwoRowRef.current = twoRow;
+				setIsCollapsed(twoRow);
+			}
 		};
-		setIsDragging(true);
-	};
-
-	const handleGripPointerMove = (event: React.PointerEvent) => {
-		if (!dragStart.current) {
-			return;
-		}
-		const next = clampPosition({
-			left:
-				dragStart.current.left +
-				(event.clientX - dragStart.current.pointerX),
-			top:
-				dragStart.current.top +
-				(event.clientY - dragStart.current.pointerY),
-		});
-		setDockPosition(next);
-	};
-
-	const handleGripPointerUp = (event: React.PointerEvent) => {
-		dragStart.current = null;
-		setIsDragging(false);
-		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-			event.currentTarget.releasePointerCapture(event.pointerId);
-		}
-	};
+		const observer = new ResizeObserver(measure);
+		observer.observe(dock);
+		measure();
+		return () => observer.disconnect();
+	}, []);
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -383,6 +323,31 @@ export function Dock() {
 		};
 	}, [activeModal, dispatch, siteManagerIsOpen]);
 
+	// Measure the active dock button's right edge so popups can right-align to
+	// it. Re-runs whenever the active section, dock open/collapsed state, or dock
+	// size (which fires on window-width changes) changes the button's position.
+	useLayoutEffect(() => {
+		if (!siteManagerIsOpen || isEditorSection) {
+			return;
+		}
+		const button = dockRef.current?.querySelector<HTMLElement>(
+			'[data-active-dock-item]'
+		);
+		if (!button) {
+			// Tools row collapsed or button not found — fall back gracefully.
+			setActiveItemRightOffset(null);
+			return;
+		}
+		const rect = button.getBoundingClientRect();
+		setActiveItemRightOffset(window.innerWidth - rect.right);
+	}, [
+		siteManagerIsOpen,
+		isEditorSection,
+		normalizedSection,
+		isCollapsed,
+		dockSize,
+	]);
+
 	const openSection = (section: DockSection) => {
 		if (siteManagerIsOpen && normalizedSection === section) {
 			dispatch(setSiteManagerOpen(false));
@@ -400,60 +365,56 @@ export function Dock() {
 		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
 	};
 
-	const dockStyle: React.CSSProperties | undefined = dockPosition
-		? {
-				left: `${dockPosition.left}px`,
-				top: `${dockPosition.top}px`,
-				bottom: 'auto',
-				transform: 'none',
-			}
-		: undefined;
-
-	// Anchor the pane to the dock (centered on it, clamped to the viewport),
-	// opening above or below depending on room. We do this even at the default
-	// bottom-center position so the pane clears the dock's real height — the
-	// two-row dock (address bar + tools) is taller and would otherwise overlap.
+	// The dock is a full-width bar pinned to the bottom edge, so the pane always
+	// opens above it, horizontally centered and clamped to the viewport. We anchor
+	// to the dock's measured height so the pane clears the two-row bar (address +
+	// tools) — a taller dock would otherwise overlap a fixed-offset pane.
 	let paneStyle: React.CSSProperties | undefined;
 	if (dockSize.height) {
-		const dockTop = dockPosition
-			? dockPosition.top
-			: window.innerHeight - DOCK_DEFAULT_BOTTOM - dockSize.height;
-		const dockBottom = dockTop + dockSize.height;
-		const centerX = dockPosition
-			? dockPosition.left + dockSize.width / 2
-			: window.innerWidth / 2;
-		const halfWidth = Math.min(
-			isEditorSection ? 560 : 300,
-			(window.innerWidth - 2 * DRAG_EDGE) / 2
-		);
-		const clampedCenter = Math.min(
-			Math.max(centerX, halfWidth + DRAG_EDGE),
-			window.innerWidth - halfWidth - DRAG_EDGE
-		);
-		const spaceAbove = dockTop - PANE_GAP - DRAG_EDGE;
-		const spaceBelow =
-			window.innerHeight - dockBottom - PANE_GAP - DRAG_EDGE;
-		const openAbove = spaceAbove >= spaceBelow;
-		const available = Math.max(160, openAbove ? spaceAbove : spaceBelow);
-		// Fixed-height panes get a stable height (capped) so they don't resize
-		// between tabs; everything else stays content-sized via max-height.
-		const fixedHeight = isFixedHeightSection
-			? Math.min(620, available)
-			: undefined;
-		paneStyle = {
-			left: `${clampedCenter}px`,
-			maxHeight: `${available}px`,
-			...(fixedHeight ? { height: `${fixedHeight}px` } : {}),
-			...(openAbove
-				? {
-						bottom: `${window.innerHeight - dockTop + PANE_GAP}px`,
-						top: 'auto',
-					}
-				: {
-						top: `${dockBottom + PANE_GAP}px`,
-						bottom: 'auto',
-					}),
-		};
+		const dockTop = window.innerHeight - dockSize.height;
+		if (isEditorSection) {
+			// Editor panes dock to the left as a full-height sidebar; the live
+			// site stays visible (and interactive) to their right. Their left
+			// and top edges and width come from CSS so the < 640px full-width
+			// rule can win — only the dock-anchored bottom is dynamic.
+			paneStyle = {
+				bottom: `${window.innerHeight - dockTop + PANE_GAP}px`,
+			};
+		} else {
+			const available = Math.max(160, dockTop - PANE_GAP - VIEWPORT_EDGE);
+			// Fixed-height panes get a stable height (capped) so they don't
+			// resize between tabs; everything else stays content-sized via
+			// max-height.
+			const fixedHeight = isFixedHeightSection
+				? Math.min(620, available)
+				: undefined;
+			// Right-align the popup to the button that opened it; it grows
+			// leftward. Clamp so it never overflows the left edge: the pane's
+			// rendered width caps how far right `right` may sit (right edge -
+			// width >= VIEWPORT_EDGE), and `right` itself stays >= VIEWPORT_EDGE.
+			// Fall back to a viewport-clamped right when the button isn't
+			// measurable (e.g. the tools row is collapsed).
+			const paneWidth = paneRef.current?.offsetWidth ?? 0;
+			const maxRight = paneWidth
+				? Math.max(
+						VIEWPORT_EDGE,
+						window.innerWidth - paneWidth - VIEWPORT_EDGE
+					)
+				: window.innerWidth - VIEWPORT_EDGE;
+			const rawRight = activeItemRightOffset ?? VIEWPORT_EDGE;
+			const clampedRight = Math.min(
+				Math.max(VIEWPORT_EDGE, rawRight),
+				maxRight
+			);
+			paneStyle = {
+				right: `${clampedRight}px`,
+				left: 'auto',
+				maxHeight: `${available}px`,
+				...(fixedHeight ? { height: `${fixedHeight}px` } : {}),
+				bottom: `${window.innerHeight - dockTop + PANE_GAP}px`,
+				top: 'auto',
+			};
+		}
 	}
 
 	return (
@@ -462,12 +423,21 @@ export function Dock() {
 				nodeRef={paneRef}
 				in={siteManagerIsOpen}
 				timeout={240}
-				classNames={{
-					enter: css.paneEnter,
-					enterActive: css.paneEnterActive,
-					exit: css.paneExit,
-					exitActive: css.paneExitActive,
-				}}
+				classNames={
+					isEditorSection
+						? {
+								enter: css.editorEnter,
+								enterActive: css.editorEnterActive,
+								exit: css.editorExit,
+								exitActive: css.editorExitActive,
+							}
+						: {
+								enter: css.paneEnter,
+								enterActive: css.paneEnterActive,
+								exit: css.paneExit,
+								exitActive: css.paneExitActive,
+							}
+				}
 				unmountOnExit
 			>
 				<section
@@ -483,6 +453,24 @@ export function Dock() {
 					style={paneStyle}
 					aria-label={`${paneCopy.title} pane`}
 				>
+					{isEditorSection && (
+						<div className={css.paneEditorBar}>
+							<h2 className={css.paneEditorTitle}>
+								{paneCopy.title}
+							</h2>
+							<button
+								type="button"
+								className={css.paneClose}
+								aria-label={`Close ${paneCopy.title}`}
+								title="Close"
+								onClick={() =>
+									dispatch(setSiteManagerOpen(false))
+								}
+							>
+								<Icon icon={close} size={24} />
+							</button>
+						</div>
+					)}
 					{!isEditorSection && (
 						<div className={css.paneHeader}>
 							<div className={css.paneHeaderMain}>
@@ -534,24 +522,13 @@ export function Dock() {
 			<nav
 				ref={dockRef}
 				className={classNames(css.dock, {
-					[css.dockDragging]: isDragging,
+					// Tools inline on one row → grow the address input to match
+					// their height. Collapsed or wrapped → keep it compact.
+					[css.dockInline]: !isCollapsed && !isTwoRow,
 				})}
-				style={dockStyle}
 				aria-label="Playground tools"
-				onPointerDown={handleDockPointerDown}
-				onPointerMove={handleGripPointerMove}
-				onPointerUp={handleGripPointerUp}
-				onPointerCancel={handleGripPointerUp}
 			>
 				<div className={css.dockTopRow}>
-					<button
-						type="button"
-						className={css.dragHandle}
-						aria-label="Move the dock"
-						title="Drag to move"
-					>
-						<GripIcon />
-					</button>
 					<div className={css.dockAddress}>
 						<AddressBar
 							url={clientInfo?.url}
@@ -599,6 +576,7 @@ export function Dock() {
 					</button>
 				</div>
 				<div
+					ref={toolsRef}
 					className={classNames(css.dockTools, {
 						[css.dockToolsHidden]: isCollapsed,
 					})}
@@ -623,6 +601,9 @@ export function Dock() {
 									})}
 									aria-label={ariaLabel}
 									aria-pressed={isActive}
+									data-active-dock-item={
+										isActive ? '' : undefined
+									}
 									onClick={() => openSection(item.section)}
 									data-cy={
 										item.section === 'share'

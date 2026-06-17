@@ -31,6 +31,15 @@ export type SiteManagerSection =
 	| 'save'
 	| 'blueprints';
 
+/**
+ * The editor dock sections (the code/file editor and the Blueprint editor)
+ * render as a left-hand sidebar with the live site beside them, rather than as
+ * a centered popup like the smaller panes.
+ */
+export function isEditorDockSection(section: SiteManagerSection): boolean {
+	return section === 'files' || section === 'blueprint';
+}
+
 export const modalSlugs = {
 	LOG: 'log',
 	ERROR_REPORT: 'error-report',

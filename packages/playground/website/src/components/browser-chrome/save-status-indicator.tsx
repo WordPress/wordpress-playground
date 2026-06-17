@@ -130,6 +130,7 @@ export function SaveStatusIndicator() {
 		</Popover>
 	);
 
+	return null;
 	if (!status) {
 		return null;
 	}

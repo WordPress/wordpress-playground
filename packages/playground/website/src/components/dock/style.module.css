@@ -1,35 +1,44 @@
 .dock {
 	background: #21201d;
-	border-radius: 18px;
-	bottom: 16px;
-	box-shadow:
-		0 18px 44px rgba(33, 30, 25, 0.32),
-		0 2px 6px rgba(33, 30, 25, 0.22);
-	/* The bare background is a drag surface; controls reset their own cursors. */
-	cursor: grab;
+	/* Flush full-width bar pinned to the bottom edge — a separating top line and
+	   an upward shadow lift it off the Playground content above it. */
+	border-radius: 0;
+	border-top: 1px solid rgba(247, 245, 242, 0.08);
+	bottom: 0;
+	box-shadow: 0 -4px 24px rgba(33, 30, 25, 0.28);
+	/* One row when there's room: the address area grows and the tools sit to its
+	   right. When the bar gets too narrow for both, the tools wrap onto a second
+	   line (row-gap) and the address area spans the full first line. */
+	align-items: center;
 	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	left: 50%;
-	max-width: calc(100vw - 24px);
-	padding: 8px 8px 6px;
+	flex-wrap: wrap;
+	gap: 6px 14px;
+	left: 0;
+	padding: 8px 16px;
 	position: fixed;
-	transform: translateX(-50%);
-	/* Content-based width so it stays put when dragged — auto width is
-	   shrink-to-fit and can change as the dock's `left` moves toward an edge. */
-	width: max-content;
+	right: 0;
 	z-index: 50;
+	/* Height of the address input. Compact by default (collapsed tools, or the
+	   tools wrapped onto a second line) so the bar stays short; bumped up only
+	   when the tools sit inline on one row, so the left side matches their
+	   height. See `.dock-inline` and the address-bar `.input` rule. */
+	--dock-input-height: 26px;
 }
 
-.dock-dragging {
-	cursor: grabbing;
-	user-select: none;
+/* One-row layout with the tools shown inline beside the address area: grow the
+   input so the left side stands as tall as the tool buttons on its right. */
+.dock-inline {
+	--dock-input-height: 36px;
 }
 
 .dock-top-row {
 	align-items: center;
 	display: flex;
+	/* Grow to fill the line; the 360px basis is the wrap threshold — once the
+	   address area can't keep 360px alongside the tools, the tools drop below. */
+	flex: 1 1 360px;
 	gap: 8px;
+	min-width: 0;
 }
 
 .dock-address {
@@ -57,38 +66,6 @@
 	position: absolute;
 	white-space: nowrap;
 	width: 1px;
-}
-
-.drag-handle {
-	align-items: center;
-	background: transparent;
-	border: 0;
-	border-radius: 8px;
-	color: rgba(247, 245, 242, 0.4);
-	cursor: grab;
-	display: flex;
-	flex-shrink: 0;
-	justify-content: center;
-	padding: 8px 4px;
-	touch-action: none;
-	transition:
-		background 120ms ease,
-		color 120ms ease;
-}
-
-.drag-handle:hover {
-	background: rgba(247, 245, 242, 0.12);
-	color: rgba(247, 245, 242, 0.8);
-}
-
-.drag-handle:active {
-	cursor: grabbing;
-}
-
-.drag-handle:focus-visible {
-	color: #f7f5f2;
-	outline: 2px solid #3858e9;
-	outline-offset: 2px;
 }
 
 /* Subtle chevron that collapses the dock to just its top row. */
@@ -123,37 +100,21 @@
 	outline-offset: 2px;
 }
 
-/* Collapse the tools row's HEIGHT (animated) but keep its WIDTH, so the dock
-   doesn't narrow and re-center — that would make the expand chevron jump.
-   Compound selector beats `.dock-tools` regardless of source order. The negative
-   margin cancels the column gap so the collapsed dock stays evenly padded;
-   visibility flips to hidden only after the animation so the tools leave the tab
-   order without a flash. */
+/* Collapsed: drop the tools entirely. `display:none` removes them as a flex item
+   so the column gap collapses too and the address area reclaims the whole line —
+   in both the one-row and wrapped (two-row) layouts. Compound selector beats
+   `.dock-tools` regardless of source order. */
 .dock-tools.dock-tools-hidden {
-	margin-top: -6px;
-	max-height: 0;
-	opacity: 0;
-	pointer-events: none;
-	visibility: hidden;
-	transition:
-		max-height 280ms cubic-bezier(0.65, 0, 0.35, 1),
-		opacity 160ms ease,
-		margin-top 280ms cubic-bezier(0.65, 0, 0.35, 1),
-		visibility 0s 280ms;
+	display: none;
 }
 
 .dock-tools {
 	align-items: stretch;
 	display: flex;
+	/* Natural width: sits to the right of the address area on one line, or alone
+	   on the second line when wrapped. Never grows, never shrinks its buttons. */
+	flex: 0 0 auto;
 	gap: 2px;
-	max-height: 64px;
-	opacity: 1;
-	overflow-y: hidden;
-	transition:
-		max-height 280ms cubic-bezier(0.65, 0, 0.35, 1),
-		opacity 200ms ease 60ms,
-		margin-top 280ms cubic-bezier(0.65, 0, 0.35, 1),
-		visibility 0s;
 }
 
 .with-separator {
@@ -172,11 +133,11 @@
 	display: flex;
 	flex-direction: column;
 	font: inherit;
-	gap: 3px;
+	gap: 2px;
 	justify-content: center;
-	min-height: 52px;
+	min-height: 44px;
 	min-width: 64px;
-	padding: 8px 7px 7px;
+	padding: 5px 7px 4px;
 	transition:
 		background 120ms ease,
 		color 120ms ease;
@@ -275,25 +236,33 @@
 	   rather than staying pinned. Editor panes override this below. */
 	display: block;
 	max-height: min(620px, calc(100dvh - 174px));
-	left: 50%;
+	/* Popups anchor by their right edge (set inline to align with the dock
+	   button that opened them) and grow leftward — no centering transform. */
 	overflow-x: hidden;
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	position: fixed;
-	transform: translate(-50%, 0);
+	transform: none;
 	width: min(600px, calc(100vw - 40px));
 	z-index: 40;
 }
 
 .pane-editor {
-	/* Editor panes drop the pane header and carry their title in the
-	   file-browser bar, so the body fills the whole pane. */
+	/* Editor panes (code editor + Blueprint editor) span nearly the full width
+	   above the dock, but stay floating popups: a gap to every screen edge and
+	   rounded corners, like the smaller panes. A slim top bar carries the pane
+	   title and a close button; the editor's own content fills the row below it.
+	   The dock-anchored `bottom` is set inline; the other edges live here. */
+	border-radius: 14px;
 	display: grid;
-	grid-template-rows: minmax(0, 1fr);
-	height: min(780px, calc(100dvh - 148px));
+	grid-template-rows: auto minmax(0, 1fr);
+	left: 8px;
 	max-height: none;
 	overflow: hidden;
-	width: min(1120px, calc(100vw - 40px));
+	right: 8px;
+	top: 8px;
+	transform: none;
+	width: auto;
 }
 
 /* The New pane runs at a fixed height (set inline) so its tab strip stays put
@@ -329,19 +298,19 @@
    applies and the pane snaps instead of animating (the old close bug). */
 .pane-enter {
 	opacity: 0;
-	transform: translate(-50%, 14px);
+	transform: translateY(14px);
 }
 
 .pane-exit {
 	opacity: 1;
-	transform: translate(-50%, 0);
+	transform: translateY(0);
 }
 
 /* End states. Open decelerates into place (ease-out); close is its exact
    time-reverse — accelerating away (ease-in) over the same distance/duration. */
 .pane-enter-active {
 	opacity: 1;
-	transform: translate(-50%, 0);
+	transform: translateY(0);
 	transition:
 		opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
 		transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -349,10 +318,93 @@
 
 .pane-exit-active {
 	opacity: 0;
-	transform: translate(-50%, 14px);
+	transform: translateY(14px);
 	transition:
 		opacity 240ms cubic-bezier(0.64, 0, 0.78, 0),
 		transform 240ms cubic-bezier(0.64, 0, 0.78, 0);
+}
+
+/* Full-width editor panes fade up from a small offset. These come after
+   `.pane-editor` so they win the transform during the transition; the resting
+   state falls back to `.pane-editor`'s `transform: none`. */
+.editor-enter {
+	opacity: 0;
+	transform: translateY(12px);
+}
+
+.editor-exit {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.editor-enter-active {
+	opacity: 1;
+	transform: translateY(0);
+	transition:
+		opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+		transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.editor-exit-active {
+	opacity: 0;
+	transform: translateY(12px);
+	transition:
+		opacity 240ms cubic-bezier(0.64, 0, 0.78, 0),
+		transform 240ms cubic-bezier(0.64, 0, 0.78, 0);
+}
+
+/* The slim top bar on full-width editor panes: pane title on the left, a close
+   button on the right. Editor panes have no `.pane-header`, so this is their
+   only chrome — the editor's own path/actions row sits directly below it. */
+.pane-editor-bar {
+	align-items: center;
+	background: var(--paper-2);
+	border-bottom: 1px solid var(--line-subtle);
+	display: flex;
+	gap: var(--space-3);
+	justify-content: space-between;
+	padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+}
+
+.pane-editor-title {
+	color: var(--ink);
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	margin: 0;
+}
+
+.pane-close {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-control);
+	color: var(--ink-muted);
+	cursor: pointer;
+	display: inline-flex;
+	flex: none;
+	height: 32px;
+	justify-content: center;
+	padding: 0;
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+	width: 32px;
+}
+
+.pane-close:hover {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
+.pane-close:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.pane-close svg {
+	fill: currentColor;
 }
 
 .pane-header {
@@ -633,8 +685,7 @@
 
 @media (max-width: 720px) {
 	.dock {
-		bottom: 10px;
-		max-width: calc(100vw - 20px);
+		padding: 8px 10px;
 	}
 
 	.dock-tools {
@@ -649,11 +700,6 @@
 		bottom: 82px;
 		max-height: min(720px, calc(100dvh - 112px));
 		width: calc(100vw - 20px);
-	}
-
-	.pane-editor {
-		height: min(720px, calc(100dvh - 112px));
-		max-height: none;
 	}
 
 	.pane-header {

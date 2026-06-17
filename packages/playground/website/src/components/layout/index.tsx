@@ -19,6 +19,7 @@ import { RenameSiteModal } from '../rename-site-modal';
 import { DeleteSiteModal } from '../delete-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
 import {
+	isEditorDockSection,
 	modalSlugs,
 	setSiteManagerOpen,
 	setSiteManagerSection,
@@ -67,8 +68,17 @@ export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
+	const siteManagerSection = useAppSelector(
+		(state) => state.ui.siteManagerSection
+	);
 	const dispatch = useAppDispatch();
 	const showDock = displayMode !== 'seamless';
+	// Editor panes dock to the left as a sidebar and leave the site beside them,
+	// so — unlike the centered popups — they don't blur, scrim, or freeze it.
+	const dockPaneOverlaysSite =
+		showDock &&
+		siteManagerIsOpen &&
+		!isEditorDockSection(siteManagerSection);
 
 	useEffect(() => {
 		const overlayParam = new URL(document.location.href).searchParams.get(
@@ -93,15 +103,14 @@ export function Layout() {
 	return (
 		<div
 			className={classNames(css.layout, {
-				[css.hasDockPane]: showDock && siteManagerIsOpen,
+				[css.hasDockPane]: dockPaneOverlaysSite,
 			})}
 		>
 			<Modals />
 			<div className={css.siteView}>
 				<div
 					className={classNames(css.siteViewContent, {
-						[css.siteViewContentBlurred]:
-							showDock && siteManagerIsOpen,
+						[css.siteViewContentBlurred]: dockPaneOverlaysSite,
 					})}
 				>
 					<PlaygroundViewport displayMode={displayMode} />
@@ -110,11 +119,11 @@ export function Layout() {
 					<button
 						type="button"
 						className={classNames(css.previewDismiss, {
-							[css.previewDismissVisible]: siteManagerIsOpen,
+							[css.previewDismissVisible]: dockPaneOverlaysSite,
 						})}
 						aria-label="Close Playground tools"
-						aria-hidden={!siteManagerIsOpen}
-						tabIndex={siteManagerIsOpen ? 0 : -1}
+						aria-hidden={!dockPaneOverlaysSite}
+						tabIndex={dockPaneOverlaysSite ? 0 : -1}
 						onClick={closeDockPane}
 					/>
 				)}
