@@ -57,6 +57,16 @@ export async function applyAppUpdate({
 		serviceWorker.addEventListener('controllerchange', onControllerChange);
 	});
 
+	const updateAndWaitForController = (async () => {
+		await updateServiceWorker(serviceWorker);
+		await controllerChanged;
+	})();
+	await Promise.race([updateAndWaitForController, delay(timeoutMs)]);
+	removeControllerChangeListener();
+	reloadOnce();
+}
+
+async function updateServiceWorker(serviceWorker: ServiceWorkerContainerLike) {
 	try {
 		const registration =
 			(await serviceWorker.getRegistration?.()) ??
@@ -65,13 +75,10 @@ export async function applyAppUpdate({
 	} catch {
 		// Reload anyway. A fresh navigation can still pick up no-store HTML.
 	}
+}
 
-	await Promise.race([
-		controllerChanged,
-		new Promise((resolve) => setTimeout(resolve, timeoutMs)),
-	]);
-	removeControllerChangeListener();
-	reloadOnce();
+function delay(timeoutMs: number) {
+	return new Promise((resolve) => setTimeout(resolve, timeoutMs));
 }
 
 function getServiceWorker(): ServiceWorkerContainerLike | undefined {

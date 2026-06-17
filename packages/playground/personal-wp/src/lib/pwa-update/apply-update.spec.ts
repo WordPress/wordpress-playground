@@ -76,4 +76,49 @@ describe('applyAppUpdate', () => {
 
 		expect(reload).toHaveBeenCalledOnce();
 	});
+
+	it('reloads after the timeout when the service worker is never ready', async () => {
+		vi.useFakeTimers();
+		const reload = vi.fn();
+		const serviceWorker = {
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			getRegistration: vi.fn(async () => undefined),
+			ready: new Promise<never>(() => {}),
+		};
+
+		const updatePromise = applyAppUpdate({
+			serviceWorker,
+			reload,
+			timeoutMs: 50,
+		});
+		await Promise.resolve();
+		await vi.advanceTimersByTimeAsync(50);
+		await updatePromise;
+
+		expect(reload).toHaveBeenCalledOnce();
+	});
+
+	it('reloads after the timeout when registration update hangs', async () => {
+		vi.useFakeTimers();
+		const reload = vi.fn();
+		const serviceWorker = {
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			getRegistration: vi.fn(async () => ({
+				update: vi.fn(() => new Promise<never>(() => {})),
+			})),
+		};
+
+		const updatePromise = applyAppUpdate({
+			serviceWorker,
+			reload,
+			timeoutMs: 50,
+		});
+		await Promise.resolve();
+		await vi.advanceTimersByTimeAsync(50);
+		await updatePromise;
+
+		expect(reload).toHaveBeenCalledOnce();
+	});
 });
