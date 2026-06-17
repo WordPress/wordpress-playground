@@ -42,11 +42,40 @@ Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in your project):
 ### 2. Open the Playground website
 
 Your AI assistant will ask you to open the Playground website and provide the exact URL. You can also ask it: _"What's the Playground website URL?"_
+The MCP server chooses the local bridge connection automatically, so you do not need to configure it in your MCP client.
+
+To connect to Personal Playground, pass its URL to the MCP server:
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp", "--url=https://my.wordpress.net/"]
+		}
+	}
+}
+```
+
+For a staging deployment, use that origin instead:
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp", "--url=https://mywp.kirk.at/"]
+		}
+	}
+}
+```
 
 ## How it works
 
 ```
-AI Client (stdio) → MCP Server (Node.js) → WebSocket (port 7999) → Browser (Playground website)
+AI Client (stdio) → MCP Server (Node.js) → WebSocket → Browser (Playground website)
 ```
 
 The MCP server communicates with AI clients via stdio and with the browser via WebSocket. A bridge client (`bridge-client.ts`) integrated into the Playground website via Redux middleware auto-connects to the WebSocket server and proxies commands to the PlaygroundClient API.
@@ -105,4 +134,4 @@ Replace `ABS_PATH_TO_PLAYGROUND` with the absolute path to your local checkout o
 
 ### 3. Open the Playground website
 
-Navigate to http://127.0.0.1:5400/website-server/?mcp=yes in your browser. The MCP bridge connects automatically.
+Ask your AI assistant for the Playground website URL and open it in your browser. The MCP bridge connects automatically.
