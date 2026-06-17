@@ -102,10 +102,22 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			   and field filtering for you.
 			2. Use this tool with the WordPress REST API to
 			   discover and call registered abilities when the
-			   site exposes Abilities API endpoints. Inspect
-			   the endpoint metadata first, then call the
-			   matching ability endpoint with the documented
-			   arguments.
+			   site exposes the Abilities API:
+			   - GET /wp-json/wp-abilities/v1/categories
+			     lists ability categories.
+			   - GET /wp-json/wp-abilities/v1/categories/{slug}
+			     gets one category.
+			   - GET /wp-json/wp-abilities/v1/abilities
+			     lists registered abilities.
+			   - GET /wp-json/wp-abilities/v1/abilities/{name}
+			     gets one ability, including schemas and
+			     metadata. URL-encode names that contain "/",
+			     e.g. "memex%2Fsave-note".
+			   - GET, POST, or DELETE
+			     /wp-json/wp-abilities/v1/abilities/{name}/run
+			     executes the ability. Inspect the ability
+			     metadata first, then call /run with the
+			     documented method and JSON arguments.
 			3. Use playground_execute_php when the data you
 			   need is not exposed by the REST API (e.g.
 			   raw options, direct database queries, or
