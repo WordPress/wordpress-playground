@@ -71,11 +71,12 @@
 	color: var(--ink-muted);
 }
 
+/* A quiet inline caption, not a boxed alert — the muted text + small icon are
+   enough; the box read as heavy. */
 .notice {
-	background-color: var(--paper-3);
-	border: 1px solid var(--line-subtle);
-	border-radius: var(--radius-card);
 	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
 }
 
 /* The recreate/reset action. The destructive (red) button already signals the

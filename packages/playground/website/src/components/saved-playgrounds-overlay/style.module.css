@@ -337,6 +337,30 @@
 	white-space: nowrap;
 }
 
+/* Inline rename field — replaces the row's title in place (no modal). Matches
+   the title's type so the row doesn't shift, with an accent ring to show it's
+   editable. */
+.siteRowNameInput {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 280px;
+	/* Bleed the padding + border outward (negative margins == padding + border)
+	   so the text sits exactly where the static title did — entering edit mode
+	   shifts nothing. */
+	margin: -3px -8px;
+	padding: 2px 7px;
+	font-family: inherit;
+	font-size: 16px;
+	font-weight: 500;
+	line-height: inherit;
+	color: var(--ink, #21201d);
+	background: var(--paper-1, #f7f5f2);
+	border: 1px solid var(--accent, #3858e9);
+	border-radius: var(--radius-control, 6px);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
+	outline: none;
+}
+
 /* A quiet inline edit affordance; the icon box is sized to sit on the name's
    optical centre so it doesn't nudge the baseline. */
 .renameButton {
@@ -377,6 +401,37 @@
 .siteRowDate {
 	font-size: clamp(12px, 1.2vw, 13px);
 	color: #6b7280;
+}
+
+/* The active Playground's row mirrors the dock's "Saving" status while an OPFS
+   sync is in flight, so progress is visible from the list too. */
+.siteRowSaving {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--accent, #3858e9);
+}
+
+.siteRowSavingSpinner {
+	width: 12px;
+	height: 12px;
+	border: 1.5px solid rgba(56, 88, 233, 0.25);
+	border-top-color: var(--accent, #3858e9);
+	border-radius: 50%;
+	animation: siteRowSavingSpin 0.7s linear infinite;
+}
+
+@keyframes siteRowSavingSpin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.siteRowSavingSpinner {
+		animation-duration: 2.4s;
+	}
 }
 
 .siteRowMenu {
@@ -1374,6 +1429,11 @@
 	border: 0;
 	border-radius: 0;
 	overflow: visible;
+	/* Bleed the rows' hover/active highlight into the pane gutter so the row
+	   CONTENT (avatar, name) lines up with the section eyebrows and title, while
+	   the rounded highlight still has breathing room on both sides. */
+	margin-left: calc(-1 * var(--space-2));
+	margin-right: calc(-1 * var(--space-2));
 }
 
 .playgrounds-pane .siteRow {
@@ -1407,7 +1467,7 @@
 .playgrounds-pane .siteRowContent {
 	min-height: 48px;
 	min-width: 0; /* let long Playground names truncate so actions never overflow */
-	padding: 8px 10px;
+	padding: 8px var(--space-2);
 }
 
 /* Denser rows: the 50px gallery logo and 20px name drove the row height, so
@@ -1462,68 +1522,17 @@
 	padding-right: var(--space-2);
 }
 
-/* The chevron is the one persistent trailing affordance — it signals "click to
-   switch". It nudges right on hover. */
-.playgrounds-pane .siteRowChevron {
-	align-items: center;
-	color: var(--ink-faint);
-	display: flex;
-	flex-shrink: 0;
-	transition:
-		transform 0.12s ease,
-		color 0.12s ease;
-}
-
-.playgrounds-pane .siteRow:hover .siteRowChevron {
-	color: var(--ink-muted);
-	transform: translateX(2px);
-}
-
-/* The "..." menu is quiet at rest, revealed on hover/focus like the Store link,
-   so only the chevron persists in the trailing area. */
+/* The "..." menu is the one action affordance on every row — always present but
+   quiet (a faint ink glyph that darkens on hover). */
 .playgrounds-pane .siteRowMenu {
-	opacity: 0;
+	opacity: 0.65;
 	transition: opacity 0.12s ease;
 }
 
 .playgrounds-pane .siteRow:hover .siteRowMenu,
-.playgrounds-pane .siteRow:focus-within .siteRowMenu {
+.playgrounds-pane .siteRow:focus-within .siteRowMenu,
+.playgrounds-pane .siteRowMenu:hover {
 	opacity: 1;
-}
-
-/* Quiet "Store" link for autosaves — a text link revealed only on row hover or
-   keyboard focus (it keeps its box always, so revealing it never shifts the
-   row). Never a filled button or a warning box. */
-.playgrounds-pane .storeLink {
-	background: transparent;
-	border: 0;
-	color: var(--accent-link);
-	cursor: pointer;
-	flex-shrink: 0;
-	font-size: 13px;
-	font-weight: 600;
-	opacity: 0;
-	padding: 4px 6px;
-	transition:
-		opacity 0.12s ease,
-		color 0.12s ease;
-}
-
-.playgrounds-pane .siteRow:hover .storeLink,
-.playgrounds-pane .siteRow:focus-within .storeLink {
-	opacity: 1;
-}
-
-.playgrounds-pane .storeLink:hover {
-	color: var(--accent-hover);
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
-
-.playgrounds-pane .storeLink:focus-visible {
-	opacity: 1;
-	outline: 2px solid var(--accent);
-	outline-offset: 1px;
 }
 
 .playgrounds-pane .creationRow {

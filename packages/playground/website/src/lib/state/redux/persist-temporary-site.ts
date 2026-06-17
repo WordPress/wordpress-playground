@@ -19,7 +19,6 @@ import {
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
-import { setActiveModal } from './slice-ui';
 
 /**
  * Copies the running Playground into a durable storage backend.
@@ -34,7 +33,6 @@ export function persistTemporarySite(
 	options: {
 		localFsHandle?: FileSystemDirectoryHandle;
 		siteName?: string;
-		skipRenameModal?: boolean;
 		persistence?: SitePersistence;
 		updateUrl?: boolean;
 	} = {}
@@ -288,9 +286,6 @@ export function persistTemporarySite(
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
 		if (options.updateUrl) {
 			redirectTo(persistentSiteUrl);
-		}
-		if (!options.skipRenameModal) {
-			dispatch(setActiveModal('rename-site'));
 		}
 	};
 }

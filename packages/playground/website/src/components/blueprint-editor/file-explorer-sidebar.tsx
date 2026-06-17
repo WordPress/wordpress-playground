@@ -1,4 +1,4 @@
-import { Icon } from '@wordpress/components';
+import { Icon, Tooltip } from '@wordpress/components';
 import { upload } from '@wordpress/icons';
 import classNames from 'classnames';
 import {
@@ -416,56 +416,72 @@ export function FileExplorerSidebar({
 				<div className={styles.fileExplorerActions}>
 					{!readOnly ? (
 						<>
-							<button
-								className={classNames(
-									styles.fileExplorerButton,
-									styles.fileExplorerIconButton
-								)}
-								onClick={() => {
-									if (!treeRef.current) {
-										return;
-									}
-									void treeRef.current.createFile(
-										lastSelectedPath ?? undefined
-									);
-								}}
-								title="Create new file"
-								aria-label="Create new file"
-								type="button"
+							<Tooltip
+								text="Create new file"
+								delay={0}
+								placement="top"
 							>
-								<FilePlusIcon />
-							</button>
-							<button
-								className={classNames(
-									styles.fileExplorerButton,
-									styles.fileExplorerIconButton
-								)}
-								onClick={() => {
-									if (!treeRef.current) {
-										return;
-									}
-									void treeRef.current.createFolder(
-										lastSelectedPath ?? undefined
-									);
-								}}
-								title="Create new folder"
-								aria-label="Create new folder"
-								type="button"
+								<button
+									className={classNames(
+										styles.fileExplorerButton,
+										styles.fileExplorerIconButton
+									)}
+									onClick={() => {
+										if (!treeRef.current) {
+											return;
+										}
+										void treeRef.current.createFile(
+											lastSelectedPath ?? undefined
+										);
+									}}
+									aria-label="Create new file"
+									type="button"
+								>
+									<FilePlusIcon />
+								</button>
+							</Tooltip>
+							<Tooltip
+								text="Create new folder"
+								delay={0}
+								placement="top"
 							>
-								<FolderPlusIcon />
-							</button>
-							<button
-								className={classNames(
-									styles.fileExplorerButton,
-									styles.fileExplorerIconButton,
-									styles.fileExplorerUploadButton
-								)}
-								type="button"
-								onClick={handleUploadButtonClick}
-								title="Upload files"
+								<button
+									className={classNames(
+										styles.fileExplorerButton,
+										styles.fileExplorerIconButton
+									)}
+									onClick={() => {
+										if (!treeRef.current) {
+											return;
+										}
+										void treeRef.current.createFolder(
+											lastSelectedPath ?? undefined
+										);
+									}}
+									aria-label="Create new folder"
+									type="button"
+								>
+									<FolderPlusIcon />
+								</button>
+							</Tooltip>
+							<Tooltip
+								text="Upload files"
+								delay={0}
+								placement="top"
 							>
-								<Icon icon={upload} size={16} />
-							</button>
+								<button
+									className={classNames(
+										styles.fileExplorerButton,
+										styles.fileExplorerIconButton,
+										styles.fileExplorerUploadButton
+									)}
+									type="button"
+									onClick={handleUploadButtonClick}
+									aria-label="Upload files"
+								>
+									<Icon icon={upload} size={16} />
+								</button>
+							</Tooltip>
 							<input
 								ref={uploadInputRef}
 								type="file"

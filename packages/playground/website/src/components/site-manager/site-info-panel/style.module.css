@@ -178,6 +178,25 @@
 	max-width: 100%;
 }
 
+/* Inline rename field for the panel header (no modal). Matches the title's
+   metrics; negative margins offset the padding + border so nothing shifts. */
+.site-info-rename-input {
+	box-sizing: border-box;
+	margin: -3px -8px;
+	padding: 2px 7px;
+	max-width: 100%;
+	font-size: clamp(14px, 2.5vw, 18px);
+	line-height: 24px;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	color: var(--color-gray-900, #1e1e1e);
+	background: #fff;
+	border: 1px solid #3858e9;
+	border-radius: 6px;
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
+	outline: none;
+}
+
 .siteInfoHeaderTitle {
 	min-width: 0;
 	flex: 1 1 auto;

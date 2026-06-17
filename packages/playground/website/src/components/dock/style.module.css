@@ -187,11 +187,10 @@
 	color: #f7f5f2;
 }
 
-/* The open pane gets a persistent, stronger highlight than hover plus a blue
-   underline so it reads as "current" and never blends into the New pill. */
+/* The open pane gets a persistent, stronger highlight than hover so it reads as
+   "current" — the fill alone marks it (no underline bar). */
 .dock-item-active {
 	background: rgba(247, 245, 242, 0.22);
-	box-shadow: inset 0 -2px 0 #6c84ff;
 	color: #ffffff;
 }
 
@@ -478,6 +477,27 @@
 
 .settings-rename :global(svg) {
 	fill: currentColor;
+}
+
+/* Inline rename field for the "This Playground" header. Matches the name's
+   metrics with negative margins (== padding + border) so toggling edit mode
+   shifts nothing. */
+.settings-name-input {
+	box-sizing: border-box;
+	flex: 1;
+	min-width: 0;
+	margin: -3px -8px;
+	padding: 2px 7px;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: inherit;
+	color: var(--ink, #21201d);
+	background: var(--paper-1, #f7f5f2);
+	border: 1px solid var(--accent, #3858e9);
+	border-radius: var(--radius-control, 6px);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
+	outline: none;
 }
 
 /* Notices = recessed warm wells: a deeper parchment + faint inset, NO border and

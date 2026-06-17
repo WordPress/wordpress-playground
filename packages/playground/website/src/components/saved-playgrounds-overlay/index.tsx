@@ -15,7 +15,6 @@ import {
 	close,
 	pencil,
 	layout,
-	chevronRight,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
@@ -31,6 +30,8 @@ import {
 	Suspense,
 } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
+import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
+import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import { importWordPressFiles } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
@@ -38,6 +39,7 @@ import {
 	useActiveSite,
 	useAppSelector,
 	useAppDispatch,
+	getActiveClientInfo,
 } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
@@ -50,8 +52,8 @@ import {
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
-	setSiteSlugToRename,
 	setSiteSlugToDelete,
+	setWriteOwnBlueprintDraft,
 } from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
@@ -204,6 +206,30 @@ function PullRequestIcon() {
 }
 
 /**
+ * The active Playground's in-progress save, as a short label with percentage,
+ * so its row in the list mirrors the dock's "Saving" status. Returns undefined
+ * when no OPFS sync is running.
+ */
+function getActiveSiteSyncLabel(
+	clientInfo: ReturnType<typeof getActiveClientInfo>
+): string | undefined {
+	const opfsSync = clientInfo?.opfsSync;
+	if (opfsSync?.status !== 'syncing') {
+		return undefined;
+	}
+	const verb = opfsSync.operation === 'autosave' ? 'Autosaving' : 'Saving';
+	const { progress } = opfsSync;
+	if (progress && progress.total > 0) {
+		const percent = Math.min(
+			100,
+			Math.round((progress.files / progress.total) * 100)
+		);
+		return `${verb}… ${percent}%`;
+	}
+	return `${verb}…`;
+}
+
+/**
  * Displays saved Playgrounds, recent autosaves, and entry points for new sites.
  */
 export function SavedPlaygroundsOverlay({
@@ -218,12 +244,15 @@ export function SavedPlaygroundsOverlay({
 	);
 	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
+	const activeClientInfo = useAppSelector(getActiveClientInfo);
+	const activeSiteSyncLabel = getActiveSiteSyncLabel(activeClientInfo);
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const playground = usePlaygroundClient();
-	const activeClientInfo = usePlaygroundClientInfo();
+	const localFsAvailability = useLocalFsAvailability(playground ?? undefined);
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
-	const zipImportInProgressRef = useRef(false);
+	const creationPanelRef = useRef<HTMLDivElement>(null);
+	const inlineRename = useInlineRename();
 
 	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
@@ -239,9 +268,34 @@ export function SavedPlaygroundsOverlay({
 	const [prTarget, setPrTarget] = useState<'wordpress' | 'gutenberg'>(
 		'wordpress'
 	);
-	const [writeOwnDraft, setWriteOwnDraft] = useState(STARTER_BLUEPRINT);
+	// The "Write a Blueprint" draft lives in Redux so it survives closing and
+	// reopening the New pane (which unmounts this component). Falls back to the
+	// starter Blueprint until the user edits it.
+	const writeOwnDraft =
+		useAppSelector((state) => state.ui.writeOwnBlueprintDraft) ??
+		STARTER_BLUEPRINT;
+	const setWriteOwnDraft = (value: string) =>
+		dispatch(setWriteOwnBlueprintDraft(value));
 	const isCompactLayout = useIsCompactLayout();
 	const activeOpfsSyncStatus = activeClientInfo?.opfsSync?.status;
+
+	// Autofocus the first field whenever a tab shows a form so the user can
+	// start typing right away. The "write your own" editor focuses its own
+	// CodeMirror surface, so it's excluded here.
+	useEffect(() => {
+		const formTabs: CreationTabId[] = [
+			'blueprint-url',
+			'github',
+			'pull-request',
+		];
+		if (!formTabs.includes(activeCreationTab)) {
+			return;
+		}
+		const field = creationPanelRef.current?.querySelector<HTMLElement>(
+			'input:not([type="hidden"]):not([type="radio"]), textarea, select'
+		);
+		field?.focus();
+	}, [activeCreationTab]);
 
 	useEffect(() => {
 		if (
@@ -419,10 +473,11 @@ export function SavedPlaygroundsOverlay({
 		closeMenu();
 	};
 
+	// Rename happens inline in the row (no modal): start editing, commit on
+	// Enter/blur, cancel on Escape.
 	const handleRenameSite = (site: SiteInfo, closeMenu?: () => void) => {
-		dispatch(setSiteSlugToRename(site.slug));
-		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
 		closeMenu?.();
+		inlineRename.start(site);
 	};
 
 	// FLIP animation state for "Store": when an autosave becomes a permanent save
@@ -446,10 +501,16 @@ export function SavedPlaygroundsOverlay({
 	};
 
 	useLayoutEffect(() => {
-		const newRects = snapshotRowRects();
-		if (animateMoveRef.current) {
-			animateMoveRef.current = false;
+		// Only touch the DOM on the render that follows a "Store" — every other
+		// render returns immediately, so we never read layout (and never thrash
+		// it) during unrelated re-renders such as a Playground booting.
+		if (!animateMoveRef.current) {
+			return;
+		}
+		animateMoveRef.current = false;
+		{
 			const oldRects = rowRectsRef.current;
+			const newRects = snapshotRowRects();
 			newRects.forEach((newRect, slug) => {
 				const oldRect = oldRects.get(slug);
 				if (!oldRect) {
@@ -484,20 +545,57 @@ export function SavedPlaygroundsOverlay({
 				});
 			});
 		}
-		rowRectsRef.current = newRects;
 	});
 
 	// Store an autosaved Playground permanently in place — no modal, no leaving
 	// the pane. It's a metadata-only lifecycle change (autosave -> explicit), so
 	// the Playground simply moves into the "Saved" group, animated by the effect
 	// above.
-	const handleStorePermanently = (site: SiteInfo) => {
+	// Store a browser-side Playground permanently in the browser (OPFS), in place —
+	// no modal, no leaving the pane. An autosave is just marked permanent; a
+	// temporary Playground is persisted to OPFS. Either way it moves into the
+	// "Saved" group, animated by the FLIP effect above.
+	const handleStoreInBrowser = (site: SiteInfo, closeMenu: () => void) => {
+		closeMenu();
 		rowRectsRef.current = snapshotRowRects();
 		animateMoveRef.current = true;
-		void sitesAPI.keep(site.slug).catch((error) => {
+		const stored = isAutosavedSite(site)
+			? sitesAPI.keep(site.slug)
+			: sitesAPI.saveInBrowser();
+		void stored.catch((error) => {
 			animateMoveRef.current = false;
-			logger.error('Error storing Playground permanently', error);
+			logger.error('Error storing Playground in the browser', error);
 		});
+	};
+
+	// Save a browser-side Playground's files to a folder the user picks. Saving
+	// reads the running Playground, so a non-active one is switched to first —
+	// but the OS directory picker MUST open inside this click gesture, before the
+	// async switch/boot, or the browser blocks it. So we pick the folder first,
+	// then switch and write into it.
+	const handleSaveToLocalDirectory = async (
+		site: SiteInfo,
+		closeMenu: () => void
+	) => {
+		try {
+			if (site.slug === activeSite?.slug) {
+				closeMenu();
+				await sitesAPI.saveToLocalFileSystem();
+				return;
+			}
+			const directoryHandle = await (window as any).showDirectoryPicker({
+				id: 'playground-local-fs',
+				mode: 'readwrite',
+			});
+			closeMenu();
+			await sitesAPI.setActiveSite(site.slug);
+			await sitesAPI.saveToLocalFileSystem(undefined, directoryHandle);
+		} catch (error) {
+			if ((error as Error)?.name === 'AbortError') {
+				return; // The user dismissed the directory picker.
+			}
+			logger.error('Error saving Playground to a local directory', error);
+		}
 	};
 
 	// The save state lives in the row's status chip, so the meta line stays clean
@@ -766,60 +864,100 @@ export function SavedPlaygroundsOverlay({
 		});
 	}
 
-	// Trailing controls: a quiet "Store" link revealed on hover for autosaves and
-	// a calm "..." menu (Rename / Delete) revealed on hover, plus a resting
-	// chevron on switchable rows that signals "click to switch".
-	function renderRowActions(site: SiteInfo, showChevron: boolean) {
+	// Every row carries one calm "..." menu (no separate buttons). It groups the
+	// two save destinations — "Save in this browser" (OPFS) and "Save in a local
+	// directory…" — above Rename / Delete. Clicking anywhere on the row switches
+	// to it. The menu only lists what applies to that Playground's storage.
+	function renderRowActions(site: SiteInfo) {
 		const isAutosave = isAutosavedSite(site);
-		const isStoredSite = site.metadata.storage !== 'none';
+		const isTemporary = site.metadata.storage === 'none';
+		const isStored = !isTemporary;
+		// Temporary and autosaved Playgrounds live in the browser and can be
+		// stored permanently in the browser (OPFS) and/or copied to a local
+		// directory. Already-saved and local-directory Playgrounds can't.
+		const canStoreInBrowser = isTemporary || isAutosave;
+		const canSaveToLocal =
+			canStoreInBrowser && localFsAvailability === 'available';
+		const hasSaveActions = canStoreInBrowser || canSaveToLocal;
+		if (!hasSaveActions && !isStored) {
+			return null;
+		}
 		return (
 			<div className={css.siteRowActions}>
-				{isAutosave && (
-					<button
-						type="button"
-						className={css.storeLink}
-						onClick={() => handleStorePermanently(site)}
-						aria-label={`Store ${site.metadata.name} permanently`}
-						title="Store this Playground permanently so it is not pruned from recent autosaves."
-					>
-						Store
-					</button>
-				)}
-				{isStoredSite && (
-					<DropdownMenu
-						icon={moreVertical}
-						label="Playground actions"
-						className={css.siteRowMenu}
-						popoverProps={{ placement: 'bottom-end' }}
-					>
-						{({ onClose: closeMenu }) => (
-							<MenuGroup>
-								<MenuItem
-									onClick={() => {
-										closeMenu();
-										handleRenameSite(site);
-									}}
-								>
-									Rename
-								</MenuItem>
-								<MenuItem
-									className={css.dangerMenuItem}
-									onClick={() =>
-										handleDeleteSite(site, closeMenu)
-									}
-								>
-									Delete
-								</MenuItem>
-							</MenuGroup>
-						)}
-					</DropdownMenu>
-				)}
-				{showChevron && (
-					<span className={css.siteRowChevron} aria-hidden="true">
-						<Icon icon={chevronRight} size={22} />
-					</span>
-				)}
+				<DropdownMenu
+					icon={moreVertical}
+					label="Playground actions"
+					className={css.siteRowMenu}
+					popoverProps={{ placement: 'bottom-end' }}
+				>
+					{({ onClose: closeMenu }) => (
+						<>
+							{hasSaveActions && (
+								<MenuGroup>
+									{canStoreInBrowser && (
+										<MenuItem
+											onClick={() =>
+												handleStoreInBrowser(
+													site,
+													closeMenu
+												)
+											}
+										>
+											Save in this browser
+										</MenuItem>
+									)}
+									{canSaveToLocal && (
+										<MenuItem
+											onClick={() =>
+												handleSaveToLocalDirectory(
+													site,
+													closeMenu
+												)
+											}
+										>
+											Save in a local directory…
+										</MenuItem>
+									)}
+								</MenuGroup>
+							)}
+							{isStored && (
+								<MenuGroup>
+									<MenuItem
+										onClick={() => {
+											closeMenu();
+											handleRenameSite(site);
+										}}
+									>
+										Rename
+									</MenuItem>
+									<MenuItem
+										className={css.dangerMenuItem}
+										onClick={() =>
+											handleDeleteSite(site, closeMenu)
+										}
+									>
+										Delete
+									</MenuItem>
+								</MenuGroup>
+							)}
+						</>
+					)}
+				</DropdownMenu>
 			</div>
+		);
+	}
+
+	function renderSiteRowName(site: SiteInfo) {
+		if (!inlineRename.isEditing(site.slug)) {
+			return (
+				<span className={css.siteRowName}>{site.metadata.name}</span>
+			);
+		}
+		return (
+			<input
+				className={css.siteRowNameInput}
+				{...inlineRename.getInputProps(site)}
+			/>
 		);
 	}
 
@@ -858,15 +996,13 @@ export function SavedPlaygroundsOverlay({
 						)}
 					</div>
 					<div className={css.siteRowInfo}>
-						<span className={css.siteRowName}>
-							{site.metadata.name}
-						</span>
+						{renderSiteRowName(site)}
 						{meta && (
 							<span className={css.siteRowDate}>{meta}</span>
 						)}
 					</div>
 				</div>
-				{renderRowActions(site, true)}
+				{renderRowActions(site)}
 			</div>
 		);
 	}
@@ -890,15 +1026,23 @@ export function SavedPlaygroundsOverlay({
 						)}
 					</div>
 					<div className={css.siteRowInfo}>
-						<span className={css.siteRowName}>
-							{site.metadata.name}
-						</span>
-						{meta && (
-							<span className={css.siteRowDate}>{meta}</span>
+						{renderSiteRowName(site)}
+						{activeSiteSyncLabel ? (
+							<span className={css.siteRowSaving}>
+								<span
+									className={css.siteRowSavingSpinner}
+									aria-hidden="true"
+								/>
+								{activeSiteSyncLabel}
+							</span>
+						) : (
+							meta && (
+								<span className={css.siteRowDate}>{meta}</span>
+							)
 						)}
 					</div>
 				</div>
-				{renderRowActions(site, false)}
+				{renderRowActions(site)}
 			</div>
 		);
 	}
@@ -1070,7 +1214,7 @@ export function SavedPlaygroundsOverlay({
 						</button>
 					))}
 				</div>
-				<div className={css.creationPanel}>
+				<div className={css.creationPanel} ref={creationPanelRef}>
 					<div className={css.panelHeader}>
 						<h3 className={css.panelTitle}>
 							{activeMethod?.panelTitle}

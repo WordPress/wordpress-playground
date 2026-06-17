@@ -153,19 +153,9 @@
 	gap: 6px;
 }
 
-/* The link/download icon buttons get a quiet resting chip so they read as
-   buttons that belong with the primary "Run" button — not loose floating icons.
-   The extra selector depth beats the dock's tertiary theming. */
-.editorHeader .editorHeaderActions :global(.components-button.is-tertiary) {
-	background: var(--paper-3, #ece8e1);
-	border-radius: var(--radius-control, 6px);
-}
-
-.editorHeader
-	.editorHeaderActions
-	:global(.components-button.is-tertiary:hover:not(:disabled)) {
-	background: var(--paper-4, #e7e2da);
-}
+/* "Copy link" and "Download" are labelled secondary actions — they pick up the
+   dock's shared secondary-button styling (quiet ink + hairline), so they match
+   the secondary actions used in Share, Database, etc. */
 
 .editorToolbarPlayIcon {
 	width: 18px;

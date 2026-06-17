@@ -354,12 +354,22 @@ export function JSONSchemaEditor({
 
 		formatEditor(view);
 
-		// Position cursor after the first key/value pair if it's the default schema
+		// Drop the cursor where the user is most likely to start typing. If the
+		// doc has an empty "steps": [] array, land inside it so steps can be
+		// added right away; otherwise fall back to just after the schema URL.
 		const doc = view.state.doc.toString();
+		const emptyStepsMatch = doc.match(/"steps"\s*:\s*\[(?=\s*\])/);
 		const schemaUrl =
 			'"https://playground.wordpress.net/blueprint-schema.json"';
 		const schemaLineEnd = doc.indexOf(schemaUrl);
-		if (schemaLineEnd > 0) {
+		if (emptyStepsMatch && emptyStepsMatch.index !== undefined) {
+			const cursorPos = emptyStepsMatch.index + emptyStepsMatch[0].length;
+			if (cursorPos <= view.state.doc.length) {
+				view.dispatch({
+					selection: { anchor: cursorPos },
+				});
+			}
+		} else if (schemaLineEnd > 0) {
 			const cursorPos = schemaLineEnd + schemaUrl.length;
 			if (cursorPos <= view.state.doc.length) {
 				view.dispatch({

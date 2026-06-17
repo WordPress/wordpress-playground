@@ -25,10 +25,10 @@ import {
 	setActiveModal,
 	setSiteManagerOpen,
 	setSiteSlugToDelete,
-	setSiteSlugToRename,
 	setSiteSlugToSave,
 } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import { useInlineRename } from '../../../lib/hooks/use-inline-rename';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
@@ -99,6 +99,7 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
+	const inlineRename = useInlineRename();
 	// Load the last active tab for this site
 	const [initialTabName] = useState(() => {
 		const lastTab = getSiteLastTab(site.slug);
@@ -242,46 +243,55 @@ export function SiteInfoPanel({
 												}
 												aria-label="Playground title"
 											>
-												<span
-													className={
-														css.siteInfoHeaderDetailsNameText
-													}
-												>
-													{titleStart}{' '}
+												{!isTemporary &&
+												inlineRename.isEditing(
+													site.slug
+												) ? (
+													<input
+														className={
+															css.siteInfoRenameInput
+														}
+														{...inlineRename.getInputProps(
+															site
+														)}
+													/>
+												) : (
 													<span
 														className={
-															css.siteInfoHeaderDetailsNameTextEnd
+															css.siteInfoHeaderDetailsNameText
 														}
 													>
-														{titleEnd}
-														{!isTemporary && (
-															<Button
-																className={
-																	css.siteInfoRenameButton
-																}
-																icon={edit}
-																label="Rename Playground"
-																showTooltip={
-																	true
-																}
-																variant="tertiary"
-																isSmall={true}
-																onClick={() => {
-																	dispatch(
-																		setSiteSlugToRename(
-																			site.slug
+														{titleStart}{' '}
+														<span
+															className={
+																css.siteInfoHeaderDetailsNameTextEnd
+															}
+														>
+															{titleEnd}
+															{!isTemporary && (
+																<Button
+																	className={
+																		css.siteInfoRenameButton
+																	}
+																	icon={edit}
+																	label="Rename Playground"
+																	showTooltip={
+																		true
+																	}
+																	variant="tertiary"
+																	isSmall={
+																		true
+																	}
+																	onClick={() =>
+																		inlineRename.start(
+																			site
 																		)
-																	);
-																	dispatch(
-																		setActiveModal(
-																			modalSlugs.RENAME_SITE
-																		)
-																	);
-																}}
-															/>
-														)}
+																	}
+																/>
+															)}
+														</span>
 													</span>
-												</span>
+												)}
 											</h1>
 										</FlexItem>
 									</Flex>
@@ -466,9 +476,7 @@ export function SiteInfoPanel({
 
 									{isTemporary ? (
 										<div data-testid="temporary-site-notice">
-											<TemporarySiteNotice
-												className={css.siteNotice}
-											/>
+											<TemporarySiteNotice />
 										</div>
 									) : null}
 

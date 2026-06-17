@@ -15,7 +15,6 @@ import {
 	PlaygroundViewport,
 } from '../playground-viewport';
 import { MissingSiteModal } from '../missing-site-modal';
-import { RenameSiteModal } from '../rename-site-modal';
 import { DeleteSiteModal } from '../delete-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
 import {
@@ -201,8 +200,6 @@ function Modals() {
 		return <StartErrorModal />;
 	} else if (currentModal === modalSlugs.MISSING_SITE_PROMPT) {
 		return <MissingSiteModal />;
-	} else if (currentModal === modalSlugs.RENAME_SITE) {
-		return <RenameSiteModal />;
 	} else if (currentModal === modalSlugs.DELETE_SITE) {
 		return <DeleteSiteModal />;
 	} else if (currentModal === modalSlugs.SAVE_SITE) {

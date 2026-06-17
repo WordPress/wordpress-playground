@@ -16,11 +16,8 @@ import {
 } from '@wordpress/icons';
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import {
-	modalSlugs,
-	setActiveModal,
 	setSiteManagerOpen,
 	setSiteManagerSection,
-	setSiteSlugToRename,
 } from '../../lib/state/redux/slice-ui';
 import {
 	getActiveClientInfo,
@@ -29,10 +26,10 @@ import {
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
+import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import { SiteManager } from '../site-manager';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
-import { SyncLocalFilesButton } from '../sync-local-files-button';
 import css from './style.module.css';
 
 const isSavingDisabled = isSiteSavingDisabled();
@@ -220,6 +217,7 @@ export function Dock() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLDivElement>(null);
+	const inlineRename = useInlineRename();
 	const normalizedSection = normalizeSection(activeSection);
 	const paneCopy = PANE_COPY[normalizedSection];
 	const isEditorSection =
@@ -302,6 +300,21 @@ export function Dock() {
 		return () => window.removeEventListener('resize', onResize);
 	}, [dockPosition, clampPosition]);
 
+	// Keep the dragged dock on-screen when its OWN height changes — e.g. expanding
+	// the tools row near the bottom of the viewport would otherwise push the dock
+	// off the bottom edge. Re-clamp so it slides up to stay fully visible.
+	useEffect(() => {
+		setDockPosition((current) => {
+			if (!current) {
+				return current;
+			}
+			const clamped = clampPosition(current);
+			return clamped.top === current.top && clamped.left === current.left
+				? current
+				: clamped;
+		});
+	}, [dockSize.width, dockSize.height, clampPosition]);
+
 	const handleDockPointerDown = (event: React.PointerEvent) => {
 		if (event.button !== 0 || !dockRef.current) {
 			return;
@@ -366,11 +379,12 @@ export function Dock() {
 				return;
 			}
 			// Let an open popover (the row actions menu, the address
-			// quick-nav) take the first Escape; only a second press closes
-			// the dock pane itself.
+			// quick-nav) or modal (the Blueprint editor's multiline string
+			// editor) take the first Escape; only a second press closes the
+			// dock pane itself.
 			if (
 				document.querySelector(
-					'.components-popover:not(.components-tooltip)'
+					'.components-popover:not(.components-tooltip), .components-modal__screen-overlay'
 				)
 			) {
 				return;
@@ -390,14 +404,6 @@ export function Dock() {
 		}
 		dispatch(setSiteManagerSection(section));
 		dispatch(setSiteManagerOpen(true));
-	};
-
-	const openRenameModal = () => {
-		if (!activeSite) {
-			return;
-		}
-		dispatch(setSiteSlugToRename(activeSite.slug));
-		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
 	};
 
 	const dockStyle: React.CSSProperties | undefined = dockPosition
@@ -438,11 +444,17 @@ export function Dock() {
 		// Fixed-height panes get a stable height (capped) so they don't resize
 		// between tabs; everything else stays content-sized via max-height.
 		const fixedHeight = isFixedHeightSection
-			? Math.min(620, available)
+			? Math.min(680, available)
 			: undefined;
+		// The Playgrounds list can get very long; cap it well below the room it
+		// would otherwise fill so it scrolls instead of dominating the screen.
+		const maxHeight =
+			normalizedSection === 'playgrounds'
+				? Math.min(480, available)
+				: available;
 		paneStyle = {
 			left: `${clampedCenter}px`,
-			maxHeight: `${available}px`,
+			maxHeight: `${maxHeight}px`,
 			...(fixedHeight ? { height: `${fixedHeight}px` } : {}),
 			...(openAbove
 				? {
@@ -489,19 +501,47 @@ export function Dock() {
 								<h2>{paneCopy.title}</h2>
 								{showPlaygroundShortcuts ? (
 									<div className={css.settingsIdentity}>
-										<span className={css.settingsName}>
-											{playgroundTitle}
-										</span>
-										{canManageActiveSite && (
-											<button
-												type="button"
-												className={css.settingsRename}
-												aria-label="Rename Playground"
-												title="Rename"
-												onClick={openRenameModal}
-											>
-												<Icon icon={pencil} size={16} />
-											</button>
+										{activeSite &&
+										inlineRename.isEditing(
+											activeSite.slug
+										) ? (
+											<input
+												className={
+													css.settingsNameInput
+												}
+												{...inlineRename.getInputProps(
+													activeSite
+												)}
+											/>
+										) : (
+											<>
+												<span
+													className={css.settingsName}
+												>
+													{playgroundTitle}
+												</span>
+												{canManageActiveSite &&
+													activeSite && (
+														<button
+															type="button"
+															className={
+																css.settingsRename
+															}
+															aria-label="Rename Playground"
+															title="Rename"
+															onClick={() =>
+																inlineRename.start(
+																	activeSite
+																)
+															}
+														>
+															<Icon
+																icon={pencil}
+																size={16}
+															/>
+														</button>
+													)}
+											</>
 										)}
 									</div>
 								) : (
@@ -574,9 +614,6 @@ export function Dock() {
 							</span>
 						)}
 						{!isSavingDisabled && <SaveStatusIndicator />}
-						{activeSite?.metadata?.storage === 'local-fs' && (
-							<SyncLocalFilesButton />
-						)}
 					</div>
 					<button
 						type="button"

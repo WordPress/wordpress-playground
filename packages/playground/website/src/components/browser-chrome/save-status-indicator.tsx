@@ -14,8 +14,14 @@ import {
 	dismissAutosaveNudge,
 	addDeclinedAutosaveRestoreFingerprint,
 } from '../../lib/state/redux/slice-ui';
-import { Icon, Tooltip, Popover } from '@wordpress/components';
-import { backup, check, cautionFilled } from '@wordpress/icons';
+import {
+	Icon,
+	Tooltip,
+	Popover,
+	Dropdown,
+	Button,
+} from '@wordpress/components';
+import { check, cautionFilled, chevronDown, update } from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -45,6 +51,7 @@ export function SaveStatusIndicator() {
 	const [nudgeAnchor, setNudgeAnchor] = useState<HTMLElement | null>(null);
 	const [nudgeBusy, setNudgeBusy] = useState(false);
 	const [nudgeError, setNudgeError] = useState<string>();
+	const [isReloadingFromDisk, setIsReloadingFromDisk] = useState(false);
 
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(activeSite, clientInfo);
@@ -60,6 +67,36 @@ export function SaveStatusIndicator() {
 		dispatch(setSiteSlugToSave(undefined));
 		dispatch(setSiteManagerSection('save'));
 		dispatch(setSiteManagerOpen(true));
+	};
+
+	// Re-reads the linked local directory into the running Playground so edits
+	// made to the files on disk (outside Playground) show up. Re-mounts OPFS with
+	// an opfs-to-memfs sync, then reloads the page to reflect the new files.
+	const reloadFilesFromDisk = async () => {
+		const client = clientInfo?.client;
+		const opfsMountDescriptor = clientInfo?.opfsMountDescriptor;
+		const url = clientInfo?.url;
+		if (!client || !opfsMountDescriptor || !url) {
+			return;
+		}
+		setIsReloadingFromDisk(true);
+		try {
+			const docroot = await client.documentRoot;
+			await client.unmountOpfs(docroot);
+			await client.mountOpfs({
+				device: opfsMountDescriptor.device,
+				mountpoint: docroot,
+				initialSyncDirection: 'opfs-to-memfs',
+			});
+			await client.goTo(url);
+		} catch (error) {
+			logger.error(
+				'Error reloading files from the local directory.',
+				error
+			);
+		} finally {
+			setIsReloadingFromDisk(false);
+		}
 	};
 
 	const handleRestoreAutosave = async () => {
@@ -135,17 +172,64 @@ export function SaveStatusIndicator() {
 	}
 
 	if (status === 'saved') {
+		// Local-directory Playgrounds fold their one extra action — re-reading
+		// files edited on disk outside Playground — into the status itself, so
+		// the dock shows a single "Saved" control instead of a status chip plus
+		// a separate, unclear "Sync local files" button.
+		if (isLocalFs) {
+			return (
+				<Dropdown
+					className={css.savedMenu}
+					popoverProps={{ placement: 'top' }}
+					renderToggle={({ isOpen, onToggle }) => (
+						<button
+							type="button"
+							className={classNames(
+								css.indicator,
+								css.saved,
+								css.actionable
+							)}
+							onClick={onToggle}
+							aria-expanded={isOpen}
+							title="Saved to a folder on this computer."
+						>
+							<Icon icon={check} size={18} />
+							<span className={css.label}>Saved</span>
+							<Icon icon={chevronDown} size={16} />
+						</button>
+					)}
+					renderContent={({ onClose }) => (
+						<div className={css.savedMenuContent}>
+							<p className={css.savedMenuHint}>
+								This Playground is saved to a folder on your
+								computer. Changes you make here are written to
+								those files.
+							</p>
+							<Button
+								className={css.savedMenuAction}
+								icon={update}
+								disabled={isReloadingFromDisk}
+								onClick={async () => {
+									await reloadFilesFromDisk();
+									onClose();
+								}}
+							>
+								{isReloadingFromDisk
+									? 'Reloading…'
+									: 'Reload files from disk'}
+							</Button>
+						</div>
+					)}
+				/>
+			);
+		}
 		return (
 			<div
 				className={classNames(css.indicator, css.saved)}
-				title={
-					isLocalFs
-						? 'Stored in a local directory.'
-						: 'Stored permanently in this browser.'
-				}
+				title="Stored permanently in this browser."
 			>
 				<Icon icon={check} size={18} />
-				<span className={css.label}>Saved Playground</span>
+				<span className={css.label}>Saved</span>
 			</div>
 		);
 	}
@@ -165,7 +249,6 @@ export function SaveStatusIndicator() {
 					onClick={openStorePermanently}
 					type="button"
 				>
-					<Icon icon={backup} size={18} />
 					<span className={css.label}>Autosaved</span>
 				</button>
 			</Tooltip>

@@ -704,7 +704,7 @@ test.describe('Default Playground storage', () => {
 						label === 'Autosaving' ||
 						label === 'Saving' ||
 						label === 'Autosaved' ||
-						label === 'Saved Playground' ||
+						label === 'Saved' ||
 						label === 'Unsaved'
 					);
 				});
@@ -1070,16 +1070,15 @@ test.describe('Default Playground storage', () => {
 			.click();
 		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
 
-		const dialog = website.page.getByRole('dialog', {
+		// Rename happens inline in the row, not in a modal.
+		const renameInput = website.page.getByRole('textbox', {
 			name: 'Rename Playground',
 		});
 		const newName = `Renamed Recovery ${Date.now()}`;
-		await expect(
-			dialog.getByRole('textbox', { name: /name/i })
-		).toHaveValue(setup.targetName);
-		await dialog.getByRole('textbox', { name: /name/i }).fill(newName);
-		await dialog.getByRole('button', { name: 'Rename' }).click();
-		await expect(dialog).not.toBeVisible();
+		await expect(renameInput).toHaveValue(setup.targetName);
+		await renameInput.fill(newName);
+		await renameInput.press('Enter');
+		await expect(renameInput).not.toBeVisible();
 
 		const sitesAfterRename = await website.page.evaluate(
 			({ targetSlug, activeSlug }) => {
@@ -1165,7 +1164,7 @@ test.describe('Default Playground storage', () => {
 							'Autosaving',
 							'Saving',
 							'Autosaved',
-							'Saved Playground',
+							'Saved',
 							'Unsaved',
 						].includes(text)
 					);
@@ -1284,7 +1283,7 @@ test.describe('Default Playground storage', () => {
 			website.page.getByText(/Autosaved|Finalizing autosave/)
 		).toHaveCount(0);
 		await expect(
-			website.page.getByText(/Saved Playground|Saving|Finalizing save/)
+			website.page.getByText(/Saved|Saving|Finalizing save/)
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -1350,7 +1349,9 @@ test.describe('Default Playground storage', () => {
 				})
 			)
 			.toEqual({ storage: 'local-fs', persistence: 'explicit' });
-		await expect(website.page.getByText('Saved Playground')).toBeVisible();
+		await expect(
+			website.page.getByText('Saved', { exact: true })
+		).toBeVisible();
 		expect(
 			await website.page.evaluate(async () => {
 				const directory = (window as any)
@@ -1506,7 +1507,7 @@ echo get_option('blogname');
 							'Autosaving',
 							'Saving',
 							'Autosaved',
-							'Saved Playground',
+							'Saved',
 							'Unsaved',
 						].includes(text)
 					);
@@ -1782,7 +1783,9 @@ echo get_option('blogname');
 		await expect(
 			website.page.getByText('Recent autosave available')
 		).toHaveCount(0);
-		await expect(website.page.getByText('Saved Playground')).toBeVisible();
+		await expect(
+			website.page.getByText('Saved', { exact: true })
+		).toBeVisible();
 		await website.page.waitForFunction(() => {
 			const api = (window as any).playgroundSites;
 			const activeSite = api?.list().find((site: any) => site.isActive);

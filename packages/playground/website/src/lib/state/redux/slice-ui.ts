@@ -42,7 +42,6 @@ export const modalSlugs = {
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
 	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
-	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
 	DELETE_SITE: 'delete-site',
 	BLUEPRINT_URL: 'blueprint-url',
@@ -174,6 +173,12 @@ export interface UIState {
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
 	/**
+	 * Draft kept by the New pane's "Write a Blueprint" editor so the user's
+	 * in-progress Blueprint survives closing and reopening the pane (which
+	 * unmounts it). Undefined means "use the starter Blueprint".
+	 */
+	writeOwnBlueprintDraft?: string;
+	/**
 	 * A recent autosave from the same setup URL that the user can restore.
 	 * Surfaced as a popover anchored to the dock's save-status button.
 	 */
@@ -209,8 +214,7 @@ const initialState: UIState = {
 		query.get('modal') === 'error-report' ||
 		query.get('modal') === 'save-site' ||
 		query.get('modal') === 'github-private-repo-auth' ||
-		query.get('modal') === 'delete-site' ||
-		query.get('modal') === 'rename-site'
+		query.get('modal') === 'delete-site'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -301,6 +305,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setWriteOwnBlueprintDraft: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnBlueprintDraft = action.payload;
+		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -388,6 +398,7 @@ export const {
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setWriteOwnBlueprintDraft,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,

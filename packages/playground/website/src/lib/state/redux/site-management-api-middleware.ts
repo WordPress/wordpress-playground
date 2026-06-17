@@ -246,7 +246,6 @@ export function createSitesAPI(
 			await dispatch(
 				persistTemporarySite(site.slug, 'opfs', {
 					siteName: name,
-					skipRenameModal: true,
 					updateUrl: true,
 				})
 			);
@@ -283,7 +282,6 @@ export function createSitesAPI(
 			}
 			await dispatch(
 				persistTemporarySite(site.slug, 'opfs', {
-					skipRenameModal: true,
 					persistence: 'autosave',
 					updateUrl: options.updateUrl ?? false,
 				})
@@ -376,7 +374,6 @@ export function createSitesAPI(
 				persistTemporarySite(site.slug, 'local-fs', {
 					siteName: name,
 					localFsHandle,
-					skipRenameModal: true,
 					updateUrl: true,
 				})
 			);

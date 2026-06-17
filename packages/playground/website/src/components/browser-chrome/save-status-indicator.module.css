@@ -24,23 +24,21 @@
 	flex-shrink: 0;
 }
 
+/* "Saved" uses a calm, desaturated sage green with a check that settles into
+   the dark dock. "Autosaved" is icon-less white text — plainer, since it's the
+   transient default. Only "unsaved" stays vibrant (it wants attention). */
 .saved {
-	color: #86efac;
+	color: #a0c49a;
 }
 
 .saved svg {
-	fill: #86efac;
+	fill: #a0c49a;
 }
 
 .autosaved {
-	color: #93c5fd;
+	color: #fff;
 }
 
-.autosaved svg {
-	fill: #93c5fd;
-}
-
-.autosaved .label,
 .saving .label {
 	font-weight: 600;
 }
@@ -88,6 +86,30 @@
 
 .label {
 	display: inline;
+}
+
+/* Local-directory "Saved" pill opens a small menu carrying the one disk action
+   ("Reload files from disk"), so the dock no longer needs a separate, unclear
+   "Sync local files" button next to the status. The popover renders on the
+   default light surface, so its text is dark. */
+.saved-menu-content {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px;
+	max-width: 260px;
+}
+
+.saved-menu-hint {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #5f5b54;
+}
+
+.saved-menu-action.saved-menu-action {
+	justify-content: flex-start;
+	width: 100%;
 }
 
 .progress-ring {

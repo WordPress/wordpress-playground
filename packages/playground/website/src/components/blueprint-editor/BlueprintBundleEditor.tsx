@@ -7,7 +7,7 @@ import {
 	type Tooltip,
 } from '@codemirror/view';
 import { logger } from '@php-wasm/logger';
-import { Button, Icon, Notice } from '@wordpress/components';
+import { Button, Notice } from '@wordpress/components';
 import { download, link } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
@@ -725,22 +725,23 @@ export const BlueprintBundleEditor = forwardRef<
 
 							<div className={styles.editorHeaderActions}>
 								<Button
-									variant="tertiary"
+									variant="secondary"
 									className={styles.editorToolbarButton}
 									onClick={handleShareBlueprint}
-									title="Copy link to blueprint"
-									aria-label="Copy link to blueprint"
+									icon={link}
+									title="Copy a link to this Blueprint"
 									disabled={!isBundleShareable}
 								>
-									<Icon icon={link} />
+									Copy link
 								</Button>
 								<Button
-									variant="tertiary"
+									variant="secondary"
 									className={styles.editorToolbarButton}
 									onClick={handleDownloadBundle}
-									title="Download bundle"
+									icon={download}
+									title="Download this Blueprint bundle"
 								>
-									<Icon icon={download} />
+									Download
 								</Button>
 								{!readOnly && (
 									<Button
