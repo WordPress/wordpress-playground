@@ -42,6 +42,7 @@ Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in your project):
 ### 2. Open the Playground website
 
 Your AI assistant will ask you to open the Playground website and provide the exact URL. You can also ask it: _"What's the Playground website URL?"_
+The MCP server chooses the local bridge connection automatically, so you do not need to configure it in your MCP client.
 
 To connect to Personal Playground, pass its URL to the MCP server:
 
@@ -71,13 +72,10 @@ For a staging deployment, use that origin instead:
 }
 ```
 
-The website URL returned by the MCP server will include `mcp-port`.
-Personal Playground uses that query parameter as the bridge opt-in.
-
 ## How it works
 
 ```
-AI Client (stdio) → MCP Server (Node.js) → WebSocket (port 7999) → Browser (Playground website)
+AI Client (stdio) → MCP Server (Node.js) → WebSocket → Browser (Playground website)
 ```
 
 The MCP server communicates with AI clients via stdio and with the browser via WebSocket. A bridge client (`bridge-client.ts`) integrated into the Playground website via Redux middleware auto-connects to the WebSocket server and proxies commands to the PlaygroundClient API.
@@ -98,7 +96,7 @@ The MCP bridge runs locally and is only accessible from your machine — connect
 
 **Site management**: `playground_get_website_url`, `playground_list_sites`, `playground_open_site`, `playground_rename_site`, `playground_save_site`
 
-**Code execution**: `playground_execute_php`, `playground_request`, `playground_ability`
+**Code execution**: `playground_execute_php`, `playground_request`
 
 **Navigation & info**: `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`
 

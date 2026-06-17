@@ -46,66 +46,6 @@ export function playgroundUrl(port: number, baseUrl?: string): string {
 // -- Per-site tool definitions --
 
 export const toolDefinitions: Record<string, ToolDefinition> = {
-	playground_ability: {
-		title: 'WordPress Ability',
-		errorPrefix: 'Error using WordPress ability',
-		description: `List, inspect, or execute WordPress Abilities API
-			abilities registered by WordPress, plugins, or themes.
-
-			This is a meta-tool:
-			- action="list" discovers available abilities. Use the
-			  optional category filter for domains like "content",
-			  "media", "users", or plugin-specific terms.
-			- action="get" returns full metadata for one ability,
-			  including input and output schemas. Call this before
-			  executing an unfamiliar ability.
-			- action="execute" runs an ability with the provided
-			  arguments object.
-
-			Prefer this tool over playground_execute_php for
-			plugin-specific WordPress actions when a matching ability
-			exists. If the running WordPress version does not include
-			the Abilities API, the tool returns an "Abilities API not
-			available" error payload.`,
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: true,
-			idempotentHint: false,
-			openWorldHint: true,
-		},
-		params: [
-			{
-				name: 'action',
-				type: 'string',
-				description:
-					'Action to perform: "list", "get", or "execute". Defaults to "list".',
-				required: false,
-				default: 'list',
-			},
-			{
-				name: 'category',
-				type: 'string',
-				description:
-					'Optional category or search term used with action="list".',
-				required: false,
-			},
-			{
-				name: 'ability',
-				type: 'string',
-				description:
-					'Ability identifier, e.g. "core/create-post" or "plugin/action". Required for action="get" and action="execute".',
-				required: false,
-			},
-			{
-				name: 'arguments',
-				type: 'object',
-				description:
-					'Arguments passed to the ability for action="execute". Schema varies by ability.',
-				required: false,
-				additionalProperties: true,
-			},
-		],
-	},
 	playground_execute_php: {
 		title: 'Execute PHP Code',
 		errorPrefix: 'Error executing PHP',
@@ -160,11 +100,17 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			   pages, users, terms, comments, settings, etc.
 			   The REST API handles serialization, pagination,
 			   and field filtering for you.
-			2. Use playground_execute_php when the data you
+			2. Use this tool with the WordPress REST API to
+			   discover and call registered abilities when the
+			   site exposes Abilities API endpoints. Inspect
+			   the endpoint metadata first, then call the
+			   matching ability endpoint with the documented
+			   arguments.
+			3. Use playground_execute_php when the data you
 			   need is not exposed by the REST API (e.g.
 			   raw options, direct database queries, or
 			   custom table access).
-			3. Use this tool as a plain HTTP request (non-REST)
+			4. Use this tool as a plain HTTP request (non-REST)
 			   when the HTTP layer itself matters: verifying
 			   redirects, status codes, cookies, or response
 			   headers.
