@@ -480,7 +480,11 @@ export function SiteInfoPanel({
 										</div>
 									) : null}
 
-									<ActiveSiteSettingsForm />
+									<ActiveSiteSettingsForm
+										onSubmit={() =>
+											dispatch(setSiteManagerOpen(false))
+										}
+									/>
 								</div>
 								<div
 									className={classNames(

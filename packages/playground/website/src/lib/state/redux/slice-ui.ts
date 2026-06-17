@@ -179,6 +179,12 @@ export interface UIState {
 	 */
 	writeOwnBlueprintDraft?: string;
 	/**
+	 * Whether the Share pane is showing the inline "Export to GitHub" sub-view.
+	 * The dock reads this to drop its own pane header so the sub-view shows a
+	 * single header instead of two.
+	 */
+	shareExportOpen: boolean;
+	/**
 	 * A recent autosave from the same setup URL that the user can restore.
 	 * Surfaced as a popover anchored to the dock's save-status button.
 	 */
@@ -233,6 +239,7 @@ const initialState: UIState = {
 		// your entire screen – quite a confusing experience.
 		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
+	shareExportOpen: false,
 	autosaveNudge: null,
 	declinedAutosaveRestoreFingerprints: [],
 };
@@ -310,6 +317,9 @@ const uiSlice = createSlice({
 			action: PayloadAction<string | undefined>
 		) => {
 			state.writeOwnBlueprintDraft = action.payload;
+		},
+		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
+			state.shareExportOpen = action.payload;
 		},
 		setSiteSlugToRename: (
 			state,
@@ -399,6 +409,7 @@ export const {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setWriteOwnBlueprintDraft,
+	setShareExportOpen,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,

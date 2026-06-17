@@ -1438,24 +1438,20 @@
 
 .playgrounds-pane .siteRow {
 	border-bottom: 0;
-	border-radius: var(--radius-card);
+	/* No radius: a rounded row clips the inset-shadow divider into bent corners.
+	   Square rows keep the dividers straight and the hover/current fills read as
+	   clean full-width bands. */
+	border-radius: 0;
 }
 
-/* A single hairline between adjacent rows — suppressed around a hovered/active
-   row so its rounded fill reads as one clean shape. */
+/* A single hairline between adjacent rows. It stays put on hover/active so the
+   list keeps its structure — only the row's fill changes. */
 .playgrounds-pane .siteRow + .siteRow {
 	box-shadow: inset 0 1px 0 var(--line-subtle);
 }
 
 .playgrounds-pane .siteRow:hover {
 	background: var(--paper-2);
-}
-
-.playgrounds-pane .siteRow:hover,
-.playgrounds-pane .siteRow:hover + .siteRow,
-.playgrounds-pane .siteRowSelected,
-.playgrounds-pane .siteRowSelected + .siteRow {
-	box-shadow: none;
 }
 
 .playgrounds-pane .siteRowSelected,

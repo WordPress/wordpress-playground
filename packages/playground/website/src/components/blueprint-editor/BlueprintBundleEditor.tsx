@@ -364,6 +364,14 @@ export const BlueprintBundleEditor = forwardRef<
 				setMessageContent(null);
 				setShowExplorerOnMobile(false);
 				setTreeFocusPath(BLUEPRINT_JSON_PATH);
+				// Land the cursor in the editor so the Blueprint is ready to
+				// edit the moment the panel opens. The delay lets the editor
+				// mount after this state update.
+				setTimeout(() => {
+					if (!cancelled) {
+						editorRef.current?.focus();
+					}
+				}, 80);
 			} catch (error) {
 				logger.error('Could not open blueprint.json', error);
 			}

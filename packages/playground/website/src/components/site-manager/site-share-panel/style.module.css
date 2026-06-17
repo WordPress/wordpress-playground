@@ -5,34 +5,34 @@
 	padding: var(--space-2) var(--space-6) var(--space-6);
 }
 
-/* Top back button for the inline "Export to GitHub" sub-view. */
+/* Header for the inline "Export to GitHub" sub-view. Matches the dock's panel
+   title (20px ink) so the sub-view reads like every other panel, with the back
+   chevron as a quieter affordance to its left. */
 .back-button {
 	align-items: center;
 	align-self: flex-start;
 	background: transparent;
 	border: 0;
 	border-radius: var(--radius-control);
-	color: var(--ink-soft);
+	color: var(--ink);
 	cursor: pointer;
 	display: inline-flex;
-	font-size: 15px;
+	font-size: 20px;
 	font-weight: 600;
-	gap: 2px;
-	margin-bottom: var(--space-2);
-	margin-left: calc(-1 * var(--space-2));
-	padding: var(--space-1) var(--space-2);
-	transition:
-		background 120ms ease,
-		color 120ms ease;
+	gap: 4px;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	margin: var(--space-2) 0 var(--space-4) calc(-1 * var(--space-1));
+	padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+	transition: background 120ms ease;
 }
 
 .back-button:hover {
 	background: var(--paper-3);
-	color: var(--ink);
 }
 
 .back-button :global(svg) {
-	fill: currentColor;
+	fill: var(--ink-faint);
 }
 
 .export-loading {

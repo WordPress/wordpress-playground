@@ -1,5 +1,11 @@
 import classNames from 'classnames';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from 'react';
 import { CSSTransition } from 'react-transition-group';
 import {
 	Icon,
@@ -42,6 +48,9 @@ type DockSection = Exclude<
 const DRAG_EDGE = 8;
 const PANE_GAP = 12;
 const DOCK_DEFAULT_BOTTOM = 16;
+// Shared desktop height for the New and Your Playgrounds panes so they match;
+// a touch taller than the list felt before. Both clamp to the available space.
+const LIST_PANE_HEIGHT = 560;
 
 /**
  * Cylinder mark for the Database tool. @wordpress/icons has no database glyph,
@@ -215,6 +224,7 @@ export function Dock() {
 	);
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
+	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLDivElement>(null);
 	const inlineRename = useInlineRename();
@@ -268,6 +278,62 @@ export function Dock() {
 		observer.observe(dockRef.current);
 		return () => observer.disconnect();
 	}, []);
+
+	// Animate the Share pane's height when it swaps between its list and the
+	// inline "Export to GitHub" sub-view — a content-driven auto-height change
+	// CSS can't transition on its own. FLIP: measure the new height, jump back
+	// to the old one, then transition to the new with an ease-out. While it
+	// resizes, the content is pinned to the pane's anchored edge (the bottom,
+	// when the pane opens above the dock) so it sits in its final spot and the
+	// pane's far edge does the moving — the content never slides.
+	const shareHeightRef = useRef<number | null>(null);
+	useLayoutEffect(() => {
+		const el = paneRef.current;
+		if (normalizedSection !== 'share' || !el) {
+			shareHeightRef.current = null;
+			return;
+		}
+		el.style.transition = 'none';
+		el.style.height = '';
+		const newHeight = el.offsetHeight;
+		const oldHeight = shareHeightRef.current;
+		shareHeightRef.current = newHeight;
+		if (oldHeight === null || oldHeight === newHeight) {
+			el.style.transition = '';
+			return;
+		}
+		// When the pane opens above the dock it's bottom-anchored (top: auto);
+		// pin the content to the bottom so it doesn't ride the moving top edge.
+		const bottomAnchored = el.style.top === 'auto';
+		if (bottomAnchored) {
+			el.style.display = 'flex';
+			el.style.flexDirection = 'column';
+			el.style.justifyContent = 'flex-end';
+		}
+		el.style.height = `${oldHeight}px`;
+		void el.offsetHeight; // commit the old height before transitioning
+		el.style.transition = 'height 320ms cubic-bezier(0.33, 1, 0.68, 1)';
+		el.style.height = `${newHeight}px`;
+		let finished = false;
+		const finish = () => {
+			if (finished) {
+				return;
+			}
+			finished = true;
+			el.style.height = '';
+			el.style.transition = '';
+			el.style.display = '';
+			el.style.flexDirection = '';
+			el.style.justifyContent = '';
+			el.removeEventListener('transitionend', finish);
+		};
+		el.addEventListener('transitionend', finish);
+		const timer = window.setTimeout(finish, 420);
+		return () => {
+			window.clearTimeout(timer);
+			finish();
+		};
+	}, [shareExportOpen, normalizedSection]);
 
 	const clampPosition = useCallback(
 		({ left, top }: DockPosition): DockPosition => {
@@ -444,13 +510,14 @@ export function Dock() {
 		// Fixed-height panes get a stable height (capped) so they don't resize
 		// between tabs; everything else stays content-sized via max-height.
 		const fixedHeight = isFixedHeightSection
-			? Math.min(680, available)
+			? Math.min(LIST_PANE_HEIGHT, available)
 			: undefined;
-		// The Playgrounds list can get very long; cap it well below the room it
-		// would otherwise fill so it scrolls instead of dominating the screen.
+		// Your Playgrounds matches the New pane's height: capped to the same
+		// value so the two read as the same size, scrolling when the list is
+		// longer than that.
 		const maxHeight =
 			normalizedSection === 'playgrounds'
-				? Math.min(480, available)
+				? Math.min(LIST_PANE_HEIGHT, available)
 				: available;
 		paneStyle = {
 			left: `${clampedCenter}px`,
@@ -495,77 +562,84 @@ export function Dock() {
 					style={paneStyle}
 					aria-label={`${paneCopy.title} pane`}
 				>
-					{!isEditorSection && (
-						<div className={css.paneHeader}>
-							<div className={css.paneHeaderMain}>
-								<h2>{paneCopy.title}</h2>
-								{showPlaygroundShortcuts ? (
-									<div className={css.settingsIdentity}>
-										{activeSite &&
-										inlineRename.isEditing(
-											activeSite.slug
-										) ? (
-											<input
-												className={
-													css.settingsNameInput
-												}
-												{...inlineRename.getInputProps(
-													activeSite
-												)}
-											/>
-										) : (
-											<>
-												<span
-													className={css.settingsName}
-												>
-													{playgroundTitle}
-												</span>
-												{canManageActiveSite &&
-													activeSite && (
-														<button
-															type="button"
-															className={
-																css.settingsRename
-															}
-															aria-label="Rename Playground"
-															title="Rename"
-															onClick={() =>
-																inlineRename.start(
-																	activeSite
-																)
-															}
-														>
-															<Icon
-																icon={pencil}
-																size={16}
-															/>
-														</button>
+					{!isEditorSection &&
+						!(normalizedSection === 'share' && shareExportOpen) && (
+							<div className={css.paneHeader}>
+								<div className={css.paneHeaderMain}>
+									<h2>{paneCopy.title}</h2>
+									{showPlaygroundShortcuts ? (
+										<div className={css.settingsIdentity}>
+											{activeSite &&
+											inlineRename.isEditing(
+												activeSite.slug
+											) ? (
+												<input
+													className={
+														css.settingsNameInput
+													}
+													{...inlineRename.getInputProps(
+														activeSite
 													)}
-											</>
-										)}
-									</div>
-								) : (
-									showDescription && (
-										<p className={css.paneDescription}>
-											{paneCopy.description}
-										</p>
-									)
+												/>
+											) : (
+												<>
+													<span
+														className={
+															css.settingsName
+														}
+													>
+														{playgroundTitle}
+													</span>
+													{canManageActiveSite &&
+														activeSite && (
+															<button
+																type="button"
+																className={
+																	css.settingsRename
+																}
+																aria-label="Rename Playground"
+																title="Rename"
+																onClick={() =>
+																	inlineRename.start(
+																		activeSite
+																	)
+																}
+															>
+																<Icon
+																	icon={
+																		pencil
+																	}
+																	size={16}
+																/>
+															</button>
+														)}
+												</>
+											)}
+										</div>
+									) : (
+										showDescription && (
+											<p className={css.paneDescription}>
+												{paneCopy.description}
+											</p>
+										)
+									)}
+								</div>
+								{normalizedSection === 'playgrounds' && (
+									<button
+										type="button"
+										className={css.paneHeaderAction}
+										onClick={() =>
+											dispatch(
+												setSiteManagerSection('new')
+											)
+										}
+									>
+										<Icon icon={plus} size={20} />
+										New Playground
+									</button>
 								)}
 							</div>
-							{normalizedSection === 'playgrounds' && (
-								<button
-									type="button"
-									className={css.paneHeaderAction}
-									onClick={() =>
-										dispatch(setSiteManagerSection('new'))
-									}
-								>
-									<Icon icon={plus} size={20} />
-									New Playground
-								</button>
-							)}
-						</div>
-					)}
+						)}
 					<div className={css.paneBody}>
 						<SiteManager />
 					</div>

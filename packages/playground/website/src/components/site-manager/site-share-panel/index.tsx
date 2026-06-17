@@ -2,8 +2,9 @@ import { Button } from '@wordpress/components';
 import { Icon, chevronLeft, download, link } from '@wordpress/icons';
 import { zipWpContent } from '@wp-playground/client';
 import saveAs from 'file-saver';
-import { lazy, Suspense, useState } from 'react';
-import { useAppSelector } from '../../../lib/state/redux/store';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import { setShareExportOpen } from '../../../lib/state/redux/slice-ui';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import { GitHubIcon } from '../../../github/github';
 import { Spinner } from '../../spinner';
@@ -19,9 +20,22 @@ const GitHubExportForm = lazy(
 export function SiteSharePanel() {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const playground = usePlaygroundClient();
+	const dispatch = useAppDispatch();
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [linkCopied, setLinkCopied] = useState(false);
-	const [showGitHubExport, setShowGitHubExport] = useState(false);
+	// Lives in Redux so the dock can drop its own header while the export
+	// sub-view is open (a single header instead of two).
+	const showGitHubExport = useAppSelector(
+		(state) => state.ui.shareExportOpen
+	);
+	const setShowGitHubExport = (open: boolean) =>
+		dispatch(setShareExportOpen(open));
+	// Reset when leaving the Share pane so it always reopens on the list.
+	useEffect(() => {
+		return () => {
+			dispatch(setShareExportOpen(false));
+		};
+	}, [dispatch]);
 	// Remember the form values so collapsing and reopening the export doesn't
 	// wipe the repo URL the user already typed.
 	const [exportValues, setExportValues] = useState<
@@ -37,6 +51,12 @@ export function SiteSharePanel() {
 		} catch {
 			// Clipboard can be blocked; fail quietly rather than alerting.
 		}
+	};
+
+	// Warm the export-form chunk on intent (hover/focus) so it renders without a
+	// spinner when opened — keeping the open animation smooth.
+	const preloadExportForm = () => {
+		void import('../../../github/github-export-form/form');
 	};
 
 	const downloadZip = async () => {
@@ -145,6 +165,8 @@ export function SiteSharePanel() {
 						<Button
 							variant="secondary"
 							disabled={offline || disabled}
+							onMouseEnter={preloadExportForm}
+							onFocus={preloadExportForm}
 							onClick={() => setShowGitHubExport(true)}
 						>
 							Export to GitHub

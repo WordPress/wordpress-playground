@@ -256,6 +256,20 @@ export function PlaygroundFileEditor({
 			try {
 				const pathToSave = currentPathRef.current as string;
 				const contentToSave = codeRef.current;
+				// Skip writing content that already matches what's on disk.
+				// Opening a file loads its content into the editor, which would
+				// otherwise trip this auto-save and write the file back
+				// unchanged — triggering a needless persistence sync.
+				let onDisk: string | null = null;
+				try {
+					onDisk = await activeFilesystem.readFileAsText(pathToSave);
+				} catch {
+					onDisk = null;
+				}
+				if (onDisk === contentToSave) {
+					setSaveState(SaveState.IDLE);
+					return;
+				}
 				if (onSaveFile) {
 					await onSaveFile(pathToSave, contentToSave);
 				} else {

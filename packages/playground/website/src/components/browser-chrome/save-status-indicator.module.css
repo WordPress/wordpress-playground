@@ -35,8 +35,10 @@
 	fill: #a0c49a;
 }
 
+/* "Autosaved" keeps the same blue as the in-progress "Autosaving" state, so the
+   color doesn't change as the save settles. */
 .autosaved {
-	color: #fff;
+	color: #93c5fd;
 }
 
 .saving .label {
