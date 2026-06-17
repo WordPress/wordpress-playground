@@ -108,16 +108,23 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			   - GET /wp-json/wp-abilities/v1/categories/{slug}
 			     gets one category.
 			   - GET /wp-json/wp-abilities/v1/abilities
-			     lists registered abilities.
+			     lists registered abilities. If the response is
+			     too large, use _fields to request only the
+			     fields you need, e.g.
+			     /wp-json/wp-abilities/v1/abilities?_fields=name,category,label,description
 			   - GET /wp-json/wp-abilities/v1/abilities/{name}
 			     gets one ability, including schemas and
-			     metadata. URL-encode names that contain "/",
-			     e.g. "memex%2Fsave-note".
+			     metadata. Ability names include "/" in the
+			     path; do not encode it. For example, use
+			     /wp-json/wp-abilities/v1/abilities/memex/save-note
+			     for "memex/save-note".
 			   - GET, POST, or DELETE
 			     /wp-json/wp-abilities/v1/abilities/{name}/run
 			     executes the ability. Inspect the ability
 			     metadata first, then call /run with the
-			     documented method and JSON arguments.
+			     documented method. POST bodies usually wrap
+			     arguments in an "input" object, e.g.
+			     {"input":{"title":"Hello"}}.
 			3. Use playground_execute_php when the data you
 			   need is not exposed by the REST API (e.g.
 			   raw options, direct database queries, or
