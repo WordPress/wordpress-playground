@@ -1365,33 +1365,49 @@
 	color: var(--ink-muted, #5f5b54);
 }
 
+/* Flat, calm list: rows sit directly on the pane with no per-group white box —
+   the section eyebrows do the grouping. Rows are separated by hairlines and get
+   a rounded fill on hover/active, so hierarchy comes from spacing and value, not
+   nested frames. (The "Faithful & Refined" canonical look.) */
 .playgrounds-pane .sitesList {
-	background: #ffffff;
-	border-color: rgba(33, 30, 25, 0.14);
-	border-radius: 10px;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	overflow: visible;
 }
 
 .playgrounds-pane .siteRow {
-	border-color: rgba(33, 30, 25, 0.14);
+	border-bottom: 0;
+	border-radius: var(--radius-card);
+}
+
+/* A single hairline between adjacent rows — suppressed around a hovered/active
+   row so its rounded fill reads as one clean shape. */
+.playgrounds-pane .siteRow + .siteRow {
+	box-shadow: inset 0 1px 0 var(--line-subtle);
 }
 
 .playgrounds-pane .siteRow:hover {
-	background: rgba(33, 30, 25, 0.045);
-}
-
-/* The current Playground is a quiet raised card, not a loud accent block — the
-   "CURRENT PLAYGROUND" eyebrow above it already says which one it is. Its
-   paper-2 fill (against the white list) marks it; the list's own 1px border is
-   the only edge, so it doesn't double up into a thick frame. */
-.playgrounds-pane .siteRowSelected,
-.playgrounds-pane .current-site-row {
 	background: var(--paper-2);
 }
 
+.playgrounds-pane .siteRow:hover,
+.playgrounds-pane .siteRow:hover + .siteRow,
+.playgrounds-pane .siteRowSelected,
+.playgrounds-pane .siteRowSelected + .siteRow {
+	box-shadow: none;
+}
+
+.playgrounds-pane .siteRowSelected,
+.playgrounds-pane .current-site-row {
+	background: var(--paper-3);
+	border-left: 0;
+}
+
 .playgrounds-pane .siteRowContent {
-	min-height: 52px;
+	min-height: 48px;
 	min-width: 0; /* let long Playground names truncate so actions never overflow */
-	padding: 8px 18px;
+	padding: 8px 10px;
 }
 
 /* Denser rows: the 50px gallery logo and 20px name drove the row height, so
@@ -1438,19 +1454,76 @@
 	color: #21201d !important;
 }
 
-/* In the narrow pane, the per-row "keep" action is a quiet ink control — not a
-   filled blue button repeated down the whole list. */
-.playgrounds-pane .keepButton {
-	background: transparent;
-	border: 1px solid var(--line-control);
-	color: var(--ink);
-	font-weight: 500;
-	padding: 6px 10px;
+.playgrounds-pane .siteRowActions {
+	align-items: center;
+	display: flex;
+	flex-shrink: 0;
+	gap: var(--space-2);
+	padding-right: var(--space-2);
 }
 
-.playgrounds-pane .keepButton:hover {
-	background: var(--paper-4);
-	border-color: var(--line-hover);
+/* The chevron is the one persistent trailing affordance — it signals "click to
+   switch". It nudges right on hover. */
+.playgrounds-pane .siteRowChevron {
+	align-items: center;
+	color: var(--ink-faint);
+	display: flex;
+	flex-shrink: 0;
+	transition:
+		transform 0.12s ease,
+		color 0.12s ease;
+}
+
+.playgrounds-pane .siteRow:hover .siteRowChevron {
+	color: var(--ink-muted);
+	transform: translateX(2px);
+}
+
+/* The "..." menu is quiet at rest, revealed on hover/focus like the Store link,
+   so only the chevron persists in the trailing area. */
+.playgrounds-pane .siteRowMenu {
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.playgrounds-pane .siteRow:hover .siteRowMenu,
+.playgrounds-pane .siteRow:focus-within .siteRowMenu {
+	opacity: 1;
+}
+
+/* Quiet "Store" link for autosaves — a text link revealed only on row hover or
+   keyboard focus (it keeps its box always, so revealing it never shifts the
+   row). Never a filled button or a warning box. */
+.playgrounds-pane .storeLink {
+	background: transparent;
+	border: 0;
+	color: var(--accent-link);
+	cursor: pointer;
+	flex-shrink: 0;
+	font-size: 13px;
+	font-weight: 600;
+	opacity: 0;
+	padding: 4px 6px;
+	transition:
+		opacity 0.12s ease,
+		color 0.12s ease;
+}
+
+.playgrounds-pane .siteRow:hover .storeLink,
+.playgrounds-pane .siteRow:focus-within .storeLink {
+	opacity: 1;
+}
+
+.playgrounds-pane .storeLink:hover {
+	color: var(--accent-hover);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.playgrounds-pane .storeLink:focus-visible {
+	opacity: 1;
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
 }
 
 .playgrounds-pane .creationRow {

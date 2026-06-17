@@ -5,13 +5,15 @@
 	padding: var(--space-2) var(--space-6) var(--space-6);
 }
 
-/* Each export option is its own card so the three actions read as distinct
-   choices rather than one running column. */
+/* Each export option is its own card, separated by a soft elevation rather than
+   a border — so it doesn't read as a box-inside-the-pane-inside-the-button. */
 .group {
 	align-items: flex-start;
-	background: var(--paper-2);
-	border: 1px solid var(--line-subtle);
+	background: #ffffff;
 	border-radius: var(--radius-card);
+	box-shadow:
+		0 1px 2px rgba(40, 33, 23, 0.06),
+		0 4px 10px rgba(40, 33, 23, 0.05);
 	display: flex;
 	gap: var(--space-3);
 	padding: var(--space-4);

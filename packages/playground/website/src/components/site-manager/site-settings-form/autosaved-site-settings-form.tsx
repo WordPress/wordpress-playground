@@ -46,7 +46,7 @@ export function AutosavedSiteSettingsForm({
 			footer={
 				<VStack
 					justify="flex-end"
-					spacing={6}
+					spacing={4}
 					style={{ margin: 0 }}
 					className={`${css.footer} ${css.formSection}`}
 				>

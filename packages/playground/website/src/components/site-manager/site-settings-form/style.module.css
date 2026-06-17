@@ -83,6 +83,9 @@
    note — instead of a loud red danger field. */
 .footer {
 	border-top: 1px solid var(--line-subtle);
+	/* Lift the note off the separator so the bottom section breathes evenly
+	   (the separator owns the break from the form above). */
+	padding-top: var(--space-4);
 	button {
 		width: 100%;
 		align-self: center;
