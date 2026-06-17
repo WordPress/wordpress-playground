@@ -16,6 +16,14 @@ export function encodeStringAsBase64(text: string): string {
 }
 
 export function encodeUint8ArrayAsBase64(bytes: Uint8Array): string {
-	const binaryString = String.fromCodePoint(...bytes);
+	// Build the binary string in chunks. Spreading the whole array into
+	// String.fromCharCode overflows the call stack for large inputs
+	// (GitHub file contents, TLS certificates, blueprint files).
+	const CHUNK_SIZE = 0x8000;
+	let binaryString = '';
+	for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
+		const chunk = bytes.subarray(offset, offset + CHUNK_SIZE);
+		binaryString += String.fromCharCode(...chunk);
+	}
 	return btoa(binaryString);
 }
