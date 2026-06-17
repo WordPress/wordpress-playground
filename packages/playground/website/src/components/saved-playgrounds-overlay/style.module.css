@@ -342,8 +342,9 @@
    editable. */
 .siteRowNameInput {
 	box-sizing: border-box;
-	width: 100%;
-	max-width: 280px;
+	/* Fill the row's available width (the +16px offsets the -8px side margins
+	   below, so it bleeds 8px each side and lands flush in the row's padding). */
+	width: calc(100% + 16px);
 	/* Bleed the padding + border outward (negative margins == padding + border)
 	   so the text sits exactly where the static title did — entering edit mode
 	   shifts nothing. */

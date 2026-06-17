@@ -213,6 +213,26 @@ const PANE_COPY: Record<DockSection, { title: string; description: string }> = {
 
 type DockPosition = { left: number; top: number };
 
+// Below this width the dock becomes a full-width bottom bar with full-screen
+// panels (the mobile-app pattern), and free-floating drag is turned off.
+const MOBILE_QUERY = '(max-width: 720px)';
+
+function useIsMobile() {
+	const [isMobile, setIsMobile] = useState(
+		() =>
+			typeof window !== 'undefined' &&
+			window.matchMedia(MOBILE_QUERY).matches
+	);
+	useEffect(() => {
+		const mediaQuery = window.matchMedia(MOBILE_QUERY);
+		const update = () => setIsMobile(mediaQuery.matches);
+		update();
+		mediaQuery.addEventListener('change', update);
+		return () => mediaQuery.removeEventListener('change', update);
+	}, []);
+	return isMobile;
+}
+
 export function Dock() {
 	const dispatch = useAppDispatch();
 	const siteManagerIsOpen = useAppSelector(
@@ -228,6 +248,7 @@ export function Dock() {
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLDivElement>(null);
 	const inlineRename = useInlineRename();
+	const isMobile = useIsMobile();
 	const normalizedSection = normalizeSection(activeSection);
 	const paneCopy = PANE_COPY[normalizedSection];
 	const isEditorSection =
@@ -382,7 +403,8 @@ export function Dock() {
 	}, [dockSize.width, dockSize.height, clampPosition]);
 
 	const handleDockPointerDown = (event: React.PointerEvent) => {
-		if (event.button !== 0 || !dockRef.current) {
+		// The mobile dock is a fixed bottom bar — there's nothing to drag.
+		if (isMobile || event.button !== 0 || !dockRef.current) {
 			return;
 		}
 		// Drag from the dock's bare background (the dark gaps between buttons and
@@ -472,21 +494,31 @@ export function Dock() {
 		dispatch(setSiteManagerOpen(true));
 	};
 
-	const dockStyle: React.CSSProperties | undefined = dockPosition
-		? {
-				left: `${dockPosition.left}px`,
-				top: `${dockPosition.top}px`,
-				bottom: 'auto',
-				transform: 'none',
-			}
-		: undefined;
+	// On mobile the dock is a CSS-positioned full-width bottom bar, so any
+	// dragged free-floating position is ignored.
+	const dockStyle: React.CSSProperties | undefined =
+		!isMobile && dockPosition
+			? {
+					left: `${dockPosition.left}px`,
+					top: `${dockPosition.top}px`,
+					bottom: 'auto',
+					transform: 'none',
+				}
+			: undefined;
 
 	// Anchor the pane to the dock (centered on it, clamped to the viewport),
 	// opening above or below depending on room. We do this even at the default
 	// bottom-center position so the pane clears the dock's real height — the
 	// two-row dock (address bar + tools) is taller and would otherwise overlap.
 	let paneStyle: React.CSSProperties | undefined;
-	if (dockSize.height) {
+	if (isMobile) {
+		// Full-screen panel above the bottom bar: CSS handles the inset; it just
+		// needs to know how tall the dock currently is (it changes when the tools
+		// row collapses).
+		paneStyle = {
+			'--dock-height': `${dockSize.height}px`,
+		} as React.CSSProperties;
+	} else if (dockSize.height) {
 		const dockTop = dockPosition
 			? dockPosition.top
 			: window.innerHeight - DOCK_DEFAULT_BOTTOM - dockSize.height;

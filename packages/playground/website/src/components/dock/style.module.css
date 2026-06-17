@@ -156,10 +156,24 @@
 		visibility 0s;
 }
 
+/* Group divider before the "Blueprint" tool. The line is a short, vertically
+   centered pseudo-element living in the gap — it doesn't pad or border the
+   button, so the button's rounded hover/active highlight stays flush in its own
+   box (no offset dead strip beside the rounded corners). */
 .with-separator {
-	border-left: 1px solid rgba(247, 245, 242, 0.16);
-	margin-left: 5px;
-	padding-left: 5px;
+	margin-left: 9px;
+	position: relative;
+}
+
+.with-separator::before {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: -5px;
+	width: 1px;
+	height: 24px;
+	transform: translateY(-50%);
+	background: rgba(247, 245, 242, 0.16);
 }
 
 .dock-item {
@@ -652,28 +666,95 @@
 }
 
 @media (max-width: 720px) {
+	/* The dock becomes a flush full-width bottom bar (the mobile-app pattern):
+	   the tools row sits on TOP, the address + status row below it. column-reverse
+	   keeps the DOM order (address row first, for desktop) while flipping the
+	   visual stack on mobile. */
 	.dock {
-		bottom: 10px;
-		max-width: calc(100vw - 20px);
+		border-radius: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		top: auto;
+		max-width: none;
+		width: auto;
+		flex-direction: column-reverse;
+		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+		transform: none;
+		cursor: default;
+		box-shadow:
+			0 -1px 0 rgba(247, 245, 242, 0.08),
+			0 -10px 30px rgba(33, 30, 25, 0.4);
 	}
 
+	/* A fixed bottom bar isn't draggable. */
+	.drag-handle {
+		display: none;
+	}
+
+	/* Tools scroll horizontally when they overflow; the scrollbar is hidden
+	   (swipe to scroll), and buttons keep their size instead of squashing. */
 	.dock-tools {
+		max-height: 80px;
 		overflow-x: auto;
+		overflow-y: hidden;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.dock-tools::-webkit-scrollbar {
+		display: none;
 	}
 
 	.dock-item {
-		min-width: 58px;
+		flex-shrink: 0;
+		min-width: 60px;
 	}
 
-	.pane {
-		bottom: 82px;
-		max-height: min(720px, calc(100dvh - 112px));
-		width: calc(100vw - 20px);
-	}
-
-	.pane-editor {
-		height: min(720px, calc(100dvh - 112px));
+	/* Panels fill the screen above the bar, edge to edge — `--dock-height` is set
+	   inline so the panel always clears the (collapsible) bar. */
+	.pane,
+	.pane.pane-compact,
+	.pane-editor,
+	.pane-fixed-height {
+		border-radius: 0;
+		top: 0;
+		bottom: var(--dock-height, 124px);
+		left: 0;
+		right: 0;
+		width: auto;
+		max-width: none;
+		height: auto;
 		max-height: none;
+		transform: none;
+		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+	}
+
+	/* Full-screen panels fade + rise in (no horizontal-centering transform). */
+	.pane-enter {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+
+	.pane-enter-active {
+		opacity: 1;
+		transform: translateY(0);
+		transition:
+			opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+			transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.pane-exit {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.pane-exit-active {
+		opacity: 0;
+		transform: translateY(20px);
+		transition:
+			opacity 200ms cubic-bezier(0.64, 0, 0.78, 0),
+			transform 200ms cubic-bezier(0.64, 0, 0.78, 0);
 	}
 
 	.pane-header {
