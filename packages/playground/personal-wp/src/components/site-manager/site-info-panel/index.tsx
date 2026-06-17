@@ -34,8 +34,6 @@ import {
 	requestBlueprintInstall,
 } from '../../../lib/state/redux/tab-coordinator';
 import { logger } from '@php-wasm/logger';
-import { encodeStringAsBase64 } from '@php-wasm/util';
-import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
 import {
 	APP_LAUNCHER_BLUEPRINT,
 	APP_LAUNCHER_BLUEPRINT_URL,
