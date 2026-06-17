@@ -433,6 +433,7 @@ function BackupSection() {
 			await importWordPressFiles(playground, { wordPressFilesZip: file });
 			await flushWordPressMount(playground);
 			await playground.goTo('/');
+			logPersonalWpEvent('backup_restored');
 			window.location.reload();
 		} catch (error) {
 			logger.error(error);
@@ -635,6 +636,7 @@ function RecoverySection() {
 				<a
 					href={getHealthCheckRecoveryUrl()}
 					className={css.recoveryLink}
+					onClick={() => logPersonalWpEvent('health_check_installed')}
 				>
 					Install Health Check &amp; Troubleshoot
 				</a>
