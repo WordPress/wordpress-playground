@@ -62,7 +62,11 @@
 			 * In production, load a manifest URL that includes the current URL
 			 * as the "start_url" parameter.
 			 */
-			if (window.location.port !== '5400') {
+			const runningOnDevServer =
+				window.location.port === '5400' ||
+				window.location.pathname.startsWith('/website-server/');
+
+			if (!runningOnDevServer) {
 				const runningAsPWA = window.matchMedia(
 					'(display-mode: standalone)'
 				).matches;

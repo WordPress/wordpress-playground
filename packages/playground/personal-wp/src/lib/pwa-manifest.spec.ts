@@ -47,6 +47,9 @@ describe('PWA manifest configuration', () => {
 			/<meta\b(?=[^>]*\bname="apple-mobile-web-app-title")(?=[^>]*\bcontent="My WordPress")[^>]*>/
 		);
 		expect(html).toContain('/dynamic-manifest.json.php');
+		expect(html).toContain(
+			"window.location.pathname.startsWith('/website-server/')"
+		);
 		expect(html).not.toContain('if (!manifestUrl)');
 	});
 
