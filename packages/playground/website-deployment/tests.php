@@ -412,6 +412,16 @@ assert_equal(
 );
 
 assert_equal(
+    '/mywp-event-dashboard.php?range=30&granularity=day&area=health-check',
+    mywp_event_dashboard_filter_url(
+        30,
+        'day',
+        mywp_event_dashboard_area( 'health-check' )
+    ),
+    'Dashboard filter URLs should support the Health Check area'
+);
+
+assert_equal(
     7,
     mywp_event_dashboard_metric_value_count(
         array(
@@ -613,6 +623,34 @@ assert_equal(
     $remote_access_bumps,
     'Remote Access starts should be counted as aggregate events only'
 );
+
+foreach (
+	array(
+		'health_check_installed',
+		'sidebar_opened',
+		'backup_restored',
+	) as $aggregate_event
+) {
+	assert_equal(
+		array(
+			array(
+				'name' => 'event',
+				'value' => $aggregate_event,
+				'views' => 1,
+			),
+		),
+		mywp_event_collect_stat_bumps( array(
+			'schema' => 'personal-wp-event/v1',
+			'app' => 'personal-wp',
+			'event' => $aggregate_event,
+			'properties' => array(
+				'site_age_bucket' => '1-7-days',
+				'previous_visit_age_bucket' => 'same-day',
+			),
+		) ),
+		'Dimensionless events should be counted as aggregate events only'
+	);
+}
 
 assert_equal(
     false,

@@ -1528,6 +1528,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					aria-pressed={siteManagerIsOpen}
 					className={css.sidebarLatchButton}
 					onClick={() => {
+						if (!siteManagerIsOpen) {
+							logPersonalWpEvent('sidebar_opened');
+						}
 						dispatch(setSiteManagerOpen(!siteManagerIsOpen));
 					}}
 				>

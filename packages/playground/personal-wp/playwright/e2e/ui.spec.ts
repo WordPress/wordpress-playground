@@ -51,6 +51,16 @@ test('should show app, backup, and troubleshooting tools', async ({
 			name: 'Install Health Check & Troubleshoot',
 		})
 	).toBeVisible();
+	await expect(
+		website.page.getByRole('link', {
+			name: 'Install Health Check & Troubleshoot',
+		})
+	).toHaveAttribute('href', /playground-recovery-mode=health-check/);
+	await expect(
+		website.page.getByRole('link', {
+			name: 'Install Health Check & Troubleshoot',
+		})
+	).not.toHaveAttribute('href', /blueprint-url=/);
 });
 
 test('should close the Site Tools panel with its close button', async ({
