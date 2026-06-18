@@ -1,0 +1,106 @@
+name: Close stale draft pull requests
+
+on:
+    schedule:
+        - cron: '0 7 * * *'
+    workflow_dispatch:
+
+concurrency:
+    group: stale-draft-prs
+
+permissions: {}
+
+jobs:
+    process:
+        if: github.repository == 'WordPress/wordpress-playground'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            pull-requests: write
+            issues: write
+        steps:
+            - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+              with:
+                  script: |
+                      const WARN_DAYS = 30;
+                      const GRACE_DAYS = 7;
+                      const DAY_MS = 24 * 60 * 60 * 1000;
+                      const WARN_MARKER = '<!-- stale-draft-bot:warned -->';
+                      const BOT_LOGIN = 'github-actions[bot]';
+                      const now = Date.now();
+
+                      const WARN_BODY = [
+                          WARN_MARKER,
+                          'This draft pull request has had no commits or comments in the last 30 days.',
+                          '',
+                          'If it is still active, please push a commit, leave a comment, or mark it ready for review. Otherwise it will be automatically closed after 7 more days of inactivity.',
+                      ].join('\n');
+
+                      const CLOSE_BODY = [
+                          'Closing this draft pull request because it has received no activity in the 7 days since the warning above.',
+                          '',
+                          'No worries — feel free to reopen it any time if you would like to continue the work.',
+                      ].join('\n');
+
+                      const isOwnWarning = (c) =>
+                          c.user?.login === BOT_LOGIN && c.body?.includes(WARN_MARKER);
+
+                      const { owner, repo } = context.repo;
+
+                      const prs = await github.paginate(github.rest.pulls.list, {
+                          owner, repo, state: 'open', per_page: 100,
+                      });
+                      const drafts = prs.filter((pr) => pr.draft === true);
+
+                      for (const pr of drafts) {
+                          const num = pr.number;
+
+                          const [commits, issueComments, reviewComments, reviews] = await Promise.all([
+                              github.paginate(github.rest.pulls.listCommits,
+                                  { owner, repo, pull_number: num, per_page: 100 }),
+                              github.paginate(github.rest.issues.listComments,
+                                  { owner, repo, issue_number: num, per_page: 100 }),
+                              github.paginate(github.rest.pulls.listReviewComments,
+                                  { owner, repo, pull_number: num, per_page: 100 }),
+                              github.paginate(github.rest.pulls.listReviews,
+                                  { owner, repo, pull_number: num, per_page: 100 }),
+                          ]);
+
+                          const timestamps = [
+                              new Date(pr.created_at).getTime(),
+                              ...commits.map((c) => new Date(c.commit.committer.date).getTime()),
+                              ...issueComments
+                                  .filter((c) => !isOwnWarning(c))
+                                  .map((c) => new Date(c.created_at).getTime()),
+                              ...reviewComments.map((c) => new Date(c.created_at).getTime()),
+                              ...reviews
+                                  .filter((r) => r.submitted_at)
+                                  .map((r) => new Date(r.submitted_at).getTime()),
+                          ];
+
+                          const lastActivity = Math.max(...timestamps);
+                          const daysIdle = Math.floor((now - lastActivity) / DAY_MS);
+                          const lastWarning = issueComments.filter(isOwnWarning).at(-1);
+
+                          if (lastWarning) {
+                              const lastWarningTime = new Date(lastWarning.created_at).getTime();
+                              if (lastWarningTime > lastActivity) {
+                                  const warningAgeDays = Math.floor((now - lastWarningTime) / DAY_MS);
+                                  if (warningAgeDays >= GRACE_DAYS) {
+                                      await github.rest.issues.createComment({
+                                          owner, repo, issue_number: num, body: CLOSE_BODY,
+                                      });
+                                      await github.rest.pulls.update({
+                                          owner, repo, pull_number: num, state: 'closed',
+                                      });
+                                  }
+                                  continue;
+                              }
+                          }
+
+                          if (daysIdle >= WARN_DAYS) {
+                              await github.rest.issues.createComment({
+                                  owner, repo, issue_number: num, body: WARN_BODY,
+                              });
+                          }
+                      }
