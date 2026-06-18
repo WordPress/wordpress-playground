@@ -3,7 +3,7 @@ export function decodeBase64ToString(base64: string) {
 }
 
 export function decodeBase64ToUint8Array(base64: string) {
-	const binaryString = window.atob(base64); // This will convert base64 to binary string
+	const binaryString = atob(base64);
 	const len = binaryString.length;
 	const bytes = new Uint8Array(len);
 	for (let i = 0; i < len; i++) {
@@ -17,6 +17,15 @@ export function encodeStringAsBase64(str: string) {
 }
 
 export function encodeUint8ArrayAsBase64(bytes: Uint8Array) {
-	const binString = String.fromCodePoint(...bytes);
-	return btoa(binString);
+	/**
+	 * String.fromCharCode can only take up to 65536 arguments,
+	 * so we need to chunk the input into smaller pieces before converting it to a string.
+	 * Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply#using_apply_and_built-in_functions
+	 */
+	const chunkSize = 0x8000;
+	const chunks = [];
+	for (let i = 0; i < bytes.length; i += chunkSize) {
+		chunks.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
+	}
+	return btoa(chunks.join(''));
 }
