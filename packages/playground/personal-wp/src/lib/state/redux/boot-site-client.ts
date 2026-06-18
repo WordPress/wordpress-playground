@@ -51,6 +51,10 @@ import {
 	logPersonalWpEvent,
 	shouldLogReturningVisitUsageStats,
 } from '../../personalwp/usage-stats';
+import {
+	isHealthCheckRecoveryBlueprint,
+	isHealthCheckRecoveryUrl,
+} from '../../health-check-recovery';
 
 export interface BootSiteClientOptions {
 	signal: AbortSignal;
@@ -241,15 +245,13 @@ export function bootSiteClient(
 			blueprint.preferredVersions?.wp === false;
 
 		// Check if we're in recovery mode (Health Check troubleshooting).
-		// In recovery mode, skip the WordPress install check to avoid
-		// loading WordPress before blueprint steps run. The check would
-		// load WordPress and crash due to a broken plugin.
-		const urlBlueprintLandingPage = hasUrlBlueprint
-			? urlBlueprint.blueprint.landingPage
-			: undefined;
-		const isRecoveryMode = urlBlueprintLandingPage?.includes(
-			'health-check-disable-plugin-hash'
-		);
+		// Recovery mode uses 'do-not-attempt-installing' to skip the
+		// isWordPressInstalled() check that would load WordPress and crash
+		// due to a broken plugin.
+		const isRecoveryMode =
+			isHealthCheckRecoveryUrl(new URL(window.location.href)) ||
+			(hasUrlBlueprint &&
+				isHealthCheckRecoveryBlueprint(urlBlueprint.blueprint));
 		const wordpressInstallMode =
 			blueprintRequestedNoWordPress || isRecoveryMode
 				? 'do-not-attempt-installing'
