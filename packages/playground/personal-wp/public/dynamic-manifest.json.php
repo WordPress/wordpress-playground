@@ -38,19 +38,7 @@ function getManifestId($start_url) {
     return $path . ($query ? '?' . http_build_query($query) : '');
 }
 
-function getTrustedBaseUrl($fallback_host) {
-    $http_host = $_SERVER['HTTP_HOST'] ?? $fallback_host;
-    $hostname = strtolower(parse_url('http://' . $http_host, PHP_URL_HOST) ?? '');
-    $allowed_hosts = [ $fallback_host, 'localhost', '127.0.0.1', '::1' ];
-
-    if (!in_array($hostname, $allowed_hosts, true)) {
-        $http_host = $fallback_host;
-    }
-
-    return (isHttps() ? 'https://' : 'http://') . $http_host;
-}
-
-$base_url = getTrustedBaseUrl('my.wordpress.net');
+$base_url = (isHttps() ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
 $start_url = $base_url . ($_GET ? '/?' . http_build_query($_GET) : '/');
 
 $app_name = $_GET['app_name'] ?? 'My WordPress';

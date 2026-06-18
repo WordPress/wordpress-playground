@@ -60,7 +60,8 @@ describe('PWA manifest configuration', () => {
 		expect(php).toContain("unset($query['random']);");
 		expect(php).toContain('"id" => getManifestId($start_url)');
 		expect(php).toContain('"scope" => $base_url . "/"');
-		expect(php).toContain("getTrustedBaseUrl('my.wordpress.net')");
+		expect(php).toContain("$_SERVER['HTTP_HOST']");
+		expect(php).not.toContain('getTrustedBaseUrl');
 		expect(php).toContain(" : '/'");
 		expect(php).not.toContain('"shortcuts" =>');
 		expect(php).toContain(
