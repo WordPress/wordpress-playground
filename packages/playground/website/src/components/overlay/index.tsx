@@ -29,9 +29,15 @@ interface OverlayProps {
 	children: ReactNode;
 	onClose: () => void;
 	className?: string;
+	contentClassName?: string;
 }
 
-export function Overlay({ children, onClose, className }: OverlayProps) {
+export function Overlay({
+	children,
+	onClose,
+	className,
+	contentClassName,
+}: OverlayProps) {
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
@@ -54,7 +60,10 @@ export function Overlay({ children, onClose, className }: OverlayProps) {
 
 	return (
 		<div className={classNames(css.overlay, className)}>
-			<VStack className={css.fullscreenContent} spacing={0}>
+			<VStack
+				className={classNames(css.fullscreenContent, contentClassName)}
+				spacing={0}
+			>
 				{children}
 			</VStack>
 		</div>

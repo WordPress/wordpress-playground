@@ -1,0 +1,28 @@
+{
+	"name": "@wp-playground/remote-access",
+	"version": "3.1.38",
+	"private": true,
+	"description": "Remote access transport for WordPress Playground",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"types": "index.d.ts",
+	"engines": {
+		"node": ">=20.10.0",
+		"npm": ">=10.2.3"
+	},
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	}
+}

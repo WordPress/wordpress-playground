@@ -57,7 +57,7 @@ const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 		async ({ browser, mcpClient }, use) => {
 			const page = await browser.newPage();
 			await page.goto(
-				`http://127.0.0.1:5400/website-server/?mcp=yes&mcp-port=${MCP_WS_PORT}`
+				`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
 			);
 
 			// Wait for WordPress to load inside the nested iframes
@@ -163,7 +163,7 @@ test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
 
 	if (needsReset) {
 		await playgroundPage.goto(
-			`http://127.0.0.1:5400/website-server/?mcp=yes&mcp-port=${MCP_WS_PORT}`
+			`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
 		);
 		await waitForActiveSite(mcpClient, 60_000, { probe: false });
 	}
@@ -206,7 +206,7 @@ test('playground_list_sites includes playground url with mcp params', async ({
 		(s: { siteId: string }) => s.siteId === siteId
 	);
 	expect(site).toBeDefined();
-	expect(site.url).toMatch(new RegExp(`\\?mcp=yes&mcp-port=${MCP_WS_PORT}$`));
+	expect(site.url).toMatch(new RegExp(`\\?mcp-port=${MCP_WS_PORT}$`));
 });
 
 test('playground_open_site_in_new_tab activates an inactive site in a new tab', async ({
@@ -224,7 +224,7 @@ test('playground_open_site_in_new_tab activates an inactive site in a new tab', 
 	// new temporary site (active) while loading the saved site
 	// from OPFS (inactive).
 	await playgroundPage.goto(
-		`http://127.0.0.1:5400/website-server/?mcp=yes&mcp-port=${MCP_WS_PORT}`
+		`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
 	);
 	await expect(
 		playgroundPage
