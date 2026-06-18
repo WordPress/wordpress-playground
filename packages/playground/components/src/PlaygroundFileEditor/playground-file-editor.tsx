@@ -100,6 +100,7 @@ export function PlaygroundFileEditor({
 	const codeRef = useRef<string>(code);
 	const currentPathRef = useRef<string | null>(currentPath);
 	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
+	const onSaveFileRef = useRef(onSaveFile);
 	const previousFilesystemRef = useRef<AsyncWritableFilesystem | null>(null);
 	// Cursor positions live in the persisted state (when a persistKey is given)
 	// so they survive unmounts; otherwise they're a plain per-instance map.
@@ -131,6 +132,10 @@ export function PlaygroundFileEditor({
 	useEffect(() => {
 		filesystemRef.current = filesystem;
 	}, [filesystem]);
+
+	useEffect(() => {
+		onSaveFileRef.current = onSaveFile;
+	}, [onSaveFile]);
 
 	// Call onBeforeFilesystemChange when filesystem changes
 	useEffect(() => {
@@ -218,13 +223,44 @@ export function PlaygroundFileEditor({
 		hasAutoOpenedRef.current = false;
 	}, [documentRoot]);
 
-	// Flush pending save on unmount
+	// Flush the unsaved edit on unmount. Edits are written by a 1.5s debounce,
+	// and closing the panel mid-edit (while it still reads "Saving…") would
+	// otherwise drop the change — the pending debounced write never fires. The
+	// filesystem / onSaveFile client is keyed to the running Playground, not to
+	// this panel, so it outlives the unmount: we read the file one last time and
+	// write the buffer if it still differs, fire-and-forget. Comparing against
+	// disk (rather than the timer) makes this independent of effect-cleanup
+	// ordering and never double-writes or writes unchanged content.
 	useEffect(() => {
 		return () => {
+			const activeFilesystem = filesystemRef.current;
+			const path = currentPathRef.current;
 			if (saveTimeoutRef.current !== null) {
 				window.clearTimeout(saveTimeoutRef.current);
 				saveTimeoutRef.current = null;
 			}
+			if (!activeFilesystem || !path) {
+				return;
+			}
+			const content = codeRef.current;
+			void (async () => {
+				try {
+					const onDisk = await activeFilesystem.readFileAsText(path);
+					if (onDisk === content) {
+						return;
+					}
+					if (onSaveFileRef.current) {
+						await onSaveFileRef.current(path, content);
+					} else {
+						await activeFilesystem.writeFile(path, content);
+					}
+				} catch (error) {
+					logger.error(
+						'Failed to flush pending save on unmount',
+						error
+					);
+				}
+			})();
 		};
 	}, []);
 
