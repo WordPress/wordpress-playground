@@ -28,4 +28,42 @@ describe('base64', () => {
 
 		expect(decodeBase64ToString(encodeStringAsBase64(text))).toBe(text);
 	});
+
+	it('round-trips arbitrary bytes through the Uint8Array helpers', () => {
+		const bytes = new Uint8Array(256);
+		for (let index = 0; index < bytes.length; index++) {
+			bytes[index] = index;
+		}
+
+		expect(
+			decodeBase64ToUint8Array(encodeUint8ArrayAsBase64(bytes))
+		).toEqual(bytes);
+	});
+
+	it('encodes large inputs without overflowing the call stack', () => {
+		const bytes = new Uint8Array(0x20000).fill(0x41);
+
+		expect(
+			decodeBase64ToUint8Array(encodeUint8ArrayAsBase64(bytes))
+		).toEqual(bytes);
+	});
+
+	it('round-trips arbitrary bytes through the Uint8Array helpers', () => {
+		const bytes = new Uint8Array(256);
+		for (let index = 0; index < bytes.length; index++) {
+			bytes[index] = index;
+		}
+
+		expect(
+			decodeBase64ToUint8Array(encodeUint8ArrayAsBase64(bytes))
+		).toEqual(bytes);
+	});
+
+	it('encodes large inputs without overflowing the call stack', () => {
+		const bytes = new Uint8Array(0x20000).fill(0x41);
+
+		expect(
+			decodeBase64ToUint8Array(encodeUint8ArrayAsBase64(bytes))
+		).toEqual(bytes);
+	});
 });
