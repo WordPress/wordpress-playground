@@ -18,7 +18,10 @@ export type PersonalWpUsageStatsEvent =
 	| 'wordpress_installed'
 	| 'returning_visit'
 	| 'blueprint_installed'
-	| 'remote_access_started';
+	| 'remote_access_started'
+	| 'health_check_installed'
+	| 'sidebar_opened'
+	| 'backup_restored';
 
 export type PersonalWpUsageStatsProperties = Record<string, JsonValue>;
 export type BlueprintInstallUsageStatsTrigger =

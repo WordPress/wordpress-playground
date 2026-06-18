@@ -10,6 +10,11 @@ import {
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { createLanguageStep } from './i18n';
+import {
+	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
+	healthCheckRecoveryBlueprint,
+	isHealthCheckRecoveryUrl,
+} from '../health-check-recovery';
 
 /**
  * Determines whether to use the default personal blueprint or process URL params.
@@ -80,6 +85,7 @@ const ACTIONABLE_URL_PARAMS = [
 	'import-site',
 	'import-wxr',
 	'import-content',
+	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
 ];
 
 /**
@@ -102,6 +108,10 @@ export async function resolveUrlParamsForExistingSite(
 ): Promise<BlueprintV1Declaration | null> {
 	if (!hasActionableUrlParams(url)) {
 		return null;
+	}
+
+	if (isHealthCheckRecoveryUrl(url)) {
+		return healthCheckRecoveryBlueprint;
 	}
 
 	try {
