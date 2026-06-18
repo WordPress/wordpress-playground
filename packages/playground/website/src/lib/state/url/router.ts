@@ -214,8 +214,8 @@ function isEmbeddedInAnIframe(win: Window): boolean {
 }
 
 /**
- * Checks if the MCP server bridge is enabled via the `?mcp=yes` query parameter.
+ * Checks if the MCP server bridge is enabled via the `?mcp-port` query parameter.
  */
 export function isMcpServerEnabled(): boolean {
-	return new URL(document.location.href).searchParams.get('mcp') === 'yes';
+	return new URL(document.location.href).searchParams.has('mcp-port');
 }

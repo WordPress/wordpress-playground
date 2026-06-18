@@ -52,6 +52,12 @@ type MainTabFocusAcknowledgedMessage = {
 	siteSlug: string;
 };
 
+type McpConnectRequestMessage = {
+	type: 'mcp-connect-request';
+	siteSlug: string;
+	port: number;
+};
+
 type MainTabStatusMessage = {
 	type: 'main-tab-status';
 	tabId: string;
@@ -86,6 +92,7 @@ type TabCoordinatorMessage =
 	| BackupCompletedMessage
 	| MainTabFocusRequestMessage
 	| MainTabFocusAcknowledgedMessage
+	| McpConnectRequestMessage
 	| MainTabStatusMessage
 	| InstallBlueprintRequestMessage
 	| InstallBlueprintResultMessage
@@ -122,6 +129,7 @@ let channel: BroadcastChannel | null = null;
 let currentTabInfo: TabInfo | null = null;
 let currentOptions: TabCoordinatorOptions = {};
 let backupRequestCallback: (() => Promise<boolean>) | null = null;
+let mcpConnectRequestCallback: ((port: number) => void) | null = null;
 let installBlueprintRequestCallback:
 	| ((
 			blueprintUrl: string,
@@ -190,6 +198,7 @@ export function destroyTabCoordinator(): void {
 	currentTabInfo = null;
 	currentOptions = {};
 	backupRequestCallback = null;
+	mcpConnectRequestCallback = null;
 	installBlueprintRequestCallback = null;
 	userBlueprintInstallCallback = null;
 	clearTitleFlash();
@@ -226,6 +235,12 @@ export function setBackupRequestCallback(
 	callback: (() => Promise<boolean>) | null
 ): void {
 	backupRequestCallback = callback;
+}
+
+export function setMcpConnectRequestCallback(
+	callback: ((port: number) => void) | null
+): void {
+	mcpConnectRequestCallback = callback;
 }
 
 export type InstallBlueprintRequestOptions = {
@@ -439,6 +454,17 @@ export async function requestMainTabFocus(
 	});
 }
 
+export function requestRemoteMcpConnect(siteSlug: string, port: number): void {
+	if (!channel || !currentTabInfo) {
+		return;
+	}
+	channel.postMessage({
+		type: 'mcp-connect-request',
+		siteSlug,
+		port,
+	} satisfies McpConnectRequestMessage);
+}
+
 export function broadcastSiteReset(siteSlug: string): void {
 	if (currentTabInfo?.siteSlug === siteSlug) {
 		releaseHeldLocks();
@@ -510,6 +536,16 @@ function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
 					targetTabId: message.requestingTabId,
 					siteSlug: message.siteSlug,
 				} satisfies MainTabFocusAcknowledgedMessage);
+			}
+			break;
+
+		case 'mcp-connect-request':
+			if (
+				message.siteSlug === currentTabInfo.siteSlug &&
+				isCurrentMainTab() &&
+				mcpConnectRequestCallback
+			) {
+				mcpConnectRequestCallback(message.port);
 			}
 			break;
 

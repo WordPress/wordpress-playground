@@ -8,8 +8,10 @@ import {
 	requestRemoteBackup,
 	requestRemoteBlueprintInstall,
 	requestMainTabFocus,
+	requestRemoteMcpConnect,
 	broadcastSiteReset,
 	setBackupRequestCallback,
+	setMcpConnectRequestCallback,
 	setInstallBlueprintRequestCallback,
 } from './tab-coordinator';
 
@@ -343,6 +345,45 @@ describe('tab-coordinator', () => {
 				status: 'success',
 			},
 		});
+	});
+
+	it('handles MCP connect requests in the main tab', async () => {
+		const connectCallback = vi.fn();
+		await initTabCoordinator('my-site');
+		setMcpConnectRequestCallback(connectCallback);
+
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+
+		otherChannel.postMessage({
+			type: 'mcp-connect-request',
+			siteSlug: 'my-site',
+			port: 59057,
+		});
+
+		expect(connectCallback).toHaveBeenCalledWith(59057);
+	});
+
+	it('broadcasts MCP connect requests from dependent tabs', async () => {
+		await initTabCoordinator('my-site');
+		const requests: unknown[] = [];
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			requests.push(event.data);
+		};
+
+		requestRemoteMcpConnect('my-site', 59057);
+
+		expect(requests).toEqual([
+			{
+				type: 'mcp-connect-request',
+				siteSlug: 'my-site',
+				port: 59057,
+			},
+		]);
 	});
 
 	it('passes the trusted install request source to the main tab', async () => {

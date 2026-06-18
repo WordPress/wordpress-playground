@@ -35,7 +35,7 @@ startListening({
 			},
 		};
 
-		// Register WebMCP tools regardless of ?mcp=yes — they only
+		// Register WebMCP tools regardless of ?mcp-port — they only
 		// activate when navigator.modelContext is available.
 		/**
 		 * Wrapped in try/catch because WebMCP (navigator.modelContext) is an
@@ -50,7 +50,7 @@ startListening({
 		}
 
 		// Only start the WebSocket bridge when explicitly requested
-		// via ?mcp=yes and a port is provided.
+		// via ?mcp-port.
 		if (!isMcpServerEnabled()) {
 			return;
 		}

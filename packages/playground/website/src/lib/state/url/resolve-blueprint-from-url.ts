@@ -89,7 +89,7 @@ export async function resolveBlueprintFromURL(
 				`Starting a new Playground from a Blueprint is disabled when the MCP server
 				is active to prevent potential prompt injection vulnerabilities.
 				Please remove the "blueprint-url" query parameter to proceed or
-				disable the MCP server by removing the "mcp=yes" query parameter.`
+				disable the MCP server by removing the "mcp-port" query parameter.`
 			);
 		}
 		/*
@@ -110,7 +110,7 @@ export async function resolveBlueprintFromURL(
 				`Starting a new Playground from a Blueprint is disabled when the MCP server
 				is active to prevent potential prompt injection vulnerabilities.
 				Please remove the Blueprint hash from your URL or
-				disable the MCP server by removing the "mcp=yes" query parameter.`
+				disable the MCP server by removing the "mcp-port" query parameter.`
 			);
 		}
 		/*
