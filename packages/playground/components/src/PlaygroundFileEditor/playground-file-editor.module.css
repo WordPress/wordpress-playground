@@ -175,7 +175,9 @@
 	display: none;
 }
 
-@media (max-width: 960px) {
+/* Matches the dock's mobile breakpoint (1024px) so the editor flips to its
+   mobile layout together with the dock. */
+@media (max-width: 1024px) {
 	.sidebarWrapper {
 		position: absolute;
 		top: 0;
@@ -215,11 +217,20 @@
 	.editorPath {
 		width: 100%;
 		order: 2;
+		/* Keep the (potentially long) filename clear of the dock pane's close X
+		   in the top-right corner; it shares this first row with "Browse files". */
+		margin-right: 48px;
 	}
 
 	.mobileToggle {
 		display: inline-flex;
 		order: 1;
+	}
+
+	/* Drop the save-status cluster below the "Browse files" / filename rows so
+	   that sparse first row leaves its right corner free for the pane's close X. */
+	.editorHeaderActions {
+		order: 3;
 	}
 
 	.content {

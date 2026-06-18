@@ -11,6 +11,7 @@ import {
 	Icon,
 	chevronDown,
 	chevronUp,
+	close,
 	code,
 	grid,
 	list,
@@ -213,9 +214,11 @@ const PANE_COPY: Record<DockSection, { title: string; description: string }> = {
 
 type DockPosition = { left: number; top: number };
 
-// Below this width the dock becomes a full-width bottom bar with full-screen
-// panels (the mobile-app pattern), and free-floating drag is turned off.
-const MOBILE_QUERY = '(max-width: 720px)';
+// At/below this width the dock becomes a full-width bottom bar with full-screen
+// panels (the mobile-app pattern), and free-floating drag is turned off. Set to
+// cover phones and portrait tablets, where a floating pane would crowd or
+// overflow the viewport.
+const MOBILE_QUERY = '(max-width: 1024px)';
 
 function useIsMobile() {
 	const [isMobile, setIsMobile] = useState(
@@ -273,6 +276,14 @@ export function Dock() {
 	const [isDragging, setIsDragging] = useState(false);
 	// Collapsed dock hides the tools row, leaving just the address + status.
 	const [isCollapsed, setIsCollapsed] = useState(false);
+	// The dock's height while its tools row is shown. The default (non-dragged)
+	// desktop dock is pinned by a TOP edge derived from this height, so collapsing
+	// the tools leaves the address row exactly where it is — a bottom anchor would
+	// let the address bar drop as the dock shrinks (only the tools should move).
+	const [expandedDockHeight, setExpandedDockHeight] = useState(0);
+	const [viewportHeight, setViewportHeight] = useState(() =>
+		typeof window !== 'undefined' ? window.innerHeight : 0
+	);
 	const dragStart = useRef<{
 		pointerX: number;
 		pointerY: number;
@@ -298,6 +309,28 @@ export function Dock() {
 		});
 		observer.observe(dockRef.current);
 		return () => observer.disconnect();
+	}, []);
+
+	// Remember the dock's height while the tools are shown — the anchor for the
+	// default desktop position so collapsing doesn't move the address row.
+	// Grow-only: while the tools row animates open its observed height climbs from
+	// the collapsed value back up to full, and tracking that climb would make the
+	// top anchor dip down and rise back up. Taking the max pins the anchor at the
+	// full expanded height for the whole transition. (Desktop tools are a single
+	// non-wrapping row, so the expanded height never legitimately shrinks.)
+	useEffect(() => {
+		if (!isCollapsed && dockSize.height) {
+			setExpandedDockHeight((previous) =>
+				Math.max(previous, dockSize.height)
+			);
+		}
+	}, [isCollapsed, dockSize.height]);
+
+	// Re-pin the default dock to the bottom edge when the viewport height changes.
+	useEffect(() => {
+		const onResize = () => setViewportHeight(window.innerHeight);
+		window.addEventListener('resize', onResize);
+		return () => window.removeEventListener('resize', onResize);
 	}, []);
 
 	// Animate the Share pane's height when it swaps between its list and the
@@ -496,15 +529,28 @@ export function Dock() {
 
 	// On mobile the dock is a CSS-positioned full-width bottom bar, so any
 	// dragged free-floating position is ignored.
-	const dockStyle: React.CSSProperties | undefined =
-		!isMobile && dockPosition
-			? {
-					left: `${dockPosition.left}px`,
-					top: `${dockPosition.top}px`,
-					bottom: 'auto',
-					transform: 'none',
-				}
-			: undefined;
+	let dockStyle: React.CSSProperties | undefined;
+	if (isMobile) {
+		dockStyle = undefined;
+	} else if (dockPosition) {
+		dockStyle = {
+			left: `${dockPosition.left}px`,
+			top: `${dockPosition.top}px`,
+			bottom: 'auto',
+			transform: 'none',
+		};
+	} else if (expandedDockHeight && viewportHeight) {
+		// Default bottom-center, but pinned by the TOP edge computed from the
+		// EXPANDED height (keeping the CSS left:50% + translateX centering). This
+		// keeps the address row fixed when the tools collapse — the tools tuck away
+		// beneath it instead of the whole bar dropping to re-anchor at the bottom.
+		dockStyle = {
+			top: `${
+				viewportHeight - DOCK_DEFAULT_BOTTOM - expandedDockHeight
+			}px`,
+			bottom: 'auto',
+		};
+	}
 
 	// Anchor the pane to the dock (centered on it, clamped to the viewport),
 	// opening above or below depending on room. We do this even at the default
@@ -519,9 +565,14 @@ export function Dock() {
 			'--dock-height': `${dockSize.height}px`,
 		} as React.CSSProperties;
 	} else if (dockSize.height) {
+		// Pin to the same top edge the dock uses (expanded-height anchor) so the
+		// pane stays put as the tools collapse, rather than tracking the shrinking
+		// current height.
 		const dockTop = dockPosition
 			? dockPosition.top
-			: window.innerHeight - DOCK_DEFAULT_BOTTOM - dockSize.height;
+			: viewportHeight -
+				DOCK_DEFAULT_BOTTOM -
+				(expandedDockHeight || dockSize.height);
 		const dockBottom = dockTop + dockSize.height;
 		const centerX = dockPosition
 			? dockPosition.left + dockSize.width / 2
@@ -535,8 +586,7 @@ export function Dock() {
 			window.innerWidth - halfWidth - DRAG_EDGE
 		);
 		const spaceAbove = dockTop - PANE_GAP - DRAG_EDGE;
-		const spaceBelow =
-			window.innerHeight - dockBottom - PANE_GAP - DRAG_EDGE;
+		const spaceBelow = viewportHeight - dockBottom - PANE_GAP - DRAG_EDGE;
 		const openAbove = spaceAbove >= spaceBelow;
 		const available = Math.max(160, openAbove ? spaceAbove : spaceBelow);
 		// Fixed-height panes get a stable height (capped) so they don't resize
@@ -557,7 +607,7 @@ export function Dock() {
 			...(fixedHeight ? { height: `${fixedHeight}px` } : {}),
 			...(openAbove
 				? {
-						bottom: `${window.innerHeight - dockTop + PANE_GAP}px`,
+						bottom: `${viewportHeight - dockTop + PANE_GAP}px`,
 						top: 'auto',
 					}
 				: {
@@ -594,6 +644,18 @@ export function Dock() {
 					style={paneStyle}
 					aria-label={`${paneCopy.title} pane`}
 				>
+					{/* On mobile the pane is full-screen, so the tap-outside scrim
+					    is covered — every panel needs a visible way back to the
+					    preview. This X is shown only on mobile (CSS). */}
+					<button
+						type="button"
+						className={css.paneClose}
+						aria-label="Close"
+						title="Close"
+						onClick={() => dispatch(setSiteManagerOpen(false))}
+					>
+						<Icon icon={close} size={24} />
+					</button>
 					{!isEditorSection &&
 						!(normalizedSection === 'share' && shareExportOpen) && (
 							<div className={css.paneHeader}>

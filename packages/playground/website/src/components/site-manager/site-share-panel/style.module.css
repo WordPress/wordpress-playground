@@ -22,8 +22,11 @@
 	gap: 4px;
 	letter-spacing: -0.01em;
 	line-height: 1.2;
-	margin: var(--space-2) 0 var(--space-4) calc(-1 * var(--space-1));
-	padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+	/* Drop the left padding (and the old −4/+4 dance) so the chevron's optical
+	   edge — nudged left below — lands on the pane's left inset, sharing one clean
+	   left edge with the body content underneath. */
+	margin: var(--space-2) 0 var(--space-4);
+	padding: var(--space-1) var(--space-2) var(--space-1) 0;
 	transition: background 120ms ease;
 }
 
@@ -33,6 +36,9 @@
 
 .back-button :global(svg) {
 	fill: var(--ink-faint);
+	/* The chevron glyph carries internal whitespace; nudge it out so its visible
+	   stroke aligns with the pane's left inset (and the body text below). */
+	margin-left: -6px;
 }
 
 .export-loading {

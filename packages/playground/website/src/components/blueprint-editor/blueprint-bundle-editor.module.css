@@ -67,8 +67,13 @@
 .editorHeaderActions {
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
+	justify-content: flex-end;
 	gap: 8px;
-	flex-shrink: 0;
+	/* Allow the action group to shrink/wrap on narrow panes instead of pushing
+	   itself off the edge (it sits beside a flex:1 path that would otherwise win
+	   the width fight and clip the buttons). */
+	min-width: 0;
 }
 
 /* A quiet docs link sitting to the left of the toolbar's actions. */
@@ -183,7 +188,9 @@
 	display: none;
 }
 
-@media (max-width: 960px) {
+/* Mobile breakpoint matches the dock's (1024px) so the editor and the dock flip
+   to their mobile layouts together. */
+@media (max-width: 1024px) {
 	.sidebarWrapper {
 		position: absolute;
 		top: 0;
@@ -219,11 +226,36 @@
 	.editorPath {
 		width: 100%;
 		order: 2;
+		/* Keep the filename clear of the pane's close X in the top-right corner
+		   (it shares this first row with "Browse files"). */
+		margin-right: 48px;
 	}
 
 	.mobileToggle {
 		display: inline-flex;
 		order: 1;
+	}
+
+	/* The action cluster spans the pane and lays out left-to-right instead of
+	   pinning a ragged stack to the right edge; the primary "Run Blueprint" button
+	   takes its own full-width row so it stays prominent and never gets squeezed
+	   between the smaller actions. It also drops below the "Browse files" /
+	   filename row (order) so that sparse row sits at the top, leaving its
+	   right corner free for the pane's close X. */
+	.editorHeaderActions {
+		width: 100%;
+		justify-content: flex-start;
+		gap: 8px;
+		order: 3;
+	}
+
+	.editorDocsLink {
+		margin-right: 0;
+	}
+
+	.editorHeaderActions .editorToolbarButton:last-child {
+		flex: 1 0 100%;
+		justify-content: center;
 	}
 
 	.content {

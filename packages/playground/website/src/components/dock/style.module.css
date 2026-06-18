@@ -243,6 +243,10 @@
 	font-weight: 500;
 	letter-spacing: 0.015em;
 	line-height: 1;
+	/* One line per label so every tool button is the same height and the icons
+	   stay on a shared baseline (a 2-line label like "This Playground" otherwise
+	   made its button taller than its neighbours). */
+	white-space: nowrap;
 }
 
 .pane {
@@ -665,7 +669,14 @@
 	overflow: hidden;
 }
 
-@media (max-width: 720px) {
+/* Mobile-only close affordance. The full-screen mobile pane covers the
+   tap-outside scrim, so each panel needs a visible X back to the preview. On
+   desktop the dock tool toggle and the scrim already close the pane. */
+.pane-close {
+	display: none;
+}
+
+@media (max-width: 1024px) {
 	/* The dock becomes a flush full-width bottom bar (the mobile-app pattern):
 	   the tools row sits on TOP, the address + status row below it. column-reverse
 	   keeps the DOM order (address row first, for desktop) while flipping the
@@ -700,6 +711,9 @@
 		overflow-y: hidden;
 		scrollbar-width: none;
 		-webkit-overflow-scrolling: touch;
+		/* Center the tools on a wide bar (tablets), but fall back to the start
+		   edge when they overflow so the first tool never gets cut off. */
+		justify-content: safe center;
 	}
 
 	.dock-tools::-webkit-scrollbar {
@@ -728,6 +742,20 @@
 		max-height: none;
 		transform: none;
 		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+		/* Flex column so the close bar is the first row and the body fills and
+		   scrolls beneath it. */
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	/* The panel body fills the space under the close bar (and header) and scrolls
+	   on its own, keeping the close control pinned at the top. Editor and
+	   fixed-height panes keep their internal scroll via existing overflow:hidden. */
+	.pane-body {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
 	}
 
 	/* Full-screen panels fade + rise in (no horizontal-centering transform). */
@@ -759,5 +787,49 @@
 
 	.pane-header {
 		padding: var(--space-6) var(--space-6) var(--space-4);
+	}
+
+	/* The dock's bottom bar already carries a "New" tool, so the in-pane
+	   "New Playground" header action is redundant on mobile — hide it so the
+	   close X can own the header's top-right corner without crowding. */
+	.pane-header-action {
+		display: none;
+	}
+
+	/* The close X overlays the first content row's top-right corner rather than
+	   taking a row of its own (no wasted line). It's an absolute child of the
+	   fixed pane — NOT inside the scrolling body — so it stays pinned while the
+	   body scrolls. Calm ghost icon button matching the app's other icon controls
+	   (e.g. the rename pencil), aligned to the content gutter. */
+	.pane-close {
+		align-items: center;
+		background: transparent;
+		border: 0;
+		border-radius: var(--radius-control);
+		color: var(--ink-faint);
+		cursor: pointer;
+		display: flex;
+		height: 36px;
+		justify-content: center;
+		padding: 0;
+		position: absolute;
+		right: var(--space-6);
+		top: var(--space-3);
+		width: 36px;
+		z-index: 6;
+	}
+
+	.pane-close:hover {
+		background: var(--paper-4);
+		color: var(--ink);
+	}
+
+	.pane-close:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	.pane-close svg {
+		fill: currentColor;
 	}
 }

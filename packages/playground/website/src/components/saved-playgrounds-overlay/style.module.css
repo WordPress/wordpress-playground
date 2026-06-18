@@ -665,7 +665,7 @@
 
 	.blueprintPreviewThumbnail {
 		height: 115px;
-		width: 140px !important;
+		width: 140px;
 		aspect-ratio: unset;
 		flex-shrink: 0;
 		background: #252a2e;
@@ -1219,6 +1219,26 @@
 	white-space: nowrap;
 }
 
+/* On phones the 3-column tab grid clips the longer labels ("Blueprint gallery",
+   "Write a Blueprint", "From GitHub"). Drop to a single-column list of full-width
+   rows — icon left, full untruncated label — at a comfortable touch height. */
+@media (max-width: 1024px) {
+	.playgrounds-pane.new-pane .creationTabs {
+		grid-template-columns: 1fr;
+	}
+
+	.playgrounds-pane.new-pane .creationButton {
+		min-height: 44px;
+		padding: 12px;
+	}
+
+	.playgrounds-pane.new-pane .creationTitle {
+		overflow: visible;
+		text-overflow: clip;
+		white-space: normal;
+	}
+}
+
 /* Active tab: a raised white segment with a defined edge and an accent icon —
    it reads above the resting cells by value, not by shadow alone. */
 .playgrounds-pane.new-pane .creationButtonActive,
@@ -1432,6 +1452,10 @@
 	border: 0;
 	border-radius: 0;
 	overflow: visible;
+	/* Shrink to the section width so a long Playground name truncates instead of
+	   widening the whole list (the flex/grid default min-width:auto otherwise lets
+	   the longest name push the list — and the pane — into horizontal overflow). */
+	min-width: 0;
 	/* Bleed the rows' hover/active highlight into the pane gutter so the row
 	   CONTENT (avatar, name) lines up with the section eyebrows and title, while
 	   the rounded highlight still has breathing room on both sides. */
@@ -1445,6 +1469,8 @@
 	   Square rows keep the dividers straight and the hover/current fills read as
 	   clean full-width bands. */
 	border-radius: 0;
+	/* Let the row shrink to the list width so its name truncates. */
+	min-width: 0;
 }
 
 /* A single hairline between adjacent rows. It stays put on hover/active so the
@@ -1571,7 +1597,11 @@
 .playgrounds-pane .blueprintsRow {
 	display: grid;
 	gap: 16px;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	/* Fluid columns: ~160px-wide cards that reflow to one column on very narrow
+	   screens and more columns as the pane widens (full-screen on tablets), so the
+	   gallery never forces two cramped, overflowing cards. min(160px, 100%) keeps a
+	   single column from overflowing below 160px. */
+	grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
 }
 
 .playgrounds-pane .filtersBar {
@@ -1646,7 +1676,14 @@
 .playgrounds-pane.new-pane .blueprintPreviewCard {
 	align-items: stretch;
 	border-radius: 12px;
+	/* Vertical card (thumbnail over title), overriding the legacy ≤875px overlay
+	   rule that flips cards to a horizontal dark list — which squeezed the title
+	   to nothing in the full-screen pane. */
+	flex-direction: column;
 	gap: 0;
+	/* Shrink to the grid cell so the (nowrap) title truncates instead of forcing
+	   the card — and the gallery — wider than the pane. */
+	min-width: 0;
 	overflow: hidden;
 	padding: 0;
 	text-align: left;
@@ -1668,6 +1705,11 @@
 	border: none;
 	border-bottom: 1px solid rgba(33, 30, 25, 0.1);
 	border-radius: 0;
+	/* Full-width thumbnail on top of the vertical card (overrides the legacy
+	   ≤875px fixed 140px-wide list-thumbnail). */
+	width: 100%;
+	height: auto;
+	flex-shrink: 1;
 	position: relative;
 }
 
@@ -1694,6 +1736,9 @@
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
+	/* Let the title's ellipsis kick in instead of the nowrap text widening the
+	   card. */
+	min-width: 0;
 	padding: 10px 12px 12px;
 }
 
