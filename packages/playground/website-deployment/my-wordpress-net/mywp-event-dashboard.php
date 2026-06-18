@@ -997,6 +997,9 @@ function mywp_event_dashboard_get_current_area( $groups ) {
 				'returning-visitors',
 				'blueprint-installs',
 				'remote-access',
+				'health-check',
+				'sidebar',
+				'backups',
 			),
 			true
 		)
@@ -1014,6 +1017,9 @@ function mywp_event_dashboard_area( $type, $plugin_slug = null ) {
 		'returning-visitors' => 'Returning visitors',
 		'blueprint-installs' => 'Blueprint installs',
 		'remote-access' => 'Remote Access',
+		'health-check' => 'Health Check',
+		'sidebar' => 'Site Tools',
+		'backups' => 'Backups',
 		'plugin' => 'Plugin',
 	);
 
@@ -1043,6 +1049,9 @@ function mywp_event_dashboard_render_area_controls(
 		mywp_event_dashboard_area( 'returning-visitors' ),
 		mywp_event_dashboard_area( 'blueprint-installs' ),
 		mywp_event_dashboard_area( 'remote-access' ),
+		mywp_event_dashboard_area( 'health-check' ),
+		mywp_event_dashboard_area( 'sidebar' ),
+		mywp_event_dashboard_area( 'backups' ),
 	);
 	$plugin_slug_rows = mywp_event_dashboard_plugin_slug_rows( $groups );
 	?>
@@ -1181,6 +1190,42 @@ function mywp_event_dashboard_render_area(
 				'Remote Access',
 				'Remote Access sessions started from Site Tools.',
 				'remote_access_started',
+				array(),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'health-check':
+			mywp_event_dashboard_render_event_area(
+				'Health Check',
+				'Health Check recovery installs started from Site Tools.',
+				'health_check_installed',
+				array(),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'sidebar':
+			mywp_event_dashboard_render_event_area(
+				'Site Tools',
+				'Site Tools sidebar opens.',
+				'sidebar_opened',
+				array(),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'backups':
+			mywp_event_dashboard_render_event_area(
+				'Backups',
+				'Backup restores completed from Site Tools.',
+				'backup_restored',
 				array(),
 				$stats,
 				$groups,
@@ -1351,6 +1396,18 @@ function mywp_event_dashboard_render_overview_cards( $groups ) {
 		$groups,
 		'remote_access_started'
 	);
+	$health_check_installed = mywp_event_dashboard_event_count(
+		$groups,
+		'health_check_installed'
+	);
+	$sidebar_opened = mywp_event_dashboard_event_count(
+		$groups,
+		'sidebar_opened'
+	);
+	$backup_restored = mywp_event_dashboard_event_count(
+		$groups,
+		'backup_restored'
+	);
 	$total_views = mywp_event_dashboard_sum_views( $groups['event'] ?? array() );
 	?>
 	<section class="grid" aria-label="Event totals">
@@ -1380,6 +1437,27 @@ function mywp_event_dashboard_render_overview_cards( $groups ) {
 			<div class="stat-number"><?php echo mywp_event_dashboard_number( $remote_access_started ); ?></div>
 			<div class="kpi-detail">
 				<?php echo mywp_event_dashboard_ratio( $remote_access_started, $new_installs ); ?> per new install
+			</div>
+		</div>
+		<div class="panel">
+			<div class="muted">Health Check installs</div>
+			<div class="stat-number"><?php echo mywp_event_dashboard_number( $health_check_installed ); ?></div>
+			<div class="kpi-detail">
+				<?php echo mywp_event_dashboard_ratio( $health_check_installed, $new_installs ); ?> per new install
+			</div>
+		</div>
+		<div class="panel">
+			<div class="muted">Site Tools opens</div>
+			<div class="stat-number"><?php echo mywp_event_dashboard_number( $sidebar_opened ); ?></div>
+			<div class="kpi-detail">
+				<?php echo mywp_event_dashboard_ratio( $sidebar_opened, $new_installs ); ?> per new install
+			</div>
+		</div>
+		<div class="panel">
+			<div class="muted">Backup restores</div>
+			<div class="stat-number"><?php echo mywp_event_dashboard_number( $backup_restored ); ?></div>
+			<div class="kpi-detail">
+				<?php echo mywp_event_dashboard_ratio( $backup_restored, $new_installs ); ?> per new install
 			</div>
 		</div>
 		<div class="panel">
@@ -1463,6 +1541,9 @@ function mywp_event_dashboard_order_event_values( $event_values ) {
 		'returning_visit',
 		'blueprint_installed',
 		'remote_access_started',
+		'health_check_installed',
+		'sidebar_opened',
+		'backup_restored',
 	);
 	$ordered_values = array();
 	foreach ( $preferred_order as $event_value ) {
@@ -1611,6 +1692,9 @@ function mywp_event_dashboard_event_color( $event ) {
 		'returning_visit' => '#3858e9',
 		'blueprint_installed' => '#b26200',
 		'remote_access_started' => '#8a2424',
+		'health_check_installed' => '#5b5fc7',
+		'sidebar_opened' => '#007cba',
+		'backup_restored' => '#008a20',
 	);
 
 	if ( isset( $colors[ $event ] ) ) {
@@ -1636,6 +1720,9 @@ function mywp_event_dashboard_event_label( $event ) {
 		'returning_visit' => 'Returning visits',
 		'blueprint_installed' => 'Blueprint installs',
 		'remote_access_started' => 'Remote Access starts',
+		'health_check_installed' => 'Health Check installs',
+		'sidebar_opened' => 'Site Tools opens',
+		'backup_restored' => 'Backup restores',
 	);
 
 	return $labels[ $event ] ?? $event;

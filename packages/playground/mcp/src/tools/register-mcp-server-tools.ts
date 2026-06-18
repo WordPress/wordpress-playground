@@ -53,7 +53,7 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 				zodType = z.boolean();
 				break;
 			case 'object':
-				zodType = z.record(z.string(), z.string());
+				zodType = z.record(z.string(), z.unknown());
 				break;
 			default:
 				throw new Error(
@@ -80,11 +80,12 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 export function registerMcpServerTools(
 	server: McpServer,
 	bridge: PlaygroundBridge,
-	port: number
+	port: number,
+	baseUrl?: string
 ) {
 	const sendCommand = bridge.sendCommand.bind(bridge);
 	const siteToolDefinitions = getSiteToolDefinitions();
-	const url = playgroundUrl(port);
+	const url = playgroundUrl(port, baseUrl);
 
 	// -- Site management tools --
 	// These operate on the bridge itself, not on a PlaygroundClient.

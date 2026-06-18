@@ -11,12 +11,26 @@ function getPortFromArgs(): number {
 	return 0;
 }
 
+function getBaseUrlFromArgs(): URL | undefined {
+	const urlArg = process.argv.find((a) => a.startsWith('--url='));
+	if (!urlArg) {
+		return undefined;
+	}
+	const value = urlArg.split('=').slice(1).join('=');
+	try {
+		return new URL(value);
+	} catch {
+		throw new Error(`Invalid --url: "${value}" must be an absolute URL.`);
+	}
+}
+
 async function main() {
-	const bridge = new PlaygroundBridge();
+	const baseUrl = getBaseUrlFromArgs();
+	const bridge = new PlaygroundBridge(baseUrl ? [baseUrl.href] : []);
 	await bridge.startWebSocketServer(getPortFromArgs());
 	const port = bridge.getPort();
 	const server = createServer();
-	registerMcpServerTools(server, bridge, port);
+	registerMcpServerTools(server, bridge, port, baseUrl?.href);
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
 	console.error('[MCP] WordPress Playground MCP server running on stdio');
