@@ -107,8 +107,12 @@ RUN cd /tmp && wget -q https://ftp.gnu.org/gnu/autoconf/autoconf-2.13.tar.gz && 
 	tar xzf autoconf-2.13.tar.gz && cd autoconf-2.13 && \
 	./configure --program-suffix=-2.13 --quiet && make -s && make install && \
 	cd / && rm -rf /tmp/autoconf-2.13* && \
-	wget -q -O /root/php-src/config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' && \
-	wget -q -O /root/php-src/config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' && \
+	wget -q -O /tmp/automake.tar.gz https://ftp.gnu.org/gnu/automake/automake-1.17.tar.gz && \
+	tar xzf /tmp/automake.tar.gz -C /tmp \
+		automake-1.17/lib/config.guess automake-1.17/lib/config.sub && \
+	cp /tmp/automake-1.17/lib/config.guess /root/php-src/config.guess && \
+	cp /tmp/automake-1.17/lib/config.sub /root/php-src/config.sub && \
+	rm -rf /tmp/automake.tar.gz /tmp/automake-1.17 && \
 	chmod +x /root/php-src/config.guess /root/php-src/config.sub && \
 	mv /usr/bin/flex /usr/bin/flex.real && \
 	printf '#!/bin/bash\nfor a in "$@"; do case "$a" in -V|-v|--version) echo "flex 2.5.4"; exit 0;; esac; done\n/usr/bin/flex.real "$@"\n' > /usr/bin/flex && \
