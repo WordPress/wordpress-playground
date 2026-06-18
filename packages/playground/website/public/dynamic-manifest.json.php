@@ -38,12 +38,6 @@ function getManifestId($start_url) {
     return $path . ($query ? '?' . http_build_query($query) : '');
 }
 
-function getShortcutUrl($base_url, $wordpress_url) {
-	$query = $_GET;
-	$query['url'] = $wordpress_url;
-	return $base_url . '/?' . http_build_query($query);
-}
-
 function getTrustedBaseUrl($fallback_host) {
     $http_host = $_SERVER['HTTP_HOST'] ?? $fallback_host;
     $hostname = strtolower(parse_url('http://' . $http_host, PHP_URL_HOST) ?? '');
@@ -79,44 +73,6 @@ $manifest = [
 			"sizes" => "1200x600",
 			"type" => "image/png",
 			"form_factor" => "wide"
-		]
-	],
-	"shortcuts" => [
-		[
-			"name" => "Homepage",
-			"short_name" => "Home",
-			"description" => "Open the WordPress homepage inside Playground.",
-			"url" => getShortcutUrl($base_url, "/")
-		],
-		[
-			"name" => "Dashboard",
-			"short_name" => "Dashboard",
-			"description" => "Open the WordPress dashboard inside Playground.",
-			"url" => getShortcutUrl($base_url, "/wp-admin/")
-		],
-		[
-			"name" => "Site Editor",
-			"short_name" => "Editor",
-			"description" => "Open the WordPress Site Editor inside Playground.",
-			"url" => getShortcutUrl($base_url, "/wp-admin/site-editor.php")
-		],
-		[
-			"name" => "New Post",
-			"short_name" => "Post",
-			"description" => "Open the new post screen inside Playground.",
-			"url" => getShortcutUrl($base_url, "/wp-admin/post-new.php")
-		],
-		[
-			"name" => "Plugins",
-			"short_name" => "Plugins",
-			"description" => "Open the WordPress plugins screen inside Playground.",
-			"url" => getShortcutUrl($base_url, "/wp-admin/plugins.php")
-		],
-		[
-			"name" => "Themes",
-			"short_name" => "Themes",
-			"description" => "Open the WordPress themes screen inside Playground.",
-			"url" => getShortcutUrl($base_url, "/wp-admin/themes.php")
 		]
 	],
 	"icons" => [

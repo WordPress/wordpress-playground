@@ -4,7 +4,7 @@ import { joinPaths } from '@php-wasm/util';
 const appRoot = joinPaths(process.cwd(), 'packages/playground/website');
 
 describe('PWA manifest configuration', () => {
-	it('includes install metadata, shortcuts, screenshots, and maskable icons', () => {
+	it('includes install metadata, screenshots, and maskable icons', () => {
 		const manifest = readJson('public/manifest.json');
 
 		expect(manifest).toMatchObject({
@@ -17,25 +17,16 @@ describe('PWA manifest configuration', () => {
 		});
 		expect(manifest.screenshots).toEqual([
 			expect.objectContaining({
-				src: '/ogimage.png',
+				src: 'ogimage.png',
 				sizes: '1200x600',
 				form_factor: 'wide',
 			}),
 		]);
-		expect(
-			manifest.shortcuts.map(({ url }: { url: string }) => url)
-		).toEqual([
-			'/?url=/',
-			'/?url=/wp-admin/',
-			'/?url=/wp-admin/site-editor.php',
-			'/?url=/wp-admin/post-new.php',
-			'/?url=/wp-admin/plugins.php',
-			'/?url=/wp-admin/themes.php',
-		]);
+		expect(manifest).not.toHaveProperty('shortcuts');
 		expect(manifest.icons).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
-					src: '/maskable-icon-512.png',
+					src: 'maskable-icon-512.png',
 					sizes: '512x512',
 					purpose: 'maskable',
 				}),
@@ -67,12 +58,7 @@ describe('PWA manifest configuration', () => {
 		expect(php).toContain('"id" => getManifestId($start_url)');
 		expect(php).toContain('"scope" => $base_url . "/"');
 		expect(php).toContain("getTrustedBaseUrl('playground.wordpress.net')");
-		expect(php).toContain(
-			'function getShortcutUrl($base_url, $wordpress_url)'
-		);
-		expect(php).toContain(
-			'getShortcutUrl($base_url, "/wp-admin/themes.php")'
-		);
+		expect(php).not.toContain('"shortcuts" =>');
 	});
 });
 

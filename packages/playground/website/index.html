@@ -56,7 +56,7 @@
 			 * Outside of the local dev server, use the dynamic manifest that
 			 * passes the query parameters through to the "start_url" property.
 			 */
-			let manifestUrl = new URL('/manifest.json', window.location.href);
+			let manifestUrl = new URL('manifest.json', window.location.href);
 
 			/**
 			 * In production, load a manifest URL that includes the current URL

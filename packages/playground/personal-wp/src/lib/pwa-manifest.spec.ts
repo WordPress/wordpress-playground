@@ -17,7 +17,7 @@ describe('PWA manifest configuration', () => {
 		});
 		expect(manifest.screenshots).toEqual([
 			expect.objectContaining({
-				src: '/ogimage-mywp.png',
+				src: 'ogimage-mywp.png',
 				sizes: '1200x600',
 				form_factor: 'wide',
 			}),
@@ -26,7 +26,7 @@ describe('PWA manifest configuration', () => {
 		expect(manifest.icons).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
-					src: '/maskable-icon-512.png',
+					src: 'maskable-icon-512.png',
 					sizes: '512x512',
 					purpose: 'maskable',
 				}),

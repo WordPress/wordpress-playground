@@ -12,77 +12,39 @@
 	"categories": ["development", "education", "utilities"],
 	"screenshots": [
 		{
-			"src": "/ogimage.png",
+			"src": "ogimage.png",
 			"sizes": "1200x600",
 			"type": "image/png",
 			"form_factor": "wide"
 		}
 	],
-	"shortcuts": [
-		{
-			"name": "Homepage",
-			"short_name": "Home",
-			"description": "Open the WordPress homepage inside Playground.",
-			"url": "/?url=/"
-		},
-		{
-			"name": "Dashboard",
-			"short_name": "Dashboard",
-			"description": "Open the WordPress dashboard inside Playground.",
-			"url": "/?url=/wp-admin/"
-		},
-		{
-			"name": "Site Editor",
-			"short_name": "Editor",
-			"description": "Open the WordPress Site Editor inside Playground.",
-			"url": "/?url=/wp-admin/site-editor.php"
-		},
-		{
-			"name": "New Post",
-			"short_name": "Post",
-			"description": "Open the new post screen inside Playground.",
-			"url": "/?url=/wp-admin/post-new.php"
-		},
-		{
-			"name": "Plugins",
-			"short_name": "Plugins",
-			"description": "Open the WordPress plugins screen inside Playground.",
-			"url": "/?url=/wp-admin/plugins.php"
-		},
-		{
-			"name": "Themes",
-			"short_name": "Themes",
-			"description": "Open the WordPress themes screen inside Playground.",
-			"url": "/?url=/wp-admin/themes.php"
-		}
-	],
 	"icons": [
 		{
-			"src": "/logo-192.png",
+			"src": "logo-192.png",
 			"sizes": "192x192",
 			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "/logo-256.png",
+			"src": "logo-256.png",
 			"sizes": "256x256",
 			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "/logo-384.png",
+			"src": "logo-384.png",
 			"sizes": "384x384",
 			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "/logo-512.png",
+			"src": "logo-512.png",
 			"sizes": "512x512",
 			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "/maskable-icon-512.png",
+			"src": "maskable-icon-512.png",
 			"sizes": "512x512",
 			"type": "image/png",
 			"purpose": "maskable"
