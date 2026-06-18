@@ -20,7 +20,7 @@ export function encodeUint8ArrayAsBase64(bytes: Uint8Array) {
 	/**
 	 * String.fromCharCode can only take up to 65536 arguments,
 	 * so we need to chunk the input into smaller pieces before converting it to a string.
-	 * Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply#using_apply_and_built-in_functions
+	 * Reference: https://bugs.webkit.org/show_bug.cgi?id=80797
 	 */
 	const chunkSize = 65536;
 	const chunks = [];
