@@ -22,7 +22,7 @@ export function encodeUint8ArrayAsBase64(bytes: Uint8Array) {
 	 * so we need to chunk the input into smaller pieces before converting it to a string.
 	 * Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply#using_apply_and_built-in_functions
 	 */
-	const chunkSize = 0x8000;
+	const chunkSize = 65536;
 	const chunks = [];
 	for (let i = 0; i < bytes.length; i += chunkSize) {
 		chunks.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
