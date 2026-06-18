@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { playgroundUrl } from '../../src/tools/tool-definitions';
+import {
+	paramsToJsonSchema,
+	playgroundUrl,
+	toolDefinitions,
+} from '../../src/tools/tool-definitions';
 
 describe('playgroundUrl', () => {
 	it('adds MCP query args to the default Playground URL', () => {
@@ -18,5 +22,21 @@ describe('playgroundUrl', () => {
 		expect(playgroundUrl(7999, 'https://example.com/?foo=bar')).toBe(
 			'https://example.com/?foo=bar&mcp-port=7999'
 		);
+	});
+});
+
+describe('paramsToJsonSchema', () => {
+	it('represents playground_request body as string or object', () => {
+		const schema = paramsToJsonSchema(
+			toolDefinitions['playground_request'].params
+		);
+
+		expect(schema).toMatchObject({
+			properties: {
+				body: {
+					oneOf: [{ type: 'string' }, { type: 'object' }],
+				},
+			},
+		});
 	});
 });
