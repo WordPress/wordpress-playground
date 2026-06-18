@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 export type URLComponents = {
-	searchParams: Record<string, string | undefined>;
+	searchParams: Record<string, string | string[] | undefined>;
 	hash?: string;
 	host?: string;
 	port?: string;

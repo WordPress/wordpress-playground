@@ -72,7 +72,7 @@ add_action( 'shutdown', function() {
 	// Navigate without waiting for nested iframes. We only need the boot
 	// process to run prefetchUpdateChecks(); we don't need wp-admin to render.
 	await website.page.goto(
-		`./?networking=yes&url=/wp-admin/#${JSON.stringify(blueprint)}`
+		`./?storage=temp&networking=yes&url=/wp-admin/#${JSON.stringify(blueprint)}`
 	);
 
 	// Wait for the playground client to be available (set before prefetch runs).

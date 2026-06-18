@@ -313,7 +313,9 @@ describe('Blueprint step activatePlugin()', () => {
 			activatePlugin(php, {
 				pluginPath: 'error-log-plugin.php',
 			})
-		).rejects.toThrow(/PHP error log:[\s\S]*marker-from-activation-hook/);
+		).rejects.toThrow(
+			/PHP error log:[\s\S]*marker-from-activation-hook/
+		);
 	});
 
 	it('should not throw an error if the plugin is already active', async () => {

@@ -29,7 +29,7 @@ describe('Query API', () => {
 		it('should load WordPress latest by default', () => {
 			cy.visit('/?url=/wp-admin/');
 			const expectedBodyClass =
-				'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
+				'version-' + LatestSupportedWordPressVersion.replace('.', '-');
 			cy.wordPressDocument()
 				.find(`body.${expectedBodyClass}`)
 				.should('exist');

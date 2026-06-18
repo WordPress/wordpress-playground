@@ -73,14 +73,14 @@ Dans l’ensemble, WordPress Playground fournit un environnement sans risque pou
 
 <!-- Overall, WordPress Playground provides a risk-free environment for beginners to learn and get hands-on experience with WordPress. It helps you to gain confidence and knowledge before making changes to your live website. -->
 
-:::tip
+<div class="callout callout-tip">
+
 Consultez la [section guides](/guides) pour en savoir plus sur la façon d’utiliser WordPress Playground pour tester vos thèmes et extensions et créer du contenu à la volée.
-:::
 
+</div>
 <!-- Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly. -->
-
+ 
 ## Comment fonctionne WordPress Playground ?
-
 <!-- ## How does WordPress Playground work? -->
 
 Lorsque vous commencez à utiliser Playground pour la première fois, vous recevrez un espace dédié où vous pouvez créer et personnaliser votre propre site WordPress. Cet espace est complètement isolé de votre site réel.
@@ -119,10 +119,11 @@ Playground est une nouvelle façon de diffuser des technologies serveur - y comp
 
 <!-- Playground is a novel way to stream server technologies—including WordPress (and WP-CLI)—as files that can then run in the browser.
  -->
+<div class="callout callout-info">
 
-:::info
 Traduction par [@francoist](https://profiles.wordpress.org/francoist/)
 et relecture par [@jdy68](https://profiles.wordpress.org/jdy68/)
 
 Dernière relecture le 22 janvier 2026
-:::
+
+</div>

@@ -2,6 +2,16 @@ import { cloneRequest, supportsReadableStreamBody } from './utils';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
+const CORS_ENABLED_HOST_REQUEST_HEADERS = new Map([
+	[
+		'api.anthropic.com',
+		{
+			'anthropic-dangerous-direct-browser-access': 'true',
+		},
+	],
+	['api.openai.com', {}],
+	['generativelanguage.googleapis.com', {}],
+]);
 
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
@@ -16,16 +26,15 @@ export async function fetchWithCorsProxy(
 		? new URL(requestObject.url, playgroundUrlObj)
 		: new URL(requestObject.url);
 
-	/**
-	 * Never proxy localhost requests. The remote proxy cannot reach the user's
-	 * localhost, so we must fetch directly to access local APIs.
-	 */
-	const isLocalhost =
-		requestUrlObj.hostname === 'localhost' ||
-		requestUrlObj.hostname === '127.0.0.1' ||
-		requestUrlObj.hostname === '[::1]' ||
-		requestUrlObj.hostname === '::1';
-	if (isLocalhost) {
+	if (isLocalhost(requestUrlObj)) {
+		return await fetch(requestObject);
+	}
+
+	if (isKnownCorsEnabledHost(requestUrlObj)) {
+		requestObject = await addCorsEnabledHostRequestHeaders(
+			requestObject,
+			requestUrlObj
+		);
 		return await fetch(requestObject);
 	}
 
@@ -146,4 +155,41 @@ export async function fetchWithCorsProxy(
 
 		return response;
 	}
+}
+
+function isLocalhost(url: URL) {
+	return (
+		url.hostname === 'localhost' ||
+		url.hostname === '127.0.0.1' ||
+		url.hostname === '[::1]' ||
+		url.hostname === '::1'
+	);
+}
+
+function isKnownCorsEnabledHost(url: URL) {
+	return (
+		url.protocol === 'https:' &&
+		CORS_ENABLED_HOST_REQUEST_HEADERS.has(url.hostname)
+	);
+}
+
+async function addCorsEnabledHostRequestHeaders(
+	request: Request,
+	url: URL
+): Promise<Request> {
+	const headersToAdd = CORS_ENABLED_HOST_REQUEST_HEADERS.get(url.hostname);
+	if (!headersToAdd) {
+		return request;
+	}
+
+	const headers = new Headers(request.headers);
+	for (const [name, value] of Object.entries(headersToAdd)) {
+		if (!headers.has(name)) {
+			headers.set(name, value);
+		}
+	}
+
+	return await cloneRequest(request, {
+		headers,
+	});
 }

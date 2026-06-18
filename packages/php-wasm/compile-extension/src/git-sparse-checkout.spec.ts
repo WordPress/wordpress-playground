@@ -24,7 +24,8 @@ describe('createTreeFetchRequest', () => {
 	it('sends a single done packet', () => {
 		const request = createTreeFetchRequest(
 			'0000000000000000000000000000000000000000'
-		).toString('utf8');
+		)
+			.toString('utf8');
 
 		expect(request.match(/done\n/g)).toHaveLength(1);
 	});
@@ -41,9 +42,7 @@ describe('pathSegmentMatchesPattern', () => {
 				'php*.patch'
 			)
 		).toBe(true);
-		expect(pathSegmentMatchesPattern('README.md', 'php*.patch')).toBe(
-			false
-		);
+		expect(pathSegmentMatchesPattern('README.md', 'php*.patch')).toBe(false);
 	});
 });
 

@@ -4796,6 +4796,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
+		socketTimeouts: new Map,
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
@@ -5159,6 +5160,29 @@ export function init(RuntimeName, PHPLoader) {
 			return [promise, cancel];
 		},
 		noop: function () {},
+		parseSocketTimeout: function (optionValuePtr, optionLen) {
+			if (!optionValuePtr || optionLen < 8) {
+				return null;
+			}
+			let seconds;
+			let microseconds;
+			if (optionLen >= 16) {
+				seconds = Number(HEAP64[optionValuePtr >> 3]);
+				microseconds = Number(HEAP64[(optionValuePtr + 8) >> 3]);
+			} else {
+				seconds = HEAP32[optionValuePtr >> 2];
+				microseconds = HEAP32[(optionValuePtr + 4) >> 2];
+			}
+			if (
+				!Number.isFinite(seconds) ||
+				!Number.isFinite(microseconds) ||
+				seconds < 0 ||
+				microseconds < 0
+			) {
+				return null;
+			}
+			return seconds * 1e3 + Math.ceil(microseconds / 1e3);
+		},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
 				const spawned = Module['spawnProcess'](command, args, {
@@ -5187,6 +5211,7 @@ export function init(RuntimeName, PHPLoader) {
 			throw e;
 		},
 		shutdownSocket: function (socketd, how) {
+			PHPWASM.socketTimeouts.delete(socketd);
 			const sock = getSocketFromFD(socketd);
 			const peer = Object.values(sock.peers)[0];
 			if (!peer) {
@@ -5256,40 +5281,73 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
-			const timeout = 3e4;
+			// Wait for the connection to be established. A zero timeval
+			// disables the timeout, matching SO_SNDTIMEO semantics.
+			const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
+			const timeout = sendTimeout ?? 3e4;
 			let resolved = false;
-			const timeoutId = setTimeout(() => {
-				if (!resolved) {
-					resolved = true;
-					wakeUp(-ERRNO_CODES.ETIMEDOUT);
-				}
-			}, timeout);
-			const handleOpen = () => {
-				if (!resolved) {
-					resolved = true;
+			let timeoutId;
+			let handleOpen;
+			let handleError;
+			let handleClose;
+			const peer = PHPWASM.getAllPeers(sock).find(
+				(candidate) => candidate.socket === ws
+			);
+
+			const cleanupConnectListeners = () => {
+				if (typeof timeoutId !== 'undefined') {
 					clearTimeout(timeoutId);
-					ws.removeEventListener('error', handleError);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(0);
+				}
+				ws.removeEventListener('open', handleOpen);
+				ws.removeEventListener('error', handleError);
+				ws.removeEventListener('close', handleClose);
+			};
+
+			const cleanupFailedConnect = (errno) => {
+				try {
+					if (
+						ws.readyState !== ws.CLOSING &&
+						ws.readyState !== ws.CLOSED
+					) {
+						ws.close();
+					}
+				} catch (e) {
+					// Ignore close errors on an already-failed connect.
+				}
+				if (peer) {
+					SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				}
+				sock.connecting = false;
+				sock.error = errno;
+			};
+
+			const finishConnect = (result) => {
+				if (!resolved) {
+					resolved = true;
+					cleanupConnectListeners();
+					if (result < 0) {
+						cleanupFailedConnect(-result);
+					}
+					wakeUp(result);
 				}
 			};
-			const handleError = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+
+			if (timeout > 0) {
+				timeoutId = setTimeout(() => {
+					finishConnect(-ERRNO_CODES.ETIMEDOUT);
+				}, timeout);
+			}
+
+			handleOpen = () => {
+				finishConnect(0);
 			};
-			const handleClose = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('error', handleError);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+
+			handleError = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
+			};
+
+			handleClose = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
 			ws.addEventListener('open', handleOpen);
 			ws.addEventListener('error', handleError);
@@ -7663,20 +7721,34 @@ export function init(RuntimeName, PHPLoader) {
 		const SO_SNDTIMEO = 67;
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
+		if (
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO)
+		) {
+			const timeoutMs = PHPWASM.parseSocketTimeout(
+				optionValuePtr,
+				optionLen
+			);
+			if (timeoutMs === null) {
+				return -1;
+			}
+			const timeouts = PHPWASM.socketTimeouts.get(socketd) || {};
+			if (optionName === SO_RCVTIMEO) {
+				timeouts.receive = timeoutMs;
+			} else {
+				timeouts.send = timeoutMs;
+			}
+			PHPWASM.socketTimeouts.set(socketd, timeouts);
+			return 0;
+		}
 		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
-		const isIgnorable =
-			level === SOL_SOCKET &&
-			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
-		if (!isForwardable && !isIgnorable) {
+		if (!isForwardable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
-		}
-		if (isIgnorable) {
-			return 0;
 		}
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
 		if (!ws) {

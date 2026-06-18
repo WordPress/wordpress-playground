@@ -54,9 +54,11 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 - Read about the [limitations](/developers/limitations)
 - [WordCamp Contributor Day](/contributing/contributor-day)
 
-:::tip
+<div class="callout callout-tip">
+
 Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
-:::
+
+</div>
 
 ## Take a deep dive
 

@@ -44,6 +44,27 @@ npx @php-wasm/compile-extension \
 Empty directories are recorded as `type: "directory"` nodes so the loader
 creates them before PHP starts.
 
+If an extension needs startup settings, add them to the manifest:
+
+```json
+{
+	"name": "spx",
+	"version": "0.1.0",
+	"artifacts": [
+		{
+			"phpVersion": "8.4",
+			"sourcePath": "spx-php8.4-jspi.so"
+		}
+	],
+	"iniEntries": {
+		"spx.http_enabled": "1"
+	},
+	"env": {
+		"SPX_DATA_DIR": "/internal/shared/spx/data"
+	}
+}
+```
+
 The supported `--php-versions` are `7.4` and `8.0` through `8.5`.
 
 Docker is required. The CLI lazily fetches the small PHP.wasm Docker asset set

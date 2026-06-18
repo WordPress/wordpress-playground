@@ -23,11 +23,13 @@ slug: /blueprints/steps/resources
 </div>
 
 <!--
-:::info
+<div class="callout callout-info">
+
 Blueprints steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
 
 That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories.
-:::
+
+</div>
 -->
 
 次のリソース参照が利用可能です。
@@ -88,14 +90,18 @@ These steps require a `ResourceType` to define the location of the plugin or the
 With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme via a URL that can point directly to a GitHub repo.
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Playground プロジェクトは[GitHub Proxy](https://playground.wordpress.net/proxy)を提供しています。これを使用すると、プラグインやテーマを含むリポジトリ（またはリポジトリ内のフォルダ）から `.zip` ファイルを生成できます。このツールは、CORS の問題などを回避するのに非常に便利です。
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others.
-:::
+
+</div>
 -->
 
 ### コアテーマリファレンス

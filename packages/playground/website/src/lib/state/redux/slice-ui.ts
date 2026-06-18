@@ -24,6 +24,7 @@ export const modalSlugs = {
 	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
 	GITHUB_IMPORT: 'github-import',
+	GITHUB_IMPORT_NEW_SITE: 'github-import-new-site',
 	GITHUB_EXPORT: 'github-export',
 	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
@@ -59,21 +60,6 @@ const serializeSiteErrorDetails = (
 	details?: unknown
 ): SerializedSiteErrorDetails | undefined => {
 	if (details instanceof BlueprintStepExecutionError) {
-		// Look for a url property in the cause chain
-		let url: string | undefined;
-		let current: unknown = details.cause;
-		while (current && !url) {
-			if (
-				current &&
-				typeof current === 'object' &&
-				'url' in current &&
-				typeof (current as any).url === 'string'
-			) {
-				url = (current as any).url;
-			}
-			current = current instanceof Error ? current.cause : undefined;
-		}
-
 		return {
 			type: 'blueprint-step-error',
 			stepNumber: details.stepNumber,
@@ -86,7 +72,7 @@ const serializeSiteErrorDetails = (
 					: details.message,
 			name: details.name,
 			stack: details.stack,
-			url,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (details instanceof Error) {
@@ -94,10 +80,7 @@ const serializeSiteErrorDetails = (
 			message: details.message,
 			name: details.name,
 			stack: details.stack,
-			url:
-				'url' in details && typeof details.url === 'string'
-					? details.url
-					: undefined,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (typeof details === 'string') {
@@ -139,6 +122,28 @@ const serializeSiteErrorDetails = (
 	}
 };
 
+function findUrlInCauseChain(error: Error): string | undefined {
+	let current: unknown = error;
+	const seen = new Set<Error>();
+	while (current) {
+		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
+		}
+		if (
+			typeof current === 'object' &&
+			'url' in current &&
+			typeof (current as any).url === 'string'
+		) {
+			return (current as any).url;
+		}
+		current = current instanceof Error ? current.cause : undefined;
+	}
+	return undefined;
+}
+
 export interface UIState {
 	activeSite?: {
 		slug: string;
@@ -148,6 +153,10 @@ export interface UIState {
 	activeModal: string | null;
 	siteSlugToRename?: string;
 	siteSlugToDelete?: string;
+	/**
+	 * Site the save modal operates on. Defaults to the active site when unset.
+	 */
+	siteSlugToSave?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -276,6 +285,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToDelete = action.payload;
 		},
+		setSiteSlugToSave: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToSave = action.payload;
+		},
 	},
 });
 
@@ -322,6 +337,7 @@ export const {
 	setSiteManagerSection,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
+	setSiteSlugToSave,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

@@ -99,7 +99,7 @@ export async function compileExtensionMatrix(options: CompileExtensionOptions) {
 		options.phpVersions.map((phpVersion) => ({
 			phpVersion,
 			asyncMode: ExtensionAsyncMode,
-		}));
+	}));
 
 	await mkdir(outDir, { recursive: true });
 	await buildBaseImage(context);

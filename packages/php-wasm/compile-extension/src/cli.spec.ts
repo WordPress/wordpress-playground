@@ -62,9 +62,7 @@ describe('parseCliArgs', () => {
 	it('rejects source and prepare-image together', async () => {
 		await expect(
 			parseCliArgs(['--source', './ext-src', '--prepare-image'])
-		).rejects.toThrow(
-			'Arguments source and prepare-image are mutually exclusive'
-		);
+		).rejects.toThrow('Arguments source and prepare-image are mutually exclusive');
 	});
 });
 

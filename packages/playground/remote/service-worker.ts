@@ -125,6 +125,13 @@ import {
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
+import {
+	getRemoteAccessRelayMapping,
+	getRemoteAccessRelayMappingFromUrl,
+	handleRemoteAccessRelayMessage,
+	handleRemoteAccessRelayProbe,
+	handleRemoteAccessRelayRequest,
+} from '@wp-playground/remote-access';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -134,6 +141,10 @@ if (!(self as any).document) {
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
 }
+
+self.addEventListener('message', (event) => {
+	handleRemoteAccessRelayMessage(event);
+});
 
 /**
  * Forces the browser to always use the latest service worker.
@@ -212,7 +223,8 @@ self.addEventListener('fetch', (event) => {
 
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
-		url.pathname.startsWith('/client/index.js');
+		url.pathname.startsWith('/client/index.js') ||
+		url.pathname.startsWith('/relay/');
 	if (isReservedUrl) {
 		return;
 	}
@@ -223,6 +235,27 @@ self.addEventListener('fetch', (event) => {
 
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
+		if (url.searchParams.has('remote-access-probe')) {
+			return event.respondWith(
+				handleRemoteAccessRelayProbe(
+					scope,
+					url.searchParams.get('remote-access-probe')
+				)
+			);
+		}
+		const remoteAccessRelayMapping =
+			getRemoteAccessRelayMapping(scope) ||
+			getRemoteAccessRelayMappingFromUrl(scope, url);
+		if (remoteAccessRelayMapping) {
+			return event.respondWith(
+				handleRemoteAccessRelayRequest(
+					event,
+					remoteAccessRelayMapping
+				).then((response) =>
+					applyCrossOriginIsolationHeaders(response, scope)
+				)
+			);
+		}
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) =>
 				applyCrossOriginIsolationHeaders(response, scope)

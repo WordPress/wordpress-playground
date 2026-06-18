@@ -123,7 +123,7 @@ export default defineConfig(({ command, mode }) => {
 				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
-				'^[/]((?!website-server).)': {
+				'^[/]((?!website-server|php-next).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 					changeOrigin: true,
 				},
@@ -187,6 +187,27 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
+					// Let static playground pages import the local client package in dev.
+					server.middlewares.use(
+						'/website-server/client/index.js',
+						(_, res) => {
+							const clientIndexPath = fileURLToPath(
+								new URL(
+									'../client/src/index.ts',
+									import.meta.url
+								)
+							);
+							res.setHeader(
+								'Content-Type',
+								'application/javascript'
+							);
+							res.end(
+								`export * from ${JSON.stringify(
+									`/@fs/${clientIndexPath}`
+								)};`
+							);
+						}
+					);
 					server.middlewares.use(oAuthMiddleware);
 				},
 			},

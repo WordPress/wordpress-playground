@@ -4,6 +4,98 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.39] (2026-06-15) 
+
+
+
+
+## [v3.1.38] (2026-06-08)
+
+## [v3.1.37] (2026-06-08)
+
+## [v3.1.36] (2026-06-01)
+
+## [v3.1.35] (2026-05-25)
+
+## [v3.1.34] (2026-05-18)
+
+### PHP WebAssembly
+
+- [PHP.wasm] Fix sqlite_markdown extension loading. ([#3650](https://github.com/WordPress/wordpress-playground/pull/3650))
+- [PHP.wasm] Support web JSPI side module ABI exports. ([#3647](https://github.com/WordPress/wordpress-playground/pull/3647))
+- [codex] Use wp-extensions markdown editor release. ([#3648](https://github.com/WordPress/wordpress-playground/pull/3648))
+- [website] Add php-extension query parameter. ([#3645](https://github.com/WordPress/wordpress-playground/pull/3645))
+
+### Various
+
+#### Personal Playground
+
+- Personal WP: Improve app install dialog. ([#3652](https://github.com/WordPress/wordpress-playground/pull/3652))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk
+
+## [v3.1.33] (2026-05-14)
+
+### PHP WebAssembly
+
+- [PHP.wasm] Export filesystem symbols for PHP side modules. ([#3643](https://github.com/WordPress/wordpress-playground/pull/3643))
+
+### Website
+
+- [php-snippet] Simplify PHP snippet pointer handling. ([#3640](https://github.com/WordPress/wordpress-playground/pull/3640))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v3.1.32] (2026-05-14)
+
+### PHP WebAssembly
+
+- Expose SQLite auto-extension symbols to JS ABI. ([#3641](https://github.com/WordPress/wordpress-playground/pull/3641))
+
+### Various
+
+- Export SQLite auto-extension symbols in Node PHP 8.4 JSPI artifact. ([#3642](https://github.com/WordPress/wordpress-playground/pull/3642))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v3.1.31] (2026-05-14)
+
+### PHP WebAssembly
+
+- Export SQLite auto-extension symbols for PHP.wasm side modules. ([#3524](https://github.com/WordPress/wordpress-playground/pull/3524))
+- [CLI] Load custom PHP.wasm extensions. ([#3616](https://github.com/WordPress/wordpress-playground/pull/3616))
+- [CLI] Support staged PHP.wasm side modules. ([#3620](https://github.com/WordPress/wordpress-playground/pull/3620))
+
+### Website
+
+- Fix PHP snippet Run button pointer activation. ([#3639](https://github.com/WordPress/wordpress-playground/pull/3639))
+- Fix PHP snippet run controls. ([#3636](https://github.com/WordPress/wordpress-playground/pull/3636))
+- Polish PHP snippet run UI. ([#3638](https://github.com/WordPress/wordpress-playground/pull/3638))
+
+### Various
+
+- Simplify personal WP app installer. ([#3623](https://github.com/WordPress/wordpress-playground/pull/3623))
+- [DOCS] Running PHPUnit tests using the Playground CLI. ([#3487](https://github.com/WordPress/wordpress-playground/pull/3487))
+- [docs] Adding reference to awesome playground page. ([#3499](https://github.com/WordPress/wordpress-playground/pull/3499))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @bgrgicak @fellyph
+
 ## [v3.1.30] (2026-05-11)
 
 ### Bug Fixes

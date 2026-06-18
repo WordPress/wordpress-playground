@@ -149,9 +149,11 @@ Isso é útil quando:
 - Os dados do seu site ficaram corrompidos ou inconsistentes
 
 <!--
-:::info
+<div class="callout callout-info">
+
 The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -250,9 +252,11 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 ```
 
 <!--
-:::info
+<div class="callout callout-info">
+
 On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -534,14 +538,18 @@ O comando `server` suporta os seguintes argumentos opcionais:
 - `--experimental-multi-worker=<number>`: Habilita suporte experimental a múltiplos workers, que exige um diretório `/wordpress` em um sistema de arquivos real. Passe um número positivo para o número de workers; caso contrário, padrão é número de CPUs menos 1.
 
 <!--
-:::caution
+<div class="callout callout-warning">
+
 With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
+
 Com a flag `--follow-symlinks`, symlinks podem expor arquivos fora dos diretórios montados ao Playground e podem representar risco de segurança.
-:::
+
+</div>
 
 <!--
 ## Need some help with the CLI?

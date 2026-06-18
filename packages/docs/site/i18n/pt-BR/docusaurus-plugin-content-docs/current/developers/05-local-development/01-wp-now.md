@@ -3,10 +3,13 @@ title: wp-now
 slug: /developers/local-development/wp-now
 ---
 
-:::caution Pacote descontinuado
+<div class="callout callout-warning">
+
+**Pacote descontinuado**
 
 O pacote NPM @wp-now/wp-now está descontinuado e não receberá atualizações no futuro. Para usar uma ferramenta de linha de comando no seu fluxo de desenvolvimento, use o pacote NPM `@wp-playground/cli`.
-:::
+
+</div>
 
 <!-- # wp-now NPM package -->
 

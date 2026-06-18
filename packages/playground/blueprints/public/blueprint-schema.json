@@ -203,12 +203,19 @@
 		"AllPHPVersion": {
 			"anyOf": [
 				{
+					"$ref": "#/definitions/PHPNextVersion"
+				},
+				{
 					"$ref": "#/definitions/SupportedPHPVersion"
 				},
 				{
 					"$ref": "#/definitions/LegacyPHPVersion"
 				}
 			]
+		},
+		"PHPNextVersion": {
+			"type": "string",
+			"const": "next"
 		},
 		"SupportedPHPVersion": {
 			"type": "string",

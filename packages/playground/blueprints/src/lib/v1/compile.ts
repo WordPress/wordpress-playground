@@ -854,7 +854,9 @@ function isGitRepoUrl(url: string): boolean {
 		return true;
 	}
 	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)) {
+	if (
+		/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)
+	) {
 		return true;
 	}
 	return false;

@@ -1,0 +1,61 @@
+.nudge {
+	position: fixed;
+	z-index: 30;
+	top: 62px;
+	right: 16px;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	max-width: min(520px, calc(100vw - 32px));
+	padding: 12px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+	color: #1e1e1e;
+}
+
+.copy {
+	min-width: 0;
+}
+
+.title {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 18px;
+}
+
+.description {
+	margin-top: 2px;
+	color: #50575e;
+	font-size: 12px;
+	line-height: 17px;
+}
+
+.error {
+	margin-top: 6px;
+	color: #b32d2e;
+	font-size: 12px;
+	line-height: 17px;
+}
+
+.actions {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 6px;
+}
+
+@media (max-width: 600px) {
+	.nudge {
+		top: 108px;
+		left: 12px;
+		right: 12px;
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.actions {
+		justify-content: flex-end;
+	}
+}

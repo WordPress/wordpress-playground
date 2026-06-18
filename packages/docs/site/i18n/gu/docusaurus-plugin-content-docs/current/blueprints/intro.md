@@ -13,14 +13,18 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 # Blueprints Docs
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 [બ્લુપ્રિન્ટ્સ ગેલેરી](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉપયોગ કરીને વિવિધ રૂપરેખાંકનો સાથે વર્ડપ્રેસ સાઇટ કેવી રીતે લોન્ચ કરવી તેના વાસ્તવિક કોડ ઉદાહરણો જોવા માટે આ તપાસો.
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-:::
+
+</div>
 -->
 
 નમસ્તે! વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લુપ્રિન્ટ્સ દસ્તાવેજીકરણમાં આપનું સ્વાગત છે.

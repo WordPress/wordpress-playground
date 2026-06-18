@@ -103,6 +103,7 @@ const MAX_EXTENSION_SIDECAR_FILE_REQUESTS = 5;
  * regular PHP extensions and `zend_extension` for Zend extensions like Xdebug.
  */
 export type PHPExtensionIniDirective = 'extension' | 'zend_extension';
+export type PHPExtensionLoadDirective = PHPExtensionIniDirective | false;
 
 /**
  * Extension artifact manifest. Lets callers publish a matrix of `.so` files
@@ -113,6 +114,21 @@ export interface PHPExtensionManifest {
 	name: string;
 	version?: string;
 	mode?: 'php-extension';
+	/**
+	 * The first directive of the generated startup `.ini` file. Defaults to
+	 * `extension`; use `zend_extension` for Zend extensions like Xdebug.
+	 * Use `false` to stage the `.so` without registering it in php.ini.
+	 */
+	loadWithIniDirective?: PHPExtensionLoadDirective;
+	/** Additional `key=value` lines for the generated startup `.ini` file. */
+	iniEntries?: Record<string, string>;
+	/** Environment variables added before the extension is loaded. */
+	env?: Record<string, string>;
+	/**
+	 * VFS directory where PHP.wasm writes the extension `.so` file and its
+	 * per-extension ini file. Defaults to `PHP_EXTENSIONS_DIR`.
+	 */
+	extensionDir?: string;
 	artifacts: Array<{
 		/** PHP major/minor version, e.g. `8.4`. */
 		phpVersion: string;
@@ -187,7 +203,7 @@ export interface ResolvedInstallOptions {
 	 * extensions need `extension=...`; Zend extensions like Xdebug need
 	 * `zend_extension=...`.
 	 */
-	loadWithIniDirective?: PHPExtensionIniDirective;
+	loadWithIniDirective?: PHPExtensionLoadDirective;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
 	/**
@@ -222,13 +238,13 @@ export interface ResolvedPHPExtension {
 	/** Compiled extension bytes to write at `soPath`. */
 	soBytes: Uint8Array;
 	/** Absolute VFS path the generated per-extension ini file is staged at. */
-	iniPath: string;
+	iniPath?: string;
 	/**
 	 * Contents of the generated per-extension ini file. The first line is the
 	 * `extension=` or `zend_extension=` directive; remaining lines are the
 	 * caller-supplied `iniEntries`.
 	 */
-	iniContent: string;
+	iniContent?: string;
 	/** Sidecar files staged alongside the extension. Optional. */
 	extraFiles?: ResolvedExtraFiles;
 	/** Environment variables added before PHP startup. */
@@ -264,7 +280,7 @@ export interface InstallPHPExtensionFilesOptions {
 	 * extensions need `extension=...`; Zend extensions like Xdebug need
 	 * `zend_extension=...`.
 	 */
-	loadWithIniDirective?: PHPExtensionIniDirective;
+	loadWithIniDirective?: PHPExtensionLoadDirective;
 	/** Additional `key=value` lines for the generated startup `.ini` file. */
 	iniEntries?: Record<string, string>;
 	/** Sidecar files to write into the PHP VFS before the extension is loaded. */
@@ -300,6 +316,10 @@ export async function resolvePHPExtension(
 	let soBytes: Uint8Array;
 	const files: Record<string, Uint8Array | string> = {};
 	const directories: string[] = [];
+	let manifestLoadWithIniDirective: PHPExtensionLoadDirective | undefined;
+	let manifestIniEntries: Record<string, string> | undefined;
+	let manifestEnv: Record<string, string> | undefined;
+	let manifestExtensionDir: string | undefined;
 
 	if (source.format === 'so') {
 		if (!name) {
@@ -369,6 +389,10 @@ export async function resolvePHPExtension(
 			);
 		}
 		name ??= manifest.name;
+		manifestLoadWithIniDirective = manifest.loadWithIniDirective;
+		manifestIniEntries = manifest.iniEntries;
+		manifestEnv = manifest.env;
+		manifestExtensionDir = manifest.extensionDir;
 
 		const queue = new Semaphore({
 			concurrency: MAX_EXTENSION_SIDECAR_FILE_REQUESTS,
@@ -400,41 +424,51 @@ export async function resolvePHPExtension(
 	}
 
 	const extensionDir = normalizePath(
-		options.extensionDir ?? PHP_EXTENSIONS_DIR
+		options.extensionDir ?? manifestExtensionDir ?? PHP_EXTENSIONS_DIR
 	);
 	if (options.extraFiles) {
 		Object.assign(files, options.extraFiles.files);
 		directories.push(...(options.extraFiles.directories ?? []));
 	}
 
-	const directive = options.loadWithIniDirective ?? 'extension';
+	const directive =
+		options.loadWithIniDirective ??
+		manifestLoadWithIniDirective ??
+		'extension';
+	const iniEntries = {
+		...manifestIniEntries,
+		...options.iniEntries,
+	};
 	const soPath = joinPaths(extensionDir, `${name}.so`);
-	const iniPath = joinPaths(extensionDir, `${name}.ini`);
-	const iniContent = [
-		`${directive}=${soPath}`,
-		...Object.entries(options.iniEntries ?? {}).map(
-			([key, value]) => `${key}=${value}`
-		),
-	].join('\n');
+	const iniFile = createPHPExtensionIniFile({
+		directive,
+		extensionDir,
+		name,
+		soPath,
+		iniEntries,
+	});
+	const env = {
+		...manifestEnv,
+		...options.env,
+	};
 
 	return {
 		soPath,
 		soBytes,
-		iniPath,
-		iniContent,
+		...iniFile,
 		extraFiles: {
 			files,
 			directories,
 		},
-		env: options.env,
+		env: Object.keys(env).length ? env : undefined,
 		extensionDir,
 	};
 }
 
 /**
  * Adds resolved extensions to Emscripten options. The returned options install
- * extension files during `onRuntimeInitialized` and update `PHP_INI_SCAN_DIR`
- * before PHP startup.
+ * extension files during `preRun` and update `PHP_INI_SCAN_DIR` before PHP
+ * startup.
  */
 export function withResolvedPHPExtensions(
 	options: EmscriptenOptions,
@@ -448,21 +482,27 @@ export function withResolvedPHPExtensions(
 	const env = { ...options.ENV };
 	for (const extension of extensions) {
 		Object.assign(env, extension.env);
+		if (!extension.iniPath) {
+			continue;
+		}
 		const paths = env['PHP_INI_SCAN_DIR']?.split(':') ?? [];
 		if (!paths.includes(extension.extensionDir)) {
 			paths.push(extension.extensionDir);
 			env['PHP_INI_SCAN_DIR'] = paths.join(':');
 		}
 	}
+	const preRun = options['preRun'] ?? [];
 	return {
 		...options,
 		ENV: env,
-		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
-			options.onRuntimeInitialized?.(phpRuntime);
-			for (const extension of extensions) {
-				installPHPExtensionFilesSync(phpRuntime.FS, extension);
-			}
-		},
+		['preRun']: [
+			...preRun,
+			(phpRuntime: PHPRuntime) => {
+				for (const extension of extensions) {
+					installPHPExtensionFilesSync(phpRuntime.FS, extension);
+				}
+			},
+		],
 	};
 }
 
@@ -482,16 +522,17 @@ export function installPHPExtensionFilesSync(
 		const extensionDir = options.extensionDir ?? PHP_EXTENSIONS_DIR;
 		const directive = options.loadWithIniDirective ?? 'extension';
 		const soPath = joinPaths(extensionDir, `${options.name}.so`);
+		const iniFile = createPHPExtensionIniFile({
+			directive,
+			extensionDir,
+			name: options.name,
+			soPath,
+			iniEntries: options.iniEntries,
+		});
 		ext = {
 			soPath,
 			soBytes: toUint8Array(options.soBytes),
-			iniPath: joinPaths(extensionDir, `${options.name}.ini`),
-			iniContent: [
-				`${directive}=${soPath}`,
-				...Object.entries(options.iniEntries ?? {}).map(
-					([key, value]) => `${key}=${value}`
-				),
-			].join('\n'),
+			...iniFile,
 			extraFiles: options.extraFiles,
 			env: options.env,
 			extensionDir,
@@ -499,7 +540,9 @@ export function installPHPExtensionFilesSync(
 	}
 	mkdirIfMissing(fs, ext.extensionDir);
 	fs.writeFile(ext.soPath, ext.soBytes);
-	fs.writeFile(ext.iniPath, ext.iniContent);
+	if (ext.iniPath && ext.iniContent !== undefined) {
+		fs.writeFile(ext.iniPath, ext.iniContent);
+	}
 	if (ext.extraFiles) {
 		const { directories = [], files } = ext.extraFiles;
 		for (const directory of directories) {
@@ -511,6 +554,30 @@ export function installPHPExtensionFilesSync(
 		}
 	}
 	return ext;
+}
+
+function createPHPExtensionIniFile(options: {
+	directive: PHPExtensionLoadDirective;
+	extensionDir: string;
+	name: string;
+	soPath: string;
+	iniEntries?: Record<string, string>;
+}): Pick<ResolvedPHPExtension, 'iniPath' | 'iniContent'> {
+	if (options.directive === false) {
+		return {};
+	}
+
+	const lines = [
+		`${options.directive}=${options.soPath}`,
+		...Object.entries(options.iniEntries ?? {}).map(
+			([key, value]) => `${key}=${value}`
+		),
+	];
+
+	return {
+		iniPath: joinPaths(options.extensionDir, `${options.name}.ini`),
+		iniContent: lines.join('\n'),
+	};
 }
 
 function mkdirIfMissing(fs: Emscripten.RootFS, path: string): void {

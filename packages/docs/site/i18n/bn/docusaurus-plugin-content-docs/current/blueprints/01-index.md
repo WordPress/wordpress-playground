@@ -28,9 +28,9 @@ description: ব্লুপ্রিন্টের একটি দ্রু�
 
 ব্লুপ্রিন্ট ব্যবহার করার তিনটি উপায় রয়েছে:
 
-- [WordPress Playground ওয়েবসাইটে URL "ফ্র্যাগমেন্ট"-এ একটি ব্লুপ্রিন্ট পেস্ট করুন](/blueprints/using-blueprints#url-fragment)।
-- [JavaScript API এর সাথে সেগুলি ব্যবহার করুন](/blueprints/using-blueprints#javascript-api)।
-- [QueryParam blueprint-url এর মাধ্যমে একটি blueprint JSON ফাইল রেফারেন্স করুন](/developers/apis/query-api/)
+-   [WordPress Playground ওয়েবসাইটে URL "ফ্র্যাগমেন্ট"-এ একটি ব্লুপ্রিন্ট পেস্ট করুন](/blueprints/using-blueprints#url-fragment)।
+-   [JavaScript API এর সাথে সেগুলি ব্যবহার করুন](/blueprints/using-blueprints#javascript-api)।
+-   [QueryParam blueprint-url এর মাধ্যমে একটি blueprint JSON ফাইল রেফারেন্স করুন](/developers/apis/query-api/)
 
 ## ব্লুপ্রিন্ট দ্বারা কোন সমস্যাগুলি সমাধান করা হয়?
 

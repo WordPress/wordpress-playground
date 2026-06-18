@@ -37,11 +37,13 @@ Os seguintes tópicos relacionados a etapas são abordados em páginas dedicadas
 
 <!-- :::tip
 The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!
-::: -->
+-->
 
-:::tip
+<div class="callout callout-tip">
+
 A [Biblioteca de Etapas do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nas etapas para criar um blueprint para o WordPress Playground. Você também pode [criar suas próprias etapas](https://github.com/akirk/playground-step-library/#contributing)!
-:::
+
+</div>
 
 ---
 

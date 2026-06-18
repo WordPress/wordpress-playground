@@ -25,7 +25,9 @@ description: আপনার প্রথম ব্লুপ্রিন্ট �
 
 [<kbd> &nbsp; ব্লুপ্রিন্ট চালান &nbsp; </kbd>](https://playground.wordpress.net/#{})
 
-:::tip **অটোকমপ্লিট**
+<div class="callout callout-tip">
+
+**অটোকমপ্লিট**
 
 আপনি যদি VS Code বা PHPStorm এর মতো একটি IDE ব্যবহার করেন, তাহলে আপনি অটোকমপ্লিট ব্লুপ্রিন্ট ডেভেলপমেন্ট অভিজ্ঞতার জন্য [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) ব্যবহার করতে পারেন। আপনার `blueprint.json` ফাইলের শীর্ষে নিম্নলিখিত লাইন যোগ করুন:
 
@@ -35,7 +37,7 @@ description: আপনার প্রথম ব্লুপ্রিন্ট �
 }
 ```
 
-:::
+</div>
 VS Code-এ এটি দেখতে এরকম:
 
 ![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
@@ -129,9 +131,11 @@ Adventurer হল একটি ওপেন-সোর্স থিম [WordPress
 
 এই ক্ষেত্রে, `https://wordpress.org/themes/<slug>/` হয়ে যায় `https://wordpress.org/themes/adventurer/`।
 
-:::note
+<div class="callout callout-info">
+
 সমর্থিত রিসোর্স সম্পর্কে আরও জানুন [Blueprint Resources API Reference](/blueprints/steps/resources/) এ।
-:::
+
+</div>
 
 ## 4. _Hello Dolly_ প্লাগইন ইনস্টল করুন
 

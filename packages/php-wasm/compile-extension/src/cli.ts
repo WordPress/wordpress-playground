@@ -182,9 +182,7 @@ export function validateCliMode(argv: {
 	const prepareImage = Boolean(argv['prepare-image'] ?? argv.prepareImage);
 
 	if (hasSource && prepareImage) {
-		throw new Error(
-			'--source and --prepare-image cannot be used together.'
-		);
+		throw new Error('--source and --prepare-image cannot be used together.');
 	}
 	if (!hasSource && !prepareImage) {
 		throw new Error('--source is required unless --prepare-image is set.');

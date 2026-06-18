@@ -50,6 +50,6 @@ Ce guide vous présentera les réglages de base pour présenter votre extension 
 Traduction par [@jabbari01](https://profiles.wordpress.org/jabbari01/)
 et relecture par [@jdy68](https://profiles.wordpress.org/jdy68/)
 
-</div>
 Dernière mise à jour le 8 octobre 2025
-:::
+
+</div>

@@ -1,4 +1,16 @@
-import { getWordPressTranslationUrl } from '../../lib/steps/set-site-language';
+import type { UniversalPHP } from '@php-wasm/universal';
+import type * as PlaygroundCommon from '@wp-playground/common';
+import { unzipFile } from '@wp-playground/common';
+import { vi } from 'vitest';
+import {
+	getWordPressTranslationUrl,
+	setSiteLanguage,
+} from '../../lib/steps/set-site-language';
+
+vi.mock('@wp-playground/common', async (importOriginal) => ({
+	...(await importOriginal<typeof PlaygroundCommon>()),
+	unzipFile: vi.fn(),
+}));
 
 describe('getWordPressTranslationUrl()', () => {
 	[
@@ -49,5 +61,55 @@ describe('getWordPressTranslationUrl()', () => {
 		await expect(
 			getWordPressTranslationUrl('6.6-RC', 'en_US')
 		).rejects.toThrow();
+	});
+});
+
+describe('Blueprint step setSiteLanguage()', () => {
+	const originalFetch = global.fetch;
+
+	afterEach(() => {
+		global.fetch = originalFetch;
+		vi.mocked(unzipFile).mockReset();
+	});
+
+	it('persists the selected language in the WPLANG option', async () => {
+		global.fetch = vi
+			.fn()
+			.mockResolvedValueOnce({
+				json: async () => ({
+					translations: [
+						{
+							language: 'es_ES',
+							package: 'https://example.com/es_ES.zip',
+						},
+					],
+				}),
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				arrayBuffer: async () => new ArrayBuffer(0),
+			});
+
+		const defineConstant = vi.fn();
+		const run = vi
+			.fn()
+			.mockResolvedValueOnce({ text: '' })
+			.mockResolvedValueOnce({ text: '6.8' })
+			.mockResolvedValueOnce({ json: [] })
+			.mockResolvedValueOnce({ json: [] });
+		const playground = {
+			defineConstant,
+			documentRoot: Promise.resolve('/wordpress'),
+			run,
+			isDir: vi.fn().mockResolvedValue(true),
+			mkdir: vi.fn(),
+		} as unknown as UniversalPHP;
+
+		await setSiteLanguage(playground, { language: 'es_ES' });
+
+		expect(defineConstant).toHaveBeenCalledWith('WPLANG', 'es_ES');
+		const updateLanguageCall = run.mock.calls[0][0] as { code: string };
+		expect(updateLanguageCall.code).toContain("update_option('WPLANG'");
+		expect(updateLanguageCall.code).toContain('ImVzX0VTIg==');
 	});
 });

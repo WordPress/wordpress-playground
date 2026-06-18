@@ -158,7 +158,7 @@ Ang `shorthand` syntax at ang `step` syntax ay tumutugma sa isa't isa. Ang bawat
 <!-- -   Use `shorthands` when **brevity** is your main concern. -->
 
 - Gamitin ang `shorthands` kapag ang **kakulangan** ang iyong pangunahing alalahanin.
-    <!-- -   Use explicit `steps` when you need more control over the **execution order**. -->
+  <!-- -   Use explicit `steps` when you need more control over the **execution order**. -->
 - Gamitin ang explicit `steps` kapag kailangan mo ng mas maraming kontrol sa **execution order**.
 
 </div>

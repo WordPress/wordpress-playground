@@ -26,7 +26,7 @@ import {
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import fs, { existsSync, mkdirSync, readdirSync, rmdirSync } from 'fs';
+import fs, { existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
 import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
@@ -48,6 +48,7 @@ import type { XdebugOptions } from '@php-wasm/node';
 import {
 	AllPHPVersions,
 	isLegacyPHPVersion,
+	isPHPNextVersion,
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -98,6 +99,10 @@ export const LogVerbosity = {
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
+
+const PlaygroundCLIPHPVersions = AllPHPVersions.filter(
+	(version) => !isPHPNextVersion(version)
+);
 
 /**
  * Returned by parseOptionsAndRunCLI when the CLI should exit
@@ -157,7 +162,7 @@ export async function parseOptionsAndRunCLI(
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: AllPHPVersions,
+				choices: PlaygroundCLIPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -336,6 +341,13 @@ export async function parseOptionsAndRunCLI(
 				type: 'boolean',
 				default: false,
 			},
+			'php-extension': {
+				describe:
+					'Load a custom PHP.wasm extension manifest before PHP starts. Can be a local path, file: URL, or http(s) URL. Can be used multiple times.',
+				type: 'array',
+				string: true,
+				nargs: 1,
+			},
 			'experimental-unsafe-ide-integration': {
 				describe:
 					'Enable experimental IDE development tools. This option edits IDE config files ' +
@@ -433,7 +445,7 @@ export async function parseOptionsAndRunCLI(
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: AllPHPVersions,
+				choices: PlaygroundCLIPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -459,6 +471,7 @@ export async function parseOptionsAndRunCLI(
 				type: 'boolean',
 				default: false,
 			},
+			'php-extension': sharedOptions['php-extension'],
 			'experimental-unsafe-ide-integration':
 				sharedOptions['experimental-unsafe-ide-integration'],
 			'skip-browser': {
@@ -746,19 +759,21 @@ export async function parseOptionsAndRunCLI(
 		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
 		if (!isLegacyPhpForDebug) {
 			if (!hasDebugDefine('WP_DEBUG')) {
-				define['WP_DEBUG'] = 'true';
+				defineBool['WP_DEBUG'] = true;
 			}
 			if (!hasDebugDefine('WP_DEBUG_LOG')) {
-				define['WP_DEBUG_LOG'] = 'true';
+				defineBool['WP_DEBUG_LOG'] = true;
 			}
 			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
-				define['WP_DEBUG_DISPLAY'] = 'false';
+				defineBool['WP_DEBUG_DISPLAY'] = false;
 			}
 		}
 
 		const cliArgs = {
 			...args,
 			define,
+			'define-bool': defineBool,
+			'define-number': defineNumber,
 			command,
 			mount: [
 				...((args['mount'] as Mount[]) || []),
@@ -800,12 +815,25 @@ export async function parseOptionsAndRunCLI(
 			if (debug) {
 				printDebugDetails(e);
 			} else {
-				const messageChain = [];
+				const messageChain: string[] = [];
+				const seenErrors = new Set<Error>();
 				let currentError: Error | undefined = e;
-				do {
-					messageChain.push(currentError.message);
-					currentError = currentError.cause as Error;
-				} while (currentError instanceof Error);
+				for (let depth = 0; currentError && depth < 20; depth++) {
+					if (seenErrors.has(currentError)) {
+						messageChain.push('[Circular error cause]');
+						currentError = undefined;
+						break;
+					}
+					seenErrors.add(currentError);
+					messageChain.push(describeError(currentError));
+					currentError =
+						currentError.cause instanceof Error
+							? currentError.cause
+							: undefined;
+				}
+				if (currentError) {
+					messageChain.push('[Error cause chain truncated]');
+				}
 				console.error(
 					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 				);
@@ -824,7 +852,24 @@ export async function parseOptionsAndRunCLI(
  */
 function describeError(error: unknown): string {
 	if (error instanceof Error) {
-		return error.message;
+		if (error.message) {
+			return error.message;
+		}
+		const parts: string[] = [];
+		if (error.name && error.name !== 'Error') {
+			parts.push(error.name);
+		}
+		const obj = error as Error & Record<string, unknown>;
+		if (obj['errno'] !== undefined) {
+			parts.push(`errno: ${obj['errno']}`);
+		}
+		if (obj['code'] !== undefined) {
+			parts.push(`code: ${obj['code']}`);
+		}
+		if (parts.length > 0) {
+			return parts.join(' — ');
+		}
+		return error.stack || String(error);
 	}
 	if (error && typeof error === 'object') {
 		// Comlink-serialized errors arrive as plain objects like
@@ -920,6 +965,7 @@ export interface RunCLIArgs {
 	redis?: boolean;
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
+	phpExtension?: string[];
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
@@ -1728,6 +1774,7 @@ export async function runCLI(
 					const bridge = await startBridge({
 						phpInstance: playgroundPool,
 						phpRoot: '/wordpress',
+						excludedPaths: ['/internal'],
 					});
 
 					bridge.start();
@@ -1903,7 +1950,7 @@ function expandStartCommandArgs(
 
 		if (existsSync(hostPath) && (args['reset'] as boolean)) {
 			cliOutput.print('Resetting site...');
-			rmdirSync(hostPath, { recursive: true });
+			rmSync(hostPath, { recursive: true, force: true });
 		}
 		mkdirSync(hostPath, { recursive: true });
 		newArgs['mount-before-install'] = [

@@ -103,14 +103,14 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
 		"php": "8.3",
-  		"wp": "latest"
+		"wp": "latest"
 	},
 	"steps": [
         {
             "step": "installTheme",
             "themeData": {
                 "resource": "wordpress.org/themes",
-            	"slug": "pendant"
+                "slug": "pendant"
             },
             "options": {
                 "activate": true

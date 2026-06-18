@@ -200,11 +200,13 @@ La forma más rápida de cambiar la versión de WordPress o PHP es usando el pan
 ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!--
-:::info Test your plugin or theme
+<div class="callout callout-info">
+
+**Test your plugin or theme**
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
-:::
+</div>
 -->
 
 <div class="callout callout-info">
@@ -238,11 +240,13 @@ To learn more about preparing content for demos, see the [providing content for 
 Para aprender más sobre la preparación de contenido para demostraciones, consulta la [guía de proporcionar contenido para tu demostración](/guides/providing-content-for-your-demo).
 
 <!--
-:::info Major versions only
+<div class="callout callout-info">
+
+**Major versions only**
 
 You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
 
-:::
+</div>
 -->
 
 <div class="callout callout-info">

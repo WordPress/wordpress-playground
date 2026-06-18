@@ -197,10 +197,7 @@ export function getDockerAssetsCacheRoot(): string {
 	}
 	const home = os.homedir();
 	if (home) {
-		return path.join(
-			home,
-			'.cache/php-wasm/compile-extension/docker-assets'
-		);
+		return path.join(home, '.cache/php-wasm/compile-extension/docker-assets');
 	}
 	return path.join(os.tmpdir(), 'php-wasm/compile-extension/docker-assets');
 }
@@ -268,7 +265,10 @@ function pathSegmentMatchesPattern(segment: string, pattern: string): boolean {
 		return segment === pattern;
 	}
 	return new RegExp(
-		`^${pattern.split('*').map(escapeRegExp).join('.*')}$`
+		`^${pattern
+			.split('*')
+			.map(escapeRegExp)
+			.join('.*')}$`
 	).test(segment);
 }
 

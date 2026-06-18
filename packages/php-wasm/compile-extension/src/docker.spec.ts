@@ -84,19 +84,14 @@ describe('createDockerContext', () => {
 			cacheRoot,
 			fetchDockerAssets: async ({ ref, cacheRoot: fetchCacheRoot }) => {
 				fetchedRefs.push(ref);
-				const phpWasmRoot = path.join(
-					fetchCacheRoot,
-					'fetched/php-wasm'
-				);
+				const phpWasmRoot = path.join(fetchCacheRoot, 'fetched/php-wasm');
 				await createPhpWasmDockerAssets(phpWasmRoot);
 				return phpWasmRoot;
 			},
 		});
 
 		expect(fetchedRefs).toEqual(['v3.1.27']);
-		expect(context.phpWasmRoot).toBe(
-			path.join(cacheRoot, 'fetched/php-wasm')
-		);
+		expect(context.phpWasmRoot).toBe(path.join(cacheRoot, 'fetched/php-wasm'));
 	});
 
 	it('fetches trunk assets for Playground workspace development', async () => {
@@ -121,10 +116,7 @@ describe('createDockerContext', () => {
 			cacheRoot,
 			fetchDockerAssets: async ({ ref, cacheRoot: fetchCacheRoot }) => {
 				fetchedRefs.push(ref);
-				const phpWasmRoot = path.join(
-					fetchCacheRoot,
-					'fetched/php-wasm'
-				);
+				const phpWasmRoot = path.join(fetchCacheRoot, 'fetched/php-wasm');
 				await createPhpWasmDockerAssets(phpWasmRoot);
 				return phpWasmRoot;
 			},

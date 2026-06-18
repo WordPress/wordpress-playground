@@ -7,15 +7,13 @@ import {
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
 import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
-import {
-	type TraversableFilesystemBackend,
-	OpfsFilesystemBackend,
-} from '@wp-playground/storage';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
 import {
 	selectSiteBySlug,
+	type SitePersistence,
 	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
@@ -23,6 +21,13 @@ import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
 import { setActiveModal } from './slice-ui';
 
+/**
+ * Copies the running Playground into a durable storage backend.
+ *
+ * Temporary sites need a new storage record before the copy starts. Autosaved
+ * sites already have one, so saving them to a local directory only remounts the
+ * running filesystem and updates the existing metadata after the copy succeeds.
+ */
 export function persistTemporarySite(
 	siteSlug: string,
 	storageType: Extract<SiteStorageType, 'opfs' | 'local-fs'>,
@@ -30,6 +35,8 @@ export function persistTemporarySite(
 		localFsHandle?: FileSystemDirectoryHandle;
 		siteName?: string;
 		skipRenameModal?: boolean;
+		persistence?: SitePersistence;
+		updateUrl?: boolean;
 	} = {}
 ) {
 	return async (
@@ -59,31 +66,37 @@ export function persistTemporarySite(
 			siteInfo = selectSiteBySlug(getState(), siteSlug)!;
 		}
 
-		try {
-			const existingSiteInfo = await opfsSiteStorage?.read(siteInfo.slug);
-			if (existingSiteInfo?.metadata.storage === 'none') {
-				// It is likely we are dealing with the remnants of a failed save
-				// of a temporary site to OPFS. Let's clean up an try again.
-				await opfsSiteStorage?.delete(siteInfo.slug);
+		const isTemporarySite = siteInfo.metadata.storage === 'none';
+		if (isTemporarySite) {
+			try {
+				const existingSiteInfo = await opfsSiteStorage?.read(
+					siteInfo.slug
+				);
+				if (existingSiteInfo?.metadata.storage === 'none') {
+					// It is likely we are dealing with the remnants of a failed save
+					// of a temporary site to OPFS. Let's clean up and try again.
+					await opfsSiteStorage?.delete(siteInfo.slug);
+				}
+			} catch (error: any) {
+				if (error?.name === 'NotFoundError') {
+					// No failed temporary-site placeholder exists, so this save can
+					// continue with a fresh OPFS record.
+				} else {
+					throw error;
+				}
 			}
-		} catch (error: any) {
-			if (error?.name === 'NotFoundError') {
-				// Do nothing
-			} else {
-				throw error;
-			}
+			await opfsSiteStorage?.create(siteInfo.slug, {
+				...siteInfo.metadata,
+				// The placeholder stays marked as temporary until the copy
+				// succeeds, so a later save can recognize and clean up a failed
+				// attempt.
+				storage: 'none',
+			});
 		}
-		await opfsSiteStorage?.create(siteInfo.slug, {
-			...siteInfo.metadata,
-			// Start with storage type of 'none' to represent a temporary site
-			// that the site is being saved. This will help us distinguish
-			// between successful and failed saves.
-			storage: 'none',
-		});
 
-		// Persist the blueprint bundle if available.
-		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
-		// If not, check if there's an autosaved bundle in OPFS (from editing without running).
+		// Persist a Blueprint bundle only after the user has run the edited
+		// Blueprint. Editor-only changes stay in memory so a draft from one
+		// temporary Playground cannot be saved into another site by accident.
 		let bundleToPersist: TraversableFilesystemBackend | null = null;
 
 		const originalBlueprint = siteInfo.metadata.originalBlueprint;
@@ -96,19 +109,6 @@ export function persistTemporarySite(
 		) {
 			bundleToPersist =
 				originalBlueprint as unknown as TraversableFilesystemBackend;
-		} else {
-			// Check if there's an autosaved bundle from the blueprint editor.
-			try {
-				const opfsBackend = await OpfsFilesystemBackend.fromPath(
-					'blueprints/last-edited-bundle'
-				);
-				const files = await opfsBackend.listFiles('/');
-				if (files.length > 0) {
-					bundleToPersist = opfsBackend;
-				}
-			} catch {
-				// No autosaved bundle available
-			}
 		}
 
 		let bundleWasPersisted = false;
@@ -118,7 +118,7 @@ export function persistTemporarySite(
 				bundleWasPersisted = true;
 			} catch (error) {
 				logger.error('Failed to persist blueprint bundle', error);
-				// Continue with the save - the bundle is optional
+				// The site filesystem is still useful without the editor bundle.
 			}
 		}
 
@@ -132,42 +132,62 @@ export function persistTemporarySite(
 				mountpoint: '/wordpress',
 			} as const;
 		} else if (storageType === 'local-fs') {
-			let dirHandle = options.localFsHandle;
-			if (!dirHandle) {
+			let dirHandle: FileSystemDirectoryHandle;
+			if (options.localFsHandle) {
+				dirHandle = options.localFsHandle;
+			} else {
 				// Request permission to access the directory.
 				// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
-				dirHandle = await (window as any).showDirectoryPicker({
+				dirHandle = (await (window as any).showDirectoryPicker({
 					// By specifying an ID, the browser can remember different directories
 					// for different IDs.If the same ID is used for another picker, the
 					// picker opens in the same directory.
 					id: 'playground-directory',
 					mode: 'readwrite',
-				});
+				})) as FileSystemDirectoryHandle;
 			}
-			await saveDirectoryHandle(siteSlug, dirHandle!);
+			await saveDirectoryHandle(siteSlug, dirHandle);
 
 			mountDescriptor = {
 				device: {
 					type: 'local-fs',
-					handle: dirHandle!,
+					handle: dirHandle,
 				},
 				mountpoint: '/wordpress',
 			} as const;
 		} else {
 			throw new Error(`Unsupported device type: ${storageType}`);
 		}
+		const isAutosave = options.persistence === 'autosave';
+		const syncOperation = isAutosave ? 'autosave' : 'save';
 
 		dispatch(
 			updateClientInfo({
 				siteSlug,
 				changes: {
 					opfsMountDescriptor: mountDescriptor,
-					opfsSync: { status: 'syncing' },
+					opfsSync: {
+						status: 'syncing',
+						operation: syncOperation,
+					},
 				},
 			})
 		);
 		try {
-			await playground!.mountOpfs(
+			/**
+			 * Autosaved browser sites already mount OPFS at `/wordpress`.
+			 * We need to unmount it before we can mount a local directory at `/wordpress`.
+			 *
+			 * That works, because all the files we need are available in MEMFS despite the prior
+			 * OPFS mount. The OPFS mount doesn't replace the MEMFS `/wordpress` directory.
+			 * Instead, it attaches a filesystem journal to periodically rewrite all the operations to
+			 * the right OPFS location. Therefore, the files are in MEMFS and are ready to be copied
+			 * to the local filesystem.
+			 */
+			if (await playground.hasOpfsMount(mountDescriptor.mountpoint)) {
+				await playground.unmountOpfs(mountDescriptor.mountpoint);
+			}
+			await playground.mountOpfs(
 				{
 					...mountDescriptor,
 					initialSyncDirection: 'memfs-to-opfs',
@@ -180,6 +200,7 @@ export function persistTemporarySite(
 								opfsSync: {
 									status: 'syncing',
 									progress,
+									operation: syncOperation,
 								},
 							},
 						})
@@ -203,6 +224,7 @@ export function persistTemporarySite(
 					changes: {
 						opfsSync: {
 							status: 'error',
+							operation: syncOperation,
 						},
 					},
 				})
@@ -210,30 +232,37 @@ export function persistTemporarySite(
 			throw error;
 		}
 
-		await dispatch(
-			updateSite({
-				slug: siteSlug,
-				changes: {
-					originalUrlParams: undefined,
-				},
-			})
-		);
+		// Autosaves stay tied to their source setup URL so restore matching and
+		// boot-time query options can still inspect it. Explicit saves open by
+		// slug, so drop the temporary route params after persistence.
+		if (!isAutosave) {
+			await dispatch(
+				updateSite({
+					slug: siteSlug,
+					changes: {
+						originalUrlParams: undefined,
+					},
+				})
+			);
+		}
 
+		const persistedAt = Date.now();
+		const playgroundDefinedConstants =
+			await getPlaygroundDefinedPHPConstants(playground);
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					storage: storageType,
-					// Reset the created date. Mental model: From the perspective of
-					// the storage backend, the site was just created.
-					whenCreated: Date.now(),
-					// Make sure to store the constants we'll want to re-apply
-					// on the next page load.
-					runtimeConfiguration: {
-						...siteInfo.metadata.runtimeConfiguration,
-						constants:
-							await getPlaygroundDefinedPHPConstants(playground),
-					},
+					persistence: options.persistence ?? 'explicit',
+					// The viewport key includes whenCreated. Changing it would
+					// remount the iframe, so autosave keeps the current value
+					// while explicit saves reset the creation time.
+					...(isAutosave ? {} : { whenCreated: persistedAt }),
+					whenLastUsed: persistedAt,
+					// Keep these outside runtimeConfiguration so autosave does not
+					// change the running iframe's boot fingerprint.
+					playgroundDefinedConstants,
 					// If we persisted a blueprint bundle, point to it so we can
 					// load the full bundle (not just the declaration) on next load.
 					...(bundleWasPersisted
@@ -255,16 +284,27 @@ export function persistTemporarySite(
 		 * Comlink. We should make Comlink ignore those.
 		 */
 		// @TODO: ^ Is this fixed now?
-		const updatedState = getState();
-		const updatedSite = selectSiteBySlug(updatedState, siteSlug);
+		const updatedSite = selectSiteBySlug(getState(), siteSlug);
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
-		redirectTo(persistentSiteUrl);
+		if (options.updateUrl) {
+			redirectTo(persistentSiteUrl);
+		}
 		if (!options.skipRenameModal) {
 			dispatch(setActiveModal('rename-site'));
 		}
 	};
 }
 
+/**
+ * Returns constants registered through Playground's live PHP API.
+ *
+ * Calls to `playground.defineConstant()` are persisted in consts.json after the
+ * iframe has already booted. Examples include `PLAYGROUND_AUTO_LOGIN_AS_USER`
+ * from the login step, `WPLANG` from the language step, and caller-defined
+ * constants such as `WP_DEBUG`. Saved sites need to replay them on reload, but
+ * writing them into `runtimeConfiguration` during autosave would change the
+ * running iframe's boot fingerprint and force an unnecessary reboot.
+ */
 async function getPlaygroundDefinedPHPConstants(playground: PlaygroundClient) {
 	let constants: PHPConstants = {};
 	try {
@@ -272,7 +312,7 @@ async function getPlaygroundDefinedPHPConstants(playground: PlaygroundClient) {
 			await playground.readFileAsText('/internal/shared/consts.json')
 		);
 	} catch {
-		// Do nothing
+		// The file is absent until code defines constants through Playground.
 	}
 	return constants;
 }

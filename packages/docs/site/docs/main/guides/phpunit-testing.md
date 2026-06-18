@@ -7,9 +7,11 @@ sidebar_class_name: navbar-build-item
 
 The [Playground CLI](/developers/local-development/wp-playground-cli) includes a `php` subcommand that runs PHP scripts directly inside the Playground environment. By mounting your plugin or theme into the Playground filesystem, you can run PHPUnit without a local database. Every run starts with a clean WordPress installation, so tests are fully isolated.
 
-:::info
+<div class="callout callout-info">
+
 This guide assumes your plugin or theme has PHPUnit installed via Composer (`composer require --dev phpunit/phpunit`). The `vendor/bin/phpunit` path used below assumes a standard Composer setup.
-:::
+
+</div>
 
 ## Running tests
 

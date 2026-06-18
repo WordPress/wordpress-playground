@@ -183,15 +183,15 @@ needs Docker and Node. A typical GitHub Actions job:
 
 - uses: actions/setup-node@v4
   with:
-      node-version: '24'
+    node-version: '24'
 
 - name: Build the extension matrix
   run: |
-      npx --yes @php-wasm/compile-extension \
-        --source ./my-extension \
-        --name my_extension \
-        --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
-        --out ./dist/my-extension
+    npx --yes @php-wasm/compile-extension \
+      --source ./my-extension \
+      --name my_extension \
+      --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+      --out ./dist/my-extension
 ```
 
 When you build the matrix in GitHub Actions, set `strategy.max-parallel: 1`

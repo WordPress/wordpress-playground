@@ -30,14 +30,18 @@ on:
     pull_request_target:
         types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-    contents: read
-    pull-requests: write
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
 
 jobs:
     paths:
         if: github.repository == 'WordPress/wordpress-playground'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read       # Required for actions/labeler to read the configuration file.
+            pull-requests: write # Required to apply labels to pull requests.
         steps:
             # Pinned to a commit SHA, not a tag: this job runs with
             # pull-requests:write, so a moved tag would be a supply-chain
@@ -50,6 +54,9 @@ jobs:
     package-and-type:
         if: github.repository == 'WordPress/wordpress-playground'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            pull-requests: write # Required to apply labels to pull requests.
         steps:
             - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
               with:

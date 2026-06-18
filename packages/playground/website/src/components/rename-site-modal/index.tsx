@@ -43,7 +43,7 @@ export function RenameSiteModal() {
 		try {
 			setIsSubmitting(true);
 			setError(null);
-			await sitesAPI.rename(trimmed);
+			await sitesAPI.rename(trimmed, site.slug);
 			closeModal();
 		} catch (e) {
 			setError(
