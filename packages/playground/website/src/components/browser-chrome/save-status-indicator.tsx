@@ -134,13 +134,15 @@ export function SaveStatusIndicator() {
 		const progress =
 			opfsSync?.status === 'syncing' ? opfsSync.progress : undefined;
 		const progressPercent = getProgressPercent(progress);
+		const announcedProgressPercent =
+			getAnnouncedProgressPercent(progressPercent);
 		return (
 			<div
 				className={classNames(css.indicator, css.saving)}
 				aria-label={`${getSyncLabel({
 					site: activeSite,
 					opfsSync,
-				})} ${progressPercent}%`}
+				})} ${announcedProgressPercent}%`}
 				role="status"
 			>
 				<span
@@ -291,4 +293,8 @@ function getProgressPercent(
 		return 0;
 	}
 	return Math.min(100, Math.round((progress.files / progress.total) * 100));
+}
+
+function getAnnouncedProgressPercent(progressPercent: number) {
+	return Math.min(100, Math.floor(progressPercent / 25) * 25);
 }

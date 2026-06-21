@@ -760,9 +760,9 @@ test.describe('Default Playground storage', () => {
 			null
 		);
 		await expect(website.page.getByText('Autosaving')).toHaveCount(0);
-		await expect(
-			website.page.getByText('Finalizing autosave')
-		).toHaveCount(0);
+		await expect(website.page.getByText('Finalizing autosave')).toHaveCount(
+			0
+		);
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toHaveCount(0);
@@ -791,15 +791,23 @@ test.describe('Default Playground storage', () => {
 				}
 			)
 		);
-		expect(
-			saveStatusSamples.some(({ text }) => text === 'Autosaved')
-		).toBe(true);
+		expect(saveStatusSamples.some(({ text }) => text === 'Autosaved')).toBe(
+			true
+		);
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
 		).toBe(false);
+		const progressAriaLabels = saveStatusSamples
+			.map(({ ariaLabel }) => ariaLabel)
+			.filter((ariaLabel): ariaLabel is string =>
+				/^Autosaved \d+%$/.test(ariaLabel ?? '')
+			);
+		expect(progressAriaLabels.length).toBeGreaterThan(0);
 		expect(
-			saveStatusSamples.some(({ ariaLabel }) =>
-				/^Autosaved [1-9]\d*%$/.test(ariaLabel ?? '')
+			progressAriaLabels.every((ariaLabel) =>
+				['0', '25', '50', '75', '100'].includes(
+					ariaLabel.match(/^Autosaved (\d+)%$/)?.[1] ?? ''
+				)
 			)
 		).toBe(true);
 	});
