@@ -753,8 +753,22 @@ test.describe('Default Playground storage', () => {
 			(window as any).__saveStatusSamples = [];
 			let installed = false;
 			const sampleStatus = () => {
+				const statusAnnouncement = [
+					...document.querySelectorAll('[role="status"]'),
+				]
+					.map((node) => (node.textContent || '').trim())
+					.find((text) =>
+						[
+							'Save complete',
+							'Autosave complete',
+							'Save failed',
+							'Autosave failed',
+						].includes(text)
+					);
 				const statusButton = [
-					...document.querySelectorAll('[role="status"], button'),
+					...document.querySelectorAll(
+						'[role="progressbar"], button'
+					),
 				].find((node) => {
 					const label = (node.textContent || '').trim();
 					return (
@@ -770,7 +784,10 @@ test.describe('Default Playground storage', () => {
 				}
 				(window as any).__saveStatusSamples.push({
 					text: (statusButton.textContent || '').trim(),
+					role: statusButton.getAttribute('role'),
 					ariaLabel: statusButton.getAttribute('aria-label'),
+					ariaValueNow: statusButton.getAttribute('aria-valuenow'),
+					statusAnnouncement: statusAnnouncement ?? null,
 					color: getComputedStyle(statusButton).color,
 				});
 			};
@@ -823,13 +840,19 @@ test.describe('Default Playground storage', () => {
 				(
 					sample: {
 						text: string;
+						role: string | null;
 						ariaLabel: string | null;
+						ariaValueNow: string | null;
+						statusAnnouncement: string | null;
 						color: string;
 					},
 					index: number,
 					all: {
 						text: string;
+						role: string | null;
 						ariaLabel: string | null;
+						ariaValueNow: string | null;
+						statusAnnouncement: string | null;
 						color: string;
 					}[]
 				) => {
@@ -837,7 +860,11 @@ test.describe('Default Playground storage', () => {
 					return (
 						!previous ||
 						previous.text !== sample.text ||
+						previous.role !== sample.role ||
 						previous.ariaLabel !== sample.ariaLabel ||
+						previous.ariaValueNow !== sample.ariaValueNow ||
+						previous.statusAnnouncement !==
+							sample.statusAnnouncement ||
 						previous.color !== sample.color
 					);
 				}
@@ -849,11 +876,31 @@ test.describe('Default Playground storage', () => {
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
 		).toBe(false);
+		const progressbarSamples = saveStatusSamples.filter(
+			({ role }) => role === 'progressbar'
+		);
+		expect(progressbarSamples.length).toBeGreaterThan(0);
 		expect(
-			saveStatusSamples.some(({ ariaLabel }) =>
-				/^Autosaved [1-9]\d*%$/.test(ariaLabel ?? '')
+			progressbarSamples.every(
+				({ ariaLabel }) => ariaLabel === 'Autosave progress'
 			)
 		).toBe(true);
+		expect(
+			progressbarSamples.some(({ ariaValueNow }) =>
+				/^[1-9]\d*$/.test(ariaValueNow ?? '')
+			)
+		).toBe(true);
+		expect(
+			saveStatusSamples.some(
+				({ statusAnnouncement }) =>
+					statusAnnouncement === 'Autosave complete'
+			)
+		).toBe(true);
+		expect(
+			saveStatusSamples.some(({ statusAnnouncement }) =>
+				/\d+%/.test(statusAnnouncement ?? '')
+			)
+		).toBe(false);
 	});
 
 	test('should edit a Blueprint for an autosaved Playground and recreate the same autosave', async ({
@@ -1414,7 +1461,9 @@ test.describe('Default Playground storage', () => {
 			(window as any).__siteSwitchStatusSamples = [];
 			const sampleStatus = () => {
 				const status = [
-					...document.querySelectorAll('[role="status"], button'),
+					...document.querySelectorAll(
+						'[role="status"], [role="progressbar"], button'
+					),
 				]
 					.map((node) => (node.textContent || '').trim())
 					.find((text) =>
@@ -1461,6 +1510,11 @@ test.describe('Default Playground storage', () => {
 			return (window as any).__siteSwitchStatusSamples;
 		});
 		expect(switchStatusSamples).not.toContain('Autosaving');
+		await expect(
+			website.page
+				.getByRole('status')
+				.filter({ hasText: /Save complete|Autosave complete/ })
+		).toHaveCount(0);
 	});
 
 	test('should show autosave browser storage details in the Site Manager by default', async ({
@@ -1827,7 +1881,9 @@ echo get_option('blogname');
 			(window as any).__keepNewStatusSamples = [];
 			const sampleStatus = () => {
 				const status = [
-					...document.querySelectorAll('[role="status"], button'),
+					...document.querySelectorAll(
+						'[role="status"], [role="progressbar"], button'
+					),
 				]
 					.map((node) => (node.textContent || '').trim())
 					.find((text) =>
