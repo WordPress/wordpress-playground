@@ -60,6 +60,10 @@ interface JournalFSEventsToOpfsOptions {
 	onSqliteDatabaseWrite?: () => void;
 }
 
+interface CopyMemfsToOpfsOptions {
+	skipLiveSqliteDatabase?: boolean;
+}
+
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
 const SQLITE_DB_MEMFS_PATH = '/wordpress/wp-content/database/.ht.sqlite';
 const SQLITE_DB_OPFS_PATH = '/wp-content/database/.ht.sqlite';
@@ -80,12 +84,16 @@ export function createDirectoryHandleMountHandler(
 	};
 
 	return async function (php, FS, vfsMountPoint) {
+		const skipLiveSqliteDatabase =
+			options.onSqliteDatabaseWrite !== undefined;
 		if (options.initialSync.direction === 'opfs-to-memfs') {
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
 				FSHelpers.rmdir(FS, vfsMountPoint);
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
-			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
+			await copyOpfsToMemfs(FS, handle, vfsMountPoint, {
+				skipLiveSqliteDatabase,
+			});
 			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
 				onSqliteDatabaseWrite: options.onSqliteDatabaseWrite,
 			});
@@ -108,6 +116,9 @@ export function createDirectoryHandleMountHandler(
 							phase: 'copying',
 						};
 						await options.initialSync.onProgress?.(lastProgress);
+					},
+					{
+						skipLiveSqliteDatabase,
 					}
 				);
 				await options.initialSync.onProgress?.({
@@ -133,7 +144,8 @@ export function createDirectoryHandleMountHandler(
 async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
-	memfsRoot: string
+	memfsRoot: string,
+	options: CopyMemfsToOpfsOptions = {}
 ) {
 	FSHelpers.mkdir(FS, memfsRoot);
 
@@ -159,7 +171,10 @@ async function copyOpfsToMemfs(
 					memfsParentPath,
 					opfsHandle.name
 				);
-				if (isSqliteSidecarOrTemporaryPath(memfsEntryPath)) {
+				if (
+					options.skipLiveSqliteDatabase &&
+					isSqliteSidecarOrTemporaryPath(memfsEntryPath)
+				) {
 					return;
 				}
 				if (opfsHandle.kind === 'directory') {
@@ -201,7 +216,8 @@ export async function copyMemfsToOpfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
-	onProgress?: SyncProgressCallback
+	onProgress?: SyncProgressCallback,
+	options: CopyMemfsToOpfsOptions = {}
 ) {
 	// Ensure the memfs directory exists.
 	FS.mkdirTree(memfsRoot);
@@ -222,7 +238,10 @@ export async function copyMemfsToOpfs(
 				)
 				.map(async (entryName: string) => {
 					const memfsPath = joinPaths(memfsParent, entryName);
-					if (isLiveSqliteDatabasePath(memfsPath)) {
+					if (
+						options.skipLiveSqliteDatabase &&
+						isLiveSqliteDatabasePath(memfsPath)
+					) {
 						return;
 					}
 					if (!isMemfsDir(FS, memfsPath)) {
@@ -402,7 +421,10 @@ export function journalFSEventsToOpfs(
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
 	});
-	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
+	const skipLiveSqliteDatabase = options.onSqliteDatabaseWrite !== undefined;
+	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot, {
+		skipLiveSqliteDatabase,
+	});
 	let flushPromise: Promise<void> | undefined;
 
 	function flush() {
@@ -478,9 +500,9 @@ export function journalFSEventsToOpfs(
 		journal.splice(0, journalEntries.length);
 
 		const compressedJournal = normalizeFilesystemOperations(journalEntries);
-		const hadSqliteDatabaseEntries = compressedJournal.some(
-			isLiveSqliteDatabaseEntry
-		);
+		const hadSqliteDatabaseEntries =
+			skipLiveSqliteDatabase &&
+			compressedJournal.some(isLiveSqliteDatabaseEntry);
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
@@ -510,11 +532,18 @@ class OpfsRewriter {
 	private memfsRoot: string;
 	private php: PHP;
 	private opfs: FileSystemDirectoryHandle;
+	private skipLiveSqliteDatabase: boolean;
 
-	constructor(php: PHP, opfs: FileSystemDirectoryHandle, memfsRoot: string) {
+	constructor(
+		php: PHP,
+		opfs: FileSystemDirectoryHandle,
+		memfsRoot: string,
+		options: CopyMemfsToOpfsOptions = {}
+	) {
 		this.php = php;
 		this.opfs = opfs;
 		this.memfsRoot = normalizeMemfsPath(memfsRoot);
+		this.skipLiveSqliteDatabase = options.skipLiveSqliteDatabase ?? false;
 	}
 
 	private toOpfsPath(path: string) {
@@ -528,7 +557,7 @@ class OpfsRewriter {
 		) {
 			return;
 		}
-		if (isLiveSqliteDatabaseEntry(entry)) {
+		if (this.skipLiveSqliteDatabase && isLiveSqliteDatabaseEntry(entry)) {
 			return;
 		}
 		const opfsPath = this.toOpfsPath(entry.path);
@@ -586,7 +615,11 @@ class OpfsRewriter {
 					await copyMemfsToOpfs(
 						this.php[__private__dont__use].FS,
 						opfsDir,
-						entry.toPath
+						entry.toPath,
+						undefined,
+						{
+							skipLiveSqliteDatabase: this.skipLiveSqliteDatabase,
+						}
 					);
 					// Then delete the old directory
 					await opfsParent.removeEntry(name, {

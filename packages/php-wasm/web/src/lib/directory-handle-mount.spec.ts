@@ -123,13 +123,42 @@ describe('journalFSEventsToOpfs', () => {
 		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
 	});
 
-	it('does not flush the live SQLite database or sidecars to OPFS', async () => {
+	it('flushes the live SQLite database when snapshots are not configured', async () => {
 		const { FS, files, php } = createFakePhp();
 		const opfsRoot = new MemoryDirectoryHandle('root');
 		const mount = journalFSEventsToOpfs(
 			php,
 			opfsRoot as unknown as FileSystemDirectoryHandle,
 			'/wordpress'
+		);
+
+		files.set(
+			'/wordpress/wp-content/database/.ht.sqlite',
+			encode('live sqlite bytes')
+		);
+		FS.write({ path: '/wordpress/wp-content/database/.ht.sqlite' });
+
+		await mount.flush();
+
+		const database = opfsRoot.directories
+			.get('wp-content')!
+			.directories.get('database')!;
+		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe(
+			'live sqlite bytes'
+		);
+	});
+
+	it('does not flush the live SQLite database or sidecars when snapshots are configured', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const onSqliteDatabaseWrite = vi.fn();
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress',
+			{
+				onSqliteDatabaseWrite,
+			}
 		);
 
 		for (const path of [
@@ -145,6 +174,7 @@ describe('journalFSEventsToOpfs', () => {
 		await mount.flush();
 
 		expect(opfsRoot.directories.has('wp-content')).toBe(false);
+		expect(onSqliteDatabaseWrite).toHaveBeenCalledTimes(1);
 	});
 
 	it('persists a SQLite snapshot as the canonical OPFS database file', async () => {
