@@ -794,6 +794,39 @@ test.describe.serial('playground_request REST API auth', () => {
 		});
 	});
 
+	test('accepts URL-encoded string body', async ({ mcpClient, siteId }) => {
+		const body = new URLSearchParams({
+			title: 'URL-encoded Body Test',
+			content: 'Created with form encoding',
+			status: 'publish',
+		}).toString();
+		const createResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: '/wp-json/wp/v2/posts',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body,
+			},
+		});
+		const created = JSON.parse(resultText(createResult));
+		expect(created.httpStatusCode).toBe(201);
+		const post = JSON.parse(created.text);
+		expect(post.title.raw).toBe('URL-encoded Body Test');
+
+		await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${post.id}?force=true`,
+				method: 'DELETE',
+			},
+		});
+	});
+
 	test('logged-out user cannot create posts', async ({
 		mcpClient,
 		siteId,
