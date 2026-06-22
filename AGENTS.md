@@ -33,7 +33,7 @@ tests, or dev servers:
 ```bash
 nvm use
 git submodule update --init --recursive
-npm install
+npm ci
 ```
 
 This is especially important for worktree-based agent tools, which may create a
