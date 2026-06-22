@@ -37,6 +37,7 @@ export interface MountOptions {
 	};
 	onMount?: (mount: DirectoryHandleMount) => void;
 	onSqliteDatabaseWrite?: () => void;
+	onSqliteDatabaseFilesRestored?: () => void;
 }
 export interface DirectoryHandleMount {
 	flush(): Promise<void>;
@@ -58,6 +59,10 @@ export type SyncProgressCallback = (
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
 	onSqliteDatabaseWrite?: () => void;
+}
+
+interface CopyOpfsToMemfsOptions {
+	onSqliteDatabaseFileRestored?: () => void;
 }
 
 interface CopyMemfsToOpfsOptions {
@@ -87,17 +92,23 @@ export function createDirectoryHandleMountHandler(
 		const skipLiveSqliteDatabase =
 			options.onSqliteDatabaseWrite !== undefined;
 		if (options.initialSync.direction === 'opfs-to-memfs') {
+			let restoredSqliteDatabaseFiles = false;
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
 				FSHelpers.rmdir(FS, vfsMountPoint);
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint, {
-				skipLiveSqliteDatabase,
+				onSqliteDatabaseFileRestored: () => {
+					restoredSqliteDatabaseFiles = true;
+				},
 			});
 			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
 				onSqliteDatabaseWrite: options.onSqliteDatabaseWrite,
 			});
 			options.onMount?.(mount);
+			if (restoredSqliteDatabaseFiles) {
+				options.onSqliteDatabaseFilesRestored?.();
+			}
 			return mount.unmount;
 		} else {
 			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
@@ -145,7 +156,7 @@ async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
-	options: CopyMemfsToOpfsOptions = {}
+	options: CopyOpfsToMemfsOptions = {}
 ) {
 	FSHelpers.mkdir(FS, memfsRoot);
 
@@ -171,11 +182,8 @@ async function copyOpfsToMemfs(
 					memfsParentPath,
 					opfsHandle.name
 				);
-				if (
-					options.skipLiveSqliteDatabase &&
-					isSqliteSidecarOrTemporaryPath(memfsEntryPath)
-				) {
-					return;
+				if (isSqliteSidecarOrTemporaryPath(memfsEntryPath)) {
+					options.onSqliteDatabaseFileRestored?.();
 				}
 				if (opfsHandle.kind === 'directory') {
 					try {

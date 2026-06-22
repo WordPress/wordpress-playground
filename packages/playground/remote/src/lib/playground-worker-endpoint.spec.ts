@@ -125,6 +125,38 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		);
 	});
 
+	it('persists a migration snapshot after restoring legacy SQLite sidecars', async () => {
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+		(endpoint as any).opfsMountsNeedingSqliteMigrationSnapshot[
+			'/wordpress'
+		] = true;
+
+		await (endpoint as any).persistRestoredSqliteSnapshotIfNeeded();
+
+		expect(opfsMount.flush).toHaveBeenCalledTimes(1);
+		expect(php.run).toHaveBeenCalledWith({
+			scriptPath: '/internal/shared/snapshot-sqlite.php',
+			env: {
+				PLAYGROUND_SQLITE_SNAPSHOT_PATH:
+					'/tmp/playground-sqlite-snapshot.sqlite',
+			},
+		});
+		expect(opfsMount.persistSqliteSnapshot).toHaveBeenCalledWith(
+			'/tmp/playground-sqlite-snapshot.sqlite'
+		);
+		expect(
+			(endpoint as any).opfsMountsNeedingSqliteMigrationSnapshot[
+				'/wordpress'
+			]
+		).toBeUndefined();
+	});
+
 	it('reports whether an OPFS mount is active', async () => {
 		const endpoint = await createEndpoint({
 			'/wordpress': createOpfsMount(),
@@ -373,6 +405,8 @@ async function createEndpoint(
 	endpoint.unmounts = createNullPrototypeRecord(unmounts);
 	endpoint.opfsSqliteSnapshotTimers = createNullPrototypeRecord({});
 	endpoint.opfsSqliteSnapshotPromises = createNullPrototypeRecord({});
+	endpoint.opfsMountsNeedingSqliteMigrationSnapshot =
+		createNullPrototypeRecord({});
 	endpoint.__internal_getPHP = () => createFakePhp();
 	return endpoint as {
 		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;

@@ -135,6 +135,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		string,
 		Promise<void> | undefined
 	> = createNullPrototypeRecord();
+	private opfsMountsNeedingSqliteMigrationSnapshot: Record<string, boolean> =
+		createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
@@ -406,6 +408,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			);
 		}
 
+		await this.persistRestoredSqliteSnapshotIfNeeded();
+
 		this.__internal_setRequestHandler(requestHandler);
 	}
 
@@ -491,6 +495,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			this.clearSqliteSnapshotTimer(mountpoint);
 			delete this.unmounts[mountpoint];
 			delete this.opfsMounts[mountpoint];
+			delete this.opfsMountsNeedingSqliteMigrationSnapshot[mountpoint];
 		}
 		if (flushError !== undefined) {
 			throw flushError;
@@ -577,6 +582,13 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 							this.scheduleSqliteSnapshot(options.mountpoint);
 						}
 					: undefined,
+				onSqliteDatabaseFilesRestored: shouldPersistSqliteSnapshots
+					? () => {
+							this.opfsMountsNeedingSqliteMigrationSnapshot[
+								options.mountpoint
+							] = true;
+						}
+					: undefined,
 			})
 		);
 		if (opfsMount === undefined) {
@@ -602,6 +614,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			} catch (error) {
 				delete this.unmounts[options.mountpoint];
 				delete this.opfsMounts[options.mountpoint];
+				delete this.opfsMountsNeedingSqliteMigrationSnapshot[
+					options.mountpoint
+				];
 				try {
 					await unmount();
 				} catch (unmountError) {
@@ -610,6 +625,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				throw error;
 			}
 		}
+	}
+
+	private async persistRestoredSqliteSnapshotIfNeeded() {
+		if (
+			this.opfsMountsNeedingSqliteMigrationSnapshot[
+				WORDPRESS_MOUNTPOINT
+			] !== true
+		) {
+			return;
+		}
+		await this.persistSqliteSnapshotForOpfsMount(WORDPRESS_MOUNTPOINT);
+		delete this.opfsMountsNeedingSqliteMigrationSnapshot[
+			WORDPRESS_MOUNTPOINT
+		];
 	}
 
 	private async flushOpfsMountWithSnapshot(
