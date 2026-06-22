@@ -671,8 +671,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	) {
 		const previous =
 			this.opfsSqliteSnapshotPromises[mountpoint] ?? Promise.resolve();
-		let queuedPromise!: Promise<void>;
-		queuedPromise = previous
+		const queuedPromise = previous
 			.catch(() => {})
 			.then(persistSnapshot)
 			.finally(() => {
