@@ -119,6 +119,10 @@
 			"@wp-playground/mcp/client": [
 				"packages/playground/mcp/src/client.ts"
 			],
+			"@wp-playground/mcp/api": ["packages/playground/mcp/src/api.ts"],
+			"@wp-playground/personal-wp-mcp": [
+				"packages/playground/personal-wp-mcp/src/index.ts"
+			],
 			"@wp-playground/components": [
 				"packages/playground/components/src/index.ts"
 			],
