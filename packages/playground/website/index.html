@@ -38,7 +38,9 @@
 		/>
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 		<link rel="stylesheet" href="/src/styles.css" />
-		<script>
+		<script type="module">
+			import { isDevServer } from '../remote/src/lib/dev-server';
+
 			/**
 			 * Dynamically create <link rel="manifest" /> to enable using Playground with
 			 * a Blueprint as an offline progressive web app.
@@ -62,11 +64,7 @@
 			 * In production, load a manifest URL that includes the current URL
 			 * as the "start_url" parameter.
 			 */
-			const runningOnDevServer =
-				window.location.port === '5400' ||
-				window.location.pathname.startsWith('/website-server/');
-
-			if (!runningOnDevServer) {
+			if (!isDevServer(new URL(window.location.href))) {
 				const runningAsPWA = window.matchMedia(
 					'(display-mode: standalone)'
 				).matches;

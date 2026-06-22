@@ -48,8 +48,12 @@ describe('PWA manifest configuration', () => {
 		);
 		expect(html).toContain('/dynamic-manifest.json.php');
 		expect(html).toContain(
-			"window.location.pathname.startsWith('/website-server/')"
+			"import { isDevServer } from '../remote/src/lib/dev-server';"
 		);
+		expect(html).toContain(
+			'if (!isDevServer(new URL(window.location.href)))'
+		);
+		expect(html).not.toContain('runningOnDevServer');
 		expect(html).not.toContain('if (!manifestUrl)');
 	});
 
