@@ -22,6 +22,7 @@ export class BlueprintsV2Handler {
 			sapiName,
 			scope,
 			pathAliases,
+			disableProgressBar,
 		} = this.options;
 		const downloadProgress = progressTracker!.stage(0.25);
 		const executionProgress = progressTracker!.stage(0.75);
@@ -33,7 +34,9 @@ export class BlueprintsV2Handler {
 			iframe.ownerDocument!.defaultView!
 		) as PlaygroundClient;
 		await playground.isConnected();
-		progressTracker.pipe(playground);
+		if (!disableProgressBar) {
+			progressTracker.pipe(playground);
+		}
 
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);

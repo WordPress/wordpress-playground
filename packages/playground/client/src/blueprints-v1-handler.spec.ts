@@ -97,6 +97,7 @@ describe('BlueprintsV1Handler', () => {
 
 	it('boots WordPress setup when only installation is disabled', async () => {
 		const iframe = createIframe();
+		const progressTracker = createProgressTracker();
 		const handler = new BlueprintsV1Handler({
 			iframe,
 			remoteUrl: 'http://example.com/remote.html',
@@ -104,13 +105,29 @@ describe('BlueprintsV1Handler', () => {
 			shouldInstallWordPress: false,
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(iframe, progressTracker);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
 				wordpressInstallMode: 'install-from-existing-files-if-needed',
 			})
 		);
+		expect(progressTracker.pipe).toHaveBeenCalledWith(mocks.playground);
+	});
+
+	it('does not pipe progress to the remote when progress bar is disabled', async () => {
+		const iframe = createIframe();
+		const progressTracker = createProgressTracker();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {},
+			disableProgressBar: true,
+		});
+
+		await handler.bootPlayground(iframe, progressTracker);
+
+		expect(progressTracker.pipe).not.toHaveBeenCalled();
 	});
 
 	it('passes query API PHP extension requests to the runtime', async () => {
