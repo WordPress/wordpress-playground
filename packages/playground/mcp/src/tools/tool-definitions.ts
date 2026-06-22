@@ -13,7 +13,11 @@ export interface ToolAnnotations {
 	openWorldHint?: boolean;
 }
 
-export type ToolParamType = 'string' | 'boolean' | 'object';
+export type ToolParamType =
+	| 'string'
+	| 'boolean'
+	| 'object'
+	| 'string_or_object';
 
 export interface ToolParam {
 	name: string;
@@ -188,8 +192,9 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			},
 			{
 				name: 'body',
-				type: 'string',
-				description: 'Request body (for POST/PUT requests)',
+				type: 'string_or_object',
+				description: `Request body (for POST/PUT requests).
+					Accepts a JSON string or an object.`,
 				required: false,
 			},
 		],
@@ -572,10 +577,13 @@ export function paramsToJsonSchema(
 	const required: string[] = [];
 
 	for (const param of params) {
-		const prop: Record<string, unknown> = {
-			type: param.type,
-			description: param.description,
-		};
+		const prop: Record<string, unknown> = {};
+		if (param.type === 'string_or_object') {
+			prop['oneOf'] = [{ type: 'string' }, { type: 'object' }];
+		} else {
+			prop['type'] = param.type;
+		}
+		prop['description'] = param.description;
 		if (param.additionalProperties !== undefined) {
 			prop['additionalProperties'] = param.additionalProperties;
 		}
