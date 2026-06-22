@@ -801,7 +801,10 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						break;
 					}
 					seenErrors.add(currentError);
-					messageChain.push(describeError(currentError));
+					const msg = describeError(currentError);
+					if (msg) {
+						messageChain.push(msg);
+					}
 					currentError =
 						currentError.cause instanceof Error
 							? currentError.cause
@@ -822,9 +825,45 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 }
 
 /**
+ * Walk the cause chain and build a "X caused by: Y" message string.
+ *
+ * This is used in the startup-error catch path so that blueprint errors
+ * surface their full cause chain, matching the output produced by the
+ * outer try/catch in the CLI entry point.
+ */
+function buildErrorMessage(error: unknown): string {
+	if (!(error instanceof Error)) {
+		return describeError(error);
+	}
+	const messageChain: string[] = [];
+	const seenErrors = new Set<Error>();
+	let currentError: Error | undefined = error;
+	for (let depth = 0; currentError && depth < 20; depth++) {
+		if (seenErrors.has(currentError)) {
+			messageChain.push('[Circular error cause]');
+			break;
+		}
+		seenErrors.add(currentError);
+		const msg = describeError(currentError);
+		if (msg) {
+			messageChain.push(msg);
+		}
+		currentError =
+			currentError.cause instanceof Error
+				? currentError.cause
+				: undefined;
+	}
+	return messageChain.join(' caused by: ') || describeError(error);
+}
+
+/**
  * Describe an error for display. Handles Error instances, Comlink-serialized
  * plain objects (which lose their Error prototype during worker thread
  * transfer), and arbitrary values.
+ *
+ * When the top-level error has no message of its own, the cause chain is
+ * walked to surface the first useful description — this prevents "Error:"
+ * with a blank body when a wrapper error is created without a message.
  */
 function describeError(error: unknown): string {
 	if (error instanceof Error) {
@@ -844,6 +883,14 @@ function describeError(error: unknown): string {
 		}
 		if (parts.length > 0) {
 			return parts.join(' — ');
+		}
+		// No message on this error — try the cause chain before falling back
+		// to the stack trace, so that useful context from wrapped errors is shown.
+		if (error.cause !== undefined) {
+			const causeDescription = describeError(error.cause);
+			if (causeDescription) {
+				return causeDescription;
+			}
 		}
 		return error.stack || String(error);
 	}
@@ -1766,7 +1813,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					phpLogs = await playgroundPool.readFileAsText(errorLogPath);
 				}
 				await disposeCLI();
-				throw new Error(phpLogs, { cause: error });
+				// Use the PHP log as the primary message only when it is
+				// non-empty; an empty phpLogs would produce a blank "Error:"
+				// and hide the original error's cause chain.
+				if (phpLogs) {
+					throw new Error(phpLogs, { cause: error });
+				}
+				throw error;
 			}
 		},
 		async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {
@@ -1831,7 +1884,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			return response;
 		},
 	}).catch((error) => {
-		cliOutput.printError(describeError(error));
+		cliOutput.printError(buildErrorMessage(error));
 		process.exit(1);
 	});
 
