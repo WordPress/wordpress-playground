@@ -66,7 +66,7 @@ interface CopyOpfsToMemfsOptions {
 }
 
 interface CopyMemfsToOpfsOptions {
-	skipLiveSqliteDatabase?: boolean;
+	hasSqliteSnapshotPublisher?: boolean;
 }
 
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
@@ -89,7 +89,15 @@ export function createDirectoryHandleMountHandler(
 	};
 
 	return async function (php, FS, vfsMountPoint) {
-		const skipLiveSqliteDatabase =
+		// The mount layer is generic OPFS persistence. It must only suppress
+		// raw SQLite database/sidecar writes when a higher layer registered a
+		// snapshot publisher that will persist a validated .ht.sqlite replacement.
+		//
+		// Without that publisher, skipping .ht.sqlite would lose data for direct
+		// OPFS mount users, PHP-only runtimes, tests, or non-standard consumers.
+		// With it, raw SQLite replay stands down and snapshot persistence becomes
+		// the single owner of durable SQLite state.
+		const hasSqliteSnapshotPublisher =
 			options.onSqliteDatabaseWrite !== undefined;
 		if (options.initialSync.direction === 'opfs-to-memfs') {
 			let restoredSqliteDatabaseFiles = false;
@@ -129,7 +137,7 @@ export function createDirectoryHandleMountHandler(
 						await options.initialSync.onProgress?.(lastProgress);
 					},
 					{
-						skipLiveSqliteDatabase,
+						hasSqliteSnapshotPublisher,
 					}
 				);
 				await options.initialSync.onProgress?.({
@@ -247,7 +255,7 @@ export async function copyMemfsToOpfs(
 				.map(async (entryName: string) => {
 					const memfsPath = joinPaths(memfsParent, entryName);
 					if (
-						options.skipLiveSqliteDatabase &&
+						options.hasSqliteSnapshotPublisher &&
 						isLiveSqliteDatabasePath(memfsPath)
 					) {
 						return;
@@ -429,9 +437,10 @@ export function journalFSEventsToOpfs(
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
 	});
-	const skipLiveSqliteDatabase = options.onSqliteDatabaseWrite !== undefined;
+	const hasSqliteSnapshotPublisher =
+		options.onSqliteDatabaseWrite !== undefined;
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot, {
-		skipLiveSqliteDatabase,
+		hasSqliteSnapshotPublisher,
 	});
 	let flushPromise: Promise<void> | undefined;
 
@@ -509,7 +518,7 @@ export function journalFSEventsToOpfs(
 
 		const compressedJournal = normalizeFilesystemOperations(journalEntries);
 		const hadSqliteDatabaseEntries =
-			skipLiveSqliteDatabase &&
+			hasSqliteSnapshotPublisher &&
 			compressedJournal.some(isLiveSqliteDatabaseEntry);
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
@@ -540,7 +549,7 @@ class OpfsRewriter {
 	private memfsRoot: string;
 	private php: PHP;
 	private opfs: FileSystemDirectoryHandle;
-	private skipLiveSqliteDatabase: boolean;
+	private hasSqliteSnapshotPublisher: boolean;
 
 	constructor(
 		php: PHP,
@@ -551,7 +560,8 @@ class OpfsRewriter {
 		this.php = php;
 		this.opfs = opfs;
 		this.memfsRoot = normalizeMemfsPath(memfsRoot);
-		this.skipLiveSqliteDatabase = options.skipLiveSqliteDatabase ?? false;
+		this.hasSqliteSnapshotPublisher =
+			options.hasSqliteSnapshotPublisher ?? false;
 	}
 
 	private toOpfsPath(path: string) {
@@ -565,7 +575,10 @@ class OpfsRewriter {
 		) {
 			return;
 		}
-		if (this.skipLiveSqliteDatabase && isLiveSqliteDatabaseEntry(entry)) {
+		if (
+			this.hasSqliteSnapshotPublisher &&
+			isLiveSqliteDatabaseEntry(entry)
+		) {
 			return;
 		}
 		const opfsPath = this.toOpfsPath(entry.path);
@@ -626,7 +639,8 @@ class OpfsRewriter {
 						entry.toPath,
 						undefined,
 						{
-							skipLiveSqliteDatabase: this.skipLiveSqliteDatabase,
+							hasSqliteSnapshotPublisher:
+								this.hasSqliteSnapshotPublisher,
 						}
 					);
 					// Then delete the old directory
