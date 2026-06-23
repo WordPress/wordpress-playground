@@ -360,7 +360,7 @@ async function writeOpfsFile(
 	}
 }
 
-export async function persistSqliteSnapshotToOpfs(
+async function persistSqliteSnapshotToOpfs(
 	opfsRoot: FileSystemDirectoryHandle,
 	snapshotBytes: Uint8Array
 ): Promise<void> {

@@ -10,10 +10,7 @@ export { getPHPLoaderModule } from './get-php-loader-module';
 export { setupPostMessageRelay } from './setup-post-message-relay';
 
 export { spawnPHPWorkerThread } from './worker-thread/spawn-php-worker-thread';
-export {
-	createDirectoryHandleMountHandler,
-	persistSqliteSnapshotToOpfs,
-} from './directory-handle-mount';
+export { createDirectoryHandleMountHandler } from './directory-handle-mount';
 export type {
 	DirectoryHandleMount,
 	MountDevice,
