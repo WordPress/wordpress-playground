@@ -252,10 +252,10 @@ describe('journalFSEventsToOpfs', () => {
 		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe(
 			'snapshot'
 		);
-		expect(database.files.has('.ht.sqlite.tmp')).toBe(false);
+		expect(database.files.has('.ht.sqlite.copy')).toBe(false);
 	});
 
-	it('keeps the SQLite temp snapshot when fallback publishing without move()', async () => {
+	it('removes the SQLite snapshot copy after fallback publishing without move()', async () => {
 		const { files, php } = createFakePhp();
 		const opfsRoot = new MemoryDirectoryHandle('root', undefined, false);
 		const wpContent = (await opfsRoot.getDirectoryHandle('wp-content', {
@@ -288,9 +288,7 @@ describe('journalFSEventsToOpfs', () => {
 		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe(
 			'snapshot'
 		);
-		expect(decode(database.files.get('.ht.sqlite.tmp')!.bytes)).toBe(
-			'snapshot'
-		);
+		expect(database.files.has('.ht.sqlite.copy')).toBe(false);
 		expect(database.files.has('.ht.sqlite-journal')).toBe(false);
 		expect(database.files.has('.ht.sqlite-wal')).toBe(false);
 		expect(database.files.has('.ht.sqlite-shm')).toBe(false);

@@ -68,7 +68,7 @@ const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
 const SQLITE_DB_MEMFS_PATH = '/wordpress/wp-content/database/.ht.sqlite';
 const SQLITE_DB_OPFS_PATH = '/wp-content/database/.ht.sqlite';
 const SQLITE_DB_FILENAME = '.ht.sqlite';
-const SQLITE_DB_TEMP_FILENAME = '.ht.sqlite.tmp';
+const SQLITE_DB_COPY_FILENAME = '.ht.sqlite.copy';
 const SQLITE_SIDECAR_SUFFIXES = ['-journal', '-wal', '-shm'];
 
 export function createDirectoryHandleMountHandler(
@@ -365,10 +365,10 @@ async function persistSqliteSnapshotToOpfs(
 	snapshotBytes: Uint8Array
 ): Promise<void> {
 	const opfsParent = await resolveParent(opfsRoot, SQLITE_DB_OPFS_PATH);
-	await writeOpfsFile(opfsParent, SQLITE_DB_TEMP_FILENAME, snapshotBytes);
+	await writeOpfsFile(opfsParent, SQLITE_DB_COPY_FILENAME, snapshotBytes);
 	await publishOpfsFile(
 		opfsParent,
-		SQLITE_DB_TEMP_FILENAME,
+		SQLITE_DB_COPY_FILENAME,
 		SQLITE_DB_FILENAME,
 		snapshotBytes
 	);
@@ -377,21 +377,24 @@ async function persistSqliteSnapshotToOpfs(
 
 async function publishOpfsFile(
 	opfsParent: FileSystemDirectoryHandle,
-	tempName: string,
+	copyName: string,
 	finalName: string,
 	fallbackBytes: Uint8Array
 ) {
-	const tempFile = await opfsParent.getFileHandle(tempName);
-	if (typeof tempFile.move === 'function') {
+	const copyFile = await opfsParent.getFileHandle(copyName);
+	if (typeof copyFile.move === 'function') {
 		try {
-			await tempFile.move(opfsParent, finalName);
+			await copyFile.move(opfsParent, finalName);
 			return;
 		} catch {
 			// Some implementations do not support replacing an existing file.
 		}
 	}
 
+	// Rewriting the final database is not atomic. Keep the completed copy until
+	// the final write closes, so an interrupted rewrite still leaves recovery data.
 	await writeOpfsFile(opfsParent, finalName, fallbackBytes);
+	await opfsParent.removeEntry(copyName);
 }
 
 async function removeSqliteSidecarFiles(opfsParent: FileSystemDirectoryHandle) {
