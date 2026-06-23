@@ -125,36 +125,22 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		);
 	});
 
-	it('persists a migration snapshot after restoring legacy SQLite sidecars', async () => {
-		const opfsMount = createOpfsMount();
+	it('does not snapshot solely because OPFS restore contains SQLite sidecars', async () => {
 		const php = createFakePhp();
 		php.isFile.mockReturnValue(true);
-		const endpoint = await createEndpoint({
-			'/wordpress': opfsMount,
-		});
+		const endpoint = await createEndpoint({});
 		endpoint.__internal_getPHP = () => php;
-		(endpoint as any).opfsMountsNeedingSqliteMigrationSnapshot[
-			'/wordpress'
-		] = true;
 
-		await (endpoint as any).persistRestoredSqliteSnapshotIfNeeded();
-
-		expect(opfsMount.flush).toHaveBeenCalledTimes(1);
-		expect(php.run).toHaveBeenCalledWith({
-			scriptPath: '/internal/shared/snapshot-sqlite.php',
-			env: {
-				PLAYGROUND_SQLITE_SNAPSHOT_PATH:
-					'/tmp/playground-sqlite-snapshot.sqlite',
+		await endpoint.mountOpfs({
+			device: {
+				type: 'local-fs',
+				handle: createSqliteLegacyDirectoryHandle(),
 			},
+			mountpoint: '/wordpress',
 		});
-		expect(opfsMount.persistSqliteSnapshot).toHaveBeenCalledWith(
-			'/tmp/playground-sqlite-snapshot.sqlite'
-		);
-		expect(
-			(endpoint as any).opfsMountsNeedingSqliteMigrationSnapshot[
-				'/wordpress'
-			]
-		).toBeUndefined();
+
+		expect(php.run).not.toHaveBeenCalled();
+		expect(php[__private__dont__use].FS.createDataFile).toHaveBeenCalled();
 	});
 
 	it('reports whether an OPFS mount is active', async () => {
@@ -405,8 +391,6 @@ async function createEndpoint(
 	endpoint.unmounts = createNullPrototypeRecord(unmounts);
 	endpoint.opfsSqliteSnapshotTimers = createNullPrototypeRecord({});
 	endpoint.opfsSqliteSnapshotPromises = createNullPrototypeRecord({});
-	endpoint.opfsMountsNeedingSqliteMigrationSnapshot =
-		createNullPrototypeRecord({});
 	endpoint.__internal_getPHP = () => createFakePhp();
 	return endpoint as {
 		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;
@@ -446,6 +430,7 @@ function createFakePhp(options: { skipMountHandler?: boolean } = {}) {
 		mkdir: vi.fn(),
 		rmdir: vi.fn(),
 		rename: vi.fn(),
+		createDataFile: vi.fn(),
 		lookupPath: vi.fn(() => {
 			throw new Error('Not found');
 		}),
@@ -480,6 +465,42 @@ function createEmptyDirectoryHandle() {
 		name: 'root',
 		async *values() {},
 	} as unknown as FileSystemDirectoryHandle;
+}
+
+function createSqliteLegacyDirectoryHandle() {
+	return createDirectoryHandle('root', [
+		createDirectoryHandle('wp-content', [
+			createDirectoryHandle('database', [
+				createFileHandle('.ht.sqlite', 'main database'),
+				createFileHandle('.ht.sqlite-wal', 'committed wal frames'),
+				createFileHandle('.ht.sqlite-shm', 'wal index'),
+				createFileHandle('.ht.sqlite-journal', 'hot journal'),
+			]),
+		]),
+	]) as unknown as FileSystemDirectoryHandle;
+}
+
+function createDirectoryHandle(name: string, values: unknown[]) {
+	return {
+		kind: 'directory',
+		name,
+		async *values() {
+			yield* values;
+		},
+	};
+}
+
+function createFileHandle(name: string, contents: string) {
+	return {
+		kind: 'file',
+		name,
+		async getFile() {
+			const bytes = new TextEncoder().encode(contents);
+			return {
+				arrayBuffer: async () => bytes.buffer,
+			};
+		},
+	};
 }
 
 function deferred<T>() {

@@ -471,7 +471,7 @@ describe('journalFSEventsToOpfs', () => {
 });
 
 describe('createDirectoryHandleMountHandler', () => {
-	it('restores existing OPFS SQLite sidecars before snapshot migration', async () => {
+	it('restores existing OPFS SQLite sidecars without scheduling a snapshot', async () => {
 		const { FS, files, php } = createFakePhp();
 		const opfsRoot = new MemoryDirectoryHandle('root');
 		const wpContent = (await opfsRoot.getDirectoryHandle('wp-content', {
@@ -492,7 +492,6 @@ describe('createDirectoryHandleMountHandler', () => {
 			file.bytes = encode(contents);
 		}
 		const onSqliteDatabaseWrite = vi.fn();
-		const onSqliteDatabaseFilesRestored = vi.fn();
 
 		const mountHandler = createDirectoryHandleMountHandler(
 			opfsRoot as unknown as FileSystemDirectoryHandle,
@@ -501,7 +500,6 @@ describe('createDirectoryHandleMountHandler', () => {
 					direction: 'opfs-to-memfs',
 				},
 				onSqliteDatabaseWrite,
-				onSqliteDatabaseFilesRestored,
 			}
 		);
 
@@ -518,7 +516,6 @@ describe('createDirectoryHandleMountHandler', () => {
 				files.get('/wordpress/wp-content/database/.ht.sqlite-journal')!
 			)
 		).toBe('hot journal');
-		expect(onSqliteDatabaseFilesRestored).toHaveBeenCalledTimes(1);
 		expect(onSqliteDatabaseWrite).not.toHaveBeenCalled();
 	});
 

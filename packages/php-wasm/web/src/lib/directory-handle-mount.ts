@@ -37,7 +37,6 @@ export interface MountOptions {
 	};
 	onMount?: (mount: DirectoryHandleMount) => void;
 	onSqliteDatabaseWrite?: () => void;
-	onSqliteDatabaseFilesRestored?: () => void;
 }
 export interface DirectoryHandleMount {
 	flush(): Promise<void>;
@@ -59,10 +58,6 @@ export type SyncProgressCallback = (
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
 	onSqliteDatabaseWrite?: () => void;
-}
-
-interface CopyOpfsToMemfsOptions {
-	onSqliteDatabaseFileRestored?: () => void;
 }
 
 interface CopyMemfsToOpfsOptions {
@@ -100,23 +95,15 @@ export function createDirectoryHandleMountHandler(
 		const hasSqliteSnapshotPublisher =
 			options.onSqliteDatabaseWrite !== undefined;
 		if (options.initialSync.direction === 'opfs-to-memfs') {
-			let restoredSqliteDatabaseFiles = false;
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
 				FSHelpers.rmdir(FS, vfsMountPoint);
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
-			await copyOpfsToMemfs(FS, handle, vfsMountPoint, {
-				onSqliteDatabaseFileRestored: () => {
-					restoredSqliteDatabaseFiles = true;
-				},
-			});
+			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
 			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
 				onSqliteDatabaseWrite: options.onSqliteDatabaseWrite,
 			});
 			options.onMount?.(mount);
-			if (restoredSqliteDatabaseFiles) {
-				options.onSqliteDatabaseFilesRestored?.();
-			}
 			return mount.unmount;
 		} else {
 			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
@@ -163,8 +150,7 @@ export function createDirectoryHandleMountHandler(
 async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
-	memfsRoot: string,
-	options: CopyOpfsToMemfsOptions = {}
+	memfsRoot: string
 ) {
 	FSHelpers.mkdir(FS, memfsRoot);
 
@@ -190,9 +176,6 @@ async function copyOpfsToMemfs(
 					memfsParentPath,
 					opfsHandle.name
 				);
-				if (isSqliteSidecarOrTemporaryPath(memfsEntryPath)) {
-					options.onSqliteDatabaseFileRestored?.();
-				}
 				if (opfsHandle.kind === 'directory') {
 					try {
 						FS.mkdir(memfsEntryPath);
