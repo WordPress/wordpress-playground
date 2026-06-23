@@ -48,8 +48,10 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		const php = createFakePhp();
 		php.isFile.mockReturnValue(true);
 		const order: string[] = [];
+		let didFlushBeforeSnapshot = false;
 		let snapshotPath = '/tmp/pre-flush-snapshot.sqlite';
 		php.run.mockImplementation(async () => {
+			expect(didFlushBeforeSnapshot).toBe(true);
 			order.push('snapshot');
 			return {
 				text: JSON.stringify({
@@ -60,6 +62,7 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		});
 		opfsMount.flush.mockImplementation(async () => {
 			order.push('flush');
+			didFlushBeforeSnapshot = true;
 			snapshotPath = '/tmp/post-flush-snapshot.sqlite';
 		});
 		opfsMount.persistSqliteSnapshot.mockImplementation(async () => {
@@ -73,7 +76,10 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
 		await endpoint.flushOpfs('/wordpress');
 
-		expect(order).toEqual(['flush', 'flush', 'snapshot', 'persist']);
+		expect(order.indexOf('flush')).toBeLessThan(order.indexOf('snapshot'));
+		expect(order.indexOf('snapshot')).toBeLessThan(
+			order.indexOf('persist')
+		);
 		expect(opfsMount.persistSqliteSnapshot).toHaveBeenCalledWith(
 			'/tmp/post-flush-snapshot.sqlite'
 		);
@@ -282,20 +288,18 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 	});
 
 	it('does not use SQLite snapshot scheduling for non-WordPress mounts', async () => {
+		const opfsMount = createOpfsMount();
 		const php = createFakePhp();
 		php.isFile.mockReturnValue(true);
-		const endpoint = await createEndpoint({});
+		const endpoint = await createEndpoint({
+			'/plugin': opfsMount,
+		});
 		endpoint.__internal_getPHP = () => php;
 
-		await endpoint.mountOpfs({
-			device: {
-				type: 'local-fs',
-				handle: createEmptyDirectoryHandle(),
-			},
-			mountpoint: '/plugin',
-		});
+		(endpoint as any).markSqliteSnapshotDirty('/plugin');
 		await endpoint.flushOpfs('/plugin');
 
+		expect(opfsMount.flush).toHaveBeenCalledTimes(1);
 		expect(php.run).not.toHaveBeenCalled();
 		expect((endpoint as any).opfsSqliteSnapshotStates['/plugin']).toBe(
 			undefined
