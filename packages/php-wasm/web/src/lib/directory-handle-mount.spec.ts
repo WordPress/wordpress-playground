@@ -189,6 +189,28 @@ describe('journalFSEventsToOpfs', () => {
 		expect(onSqliteDatabaseWrite).toHaveBeenCalledTimes(1);
 	});
 
+	it('does not notify the snapshot publisher for non-SQLite writes', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const onSqliteDatabaseWrite = vi.fn();
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress',
+			{
+				onSqliteDatabaseWrite,
+			}
+		);
+
+		files.set('/wordpress/readme.txt', encode('saved'));
+		FS.write({ path: '/wordpress/readme.txt' });
+
+		await mount.flush();
+
+		expect(decode(opfsRoot.files.get('readme.txt')!.bytes)).toBe('saved');
+		expect(onSqliteDatabaseWrite).not.toHaveBeenCalled();
+	});
+
 	it('persists a SQLite snapshot as the canonical OPFS database file', async () => {
 		const { files, php } = createFakePhp();
 		const opfsRoot = new MemoryDirectoryHandle('root');

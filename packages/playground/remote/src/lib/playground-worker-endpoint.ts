@@ -72,7 +72,14 @@ const WORDPRESS_MOUNTPOINT = '/wordpress';
 const SQLITE_DB_PATH = '/wordpress/wp-content/database/.ht.sqlite';
 const SQLITE_SNAPSHOT_SCRIPT_PATH = '/internal/shared/snapshot-sqlite.php';
 const SQLITE_SNAPSHOT_PATH = '/tmp/playground-sqlite-snapshot.sqlite';
-const SQLITE_SNAPSHOT_DEBOUNCE_MS = 500;
+const SQLITE_SNAPSHOT_DEBOUNCE_MS = 100;
+
+interface SqliteSnapshotState {
+	dirtyVersion: number;
+	persistedVersion: number;
+	debounceTimer?: ReturnType<typeof setTimeout>;
+	snapshotPromise?: Promise<void>;
+}
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
@@ -127,13 +134,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	unmounts: Record<string, () => any> = createNullPrototypeRecord();
 	private opfsMounts: Record<string, DirectoryHandleMount> =
 		createNullPrototypeRecord();
-	private opfsSqliteSnapshotTimers: Record<
+	private opfsSqliteSnapshotStates: Record<
 		string,
-		ReturnType<typeof setTimeout>
-	> = createNullPrototypeRecord();
-	private opfsSqliteSnapshotPromises: Record<
-		string,
-		Promise<void> | undefined
+		SqliteSnapshotState | undefined
 	> = createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
@@ -491,6 +494,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			this.clearSqliteSnapshotTimer(mountpoint);
 			delete this.unmounts[mountpoint];
 			delete this.opfsMounts[mountpoint];
+			delete this.opfsSqliteSnapshotStates[mountpoint];
 		}
 		if (flushError !== undefined) {
 			throw flushError;
@@ -574,7 +578,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				},
 				onSqliteDatabaseWrite: shouldPersistSqliteSnapshots
 					? () => {
-							this.scheduleSqliteSnapshot(options.mountpoint);
+							this.markSqliteSnapshotDirty(options.mountpoint);
 						}
 					: undefined,
 			})
@@ -596,12 +600,15 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			shouldPersistSqliteSnapshots
 		) {
 			try {
-				await this.persistSqliteSnapshotForOpfsMount(
-					options.mountpoint
+				this.markSqliteSnapshotDirty(options.mountpoint);
+				await this.flushOpfsMountWithSnapshot(
+					options.mountpoint,
+					opfsMount
 				);
 			} catch (error) {
 				delete this.unmounts[options.mountpoint];
 				delete this.opfsMounts[options.mountpoint];
+				delete this.opfsSqliteSnapshotStates[options.mountpoint];
 				try {
 					await unmount();
 				} catch (unmountError) {
@@ -617,73 +624,100 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		opfsMount: DirectoryHandleMount
 	) {
 		this.clearSqliteSnapshotTimer(mountpoint);
-		await this.persistSqliteSnapshotForOpfsMount(mountpoint, opfsMount);
+		await opfsMount.flush();
+		this.clearSqliteSnapshotTimer(mountpoint);
+		await this.persistSqliteSnapshotsUntilClean(mountpoint, opfsMount);
 	}
 
-	private scheduleSqliteSnapshot(mountpoint: string) {
+	private markSqliteSnapshotDirty(mountpoint: string) {
+		if (mountpoint !== WORDPRESS_MOUNTPOINT) {
+			return;
+		}
+		const state = this.getSqliteSnapshotState(mountpoint);
+		state.dirtyVersion++;
 		if (
-			mountpoint !== WORDPRESS_MOUNTPOINT ||
-			this.opfsSqliteSnapshotTimers[mountpoint] !== undefined
+			state.snapshotPromise !== undefined ||
+			state.debounceTimer !== undefined
 		) {
 			return;
 		}
-		this.opfsSqliteSnapshotTimers[mountpoint] = setTimeout(() => {
-			delete this.opfsSqliteSnapshotTimers[mountpoint];
-			void this.persistSqliteSnapshotForOpfsMount(mountpoint).catch(
-				(error) => {
-					logger.error(error);
-				}
+		state.debounceTimer = setTimeout(() => {
+			delete state.debounceTimer;
+			void this.persistSqliteSnapshotsUntilClean(mountpoint).catch(
+				(error) => logger.error(error)
 			);
 		}, SQLITE_SNAPSHOT_DEBOUNCE_MS);
 	}
 
 	private clearSqliteSnapshotTimer(mountpoint: string) {
-		const timer = this.opfsSqliteSnapshotTimers[mountpoint];
-		if (timer === undefined) {
+		const state = this.opfsSqliteSnapshotStates[mountpoint];
+		if (state?.debounceTimer === undefined) {
 			return;
 		}
-		clearTimeout(timer);
-		delete this.opfsSqliteSnapshotTimers[mountpoint];
+		clearTimeout(state.debounceTimer);
+		delete state.debounceTimer;
 	}
 
-	private async persistSqliteSnapshotForOpfsMount(
+	private async persistSqliteSnapshotsUntilClean(
 		mountpoint: string,
 		opfsMount = this.opfsMounts[mountpoint]
 	) {
-		if (opfsMount === undefined) {
+		const state = this.opfsSqliteSnapshotStates[mountpoint];
+		if (opfsMount === undefined || state === undefined) {
 			return;
 		}
-		await this.enqueueSqliteSnapshotPersistence(mountpoint, async () => {
-			await opfsMount.flush();
-			this.clearSqliteSnapshotTimer(mountpoint);
-			const snapshotPath = await this.snapshotSqliteIfPresent(mountpoint);
-			if (snapshotPath === undefined) {
-				return;
+		if (state.snapshotPromise !== undefined) {
+			await state.snapshotPromise;
+			if (state.dirtyVersion > state.persistedVersion) {
+				await this.persistSqliteSnapshotsUntilClean(
+					mountpoint,
+					opfsMount
+				);
 			}
-			await opfsMount.persistSqliteSnapshot(snapshotPath);
-			this.clearSqliteSnapshotTimer(mountpoint);
-		});
-	}
-
-	private async enqueueSqliteSnapshotPersistence(
-		mountpoint: string,
-		persistSnapshot: () => Promise<void>
-	) {
-		const previous =
-			this.opfsSqliteSnapshotPromises[mountpoint] ?? Promise.resolve();
-		const queuedPromise = previous
-			.catch(() => {})
-			.then(persistSnapshot)
+			return;
+		}
+		const snapshotPromise = Promise.resolve()
+			.then(() =>
+				this.runSqliteSnapshotLoop(mountpoint, opfsMount, state)
+			)
 			.finally(() => {
-				if (
-					this.opfsSqliteSnapshotPromises[mountpoint] ===
-					queuedPromise
-				) {
-					delete this.opfsSqliteSnapshotPromises[mountpoint];
+				if (state.snapshotPromise === snapshotPromise) {
+					delete state.snapshotPromise;
 				}
 			});
-		this.opfsSqliteSnapshotPromises[mountpoint] = queuedPromise;
-		await queuedPromise;
+		state.snapshotPromise = snapshotPromise;
+		await snapshotPromise;
+	}
+
+	private async runSqliteSnapshotLoop(
+		mountpoint: string,
+		opfsMount: DirectoryHandleMount,
+		state: SqliteSnapshotState
+	) {
+		while (state.dirtyVersion > state.persistedVersion) {
+			const targetVersion = state.dirtyVersion;
+			await opfsMount.flush();
+			const snapshotPath = await this.snapshotSqliteIfPresent(mountpoint);
+			if (snapshotPath !== undefined) {
+				await opfsMount.persistSqliteSnapshot(snapshotPath);
+			}
+			state.persistedVersion = Math.max(
+				state.persistedVersion,
+				targetVersion
+			);
+		}
+	}
+
+	private getSqliteSnapshotState(mountpoint: string) {
+		let state = this.opfsSqliteSnapshotStates[mountpoint];
+		if (state === undefined) {
+			state = {
+				dirtyVersion: 0,
+				persistedVersion: 0,
+			};
+			this.opfsSqliteSnapshotStates[mountpoint] = state;
+		}
+		return state;
 	}
 
 	private async snapshotSqliteIfPresent(mountpoint: string) {
