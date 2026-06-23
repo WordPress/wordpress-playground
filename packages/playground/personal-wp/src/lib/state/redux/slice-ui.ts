@@ -149,6 +149,7 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	blueprintInstallMessage: string | null;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -186,6 +187,7 @@ const initialState: UIState = {
 		// quite a confusing experience.
 		!isMobile,
 	siteManagerSection: 'site-details',
+	blueprintInstallMessage: null,
 };
 
 const uiSlice = createSlice({
@@ -256,6 +258,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setBlueprintInstallMessage: (
+			state,
+			action: PayloadAction<string | null>
+		) => {
+			state.blueprintInstallMessage = action.payload;
+		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -304,6 +312,7 @@ export const {
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,
 	setOffline,
+	setBlueprintInstallMessage,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,

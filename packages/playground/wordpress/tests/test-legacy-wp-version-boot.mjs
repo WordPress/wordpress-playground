@@ -2,18 +2,19 @@
  * Tests that legacy and mid-modern WordPress versions boot
  * successfully through Playground's wordpress.org download path:
  *
- *   - WP 1.0 – 4.9 on PHP 5.2 (legacy SQLite driver)
+ *   - WP 0.7 – 4.9 on PHP 5.2 (legacy SQLite driver)
  *   - WP 5.0 – 6.2 on PHP 7.4 (modern SQLite driver)
  *
  * Pre-built bundled WP (6.3+) has its own coverage elsewhere.
  *
- * Each version is exercised through five phases:
+ * Each version is exercised through six phases:
  *
  *   1. Front page loads with "Hello world!"
- *   2. wp-admin dashboard loads (auto-login works)
- *   3. Clicking a post title loads the single post (pretty permalinks)
+ *   2. Clicking a post title loads the single post (pretty permalinks)
+ *   3. wp-admin dashboard loads (auto-login works)
  *   4. Creating a new post page loads (nonces work)
  *   5. Activating a plugin works (Hello Dolly)
+ *   6. Logging out disables automatic re-login where tested
  *
  * All failures are hard errors: the job should honestly reflect the
  * state of legacy WordPress support.
@@ -80,6 +81,7 @@ const WP_VERSIONS = [
 	{ wp: '1.5', php: '5.2' },
 	{ wp: '1.2', php: '5.2' },
 	{ wp: '1.0', php: '5.2' },
+	{ wp: '0.7', php: '5.2' },
 ];
 
 const PORT = 5400;
@@ -129,8 +131,11 @@ async function waitForWPFrame(page, timeoutSeconds, opts = {}) {
  * if found, null otherwise. The returned string is not truncated —
  * callers decide how much to display.
  */
-function findPHPError(body) {
+function findPHPError(body, { includeWarnings = false } = {}) {
 	const errorPatterns = ['Parse error', 'Fatal error', 'database error'];
+	if (includeWarnings) {
+		errorPatterns.push('Warning:');
+	}
 	for (const pattern of errorPatterns) {
 		if (body.includes(pattern)) {
 			const line = body
@@ -257,11 +262,11 @@ async function navigateViaUrlBar(page, path, timeoutSeconds = 60) {
  */
 async function waitForPluginActivation(
 	page,
-	previousFrameUrl,
-	previousBody,
-	timeoutSeconds = 60
+	{ previousFrameUrl, previousBody, pluginFile },
+	timeoutSeconds = TIMEOUT_S
 ) {
 	const deadline = Date.now() + timeoutSeconds * 1000;
+	let lastSeen = null;
 	while (Date.now() < deadline) {
 		await page.waitForTimeout(500);
 		for (const frame of page.frames()) {
@@ -270,12 +275,21 @@ async function waitForPluginActivation(
 				const body = await frame
 					.locator('body')
 					.innerText({ timeout: 2000 });
+				lastSeen = { body, frame, frameUrl: frame.url() };
+				const outcome = await readPluginActivationOutcome(
+					frame,
+					body,
+					pluginFile
+				);
+				if (outcome) {
+					return { body, frame, outcome };
+				}
 				const changed =
 					frame.url() !== previousFrameUrl || body !== previousBody;
 				if (!changed) continue;
 				if (
 					body.includes('Plugin activated') ||
-					body.includes('Deactivate') ||
+					(!pluginFile && body.includes('Deactivate')) ||
 					body.includes('Are you sure') ||
 					findPHPError(body)
 				) {
@@ -284,7 +298,69 @@ async function waitForPluginActivation(
 			} catch {}
 		}
 	}
-	return null;
+	return lastSeen ? { ...lastSeen, timedOut: true } : null;
+}
+
+/**
+ * Checks whether the plugins page has reached a conclusive post-activation
+ * state.
+ */
+async function readPluginActivationOutcome(frame, body, pluginFile) {
+	if (findPHPError(body)) return 'error';
+	if (body.includes('Are you sure')) return 'nonce';
+	if (body.includes('Plugin activated')) return 'activated';
+	if (pluginFile) {
+		const hasTargetDeactivateLink = await hasPluginActionLink(
+			frame,
+			pluginFile,
+			'deactivate'
+		);
+		return hasTargetDeactivateLink ? 'activated' : null;
+	}
+	return body.includes('Deactivate') ? 'activated' : null;
+}
+
+async function hasPluginActionLink(frame, pluginFile, action) {
+	for (const pluginFileVariant of [
+		pluginFile,
+		encodeURIComponent(pluginFile),
+	]) {
+		const selector = `a[href*="action=${action}"][href*="${escapeCssAttributeValue(
+			pluginFileVariant
+		)}"]`;
+		if ((await frame.locator(selector).count()) > 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function escapeCssAttributeValue(value) {
+	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function getPluginFileFromActivationHref(href) {
+	if (!href) return null;
+	try {
+		const url = new URL(href, 'http://playground.test/');
+		return url.searchParams.get('plugin');
+	} catch {
+		return null;
+	}
+}
+
+function getPluginActivationTimeoutDetail(result) {
+	if (!result) return '';
+	const details = [];
+	if (result.frameUrl) {
+		details.push(`last URL: ${result.frameUrl}`);
+	}
+	if (result.body) {
+		details.push(
+			`last body: ${result.body.slice(0, 160).replace(/\s+/g, ' ')}`
+		);
+	}
+	return details.join('; ');
 }
 
 /**
@@ -317,12 +393,21 @@ function hasAdminIndicator(body) {
 	return ADMIN_INDICATORS.some((ind) => body.includes(ind));
 }
 
-// WP < 2.5 uses post.php for new posts; 2.5+ uses post-new.php.
-// WP 1.0-2.0 render the "new post" form via wp-admin/post.php's
-// default case. WP 2.1 introduced wp-admin/post-new.php and made
-// post.php redirect to edit.php, so the new-post form lives at
-// post-new.php from 2.1 onward (just like modern WordPress).
+/**
+ * Checks whether body text contains the b2-era login form.
+ */
+function hasB2LoginForm(body) {
+	return body.includes('Login:') && body.includes('Password:');
+}
+
+// WP < 2.5 uses older entry points for new posts; 2.5+ uses post-new.php.
+// WP 0.7 renders the form from b2edit.php. WP 1.0-2.0 render it via
+// wp-admin/post.php's default case. WP 2.1 introduced wp-admin/post-new.php.
+const NEW_POST_URL_BY_VERSION = new Map([['0.7', '/wp-admin/b2edit.php']]);
+const ADMIN_AUTO_LOGIN_URL_BY_VERSION = new Map([['0.7', '/b2login.php']]);
 const NEW_POST_URL_VERSIONS = new Set(['1.0', '1.2', '1.5', '2.0']);
+const NO_PLUGIN_SUPPORT_VERSIONS = new Set(['0.7']);
+const LOGOUT_SUPPORT_VERSIONS = new Set(['0.7']);
 
 // Optional filter for local runs: WP_ONLY=6.2,6.1,5.9 to test a subset.
 const WP_ONLY = process.env.WP_ONLY
@@ -371,6 +456,10 @@ const browser = await chromium.launch({
 });
 
 for (const { wp, php } of MATRIX) {
+	// Treat PHP warnings as hard errors only for WP 0.7: it's the newest,
+	// most fragile target where any warning likely signals a broken shim.
+	// Older versions emit benign deprecation/notice noise we don't fail on.
+	const includePHPWarnings = wp === '0.7';
 	const label = `WP ${wp} (PHP ${php})`;
 	process.stdout.write(`${label}... `);
 
@@ -391,6 +480,7 @@ for (const { wp, php } of MATRIX) {
 	let postStatus = null;
 	let newPostStatus = null;
 	let pluginStatus = null;
+	let logoutStatus = null;
 
 	try {
 		await page.goto(url, {
@@ -421,7 +511,9 @@ for (const { wp, php } of MATRIX) {
 				detail: lastError,
 			};
 		} else {
-			const error = findPHPError(wp1.body);
+			const error = findPHPError(wp1.body, {
+				includeWarnings: includePHPWarnings,
+			});
 			if (error) {
 				frontStatus = {
 					status: 'ERROR',
@@ -512,6 +604,8 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 3: Admin dashboard (auto-login) ---
 		if (frontStatus.status === 'OK' || frontStatus.status === 'PARTIAL') {
 			try {
+				const adminAutoLoginUrl =
+					ADMIN_AUTO_LOGIN_URL_BY_VERSION.get(wp) ?? '/wp-admin/';
 				// Retry once on timeout — modern WP admin occasionally
 				// hangs the first /wp-admin/ load on shared CI runners
 				// (see the long-standing admin-phase flake across runs
@@ -519,19 +613,21 @@ for (const { wp, php } of MATRIX) {
 				// URL bar almost always unblocks it.
 				let wp2 = await navigateViaUrlBar(
 					page,
-					'/wp-admin/',
+					adminAutoLoginUrl,
 					TIMEOUT_S
 				);
 				if (!wp2) {
 					wp2 = await navigateViaUrlBar(
 						page,
-						'/wp-admin/',
+						adminAutoLoginUrl,
 						TIMEOUT_S
 					);
 				}
 				if (
 					wp2 &&
-					!findPHPError(wp2.body) &&
+					!findPHPError(wp2.body, {
+						includeWarnings: includePHPWarnings,
+					}) &&
 					!hasAdminIndicator(wp2.body)
 				) {
 					const settled = await waitForWPFrame(page, 30, {
@@ -544,7 +640,9 @@ for (const { wp, php } of MATRIX) {
 				if (!wp2) {
 					adminStatus = { status: 'TIMEOUT' };
 				} else {
-					const error = findPHPError(wp2.body);
+					const error = findPHPError(wp2.body, {
+						includeWarnings: includePHPWarnings,
+					});
 					if (error) {
 						adminStatus = {
 							status: 'ERROR',
@@ -585,9 +683,11 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 4: New post page (nonce check) ---
 		if (adminStatus && adminStatus.status === 'OK') {
 			try {
-				const newPostPath = NEW_POST_URL_VERSIONS.has(wp)
-					? '/wp-admin/post.php'
-					: '/wp-admin/post-new.php';
+				const newPostPath =
+					NEW_POST_URL_BY_VERSION.get(wp) ??
+					(NEW_POST_URL_VERSIONS.has(wp)
+						? '/wp-admin/post.php'
+						: '/wp-admin/post-new.php');
 				const consoleStartIndex = consoleErrors.length;
 				const wp3 = await navigateViaUrlBar(page, newPostPath, 30);
 				if (!wp3) {
@@ -611,7 +711,13 @@ for (const { wp, php } of MATRIX) {
 						.innerText({ timeout: 2000 })
 						.catch(() => wp3.body);
 
-					const error = findPHPError(bodyText) || findPHPError(html);
+					const error =
+						findPHPError(bodyText, {
+							includeWarnings: includePHPWarnings,
+						}) ||
+						findPHPError(html, {
+							includeWarnings: includePHPWarnings,
+						});
 
 					const bad =
 						bodyText.includes('Are you sure') ||
@@ -675,7 +781,12 @@ for (const { wp, php } of MATRIX) {
 		}
 
 		// --- Phase 5: Plugin activation ---
-		if (adminStatus && adminStatus.status === 'OK') {
+		if (NO_PLUGIN_SUPPORT_VERSIONS.has(wp)) {
+			pluginStatus = {
+				status: 'SKIP',
+				detail: 'plugins predate this WordPress release',
+			};
+		} else if (adminStatus && adminStatus.status === 'OK') {
 			try {
 				const wp4 = await navigateViaUrlBar(
 					page,
@@ -724,20 +835,32 @@ for (const { wp, php } of MATRIX) {
 							.innerText({ timeout: 2000 })
 							.catch(() => wp4.body);
 						const prevFrameUrl = wp4.frame.url();
-						await activateLink.click({ timeout: 5000 });
-						const wp4b = await waitForPluginActivation(
-							page,
-							prevFrameUrl,
-							bodyBeforeActivation
+						const pluginFile = getPluginFileFromActivationHref(
+							await activateLink
+								.getAttribute('href')
+								.catch(() => null)
 						);
-						if (!wp4b) {
-							pluginStatus = { status: 'TIMEOUT' };
+						await activateLink.click({ timeout: 5000 });
+						const wp4b = await waitForPluginActivation(page, {
+							previousFrameUrl: prevFrameUrl,
+							previousBody: bodyBeforeActivation,
+							pluginFile,
+						});
+						if (!wp4b || wp4b.timedOut) {
+							pluginStatus = {
+								status: 'TIMEOUT',
+								detail: getPluginActivationTimeoutDetail(wp4b),
+							};
 						} else {
 							const error = findPHPError(wp4b.body);
 							const ok =
+								wp4b.outcome === 'activated' ||
 								wp4b.body.includes('Plugin activated') ||
-								wp4b.body.includes('Deactivate');
-							const bad = wp4b.body.includes('Are you sure');
+								(!pluginFile &&
+									wp4b.body.includes('Deactivate'));
+							const bad =
+								wp4b.outcome === 'nonce' ||
+								wp4b.body.includes('Are you sure');
 							if (error) {
 								pluginStatus = {
 									status: 'ERROR',
@@ -767,6 +890,75 @@ for (const { wp, php } of MATRIX) {
 		} else {
 			pluginStatus = { status: 'SKIP', detail: 'admin failed' };
 		}
+
+		// --- Phase 6: Logout guard ---
+		if (!LOGOUT_SUPPORT_VERSIONS.has(wp)) {
+			logoutStatus = {
+				status: 'SKIP',
+				detail: 'logout guard not tested for this version',
+			};
+		} else if (adminStatus && adminStatus.status === 'OK') {
+			try {
+				const wp5 = await navigateViaUrlBar(
+					page,
+					'/b2login.php?action=logout',
+					30
+				);
+				if (!wp5) {
+					logoutStatus = { status: 'TIMEOUT' };
+				} else {
+					const error = findPHPError(wp5.body, {
+						includeWarnings: includePHPWarnings,
+					});
+					const wrongPassword = wp5.body.includes(
+						'Error: wrong login/password'
+					);
+					if (error) {
+						logoutStatus = {
+							status: 'ERROR',
+							detail: error,
+							body: wp5.body,
+						};
+					} else if (
+						!hasB2LoginForm(wp5.body) ||
+						wrongPassword ||
+						hasAdminIndicator(wp5.body)
+					) {
+						logoutStatus = {
+							status: 'UNKNOWN',
+							detail: wp5.body.slice(0, 120).replace(/\n/g, ' '),
+							body: wp5.body,
+						};
+					} else {
+						const guardedAdmin = await navigateViaUrlBar(
+							page,
+							'/wp-admin/',
+							30
+						);
+						if (
+							guardedAdmin &&
+							hasB2LoginForm(guardedAdmin.body) &&
+							!hasAdminIndicator(guardedAdmin.body)
+						) {
+							logoutStatus = { status: 'OK' };
+						} else {
+							logoutStatus = {
+								status: guardedAdmin ? 'UNKNOWN' : 'TIMEOUT',
+								detail:
+									guardedAdmin?.body
+										.slice(0, 120)
+										.replace(/\n/g, ' ') || '',
+								body: guardedAdmin?.body,
+							};
+						}
+					}
+				}
+			} catch (e) {
+				logoutStatus = { status: 'CRASH', detail: e.message };
+			}
+		} else {
+			logoutStatus = { status: 'SKIP', detail: 'admin failed' };
+		}
 	} catch (e) {
 		frontStatus = {
 			status: 'CRASH',
@@ -776,6 +968,7 @@ for (const { wp, php } of MATRIX) {
 		postStatus = { status: 'SKIP', detail: 'boot crashed' };
 		newPostStatus = { status: 'SKIP', detail: 'boot crashed' };
 		pluginStatus = { status: 'SKIP', detail: 'boot crashed' };
+		logoutStatus = { status: 'SKIP', detail: 'boot crashed' };
 	}
 
 	const icon = (s) =>
@@ -786,6 +979,7 @@ for (const { wp, php } of MATRIX) {
 		`admin:${icon(adminStatus)}`,
 		`newpost:${icon(newPostStatus)}`,
 		`plugin:${icon(pluginStatus)}`,
+		`logout:${icon(logoutStatus)}`,
 	];
 	console.log(parts.join(' '));
 
@@ -797,6 +991,7 @@ for (const { wp, php } of MATRIX) {
 		admin: adminStatus,
 		newPost: newPostStatus,
 		plugin: pluginStatus,
+		logout: logoutStatus,
 	});
 	await page.close();
 	await context.close();
@@ -804,7 +999,7 @@ for (const { wp, php } of MATRIX) {
 
 await browser.close();
 
-const PHASES = ['front', 'post', 'admin', 'newPost', 'plugin'];
+const PHASES = ['front', 'post', 'admin', 'newPost', 'plugin', 'logout'];
 
 function isPass(status) {
 	return status.status === 'OK' || status.status === 'PARTIAL';

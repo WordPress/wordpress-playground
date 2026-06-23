@@ -283,6 +283,8 @@ const [setApiReady, setAPIError] = exposeAPI(
  */
 function normalizeWordPressVersion(version: string): string {
 	const legacyVersionMap: Record<string, string> = {
+		'0.7': '0.71-gold',
+		'0.71': '0.71-gold',
 		'1.0': '1.0.2',
 		'1.2': '1.2.2',
 		'1.5': '1.5.2',

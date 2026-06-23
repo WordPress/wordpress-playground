@@ -14,6 +14,12 @@
 	background: #fff;
 }
 
+.viewport-loading {
+	visibility: hidden;
+	opacity: 0;
+	pointer-events: none;
+}
+
 /* Seamless mode wrapper */
 .seamless-wrapper {
 	position: relative;
@@ -22,6 +28,95 @@
 	/* Fallback if parent height chain breaks (e.g. mobile) */
 	min-height: 100dvh;
 	background: #fff;
+}
+
+.loading-screen {
+	position: absolute;
+	inset: 0;
+	z-index: 10;
+	overflow: hidden;
+	background: #fff;
+}
+
+.loading-screen-html {
+	position: absolute;
+	inset: 0;
+}
+
+.loading-progress {
+	position: absolute;
+	right: 24px;
+	bottom: 24px;
+	left: 24px;
+	z-index: 11;
+	width: min(420px, calc(100% - 48px));
+	margin: 0 auto;
+	padding: 12px 14px 14px;
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.88);
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+	color: #1e1e1e;
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.loading-progress-caption {
+	margin-bottom: 8px;
+	overflow: hidden;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.3;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.loading-progress-track {
+	height: 4px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: #e0e0e0;
+}
+
+.loading-progress-bar {
+	height: 100%;
+	border-radius: inherit;
+	background: #3858e9;
+	transition: width 0.2s ease;
+}
+
+.loading-ready-button {
+	width: 100%;
+	padding: 8px 12px;
+	border: 0;
+	border-radius: 6px;
+	background: #3858e9;
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	line-height: 1.3;
+	cursor: pointer;
+}
+
+.loading-ready-button:hover {
+	background: #2145e6;
+}
+
+@media (prefers-color-scheme: dark) {
+	.loading-screen {
+		background: #111;
+	}
+
+	.loading-progress {
+		border-color: rgba(255, 255, 255, 0.14);
+		background: rgba(30, 30, 30, 0.88);
+		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+		color: #f0f0f1;
+	}
+
+	.loading-progress-track {
+		background: #3c434a;
+	}
 }
 
 /* Sidebar latch — tab on the bottom-left edge */

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProgressTracker } from '@php-wasm/progress';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
 
@@ -55,12 +55,21 @@ describe('BlueprintsV1Handler', () => {
 			phpVersion: '8.4',
 			wpVersion: 'latest',
 			intl: false,
-			networking: true,
+			// Most tests below do not exercise update-check prefetching.
+			// Keep networking disabled by default so the deferred prefetch
+			// does not enqueue timers in unrelated tests. Prefetch-specific
+			// tests opt in explicitly.
+			networking: false,
 		});
 		mocks.createBlueprintReflection.mockResolvedValue({
 			getVersion: () => 1,
 		});
 		mocks.consumeAPI.mockReturnValue(mocks.playground);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.useRealTimers();
 	});
 
 	it('does not prefetch WordPress updates for PHP-only blueprints', async () => {
@@ -109,7 +118,9 @@ describe('BlueprintsV1Handler', () => {
 			phpVersion: '8.4',
 			wpVersion: 'latest',
 			intl: true,
-			networking: true,
+			// This test only verifies PHP extension selection. Keep networking
+			// disabled so update-check prefetching remains outside its scope.
+			networking: false,
 		});
 		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
@@ -212,12 +223,79 @@ describe('BlueprintsV1Handler', () => {
 		expect(mocks.playground.boot).not.toHaveBeenCalled();
 	});
 
-	it('prefetches WordPress updates when WordPress is installed', async () => {
+	it('defers WordPress update prefetch for frontend landing pages', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+		});
+		vi.useFakeTimers();
+		vi.stubGlobal('requestIdleCallback', undefined);
 		const iframe = createIframe();
 		const handler = new BlueprintsV1Handler({
 			iframe,
 			remoteUrl: 'http://example.com/remote.html',
 			blueprint: {},
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'download-and-install',
+			})
+		);
+		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
+
+		await vi.runAllTimersAsync();
+
+		expect(mocks.playground.prefetchUpdateChecks).toHaveBeenCalledTimes(1);
+		vi.useRealTimers();
+	});
+
+	it('does not treat wp-admin-prefixed frontend paths as admin landings', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+		});
+		vi.useFakeTimers();
+		vi.stubGlobal('requestIdleCallback', undefined);
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {
+				landingPage: '/wp-adminer',
+			},
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
+
+		await vi.runAllTimersAsync();
+
+		expect(mocks.playground.prefetchUpdateChecks).toHaveBeenCalledTimes(1);
+		vi.useRealTimers();
+	});
+
+	it('prefetches WordPress updates before admin landing pages', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+		});
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {
+				landingPage: '/wp-admin/',
+			},
 		});
 
 		await handler.bootPlayground(iframe, createProgressTracker());

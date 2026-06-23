@@ -14,7 +14,7 @@ import {
 import { joinPaths } from '@php-wasm/util';
 import { getDirectoryPathForSlug } from './opfs-site-path';
 
-const BUNDLE_DIR_NAME = 'blueprint-bundle';
+export const BUNDLE_DIR_NAME = 'blueprint-bundle';
 
 /**
  * Get the OPFS path for a site's blueprint bundle directory.

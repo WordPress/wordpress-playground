@@ -86,6 +86,73 @@ test('playgroundSites.autosaveTemporarySite() persists without disrupting the ta
 	expect(result.sameUrl).toBe(true);
 });
 
+test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blueprint titles', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const blueprint = {
+		meta: {
+			title: 'Shared Blueprint Name',
+			author: 'wordpress',
+		},
+		steps: [],
+	};
+	await website.goto('./?storage=temp');
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+
+	const result = await website.page.evaluate(async (blueprintToSave) => {
+		window.history.replaceState(
+			null,
+			'',
+			`?storage=temp#${encodeURIComponent(
+				JSON.stringify(blueprintToSave)
+			)}`
+		);
+		const api = (window as any).playgroundSites;
+		const firstSlug = await api.createNewSavedSite(undefined, undefined, {
+			updateUrl: false,
+		});
+		const secondSlug = await api.createNewSavedSite(undefined, undefined, {
+			updateUrl: false,
+		});
+		const sites = api
+			.list()
+			.filter((s: any) => s.slug.startsWith('shared-blueprint-name'));
+		return { firstSlug, secondSlug, sites };
+	}, blueprint);
+
+	expect(result.firstSlug).toBe('shared-blueprint-name');
+	expect(result.secondSlug).toBe('shared-blueprint-name-2');
+	const firstSite = result.sites.find(
+		(site: any) => site.slug === 'shared-blueprint-name'
+	);
+	const secondSite = result.sites.find(
+		(site: any) => site.slug === 'shared-blueprint-name-2'
+	);
+	expect(firstSite).toEqual(
+		expect.objectContaining({
+			name: 'Shared Blueprint Name',
+			storage: 'opfs',
+		})
+	);
+	expect(secondSite).toEqual(
+		expect.objectContaining({
+			name: expect.stringMatching(
+				/^Shared Blueprint Name — [A-Z][a-z]{2} \d{1,2}, \d{2}:\d{2}:\d{2}/
+			),
+			storage: 'opfs',
+		})
+	);
+	expect(secondSite.name).not.toBe(firstSite.name);
+});
+
 test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by default', async ({
 	website,
 	browserName,

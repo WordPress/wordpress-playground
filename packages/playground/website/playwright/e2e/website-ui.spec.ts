@@ -66,6 +66,38 @@ async function getActivePlaygroundSite(page: Page) {
 	);
 }
 
+async function replaceBlueprintEditorContents(
+	page: Page,
+	blueprint: Blueprint
+) {
+	// Wait for CodeMirror editor to load.
+	const editor = page.locator('[class*="blueprint-editor"] .cm-editor');
+	await editor.waitFor({ timeout: 10000 });
+
+	// Focus the editor and select all existing content before replacing it.
+	await editor.click();
+	await page.waitForTimeout(100);
+	await page.keyboard.press(
+		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+	);
+	await page.keyboard.press('Backspace');
+	await page.waitForTimeout(100);
+
+	// Use Playwright's fill method on the contenteditable .cm-content element.
+	// This is more reliable than character-by-character typing which triggers
+	// auto-bracket insertion.
+	const blueprintJson = JSON.stringify(blueprint, null, 2);
+	const cmContent = editor.locator('.cm-content');
+	await cmContent.fill(blueprintJson);
+
+	// Wait for validation to complete (linter has 300ms debounce), then verify
+	// the Blueprint was inserted by checking the editor content.
+	await page.waitForTimeout(500);
+	await expect(cmContent).toContainText('writeFile', {
+		timeout: 5000,
+	});
+}
+
 function escapeRegExp(text: string) {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -322,55 +354,18 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	// Navigate to Blueprint tab
 	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
 
-	// Wait for CodeMirror editor to load
-	const editor = website.page.locator(
-		'[class*="blueprint-editor"] .cm-editor'
-	);
-	await editor.waitFor({ timeout: 10000 });
-
 	// Create a simple blueprint that writes "Blueprint test" to index.php
-	const blueprint = JSON.stringify(
-		{
-			landingPage: '/index.php',
-			steps: [
-				{
-					step: 'writeFile',
-					path: '/wordpress/index.php',
-					data: 'Blueprint test',
-				},
-			],
-		},
-		null,
-		2
-	);
-
-	// Focus the editor
-	await editor.click();
-	// Wait a moment for the editor to be fully ready
-	await website.page.waitForTimeout(100);
-
-	// Select all existing content
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
-	);
-
-	// Delete the selected content
-	await website.page.keyboard.press('Backspace');
-	await website.page.waitForTimeout(100);
-
-	// Use Playwright's fill method on the contenteditable .cm-content element
-	// This is more reliable than character-by-character typing which triggers
-	// auto-bracket insertion
-	const cmContent = editor.locator('.cm-content');
-	await cmContent.fill(blueprint);
-
-	// Wait for validation to complete (linter has 300ms debounce)
-	await website.page.waitForTimeout(500);
-
-	// Verify the blueprint was inserted by checking the editor content
-	await expect(cmContent).toContainText('writeFile', {
-		timeout: 5000,
-	});
+	const blueprint: Blueprint = {
+		landingPage: '/index.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/index.php',
+				data: 'Blueprint test',
+			},
+		],
+	};
+	await replaceBlueprintEditorContents(website.page, blueprint);
 
 	// Click the "Run Blueprint" button
 	await website.page
@@ -764,8 +759,9 @@ test.describe('Default Playground storage', () => {
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			null
 		);
+		await expect(website.page.getByText('Autosaving')).toHaveCount(0);
 		await expect(
-			website.page.getByText(/Autosaving|Finalizing autosave/)
+			website.page.getByText('Finalizing autosave')
 		).toHaveCount(0);
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
@@ -795,19 +791,186 @@ test.describe('Default Playground storage', () => {
 				}
 			)
 		);
-		const autosavingIndex = saveStatusSamples.findIndex(
-			({ text }) => text === 'Autosaving'
-		);
-		const autosavedIndex = saveStatusSamples.findIndex(
-			({ text }) => text === 'Autosaved'
-		);
-		expect(autosavingIndex).toBeGreaterThan(-1);
-		expect(autosavedIndex).toBeGreaterThan(autosavingIndex);
+		expect(
+			saveStatusSamples.some(({ text }) => text === 'Autosaved')
+		).toBe(true);
+		expect(
+			saveStatusSamples.some(({ text }) => text === 'Autosaving')
+		).toBe(false);
 		expect(
 			saveStatusSamples.some(({ ariaLabel }) =>
-				/^Autosaving [1-9]\d*%$/.test(ariaLabel ?? '')
+				/^Autosaved [1-9]\d*%$/.test(ariaLabel ?? '')
 			)
 		).toBe(true);
+	});
+
+	test('should edit a Blueprint for an autosaved Playground and recreate the same autosave', async ({
+		website,
+		wordpress,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('blueprint-edit'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const originalSite = await getActivePlaygroundSite(website.page);
+
+		await website.ensureSiteManagerIsOpen();
+		await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+		await expect(
+			website.page
+				.getByLabel('WordPress Playground')
+				.getByText(
+					'Running this Blueprint will recreate this autosaved Playground under the same name and replace all its files.'
+				)
+		).toBeVisible();
+
+		await replaceBlueprintEditorContents(website.page, {
+			landingPage: '/index.php',
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/index.php',
+					data: 'Autosaved Blueprint test',
+				},
+			],
+		});
+
+		const runBlueprintButton = website.page.getByRole('button', {
+			name: 'Run Blueprint and reset site',
+		});
+		// Recreate failures are shown inline and leave the Run button available,
+		// so retry the action instead of waiting on an unchanged iframe.
+		await expect(async () => {
+			await runBlueprintButton.click();
+			await expect(
+				website.page.getByText(
+					'Could not recreate Playground. Try again.'
+				)
+			).toHaveCount(0, { timeout: 5000 });
+			await website.waitForNestedIframes();
+			await expect(wordpress.locator('body')).toContainText(
+				'Autosaved Blueprint test',
+				{ timeout: 30000 }
+			);
+		}).toPass({ timeout: 180000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.toMatchObject({
+				slug: originalSite.slug,
+				name: originalSite.name,
+				persistence: 'autosave',
+			});
+	});
+
+	test('should offer full settings for an autosaved Playground', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.page.goto('./');
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({
+			timeout: 120000,
+		});
+
+		await website.page
+			.getByRole('button', { name: 'Edit Playground settings' })
+			.click();
+
+		await expect(
+			website.page.getByText(
+				'Stored Playgrounds have limited configuration options.'
+			)
+		).toHaveCount(0);
+		await expect(
+			website.page.getByLabel('WordPress version')
+		).toBeEnabled();
+		await expect(website.page.getByLabel('Language')).toBeEnabled();
+		await expect(
+			website.page.getByLabel('Create a multisite network')
+		).toBeEnabled();
+		await expect(
+			website.page.getByText('Apply Settings & Recreate Playground')
+		).toBeVisible();
+	});
+
+	test('should apply settings to an autosaved Playground under the same slug', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('settings-recreate')
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const originalSite = await getActivePlaygroundSite(website.page);
+
+		await website.page
+			.getByRole('button', { name: 'Edit Playground settings' })
+			.click();
+		const phpSelect = website.page.getByLabel('PHP version');
+		const currentPhpVersion = await phpSelect.inputValue();
+		const nextPhpVersion = SupportedPHPVersions.find(
+			(version) => version !== currentPhpVersion
+		)!;
+		await phpSelect.selectOption(nextPhpVersion);
+		const applySettingsButton = website.page.getByRole('button', {
+			name: 'Apply Settings & Recreate Playground',
+		});
+		// The settings popover should close when recreation starts. If the click
+		// is lost, retry the user action before asserting on the new setup URL.
+		await expect(async () => {
+			await applySettingsButton.click();
+			await expect(applySettingsButton).toBeHidden({ timeout: 10000 });
+		}).toPass({ timeout: 120000 });
+
+		await expect
+			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
+				timeout: 120000,
+			})
+			.toBe(nextPhpVersion);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.toMatchObject({
+				slug: originalSite.slug,
+				name: originalSite.name,
+				persistence: 'autosave',
+			});
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.filter((site: any) => site.slug === slug).length,
+					originalSite.slug
+				)
+			)
+			.toBe(1);
 	});
 
 	test('should show intent-driven creation actions in the overlay', async ({
@@ -1121,7 +1284,7 @@ test.describe('Default Playground storage', () => {
 			)
 			.toBe('explicit');
 		await expect(
-			website.page.getByText(/Autosaved|Autosaving|Finalizing autosave/)
+			website.page.getByText(/Autosaved|Finalizing autosave/)
 		).toHaveCount(0);
 		await expect(
 			website.page.getByText(/Saved Playground|Saving|Finalizing save/)

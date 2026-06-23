@@ -30,8 +30,8 @@ test('should show app, backup, and troubleshooting tools', async ({
 		})
 	).toBeVisible();
 	await expect(
-		website.page.getByRole('link', { name: /App Launcher/ })
-	).toHaveAttribute('href', /blueprint-url=data%3Aapplication%2Fjson/);
+		website.page.getByRole('button', { name: /App Launcher/ })
+	).toBeVisible();
 	await expect(
 		website.page.getByRole('heading', { name: 'Backup' })
 	).toBeVisible();
@@ -51,6 +51,16 @@ test('should show app, backup, and troubleshooting tools', async ({
 			name: 'Install Health Check & Troubleshoot',
 		})
 	).toBeVisible();
+	await expect(
+		website.page.getByRole('link', {
+			name: 'Install Health Check & Troubleshoot',
+		})
+	).toHaveAttribute('href', /playground-recovery-mode=health-check/);
+	await expect(
+		website.page.getByRole('link', {
+			name: 'Install Health Check & Troubleshoot',
+		})
+	).not.toHaveAttribute('href', /blueprint-url=/);
 });
 
 test('should close the Site Tools panel with its close button', async ({
@@ -60,14 +70,14 @@ test('should close the Site Tools panel with its close button', async ({
 
 	await website.ensureSiteToolsIsOpen();
 	await expect(
-		website.page.getByRole('link', { name: /App Launcher/ })
+		website.page.getByRole('button', { name: /App Launcher/ })
 	).toBeVisible();
 
 	await website.page
 		.getByRole('button', { name: /Close Site Tools/ })
 		.click();
 	await expect(
-		website.page.getByRole('link', { name: /App Launcher/ })
+		website.page.getByRole('button', { name: /App Launcher/ })
 	).not.toBeVisible();
 });
 

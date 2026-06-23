@@ -1,6 +1,6 @@
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
-import { decodeBase64ToString } from '../../base64';
+import { decodeBase64ToString } from '@php-wasm/util';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -214,8 +214,8 @@ function isEmbeddedInAnIframe(win: Window): boolean {
 }
 
 /**
- * Checks if the MCP server bridge is enabled via the `?mcp=yes` query parameter.
+ * Checks if the MCP server bridge is enabled via the `?mcp-port` query parameter.
  */
 export function isMcpServerEnabled(): boolean {
-	return new URL(document.location.href).searchParams.get('mcp') === 'yes';
+	return new URL(document.location.href).searchParams.has('mcp-port');
 }
