@@ -84,10 +84,10 @@ export function createDirectoryHandleMountHandler(
 	};
 
 	return async function (php, FS, vfsMountPoint) {
+		// Note about SnapshotPublisher:
 		// The mount layer is generic OPFS persistence. It must only suppress
 		// raw SQLite database/sidecar writes when a higher layer registered a
 		// snapshot publisher that will persist a validated .ht.sqlite replacement.
-		//
 		// Without that publisher, skipping .ht.sqlite would lose data for direct
 		// OPFS mount users, PHP-only runtimes, tests, or non-standard consumers.
 		// With it, raw SQLite replay stands down and snapshot persistence becomes

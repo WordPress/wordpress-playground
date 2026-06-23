@@ -623,6 +623,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		mountpoint: string,
 		opfsMount: DirectoryHandleMount
 	) {
+		// Explicit flush owns this SQLite persistence turn. The flush below may
+		// discover SQLite journal entries and schedule a fresh debounce timer,
+		// so cancel timers both before and after flushing, then drain dirty state.
 		this.clearSqliteSnapshotTimer(mountpoint);
 		await opfsMount.flush();
 		this.clearSqliteSnapshotTimer(mountpoint);
