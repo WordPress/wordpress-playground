@@ -15,15 +15,37 @@ class MemoryFileHandle {
 	private parent: MemoryDirectoryHandle;
 	private onWrite?: () => void | Promise<void>;
 	private truncated = false;
+	move?: (
+		targetOrName: FileSystemDirectoryHandle | string,
+		name?: string
+	) => Promise<void>;
 
 	constructor(
 		name: string,
 		parent: MemoryDirectoryHandle,
-		onWrite?: () => void | Promise<void>
+		onWrite?: () => void | Promise<void>,
+		supportsMove = true
 	) {
 		this.name = name;
 		this.parent = parent;
 		this.onWrite = onWrite;
+		if (supportsMove) {
+			this.move = async (
+				targetOrName: FileSystemDirectoryHandle | string,
+				name?: string
+			) => {
+				const target =
+					typeof targetOrName === 'string'
+						? this.parent
+						: (targetOrName as unknown as MemoryDirectoryHandle);
+				const targetName =
+					typeof targetOrName === 'string' ? targetOrName : name!;
+				this.parent.files.delete(this.name);
+				this.name = targetName;
+				this.parent = target;
+				target.files.set(targetName, this);
+			};
+		}
 	}
 
 	async createWritable() {
@@ -52,22 +74,6 @@ class MemoryFileHandle {
 			arrayBuffer: async () => bytes.buffer,
 		};
 	}
-
-	async move(
-		targetOrName: FileSystemDirectoryHandle | string,
-		name?: string
-	) {
-		const target =
-			typeof targetOrName === 'string'
-				? this.parent
-				: (targetOrName as unknown as MemoryDirectoryHandle);
-		const targetName =
-			typeof targetOrName === 'string' ? targetOrName : name!;
-		this.parent.files.delete(this.name);
-		this.name = targetName;
-		this.parent = target;
-		target.files.set(targetName, this);
-	}
 }
 
 class MemoryDirectoryHandle {
@@ -76,10 +82,16 @@ class MemoryDirectoryHandle {
 	directories = new Map<string, MemoryDirectoryHandle>();
 	name: string;
 	private onFileWrite?: () => void | Promise<void>;
+	private supportsMove: boolean;
 
-	constructor(name: string, onFileWrite?: () => void | Promise<void>) {
+	constructor(
+		name: string,
+		onFileWrite?: () => void | Promise<void>,
+		supportsMove = true
+	) {
 		this.name = name;
 		this.onFileWrite = onFileWrite;
+		this.supportsMove = supportsMove;
 	}
 
 	async getFileHandle(name: string, options?: { create?: boolean }) {
@@ -88,7 +100,12 @@ class MemoryDirectoryHandle {
 			if (!options?.create) {
 				throw new Error(`File not found: ${name}`);
 			}
-			handle = new MemoryFileHandle(name, this, this.onFileWrite);
+			handle = new MemoryFileHandle(
+				name,
+				this,
+				this.onFileWrite,
+				this.supportsMove
+			);
 			this.files.set(name, handle);
 		}
 		return handle as unknown as FileSystemFileHandle;
@@ -100,7 +117,11 @@ class MemoryDirectoryHandle {
 			if (!options?.create) {
 				throw new Error(`Directory not found: ${name}`);
 			}
-			handle = new MemoryDirectoryHandle(name, this.onFileWrite);
+			handle = new MemoryDirectoryHandle(
+				name,
+				this.onFileWrite,
+				this.supportsMove
+			);
 			this.directories.set(name, handle);
 		}
 		return handle as unknown as FileSystemDirectoryHandle;
@@ -232,6 +253,47 @@ describe('journalFSEventsToOpfs', () => {
 			'snapshot'
 		);
 		expect(database.files.has('.ht.sqlite.tmp')).toBe(false);
+	});
+
+	it('keeps the SQLite temp snapshot when fallback publishing without move()', async () => {
+		const { files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', undefined, false);
+		const wpContent = (await opfsRoot.getDirectoryHandle('wp-content', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		const database = (await wpContent.getDirectoryHandle('database', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		for (const name of [
+			'.ht.sqlite-journal',
+			'.ht.sqlite-wal',
+			'.ht.sqlite-shm',
+		]) {
+			const file = (await database.getFileHandle(name, {
+				create: true,
+			})) as unknown as MemoryFileHandle;
+			file.bytes = encode('stale sidecar');
+		}
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/tmp/playground-sqlite-snapshot.sqlite', encode('snapshot'));
+		await mount.persistSqliteSnapshot(
+			'/tmp/playground-sqlite-snapshot.sqlite'
+		);
+
+		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe(
+			'snapshot'
+		);
+		expect(decode(database.files.get('.ht.sqlite.tmp')!.bytes)).toBe(
+			'snapshot'
+		);
+		expect(database.files.has('.ht.sqlite-journal')).toBe(false);
+		expect(database.files.has('.ht.sqlite-wal')).toBe(false);
+		expect(database.files.has('.ht.sqlite-shm')).toBe(false);
 	});
 
 	it.each(['filesystem.write', 'request.end'] as const)(

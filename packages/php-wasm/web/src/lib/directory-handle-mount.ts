@@ -372,7 +372,7 @@ export async function persistSqliteSnapshotToOpfs(
 		SQLITE_DB_FILENAME,
 		snapshotBytes
 	);
-	await removeSqliteTemporaryAndSidecarFiles(opfsParent);
+	await removeSqliteSidecarFiles(opfsParent);
 }
 
 async function publishOpfsFile(
@@ -394,19 +394,15 @@ async function publishOpfsFile(
 	await writeOpfsFile(opfsParent, finalName, fallbackBytes);
 }
 
-async function removeSqliteTemporaryAndSidecarFiles(
-	opfsParent: FileSystemDirectoryHandle
-) {
+async function removeSqliteSidecarFiles(opfsParent: FileSystemDirectoryHandle) {
 	await Promise.all(
-		[SQLITE_DB_TEMP_FILENAME, ...getSqliteSidecarFilenames()].map(
-			async (filename) => {
-				try {
-					await opfsParent.removeEntry(filename);
-				} catch {
-					// If the temporary or sidecar file is already missing, that's fine.
-				}
+		getSqliteSidecarFilenames().map(async (filename) => {
+			try {
+				await opfsParent.removeEntry(filename);
+			} catch {
+				// If the sidecar file is already missing, that's fine.
 			}
-		)
+		})
 	);
 }
 
