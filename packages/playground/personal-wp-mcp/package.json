@@ -21,6 +21,6 @@
 		"./package.json": "./package.json"
 	},
 	"dependencies": {
-		"@wp-playground/mcp": "3.1.40"
+		"@wp-playground/mcp": "*"
 	}
 }
