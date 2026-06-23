@@ -653,28 +653,44 @@ phpLoaderOptions.forEach((options) => {
 					try {
 						const result = await php.run({
 							code: `<?php
-						$p1 = popen("cat > out1", "w");
-						$p2 = popen("cat > out2", "w");
-						fwrite($p1, "first");
-						fwrite($p2, "second");
-						$r1 = pclose($p1);
-						$r2 = pclose($p2);
+						$firstWriter = popen(
+							"cat > concurrent-popen-first-output.txt",
+							"w"
+						);
+						$secondWriter = popen(
+							"cat > concurrent-popen-second-output.txt",
+							"w"
+						);
+						fwrite($firstWriter, "first");
+						fwrite($secondWriter, "second");
+						$firstExitCode = pclose($firstWriter);
+						$secondExitCode = pclose($secondWriter);
 
-						$fp1 = popen("cat out1", "r");
-						$content1 = fread($fp1, 1024);
-						pclose($fp1);
+						$firstReader = popen(
+							"cat concurrent-popen-first-output.txt",
+							"r"
+						);
+						$firstOutput = fread($firstReader, 1024);
+						pclose($firstReader);
 
-						$fp2 = popen("cat out2", "r");
-						$content2 = fread($fp2, 1024);
-						pclose($fp2);
+						$secondReader = popen(
+							"cat concurrent-popen-second-output.txt",
+							"r"
+						);
+						$secondOutput = fread($secondReader, 1024);
+						pclose($secondReader);
 
-						echo "$r1,$r2|$content1|$content2";
+						echo "$firstExitCode,$secondExitCode|$firstOutput|$secondOutput";
 					`,
 						});
 						expect(result.text).toEqual('0,0|first|second');
 					} finally {
-						rmSync('out1', { force: true });
-						rmSync('out2', { force: true });
+						rmSync('concurrent-popen-first-output.txt', {
+							force: true,
+						});
+						rmSync('concurrent-popen-second-output.txt', {
+							force: true,
+						});
 					}
 				}
 			);
@@ -685,22 +701,38 @@ phpLoaderOptions.forEach((options) => {
 					try {
 						const result = await php.run({
 							code: `<?php
-						$p1 = popen("cat > out1", "w");
-						$p2 = popen("sh -c 'cat > /dev/null; exit 42'", "w");
-						$p3 = popen("cat > out2", "w");
-						fwrite($p1, "a");
-						fwrite($p2, "b");
-						fwrite($p3, "c");
-						$r1 = pclose($p1);
-						$r2 = pclose($p2);
-						$r3 = pclose($p3);
-						echo "$r1,$r2,$r3";
+						$successfulWriter = popen(
+							"cat > concurrent-popen-successful-output.txt",
+							"w"
+						);
+						$failingWriter = popen(
+							"sh -c 'cat > /dev/null; exit 42'",
+							"w"
+						);
+						$secondSuccessfulWriter = popen(
+							"cat > concurrent-popen-second-successful-output.txt",
+							"w"
+						);
+						fwrite($successfulWriter, "a");
+						fwrite($failingWriter, "b");
+						fwrite($secondSuccessfulWriter, "c");
+						$successfulExitCode = pclose($successfulWriter);
+						$failingExitCode = pclose($failingWriter);
+						$secondSuccessfulExitCode = pclose($secondSuccessfulWriter);
+						echo "$successfulExitCode,$failingExitCode,$secondSuccessfulExitCode";
 					`,
 						});
 						expect(result.text).toEqual('0,42,0');
 					} finally {
-						rmSync('out1', { force: true });
-						rmSync('out2', { force: true });
+						rmSync('concurrent-popen-successful-output.txt', {
+							force: true,
+						});
+						rmSync(
+							'concurrent-popen-second-successful-output.txt',
+							{
+								force: true,
+							}
+						);
 					}
 				}
 			);

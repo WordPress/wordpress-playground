@@ -1,6 +1,6 @@
 import { createSpawnHandler } from './create-spawn-handler';
 import { splitShellCommand } from './split-shell-command';
-import { parseMessage } from './smtp';
+import { DEFAULT_SMTP_MAX_SIZE, parseMessage } from './smtp';
 import type { CaughtMessage } from './smtp';
 
 /**
@@ -29,11 +29,9 @@ import type { CaughtMessage } from './smtp';
  * @param fallbackSpawnHandler - Receives any non-sendmail command. Omit to
  *   throw on unrecognized commands instead.
  * @param options.maxSize - Maximum accepted message size in bytes.
- *   Defaults to 10 MB. Messages exceeding this limit are rejected with
- *   exit code 1 and a diagnostic written to stderr.
+ *   Defaults to `DEFAULT_SMTP_MAX_SIZE`. Messages exceeding this limit are
+ *   rejected with exit code 1 and a diagnostic written to stderr.
  */
-const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10 MB, same as SmtpSink
-
 export function createSendmailSpawnHandler(
 	onEmail: (message: CaughtMessage) => void,
 	fallbackSpawnHandler?: (
@@ -41,7 +39,7 @@ export function createSendmailSpawnHandler(
 		argsArray?: any,
 		options?: any
 	) => any,
-	{ maxSize = DEFAULT_MAX_SIZE }: { maxSize?: number } = {}
+	{ maxSize = DEFAULT_SMTP_MAX_SIZE }: { maxSize?: number } = {}
 ) {
 	const sendmailHandler = createSpawnHandler(
 		async function (command, processApi) {

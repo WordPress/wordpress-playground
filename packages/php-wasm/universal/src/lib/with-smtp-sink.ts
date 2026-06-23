@@ -19,36 +19,15 @@ export type WithSmtpSinkOptions = {
 };
 
 /**
- * Captures outbound email from PHP via two interception points:
- *   1. `spawnProcess` — catches `mail()` calls that shell out to sendmail.
- *   2. `websocket.decorator` — catches TCP connections whose requested
- *      destination port matches `options.smtpPort` and routes them through
- *      an in-process SmtpSink.
+ * Adds an in-process SMTP sink to Emscripten options.
  *
- * ## Where the `port` query parameter comes from
+ * Use this when a PHP runtime should capture outgoing mail instead of sending
+ * it. Messages are reported through `onEmail` for both `mail()` calls that
+ * invoke sendmail and SMTP socket connections whose TCP destination port
+ * matches `smtpPort`.
  *
- * When PHP opens a TCP socket, Emscripten intercepts it and calls the
- * `EmscriptenOptions.websocket.url(_, host, port)` factory to build a
- * WebSocket URL. Each runtime provides its own factory:
- *
- *   - Web:  `@php-wasm/web` → `tcp-over-fetch-websocket.ts`
- *             produces `ws://playground.internal/?host=<h>&port=<p>`
- *   - Node: `@php-wasm/node` → `networking/with-networking.ts`
- *             produces `ws://127.0.0.1:<proxy>/?host=<h>&port=<p>`
- *
- * The `port` query parameter is therefore the raw TCP destination port PHP
- * tried to reach — it is set by the runtime, not by this decorator. Its name
- * is generic because the same URL format is reused for every outbound TCP
- * connection (SMTP, MySQL, or any future protocol).
- *
- * This decorator reads `searchParams.get('port')` and compares it to
- * `smtpPort`. When they match, the connection is handed to `SmtpSinkWebSocket`
- * instead of going to the network; all other ports are forwarded to the next
- * decorator (or the real WebSocket constructor) unchanged.
- *
- * Merges into the provided `emscriptenOptions`, chaining the websocket
- * decorator and using any existing `spawnProcess` as a fallback for
- * non-sendmail commands.
+ * Existing `spawnProcess` and `websocket.decorator` handlers are preserved for
+ * non-sendmail commands and non-SMTP WebSocket connections.
  */
 export function withSMTPSink(
 	{ smtpPort, onEmail }: WithSmtpSinkOptions,
@@ -66,6 +45,10 @@ export function withSMTPSink(
 				let requestedTcpDestinationPort = -1;
 				try {
 					const websocketUrl = new URL(url);
+					// Runtime URL factories encode PHP's TCP destination port
+					// in the WebSocket URL so decorators can route it. See
+					// `@php-wasm/web`'s `tcp-over-fetch-websocket.ts` and
+					// `@php-wasm/node`'s `networking/with-networking.ts`.
 					requestedTcpDestinationPort = parseInt(
 						websocketUrl.searchParams.get('port') || '-1',
 						10

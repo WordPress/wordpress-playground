@@ -48,6 +48,27 @@ export type SaslMechanism = 'PLAIN' | 'LOGIN';
 // duplex and does not provide DNS or TLS identity.
 const SERVER_NAME = 'playground.wordpress.net';
 
+// RFC 5321 defines reply *codes* as protocol semantics and reply text as
+// human-readable context. Use RFC 5321/1870/4954 text where available, and
+// the generic code text where a command-specific phrase is unnecessary.
+const SMTP_REPLY_TEXT = {
+	serviceReady: `${SERVER_NAME} ESMTP Service Ready`,
+	ok: 'OK',
+	syntaxError: 'Syntax error in parameters or arguments',
+	commandUnrecognized: 'Syntax error, command unrecognized',
+	commandNotImplemented: 'Command not implemented',
+	badSequence: 'Bad sequence of commands',
+	startMailInput: 'Start mail input; end with <CRLF>.<CRLF>',
+	cannotVrfyUser:
+		'Cannot VRFY user, but will accept message and attempt delivery',
+	messageSizeExceeded: 'message size exceeds fixed maximum message size',
+	authSucceeded: '2.7.0 Authentication Succeeded',
+	authCredentialsInvalid: '5.7.8 Authentication credentials invalid',
+	authRequired: '5.7.0 Authentication required',
+	authCanceled: '5.7.0 Authentication canceled',
+	authTypeUnrecognized: '5.5.4 Unrecognized authentication type',
+} as const;
+
 /**
  * Validates credentials provided through SMTP AUTH.
  */
@@ -55,6 +76,8 @@ export type AuthValidator = (
 	mechanism: SaslMechanism,
 	credentials: { username: string; password: string }
 ) => boolean | Promise<boolean>;
+
+export const DEFAULT_SMTP_MAX_SIZE = 10 * 1024 * 1024;
 
 /**
  * Configuration for `SmtpSink`.
@@ -127,7 +150,7 @@ export class SmtpSink {
 		this.onEmail = onEmail;
 		this.writer = duplex.writable.getWriter();
 		this.reader = duplex.readable.getReader();
-		this.maxSize = options.maxSize ?? 10 * 1024 * 1024;
+		this.maxSize = options.maxSize ?? DEFAULT_SMTP_MAX_SIZE;
 
 		this.authMechanisms = options.auth?.mechanisms ?? [];
 		this.authAdvertise =
@@ -143,7 +166,7 @@ export class SmtpSink {
 	async start(): Promise<void> {
 		// RFC 5321 §4.3.2: the server sends 220 before accepting commands.
 		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.3.2
-		await this.reply(220, `${SERVER_NAME} ESMTP ready`);
+		await this.reply(220, SMTP_REPLY_TEXT.serviceReady);
 		while (true) {
 			const readResult = await this.reader.read();
 			if (readResult.done) break;
@@ -203,7 +226,7 @@ export class SmtpSink {
 		if (this.lineBuffer.length > maxLineLen) {
 			this.lineBuffer = '';
 			this.queueHandler(async () => {
-				await this.reply(500, 'line too long');
+				await this.reply(500, SMTP_REPLY_TEXT.commandUnrecognized);
 				await this.close();
 			});
 		}
@@ -232,7 +255,7 @@ export class SmtpSink {
 				// argument; an empty argument is a syntax error.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.1
 				if (!commandArgument.trim()) {
-					await this.reply(501, `syntax: ${command} <domain>`);
+					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
 				// RFC 5321 §4.1.4: a successful EHLO/HELO issued mid-
@@ -289,11 +312,17 @@ export class SmtpSink {
 				// clients should not try STARTTLS because EHLO omits it.
 				// RFC 3207 §4 defines the STARTTLS command:
 				// https://www.rfc-editor.org/rfc/rfc3207.html#section-4
-				await this.reply(502, 'Command not implemented');
+				await this.reply(502, SMTP_REPLY_TEXT.commandNotImplemented);
 				break;
 			}
 
 			case 'AUTH': {
+				// RFC 4954 §4 forbids AUTH during an active mail transaction.
+				// https://www.rfc-editor.org/rfc/rfc4954.html#section-4
+				if (this.mailFrom !== null || this.recipientPaths.length > 0) {
+					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
+					break;
+				}
 				// RFC 4954 §4 extends SMTP with the AUTH command.
 				// Match exactly `AUTH <mechanism>` or
 				// `AUTH <mechanism> <initial-response>`.
@@ -304,10 +333,7 @@ export class SmtpSink {
 					/^([A-Za-z0-9_-]{1,20})(?: ((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?|=))?$/
 				);
 				if (!authArgumentMatch) {
-					await this.reply(
-						501,
-						'syntax: AUTH mechanism [initial-response]'
-					);
+					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
 				const mechanism =
@@ -315,12 +341,12 @@ export class SmtpSink {
 				const initialResponseRaw = authArgumentMatch[2];
 
 				if (this.authenticated) {
-					await this.reply(503, 'already authenticated');
+					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
 					break;
 				}
 
 				if (!this.authMechanisms.includes(mechanism)) {
-					await this.reply(504, 'Unrecognized authentication type');
+					await this.reply(504, SMTP_REPLY_TEXT.authTypeUnrecognized);
 					break;
 				}
 
@@ -370,7 +396,7 @@ export class SmtpSink {
 
 			case 'MAIL': {
 				if (this.authRequire && !this.authenticated) {
-					await this.reply(530, 'Authentication required');
+					await this.reply(530, SMTP_REPLY_TEXT.authRequired);
 					break;
 				}
 				// RFC 5321 §3.3 + §4.1.1.2: the syntax is exactly
@@ -382,18 +408,18 @@ export class SmtpSink {
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-3.3
 				const path = parseEnvelopeArg(commandArgument, 'FROM');
 				if (path === null) {
-					await this.reply(501, 'syntax: MAIL FROM:<addr>');
+					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
 				this.mailFrom = path;
 				this.recipientPaths = [];
-				await this.reply(250, 'OK');
+				await this.reply(250, SMTP_REPLY_TEXT.ok);
 				break;
 			}
 
 			case 'RCPT': {
 				if (this.authRequire && !this.authenticated) {
-					await this.reply(530, 'Authentication required');
+					await this.reply(530, SMTP_REPLY_TEXT.authRequired);
 					break;
 				}
 				// RFC 5321 §3.3 + §4.1.1.3: the syntax is exactly
@@ -402,18 +428,18 @@ export class SmtpSink {
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.3
 				const path = parseEnvelopeArg(commandArgument, 'TO');
 				if (path === null) {
-					await this.reply(501, 'syntax: RCPT TO:<addr>');
+					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
 				// Explicit null check (not falsy): an empty string is a
 				// valid null reverse-path (`MAIL FROM:<>`, RFC 5321
 				// §4.5.5) and must not gate RCPT.
 				if (this.mailFrom === null) {
-					await this.reply(503, 'need MAIL FROM first');
+					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
 					break;
 				}
 				this.recipientPaths.push(path);
-				await this.reply(250, 'Accepted');
+				await this.reply(250, SMTP_REPLY_TEXT.ok);
 				break;
 			}
 
@@ -425,10 +451,10 @@ export class SmtpSink {
 					this.mailFrom === null ||
 					this.recipientPaths.length === 0
 				) {
-					await this.reply(503, 'need MAIL/RCPT first');
+					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
 					break;
 				}
-				await this.reply(354, 'End data with <CR><LF>.<CR><LF>');
+				await this.reply(354, SMTP_REPLY_TEXT.startMailInput);
 				this.dataMode = true;
 				this.dataLines = [];
 				this.dataBytes = 0;
@@ -439,28 +465,28 @@ export class SmtpSink {
 				// RFC 5321 §4.1.1.5: abort the current mail transaction.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.5
 				this.resetEnvelope();
-				await this.reply(250, 'OK');
+				await this.reply(250, SMTP_REPLY_TEXT.ok);
 				break;
 
 			case 'NOOP':
 				// RFC 5321 §4.1.1.9: NOOP has no effect except returning OK.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.9
-				await this.reply(250, 'OK');
+				await this.reply(250, SMTP_REPLY_TEXT.ok);
 				break;
 
 			case 'VRFY':
 				// RFC 5321 §3.5.3: 252 means we cannot verify, but will accept mail.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-3.5.3
-				await this.reply(
-					252,
-					'Cannot VRFY user, but will accept message'
-				);
+				await this.reply(252, SMTP_REPLY_TEXT.cannotVrfyUser);
 				break;
 
 			case 'QUIT':
 				// RFC 5321 §4.1.1.10: successful QUIT returns 221, then closes.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.10
-				await this.reply(221, 'Bye');
+				await this.reply(
+					221,
+					`${SERVER_NAME} Service closing transmission channel`
+				);
 				await this.close();
 				break;
 
@@ -469,13 +495,13 @@ export class SmtpSink {
 			case 'TURN':
 				// RFC 5321 §4.2.4: 502 means recognized but not implemented.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2.4
-				await this.reply(502, 'Command not implemented');
+				await this.reply(502, SMTP_REPLY_TEXT.commandNotImplemented);
 				break;
 
 			default:
 				// RFC 5321 §4.2.4: 500 means the command was not recognized.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2.4
-				await this.reply(500, 'command not recognized');
+				await this.reply(500, SMTP_REPLY_TEXT.commandUnrecognized);
 				break;
 		}
 	}
@@ -488,7 +514,7 @@ export class SmtpSink {
 				// mid-stream, the 552 reply must come *after* the
 				// end-of-data marker. Anything else desyncs the session.
 				// https://www.rfc-editor.org/rfc/rfc1870.html#section-6.3
-				await this.reply(552, 'message size exceeds fixed limit');
+				await this.reply(552, SMTP_REPLY_TEXT.messageSizeExceeded);
 				this.resetEnvelope();
 				return;
 			}
@@ -511,7 +537,7 @@ export class SmtpSink {
 
 			this.onEmail(message);
 
-			await this.reply(250, 'OK');
+			await this.reply(250, SMTP_REPLY_TEXT.ok);
 			this.resetEnvelope();
 			return;
 		}
@@ -534,7 +560,7 @@ export class SmtpSink {
 		if (line === '*') {
 			this.authPending = false;
 			this.authState = null;
-			await this.reply(501, 'Authentication canceled');
+			await this.reply(501, SMTP_REPLY_TEXT.authCanceled);
 			return;
 		}
 
@@ -595,9 +621,9 @@ export class SmtpSink {
 		this.authState = null;
 		if (isValid) {
 			this.authenticated = true;
-			await this.reply(235, 'Authentication succeeded');
+			await this.reply(235, SMTP_REPLY_TEXT.authSucceeded);
 		} else {
-			await this.reply(535, 'Authentication credentials invalid');
+			await this.reply(535, SMTP_REPLY_TEXT.authCredentialsInvalid);
 		}
 	}
 

@@ -1,5 +1,4 @@
 import Semaphore, { AcquireTimeoutError } from './semaphore';
-import { concatUint8Arrays } from './concat-uint8-arrays';
 export { Semaphore, AcquireTimeoutError };
 export { PhpWasmError } from './php-wasm-error';
 export type { SemaphoreOptions } from './semaphore';
@@ -17,7 +16,7 @@ export { createSendmailSpawnHandler } from './create-sendmail-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
-export { concatUint8Arrays } from './concat-uint8-arrays';
+export { concatArrayBuffers, concatUint8Arrays } from './concat-bytes';
 export {
 	decodeBase64ToString,
 	decodeBase64ToUint8Array,
@@ -31,8 +30,3 @@ export * from './php-vars';
 export * from './smtp';
 
 export * from './sprintf';
-
-export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
-	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b)))
-		.buffer as ArrayBuffer;
-}

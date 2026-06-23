@@ -1,5 +1,5 @@
 import { EventEmitterPolyfill } from './event-emitter-polyfill';
-import { concatUint8Arrays } from './concat-uint8-arrays';
+import { concatUint8Arrays } from './concat-bytes';
 import { splitShellCommand } from './split-shell-command';
 import { WritablePolyfill, type WriteCallback } from './writable-polyfill';
 
@@ -128,6 +128,8 @@ export class ProcessApi extends EventEmitterPolyfill {
 	}
 	/**
 	 * Reads all stdin bytes written to this process.
+	 * Uses the existing `stdin` listener flow so bytes buffered before the
+	 * listener is attached are replayed before waiting for stdin to finish.
 	 *
 	 * If `maxSize` is exceeded, the remaining stdin is still drained so the
 	 * process can exit cleanly, but buffered bytes are discarded.
@@ -161,6 +163,13 @@ export class ProcessApi extends EventEmitterPolyfill {
 		});
 
 		await stdinDone;
+
+		if (exceededMaxSize) {
+			return {
+				bytes: new Uint8Array(),
+				exceededMaxSize,
+			};
+		}
 
 		return {
 			bytes: concatUint8Arrays(chunks),
