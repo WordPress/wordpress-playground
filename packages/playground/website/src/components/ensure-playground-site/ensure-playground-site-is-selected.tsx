@@ -69,7 +69,10 @@ export function EnsurePlaygroundSiteIsSelected({
 	const [autosaveNudge, setAutosaveNudge] = useState<{
 		site: SiteInfo;
 		setupUrlFingerprint: string;
+		temporarySiteSlug?: string;
+		temporarySiteSlugPromise: Promise<string>;
 	}>();
+	const autosaveTemporarySiteSlugPromiseRef = useRef<Promise<string>>();
 	const [
 		declinedAutosaveRestoreFingerprints,
 		setDeclinedAutosaveRestoreFingerprints,
@@ -104,6 +107,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {
+				autosaveTemporarySiteSlugPromiseRef.current = undefined;
 				setAutosaveNudge(undefined);
 				setAutosaveNudgeError(undefined);
 			}
@@ -202,11 +206,41 @@ export function EnsurePlaygroundSiteIsSelected({
 					) &&
 					wasSiteRecentlyInteractedWith(matchingAutosave)
 				) {
+					// Start the fresh Playground in the background and activate
+					// it as soon as its site record exists. Clearing the ref
+					// prevents a late temporary-site activation from winning
+					// the race after the user restores the autosave.
+					const temporarySiteSlugPromise =
+						sitesAPI.createNewTemporarySite(undefined, undefined, {
+							activate: false,
+						});
+					autosaveTemporarySiteSlugPromiseRef.current =
+						temporarySiteSlugPromise;
 					setAutosaveNudge({
 						site: matchingAutosave,
 						setupUrlFingerprint: currentSetupUrlFingerprint,
+						temporarySiteSlugPromise,
 					});
-					await sitesAPI.createNewTemporarySite();
+
+					const temporarySiteSlug = await temporarySiteSlugPromise;
+					if (
+						autosaveTemporarySiteSlugPromiseRef.current !==
+						temporarySiteSlugPromise
+					) {
+						return;
+					}
+					setAutosaveNudge((currentNudge) =>
+						currentNudge?.temporarySiteSlugPromise ===
+						temporarySiteSlugPromise
+							? {
+									...currentNudge,
+									temporarySiteSlug,
+								}
+							: currentNudge
+					);
+					void sitesAPI.setActiveSite(temporarySiteSlug, {
+						updateUrl: false,
+					});
 					return;
 				}
 
@@ -270,6 +304,7 @@ export function EnsurePlaygroundSiteIsSelected({
 					error={autosaveNudgeError}
 					isBusy={isAutosaveNudgeActionPending}
 					onRestore={async () => {
+						autosaveTemporarySiteSlugPromiseRef.current = undefined;
 						setAutosaveNudgeError(undefined);
 						setIsAutosaveNudgeActionPending(true);
 						try {
@@ -293,16 +328,29 @@ export function EnsurePlaygroundSiteIsSelected({
 						setAutosaveNudgeError(undefined);
 						setIsAutosaveNudgeActionPending(true);
 						try {
-							await sitesAPI.autosaveTemporarySite(undefined, {
+							const temporarySiteSlug =
+								autosaveNudge.temporarySiteSlug ??
+								(await autosaveNudge.temporarySiteSlugPromise);
+							await sitesAPI.setActiveSite(temporarySiteSlug, {
 								updateUrl: false,
-								excludeFromPruning: [autosaveNudge.site.slug],
 							});
+							await sitesAPI.autosaveTemporarySite(
+								temporarySiteSlug,
+								{
+									updateUrl: false,
+									excludeFromPruning: [
+										autosaveNudge.site.slug,
+									],
+								}
+							);
 							setDeclinedAutosaveRestoreFingerprints(
 								(fingerprints) => [
 									...fingerprints,
 									autosaveNudge.setupUrlFingerprint,
 								]
 							);
+							autosaveTemporarySiteSlugPromiseRef.current =
+								undefined;
 							setAutosaveNudge(undefined);
 						} catch (error) {
 							logger.error(

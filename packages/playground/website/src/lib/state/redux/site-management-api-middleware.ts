@@ -519,6 +519,12 @@ export function createSitesAPI(
 			if (activeSite?.slug === siteSlug) {
 				return;
 			}
+			const existingClient = selectClientBySiteSlug(state, siteSlug);
+			if (existingClient) {
+				dispatch(setActiveSite(siteSlug, options));
+				(window as any)['playground'] = existingClient;
+				return;
+			}
 			const bootPromise = new Promise<void>((resolve, reject) => {
 				const unsubscribe = startListening({
 					predicate: (action) =>
@@ -553,11 +559,13 @@ export function createSitesAPI(
 		 *   Blueprint title becomes the site name if available; otherwise a
 		 *   random name is generated.
 		 * @param settings Optional site settings.
+		 * @param options Optional activation behavior.
 		 * @returns The new site's slug.
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
-			settings?: SiteSettings
+			settings?: SiteSettings,
+			options: { activate?: boolean } = {}
 		): Promise<string> {
 			const siteName = requestedSiteSlug
 				? deriveSiteNameFromSlug(requestedSiteSlug)
@@ -566,7 +574,9 @@ export function createSitesAPI(
 			const newSiteInfo = await dispatch(
 				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
 			);
-			await api.setActiveSite(newSiteInfo.slug);
+			if (options.activate !== false) {
+				await api.setActiveSite(newSiteInfo.slug);
+			}
 			return newSiteInfo.slug;
 		},
 

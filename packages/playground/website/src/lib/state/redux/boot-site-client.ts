@@ -27,7 +27,11 @@ import {
 	setActiveSiteError,
 	setGitHubAuthRepoUrl,
 } from './slice-ui';
-import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
+import {
+	selectActiveSite,
+	type PlaygroundDispatch,
+	type PlaygroundReduxState,
+} from './store';
 import {
 	isAutosavedSite,
 	selectSiteBySlug,
@@ -215,8 +219,10 @@ export function bootSiteClient(
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
-					playground = (window as any)['playground'] =
-						playgroundClient;
+					playground = playgroundClient;
+					if (selectActiveSite(getState())?.slug === site.slug) {
+						(window as any)['playground'] = playgroundClient;
+					}
 				},
 				// Log Blueprint events
 				onBlueprintValidated: logSupportedBlueprintEvents,

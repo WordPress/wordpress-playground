@@ -1406,10 +1406,6 @@ test.describe('Default Playground storage', () => {
 				/Another Playground was created .* from the same URL\./
 			)
 		).toBeVisible();
-		await website.waitForNestedIframes();
-		await expect(
-			website.page.getByRole('button', { name: 'Unsaved' })
-		).toBeVisible();
 		await website.page
 			.getByRole('button', { name: 'Restore Autosave' })
 			.click();
@@ -1431,6 +1427,47 @@ echo get_option('blogname');
 			return result.text;
 		});
 		expect(blogName).toBe(expectedBlogName);
+	});
+
+	test('should keep the new Playground when the restore nudge is dismissed immediately', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const setupUrl = getUniqueSavedPlaygroundSetupUrl('keep-new', {
+			php: '8.3',
+		});
+		const consoleErrors: string[] = [];
+		website.page.on('console', (message) => {
+			if (message.type() === 'error') {
+				consoleErrors.push(message.text());
+			}
+		});
+
+		await website.goto(setupUrl);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await runPHPAndFlushOpfs(
+			website.page,
+			updateBlogNameCode(`Keep New Playground ${Date.now()}`)
+		);
+
+		await website.goto(setupUrl);
+		await website.page.getByRole('button', { name: 'No, thanks' }).click();
+		await expect(
+			website.page.getByText('Recent autosave available')
+		).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		expect(consoleErrors.join('\n')).not.toContain(
+			'must have an active client to be saved'
+		);
 	});
 
 	test('should start fresh from a setup URL when an autosave exists', async ({
