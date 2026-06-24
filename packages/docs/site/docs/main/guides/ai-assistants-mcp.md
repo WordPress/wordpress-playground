@@ -68,7 +68,7 @@ You can have multiple Playground sites and multiple connected browser tabs. You 
 
 </div>
 
-## Connect an AI assistant to Playground
+## Connect an AI assistant to the Playground MCP
 
 1. Open your AI assistant.
 2. Ask it to connect to WordPress Playground:
