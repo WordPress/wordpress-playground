@@ -55,6 +55,10 @@ const DOWNLOAD_ERROR_PATTERNS = [
 	'NetworkError when attempting to fetch',
 	// Safari fetch failure
 	'Load failed',
+	// Worker startup failure when Safari cannot load a module worker.
+	'WebWorker failed to load',
+	// Safari service worker failure while resolving a worker/module request.
+	'Service Worker context closed',
 ];
 
 /**
