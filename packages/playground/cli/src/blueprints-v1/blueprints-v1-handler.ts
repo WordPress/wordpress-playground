@@ -10,6 +10,7 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
 	isBlueprintBundle,
+	mergeBlueprintVersions,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
@@ -233,29 +234,18 @@ export class BlueprintsV1Handler {
 
 	private getEffectiveBlueprint() {
 		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
-		/**
-		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
-		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
-		 *
-		 * 		 Also the Blueprint Builder tool does something similar.
-		 *       Perhaps all these cases could be handled by the same function?
-		 */
-		return isBlueprintBundle(resolvedBlueprint)
-			? resolvedBlueprint
-			: {
-					login: this.args.login,
-					...(resolvedBlueprint || {}),
-					preferredVersions: {
-						php:
-							this.args.php ??
-							resolvedBlueprint?.preferredVersions?.php ??
-							RecommendedPHPVersion,
-						wp:
-							this.args.wp ??
-							resolvedBlueprint?.preferredVersions?.wp ??
-							'latest',
-						...(resolvedBlueprint?.preferredVersions || {}),
-					},
-				};
+		if (isBlueprintBundle(resolvedBlueprint)) {
+			return resolvedBlueprint;
+		}
+		return mergeBlueprintVersions(
+			{
+				login: this.args.login,
+				...(resolvedBlueprint || {}),
+			},
+			{
+				php: this.args.php,
+				wp: this.args.wp,
+			}
+		);
 	}
 }

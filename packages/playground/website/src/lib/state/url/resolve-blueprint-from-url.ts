@@ -7,6 +7,7 @@ import type {
 import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
+	mergeBlueprintVersions,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
 import { parseBlueprint, isMcpServerEnabled } from './router';
@@ -212,19 +213,14 @@ function applyQueryOverridesToDeclaration(
 	if (blueprint.preferredVersions?.wp === false) {
 		return blueprint;
 	}
-	/**
-	 * Allow overriding PHP and WordPress versions defined in a Blueprint
-	 * via query params.
-	 */
-	if (!blueprint.preferredVersions) {
-		blueprint.preferredVersions = {} as any;
-	}
-	blueprint.preferredVersions!.wp =
-		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
-	blueprint.preferredVersions!.php =
-		(query.get('php') as any) ||
-		blueprint.preferredVersions!.php ||
-		getDefaultPhpVersionForWordPress(blueprint.preferredVersions!.wp);
+	blueprint = mergeBlueprintVersions(
+		blueprint,
+		{
+			php: query.get('php') ?? undefined,
+			wp: query.get('wp') ?? undefined,
+		},
+		getDefaultPhpVersionForWordPress
+	);
 
 	// Features
 	if (!blueprint.features) {
