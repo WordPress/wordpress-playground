@@ -134,7 +134,11 @@ async function copyOpfsToMemfs(
 		concurrency: 40,
 	});
 
-	const ops: Array<Promise<void>> = [];
+	type CopyOperationResult =
+		| { status: 'fulfilled' }
+		| { status: 'rejected'; reason: unknown };
+	const ops: Array<Promise<CopyOperationResult>> = [];
+	let firstError: unknown;
 	const stack: Array<[FileSystemDirectoryHandle, string]> = [
 		[opfsRoot, memfsRoot],
 	];
@@ -142,44 +146,79 @@ async function copyOpfsToMemfs(
 		const [opfsParent, memfsParentPath] = stack.pop()!;
 
 		for await (const opfsHandle of opfsParent.values()) {
-			const op = semaphore.run(async () => {
-				const memfsEntryPath = joinPaths(
-					memfsParentPath,
-					opfsHandle.name
-				);
-				if (opfsHandle.kind === 'directory') {
+			const memfsEntryPath = joinPaths(memfsParentPath, opfsHandle.name);
+			const op = semaphore
+				.run(async () => {
 					try {
-						FS.mkdir(memfsEntryPath);
-					} catch (e) {
-						if ((e as any)?.errno !== 20) {
-							logger.error(e);
-							// We ignore the error if the directory already exists,
-							// and throw otherwise.
-							throw e;
+						if (opfsHandle.kind === 'directory') {
+							try {
+								FS.mkdir(memfsEntryPath);
+							} catch (e) {
+								if ((e as any)?.errno !== 20) {
+									logger.error(e);
+									// We ignore the error if the directory
+									// already exists, and throw otherwise.
+									throw e;
+								}
+							}
+							stack.push([opfsHandle, memfsEntryPath]);
+						} else if (opfsHandle.kind === 'file') {
+							const file = await opfsHandle.getFile();
+							const byteArray = new Uint8Array(
+								await file.arrayBuffer()
+							);
+							FS.createDataFile(
+								memfsParentPath,
+								opfsHandle.name,
+								byteArray,
+								true,
+								true,
+								true
+							);
 						}
+					} catch (error) {
+						throw new Error(
+							`Failed to copy OPFS entry to MEMFS path "${memfsEntryPath}"` +
+								`: ${getErrorMessage(error)}`,
+							{ cause: error }
+						);
 					}
-					stack.push([opfsHandle, memfsEntryPath]);
-				} else if (opfsHandle.kind === 'file') {
-					const file = await opfsHandle.getFile();
-					const byteArray = new Uint8Array(await file.arrayBuffer());
-					FS.createDataFile(
-						memfsParentPath,
-						opfsHandle.name,
-						byteArray,
-						true,
-						true,
-						true
-					);
+				})
+				.then(
+					() => ({ status: 'fulfilled' }) as const,
+					(error) => {
+						firstError ??= error;
+						return { status: 'rejected', reason: error } as const;
+					}
+				);
+			const trackedOp = op.finally(() => {
+				const opIndex = ops.indexOf(trackedOp);
+				if (opIndex !== -1) {
+					ops.splice(opIndex, 1);
 				}
-				ops.splice(ops.indexOf(op), 1);
 			});
-			ops.push(op);
+			ops.push(trackedOp);
 		}
 		// Let the ongoing operations catch-up to the stack.
 		while (stack.length === 0 && ops.length > 0) {
-			await Promise.any(ops);
+			if (firstError) {
+				await Promise.allSettled(ops);
+				throw firstError;
+			}
+			const result = await Promise.race(ops);
+			if (result.status === 'rejected') {
+				await Promise.allSettled(ops);
+				throw result.reason;
+			}
 		}
 	}
+}
+
+function getErrorMessage(error: unknown) {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return String(error);
 }
 
 export async function copyMemfsToOpfs(

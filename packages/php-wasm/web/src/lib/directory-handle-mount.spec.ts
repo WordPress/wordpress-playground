@@ -39,6 +39,12 @@ class MemoryFileHandle {
 			seek: async () => {},
 		};
 	}
+
+	async getFile() {
+		return {
+			arrayBuffer: async () => this.bytes.buffer.slice(0),
+		};
+	}
 }
 
 class MemoryDirectoryHandle {
@@ -80,6 +86,11 @@ class MemoryDirectoryHandle {
 	async removeEntry(name: string) {
 		this.files.delete(name);
 		this.directories.delete(name);
+	}
+
+	async *values() {
+		yield* this.directories.values();
+		yield* this.files.values();
 	}
 }
 
@@ -546,6 +557,93 @@ describe('createDirectoryHandleMountHandler', () => {
 			vi.useRealTimers();
 		}
 	});
+
+	it('reports the failed OPFS entry when initial OPFS to MEMFS sync fails', async () => {
+		const rootCause = new Error('file could not be read');
+		const { FS, php } = createFakePhp();
+		FS.lookupPath.mockImplementation((path: string) => {
+			if (path === '/wordpress') {
+				throw new Error(`Missing file: ${path}`);
+			}
+			return {
+				path,
+				node: { mode: 0, path },
+			};
+		});
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const brokenFile = new MemoryFileHandle('database.sqlite');
+		vi.spyOn(brokenFile, 'getFile').mockRejectedValue(rootCause);
+		opfsRoot.files.set('database.sqlite', brokenFile);
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'opfs-to-memfs',
+				},
+			}
+		);
+
+		await expect(
+			mountHandler(php, FS as any, '/wordpress')
+		).rejects.toMatchObject({
+			message:
+				'Failed to copy OPFS entry to MEMFS path ' +
+				'"/wordpress/database.sqlite": file could not be read',
+			cause: rootCause,
+		});
+	});
+
+	it('observes pending OPFS copy operations before reporting a sync failure', async () => {
+		const rootCause = new Error('file could not be read');
+		const pendingRead = deferred<void>();
+		const { FS, php } = createFakePhp();
+		FS.lookupPath.mockImplementation((path: string) => {
+			if (path === '/wordpress') {
+				throw new Error(`Missing file: ${path}`);
+			}
+			return {
+				path,
+				node: { mode: 0, path },
+			};
+		});
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const brokenFile = new MemoryFileHandle('database.sqlite');
+		const pendingFile = new MemoryFileHandle('pending.txt');
+		vi.spyOn(brokenFile, 'getFile').mockRejectedValue(rootCause);
+		vi.spyOn(pendingFile, 'getFile').mockImplementation(async () => {
+			await pendingRead.promise;
+			return {
+				arrayBuffer: async () => new Uint8Array().buffer,
+			};
+		});
+		opfsRoot.files.set('database.sqlite', brokenFile);
+		opfsRoot.files.set('pending.txt', pendingFile);
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'opfs-to-memfs',
+				},
+			}
+		);
+		let rejected = false;
+		const syncPromise = Promise.resolve(
+			mountHandler(php, FS as any, '/wordpress')
+		).catch((error: unknown) => {
+			rejected = true;
+			throw error;
+		});
+
+		await Promise.resolve();
+		expect(rejected).toBe(false);
+
+		pendingRead.resolve();
+		await expect(syncPromise).rejects.toMatchObject({
+			cause: rootCause,
+		});
+	});
 });
 
 function createFakePhp() {
@@ -574,6 +672,11 @@ function createFakePhp() {
 			}
 			return file;
 		}),
+		createDataFile: vi.fn(
+			(parentPath: string, name: string, bytes: Uint8Array) => {
+				files.set(`${parentPath}/${name}`, bytes);
+			}
+		),
 	};
 	const listeners = new Map<string, Set<(event: { type: string }) => void>>();
 	const addEventListener = vi.fn(
