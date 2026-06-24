@@ -791,7 +791,7 @@ for (const { wp, php } of MATRIX) {
 				const wp4 = await navigateViaUrlBar(
 					page,
 					'/wp-admin/plugins.php',
-					30
+					TIMEOUT_S
 				);
 				if (!wp4) {
 					pluginStatus = { status: 'TIMEOUT' };
