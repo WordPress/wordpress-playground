@@ -387,7 +387,7 @@ export function SiteInfoPanel({
 						</FlexItem>
 					</Flex>
 				</FlexItem>
-				<FlexItem style={{ flexGrow: 1 }}>
+				<FlexItem className={css.tabPanelWrapper}>
 					<TabPanel
 						className={css.tabs}
 						initialTabName={initialTabName}
