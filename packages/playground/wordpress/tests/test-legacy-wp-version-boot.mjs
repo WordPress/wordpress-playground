@@ -807,13 +807,14 @@ for (const { wp, php } of MATRIX) {
 						)
 						.filter({ hasText: 'Activate' })
 						.first();
-					try {
-						await helloActivate.waitFor({
+					const hasHelloActivate = await helloActivate
+						.waitFor({
 							state: 'visible',
 							timeout: 15000,
-						});
-					} catch {}
-					if ((await helloActivate.count()) > 0) {
+						})
+						.then(() => true)
+						.catch(() => false);
+					if (hasHelloActivate) {
 						const bodyBeforeActivation = await wp4.frame
 							.locator('body')
 							.innerText({ timeout: 2000 })
