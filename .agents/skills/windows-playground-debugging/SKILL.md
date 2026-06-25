@@ -29,17 +29,30 @@ prlctl exec "Windows 11 (1)" cmd /c "command here"
 prlctl exec "Windows 11 (1)" powershell -Command "script here"
 ```
 
+Replace `Windows 11 (1)` with the VM name from `prlctl list -a`.
+
 Commands run as SYSTEM user, which has symlink privileges but lacks user drive mappings and npm directories.
 
 ## Accessing macOS Files from Windows
 
-Parallels shares macOS directories as network paths (`\\Mac\<folder>`). To use them in Windows, map a drive letter:
+Parallels shares macOS directories as network paths (`\\Mac\<folder>`). First confirm the
+repo is available as a shared folder:
+
+```bash
+prlctl exec "Windows 11 (1)" cmd /c "dir \\Mac"
+```
+
+If the repo is not listed, enable or add a host shared folder in Parallels before mapping
+it. To use an available share in Windows, map a drive letter:
 
 ```bash
 prlctl exec "Windows 11 (1)" cmd /c "net use Z: \"\\\\Mac\\wordpress-playground\" /persistent:yes"
 ```
 
-This makes the macOS `wordpress-playground` repo available as `Z:\` inside Windows. The drive letter is arbitrary — examples in this skill use `Z:\` but any letter works. The SYSTEM user (used by `prlctl exec`) doesn't inherit user drive mappings, so this must be done explicitly.
+This makes the macOS `wordpress-playground` repo available as `Z:\` inside Windows. Replace
+`\\Mac\wordpress-playground` with the actual shared-folder name. The drive letter is
+arbitrary — examples in this skill use `Z:\` but any letter works. The SYSTEM user (used
+by `prlctl exec`) doesn't inherit user drive mappings, so this must be done explicitly.
 
 **Important:** These are network drives (SMB shares), which means symlinks don't work and NX needs special configuration. See environment variables and common issues below.
 

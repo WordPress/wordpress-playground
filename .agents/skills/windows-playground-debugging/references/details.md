@@ -16,6 +16,21 @@ prlctl list -i "Windows 11 (1)"
 
 Full path to prlctl: `"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"`
 
+Use the VM name from `prlctl list -a` in all `prlctl exec` commands.
+
+## Shared Folder Discovery
+
+Check which macOS shares are visible inside Windows before mapping a drive letter:
+
+```bash
+prlctl exec "Windows 11 (1)" cmd /c "dir \\Mac"
+prlctl exec "Windows 11 (1)" cmd /c "net use"
+```
+
+If the repository is not visible, enable or add a host shared folder in Parallels first.
+Shared Profile may expose only Desktop, Documents, and Downloads, which may not include a
+Conductor workspace.
+
 ## Node.js Installation
 
 ### Node.js 20 (for published CLI)
