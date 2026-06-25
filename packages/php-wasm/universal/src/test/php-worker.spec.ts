@@ -1,5 +1,6 @@
 import { PHPWorker } from '../lib/php-worker';
 import { describe, expect, test, vi } from 'vitest';
+import type { FilesystemSnapshot } from '../lib/filesystem-snapshot';
 import type { PHP } from '../lib/php';
 import type { PHPRequestHandler } from '../lib/php-request-handler';
 
@@ -152,6 +153,39 @@ describe('PlaygroundWorkerEndpoint', () => {
 		expect(actualResponse).toBe(response);
 		expect(primaryPhp.cli).toHaveBeenCalledWith(
 			['php', '/tmp/script.php'],
+			undefined
+		);
+	});
+
+	test('forwards filesystem snapshot operations to the primary PHP instance', async () => {
+		const endpoint = new TestEndpoint();
+		const snapshot: FilesystemSnapshot = {
+			version: 1,
+			id: 'snapshot-id',
+			root: '/wordpress',
+			createdAt: '2026-06-25T00:00:00.000Z',
+			entries: [],
+		};
+		const primaryPhp = {
+			...createMockPHP(),
+			snapshotFilesystem: vi.fn().mockResolvedValue(snapshot),
+			restoreFilesystemSnapshot: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+		const actualSnapshot = await endpoint.snapshotFilesystem('/wordpress', {
+			includeBytes: true,
+		});
+		await endpoint.restoreFilesystemSnapshot(snapshot, '/restored');
+
+		expect(actualSnapshot).toBe(snapshot);
+		expect(primaryPhp.snapshotFilesystem).toHaveBeenCalledWith(
+			'/wordpress',
+			{ includeBytes: true }
+		);
+		expect(primaryPhp.restoreFilesystemSnapshot).toHaveBeenCalledWith(
+			snapshot,
+			'/restored',
 			undefined
 		);
 	});

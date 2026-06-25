@@ -1,5 +1,10 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
+import type {
+	FilesystemSnapshot,
+	RestoreFilesystemSnapshotOptions,
+	SnapshotFilesystemOptions,
+} from './filesystem-snapshot';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
 import type { PHPResponse, StreamedPHPResponse } from './php-response';
@@ -34,6 +39,8 @@ export type LimitedPHPApi = Pick<
 	| 'listFiles'
 	| 'isDir'
 	| 'fileExists'
+	| 'snapshotFilesystem'
+	| 'restoreFilesystemSnapshot'
 	| 'chdir'
 	| 'run'
 	| 'onMessage'
@@ -322,6 +329,25 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!/PHP.fileExists */
 	fileExists(path: string): boolean {
 		return _private.get(this)!.php!.fileExists(path);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.snapshotFilesystem */
+	async snapshotFilesystem(
+		root: string,
+		options?: SnapshotFilesystemOptions
+	): Promise<FilesystemSnapshot> {
+		return await _private.get(this)!.php!.snapshotFilesystem(root, options);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.restoreFilesystemSnapshot */
+	async restoreFilesystemSnapshot(
+		snapshot: FilesystemSnapshot,
+		targetRoot?: string,
+		options?: RestoreFilesystemSnapshotOptions
+	): Promise<void> {
+		await _private
+			.get(this)!
+			.php!.restoreFilesystemSnapshot(snapshot, targetRoot, options);
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.onMessage */
