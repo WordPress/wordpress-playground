@@ -19,6 +19,21 @@ Test and debug WordPress Playground on Windows using Parallels Desktop (`prlctl 
 - Windows VM with Parallels Tools installed
 - Node.js installed in the VM (v20.18.3+ for CLI, v22+ for dev CLI)
 
+## Setup Checklist
+
+Before running Playground commands, verify the Windows environment:
+
+```bash
+prlctl list -a
+prlctl list -i "Windows 11"
+"/Applications/Parallels Desktop.app/Contents/MacOS/prlsrvctl" info --license
+prlctl exec "Windows 11" cmd /c "where node || echo node-missing"
+prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
+```
+
+If testing a Conductor workspace, make sure the Parallels share points at that workspace
+path, not just another root checkout of `wordpress-playground`.
+
 ## Core Command Pattern
 
 All commands follow this pattern — run from macOS, execute inside Windows VM:
@@ -39,7 +54,7 @@ Parallels shares macOS directories as network paths (`\\Mac\<folder>`). First co
 repo is available as a shared folder:
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "dir \\Mac"
+prlctl exec "Windows 11 (1)" cmd /c "dir \\\\Mac"
 ```
 
 If the repo is not listed, enable or add a host shared folder in Parallels before mapping
@@ -53,6 +68,14 @@ This makes the macOS `wordpress-playground` repo available as `Z:\` inside Windo
 `\\Mac\wordpress-playground` with the actual shared-folder name. The drive letter is
 arbitrary — examples in this skill use `Z:\` but any letter works. The SYSTEM user (used
 by `prlctl exec`) doesn't inherit user drive mappings, so this must be done explicitly.
+
+If a mapped drive is listed by `net use` but `dir Z:\` fails in a later `prlctl exec`, map
+the drive inside the same command or use the UNC path directly:
+
+```bash
+prlctl exec "Windows 11 (1)" cmd /c "net use U: \"\\\\Mac\\wordpress-playground\" /persistent:no && dir U:\\package.json"
+prlctl exec "Windows 11 (1)" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
+```
 
 **Important:** These are network drives (SMB shares), which means symlinks don't work and NX needs special configuration. See environment variables and common issues below.
 

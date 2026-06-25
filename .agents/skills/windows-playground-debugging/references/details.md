@@ -18,18 +18,48 @@ Full path to prlctl: `"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl
 
 Use the VM name from `prlctl list -a` in all `prlctl exec` commands.
 
+## Setup Checklist
+
+Run these checks before starting a Windows debugging session:
+
+```bash
+prlctl list -a
+prlctl list -i "Windows 11"
+"/Applications/Parallels Desktop.app/Contents/MacOS/prlsrvctl" info --license
+prlctl exec "Windows 11" cmd /c "where node || echo node-missing"
+prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
+```
+
+Expected:
+- license edition is `pro` or `business`
+- Parallels Tools are installed in the VM
+- Node.js is available for CLI workflows
+- the shared folder resolves to the exact checkout or Conductor workspace under test
+
 ## Shared Folder Discovery
 
 Check which macOS shares are visible inside Windows before mapping a drive letter:
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "dir \\Mac"
+prlctl exec "Windows 11 (1)" cmd /c "dir \\\\Mac"
 prlctl exec "Windows 11 (1)" cmd /c "net use"
 ```
 
 If the repository is not visible, enable or add a host shared folder in Parallels first.
 Shared Profile may expose only Desktop, Documents, and Downloads, which may not include a
 Conductor workspace.
+
+When testing a Conductor workspace, share that workspace path directly. A share named
+`wordpress-playground` may point at a separate root checkout that does not include the
+workspace branch or unmerged changes.
+
+If a mapped drive is visible in `net use` but unavailable in a later command, remap it in
+the same `prlctl exec` process or use the UNC path directly:
+
+```bash
+prlctl exec "Windows 11" cmd /c "net use U: \"\\\\Mac\\wordpress-playground\" /persistent:no && dir U:\\package.json"
+prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
+```
 
 ## Node.js Installation
 
