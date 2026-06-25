@@ -13,192 +13,180 @@ description: >
 
 Test and debug WordPress Playground on Windows using Parallels Desktop (`prlctl exec`) from macOS.
 
+## Placeholders
+
+Use placeholders instead of hardcoded local names:
+
+- `<VM_NAME>`: Windows VM name from `prlctl list -a`.
+- `<SHARE_NAME>`: Parallels host shared folder name for the checkout under test.
+- `<REPO_UNC>`: Windows UNC path for the shared checkout, usually `\\Mac\<SHARE_NAME>`.
+- `<DRIVE>`: Temporary Windows drive letter for source workflows, such as `U:`.
+
+If any value is unclear, discover it with the commands below or ask the user.
+
 ## Prerequisites
 
-- **Parallels Desktop Pro or Business Edition** (Standard lacks `prlctl exec`)
-- Windows VM with Parallels Tools installed
-- Node.js installed in the VM (v20.18.3+ for CLI, v22+ for dev CLI)
+- Parallels Desktop Pro or Business Edition. Standard lacks `prlctl exec`.
+- Windows VM with Parallels Tools installed.
+- Node.js 22+ installed in the VM for source workflows. Published CLI testing can use
+  the current supported CLI Node.js version, but Node.js 22+ is a simple default.
 
-## Setup Checklist
+## Minimal Setup
 
-Use this minimal setup for testing Playground from macOS against a Windows VM:
+Discover the VM name and confirm the VM is usable:
 
 ```bash
-# Discover the VM name and confirm Parallels Tools/license.
 prlctl list -a
-prlctl list -i "Windows 11"
+prlctl list -i "<VM_NAME>"
 "/Applications/Parallels Desktop.app/Contents/MacOS/prlsrvctl" info --license
-
-# Confirm the Windows CPU architecture. Our Parallels VM is ARM64.
-prlctl exec "Windows 11" cmd /c "echo %PROCESSOR_ARCHITECTURE%"
-
-# Install Node.js 22 for the VM architecture. Use x64 instead of arm64 on x64 VMs.
-prlctl exec "Windows 11" powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.14.0/node-v22.14.0-arm64.msi' -OutFile 'C:\Users\Public\node22-arm64-install.msi'; Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i','C:\Users\Public\node22-arm64-install.msi','/qn','/norestart' -Wait"
-
-# prlctl exec runs as SYSTEM; create SYSTEM's npm directory if it is missing.
-prlctl exec "Windows 11" cmd /c "if not exist C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm mkdir C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm"
-
-# Verify Node and the shared checkout.
-prlctl exec "Windows 11" cmd /c "node --version && npm --version && npx --version"
-prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
 ```
 
-If testing a Conductor workspace, share that workspace path, not just another root
-checkout of `wordpress-playground`:
+Confirm the Windows CPU architecture and install Node.js for that architecture if needed:
 
 ```bash
-prlctl set "Windows 11" --shf-host-add wordpress-playground-davis --path "$(pwd)" --mode rw --enable
-prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground-davis\\package.json"
+prlctl exec "<VM_NAME>" cmd /c "echo %PROCESSOR_ARCHITECTURE%"
+prlctl exec "<VM_NAME>" cmd /c "node --version && npm --version && npx --version"
+```
+
+If Node.js is missing, install Node.js 22+ inside the VM using the official Windows
+installer or the user's preferred Windows package manager. Match the VM architecture
+(ARM64 vs x64). After installing, rerun the version check.
+
+`prlctl exec` runs as SYSTEM. Create SYSTEM's npm directory if it is missing:
+
+```bash
+prlctl exec "<VM_NAME>" cmd /c "if not exist C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm mkdir C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm"
+```
+
+Share the exact checkout or Conductor workspace under test. If the user has not already
+configured a Parallels share for it, create one from the macOS checkout directory:
+
+```bash
+prlctl set "<VM_NAME>" --shf-host-add <SHARE_NAME> --path "$(pwd)" --mode rw --enable
+```
+
+Verify Windows can read that checkout. In macOS shell strings, escape UNC paths with
+double backslashes:
+
+```bash
+prlctl exec "<VM_NAME>" cmd /c "dir \\\\Mac\\<SHARE_NAME>\\package.json"
 ```
 
 Before testing a macOS change in Windows, verify Windows sees the changed workspace. For
-example, create or edit a file on macOS under `.context/`, then read it from Windows:
+example, create or edit a temporary file on macOS under `.context/`, then read it from
+Windows:
 
 ```bash
-prlctl exec "Windows 11" cmd /c "type \\\\Mac\\wordpress-playground-davis\\.context\\windows-share-smoke.txt"
+prlctl exec "<VM_NAME>" cmd /c "type \\\\Mac\\<SHARE_NAME>\\.context\\windows-share-smoke.txt"
 ```
 
 For source workflows, use a mapped drive instead of a UNC working directory. `cmd.exe`
 falls back to `C:\Windows` when started in a UNC path. Do not reuse macOS `node_modules`
 for source workflows; install dependencies from Windows on the checkout under test.
 
-After setup, smoke-test the published CLI:
-
-```bash
-prlctl exec "Windows 11" cmd /c "\"C:\Program Files\nodejs\npx.cmd\" -y @wp-playground/cli@latest server --wp=6.7 --php=8.2 --port=9400"
-```
-
-In another terminal, verify the server from inside Windows:
-
-```bash
-prlctl exec "Windows 11" powershell -NoProfile -Command "\$response = Invoke-WebRequest -Uri 'http://127.0.0.1:9400' -UseBasicParsing -TimeoutSec 20; Write-Host ('Status=' + \$response.StatusCode); Write-Host ('Length=' + \$response.Content.Length)"
-```
-
 ## Core Command Pattern
 
-All commands follow this pattern — run from macOS, execute inside Windows VM:
+All commands run from macOS and execute inside the Windows VM:
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "command here"
-# Or for complex operations:
-prlctl exec "Windows 11 (1)" powershell -Command "script here"
+prlctl exec "<VM_NAME>" cmd /c "command here"
+prlctl exec "<VM_NAME>" powershell -NoProfile -Command "script here"
 ```
 
-Replace `Windows 11 (1)` with the VM name from `prlctl list -a`.
-
-Commands run as SYSTEM user, which has symlink privileges but lacks user drive mappings and npm directories.
+Commands run as SYSTEM, which has symlink privileges but does not inherit user drive
+mappings or npm profile directories.
 
 ## Accessing macOS Files from Windows
 
-Parallels shares macOS directories as network paths (`\\Mac\<folder>`). First confirm the
-repo is available as a shared folder:
+Discover existing shares:
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "dir \\\\Mac"
+prlctl list -i "<VM_NAME>"
+prlctl exec "<VM_NAME>" cmd /c "dir \\\\Mac"
+prlctl exec "<VM_NAME>" cmd /c "net use"
 ```
 
-If the repo is not listed, enable or add a host shared folder in Parallels before mapping
-it. To use an available share in Windows, map a drive letter:
+If a suitable share already exists, use its name as `<SHARE_NAME>`. If not, create one
+with `prlctl set ... --shf-host-add` as shown above. When a share name is unavailable or
+ambiguous, ask the user which macOS checkout should be tested.
+
+If a mapped drive is listed by `net use` but later `dir <DRIVE>\` fails, map the drive
+inside the same command or use the UNC path directly:
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "net use Z: \"\\\\Mac\\wordpress-playground\" /persistent:yes"
+prlctl exec "<VM_NAME>" cmd /c "net use <DRIVE> \"\\\\Mac\\<SHARE_NAME>\" /persistent:no && dir <DRIVE>\\package.json"
+prlctl exec "<VM_NAME>" cmd /c "dir \\\\Mac\\<SHARE_NAME>\\package.json"
 ```
 
-This makes the macOS `wordpress-playground` repo available as `Z:\` inside Windows. Replace
-`\\Mac\wordpress-playground` with the actual shared-folder name. The drive letter is
-arbitrary — examples in this skill use `Z:\` but any letter works. The SYSTEM user (used
-by `prlctl exec`) doesn't inherit user drive mappings, so this must be done explicitly.
-
-If a mapped drive is listed by `net use` but `dir Z:\` fails in a later `prlctl exec`, map
-the drive inside the same command or use the UNC path directly:
-
-```bash
-prlctl exec "Windows 11 (1)" cmd /c "net use U: \"\\\\Mac\\wordpress-playground\" /persistent:no && dir U:\\package.json"
-prlctl exec "Windows 11 (1)" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
-```
-
-**Important:** These are network drives (SMB shares), which means symlinks don't work and NX needs special configuration. See environment variables and common issues below.
-
-To run a script from the repo inside Windows, reference it via the mapped drive:
-
-```bash
-# Run a script from the repo
-prlctl exec "Windows 11 (1)" cmd /c "\"C:\\Program Files\\nodejs\\node.exe\" Z:\path\to\script.mjs"
-```
+Network drives are SMB shares. Symlinks do not work there, and Nx needs the environment
+variables below for source workflows.
 
 ## Key Workflows
 
 ### 1. Run Published CLI
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "\"C:\Program Files\nodejs\npx.cmd\" -y @wp-playground/cli@latest server --wp=6.7 --php=8.2 --port=9400"
+prlctl exec "<VM_NAME>" cmd /c "\"C:\Program Files\nodejs\npx.cmd\" -y @wp-playground/cli@latest server --wp=6.7 --php=8.2 --port=9400"
 ```
 
-Server at `http://127.0.0.1:9400` inside the VM.
+Server at `http://127.0.0.1:9400` inside the VM. Verify from inside Windows:
+
+```bash
+prlctl exec "<VM_NAME>" powershell -NoProfile -Command "\$response = Invoke-WebRequest -Uri 'http://127.0.0.1:9400' -UseBasicParsing -TimeoutSec 20; Write-Host ('Status=' + \$response.StatusCode); Write-Host ('Length=' + \$response.Content.Length)"
+```
 
 ### 2. Run Dev CLI from Source
 
-Requires Node.js 22+ (for `--experimental-strip-types`), an initialized
-isomorphic-git submodule (`git submodule update --init --recursive` from macOS), and a
-Windows-side dependency install. On network shares, use `npm ci --install-links` or
-`npm install --install-links`.
+Requires Node.js 22+, initialized submodules, and a Windows-side dependency install. On
+network shares, use `npm ci --install-links` or `npm install --install-links`.
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "net use U: \"\\\\Mac\\wordpress-playground\" /persistent:no && cd /d U:\ && set NX_WORKSPACE_ROOT_PATH=U:\ && set NX_DAEMON=false && call \"C:\Program Files\nodejs\npx.cmd\" nx run playground-cli:dev -- server --wp=6.8 --php=8.4"
+prlctl exec "<VM_NAME>" cmd /c "net use <DRIVE> \"\\\\Mac\\<SHARE_NAME>\" /persistent:no && cd /d <DRIVE>\ && set NX_WORKSPACE_ROOT_PATH=<DRIVE>\ && set NX_DAEMON=false && call \"C:\Program Files\nodejs\npx.cmd\" nx run playground-cli:dev -- server --wp=6.8 --php=8.4"
 ```
 
-To convert a published CLI command to dev CLI: replace `@wp-playground/cli@latest` with `nx run playground-cli:dev --`.
+To convert a published CLI command to dev CLI, replace `@wp-playground/cli@latest` with
+`nx run playground-cli:dev --`.
 
 ### 3. Build from Source
 
-Requires VC++ Redistributable, Git for Windows, and environment setup for network drive issues.
+Requires VC++ Redistributable, Git for Windows, and environment setup for network drive
+issues:
 
 ```bash
-prlctl exec "Windows 11 (1)" powershell -Command "
-  cd Z:\;
-  \$env:PATH = 'C:\\Program Files\\Git\\usr\\bin;' + \$env:PATH;
-  \$env:NX_WORKSPACE_ROOT_PATH = 'Z:\';
-  \$env:NX_DAEMON = 'false';
-  \$env:ComSpec = 'C:\\Program Files\\Git\\bin\\bash.exe';
-  & 'C:\\Program Files\\nodejs\\node.exe' node_modules\\nx\\bin\\nx.js run-many --all --target=build
-"
+prlctl exec "<VM_NAME>" cmd /c "net use <DRIVE> \"\\\\Mac\\<SHARE_NAME>\" /persistent:no && cd /d <DRIVE>\ && set NX_WORKSPACE_ROOT_PATH=<DRIVE>\ && set NX_DAEMON=false && set ComSpec=C:\Program Files\Git\bin\bash.exe && set PATH=C:\Program Files\Git\usr\bin;%PATH% && call \"C:\Program Files\nodejs\npx.cmd\" nx run-many --all --target=build"
 ```
 
 ### 4. Run Tests
 
 ```bash
-prlctl exec "Windows 11 (1)" powershell -Command "
-  cd Z:\packages\php-wasm\node;
-  \$env:NX_WORKSPACE_ROOT_PATH = 'Z:\';
-  \$env:NX_DAEMON = 'false';
-  & 'C:\\Program Files\\nodejs\\npx.cmd' vitest run --config vite.config.ts src/test/symlinks.spec.ts
-"
+prlctl exec "<VM_NAME>" cmd /c "net use <DRIVE> \"\\\\Mac\\<SHARE_NAME>\" /persistent:no && cd /d <DRIVE>\packages\php-wasm\node && set NX_WORKSPACE_ROOT_PATH=<DRIVE>\ && set NX_DAEMON=false && call \"C:\Program Files\nodejs\npx.cmd\" vitest run --config vite.config.ts src/test/symlinks.spec.ts"
 ```
 
 ## Critical Environment Variables
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
-| `NX_WORKSPACE_ROOT_PATH` | Mapped drive letter (e.g. `Z:\`) | Force NX workspace root on network drives |
-| `NX_DAEMON` | `false` | Disable NX daemon (required for network drives) |
-| `ComSpec` | `C:\Program Files\Git\bin\bash.exe` | Use bash for Unix commands (mkdir -p, cp, rm -rf) |
+| `NX_WORKSPACE_ROOT_PATH` | Mapped drive root, e.g. `<DRIVE>\` | Force Nx workspace root on network drives |
+| `NX_DAEMON` | `false` | Disable Nx daemon on network drives |
+| `ComSpec` | `C:\Program Files\Git\bin\bash.exe` | Use bash for Unix commands |
 | `PATH` | Prepend `C:\Program Files\Git\usr\bin;` | Make Unix utilities available |
 
 ## Common Issues Quick Reference
 
-For detailed troubleshooting, setup instructions, and Windows-specific implementation details, see [references/details.md](references/details.md).
+For detailed troubleshooting, setup instructions, and Windows-specific implementation
+details, see [references/details.md](references/details.md).
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
 | `prlctl exec` unavailable | Standard edition license | Upgrade to Pro/Business |
-| ENOENT for npm | SYSTEM user missing npm dir | `mkdir C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm` |
+| ENOENT for npm | SYSTEM user missing npm dir | Create `C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm` |
 | `--experimental-strip-types` error | Node.js < 22 | Install Node.js 22+ |
 | Missing isomorphic-git module | Submodule not initialized | `git submodule update --init --recursive` from macOS |
 | Symlinks fail on network drive | Windows/SMB limitation | Tests auto-fallback to local temp dir |
-| MSYS path conversion (`/wordpress` → `C:/Program Files/Git/wordpress`) | Git Bash path mangling | Set `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL='*'` |
-| NX can't detect workspace | Network drive issue | Set `NX_WORKSPACE_ROOT_PATH` |
+| MSYS path conversion | Git Bash path mangling | Set `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL='*'` |
+| Nx can't detect workspace | Network drive issue | Set `NX_WORKSPACE_ROOT_PATH` |
 | `npm install` symlink failures | Network drive limitation | Use `npm install --install-links` |
-| NX WASM fallback fails | Network paths unsupported | Install the matching Nx native package, e.g. `@nx/nx-win32-arm64-msvc` on ARM64 or `@nx/nx-win32-x64-msvc` on x64 |
+| Nx WASM fallback fails | Network paths unsupported | Install the matching Nx native package for the VM architecture |
 | Port 9400 in use | Previous node still running | `taskkill /IM node.exe /F` |
 
 ## Windows Symlink Behavior
@@ -206,5 +194,5 @@ For detailed troubleshooting, setup instructions, and Windows-specific implement
 - `'file'` symlinks: default type
 - `'dir'` symlinks: require admin or Developer Mode
 - `'junction'`: works without admin, but only on local NTFS drives
-- SYSTEM user (via prlctl): has symlink privileges
-- Network drives: symlinks unsupported — tests auto-copy to local temp dir
+- SYSTEM user via `prlctl`: has symlink privileges
+- Network drives: symlinks unsupported; tests should copy to local temp when needed
