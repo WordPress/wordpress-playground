@@ -45,7 +45,7 @@ Expected:
 - license edition is `pro` or `business`
 - Parallels Tools are installed in the VM
 - Node.js 22+ is available for source workflows
-- the shared folder resolves to the exact checkout or Conductor workspace under test
+- the shared folder resolves to the exact macOS checkout under test
 
 ## Node.js Setup
 
@@ -72,12 +72,12 @@ prlctl exec "<VM_NAME>" cmd /c "net use"
 ```
 
 If the repository is not visible, enable or add a host shared folder in Parallels first.
-Shared Profile may expose only Desktop, Documents, and Downloads, which may not include a
-Conductor workspace.
+Shared Profile may expose only Desktop, Documents, and Downloads, which may not include
+the checkout under test.
 
-When testing a Conductor workspace, share that workspace path directly. A similarly named
-share may point at a separate root checkout that does not include the workspace branch or
-unmerged changes.
+When using an agent or worktree tool, share that exact worktree path directly. A
+similarly named share may point at a separate root checkout that does not include the
+workspace branch or unmerged changes.
 
 Generic setup:
 
@@ -91,6 +91,8 @@ example, create or edit a temporary file on macOS under `.context/`, then read i
 Windows:
 
 ```bash
+mkdir -p .context
+printf "%s\n" "$(pwd)" > .context/windows-share-smoke.txt
 prlctl exec "<VM_NAME>" cmd /c "type \\\\Mac\\<SHARE_NAME>\\.context\\windows-share-smoke.txt"
 ```
 
@@ -120,6 +122,32 @@ Always use full paths for executables when PATH is uncertain:
 - npm: `"C:\Program Files\nodejs\npm.cmd"`
 - npx: `"C:\Program Files\nodejs\npx.cmd"`
 
+## Command Quoting
+
+Avoid complex inline PowerShell through `prlctl exec`. Escaping quickly becomes the
+debugging problem instead of the Windows issue under investigation. Prefer one of these:
+
+1. Keep simple commands inline with `cmd /c`.
+2. Put complex commands in a temporary `.cmd` or `.ps1` file under a gitignored
+   directory such as `.context/windows-debug/`.
+3. Invoke that script from Windows through the mapped drive or UNC share.
+
+When using PowerShell directly inside Windows, `$` does not need escaping. When embedding
+PowerShell in a macOS shell string, escape `$` as `\$`.
+
+## Source CLI Without Nx
+
+Use the direct Node entrypoint before Nx when debugging CLI startup. It removes Nx
+workspace detection, daemon, and network-drive behavior from the first source baseline:
+
+```cmd
+cd /d <DRIVE>\
+node --experimental-strip-types --experimental-transform-types ^
+  --disable-warning=ExperimentalWarning ^
+  --import ./packages/meta/src/node-es-module-loader/register.mts ^
+  ./packages/playground/cli/src/cli.ts server --wp=6.8 --php=8.4 --port=9400
+```
+
 ## Build Prerequisites
 
 ### Visual C++ Redistributable
@@ -127,13 +155,25 @@ Always use full paths for executables when PATH is uncertain:
 Use the redistributable that matches the VM architecture. Ask the user before installing
 system components if it is not clear whether they are already present.
 
+### Windows ARM64 npm Caveat
+
+`npm ci --install-links` can still fail on native packages, such as `sharp`, when no
+Node.js, Windows, and ARM64 prebuild exists for the requested package version. For
+profiling-only workflows where dependency postinstall output is not needed,
+`npm install --install-links --ignore-scripts` may be enough. For full builds and tests,
+install Python and native Windows build tooling for the VM architecture instead of
+masking postinstall failures.
+
 ### Network Drive Build Issues
 
 1. Symlinks: use `npm install --install-links`.
 2. Nx native package: install the matching package for the VM architecture if Nx falls
    back to unsupported WASM behavior.
-3. Workspace detection: set `NX_WORKSPACE_ROOT_PATH` to the mapped drive root.
-4. Unix commands: install Git for Windows and set `ComSpec`/`PATH` as needed.
+3. Workspace detection: set `NX_WORKSPACE_ROOT_PATH` to the mapped drive root and
+   `NX_DAEMON=false`, then verify with `nx show projects --json`.
+4. If Nx returns no projects or says the workspace root does not exist, use the direct
+   Node CLI workflow or copy the repo to Windows-local NTFS.
+5. Unix commands: install Git for Windows and set `ComSpec`/`PATH` as needed.
 
 ## Verifying the Server
 
@@ -145,14 +185,21 @@ prlctl exec "<VM_NAME>" powershell -NoProfile -Command "
 "
 ```
 
+After server tests, kill the captured PID if you started one explicitly. If not, clear
+stale Node processes before reusing the same port:
+
+```bash
+prlctl exec "<VM_NAME>" cmd /c "taskkill /F /IM node.exe /T"
+```
+
 ## Symlink Test Behavior Matrix
 
-| Environment | Symlink Location | Behavior |
-|-------------|------------------|----------|
-| macOS | Local filesystem | Works normally |
-| Windows local drive | `C:\` or similar | Works with Developer Mode, admin, or SYSTEM |
-| Windows network drive | Parallels shared folder | Symlinks unsupported; copy to local temp |
-| Windows via `prlctl` | Local NTFS drive | SYSTEM has symlink privileges |
+| Environment           | Symlink Location        | Behavior                                    |
+| --------------------- | ----------------------- | ------------------------------------------- |
+| macOS                 | Local filesystem        | Works normally                              |
+| Windows local drive   | `C:\` or similar        | Works with Developer Mode, admin, or SYSTEM |
+| Windows network drive | Parallels shared folder | Symlinks unsupported; copy to local temp    |
+| Windows via `prlctl`  | Local NTFS drive        | SYSTEM has symlink privileges               |
 
 Symlink permissions on Windows require one of: Administrator privileges, Developer Mode
 enabled, or SYSTEM user via `prlctl`.
