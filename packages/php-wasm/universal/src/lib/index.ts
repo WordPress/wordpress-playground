@@ -100,6 +100,27 @@ export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
 export {
+	FILESYSTEM_SNAPSHOT_VERSION,
+	diffSnapshots,
+	hashBytes,
+	restoreFilesystemSnapshot,
+	snapshotFilesystem,
+	stripSnapshotBytes,
+} from './filesystem-snapshot';
+export type {
+	DiffSnapshotsOptions,
+	FilesystemSnapshot,
+	RestoreFilesystemSnapshotOptions,
+	SnapshotDelta,
+	SnapshotDirectoryEntry,
+	SnapshotEntry,
+	SnapshotEntryBase,
+	SnapshotEntryType,
+	SnapshotFileEntry,
+	SnapshotFilesystemOptions,
+	SnapshotSymlinkEntry,
+} from './filesystem-snapshot';
+export {
 	withResolvedPHPExtensions,
 	installPHPExtensionFilesSync,
 	PHP_EXTENSIONS_DIR,

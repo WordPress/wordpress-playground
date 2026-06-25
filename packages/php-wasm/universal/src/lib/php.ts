@@ -9,6 +9,15 @@ import {
 import type { Emscripten } from './emscripten-types';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import { FSHelpers } from './fs-helpers';
+import type {
+	FilesystemSnapshot,
+	RestoreFilesystemSnapshotOptions,
+	SnapshotFilesystemOptions,
+} from './filesystem-snapshot';
+import {
+	restoreFilesystemSnapshot,
+	snapshotFilesystem,
+} from './filesystem-snapshot';
 import { isExitCode } from './is-exit-code';
 import type { PHPRuntimeId } from './load-php-runtime';
 import { popLoadedRuntime } from './load-php-runtime';
@@ -1367,6 +1376,57 @@ export class PHP implements Disposable {
 	 */
 	fileExists(path: string) {
 		return FSHelpers.fileExists(this[__private__dont__use].FS, path);
+	}
+
+	/**
+	 * Creates a byte-level snapshot of a filesystem subtree.
+	 *
+	 * The PHP request semaphore is held for the full traversal, which prevents
+	 * filesystem writes from racing with byte extraction.
+	 *
+	 * @param root The root path to snapshot.
+	 * @param options Snapshot options.
+	 */
+	async snapshotFilesystem(
+		root: string,
+		options?: SnapshotFilesystemOptions
+	): Promise<FilesystemSnapshot> {
+		const release = await this.semaphore.acquire();
+		try {
+			return await snapshotFilesystem(
+				this[__private__dont__use].FS,
+				root,
+				options
+			);
+		} finally {
+			release();
+		}
+	}
+
+	/**
+	 * Restores a byte-level filesystem snapshot into the PHP filesystem.
+	 *
+	 * @param snapshot The snapshot to restore.
+	 * @param targetRoot Optional root path. Defaults to the snapshot root.
+	 * @param options Restore options.
+	 */
+	async restoreFilesystemSnapshot(
+		snapshot: FilesystemSnapshot,
+		targetRoot?: string,
+		options?: RestoreFilesystemSnapshotOptions
+	) {
+		const release = await this.semaphore.acquire();
+		try {
+			await restoreFilesystemSnapshot(
+				this[__private__dont__use].FS,
+				snapshot,
+				targetRoot,
+				options
+			);
+			this.dispatchEvent({ type: 'filesystem.write' });
+		} finally {
+			release();
+		}
 	}
 
 	/**
