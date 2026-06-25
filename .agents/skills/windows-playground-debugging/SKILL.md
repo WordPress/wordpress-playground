@@ -43,8 +43,20 @@ prlctl exec "Windows 11" cmd /c "node --version && npm --version && npx --versio
 prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
 ```
 
-If testing a Conductor workspace, make sure the Parallels share points at that workspace
-path, not just another root checkout of `wordpress-playground`.
+If testing a Conductor workspace, share that workspace path, not just another root
+checkout of `wordpress-playground`:
+
+```bash
+prlctl set "Windows 11" --shf-host-add wordpress-playground-davis --path "$(pwd)" --mode rw --enable
+prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground-davis\\package.json"
+```
+
+Before testing a macOS change in Windows, verify Windows sees the changed workspace. For
+example, create or edit a file on macOS under `.context/`, then read it from Windows:
+
+```bash
+prlctl exec "Windows 11" cmd /c "type \\\\Mac\\wordpress-playground-davis\\.context\\windows-share-smoke.txt"
+```
 
 For source workflows, use a mapped drive instead of a UNC working directory. `cmd.exe`
 falls back to `C:\Windows` when started in a UNC path. Do not reuse macOS `node_modules`
