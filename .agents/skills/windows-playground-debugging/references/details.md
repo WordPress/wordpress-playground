@@ -20,20 +20,32 @@ Use the VM name from `prlctl list -a` in all `prlctl exec` commands.
 
 ## Setup Checklist
 
-Run these checks before starting a Windows debugging session:
+Use this minimal setup for testing Playground from macOS against a Windows VM:
 
 ```bash
+# Discover the VM name and confirm Parallels Tools/license.
 prlctl list -a
 prlctl list -i "Windows 11"
 "/Applications/Parallels Desktop.app/Contents/MacOS/prlsrvctl" info --license
-prlctl exec "Windows 11" cmd /c "where node || echo node-missing"
+
+# Confirm the Windows CPU architecture. Our Parallels VM is ARM64.
+prlctl exec "Windows 11" cmd /c "echo %PROCESSOR_ARCHITECTURE%"
+
+# Install Node.js 22 for the VM architecture. Use x64 instead of arm64 on x64 VMs.
+prlctl exec "Windows 11" powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.14.0/node-v22.14.0-arm64.msi' -OutFile 'C:\Users\Public\node22-arm64-install.msi'; Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i','C:\Users\Public\node22-arm64-install.msi','/qn','/norestart' -Wait"
+
+# prlctl exec runs as SYSTEM; create SYSTEM's npm directory if it is missing.
+prlctl exec "Windows 11" cmd /c "if not exist C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm mkdir C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm"
+
+# Verify Node and the shared checkout.
+prlctl exec "Windows 11" cmd /c "node --version && npm --version && npx --version"
 prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
 ```
 
 Expected:
 - license edition is `pro` or `business`
 - Parallels Tools are installed in the VM
-- Node.js is available for CLI workflows
+- Node.js 22 is available for CLI workflows
 - the shared folder resolves to the exact checkout or Conductor workspace under test
 
 ## Shared Folder Discovery
@@ -53,6 +65,10 @@ When testing a Conductor workspace, share that workspace path directly. A share 
 `wordpress-playground` may point at a separate root checkout that does not include the
 workspace branch or unmerged changes.
 
+For source workflows, use a mapped drive instead of a UNC working directory. `cmd.exe`
+falls back to `C:\Windows` when started in a UNC path. Do not reuse macOS `node_modules`
+for source workflows; install dependencies from Windows on the checkout under test.
+
 If a mapped drive is visible in `net use` but unavailable in a later command, remap it in
 the same `prlctl exec` process or use the UNC path directly:
 
@@ -61,35 +77,19 @@ prlctl exec "Windows 11" cmd /c "net use U: \"\\\\Mac\\wordpress-playground\" /p
 prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
 ```
 
-## Node.js Installation
-
-### Node.js 20 (for published CLI)
+## Node.js Verification
 
 ```bash
-prlctl exec "Windows 11 (1)" powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.18.3/node-v20.18.3-x64.msi' -OutFile 'C:\\Users\\Public\\node-install.msi'"
-prlctl exec "Windows 11 (1)" cmd /c "msiexec /i C:\\Users\\Public\\node-install.msi /qn /norestart"
-```
-
-### Node.js 22 (for dev CLI)
-
-```bash
-prlctl exec "Windows 11 (1)" powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.14.0/node-v22.14.0-x64.msi' -OutFile 'C:\\Users\\Public\\node22-install.msi'"
-prlctl exec "Windows 11 (1)" powershell -Command "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i','C:\\Users\\Public\\node22-install.msi','/qn','/norestart' -Wait"
-```
-
-### Verify
-
-```bash
-prlctl exec "Windows 11 (1)" cmd /c "\"C:\\Program Files\\nodejs\\node.exe\" --version"
+prlctl exec "Windows 11" cmd /c "\"C:\\Program Files\\nodejs\\node.exe\" --version && \"C:\\Program Files\\nodejs\\npx.cmd\" --version"
 ```
 
 ## SYSTEM User Setup
 
-prlctl exec runs as SYSTEM. One-time setup needed:
+`prlctl exec` runs as SYSTEM. One-time setup needed:
 
 ```bash
 # Create npm directory
-prlctl exec "Windows 11 (1)" cmd /c "mkdir C:\\WINDOWS\\system32\\config\\systemprofile\\AppData\\Roaming\\npm"
+prlctl exec "Windows 11" cmd /c "if not exist C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm mkdir C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm"
 ```
 
 Always use full paths for executables:
@@ -101,21 +101,24 @@ Always use full paths for executables:
 
 ### Visual C++ Redistributable
 
+Use the redistributable that matches the VM architecture. For ARM64:
+
 ```bash
-prlctl exec "Windows 11 (1)" powershell -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile 'C:\\Users\\Public\\vc_redist.x64.exe'; Start-Process -FilePath 'C:\\Users\\Public\\vc_redist.x64.exe' -ArgumentList '/install','/quiet','/norestart' -Wait"
+prlctl exec "Windows 11" powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.arm64.exe' -OutFile 'C:\Users\Public\vc_redist.arm64.exe'; Start-Process -FilePath 'C:\Users\Public\vc_redist.arm64.exe' -ArgumentList '/install','/quiet','/norestart' -Wait"
 ```
 
 ### Network Drive Build Issues
 
 1. **Symlinks** → use `npm install --install-links`
-2. **NX WASM fallback** → `npm install @nx/nx-win32-x64-msvc`
+2. **NX WASM fallback** → install the matching Nx native package, e.g.
+   `@nx/nx-win32-arm64-msvc` on ARM64 or `@nx/nx-win32-x64-msvc` on x64
 3. **Workspace detection** → set `NX_WORKSPACE_ROOT_PATH`
 4. **Unix commands** → set `ComSpec` to Git bash, prepend Git usr/bin to PATH
 
 ## Verifying the Server
 
 ```bash
-prlctl exec "Windows 11 (1)" powershell -Command "
+prlctl exec "Windows 11" powershell -NoProfile -Command "
   \$response = Invoke-WebRequest -Uri 'http://127.0.0.1:9400' -UseBasicParsing -TimeoutSec 10;
   Write-Host 'Status:' \$response.StatusCode;
   Write-Host 'Size:' \$response.Content.Length 'bytes';

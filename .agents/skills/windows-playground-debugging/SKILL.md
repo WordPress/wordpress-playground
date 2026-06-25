@@ -21,18 +21,46 @@ Test and debug WordPress Playground on Windows using Parallels Desktop (`prlctl 
 
 ## Setup Checklist
 
-Before running Playground commands, verify the Windows environment:
+Use this minimal setup for testing Playground from macOS against a Windows VM:
 
 ```bash
+# Discover the VM name and confirm Parallels Tools/license.
 prlctl list -a
 prlctl list -i "Windows 11"
 "/Applications/Parallels Desktop.app/Contents/MacOS/prlsrvctl" info --license
-prlctl exec "Windows 11" cmd /c "where node || echo node-missing"
+
+# Confirm the Windows CPU architecture. Our Parallels VM is ARM64.
+prlctl exec "Windows 11" cmd /c "echo %PROCESSOR_ARCHITECTURE%"
+
+# Install Node.js 22 for the VM architecture. Use x64 instead of arm64 on x64 VMs.
+prlctl exec "Windows 11" powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.14.0/node-v22.14.0-arm64.msi' -OutFile 'C:\Users\Public\node22-arm64-install.msi'; Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i','C:\Users\Public\node22-arm64-install.msi','/qn','/norestart' -Wait"
+
+# prlctl exec runs as SYSTEM; create SYSTEM's npm directory if it is missing.
+prlctl exec "Windows 11" cmd /c "if not exist C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm mkdir C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm"
+
+# Verify Node and the shared checkout.
+prlctl exec "Windows 11" cmd /c "node --version && npm --version && npx --version"
 prlctl exec "Windows 11" cmd /c "dir \\\\Mac\\wordpress-playground\\package.json"
 ```
 
 If testing a Conductor workspace, make sure the Parallels share points at that workspace
 path, not just another root checkout of `wordpress-playground`.
+
+For source workflows, use a mapped drive instead of a UNC working directory. `cmd.exe`
+falls back to `C:\Windows` when started in a UNC path. Do not reuse macOS `node_modules`
+for source workflows; install dependencies from Windows on the checkout under test.
+
+After setup, smoke-test the published CLI:
+
+```bash
+prlctl exec "Windows 11" cmd /c "\"C:\Program Files\nodejs\npx.cmd\" -y @wp-playground/cli@latest server --wp=6.7 --php=8.2 --port=9400"
+```
+
+In another terminal, verify the server from inside Windows:
+
+```bash
+prlctl exec "Windows 11" powershell -NoProfile -Command "\$response = Invoke-WebRequest -Uri 'http://127.0.0.1:9400' -UseBasicParsing -TimeoutSec 20; Write-Host ('Status=' + \$response.StatusCode); Write-Host ('Length=' + \$response.Content.Length)"
+```
 
 ## Core Command Pattern
 
@@ -91,22 +119,20 @@ prlctl exec "Windows 11 (1)" cmd /c "\"C:\\Program Files\\nodejs\\node.exe\" Z:\
 ### 1. Run Published CLI
 
 ```bash
-prlctl exec "Windows 11 (1)" cmd /c "\"C:\\Program Files\\nodejs\\npx.cmd\" @wp-playground/cli server --wp=6.7 --php=8.2"
+prlctl exec "Windows 11 (1)" cmd /c "\"C:\Program Files\nodejs\npx.cmd\" -y @wp-playground/cli@latest server --wp=6.7 --php=8.2 --port=9400"
 ```
 
 Server at `http://127.0.0.1:9400` inside the VM.
 
 ### 2. Run Dev CLI from Source
 
-Requires Node.js 22+ (for `--experimental-strip-types`) and initialized isomorphic-git submodule (`git submodule update --init --recursive` from macOS).
+Requires Node.js 22+ (for `--experimental-strip-types`), an initialized
+isomorphic-git submodule (`git submodule update --init --recursive` from macOS), and a
+Windows-side dependency install. On network shares, use `npm ci --install-links` or
+`npm install --install-links`.
 
 ```bash
-prlctl exec "Windows 11 (1)" powershell -Command "
-  cd Z:\;
-  \$env:NX_WORKSPACE_ROOT_PATH = 'Z:\';
-  \$env:NX_DAEMON = 'false';
-  & 'C:\\Program Files\\nodejs\\npx.cmd' nx run playground-cli:dev -- server --wp=6.8 --php=8.4
-"
+prlctl exec "Windows 11 (1)" cmd /c "net use U: \"\\\\Mac\\wordpress-playground\" /persistent:no && cd /d U:\ && set NX_WORKSPACE_ROOT_PATH=U:\ && set NX_DAEMON=false && call \"C:\Program Files\nodejs\npx.cmd\" nx run playground-cli:dev -- server --wp=6.8 --php=8.4"
 ```
 
 To convert a published CLI command to dev CLI: replace `@wp-playground/cli@latest` with `nx run playground-cli:dev --`.
@@ -160,7 +186,7 @@ For detailed troubleshooting, setup instructions, and Windows-specific implement
 | MSYS path conversion (`/wordpress` → `C:/Program Files/Git/wordpress`) | Git Bash path mangling | Set `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL='*'` |
 | NX can't detect workspace | Network drive issue | Set `NX_WORKSPACE_ROOT_PATH` |
 | `npm install` symlink failures | Network drive limitation | Use `npm install --install-links` |
-| NX WASM fallback fails | Network paths unsupported | `npm install @nx/nx-win32-x64-msvc` |
+| NX WASM fallback fails | Network paths unsupported | Install the matching Nx native package, e.g. `@nx/nx-win32-arm64-msvc` on ARM64 or `@nx/nx-win32-x64-msvc` on x64 |
 | Port 9400 in use | Previous node still running | `taskkill /IM node.exe /F` |
 
 ## Windows Symlink Behavior
