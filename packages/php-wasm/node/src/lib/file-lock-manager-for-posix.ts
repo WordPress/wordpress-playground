@@ -2,11 +2,15 @@ import type {
 	FileLockManager,
 	WholeFileLockOp,
 	RequestedRangeLock,
+	LockedRange,
 	Pid,
 	Fd,
 	Path,
 } from '@php-wasm/universal';
-import { MAX_ADDRESSABLE_FILE_OFFSET } from '@php-wasm/universal';
+import {
+	FileLockIntervalTree,
+	MAX_ADDRESSABLE_FILE_OFFSET,
+} from '@php-wasm/universal';
 import { constants, fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
 import { logger } from '@php-wasm/logger';
 
@@ -26,7 +30,7 @@ type StoredWholeFileLock = WholeFileLockOp & { path: Path };
 
 export class FileLockManagerForPosix implements FileLockManager {
 	wholeFileLockMap = new Map<Pid, Map<Fd, StoredWholeFileLock>>();
-	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
+	rangeLocksByPath = new Map<Path, FileLockIntervalTree>();
 
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		const opType =
@@ -102,17 +106,7 @@ export class FileLockManagerForPosix implements FileLockManager {
 				Number(op.end - op.start)
 			);
 
-			// Remember that we have seen range locks for this PID and FD.
-			// It should be enough to release all locks with a single fcntl() call
-			// to unlock the entire file range when the FD is closed or the process exits.
-			if (!this.rangeLockedFds.has(op.pid)) {
-				this.rangeLockedFds.set(op.pid, new Map());
-			}
-			const pidMap = this.rangeLockedFds.get(op.pid)!;
-			if (!pidMap.has(path)) {
-				pidMap.set(path, new Set());
-			}
-			pidMap.get(path)!.add(op.fd);
+			this.recordRangeLockOp(path, op);
 
 			return true;
 		} catch (e) {
@@ -174,36 +168,39 @@ export class FileLockManagerForPosix implements FileLockManager {
 			this.wholeFileLockMap.delete(targetPid);
 		}
 
-		for (const [path, fdSet] of this.rangeLockedFds.get(targetPid) ?? []) {
-			for (const fd of fdSet) {
-				/*
-				 * fcntl() lets us request to unlock the entire byte range for this process,
-				 * so we do that instead of tracking and unlocking specific ranges.
-				 * NOTE: Actually, the native OS is not aware of the php-wasm process ID,
-				 * but since we track which FDs are associated with each process,
-				 * we can simply unlock for all FDs associated with the php-wasm process.
-				 */
-				try {
-					this.lockFileByteRange(
-						path,
-						{
-							pid: targetPid,
-							fd,
-							type: 'unlocked',
-							start: 0n,
-							end: MAX_ADDRESSABLE_FILE_OFFSET,
-						},
-						false
-					);
-				} catch (e) {
-					logger.error(
-						`releaseLocksForProcess: failed to unlock byte range for pid=${targetPid} fd=${fd} path=${path}`,
-						e
-					);
-				}
+		for (const [path, rangeLocks] of this.rangeLocksByPath) {
+			const locksForProcess = rangeLocks.findLocksForProcess(targetPid);
+			if (locksForProcess.length === 0) {
+				continue;
+			}
+
+			/*
+			 * fcntl() lets us request to unlock the entire byte range for this process,
+			 * so we do that instead of tracking and unlocking specific ranges.
+			 * NOTE: Actually, the native OS is not aware of the php-wasm process ID,
+			 * but since we track live locks associated with each process and path,
+			 * we can unlock using any FD that currently represents one of those locks.
+			 */
+			const fd = locksForProcess[0].fd;
+			try {
+				this.lockFileByteRange(
+					path,
+					{
+						pid: targetPid,
+						fd,
+						type: 'unlocked',
+						start: 0n,
+						end: MAX_ADDRESSABLE_FILE_OFFSET,
+					},
+					false
+				);
+			} catch (e) {
+				logger.error(
+					`releaseLocksForProcess: failed to unlock byte range for pid=${targetPid} fd=${fd} path=${path}`,
+					e
+				);
 			}
 		}
-		this.rangeLockedFds.delete(targetPid);
 	}
 
 	releaseLocksOnFdClose(
@@ -218,6 +215,93 @@ export class FileLockManagerForPosix implements FileLockManager {
 
 		// fcntl()-based locks are released whenever any file descriptor for the
 		// target file is closed, regardless of which FD was used to obtain the lock.
-		this.rangeLockedFds.get(targetPid)?.delete(targetPath);
+		this.recordRangeLockOp(targetPath, {
+			pid: targetPid,
+			fd: targetFd,
+			type: 'unlocked',
+			start: 0n,
+			end: MAX_ADDRESSABLE_FILE_OFFSET,
+		});
+	}
+
+	private normalizeRangeLockOp(op: RequestedRangeLock): RequestedRangeLock {
+		if (op.start !== op.end) {
+			return op;
+		}
+
+		return {
+			...op,
+			end: MAX_ADDRESSABLE_FILE_OFFSET,
+		};
+	}
+
+	private recordRangeLockOp(path: Path, op: RequestedRangeLock): void {
+		op = this.normalizeRangeLockOp(op);
+
+		let rangeLocks = this.rangeLocksByPath.get(path);
+		if (!rangeLocks) {
+			if (op.type === 'unlocked') {
+				return;
+			}
+
+			rangeLocks = new FileLockIntervalTree();
+			this.rangeLocksByPath.set(path, rangeLocks);
+		}
+
+		if (op.type === 'unlocked') {
+			const overlappingLocksForProcess = rangeLocks
+				.findOverlapping(op)
+				.filter((lock) => lock.pid === op.pid);
+
+			for (const overlappingLock of overlappingLocksForProcess) {
+				rangeLocks.remove(overlappingLock);
+
+				if (overlappingLock.start < op.start) {
+					rangeLocks.insert({
+						...overlappingLock,
+						end: op.start,
+					});
+				}
+
+				if (overlappingLock.end > op.end) {
+					rangeLocks.insert({
+						...overlappingLock,
+						start: op.end,
+					});
+				}
+			}
+
+			this.forgetPathIfNoRangeLocks(path);
+			return;
+		}
+
+		const overlappingLocksForProcess = rangeLocks
+			.findOverlapping(op)
+			.filter((lock) => lock.pid === op.pid);
+
+		let minStart = op.start;
+		let maxEnd = op.end;
+		for (const overlappingLock of overlappingLocksForProcess) {
+			rangeLocks.remove(overlappingLock);
+
+			if (overlappingLock.start < minStart) {
+				minStart = overlappingLock.start;
+			}
+			if (overlappingLock.end > maxEnd) {
+				maxEnd = overlappingLock.end;
+			}
+		}
+
+		rangeLocks.insert({
+			...(op as LockedRange),
+			start: minStart,
+			end: maxEnd,
+		});
+	}
+
+	private forgetPathIfNoRangeLocks(path: Path): void {
+		if (this.rangeLocksByPath.get(path)?.isEmpty()) {
+			this.rangeLocksByPath.delete(path);
+		}
 	}
 }

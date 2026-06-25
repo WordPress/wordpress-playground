@@ -1,4 +1,5 @@
 import { closeSync, openSync } from 'fs';
+import { logger } from '@php-wasm/logger';
 import {
 	type FileLockManager,
 	type RequestedRangeLock,
@@ -32,6 +33,7 @@ export type TestWorkerAPI = Omit<
 	) => Omit<RequestedRangeLockWithNonBigIntAddresses, 'fd'> | undefined;
 	openSync: typeof openSync;
 	closeSync: typeof closeSync;
+	getLogs: () => string[];
 };
 
 /**
@@ -88,6 +90,7 @@ export function createRemoteProcessAPIFromFileLockManager(
 			return openSync(name, flags, mode);
 		}) as typeof openSync,
 		closeSync,
+		getLogs: logger.getLogs.bind(logger),
 	};
 	return api;
 }

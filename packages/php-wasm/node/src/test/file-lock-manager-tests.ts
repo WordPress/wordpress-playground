@@ -1402,6 +1402,33 @@ export function declareFileLockManagerTests({
 
 				expect(conflict).toBeUndefined();
 			});
+
+			it('does not leave stale native fd bookkeeping after a no-conflict probe', async () => {
+				const logsBeforeProbe = await remoteProcessApi1.getLogs();
+				const conflict =
+					await remoteProcessApi1.findFirstConflictingByteRangeLock(
+						TEST_FILE1_URL.pathname,
+						{
+							type: 'shared',
+							start: 20,
+							end: 30,
+							pid: PROCESS1_PID,
+							fd: process1TestFile1Fd,
+						}
+					);
+				expect(conflict).toBeUndefined();
+
+				await remoteProcessApi1.closeSync(process1TestFile1Fd);
+				await remoteProcessApi1.releaseLocksForProcess(PROCESS1_PID);
+
+				const newLogs = (await remoteProcessApi1.getLogs()).slice(
+					logsBeforeProbe.length
+				);
+				expect(newLogs.join('\n')).not.toContain('EBADF');
+				expect(newLogs.join('\n')).not.toContain(
+					'fcntl(): unexpected error'
+				);
+			});
 		});
 
 		describe('releaseLocksForProcess', () => {

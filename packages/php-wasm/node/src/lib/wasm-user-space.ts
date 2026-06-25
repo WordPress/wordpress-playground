@@ -913,6 +913,13 @@ export function bindUserSpace(
 			);
 			return fdCloseResult;
 		}
+		/*
+		 * maybeLockedFds is only a lossy optimization hint. It is not
+		 * authoritative lock state: F_GETLK probes and successful unlocks may
+		 * touch native locking without leaving live locks, while POSIX fcntl()
+		 * locks are process/file scoped and closing any fd for the same file may
+		 * release locks even if that exact fd did not acquire them.
+		 */
 		if (!locking.maybeLockedFds.has(nativeFd)) {
 			js_wasm_trace(
 				'fd_close(%d) not in maybe-locked-list %s result %d',
