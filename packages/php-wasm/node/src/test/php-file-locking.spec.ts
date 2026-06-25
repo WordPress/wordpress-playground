@@ -1431,6 +1431,43 @@ error_log = ${errorLogPath}
 
 		// TODO: Test fcntl() somehow. The DB tests should use fcntl(), but explicit tests would be better.
 
+		test(`should release SQLite WAL shared-memory byte-range locks when the file descriptor is closed`, async () => {
+			const fileLockManager = createMockFileLockManager();
+			using php = new PHP(
+				await loadNodeRuntime(phpVersion, {
+					fileLockManager,
+					emscriptenOptions: {
+						processId: nextProcessId++,
+					},
+				})
+			);
+			php.mount(vfsMountPoint, createNodeFsMountHandler(tempDir));
+
+			const vfsDbFilePath = `${vfsMountPoint}/.ht.sqlite`;
+			const result = await php.run({
+				code: `<?php
+						$db = new SQLite3('${vfsDbFilePath}');
+						$db->exec('PRAGMA journal_mode = WAL');
+						$db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+						$db->exec('INSERT INTO test (name) VALUES ("test")');
+						$db->querySingle('SELECT COUNT(*) FROM test');
+						$db->close();
+					`,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(fileLockManager.lockFileByteRange).toHaveBeenCalledWith(
+				expect.stringMatching(/\.ht\.sqlite-shm$/),
+				expect.any(Object),
+				expect.any(Boolean)
+			);
+			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
+				expect.any(Number),
+				expect.any(Number),
+				expect.stringMatching(/\.ht\.sqlite-shm$/)
+			);
+		});
+
 		test(`should not attempt to lock a MEMFS file or a PROXYFS node that wraps a MEMFS file`, async () => {
 			// NOTE: Normally, we would use a single file lock manager across all runtimes,
 			// but to keep state clearer within this test, we use a separate manager per runtime.

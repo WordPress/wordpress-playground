@@ -170,13 +170,22 @@ export function bindUserSpace(
 	type FcntlLockState = typeof F_RDLCK | typeof F_WRLCK | typeof F_UNLCK;
 	const locking = {
 		/*
-		 * This is a set of possibly locked file descriptors.
-		 *
-		 * When a file descriptor is closed, we need to release any associated held by this process.
-		 * Instead of trying remember and forget file descriptors as they are locked and unlocked,
-		 * we just track file descriptors we have locked before and try an unlock when they are closed.
+		 * These are possibly locked file descriptors and their last known
+		 * native paths. The path must be captured when the lock succeeds
+		 * because close-time cleanup may run after the file is unlinked.
 		 */
 		maybeLockedFds: new Set(),
+		maybeLockedFdPaths: new Map<number, string>(),
+
+		remember_maybe_locked_fd(fd: number, nativePath: string) {
+			locking.maybeLockedFds.add(fd);
+			locking.maybeLockedFdPaths.set(fd, nativePath);
+		},
+
+		forget_maybe_locked_fd(fd: number) {
+			locking.maybeLockedFds.delete(fd);
+			locking.maybeLockedFdPaths.delete(fd);
+		},
 
 		lockStateToFcntl: {
 			shared: F_RDLCK,
@@ -727,7 +736,10 @@ export function bindUserSpace(
 						waitForLock
 					);
 					if (succeeded) {
-						locking.maybeLockedFds.add(nativeFd);
+						locking.remember_maybe_locked_fd(
+							nativeFd,
+							nativeFilePath
+						);
 					}
 
 					js_wasm_trace(
@@ -877,7 +889,7 @@ export function bindUserSpace(
 				succeeded
 			);
 			if (succeeded) {
-				locking.maybeLockedFds.add(nativeFd);
+				locking.remember_maybe_locked_fd(nativeFd, nativeFilePath);
 			}
 			return succeeded ? 0 : -EWOULDBLOCK;
 		} catch (e) {
@@ -902,6 +914,24 @@ export function bindUserSpace(
 			locking.get_vfs_path_from_fd(fd);
 		const [nativeFd, nativeFdErrno] =
 			locking.get_native_fd_from_emscripten_fd(fd);
+		let nativeFilePath =
+			nativeFdErrno === 0
+				? locking.maybeLockedFdPaths.get(nativeFd)
+				: undefined;
+		let nativeFilePathError: unknown;
+		if (
+			nativeFilePath === undefined &&
+			vfsPathResolutionErrno === 0 &&
+			nativeFdErrno === 0 &&
+			locking.maybeLockedFds.has(nativeFd) &&
+			locking.is_path_to_shared_fs(vfsPath)
+		) {
+			try {
+				nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
+			} catch (e) {
+				nativeFilePathError = e;
+			}
+		}
 
 		const fdCloseResult = builtin_fd_close(fd);
 		if (fdCloseResult !== 0) {
@@ -930,16 +960,14 @@ export function bindUserSpace(
 				vfsPathResolutionErrno
 			);
 			/*
-			 * It looks like the file may have had an associated lock,
-			 * but since we cannot look up the path,
-			 * there is nothing more for us to do.
-			 *
-			 * NOTE: This seems possible for files that are locked and
-			 * then unlinked before close. It is an opportunity for a
-			 * lock to be orphaned in the lock manager.
-			 * @TODO: Explore how to ensure cleanup in this case.
+			 * This can happen when a locked file is unlinked before close.
+			 * If we captured the native path when the lock was acquired,
+			 * close-time cleanup can still release the lock manager state.
 			 */
-			return fdCloseResult;
+			if (nativeFilePath === undefined) {
+				locking.forget_maybe_locked_fd(nativeFd);
+				return fdCloseResult;
+			}
 		}
 
 		if (nativeFdErrno !== 0) {
@@ -952,14 +980,24 @@ export function bindUserSpace(
 			return fdCloseResult;
 		}
 
-		if (!locking.is_path_to_shared_fs(vfsPath)) {
+		if (nativeFilePathError) {
+			js_wasm_trace(
+				"fd_close(%d) %s error '%s'",
+				fd,
+				vfsPath,
+				nativeFilePathError
+			);
+			locking.forget_maybe_locked_fd(nativeFd);
+			return fdCloseResult;
+		}
+
+		if (nativeFilePath === undefined) {
+			locking.forget_maybe_locked_fd(nativeFd);
 			return fdCloseResult;
 		}
 
 		try {
 			js_wasm_trace('fd_close(%d) %s release locks', fd, vfsPath);
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
 			fileLockManager.releaseLocksOnFdClose(
 				pid,
 				nativeFd,
@@ -968,6 +1006,8 @@ export function bindUserSpace(
 			js_wasm_trace('fd_close(%d) %s release locks success', fd, vfsPath);
 		} catch (e) {
 			js_wasm_trace("fd_close(%d) %s error '%s'", fd, vfsPath, e);
+		} finally {
+			locking.forget_maybe_locked_fd(nativeFd);
 		}
 		return fdCloseResult;
 	}
