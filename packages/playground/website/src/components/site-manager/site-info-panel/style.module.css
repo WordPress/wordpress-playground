@@ -38,6 +38,10 @@
 
 	& :global(.components-tab-panel__tabs) {
 		--wp-components-color-accent: var(--color-gray-900);
+		position: relative;
+		z-index: 4;
+		flex: none;
+		background: #ffffff;
 		border-bottom: 1px solid var(--color-gray-200);
 		max-width: 100%;
 		overflow-x: auto;
@@ -51,6 +55,8 @@
 		white-space: nowrap;
 	}
 	& :global(.components-tab-panel__tab-content) {
+		position: relative;
+		z-index: 1;
 		display: flex;
 		flex-direction: column;
 		flex-grow: 1;
@@ -124,12 +130,34 @@
 
 .site-info-header {
 	color: inherit;
+	display: grid !important;
+	grid-template-columns: 48px minmax(10rem, 1fr) auto auto;
+	grid-template-areas:
+		'icon details actions menu'
+		'icon description description description';
+	column-gap: 12px;
+	row-gap: 4px;
+	align-items: start;
 
 	&:has(.site-info-header-details-created-at:empty),
 	&:not(:has(.site-info-header-details-created-at)) {
-		justify-content: center;
+		justify-content: stretch;
 		align-items: center;
 	}
+}
+
+.siteInfoHeaderDetails {
+	grid-area: details;
+	min-width: 0;
+}
+
+.siteInfoHeaderDescription {
+	grid-area: description;
+	min-width: 0;
+}
+
+.siteInfoHeaderBack {
+	grid-area: back;
 }
 
 .site-info-header-icon {
@@ -137,12 +165,13 @@
 
 	width: 48px;
 	height: 48px;
-	margin-right: 8px;
+	margin-right: 0;
 
 	background: #ffffff;
 	border: 1px solid rgba(0, 0, 0, 0.1);
 	border-radius: 4px;
 
+	grid-area: icon;
 	flex: none;
 	flex-grow: 0;
 }
@@ -176,11 +205,6 @@
 	max-width: 100%;
 }
 
-.siteInfoHeaderTitle {
-	min-width: 0;
-	flex: 1 1 auto;
-}
-
 .siteInfoHeaderDetailsNameText {
 	flex: 0 1 auto;
 	min-width: 0;
@@ -188,15 +212,12 @@
 	word-break: break-word;
 }
 
-.siteInfoRenameButton {
-	vertical-align: middle;
-}
-
 .siteInfoHeaderDetailsNameTextEnd {
 	white-space: nowrap;
 }
 
 .site-info-header-details-created-at {
+	display: block;
 	width: 100%;
 	font-size: 14px;
 	line-height: 20px;
@@ -204,26 +225,38 @@
 
 	/* Gutenberg/Gray 700 */
 	color: #757575;
-}
-
-.siteInfoHeaderTitleRow {
-	align-items: flex-start;
-	gap: 8px;
+	overflow-wrap: normal;
 }
 
 .siteInfoHeaderPrimaryActions {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: flex-end;
-	align-items: stretch;
-	gap: 8px;
-	flex: 0 1 auto;
+	grid-area: actions;
 	min-width: 0;
 }
 
-.siteInfoHeaderAction {
+.siteInfoHeaderPrimaryActionsList {
+	display: flex;
+	flex-wrap: nowrap;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.siteInfoHeaderMenu {
+	grid-area: menu;
 	flex: none;
-	flex-shrink: 0;
+}
+
+.isMobile .site-info-header {
+	grid-template-columns: auto 48px minmax(8rem, 1fr) auto auto;
+	grid-template-areas:
+		'back icon details actions menu'
+		'back icon description description description';
+	column-gap: 8px;
+}
+
+.isMobile .siteInfoHeaderPrimaryActions {
+	justify-content: flex-end;
 }
 
 .siteInfoRenameButton {
@@ -254,8 +287,8 @@
 .blueprint-wrapper {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
 	min-height: 0;
+	overflow: hidden;
 }
 
 .blueprint-header {

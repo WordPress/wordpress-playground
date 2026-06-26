@@ -11,7 +11,14 @@ import {
 import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
 import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import classNames from 'classnames';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import {
+	lazy,
+	Suspense,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from 'react';
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
@@ -50,6 +57,16 @@ const SiteBlueprintBundleEditor = lazy(() =>
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
+type HeaderAction = {
+	key: string;
+	label: string;
+	variant: 'primary' | 'secondary' | 'tertiary';
+	disabled?: boolean;
+	onClick: () => void;
+};
+const HEADER_ACTIONS_TITLE_GAP = 32;
+const HEADER_TITLE_MIN_WIDTH_WITH_ACTIONS = 224;
+const MOBILE_HEADER_TITLE_MIN_WIDTH_WITH_ACTIONS = 160;
 
 function getSiteLastTab(siteSlug: string): string | null {
 	try {
@@ -93,6 +110,13 @@ export function SiteInfoPanel({
 		const lastTab = getSiteLastTab(site.slug);
 		return lastTab || 'settings';
 	});
+	const [visibleHeaderActionCount, setVisibleHeaderActionCount] = useState(
+		Number.MAX_SAFE_INTEGER
+	);
+	const headerRef = useRef<HTMLDivElement>(null);
+	const titleRef = useRef<HTMLHeadingElement>(null);
+	const headerWidthRef = useRef<number | null>(null);
+	const [headerResizeTick, setHeaderResizeTick] = useState(0);
 
 	// Resolve documentRoot from playground client
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
@@ -114,6 +138,9 @@ export function SiteInfoPanel({
 	const openSaveModal = () => {
 		dispatch(setSiteSlugToSave(site.slug));
 		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
+	};
+	const openSite = () => {
+		dispatch(setSiteManagerOpen(false));
 	};
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
@@ -154,6 +181,147 @@ export function SiteInfoPanel({
 	const titleWords = title.split(' ');
 	const titleStart = titleWords.slice(0, -1).join(' ');
 	const titleEnd = titleWords[titleWords.length - 1];
+	const createdAgo = site.metadata.whenCreated
+		? getRelativeDate(
+				new Date(
+					// -2 to make sure it's in the past. We want to avoid
+					// accidentally signaling this happened in the future,
+					// e.g. "in 1 seconds"
+					site.metadata.whenCreated - 2
+				)
+			)
+		: '';
+	let siteSavedStatus: string | undefined;
+	switch (site.metadata.storage) {
+		case 'local-fs':
+			siteSavedStatus =
+				'Saved in a local directory' +
+				(localDirName ? ` (${localDirName})` : '') +
+				` ${createdAgo}`;
+			break;
+		case 'opfs':
+			siteSavedStatus = isAutosaved
+				? `Autosaved in this browser ${createdAgo}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`
+				: `Saved in this browser ${createdAgo}`;
+			break;
+	}
+	const headerActions: HeaderAction[] = [];
+	if (isAutosaved) {
+		headerActions.push({
+			key: 'store-permanently',
+			label: 'Store permanently',
+			variant: 'primary',
+			onClick: openSaveModal,
+		});
+	}
+	if (mobileUi) {
+		headerActions.push({
+			key: 'open-site',
+			label: 'Open site',
+			variant: 'primary',
+			onClick: openSite,
+		});
+	} else {
+		headerActions.push(
+			{
+				key: 'wp-admin',
+				label: 'WP Admin',
+				variant: 'tertiary',
+				disabled: !playground,
+				onClick: () => navigateTo('/wp-admin/'),
+			},
+			{
+				key: 'homepage',
+				label: 'Homepage',
+				variant: 'secondary',
+				disabled: !playground,
+				onClick: () => navigateTo('/'),
+			}
+		);
+	}
+	const visibleHeaderActions = headerActions.slice(
+		0,
+		visibleHeaderActionCount
+	);
+	const overflowHeaderActions = headerActions.slice(visibleHeaderActionCount);
+
+	useLayoutEffect(() => {
+		const header = headerRef.current;
+		if (!header || typeof ResizeObserver === 'undefined') {
+			return;
+		}
+
+		headerWidthRef.current = null;
+		setVisibleHeaderActionCount(headerActions.length);
+		const updateHeaderActionVisibility = (width: number) => {
+			if (headerWidthRef.current === width) {
+				return;
+			}
+			const previousWidth = headerWidthRef.current;
+			headerWidthRef.current = width;
+			setHeaderResizeTick((tick) => tick + 1);
+
+			if (previousWidth !== null && width > previousWidth) {
+				setVisibleHeaderActionCount(headerActions.length);
+			}
+		};
+
+		updateHeaderActionVisibility(header.getBoundingClientRect().width);
+		const observer = new ResizeObserver((entries) => {
+			updateHeaderActionVisibility(entries[0].contentRect.width);
+		});
+		observer.observe(header);
+		return () => {
+			observer.disconnect();
+		};
+	}, [headerActions.length, mobileUi, title]);
+
+	useLayoutEffect(() => {
+		if (visibleHeaderActionCount === 0) {
+			return;
+		}
+
+		const titleBox = titleRef.current?.getBoundingClientRect();
+		const actionButtons = Array.from(
+			headerRef.current?.querySelectorAll(
+				'[data-header-primary-actions] button'
+			) || []
+		);
+		if (!titleBox || !actionButtons.length) {
+			return;
+		}
+
+		const minTitleWidth = mobileUi
+			? MOBILE_HEADER_TITLE_MIN_WIDTH_WITH_ACTIONS
+			: HEADER_TITLE_MIN_WIDTH_WITH_ACTIONS;
+		const headerIsCramped =
+			titleBox.width < minTitleWidth ||
+			actionButtons.some((button) => {
+				const buttonBox = button.getBoundingClientRect();
+				return (
+					titleBox.left < buttonBox.right &&
+					titleBox.right > buttonBox.left &&
+					titleBox.right + HEADER_ACTIONS_TITLE_GAP >
+						buttonBox.left &&
+					titleBox.top < buttonBox.bottom &&
+					titleBox.bottom > buttonBox.top
+				);
+			});
+
+		if (!headerIsCramped) {
+			return;
+		}
+
+		setVisibleHeaderActionCount((current) =>
+			Math.max(0, Math.min(current, headerActions.length) - 1)
+		);
+	}, [
+		headerActions.length,
+		headerResizeTick,
+		mobileUi,
+		title,
+		visibleHeaderActionCount,
+	]);
 
 	return (
 		<section
@@ -170,6 +338,7 @@ export function SiteInfoPanel({
 			>
 				<FlexItem style={{ flexShrink: 0 }}>
 					<Flex
+						ref={headerRef}
 						direction="row"
 						gap={2}
 						justify="space-between"
@@ -179,7 +348,10 @@ export function SiteInfoPanel({
 						style={{ paddingBottom: 10 }}
 					>
 						{mobileUi && (
-							<FlexItem style={{ marginLeft: -20 }}>
+							<FlexItem
+								className={css.siteInfoHeaderBack}
+								style={{ marginLeft: -20 }}
+							>
 								<Button
 									variant="link"
 									label="Back to Playground"
@@ -205,146 +377,70 @@ export function SiteInfoPanel({
 								/>
 							)}
 						</FlexItem>
-						<FlexItem style={{ flexGrow: 1 }}>
-							<Flex direction="column" gap={0.25} expanded={true}>
-								<Flex
-									direction="row"
-									align="flex-start"
-									className={css.siteInfoHeaderTitleRow}
+						<FlexItem className={css.siteInfoHeaderDetails}>
+							<h1
+								ref={titleRef}
+								className={css.siteInfoHeaderDetailsName}
+								aria-label="Playground title"
+							>
+								<span
+									className={
+										css.siteInfoHeaderDetailsNameText
+									}
 								>
-									<FlexItem
-										className={css.siteInfoHeaderTitle}
-									>
-										<h1
-											className={
-												css.siteInfoHeaderDetailsName
-											}
-											aria-label="Playground title"
-										>
-											<span
-												className={
-													css.siteInfoHeaderDetailsNameText
-												}
-											>
-												{titleStart}{' '}
-												<span
-													className={
-														css.siteInfoHeaderDetailsNameTextEnd
-													}
-												>
-													{titleEnd}
-													{!isTemporary && (
-														<Button
-															className={
-																css.siteInfoRenameButton
-															}
-															icon={edit}
-															label="Rename Playground"
-															showTooltip={true}
-															variant="tertiary"
-															isSmall={true}
-															onClick={() => {
-																dispatch(
-																	setSiteSlugToRename(
-																		site.slug
-																	)
-																);
-																dispatch(
-																	setActiveModal(
-																		modalSlugs.RENAME_SITE
-																	)
-																);
-															}}
-														/>
-													)}
-												</span>
-											</span>
-										</h1>
-									</FlexItem>
-								</Flex>
-								{!isTemporary && (
+									{titleStart}{' '}
 									<span
 										className={
-											css.siteInfoHeaderDetailsCreatedAt
+											css.siteInfoHeaderDetailsNameTextEnd
 										}
 									>
-										{(function () {
-											const createdAgo = site.metadata
-												.whenCreated
-												? getRelativeDate(
-														new Date(
-															// -2 to make sure it's in the past. We want to
-															// avoid accidentally signaling this happened in
-															// the future, e.g. "in 1 seconds"
-															site.metadata
-																.whenCreated - 2
+										{titleEnd}
+										{!isTemporary && (
+											<Button
+												className={
+													css.siteInfoRenameButton
+												}
+												icon={edit}
+												label="Rename Playground"
+												showTooltip={true}
+												variant="tertiary"
+												isSmall={true}
+												onClick={() => {
+													dispatch(
+														setSiteSlugToRename(
+															site.slug
 														)
-													)
-												: '';
-											switch (site.metadata.storage) {
-												case 'local-fs':
-													return (
-														'Saved in a local directory' +
-														(localDirName
-															? ` (${localDirName})`
-															: '') +
-														` ${createdAgo}`
 													);
-												case 'opfs':
-													if (isAutosaved) {
-														return `Autosaved in this browser ${createdAgo}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`;
-													}
-													return `Saved in this browser ${createdAgo}`;
-											}
-										})()}{' '}
+													dispatch(
+														setActiveModal(
+															modalSlugs.RENAME_SITE
+														)
+													);
+												}}
+											/>
+										)}
 									</span>
-								)}
-							</Flex>
+								</span>
+							</h1>
 						</FlexItem>
-						{isAutosaved && (
-							<FlexItem className={css.siteInfoHeaderAction}>
-								<Button
-									variant="primary"
-									onClick={openSaveModal}
-								>
-									Store permanently
-								</Button>
-							</FlexItem>
-						)}
-						{mobileUi ? (
-							<FlexItem style={{ flexShrink: 0 }}>
-								<Button
-									variant="primary"
-									onClick={() => {
-										dispatch(setSiteManagerOpen(false));
-									}}
-								>
-									Open site
-								</Button>
-							</FlexItem>
-						) : (
-							<>
-								<FlexItem className={css.siteInfoHeaderAction}>
+						<FlexItem className={css.siteInfoHeaderPrimaryActions}>
+							<div
+								className={css.siteInfoHeaderPrimaryActionsList}
+								data-header-primary-actions
+							>
+								{visibleHeaderActions.map((action) => (
 									<Button
-										variant="tertiary"
-										disabled={!playground}
-										onClick={() => navigateTo('/wp-admin/')}
+										key={action.key}
+										variant={action.variant}
+										disabled={action.disabled}
+										onClick={action.onClick}
 									>
-										WP Admin
+										{action.label}
 									</Button>
-								</FlexItem>
-								<FlexItem className={css.siteInfoHeaderAction}>
-									<Button
-										variant="secondary"
-										disabled={!playground}
-										onClick={() => navigateTo('/')}
-									>
-										Homepage
-									</Button>
-								</FlexItem>
-							</>
-						)}
-						<FlexItem className={css.siteInfoHeaderAction}>
+								))}
+							</div>
+						</FlexItem>
+						<FlexItem className={css.siteInfoHeaderMenu}>
 							<DropdownMenu
 								icon={moreVertical}
 								label="Additional actions"
@@ -354,6 +450,26 @@ export function SiteInfoPanel({
 							>
 								{({ onClose }) => (
 									<>
+										{overflowHeaderActions.length > 0 && (
+											<MenuGroup>
+												{overflowHeaderActions.map(
+													(action) => (
+														<MenuItem
+															key={action.key}
+															disabled={
+																action.disabled
+															}
+															onClick={() => {
+																action.onClick();
+																onClose();
+															}}
+														>
+															{action.label}
+														</MenuItem>
+													)
+												)}
+											</MenuGroup>
+										)}
 										{!isTemporary && (
 											<MenuGroup>
 												<MenuItem
@@ -384,6 +500,17 @@ export function SiteInfoPanel({
 									</>
 								)}
 							</DropdownMenu>
+						</FlexItem>
+						<FlexItem className={css.siteInfoHeaderDescription}>
+							{!isTemporary && siteSavedStatus && (
+								<span
+									className={
+										css.siteInfoHeaderDetailsCreatedAt
+									}
+								>
+									{siteSavedStatus}
+								</span>
+							)}
 						</FlexItem>
 					</Flex>
 				</FlexItem>
@@ -470,6 +597,7 @@ export function SiteInfoPanel({
 								</div>
 								<div
 									className={classNames(
+										css.tabContents,
 										css.blueprintWrapper,
 										{
 											[css.tabHidden]:
