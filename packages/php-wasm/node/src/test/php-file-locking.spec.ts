@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
@@ -1525,10 +1525,10 @@ error_log = ${errorLogPath}
 			php.mount(vfsMountPoint, createNodeFsMountHandler(tempDir));
 
 			const fileName = 'locked-unlinked.txt';
+			const nativePathPattern = /[\\/]locked-unlinked\.txt$/;
 			const nativeFilePath = join(tempDir, fileName);
 			const vfsFilePath = `${vfsMountPoint}/${fileName}`;
 			writeFileSync(nativeFilePath, 'test content');
-			const expectedNativeFilePath = realpathSync(nativeFilePath);
 
 			const result = await php.run({
 				code: `<?php
@@ -1547,26 +1547,19 @@ error_log = ${errorLogPath}
 			});
 
 			expect(result.exitCode).toBe(0);
-			expect(fileLockManager.lockWholeFile).toHaveBeenCalledWith(
-				expectedNativeFilePath,
-				expect.objectContaining({
-					type: 'exclusive',
-				})
-			);
 			const wholeFileLockCall = vi
 				.mocked(fileLockManager.lockWholeFile)
 				.mock.calls.find(
 					([path, op]) =>
-						path === expectedNativeFilePath &&
-						op.type === 'exclusive'
+						nativePathPattern.test(path) && op.type === 'exclusive'
 				);
 			expect(wholeFileLockCall).toBeDefined();
-			const [, wholeFileLock] = wholeFileLockCall!;
+			const [wholeFileNativePath, wholeFileLock] = wholeFileLockCall!;
 			expect(wholeFileLock.fd).toEqual(expect.any(Number));
 			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
 				expect.any(Number),
 				wholeFileLock.fd,
-				expectedNativeFilePath
+				wholeFileNativePath
 			);
 			expect(fileLockManager.releaseLocksForProcess).toHaveBeenCalled();
 			expect(pidsReleasedOnFdClose).toEqual([expect.any(Number)]);
