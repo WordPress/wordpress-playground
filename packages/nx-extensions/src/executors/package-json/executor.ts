@@ -127,7 +127,9 @@ async function buildPackageJson(
 	sourceFileMap?: ProjectFileMap,
 	sourceDeps?: Set<string>
 ) {
-	const packageJson = createPackageJson(
+	const packageJson: ReturnType<typeof createPackageJson> & {
+		publishedDependencies?: Record<string, string>;
+	} = createPackageJson(
 		context.projectName,
 		context.projectGraph,
 		{
@@ -163,6 +165,19 @@ async function buildPackageJson(
 			}
 		}
 	}
+
+	// Add dependencies that only exist in the published build output. Bundled
+	// vendored code may retain bare imports that are invisible to the
+	// source-file analysis above, e.g. @wp-playground/storage bundles the
+	// vendored isomorphic-git sources, which import crc-32. Packages declare
+	// such dependencies in a `publishedDependencies` field in their
+	// package.json, which npm ignores during workspace installs.
+	for (const [name, version] of Object.entries(
+		getPublishedDependencies(context)
+	)) {
+		packageJson.dependencies[name] = version;
+	}
+	delete packageJson.publishedDependencies;
 
 	for (const dep of monorepoDependencies) {
 		packageJson.dependencies[dep.name] = dep.version;
@@ -206,6 +221,25 @@ async function buildPackageJson(
 		options.outputPath + '/package.json',
 		serializeJson(packageJson)
 	);
+}
+
+function getPublishedDependencies(
+	context: ExecutorContext
+): Record<string, string> {
+	if (!context.projectName) {
+		return {};
+	}
+	const projectRoot =
+		context.projectGraph.nodes[context.projectName]?.data?.root;
+	if (!projectRoot) {
+		return {};
+	}
+	const packageJsonPath = `${context.root}/${projectRoot}/package.json`;
+	if (!fs.existsSync(packageJsonPath)) {
+		return {};
+	}
+	const packageJson = JSON.parse(fs.readFileSync(packageJsonPath).toString());
+	return packageJson.publishedDependencies ?? {};
 }
 
 interface MonorepoDependency {

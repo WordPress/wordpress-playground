@@ -63,6 +63,19 @@ function getSourceImports(projectDir: string): Set<string> {
 	return imports;
 }
 
+/**
+ * Returns the names declared in a project's `publishedDependencies` field.
+ * These are bare imports that survive only in bundled vendored build output
+ * (e.g. @wp-playground/storage bundles isomorphic-git, which imports crc-32),
+ * so they are intentionally absent from the package's own source files.
+ */
+function getPublishedDependencies(projectDir: string): Set<string> {
+	const pkgJsonPath = path.join(projectDir, 'package.json');
+	if (!fs.existsSync(pkgJsonPath)) return new Set();
+	const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+	return new Set<string>(Object.keys(pkgJson.publishedDependencies || {}));
+}
+
 function getInstalledPackages(): Array<{ name: string; dir: string }> {
 	const results: Array<{ name: string; dir: string }> = [];
 	for (const scope of ['@php-wasm', '@wp-playground']) {
@@ -87,6 +100,7 @@ describe('Built package dependencies', () => {
 			if (!directory || !fs.existsSync(directory)) return;
 
 			const sourceImports = getSourceImports(directory);
+			const publishedDependencies = getPublishedDependencies(directory);
 
 			const packageJsonFile = JSON.parse(
 				fs.readFileSync(path.join(pkg.dir, 'package.json'), 'utf-8')
@@ -98,8 +112,9 @@ describe('Built package dependencies', () => {
 
 			for (const dependency of dependencies) {
 				assert.ok(
-					sourceImports.has(dependency),
-					`${pkg.name} declares dependency "${dependency}" but it is not imported from any source file`
+					sourceImports.has(dependency) ||
+						publishedDependencies.has(dependency),
+					`${pkg.name} declares dependency "${dependency}" but it is not imported from any source file or declared in publishedDependencies`
 				);
 			}
 		});
