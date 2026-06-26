@@ -10,6 +10,7 @@ import {
 import {
 	SupportedPHPVersions,
 	type FileLockManager,
+	type RequestedRangeLock,
 	type WholeFileLockOp,
 	// TODO: Test with native file lock managers?
 	FileLockManagerInMemory,
@@ -1471,10 +1472,11 @@ error_log = ${errorLogPath}
 			);
 		});
 
-		// Cover the same fd-path bookkeeping without involving SQLite.
+		// Cover the same fd-path bookkeeping outside the WAL-specific path.
 		// Shutdown cleanup must not see a stale lock for an unlinked file.
-		test(`should release locks when a locked file is unlinked before the file descriptor closes`, async () => {
+		test(`should release whole-file and byte-range locks when a locked file is unlinked before the file descriptor closes`, async () => {
 			const lockedWholeFileFds = new Map<number, string>();
+			const lockedRangePaths = new Set<string>();
 			const remainingLocksAtProcessRelease: string[][] = [];
 			const fileLockManager: FileLockManager = {
 				lockWholeFile: vi.fn((path: string, op: WholeFileLockOp) => {
@@ -1485,7 +1487,14 @@ error_log = ${errorLogPath}
 					}
 					return true;
 				}),
-				lockFileByteRange: vi.fn().mockReturnValue(true),
+				lockFileByteRange: vi.fn(
+					(path: string, op: RequestedRangeLock) => {
+						if (op.type !== 'unlocked') {
+							lockedRangePaths.add(path);
+						}
+						return true;
+					}
+				),
 				findFirstConflictingByteRangeLock: vi
 					.fn()
 					.mockReturnValue(undefined),
@@ -1494,13 +1503,16 @@ error_log = ${errorLogPath}
 						if (lockedWholeFileFds.get(fd) === path) {
 							lockedWholeFileFds.delete(fd);
 						}
+						lockedRangePaths.delete(path);
 					}
 				),
 				releaseLocksForProcess: vi.fn((_pid: number) => {
 					remainingLocksAtProcessRelease.push([
 						...lockedWholeFileFds.values(),
+						...lockedRangePaths.values(),
 					]);
 					lockedWholeFileFds.clear();
+					lockedRangePaths.clear();
 				}),
 			};
 			using php = new PHP(
@@ -1549,6 +1561,42 @@ error_log = ${errorLogPath}
 			);
 			expect(fileLockManager.releaseLocksForProcess).toHaveBeenCalled();
 			expect(remainingLocksAtProcessRelease).toEqual([[]]);
+
+			const rangeLockFileName = 'range-locked-unlinked.sqlite';
+			const nativeRangeLockFilePath = join(tempDir, rangeLockFileName);
+			const vfsRangeLockFilePath = `${vfsMountPoint}/${rangeLockFileName}`;
+			writeFileSync(nativeRangeLockFilePath, '');
+			const expectedRangeLockNativeFilePath = realpathSync(
+				nativeRangeLockFilePath
+			);
+
+			const rangeLockResult = await php.run({
+				code: `<?php
+						$db = new SQLite3('${vfsRangeLockFilePath}');
+						$db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+						$db->exec('BEGIN EXCLUSIVE');
+						$db->querySingle('SELECT COUNT(*) FROM test');
+						if (!unlink('${vfsRangeLockFilePath}')) {
+							throw new Error('Failed to unlink test database');
+						}
+						// Intentionally leave the database connection open until shutdown.
+					`,
+			});
+
+			expect(rangeLockResult.exitCode).toBe(0);
+			expect(fileLockManager.lockFileByteRange).toHaveBeenCalledWith(
+				expectedRangeLockNativeFilePath,
+				expect.objectContaining({
+					type: expect.stringMatching(/^(shared|exclusive)$/),
+				}),
+				expect.any(Boolean)
+			);
+			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
+				expect.any(Number),
+				expect.any(Number),
+				expectedRangeLockNativeFilePath
+			);
+			expect(remainingLocksAtProcessRelease).toEqual([[], []]);
 		});
 
 		test(`should not attempt to lock a MEMFS file or a PROXYFS node that wraps a MEMFS file`, async () => {
