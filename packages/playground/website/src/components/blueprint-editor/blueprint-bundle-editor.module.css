@@ -47,14 +47,16 @@
 }
 
 .editorPath {
-	flex: 1;
-	min-width: 0;
+	flex: 1 1 16rem;
+	min-width: min(100%, 12rem);
 	font-family:
 		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
 	color: var(--color-gray-700);
-	word-break: break-all;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .editorPathPlaceholder {

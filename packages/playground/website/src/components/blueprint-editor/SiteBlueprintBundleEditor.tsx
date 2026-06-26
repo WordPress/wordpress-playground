@@ -267,6 +267,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					site={site}
 					className={className}
 					readOnly={readOnly}
+					hideSidebar={true}
 				/>
 			)}
 		</div>

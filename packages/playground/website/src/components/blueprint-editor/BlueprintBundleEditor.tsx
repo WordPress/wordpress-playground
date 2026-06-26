@@ -258,6 +258,7 @@ export type BlueprintBundleEditorProps = {
 	site?: SiteInfo;
 	autoRunToken?: number;
 	readOnly?: boolean;
+	hideSidebar?: boolean;
 };
 
 export interface BlueprintBundleEditorHandle {
@@ -270,7 +271,7 @@ export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
 >(function BlueprintFilesystemEditor(
-	{ filesystem, className, site, autoRunToken, readOnly },
+	{ filesystem, className, site, autoRunToken, readOnly, hideSidebar },
 	ref
 ) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>('/');
@@ -673,44 +674,50 @@ export const BlueprintBundleEditor = forwardRef<
 						[styles.sidebarOpen]: showExplorerOnMobile,
 					})}
 				>
-					<div
-						className={styles.mobileOverlay}
-						onClick={() => setShowExplorerOnMobile(false)}
-					/>
-					<aside
-						className={classNames(
-							styles.sidebarWrapper,
-							hideRootStyles.hideRoot
-						)}
-					>
-						<FileExplorerSidebar
-							filesystem={filesystem}
-							currentPath={currentPath}
-							selectedDirPath={selectedDirPath}
-							setSelectedDirPath={setSelectedDirPath}
-							focusPath={treeFocusPath}
-							onFileOpened={handleFileOpened}
-							onSelectionCleared={handleClearSelection}
-							onShowMessage={handleShowMessage}
-							documentRoot="/"
-							readOnly={readOnly}
-						/>
-					</aside>
+					{!hideSidebar && (
+						<>
+							<div
+								className={styles.mobileOverlay}
+								onClick={() => setShowExplorerOnMobile(false)}
+							/>
+							<aside
+								className={classNames(
+									styles.sidebarWrapper,
+									hideRootStyles.hideRoot
+								)}
+							>
+								<FileExplorerSidebar
+									filesystem={filesystem}
+									currentPath={currentPath}
+									selectedDirPath={selectedDirPath}
+									setSelectedDirPath={setSelectedDirPath}
+									focusPath={treeFocusPath}
+									onFileOpened={handleFileOpened}
+									onSelectionCleared={handleClearSelection}
+									onShowMessage={handleShowMessage}
+									documentRoot="/"
+									readOnly={readOnly}
+								/>
+							</aside>
+						</>
+					)}
 					<section className={styles.editorWrapper}>
 						<div className={styles.editorHeader}>
-							<Button
-								className={styles.mobileToggle}
-								variant="secondary"
-								onClick={() =>
-									setShowExplorerOnMobile(
-										(previous) => !previous
-									)
-								}
-							>
-								{showExplorerOnMobile
-									? 'Hide files'
-									: 'Browse files'}
-							</Button>
+							{!hideSidebar && (
+								<Button
+									className={styles.mobileToggle}
+									variant="secondary"
+									onClick={() =>
+										setShowExplorerOnMobile(
+											(previous) => !previous
+										)
+									}
+								>
+									{showExplorerOnMobile
+										? 'Hide files'
+										: 'Browse files'}
+								</Button>
+							)}
 							<div
 								className={classNames(styles.editorPath, {
 									[styles.editorPathPlaceholder]:
