@@ -170,20 +170,24 @@ export function bindUserSpace(
 	type FcntlLockState = typeof F_RDLCK | typeof F_WRLCK | typeof F_UNLCK;
 	const locking = {
 		/*
-		 * These are possibly locked file descriptors and their last known
-		 * native paths. The path must be captured when the lock succeeds
-		 * because close-time cleanup may run after the file is unlinked.
+		 * Possibly locked file descriptors and their last known native paths.
+		 * The path must be captured when the lock succeeds because close-time
+		 * cleanup may run after the file is unlinked.
+		 *
+		 * WARNING: This fixes cleanup when a known path disappears before
+		 * close, but it does not make path-keyed lock bookkeeping rename-safe.
+		 * If a locked file is renamed, later lock operations may address the
+		 * same underlying file through a different path than the one stored
+		 * here. Correctly handling that requires stable file identity tracking,
+		 * such as device/inode keys or rename-aware lock manager updates.
 		 */
-		maybeLockedFds: new Set(),
 		maybeLockedFdPaths: new Map<number, string>(),
 
 		remember_maybe_locked_fd(fd: number, nativePath: string) {
-			locking.maybeLockedFds.add(fd);
 			locking.maybeLockedFdPaths.set(fd, nativePath);
 		},
 
 		forget_maybe_locked_fd(fd: number) {
-			locking.maybeLockedFds.delete(fd);
 			locking.maybeLockedFdPaths.delete(fd);
 		},
 
@@ -914,24 +918,10 @@ export function bindUserSpace(
 			locking.get_vfs_path_from_fd(fd);
 		const [nativeFd, nativeFdErrno] =
 			locking.get_native_fd_from_emscripten_fd(fd);
-		let nativeFilePath =
+		const nativeFilePath =
 			nativeFdErrno === 0
 				? locking.maybeLockedFdPaths.get(nativeFd)
 				: undefined;
-		let nativeFilePathError: unknown;
-		if (
-			nativeFilePath === undefined &&
-			vfsPathResolutionErrno === 0 &&
-			nativeFdErrno === 0 &&
-			locking.maybeLockedFds.has(nativeFd) &&
-			locking.is_path_to_shared_fs(vfsPath)
-		) {
-			try {
-				nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
-			} catch (e) {
-				nativeFilePathError = e;
-			}
-		}
 
 		const fdCloseResult = builtin_fd_close(fd);
 		if (fdCloseResult !== 0) {
@@ -943,7 +933,18 @@ export function bindUserSpace(
 			);
 			return fdCloseResult;
 		}
-		if (!locking.maybeLockedFds.has(nativeFd)) {
+
+		if (nativeFdErrno !== 0) {
+			js_wasm_trace(
+				'fd_close(%d) %s get_native_fd_from_emscripten_fd error %d',
+				fd,
+				vfsPath,
+				nativeFdErrno
+			);
+			return fdCloseResult;
+		}
+
+		if (nativeFilePath === undefined) {
 			js_wasm_trace(
 				'fd_close(%d) not in maybe-locked-list %s result %d',
 				fd,
@@ -961,39 +962,9 @@ export function bindUserSpace(
 			);
 			/*
 			 * This can happen when a locked file is unlinked before close.
-			 * If we captured the native path when the lock was acquired,
+			 * Since the native path was captured when the lock was acquired,
 			 * close-time cleanup can still release the lock manager state.
 			 */
-			if (nativeFilePath === undefined) {
-				locking.forget_maybe_locked_fd(nativeFd);
-				return fdCloseResult;
-			}
-		}
-
-		if (nativeFdErrno !== 0) {
-			js_wasm_trace(
-				'fd_close(%d) %s get_native_fd_from_emscripten_fd error %d',
-				fd,
-				vfsPath,
-				nativeFdErrno
-			);
-			return fdCloseResult;
-		}
-
-		if (nativeFilePathError) {
-			js_wasm_trace(
-				"fd_close(%d) %s error '%s'",
-				fd,
-				vfsPath,
-				nativeFilePathError
-			);
-			locking.forget_maybe_locked_fd(nativeFd);
-			return fdCloseResult;
-		}
-
-		if (nativeFilePath === undefined) {
-			locking.forget_maybe_locked_fd(nativeFd);
-			return fdCloseResult;
 		}
 
 		try {
