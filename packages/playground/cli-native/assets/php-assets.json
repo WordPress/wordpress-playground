@@ -1,0 +1,86 @@
+{
+	"schemaVersion": 1,
+	"runtime": "node-builds/asyncify",
+	"php": {
+		"5.2": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/5-2/asyncify/php_5_2.js",
+				"sha256": "669cdf5ba35c17fcae3741a34aa852405360ae28b4e1bee3f3ff815172366f53"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/5-2/asyncify/5_2_17/php_5_2.wasm",
+				"sha256": "4914abf58bbc1615de3a0e6f1f58b6ad5a6d19f5814d3bd2ae6d1f962c397e15"
+			}
+		},
+		"7.4": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/7-4/asyncify/php_7_4.js",
+				"sha256": "3f197189e19c993bb6ee363655b5e87bece97684972271992f935d4e76eb7f9f"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/7-4/asyncify/7_4_33/php_7_4.wasm",
+				"sha256": "9c7d85fda7995424a05122bef07fe50a847548a97b25381dcc17cc44fd40a815"
+			}
+		},
+		"8.0": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/8-0/asyncify/php_8_0.js",
+				"sha256": "bccf3382e34d5b76baf967c5b4e45e923cf472ae2a4abffb802b1046cb65b00e"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/8-0/asyncify/8_0_30/php_8_0.wasm",
+				"sha256": "87699a3404a0749adc124e99aae7499030221122338c81421f4ab21f268eb23e"
+			}
+		},
+		"8.1": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/8-1/asyncify/php_8_1.js",
+				"sha256": "0dd0180280cdc549de20d11533ef170b09bb6608c9e863d1e45bc81ba9efaf1a"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/8-1/asyncify/8_1_34/php_8_1.wasm",
+				"sha256": "d32fa5f7abebc16054cf05be08e799aeefb158c4c310a9a147897bff3331bcd9"
+			}
+		},
+		"8.2": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/8-2/asyncify/php_8_2.js",
+				"sha256": "6090f159f0e7dc71a39012d90c3dabf9a8e392ba917abcb8d13eeaa6f18e6c81"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/8-2/asyncify/8_2_30/php_8_2.wasm",
+				"sha256": "f3a6d7f123c276af4eaf90ef4a6ed29a2ea4a68f2d36b2d9f03805700d7cb016"
+			}
+		},
+		"8.3": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js",
+				"sha256": "e4e136891d7dd816fca17dc8c58607762a3afb5bc2d9269bb4634836ad52f083"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm",
+				"sha256": "a8880b4cb7bb84ad52abb83e009d612c2292bc3a07ccdeb0d4c2499aaf678daa"
+			}
+		},
+		"8.4": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/8-4/asyncify/php_8_4.js",
+				"sha256": "d17a9d5bfab35fef4a19f8d0741695d67e39ddb93bf52c7caef86b717b1d8174"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/8-4/asyncify/8_4_20/php_8_4.wasm",
+				"sha256": "d0ba499ad4fb9feb6e9b1995198e42c62be918c3d3c557b76695e35dcd705553"
+			}
+		},
+		"8.5": {
+			"js": {
+				"path": "packages/php-wasm/node-builds/8-5/asyncify/php_8_5.js",
+				"sha256": "fb651c4d0c45e3df33659bccde31ee403870bb643d3e4ec9ed32d50073d06f9e"
+			},
+			"wasm": {
+				"path": "packages/php-wasm/node-builds/8-5/asyncify/8_5_5/php_8_5.wasm",
+				"sha256": "0c63ce70a18d3525e263906f215c13ee008efa3fd83873e0116a7522b2e1e27d"
+			}
+		}
+	}
+}

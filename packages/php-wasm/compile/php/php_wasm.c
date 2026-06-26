@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "zend_globals_macros.h"
 #include "zend_exceptions.h"
@@ -923,6 +924,10 @@ static char *wasm_sapi_read_cookies(TSRMLS_D);
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC);
 void wasm_init_server_context();
 static char *int_to_string(int i);
+static int wasm_sapi_blob_read_u32(char *blob, int blob_len, int offset, unsigned int *value);
+static char *wasm_sapi_blob_string(char *blob, int blob_len, unsigned int offset);
+static int wasm_sapi_blob_validate_entries(char *blob, int blob_len, unsigned int entries_offset, unsigned int entry_count);
+static int wasm_sapi_blob_add_entries(char *blob, int blob_len, unsigned int entries_offset, unsigned int entry_count, int is_env);
 
 
 #if (PHP_MAJOR_VERSION >= 8)
@@ -1223,6 +1228,237 @@ void wasm_add_ENV_entry(char *key, char *value)
 	entry->value = strdup(value);
 	entry->next = wasm_server_context->env_array_entries;
 	wasm_server_context->env_array_entries = entry;
+}
+
+#define WASM_SAPI_REQUEST_HEADER_SIZE 68
+#define WASM_SAPI_REQUEST_ENTRY_SIZE 8
+
+static int wasm_sapi_blob_read_u32(char *blob, int blob_len, int offset, unsigned int *value)
+{
+	if (offset < 0 || blob_len < 0 || offset > blob_len - 4)
+	{
+		return -1;
+	}
+
+	*value =
+		((unsigned int)(unsigned char)blob[offset]) |
+		((unsigned int)(unsigned char)blob[offset + 1] << 8) |
+		((unsigned int)(unsigned char)blob[offset + 2] << 16) |
+		((unsigned int)(unsigned char)blob[offset + 3] << 24);
+	return 0;
+}
+
+static char *wasm_sapi_blob_string(char *blob, int blob_len, unsigned int offset)
+{
+	if (offset == 0 || offset >= (unsigned int)blob_len)
+	{
+		return NULL;
+	}
+
+	for (unsigned int i = offset; i < (unsigned int)blob_len; ++i)
+	{
+		if (blob[i] == '\0')
+		{
+			return blob + offset;
+		}
+	}
+
+	return NULL;
+}
+
+static int wasm_sapi_blob_validate_entries(char *blob, int blob_len, unsigned int entries_offset, unsigned int entry_count)
+{
+	if (entry_count == 0)
+	{
+		return 0;
+	}
+	if (entries_offset == 0 || entries_offset >= (unsigned int)blob_len)
+	{
+		return -1;
+	}
+	if (entry_count > (((unsigned int)blob_len - entries_offset) / WASM_SAPI_REQUEST_ENTRY_SIZE))
+	{
+		return -1;
+	}
+
+	for (unsigned int i = 0; i < entry_count; ++i)
+	{
+		unsigned int key_offset, value_offset;
+		int entry_offset = entries_offset + (i * WASM_SAPI_REQUEST_ENTRY_SIZE);
+		if (
+			wasm_sapi_blob_read_u32(blob, blob_len, entry_offset, &key_offset) != 0 ||
+			wasm_sapi_blob_read_u32(blob, blob_len, entry_offset + 4, &value_offset) != 0 ||
+			wasm_sapi_blob_string(blob, blob_len, key_offset) == NULL ||
+			wasm_sapi_blob_string(blob, blob_len, value_offset) == NULL)
+		{
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int wasm_sapi_blob_add_entries(char *blob, int blob_len, unsigned int entries_offset, unsigned int entry_count, int is_env)
+{
+	for (unsigned int i = 0; i < entry_count; ++i)
+	{
+		unsigned int key_offset, value_offset;
+		int entry_offset = entries_offset + (i * WASM_SAPI_REQUEST_ENTRY_SIZE);
+		if (
+			wasm_sapi_blob_read_u32(blob, blob_len, entry_offset, &key_offset) != 0 ||
+			wasm_sapi_blob_read_u32(blob, blob_len, entry_offset + 4, &value_offset) != 0)
+		{
+			return -1;
+		}
+
+		if (is_env)
+		{
+			wasm_add_ENV_entry(
+				wasm_sapi_blob_string(blob, blob_len, key_offset),
+				wasm_sapi_blob_string(blob, blob_len, value_offset));
+		}
+		else
+		{
+			wasm_add_SERVER_entry(
+				wasm_sapi_blob_string(blob, blob_len, key_offset),
+				wasm_sapi_blob_string(blob, blob_len, value_offset));
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * Function: wasm_sapi_set_request
+ * ----------------------------
+ *   Sets all SAPI request fields and $_SERVER/env entries from one packed blob.
+ *
+ *   Blob format:
+ *     bytes 0..4: "WSRQ"
+ *     little-endian u32 fields:
+ *       version, flags, request_port, content_length,
+ *       request_uri_off, query_string_off, request_method_off, request_host_off,
+ *       path_translated_off, content_type_off, cookies_off, body_off,
+ *       server_entries_off, server_entry_count, env_entries_off, env_entry_count
+ *
+ *   String offsets are relative to the blob start and point at NUL-terminated
+ *   strings. The request body may contain NUL bytes and remains owned by the
+ *   caller until wasm_sapi_handle_request returns.
+ */
+int EMSCRIPTEN_KEEPALIVE wasm_sapi_set_request(char *blob, int blob_len)
+{
+	unsigned int version, flags, request_port, content_length;
+	unsigned int request_uri_offset, query_string_offset, request_method_offset, request_host_offset;
+	unsigned int path_translated_offset, content_type_offset, cookies_offset, body_offset;
+	unsigned int server_entries_offset, server_entry_count, env_entries_offset, env_entry_count;
+	char *request_uri, *query_string, *request_method, *request_host, *path_translated;
+	char *content_type = NULL;
+	char *cookies = NULL;
+
+	if (blob == NULL || blob_len < WASM_SAPI_REQUEST_HEADER_SIZE || memcmp(blob, "WSRQ", 4) != 0)
+	{
+		return -1;
+	}
+
+	if (
+		wasm_sapi_blob_read_u32(blob, blob_len, 4, &version) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 8, &flags) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 12, &request_port) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 16, &content_length) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 20, &request_uri_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 24, &query_string_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 28, &request_method_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 32, &request_host_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 36, &path_translated_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 40, &content_type_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 44, &cookies_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 48, &body_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 52, &server_entries_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 56, &server_entry_count) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 60, &env_entries_offset) != 0 ||
+		wasm_sapi_blob_read_u32(blob, blob_len, 64, &env_entry_count) != 0)
+	{
+		return -1;
+	}
+
+	if (version != 1)
+	{
+		return -1;
+	}
+
+	request_uri = wasm_sapi_blob_string(blob, blob_len, request_uri_offset);
+	query_string = wasm_sapi_blob_string(blob, blob_len, query_string_offset);
+	request_method = wasm_sapi_blob_string(blob, blob_len, request_method_offset);
+	request_host = wasm_sapi_blob_string(blob, blob_len, request_host_offset);
+	path_translated = wasm_sapi_blob_string(blob, blob_len, path_translated_offset);
+	if (
+		request_uri == NULL ||
+		query_string == NULL ||
+		request_method == NULL ||
+		request_host == NULL ||
+		path_translated == NULL)
+	{
+		return -1;
+	}
+
+	if (content_type_offset != 0)
+	{
+		content_type = wasm_sapi_blob_string(blob, blob_len, content_type_offset);
+		if (content_type == NULL)
+		{
+			return -1;
+		}
+	}
+	if (cookies_offset != 0)
+	{
+		cookies = wasm_sapi_blob_string(blob, blob_len, cookies_offset);
+		if (cookies == NULL)
+		{
+			return -1;
+		}
+	}
+	if (content_length > 0)
+	{
+		if (body_offset == 0 || body_offset > (unsigned int)blob_len || content_length > ((unsigned int)blob_len - body_offset))
+		{
+			return -1;
+		}
+	}
+	if (
+		wasm_sapi_blob_validate_entries(blob, blob_len, server_entries_offset, server_entry_count) != 0 ||
+		wasm_sapi_blob_validate_entries(blob, blob_len, env_entries_offset, env_entry_count) != 0)
+	{
+		return -1;
+	}
+
+	(void)flags;
+	wasm_set_request_uri(request_uri);
+	wasm_set_query_string(query_string);
+	wasm_set_request_method(request_method);
+	wasm_set_request_host(request_host);
+	wasm_set_request_port((int)request_port);
+	wasm_set_path_translated(path_translated);
+	if (content_type != NULL)
+	{
+		wasm_set_content_type(content_type);
+	}
+	if (cookies != NULL)
+	{
+		wasm_set_cookies(cookies);
+	}
+	if (content_length > 0)
+	{
+		wasm_set_request_body(blob + body_offset);
+	}
+	wasm_set_content_length((int)content_length);
+	if (
+		wasm_sapi_blob_add_entries(blob, blob_len, server_entries_offset, server_entry_count, 0) != 0 ||
+		wasm_sapi_blob_add_entries(blob, blob_len, env_entries_offset, env_entry_count, 1) != 0)
+	{
+		return -1;
+	}
+
+	return 0;
 }
 
 /**

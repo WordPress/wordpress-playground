@@ -22,6 +22,7 @@ _unlink
 _php_wasm_init
 _wasm_add_ENV_entry
 _wasm_add_SERVER_entry
+_wasm_sapi_set_request
 _wasm_free
 _wasm_read
 _wasm_sapi_handle_request

@@ -181,6 +181,17 @@ const argParser = yargs(process.argv.slice(2))
 			description: 'The emscripten stack size to use for the build',
 			default: '1MB',
 		},
+		INITIAL_MEMORY: {
+			type: 'string',
+			description: 'The emscripten initial wasm memory size to use for the build',
+			default: '64MB',
+		},
+		MALLOC: {
+			type: 'string',
+			choices: ['dlmalloc', 'emmalloc', 'mimalloc'],
+			description: 'The emscripten malloc implementation to use for the build',
+			default: 'dlmalloc',
+		},
 	});
 
 const args = argParser.argv;
@@ -206,6 +217,8 @@ const platformDefaults = {
 		WITH_OPCACHE: 'yes',
 		WITH_IMAGICK: 'no',
 		STACK_SIZE: '1MB',
+		INITIAL_MEMORY: '64MB',
+		MALLOC: 'dlmalloc',
 	},
 	web: {},
 	node: {
@@ -373,6 +386,10 @@ await asyncSpawn(
 		getArg('WITH_OPCACHE'),
 		'--build-arg',
 		getArg('STACK_SIZE'),
+		'--build-arg',
+		getArg('INITIAL_MEMORY'),
+		'--build-arg',
+		getArg('MALLOC'),
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );

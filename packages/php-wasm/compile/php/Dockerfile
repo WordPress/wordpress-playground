@@ -2370,6 +2370,8 @@ COPY ./compile/php/phpwasm-emscripten-library-known-undefined-functions.js /root
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
 ARG STACK_SIZE
+ARG INITIAL_MEMORY
+ARG MALLOC
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
@@ -2420,7 +2422,8 @@ RUN set -euxo pipefail; \
 	-s EXPORTED_FUNCTIONS="@/root/.exported-functions" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
-	-s INITIAL_MEMORY=64MB \
+	-s INITIAL_MEMORY="$INITIAL_MEMORY" \
+	-s MALLOC="$MALLOC" \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s STACK_SIZE="$STACK_SIZE" \
 	-s ASSERTIONS=0 \

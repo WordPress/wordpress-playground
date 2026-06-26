@@ -1,0 +1,57 @@
+{
+	"name": "playground-cli-native",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/cli-native/src",
+	"projectType": "application",
+	"tags": ["scope:cli", "scope:experimental"],
+	"targets": {
+		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cargo build --manifest-path packages/playground/cli-native/Cargo.toml"
+			}
+		},
+		"test": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cargo test --manifest-path packages/playground/cli-native/Cargo.toml"
+			}
+		},
+		"lint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cargo clippy --manifest-path packages/playground/cli-native/Cargo.toml --all-targets -- -D warnings"
+			}
+		},
+		"fmt": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cargo fmt --manifest-path packages/playground/cli-native/Cargo.toml"
+			}
+		},
+		"package-smoke": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cargo build --manifest-path packages/playground/cli-native/Cargo.toml --release --bins && cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-php-version=8.3"
+			}
+		},
+		"package-wordpress-smoke": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cargo build --manifest-path packages/playground/cli-native/Cargo.toml --release --bins && cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-wordpress-server=8.3 --smoke-run-blueprint=8.3 --smoke-build-snapshot=8.3"
+			}
+		},
+		"benchmark-wordpress": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bash packages/playground/cli-native/scripts/benchmark-wordpress.sh"
+			}
+		},
+		"benchmark-php-wasm-variants": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bash packages/playground/cli-native/scripts/benchmark-php-wasm-variants.sh"
+			}
+		}
+	}
+}

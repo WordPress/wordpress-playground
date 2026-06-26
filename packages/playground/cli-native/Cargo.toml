@@ -1,0 +1,49 @@
+[package]
+name = "wp-playground-native"
+version = "0.1.0"
+edition = "2021"
+description = "Experimental native WordPress Playground CLI host"
+license = "GPL-2.0-or-later"
+publish = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+[[bin]]
+name = "wp-playground-native"
+path = "src/main.rs"
+
+[lib]
+name = "wp_playground_native"
+path = "src/lib.rs"
+
+[dependencies]
+getrandom = "0.3.4"
+mio = { version = "1.2.1", features = ["net", "os-poll"] }
+reqwest = { version = "0.12", default-features = false, features = [
+	"blocking",
+	"rustls-tls",
+] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+socket2 = "0.6"
+wasmtime = { version = "46.0.0", default-features = false, features = [
+	"cache",
+	"cranelift",
+	"parallel-compilation",
+	"runtime",
+	"std",
+	"wat",
+] }
+wasmtime-wasi = { version = "46.0.0", default-features = false, features = [
+	"p1",
+] }
+zip = { version = "6.0.0", default-features = false, features = [
+	"deflate-flate2-zlib-rs",
+] }
+
+[dev-dependencies]
+wasmparser = "0.252.0"
