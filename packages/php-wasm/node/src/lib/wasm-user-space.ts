@@ -970,7 +970,7 @@ export function bindUserSpace(
 		} catch (e) {
 			js_wasm_trace("fd_close(%d) %s error '%s'", fd, vfsPath, e);
 		} finally {
-			// The fd is closed now; keeping it would recreate the stale-fd bug.
+			// The fd is closed now; keeping it could recreate the stale-fd bug.
 			locking.maybeLockedFdPaths.delete(nativeFd);
 		}
 		return fdCloseResult;
