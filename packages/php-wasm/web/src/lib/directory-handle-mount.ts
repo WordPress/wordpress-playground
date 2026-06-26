@@ -1,4 +1,10 @@
-import type { Emscripten, MountHandler, PHP } from '@php-wasm/universal';
+import type {
+	Emscripten,
+	FilesystemSnapshot,
+	MountHandler,
+	PHP,
+	SnapshotFileEntry,
+} from '@php-wasm/universal';
 import { FSHelpers, __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
@@ -36,9 +42,11 @@ export interface MountOptions {
 		onProgress?: SyncProgressCallback;
 	};
 	onMount?: (mount: DirectoryHandleMount) => void;
+	onSqliteDatabaseWrite?: () => void;
 }
 export interface DirectoryHandleMount {
 	flush(): Promise<void>;
+	persistSqliteSnapshot(snapshot: string | FilesystemSnapshot): Promise<void>;
 	unmount(): Promise<void>;
 }
 export type SyncProgress = {
@@ -55,9 +63,21 @@ export type SyncProgressCallback = (
 
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
+	onSqliteDatabaseWrite?: () => void;
+}
+
+interface CopyMemfsToOpfsOptions {
+	hasSqliteSnapshotPublisher?: boolean;
 }
 
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
+const WORDPRESS_MEMFS_PATH = '/wordpress';
+const SQLITE_DB_MEMFS_PATH = '/wordpress/wp-content/database/.ht.sqlite';
+const SQLITE_DB_OPFS_DIR = '/wp-content/database';
+const SQLITE_DB_OPFS_PATH = '/wp-content/database/.ht.sqlite';
+const SQLITE_DB_FILENAME = '.ht.sqlite';
+const SQLITE_DB_COPY_FILENAME = '.ht.sqlite.copy';
+const SQLITE_SIDECAR_SUFFIXES = ['-journal', '-wal', '-shm'];
 
 export function createDirectoryHandleMountHandler(
 	handle: FileSystemDirectoryHandle,
@@ -72,17 +92,31 @@ export function createDirectoryHandleMountHandler(
 	};
 
 	return async function (php, FS, vfsMountPoint) {
+		// Note about SnapshotPublisher:
+		// The mount layer is generic OPFS persistence. It must only suppress
+		// raw SQLite database/sidecar writes when a higher layer registered a
+		// snapshot publisher that will persist a validated .ht.sqlite replacement.
+		// Without that publisher, skipping .ht.sqlite would lose data for direct
+		// OPFS mount users, PHP-only runtimes, tests, or non-standard consumers.
+		// With it, raw SQLite replay stands down and snapshot persistence becomes
+		// the single owner of durable SQLite state.
+		const hasSqliteSnapshotPublisher =
+			options.onSqliteDatabaseWrite !== undefined;
 		if (options.initialSync.direction === 'opfs-to-memfs') {
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
 				FSHelpers.rmdir(FS, vfsMountPoint);
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
+				onSqliteDatabaseWrite: options.onSqliteDatabaseWrite,
+			});
 			options.onMount?.(mount);
 			return mount.unmount;
 		} else {
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
+				onSqliteDatabaseWrite: options.onSqliteDatabaseWrite,
+			});
 			options.onMount?.(mount);
 			let lastProgress: SyncProgress | undefined;
 			try {
@@ -96,6 +130,9 @@ export function createDirectoryHandleMountHandler(
 							phase: 'copying',
 						};
 						await options.initialSync.onProgress?.(lastProgress);
+					},
+					{
+						hasSqliteSnapshotPublisher,
 					}
 				);
 				await options.initialSync.onProgress?.({
@@ -186,7 +223,8 @@ export async function copyMemfsToOpfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
-	onProgress?: SyncProgressCallback
+	onProgress?: SyncProgressCallback,
+	options: CopyMemfsToOpfsOptions = {}
 ) {
 	// Ensure the memfs directory exists.
 	FS.mkdirTree(memfsRoot);
@@ -207,6 +245,12 @@ export async function copyMemfsToOpfs(
 				)
 				.map(async (entryName: string) => {
 					const memfsPath = joinPaths(memfsParent, entryName);
+					if (
+						options.hasSqliteSnapshotPublisher &&
+						isLiveSqliteDatabasePath(memfsPath)
+					) {
+						return;
+					}
 					if (!isMemfsDir(FS, memfsPath)) {
 						filesToCreate.push([opfsDir, memfsPath, entryName]);
 						return;
@@ -291,16 +335,24 @@ async function overwriteOpfsFile(
 	FS: Emscripten.RootFS,
 	memfsPath: string
 ) {
-	let buffer;
+	let buffer: Uint8Array;
 	try {
 		buffer = FS.readFile(memfsPath, {
 			encoding: 'binary',
-		});
+		}) as Uint8Array;
 	} catch {
 		// File was removed, ignore
 		return;
 	}
 
+	await writeOpfsFile(opfsParent, name, buffer);
+}
+
+async function writeOpfsFile(
+	opfsParent: FileSystemDirectoryHandle,
+	name: string,
+	buffer: BufferSource
+) {
 	const opfsFile = await opfsParent.getFileHandle(name, { create: true });
 	const writer =
 		opfsFile.createWritable !== undefined
@@ -316,6 +368,109 @@ async function overwriteOpfsFile(
 	}
 }
 
+async function persistSqliteSnapshotToOpfs(
+	opfsRoot: FileSystemDirectoryHandle,
+	snapshotBytes: Uint8Array
+): Promise<void> {
+	const opfsParent = await resolveParent(opfsRoot, SQLITE_DB_OPFS_PATH);
+	await writeOpfsFile(opfsParent, SQLITE_DB_COPY_FILENAME, snapshotBytes);
+	await publishOpfsFile(
+		opfsParent,
+		SQLITE_DB_COPY_FILENAME,
+		SQLITE_DB_FILENAME,
+		snapshotBytes
+	);
+	await removeSqliteSidecarFiles(opfsParent);
+}
+
+async function persistSqliteFilesystemSnapshotToOpfs(
+	opfsRoot: FileSystemDirectoryHandle,
+	snapshot: FilesystemSnapshot
+): Promise<void> {
+	const files = snapshot.entries.filter(
+		(entry): entry is SnapshotFileEntry =>
+			entry.type === 'file' && isLiveSqliteDatabasePath(entry.path)
+	);
+	const presentFilenames = new Set<string>();
+	for (const entry of files) {
+		if (entry.bytes === undefined) {
+			throw new Error(
+				`Cannot persist SQLite snapshot file ${entry.path}: missing bytes.`
+			);
+		}
+		const opfsPath = memfsPathToOpfsPath(entry.path);
+		const opfsParent = await resolveParent(opfsRoot, opfsPath);
+		const filename = getFilename(opfsPath);
+		presentFilenames.add(filename);
+		await writeOpfsFile(opfsParent, `${filename}.copy`, entry.bytes);
+		await publishOpfsFile(
+			opfsParent,
+			`${filename}.copy`,
+			filename,
+			entry.bytes
+		);
+	}
+
+	const databaseDir = await resolveDirectory(opfsRoot, SQLITE_DB_OPFS_DIR);
+	await removeStaleSqliteFiles(databaseDir, presentFilenames);
+}
+
+async function publishOpfsFile(
+	opfsParent: FileSystemDirectoryHandle,
+	copyName: string,
+	finalName: string,
+	fallbackBytes: Uint8Array
+) {
+	const copyFile = await opfsParent.getFileHandle(copyName);
+	if (typeof copyFile.move === 'function') {
+		try {
+			await copyFile.move(opfsParent, finalName);
+			return;
+		} catch {
+			// Some implementations do not support replacing an existing file.
+		}
+	}
+
+	// Rewriting the final database is not atomic. Keep the completed copy until
+	// the final write closes, so an interrupted rewrite still leaves recovery data.
+	await writeOpfsFile(opfsParent, finalName, fallbackBytes);
+	await opfsParent.removeEntry(copyName);
+}
+
+async function removeSqliteSidecarFiles(opfsParent: FileSystemDirectoryHandle) {
+	await Promise.all(
+		getSqliteSidecarFilenames().map(async (filename) => {
+			try {
+				await opfsParent.removeEntry(filename);
+			} catch {
+				// If the sidecar file is already missing, that's fine.
+			}
+		})
+	);
+}
+
+async function removeStaleSqliteFiles(
+	opfsParent: FileSystemDirectoryHandle,
+	presentFilenames: Set<string>
+) {
+	await Promise.all(
+		[
+			SQLITE_DB_FILENAME,
+			`${SQLITE_DB_FILENAME}.tmp`,
+			...getSqliteSidecarFilenames(),
+		].map(async (filename) => {
+			if (presentFilenames.has(filename)) {
+				return;
+			}
+			try {
+				await opfsParent.removeEntry(filename);
+			} catch {
+				// If the SQLite file is already missing, that's fine.
+			}
+		})
+	);
+}
+
 export function journalFSEventsToOpfs(
 	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
@@ -326,7 +481,11 @@ export function journalFSEventsToOpfs(
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
 	});
-	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
+	const hasSqliteSnapshotPublisher =
+		options.onSqliteDatabaseWrite !== undefined;
+	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot, {
+		hasSqliteSnapshotPublisher,
+	});
 	let flushPromise: Promise<void> | undefined;
 
 	function flush() {
@@ -346,6 +505,22 @@ export function journalFSEventsToOpfs(
 			php.removeEventListener('request.end', flushInBackground);
 			php.removeEventListener('filesystem.write', flushInBackground);
 		}
+	}
+
+	async function persistSqliteSnapshot(
+		snapshot: string | FilesystemSnapshot
+	) {
+		if (typeof snapshot === 'string') {
+			const snapshotBytes = php[__private__dont__use].FS.readFile(
+				snapshot,
+				{
+					encoding: 'binary',
+				}
+			) as Uint8Array;
+			await persistSqliteSnapshotToOpfs(opfsRoot, snapshotBytes);
+			return;
+		}
+		await persistSqliteFilesystemSnapshotToOpfs(opfsRoot, snapshot);
 	}
 
 	function flushInBackground() {
@@ -392,6 +567,9 @@ export function journalFSEventsToOpfs(
 		journal.splice(0, journalEntries.length);
 
 		const compressedJournal = normalizeFilesystemOperations(journalEntries);
+		const hadSqliteDatabaseEntries =
+			hasSqliteSnapshotPublisher &&
+			compressedJournal.some(isLiveSqliteDatabaseEntry);
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
@@ -401,12 +579,16 @@ export function journalFSEventsToOpfs(
 		} finally {
 			release();
 		}
+		if (hadSqliteDatabaseEntries) {
+			options.onSqliteDatabaseWrite?.();
+		}
 	}
 
 	php.addEventListener('request.end', flushInBackground);
 	php.addEventListener('filesystem.write', flushInBackground);
 	return {
 		flush,
+		persistSqliteSnapshot,
 		unmount,
 	};
 }
@@ -417,11 +599,19 @@ class OpfsRewriter {
 	private memfsRoot: string;
 	private php: PHP;
 	private opfs: FileSystemDirectoryHandle;
+	private hasSqliteSnapshotPublisher: boolean;
 
-	constructor(php: PHP, opfs: FileSystemDirectoryHandle, memfsRoot: string) {
+	constructor(
+		php: PHP,
+		opfs: FileSystemDirectoryHandle,
+		memfsRoot: string,
+		options: CopyMemfsToOpfsOptions = {}
+	) {
 		this.php = php;
 		this.opfs = opfs;
 		this.memfsRoot = normalizeMemfsPath(memfsRoot);
+		this.hasSqliteSnapshotPublisher =
+			options.hasSqliteSnapshotPublisher ?? false;
 	}
 
 	private toOpfsPath(path: string) {
@@ -432,6 +622,12 @@ class OpfsRewriter {
 		if (
 			!entry.path.startsWith(this.memfsRoot) ||
 			entry.path === this.memfsRoot
+		) {
+			return;
+		}
+		if (
+			this.hasSqliteSnapshotPublisher &&
+			isLiveSqliteDatabaseEntry(entry)
 		) {
 			return;
 		}
@@ -490,7 +686,12 @@ class OpfsRewriter {
 					await copyMemfsToOpfs(
 						this.php[__private__dont__use].FS,
 						opfsDir,
-						entry.toPath
+						entry.toPath,
+						undefined,
+						{
+							hasSqliteSnapshotPublisher:
+								this.hasSqliteSnapshotPublisher,
+						}
 					);
 					// Then delete the old directory
 					await opfsParent.removeEntry(name, {
@@ -544,12 +745,64 @@ class OpfsRewriter {
 	}
 }
 
+function isLiveSqliteDatabaseEntry(entry: JournalEntry) {
+	return (
+		isLiveSqliteDatabasePath(entry.path) ||
+		(entry.operation === 'RENAME' && isLiveSqliteDatabasePath(entry.toPath))
+	);
+}
+
+function isLiveSqliteDatabasePath(path: string) {
+	return (
+		path === SQLITE_DB_MEMFS_PATH || isSqliteSidecarOrTemporaryPath(path)
+	);
+}
+
+function isSqliteSidecarOrTemporaryPath(path: string) {
+	return (
+		path === `${SQLITE_DB_MEMFS_PATH}.tmp` ||
+		SQLITE_SIDECAR_SUFFIXES.some(
+			(suffix) => path === `${SQLITE_DB_MEMFS_PATH}${suffix}`
+		)
+	);
+}
+
+function getSqliteSidecarFilenames() {
+	return SQLITE_SIDECAR_SUFFIXES.map(
+		(suffix) => `${SQLITE_DB_FILENAME}${suffix}`
+	);
+}
+
 function normalizeMemfsPath(path: string) {
 	return path.replace(/\/$/, '').replace(/\/\/+/g, '/');
 }
 
 function getFilename(path: string) {
 	return path.substring(path.lastIndexOf('/') + 1);
+}
+
+function memfsPathToOpfsPath(path: string) {
+	if (!path.startsWith(WORDPRESS_MEMFS_PATH)) {
+		throw new Error(`Path ${path} is outside the WordPress mount.`);
+	}
+	return normalizeMemfsPath(path.substring(WORDPRESS_MEMFS_PATH.length));
+}
+
+async function resolveDirectory(
+	opfs: FileSystemDirectoryHandle,
+	relativePath: string
+) {
+	const normalizedPath = relativePath
+		.replace(/^\/+|\/+$/g, '')
+		.replace(/\/+/, '/');
+	let handle = opfs;
+	if (!normalizedPath) {
+		return handle;
+	}
+	for (const segment of normalizedPath.split('/')) {
+		handle = await handle.getDirectoryHandle(segment, { create: true });
+	}
+	return handle;
 }
 
 async function resolveParent(

@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { __private__dont__use } from '@php-wasm/universal';
-import type { MountHandler } from '@php-wasm/universal';
+import type { FilesystemSnapshot, MountHandler } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 	afterEach(() => {
+		vi.useRealTimers();
 		vi.unstubAllGlobals();
 	});
 
@@ -39,6 +40,247 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 
 		expect(endpoint.opfsMounts['/wordpress'].flush).toHaveBeenCalledTimes(
 			1
+		);
+	});
+
+	it('flushes before snapshotting SQLite and persists the post-flush snapshot', async () => {
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const order: string[] = [];
+		let didFlushBeforeSnapshot = false;
+		let snapshot = createSqliteFilesystemSnapshot('pre-flush');
+		php.snapshotFilesystem.mockImplementation(async () => {
+			expect(didFlushBeforeSnapshot).toBe(true);
+			order.push('snapshot');
+			return snapshot;
+		});
+		opfsMount.flush.mockImplementation(async () => {
+			order.push('flush');
+			didFlushBeforeSnapshot = true;
+			snapshot = createSqliteFilesystemSnapshot('post-flush');
+		});
+		opfsMount.persistSqliteSnapshot.mockImplementation(async () => {
+			order.push('persist');
+		});
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		await endpoint.flushOpfs('/wordpress');
+
+		expect(order.indexOf('flush')).toBeLessThan(order.indexOf('snapshot'));
+		expect(order.indexOf('snapshot')).toBeLessThan(
+			order.indexOf('persist')
+		);
+		expect(opfsMount.persistSqliteSnapshot).toHaveBeenCalledWith(snapshot);
+	});
+
+	it('debounces multiple SQLite write notifications into one snapshot', async () => {
+		vi.useFakeTimers();
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+
+		expect(php.snapshotFilesystem).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(100);
+
+		expect(php.snapshotFilesystem).toHaveBeenCalledTimes(1);
+		expect(opfsMount.persistSqliteSnapshot).toHaveBeenCalledTimes(1);
+	});
+
+	it('runs one trailing snapshot for writes reported during an active snapshot', async () => {
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const firstSnapshotStarted = deferred<void>();
+		const releaseFirstSnapshot = deferred<void>();
+		let activeSnapshots = 0;
+		let maxActiveSnapshots = 0;
+		let snapshotCount = 0;
+		php.snapshotFilesystem.mockImplementation(async () => {
+			const snapshotNumber = ++snapshotCount;
+			activeSnapshots++;
+			maxActiveSnapshots = Math.max(maxActiveSnapshots, activeSnapshots);
+			if (snapshotNumber === 1) {
+				firstSnapshotStarted.resolve(undefined);
+				await releaseFirstSnapshot.promise;
+			}
+			activeSnapshots--;
+			return createSqliteFilesystemSnapshot(`snapshot-${snapshotNumber}`);
+		});
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		const snapshotPersistence = (
+			endpoint as any
+		).persistSqliteSnapshotsUntilClean('/wordpress', opfsMount);
+		await firstSnapshotStarted.promise;
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		releaseFirstSnapshot.resolve(undefined);
+		await snapshotPersistence;
+
+		expect(maxActiveSnapshots).toBe(1);
+		expect(php.snapshotFilesystem).toHaveBeenCalledTimes(2);
+		expect(opfsMount.persistSqliteSnapshot).toHaveBeenNthCalledWith(
+			1,
+			createSqliteFilesystemSnapshot('snapshot-1')
+		);
+		expect(opfsMount.persistSqliteSnapshot).toHaveBeenNthCalledWith(
+			2,
+			createSqliteFilesystemSnapshot('snapshot-2')
+		);
+	});
+
+	it('does not run concurrent snapshots for overlapping flushes', async () => {
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const firstSnapshotStarted = deferred<void>();
+		const releaseFirstSnapshot = deferred<void>();
+		let activeSnapshots = 0;
+		let maxActiveSnapshots = 0;
+		php.snapshotFilesystem.mockImplementation(async () => {
+			activeSnapshots++;
+			maxActiveSnapshots = Math.max(maxActiveSnapshots, activeSnapshots);
+			firstSnapshotStarted.resolve(undefined);
+			await releaseFirstSnapshot.promise;
+			activeSnapshots--;
+			return createSqliteFilesystemSnapshot('snapshot');
+		});
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		const firstFlush = endpoint.flushOpfs('/wordpress');
+		await firstSnapshotStarted.promise;
+		const secondFlush = endpoint.flushOpfs('/wordpress');
+		releaseFirstSnapshot.resolve(undefined);
+		await Promise.all([firstFlush, secondFlush]);
+
+		expect(maxActiveSnapshots).toBe(1);
+		expect(php.snapshotFilesystem).toHaveBeenCalledTimes(1);
+		expect(opfsMount.persistSqliteSnapshot).toHaveBeenCalledTimes(1);
+	});
+
+	it('flushOpfs cancels the debounce and snapshots immediately', async () => {
+		vi.useFakeTimers();
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+
+		await endpoint.flushOpfs('/wordpress');
+
+		expect(php.snapshotFilesystem).toHaveBeenCalledTimes(1);
+		await vi.advanceTimersByTimeAsync(100);
+		expect(php.snapshotFilesystem).toHaveBeenCalledTimes(1);
+	});
+
+	it('unmountOpfs waits for pending and trailing snapshots before unmounting', async () => {
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const firstSnapshotStarted = deferred<void>();
+		const releaseFirstSnapshot = deferred<void>();
+		const order: string[] = [];
+		let snapshotCount = 0;
+		php.snapshotFilesystem.mockImplementation(async () => {
+			const snapshotNumber = ++snapshotCount;
+			order.push(`snapshot ${snapshotNumber}`);
+			if (snapshotNumber === 1) {
+				firstSnapshotStarted.resolve(undefined);
+				await releaseFirstSnapshot.promise;
+			}
+			return createSqliteFilesystemSnapshot(`snapshot-${snapshotNumber}`);
+		});
+		opfsMount.persistSqliteSnapshot.mockImplementation(async () => {
+			order.push(`persist ${snapshotCount}`);
+		});
+		const unmount = vi.fn(async () => {
+			order.push('unmount');
+		});
+		const endpoint = await createEndpoint(
+			{ '/wordpress': opfsMount },
+			{ '/wordpress': unmount }
+		);
+		endpoint.__internal_getPHP = () => php;
+
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		const unmountPromise = endpoint.unmountOpfs('/wordpress');
+		await firstSnapshotStarted.promise;
+		(endpoint as any).markSqliteSnapshotDirty('/wordpress');
+		expect(unmount).not.toHaveBeenCalled();
+
+		releaseFirstSnapshot.resolve(undefined);
+		await unmountPromise;
+
+		expect(php.snapshotFilesystem).toHaveBeenCalledTimes(2);
+		expect(order).toEqual([
+			'snapshot 1',
+			'persist 1',
+			'snapshot 2',
+			'persist 2',
+			'unmount',
+		]);
+	});
+
+	it('does not snapshot solely because OPFS restore contains SQLite sidecars', async () => {
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const endpoint = await createEndpoint({});
+		endpoint.__internal_getPHP = () => php;
+
+		await endpoint.mountOpfs({
+			device: {
+				type: 'local-fs',
+				handle: createSqliteLegacyDirectoryHandle(),
+			},
+			mountpoint: '/wordpress',
+		});
+
+		expect(php.snapshotFilesystem).not.toHaveBeenCalled();
+		expect(php[__private__dont__use].FS.createDataFile).toHaveBeenCalled();
+	});
+
+	it('does not use SQLite snapshot scheduling for non-WordPress mounts', async () => {
+		const opfsMount = createOpfsMount();
+		const php = createFakePhp();
+		php.isFile.mockReturnValue(true);
+		const endpoint = await createEndpoint({
+			'/plugin': opfsMount,
+		});
+		endpoint.__internal_getPHP = () => php;
+
+		(endpoint as any).markSqliteSnapshotDirty('/plugin');
+		await endpoint.flushOpfs('/plugin');
+
+		expect(opfsMount.flush).toHaveBeenCalledTimes(1);
+		expect(php.snapshotFilesystem).not.toHaveBeenCalled();
+		expect((endpoint as any).opfsSqliteSnapshotStates['/plugin']).toBe(
+			undefined
 		);
 	});
 
@@ -288,6 +530,8 @@ async function createEndpoint(
 	const endpoint = Object.create(PlaygroundWorkerEndpoint.prototype) as any;
 	endpoint.opfsMounts = createNullPrototypeRecord(opfsMounts);
 	endpoint.unmounts = createNullPrototypeRecord(unmounts);
+	endpoint.opfsSqliteSnapshotStates = createNullPrototypeRecord({});
+	endpoint.__internal_getPHP = () => createFakePhp();
 	return endpoint as {
 		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;
 		hasOpfsMount(mountpoint: string): Promise<boolean>;
@@ -312,6 +556,7 @@ function createNullPrototypeRecord<T>(entries: Record<string, T>) {
 function createOpfsMount() {
 	return {
 		flush: vi.fn(async () => {}),
+		persistSqliteSnapshot: vi.fn(async () => {}),
 		unmount: vi.fn(async () => {}),
 	};
 }
@@ -325,6 +570,7 @@ function createFakePhp(options: { skipMountHandler?: boolean } = {}) {
 		mkdir: vi.fn(),
 		rmdir: vi.fn(),
 		rename: vi.fn(),
+		createDataFile: vi.fn(),
 		lookupPath: vi.fn(() => {
 			throw new Error('Not found');
 		}),
@@ -342,8 +588,49 @@ function createFakePhp(options: { skipMountHandler?: boolean } = {}) {
 			}
 			return await mountHandler(php, FS as any, mountpoint);
 		}),
+		isFile: vi.fn(() => false),
+		snapshotFilesystem: vi.fn(async () =>
+			createSqliteFilesystemSnapshot('default')
+		),
+		run: vi.fn(async () => ({
+			text: JSON.stringify({
+				ok: true,
+				path: '/tmp/playground-sqlite-snapshot.sqlite',
+			}),
+		})),
 	};
 	return php;
+}
+
+function createSqliteFilesystemSnapshot(label: string): FilesystemSnapshot {
+	const databaseBytes = new TextEncoder().encode(label);
+	const walBytes = new TextEncoder().encode(`${label}-wal`);
+	return {
+		version: 1,
+		id: `snapshot-${label}`,
+		root: '/wordpress/wp-content/database',
+		createdAt: '2026-06-25T00:00:00.000Z',
+		entries: [
+			{
+				type: 'directory',
+				path: '/wordpress/wp-content/database',
+			},
+			{
+				type: 'file',
+				path: '/wordpress/wp-content/database/.ht.sqlite',
+				size: databaseBytes.byteLength,
+				hash: `test:${label}`,
+				bytes: databaseBytes,
+			},
+			{
+				type: 'file',
+				path: '/wordpress/wp-content/database/.ht.sqlite-wal',
+				size: walBytes.byteLength,
+				hash: `test:${label}-wal`,
+				bytes: walBytes,
+			},
+		],
+	};
 }
 
 function createEmptyDirectoryHandle() {
@@ -352,4 +639,50 @@ function createEmptyDirectoryHandle() {
 		name: 'root',
 		async *values() {},
 	} as unknown as FileSystemDirectoryHandle;
+}
+
+function createSqliteLegacyDirectoryHandle() {
+	return createDirectoryHandle('root', [
+		createDirectoryHandle('wp-content', [
+			createDirectoryHandle('database', [
+				createFileHandle('.ht.sqlite', 'main database'),
+				createFileHandle('.ht.sqlite-wal', 'committed wal frames'),
+				createFileHandle('.ht.sqlite-shm', 'wal index'),
+				createFileHandle('.ht.sqlite-journal', 'hot journal'),
+			]),
+		]),
+	]) as unknown as FileSystemDirectoryHandle;
+}
+
+function createDirectoryHandle(name: string, values: unknown[]) {
+	return {
+		kind: 'directory',
+		name,
+		async *values() {
+			yield* values;
+		},
+	};
+}
+
+function createFileHandle(name: string, contents: string) {
+	return {
+		kind: 'file',
+		name,
+		async getFile() {
+			const bytes = new TextEncoder().encode(contents);
+			return {
+				arrayBuffer: async () => bytes.buffer,
+			};
+		},
+	};
+}
+
+function deferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void;
+	let reject!: (reason?: any) => void;
+	const promise = new Promise<T>((_resolve, _reject) => {
+		resolve = _resolve;
+		reject = _reject;
+	});
+	return { promise, resolve, reject };
 }

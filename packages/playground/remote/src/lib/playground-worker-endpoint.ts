@@ -32,6 +32,7 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import { logger } from '@php-wasm/logger';
 import type {
 	AllPHPVersion,
+	FilesystemSnapshot,
 	PathAlias,
 	PHP,
 	PHPRequestHandler,
@@ -66,6 +67,19 @@ export interface MountDescriptor {
 	mountpoint: string;
 	device: MountDevice;
 	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
+}
+
+const WORDPRESS_MOUNTPOINT = '/wordpress';
+const SQLITE_DB_DIR_PATH = '/wordpress/wp-content/database';
+const SQLITE_DB_PATH = '/wordpress/wp-content/database/.ht.sqlite';
+const SQLITE_SNAPSHOT_DEBOUNCE_MS = 100;
+const SQLITE_SNAPSHOT_SIDECAR_SUFFIXES = ['-journal', '-wal', '-shm'];
+
+interface SqliteSnapshotState {
+	dirtyVersion: number;
+	persistedVersion: number;
+	debounceTimer?: ReturnType<typeof setTimeout>;
+	snapshotPromise?: Promise<void>;
 }
 
 export type WorkerBootOptions = {
@@ -121,6 +135,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	unmounts: Record<string, () => any> = createNullPrototypeRecord();
 	private opfsMounts: Record<string, DirectoryHandleMount> =
 		createNullPrototypeRecord();
+	private opfsSqliteSnapshotStates: Record<
+		string,
+		SqliteSnapshotState | undefined
+	> = createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
@@ -451,7 +469,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (opfsMount === undefined) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		await opfsMount.flush();
+		await this.flushOpfsMountWithSnapshot(mountpoint, opfsMount);
 	}
 
 	async unmountOpfs(mountpoint: string) {
@@ -462,7 +480,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 		let flushError: unknown;
 		try {
-			await opfsMount.flush();
+			await this.flushOpfsMountWithSnapshot(mountpoint, opfsMount);
 		} catch (error) {
 			flushError = error;
 		}
@@ -474,8 +492,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			}
 			logger.error(error);
 		} finally {
+			this.clearSqliteSnapshotTimer(mountpoint);
 			delete this.unmounts[mountpoint];
 			delete this.opfsMounts[mountpoint];
+			delete this.opfsSqliteSnapshotStates[mountpoint];
 		}
 		if (flushError !== undefined) {
 			throw flushError;
@@ -545,6 +565,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 		const handle = await directoryHandleFromMountDevice(options.device);
 		let opfsMount: DirectoryHandleMount | undefined;
+		const shouldPersistSqliteSnapshots =
+			options.mountpoint === WORDPRESS_MOUNTPOINT;
 		const unmount = await php.mount(
 			options.mountpoint,
 			createDirectoryHandleMountHandler(handle, {
@@ -555,6 +577,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				onMount(mount) {
 					opfsMount = mount;
 				},
+				onSqliteDatabaseWrite: shouldPersistSqliteSnapshots
+					? () => {
+							this.markSqliteSnapshotDirty(options.mountpoint);
+						}
+					: undefined,
 			})
 		);
 		if (opfsMount === undefined) {
@@ -569,6 +596,160 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 		this.unmounts[options.mountpoint] = unmount;
 		this.opfsMounts[options.mountpoint] = opfsMount;
+		if (
+			options.initialSyncDirection === 'memfs-to-opfs' &&
+			shouldPersistSqliteSnapshots
+		) {
+			try {
+				this.markSqliteSnapshotDirty(options.mountpoint);
+				await this.flushOpfsMountWithSnapshot(
+					options.mountpoint,
+					opfsMount
+				);
+			} catch (error) {
+				delete this.unmounts[options.mountpoint];
+				delete this.opfsMounts[options.mountpoint];
+				delete this.opfsSqliteSnapshotStates[options.mountpoint];
+				try {
+					await unmount();
+				} catch (unmountError) {
+					logger.error(unmountError);
+				}
+				throw error;
+			}
+		}
+	}
+
+	private async flushOpfsMountWithSnapshot(
+		mountpoint: string,
+		opfsMount: DirectoryHandleMount
+	) {
+		// Explicit flush owns this SQLite persistence turn. The flush below may
+		// discover SQLite journal entries and schedule a fresh debounce timer,
+		// so cancel timers both before and after flushing, then drain dirty state.
+		this.clearSqliteSnapshotTimer(mountpoint);
+		await opfsMount.flush();
+		this.clearSqliteSnapshotTimer(mountpoint);
+		await this.persistSqliteSnapshotsUntilClean(mountpoint, opfsMount);
+	}
+
+	private markSqliteSnapshotDirty(mountpoint: string) {
+		if (mountpoint !== WORDPRESS_MOUNTPOINT) {
+			return;
+		}
+		const state = this.getSqliteSnapshotState(mountpoint);
+		state.dirtyVersion++;
+		if (
+			state.snapshotPromise !== undefined ||
+			state.debounceTimer !== undefined
+		) {
+			return;
+		}
+		state.debounceTimer = setTimeout(() => {
+			delete state.debounceTimer;
+			void this.persistSqliteSnapshotsUntilClean(mountpoint).catch(
+				(error) => logger.error(error)
+			);
+		}, SQLITE_SNAPSHOT_DEBOUNCE_MS);
+	}
+
+	private clearSqliteSnapshotTimer(mountpoint: string) {
+		const state = this.opfsSqliteSnapshotStates[mountpoint];
+		if (state?.debounceTimer === undefined) {
+			return;
+		}
+		clearTimeout(state.debounceTimer);
+		delete state.debounceTimer;
+	}
+
+	private async persistSqliteSnapshotsUntilClean(
+		mountpoint: string,
+		opfsMount = this.opfsMounts[mountpoint]
+	) {
+		const state = this.opfsSqliteSnapshotStates[mountpoint];
+		if (opfsMount === undefined || state === undefined) {
+			return;
+		}
+		if (state.snapshotPromise !== undefined) {
+			await state.snapshotPromise;
+			if (state.dirtyVersion > state.persistedVersion) {
+				await this.persistSqliteSnapshotsUntilClean(
+					mountpoint,
+					opfsMount
+				);
+			}
+			return;
+		}
+		const snapshotPromise = Promise.resolve()
+			.then(() =>
+				this.runSqliteSnapshotLoop(mountpoint, opfsMount, state)
+			)
+			.finally(() => {
+				if (state.snapshotPromise === snapshotPromise) {
+					delete state.snapshotPromise;
+				}
+			});
+		state.snapshotPromise = snapshotPromise;
+		await snapshotPromise;
+	}
+
+	private async runSqliteSnapshotLoop(
+		mountpoint: string,
+		opfsMount: DirectoryHandleMount,
+		state: SqliteSnapshotState
+	) {
+		while (state.dirtyVersion > state.persistedVersion) {
+			const targetVersion = state.dirtyVersion;
+			await opfsMount.flush();
+			const snapshot = await this.snapshotSqliteIfPresent(mountpoint);
+			if (snapshot !== undefined) {
+				await opfsMount.persistSqliteSnapshot(snapshot);
+			}
+			state.persistedVersion = Math.max(
+				state.persistedVersion,
+				targetVersion
+			);
+		}
+	}
+
+	private getSqliteSnapshotState(mountpoint: string) {
+		let state = this.opfsSqliteSnapshotStates[mountpoint];
+		if (state === undefined) {
+			state = {
+				dirtyVersion: 0,
+				persistedVersion: 0,
+			};
+			this.opfsSqliteSnapshotStates[mountpoint] = state;
+		}
+		return state;
+	}
+
+	private async snapshotSqliteIfPresent(mountpoint: string) {
+		if (mountpoint !== WORDPRESS_MOUNTPOINT) {
+			return undefined;
+		}
+		return await this.snapshotSqliteFilesIfPresent();
+	}
+
+	private async snapshotSqliteFilesIfPresent(): Promise<
+		FilesystemSnapshot | undefined
+	> {
+		const php = this.__internal_getPHP()!;
+		if (!php.isFile(SQLITE_DB_PATH)) {
+			return undefined;
+		}
+		return await php.snapshotFilesystem(SQLITE_DB_DIR_PATH, {
+			includeBytes: true,
+			shouldIncludePath(path) {
+				return (
+					path === SQLITE_DB_DIR_PATH ||
+					path === SQLITE_DB_PATH ||
+					SQLITE_SNAPSHOT_SIDECAR_SUFFIXES.some(
+						(suffix) => path === `${SQLITE_DB_PATH}${suffix}`
+					)
+				);
+			},
+		});
 	}
 }
 

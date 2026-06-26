@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { __private__dont__use, type PHP } from '@php-wasm/universal';
-import { Semaphore } from '@php-wasm/util';
+import {
+	__private__dont__use,
+	type FilesystemSnapshot,
+	type PHP,
+} from '@php-wasm/universal';
+import { Semaphore, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import {
 	copyMemfsToOpfs,
@@ -12,12 +16,40 @@ class MemoryFileHandle {
 	kind = 'file' as const;
 	bytes = new Uint8Array();
 	name: string;
+	private parent: MemoryDirectoryHandle;
 	private onWrite?: () => void | Promise<void>;
 	private truncated = false;
+	move?: (
+		targetOrName: FileSystemDirectoryHandle | string,
+		name?: string
+	) => Promise<void>;
 
-	constructor(name: string, onWrite?: () => void | Promise<void>) {
+	constructor(
+		name: string,
+		parent: MemoryDirectoryHandle,
+		onWrite?: () => void | Promise<void>,
+		supportsMove = true
+	) {
 		this.name = name;
+		this.parent = parent;
 		this.onWrite = onWrite;
+		if (supportsMove) {
+			this.move = async (
+				targetOrName: FileSystemDirectoryHandle | string,
+				name?: string
+			) => {
+				const target =
+					typeof targetOrName === 'string'
+						? this.parent
+						: (targetOrName as unknown as MemoryDirectoryHandle);
+				const targetName =
+					typeof targetOrName === 'string' ? targetOrName : name!;
+				this.parent.files.delete(this.name);
+				this.name = targetName;
+				this.parent = target;
+				target.files.set(targetName, this);
+			};
+		}
 	}
 
 	async createWritable() {
@@ -39,6 +71,13 @@ class MemoryFileHandle {
 			seek: async () => {},
 		};
 	}
+
+	async getFile() {
+		const bytes = this.bytes.slice();
+		return {
+			arrayBuffer: async () => bytes.buffer,
+		};
+	}
 }
 
 class MemoryDirectoryHandle {
@@ -47,10 +86,16 @@ class MemoryDirectoryHandle {
 	directories = new Map<string, MemoryDirectoryHandle>();
 	name: string;
 	private onFileWrite?: () => void | Promise<void>;
+	private supportsMove: boolean;
 
-	constructor(name: string, onFileWrite?: () => void | Promise<void>) {
+	constructor(
+		name: string,
+		onFileWrite?: () => void | Promise<void>,
+		supportsMove = true
+	) {
 		this.name = name;
 		this.onFileWrite = onFileWrite;
+		this.supportsMove = supportsMove;
 	}
 
 	async getFileHandle(name: string, options?: { create?: boolean }) {
@@ -59,7 +104,12 @@ class MemoryDirectoryHandle {
 			if (!options?.create) {
 				throw new Error(`File not found: ${name}`);
 			}
-			handle = new MemoryFileHandle(name, this.onFileWrite);
+			handle = new MemoryFileHandle(
+				name,
+				this,
+				this.onFileWrite,
+				this.supportsMove
+			);
 			this.files.set(name, handle);
 		}
 		return handle as unknown as FileSystemFileHandle;
@@ -71,7 +121,11 @@ class MemoryDirectoryHandle {
 			if (!options?.create) {
 				throw new Error(`Directory not found: ${name}`);
 			}
-			handle = new MemoryDirectoryHandle(name, this.onFileWrite);
+			handle = new MemoryDirectoryHandle(
+				name,
+				this.onFileWrite,
+				this.supportsMove
+			);
 			this.directories.set(name, handle);
 		}
 		return handle as unknown as FileSystemDirectoryHandle;
@@ -80,6 +134,11 @@ class MemoryDirectoryHandle {
 	async removeEntry(name: string) {
 		this.files.delete(name);
 		this.directories.delete(name);
+	}
+
+	async *values() {
+		yield* this.directories.values();
+		yield* this.files.values();
 	}
 }
 
@@ -99,6 +158,182 @@ describe('journalFSEventsToOpfs', () => {
 		await mount.flush();
 
 		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
+	});
+
+	it('flushes the live SQLite database when snapshots are not configured', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set(
+			'/wordpress/wp-content/database/.ht.sqlite',
+			encode('live sqlite bytes')
+		);
+		FS.write({ path: '/wordpress/wp-content/database/.ht.sqlite' });
+
+		await mount.flush();
+
+		const database = opfsRoot.directories
+			.get('wp-content')!
+			.directories.get('database')!;
+		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe(
+			'live sqlite bytes'
+		);
+	});
+
+	it('does not flush the live SQLite database or sidecars when snapshots are configured', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const onSqliteDatabaseWrite = vi.fn();
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress',
+			{
+				onSqliteDatabaseWrite,
+			}
+		);
+
+		for (const path of [
+			'/wordpress/wp-content/database/.ht.sqlite',
+			'/wordpress/wp-content/database/.ht.sqlite-journal',
+			'/wordpress/wp-content/database/.ht.sqlite-wal',
+			'/wordpress/wp-content/database/.ht.sqlite-shm',
+		]) {
+			files.set(path, encode('live sqlite bytes'));
+			FS.write({ path });
+		}
+
+		await mount.flush();
+
+		expect(opfsRoot.directories.has('wp-content')).toBe(false);
+		expect(onSqliteDatabaseWrite).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not notify the snapshot publisher for non-SQLite writes', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const onSqliteDatabaseWrite = vi.fn();
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress',
+			{
+				onSqliteDatabaseWrite,
+			}
+		);
+
+		files.set('/wordpress/readme.txt', encode('saved'));
+		FS.write({ path: '/wordpress/readme.txt' });
+
+		await mount.flush();
+
+		expect(decode(opfsRoot.files.get('readme.txt')!.bytes)).toBe('saved');
+		expect(onSqliteDatabaseWrite).not.toHaveBeenCalled();
+	});
+
+	it('persists a SQLite snapshot as the canonical OPFS database file', async () => {
+		const { files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/tmp/playground-sqlite-snapshot.sqlite', encode('snapshot'));
+		await mount.persistSqliteSnapshot(
+			'/tmp/playground-sqlite-snapshot.sqlite'
+		);
+
+		const database = opfsRoot.directories
+			.get('wp-content')!
+			.directories.get('database')!;
+		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe(
+			'snapshot'
+		);
+		expect(database.files.has('.ht.sqlite.copy')).toBe(false);
+	});
+
+	it('persists a SQLite filesystem snapshot with WAL sidecars', async () => {
+		const { php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const wpContent = (await opfsRoot.getDirectoryHandle('wp-content', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		const database = (await wpContent.getDirectoryHandle('database', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		for (const name of ['.ht.sqlite-journal', '.ht.sqlite.tmp']) {
+			const file = (await database.getFileHandle(name, {
+				create: true,
+			})) as unknown as MemoryFileHandle;
+			file.bytes = encode('stale');
+		}
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		await mount.persistSqliteSnapshot(
+			createSqliteFilesystemSnapshot({
+				'.ht.sqlite': 'main',
+				'.ht.sqlite-wal': 'wal',
+				'.ht.sqlite-shm': 'shm',
+			})
+		);
+
+		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe('main');
+		expect(decode(database.files.get('.ht.sqlite-wal')!.bytes)).toBe('wal');
+		expect(decode(database.files.get('.ht.sqlite-shm')!.bytes)).toBe('shm');
+		expect(database.files.has('.ht.sqlite-journal')).toBe(false);
+		expect(database.files.has('.ht.sqlite.tmp')).toBe(false);
+		expect(database.files.has('.ht.sqlite.copy')).toBe(false);
+		expect(database.files.has('.ht.sqlite-wal.copy')).toBe(false);
+	});
+
+	it('removes the SQLite snapshot copy after fallback publishing without move()', async () => {
+		const { files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', undefined, false);
+		const wpContent = (await opfsRoot.getDirectoryHandle('wp-content', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		const database = (await wpContent.getDirectoryHandle('database', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		for (const name of [
+			'.ht.sqlite-journal',
+			'.ht.sqlite-wal',
+			'.ht.sqlite-shm',
+		]) {
+			const file = (await database.getFileHandle(name, {
+				create: true,
+			})) as unknown as MemoryFileHandle;
+			file.bytes = encode('stale sidecar');
+		}
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/tmp/playground-sqlite-snapshot.sqlite', encode('snapshot'));
+		await mount.persistSqliteSnapshot(
+			'/tmp/playground-sqlite-snapshot.sqlite'
+		);
+
+		expect(decode(database.files.get('.ht.sqlite')!.bytes)).toBe(
+			'snapshot'
+		);
+		expect(database.files.has('.ht.sqlite.copy')).toBe(false);
+		expect(database.files.has('.ht.sqlite-journal')).toBe(false);
+		expect(database.files.has('.ht.sqlite-wal')).toBe(false);
+		expect(database.files.has('.ht.sqlite-shm')).toBe(false);
 	});
 
 	it.each(['filesystem.write', 'request.end'] as const)(
@@ -360,6 +595,54 @@ describe('journalFSEventsToOpfs', () => {
 });
 
 describe('createDirectoryHandleMountHandler', () => {
+	it('restores existing OPFS SQLite sidecars without scheduling a snapshot', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const wpContent = (await opfsRoot.getDirectoryHandle('wp-content', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		const database = (await wpContent.getDirectoryHandle('database', {
+			create: true,
+		})) as unknown as MemoryDirectoryHandle;
+		for (const [name, contents] of [
+			['.ht.sqlite', 'main database'],
+			['.ht.sqlite-wal', 'committed wal frames'],
+			['.ht.sqlite-shm', 'wal index'],
+			['.ht.sqlite-journal', 'hot journal'],
+		] as const) {
+			const file = (await database.getFileHandle(name, {
+				create: true,
+			})) as unknown as MemoryFileHandle;
+			file.bytes = encode(contents);
+		}
+		const onSqliteDatabaseWrite = vi.fn();
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'opfs-to-memfs',
+				},
+				onSqliteDatabaseWrite,
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+
+		expect(
+			decode(files.get('/wordpress/wp-content/database/.ht.sqlite-wal')!)
+		).toBe('committed wal frames');
+		expect(
+			decode(files.get('/wordpress/wp-content/database/.ht.sqlite-shm')!)
+		).toBe('wal index');
+		expect(
+			decode(
+				files.get('/wordpress/wp-content/database/.ht.sqlite-journal')!
+			)
+		).toBe('hot journal');
+		expect(onSqliteDatabaseWrite).not.toHaveBeenCalled();
+	});
+
 	it('flushes changes made while the initial MEMFS to OPFS sync is still running', async () => {
 		let changedDuringInitialSync = false;
 		let mount: { flush(): Promise<void> } | undefined;
@@ -562,9 +845,11 @@ function createFakePhp() {
 		rename: vi.fn(),
 		lookupPath: vi.fn((path: string) => ({
 			path,
-			node: { mode: 0, path },
+			node: { mode: 0, path, mount: { mountpoint: '/' } },
 		})),
 		getPath: vi.fn((node: { path: string }) => node.path),
+		cwd: vi.fn(() => '/'),
+		chdir: vi.fn(),
 		isFile: vi.fn(() => true),
 		isDir: vi.fn(() => false),
 		readFile: vi.fn((path: string) => {
@@ -574,6 +859,11 @@ function createFakePhp() {
 			}
 			return file;
 		}),
+		createDataFile: vi.fn(
+			(parentPath: string, name: string, byteArray: Uint8Array) => {
+				files.set(joinPaths(parentPath, name), byteArray);
+			}
+		),
 	};
 	const listeners = new Map<string, Set<(event: { type: string }) => void>>();
 	const addEventListener = vi.fn(
@@ -608,6 +898,33 @@ function createFakePhp() {
 		files,
 		php,
 		removeEventListener,
+	};
+}
+
+function createSqliteFilesystemSnapshot(
+	files: Record<string, string>
+): FilesystemSnapshot {
+	return {
+		version: 1,
+		id: 'snapshot-id',
+		root: '/wordpress/wp-content/database',
+		createdAt: '2026-06-25T00:00:00.000Z',
+		entries: [
+			{
+				type: 'directory',
+				path: '/wordpress/wp-content/database',
+			},
+			...Object.entries(files).map(([name, contents]) => {
+				const bytes = encode(contents);
+				return {
+					type: 'file' as const,
+					path: `/wordpress/wp-content/database/${name}`,
+					size: bytes.byteLength,
+					hash: `test:${name}`,
+					bytes,
+				};
+			}),
+		],
 	};
 }
 
