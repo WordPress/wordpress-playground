@@ -254,6 +254,7 @@ export function SiteInfoPanel({
 
 		headerWidthRef.current = null;
 		setVisibleHeaderActionCount(headerActions.length);
+		let animationFrame: number | undefined;
 		const updateHeaderActionVisibility = (width: number) => {
 			if (headerWidthRef.current === width) {
 				return;
@@ -269,10 +270,19 @@ export function SiteInfoPanel({
 
 		updateHeaderActionVisibility(header.getBoundingClientRect().width);
 		const observer = new ResizeObserver((entries) => {
-			updateHeaderActionVisibility(entries[0].contentRect.width);
+			if (animationFrame !== undefined) {
+				cancelAnimationFrame(animationFrame);
+			}
+			animationFrame = requestAnimationFrame(() => {
+				updateHeaderActionVisibility(entries[0].contentRect.width);
+				animationFrame = undefined;
+			});
 		});
 		observer.observe(header);
 		return () => {
+			if (animationFrame !== undefined) {
+				cancelAnimationFrame(animationFrame);
+			}
 			observer.disconnect();
 		};
 	}, [headerActions.length, mobileUi, title]);
