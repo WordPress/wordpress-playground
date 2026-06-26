@@ -1483,6 +1483,8 @@ error_log = ${errorLogPath}
 		test(`should release whole-file locks when a locked file is unlinked before the file descriptor closes`, async () => {
 			const lockedWholeFileFds = new Map<number, string>();
 			const remainingLocksAtProcessRelease: string[][] = [];
+			const pidsReleasedOnFdClose: number[] = [];
+			const pidsReleasedForProcess: number[] = [];
 			const fileLockManager: FileLockManager = {
 				lockWholeFile: vi.fn((path: string, op: WholeFileLockOp) => {
 					if (op.type === 'unlock') {
@@ -1497,13 +1499,15 @@ error_log = ${errorLogPath}
 					.fn()
 					.mockReturnValue(undefined),
 				releaseLocksOnFdClose: vi.fn(
-					(_pid: number, fd: number, path: string) => {
+					(pid: number, fd: number, path: string) => {
+						pidsReleasedOnFdClose.push(pid);
 						if (lockedWholeFileFds.get(fd) === path) {
 							lockedWholeFileFds.delete(fd);
 						}
 					}
 				),
-				releaseLocksForProcess: vi.fn((_pid: number) => {
+				releaseLocksForProcess: vi.fn((pid: number) => {
+					pidsReleasedForProcess.push(pid);
 					remainingLocksAtProcessRelease.push([
 						...lockedWholeFileFds.values(),
 					]);
@@ -1565,6 +1569,8 @@ error_log = ${errorLogPath}
 				expectedNativeFilePath
 			);
 			expect(fileLockManager.releaseLocksForProcess).toHaveBeenCalled();
+			expect(pidsReleasedOnFdClose).toEqual([expect.any(Number)]);
+			expect(pidsReleasedForProcess).toEqual(pidsReleasedOnFdClose);
 			expect(remainingLocksAtProcessRelease).toEqual([[]]);
 		});
 
