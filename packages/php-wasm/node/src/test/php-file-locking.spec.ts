@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
@@ -10,6 +10,7 @@ import {
 import {
 	SupportedPHPVersions,
 	type FileLockManager,
+	type WholeFileLockOp,
 	// TODO: Test with native file lock managers?
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
@@ -1431,6 +1432,8 @@ error_log = ${errorLogPath}
 
 		// TODO: Test fcntl() somehow. The DB tests should use fcntl(), but explicit tests would be better.
 
+		// Regression for https://github.com/WordPress/wordpress-playground/issues/3830.
+		// SQLite WAL unlinks `.ht.sqlite-shm` before its fd is closed.
 		test(`should release SQLite WAL shared-memory byte-range locks when the file descriptor is closed`, async () => {
 			const fileLockManager = createMockFileLockManager();
 			using php = new PHP(
@@ -1466,6 +1469,86 @@ error_log = ${errorLogPath}
 				expect.any(Number),
 				expect.stringMatching(/\.ht\.sqlite-shm$/)
 			);
+		});
+
+		// Cover the same fd-path bookkeeping without involving SQLite.
+		// Shutdown cleanup must not see a stale lock for an unlinked file.
+		test(`should release locks when a locked file is unlinked before the file descriptor closes`, async () => {
+			const lockedWholeFileFds = new Map<number, string>();
+			const remainingLocksAtProcessRelease: string[][] = [];
+			const fileLockManager: FileLockManager = {
+				lockWholeFile: vi.fn((path: string, op: WholeFileLockOp) => {
+					if (op.type === 'unlock') {
+						lockedWholeFileFds.delete(op.fd);
+					} else {
+						lockedWholeFileFds.set(op.fd, path);
+					}
+					return true;
+				}),
+				lockFileByteRange: vi.fn().mockReturnValue(true),
+				findFirstConflictingByteRangeLock: vi
+					.fn()
+					.mockReturnValue(undefined),
+				releaseLocksOnFdClose: vi.fn(
+					(_pid: number, fd: number, path: string) => {
+						if (lockedWholeFileFds.get(fd) === path) {
+							lockedWholeFileFds.delete(fd);
+						}
+					}
+				),
+				releaseLocksForProcess: vi.fn((_pid: number) => {
+					remainingLocksAtProcessRelease.push([
+						...lockedWholeFileFds.values(),
+					]);
+					lockedWholeFileFds.clear();
+				}),
+			};
+			using php = new PHP(
+				await loadNodeRuntime(phpVersion, {
+					fileLockManager,
+					emscriptenOptions: {
+						processId: nextProcessId++,
+					},
+				})
+			);
+			php.mount(vfsMountPoint, createNodeFsMountHandler(tempDir));
+
+			const fileName = 'locked-unlinked.txt';
+			const nativeFilePath = join(tempDir, fileName);
+			const vfsFilePath = `${vfsMountPoint}/${fileName}`;
+			writeFileSync(nativeFilePath, 'test content');
+			const expectedNativeFilePath = realpathSync(nativeFilePath);
+
+			const result = await php.run({
+				code: `<?php
+						$fp = fopen('${vfsFilePath}', 'r+');
+						if ($fp === false) {
+							throw new Error('Failed to open test file');
+						}
+						if (!flock($fp, LOCK_EX | LOCK_NB)) {
+							throw new Error('Failed to lock test file');
+						}
+						if (!unlink('${vfsFilePath}')) {
+							throw new Error('Failed to unlink test file');
+						}
+						// Intentionally leave the file descriptor open until shutdown.
+					`,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(fileLockManager.lockWholeFile).toHaveBeenCalledWith(
+				expectedNativeFilePath,
+				expect.objectContaining({
+					type: 'exclusive',
+				})
+			);
+			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
+				expect.any(Number),
+				expect.any(Number),
+				expectedNativeFilePath
+			);
+			expect(fileLockManager.releaseLocksForProcess).toHaveBeenCalled();
+			expect(remainingLocksAtProcessRelease).toEqual([[]]);
 		});
 
 		test(`should not attempt to lock a MEMFS file or a PROXYFS node that wraps a MEMFS file`, async () => {
