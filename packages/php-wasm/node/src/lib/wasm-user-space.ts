@@ -183,14 +183,6 @@ export function bindUserSpace(
 		 */
 		maybeLockedFdPaths: new Map<number, string>(),
 
-		remember_maybe_locked_fd(fd: number, nativePath: string) {
-			locking.maybeLockedFdPaths.set(fd, nativePath);
-		},
-
-		forget_maybe_locked_fd(fd: number) {
-			locking.maybeLockedFdPaths.delete(fd);
-		},
-
 		lockStateToFcntl: {
 			shared: F_RDLCK,
 			exclusive: F_WRLCK,
@@ -740,7 +732,7 @@ export function bindUserSpace(
 						waitForLock
 					);
 					if (succeeded) {
-						locking.remember_maybe_locked_fd(
+						locking.maybeLockedFdPaths.set(
 							nativeFd,
 							nativeFilePath
 						);
@@ -893,7 +885,7 @@ export function bindUserSpace(
 				succeeded
 			);
 			if (succeeded) {
-				locking.remember_maybe_locked_fd(nativeFd, nativeFilePath);
+				locking.maybeLockedFdPaths.set(nativeFd, nativeFilePath);
 			}
 			return succeeded ? 0 : -EWOULDBLOCK;
 		} catch (e) {
@@ -978,7 +970,8 @@ export function bindUserSpace(
 		} catch (e) {
 			js_wasm_trace("fd_close(%d) %s error '%s'", fd, vfsPath, e);
 		} finally {
-			locking.forget_maybe_locked_fd(nativeFd);
+			// The fd is closed now; keeping it would recreate the stale-fd bug.
+			locking.maybeLockedFdPaths.delete(nativeFd);
 		}
 		return fdCloseResult;
 	}
