@@ -191,18 +191,19 @@ export function SiteInfoPanel({
 				)
 			)
 		: '';
+	const createdAgoSuffix = createdAgo ? ` ${createdAgo}` : '';
 	let siteSavedStatus: string | undefined;
 	switch (site.metadata.storage) {
 		case 'local-fs':
 			siteSavedStatus =
 				'Saved in a local directory' +
 				(localDirName ? ` (${localDirName})` : '') +
-				` ${createdAgo}`;
+				createdAgoSuffix;
 			break;
 		case 'opfs':
 			siteSavedStatus = isAutosaved
-				? `Autosaved in this browser ${createdAgo}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`
-				: `Saved in this browser ${createdAgo}`;
+				? `Autosaved in this browser${createdAgoSuffix}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`
+				: `Saved in this browser${createdAgoSuffix}`;
 			break;
 	}
 	const headerActions: HeaderAction[] = [];
@@ -337,13 +338,8 @@ export function SiteInfoPanel({
 				className={css.siteInfoPanelContent}
 			>
 				<FlexItem style={{ flexShrink: 0 }}>
-					<Flex
+					<div
 						ref={headerRef}
-						direction="row"
-						gap={2}
-						justify="space-between"
-						align="flex-start"
-						expanded={true}
 						className={`${css.padded} ${css.siteInfoHeader}`}
 						style={{ paddingBottom: 10 }}
 					>
@@ -512,9 +508,12 @@ export function SiteInfoPanel({
 								</span>
 							)}
 						</FlexItem>
-					</Flex>
+					</div>
 				</FlexItem>
-				<FlexItem className={css.tabPanelWrapper}>
+				<FlexItem
+					className={css.tabPanelWrapper}
+					style={{ flexGrow: 1 }}
+				>
 					<TabPanel
 						className={css.tabs}
 						initialTabName={initialTabName}

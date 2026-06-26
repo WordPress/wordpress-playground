@@ -130,7 +130,7 @@
 
 .site-info-header {
 	color: inherit;
-	display: grid !important;
+	display: grid;
 	grid-template-columns: 48px minmax(10rem, 1fr) auto auto;
 	grid-template-areas:
 		'icon details actions menu'
