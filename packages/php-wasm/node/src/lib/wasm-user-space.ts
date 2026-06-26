@@ -993,6 +993,11 @@ export function bindUserSpace(
 
 		try {
 			fileLockManager.releaseLocksForProcess(pid);
+			/*
+			 * Process cleanup releases every lock for this pid.
+			 * Any cached fd path would be stale after this point.
+			 */
+			locking.maybeLockedFdPaths.clear();
 			js_wasm_trace('js_release_file_locks succeeded');
 		} catch (e) {
 			js_wasm_trace('js_release_file_locks error %s', e);
