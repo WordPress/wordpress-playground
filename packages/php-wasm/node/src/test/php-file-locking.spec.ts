@@ -1464,10 +1464,16 @@ error_log = ${errorLogPath}
 				expect.any(Object),
 				expect.any(Boolean)
 			);
+			const shmLockCall = vi
+				.mocked(fileLockManager.lockFileByteRange)
+				.mock.calls.find(([path]) => /\.ht\.sqlite-shm$/.test(path));
+			expect(shmLockCall).toBeDefined();
+			const [shmNativePath, shmLock] = shmLockCall!;
+			expect(shmLock.fd).toEqual(expect.any(Number));
 			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
 				expect.any(Number),
-				expect.any(Number),
-				expect.stringMatching(/\.ht\.sqlite-shm$/)
+				shmLock.fd,
+				shmNativePath
 			);
 		});
 
@@ -1543,9 +1549,19 @@ error_log = ${errorLogPath}
 					type: 'exclusive',
 				})
 			);
+			const wholeFileLockCall = vi
+				.mocked(fileLockManager.lockWholeFile)
+				.mock.calls.find(
+					([path, op]) =>
+						path === expectedNativeFilePath &&
+						op.type === 'exclusive'
+				);
+			expect(wholeFileLockCall).toBeDefined();
+			const [, wholeFileLock] = wholeFileLockCall!;
+			expect(wholeFileLock.fd).toEqual(expect.any(Number));
 			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
 				expect.any(Number),
-				expect.any(Number),
+				wholeFileLock.fd,
 				expectedNativeFilePath
 			);
 			expect(fileLockManager.releaseLocksForProcess).toHaveBeenCalled();
