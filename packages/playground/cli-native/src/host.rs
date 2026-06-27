@@ -5095,6 +5095,17 @@ impl HostState {
         let Some(host_path) = self.resolve_host_path_for_open(path, wants_create) else {
             return -ENOENT;
         };
+        if !writable && !wants_create {
+            if let Some(cached_stat) = self.cached_host_file_stat_for_open(path) {
+                match self.open_cached_host_read_file(path, host_path.clone(), flags, cached_stat) {
+                    Ok(fd) => return fd,
+                    Err(_) => {
+                        // Fall through to the existing metadata-driven path so error handling
+                        // and stale external filesystem changes keep the old behavior.
+                    }
+                }
+            }
+        }
         match fs::metadata(&host_path) {
             Ok(metadata) if metadata.is_dir() => self.alloc_fd(FdEntry::Directory {
                 path: path.to_string(),
@@ -5177,6 +5188,42 @@ impl HostState {
             }
             Err(_) => -ENOENT,
         }
+    }
+
+    fn cached_host_file_stat_for_open(&self, path: &str) -> Option<VfsStat> {
+        if !self.host_cache_enabled {
+            return None;
+        }
+        let key = (path.to_string(), true);
+        match self.host_stat_cache.borrow().get(&key) {
+            Some(Ok(stat)) if stat.mode & S_IFREG == S_IFREG => Some(stat.clone()),
+            _ => None,
+        }
+    }
+
+    fn open_cached_host_read_file(
+        &mut self,
+        path: &str,
+        host_path: PathBuf,
+        flags: i32,
+        cached_stat: VfsStat,
+    ) -> std::result::Result<i32, ()> {
+        let file = fs::File::open(&host_path).map_err(|_| ())?;
+        let cached_stat_generation = self.host_cache_generation.get();
+        Ok(self.alloc_fd(FdEntry::HostReadFile {
+            path: path.to_string(),
+            host_path,
+            file: Arc::new(Mutex::new(file)),
+            position: if flags & O_APPEND != 0 {
+                cached_stat.size as usize
+            } else {
+                0
+            },
+            append: flags & O_APPEND != 0,
+            nonblocking: flags & O_NONBLOCK != 0,
+            cached_stat,
+            cached_stat_generation,
+        }))
     }
 
     fn stat_path(&self, path: &str) -> std::result::Result<VfsStat, i32> {
@@ -9640,8 +9687,8 @@ mod tests {
         create_stub_import_linker_with_options, read_host_file_iovs, AdvisoryLockRange,
         FcntlLockRequest, FdEntry, HostMount, HostOptions, HostState, ImportClassification,
         OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN, EAI_NONAME, EALREADY, EINPROGRESS,
-        EINVAL, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, F_RDLCK, F_UNLCK, F_WRLCK, LOCK_EX,
-        LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
+        EINVAL, ENOENT, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, F_RDLCK, F_UNLCK, F_WRLCK,
+        LOCK_EX, LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
         OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, OPCACHE_MEMORY_ENV_VAR, O_EXCL, O_NONBLOCK, O_RDWR,
         O_TMPFILE, O_TRUNC, O_WRONLY, POLLERR, POLLIN, POLLOUT, SEEK_CUR, SEEK_END, SEEK_SET,
         SOCK_STREAM, S_IFDIR, S_IFREG,
@@ -13704,6 +13751,61 @@ mod tests {
 
         cached.clear_host_cache();
         assert_eq!(cached.fd_stat(cached_fd).unwrap().size, 13);
+
+        let _ = fs::remove_dir_all(host_root);
+    }
+
+    #[test]
+    fn read_only_open_reuses_cached_host_file_stat_when_cache_enabled() {
+        let host_root = temp_dir("read-open-stat-cache");
+        let file_path = host_root.join("file.txt");
+        fs::write(&file_path, b"old").unwrap();
+        let options = HostOptions {
+            mounts: vec![HostMount {
+                host_path: host_root.clone(),
+                vfs_path: "/wordpress".to_string(),
+            }],
+            host_cache: true,
+            ..HostOptions::default()
+        };
+
+        let mut cached = HostState::new(options);
+        assert_eq!(cached.stat_path("/wordpress/file.txt").unwrap().size, 3);
+        assert!(cached
+            .host_stat_cache
+            .borrow()
+            .contains_key(&("/wordpress/file.txt".to_string(), true)));
+
+        fs::write(&file_path, b"updated").unwrap();
+        let fd = cached.open_path("/wordpress/file.txt", 0);
+        assert!(fd >= 3);
+        assert_eq!(cached.fd_stat(fd).unwrap().size, 3);
+
+        cached.clear_host_cache();
+        assert_eq!(cached.fd_stat(fd).unwrap().size, 7);
+
+        let _ = fs::remove_dir_all(host_root);
+    }
+
+    #[test]
+    fn cached_read_only_open_falls_back_when_host_file_disappears() {
+        let host_root = temp_dir("read-open-stat-cache-gone");
+        let file_path = host_root.join("file.txt");
+        fs::write(&file_path, b"old").unwrap();
+        let options = HostOptions {
+            mounts: vec![HostMount {
+                host_path: host_root.clone(),
+                vfs_path: "/wordpress".to_string(),
+            }],
+            host_cache: true,
+            ..HostOptions::default()
+        };
+
+        let mut cached = HostState::new(options);
+        assert_eq!(cached.stat_path("/wordpress/file.txt").unwrap().size, 3);
+
+        fs::remove_file(&file_path).unwrap();
+        assert_eq!(cached.open_path("/wordpress/file.txt", 0), -ENOENT);
 
         let _ = fs::remove_dir_all(host_root);
     }
