@@ -38,6 +38,7 @@ const EADDRNOTAVAIL: i32 = 4;
 const EAGAIN: i32 = 6;
 const EALREADY: i32 = 7;
 const ECONNABORTED: i32 = 13;
+const ECONNREFUSED: i32 = 14;
 const EEXIST: i32 = 20;
 const EINVAL: i32 = 28;
 const EINPROGRESS: i32 = 26;
@@ -7970,8 +7971,13 @@ fn socket_write_bytes(
 }
 
 fn io_error_errno(error: &io::Error) -> i32 {
+    #[cfg(windows)]
+    if let Some(errno) = windows_socket_error_errno(error.raw_os_error()) {
+        return errno;
+    }
+
     match error.kind() {
-        io::ErrorKind::ConnectionRefused => 14,
+        io::ErrorKind::ConnectionRefused => ECONNREFUSED,
         io::ErrorKind::ConnectionReset => ECONNRESET,
         io::ErrorKind::NotConnected => ENOTCONN,
         io::ErrorKind::BrokenPipe => EPIPE,
@@ -7982,6 +7988,22 @@ fn io_error_errno(error: &io::Error) -> i32 {
         io::ErrorKind::AddrInUse => EHOSTUNREACH,
         io::ErrorKind::NetworkUnreachable => ENETUNREACH,
         _ => EHOSTUNREACH,
+    }
+}
+
+#[cfg(windows)]
+fn windows_socket_error_errno(raw_os_error: Option<i32>) -> Option<i32> {
+    match raw_os_error? {
+        10035 => Some(EAGAIN),
+        10036 | 10037 => Some(EALREADY),
+        10048 => Some(EADDRINUSE),
+        10049 => Some(EADDRNOTAVAIL),
+        10051 => Some(ENETUNREACH),
+        10054 => Some(ECONNRESET),
+        10060 => Some(ETIMEDOUT),
+        10061 => Some(ECONNREFUSED),
+        10065 => Some(EHOSTUNREACH),
+        _ => None,
     }
 }
 

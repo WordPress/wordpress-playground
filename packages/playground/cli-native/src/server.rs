@@ -4450,6 +4450,16 @@ fn resolve_git_directory_resource_with_git_cli(
     let checkout_dir = temp_root.join("checkout");
     run_git(
         Some(&checkout_dir),
+        &["config", "core.autocrlf", "false"],
+        "disable git:directory checkout CRLF conversion",
+    )?;
+    run_git(
+        Some(&checkout_dir),
+        &["config", "core.eol", "lf"],
+        "configure git:directory checkout line endings",
+    )?;
+    run_git(
+        Some(&checkout_dir),
         &["remote", "add", "origin", resource.url.as_str()],
         "configure git:directory remote",
     )?;
