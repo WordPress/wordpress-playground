@@ -11,6 +11,7 @@ import {
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
+import { InvalidBlueprintV2Error } from '@wp-playground/blueprints';
 import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
@@ -470,7 +471,7 @@ function applyQueryOverridesToV2Declaration(
 		query.get('import-wxr') || query.get('import-content')
 	);
 	if (query.get('import-site')) {
-		throw new Error(
+		throw new InvalidBlueprintV2Error(
 			'The import-site Query API parameter is not supported with Blueprint v2 declarations yet.'
 		);
 	}
@@ -485,7 +486,10 @@ function applyQueryOverridesToV2Declaration(
 
 	const coreRef = query.get('core-pr');
 	if (coreRef) {
-		next.wordpressVersion = createCorePrWordPressBuildUrl(coreRef) as any;
+		next.wordpressVersion = createCorePrWordPressBuildUrl(
+			coreRef,
+			(message) => new InvalidBlueprintV2Error(message)
+		) as any;
 	}
 
 	const gutenbergArtifact = getGutenbergArtifactDetails(query);
@@ -604,9 +608,12 @@ function getGutenbergArtifactDetails(
 	};
 }
 
-function createCorePrWordPressBuildUrl(coreRef: string) {
+function createCorePrWordPressBuildUrl(
+	coreRef: string,
+	createError: (message: string) => Error = (message) => new Error(message)
+) {
 	if (!/^\d+$/.test(coreRef)) {
-		throw new Error(
+		throw createError(
 			'The core-pr Query API parameter must be a WordPress pull request number.'
 		);
 	}

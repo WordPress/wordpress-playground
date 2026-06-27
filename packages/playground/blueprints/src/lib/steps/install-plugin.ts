@@ -188,7 +188,7 @@ export const installPlugin: StepHandler<
 						data: pluginData,
 					});
 				}
-				assetFolderPath = pluginsDirectoryPath;
+				assetFolderPath = destinationFilePath;
 				assetNiceName = pluginData.name;
 			} else {
 				throw new Error(

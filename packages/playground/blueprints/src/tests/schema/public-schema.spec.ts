@@ -77,6 +77,7 @@ describe('public Blueprint schema', () => {
 					'akismet@6.4.3',
 					'./query-monitor.php',
 					'./code-block.zip',
+					'https://github.com/example/demo-plugin',
 					{
 						source: 'https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip',
 						active: false,
@@ -173,6 +174,10 @@ describe('public Blueprint schema', () => {
 			},
 			{
 				version: 2,
+				media: ['https://%'],
+			},
+			{
+				version: 2,
 				media: [
 					{
 						source: {
@@ -234,6 +239,38 @@ describe('public Blueprint schema', () => {
 			{
 				version: 2,
 				plugins: ['bad/slug'],
+			},
+			{
+				version: 2,
+				plugins: ['./readme.txt'],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						filename: 'readme.txt',
+						content: 'Readme',
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: 'https://example.com/readme.txt',
+					},
+				],
+			},
+			{
+				version: 2,
+				plugins: [
+					{
+						source: {
+							filename: 'script.js',
+							content: 'console.log("not a plugin");',
+						},
+					},
+				],
 			},
 			{
 				version: 2,
@@ -330,6 +367,15 @@ describe('public Blueprint schema', () => {
 					{
 						step: 'mkdir',
 						path: 'site:../escape',
+					},
+				],
+			},
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'mkdir',
+						path: 'v1-absolute:/tmp/public-marker',
 					},
 				],
 			},

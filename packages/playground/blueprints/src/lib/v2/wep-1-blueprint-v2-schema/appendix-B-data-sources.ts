@@ -124,6 +124,19 @@ export namespace DataSources {
 		| InlineFile;
 
 	/**
+	 * A data reference that must resolve to an installable plugin.
+	 *
+	 * File references must point to a .zip archive or a single .php plugin
+	 * file. Directory and git references are installed as plugin directories.
+	 */
+	export type PluginDataReference =
+		| URLReference
+		| ExecutionContextPath
+		| InlineFile
+		| InlineDirectory
+		| GitPath;
+
+	/**
 	 * }}}
 	 */
 

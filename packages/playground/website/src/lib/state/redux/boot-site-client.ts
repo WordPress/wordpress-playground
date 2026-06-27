@@ -13,8 +13,6 @@ import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
-	InvalidBlueprintError,
-	InvalidBlueprintV2Error,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
@@ -41,6 +39,7 @@ import {
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
 import {
+	findBlueprintValidationErrorInCauseChain,
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
@@ -253,10 +252,7 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
-			} else if (
-				e instanceof InvalidBlueprintError ||
-				e instanceof InvalidBlueprintV2Error
-			) {
+			} else if (findBlueprintValidationErrorInCauseChain(e)) {
 				dispatch(
 					setActiveSiteError({
 						error: 'blueprint-validation-failed',

@@ -28,7 +28,7 @@ import {
 import { createHash } from 'node:crypto';
 import { decodeZip } from '@php-wasm/stream-compression';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
-import { type Log, logger } from '@php-wasm/logger';
+import { errorLogPath, type Log, logger } from '@php-wasm/logger';
 
 vi.mock('child_process', async (importOriginal) => {
 	const actual = await importOriginal<typeof ChildProcess>();
@@ -1880,6 +1880,63 @@ describe('other run-cli behaviors', () => {
 	});
 
 	describe('error handling', () => {
+		test('should clean up server and temp dirs on non-debug failures before blueprint compilation', async () => {
+			await expectStartupFailureCleansUp({
+				command: 'server',
+				port: 0,
+				workers: 1,
+				verbosity: 'normal',
+				mode: 'mount-only',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				cliProvidedOptions: {
+					mode: true,
+					wordpressInstallMode: true,
+				},
+				blueprint: {
+					version: 2,
+				},
+			});
+		});
+
+		test('should clean up server and temp dirs on non-debug blueprint compile failures', async () => {
+			await expectStartupFailureCleansUp({
+				command: 'server',
+				port: 0,
+				workers: 1,
+				verbosity: 'normal',
+				mode: 'mount-only',
+				blueprint: {
+					version: 2,
+					additionalStepsAfterExecution: [
+						{
+							step: 'unsupportedStep',
+						},
+					],
+				} as any,
+			});
+		});
+
+		test('should clean up server and temp dirs when debug PHP log reads fail', async () => {
+			await expectStartupFailureCleansUp({
+				command: 'server',
+				port: 0,
+				workers: 1,
+				verbosity: 'debug',
+				blueprint: {
+					steps: [
+						{
+							step: 'mkdir',
+							path: errorLogPath,
+						},
+						{
+							step: 'runPHP',
+							code: '<?php $%^;',
+						},
+					],
+				},
+			});
+		});
+
 		test('should return 500 when the request handler throws an error', async () => {
 			await using cliServer = await runCLI({
 				command: 'server',

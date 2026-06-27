@@ -1677,29 +1677,34 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						messageChannelForPostInstallMounts.port1;
 					const workerPostInstallMountsPort =
 						messageChannelForPostInstallMounts.port2;
-					await exposeAPI(
-						{
-							applyPostInstallMountsToAllWorkers: async () => {
-								// Apply post-install mounts to workers
-								// one at a time. Each worker's mount handler
-								// creates placeholder files on the shared
-								// host filesystem via NODEFS before mounting.
-								// Concurrent creation races cause ENOTDIR.
-								for (const playground of workerToPlaygroundMap.values()) {
-									await playground!.mountAfterWordPressInstall(
-										args['mount'] || []
-									);
-								}
+					try {
+						await exposeAPI(
+							{
+								applyPostInstallMountsToAllWorkers:
+									async () => {
+										// Apply post-install mounts to workers
+										// one at a time. Each worker's mount handler
+										// creates placeholder files on the shared
+										// host filesystem via NODEFS before mounting.
+										// Concurrent creation races cause ENOTDIR.
+										for (const playground of workerToPlaygroundMap.values()) {
+											await playground!.mountAfterWordPressInstall(
+												args['mount'] || []
+											);
+										}
+									},
 							},
-						},
-						undefined,
-						mainThreadPostInstallMountsPort
-					);
-					await handler.bootWordPress(
-						playgroundPool,
-						workerPostInstallMountsPort
-					);
-					mainThreadPostInstallMountsPort.close();
+							undefined,
+							mainThreadPostInstallMountsPort
+						);
+						await handler.bootWordPress(
+							playgroundPool,
+							workerPostInstallMountsPort
+						);
+					} finally {
+						closeMessagePort(mainThreadPostInstallMountsPort);
+						closeMessagePort(workerPostInstallMountsPort);
+					}
 
 					wordPressReady = true;
 
@@ -1797,14 +1802,26 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					},
 				};
 			} catch (error) {
+				let phpLogs = '';
+				try {
+					if (
+						args.verbosity === 'debug' &&
+						(await playgroundPool?.fileExists(errorLogPath))
+					) {
+						phpLogs =
+							await playgroundPool.readFileAsText(errorLogPath);
+					}
+				} catch (phpLogError) {
+					logger.debug(
+						`Could not read PHP error log after startup failure: ${describeError(
+							phpLogError
+						)}`
+					);
+				}
+				await disposeCLI();
 				if (args.verbosity !== 'debug') {
 					throw error;
 				}
-				let phpLogs = '';
-				if (await playgroundPool?.fileExists(errorLogPath)) {
-					phpLogs = await playgroundPool.readFileAsText(errorLogPath);
-				}
-				await disposeCLI();
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
@@ -2186,6 +2203,14 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	 */
 	await exposeSyncAPI(fileLockManager, port1);
 	return port2;
+}
+
+function closeMessagePort(port: NodeMessagePort) {
+	try {
+		port.close();
+	} catch {
+		// Ports may already be closed or transferred to a worker during boot.
+	}
 }
 
 /**

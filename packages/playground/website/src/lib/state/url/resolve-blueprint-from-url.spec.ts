@@ -11,6 +11,54 @@ vi.hoisted(() => {
 	g.window.location = g.location;
 });
 
+const mocks = vi.hoisted(() => ({
+	opfsFromPath: vi.fn(),
+	resolveRemoteBlueprint: vi.fn(),
+	loggerError: vi.fn(),
+}));
+
+vi.mock('@wp-playground/storage', () => {
+	return {
+		OverlayFilesystem: class OverlayFilesystem {
+			public readonly filesystems: unknown[];
+
+			constructor(filesystems: unknown[]) {
+				this.filesystems = filesystems;
+			}
+		},
+		InMemoryFilesystem: class InMemoryFilesystem {
+			public readonly files: Record<string, string>;
+
+			constructor(files: Record<string, string>) {
+				this.files = files;
+			}
+		},
+		OpfsFilesystemBackend: {
+			fromPath: mocks.opfsFromPath,
+		},
+	};
+});
+
+vi.mock('@wp-playground/client', () => {
+	return {
+		BlueprintReflection: {
+			create: async (blueprint: any) => ({
+				getDeclaration: () => blueprint,
+				getVersion: () => blueprint?.version || 1,
+			}),
+		},
+		isBlueprintBundle: (input: any) =>
+			input && typeof input.read === 'function',
+		resolveRemoteBlueprint: mocks.resolveRemoteBlueprint,
+	};
+});
+
+vi.mock('@php-wasm/logger', () => ({
+	logger: {
+		error: mocks.loggerError,
+	},
+}));
+
 // eslint-disable-next-line import/first
 import {
 	applyQueryOverrides,
@@ -295,7 +343,10 @@ describe('resolveBlueprintFromURL', () => {
 				},
 				new URLSearchParams('import-site=https://example.com/site.zip')
 			)
-		).rejects.toThrow(/import-site/);
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintV2Error',
+			message: expect.stringMatching(/import-site/),
+		});
 	});
 
 	it('defaults Blueprint v2 login while preserving explicit Blueprint login intent', async () => {
@@ -465,7 +516,10 @@ describe('resolveBlueprintFromURL', () => {
 				{ version: 2 },
 				new URLSearchParams('core-pr=12345%26repo=other')
 			)
-		).rejects.toThrow(/core-pr/);
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintV2Error',
+			message: expect.stringMatching(/core-pr/),
+		});
 	});
 
 	it('rejects malformed core PR preview values for Blueprint v1 declarations', async () => {

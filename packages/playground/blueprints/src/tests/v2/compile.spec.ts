@@ -896,6 +896,71 @@ describe('Blueprint v2 TypeScript compiler', () => {
 		]);
 	});
 
+	it('lowers single-file plugin execution-context paths as bundled plugin files', () => {
+		const plan = createBlueprintV2ExecutionPlan({
+			version: 2,
+			plugins: ['./query-monitor.php'],
+		} as BlueprintV2Declaration);
+
+		expect(plan).toMatchObject([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'bundled',
+					path: 'query-monitor.php',
+				},
+				options: {
+					activate: true,
+				},
+			},
+		]);
+	});
+
+	it('rejects plugin sources that cannot resolve to installable plugin files', () => {
+		const result = validateBlueprintV2({
+			version: 2,
+			plugins: [
+				'./readme.txt',
+				{ filename: 'readme.txt', content: 'Readme' },
+				{ source: 'https://example.com/readme.txt' },
+				{
+					source: {
+						filename: 'script.js',
+						content: 'console.log("not a plugin");',
+					},
+				},
+			],
+		});
+
+		expect(result.valid).toBe(false);
+		if (!result.valid) {
+			expect(result.errors).toEqual(
+				expect.arrayContaining([
+					{
+						path: '/plugins/0',
+						message:
+							'must reference a .zip or .php plugin file, directory, Git repository, or plugin slug',
+					},
+					{
+						path: '/plugins/1',
+						message:
+							'must reference a .zip or .php plugin file, directory, Git repository, or plugin slug',
+					},
+					{
+						path: '/plugins/2/source',
+						message:
+							'must reference a .zip or .php plugin file, directory, Git repository, or plugin slug',
+					},
+					{
+						path: '/plugins/3/source',
+						message:
+							'must reference a .zip or .php plugin file, directory, Git repository, or plugin slug',
+					},
+				])
+			);
+		}
+	});
+
 	it('lowers native v2 Git repository plugin URLs as Git directory zips', () => {
 		const plan = createBlueprintV2ExecutionPlan({
 			version: 2,
@@ -2711,6 +2776,72 @@ describe('Blueprint v2 TypeScript compiler', () => {
 			);
 		}
 	});
+
+	it('runs single-file plugin execution-context declarations against WordPress', async () => {
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		const php = await handler.getPrimaryPhp();
+		const requestedPaths: string[] = [];
+
+		try {
+			await runBlueprintV2Steps(
+				await compileBlueprintV2(
+					{
+						version: 2,
+						plugins: ['./query-monitor.php'],
+					} as BlueprintV2Declaration,
+					{
+						streamBundledFile: async (path) => {
+							requestedPaths.push(path);
+							return new File(
+								[
+									`<?php
+/**
+ * Plugin Name: Query Monitor Test
+ */
+register_activation_hook(__FILE__, function () {
+	update_option(
+		'blueprint_single_file_plugin_activated',
+		plugin_basename(__FILE__)
+	);
+});
+`,
+								],
+								path
+							);
+						},
+					}
+				),
+				php
+			);
+
+			const response = await php.run({
+				code: `<?php
+require '/wordpress/wp-load.php';
+echo json_encode(array(
+	'active' => in_array('query-monitor.php', get_option('active_plugins', array()), true),
+	'activation' => get_option('blueprint_single_file_plugin_activated'),
+	'installed' => file_exists(WP_PLUGIN_DIR . '/query-monitor.php'),
+));
+`,
+			});
+
+			expect(requestedPaths).toEqual(['query-monitor.php']);
+			expect(JSON.parse(response.text)).toEqual({
+				active: true,
+				activation: 'query-monitor.php',
+				installed: true,
+			});
+		} finally {
+			php.exit();
+			await handler[Symbol.asyncDispose]();
+		}
+	}, 30_000);
 
 	it('runs posts content imports against WordPress', async () => {
 		const handler = await bootWordPressAndRequestHandler({

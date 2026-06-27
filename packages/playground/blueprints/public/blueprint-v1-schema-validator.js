@@ -212,7 +212,8 @@ const schema11 = {
 				path: {
 					type: 'string',
 					description: 'The path to the file in the VFS',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['resource', 'path'],
@@ -327,7 +328,8 @@ const schema11 = {
 				path: {
 					type: 'string',
 					description: 'The path to the file in the Blueprint',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['resource', 'path'],
@@ -390,7 +392,8 @@ const schema11 = {
 					type: 'string',
 					description:
 						'The path to the directory in the git repository. Defaults to the repo root.',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 				'.git': {
 					type: 'boolean',
@@ -499,13 +502,13 @@ const schema11 = {
 							type: 'string',
 							description: 'Source path',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 						toPath: {
 							type: 'string',
 							description: 'Target path',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 					},
 					required: ['fromPath', 'step', 'toPath'],
@@ -833,7 +836,7 @@ const schema11 = {
 							description:
 								'The path of the directory you want to create',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 					},
 					required: ['path', 'step'],
@@ -855,13 +858,13 @@ const schema11 = {
 							type: 'string',
 							description: 'Source path',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 						toPath: {
 							type: 'string',
 							description: 'Target path',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 					},
 					required: ['fromPath', 'step', 'toPath'],
@@ -920,7 +923,7 @@ const schema11 = {
 							type: 'string',
 							description: 'The path to remove',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 					},
 					required: ['path', 'step'],
@@ -942,7 +945,7 @@ const schema11 = {
 							type: 'string',
 							description: 'The path to remove',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 					},
 					required: ['path', 'step'],
@@ -1106,7 +1109,7 @@ const schema11 = {
 							type: 'string',
 							description: 'The path to extract the zip file to',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 					},
 					required: ['extractToPath', 'step'],
@@ -1151,7 +1154,7 @@ const schema11 = {
 							type: 'string',
 							description: 'The path of the file to write to',
 							pattern:
-								'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+								'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 						},
 						data: {
 							anyOf: [
@@ -1564,6 +1567,57 @@ const schema11 = {
 						},
 					],
 				},
+			],
+		},
+		'DataSources.PluginDataReference': {
+			anyOf: [
+				{
+					allOf: [
+						{ $ref: '#/definitions/DataSources.URLReference' },
+						{
+							anyOf: [
+								{
+									type: 'string',
+									pattern:
+										'\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])(?:[?#]\\S*)?$',
+								},
+								{
+									type: 'string',
+									pattern:
+										'^https://(?:[^\\s?#%\\[\\]]+\\.git/?|github\\.com/[^\\s/?#%\\[\\]]+/[^\\s/?#%\\[\\]]+/?|gitlab\\.com/(?!.*\\/-\\/)[^\\s?#%\\[\\]]+/[^\\s?#%\\[\\]]+(?:/[^\\s?#%\\[\\]]+)*/?)$',
+								},
+							],
+						},
+					],
+				},
+				{
+					allOf: [
+						{
+							$ref: '#/definitions/DataSources.ExecutionContextPath',
+						},
+						{
+							type: 'string',
+							pattern: '\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])$',
+						},
+					],
+				},
+				{
+					allOf: [
+						{ $ref: '#/definitions/DataSources.InlineFile' },
+						{
+							type: 'object',
+							properties: {
+								filename: {
+									type: 'string',
+									pattern:
+										'\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])$',
+								},
+							},
+						},
+					],
+				},
+				{ $ref: '#/definitions/DataSources.InlineDirectory' },
+				{ $ref: '#/definitions/DataSources.GitPath' },
 			],
 		},
 	},
@@ -2045,7 +2099,8 @@ const schema21 = {
 		path: {
 			type: 'string',
 			description: 'The path to the file in the VFS',
-			pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+			pattern:
+				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 		},
 	},
 	required: ['resource', 'path'],
@@ -2155,14 +2210,15 @@ const schema26 = {
 		path: {
 			type: 'string',
 			description: 'The path to the file in the Blueprint',
-			pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+			pattern:
+				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 		},
 	},
 	required: ['resource', 'path'],
 	additionalProperties: false,
 };
 const pattern0 = new RegExp(
-	'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+	'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 	'u'
 );
 const schema27 = {
@@ -2219,7 +2275,8 @@ const schema29 = {
 			type: 'string',
 			description:
 				'The path to the directory in the git repository. Defaults to the repo root.',
-			pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+			pattern:
+				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 		},
 		'.git': {
 			type: 'boolean',
@@ -2419,11 +2476,11 @@ function validate19(
 															keyword: 'pattern',
 															params: {
 																pattern:
-																	'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																	'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 															},
 															message:
 																'must match pattern "' +
-																'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																'"',
 														},
 													];
@@ -3161,11 +3218,11 @@ function validate16(
 											keyword: 'pattern',
 											params: {
 												pattern:
-													'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+													'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 											},
 											message:
 												'must match pattern "' +
-												'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+												'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 												'"',
 										};
 										if (vErrors === null) {
@@ -4577,11 +4634,11 @@ function validate16(
 																	'pattern',
 																params: {
 																	pattern:
-																		'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																		'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																},
 																message:
 																	'must match pattern "' +
-																	'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																	'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																	'"',
 															};
 															if (
@@ -4767,12 +4824,14 @@ const schema33 = {
 				fromPath: {
 					type: 'string',
 					description: 'Source path',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 				toPath: {
 					type: 'string',
 					description: 'Target path',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['fromPath', 'step', 'toPath'],
@@ -5091,7 +5150,8 @@ const schema33 = {
 				path: {
 					type: 'string',
 					description: 'The path of the directory you want to create',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['path', 'step'],
@@ -5112,12 +5172,14 @@ const schema33 = {
 				fromPath: {
 					type: 'string',
 					description: 'Source path',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 				toPath: {
 					type: 'string',
 					description: 'Target path',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['fromPath', 'step', 'toPath'],
@@ -5175,7 +5237,8 @@ const schema33 = {
 				path: {
 					type: 'string',
 					description: 'The path to remove',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['path', 'step'],
@@ -5196,7 +5259,8 @@ const schema33 = {
 				path: {
 					type: 'string',
 					description: 'The path to remove',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['path', 'step'],
@@ -5354,7 +5418,8 @@ const schema33 = {
 				extractToPath: {
 					type: 'string',
 					description: 'The path to extract the zip file to',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 			},
 			required: ['extractToPath', 'step'],
@@ -5398,7 +5463,8 @@ const schema33 = {
 				path: {
 					type: 'string',
 					description: 'The path of the file to write to',
-					pattern: '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+					pattern:
+						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 				},
 				data: {
 					anyOf: [
@@ -9912,11 +9978,11 @@ function validate28(
 																				'pattern',
 																			params: {
 																				pattern:
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																			},
 																			message:
 																				'must match pattern "' +
-																				'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																				'"',
 																		},
 																	];
@@ -9980,11 +10046,11 @@ function validate28(
 																					'pattern',
 																				params: {
 																					pattern:
-																						'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																				},
 																				message:
 																					'must match pattern "' +
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																					'"',
 																			},
 																		];
@@ -14855,11 +14921,11 @@ function validate28(
 																				'pattern',
 																			params: {
 																				pattern:
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																			},
 																			message:
 																				'must match pattern "' +
-																				'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																				'"',
 																		},
 																	];
@@ -15193,11 +15259,11 @@ function validate28(
 																				'pattern',
 																			params: {
 																				pattern:
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																			},
 																			message:
 																				'must match pattern "' +
-																				'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																				'"',
 																		},
 																	];
@@ -15261,11 +15327,11 @@ function validate28(
 																					'pattern',
 																				params: {
 																					pattern:
-																						'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																				},
 																				message:
 																					'must match pattern "' +
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																					'"',
 																			},
 																		];
@@ -16166,11 +16232,11 @@ function validate28(
 																				'pattern',
 																			params: {
 																				pattern:
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																			},
 																			message:
 																				'must match pattern "' +
-																				'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																				'"',
 																		},
 																	];
@@ -16499,11 +16565,11 @@ function validate28(
 																				'pattern',
 																			params: {
 																				pattern:
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																			},
 																			message:
 																				'must match pattern "' +
-																				'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																				'"',
 																		},
 																	];
@@ -18845,11 +18911,11 @@ function validate28(
 																						'pattern',
 																					params: {
 																						pattern:
-																							'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																							'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																					},
 																					message:
 																						'must match pattern "' +
-																						'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																						'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																						'"',
 																				},
 																			];
@@ -19551,11 +19617,11 @@ function validate28(
 																				'pattern',
 																			params: {
 																				pattern:
-																					'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
+																					'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$',
 																			},
 																			message:
 																				'must match pattern "' +
-																				'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
+																				'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$' +
 																				'"',
 																		},
 																	];

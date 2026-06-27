@@ -1,4 +1,8 @@
 import { FirewallInterferenceError } from '@php-wasm/web-service-worker';
+import {
+	InvalidBlueprintError,
+	InvalidBlueprintV2Error,
+} from '@wp-playground/blueprints';
 
 const MAX_CAUSE_CHAIN_DEPTH = 100;
 
@@ -69,6 +73,11 @@ const DOWNLOAD_ERROR_CLASS_NAMES = [
 	'ResourceDownloadError',
 ];
 
+const BLUEPRINT_VALIDATION_ERROR_CLASS_NAMES = [
+	'InvalidBlueprintError',
+	'InvalidBlueprintV2Error',
+];
+
 /**
  * Search through an error's cause chain to find a network/download error.
  * Checks error messages against known patterns and error class names
@@ -100,6 +109,45 @@ export function findDownloadErrorInCauseChain(
 			const className =
 				(current as any).originalErrorClassName || current.name;
 			if (className && DOWNLOAD_ERROR_CLASS_NAMES.includes(className)) {
+				return current;
+			}
+		}
+		current = current instanceof Error ? current.cause : undefined;
+		depth++;
+	}
+	return undefined;
+}
+
+/**
+ * Search through an error's cause chain for Blueprint validation failures.
+ *
+ * In addition to native instanceof checks, this recognizes Comlink-serialized
+ * errors where only the original class name survived the worker boundary.
+ */
+export function findBlueprintValidationErrorInCauseChain(
+	error: unknown
+): Error | undefined {
+	let current: unknown = error;
+	const seen = new Set<Error>();
+	let depth = 0;
+	while (current && depth < MAX_CAUSE_CHAIN_DEPTH) {
+		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
+			if (
+				current instanceof InvalidBlueprintError ||
+				current instanceof InvalidBlueprintV2Error
+			) {
+				return current;
+			}
+			const className =
+				(current as any).originalErrorClassName || current.name;
+			if (
+				className &&
+				BLUEPRINT_VALIDATION_ERROR_CLASS_NAMES.includes(className)
+			) {
 				return current;
 			}
 		}

@@ -80,17 +80,28 @@ function patchV2Schema(schema) {
 	if (!definitions) {
 		return;
 	}
-	const noParentPathPattern = '^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
+	const noParentPathPattern =
+		'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$';
 	const executionContextPathPattern =
-		'^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$))(?:\\./|/).*$';
+		'^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$))(?:\\./|/).*$';
+	const urlReferencePattern =
+		'^https?://(?:\\[[0-9A-Fa-f:.]+\\](?::\\d+)?|[^\\s/?#%\\[\\]]+)(?:[/?#]\\S*)?$';
 	const pathSegmentPattern = '^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$';
 	const directorySlugPattern =
 		'^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$';
+	const postTypeKeyPattern = '^[a-z0-9_-]{1,20}$';
+	const requiredPostTypesPluginSlug = 'secure-custom-fields';
+	const zipFilePattern = '\\.[Zz][Ii][Pp]$';
+	const pluginFilePathPattern = '\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])$';
+	const pluginFileUrlPattern =
+		'\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])(?:[?#]\\S*)?$';
+	const gitRepositoryUrlPattern =
+		'^https://(?:[^\\s?#%\\[\\]]+\\.git/?|github\\.com/[^\\s/?#%\\[\\]]+/[^\\s/?#%\\[\\]]+/?|gitlab\\.com/(?!.*\\/-\\/)[^\\s?#%\\[\\]]+/[^\\s?#%\\[\\]]+(?:/[^\\s?#%\\[\\]]+)*/?)$';
 	const fontFilePattern = '\\.(?:woff2|woff|ttf|otf)(?:[?#]\\S*)?$';
 	if (definitions['DataSources.URLReference']) {
 		Object.assign(definitions['DataSources.URLReference'], {
 			type: 'string',
-			pattern: '^https?://\\S+$',
+			pattern: urlReferencePattern,
 		});
 	}
 	if (definitions['DataSources.ExecutionContextPath']) {
@@ -201,7 +212,54 @@ function patchV2Schema(schema) {
 			},
 		],
 	};
-	patchV2TopLevelBlueprint(definitions['V2Schema.BlueprintV2']);
+	definitions['DataSources.PluginDataReference'] = {
+		anyOf: [
+			{
+				allOf: [
+					{ $ref: '#/definitions/DataSources.URLReference' },
+					{
+						anyOf: [
+							{ type: 'string', pattern: pluginFileUrlPattern },
+							{
+								type: 'string',
+								pattern: gitRepositoryUrlPattern,
+							},
+						],
+					},
+				],
+			},
+			{
+				allOf: [
+					{
+						$ref: '#/definitions/DataSources.ExecutionContextPath',
+					},
+					{ type: 'string', pattern: pluginFilePathPattern },
+				],
+			},
+			{
+				allOf: [
+					{ $ref: '#/definitions/DataSources.InlineFile' },
+					{
+						type: 'object',
+						properties: {
+							filename: {
+								type: 'string',
+								pattern: pluginFilePathPattern,
+							},
+						},
+					},
+				],
+			},
+			{ $ref: '#/definitions/DataSources.InlineDirectory' },
+			{ $ref: '#/definitions/DataSources.GitPath' },
+		],
+	};
+	patchV2TopLevelBlueprint(
+		definitions['V2Schema.BlueprintV2'],
+		postTypeKeyPattern,
+		requiredPostTypesPluginSlug,
+		zipFilePattern
+	);
 	patchFontSourceReferences(definitions['V2Schema.BlueprintV2']);
 	for (const definitionName of [
 		'DataSources.InlineFile',
@@ -229,7 +287,12 @@ function patchV2Schema(schema) {
 	patchInlineDirectoryFileNames(definitions, pathSegmentPattern);
 }
 
-function patchV2TopLevelBlueprint(blueprint) {
+function patchV2TopLevelBlueprint(
+	blueprint,
+	postTypeKeyPattern,
+	requiredPostTypesPluginSlug,
+	zipFilePattern
+) {
 	if (!blueprint?.properties) {
 		return;
 	}
@@ -237,6 +300,16 @@ function patchV2TopLevelBlueprint(blueprint) {
 		blueprint.properties.siteOptions.not = {
 			required: ['siteUrl'],
 		};
+	}
+	if (blueprint.properties.postTypes) {
+		blueprint.properties.postTypes.propertyNames = {
+			...(blueprint.properties.postTypes.propertyNames || {}),
+			pattern: postTypeKeyPattern,
+		};
+		blueprint.allOf = [
+			...(blueprint.allOf || []),
+			createPostTypesPluginRequirement(requiredPostTypesPluginSlug),
+		];
 	}
 	if (blueprint.properties.wordpressVersion) {
 		blueprint.properties.wordpressVersion.anyOf = [
@@ -247,7 +320,7 @@ function patchV2TopLevelBlueprint(blueprint) {
 			{
 				allOf: [
 					{ $ref: '#/definitions/DataSources.ExecutionContextPath' },
-					{ type: 'string', pattern: '\\.zip$' },
+					{ type: 'string', pattern: zipFilePattern },
 				],
 			},
 			{
@@ -258,7 +331,7 @@ function patchV2TopLevelBlueprint(blueprint) {
 						properties: {
 							filename: {
 								type: 'string',
-								pattern: '\\.zip$',
+								pattern: zipFilePattern,
 							},
 						},
 					},
@@ -289,6 +362,72 @@ function patchV2TopLevelBlueprint(blueprint) {
 			},
 		];
 	}
+}
+
+function createPostTypesPluginRequirement(requiredPluginSlug) {
+	const versionedSlugPattern = `^${requiredPluginSlug}(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$`;
+	return {
+		if: {
+			required: ['postTypes'],
+		},
+		then: {
+			required: ['plugins'],
+			properties: {
+				plugins: {
+					type: 'array',
+					contains: {
+						anyOf: [
+							{
+								type: 'string',
+								pattern: versionedSlugPattern,
+							},
+							{
+								type: 'object',
+								required: ['targetDirectoryName'],
+								properties: {
+									targetDirectoryName: {
+										const: requiredPluginSlug,
+									},
+								},
+							},
+							{
+								type: 'object',
+								required: ['source'],
+								properties: {
+									source: {
+										anyOf: [
+											{
+												type: 'string',
+												pattern: versionedSlugPattern,
+											},
+											{
+												type: 'object',
+												required: ['directoryName'],
+												properties: {
+													directoryName: {
+														const: requiredPluginSlug,
+													},
+												},
+											},
+											{
+												type: 'object',
+												required: ['filename'],
+												properties: {
+													filename: {
+														const: `${requiredPluginSlug}.php`,
+													},
+												},
+											},
+										],
+									},
+								},
+							},
+						],
+					},
+				},
+			},
+		},
+	};
 }
 
 function patchFontSourceReferences(node) {

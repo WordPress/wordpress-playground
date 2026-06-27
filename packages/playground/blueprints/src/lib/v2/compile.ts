@@ -3037,9 +3037,11 @@ function validatePluginDefinition(
 			]),
 			errors
 		);
-		validateDataReference(value['source'], `${path}/source`, errors, {
-			allowDirectorySlug: true,
-		});
+		validatePluginSourceReference(
+			value['source'],
+			`${path}/source`,
+			errors
+		);
 		validateOptionalBoolean(value['active'], `${path}/active`, errors);
 		validateOptionalPathSegment(
 			value['targetDirectoryName'],
@@ -3073,7 +3075,7 @@ function validatePluginDefinition(
 		);
 		return;
 	}
-	validateDataReference(value, path, errors, { allowDirectorySlug: true });
+	validatePluginSourceReference(value, path, errors);
 }
 
 function validateThemeDefinition(
@@ -3691,6 +3693,46 @@ function validateFontSourceReference(
 				message: 'must reference a .woff2, .woff, .ttf, or .otf file',
 			});
 		}
+	}
+}
+
+function validatePluginSourceReference(
+	value: any,
+	path: string,
+	errors: BlueprintV2ValidationError[]
+) {
+	validateDataReference(value, path, errors, { allowDirectorySlug: true });
+	if (value === undefined) {
+		return;
+	}
+	if (isInlineDirectory(value) || isGitPath(value)) {
+		return;
+	}
+	if (typeof value === 'string') {
+		if (isDirectorySlug(value) || seemsLikeGitRepoUrl(value)) {
+			return;
+		}
+		if (
+			(isHttpUrl(value) || isExecutionContextPath(value)) &&
+			!isAllowedPluginFilename(getDataReferenceBasename(value, ''))
+		) {
+			errors.push({
+				path,
+				message:
+					'must reference a .zip or .php plugin file, directory, Git repository, or plugin slug',
+			});
+		}
+		return;
+	}
+	if (
+		isInlineFile(value) &&
+		!isAllowedPluginFilename(getDataReferenceBasename(value, ''))
+	) {
+		errors.push({
+			path,
+			message:
+				'must reference a .zip or .php plugin file, directory, Git repository, or plugin slug',
+		});
 	}
 }
 
@@ -4560,6 +4602,10 @@ function resolveLatestSupportedWordPressVersionMatchingConstraint({
 
 function isAllowedFontFilename(filename: string) {
 	return /\.(woff2|woff|ttf|otf)$/i.test(filename);
+}
+
+function isAllowedPluginFilename(filename: string) {
+	return /\.(zip|php)$/i.test(filename);
 }
 
 function assertWordPressZipReference(reference: V2DataReference, path: string) {

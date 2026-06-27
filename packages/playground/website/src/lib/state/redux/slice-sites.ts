@@ -11,8 +11,6 @@ import {
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
-	InvalidBlueprintError,
-	InvalidBlueprintV2Error,
 	BlueprintFetchError,
 	type BlueprintV1,
 	type BlueprintV2Declaration,
@@ -27,7 +25,10 @@ import {
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	findBlueprintValidationErrorInCauseChain,
+	findFirewallErrorInCauseChain,
+} from './error-utils';
 import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
@@ -510,11 +511,9 @@ export function setTemporarySiteSpec(
 				'Error preparing the Blueprint after it was downloaded.',
 				e
 			);
-			const errorType =
-				e instanceof InvalidBlueprintError ||
-				e instanceof InvalidBlueprintV2Error
-					? 'blueprint-validation-failed'
-					: 'site-boot-failed';
+			const errorType = findBlueprintValidationErrorInCauseChain(e)
+				? 'blueprint-validation-failed'
+				: 'site-boot-failed';
 			return showTemporarySiteError({ error: errorType, details: e });
 		}
 	};

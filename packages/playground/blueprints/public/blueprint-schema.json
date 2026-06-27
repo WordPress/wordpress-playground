@@ -281,7 +281,7 @@
 				"path": {
 					"type": "string",
 					"description": "The path to the file in the VFS",
-					"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+					"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 				}
 			},
 			"required": ["resource", "path"],
@@ -411,7 +411,7 @@
 				"path": {
 					"type": "string",
 					"description": "The path to the file in the Blueprint",
-					"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+					"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 				}
 			},
 			"required": ["resource", "path"],
@@ -477,7 +477,7 @@
 				"path": {
 					"type": "string",
 					"description": "The path to the directory in the git repository. Defaults to the repo root.",
-					"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+					"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 				},
 				".git": {
 					"type": "boolean",
@@ -611,12 +611,12 @@
 						"fromPath": {
 							"type": "string",
 							"description": "Source path",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						},
 						"toPath": {
 							"type": "string",
 							"description": "Target path",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						}
 					},
 					"required": ["fromPath", "step", "toPath"]
@@ -997,7 +997,7 @@
 						"path": {
 							"type": "string",
 							"description": "The path of the directory you want to create",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						}
 					},
 					"required": ["path", "step"]
@@ -1025,12 +1025,12 @@
 						"fromPath": {
 							"type": "string",
 							"description": "Source path",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						},
 						"toPath": {
 							"type": "string",
 							"description": "Target path",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						}
 					},
 					"required": ["fromPath", "step", "toPath"]
@@ -1108,7 +1108,7 @@
 						"path": {
 							"type": "string",
 							"description": "The path to remove",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						}
 					},
 					"required": ["path", "step"]
@@ -1136,7 +1136,7 @@
 						"path": {
 							"type": "string",
 							"description": "The path to remove",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						}
 					},
 					"required": ["path", "step"]
@@ -1329,7 +1329,7 @@
 						"extractToPath": {
 							"type": "string",
 							"description": "The path to extract the zip file to",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						}
 					},
 					"required": ["extractToPath", "step"]
@@ -1389,7 +1389,7 @@
 						"path": {
 							"type": "string",
 							"description": "The path of the file to write to",
-							"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+							"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 						},
 						"data": {
 							"anyOf": [
@@ -2042,7 +2042,7 @@
 								},
 								{
 									"type": "string",
-									"pattern": "\\.zip$"
+									"pattern": "\\.[Zz][Ii][Pp]$"
 								}
 							]
 						},
@@ -2056,7 +2056,7 @@
 									"properties": {
 										"filename": {
 											"type": "string",
-											"pattern": "\\.zip$"
+											"pattern": "\\.[Zz][Ii][Pp]$"
 										}
 									}
 								}
@@ -2231,7 +2231,7 @@
 					"items": {
 						"anyOf": [
 							{
-								"$ref": "#/definitions/DataSources.DataReference"
+								"$ref": "#/definitions/DataSources.PluginDataReference"
 							},
 							{
 								"$ref": "#/definitions/DataSources.PluginDirectoryReference"
@@ -2242,7 +2242,7 @@
 									"source": {
 										"anyOf": [
 											{
-												"$ref": "#/definitions/DataSources.DataReference"
+												"$ref": "#/definitions/DataSources.PluginDataReference"
 											},
 											{
 												"$ref": "#/definitions/DataSources.PluginDirectoryReference"
@@ -2270,13 +2270,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+														"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+														"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 													}
 												}
 											]
@@ -2693,13 +2693,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																	"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																	"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																}
 															}
 														]
@@ -2724,7 +2724,8 @@
 						]
 					},
 					"propertyNames": {
-						"description": "Post type key. Must not exceed 20 characters and may only contain lowercase alphanumeric characters, dashes, and underscores."
+						"description": "Post type key. Must not exceed 20 characters and may only contain lowercase alphanumeric characters, dashes, and underscores.",
+						"pattern": "^[a-z0-9_-]{1,20}$"
 					},
 					"description": "Very basic schema for defining custom post types.\n\nIMPORTANT: Using this property requires an explicit inclusion of the `secure-custom-fields` plugin. If it's missing, the Blueprint runner will throw an error.\n\nSee https://github.com/WordPress/blueprints-library/issues/32 for more context."
 				},
@@ -3106,13 +3107,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																		"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																		"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																	}
 																}
 															]
@@ -3247,13 +3248,13 @@
 																	{
 																		"type": "array",
 																		"items": {
-																			"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																			"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																		}
 																	},
 																	{
 																		"type": "object",
 																		"additionalProperties": {
-																			"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																			"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																		}
 																	}
 																]
@@ -3535,11 +3536,11 @@
 									},
 									"fromPath": {
 										"type": "string",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									},
 									"toPath": {
 										"type": "string",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									}
 								},
 								"required": ["step", "fromPath", "toPath"],
@@ -3772,13 +3773,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																							"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																							"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																						}
 																					}
 																				]
@@ -3915,13 +3916,13 @@
 																						{
 																							"type": "array",
 																							"items": {
-																								"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																								"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																							}
 																						},
 																						{
 																							"type": "object",
 																							"additionalProperties": {
-																								"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+																								"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 																							}
 																						}
 																					]
@@ -4199,7 +4200,7 @@
 									"source": {
 										"anyOf": [
 											{
-												"$ref": "#/definitions/DataSources.DataReference"
+												"$ref": "#/definitions/DataSources.PluginDataReference"
 											},
 											{
 												"$ref": "#/definitions/DataSources.PluginDirectoryReference"
@@ -4227,13 +4228,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+														"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+														"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 													}
 												}
 											]
@@ -4327,7 +4328,7 @@
 									},
 									"path": {
 										"type": "string",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									}
 								},
 								"required": ["step", "path"],
@@ -4342,11 +4343,11 @@
 									},
 									"fromPath": {
 										"type": "string",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									},
 									"toPath": {
 										"type": "string",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									}
 								},
 								"required": ["step", "fromPath", "toPath"],
@@ -4361,7 +4362,7 @@
 									},
 									"path": {
 										"type": "string",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									}
 								},
 								"required": ["step", "path"],
@@ -4376,7 +4377,7 @@
 									},
 									"path": {
 										"type": "string",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									}
 								},
 								"required": ["step", "path"],
@@ -4457,13 +4458,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+														"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+														"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 													}
 												}
 											]
@@ -4487,7 +4488,7 @@
 									"extractToPath": {
 										"type": "string",
 										"description": "The path to extract the zip file to inside the virtual filesystem.",
-										"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+										"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 									}
 								},
 								"required": [
@@ -4528,7 +4529,7 @@
 											"$ref": "#/definitions/DataSources.DataReference"
 										},
 										"propertyNames": {
-											"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+											"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 										}
 									}
 								},
@@ -4540,17 +4541,87 @@
 				}
 			},
 			"required": ["version"],
-			"additionalProperties": false
+			"additionalProperties": false,
+			"allOf": [
+				{
+					"if": {
+						"required": ["postTypes"]
+					},
+					"then": {
+						"required": ["plugins"],
+						"properties": {
+							"plugins": {
+								"type": "array",
+								"contains": {
+									"anyOf": [
+										{
+											"type": "string",
+											"pattern": "^secure-custom-fields(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$"
+										},
+										{
+											"type": "object",
+											"required": ["targetDirectoryName"],
+											"properties": {
+												"targetDirectoryName": {
+													"const": "secure-custom-fields",
+													"type": "string",
+													"pattern": "^(?!(?:\\.|\\.\\.)$)[^/\\\\]+$"
+												}
+											}
+										},
+										{
+											"type": "object",
+											"required": ["source"],
+											"properties": {
+												"source": {
+													"anyOf": [
+														{
+															"type": "string",
+															"pattern": "^secure-custom-fields(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$"
+														},
+														{
+															"type": "object",
+															"required": [
+																"directoryName"
+															],
+															"properties": {
+																"directoryName": {
+																	"const": "secure-custom-fields"
+																}
+															}
+														},
+														{
+															"type": "object",
+															"required": [
+																"filename"
+															],
+															"properties": {
+																"filename": {
+																	"const": "secure-custom-fields.php"
+																}
+															}
+														}
+													]
+												}
+											}
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			]
 		},
 		"DataSources.URLReference": {
 			"type": "string",
 			"description": "A reference to a HTTP or HTTPS URL.\n\nThe URLs are parsed using the WHATWG URL standard, which means they can optionally contain usernames and passwords if needed.",
-			"pattern": "^https?://\\S+$"
+			"pattern": "^https?://(?:\\[[0-9A-Fa-f:.]+\\](?::\\d+)?|[^\\s/?#%\\[\\]]+)(?:[/?#]\\S*)?$"
 		},
 		"DataSources.ExecutionContextPath": {
 			"type": "string",
 			"description": "A reference to a file in the Blueprint Execution Context – see the main proposal document for more context.\n\nThe path must start with either ./ or / to distinguish it from a plugin or theme slug. Regardless of the prefix (./ or /), the path is relative to the Blueprint Execution Context root:\n\n* Relative paths (./) are relative to the location of blueprint.json file.\n* Absolute paths (/) are chrooted at the Blueprint Execution Context root which is   still the directory where blueprint.json is located.\n\nIt is not possible to escape the Blueprint Execution Context via \"../\" sequences.",
-			"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$))(?:\\./|/).*$"
+			"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$))(?:\\./|/).*$"
 		},
 		"DataSources.WordPressVersion": {
 			"description": "WordPress version, e.g. \"latest\", \"beta\", \"trunk\", \"6.4\", \"6.4.3\", \"6.8-RC1\", or \"6.7-beta2\".\n\nThese refer to slugs of specific WordPress releases as listed in the first table column on https://wordpress.org/download/releases/.\n\nThe WordPressVersion type is only meaningful in the top-level `wordpressVersion` property.",
@@ -4661,7 +4732,7 @@
 				"pathInRepository": {
 					"type": "string",
 					"description": "A path inside the git repository this data reference points to.\n\nDefaults to the root of the repository.",
-					"pattern": "^(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
+					"pattern": "^(?!v1-absolute:)(?!.*(?:^|[/\\\\]|:)\\.\\.(?:[/\\\\]|$)).*$"
 				}
 			},
 			"required": ["gitRepository"],
@@ -4707,12 +4778,68 @@
 			"type": "string",
 			"description": "A slug is a string matching the following regex:\n\n``` ^[a-zA-Z0-9_-]+$ ```\n\nThis constraint may be expressed in TypeScript, but it would come at the expense of readability. This document will thus alias the general `string` type to `Slug`. Every reference to the `Slug` type should be treated as a string matching the above regex."
 		},
+		"DataSources.PluginDataReference": {
+			"anyOf": [
+				{
+					"allOf": [
+						{
+							"$ref": "#/definitions/DataSources.URLReference"
+						},
+						{
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])(?:[?#]\\S*)?$"
+								},
+								{
+									"type": "string",
+									"pattern": "^https://(?:[^\\s?#%\\[\\]]+\\.git/?|github\\.com/[^\\s/?#%\\[\\]]+/[^\\s/?#%\\[\\]]+/?|gitlab\\.com/(?!.*\\/-\\/)[^\\s?#%\\[\\]]+/[^\\s?#%\\[\\]]+(?:/[^\\s?#%\\[\\]]+)*/?)$"
+								}
+							]
+						}
+					]
+				},
+				{
+					"allOf": [
+						{
+							"$ref": "#/definitions/DataSources.ExecutionContextPath"
+						},
+						{
+							"type": "string",
+							"pattern": "\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])$"
+						}
+					]
+				},
+				{
+					"allOf": [
+						{
+							"$ref": "#/definitions/DataSources.InlineFile"
+						},
+						{
+							"type": "object",
+							"properties": {
+								"filename": {
+									"type": "string",
+									"pattern": "\\.(?:[Zz][Ii][Pp]|[Pp][Hh][Pp])$"
+								}
+							}
+						}
+					]
+				},
+				{
+					"$ref": "#/definitions/DataSources.InlineDirectory"
+				},
+				{
+					"$ref": "#/definitions/DataSources.GitPath"
+				}
+			]
+		},
 		"DataSources.PluginDirectoryReference": {
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step",
 			"type": "string",
 			"pattern": "^[a-zA-Z0-9_-]+(?:@(latest|\\d+\\.\\d+(?:\\.\\d+)?))?$"
 		},
-		"alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136": {
+		"alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4726,13 +4853,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+						"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-142496-142590-1337903113-97687-142604-1337903113-97653-142604-1337903113-0-158136"
+						"$ref": "#/definitions/alias-1337903113-142849-142943-1337903113-98028-142957-1337903113-97994-142957-1337903113-0-161962"
 					}
 				}
 			]
