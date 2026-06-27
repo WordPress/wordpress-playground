@@ -176,11 +176,20 @@ fn push_file_asset(json: &mut String, key: &str, asset: &FileAsset, suffix: &str
 }
 
 fn file_asset(repo_root: &Path, path: &Path) -> Result<FileAsset> {
-    let relative = path.strip_prefix(repo_root).unwrap_or(path).to_path_buf();
     Ok(FileAsset {
-        path: relative,
+        path: relative_asset_path(repo_root, path),
         sha256: sha256_file(path)?,
     })
+}
+
+fn relative_asset_path(repo_root: &Path, path: &Path) -> PathBuf {
+    let relative = path.strip_prefix(repo_root).unwrap_or(path);
+    let normalized = relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/");
+    PathBuf::from(normalized)
 }
 
 pub fn sha256_file(path: &Path) -> Result<String> {

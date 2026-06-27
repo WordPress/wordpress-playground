@@ -1024,8 +1024,8 @@ mod tests {
 
     use crate::{
         args::{
-            normalize_for_runtime, parse_cli_args_from, AutoMountSetting, CommandName,
-            DefinedConstantKind, RuntimeCommand, Verbosity, WorkerCount,
+            normalize_for_runtime, parse_cli_args_from, resolve_path, AutoMountSetting,
+            CommandName, DefinedConstantKind, RuntimeCommand, Verbosity, WorkerCount,
         },
         host::{OpcacheMode, PhpConstantValue},
         paths::persistent_site_path,
@@ -1396,9 +1396,9 @@ mod tests {
                 "--port=9555",
                 "--site-url=http://127.0.0.1:9555",
                 "--mount",
-                "/tmp:/tmp",
+                ".:/tmp",
                 "--mount-before-install",
-                "/tmp:/wordpress",
+                ".:/wordpress",
                 "--no-auto-mount",
                 "--no-login",
                 "--skip-wordpress-install",
@@ -2012,7 +2012,10 @@ mod tests {
             &cwd,
         )
         .unwrap();
-        assert_eq!(options.script, Some(PathBuf::from("/tools/wp-cli.phar")));
+        assert_eq!(
+            options.script,
+            Some(resolve_path(&cwd, "/tools/wp-cli.phar"))
+        );
         assert_eq!(
             options.php_args,
             vec![

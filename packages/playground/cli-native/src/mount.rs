@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn parses_delimited_mounts() {
-        let dir = temp_dir("delimited");
+        let dir = PathBuf::from(".");
         let value = format!("{}:/wordpress/wp-content/plugins/demo", dir.display());
         let mounts = parse_mount_with_delimiter_arguments(&[value]).unwrap();
         assert_eq!(mounts[0].host_path, dir);

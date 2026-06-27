@@ -10613,7 +10613,13 @@ mod tests {
         poll_revents
             .call(&mut linker.store, &[], &mut results)
             .unwrap();
-        assert!(matches!(results, [Val::I32(value)] if value & i32::from(POLLERR) != 0));
+        let Val::I32(refused_revents) = results[0] else {
+            panic!("poll revents must be i32");
+        };
+        #[cfg(windows)]
+        assert!(refused_revents & (i32::from(POLLERR) | i32::from(POLLOUT)) != 0);
+        #[cfg(not(windows))]
+        assert!(refused_revents & i32::from(POLLERR) != 0);
         getsock_error
             .call(&mut linker.store, &[Val::I32(refused_fd)], &mut results)
             .unwrap();

@@ -900,18 +900,19 @@ fn precompile_packaged_wasm(
 }
 
 fn precompiled_wasmtime_path(wasm_path: &Path) -> Result<PathBuf> {
+    let wasm_path = wasm_path.to_string_lossy();
     let file_name = wasm_path
-        .file_name()
-        .and_then(|name| name.to_str())
+        .rsplit('/')
+        .next()
+        .filter(|name| !name.is_empty())
         .ok_or_else(|| {
             CliError::new(format!(
                 "Cannot derive precompiled Wasmtime path from wasm asset path {}",
-                wasm_path.display()
+                wasm_path
             ))
         })?;
-    let mut precompiled = wasm_path.to_path_buf();
-    precompiled.set_file_name(format!("{file_name}.cwasm"));
-    Ok(precompiled)
+    let prefix = wasm_path.strip_suffix(file_name).unwrap_or_default();
+    Ok(PathBuf::from(format!("{prefix}{file_name}.cwasm")))
 }
 
 fn copy_asset_directory(
