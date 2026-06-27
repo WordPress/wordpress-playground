@@ -29,6 +29,7 @@ const MEMORY_RESERVATION_FOR_GROWTH_MIB_ENV_VAR: &str =
 const MEMORY_MAY_MOVE_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_MEMORY_MAY_MOVE";
 const DEFAULT_MAX_WASM_STACK_MIB: usize = 2;
 const DEFAULT_ASYNC_STACK_MIB: usize = 4;
+const WINDOWS_ARM64_DENSE_IMAGE_SIZE: u64 = 32 * 1024 * 1024;
 const MAX_WASMTIME_MEMORY_TUNABLE_MIB: u64 = 262_144;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -253,6 +254,11 @@ fn wasm_engine_for_target(
     if !uses_windows_unwind_info(target_triple) {
         config.native_unwind_info(false);
     }
+    if let Some(size) = memory_guaranteed_dense_image_size(target_triple) {
+        // Keep PHP 8.5's sparse-but-small initial memory image out of the
+        // generated module-start trampoline that overflows Windows ARM64 unwind metadata.
+        config.memory_guaranteed_dense_image_size(size);
+    }
     let max_wasm_stack = env_mib_usize(
         MAX_WASM_STACK_MIB_ENV_VAR,
         DEFAULT_MAX_WASM_STACK_MIB,
@@ -334,6 +340,10 @@ fn uses_windows_arm64_unwind_info(target_triple: Option<&str>) -> bool {
     target_triple
         .map(is_windows_arm64_target)
         .unwrap_or(cfg!(all(target_os = "windows", target_arch = "aarch64")))
+}
+
+fn memory_guaranteed_dense_image_size(target_triple: Option<&str>) -> Option<u64> {
+    uses_windows_arm64_unwind_info(target_triple).then_some(WINDOWS_ARM64_DENSE_IMAGE_SIZE)
 }
 
 fn is_windows_target(target_triple: &str) -> bool {
@@ -546,10 +556,10 @@ fn dedupe_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
 mod tests {
     use super::{
         asset_root_candidates_from_exe, default_asset_root, env_bool, env_mib_u64, env_mib_usize,
-        precompile_wasm_module_for_target, repo_root_from_manifest_dir, uses_windows_unwind_info,
-        wasm_engine_settings, NativeRuntime, WasmEngineProfile, ASSET_ROOT_ENV_VAR,
-        DISABLE_SOURCE_FALLBACK_ENV_VAR, MAX_WASM_STACK_MIB_ENV_VAR, MEMORY_MAY_MOVE_ENV_VAR,
-        MEMORY_RESERVATION_MIB_ENV_VAR,
+        memory_guaranteed_dense_image_size, precompile_wasm_module_for_target,
+        repo_root_from_manifest_dir, uses_windows_unwind_info, wasm_engine_settings, NativeRuntime,
+        WasmEngineProfile, ASSET_ROOT_ENV_VAR, DISABLE_SOURCE_FALLBACK_ENV_VAR,
+        MAX_WASM_STACK_MIB_ENV_VAR, MEMORY_MAY_MOVE_ENV_VAR, MEMORY_RESERVATION_MIB_ENV_VAR,
     };
     use crate::host::{classify_php_wasm_import, ImportClassification, ImportExternKind};
     use crate::sha256::sha256_hex;
@@ -771,6 +781,14 @@ mod tests {
         assert!(uses_windows_unwind_info(Some("aarch64-pc-windows-msvc")));
         assert!(uses_windows_unwind_info(Some("x86_64-pc-windows-msvc")));
         assert!(!uses_windows_unwind_info(Some("aarch64-unknown-linux-gnu")));
+        assert_eq!(
+            memory_guaranteed_dense_image_size(Some("aarch64-pc-windows-msvc")),
+            Some(32 * 1024 * 1024)
+        );
+        assert_eq!(
+            memory_guaranteed_dense_image_size(Some("aarch64-unknown-linux-gnu")),
+            None
+        );
     }
 
     #[test]
@@ -888,9 +906,20 @@ mod tests {
     #[test]
     #[ignore = "Cross-precompiles full PHP 7.4 wasm for Windows ARM64; run explicitly."]
     fn precompiles_php74_for_windows_arm64_target() {
+        precompile_php_for_windows_arm64_target("7.4");
+    }
+
+    #[test]
+    #[ignore = "Cross-precompiles full PHP 8.5 wasm for Windows ARM64; run explicitly."]
+    fn precompiles_php85_for_windows_arm64_target() {
+        precompile_php_for_windows_arm64_target("8.5");
+    }
+
+    fn precompile_php_for_windows_arm64_target(php_version: &str) {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
-        let asset = runtime.php_asset("7.4").unwrap();
-        let output_path = temp_dir("php74-windows-arm64-precompile").join("php_7_4.wasm.cwasm");
+        let asset = runtime.php_asset(php_version).unwrap();
+        let output_path = temp_dir(&format!("php{php_version}-windows-arm64-precompile"))
+            .join(format!("php_{php_version}.wasm.cwasm"));
 
         match precompile_wasm_module_for_target(
             &runtime.repo_root().join(&asset.wasm.path),
