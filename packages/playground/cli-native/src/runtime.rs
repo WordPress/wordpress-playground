@@ -303,19 +303,20 @@ fn wasm_engine_settings(
     profile: WasmEngineProfile,
     target_triple: Option<&str>,
 ) -> WasmEngineSettings {
+    if uses_windows_arm64_unwind_info(target_triple) {
+        // Windows ARM64 unwind records encode function length in 18 bits of words.
+        // PHP 7.4+ can exceed that with larger codegen, so minimize code size here.
+        return WasmEngineSettings {
+            opt_level: OptLevel::SpeedAndSize,
+            regalloc_algorithm: RegallocAlgorithm::Backtracking,
+        };
+    }
+
     match profile {
         WasmEngineProfile::FastStartup => WasmEngineSettings {
             opt_level: OptLevel::None,
             regalloc_algorithm: RegallocAlgorithm::SinglePass,
         },
-        WasmEngineProfile::Optimized if uses_windows_arm64_unwind_info(target_triple) => {
-            // Windows ARM64 unwind records encode function length in 18 bits of words.
-            // Optimized PHP codegen can exceed that, so minimize code size here.
-            WasmEngineSettings {
-                opt_level: OptLevel::SpeedAndSize,
-                regalloc_algorithm: RegallocAlgorithm::Backtracking,
-            }
-        }
         WasmEngineProfile::Optimized => WasmEngineSettings {
             opt_level: OptLevel::Speed,
             regalloc_algorithm: RegallocAlgorithm::Backtracking,
@@ -738,7 +739,7 @@ mod tests {
     }
 
     #[test]
-    fn windows_arm64_target_uses_fast_startup_settings_and_native_unwind() {
+    fn windows_arm64_target_uses_size_optimized_backtracking_and_native_unwind() {
         let fast_startup = wasm_engine_settings(
             WasmEngineProfile::FastStartup,
             Some("aarch64-pc-windows-msvc"),
@@ -752,10 +753,10 @@ mod tests {
             Some("aarch64-unknown-linux-gnu"),
         );
 
-        assert_eq!(fast_startup.opt_level, OptLevel::None);
+        assert_eq!(fast_startup.opt_level, OptLevel::SpeedAndSize);
         assert_eq!(
             fast_startup.regalloc_algorithm,
-            RegallocAlgorithm::SinglePass
+            RegallocAlgorithm::Backtracking
         );
         assert_eq!(optimized.opt_level, OptLevel::SpeedAndSize);
         assert_eq!(

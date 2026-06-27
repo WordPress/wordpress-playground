@@ -305,7 +305,7 @@ pub fn run_packaged_php_smoke(summary: &PackageSummary, php_version: &str) -> Re
         })?;
     if !output.status.success() {
         return Err(CliError::new(format!(
-            "Packaged php -v smoke failed with status {}.\nstdout:\n{}\nstderr:\n{}",
+            "Packaged php -v smoke for PHP {php_version} failed with status {}.\nstdout:\n{}\nstderr:\n{}",
             output.status,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
