@@ -84,6 +84,7 @@ if [[ -z "$WORK_DIR" ]]; then
 fi
 PACKAGE_DIR="${PACKAGE_DIR:-$WORK_DIR/wp-native-package-bench}"
 RESULTS_FILE="$WORK_DIR/results.tsv"
+mkdir -p "$WORK_DIR"
 
 cleanup() {
 	if [[ "$KEEP_BENCH_ARTIFACTS" != "1" ]]; then
