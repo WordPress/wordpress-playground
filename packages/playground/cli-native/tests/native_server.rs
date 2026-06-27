@@ -4,18 +4,26 @@ use std::{
     net::TcpStream,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::mpsc,
+    sync::{mpsc, Mutex, MutexGuard},
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+const SERVER_START_TIMEOUT: Duration = Duration::from_secs(300);
+
+static SERVER_SMOKE_LOCK: Mutex<()> = Mutex::new(());
+
 struct ChildGuard {
     child: Child,
+    _serial_guard: MutexGuard<'static, ()>,
 }
 
 impl ChildGuard {
-    fn new(child: Child) -> Self {
-        Self { child }
+    fn new(child: Child, serial_guard: MutexGuard<'static, ()>) -> Self {
+        Self {
+            child,
+            _serial_guard: serial_guard,
+        }
     }
 }
 
@@ -41,6 +49,7 @@ fn start_native_server(
     root: &Path,
     workers: usize,
 ) -> (String, ChildGuard, thread::JoinHandle<()>) {
+    let serial_guard = SERVER_SMOKE_LOCK.lock().unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_wp-playground-native"))
         .args([
             "server",
@@ -58,7 +67,7 @@ fn start_native_server(
         .unwrap();
 
     let stderr = child.stderr.take().unwrap();
-    let guard = ChildGuard::new(child);
+    let guard = ChildGuard::new(child, serial_guard);
     let (tx, rx) = mpsc::channel();
     let stderr_thread = thread::spawn(move || {
         for line in BufReader::new(stderr).lines() {
@@ -70,7 +79,7 @@ fn start_native_server(
 
     let mut stderr_lines = Vec::new();
     let listening_line = loop {
-        match rx.recv_timeout(Duration::from_secs(90)) {
+        match rx.recv_timeout(SERVER_START_TIMEOUT) {
             Ok(line) if line.contains("wp-playground-native listening on ") => break line,
             Ok(line) => stderr_lines.push(line),
             Err(error) => {

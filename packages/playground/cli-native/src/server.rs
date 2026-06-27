@@ -8205,35 +8205,38 @@ mod tests {
         cpu_workers_minus_one, decode_chunked_body_with_limit, define_wp_config_consts_script,
         directory_zip_name, ensure_tmp_mount, extract_scope_path, filename_from_url,
         git_archive_bytes_to_file_tree, git_archive_download_url, git_archive_supported_host,
-        host_path_for_vfs_path, host_path_for_vfs_path_with_symlink_policy, http_response_bytes,
-        import_theme_starter_content_script, import_wordpress_files_replace_files,
-        import_wordpress_files_rewrite_scope_script, import_wxr_script,
-        inject_http_host_into_wp_config, install_asset_zip, install_downloadable_asset,
-        install_plugin_asset, lazy_worker_pool_enabled, looks_like_zip_file,
-        max_requests_per_worker_from_env, maybe_boot_wordpress_site, multisite_url_settings,
-        normalize_git_directory_path, parse_http_request, parse_http_request_owned,
-        parse_php_headers, php_request_from_http, php_request_from_run_options,
-        php_single_quoted_string, read_http_request, reason_phrase,
+        host_path_for_vfs_path, http_response_bytes, import_theme_starter_content_script,
+        import_wordpress_files_replace_files, import_wordpress_files_rewrite_scope_script,
+        import_wxr_script, inject_http_host_into_wp_config, install_asset_zip,
+        install_downloadable_asset, install_plugin_asset, lazy_worker_pool_enabled,
+        looks_like_zip_file, max_requests_per_worker_from_env, maybe_boot_wordpress_site,
+        multisite_url_settings, normalize_git_directory_path, parse_http_request,
+        parse_http_request_owned, parse_php_headers, php_request_from_http,
+        php_request_from_run_options, php_single_quoted_string, read_http_request, reason_phrase,
         recycle_wasm_memory_threshold_from_env, remove_wp_allow_multisite_define,
         request_path_from_target, requested_worker_count, reserve_lazy_worker_retirement,
-        reset_data_script, resolve_git_directory_resource, resolve_route,
-        resolve_route_with_symlink_policy, run_git, run_native_startup_step,
-        run_native_startup_step_with_symlink_policy, run_sql_script, run_startup_step,
-        run_startup_steps, set_site_language_metadata_script, split_shell_command,
-        startup_steps_from_blueprint_json, startup_steps_from_blueprint_source,
-        startup_steps_from_blueprint_zip, startup_steps_from_remote_blueprint_bytes,
-        unzip_bytes_to_dir, update_user_meta_script, validate_install_asset_zip,
-        wordpress_importer_install_step, wordpress_translation_url_from_api_response,
-        worker_recycle_idle_delay_from_env, wp_cli_runner_script, wp_installation_wizard_request,
-        write_static_file_response, write_wordpress_snapshot_zip,
-        write_wordpress_snapshot_zip_with_symlink_policy, zip_path_to_string, DefineWpConfigMethod,
-        DownloadableAsset, FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource,
-        HttpRequest, HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep,
-        PhpConstantValue, PhpRunOptions, PhpRunScript, RouteTarget, StartupHttpRequest,
-        StartupStep, SymlinkPolicy, CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_RECYCLE_WASM_MEMORY_MIB,
-        DEFAULT_WP_CLI_PATH, MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER,
-        MAX_REQUESTS_PER_WORKER_ENV_VAR, RECYCLE_WASM_MEMORY_MIB_ENV_VAR,
-        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        reset_data_script, resolve_git_directory_resource, resolve_route, run_git,
+        run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
+        set_site_language_metadata_script, split_shell_command, startup_steps_from_blueprint_json,
+        startup_steps_from_blueprint_source, startup_steps_from_blueprint_zip,
+        startup_steps_from_remote_blueprint_bytes, unzip_bytes_to_dir, update_user_meta_script,
+        validate_install_asset_zip, wordpress_importer_install_step,
+        wordpress_translation_url_from_api_response, worker_recycle_idle_delay_from_env,
+        wp_cli_runner_script, wp_installation_wizard_request, write_static_file_response,
+        write_wordpress_snapshot_zip, zip_path_to_string, DefineWpConfigMethod, DownloadableAsset,
+        FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource, HttpRequest,
+        HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep, PhpConstantValue,
+        PhpRunOptions, PhpRunScript, RouteTarget, StartupHttpRequest, StartupStep,
+        CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_RECYCLE_WASM_MEMORY_MIB, DEFAULT_WP_CLI_PATH,
+        MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER, MAX_REQUESTS_PER_WORKER_ENV_VAR,
+        RECYCLE_WASM_MEMORY_MIB_ENV_VAR, WORKER_RECYCLE_IDLE_DELAY,
+        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+    };
+    #[cfg(unix)]
+    use super::{
+        host_path_for_vfs_path_with_symlink_policy, resolve_route_with_symlink_policy,
+        run_native_startup_step_with_symlink_policy,
+        write_wordpress_snapshot_zip_with_symlink_policy, SymlinkPolicy,
     };
     use crate::download::url_cache_key;
     use crate::host::{HostMount, HostOptions};
@@ -8241,6 +8244,7 @@ mod tests {
     use crate::runtime::{repo_root_from_manifest_dir, NativeRuntime};
     use crate::wordpress::prepare_wordpress;
     use crate::{args::parse_cli_args_from, mount::Mount};
+    #[cfg(unix)]
     use zip::ZipArchive;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());

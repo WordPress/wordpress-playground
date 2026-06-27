@@ -5,6 +5,7 @@ edition = "2021"
 description = "Experimental native WordPress Playground CLI host"
 license = "GPL-2.0-or-later"
 publish = false
+build = "build.rs"
 
 [profile.release]
 lto = "thin"
@@ -47,3 +48,8 @@ zip = { version = "6.0.0", default-features = false, features = [
 
 [dev-dependencies]
 wasmparser = "0.252.0"
+
+[build-dependencies]
+zip = { version = "6.0.0", default-features = false, features = [
+	"deflate-flate2-zlib-rs",
+] }

@@ -10,6 +10,9 @@ use crate::{
 
 pub const PHP_INI_PATH: &str = "/internal/shared/php.ini";
 
+type PhpExport2I32Slot = fn(&mut PhpExportCache) -> &mut Option<TypedFunc<(u32, u32), i32>>;
+type PhpExport2VoidSlot = fn(&mut PhpExportCache) -> &mut Option<TypedFunc<(u32, u32), ()>>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PhpRequest {
     pub script_path: String,
@@ -709,7 +712,7 @@ impl PhpInstance {
     fn cached_export2_i32(
         &mut self,
         export: &str,
-        slot: fn(&mut PhpExportCache) -> &mut Option<TypedFunc<(u32, u32), i32>>,
+        slot: PhpExport2I32Slot,
     ) -> Result<TypedFunc<(u32, u32), i32>> {
         if let Some(func) = slot(&mut self.exports).as_ref().cloned() {
             return Ok(func);
@@ -726,7 +729,7 @@ impl PhpInstance {
     fn cached_export2_void(
         &mut self,
         export: &str,
-        slot: fn(&mut PhpExportCache) -> &mut Option<TypedFunc<(u32, u32), ()>>,
+        slot: PhpExport2VoidSlot,
     ) -> Result<TypedFunc<(u32, u32), ()>> {
         if let Some(func) = slot(&mut self.exports).as_ref().cloned() {
             return Ok(func);
@@ -796,7 +799,7 @@ impl PhpInstance {
         export: &str,
         arg1: u32,
         arg2: u32,
-        slot: fn(&mut PhpExportCache) -> &mut Option<TypedFunc<(u32, u32), i32>>,
+        slot: PhpExport2I32Slot,
     ) -> Result<i32> {
         let func = self.cached_export2_i32(export, slot)?;
         func.call(&mut self.linker.store, (arg1, arg2))
@@ -814,7 +817,7 @@ impl PhpInstance {
         export: &str,
         arg1: u32,
         arg2: u32,
-        slot: fn(&mut PhpExportCache) -> &mut Option<TypedFunc<(u32, u32), ()>>,
+        slot: PhpExport2VoidSlot,
     ) -> Result<()> {
         let func = self.cached_export2_void(export, slot)?;
         func.call(&mut self.linker.store, (arg1, arg2))
