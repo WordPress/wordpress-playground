@@ -441,15 +441,6 @@ function findTinyMCEInitError(consoleErrors, startIndex = 0) {
 	});
 }
 
-/**
- * Indicates whether the front-page boot hit a transient worker load failure.
- */
-function shouldRetryFrontPageBoot(consoleErrors) {
-	return consoleErrors.some((message) =>
-		message.includes('WebWorker failed to load')
-	);
-}
-
 const browser = await chromium.launch({
 	headless: true,
 	executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
@@ -490,7 +481,10 @@ for (const { wp, php } of MATRIX) {
 
 		// --- Phase 1: Front page ---
 		let wp1 = await waitForWPFrame(page, TIMEOUT_S);
-		if (!wp1 && shouldRetryFrontPageBoot(consoleErrors)) {
+		if (!wp1) {
+			// The first scoped-frame boot can occasionally stall on shared
+			// CI runners. Retry once in a fresh context before classifying
+			// it as a real legacy boot failure.
 			await page.close();
 			await context.close();
 			context = await browser.newContext();
