@@ -13,6 +13,38 @@ type GitHeadInfo = {
 };
 
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
+const SENSITIVE_URL_PARAM_PATTERN =
+	/(^|[-_])(access[-_]?token|auth[-_]?token|credential|password|refresh[-_]?token|secret|session[-_]?token|signature|token)([-_]|$)/i;
+
+function normalizeUrlParamKey(key: string) {
+	return key.replace(/([a-z0-9])([A-Z])/g, '$1-$2');
+}
+
+function hasSensitiveUrlData(url: string) {
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(url);
+	} catch {
+		return false;
+	}
+
+	const hasSensitiveParam = (params: URLSearchParams) => {
+		for (const [key] of params) {
+			const normalizedKey = normalizeUrlParamKey(key);
+			if (SENSITIVE_URL_PARAM_PATTERN.test(normalizedKey)) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	if (hasSensitiveParam(parsedUrl.searchParams)) {
+		return true;
+	}
+
+	const fragmentParams = new URLSearchParams(parsedUrl.hash.slice(1));
+	return hasSensitiveParam(fragmentParams);
+}
 
 /**
  * Creates loose Git object files from sparse checkout objects.
@@ -110,9 +142,20 @@ function buildGitConfig(
 	{
 		branchName,
 		partialCloneFilter,
-	}: { branchName?: string; partialCloneFilter?: string }
+		persistRemote,
+	}: {
+		branchName?: string;
+		partialCloneFilter?: string;
+		persistRemote: boolean;
+	}
 ): string {
-	const repositoryFormatVersion = partialCloneFilter ? 1 : 0;
+	if (!persistRemote && partialCloneFilter) {
+		throw new Error(
+			'Cannot write partial clone config without persisting the remote.'
+		);
+	}
+
+	const repositoryFormatVersion = persistRemote && partialCloneFilter ? 1 : 0;
 	const lines = [
 		'[core]',
 		`\trepositoryformatversion = ${repositoryFormatVersion}`,
@@ -121,18 +164,22 @@ function buildGitConfig(
 		'\tlogallrefupdates = true',
 		'\tignorecase = true',
 		'\tprecomposeunicode = true',
-		'[remote "origin"]',
-		`\turl = ${repoUrl}`,
-		'\tfetch = +refs/heads/*:refs/remotes/origin/*',
-		'\tfetch = +refs/tags/*:refs/tags/*',
 	];
-	if (partialCloneFilter) {
-		lines.push('\tpromisor = true');
-		lines.push(`\tpartialclonefilter = ${partialCloneFilter}`);
-		lines.push('[extensions]');
-		lines.push('\tpartialclone = origin');
+	if (persistRemote) {
+		lines.push(
+			'[remote "origin"]',
+			`\turl = ${repoUrl}`,
+			'\tfetch = +refs/heads/*:refs/remotes/origin/*',
+			'\tfetch = +refs/tags/*:refs/tags/*'
+		);
+		if (partialCloneFilter) {
+			lines.push('\tpromisor = true');
+			lines.push(`\tpartialclonefilter = ${partialCloneFilter}`);
+			lines.push('[extensions]');
+			lines.push('\tpartialclone = origin');
+		}
 	}
-	if (branchName) {
+	if (branchName && persistRemote) {
 		lines.push(
 			`[branch "${branchName}"]`,
 			'\tremote = origin',
@@ -165,10 +212,13 @@ export async function createDotGitDirectory({
 }): Promise<Record<string, string | Uint8Array>> {
 	const gitFiles: Record<string, string | Uint8Array> = {};
 	const headInfo = resolveHeadInfo(ref, refType, commitHash);
+	// Credentials belong in request headers, not persisted repository metadata.
+	const persistRemote = !hasSensitiveUrlData(repoUrl);
 
 	gitFiles['.git/HEAD'] = headInfo.headContent;
 	gitFiles['.git/config'] = buildGitConfig(repoUrl, {
 		branchName: headInfo.branchName,
+		persistRemote,
 	});
 	gitFiles['.git/description'] = 'WordPress Playground clone\n';
 	gitFiles['.git/shallow'] = `${commitHash}\n`;
@@ -181,10 +231,12 @@ export async function createDotGitDirectory({
 	if (headInfo.branchRef && headInfo.branchName) {
 		gitFiles['.git/logs/HEAD'] = `ref: ${headInfo.branchRef}\n`;
 		gitFiles[`.git/${headInfo.branchRef}`] = `${commitHash}\n`;
-		gitFiles[`.git/refs/remotes/origin/${headInfo.branchName}`] =
-			`${commitHash}\n`;
-		gitFiles['.git/refs/remotes/origin/HEAD'] =
-			`ref: refs/remotes/origin/${headInfo.branchName}\n`;
+		if (persistRemote) {
+			gitFiles[`.git/refs/remotes/origin/${headInfo.branchName}`] =
+				`${commitHash}\n`;
+			gitFiles['.git/refs/remotes/origin/HEAD'] =
+				`ref: refs/remotes/origin/${headInfo.branchName}\n`;
+		}
 	}
 
 	if (headInfo.tagName) {
