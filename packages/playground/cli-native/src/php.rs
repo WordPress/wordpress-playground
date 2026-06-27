@@ -4,8 +4,8 @@ use wasmtime::{Instance, Memory, Module, TypedFunc};
 
 use crate::{
     host::{
-        AsyncifyState, HostOptions, PhpConstantValue, PhpExitStatus, StubImportLinker,
-        PROFILE_IMPORTS_ENV_VAR,
+        AsyncifyState, HostOptions, ImportSelfTimeSnapshot, PhpConstantValue, PhpExitStatus,
+        StubImportLinker, PROFILE_IMPORTS_ENV_VAR, PROFILE_IMPORT_SELF_TIME_ENV_VAR,
     },
     runtime::NativeRuntime,
     CliError, Result,
@@ -487,6 +487,10 @@ impl PhpInstance {
         self.linker.store.data().import_call_count()
     }
 
+    pub fn import_self_time_snapshot(&self) -> ImportSelfTimeSnapshot {
+        self.linker.store.data().import_self_time_snapshot()
+    }
+
     pub fn recent_host_imports(&self, limit: usize) -> String {
         let imports = self.called_host_imports();
         let start = imports.len().saturating_sub(limit);
@@ -890,17 +894,20 @@ struct ImportProfileWindow {
     started_at: Instant,
     import_start: usize,
     trace_start: usize,
+    self_time_start: Option<ImportSelfTimeSnapshot>,
 }
 
 impl ImportProfileWindow {
     fn start(php: &PhpInstance) -> Option<Self> {
-        if !import_profile_enabled() {
+        if !import_profile_enabled() && !import_self_time_profile_enabled() {
             return None;
         }
         Some(Self {
             started_at: Instant::now(),
             import_start: php.host_import_count(),
             trace_start: php.called_host_imports().len(),
+            self_time_start: import_self_time_profile_enabled()
+                .then(|| php.import_self_time_snapshot()),
         })
     }
 }
@@ -908,23 +915,54 @@ impl ImportProfileWindow {
 fn emit_import_profile(php: &PhpInstance, request: &PhpRequest, profile: ImportProfileWindow) {
     let elapsed_ms = profile.started_at.elapsed().as_secs_f64() * 1000.0;
     let import_count = php.host_import_count().saturating_sub(profile.import_start);
-    let imports = php.called_host_imports();
-    let trace_start = profile.trace_start.min(imports.len());
-    let summary = summarize_imports(&imports[trace_start..], 12);
+    if import_profile_enabled() {
+        let imports = php.called_host_imports();
+        let trace_start = profile.trace_start.min(imports.len());
+        let summary = summarize_imports(&imports[trace_start..], 12);
 
-    eprintln!(
-        "import-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\tunique_imports={}\ttop={}",
-        profile_value(&request.request_uri),
-        profile_value(&request.method),
-        summary.unique_imports,
-        profile_value(&format_top_imports(&summary.top_imports))
-    );
+        eprintln!(
+            "import-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\tunique_imports={}\ttop={}",
+            profile_value(&request.request_uri),
+            profile_value(&request.method),
+            summary.unique_imports,
+            profile_value(&format_top_imports(&summary.top_imports))
+        );
+    }
+
+    if let Some(self_time_start) = profile.self_time_start {
+        let summary =
+            summarize_import_self_time(&self_time_start, &php.import_self_time_snapshot(), 12);
+        eprintln!(
+            "import-self-time-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\ttimed_imports={}\tunique_timed_imports={}\ttotal_self_ms={:.3}\ttop={}",
+            profile_value(&request.request_uri),
+            profile_value(&request.method),
+            summary.timed_imports,
+            summary.unique_timed_imports,
+            ns_to_ms(summary.total_self_time_ns),
+            profile_value(&format_top_import_self_times(&summary.top_imports))
+        );
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 struct ImportProfileSummary {
     unique_imports: usize,
     top_imports: Vec<(String, usize)>,
+}
+
+#[derive(Debug, PartialEq)]
+struct ImportSelfTimeProfileSummary {
+    timed_imports: u64,
+    unique_timed_imports: usize,
+    total_self_time_ns: u128,
+    top_imports: Vec<ImportSelfTimeProfileRow>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ImportSelfTimeProfileRow {
+    name: String,
+    calls: u64,
+    total_ns: u128,
 }
 
 fn summarize_imports(imports: &[String], limit: usize) -> ImportProfileSummary {
@@ -946,12 +984,74 @@ fn summarize_imports(imports: &[String], limit: usize) -> ImportProfileSummary {
     }
 }
 
+fn summarize_import_self_time(
+    start: &ImportSelfTimeSnapshot,
+    end: &ImportSelfTimeSnapshot,
+    limit: usize,
+) -> ImportSelfTimeProfileSummary {
+    let mut rows = Vec::new();
+    for (name, end_total) in &end.totals {
+        let start_total = start.totals.get(name).cloned().unwrap_or_default();
+        let calls = end_total.calls.saturating_sub(start_total.calls);
+        let total_ns = end_total.total_ns.saturating_sub(start_total.total_ns);
+        if calls == 0 && total_ns == 0 {
+            continue;
+        }
+        rows.push(ImportSelfTimeProfileRow {
+            name: name.clone(),
+            calls,
+            total_ns,
+        });
+    }
+    rows.sort_by(|left, right| {
+        right
+            .total_ns
+            .cmp(&left.total_ns)
+            .then_with(|| right.calls.cmp(&left.calls))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    let timed_imports = rows.iter().map(|row| row.calls).sum();
+    let total_self_time_ns = rows.iter().map(|row| row.total_ns).sum();
+    let unique_timed_imports = rows.len();
+    rows.truncate(limit);
+    ImportSelfTimeProfileSummary {
+        timed_imports,
+        unique_timed_imports,
+        total_self_time_ns,
+        top_imports: rows,
+    }
+}
+
 fn format_top_imports(imports: &[(String, usize)]) -> String {
     imports
         .iter()
         .map(|(name, count)| format!("{name}:{count}"))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+fn format_top_import_self_times(imports: &[ImportSelfTimeProfileRow]) -> String {
+    imports
+        .iter()
+        .map(|row| {
+            format!(
+                "{}:{}:{:.3}:{:.3}",
+                row.name,
+                row.calls,
+                ns_to_ms(row.total_ns),
+                ns_to_us(row.total_ns / u128::from(row.calls.max(1)))
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn ns_to_ms(ns: u128) -> f64 {
+    ns as f64 / 1_000_000.0
+}
+
+fn ns_to_us(ns: u128) -> f64 {
+    ns as f64 / 1_000.0
 }
 
 fn profile_value(value: &str) -> String {
@@ -966,6 +1066,17 @@ fn profile_value(value: &str) -> String {
 
 fn import_profile_enabled() -> bool {
     std::env::var(PROFILE_IMPORTS_ENV_VAR)
+        .map(|value| {
+            matches!(
+                value.to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn import_self_time_profile_enabled() -> bool {
+    std::env::var(PROFILE_IMPORT_SELF_TIME_ENV_VAR)
         .map(|value| {
             matches!(
                 value.to_ascii_lowercase().as_str(),
@@ -1143,6 +1254,7 @@ mod tests {
     use wasmtime::{Engine, Module};
 
     use std::{
+        collections::BTreeMap,
         fs,
         io::{Read, Write},
         net::{TcpListener, TcpStream},
@@ -1150,11 +1262,12 @@ mod tests {
     };
 
     use super::{
-        build_sapi_request_blob, format_top_imports, profile_value, summarize_imports, PhpInstance,
+        build_sapi_request_blob, format_top_import_self_times, format_top_imports, profile_value,
+        summarize_import_self_time, summarize_imports, ImportSelfTimeProfileRow, PhpInstance,
         PhpRequest, SAPI_REQUEST_BLOB_HEADER_SIZE,
     };
     use crate::{
-        host::{HostMount, HostOptions},
+        host::{HostMount, HostOptions, ImportSelfTimeSnapshot, ImportSelfTimeTotal},
         runtime::{repo_root_from_manifest_dir, NativeRuntime},
     };
 
@@ -1344,6 +1457,78 @@ mod tests {
         assert_eq!(
             profile_value("/path\twith\ncontrols"),
             "/path with controls"
+        );
+    }
+
+    #[test]
+    fn summarizes_import_self_time_by_total_time_then_count_then_name() {
+        let start = ImportSelfTimeSnapshot {
+            totals: BTreeMap::from([
+                (
+                    "env.__syscall_openat".to_string(),
+                    ImportSelfTimeTotal {
+                        calls: 2,
+                        total_ns: 1_000,
+                    },
+                ),
+                (
+                    "wasi_snapshot_preview1.fd_write".to_string(),
+                    ImportSelfTimeTotal {
+                        calls: 10,
+                        total_ns: 5_000,
+                    },
+                ),
+            ]),
+        };
+        let end = ImportSelfTimeSnapshot {
+            totals: BTreeMap::from([
+                (
+                    "env.__syscall_openat".to_string(),
+                    ImportSelfTimeTotal {
+                        calls: 5,
+                        total_ns: 7_000,
+                    },
+                ),
+                (
+                    "wasi_snapshot_preview1.fd_write".to_string(),
+                    ImportSelfTimeTotal {
+                        calls: 14,
+                        total_ns: 11_000,
+                    },
+                ),
+                (
+                    "env.emscripten_date_now".to_string(),
+                    ImportSelfTimeTotal {
+                        calls: 8,
+                        total_ns: 2_000,
+                    },
+                ),
+            ]),
+        };
+
+        let summary = summarize_import_self_time(&start, &end, 2);
+
+        assert_eq!(summary.timed_imports, 15);
+        assert_eq!(summary.unique_timed_imports, 3);
+        assert_eq!(summary.total_self_time_ns, 14_000);
+        assert_eq!(
+            summary.top_imports,
+            vec![
+                ImportSelfTimeProfileRow {
+                    name: "wasi_snapshot_preview1.fd_write".to_string(),
+                    calls: 4,
+                    total_ns: 6_000,
+                },
+                ImportSelfTimeProfileRow {
+                    name: "env.__syscall_openat".to_string(),
+                    calls: 3,
+                    total_ns: 6_000,
+                },
+            ]
+        );
+        assert_eq!(
+            format_top_import_self_times(&summary.top_imports),
+            "wasi_snapshot_preview1.fd_write:4:0.006:1.500,env.__syscall_openat:3:0.006:2.000"
         );
     }
 

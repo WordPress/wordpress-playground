@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::{HashMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     fmt::{Display, Formatter},
     fs,
     io::{self, Read, Seek, SeekFrom, Write},
@@ -162,6 +162,8 @@ const OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR: &str =
 const EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_EXPERIMENTAL_PHP_INI_APPEND";
 pub(crate) const PROFILE_IMPORTS_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_PROFILE_IMPORTS";
+pub(crate) const PROFILE_IMPORT_SELF_TIME_ENV_VAR: &str =
+    "WP_PLAYGROUND_NATIVE_PROFILE_IMPORT_SELF_TIME";
 static NEXT_HOST_LOCK_OWNER_ID: AtomicU64 = AtomicU64::new(1);
 static ADVISORY_LOCKS: OnceLock<Mutex<HashMap<PathBuf, Vec<AdvisoryLock>>>> = OnceLock::new();
 
@@ -224,6 +226,7 @@ impl std::error::Error for EmscriptenLongjmp {}
 pub struct HostState {
     pub called_imports: Vec<String>,
     import_call_count: usize,
+    import_self_time: Option<ImportSelfTimeProfile>,
     options: HostOptions,
     resolved_mounts: Vec<ResolvedHostMount>,
     canonical_allowed_host_paths: Vec<PathBuf>,
@@ -249,6 +252,22 @@ pub struct HostState {
     host_path_cache: RefCell<HashMap<(String, bool, bool), Option<PathBuf>>>,
     host_stat_cache: RefCell<HashMap<(String, bool), std::result::Result<VfsStat, i32>>>,
     emscripten_now_base: Option<EmscriptenNowBase>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ImportSelfTimeSnapshot {
+    pub totals: BTreeMap<String, ImportSelfTimeTotal>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ImportSelfTimeTotal {
+    pub calls: u64,
+    pub total_ns: u128,
+}
+
+#[derive(Debug, Default)]
+struct ImportSelfTimeProfile {
+    totals: BTreeMap<String, ImportSelfTimeTotal>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -851,6 +870,8 @@ impl HostState {
         Self {
             called_imports: Vec::new(),
             import_call_count: 0,
+            import_self_time: env_flag(PROFILE_IMPORT_SELF_TIME_ENV_VAR)
+                .then(ImportSelfTimeProfile::default),
             resolved_mounts,
             canonical_allowed_host_paths,
             options,
@@ -935,6 +956,16 @@ impl HostState {
         self.import_call_count
     }
 
+    pub fn import_self_time_snapshot(&self) -> ImportSelfTimeSnapshot {
+        ImportSelfTimeSnapshot {
+            totals: self
+                .import_self_time
+                .as_ref()
+                .map(|profile| profile.totals.clone())
+                .unwrap_or_default(),
+        }
+    }
+
     fn record_import(&mut self, label: &str) -> wasmtime::Result<()> {
         self.import_call_count = self.import_call_count.saturating_add(1);
         if self.options.capture_import_trace {
@@ -952,6 +983,19 @@ impl HostState {
         }
 
         Ok(())
+    }
+
+    fn should_record_import_self_time(&self, label: &str) -> bool {
+        self.import_self_time.is_some() && profile_import_self_time_label(label)
+    }
+
+    fn record_import_self_time(&mut self, label: &str, elapsed: Duration) {
+        let Some(profile) = self.import_self_time.as_mut() else {
+            return;
+        };
+        let entry = profile.totals.entry(label.to_string()).or_default();
+        entry.calls = entry.calls.saturating_add(1);
+        entry.total_ns = entry.total_ns.saturating_add(elapsed.as_nanos());
     }
 
     fn trace_enabled(&self) -> bool {
@@ -2556,6 +2600,45 @@ fn default_import_result_value(
         .ok_or_else(|| wasmtime::Error::msg("cannot synthesize default result value"))
 }
 
+fn profile_import_self_time_label(label: &str) -> bool {
+    matches!(
+        label,
+        "wasi_snapshot_preview1.fd_read"
+            | "wasi_snapshot_preview1.fd_seek"
+            | "wasi_snapshot_preview1.fd_write"
+            | "env.js_fd_read"
+            | "env.js_getpid"
+            | "env.emscripten_get_now"
+            | "env.emscripten_date_now"
+            | "env.__syscall_stat64"
+            | "env.__syscall_lstat64"
+            | "env.__syscall_newfstatat"
+            | "env.__syscall_openat"
+            | "env.__syscall_fstat64"
+            | "env.__syscall_fcntl64"
+            | "env.__syscall_faccessat"
+    )
+}
+
+fn profiled_import<R>(
+    caller: &mut Caller<'_, HostState>,
+    label: &str,
+    body: impl FnOnce(&mut Caller<'_, HostState>) -> wasmtime::Result<R>,
+) -> wasmtime::Result<R> {
+    caller.data_mut().record_import(label)?;
+    let started_at = caller
+        .data()
+        .should_record_import_self_time(label)
+        .then(Instant::now);
+    let result = body(caller);
+    if let Some(started_at) = started_at {
+        caller
+            .data_mut()
+            .record_import_self_time(label, started_at.elapsed());
+    }
+    result
+}
+
 fn define_special_func_import(
     linker: &mut Linker<HostState>,
     module_name: &str,
@@ -2686,8 +2769,9 @@ fn define_special_func_import(
                               iovcnt: i32,
                               pnum: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            fd_read(&mut caller, fd, iov, iovcnt, pnum)
+                            profiled_import(&mut caller, &label, |caller| {
+                                fd_read(caller, fd, iov, iovcnt, pnum)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -2705,8 +2789,9 @@ fn define_special_func_import(
                               whence: i32,
                               new_offset: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            fd_seek(&mut caller, fd, offset, whence, new_offset)
+                            profiled_import(&mut caller, &label, |caller| {
+                                fd_seek(caller, fd, offset, whence, new_offset)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -2724,8 +2809,9 @@ fn define_special_func_import(
                               iovcnt: i32,
                               pnum: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            fd_write(&mut caller, fd, iov, iovcnt, pnum)
+                            profiled_import(&mut caller, &label, |caller| {
+                                fd_write(caller, fd, iov, iovcnt, pnum)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -2848,8 +2934,9 @@ fn define_special_func_import(
                               iovcnt: i32,
                               pnum: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            fd_read(&mut caller, fd, iov, iovcnt, pnum)
+                            profiled_import(&mut caller, &label, |caller| {
+                                fd_read(caller, fd, iov, iovcnt, pnum)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -2862,8 +2949,9 @@ fn define_special_func_import(
                         module_name,
                         import_name,
                         move |mut caller: Caller<'_, HostState>| {
-                            caller.data_mut().record_import(&label)?;
-                            Ok::<i32, wasmtime::Error>(caller.data().synthetic_pid())
+                            profiled_import(&mut caller, &label, |caller| {
+                                Ok::<i32, wasmtime::Error>(caller.data().synthetic_pid())
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3249,8 +3337,9 @@ fn define_special_func_import(
                         module_name,
                         import_name,
                         move |mut caller: Caller<'_, HostState>| {
-                            caller.data_mut().record_import(&label)?;
-                            caller.data_mut().emscripten_unix_time_ms()
+                            profiled_import(&mut caller, &label, |caller| {
+                                caller.data_mut().emscripten_unix_time_ms()
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3432,9 +3521,10 @@ fn define_special_func_import(
                               path_ptr: i32,
                               buf: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            let path = read_c_string(&mut caller, path_ptr)?;
-                            syscall_stat_path(&mut caller, &path, buf, true)
+                            profiled_import(&mut caller, &label, |caller| {
+                                let path = read_c_string(caller, path_ptr)?;
+                                syscall_stat_path(caller, &path, buf, true)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3450,9 +3540,10 @@ fn define_special_func_import(
                               path_ptr: i32,
                               buf: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            let path = read_c_string(&mut caller, path_ptr)?;
-                            syscall_stat_path(&mut caller, &path, buf, false)
+                            profiled_import(&mut caller, &label, |caller| {
+                                let path = read_c_string(caller, path_ptr)?;
+                                syscall_stat_path(caller, &path, buf, false)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3470,20 +3561,21 @@ fn define_special_func_import(
                               buf: i32,
                               flags: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            let path = read_c_string(&mut caller, path_ptr)?;
-                            let allow_empty = flags & AT_EMPTY_PATH != 0;
-                            let resolved = match caller.data().resolve_at(dirfd, &path, allow_empty)
-                            {
-                                Ok(path) => path,
-                                Err(errno) => return Ok(-errno),
-                            };
-                            syscall_stat_path(
-                                &mut caller,
-                                &resolved,
-                                buf,
-                                flags & AT_SYMLINK_NOFOLLOW == 0,
-                            )
+                            profiled_import(&mut caller, &label, |caller| {
+                                let path = read_c_string(caller, path_ptr)?;
+                                let allow_empty = flags & AT_EMPTY_PATH != 0;
+                                let resolved =
+                                    match caller.data().resolve_at(dirfd, &path, allow_empty) {
+                                        Ok(path) => path,
+                                        Err(errno) => return Ok(-errno),
+                                    };
+                                syscall_stat_path(
+                                    caller,
+                                    &resolved,
+                                    buf,
+                                    flags & AT_SYMLINK_NOFOLLOW == 0,
+                                )
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3501,21 +3593,22 @@ fn define_special_func_import(
                               flags: i32,
                               _varargs: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            let path = read_c_string(&mut caller, path_ptr)?;
-                            let result = match caller.data().resolve_at(dirfd, &path, false) {
-                                Ok(path) => {
-                                    let result = caller.data_mut().open_path(&path, flags);
-                                    if caller.data().trace_enabled() {
-                                        eprintln!(
-                                            "debug: host openat dirfd={dirfd} path={path} flags={flags:#x} -> {result}"
-                                        );
+                            profiled_import(&mut caller, &label, |caller| {
+                                let path = read_c_string(caller, path_ptr)?;
+                                let result = match caller.data().resolve_at(dirfd, &path, false) {
+                                    Ok(path) => {
+                                        let result = caller.data_mut().open_path(&path, flags);
+                                        if caller.data().trace_enabled() {
+                                            eprintln!(
+                                                "debug: host openat dirfd={dirfd} path={path} flags={flags:#x} -> {result}"
+                                            );
+                                        }
+                                        result
                                     }
-                                    result
-                                }
-                                Err(errno) => -errno,
-                            };
-                            Ok(result)
+                                    Err(errno) => -errno,
+                                };
+                                Ok(result)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3554,13 +3647,14 @@ fn define_special_func_import(
                               fd: i32,
                               buf: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            let stat = match caller.data().fd_stat(fd) {
-                                Ok(stat) => stat,
-                                Err(errno) => return Ok(-errno),
-                            };
-                            write_stat(&mut caller, buf, &stat)?;
-                            Ok(0)
+                            profiled_import(&mut caller, &label, |caller| {
+                                let stat = match caller.data().fd_stat(fd) {
+                                    Ok(stat) => stat,
+                                    Err(errno) => return Ok(-errno),
+                                };
+                                write_stat(caller, buf, &stat)?;
+                                Ok(0)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3651,8 +3745,9 @@ fn define_special_func_import(
                               cmd: i32,
                               varargs: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            syscall_fcntl64(&mut caller, fd, cmd, varargs)
+                            profiled_import(&mut caller, &label, |caller| {
+                                syscall_fcntl64(caller, fd, cmd, varargs)
+                            })
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3883,29 +3978,30 @@ fn define_special_func_import(
                               amode: i32,
                               flags: i32|
                               -> wasmtime::Result<i32> {
-                            caller.data_mut().record_import(&label)?;
-                            if amode & !0o7 != 0 {
-                                return Ok(-EINVAL);
-                            }
-                            if flags & !(AT_SYMLINK_NOFOLLOW | AT_EACCESS) != 0 {
-                                return Ok(-EINVAL);
-                            }
-                            let path = read_c_string(&mut caller, path_ptr)?;
-                            let path = match caller.data().resolve_at(dirfd, &path, false) {
-                                Ok(path) => path,
-                                Err(errno) => return Ok(-errno),
-                            };
-                            let stat = match caller
-                                .data()
-                                .stat_path_with_follow(&path, flags & AT_SYMLINK_NOFOLLOW == 0)
-                            {
-                                Ok(stat) => stat,
-                                Err(errno) => return Ok(-errno),
-                            };
-                            Ok(if access_mode_allowed(stat.mode, amode) {
-                                0
-                            } else {
-                                -EACCES
+                            profiled_import(&mut caller, &label, |caller| {
+                                if amode & !0o7 != 0 {
+                                    return Ok(-EINVAL);
+                                }
+                                if flags & !(AT_SYMLINK_NOFOLLOW | AT_EACCESS) != 0 {
+                                    return Ok(-EINVAL);
+                                }
+                                let path = read_c_string(caller, path_ptr)?;
+                                let path = match caller.data().resolve_at(dirfd, &path, false) {
+                                    Ok(path) => path,
+                                    Err(errno) => return Ok(-errno),
+                                };
+                                let stat = match caller
+                                    .data()
+                                    .stat_path_with_follow(&path, flags & AT_SYMLINK_NOFOLLOW == 0)
+                                {
+                                    Ok(stat) => stat,
+                                    Err(errno) => return Ok(-errno),
+                                };
+                                Ok(if access_mode_allowed(stat.mode, amode) {
+                                    0
+                                } else {
+                                    -EACCES
+                                })
                             })
                         },
                     )
