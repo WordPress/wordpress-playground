@@ -231,20 +231,28 @@ impl NativeRuntime {
 }
 
 fn wasm_engine(profile: WasmEngineProfile) -> Result<Engine> {
+    wasm_engine_for_target(profile, None)
+}
+
+fn wasm_engine_for_target(
+    profile: WasmEngineProfile,
+    target_triple: Option<&str>,
+) -> Result<Engine> {
     let mut config = Config::new();
-    match profile {
-        WasmEngineProfile::FastStartup => {
-            config.cranelift_opt_level(OptLevel::None);
-            config.cranelift_regalloc_algorithm(RegallocAlgorithm::SinglePass);
-        }
-        WasmEngineProfile::Optimized => {
-            config.cranelift_opt_level(OptLevel::Speed);
-            config.cranelift_regalloc_algorithm(RegallocAlgorithm::Backtracking);
-        }
+    if let Some(target_triple) = target_triple {
+        config.target(target_triple).map_err(|error| {
+            CliError::new(format!(
+                "Failed to configure Wasmtime target {target_triple}: {error}"
+            ))
+        })?;
     }
+    let settings = wasm_engine_settings(profile, target_triple);
+    config.cranelift_opt_level(settings.opt_level);
+    config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
     config.generate_address_map(false);
-    #[cfg(not(target_os = "windows"))]
-    config.native_unwind_info(false);
+    if !uses_windows_unwind_info(target_triple) {
+        config.native_unwind_info(false);
+    }
     let max_wasm_stack = env_mib_usize(
         MAX_WASM_STACK_MIB_ENV_VAR,
         DEFAULT_MAX_WASM_STACK_MIB,
@@ -285,6 +293,57 @@ fn wasm_engine(profile: WasmEngineProfile) -> Result<Engine> {
         .map_err(|error| CliError::new(format!("Failed to initialize Wasmtime engine: {error}")))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct WasmEngineSettings {
+    opt_level: OptLevel,
+    regalloc_algorithm: RegallocAlgorithm,
+}
+
+fn wasm_engine_settings(
+    profile: WasmEngineProfile,
+    target_triple: Option<&str>,
+) -> WasmEngineSettings {
+    if uses_windows_arm64_unwind_info(target_triple) {
+        // Windows ARM64 unwind records encode function length in 18 bits of words.
+        // PHP 7.4+ can exceed that with larger codegen, so minimize code size here.
+        return WasmEngineSettings {
+            opt_level: OptLevel::SpeedAndSize,
+            regalloc_algorithm: RegallocAlgorithm::Backtracking,
+        };
+    }
+
+    match profile {
+        WasmEngineProfile::FastStartup => WasmEngineSettings {
+            opt_level: OptLevel::None,
+            regalloc_algorithm: RegallocAlgorithm::SinglePass,
+        },
+        WasmEngineProfile::Optimized => WasmEngineSettings {
+            opt_level: OptLevel::Speed,
+            regalloc_algorithm: RegallocAlgorithm::Backtracking,
+        },
+    }
+}
+
+fn uses_windows_unwind_info(target_triple: Option<&str>) -> bool {
+    target_triple
+        .map(is_windows_target)
+        .unwrap_or(cfg!(target_os = "windows"))
+}
+
+fn uses_windows_arm64_unwind_info(target_triple: Option<&str>) -> bool {
+    target_triple
+        .map(is_windows_arm64_target)
+        .unwrap_or(cfg!(all(target_os = "windows", target_arch = "aarch64")))
+}
+
+fn is_windows_target(target_triple: &str) -> bool {
+    target_triple.contains("-windows-")
+}
+
+fn is_windows_arm64_target(target_triple: &str) -> bool {
+    target_triple.starts_with("aarch64-") && target_triple.contains("-windows-")
+}
+
 fn env_mib_usize(name: &str, default_mib: usize, min_mib: usize, max_mib: usize) -> usize {
     env::var(name)
         .ok()
@@ -318,13 +377,22 @@ pub fn precompile_wasm_module(
     output_path: &Path,
     profile: WasmEngineProfile,
 ) -> Result<()> {
+    precompile_wasm_module_for_target(wasm_path, output_path, profile, None)
+}
+
+pub fn precompile_wasm_module_for_target(
+    wasm_path: &Path,
+    output_path: &Path,
+    profile: WasmEngineProfile,
+    target_triple: Option<&str>,
+) -> Result<()> {
     let wasm = fs::read(wasm_path).map_err(|error| {
         CliError::new(format!(
             "Failed to read wasm module {} for Wasmtime precompilation: {error}",
             wasm_path.display()
         ))
     })?;
-    let engine = wasm_engine(profile)?;
+    let engine = wasm_engine_for_target(profile, target_triple)?;
     let compiled = engine.precompile_module(&wasm).map_err(|error| {
         CliError::new(format!(
             "Failed to precompile wasm module {} with Wasmtime: {error}",
@@ -478,9 +546,9 @@ fn dedupe_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
 mod tests {
     use super::{
         asset_root_candidates_from_exe, default_asset_root, env_bool, env_mib_u64, env_mib_usize,
-        repo_root_from_manifest_dir, NativeRuntime, WasmEngineProfile, ASSET_ROOT_ENV_VAR,
-        DISABLE_SOURCE_FALLBACK_ENV_VAR, MAX_WASM_STACK_MIB_ENV_VAR, MEMORY_MAY_MOVE_ENV_VAR,
-        MEMORY_RESERVATION_MIB_ENV_VAR,
+        precompile_wasm_module_for_target, repo_root_from_manifest_dir, wasm_engine_settings,
+        NativeRuntime, WasmEngineProfile, ASSET_ROOT_ENV_VAR, DISABLE_SOURCE_FALLBACK_ENV_VAR,
+        MAX_WASM_STACK_MIB_ENV_VAR, MEMORY_MAY_MOVE_ENV_VAR, MEMORY_RESERVATION_MIB_ENV_VAR,
     };
     use crate::host::{classify_php_wasm_import, ImportClassification, ImportExternKind};
     use crate::sha256::sha256_hex;
@@ -491,6 +559,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
     use wasmparser::{Parser, Payload, TypeRef};
+    use wasmtime::{OptLevel, RegallocAlgorithm};
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -669,6 +738,38 @@ mod tests {
     }
 
     #[test]
+    fn windows_arm64_target_uses_size_optimized_backtracking_for_all_profiles() {
+        let fast_startup = wasm_engine_settings(
+            WasmEngineProfile::FastStartup,
+            Some("aarch64-pc-windows-msvc"),
+        );
+        let optimized = wasm_engine_settings(
+            WasmEngineProfile::Optimized,
+            Some("aarch64-pc-windows-msvc"),
+        );
+        let linux_fast_startup = wasm_engine_settings(
+            WasmEngineProfile::FastStartup,
+            Some("aarch64-unknown-linux-gnu"),
+        );
+
+        assert_eq!(fast_startup.opt_level, OptLevel::SpeedAndSize);
+        assert_eq!(
+            fast_startup.regalloc_algorithm,
+            RegallocAlgorithm::Backtracking
+        );
+        assert_eq!(optimized.opt_level, OptLevel::SpeedAndSize);
+        assert_eq!(
+            optimized.regalloc_algorithm,
+            RegallocAlgorithm::Backtracking
+        );
+        assert_eq!(linux_fast_startup.opt_level, OptLevel::None);
+        assert_eq!(
+            linux_fast_startup.regalloc_algorithm,
+            RegallocAlgorithm::SinglePass
+        );
+    }
+
+    #[test]
     fn wasm_stack_mib_env_uses_valid_values_and_ignores_invalid_values() {
         let _guard = ENV_LOCK.lock().unwrap();
         let previous = env::var_os(MAX_WASM_STACK_MIB_ENV_VAR);
@@ -778,6 +879,35 @@ mod tests {
             .iter()
             .any(|import| import.module == "env" || import.module == "wasi_snapshot_preview1"));
         assert!(summary.exports.iter().any(|export| export.name == "memory"));
+    }
+
+    #[test]
+    #[ignore = "Cross-precompiles full PHP 7.4 wasm for Windows ARM64; run explicitly."]
+    fn precompiles_php74_for_windows_arm64_target() {
+        let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
+        let asset = runtime.php_asset("7.4").unwrap();
+        let output_path = temp_dir("php74-windows-arm64-precompile").join("php_7_4.wasm.cwasm");
+
+        match precompile_wasm_module_for_target(
+            &runtime.repo_root().join(&asset.wasm.path),
+            &output_path,
+            WasmEngineProfile::Optimized,
+            Some("aarch64-pc-windows-msvc"),
+        ) {
+            Ok(()) => {}
+            Err(error)
+                if error
+                    .to_string()
+                    .contains("Support for this target is disabled") =>
+            {
+                eprintln!("skipping Windows ARM64 precompile smoke: {error}");
+                return;
+            }
+            Err(error) => panic!("{error}"),
+        }
+
+        assert!(output_path.is_file());
+        assert!(fs::metadata(output_path).unwrap().len() > 0);
     }
 
     #[test]

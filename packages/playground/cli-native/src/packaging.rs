@@ -19,7 +19,7 @@ use crate::{
         verify_file_asset, AssetManifest, FileAsset, SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH,
     },
     runtime::{
-        asset_root_from_manifest_dir, precompile_wasm_module, WasmEngineProfile,
+        asset_root_from_manifest_dir, precompile_wasm_module_for_target, WasmEngineProfile,
         ASSET_ROOT_ENV_VAR, DISABLE_SOURCE_FALLBACK_ENV_VAR,
     },
     sha256::sha256_hex,
@@ -917,7 +917,13 @@ fn precompile_packaged_wasm(
     let source = asset_root.join(&asset.wasm.path);
     let precompiled_path = precompiled_wasmtime_path(&asset.wasm.path)?;
     let destination = package_asset_root.join(&precompiled_path);
-    precompile_wasm_module(&source, &destination, WasmEngineProfile::Optimized)?;
+    let target_triple = configured_target_triple();
+    precompile_wasm_module_for_target(
+        &source,
+        &destination,
+        WasmEngineProfile::Optimized,
+        target_triple.as_deref(),
+    )?;
     Ok(FileAsset {
         path: precompiled_path,
         sha256: sha256_file(&destination)?,
