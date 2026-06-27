@@ -76,6 +76,7 @@ const O_TRUNC: i32 = 0o1000;
 const O_APPEND: i32 = 0o2000;
 const O_NONBLOCK: i32 = 0o4000;
 const O_DIRECTORY: i32 = 0o200000;
+const O_TMPFILE: i32 = 0o20200000;
 const PROT_WRITE: i32 = 0x2;
 const MAP_PRIVATE: i32 = 0x2;
 const F_DUPFD: i32 = 0;
@@ -300,6 +301,7 @@ pub struct HostOptions {
     pub process_policy: HostProcessPolicy,
     pub opcache_mode: OpcacheMode,
     pub host_cache: bool,
+    pub php_version: Option<String>,
 }
 
 impl Default for HostOptions {
@@ -315,6 +317,7 @@ impl Default for HostOptions {
             process_policy: HostProcessPolicy::default(),
             opcache_mode: OpcacheMode::default(),
             host_cache: false,
+            php_version: None,
         }
     }
 }
@@ -558,9 +561,9 @@ impl Default for HostState {
     }
 }
 
-fn default_php_ini(opcache_mode: OpcacheMode) -> Vec<u8> {
+fn default_php_ini(options: &HostOptions) -> Vec<u8> {
     let mut ini = String::from(DEFAULT_PHP_INI_BASE);
-    match opcache_mode {
+    match options.opcache_mode {
         OpcacheMode::Validate => {}
         OpcacheMode::Revalidate => {
             ini.push_str("opcache.revalidate_freq=60\n");
@@ -590,6 +593,7 @@ fn default_php_ini(opcache_mode: OpcacheMode) -> Vec<u8> {
             ini.push_str("opcache.enable=0\nopcache.enable_cli=0\n");
         }
     }
+    append_opcache_compatibility_fallback(&mut ini, options);
     append_opcache_env_override(
         &mut ini,
         OPCACHE_MEMORY_ENV_VAR,
@@ -607,6 +611,26 @@ fn default_php_ini(opcache_mode: OpcacheMode) -> Vec<u8> {
     );
     append_experimental_php_ini(&mut ini);
     ini.into_bytes()
+}
+
+fn append_opcache_compatibility_fallback(ini: &mut String, options: &HostOptions) {
+    if matches!(options.opcache_mode, OpcacheMode::Off) {
+        return;
+    }
+    if !php_version_uses_file_cache_only_opcache_fallback(options.php_version.as_deref()) {
+        return;
+    }
+
+    // PHP 7.4 still fails native Wasmtime OPcache shared-memory startup.
+    // Keep version coverage while a host-level runtime fix remains separate work.
+    ini.push_str("opcache.file_cache_only=1\n");
+}
+
+fn php_version_uses_file_cache_only_opcache_fallback(php_version: Option<&str>) -> bool {
+    let Some(php_version) = php_version else {
+        return false;
+    };
+    php_version.starts_with("7.4")
 }
 
 fn append_opcache_env_override(ini: &mut String, env_name: &str, directive: &str) {
@@ -800,7 +824,7 @@ impl HostState {
         let mut internal_files = shared_internal_files().clone();
         internal_files.insert(
             "/internal/shared/php.ini".to_string(),
-            default_php_ini(options.opcache_mode).into(),
+            default_php_ini(&options).into(),
         );
         internal_files.insert(
             "/internal/shared/consts.json".to_string(),
@@ -4921,6 +4945,32 @@ impl HostState {
         }
         let access_mode = flags & O_ACCMODE;
         let writable = matches!(access_mode, O_WRONLY | O_RDWR);
+
+        if flags & O_TMPFILE == O_TMPFILE {
+            if !writable {
+                return -EINVAL;
+            }
+            if !self.virtual_dir_exists(path) {
+                let Some(host_path) = self.resolve_host_path_for_open(path, false) else {
+                    return -ENOENT;
+                };
+                match fs::metadata(host_path) {
+                    Ok(metadata) if metadata.is_dir() => {}
+                    Ok(_) => return -ENOTDIR,
+                    Err(_) => return -ENOENT,
+                }
+            }
+            return self.alloc_fd(FdEntry::File {
+                path: path.to_string(),
+                host_path: None,
+                data: Vec::new(),
+                position: 0,
+                access_mode,
+                append: false,
+                nonblocking: flags & O_NONBLOCK != 0,
+                dirty: false,
+            });
+        }
 
         if self.virtual_dir_exists(path) {
             if flags & O_DIRECTORY == 0 && writable {
@@ -9496,8 +9546,9 @@ mod tests {
         OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN, EAI_NONAME, EALREADY, EINPROGRESS,
         EINVAL, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, F_RDLCK, F_UNLCK, F_WRLCK, LOCK_EX,
         LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
-        OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, OPCACHE_MEMORY_ENV_VAR, O_NONBLOCK, O_RDWR, O_TRUNC,
-        O_WRONLY, POLLERR, POLLIN, POLLOUT, SEEK_CUR, SEEK_END, SEEK_SET, SOCK_STREAM, S_IFDIR,
+        OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, OPCACHE_MEMORY_ENV_VAR, O_EXCL, O_NONBLOCK, O_RDWR,
+        O_TMPFILE, O_TRUNC, O_WRONLY, POLLERR, POLLIN, POLLOUT, SEEK_CUR, SEEK_END, SEEK_SET,
+        SOCK_STREAM, S_IFDIR, S_IFREG,
     };
     #[cfg(unix)]
     use super::{HostProcessCommand, HostProcessPolicy};
@@ -13713,6 +13764,41 @@ mod tests {
     }
 
     #[test]
+    fn opening_tmpfile_directory_returns_lockable_anonymous_regular_file() {
+        let host_root = temp_dir("tmpfile-open");
+        fs::create_dir(host_root.join("cache")).unwrap();
+        let mut state = HostState::new(HostOptions {
+            mounts: vec![HostMount {
+                host_path: host_root.clone(),
+                vfs_path: "/wordpress".to_string(),
+            }],
+            ..HostOptions::default()
+        });
+
+        let fd = state.open_path("/wordpress/cache", O_TMPFILE | O_RDWR | O_EXCL);
+
+        assert!(fd >= 3);
+        assert!(matches!(
+            state.get_fd(fd).unwrap(),
+            FdEntry::File {
+                host_path: None,
+                access_mode: O_RDWR,
+                ..
+            }
+        ));
+        assert_eq!(
+            state.set_advisory_range_lock(fd, fcntl_request(F_WRLCK, 0, 0), false),
+            0
+        );
+        assert_eq!(state.fd_stat(fd).unwrap().mode & S_IFREG, S_IFREG);
+        assert!(fs::read_dir(host_root.join("cache"))
+            .unwrap()
+            .next()
+            .is_none());
+        let _ = fs::remove_dir_all(host_root);
+    }
+
+    #[test]
     fn advisory_write_lock_blocks_other_host_states_until_released() {
         let host_root = temp_dir("advisory-lock-conflict");
         fs::write(host_root.join("db.sqlite"), b"database").unwrap();
@@ -14806,6 +14892,62 @@ mod tests {
         let off_php_ini = internal_file_text(&off, "/internal/shared/php.ini");
         assert!(off_php_ini.contains("opcache.enable=0"));
         assert!(off_php_ini.contains("opcache.enable_cli=0"));
+    }
+
+    #[test]
+    fn internal_php_ini_applies_file_cache_only_fallback_to_affected_php_versions() {
+        for php_version in ["7.4", "7.4.33"] {
+            let state = HostState::new(HostOptions {
+                php_version: Some(php_version.to_string()),
+                opcache_mode: OpcacheMode::Middle,
+                ..HostOptions::default()
+            });
+            let php_ini = internal_file_text(&state, "/internal/shared/php.ini");
+
+            assert!(php_ini.contains("opcache.file_cache_only=0"));
+            assert!(
+                php_ini.contains("opcache.file_cache_only=1"),
+                "expected file-cache-only fallback for PHP {php_version}"
+            );
+        }
+    }
+
+    #[test]
+    fn internal_php_ini_does_not_apply_file_cache_only_fallback_to_unaffected_versions() {
+        for php_version in ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.5.5"] {
+            let state = HostState::new(HostOptions {
+                php_version: Some(php_version.to_string()),
+                opcache_mode: OpcacheMode::Middle,
+                ..HostOptions::default()
+            });
+            let php_ini = internal_file_text(&state, "/internal/shared/php.ini");
+
+            assert!(php_ini.contains("opcache.file_cache_only=0"));
+            assert!(
+                !php_ini.contains("opcache.file_cache_only=1"),
+                "did not expect file-cache-only fallback for PHP {php_version}"
+            );
+        }
+    }
+
+    #[test]
+    fn internal_php_ini_keeps_opcache_off_without_file_cache_only_fallback() {
+        for php_version in ["7.4", "8.5"] {
+            let state = HostState::new(HostOptions {
+                php_version: Some(php_version.to_string()),
+                opcache_mode: OpcacheMode::Off,
+                ..HostOptions::default()
+            });
+            let php_ini = internal_file_text(&state, "/internal/shared/php.ini");
+
+            assert!(php_ini.contains("opcache.enable=0"));
+            assert!(php_ini.contains("opcache.enable_cli=0"));
+            assert!(php_ini.contains("opcache.file_cache_only=0"));
+            assert!(
+                !php_ini.contains("opcache.file_cache_only=1"),
+                "opcache off should not get fallback for PHP {php_version}"
+            );
+        }
     }
 
     #[test]

@@ -108,9 +108,12 @@ impl NativeRuntime {
     pub fn instantiate_php_with_host_options(
         &self,
         php_version: &str,
-        host_options: HostOptions,
+        mut host_options: HostOptions,
     ) -> Result<PhpInstance> {
         let module = self.php_module(php_version)?;
+        host_options
+            .php_version
+            .get_or_insert_with(|| php_version.to_string());
         PhpInstance::from_module_with_host_options(module, host_options)
     }
 

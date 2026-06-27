@@ -292,7 +292,7 @@ pub fn run_packaged_php_smoke(summary: &PackageSummary, php_version: &str) -> Re
         .arg(format!("--php={php_version}"))
         .arg("--skip-wordpress-install")
         .arg("--skip-sqlite-setup")
-        .arg("--opcache=off")
+        .arg("--opcache=middle")
         .arg("-v")
         .env_remove(ASSET_ROOT_ENV_VAR)
         .env(DISABLE_SOURCE_FALLBACK_ENV_VAR, "1")
