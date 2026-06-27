@@ -5,6 +5,7 @@ import {
 	resolveCommitHash,
 	type GitAdditionalHeaders,
 } from '../lib/git-sparse-checkout';
+import { createDotGitDirectory } from '../lib/git-create-dotgit-directory';
 
 describe('listRefs', () => {
 	it('should return the latest commit hash for a given ref', async () => {
@@ -94,6 +95,107 @@ describe('resolveCommitHash', () => {
 				type: 'unsupported' as any,
 			})
 		).rejects.toThrow('Invalid ref type: unsupported');
+	});
+});
+
+describe('createDotGitDirectory', () => {
+	it('omits sensitive URLs from persisted .git config', async () => {
+		const files = await createDotGitDirectory({
+			repoUrl:
+				'https://example.com/private/repo.git?x-amz-signature=secret&sessionToken=session-secret&refreshToken=refresh-secret&keep=1',
+			commitHash: '1234567890abcdef1234567890abcdef12345678',
+			ref: 'trunk',
+			refType: 'branch',
+			objects: [],
+			fileOids: {},
+			pathPrefix: '',
+		});
+
+		const config = String(files['.git/config']);
+		expect(config).not.toContain('REDACTED');
+		expect(config).not.toContain('x-amz-signature=secret');
+		expect(config).not.toContain('sessionToken=session-secret');
+		expect(config).not.toContain('refreshToken=refresh-secret');
+		expect(config).not.toContain('[remote "origin"]');
+		expect(files['.git/refs/remotes/origin/trunk']).toBeUndefined();
+		expect(files['.git/refs/remotes/origin/HEAD']).toBeUndefined();
+	});
+
+	it('persists public remote URLs in .git config', async () => {
+		const files = await createDotGitDirectory({
+			repoUrl: 'https://example.com/public/repo.git',
+			commitHash: '1234567890abcdef1234567890abcdef12345678',
+			ref: 'trunk',
+			refType: 'branch',
+			objects: [],
+			fileOids: {},
+			pathPrefix: '',
+		});
+
+		const config = String(files['.git/config']);
+		expect(config).toContain('[remote "origin"]');
+		expect(config).toContain('url = https://example.com/public/repo.git');
+		expect(files['.git/refs/remotes/origin/trunk']).toBe(
+			'1234567890abcdef1234567890abcdef12345678\n'
+		);
+		expect(files['.git/refs/remotes/origin/HEAD']).toBe(
+			'ref: refs/remotes/origin/trunk\n'
+		);
+	});
+
+	it('omits remote URLs with sensitive fragments from persisted .git config', async () => {
+		const files = await createDotGitDirectory({
+			repoUrl:
+				'https://example.com/private/repo.git#accessToken=secret&keep=1',
+			commitHash: '1234567890abcdef1234567890abcdef12345678',
+			ref: 'trunk',
+			refType: 'branch',
+			objects: [],
+			fileOids: {},
+			pathPrefix: '',
+		});
+
+		const config = String(files['.git/config']);
+		expect(config).not.toContain('accessToken=secret');
+		expect(config).not.toContain('[remote "origin"]');
+		expect(files['.git/refs/remotes/origin/trunk']).toBeUndefined();
+	});
+
+	it('omits remotes with prefixed camelCase sensitive params', async () => {
+		const files = await createDotGitDirectory({
+			repoUrl:
+				'https://example.com/private/repo.git?awsSessionToken=session-secret',
+			commitHash: '1234567890abcdef1234567890abcdef12345678',
+			ref: 'trunk',
+			refType: 'branch',
+			objects: [],
+			fileOids: {},
+			pathPrefix: '',
+		});
+
+		const config = String(files['.git/config']);
+		expect(config).not.toContain('awsSessionToken=session-secret');
+		expect(config).not.toContain('[remote "origin"]');
+		expect(files['.git/refs/remotes/origin/trunk']).toBeUndefined();
+	});
+
+	it('persists scp-style git remote URLs', async () => {
+		const files = await createDotGitDirectory({
+			repoUrl: 'git@example.com:private/repo.git',
+			commitHash: '1234567890abcdef1234567890abcdef12345678',
+			ref: 'trunk',
+			refType: 'branch',
+			objects: [],
+			fileOids: {},
+			pathPrefix: '',
+		});
+
+		const config = String(files['.git/config']);
+		expect(config).toContain('[remote "origin"]');
+		expect(config).toContain('url = git@example.com:private/repo.git');
+		expect(files['.git/refs/remotes/origin/trunk']).toBe(
+			'1234567890abcdef1234567890abcdef12345678\n'
+		);
 	});
 });
 
