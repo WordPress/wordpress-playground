@@ -1721,6 +1721,12 @@ mod tests {
             .join("packages/playground/cli-native/assets/php-assets.json");
         let manifest = load_php_assets_manifest(&manifest_path).unwrap();
         let php83 = select_php_asset(&manifest, "8.3").unwrap();
+        if super::skips_wasmtime_precompile_for_target(None) {
+            assert!(php83.wasmtime.is_none());
+            assert!(summary.asset_root.join(&php83.wasm.path).is_file());
+            return;
+        }
+
         let wasmtime = php83.wasmtime.as_ref().unwrap();
         assert!(wasmtime.path.to_string_lossy().ends_with(".wasm.cwasm"));
         assert!(summary.asset_root.join(&wasmtime.path).is_file());
