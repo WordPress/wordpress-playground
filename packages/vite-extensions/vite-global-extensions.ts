@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const vitePlugins = [
 	{
@@ -12,10 +13,12 @@ const vitePlugins = [
 						// isomorphic-git/http/node keep using the package exports.
 						{
 							find: /^isomorphic-git$/,
-							replacement: new URL(
-								'../../node_modules/isomorphic-git/index.js',
-								import.meta.url
-							).pathname,
+							replacement: fileURLToPath(
+								new URL(
+									'../../node_modules/isomorphic-git/index.js',
+									import.meta.url
+								)
+							),
 						},
 					],
 				},
