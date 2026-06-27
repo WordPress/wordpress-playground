@@ -10643,7 +10643,19 @@ mod tests {
         poll_write
             .call(&mut linker.store, &[Val::I32(refused_fd)], &mut results)
             .unwrap();
-        assert!(matches!(results, [Val::I32(1)]));
+        let Val::I32(refused_ready) = results[0] else {
+            panic!("poll result must be i32");
+        };
+        #[cfg(windows)]
+        if refused_ready == 0 {
+            getsock_error
+                .call(&mut linker.store, &[Val::I32(refused_fd)], &mut results)
+                .unwrap();
+            assert!(matches!(results, [Val::I32(0)]));
+            server.join().unwrap();
+            return;
+        }
+        assert_eq!(refused_ready, 1);
         poll_revents
             .call(&mut linker.store, &[], &mut results)
             .unwrap();
