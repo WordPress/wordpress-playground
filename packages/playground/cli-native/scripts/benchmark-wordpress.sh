@@ -15,6 +15,7 @@ BASE_PORT="${BASE_PORT:-9690}"
 BUILD_PACKAGE="${BUILD_PACKAGE:-1}"
 KEEP_BENCH_ARTIFACTS="${KEEP_BENCH_ARTIFACTS:-0}"
 BENCHMARK_PROFILE="${BENCHMARK_PROFILE:-0}"
+BENCHMARK_WP_STAGE_PROFILE="${BENCHMARK_WP_STAGE_PROFILE:-0}"
 PACKAGE_ASSET_ROOT="${PACKAGE_ASSET_ROOT:-}"
 PACKAGE_PRECOMPILE_WASMTIME="${PACKAGE_PRECOMPILE_WASMTIME:-1}"
 WASMTIME_LABEL="${WASMTIME_LABEL:-wasmtime}"
@@ -62,6 +63,7 @@ Environment:
   WP_PLAYGROUND_NATIVE_ASSET_ROOT=/path/to/runtime/asset-root
   KEEP_BENCH_ARTIFACTS=0
   BENCHMARK_PROFILE=0
+  BENCHMARK_WP_STAGE_PROFILE=0
 
 Examples:
   bash packages/playground/cli-native/scripts/benchmark-wordpress.sh
@@ -153,6 +155,14 @@ case "$BENCHMARK_PROFILE" in
 	0 | 1) ;;
 	*)
 		echo "error: BENCHMARK_PROFILE must be 0 or 1" >&2
+		exit 1
+		;;
+esac
+
+case "$BENCHMARK_WP_STAGE_PROFILE" in
+	0 | 1) ;;
+	*)
+		echo "error: BENCHMARK_WP_STAGE_PROFILE must be 0 or 1" >&2
 		exit 1
 		;;
 esac
@@ -265,6 +275,135 @@ add_action('init', function () {
         wp_set_auth_cookie($user->ID);
     }
 }, 0);
+PHP
+}
+
+write_wp_stage_profile_mu_plugin() {
+	local site="$1"
+	local label="$2"
+	local mu_plugins_dir="$site/wp-content/mu-plugins"
+	mkdir -p "$mu_plugins_dir"
+	printf "%s\n" "$label" >"$mu_plugins_dir/2-native-benchmark-stage-profile.case"
+	cat >"$mu_plugins_dir/2-native-benchmark-stage-profile.php" <<'PHP'
+<?php
+$GLOBALS['native_benchmark_stage_profile_start'] = isset($_SERVER['REQUEST_TIME_FLOAT'])
+    ? (float) $_SERVER['REQUEST_TIME_FLOAT']
+    : microtime(true);
+
+native_benchmark_stage_profile_hook('muplugins_loaded');
+native_benchmark_stage_profile_hook('plugins_loaded');
+native_benchmark_stage_profile_hook('init');
+native_benchmark_stage_profile_hook('admin_init');
+native_benchmark_stage_profile_hook('enqueue_block_editor_assets');
+native_benchmark_stage_profile_hook('admin_footer');
+native_benchmark_stage_profile_hook('shutdown');
+add_action('current_screen', static function ($screen) {
+    $screen_id = isset($screen->id) ? (string) $screen->id : 'unknown';
+    native_benchmark_stage_profile_emit_stage('current_screen:' . $screen_id);
+}, PHP_INT_MAX);
+
+function native_benchmark_stage_profile_hook($hook)
+{
+    add_action($hook, static function () use ($hook) {
+        native_benchmark_stage_profile_emit_stage($hook);
+    }, PHP_INT_MAX);
+}
+
+function native_benchmark_stage_profile_emit_stage($stage)
+{
+    $start = isset($GLOBALS['native_benchmark_stage_profile_start'])
+        ? (float) $GLOBALS['native_benchmark_stage_profile_start']
+        : microtime(true);
+    $query_metrics = native_benchmark_stage_profile_query_metrics();
+    $line = sprintf(
+        'wp-stage-profile	case=%s	method=%s	uri=%s	stage=%s	elapsed_ms=%.3f	memory_bytes=%d	peak_memory_bytes=%d	query_count=%s	query_time_ms=%s',
+        native_benchmark_stage_profile_value(native_benchmark_stage_profile_case()),
+        native_benchmark_stage_profile_value($_SERVER['REQUEST_METHOD'] ?? ''),
+        native_benchmark_stage_profile_value($_SERVER['REQUEST_URI'] ?? ''),
+        native_benchmark_stage_profile_value($stage),
+        (microtime(true) - $start) * 1000,
+        memory_get_usage(),
+        memory_get_peak_usage(),
+        native_benchmark_stage_profile_value($query_metrics['count']),
+        native_benchmark_stage_profile_value($query_metrics['elapsed_ms'])
+    );
+    native_benchmark_stage_profile_emit_line($line);
+}
+
+function native_benchmark_stage_profile_case()
+{
+    static $case = null;
+    if ($case !== null) {
+        return $case;
+    }
+    $case = 'unknown';
+    $case_file = __DIR__ . '/2-native-benchmark-stage-profile.case';
+    if (is_readable($case_file)) {
+        $file_case = trim((string) file_get_contents($case_file));
+        if ($file_case !== '') {
+            $case = $file_case;
+        }
+    }
+    return $case;
+}
+
+function native_benchmark_stage_profile_query_metrics()
+{
+    global $wpdb;
+    $metrics = array(
+        'count' => 'na',
+        'elapsed_ms' => 'na',
+    );
+    if (!isset($wpdb) || !is_object($wpdb)) {
+        return $metrics;
+    }
+    if (isset($wpdb->num_queries)) {
+        $metrics['count'] = (string) (int) $wpdb->num_queries;
+    }
+    if (!isset($wpdb->queries) || !is_array($wpdb->queries)) {
+        return $metrics;
+    }
+    $query_time = 0.0;
+    foreach ($wpdb->queries as $query) {
+        if (isset($query[1]) && is_numeric($query[1])) {
+            $query_time += (float) $query[1];
+        }
+    }
+    $metrics['elapsed_ms'] = sprintf('%.3f', $query_time * 1000);
+    return $metrics;
+}
+
+function native_benchmark_stage_profile_value($value)
+{
+    return str_replace(array("\t", "\r", "\n"), ' ', (string) $value);
+}
+
+function native_benchmark_stage_profile_emit_line($line)
+{
+    $profile_stream = native_benchmark_stage_profile_file_stream();
+    if (is_resource($profile_stream)) {
+        @fwrite($profile_stream, $line . PHP_EOL);
+    }
+
+    static $stream = null;
+    if ($stream === null) {
+        $stream = @fopen('php://stderr', 'ab');
+    }
+    if (is_resource($stream)) {
+        @fwrite($stream, $line . PHP_EOL);
+        return;
+    }
+    error_log($line);
+}
+
+function native_benchmark_stage_profile_file_stream()
+{
+    static $stream = null;
+    if ($stream === null) {
+        $stream = @fopen(dirname(__DIR__) . '/native-benchmark-stage-profile.log', 'ab');
+    }
+    return $stream;
+}
 PHP
 }
 
@@ -471,6 +610,10 @@ bootstrap_wordpress_site "$SOURCE_SITE" "$BASE_PORT"
 write_http_block_mu_plugin "$SOURCE_SITE"
 copy_site "$SOURCE_SITE" "$WASM_SITE"
 copy_site "$SOURCE_SITE" "$NATIVE_SITE"
+if [[ "$BENCHMARK_WP_STAGE_PROFILE" == "1" ]]; then
+	write_wp_stage_profile_mu_plugin "$WASM_SITE" "$WASMTIME_LABEL"
+	write_wp_stage_profile_mu_plugin "$NATIVE_SITE" "$NATIVE_PHP_LABEL"
+fi
 write_native_login_mu_plugin "$NATIVE_SITE"
 patch_wp_config_url "$NATIVE_SITE" "$((BASE_PORT + 2))"
 
