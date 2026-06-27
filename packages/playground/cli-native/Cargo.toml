@@ -38,6 +38,7 @@ wasmtime = { version = "46.0.0", default-features = false, features = [
 	"runtime",
 	"std",
 	"wat",
+	"winch",
 ] }
 wasmtime-wasi = { version = "46.0.0", default-features = false, features = [
 	"p1",

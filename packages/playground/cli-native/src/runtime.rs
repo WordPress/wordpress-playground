@@ -6,7 +6,7 @@ use std::{
 };
 
 use wasmtime::{
-    Cache, CacheConfig, Config, Engine, ExternType, Module, OptLevel, RegallocAlgorithm,
+    Cache, CacheConfig, Config, Engine, ExternType, Module, OptLevel, RegallocAlgorithm, Strategy,
 };
 
 use crate::{
@@ -247,8 +247,11 @@ fn wasm_engine_for_target(
         })?;
     }
     let settings = wasm_engine_settings(profile, target_triple);
-    config.cranelift_opt_level(settings.opt_level);
-    config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
+    config.strategy(settings.strategy);
+    if settings.strategy == Strategy::Cranelift {
+        config.cranelift_opt_level(settings.opt_level);
+        config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
+    }
     config.generate_address_map(false);
     if !uses_windows_unwind_info(target_triple) {
         config.native_unwind_info(false);
@@ -295,6 +298,7 @@ fn wasm_engine_for_target(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct WasmEngineSettings {
+    strategy: Strategy,
     opt_level: OptLevel,
     regalloc_algorithm: RegallocAlgorithm,
 }
@@ -303,10 +307,19 @@ fn wasm_engine_settings(
     profile: WasmEngineProfile,
     target_triple: Option<&str>,
 ) -> WasmEngineSettings {
-    if uses_windows_arm64_unwind_info(target_triple) {
-        // Windows ARM64 unwind records encode function length in 18 bits of words.
-        // PHP 7.4+ can exceed that with larger codegen, so minimize code size here.
+    if profile == WasmEngineProfile::FastStartup && uses_windows_arm64_unwind_info(target_triple) {
         return WasmEngineSettings {
+            strategy: Strategy::Winch,
+            opt_level: OptLevel::None,
+            regalloc_algorithm: RegallocAlgorithm::SinglePass,
+        };
+    }
+
+    if profile == WasmEngineProfile::Optimized && uses_windows_arm64_unwind_info(target_triple) {
+        // Windows ARM64 unwind records encode function length in 18 bits of words.
+        // AOT and optimized PHP codegen can exceed that, so minimize code size here.
+        return WasmEngineSettings {
+            strategy: Strategy::Cranelift,
             opt_level: OptLevel::SpeedAndSize,
             regalloc_algorithm: RegallocAlgorithm::Backtracking,
         };
@@ -314,10 +327,12 @@ fn wasm_engine_settings(
 
     match profile {
         WasmEngineProfile::FastStartup => WasmEngineSettings {
+            strategy: Strategy::Cranelift,
             opt_level: OptLevel::None,
             regalloc_algorithm: RegallocAlgorithm::SinglePass,
         },
         WasmEngineProfile::Optimized => WasmEngineSettings {
+            strategy: Strategy::Cranelift,
             opt_level: OptLevel::Speed,
             regalloc_algorithm: RegallocAlgorithm::Backtracking,
         },
@@ -560,7 +575,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
     use wasmparser::{Parser, Payload, TypeRef};
-    use wasmtime::{OptLevel, RegallocAlgorithm};
+    use wasmtime::{OptLevel, RegallocAlgorithm, Strategy};
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -739,7 +754,7 @@ mod tests {
     }
 
     #[test]
-    fn windows_arm64_target_uses_size_optimized_backtracking_and_native_unwind() {
+    fn windows_arm64_fast_startup_uses_winch_and_native_unwind() {
         let fast_startup = wasm_engine_settings(
             WasmEngineProfile::FastStartup,
             Some("aarch64-pc-windows-msvc"),
@@ -753,16 +768,19 @@ mod tests {
             Some("aarch64-unknown-linux-gnu"),
         );
 
-        assert_eq!(fast_startup.opt_level, OptLevel::SpeedAndSize);
+        assert_eq!(fast_startup.strategy, Strategy::Winch);
+        assert_eq!(fast_startup.opt_level, OptLevel::None);
         assert_eq!(
             fast_startup.regalloc_algorithm,
-            RegallocAlgorithm::Backtracking
+            RegallocAlgorithm::SinglePass
         );
+        assert_eq!(optimized.strategy, Strategy::Cranelift);
         assert_eq!(optimized.opt_level, OptLevel::SpeedAndSize);
         assert_eq!(
             optimized.regalloc_algorithm,
             RegallocAlgorithm::Backtracking
         );
+        assert_eq!(linux_fast_startup.strategy, Strategy::Cranelift);
         assert_eq!(linux_fast_startup.opt_level, OptLevel::None);
         assert_eq!(
             linux_fast_startup.regalloc_algorithm,
