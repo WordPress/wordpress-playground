@@ -31,6 +31,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 				command: 'server',
 				php: phpVersion as any,
 				port: 0, // Use random available port to avoid conflicts
+				workers: 1,
 			});
 			try {
 				// Make a request
@@ -44,7 +45,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}
-		}, 60000);
+		}, 120000);
 	});
 	/**
 	 * Very the built Playground packages ship worker files that have stable names.

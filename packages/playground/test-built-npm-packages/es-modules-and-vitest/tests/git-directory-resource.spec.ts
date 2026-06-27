@@ -34,6 +34,7 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 				command: 'server',
 				php: phpVersion,
 				port: 0, // Use random available port to avoid conflicts
+				workers: 1,
 				quiet: true,
 				blueprint: {
 					steps: [
