@@ -250,7 +250,7 @@ fn wasm_engine_for_target(
     config.cranelift_opt_level(settings.opt_level);
     config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
     config.generate_address_map(false);
-    if !uses_native_unwind_info(profile, target_triple) {
+    if !uses_windows_unwind_info(target_triple) {
         config.native_unwind_info(false);
     }
     let max_wasm_stack = env_mib_usize(
@@ -327,12 +327,6 @@ fn uses_windows_unwind_info(target_triple: Option<&str>) -> bool {
     target_triple
         .map(is_windows_target)
         .unwrap_or(cfg!(target_os = "windows"))
-}
-
-fn uses_native_unwind_info(profile: WasmEngineProfile, target_triple: Option<&str>) -> bool {
-    uses_windows_unwind_info(target_triple)
-        && !(profile == WasmEngineProfile::FastStartup
-            && uses_windows_arm64_unwind_info(target_triple))
 }
 
 fn uses_windows_arm64_unwind_info(target_triple: Option<&str>) -> bool {
@@ -551,7 +545,7 @@ fn dedupe_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
 mod tests {
     use super::{
         asset_root_candidates_from_exe, default_asset_root, env_bool, env_mib_u64, env_mib_usize,
-        precompile_wasm_module_for_target, repo_root_from_manifest_dir, uses_native_unwind_info,
+        precompile_wasm_module_for_target, repo_root_from_manifest_dir, uses_windows_unwind_info,
         wasm_engine_settings, NativeRuntime, WasmEngineProfile, ASSET_ROOT_ENV_VAR,
         DISABLE_SOURCE_FALLBACK_ENV_VAR, MAX_WASM_STACK_MIB_ENV_VAR, MEMORY_MAY_MOVE_ENV_VAR,
         MEMORY_RESERVATION_MIB_ENV_VAR,
@@ -744,7 +738,7 @@ mod tests {
     }
 
     #[test]
-    fn windows_arm64_target_uses_size_optimized_backtracking_for_optimized_profile() {
+    fn windows_arm64_target_uses_fast_startup_settings_and_native_unwind() {
         let fast_startup = wasm_engine_settings(
             WasmEngineProfile::FastStartup,
             Some("aarch64-pc-windows-msvc"),
@@ -773,53 +767,9 @@ mod tests {
             linux_fast_startup.regalloc_algorithm,
             RegallocAlgorithm::SinglePass
         );
-        assert!(!uses_native_unwind_info(
-            WasmEngineProfile::FastStartup,
-            Some("aarch64-pc-windows-msvc")
-        ));
-        assert!(uses_native_unwind_info(
-            WasmEngineProfile::Optimized,
-            Some("aarch64-pc-windows-msvc")
-        ));
-        assert!(uses_native_unwind_info(
-            WasmEngineProfile::FastStartup,
-            Some("x86_64-pc-windows-msvc")
-        ));
-        assert!(!uses_native_unwind_info(
-            WasmEngineProfile::FastStartup,
-            Some("aarch64-unknown-linux-gnu")
-        ));
-    }
-
-    #[test]
-    fn windows_arm64_target_can_precompile_without_native_unwind_info() {
-        let root = temp_dir("windows-arm64-tiny-precompile");
-        let wasm_path = root.join("empty.wasm");
-        let output_path = root.join("empty.wasm.cwasm");
-        fs::write(&wasm_path, b"\0asm\x01\0\0\0").unwrap();
-
-        match precompile_wasm_module_for_target(
-            &wasm_path,
-            &output_path,
-            WasmEngineProfile::FastStartup,
-            Some("aarch64-pc-windows-msvc"),
-        ) {
-            Ok(()) => {}
-            Err(error)
-                if error
-                    .to_string()
-                    .contains("Support for this target is disabled") =>
-            {
-                eprintln!("skipping Windows ARM64 tiny precompile smoke: {error}");
-                let _ = fs::remove_dir_all(root);
-                return;
-            }
-            Err(error) => panic!("{error}"),
-        }
-
-        assert!(output_path.is_file());
-        assert!(fs::metadata(&output_path).unwrap().len() > 0);
-        let _ = fs::remove_dir_all(root);
+        assert!(uses_windows_unwind_info(Some("aarch64-pc-windows-msvc")));
+        assert!(uses_windows_unwind_info(Some("x86_64-pc-windows-msvc")));
+        assert!(!uses_windows_unwind_info(Some("aarch64-unknown-linux-gnu")));
     }
 
     #[test]
