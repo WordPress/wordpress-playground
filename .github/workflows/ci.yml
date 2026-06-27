@@ -181,7 +181,7 @@ jobs:
                       os: windows-11-arm
                       target: aarch64-pc-windows-msvc
                       exe: '.exe'
-                      precompile: --no-precompile-wasmtime
+                      precompile: --precompile-wasmtime
                     - label: macos-x64
                       os: macos-15-intel
                       target: x86_64-apple-darwin
