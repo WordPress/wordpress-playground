@@ -27,6 +27,10 @@ use wasmtime::{
 
 use crate::{vfs::normalize_vfs_path, CliError, Result};
 
+type GuestIovWrites = Vec<(i32, Vec<u8>)>;
+type HostIovReadResult = std::result::Result<(GuestIovWrites, usize, usize), i32>;
+type CheckedIovRanges = (Memory, Vec<(usize, usize)>, usize);
+
 const EBADF: i32 = 8;
 const EACCES: i32 = 2;
 const EADDRINUSE: i32 = 3;
@@ -265,20 +269,15 @@ impl PhpConstantValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum OpcacheMode {
+    #[default]
     Validate,
     Revalidate,
     Immutable,
     Middle,
     LowMemory,
     Off,
-}
-
-impl Default for OpcacheMode {
-    fn default() -> Self {
-        Self::Validate
-    }
 }
 
 impl OpcacheMode {
@@ -647,11 +646,7 @@ fn shared_internal_files() -> &'static HashMap<String, Arc<[u8]>> {
         let mut internal_files: HashMap<String, Arc<[u8]>> = HashMap::new();
         internal_files.insert(
             "/internal/shared/ca-bundle.crt".to_string(),
-            Arc::from(
-                &include_bytes!(
-                    "../../wordpress-builds/public/wp-6.9/wp-includes/certificates/ca-bundle.crt"
-                )[..],
-            ),
+            Arc::from(&include_bytes!(concat!(env!("OUT_DIR"), "/ca-bundle.crt"))[..]),
         );
         internal_files.insert(
             "/internal/shared/auto_prepend_file.php".to_string(),
@@ -8028,7 +8023,7 @@ fn read_host_file_iovs(
     mut position: usize,
     iovs: &[(i32, usize)],
     cached_file_len: Option<usize>,
-) -> std::result::Result<(Vec<(i32, Vec<u8>)>, usize, usize), i32> {
+) -> HostIovReadResult {
     let mut writes = Vec::new();
     let mut total = 0usize;
     let mut file = file.lock().map_err(|_| EINVAL)?;
@@ -8078,7 +8073,7 @@ fn read_host_path_iovs(
     host_path: &Path,
     mut position: usize,
     iovs: &[(i32, usize)],
-) -> std::result::Result<(Vec<(i32, Vec<u8>)>, usize, usize), i32> {
+) -> HostIovReadResult {
     let mut writes = Vec::new();
     let mut total = 0usize;
     let mut file = fs::File::open(host_path).map_err(|error| fs_error_errno(&error))?;
@@ -9013,7 +9008,7 @@ fn read_iovs(
 fn checked_iov_ranges(
     caller: &mut Caller<'_, HostState>,
     iovs: &[(i32, usize)],
-) -> wasmtime::Result<(Memory, Vec<(usize, usize)>, usize)> {
+) -> wasmtime::Result<CheckedIovRanges> {
     let memory = exported_memory(caller)?;
     let data = memory.data(&*caller);
     let mut ranges = Vec::with_capacity(iovs.len());
@@ -9459,14 +9454,15 @@ mod tests {
     use super::{
         cached_host_read_file_len, create_stub_import_linker,
         create_stub_import_linker_with_options, read_host_file_iovs, AdvisoryLockRange,
-        FcntlLockRequest, FdEntry, HostMount, HostOptions, HostProcessCommand, HostProcessPolicy,
-        HostState, ImportClassification, OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN,
-        EAI_NONAME, EALREADY, EINPROGRESS, EINVAL, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR,
-        F_RDLCK, F_UNLCK, F_WRLCK, LOCK_EX, LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET,
-        OPCACHE_INTERNED_STRINGS_ENV_VAR, OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR,
-        OPCACHE_MEMORY_ENV_VAR, O_NONBLOCK, O_RDWR, O_TRUNC, O_WRONLY, POLLERR, POLLIN, POLLOUT,
-        SEEK_CUR, SEEK_END, SEEK_SET, SOCK_STREAM, S_IFDIR,
+        FcntlLockRequest, FdEntry, HostMount, HostOptions, HostState, ImportClassification,
+        OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN, EAI_NONAME, EALREADY, EINPROGRESS,
+        EINVAL, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, F_RDLCK, F_UNLCK, F_WRLCK, LOCK_EX,
+        LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
+        OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, OPCACHE_MEMORY_ENV_VAR, O_NONBLOCK, O_RDWR, O_TRUNC,
+        O_WRONLY, POLLERR, POLLIN, POLLOUT, SEEK_CUR, SEEK_END, SEEK_SET, SOCK_STREAM, S_IFDIR,
     };
+    #[cfg(unix)]
+    use super::{HostProcessCommand, HostProcessPolicy};
 
     const EXPECTED_ECONNREFUSED: i32 = 14;
     static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -12207,6 +12203,12 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn allowlisted_process_stdout_flows_through_native_pipe() {
+        let echo_executable = std::env::var_os("PATH")
+            .into_iter()
+            .flat_map(|paths| std::env::split_paths(&paths).collect::<Vec<_>>())
+            .map(|path| path.join("echo"))
+            .find(|path| path.is_file())
+            .expect("echo executable should be available on PATH");
         let engine = Engine::default();
         let module = Module::new(
             &engine,
@@ -12334,7 +12336,7 @@ mod tests {
             &module,
             HostOptions {
                 process_policy: HostProcessPolicy {
-                    allowed_commands: vec![HostProcessCommand::new("echo", "/bin/echo")],
+                    allowed_commands: vec![HostProcessCommand::new("echo", echo_executable)],
                     ..HostProcessPolicy::default()
                 },
                 echo_output: false,
@@ -12349,7 +12351,10 @@ mod tests {
             .call(&mut linker.store, &[], &mut results)
             .unwrap();
 
-        assert!(matches!(results, [Val::I32(15)]));
+        assert!(
+            matches!(results, [Val::I32(15)]),
+            "expected fd_read to return 15 bytes from native stdout pipe, got {results:?}"
+        );
         let memory = instance.get_memory(&mut linker.store, "memory").unwrap();
         let mut output = vec![0; 15];
         memory
