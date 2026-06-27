@@ -162,8 +162,13 @@ const OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR: &str =
 const EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_EXPERIMENTAL_PHP_INI_APPEND";
 pub(crate) const PROFILE_IMPORTS_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_PROFILE_IMPORTS";
+pub(crate) const PROFILE_IMPORT_FAMILIES_ENV_VAR: &str =
+    "WP_PLAYGROUND_NATIVE_PROFILE_IMPORT_FAMILIES";
+pub(crate) const PROFILE_IMPORT_TOP_N_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_PROFILE_IMPORT_TOP_N";
 pub(crate) const PROFILE_IMPORT_SELF_TIME_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_PROFILE_IMPORT_SELF_TIME";
+pub(crate) const PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR: &str =
+    "WP_PLAYGROUND_NATIVE_PROFILE_IMPORT_INCLUSIVE_TIME";
 static NEXT_HOST_LOCK_OWNER_ID: AtomicU64 = AtomicU64::new(1);
 static ADVISORY_LOCKS: OnceLock<Mutex<HashMap<PathBuf, Vec<AdvisoryLock>>>> = OnceLock::new();
 
@@ -227,6 +232,7 @@ pub struct HostState {
     pub called_imports: Vec<String>,
     import_call_count: usize,
     import_self_time: Option<ImportSelfTimeProfile>,
+    import_inclusive_time: Option<ImportInclusiveTimeProfile>,
     options: HostOptions,
     resolved_mounts: Vec<ResolvedHostMount>,
     canonical_allowed_host_paths: Vec<PathBuf>,
@@ -268,6 +274,22 @@ pub struct ImportSelfTimeTotal {
 #[derive(Debug, Default)]
 struct ImportSelfTimeProfile {
     totals: BTreeMap<String, ImportSelfTimeTotal>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ImportInclusiveTimeSnapshot {
+    pub totals: BTreeMap<String, ImportInclusiveTimeTotal>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ImportInclusiveTimeTotal {
+    pub calls: u64,
+    pub total_ns: u128,
+}
+
+#[derive(Debug, Default)]
+struct ImportInclusiveTimeProfile {
+    totals: BTreeMap<String, ImportInclusiveTimeTotal>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -836,7 +858,7 @@ add_filter('auto_update_theme', '__return_false');
 
 impl HostState {
     fn new(mut options: HostOptions) -> Self {
-        if env_flag(PROFILE_IMPORTS_ENV_VAR) {
+        if env_flag(PROFILE_IMPORTS_ENV_VAR) || env_flag(PROFILE_IMPORT_FAMILIES_ENV_VAR) {
             options.capture_import_trace = true;
         }
         let host_cache_enabled = options.host_cache || env_flag("WP_PLAYGROUND_NATIVE_HOST_CACHE");
@@ -872,6 +894,8 @@ impl HostState {
             import_call_count: 0,
             import_self_time: env_flag(PROFILE_IMPORT_SELF_TIME_ENV_VAR)
                 .then(ImportSelfTimeProfile::default),
+            import_inclusive_time: env_flag(PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR)
+                .then(ImportInclusiveTimeProfile::default),
             resolved_mounts,
             canonical_allowed_host_paths,
             options,
@@ -966,6 +990,16 @@ impl HostState {
         }
     }
 
+    pub fn import_inclusive_time_snapshot(&self) -> ImportInclusiveTimeSnapshot {
+        ImportInclusiveTimeSnapshot {
+            totals: self
+                .import_inclusive_time
+                .as_ref()
+                .map(|profile| profile.totals.clone())
+                .unwrap_or_default(),
+        }
+    }
+
     fn record_import(&mut self, label: &str) -> wasmtime::Result<()> {
         self.import_call_count = self.import_call_count.saturating_add(1);
         if self.options.capture_import_trace {
@@ -991,6 +1025,19 @@ impl HostState {
 
     fn record_import_self_time(&mut self, label: &str, elapsed: Duration) {
         let Some(profile) = self.import_self_time.as_mut() else {
+            return;
+        };
+        let entry = profile.totals.entry(label.to_string()).or_default();
+        entry.calls = entry.calls.saturating_add(1);
+        entry.total_ns = entry.total_ns.saturating_add(elapsed.as_nanos());
+    }
+
+    fn should_record_import_inclusive_time(&self, label: &str) -> bool {
+        self.import_inclusive_time.is_some() && profile_import_inclusive_time_label(label)
+    }
+
+    fn record_import_inclusive_time(&mut self, label: &str, elapsed: Duration) {
+        let Some(profile) = self.import_inclusive_time.as_mut() else {
             return;
         };
         let entry = profile.totals.entry(label.to_string()).or_default();
@@ -2620,6 +2667,10 @@ fn profile_import_self_time_label(label: &str) -> bool {
     )
 }
 
+fn profile_import_inclusive_time_label(label: &str) -> bool {
+    label.starts_with("env.invoke_")
+}
+
 fn profiled_import<R>(
     caller: &mut Caller<'_, HostState>,
     label: &str,
@@ -2635,6 +2686,25 @@ fn profiled_import<R>(
         caller
             .data_mut()
             .record_import_self_time(label, started_at.elapsed());
+    }
+    result
+}
+
+fn profiled_inclusive_import<R>(
+    caller: &mut Caller<'_, HostState>,
+    label: &str,
+    body: impl FnOnce(&mut Caller<'_, HostState>) -> wasmtime::Result<R>,
+) -> wasmtime::Result<R> {
+    caller.data_mut().record_import(label)?;
+    let started_at = caller
+        .data()
+        .should_record_import_inclusive_time(label)
+        .then(Instant::now);
+    let result = body(caller);
+    if let Some(started_at) = started_at {
+        caller
+            .data_mut()
+            .record_import_inclusive_time(label, started_at.elapsed());
     }
     result
 }
@@ -4487,8 +4557,9 @@ fn define_invoke_import(
     let label = import_label.to_string();
     let result_types = func_ty.results().collect::<Vec<_>>();
     let func = Func::new(&mut *store, func_ty, move |mut caller, params, results| {
-        caller.data_mut().record_import(&label)?;
-        invoke_indirect_function(&mut caller, &label, params, results, &result_types)
+        profiled_inclusive_import(&mut caller, &label, |caller| {
+            invoke_indirect_function(caller, &label, params, results, &result_types)
+        })
     });
     linker
         .define(&*store, module_name, import_name, func)
@@ -9672,6 +9743,7 @@ fn stable_inode(path: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use std::{
+        ffi::OsString,
         fs,
         io::{Read, Write},
         net::{TcpListener, TcpStream as StdTcpStream},
@@ -9690,8 +9762,9 @@ mod tests {
         EINVAL, ENOENT, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, F_RDLCK, F_UNLCK, F_WRLCK,
         LOCK_EX, LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
         OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, OPCACHE_MEMORY_ENV_VAR, O_EXCL, O_NONBLOCK, O_RDWR,
-        O_TMPFILE, O_TRUNC, O_WRONLY, POLLERR, POLLIN, POLLOUT, SEEK_CUR, SEEK_END, SEEK_SET,
-        SOCK_STREAM, S_IFDIR, S_IFREG,
+        O_TMPFILE, O_TRUNC, O_WRONLY, POLLERR, POLLIN, POLLOUT,
+        PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR, SEEK_CUR, SEEK_END, SEEK_SET, SOCK_STREAM, S_IFDIR,
+        S_IFREG,
     };
     #[cfg(unix)]
     use super::{HostProcessCommand, HostProcessPolicy};
@@ -9711,6 +9784,25 @@ mod tests {
 
     fn internal_file_text(state: &HostState, path: &str) -> String {
         String::from_utf8(state.internal_files.get(path).unwrap().as_ref().to_vec()).unwrap()
+    }
+
+    struct EnvVarGuard {
+        name: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn set(name: &'static str, value: &str) -> Self {
+            let previous = std::env::var_os(name);
+            std::env::set_var(name, value);
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            restore_env(self.name, self.previous.take());
+        }
     }
 
     fn write_ipv4_sockaddr(store: &mut Store<HostState>, memory: &Memory, port: u16) {
@@ -10959,6 +11051,63 @@ mod tests {
             linker.store.data().called_imports,
             vec!["env.invoke_vii".to_string()]
         );
+    }
+
+    #[test]
+    fn invoke_import_records_inclusive_time_when_enabled() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvVarGuard::set(PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR, "1");
+
+        let engine = Engine::default();
+        let module = Module::new(
+            &engine,
+            r#"
+            (module
+                (import "env" "invoke_ii" (func $invoke_ii (param i32 i32) (result i32)))
+                (table (export "__indirect_function_table") 1 funcref)
+                (elem (i32.const 0) $spin)
+                (func $spin (param $iterations i32) (result i32)
+                    (local $value i32)
+                    loop $loop
+                        local.get $value
+                        i32.const 1
+                        i32.add
+                        local.set $value
+                        local.get $iterations
+                        i32.const 1
+                        i32.sub
+                        local.tee $iterations
+                        br_if $loop
+                    end
+                    local.get $value
+                )
+                (func (export "call_invoke") (result i32)
+                    i32.const 0
+                    i32.const 1000
+                    call $invoke_ii
+                )
+            )
+            "#,
+        )
+        .unwrap();
+        let mut linker = create_stub_import_linker(&module).unwrap();
+        let instance = linker.instantiate(&module).unwrap();
+        let call_invoke = instance.get_func(&mut linker.store, "call_invoke").unwrap();
+        let mut results = [Val::I32(-1)];
+        call_invoke
+            .call(&mut linker.store, &[], &mut results)
+            .unwrap();
+
+        let snapshot = linker.store.data().import_inclusive_time_snapshot();
+        let invoke = snapshot.totals.get("env.invoke_ii").unwrap();
+
+        assert!(matches!(results, [Val::I32(1000)]));
+        assert_eq!(
+            linker.store.data().called_imports,
+            vec!["env.invoke_ii".to_string()]
+        );
+        assert_eq!(invoke.calls, 1);
+        assert!(invoke.total_ns > 0);
     }
 
     #[test]
@@ -15064,12 +15213,9 @@ mod tests {
         assert!(low_memory_php_ini.contains("opcache.max_accelerated_files=2048"));
 
         let _guard = ENV_LOCK.lock().unwrap();
-        let previous_memory = std::env::var_os(OPCACHE_MEMORY_ENV_VAR);
-        let previous_interned = std::env::var_os(OPCACHE_INTERNED_STRINGS_ENV_VAR);
-        let previous_files = std::env::var_os(OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR);
-        std::env::set_var(OPCACHE_MEMORY_ENV_VAR, "16");
-        std::env::set_var(OPCACHE_INTERNED_STRINGS_ENV_VAR, "3");
-        std::env::set_var(OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, "3072");
+        let _memory_env = EnvVarGuard::set(OPCACHE_MEMORY_ENV_VAR, "16");
+        let _interned_env = EnvVarGuard::set(OPCACHE_INTERNED_STRINGS_ENV_VAR, "3");
+        let _files_env = EnvVarGuard::set(OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, "3072");
         let tuned = HostState::new(HostOptions {
             opcache_mode: OpcacheMode::Middle,
             ..HostOptions::default()
@@ -15079,9 +15225,6 @@ mod tests {
         assert!(tuned_php_ini.contains("opcache.memory_consumption=16"));
         assert!(tuned_php_ini.contains("opcache.interned_strings_buffer=3"));
         assert!(tuned_php_ini.contains("opcache.max_accelerated_files=3072"));
-        restore_env(OPCACHE_MEMORY_ENV_VAR, previous_memory);
-        restore_env(OPCACHE_INTERNED_STRINGS_ENV_VAR, previous_interned);
-        restore_env(OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, previous_files);
 
         let off = HostState::new(HostOptions {
             opcache_mode: OpcacheMode::Off,
@@ -15151,8 +15294,7 @@ mod tests {
     #[test]
     fn internal_php_ini_supports_experimental_append_env() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let previous = std::env::var_os(EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR);
-        std::env::set_var(
+        let _env = EnvVarGuard::set(
             EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR,
             "realpath_cache_size=512K\noutput_buffering=4096",
         );
@@ -15162,7 +15304,6 @@ mod tests {
 
         assert!(php_ini.contains("realpath_cache_size=512K\n"));
         assert!(php_ini.contains("output_buffering=4096\n"));
-        restore_env(EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, previous);
     }
 
     fn restore_env(name: &str, previous: Option<std::ffi::OsString>) {

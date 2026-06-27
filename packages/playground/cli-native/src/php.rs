@@ -4,8 +4,10 @@ use wasmtime::{Instance, Memory, Module, TypedFunc};
 
 use crate::{
     host::{
-        AsyncifyState, HostOptions, ImportSelfTimeSnapshot, PhpConstantValue, PhpExitStatus,
-        StubImportLinker, PROFILE_IMPORTS_ENV_VAR, PROFILE_IMPORT_SELF_TIME_ENV_VAR,
+        AsyncifyState, HostOptions, ImportInclusiveTimeSnapshot, ImportSelfTimeSnapshot,
+        PhpConstantValue, PhpExitStatus, StubImportLinker, PROFILE_IMPORTS_ENV_VAR,
+        PROFILE_IMPORT_FAMILIES_ENV_VAR, PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR,
+        PROFILE_IMPORT_SELF_TIME_ENV_VAR, PROFILE_IMPORT_TOP_N_ENV_VAR,
     },
     runtime::NativeRuntime,
     CliError, Result,
@@ -491,6 +493,10 @@ impl PhpInstance {
         self.linker.store.data().import_self_time_snapshot()
     }
 
+    pub fn import_inclusive_time_snapshot(&self) -> ImportInclusiveTimeSnapshot {
+        self.linker.store.data().import_inclusive_time_snapshot()
+    }
+
     pub fn recent_host_imports(&self, limit: usize) -> String {
         let imports = self.called_host_imports();
         let start = imports.len().saturating_sub(limit);
@@ -895,11 +901,16 @@ struct ImportProfileWindow {
     import_start: usize,
     trace_start: usize,
     self_time_start: Option<ImportSelfTimeSnapshot>,
+    inclusive_time_start: Option<ImportInclusiveTimeSnapshot>,
 }
 
 impl ImportProfileWindow {
     fn start(php: &PhpInstance) -> Option<Self> {
-        if !import_profile_enabled() && !import_self_time_profile_enabled() {
+        if !import_profile_enabled()
+            && !import_family_profile_enabled()
+            && !import_self_time_profile_enabled()
+            && !import_inclusive_time_profile_enabled()
+        {
             return None;
         }
         Some(Self {
@@ -908,6 +919,8 @@ impl ImportProfileWindow {
             trace_start: php.called_host_imports().len(),
             self_time_start: import_self_time_profile_enabled()
                 .then(|| php.import_self_time_snapshot()),
+            inclusive_time_start: import_inclusive_time_profile_enabled()
+                .then(|| php.import_inclusive_time_snapshot()),
         })
     }
 }
@@ -915,10 +928,12 @@ impl ImportProfileWindow {
 fn emit_import_profile(php: &PhpInstance, request: &PhpRequest, profile: ImportProfileWindow) {
     let elapsed_ms = profile.started_at.elapsed().as_secs_f64() * 1000.0;
     let import_count = php.host_import_count().saturating_sub(profile.import_start);
+    let top_limit = profile_import_top_limit();
+    let imports = php.called_host_imports();
+    let trace_start = profile.trace_start.min(imports.len());
+    let request_imports = &imports[trace_start..];
     if import_profile_enabled() {
-        let imports = php.called_host_imports();
-        let trace_start = profile.trace_start.min(imports.len());
-        let summary = summarize_imports(&imports[trace_start..], 12);
+        let summary = summarize_imports(request_imports, top_limit);
 
         eprintln!(
             "import-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\tunique_imports={}\ttop={}",
@@ -929,9 +944,23 @@ fn emit_import_profile(php: &PhpInstance, request: &PhpRequest, profile: ImportP
         );
     }
 
+    if import_family_profile_enabled() {
+        let summary = summarize_import_families(request_imports, top_limit);
+        eprintln!(
+            "import-family-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\tunique_families={}\ttop={}",
+            profile_value(&request.request_uri),
+            profile_value(&request.method),
+            summary.unique_families,
+            profile_value(&format_top_import_families(&summary.top_families))
+        );
+    }
+
     if let Some(self_time_start) = profile.self_time_start {
-        let summary =
-            summarize_import_self_time(&self_time_start, &php.import_self_time_snapshot(), 12);
+        let summary = summarize_import_self_time(
+            &self_time_start,
+            &php.import_self_time_snapshot(),
+            top_limit,
+        );
         eprintln!(
             "import-self-time-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\ttimed_imports={}\tunique_timed_imports={}\ttotal_self_ms={:.3}\ttop={}",
             profile_value(&request.request_uri),
@@ -942,12 +971,35 @@ fn emit_import_profile(php: &PhpInstance, request: &PhpRequest, profile: ImportP
             profile_value(&format_top_import_self_times(&summary.top_imports))
         );
     }
+
+    if let Some(inclusive_time_start) = profile.inclusive_time_start {
+        let summary = summarize_import_inclusive_time(
+            &inclusive_time_start,
+            &php.import_inclusive_time_snapshot(),
+            top_limit,
+        );
+        eprintln!(
+            "import-inclusive-time-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\ttimed_imports={}\tunique_timed_imports={}\ttotal_inclusive_ms={:.3}\ttop={}",
+            profile_value(&request.request_uri),
+            profile_value(&request.method),
+            summary.timed_imports,
+            summary.unique_timed_imports,
+            ns_to_ms(summary.total_inclusive_time_ns),
+            profile_value(&format_top_import_inclusive_times(&summary.top_imports))
+        );
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 struct ImportProfileSummary {
     unique_imports: usize,
     top_imports: Vec<(String, usize)>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ImportFamilyProfileSummary {
+    unique_families: usize,
+    top_families: Vec<(String, usize)>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -963,6 +1015,14 @@ struct ImportSelfTimeProfileRow {
     name: String,
     calls: u64,
     total_ns: u128,
+}
+
+#[derive(Debug, PartialEq)]
+struct ImportInclusiveTimeProfileSummary {
+    timed_imports: u64,
+    unique_timed_imports: usize,
+    total_inclusive_time_ns: u128,
+    top_imports: Vec<ImportSelfTimeProfileRow>,
 }
 
 fn summarize_imports(imports: &[String], limit: usize) -> ImportProfileSummary {
@@ -981,6 +1041,25 @@ fn summarize_imports(imports: &[String], limit: usize) -> ImportProfileSummary {
     ImportProfileSummary {
         unique_imports,
         top_imports: counts,
+    }
+}
+
+fn summarize_import_families(imports: &[String], limit: usize) -> ImportFamilyProfileSummary {
+    let mut counts = BTreeMap::<String, usize>::new();
+    for import in imports {
+        *counts.entry(import_family_name(import)).or_default() += 1;
+    }
+    let unique_families = counts.len();
+    let mut counts = counts.into_iter().collect::<Vec<_>>();
+    counts.sort_by(|(left_name, left_count), (right_name, right_count)| {
+        right_count
+            .cmp(left_count)
+            .then_with(|| left_name.cmp(right_name))
+    });
+    counts.truncate(limit);
+    ImportFamilyProfileSummary {
+        unique_families,
+        top_families: counts,
     }
 }
 
@@ -1022,6 +1101,44 @@ fn summarize_import_self_time(
     }
 }
 
+fn summarize_import_inclusive_time(
+    start: &ImportInclusiveTimeSnapshot,
+    end: &ImportInclusiveTimeSnapshot,
+    limit: usize,
+) -> ImportInclusiveTimeProfileSummary {
+    let mut rows = Vec::new();
+    for (name, end_total) in &end.totals {
+        let start_total = start.totals.get(name).cloned().unwrap_or_default();
+        let calls = end_total.calls.saturating_sub(start_total.calls);
+        let total_ns = end_total.total_ns.saturating_sub(start_total.total_ns);
+        if calls == 0 && total_ns == 0 {
+            continue;
+        }
+        rows.push(ImportSelfTimeProfileRow {
+            name: name.clone(),
+            calls,
+            total_ns,
+        });
+    }
+    rows.sort_by(|left, right| {
+        right
+            .total_ns
+            .cmp(&left.total_ns)
+            .then_with(|| right.calls.cmp(&left.calls))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    let timed_imports = rows.iter().map(|row| row.calls).sum();
+    let total_inclusive_time_ns = rows.iter().map(|row| row.total_ns).sum();
+    let unique_timed_imports = rows.len();
+    rows.truncate(limit);
+    ImportInclusiveTimeProfileSummary {
+        timed_imports,
+        unique_timed_imports,
+        total_inclusive_time_ns,
+        top_imports: rows,
+    }
+}
+
 fn format_top_imports(imports: &[(String, usize)]) -> String {
     imports
         .iter()
@@ -1030,7 +1147,23 @@ fn format_top_imports(imports: &[(String, usize)]) -> String {
         .join(",")
 }
 
+fn format_top_import_families(families: &[(String, usize)]) -> String {
+    families
+        .iter()
+        .map(|(name, count)| format!("{name}:{count}"))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 fn format_top_import_self_times(imports: &[ImportSelfTimeProfileRow]) -> String {
+    format_top_import_times(imports)
+}
+
+fn format_top_import_inclusive_times(imports: &[ImportSelfTimeProfileRow]) -> String {
+    format_top_import_times(imports)
+}
+
+fn format_top_import_times(imports: &[ImportSelfTimeProfileRow]) -> String {
     imports
         .iter()
         .map(|row| {
@@ -1044,6 +1177,110 @@ fn format_top_import_self_times(imports: &[ImportSelfTimeProfileRow]) -> String 
         })
         .collect::<Vec<_>>()
         .join(",")
+}
+
+fn import_family_name(import: &str) -> String {
+    if let Some(name) = import.strip_prefix("wasi_snapshot_preview1.") {
+        return if name.starts_with("fd_") {
+            "wasi.fd"
+        } else if name.starts_with("environ_") {
+            "wasi.environ"
+        } else if name == "clock_time_get" {
+            "wasi.clock"
+        } else if name == "random_get" {
+            "wasi.random"
+        } else if name == "proc_exit" {
+            "wasi.process"
+        } else {
+            "wasi.other"
+        }
+        .to_string();
+    }
+
+    if let Some(name) = import.strip_prefix("env.") {
+        return if name.starts_with("invoke_") {
+            "env.invoke"
+        } else if name.starts_with("__syscall_") {
+            env_syscall_family_name(name)
+        } else if matches!(
+            name,
+            "wasm_poll_socket"
+                | "wasm_close"
+                | "wasm_shutdown"
+                | "wasm_setsockopt"
+                | "getaddrinfo"
+                | "getnameinfo"
+                | "_emscripten_lookup_name"
+                | "getprotobyname"
+                | "getprotobynumber"
+        ) {
+            "env.socket"
+        } else if matches!(
+            name,
+            "emscripten_date_now"
+                | "emscripten_get_now"
+                | "emscripten_get_now_is_monotonic"
+                | "_tzset_js"
+                | "_gmtime_js"
+                | "_localtime_js"
+                | "_mktime_js"
+                | "strptime"
+        ) {
+            "env.time"
+        } else if matches!(
+            name,
+            "emscripten_get_heap_max" | "emscripten_resize_heap" | "_mmap_js" | "_munmap_js"
+        ) {
+            "env.memory"
+        } else if matches!(
+            name,
+            "emscripten_sleep"
+                | "emscripten_exit_with_live_runtime"
+                | "_emscripten_throw_longjmp"
+                | "_emscripten_runtime_keepalive_clear"
+                | "exit"
+                | "__handle_stack_overflow"
+                | "__resumeException"
+                | "__cxa_find_matching_catch_2"
+                | "_abort_js"
+                | "__asyncjs__js_module_onMessage"
+                | "js_wasm_trace"
+        ) {
+            "env.runtime"
+        } else if matches!(
+            name,
+            "js_open_process" | "js_waitpid" | "js_process_status" | "js_popen_to_file"
+        ) {
+            "env.process"
+        } else if name.starts_with("js_") {
+            "env.js"
+        } else {
+            "env.other"
+        }
+        .to_string();
+    }
+
+    if import.starts_with("GOT.func.") {
+        return "got.func".to_string();
+    }
+    if import.starts_with("GOT.mem.") {
+        return "got.mem".to_string();
+    }
+    "other".to_string()
+}
+
+fn env_syscall_family_name(name: &str) -> &'static str {
+    match name.trim_start_matches("__syscall_") {
+        "stat64" | "lstat64" | "newfstatat" | "openat" | "mkdirat" | "fstat64" | "fchmod"
+        | "fchown32" | "fchownat" | "fcntl64" | "ftruncate64" | "fdatasync" | "fallocate"
+        | "readlinkat" | "renameat" | "rmdir" | "symlinkat" | "utimensat" | "unlinkat"
+        | "faccessat" | "statfs64" | "getdents64" => "env.syscall.file",
+        "socket" | "connect" | "bind" | "listen" | "accept4" | "sendto" | "recvfrom"
+        | "getsockopt" | "getsockname" | "getpeername" | "poll" | "ioctl" => "env.syscall.socket",
+        "getcwd" | "chdir" | "chmod" => "env.syscall.path",
+        "dup" | "dup3" | "pipe" => "env.syscall.fd",
+        _ => "env.syscall.other",
+    }
 }
 
 fn ns_to_ms(ns: u128) -> f64 {
@@ -1065,18 +1302,32 @@ fn profile_value(value: &str) -> String {
 }
 
 fn import_profile_enabled() -> bool {
-    std::env::var(PROFILE_IMPORTS_ENV_VAR)
-        .map(|value| {
-            matches!(
-                value.to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        })
-        .unwrap_or(false)
+    env_flag(PROFILE_IMPORTS_ENV_VAR)
+}
+
+fn import_family_profile_enabled() -> bool {
+    env_flag(PROFILE_IMPORT_FAMILIES_ENV_VAR)
 }
 
 fn import_self_time_profile_enabled() -> bool {
-    std::env::var(PROFILE_IMPORT_SELF_TIME_ENV_VAR)
+    env_flag(PROFILE_IMPORT_SELF_TIME_ENV_VAR)
+}
+
+fn import_inclusive_time_profile_enabled() -> bool {
+    env_flag(PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR)
+}
+
+fn profile_import_top_limit() -> usize {
+    const DEFAULT_IMPORT_PROFILE_TOP_LIMIT: usize = 12;
+    std::env::var(PROFILE_IMPORT_TOP_N_ENV_VAR)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_IMPORT_PROFILE_TOP_LIMIT)
+}
+
+fn env_flag(name: &str) -> bool {
+    std::env::var(name)
         .map(|value| {
             matches!(
                 value.to_ascii_lowercase().as_str(),
@@ -1255,21 +1506,53 @@ mod tests {
 
     use std::{
         collections::BTreeMap,
+        ffi::OsString,
         fs,
         io::{Read, Write},
         net::{TcpListener, TcpStream},
+        sync::Mutex,
         time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
 
     use super::{
-        build_sapi_request_blob, format_top_import_self_times, format_top_imports, profile_value,
-        summarize_import_self_time, summarize_imports, ImportSelfTimeProfileRow, PhpInstance,
-        PhpRequest, SAPI_REQUEST_BLOB_HEADER_SIZE,
+        build_sapi_request_blob, format_top_import_families, format_top_import_inclusive_times,
+        format_top_import_self_times, format_top_imports, profile_import_top_limit, profile_value,
+        summarize_import_families, summarize_import_inclusive_time, summarize_import_self_time,
+        summarize_imports, ImportSelfTimeProfileRow, PhpInstance, PhpRequest,
+        SAPI_REQUEST_BLOB_HEADER_SIZE,
     };
     use crate::{
-        host::{HostMount, HostOptions, ImportSelfTimeSnapshot, ImportSelfTimeTotal},
+        host::{
+            HostMount, HostOptions, ImportInclusiveTimeSnapshot, ImportInclusiveTimeTotal,
+            ImportSelfTimeSnapshot, ImportSelfTimeTotal, PROFILE_IMPORT_TOP_N_ENV_VAR,
+        },
         runtime::{repo_root_from_manifest_dir, NativeRuntime},
     };
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvVarGuard {
+        name: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn unset(name: &'static str) -> Self {
+            let previous = std::env::var_os(name);
+            std::env::remove_var(name);
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            if let Some(value) = self.previous.take() {
+                std::env::set_var(self.name, value);
+            } else {
+                std::env::remove_var(self.name);
+            }
+        }
+    }
 
     fn fixture_php_module() -> Module {
         let engine = Engine::default();
@@ -1461,6 +1744,39 @@ mod tests {
     }
 
     #[test]
+    fn summarizes_import_families_by_count_then_name() {
+        let imports = [
+            "env.invoke_ii",
+            "wasi_snapshot_preview1.fd_read",
+            "env.__syscall_openat",
+            "env.invoke_vii",
+            "wasi_snapshot_preview1.fd_write",
+            "env.invoke_vi",
+            "env.__syscall_newfstatat",
+            "env.emscripten_date_now",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+        let summary = summarize_import_families(&imports, 3);
+
+        assert_eq!(summary.unique_families, 4);
+        assert_eq!(
+            summary.top_families,
+            vec![
+                ("env.invoke".to_string(), 3),
+                ("env.syscall.file".to_string(), 2),
+                ("wasi.fd".to_string(), 2),
+            ]
+        );
+        assert_eq!(
+            format_top_import_families(&summary.top_families),
+            "env.invoke:3,env.syscall.file:2,wasi.fd:2"
+        );
+    }
+
+    #[test]
     fn summarizes_import_self_time_by_total_time_then_count_then_name() {
         let start = ImportSelfTimeSnapshot {
             totals: BTreeMap::from([
@@ -1530,6 +1846,92 @@ mod tests {
             format_top_import_self_times(&summary.top_imports),
             "wasi_snapshot_preview1.fd_write:4:0.006:1.500,env.__syscall_openat:3:0.006:2.000"
         );
+    }
+
+    #[test]
+    fn summarizes_import_inclusive_time_by_total_time_then_count_then_name() {
+        let start = ImportInclusiveTimeSnapshot {
+            totals: BTreeMap::from([
+                (
+                    "env.invoke_ii".to_string(),
+                    ImportInclusiveTimeTotal {
+                        calls: 1,
+                        total_ns: 2_000,
+                    },
+                ),
+                (
+                    "env.invoke_vii".to_string(),
+                    ImportInclusiveTimeTotal {
+                        calls: 1,
+                        total_ns: 3_000,
+                    },
+                ),
+            ]),
+        };
+        let end = ImportInclusiveTimeSnapshot {
+            totals: BTreeMap::from([
+                (
+                    "env.invoke_ii".to_string(),
+                    ImportInclusiveTimeTotal {
+                        calls: 5,
+                        total_ns: 10_000,
+                    },
+                ),
+                (
+                    "env.invoke_vii".to_string(),
+                    ImportInclusiveTimeTotal {
+                        calls: 3,
+                        total_ns: 9_000,
+                    },
+                ),
+                (
+                    "env.invoke_vi".to_string(),
+                    ImportInclusiveTimeTotal {
+                        calls: 1,
+                        total_ns: 1_000,
+                    },
+                ),
+            ]),
+        };
+
+        let summary = summarize_import_inclusive_time(&start, &end, 2);
+
+        assert_eq!(summary.timed_imports, 7);
+        assert_eq!(summary.unique_timed_imports, 3);
+        assert_eq!(summary.total_inclusive_time_ns, 15_000);
+        assert_eq!(
+            summary.top_imports,
+            vec![
+                ImportSelfTimeProfileRow {
+                    name: "env.invoke_ii".to_string(),
+                    calls: 4,
+                    total_ns: 8_000,
+                },
+                ImportSelfTimeProfileRow {
+                    name: "env.invoke_vii".to_string(),
+                    calls: 2,
+                    total_ns: 6_000,
+                },
+            ]
+        );
+        assert_eq!(
+            format_top_import_inclusive_times(&summary.top_imports),
+            "env.invoke_ii:4:0.008:2.000,env.invoke_vii:2:0.006:3.000"
+        );
+    }
+
+    #[test]
+    fn parses_profile_import_top_limit_from_env() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvVarGuard::unset(PROFILE_IMPORT_TOP_N_ENV_VAR);
+
+        assert_eq!(profile_import_top_limit(), 12);
+
+        std::env::set_var(PROFILE_IMPORT_TOP_N_ENV_VAR, "0");
+        assert_eq!(profile_import_top_limit(), 12);
+
+        std::env::set_var(PROFILE_IMPORT_TOP_N_ENV_VAR, "40");
+        assert_eq!(profile_import_top_limit(), 40);
     }
 
     #[test]
