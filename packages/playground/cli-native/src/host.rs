@@ -2029,7 +2029,9 @@ fn check_pending_connect_completion(
     timeout: Option<Duration>,
 ) -> std::result::Result<PendingConnectCompletion, i32> {
     if let Some(error) = pending.stream.take_error().map_err(|_| EINVAL)? {
-        return Ok(PendingConnectCompletion::Failed(io_error_errno(&error)));
+        return Ok(PendingConnectCompletion::Failed(pending_connect_errno(
+            &error,
+        )));
     }
     if pending.stream.peer_addr().is_ok() {
         return Ok(PendingConnectCompletion::Connected);
@@ -2052,13 +2054,26 @@ fn check_pending_connect_completion(
     }
 
     if let Some(error) = pending.stream.take_error().map_err(|_| EINVAL)? {
-        return Ok(PendingConnectCompletion::Failed(io_error_errno(&error)));
+        return Ok(PendingConnectCompletion::Failed(pending_connect_errno(
+            &error,
+        )));
     }
     match pending.stream.peer_addr() {
         Ok(_) => Ok(PendingConnectCompletion::Connected),
         Err(error) if connection_still_pending(&error) => Ok(PendingConnectCompletion::Pending),
-        Err(error) => Ok(PendingConnectCompletion::Failed(io_error_errno(&error))),
+        Err(error) => Ok(PendingConnectCompletion::Failed(pending_connect_errno(
+            &error,
+        ))),
     }
+}
+
+fn pending_connect_errno(error: &io::Error) -> i32 {
+    #[cfg(windows)]
+    if matches!(error.raw_os_error(), Some(10057)) {
+        return ECONNREFUSED;
+    }
+
+    io_error_errno(error)
 }
 
 fn connection_still_pending(error: &io::Error) -> bool {
@@ -10645,7 +10660,10 @@ mod tests {
         getsock_error
             .call(&mut linker.store, &[Val::I32(refused_fd)], &mut results)
             .unwrap();
-        assert!(matches!(results, [Val::I32(EXPECTED_ECONNREFUSED)]));
+        let Val::I32(refused_error) = results[0] else {
+            panic!("SO_ERROR must be an i32 errno");
+        };
+        assert_eq!(refused_error, EXPECTED_ECONNREFUSED);
         getsock_error
             .call(&mut linker.store, &[Val::I32(refused_fd)], &mut results)
             .unwrap();
