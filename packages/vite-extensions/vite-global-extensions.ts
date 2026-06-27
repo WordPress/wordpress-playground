@@ -6,13 +6,18 @@ const vitePlugins = [
 		config() {
 			return {
 				resolve: {
-					alias: {
+					alias: [
 						// The package export points Vite at index.cjs, which imports Node's crypto.
-						'isomorphic-git': new URL(
-							'../../node_modules/isomorphic-git/index.js',
-							import.meta.url
-						).pathname,
-					},
+						// Match only the bare import so subpaths such as
+						// isomorphic-git/http/node keep using the package exports.
+						{
+							find: /^isomorphic-git$/,
+							replacement: new URL(
+								'../../node_modules/isomorphic-git/index.js',
+								import.meta.url
+							).pathname,
+						},
+					],
 				},
 			};
 		},

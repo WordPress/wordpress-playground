@@ -568,29 +568,55 @@ test('CURLFile uploads via curl_exec() should work', async ({
 				data: `<?php
 					$tmpFile = tempnam(sys_get_temp_dir(), 'curltest');
 					file_put_contents($tmpFile, str_repeat('PLAYGROUND_TEST_CONTENT ', 100));
-					$ch = curl_init();
-					curl_setopt($ch, CURLOPT_URL, "https://httpbin.org/post");
-					curl_setopt($ch, CURLOPT_POST, true);
-					curl_setopt($ch, CURLOPT_POSTFIELDS, [
-						'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
-					]);
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-					$result = curl_exec($ch);
-					$error = curl_error($ch);
-					$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-					curl_close($ch);
-					unlink($tmpFile);
-					if ($error) {
-						echo "CURL_ERROR:" . $error;
-					} else {
-						echo "HTTP_CODE:" . $httpCode;
+					$endpoints = [
+						"https://httpbin.org/post",
+						"https://httpbingo.org/post",
+					];
+					$lastResult = "";
+					$lastError = "";
+					$lastHttpCode = 0;
+					$fileContents = null;
+					foreach ($endpoints as $endpoint) {
+						$ch = curl_init();
+						curl_setopt($ch, CURLOPT_URL, $endpoint);
+						curl_setopt($ch, CURLOPT_POST, true);
+						curl_setopt($ch, CURLOPT_POSTFIELDS, [
+							'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
+						]);
+						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+						$result = curl_exec($ch);
+						$error = curl_error($ch);
+						$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+						curl_close($ch);
+
+						$lastResult = $result;
+						$lastError = $error;
+						$lastHttpCode = $httpCode;
 						$decoded = json_decode($result, true);
-						if (isset($decoded['files']['file'])) {
+						$fileContents = $decoded['files']['file'] ?? null;
+						if (is_array($fileContents)) {
+							$fileContents = implode('', $fileContents);
+						}
+						if (
+							!$error &&
+							$httpCode === 200 &&
+							is_string($fileContents) &&
+							strpos($fileContents, 'PLAYGROUND_TEST_CONTENT') !== false
+						) {
+							break;
+						}
+					}
+					unlink($tmpFile);
+					if ($lastError) {
+						echo "CURL_ERROR:" . $lastError;
+					} else {
+						echo "HTTP_CODE:" . $lastHttpCode;
+						if (is_string($fileContents)) {
 							echo " FILE_RECEIVED:YES";
-							echo " CONTENT_MATCH:" . (strpos($decoded['files']['file'], 'PLAYGROUND_TEST_CONTENT') !== false ? 'YES' : 'NO');
+							echo " CONTENT_MATCH:" . (strpos($fileContents, 'PLAYGROUND_TEST_CONTENT') !== false ? 'YES' : 'NO');
 						} else {
 							echo " FILE_RECEIVED:NO";
-							echo " BODY:" . substr($result, 0, 500);
+							echo " BODY:" . substr($lastResult, 0, 500);
 						}
 					}
 				`,
