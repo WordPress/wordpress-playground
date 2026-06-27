@@ -75,6 +75,9 @@ export default defineConfig(({ mode }) => {
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
 		optimizeDeps: {
+			// Keep the dev optimizer from replacing shared chunks while the
+			// Personal WP Playwright suite is loading multiple isolated sites.
+			noDiscovery: true,
 			include: [
 				'async-lock',
 				'buffer',
