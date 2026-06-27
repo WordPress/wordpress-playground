@@ -141,5 +141,4 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 			blueprints.compileBlueprintV2(declaration as any)
 		);
 	});
-
 });
