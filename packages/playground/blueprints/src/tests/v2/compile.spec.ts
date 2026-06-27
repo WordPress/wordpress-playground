@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
+import type { StreamedFile } from '@php-wasm/stream-compression';
 import {
 	getSqliteDriverModule,
 	getWordPressModule,
@@ -2813,7 +2814,7 @@ register_activation_hook(__FILE__, function () {
 `,
 								],
 								path
-							);
+							) as unknown as StreamedFile;
 						},
 					}
 				),
