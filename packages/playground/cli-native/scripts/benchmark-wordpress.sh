@@ -14,6 +14,7 @@ STARTUP_RETRIES="${STARTUP_RETRIES:-240}"
 BASE_PORT="${BASE_PORT:-9690}"
 BUILD_PACKAGE="${BUILD_PACKAGE:-1}"
 KEEP_BENCH_ARTIFACTS="${KEEP_BENCH_ARTIFACTS:-0}"
+BENCHMARK_PROFILE="${BENCHMARK_PROFILE:-0}"
 PACKAGE_ASSET_ROOT="${PACKAGE_ASSET_ROOT:-}"
 PACKAGE_PRECOMPILE_WASMTIME="${PACKAGE_PRECOMPILE_WASMTIME:-1}"
 WASMTIME_LABEL="${WASMTIME_LABEL:-wasmtime}"
@@ -60,6 +61,7 @@ Environment:
   WP_PLAYGROUND_NATIVE_EXPERIMENTAL_PHP_INI_APPEND=
   WP_PLAYGROUND_NATIVE_ASSET_ROOT=/path/to/runtime/asset-root
   KEEP_BENCH_ARTIFACTS=0
+  BENCHMARK_PROFILE=0
 
 Examples:
   bash packages/playground/cli-native/scripts/benchmark-wordpress.sh
@@ -84,6 +86,7 @@ if [[ -z "$WORK_DIR" ]]; then
 fi
 PACKAGE_DIR="${PACKAGE_DIR:-$WORK_DIR/wp-native-package-bench}"
 RESULTS_FILE="$WORK_DIR/results.tsv"
+PROFILE_FILE="$WORK_DIR/profile.tsv"
 mkdir -p "$WORK_DIR"
 
 cleanup() {
@@ -142,6 +145,14 @@ case "$PACKAGE_PRECOMPILE_WASMTIME" in
 	0 | 1) ;;
 	*)
 		echo "error: PACKAGE_PRECOMPILE_WASMTIME must be 0 or 1" >&2
+		exit 1
+		;;
+esac
+
+case "$BENCHMARK_PROFILE" in
+	0 | 1) ;;
+	*)
+		echo "error: BENCHMARK_PROFILE must be 0 or 1" >&2
 		exit 1
 		;;
 esac
@@ -303,6 +314,30 @@ bootstrap_wordpress_site() {
 	wait "$pid" 2>/dev/null || true
 }
 
+record_profiled_route_sample() {
+	local label="$1"
+	local route_name="$2"
+	local sample="$3"
+	local port="$4"
+	local route_path="$5"
+	local cookies="$6"
+	local times="$7"
+	local curl_write_out metrics http_code time_starttransfer time_total size_download
+	local time_starttransfer_ms time_total_ms size_download_bytes
+
+	curl_write_out=$'%{http_code}\t%{time_starttransfer}\t%{time_total}\t%{size_download}'
+	metrics="$(curl --http1.0 -fsSL -m 30 -w "$curl_write_out" -o /dev/null -c "$cookies" -b "$cookies" "http://127.0.0.1:$port$route_path")"
+	IFS=$'\t' read -r http_code time_starttransfer time_total size_download <<<"$metrics"
+	time_starttransfer_ms="$(awk "BEGIN { printf \"%.3f\", $time_starttransfer * 1000 }")"
+	time_total_ms="$(awk "BEGIN { printf \"%.3f\", $time_total * 1000 }")"
+	size_download_bytes="$(awk "BEGIN { printf \"%.0f\", $size_download }")"
+	printf "%s\n" "$time_total_ms" >>"$times"
+	printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+		"$label" "$route_name" "$sample" "$http_code" \
+		"$time_starttransfer_ms" "$time_total_ms" "$size_download_bytes" \
+		>>"$PROFILE_FILE"
+}
+
 benchmark_routes() {
 	local label="$1"
 	local port="$2"
@@ -324,8 +359,12 @@ benchmark_routes() {
 		times="$prefix-$route_name.times"
 		: >"$times"
 		for sample in $(seq 1 "$SAMPLES"); do
-			timing="$(curl --http1.0 -fsSL -m 30 -w '%{time_total}' -o /dev/null -c "$cookies" -b "$cookies" "http://127.0.0.1:$port$route_path")"
-			awk "BEGIN { printf \"%.3f\n\", $timing * 1000 }" >>"$times"
+			if [[ "$BENCHMARK_PROFILE" == "1" ]]; then
+				record_profiled_route_sample "$label" "$route_name" "$sample" "$port" "$route_path" "$cookies" "$times"
+			else
+				timing="$(curl --http1.0 -fsSL -m 30 -w '%{time_total}' -o /dev/null -c "$cookies" -b "$cookies" "http://127.0.0.1:$port$route_path")"
+				awk "BEGIN { printf \"%.3f\n\", $timing * 1000 }" >>"$times"
+			fi
 		done
 		case "$route_name" in
 			home)
@@ -419,6 +458,9 @@ run_native_php_case() {
 }
 
 printf "case\tburst_rss_mib\tidle_rss_mib\thome_p50_ms\thome_p95_ms\tsearch_p50_ms\tsearch_p95_ms\tpost_p50_ms\tpost_p95_ms\teditor_p50_ms\teditor_p95_ms\n" >"$RESULTS_FILE"
+if [[ "$BENCHMARK_PROFILE" == "1" ]]; then
+	printf "case\troute\tsample\thttp_code\ttime_starttransfer_ms\ttime_total_ms\tsize_download_bytes\n" >"$PROFILE_FILE"
+fi
 
 SOURCE_SITE="$WORK_DIR/source-site"
 WASM_SITE="$WORK_DIR/wasm-site"
