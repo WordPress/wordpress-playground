@@ -2033,9 +2033,6 @@ fn check_pending_connect_completion(
             &error,
         )));
     }
-    if pending.stream.peer_addr().is_ok() {
-        return Ok(PendingConnectCompletion::Connected);
-    }
 
     let mut poll = MioPoll::new().map_err(|_| EINVAL)?;
     let mut events = Events::with_capacity(4);
