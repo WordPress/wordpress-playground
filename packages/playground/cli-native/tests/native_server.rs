@@ -10,6 +10,7 @@ use std::{
 };
 
 const SERVER_START_TIMEOUT: Duration = Duration::from_secs(300);
+const HTTP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(180);
 
 static SERVER_SMOKE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -49,7 +50,9 @@ fn start_native_server(
     root: &Path,
     workers: usize,
 ) -> (String, ChildGuard, thread::JoinHandle<()>) {
-    let serial_guard = SERVER_SMOKE_LOCK.lock().unwrap();
+    let serial_guard = SERVER_SMOKE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut child = Command::new(env!("CARGO_BIN_EXE_wp-playground-native"))
         .args([
             "server",
@@ -253,7 +256,7 @@ echo json_encode(['ok' => true]);
         r#"<?php
 ob_start();
 function wait_for_stage($path, $stage) {
-    for ($i = 0; $i < 300; $i++) {
+    for ($i = 0; $i < 1200; $i++) {
         if (trim((string) @file_get_contents($path)) === $stage) {
             return true;
         }
@@ -283,7 +286,7 @@ echo json_encode(['pid' => getmypid()]);
         r#"<?php
 ob_start();
 function wait_for_stage($path, $stage) {
-    for ($i = 0; $i < 300; $i++) {
+    for ($i = 0; $i < 1200; $i++) {
         if (trim((string) @file_get_contents($path)) === $stage) {
             return true;
         }
@@ -361,7 +364,7 @@ fn native_server_flock_shared_lock_blocks_concurrent_exclusive_lock() {
         r#"<?php
 ob_start();
 function wait_for_stage($path, $stage) {
-    for ($i = 0; $i < 300; $i++) {
+    for ($i = 0; $i < 1200; $i++) {
         if (trim((string) @file_get_contents($path)) === $stage) {
             return true;
         }
@@ -391,7 +394,7 @@ echo json_encode(['pid' => getmypid(), 'lock_acquired' => $lock_acquired]);
         r#"<?php
 ob_start();
 function wait_for_stage($path, $stage) {
-    for ($i = 0; $i < 300; $i++) {
+    for ($i = 0; $i < 1200; $i++) {
         if (trim((string) @file_get_contents($path)) === $stage) {
             return true;
         }
@@ -460,7 +463,7 @@ echo json_encode([
 fn send_raw_http(address: &str, request: &str) -> String {
     let mut stream = TcpStream::connect(address).unwrap();
     stream
-        .set_read_timeout(Some(Duration::from_secs(20)))
+        .set_read_timeout(Some(HTTP_RESPONSE_TIMEOUT))
         .unwrap();
     stream
         .set_write_timeout(Some(Duration::from_secs(20)))

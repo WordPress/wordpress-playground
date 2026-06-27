@@ -8283,8 +8283,15 @@ mod tests {
             .unwrap()
             .to_string_lossy()
             .replace('\\', "/");
-        if cfg!(windows) && !path.starts_with('/') {
-            path = format!("/{path}");
+        if cfg!(windows) {
+            if let Some(stripped) = path.strip_prefix("//?/UNC/") {
+                path = format!("//{stripped}");
+            } else if let Some(stripped) = path.strip_prefix("//?/") {
+                path = stripped.to_string();
+            }
+            if !path.starts_with('/') {
+                path = format!("/{path}");
+            }
         }
         let mut encoded = String::new();
         for byte in path.bytes() {
