@@ -86,7 +86,6 @@ jobs:
                   cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- \
                     --binary "packages/playground/cli-native/target/${{ matrix.target }}/release/wp-playground-native${{ matrix.exe }}" \
                     --name "wp-playground-native-$WP_PLAYGROUND_NATIVE_VERSION-${{ matrix.label }}" \
-                    --smoke-php-version=5.2 \
                     --smoke-php-version=7.4 \
                     --smoke-php-version=8.0 \
                     --smoke-php-version=8.1 \

@@ -18,8 +18,7 @@ development flow:
 - `start` normalization into `server` configuration;
 - mount parsing and VFS path normalization;
 - typed PHP constants via `--define`, `--define-bool`, and
-  `--define-number`, including the Node CLI's non-legacy default
-  `WP_DEBUG*` constants;
+  `--define-number`, including the Node CLI's default `WP_DEBUG*` constants;
 - auto-mount detection for plugin, theme, `wp-content`, and full WordPress directories;
 - persistent site path hashing compatible with the Node CLI convention;
 - a checked-in asyncify PHP asset manifest with paths and SHA-256 checksums;
@@ -159,6 +158,8 @@ Runtime assets are discovered without npm or Node.js. By default, the binary
 looks for an asset root next to the executable, under
 `share/wp-playground-native`, and finally in the source tree used to build this
 package. Set `WP_PLAYGROUND_NATIVE_ASSET_ROOT` to override discovery.
+Native PHP support starts at PHP 7.4 and currently covers PHP 7.4, 8.0, 8.1,
+8.2, 8.3, 8.4, and 8.5.
 
 An asset root may use the source-tree layout with
 `packages/playground/cli-native/assets/php-assets.json`, a packaged layout with
@@ -167,8 +168,8 @@ resolved relative to that asset root, so release archives must include the PHP
 wasm files, WordPress ZIPs, and SQLite integration ZIPs at the paths referenced
 by the manifest and native asset loaders.
 
-By default, release packages include every PHP version listed in the asset
-manifest. Use repeatable `--php-version=<version>` only for intentionally
+By default, release packages include every supported PHP version listed in the
+asset manifest. Use repeatable `--php-version=<version>` only for intentionally
 filtered development packages.
 
 Create a self-contained package with:
