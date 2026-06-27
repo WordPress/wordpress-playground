@@ -187,14 +187,16 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
             "php-wasm",
         )?);
         if options.precompile_wasmtime {
-            let wasmtime =
-                precompile_packaged_wasm(&options.asset_root, asset, &package_asset_root)?;
-            files.push(package_file_manifest(
-                &package_root,
-                Path::new(PACKAGE_SHARE_DIR).join(&wasmtime.path),
-                "php-wasmtime",
-            )?);
-            asset.wasmtime = Some(wasmtime);
+            if let Some(wasmtime) =
+                precompile_packaged_wasm(&options.asset_root, asset, &package_asset_root)?
+            {
+                files.push(package_file_manifest(
+                    &package_root,
+                    Path::new(PACKAGE_SHARE_DIR).join(&wasmtime.path),
+                    "php-wasmtime",
+                )?);
+                asset.wasmtime = Some(wasmtime);
+            }
         } else if let Some(wasmtime) = &asset.wasmtime {
             files.push(copy_verified_asset(
                 &options.asset_root,
@@ -913,21 +915,54 @@ fn precompile_packaged_wasm(
     asset_root: &Path,
     asset: &mut crate::assets::PhpAsset,
     package_asset_root: &Path,
-) -> Result<FileAsset> {
+) -> Result<Option<FileAsset>> {
+    let target_triple = configured_target_triple();
+    precompile_packaged_wasm_for_target(
+        asset_root,
+        asset,
+        package_asset_root,
+        target_triple.as_deref(),
+    )
+}
+
+fn precompile_packaged_wasm_for_target(
+    asset_root: &Path,
+    asset: &mut crate::assets::PhpAsset,
+    package_asset_root: &Path,
+    target_triple: Option<&str>,
+) -> Result<Option<FileAsset>> {
+    if skips_wasmtime_precompile_for_target(target_triple) {
+        let target = target_triple.unwrap_or("current target");
+        eprintln!(
+            "warning: skipping PHP {} Wasmtime precompile for {target}; packaging wasm for runtime compilation",
+            asset.version
+        );
+        return Ok(None);
+    }
+
     let source = asset_root.join(&asset.wasm.path);
     let precompiled_path = precompiled_wasmtime_path(&asset.wasm.path)?;
     let destination = package_asset_root.join(&precompiled_path);
-    let target_triple = configured_target_triple();
     precompile_wasm_module_for_target(
         &source,
         &destination,
         WasmEngineProfile::Optimized,
-        target_triple.as_deref(),
+        target_triple,
     )?;
-    Ok(FileAsset {
+    Ok(Some(FileAsset {
         path: precompiled_path,
         sha256: sha256_file(&destination)?,
-    })
+    }))
+}
+
+fn skips_wasmtime_precompile_for_target(target_triple: Option<&str>) -> bool {
+    target_triple
+        .map(is_windows_arm64_target)
+        .unwrap_or(cfg!(all(target_os = "windows", target_arch = "aarch64")))
+}
+
+fn is_windows_arm64_target(target_triple: &str) -> bool {
+    target_triple.starts_with("aarch64-") && target_triple.contains("-windows-")
 }
 
 fn precompiled_wasmtime_path(wasm_path: &Path) -> Result<PathBuf> {
@@ -1345,7 +1380,10 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::{extract_package_archive, package_native_cli, PackageOptions, PACKAGE_SHARE_DIR};
+    use super::{
+        extract_package_archive, package_native_cli, precompile_packaged_wasm_for_target,
+        PackageOptions, PACKAGE_SHARE_DIR,
+    };
     use crate::{
         assets::{load_php_assets_manifest, select_php_asset},
         sha256::sha256_hex,
@@ -1690,6 +1728,34 @@ mod tests {
             wasmtime.sha256,
             sha256_hex(fs::read(summary.asset_root.join(&wasmtime.path)).unwrap())
         );
+    }
+
+    #[test]
+    fn skips_windows_arm64_wasmtime_precompile_for_packaged_assets() {
+        let root = temp_dir("windows-arm64-precompile-root");
+        let package_asset_root = temp_dir("windows-arm64-precompile-out").join(PACKAGE_SHARE_DIR);
+        write_precompilable_asset_root(&root);
+        let manifest_path = root.join("packages/playground/cli-native/assets/php-assets.json");
+        let mut manifest = load_php_assets_manifest(&manifest_path).unwrap();
+        let asset = manifest
+            .php
+            .iter_mut()
+            .find(|asset| asset.version == "8.3")
+            .unwrap();
+
+        let wasmtime = precompile_packaged_wasm_for_target(
+            &root,
+            asset,
+            &package_asset_root,
+            Some("aarch64-pc-windows-msvc"),
+        )
+        .unwrap();
+
+        assert!(wasmtime.is_none());
+        assert!(asset.wasmtime.is_none());
+        assert!(!package_asset_root
+            .join("packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm.cwasm")
+            .exists());
     }
 
     #[test]
