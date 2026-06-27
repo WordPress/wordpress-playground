@@ -6,7 +6,8 @@ use std::{
 };
 
 use wasmtime::{
-    Cache, CacheConfig, Config, Engine, ExternType, Module, OptLevel, RegallocAlgorithm,
+    Cache, CacheConfig, Config, Engine, ExternType, Module, OptLevel, ProfilingStrategy,
+    RegallocAlgorithm,
 };
 
 use crate::{
@@ -27,6 +28,7 @@ const MEMORY_GUARD_MIB_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_MEMORY_GUARD_MIB";
 const MEMORY_RESERVATION_FOR_GROWTH_MIB_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_MEMORY_RESERVATION_FOR_GROWTH_MIB";
 const MEMORY_MAY_MOVE_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_MEMORY_MAY_MOVE";
+const WASMTIME_PROFILING_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_WASMTIME_PROFILING";
 const DEFAULT_MAX_WASM_STACK_MIB: usize = 2;
 const DEFAULT_ASYNC_STACK_MIB: usize = 4;
 const WINDOWS_ARM64_DENSE_IMAGE_SIZE: u64 = 32 * 1024 * 1024;
@@ -247,6 +249,9 @@ fn wasm_engine_for_target(
             ))
         })?;
     }
+    if let Some(profiling) = wasmtime_profiling_from_env()? {
+        config.profiler(profiling.strategy());
+    }
     let settings = wasm_engine_settings(profile, target_triple);
     config.cranelift_opt_level(settings.opt_level);
     config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
@@ -297,6 +302,42 @@ fn wasm_engine_for_target(
     }
     Engine::new(&config)
         .map_err(|error| CliError::new(format!("Failed to initialize Wasmtime engine: {error}")))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WasmtimeProfiling {
+    PerfMap,
+    JitDump,
+    VTune,
+}
+
+impl WasmtimeProfiling {
+    fn strategy(self) -> ProfilingStrategy {
+        match self {
+            Self::PerfMap => ProfilingStrategy::PerfMap,
+            Self::JitDump => ProfilingStrategy::JitDump,
+            Self::VTune => ProfilingStrategy::VTune,
+        }
+    }
+}
+
+fn wasmtime_profiling_from_env() -> Result<Option<WasmtimeProfiling>> {
+    match env::var(WASMTIME_PROFILING_ENV_VAR) {
+        Ok(value) => parse_wasmtime_profiling(&value),
+        Err(_) => Ok(None),
+    }
+}
+
+fn parse_wasmtime_profiling(value: &str) -> Result<Option<WasmtimeProfiling>> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "" | "none" => Ok(None),
+        "perfmap" => Ok(Some(WasmtimeProfiling::PerfMap)),
+        "jitdump" => Ok(Some(WasmtimeProfiling::JitDump)),
+        "vtune" => Ok(Some(WasmtimeProfiling::VTune)),
+        _ => Err(CliError::new(format!(
+            "Invalid {WASMTIME_PROFILING_ENV_VAR}={value:?}; expected perfmap, jitdump, vtune, or none"
+        ))),
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -556,10 +597,11 @@ fn dedupe_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
 mod tests {
     use super::{
         asset_root_candidates_from_exe, default_asset_root, env_bool, env_mib_u64, env_mib_usize,
-        memory_guaranteed_dense_image_size, precompile_wasm_module_for_target,
-        repo_root_from_manifest_dir, uses_windows_unwind_info, wasm_engine_settings, NativeRuntime,
-        WasmEngineProfile, ASSET_ROOT_ENV_VAR, DISABLE_SOURCE_FALLBACK_ENV_VAR,
-        MAX_WASM_STACK_MIB_ENV_VAR, MEMORY_MAY_MOVE_ENV_VAR, MEMORY_RESERVATION_MIB_ENV_VAR,
+        memory_guaranteed_dense_image_size, parse_wasmtime_profiling,
+        precompile_wasm_module_for_target, repo_root_from_manifest_dir, uses_windows_unwind_info,
+        wasm_engine, wasm_engine_settings, NativeRuntime, WasmEngineProfile, WasmtimeProfiling,
+        ASSET_ROOT_ENV_VAR, DISABLE_SOURCE_FALLBACK_ENV_VAR, MAX_WASM_STACK_MIB_ENV_VAR,
+        MEMORY_MAY_MOVE_ENV_VAR, MEMORY_RESERVATION_MIB_ENV_VAR, WASMTIME_PROFILING_ENV_VAR,
     };
     use crate::host::{classify_php_wasm_import, ImportClassification, ImportExternKind};
     use crate::sha256::sha256_hex;
@@ -884,6 +926,56 @@ mod tests {
             env::set_var(MEMORY_MAY_MOVE_ENV_VAR, previous);
         } else {
             env::remove_var(MEMORY_MAY_MOVE_ENV_VAR);
+        }
+    }
+
+    #[test]
+    fn wasmtime_profiling_env_accepts_supported_values_and_none() {
+        assert_eq!(parse_wasmtime_profiling("").unwrap(), None);
+        assert_eq!(parse_wasmtime_profiling(" none ").unwrap(), None);
+        assert_eq!(
+            parse_wasmtime_profiling("perfmap").unwrap(),
+            Some(WasmtimeProfiling::PerfMap)
+        );
+        assert_eq!(
+            parse_wasmtime_profiling("JITDUMP").unwrap(),
+            Some(WasmtimeProfiling::JitDump)
+        );
+        assert_eq!(
+            parse_wasmtime_profiling("VTune").unwrap(),
+            Some(WasmtimeProfiling::VTune)
+        );
+    }
+
+    #[test]
+    fn wasmtime_profiling_env_rejects_invalid_values() {
+        let error = parse_wasmtime_profiling("speedscope")
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains(WASMTIME_PROFILING_ENV_VAR));
+        assert!(error.contains("perfmap"));
+        assert!(error.contains("jitdump"));
+        assert!(error.contains("vtune"));
+        assert!(error.contains("none"));
+    }
+
+    #[test]
+    fn wasmtime_profiling_env_rejects_invalid_value_before_engine_init() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let previous = env::var_os(WASMTIME_PROFILING_ENV_VAR);
+        env::set_var(WASMTIME_PROFILING_ENV_VAR, "speedscope");
+
+        let error = wasm_engine(WasmEngineProfile::FastStartup)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains(WASMTIME_PROFILING_ENV_VAR));
+        assert!(error.contains("speedscope"));
+        if let Some(previous) = previous {
+            env::set_var(WASMTIME_PROFILING_ENV_VAR, previous);
+        } else {
+            env::remove_var(WASMTIME_PROFILING_ENV_VAR);
         }
     }
 
