@@ -621,7 +621,7 @@ fn append_opcache_compatibility_fallback(ini: &mut String, options: &HostOptions
         return;
     }
 
-    // PHP 7.4 still fails native Wasmtime OPcache shared-memory startup.
+    // PHP 7.4 and 8.0 still fail native Wasmtime OPcache shared-memory startup.
     // Keep version coverage while a host-level runtime fix remains separate work.
     ini.push_str("opcache.file_cache_only=1\n");
 }
@@ -630,7 +630,7 @@ fn php_version_uses_file_cache_only_opcache_fallback(php_version: Option<&str>) 
     let Some(php_version) = php_version else {
         return false;
     };
-    php_version.starts_with("7.4")
+    php_version.starts_with("7.4") || php_version.starts_with("8.0")
 }
 
 fn append_opcache_env_override(ini: &mut String, env_name: &str, directive: &str) {
@@ -14896,7 +14896,7 @@ mod tests {
 
     #[test]
     fn internal_php_ini_applies_file_cache_only_fallback_to_affected_php_versions() {
-        for php_version in ["7.4", "7.4.33"] {
+        for php_version in ["7.4", "7.4.33", "8.0", "8.0.30"] {
             let state = HostState::new(HostOptions {
                 php_version: Some(php_version.to_string()),
                 opcache_mode: OpcacheMode::Middle,
@@ -14914,7 +14914,7 @@ mod tests {
 
     #[test]
     fn internal_php_ini_does_not_apply_file_cache_only_fallback_to_unaffected_versions() {
-        for php_version in ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.5.5"] {
+        for php_version in ["8.1", "8.2", "8.3", "8.4", "8.5", "8.5.5"] {
             let state = HostState::new(HostOptions {
                 php_version: Some(php_version.to_string()),
                 opcache_mode: OpcacheMode::Middle,
@@ -14932,7 +14932,7 @@ mod tests {
 
     #[test]
     fn internal_php_ini_keeps_opcache_off_without_file_cache_only_fallback() {
-        for php_version in ["7.4", "8.5"] {
+        for php_version in ["7.4", "8.0", "8.5"] {
             let state = HostState::new(HostOptions {
                 php_version: Some(php_version.to_string()),
                 opcache_mode: OpcacheMode::Off,
