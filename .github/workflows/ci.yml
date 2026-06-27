@@ -166,26 +166,32 @@ jobs:
                       os: ubuntu-latest
                       target: x86_64-unknown-linux-gnu
                       exe: ''
+                      precompile: --precompile-wasmtime
                     - label: linux-arm64
                       os: ubuntu-24.04-arm
                       target: aarch64-unknown-linux-gnu
                       exe: ''
+                      precompile: --precompile-wasmtime
                     - label: windows-x64
                       os: windows-latest
                       target: x86_64-pc-windows-msvc
                       exe: '.exe'
+                      precompile: --precompile-wasmtime
                     - label: windows-arm64
                       os: windows-11-arm
                       target: aarch64-pc-windows-msvc
                       exe: '.exe'
+                      precompile: --no-precompile-wasmtime
                     - label: macos-x64
                       os: macos-15-intel
                       target: x86_64-apple-darwin
                       exe: ''
+                      precompile: --precompile-wasmtime
                     - label: macos-arm64
                       os: macos-latest
                       target: aarch64-apple-darwin
                       exe: ''
+                      precompile: --precompile-wasmtime
         runs-on: ${{ matrix.os }}
         timeout-minutes: 90
         permissions:
@@ -223,6 +229,7 @@ jobs:
                   cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- \
                     --binary "packages/playground/cli-native/target/${{ matrix.target }}/release/wp-playground-native${{ matrix.exe }}" \
                     --name "wp-playground-native-$WP_PLAYGROUND_NATIVE_VERSION-${{ matrix.label }}" \
+                    ${{ matrix.precompile }} \
                     --smoke-php-version=5.2 \
                     --smoke-php-version=7.4 \
                     --smoke-php-version=8.0 \
