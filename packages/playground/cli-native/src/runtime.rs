@@ -250,7 +250,7 @@ fn wasm_engine_for_target(
     config.cranelift_opt_level(settings.opt_level);
     config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
     config.generate_address_map(false);
-    if !uses_native_unwind_info(target_triple) {
+    if !uses_native_unwind_info(profile, target_triple) {
         config.native_unwind_info(false);
     }
     let max_wasm_stack = env_mib_usize(
@@ -329,8 +329,10 @@ fn uses_windows_unwind_info(target_triple: Option<&str>) -> bool {
         .unwrap_or(cfg!(target_os = "windows"))
 }
 
-fn uses_native_unwind_info(target_triple: Option<&str>) -> bool {
-    uses_windows_unwind_info(target_triple) && !uses_windows_arm64_unwind_info(target_triple)
+fn uses_native_unwind_info(profile: WasmEngineProfile, target_triple: Option<&str>) -> bool {
+    uses_windows_unwind_info(target_triple)
+        && !(profile == WasmEngineProfile::FastStartup
+            && uses_windows_arm64_unwind_info(target_triple))
 }
 
 fn uses_windows_arm64_unwind_info(target_triple: Option<&str>) -> bool {
@@ -771,9 +773,22 @@ mod tests {
             linux_fast_startup.regalloc_algorithm,
             RegallocAlgorithm::SinglePass
         );
-        assert!(!uses_native_unwind_info(Some("aarch64-pc-windows-msvc")));
-        assert!(uses_native_unwind_info(Some("x86_64-pc-windows-msvc")));
-        assert!(!uses_native_unwind_info(Some("aarch64-unknown-linux-gnu")));
+        assert!(!uses_native_unwind_info(
+            WasmEngineProfile::FastStartup,
+            Some("aarch64-pc-windows-msvc")
+        ));
+        assert!(uses_native_unwind_info(
+            WasmEngineProfile::Optimized,
+            Some("aarch64-pc-windows-msvc")
+        ));
+        assert!(uses_native_unwind_info(
+            WasmEngineProfile::FastStartup,
+            Some("x86_64-pc-windows-msvc")
+        ));
+        assert!(!uses_native_unwind_info(
+            WasmEngineProfile::FastStartup,
+            Some("aarch64-unknown-linux-gnu")
+        ));
     }
 
     #[test]
