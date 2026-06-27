@@ -1,9 +1,12 @@
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf, time::Instant};
 
 use wasmtime::{Instance, Memory, Module, TypedFunc};
 
 use crate::{
-    host::{AsyncifyState, HostOptions, PhpConstantValue, PhpExitStatus, StubImportLinker},
+    host::{
+        AsyncifyState, HostOptions, PhpConstantValue, PhpExitStatus, StubImportLinker,
+        PROFILE_IMPORTS_ENV_VAR,
+    },
     runtime::NativeRuntime,
     CliError, Result,
 };
@@ -429,6 +432,7 @@ impl PhpInstance {
     }
 
     pub fn run_sapi_request(&mut self, request: &PhpRequest) -> Result<PhpResponse> {
+        let import_profile = ImportProfileWindow::start(self);
         let _ = self.take_captured_stdout();
         let _ = self.take_captured_stderr();
         let _ = self.take_captured_headers();
@@ -461,6 +465,9 @@ impl PhpInstance {
         let handle_result = self.wasm_sapi_handle_request();
         request_allocation.free(self);
         let exit_code = handle_result?;
+        if let Some(import_profile) = import_profile {
+            emit_import_profile(self, request, import_profile);
+        }
         Ok(PhpResponse {
             exit_code,
             stdout: self.take_captured_stdout(),
@@ -876,6 +883,95 @@ impl PhpInstance {
     }
 }
 
+struct ImportProfileWindow {
+    started_at: Instant,
+    import_start: usize,
+    trace_start: usize,
+}
+
+impl ImportProfileWindow {
+    fn start(php: &PhpInstance) -> Option<Self> {
+        if !import_profile_enabled() {
+            return None;
+        }
+        Some(Self {
+            started_at: Instant::now(),
+            import_start: php.host_import_count(),
+            trace_start: php.called_host_imports().len(),
+        })
+    }
+}
+
+fn emit_import_profile(php: &PhpInstance, request: &PhpRequest, profile: ImportProfileWindow) {
+    let elapsed_ms = profile.started_at.elapsed().as_secs_f64() * 1000.0;
+    let import_count = php.host_import_count().saturating_sub(profile.import_start);
+    let imports = php.called_host_imports();
+    let trace_start = profile.trace_start.min(imports.len());
+    let summary = summarize_imports(&imports[trace_start..], 12);
+
+    eprintln!(
+        "import-profile\turi={}\tmethod={}\telapsed_ms={elapsed_ms:.3}\timports={import_count}\tunique_imports={}\ttop={}",
+        profile_value(&request.request_uri),
+        profile_value(&request.method),
+        summary.unique_imports,
+        profile_value(&format_top_imports(&summary.top_imports))
+    );
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ImportProfileSummary {
+    unique_imports: usize,
+    top_imports: Vec<(String, usize)>,
+}
+
+fn summarize_imports(imports: &[String], limit: usize) -> ImportProfileSummary {
+    let mut counts = BTreeMap::<String, usize>::new();
+    for import in imports {
+        *counts.entry(import.clone()).or_default() += 1;
+    }
+    let unique_imports = counts.len();
+    let mut counts = counts.into_iter().collect::<Vec<_>>();
+    counts.sort_by(|(left_name, left_count), (right_name, right_count)| {
+        right_count
+            .cmp(left_count)
+            .then_with(|| left_name.cmp(right_name))
+    });
+    counts.truncate(limit);
+    ImportProfileSummary {
+        unique_imports,
+        top_imports: counts,
+    }
+}
+
+fn format_top_imports(imports: &[(String, usize)]) -> String {
+    imports
+        .iter()
+        .map(|(name, count)| format!("{name}:{count}"))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn profile_value(value: &str) -> String {
+    value
+        .chars()
+        .flat_map(|ch| match ch {
+            '\t' | '\n' | '\r' => ' '.escape_default(),
+            _ => ch.escape_default(),
+        })
+        .collect()
+}
+
+fn import_profile_enabled() -> bool {
+    std::env::var(PROFILE_IMPORTS_ENV_VAR)
+        .map(|value| {
+            matches!(
+                value.to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}
+
 enum SapiRequestAllocation {
     Bulk(u32),
     LegacyBody(u32),
@@ -1050,7 +1146,10 @@ mod tests {
         time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
 
-    use super::{build_sapi_request_blob, PhpInstance, PhpRequest, SAPI_REQUEST_BLOB_HEADER_SIZE};
+    use super::{
+        build_sapi_request_blob, format_top_imports, profile_value, summarize_imports, PhpInstance,
+        PhpRequest, SAPI_REQUEST_BLOB_HEADER_SIZE,
+    };
     use crate::{
         host::{HostMount, HostOptions},
         runtime::{repo_root_from_manifest_dir, NativeRuntime},
@@ -1209,6 +1308,40 @@ mod tests {
             "#,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn summarizes_profile_imports_by_count_then_name() {
+        let imports = [
+            "env.__syscall_openat",
+            "wasi_snapshot_preview1.fd_read",
+            "env.__syscall_openat",
+            "wasi_snapshot_preview1.fd_write",
+            "wasi_snapshot_preview1.fd_read",
+            "wasi_snapshot_preview1.fd_read",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+        let summary = summarize_imports(&imports, 2);
+
+        assert_eq!(summary.unique_imports, 3);
+        assert_eq!(
+            summary.top_imports,
+            vec![
+                ("wasi_snapshot_preview1.fd_read".to_string(), 3),
+                ("env.__syscall_openat".to_string(), 2),
+            ]
+        );
+        assert_eq!(
+            format_top_imports(&summary.top_imports),
+            "wasi_snapshot_preview1.fd_read:3,env.__syscall_openat:2"
+        );
+        assert_eq!(
+            profile_value("/path\twith\ncontrols"),
+            "/path with controls"
+        );
     }
 
     #[test]

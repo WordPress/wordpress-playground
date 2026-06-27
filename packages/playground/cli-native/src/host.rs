@@ -160,6 +160,7 @@ const OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_OPCACHE_MAX_ACCELERATED_FILES";
 const EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_EXPERIMENTAL_PHP_INI_APPEND";
+pub(crate) const PROFILE_IMPORTS_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_PROFILE_IMPORTS";
 static NEXT_HOST_LOCK_OWNER_ID: AtomicU64 = AtomicU64::new(1);
 static ADVISORY_LOCKS: OnceLock<Mutex<HashMap<PathBuf, Vec<AdvisoryLock>>>> = OnceLock::new();
 
@@ -791,7 +792,10 @@ add_filter('auto_update_theme', '__return_false');
 }
 
 impl HostState {
-    fn new(options: HostOptions) -> Self {
+    fn new(mut options: HostOptions) -> Self {
+        if env_flag(PROFILE_IMPORTS_ENV_VAR) {
+            options.capture_import_trace = true;
+        }
         let host_cache_enabled = options.host_cache || env_flag("WP_PLAYGROUND_NATIVE_HOST_CACHE");
         let mut internal_files = shared_internal_files().clone();
         internal_files.insert(
