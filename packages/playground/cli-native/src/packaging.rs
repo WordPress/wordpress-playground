@@ -13,6 +13,7 @@ use serde::Serialize;
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
 
 use crate::{
+    args::SUPPORTED_PHP_VERSIONS,
     assets::{
         find_php_assets_manifest, load_php_assets_manifest, select_php_asset, sha256_file,
         verify_file_asset, AssetManifest, FileAsset, SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH,
@@ -845,10 +846,16 @@ fn selected_php_manifest(
     php_versions: &[String],
 ) -> Result<AssetManifest> {
     let php = if php_versions.is_empty() {
-        manifest.php.clone()
+        manifest
+            .php
+            .iter()
+            .filter(|asset| SUPPORTED_PHP_VERSIONS.contains(&asset.version.as_str()))
+            .cloned()
+            .collect::<Vec<_>>()
     } else {
         let mut selected = Vec::new();
         for version in php_versions {
+            validate_packaged_php_version(version)?;
             let asset = manifest
                 .php
                 .iter()
@@ -862,11 +869,28 @@ fn selected_php_manifest(
         }
         selected
     };
+    if php.is_empty() {
+        return Err(CliError::new(format!(
+            "No supported asyncify PHP assets are available. Supported versions: {}",
+            SUPPORTED_PHP_VERSIONS.join(", ")
+        )));
+    }
     Ok(AssetManifest {
         schema_version: manifest.schema_version,
         runtime: manifest.runtime.clone(),
         php,
     })
+}
+
+fn validate_packaged_php_version(version: &str) -> Result<()> {
+    if SUPPORTED_PHP_VERSIONS.contains(&version) {
+        Ok(())
+    } else {
+        Err(CliError::new(format!(
+            "Unsupported PHP {version}. Supported versions: {}",
+            SUPPORTED_PHP_VERSIONS.join(", ")
+        )))
+    }
 }
 
 fn copy_verified_asset(
@@ -1359,6 +1383,16 @@ mod tests {
     fn write_fake_asset_root(root: &Path) {
         write_file(
             root,
+            "packages/php-wasm/node-builds/5-2/asyncify/php_5_2.js",
+            b"js52",
+        );
+        write_file(
+            root,
+            "packages/php-wasm/node-builds/5-2/asyncify/5_2_17/php_5_2.wasm",
+            b"wasm52",
+        );
+        write_file(
+            root,
             "packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js",
             b"js83",
         );
@@ -1413,6 +1447,16 @@ mod tests {
                     "schemaVersion": 1,
                     "runtime": "node-builds/asyncify",
                     "php": {{
+                        "5.2": {{
+                            "js": {{
+                                "path": "packages/php-wasm/node-builds/5-2/asyncify/php_5_2.js",
+                                "sha256": "{}"
+                            }},
+                            "wasm": {{
+                                "path": "packages/php-wasm/node-builds/5-2/asyncify/5_2_17/php_5_2.wasm",
+                                "sha256": "{}"
+                            }}
+                        }},
                         "8.3": {{
                             "js": {{
                                 "path": "packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js",
@@ -1435,6 +1479,8 @@ mod tests {
                         }}
                     }}
                 }}"#,
+                sha256_hex(b"js52"),
+                sha256_hex(b"wasm52"),
                 sha256_hex(b"js83"),
                 sha256_hex(b"wasm83"),
                 sha256_hex(b"js84"),
@@ -1481,6 +1527,38 @@ mod tests {
             )
             .as_bytes(),
         );
+    }
+
+    #[test]
+    fn packages_supported_assets_by_default() {
+        let root = temp_dir("supported-asset-root");
+        let out_dir = temp_dir("supported-out");
+        let binary = root.join(format!(
+            "wp-playground-native{}",
+            std::env::consts::EXE_SUFFIX
+        ));
+        fs::write(&binary, b"binary").unwrap();
+        write_fake_asset_root(&root);
+
+        let summary = package_native_cli(&PackageOptions {
+            binary_path: binary,
+            asset_root: root,
+            out_dir,
+            package_name: "native-supported-test".to_string(),
+            php_versions: Vec::new(),
+            include_wordpress_assets: false,
+            create_archive: false,
+            precompile_wasmtime: false,
+        })
+        .unwrap();
+
+        let manifest_path = summary
+            .asset_root
+            .join("packages/playground/cli-native/assets/php-assets.json");
+        let manifest = load_php_assets_manifest(&manifest_path).unwrap();
+        assert!(select_php_asset(&manifest, "5.2").is_err());
+        assert!(select_php_asset(&manifest, "8.3").is_ok());
+        assert!(select_php_asset(&manifest, "8.4").is_ok());
     }
 
     #[test]
@@ -1736,6 +1814,33 @@ mod tests {
         .to_string();
 
         assert!(error.contains("PHP 9.9"));
+    }
+
+    #[test]
+    fn rejects_unsupported_filtered_php_version_even_when_asset_exists() {
+        let root = temp_dir("unsupported-php-root");
+        let out_dir = temp_dir("unsupported-php-out");
+        let binary = root.join(format!(
+            "wp-playground-native{}",
+            std::env::consts::EXE_SUFFIX
+        ));
+        fs::write(&binary, b"binary").unwrap();
+        write_fake_asset_root(&root);
+
+        let error = package_native_cli(&PackageOptions {
+            binary_path: binary,
+            asset_root: root,
+            out_dir,
+            package_name: "native-test".to_string(),
+            php_versions: vec!["5.2".to_string()],
+            include_wordpress_assets: false,
+            create_archive: false,
+            precompile_wasmtime: false,
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("Unsupported PHP 5.2"), "{error}");
     }
 
     #[test]

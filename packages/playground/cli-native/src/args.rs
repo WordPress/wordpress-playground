@@ -14,8 +14,7 @@ use crate::{
 pub const DEFAULT_PHP_VERSION: &str = "8.3";
 pub const DEFAULT_WP_VERSION: &str = "latest";
 pub const DEFAULT_PORT: u16 = 9400;
-pub const SUPPORTED_PHP_VERSIONS: &[&str] =
-    &["5.2", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"];
+pub const SUPPORTED_PHP_VERSIONS: &[&str] = &["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandName {
@@ -886,9 +885,6 @@ fn parse_define_number(value: &str, name: &str) -> Result<String> {
 }
 
 fn apply_default_debug_constants(options: &mut CliOptions) -> Result<()> {
-    if is_legacy_php_version(&options.php) {
-        return Ok(());
-    }
     for (name, value) in [
         ("WP_DEBUG", true),
         ("WP_DEBUG_LOG", true),
@@ -909,10 +905,6 @@ fn apply_default_debug_constants(options: &mut CliOptions) -> Result<()> {
         }
     }
     Ok(())
-}
-
-fn is_legacy_php_version(value: &str) -> bool {
-    value == "5.2"
 }
 
 fn validate_php_version(value: &str) -> Result<()> {
@@ -1786,15 +1778,17 @@ mod tests {
     }
 
     #[test]
-    fn legacy_php_does_not_default_debug_constants() {
-        let cwd = temp_dir("legacy-debug");
-        let options =
-            parse_cli_args_from(vec!["server".to_string(), "--php=5.2".to_string()], &cwd).unwrap();
+    fn rejects_php_versions_below_native_support_floor() {
+        let cwd = temp_dir("php-support-floor");
+        let error = parse_cli_args_from(vec!["server".to_string(), "--php=5.2".to_string()], &cwd)
+            .unwrap_err()
+            .to_string();
 
-        assert!(options
-            .defined_constants
-            .iter()
-            .all(|constant| !constant.name.starts_with("WP_DEBUG")));
+        assert!(error.contains("Unsupported PHP version \"5.2\""), "{error}");
+        assert!(
+            error.contains("Supported versions: 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5"),
+            "{error}"
+        );
 
         let _ = fs::remove_dir_all(cwd);
     }
