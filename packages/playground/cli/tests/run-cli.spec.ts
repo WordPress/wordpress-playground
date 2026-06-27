@@ -2286,6 +2286,7 @@ describe('other run-cli behaviors', () => {
 					'--skip-sqlite-setup',
 					'--verbosity=quiet',
 					'--port=0',
+					'--workers=1',
 					...cliArgs,
 				]);
 				const cliServer = cliResult[internalsKeyForTesting].cliServer;
