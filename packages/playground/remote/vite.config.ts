@@ -70,6 +70,9 @@ export default defineConfig(({ mode }) => {
 			'*.zip',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		optimizeDeps: {
+			include: ['buffer', 'isomorphic-git', 'pako', 'sha.js'],
+		},
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular
 		// dependencies.
