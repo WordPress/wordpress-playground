@@ -243,8 +243,6 @@ fn wasm_engine(profile: WasmEngineProfile) -> Result<Engine> {
         }
     }
     config.generate_address_map(false);
-    #[cfg(target_os = "macos")]
-    config.macos_use_mach_ports(false);
     #[cfg(not(target_os = "windows"))]
     config.native_unwind_info(false);
     let max_wasm_stack = env_mib_usize(
