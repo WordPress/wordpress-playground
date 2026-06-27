@@ -1518,7 +1518,7 @@ mod tests {
         let package_manifest: serde_json::Value = serde_json::from_str(&package_manifest).unwrap();
         assert_eq!(package_manifest["schemaVersion"], 1);
         assert_eq!(package_manifest["packageName"], "native-test");
-        assert_eq!(package_manifest["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(package_manifest["version"], super::package_version());
         assert_eq!(package_manifest["binary"]["kind"], "binary");
         assert!(package_manifest["archive"].is_null());
         let files = package_manifest["files"].as_array().unwrap();
