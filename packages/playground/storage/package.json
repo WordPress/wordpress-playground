@@ -36,6 +36,8 @@
 	"type": "module",
 	"types": "index.d.ts",
 	"dependencies": {
-		"pako": "^1.0.10"
+		"isomorphic-git": "1.37.6",
+		"pako": "^1.0.10",
+		"sha.js": "2.4.12"
 	}
 }
