@@ -38,6 +38,7 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 const testFiles = [
 	'./tests/deps.spec.ts',
 	'./tests/wp.spec.ts',
+	'./tests/git-directory-resource.spec.ts',
 	'./tests/assets.spec.ts',
 ];
 

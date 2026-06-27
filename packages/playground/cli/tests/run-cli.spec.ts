@@ -1922,6 +1922,8 @@ describe('other run-cli behaviors', () => {
 				port: 0,
 				workers: 1,
 				verbosity: 'debug',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
 				blueprint: {
 					steps: [
 						{
