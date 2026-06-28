@@ -20,6 +20,7 @@ BENCHMARK_GUARD="${BENCHMARK_GUARD:-0}"
 BENCHMARK_BASELINE_RESULTS="${BENCHMARK_BASELINE_RESULTS:-}"
 BENCHMARK_BASELINE_LABEL="${BENCHMARK_BASELINE_LABEL:-}"
 BENCHMARK_MAX_BURST_RSS_MIB="${BENCHMARK_MAX_BURST_RSS_MIB:-}"
+BENCHMARK_MAX_IDLE_RSS_RATIO="${BENCHMARK_MAX_IDLE_RSS_RATIO:-1.3}"
 BENCHMARK_MAX_ROUTE_REGRESSION_PCT="${BENCHMARK_MAX_ROUTE_REGRESSION_PCT:-5}"
 BENCHMARK_MAX_ROUTE_REGRESSION_MS="${BENCHMARK_MAX_ROUTE_REGRESSION_MS:-10}"
 PACKAGE_ASSET_ROOT="${PACKAGE_ASSET_ROOT:-}"
@@ -74,6 +75,7 @@ Environment:
   BENCHMARK_BASELINE_RESULTS=/path/to/baseline-results.tsv
   BENCHMARK_BASELINE_LABEL=c57-baseline
   BENCHMARK_MAX_BURST_RSS_MIB=98.9
+  BENCHMARK_MAX_IDLE_RSS_RATIO=1.3
   BENCHMARK_MAX_ROUTE_REGRESSION_PCT=5
   BENCHMARK_MAX_ROUTE_REGRESSION_MS=10
 
@@ -164,6 +166,15 @@ validate_non_negative_number() {
 	fi
 }
 
+validate_positive_number() {
+	local name="$1"
+	local value="$2"
+	if ! awk -v value="$value" 'BEGIN { exit(value ~ /^[0-9]+([.][0-9]+)?$/ && value > 0 ? 0 : 1) }'; then
+		echo "error: $name must be a positive number" >&2
+		exit 1
+	fi
+}
+
 case "$PACKAGE_PRECOMPILE_WASMTIME" in
 	0 | 1) ;;
 	*)
@@ -199,6 +210,7 @@ esac
 if [[ "$BENCHMARK_GUARD" == "1" ]]; then
 	validate_label BENCHMARK_BASELINE_LABEL "$BENCHMARK_BASELINE_LABEL"
 	validate_non_negative_number BENCHMARK_MAX_BURST_RSS_MIB "$BENCHMARK_MAX_BURST_RSS_MIB"
+	validate_positive_number BENCHMARK_MAX_IDLE_RSS_RATIO "$BENCHMARK_MAX_IDLE_RSS_RATIO"
 	validate_non_negative_number BENCHMARK_MAX_ROUTE_REGRESSION_PCT "$BENCHMARK_MAX_ROUTE_REGRESSION_PCT"
 	validate_non_negative_number BENCHMARK_MAX_ROUTE_REGRESSION_MS "$BENCHMARK_MAX_ROUTE_REGRESSION_MS"
 	if [[ ! -f "$BENCHMARK_BASELINE_RESULTS" ]]; then
@@ -700,6 +712,7 @@ if [[ "$BENCHMARK_GUARD" == "1" ]]; then
 		-v baseline_file="$BENCHMARK_BASELINE_RESULTS" \
 		-v baseline_label="$BENCHMARK_BASELINE_LABEL" \
 		-v max_burst_rss_mib="$BENCHMARK_MAX_BURST_RSS_MIB" \
+		-v max_idle_rss_ratio="$BENCHMARK_MAX_IDLE_RSS_RATIO" \
 		-v max_route_regression_pct="$BENCHMARK_MAX_ROUTE_REGRESSION_PCT" \
 		-v max_route_regression_ms="$BENCHMARK_MAX_ROUTE_REGRESSION_MS" \
 		-f "$SCRIPT_DIR/benchmark-wordpress-gate.awk" \
