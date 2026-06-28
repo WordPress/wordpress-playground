@@ -28,6 +28,10 @@ const additionalRemoteOriginsModulePath = join(
 	__dirname,
 	'src/additional-remote-origins.ts'
 );
+const isomorphicGitEsmEntry = join(
+	__dirname,
+	'../../../node_modules/isomorphic-git/index.js'
+);
 
 export default defineConfig({
 	root: __dirname,
@@ -78,6 +82,14 @@ export default defineConfig({
 			},
 		},
 	],
+	resolve: {
+		alias: [
+			{
+				find: /^isomorphic-git$/,
+				replacement: isomorphicGitEsmEntry,
+			},
+		],
+	},
 
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode
