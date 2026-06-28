@@ -131,6 +131,9 @@
 			"@wp-playground/remote-access": [
 				"packages/playground/remote-access/src/index.ts"
 			],
+			"@wp-playground/remote-access/service-worker-relay": [
+				"packages/playground/remote-access/src/service-worker-relay.ts"
+			],
 			"@wp-playground/remote/service-worker": [
 				"packages/playground/remote/service-worker.ts"
 			],

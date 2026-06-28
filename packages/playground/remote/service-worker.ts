@@ -131,7 +131,7 @@ import {
 	handleRemoteAccessRelayMessage,
 	handleRemoteAccessRelayProbe,
 	handleRemoteAccessRelayRequest,
-} from '@wp-playground/remote-access';
+} from '@wp-playground/remote-access/service-worker-relay';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
