@@ -85,6 +85,7 @@ export default defineConfig(({ mode }) => {
 				'crc-32',
 				'diff3',
 				'ignore',
+				'ini',
 				'pako',
 				'pify',
 				'sha.js',
