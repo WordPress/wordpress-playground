@@ -194,29 +194,38 @@ function dirname(path: string) {
 	return normalized.slice(0, index);
 }
 
-function createStat(type: 'file' | 'directory') {
+function createStat(type: MemoryFsEntry['type']) {
 	return {
 		isFile: () => type === 'file',
 		isDirectory: () => type === 'directory',
-		isSymbolicLink: () => false,
+		isSymbolicLink: () => type === 'symlink',
 	};
 }
 
-function createNotFoundError(path: string) {
-	const error = new Error(
-		`ENOENT: no such file or directory, ${path}`
-	) as Error & {
+function createFsError(code: string, message: string) {
+	const error = new Error(message) as Error & {
 		code: string;
 	};
-	error.code = 'ENOENT';
+	error.code = code;
 	return error;
 }
 
+function createNotFoundError(path: string) {
+	return createFsError(
+		'ENOENT',
+		`ENOENT: no such file or directory, ${path}`
+	);
+}
+
+type MemoryFsEntry =
+	| { type: 'directory' }
+	| { type: 'file'; data: Buffer }
+	| { type: 'symlink'; target: string };
+
 class MemoryFs {
-	private entries = new Map<
-		string,
-		{ type: 'directory' } | { type: 'file'; data: Buffer }
-	>([['/', { type: 'directory' }]]);
+	private entries = new Map<string, MemoryFsEntry>([
+		['/', { type: 'directory' }],
+	]);
 
 	constructor() {
 		this.mkdirSync('/repo/.git/objects/pack');
@@ -250,7 +259,7 @@ class MemoryFs {
 		options?: string | { encoding?: BufferEncoding }
 	) {
 		const normalized = normalizePath(path);
-		const entry = this.entries.get(normalized);
+		const entry = this.getFileEntry(normalized);
 		if (!entry || entry.type !== 'file') {
 			throw createNotFoundError(normalized);
 		}
@@ -305,7 +314,7 @@ class MemoryFs {
 
 	async stat(path: string) {
 		const normalized = normalizePath(path);
-		const entry = this.entries.get(normalized);
+		const entry = this.getResolvedEntry(normalized);
 		if (!entry) {
 			throw createNotFoundError(normalized);
 		}
@@ -313,13 +322,18 @@ class MemoryFs {
 	}
 
 	async lstat(path: string) {
-		return this.stat(path);
+		const normalized = normalizePath(path);
+		const entry = this.entries.get(normalized);
+		if (!entry) {
+			throw createNotFoundError(normalized);
+		}
+		return createStat(entry.type);
 	}
 
 	async unlink(path: string) {
 		const normalized = normalizePath(path);
 		const entry = this.entries.get(normalized);
-		if (!entry || entry.type !== 'file') {
+		if (!entry || (entry.type !== 'file' && entry.type !== 'symlink')) {
 			throw createNotFoundError(normalized);
 		}
 		this.entries.delete(normalized);
@@ -343,11 +357,50 @@ class MemoryFs {
 	}
 
 	async readlink(path: string) {
-		throw createNotFoundError(normalizePath(path));
+		const normalized = normalizePath(path);
+		const entry = this.entries.get(normalized);
+		if (!entry || entry.type !== 'symlink') {
+			throw createNotFoundError(normalized);
+		}
+		return entry.target;
 	}
 
 	async symlink(target: string, path: string) {
-		await this.writeFile(path, target);
+		const normalized = normalizePath(path);
+		this.mkdirSync(dirname(normalized));
+		this.entries.set(normalized, {
+			type: 'symlink',
+			target,
+		});
+	}
+
+	private getFileEntry(path: string): MemoryFsEntry | undefined {
+		const entry = this.entries.get(path);
+		if (entry?.type !== 'symlink') {
+			return entry;
+		}
+		return this.getResolvedEntry(path);
+	}
+
+	private getResolvedEntry(
+		path: string,
+		seen = new Set<string>()
+	): MemoryFsEntry | undefined {
+		const entry = this.entries.get(path);
+		if (entry?.type !== 'symlink') {
+			return entry;
+		}
+		if (seen.has(path)) {
+			throw createFsError(
+				'ELOOP',
+				`ELOOP: too many symbolic links, ${path}`
+			);
+		}
+		seen.add(path);
+		const targetPath = entry.target.startsWith('/')
+			? entry.target
+			: normalizePath(`${dirname(path)}/${entry.target}`);
+		return this.getResolvedEntry(targetPath, seen);
 	}
 }
 
@@ -402,6 +455,7 @@ export class GitPackIndex {
 	private fs: MemoryFs;
 	private cache = {};
 	private indexBuffer: Buffer;
+	private offsetToOid: Map<number, string>;
 
 	private constructor({
 		fs,
@@ -409,18 +463,23 @@ export class GitPackIndex {
 		hashes,
 		offsets,
 		packfileSha,
+		offsetToOid,
 	}: {
 		fs: MemoryFs;
 		indexBuffer: Buffer;
 		hashes: string[];
 		offsets: Map<string, number>;
 		packfileSha: string;
+		offsetToOid?: Map<number, string>;
 	}) {
 		this.fs = fs;
 		this.indexBuffer = indexBuffer;
 		this.hashes = hashes;
 		this.offsets = offsets;
 		this.packfileSha = packfileSha;
+		this.offsetToOid =
+			offsetToOid ??
+			new Map([...offsets].map(([oid, offset]) => [offset, oid]));
 	}
 
 	static async fromPack({ pack }: { pack: Buffer | Uint8Array }) {
@@ -478,10 +537,9 @@ export class GitPackIndex {
 	}
 
 	async readSlice({ start }: { start: number }) {
-		for (const [oid, offset] of this.offsets) {
-			if (offset === start) {
-				return this.read({ oid });
-			}
+		const oid = this.offsetToOid.get(start);
+		if (oid) {
+			return this.read({ oid });
 		}
 		throw new Error(`Could not read object at packfile offset ${start}.`);
 	}
@@ -492,7 +550,13 @@ export class GitPackIndex {
 }
 
 function compareStrings(a: string, b: string) {
-	return -(a < b) || +(a > b);
+	if (a < b) {
+		return -1;
+	}
+	if (a > b) {
+		return 1;
+	}
+	return 0;
 }
 
 function comparePath(a: { path: string }, b: { path: string }) {

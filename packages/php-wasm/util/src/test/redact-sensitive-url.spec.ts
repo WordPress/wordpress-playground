@@ -99,6 +99,17 @@ describe('sensitive URL redaction', () => {
 		expect(url).toContain('access_token=REDACTED');
 	});
 
+	it('redacts likely secrets in malformed URLs', () => {
+		const url = redactSensitiveUrl(
+			'https://user:pass@example .com/repo.git?token=secret&keep=1'
+		);
+
+		expect(url).toContain('token=REDACTED');
+		expect(url).toContain('keep=1');
+		expect(url).not.toContain('user:pass');
+		expect(url).not.toContain('token=secret');
+	});
+
 	it('redacts nested URLs embedded in fragments', () => {
 		const url = redactSensitiveUrl(
 			'https://proxy.example/#url=https://user:pass@example.com/repo.git?sessionToken=secret&keep=1'

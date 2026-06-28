@@ -69,8 +69,8 @@ export function redactSensitiveText(text: string): string {
  *
  * User info and known sensitive query parameters are replaced with `REDACTED`;
  * non-sensitive query params and trailing punctuation are preserved. Malformed
- * URLs are returned unchanged because this helper is used only for diagnostics
- * and must not make error reporting fail.
+ * URLs receive best-effort redaction because this helper is used for
+ * diagnostics and must not leak likely secrets.
  */
 export function redactSensitiveUrl(url: string): string {
 	const { url: urlWithoutTrailingPunctuation, trailingPunctuation } =
@@ -99,7 +99,7 @@ export function redactSensitiveUrl(url: string): string {
 
 		return parsed.toString() + trailingPunctuation;
 	} catch {
-		return url;
+		return redactMalformedUrl(url);
 	}
 }
 
@@ -215,6 +215,19 @@ function paramsHaveSensitiveData(params: URLSearchParams): boolean {
 		}
 	}
 	return false;
+}
+
+function redactMalformedUrl(url: string): string {
+	return url
+		.replace(
+			/\b(https?:\/\/)([^/?#\s"'<>]*:[^/?#\s"'<>]*@)/gi,
+			'$1REDACTED:REDACTED@'
+		)
+		.replace(/([?&#])([^=&#\s]+)=([^&#\s]*)/g, (match, separator, key) =>
+			isSensitiveQueryParamName(key)
+				? `${separator}${key}=REDACTED`
+				: match
+		);
 }
 
 function isSensitiveQueryParamName(name: string): boolean {
