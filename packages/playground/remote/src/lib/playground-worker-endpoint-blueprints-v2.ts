@@ -4,7 +4,7 @@ import {
 	PlaygroundWorkerEndpoint,
 	type WorkerBootOptions,
 } from './playground-worker-endpoint';
-import { runBlueprintV2 } from '@wp-playground/blueprints';
+import { runBlueprintV2 } from '@wp-playground/blueprints/run-blueprint-v2';
 import type { BlueprintV2Declaration } from '@wp-playground/blueprints';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';

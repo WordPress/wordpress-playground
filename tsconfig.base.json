@@ -108,6 +108,12 @@
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],
+			"@wp-playground/blueprints/define-wp-config-consts": [
+				"packages/playground/blueprints/src/lib/steps/define-wp-config-consts.ts"
+			],
+			"@wp-playground/blueprints/run-blueprint-v2": [
+				"packages/playground/blueprints/src/lib/v2/run-blueprint-v2.ts"
+			],
 			"@wp-playground/cli": ["packages/playground/cli/src/cli.ts"],
 			"@wp-playground/client": [
 				"packages/playground/client/src/index.ts"
@@ -139,6 +145,9 @@
 			],
 			"@wp-playground/storage": [
 				"packages/playground/storage/src/index.ts"
+			],
+			"@wp-playground/storage/browser-fs": [
+				"packages/playground/storage/src/lib/browser-fs.ts"
 			],
 			"@wp-playground/sync": ["packages/playground/sync/src/index.ts"],
 			"@wp-playground/tools": ["packages/playground/tools/src/index.ts"],
