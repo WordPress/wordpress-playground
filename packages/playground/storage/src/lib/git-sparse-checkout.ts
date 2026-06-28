@@ -11,7 +11,6 @@ import {
 	ObjectTypeError,
 } from './isomorphic-git-internals';
 import { Buffer as BufferPolyfill } from 'buffer';
-import { redactSensitiveUrl } from '@php-wasm/util';
 import { GitAuthenticationError } from './git-authentication-error';
 
 export { GitAuthenticationError } from './git-authentication-error';
@@ -217,9 +216,7 @@ export async function resolveCommitHash(
 
 	const oid = await fetchRefOid(repoUrl, parsed.refname, additionalHeaders);
 	if (!oid) {
-		throw new Error(
-			`Git ref "${parsed.refname}" not found at ${redactSensitiveUrl(repoUrl)}`
-		);
+		throw new Error(`Git ref "${parsed.refname}" not found at ${repoUrl}`);
 	}
 	return oid;
 }
@@ -287,7 +284,7 @@ export async function listGitRefs(
 			throw new GitAuthenticationError(repoUrl, response.status);
 		}
 		throw new Error(
-			`Failed to fetch git refs from ${redactSensitiveUrl(repoUrl)}: ${response.status} ${response.statusText}`
+			`Failed to fetch git refs from ${repoUrl}: ${response.status} ${response.statusText}`
 		);
 	}
 
@@ -396,9 +393,7 @@ async function parseGitRef(
 					resolvedOid: tagOid,
 				};
 			}
-			throw new Error(
-				`Git ref "${ref.value}" not found at ${redactSensitiveUrl(repoUrl)}`
-			);
+			throw new Error(`Git ref "${ref.value}" not found at ${repoUrl}`);
 		}
 		default:
 			throw new Error(`Invalid ref type: ${ref.type}`);
@@ -456,7 +451,7 @@ async function fetchWithoutBlobs(
 			throw new GitAuthenticationError(repoUrl, response.status);
 		}
 		throw new Error(
-			`Failed to fetch git objects from ${redactSensitiveUrl(repoUrl)}: ${response.status} ${response.statusText}`
+			`Failed to fetch git objects from ${repoUrl}: ${response.status} ${response.statusText}`
 		);
 	}
 
@@ -619,7 +614,7 @@ async function fetchObjects(
 			throw new GitAuthenticationError(url, response.status);
 		}
 		throw new Error(
-			`Failed to fetch git objects from ${redactSensitiveUrl(url)}: ${response.status} ${response.statusText}`
+			`Failed to fetch git objects from ${url}: ${response.status} ${response.statusText}`
 		);
 	}
 

@@ -1,5 +1,4 @@
 import {
-	GitAuthenticationError,
 	listGitRefs,
 	sparseCheckout,
 	listGitFiles,
@@ -272,36 +271,6 @@ describe('authentication error handling', () => {
 			)
 		).rejects.toThrow(
 			'Authentication required to access private repository'
-		);
-	});
-
-	it('should redact sensitive URLs in authentication errors', async () => {
-		stubFetch({
-			ok: false,
-			status: 401,
-			statusText: 'Unauthorized',
-		});
-
-		let caughtError: unknown;
-		try {
-			await listGitRefs(
-				'https://user:pass@example.com/private/repo.git?token=secret',
-				'refs/heads/main'
-			);
-		} catch (error) {
-			caughtError = error;
-		}
-
-		expect(caughtError).toBeInstanceOf(GitAuthenticationError);
-		expect((caughtError as Error).message).toContain(
-			'https://REDACTED:REDACTED@example.com/private/repo.git?token=REDACTED'
-		);
-		expect((caughtError as Error).message).not.toContain('user:pass');
-		expect((caughtError as GitAuthenticationError).repoUrl).not.toContain(
-			'user:pass'
-		);
-		expect((caughtError as GitAuthenticationError).repoUrl).not.toContain(
-			'token=secret'
 		);
 	});
 

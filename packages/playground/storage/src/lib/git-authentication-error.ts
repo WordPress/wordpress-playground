@@ -1,5 +1,3 @@
-import { redactSensitiveUrl } from '@php-wasm/util';
-
 /**
  * Custom error class for git authentication failures.
  */
@@ -9,10 +7,10 @@ export class GitAuthenticationError extends Error {
 
 	constructor(repoUrl: string, status: number) {
 		super(
-			`Authentication required to access private repository: ${redactSensitiveUrl(repoUrl)}`
+			`Authentication required to access private repository: ${repoUrl}`
 		);
 		this.name = 'GitAuthenticationError';
-		this.repoUrl = redactSensitiveUrl(repoUrl);
+		this.repoUrl = repoUrl;
 		this.status = status;
 	}
 }
