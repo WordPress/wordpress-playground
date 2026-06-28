@@ -16,6 +16,12 @@ BUILD_PACKAGE="${BUILD_PACKAGE:-1}"
 KEEP_BENCH_ARTIFACTS="${KEEP_BENCH_ARTIFACTS:-0}"
 BENCHMARK_PROFILE="${BENCHMARK_PROFILE:-0}"
 BENCHMARK_WP_STAGE_PROFILE="${BENCHMARK_WP_STAGE_PROFILE:-0}"
+BENCHMARK_GUARD="${BENCHMARK_GUARD:-0}"
+BENCHMARK_BASELINE_RESULTS="${BENCHMARK_BASELINE_RESULTS:-}"
+BENCHMARK_BASELINE_LABEL="${BENCHMARK_BASELINE_LABEL:-}"
+BENCHMARK_MAX_BURST_RSS_MIB="${BENCHMARK_MAX_BURST_RSS_MIB:-}"
+BENCHMARK_MAX_ROUTE_REGRESSION_PCT="${BENCHMARK_MAX_ROUTE_REGRESSION_PCT:-5}"
+BENCHMARK_MAX_ROUTE_REGRESSION_MS="${BENCHMARK_MAX_ROUTE_REGRESSION_MS:-10}"
 PACKAGE_ASSET_ROOT="${PACKAGE_ASSET_ROOT:-}"
 PACKAGE_PRECOMPILE_WASMTIME="${PACKAGE_PRECOMPILE_WASMTIME:-1}"
 WASMTIME_LABEL="${WASMTIME_LABEL:-wasmtime}"
@@ -64,6 +70,12 @@ Environment:
   KEEP_BENCH_ARTIFACTS=0
   BENCHMARK_PROFILE=0
   BENCHMARK_WP_STAGE_PROFILE=0
+  BENCHMARK_GUARD=0
+  BENCHMARK_BASELINE_RESULTS=/path/to/baseline-results.tsv
+  BENCHMARK_BASELINE_LABEL=c57-baseline
+  BENCHMARK_MAX_BURST_RSS_MIB=98.9
+  BENCHMARK_MAX_ROUTE_REGRESSION_PCT=5
+  BENCHMARK_MAX_ROUTE_REGRESSION_MS=10
 
 Examples:
   bash packages/playground/cli-native/scripts/benchmark-wordpress.sh
@@ -143,6 +155,15 @@ if [[ "$WASMTIME_LABEL" == "$NATIVE_PHP_LABEL" ]]; then
 	exit 1
 fi
 
+validate_non_negative_number() {
+	local name="$1"
+	local value="$2"
+	if ! awk -v value="$value" 'BEGIN { exit(value ~ /^[0-9]+([.][0-9]+)?$/ ? 0 : 1) }'; then
+		echo "error: $name must be a non-negative number" >&2
+		exit 1
+	fi
+}
+
 case "$PACKAGE_PRECOMPILE_WASMTIME" in
 	0 | 1) ;;
 	*)
@@ -166,6 +187,25 @@ case "$BENCHMARK_WP_STAGE_PROFILE" in
 		exit 1
 		;;
 esac
+
+case "$BENCHMARK_GUARD" in
+	0 | 1) ;;
+	*)
+		echo "error: BENCHMARK_GUARD must be 0 or 1" >&2
+		exit 1
+		;;
+esac
+
+if [[ "$BENCHMARK_GUARD" == "1" ]]; then
+	validate_label BENCHMARK_BASELINE_LABEL "$BENCHMARK_BASELINE_LABEL"
+	validate_non_negative_number BENCHMARK_MAX_BURST_RSS_MIB "$BENCHMARK_MAX_BURST_RSS_MIB"
+	validate_non_negative_number BENCHMARK_MAX_ROUTE_REGRESSION_PCT "$BENCHMARK_MAX_ROUTE_REGRESSION_PCT"
+	validate_non_negative_number BENCHMARK_MAX_ROUTE_REGRESSION_MS "$BENCHMARK_MAX_ROUTE_REGRESSION_MS"
+	if [[ ! -f "$BENCHMARK_BASELINE_RESULTS" ]]; then
+		echo "error: BENCHMARK_BASELINE_RESULTS must point to a results TSV when BENCHMARK_GUARD=1" >&2
+		exit 1
+	fi
+fi
 
 build_package() {
 	local package_parent package_name binary_path
@@ -652,6 +692,19 @@ awk -F '\t' -v wasm_label="$WASMTIME_LABEL" -v native_label="$NATIVE_PHP_LABEL" 
 		}
 	}
 ' "$RESULTS_FILE"
+
+if [[ "$BENCHMARK_GUARD" == "1" ]]; then
+	awk \
+		-v wasm_label="$WASMTIME_LABEL" \
+		-v native_label="$NATIVE_PHP_LABEL" \
+		-v baseline_file="$BENCHMARK_BASELINE_RESULTS" \
+		-v baseline_label="$BENCHMARK_BASELINE_LABEL" \
+		-v max_burst_rss_mib="$BENCHMARK_MAX_BURST_RSS_MIB" \
+		-v max_route_regression_pct="$BENCHMARK_MAX_ROUTE_REGRESSION_PCT" \
+		-v max_route_regression_ms="$BENCHMARK_MAX_ROUTE_REGRESSION_MS" \
+		-f "$SCRIPT_DIR/benchmark-wordpress-gate.awk" \
+		"$BENCHMARK_BASELINE_RESULTS" "$RESULTS_FILE"
+fi
 
 if [[ "$KEEP_BENCH_ARTIFACTS" == "1" ]]; then
 	echo ""
