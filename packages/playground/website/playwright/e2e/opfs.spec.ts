@@ -249,20 +249,20 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.page.getByRole('button', { name: 'Rename' }).click();
 
 	const newName = 'My Renamed Playground';
-	const dialog = website.page.getByRole('dialog', {
+	// Renaming happens inline in the dock header (the title becomes an editable
+	// input), not in a modal dialog.
+	const nameInput = website.page.getByRole('textbox', {
 		name: 'Rename Playground',
 	});
-	const nameInput = dialog.getByRole('textbox', { name: 'Name' });
-	await nameInput.fill('');
-	await nameInput.type(newName);
+	await nameInput.fill(newName);
 	await nameInput.press('Enter');
 
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		newName
 	);
 
-	// Wait for the dialog to be closed
-	await expect(dialog).not.toBeVisible();
+	// The inline rename input closes once the rename is committed.
+	await expect(nameInput).not.toBeVisible();
 
 	// Reload and verify the name persists
 	await website.page.reload();
