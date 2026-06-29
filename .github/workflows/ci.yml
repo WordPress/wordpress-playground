@@ -545,9 +545,23 @@ jobs:
     test-legacy-wp-version-boot:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        timeout-minutes: 20
         permissions:
             contents: read # Required to clone the repo.
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    # Shard 1: WP 5.0–6.2 on PHP 7.4 (13 versions)
+                    - shard: '1/3'
+                      wp_only: '6.2,6.1,6.0,5.9,5.8,5.7,5.6,5.5,5.4,5.3,5.2,5.1,5.0'
+                    # Shard 2: WP 3.0–4.9 on PHP 5.2 (20 versions)
+                    - shard: '2/3'
+                      wp_only: '4.9,4.8,4.7,4.6,4.5,4.4,4.3,4.2,4.1,4.0,3.9,3.8,3.7,3.6,3.5,3.4,3.3,3.2,3.1,3.0'
+                    # Shard 3: WP 0.7–2.9 on PHP 5.2 (13 versions)
+                    - shard: '3/3'
+                      wp_only: '2.9,2.8,2.7,2.6,2.5,2.3,2.2,2.1,2.0,1.5,1.2,1.0,0.7'
+        name: 'test-legacy-wp-version-boot (shard ${{ matrix.shard }})'
         steps:
             - uses: actions/checkout@v4
               with:
@@ -570,6 +584,8 @@ jobs:
                   done
             - name: Test legacy WordPress version boot
               run: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
+              env:
+                  WP_ONLY: ${{ matrix.wp_only }}
 
     # Redis extension tests - verifies the php-redis extension loads
     # and provides the expected API, and can connect to a real Redis server.
