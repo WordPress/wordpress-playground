@@ -417,9 +417,11 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	await website.page.waitForTimeout(1000);
 
 	// Click the share button (copy link to blueprint)
-	const shareButton = website.page.getByRole('button', {
-		name: 'Copy link to blueprint',
-	});
+	const shareButton = website.page
+		.locator('section[aria-label="Blueprint pane"]')
+		.getByRole('button', {
+			name: 'Copy link',
+		});
 	await expect(shareButton).toBeVisible();
 	await shareButton.click();
 
@@ -789,9 +791,10 @@ test.describe('Default Playground storage', () => {
 		expect(saveStatusSamples.some(({ text }) => text === 'Autosaved')).toBe(
 			true
 		);
+		// The dock status shows "Autosaving" while a snapshot is in progress.
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
-		).toBe(false);
+		).toBe(true);
 		expect(
 			saveStatusSamples.some(({ ariaLabel }) =>
 				/^Autosaved [1-9]\d*%$/.test(ariaLabel ?? '')
@@ -1145,7 +1148,7 @@ test.describe('Default Playground storage', () => {
 			})
 			.not.toMatchObject({ slug: firstBlankSite.slug });
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByText('Recent autosave', { exact: true })
 		).toHaveCount(0);
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -1264,11 +1267,11 @@ test.describe('Default Playground storage', () => {
 			'section[aria-label="Store permanently pane"]'
 		);
 		await expect(dialog).toBeVisible();
-		await expect(dialog.getByText('Save in this browser')).toBeVisible();
+		await expect(dialog.getByText('Store in this browser')).toBeVisible();
 		await expect(
 			dialog.getByText('Save to a local directory')
 		).toBeVisible();
-		await dialog.getByRole('button', { name: 'Save' }).click();
+		await dialog.getByRole('button', { name: 'Store permanently' }).click();
 
 		await expect
 			.poll(() =>
@@ -1392,11 +1395,11 @@ test.describe('Default Playground storage', () => {
 
 		await website.page.reload();
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByText('Recent autosave', { exact: true })
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
-				/Another Playground was created .* from the same URL\./
+				/Kept in this browser as a periodic snapshot/
 			)
 		).toBeVisible();
 		await website.waitForNestedIframes();
@@ -1404,7 +1407,7 @@ test.describe('Default Playground storage', () => {
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toBeVisible();
 		await website.page
-			.getByRole('button', { name: 'Restore Autosave' })
+			.getByRole('button', { name: 'Restore autosave' })
 			.click();
 		await website.waitForNestedIframes();
 		await expect
@@ -1451,7 +1454,7 @@ echo get_option('blogname');
 
 		await website.page.goto(`./?php=8.3&name=${setupName}&cb=cache-buster`);
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByText('Recent autosave', { exact: true })
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
@@ -1529,7 +1532,9 @@ echo get_option('blogname');
 			);
 			sampleStatus();
 		});
-		await website.page.getByRole('button', { name: 'No, thanks' }).click();
+		await website.page
+			.getByRole('button', { name: 'Dismiss recent autosave' })
+			.click();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
@@ -1749,7 +1754,7 @@ echo get_option('blogname');
 
 		await website.goto(setupUrl);
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByText('Recent autosave', { exact: true })
 		).toBeVisible();
 
 		// Regression: saving the temporary Playground before answering the
@@ -1773,7 +1778,7 @@ echo get_option('blogname');
 		});
 
 		const keepNewButton = website.page.getByRole('button', {
-			name: 'No, thanks',
+			name: 'Dismiss recent autosave',
 		});
 		// Saving may route directly to the saved Playground and clear the
 		// nudge. If it stays visible, dismissing it must not undo the save.
@@ -1781,7 +1786,7 @@ echo get_option('blogname');
 			await keepNewButton.click();
 		}
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByText('Recent autosave', { exact: true })
 		).toHaveCount(0);
 		await expect(
 			website.page.getByText('Saved', { exact: true })

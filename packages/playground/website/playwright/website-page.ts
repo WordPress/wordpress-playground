@@ -56,29 +56,17 @@ export class WebsitePage {
 	}
 
 	async ensureSiteManagerIsClosed() {
-		const closeToolsButton = this.page.getByRole('button', {
-			name: 'Close Playground tools',
-		});
-		if (
-			await closeToolsButton
-				.isVisible({ timeout: 1000 })
-				.catch(() => false)
-		) {
-			await this.page.keyboard.press('Escape');
-		} else {
-			const siteManagerButton = this.page.getByRole('button', {
-				name: /This Playground/,
-			});
-			const isPressed =
-				await siteManagerButton.getAttribute('aria-pressed');
-			if (isPressed === 'true') {
-				await siteManagerButton.click();
-			}
+		const panel = this.page.locator('section[class*="site-info-panel"]');
+		if (await panel.isVisible({ timeout: 1000 }).catch(() => false)) {
+			// The dock pane closes when its click-outside scrim is clicked.
+			// (Clicking the active tool re-opens the same section instead of
+			// toggling it closed.)
+			await this.page
+				.locator('[class*="preview-dismiss"]')
+				.click({ force: true });
 		}
 		// Wait for the site info panel section to be hidden
-		await expect(
-			this.page.locator('section[class*="site-info-panel"]')
-		).not.toBeVisible();
+		await expect(panel).not.toBeVisible();
 	}
 
 	/**

@@ -33,7 +33,22 @@ function getTemporaryPlaygroundUrl(hash = '') {
 }
 
 /**
- * Helper function to handle the save site modal flow
+ * Opens the dock's "Store permanently" pane via the save-status button and
+ * returns the pane locator. This is the restored save flow (the old temporary
+ * site notice with a "Save site locally" button has been removed).
+ */
+async function openStorePermanentlyPane(page: Page) {
+	await page
+		.getByRole('button', { name: /Unsaved|Autosaved/ })
+		.first()
+		.click();
+	const pane = page.locator('section[aria-label="Store permanently pane"]');
+	await expect(pane).toBeVisible({ timeout: 10000 });
+	return pane;
+}
+
+/**
+ * Helper function to handle the save site flow via the "Store permanently" pane
  */
 async function saveSiteViaModal(
 	page: Page,
@@ -44,24 +59,9 @@ async function saveSiteViaModal(
 ) {
 	const { customName, storageType = 'opfs' } = options || {};
 
-	// The site manager remembers the last selected section. The save notice only
-	// lives in Settings, so select it before looking for the button.
-	const settingsButton = page.getByRole('button', {
-		name: /This Playground/,
-	});
-	if ((await settingsButton.getAttribute('aria-pressed')) !== 'true') {
-		await settingsButton.click();
-	}
-
-	// Click the "Save site locally" button in the temporary site notice to open the modal.
-	// This button is in the site manager panel and triggers the save flow via SitePersistButton.
-	const saveButton = page.getByRole('button', { name: 'Save site locally' });
-	await expect(saveButton).toBeEnabled();
-	await saveButton.click();
-
-	// Wait for the Save Playground dialog to appear
-	const dialog = page.getByRole('dialog', { name: 'Save Playground' });
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Saving opens the dock's "Store permanently" pane via the save-status
+	// button (the status pill in the dock).
+	const dialog = await openStorePermanentlyPane(page);
 
 	// If a custom name is provided, update it
 	if (customName) {
@@ -74,8 +74,8 @@ async function saveSiteViaModal(
 	if (storageType === 'opfs') {
 		// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
 		// Playwright logs that something "intercepts pointer events", that's probably related.
-		await dialog.getByText('Save in this browser').waitFor();
-		await dialog.getByText('Save in this browser').click({ force: true });
+		await dialog.getByText('Store in this browser').waitFor();
+		await dialog.getByText('Store in this browser').click({ force: true });
 	} else {
 		await dialog.getByText('Save to a local directory').waitFor();
 		await dialog
@@ -83,8 +83,11 @@ async function saveSiteViaModal(
 			.click({ force: true });
 	}
 
-	// Click the Save button in the modal
-	await dialog.getByRole('button', { name: 'Save' }).click();
+	// Click the submit button in the modal. Its label depends on the selected
+	// storage: "Save" for a local directory, "Store permanently" for the browser.
+	const submitName =
+		storageType === 'local-fs' ? 'Save' : 'Store permanently';
+	await dialog.getByRole('button', { name: submitName }).click();
 
 	// Wait for the dialog to close.
 	// The save operation syncs to OPFS which can take time, so we use a longer timeout.
@@ -288,18 +291,8 @@ test('should show save site modal with correct elements', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Click the Save button in the site manager panel
-	const saveButton = website.page.getByRole('button', {
-		name: 'Save site locally',
-	});
-	await expect(saveButton).toBeEnabled();
-	await saveButton.click();
-
-	// Verify the modal appears with correct title
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the "Store permanently" pane via the save-status button.
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	// Verify the playground name input exists and has default value
 	const nameInput = dialog.getByLabel('Playground name');
@@ -308,11 +301,14 @@ test('should show save site modal with correct elements', async ({
 
 	// Verify storage location radio buttons exist
 	await expect(dialog.getByText('Storage location')).toBeVisible();
-	await expect(dialog.getByText('Save in this browser')).toBeVisible();
+	await expect(dialog.getByText('Store in this browser')).toBeVisible();
 	await expect(dialog.getByText('Save to a local directory')).toBeVisible();
 
-	// Verify action buttons exist
-	await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible();
+	// Verify action buttons exist (OPFS is selected by default, so the submit
+	// button reads "Store permanently").
+	await expect(
+		dialog.getByRole('button', { name: 'Store permanently' })
+	).toBeVisible();
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
 
 	// Close the modal
@@ -332,14 +328,8 @@ test('should close save site modal without saving', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	// Close without saving using Cancel button
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
@@ -350,11 +340,8 @@ test('should close save site modal without saving', async ({
 		'Unsaved Playground'
 	);
 
-	// Open the modal again
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane again
+	await openStorePermanentlyPane(website.page);
 
 	// Close using ESC key
 	await website.page.keyboard.press('Escape');
@@ -378,14 +365,8 @@ test('should have playground name input text selected by default', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	const nameInput = dialog.getByLabel('Playground name');
 
@@ -446,29 +427,20 @@ test('should not persist save site modal through page refresh', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the save modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
-	// Get the URL with the modal parameter
-	const urlWithModal = website.page.url();
-	expect(urlWithModal).toContain('modal=save-site');
+	// The dock's open pane is React/redux state, not a URL parameter, so it is
+	// never encoded in the URL.
+	expect(website.page.url()).not.toContain('modal=save-site');
 
 	// Reload the page
 	await website.page.reload();
 	await website.ensureSiteManagerIsOpen();
 
-	// Verify the modal is NOT shown after reload
+	// Verify the save pane is NOT shown after reload (the dock's open section
+	// does not persist through a refresh).
 	await expect(dialog).not.toBeVisible();
-
-	// Verify the modal parameter was removed from the URL
-	const urlAfterReload = website.page.url();
-	expect(urlAfterReload).not.toContain('modal=save-site');
 });
 
 test('should display OPFS storage option as selected by default', async ({
@@ -483,18 +455,12 @@ test('should display OPFS storage option as selected by default', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the save modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	// Verify OPFS option is selected by default
 	const opfsRadio = dialog.getByRole('radio', {
-		name: /Save in this browser/,
+		name: /Store in this browser/,
 	});
 	await expect(opfsRadio).toBeChecked();
 
